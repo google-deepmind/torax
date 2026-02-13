@@ -18,7 +18,9 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src import state
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
@@ -333,13 +335,20 @@ class TGLFBasedTransportModel(
           geo=geo,
           poloidal_velocity_multiplier=poloidal_velocity_multiplier,
       )
+      value_face = v_ExB / geo.R_major_profile_face
+      cv = cell_variable.CellVariable(
+          value=geometry.face_to_cell(value_face),
+          face_centers=geo.rho_face_norm,
+          right_face_constraint=value_face[-1],
+          right_face_grad_constraint=None,
+          left_face_constraint=None,
+          left_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+      )
+      grad = cv.face_grad(x=geo.r_mid, x_left=r[0], x_right=r[-1])
       v_ExB_shear = -(
           jnp.sign(core_profiles.Ip_profile_face)
           * (r / jnp.abs(core_profiles.q_face))
-          * jnp.gradient(
-              v_ExB * geo.R_major_profile_face,
-              r,
-          )
+          * grad
           * (a / c_s)
       )
       v_ExB_shear = v_ExB_shear * transport.rotation_multiplier
