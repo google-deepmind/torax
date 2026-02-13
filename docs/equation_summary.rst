@@ -19,14 +19,14 @@ TORAX solves coupled 1D PDEs in normalized toroidal flux coordinates,
 
   .. math::
 
-    \begin{multline}
+    \begin{split}
     \frac{3}{2} V'^{-5/3} \left(\frac{\partial }{\partial t}-
     \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}{\partial\hat{\rho}}
-    \hat{\rho}\right)\left[V'^{5/3} n_i T_i\right] = \\
+    \hat{\rho}\right)\left[V'^{5/3} n_i T_i\right] &= \\
     \frac{1}{V'} \frac{\partial}{\partial \hat{\rho}} \left[
       \chi_i n_i \frac{g_1}{V'} \frac{\partial T_i}{\partial \hat{\rho}} -
-      g_0q_i^{\mathrm{conv}}T_i\right] + Q_i
-    \end{multline}
+      g_0q_i^{\mathrm{conv}}T_i\right] &+ Q_i
+    \end{split}
 
   If multiple main ion species are present (e.g., a D-T mix), then :math:`n_i`
   represents the sum of all main ions, and ion attributes like charge and mass
@@ -37,40 +37,40 @@ TORAX solves coupled 1D PDEs in normalized toroidal flux coordinates,
 
   .. math::
 
-    \begin{multline}
+    \begin{split}
     \frac{3}{2} V'^{-5/3} \left(\frac{\partial }{\partial t}-
     \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}{\partial\hat{\rho}}
-    \hat{\rho}\right)\left[V'^{5/3} n_e T_e\right] = \\
+    \hat{\rho}\right)\left[V'^{5/3} n_e T_e\right] &= \\
     \frac{1}{V'} \frac{\partial}{\partial \hat{\rho}} \left[
       \chi_e n_e \frac{g_1}{V'} \frac{\partial T_e}{\partial \hat{\rho}} -
-      g_0q_e^{\mathrm{conv}}T_e \right] + Q_e
-    \end{multline}
+      g_0q_e^{\mathrm{conv}}T_e \right] &+ Q_e
+    \end{split}
 
   Electron particle transport, governing the evolution of the electron density
   :math:`n_e`.
 
   .. math::
 
-    \begin{multline}
+    \begin{split}
     \left(\frac{\partial}{\partial t}-
     \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}
-    {\partial\hat{\rho}}\hat{\rho}\right)\left[ n_e V' \right] = \\
+    {\partial\hat{\rho}}\hat{\rho}\right)\left[ n_e V' \right] &= \\
     \frac{\partial}{\partial \hat{\rho}} \left[D_e \frac{g_1}{V'}
-    \frac{\partial n_e}{\partial \hat{\rho}} - g_0V_e n_e \right] + V'S_n
-    \end{multline}
+    \frac{\partial n_e}{\partial \hat{\rho}} - g_0V_e n_e \right] &+ V'S_n
+    \end{split}
 
   Current diffusion, governing the evolution of the poloidal flux :math:`\psi`.
 
   .. math::
 
-    \begin{multline}
+    \begin{split}
     \frac{16 \pi^2 \sigma_{||}\mu_0 \hat{\rho} \Phi_b^2}{F^2}
     \left(\frac{\partial \psi}{\partial t}-\frac{\hat{\rho}\dot{\Phi}_b}
-    {2\Phi_b}\frac{\partial \psi}{\partial \hat{\rho}}\right)  = \\
+    {2\Phi_b}\frac{\partial \psi}{\partial \hat{\rho}}\right)  &= \\
     \frac{\partial}{\partial \hat{\rho}} \left( \frac{g_2 g_3}{\hat{\rho}}
-    \frac{\partial \psi}{\partial \hat{\rho}} \right) - \frac{8\pi^2 V' \mu_0
+    \frac{\partial \psi}{\partial \hat{\rho}} \right) &- \frac{8\pi^2 V' \mu_0
     \Phi_b}{F^2} \langle \mathbf{B} \cdot \mathbf{j}_{n_i} \rangle
-    \end{multline}
+    \end{split}
 
 where :math:`T_{i,e}` are ion and electron temperatures, :math:`n_{i,e}` are ion
 and electron densities, and :math:`\psi` is poloidal flux. :math:`\chi_{i,e}`
@@ -94,22 +94,22 @@ time-varying toroidal magnetic field and/or last closed flux surface shape.
 
 .. math::
 
-  g_0 = \left< \left( \nabla V \right) \right>
+  g_0 = \left\langle \left( \nabla V \right) \right\rangle
 
 .. math::
 
-  g_1 = \left< \left( \nabla V \right)^2 \right>
+  g_1 = \left\langle \left( \nabla V \right)^2 \right\rangle
 
 where :math:`\nabla V` is the radial derivative of the plasma volume, and
 :math:`\langle \rangle` denotes flux surface averaging.
 
 .. math::
 
-  g_2 = \left< \frac{\left( \nabla V \right)^2}{R^2}\right>
+  g_2 = \left\langle \frac{\left( \nabla V \right)^2}{R^2}\right\rangle
 
 .. math::
 
-  g_3 = \left< \frac{1}{R^2}\right>
+  g_3 = \left\langle \frac{1}{R^2}\right\rangle
 
 where :math:`R` is the major radius along the flux surface being averaged.
 
