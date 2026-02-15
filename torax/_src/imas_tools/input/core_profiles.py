@@ -46,7 +46,7 @@ def profile_conditions_from_IMAS(
         f" {ids.metadata.name} IDS."
     )
 
-  validation.validate_core_profiles_ids(ids)
+  validation.validate_profile_conditions_from_IMAS(ids)
   profiles_1d, rhon_array, time_array = loader.get_time_and_radial_arrays(
       ids, t_initial
   )
@@ -163,6 +163,8 @@ def plasma_composition_from_IMAS(
         "Expected core_profiles or plasma_profiles IDS, got"
         f" {ids.metadata.name} IDS."
     )
+
+  validation.validate_plasma_composition_from_IMAS(ids)
   profiles_1d, rhon_array, time_array = loader.get_time_and_radial_arrays(
       ids, t_initial
   )
