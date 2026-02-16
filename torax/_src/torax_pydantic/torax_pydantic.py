@@ -51,6 +51,7 @@ NumpyArray1DSorted = pydantic_types.NumpyArray1DSorted
 BaseModelFrozen = model_base.BaseModelFrozen
 
 TimeVaryingScalar = interpolated_param_1d.TimeVaryingScalar
+TimeVaryingPoints = interpolated_param_2d.TimeVaryingPoints
 TimeVaryingArray = interpolated_param_2d.TimeVaryingArray
 NonNegativeTimeVaryingArray = interpolated_param_2d.NonNegativeTimeVaryingArray
 PositiveTimeVaryingScalar = interpolated_param_1d.PositiveTimeVaryingScalar

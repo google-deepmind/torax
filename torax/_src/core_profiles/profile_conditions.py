@@ -22,6 +22,7 @@ import jax
 import numpy as np
 import pydantic
 from torax._src import array_typing
+from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 
@@ -66,6 +67,9 @@ class RuntimeParams:
   n_e_nbar_is_fGW: bool
   n_e_right_bc: array_typing.FloatScalar
   n_e_right_bc_is_fGW: bool
+  internal_boundary_conditions: (
+      internal_boundary_conditions_lib.InternalBoundaryConditions
+  )
   current_profile_nu: float
   initial_j_is_total_current: bool = dataclasses.field(
       metadata={'static': True}
@@ -186,6 +190,11 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   n_e_nbar_is_fGW: bool = False
   n_e_right_bc: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_is_fGW: bool = False
+  internal_boundary_conditions: (
+      internal_boundary_conditions_lib.InternalBoundaryConditionsConfig
+  ) = torax_pydantic.ValidatedDefault(
+      internal_boundary_conditions_lib.InternalBoundaryConditionsConfig()
+  )
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/434175938): Remove this before the V2 API release in place of
@@ -428,9 +437,18 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     else:
       runtime_params['n_e_right_bc_is_absolute'] = True
 
+    runtime_params['internal_boundary_conditions'] = (
+        self.internal_boundary_conditions.build_runtime_params(t)
+    )
+
     def _get_value(x):
       if isinstance(
-          x, (torax_pydantic.TimeVaryingScalar, torax_pydantic.TimeVaryingArray)
+          x,
+          (
+              torax_pydantic.TimeVaryingScalar,
+              torax_pydantic.TimeVaryingArray,
+              torax_pydantic.TimeVaryingPoints,
+          ),
       ):
         return x.get_value(t)
       else:

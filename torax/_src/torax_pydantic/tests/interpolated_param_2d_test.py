@@ -615,6 +615,29 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     np.testing.assert_allclose(cell, [8.0, 10.0, 12.0, 14.0])
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
+  def test_time_varying_points(self):
+    time_rho_interpolated_input = (
+        np.array([0.0, 1.0]),  # time
+        np.array([0.0, 1.0]),  # rho_norm
+        np.array([[1.0, 2.0], [3.0, 4.0]]),  # values
+    )
+    tvp = interpolated_param_2d.TimeVaryingPoints.model_validate(
+        time_rho_interpolated_input
+    )
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    interpolated_param_2d.set_grid(tvp, grid=grid)
+
+    np.testing.assert_array_equal(
+        tvp.get_value(0.0), np.array([1.0, 0.0, 0.0, 2.0])
+    )
+    np.testing.assert_array_equal(
+        tvp.get_value(0.5), np.array([2.0, 0.0, 0.0, 3.0])
+    )
+    np.testing.assert_array_equal(
+        tvp.get_value(1.0), np.array([3.0, 0.0, 0.0, 4.0])
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

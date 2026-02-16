@@ -521,6 +521,32 @@ class ProfileConditionsTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, '3 errors were found'):
       profile_conditions.ProfileConditions(**config_overrides)
 
+  def test_internal_boundary_conditions_set_correctly(self):
+    """Tests that internal_boundary_conditions is populated from config."""
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'internal_boundary_conditions': {
+            'T_i': {
+                0.0: {0: 1.0, 1: 2.0},
+                1.0: {0: 3.0, 1: 4.0},
+            },
+        },
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    runtime_params_provider = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
+    )
+
+    runtime_params = runtime_params_provider(t=0.0)
+    self.assertIsNotNone(
+        runtime_params.profile_conditions.internal_boundary_conditions
+    )
+    # Basic check to ensure the config was actually used.
+    np.testing.assert_array_equal(
+        runtime_params.profile_conditions.internal_boundary_conditions.T_i,
+        np.array([1.0, 0.0, 0.0, 2.0]),
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

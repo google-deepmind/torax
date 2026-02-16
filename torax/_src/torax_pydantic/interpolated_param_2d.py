@@ -49,6 +49,7 @@ class Grid1D(model_base.BaseModelFrozen):
   of all faces (including boundary faces). For a grid with N cells, there are
   N+1 faces.
   """
+
   face_centers: pydantic_types.NumpyArray1DSorted
 
   @pydantic.model_validator(mode='before')
@@ -442,6 +443,23 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         time_interpolation_mode=self.time_interpolation_mode,
         rho_interpolation_mode=self.rho_interpolation_mode,
     )
+
+
+class TimeVaryingPoints(TimeVaryingArray):
+  """A TimeVaryingArray that is defined on a fixed set of rho points, without interpolation in rho."""
+
+  rho_interpolation_mode: Literal[interpolated_param.InterpolationMode.NONE] = (
+      interpolated_param.InterpolationMode.NONE
+  )
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _conform_data(
+      cls, data: interpolated_param.TimeRhoInterpolatedInput | dict[str, Any]
+  ) -> dict[str, Any]:
+    data = super()._conform_data(data)
+    data['rho_interpolation_mode'] = interpolated_param.InterpolationMode.NONE
+    return data
 
 
 def _is_positive(array: TimeVaryingArray) -> TimeVaryingArray:
