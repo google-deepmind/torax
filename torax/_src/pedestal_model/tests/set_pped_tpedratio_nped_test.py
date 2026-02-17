@@ -19,9 +19,9 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
+from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-
 # pylint: disable=invalid-name
 
 
@@ -82,7 +82,10 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
     )
-
+    assert isinstance(
+        pedestal_model_output,
+        pedestal_model_lib.AdaptiveSourcePedestalModelOutput,
+    )
     if isinstance(rho_norm_ped_top, (float, int)):
       self.assertEqual(pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top)
     else:

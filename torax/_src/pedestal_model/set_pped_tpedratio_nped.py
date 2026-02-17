@@ -103,7 +103,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # Calculate T_i_ped
     T_i_ped = temperature_ratio * T_e_ped
 
-    return pedestal_model.PedestalModelOutput(
+    return pedestal_model.AdaptiveSourcePedestalModelOutput(
         n_e_ped=n_e_ped,
         T_i_ped=T_i_ped,
         T_e_ped=T_e_ped,

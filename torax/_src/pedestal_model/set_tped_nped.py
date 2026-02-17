@@ -63,7 +63,7 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         pedestal_params.n_e_ped * nGW,
         pedestal_params.n_e_ped,
     )
-    return pedestal_model.PedestalModelOutput(
+    return pedestal_model.AdaptiveSourcePedestalModelOutput(
         n_e_ped=n_e_ped,
         T_i_ped=pedestal_params.T_i_ped,
         T_e_ped=pedestal_params.T_e_ped,

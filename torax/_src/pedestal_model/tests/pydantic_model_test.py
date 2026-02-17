@@ -16,19 +16,66 @@ from absl.testing import parameterized
 import jax
 from torax._src import jax_utils
 from torax._src.pedestal_model import pydantic_model
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 
 
-class NoPedestalTest(parameterized.TestCase):
+class PedestalModelPydanticTest(parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='set_pped_tpedratio_nped',
+          pydantic_model_class=pydantic_model.SetPpedTpedRatioNped,
+          unsupported_mode=pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT,
+      ),
+      dict(
+          testcase_name='set_tped_nped',
+          pydantic_model_class=pydantic_model.SetTpedNped,
+          unsupported_mode=pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT,
+      ),
+      dict(
+          testcase_name='dynamic_pedestal',
+          pydantic_model_class=pydantic_model.DynamicPedestal,
+          unsupported_mode=pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE,
+      ),
+  )
+  def test_unsupported_mode_raises_error(
+      self,
+      pydantic_model_class: type[pydantic_model.BasePedestal],
+      unsupported_mode: pedestal_runtime_params_lib.Mode,
+  ):
+    with self.assertRaises(ValueError):
+      pydantic_model_class.from_dict(
+          {'mode': unsupported_mode, 'set_pedestal': True}
+      )
 
   @parameterized.parameters(
-      pydantic_model.SetPpedTpedRatioNped,
-      pydantic_model.SetTpedNped,
-      pydantic_model.NoPedestal,
+      (
+          pydantic_model.SetPpedTpedRatioNped,
+          pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE,
+      ),
+      (
+          pydantic_model.SetTpedNped,
+          pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE,
+      ),
+      (
+          pydantic_model.NoPedestal,
+          pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE,
+      ),
+      (
+          pydantic_model.NoPedestal,
+          pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT,
+      ),
+      (
+          pydantic_model.DynamicPedestal,
+          pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT,
+      ),
   )
-  def test_build_and_call_model(
-      self, pydantic_model_class: type[pydantic_model.BasePedestal]
+  def test_set_pedestal_does_not_trigger_recompile(
+      self,
+      pydantic_model_class: type[pydantic_model.BasePedestal],
+      mode: pedestal_runtime_params_lib.Mode,
   ):
-    pedestal_model = pydantic_model_class.from_dict({})
+    pedestal_model = pydantic_model_class.from_dict({'mode': mode})
 
     @jax.jit
     def f(x: pydantic_model.BasePedestal):

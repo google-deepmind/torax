@@ -28,6 +28,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 import typing_extensions
@@ -344,12 +345,28 @@ def _calc_coeffs_full(
   tic_dens_el = geo.vpr
 
   # Diffusion term coefficients
-  turbulent_transport = physics_models.transport_model(
-      runtime_params, geo, core_profiles, pedestal_model_output
-  )
   neoclassical_transport = physics_models.neoclassical_models.transport(
       runtime_params, geo, core_profiles
   )
+  turbulent_transport = physics_models.transport_model(
+      runtime_params, geo, core_profiles, pedestal_model_output
+  )
+  # Modify the turbulent transport coefficients if the pedestal model is in
+  # ADAPTIVE_TRANSPORT mode.
+  if (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+  ):
+    assert isinstance(
+        pedestal_model_output,
+        pedestal_model_lib.AdaptiveTransportPedestalModelOutput,
+    )
+    turbulent_transport = (
+        pedestal_model_output.combine_with_turbulent_transport(
+            turbulent_transport=turbulent_transport,
+            geo=geo,
+        )
+    )
 
   chi_face_ion_total = (
       turbulent_transport.chi_face_ion + neoclassical_transport.chi_neo_i
@@ -522,27 +539,33 @@ def _calc_coeffs_full(
   )
 
   # Add internal boundary condition source terms
-  (
-      source_i,
-      source_e,
-      source_n_e,
-      source_mat_ii,
-      source_mat_ee,
-      source_mat_nn,
-  ) = internal_boundary_conditions_lib.apply_adaptive_source(
-      source_T_i=source_i,
-      source_T_e=source_e,
-      source_n_e=source_n_e,
-      source_mat_ii=source_mat_ii,
-      source_mat_ee=source_mat_ee,
-      source_mat_nn=source_mat_nn,
-      runtime_params=runtime_params,
-      # Pedestal contributes an internal boundary condition to the source
-      # terms at the pedestal top.
-      internal_boundary_conditions=pedestal_model_output.to_internal_boundary_conditions(
-          geo
-      ),
-  )
+  if (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+  ):
+    assert isinstance(
+        pedestal_model_output,
+        pedestal_model_lib.AdaptiveSourcePedestalModelOutput,
+    )
+    (
+        source_i,
+        source_e,
+        source_n_e,
+        source_mat_ii,
+        source_mat_ee,
+        source_mat_nn,
+    ) = internal_boundary_conditions_lib.apply_adaptive_source(
+        source_T_i=source_i,
+        source_T_e=source_e,
+        source_n_e=source_n_e,
+        source_mat_ii=source_mat_ii,
+        source_mat_ee=source_mat_ee,
+        source_mat_nn=source_mat_nn,
+        runtime_params=runtime_params,
+        internal_boundary_conditions=(
+            pedestal_model_output.to_internal_boundary_conditions(geo)
+        ),
+    )
 
   # Build arguments to solver based on which variables are evolving
   var_to_toc = {

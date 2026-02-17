@@ -87,7 +87,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
             runtime_params,
             geo,
             core_profiles,
-            pedestal_model.PedestalModelOutput(
+            pedestal_model.AdaptiveSourcePedestalModelOutput(
                 rho_norm_ped_top=np.inf,
                 T_i_ped=0.0,
                 T_e_ped=0.0,

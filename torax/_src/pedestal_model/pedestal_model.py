@@ -27,6 +27,8 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.transport_model import turbulent_transport as turbulent_transport_lib
 
 # pylint: disable=invalid-name
 # Using physics notation naming convention
@@ -34,18 +36,18 @@ from torax._src.internal_boundary_conditions import internal_boundary_conditions
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class PedestalModelOutput:
-  """Output of the PedestalModel."""
+class AdaptiveSourcePedestalModelOutput:
+  """Output of a PedestalModel in ADAPTIVE_SOURCE mode."""
 
-  # The location of the pedestal.
+  # The location of the pedestal top.
   rho_norm_ped_top: array_typing.FloatScalar
-  # The index of the pedestal in rho_norm.
+  # The index of the pedestal top in rho_norm.
   rho_norm_ped_top_idx: array_typing.IntScalar
-  # The ion temperature at the pedestal.
+  # The ion temperature at the pedestal top.
   T_i_ped: array_typing.FloatScalar
-  # The electron temperature at the pedestal.
+  # The electron temperature at the pedestal top.
   T_e_ped: array_typing.FloatScalar
-  # The electron density at the pedestal in units 10^-3.
+  # The electron density at the pedestal top.
   n_e_ped: array_typing.FloatScalar
 
   def to_internal_boundary_conditions(
@@ -53,6 +55,9 @@ class PedestalModelOutput:
       geo: geometry.Geometry,
   ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
     """Convert the pedestal model output to internal boundary conditions."""
+    # In this case, the mask is only the pedestal top, not the whole pedestal
+    # region. This is because we are adding a source/sink term only at the
+    # pedestal top.
     pedestal_mask = (
         jnp.zeros_like(geo.rho, dtype=bool)
         .at[self.rho_norm_ped_top_idx]
@@ -65,9 +70,73 @@ class PedestalModelOutput:
     )
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class AdaptiveTransportPedestalModelOutput:
+  """Output of a PedestalModel in ADAPTIVE_TRANSPORT mode."""
+
+  # The location of the pedestal top.
+  rho_norm_ped_top: array_typing.FloatScalar
+  # The index of the pedestal top in rho_norm.
+  rho_norm_ped_top_idx: array_typing.IntScalar
+  # The multipliers for the turbulent transport coefficients.
+  chi_e_multiplier: array_typing.FloatScalar
+  chi_i_multiplier: array_typing.FloatScalar
+  D_e_multiplier: array_typing.FloatScalar
+  v_e_multiplier: array_typing.FloatScalar
+
+  def combine_with_turbulent_transport(
+      self,
+      turbulent_transport: turbulent_transport_lib.TurbulentTransport,
+      geo: geometry.Geometry,
+  ) -> turbulent_transport_lib.TurbulentTransport:
+    """Combine the pedestal model output with the turbulent transport coefficients."""
+
+    # In this case, the mask is the whole pedestal region, not just the top.
+    # This is because we are modifying the transport coefficients in the whole
+    # pedestal region.
+    pedestal_mask_face = (
+        jnp.zeros_like(geo.rho_face, dtype=bool)
+        .at[self.rho_norm_ped_top_idx :]
+        .set(True)
+    )
+
+    modified_chi_face_ion = jnp.where(
+        pedestal_mask_face,
+        turbulent_transport.chi_face_ion * self.chi_i_multiplier,
+        turbulent_transport.chi_face_ion,
+    )
+    modified_chi_face_el = jnp.where(
+        pedestal_mask_face,
+        turbulent_transport.chi_face_el * self.chi_e_multiplier,
+        turbulent_transport.chi_face_el,
+    )
+    modified_d_face_el = jnp.where(
+        pedestal_mask_face,
+        turbulent_transport.d_face_el * self.D_e_multiplier,
+        turbulent_transport.d_face_el,
+    )
+    modified_v_face_el = jnp.where(
+        pedestal_mask_face,
+        turbulent_transport.v_face_el * self.v_e_multiplier,
+        turbulent_transport.v_face_el,
+    )
+    return turbulent_transport_lib.TurbulentTransport(
+        chi_face_ion=modified_chi_face_ion,
+        chi_face_el=modified_chi_face_el,
+        d_face_el=modified_d_face_el,
+        v_face_el=modified_v_face_el,
+    )
+
+
+PedestalModelOutput = (
+    AdaptiveSourcePedestalModelOutput | AdaptiveTransportPedestalModelOutput
+)
+
+
 @dataclasses.dataclass(frozen=True, eq=False)
 class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
-  """Calculates temperature and density of the pedestal."""
+  """Calculates properties of the pedestal."""
 
   def __call__(
       self,
@@ -75,20 +144,48 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
+    if (
+        runtime_params.pedestal.mode
+        == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+    ):
+      # Set the pedestal location to infinite to indicate that the pedestal is
+      # not present.
+      # Set the index to outside of bounds of the mesh to indicate that the
+      # pedestal is not present.
+      dummy_output = AdaptiveSourcePedestalModelOutput(
+          rho_norm_ped_top=jnp.inf,
+          T_i_ped=0.0,
+          T_e_ped=0.0,
+          n_e_ped=0.0,
+          rho_norm_ped_top_idx=geo.torax_mesh.nx,
+      )
+    elif (
+        runtime_params.pedestal.mode
+        == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+    ):
+      # Set the pedestal location to infinite to indicate that the pedestal is
+      # not present.
+      # Set the index to outside of bounds of the mesh to indicate that the
+      # pedestal is not present.
+      # Set the multipliers to 1.0 to indicate that the transport coefficients
+      # are not modified.
+      dummy_output = AdaptiveTransportPedestalModelOutput(
+          rho_norm_ped_top=jnp.inf,
+          rho_norm_ped_top_idx=geo.torax_mesh.nx,
+          chi_e_multiplier=1.0,
+          chi_i_multiplier=1.0,
+          D_e_multiplier=1.0,
+          v_e_multiplier=1.0,
+      )
+    else:
+      raise ValueError(
+          f'Unsupported pedestal model mode: {runtime_params.pedestal.mode}'
+      )
+
     return jax.lax.cond(
         runtime_params.pedestal.set_pedestal,
         lambda: self._call_implementation(runtime_params, geo, core_profiles),
-        # Set the pedestal location to infinite to indicate that the pedestal is
-        # not present.
-        # Set the index to outside of bounds of the mesh to indicate that the
-        # pedestal is not present.
-        lambda: PedestalModelOutput(
-            rho_norm_ped_top=jnp.inf,
-            T_i_ped=0.0,
-            T_e_ped=0.0,
-            n_e_ped=0.0,
-            rho_norm_ped_top_idx=geo.torax_mesh.nx,
-        ),
+        lambda: dummy_output,
     )
 
   @abc.abstractmethod
@@ -98,4 +195,4 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
-    """Calculate the pedestal values."""
+    """Calculate the pedestal properties."""
