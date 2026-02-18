@@ -568,11 +568,12 @@ class StateHistory:
       if attr_name == "impurity_fractions":
         continue
 
-      # Skip charge_state_info since it is not needed in the output.
+      # Skip attributes that are not needed in the output.
       if attr_name in (
           "charge_state_info",
           "charge_state_info_face",
           "impurity_density_scaling",
+          "fast_ions",
       ):
         continue
 
