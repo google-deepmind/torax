@@ -252,7 +252,7 @@ def _get_provider_value_from_replace_value(
       ):
         raise ValueError(
             "To replace a `TimeVaryingScalar` use a"
-            f" `TimeVaryingScalarReplace`, got {type(replace_value)} instead."
+            f" `TimeVaryingScalarUpdate`, got {type(replace_value)} instead."
         )
       return leaf.update(replace_value)
     case interpolated_param_2d.TimeVaryingArray():
@@ -260,7 +260,7 @@ def _get_provider_value_from_replace_value(
           replace_value, interpolated_param_2d.TimeVaryingArrayUpdate
       ):
         raise ValueError(
-            "To replace a `TimeVaryingArray` use a `TimeVaryingArrayReplace`,"
+            "To replace a `TimeVaryingArray` use a `TimeVaryingArrayUpdate`,"
             f" got {type(replace_value)} instead."
         )
       return leaf.update(replace_value)
