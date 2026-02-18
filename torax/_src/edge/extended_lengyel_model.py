@@ -262,50 +262,6 @@ class ExtendedLengyelModel(base.EdgeModel):
 
     # Determine initial guesses
     initial_guess = _get_initial_guess(edge_params, previous_edge_outputs)
-    # Priority 3: Defaults
-    alpha_t_default = extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT
-    kappa_e_default = extended_lengyel_defaults.KAPPA_E_0
-    T_e_separatrix_default = (
-        extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
-    )
-
-    # Priority 1: Config (overrides defaults)
-    ig = edge_params.initial_guess
-
-    alpha_t = jnp.where(ig.alpha_t_provided, ig.alpha_t, alpha_t_default)
-    kappa_e = jnp.where(ig.kappa_e_provided, ig.kappa_e, kappa_e_default)
-    T_e_sep = jnp.where(
-        ig.T_e_separatrix_provided, ig.T_e_separatrix, T_e_separatrix_default
-    )
-
-    # Mode dependent
-    if (
-        edge_params.computation_mode
-        == extended_lengyel_enums.ComputationMode.FORWARD
-    ):
-      T_e_target_default = (
-          extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD
-      )
-      T_e_target = jnp.where(
-          ig.T_e_target_provided, ig.T_e_target, T_e_target_default
-      )
-
-      initial_guess = divertor_sol_1d_lib.ForwardInitialGuess(
-          alpha_t=alpha_t,
-          kappa_e=kappa_e,
-          T_e_separatrix=T_e_sep,
-          T_e_target=T_e_target,
-      )
-    else:
-      c_z_default = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
-      c_z = jnp.where(ig.c_z_prefactor_provided, ig.c_z_prefactor, c_z_default)
-
-      initial_guess = divertor_sol_1d_lib.InverseInitialGuess(
-          alpha_t=alpha_t,
-          kappa_e=kappa_e,
-          T_e_separatrix=T_e_sep,
-          c_z_prefactor=c_z,
-      )
 
     # Call the standalone runner with combined parameters
     return extended_lengyel_standalone.run_extended_lengyel_standalone(
