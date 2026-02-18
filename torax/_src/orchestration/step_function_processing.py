@@ -135,7 +135,7 @@ def finalize_outputs(
       )
   )
   final_total_transport = (
-      transport_coefficients_builder.calculate_total_transport_coeffs(
+      transport_coefficients_builder.calculate_all_transport_coeffs(
           physics_models.pedestal_model,
           physics_models.transport_model,
           physics_models.neoclassical_models,

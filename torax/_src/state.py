@@ -239,6 +239,12 @@ class CoreTransport:
   D_neo_e: jax.Array | None = None
   V_neo_e: jax.Array | None = None
   V_neo_ware_e: jax.Array | None = None
+  chi_face_ion_pereverzev: jax.Array | None = None
+  chi_face_el_pereverzev: jax.Array | None = None
+  full_v_heat_face_ion_pereverzev: jax.Array | None = None
+  full_v_heat_face_el_pereverzev: jax.Array | None = None
+  d_face_el_pereverzev: jax.Array | None = None
+  v_face_el_pereverzev: jax.Array | None = None
 
   def __post_init__(self):
     # Use the array size of chi_face_el as a template.
@@ -253,6 +259,43 @@ class CoreTransport:
       self.V_neo_e = jnp.zeros_like(template)
     if self.V_neo_ware_e is None:
       self.V_neo_ware_e = jnp.zeros_like(template)
+    if self.chi_face_ion_pereverzev is None:
+      self.chi_face_ion_pereverzev = jnp.zeros_like(template)
+    if self.chi_face_el_pereverzev is None:
+      self.chi_face_el_pereverzev = jnp.zeros_like(template)
+    if self.full_v_heat_face_ion_pereverzev is None:
+      self.full_v_heat_face_ion_pereverzev = jnp.zeros_like(template)
+    if self.full_v_heat_face_el_pereverzev is None:
+      self.full_v_heat_face_el_pereverzev = jnp.zeros_like(template)
+    if self.d_face_el_pereverzev is None:
+      self.d_face_el_pereverzev = jnp.zeros_like(template)
+    if self.v_face_el_pereverzev is None:
+      self.v_face_el_pereverzev = jnp.zeros_like(template)
+
+  @property
+  def chi_face_ion_total(self) -> jax.Array:
+    """Calculates the total ion heat diffusion coefficient."""
+    return self.chi_face_ion + self.chi_face_ion_pereverzev + self.chi_neo_i
+
+  @property
+  def chi_face_el_total(self) -> jax.Array:
+    """Calculates the total electron heat diffusion coefficient."""
+    return self.chi_face_el + self.chi_face_el_pereverzev + self.chi_neo_e
+
+  @property
+  def d_face_el_total(self) -> jax.Array:
+    """Calculates the total particle diffusion coefficient."""
+    return self.d_face_el + self.d_face_el_pereverzev + self.D_neo_e
+
+  @property
+  def v_face_el_total(self) -> jax.Array:
+    """Calculates the total particle convection coefficient."""
+    return (
+        self.v_face_el
+        + self.v_face_el_pereverzev
+        + self.V_neo_e
+        + self.V_neo_ware_e
+    )
 
   def chi_max(
       self,
@@ -289,6 +332,12 @@ class CoreTransport:
         D_neo_e=jnp.zeros(shape),
         V_neo_e=jnp.zeros(shape),
         V_neo_ware_e=jnp.zeros(shape),
+        chi_face_ion_pereverzev=jnp.zeros(shape),
+        chi_face_el_pereverzev=jnp.zeros(shape),
+        full_v_heat_face_ion_pereverzev=jnp.zeros(shape),
+        full_v_heat_face_el_pereverzev=jnp.zeros(shape),
+        d_face_el_pereverzev=jnp.zeros(shape),
+        v_face_el_pereverzev=jnp.zeros(shape),
     )
 
 

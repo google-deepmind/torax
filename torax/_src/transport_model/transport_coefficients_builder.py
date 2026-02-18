@@ -16,26 +16,35 @@
 import dataclasses
 
 import jax
+import jax.numpy as jnp
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
-@jax.jit(static_argnums=(0, 1, 2))
-def calculate_total_transport_coeffs(
+@jax.jit(
+    static_argnames=(
+        'pedestal_model',
+        'transport_model',
+        'neoclassical_models',
+    )
+)
+def calculate_all_transport_coeffs(
     pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    use_pereverzev: bool = False,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients."""
   pedestal_model_output = pedestal_model(runtime_params, geo, core_profiles)
-  turbulent_transport = transport_model(
+  turbulent_transport_coeffs = transport_model(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
@@ -47,7 +56,31 @@ def calculate_total_transport_coeffs(
       core_profiles,
   )
 
+  # TODO(b/311653933) this pattern for Pereverzev-Corrigan terms forces us to
+  # include value zero convection terms in the discrete system, slowing
+  # compilation down by ~10%. See if can improve with a different pattern.
+  # TODO(b/485528848) Replace cond with if.
+  pereverzev_transport_coeffs = jax.lax.cond(
+      use_pereverzev,
+      pereverzev_lib.calculate_pereverzev_transport,
+      lambda runtime_params, geo, core_profiles: pereverzev_lib.PereverzevTransport.zeros(
+          geo
+      ),
+      runtime_params,
+      geo,
+      core_profiles,
+  )
+  # Zero out Pereverzev-Corrigan terms in the pedestal for PDE stability
+  pedestal_active_mask_face = (
+      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
+  )
+  pereverzev_transport_coeffs = jax.tree_util.tree_map(
+      lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
+      pereverzev_transport_coeffs,
+  )
+
   return state.CoreTransport(
-      **dataclasses.asdict(turbulent_transport),
+      **dataclasses.asdict(turbulent_transport_coeffs),
       **dataclasses.asdict(neoclassical_transport_coeffs),
+      **dataclasses.asdict(pereverzev_transport_coeffs),
   )

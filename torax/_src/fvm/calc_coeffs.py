@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """Calculates Block1DCoeffs for a time step."""
-import functools
 
+import functools
 import jax
 import jax.numpy as jnp
 from torax._src import constants
@@ -27,9 +27,9 @@ from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.transport_model import transport_coefficients_builder
 import typing_extensions
 
 
@@ -127,95 +127,6 @@ class CoeffsCallback:
     )
 
 
-def _calculate_pereverzev_flux(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
-) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
-  """Adds Pereverzev-Corrigan flux to diffusion terms."""
-
-  consts = constants.CONSTANTS
-
-  geo_factor = jnp.concatenate(
-      [jnp.ones(1), geo.g1_over_vpr_face[1:] / geo.g0_face[1:]]
-  )
-
-  chi_face_per_ion = (
-      geo.g1_over_vpr_face
-      * core_profiles.n_i.face_value()
-      * consts.keV_to_J
-      * runtime_params.solver.chi_pereverzev
-  )
-
-  chi_face_per_el = (
-      geo.g1_over_vpr_face
-      * core_profiles.n_e.face_value()
-      * consts.keV_to_J
-      * runtime_params.solver.chi_pereverzev
-  )
-
-  d_face_per_el = runtime_params.solver.D_pereverzev
-  v_face_per_el = (
-      core_profiles.n_e.face_grad()
-      / core_profiles.n_e.face_value()
-      * d_face_per_el
-      * geo_factor
-  )
-
-  # remove Pereverzev flux from boundary region if pedestal model is on
-  # (for PDE stability)
-  pedestal_mask_face = (
-      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
-  )
-  chi_face_per_ion = jnp.where(
-      pedestal_mask_face,
-      0.0,
-      chi_face_per_ion,
-  )
-  chi_face_per_el = jnp.where(
-      pedestal_mask_face,
-      0.0,
-      chi_face_per_el,
-  )
-
-  # set heat convection terms to zero out Pereverzev-Corrigan heat diffusion
-  v_heat_face_ion = (
-      core_profiles.T_i.face_grad()
-      / core_profiles.T_i.face_value()
-      * chi_face_per_ion
-  )
-  v_heat_face_el = (
-      core_profiles.T_e.face_grad()
-      / core_profiles.T_e.face_value()
-      * chi_face_per_el
-  )
-
-  d_face_per_el = jnp.where(
-      pedestal_mask_face,
-      0.0,
-      d_face_per_el * geo.g1_over_vpr_face,
-  )
-
-  v_face_per_el = jnp.where(
-      pedestal_mask_face,
-      0.0,
-      v_face_per_el * geo.g0_face,
-  )
-
-  chi_face_per_ion = chi_face_per_ion.at[0].set(chi_face_per_ion[1])
-  chi_face_per_el = chi_face_per_el.at[0].set(chi_face_per_el[1])
-
-  return (
-      chi_face_per_ion,
-      chi_face_per_el,
-      v_heat_face_ion,
-      v_heat_face_el,
-      d_face_per_el,
-      v_face_per_el,
-  )
-
-
 def calc_coeffs(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
@@ -295,35 +206,14 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
-  pedestal_model_output = physics_models.pedestal_model(
-      runtime_params, geo, core_profiles
-  )
-
   conductivity = (
       physics_models.neoclassical_models.conductivity.calculate_conductivity(
           geo, core_profiles
       )
   )
 
-  # Calculate the implicit source profiles and combines with the explicit
-  merged_source_profiles = source_profile_builders.build_source_profiles(
-      source_models=physics_models.source_models,
-      neoclassical_models=physics_models.neoclassical_models,
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      explicit=False,
-      explicit_source_profiles=explicit_source_profiles,
-      conductivity=conductivity,
-  )
-
-  # psi source terms. Source matrix is zero for all psi sources
-  source_mat_psi = jnp.zeros_like(geo.rho)
-
-  # fill source vector based on both original and updated core profiles
-  source_psi = merged_source_profiles.total_psi_sources(geo)
-
-  # Transient term coefficient vector (has radial dependence through r, n)
+  # --- Transient term coefficients --- #
+  # These have radial dependence through r, n
   toc_T_i = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV_to_J
   tic_T_i = core_profiles.n_i.value * geo.vpr ** (5.0 / 3.0)
   toc_T_e = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV_to_J
@@ -343,86 +233,52 @@ def _calc_coeffs_full(
   toc_dens_el = jnp.ones_like(geo.vpr)
   tic_dens_el = geo.vpr
 
-  # Diffusion term coefficients
-  turbulent_transport = physics_models.transport_model(
-      runtime_params, geo, core_profiles, pedestal_model_output
-  )
-  neoclassical_transport = physics_models.neoclassical_models.transport(
-      runtime_params, geo, core_profiles
+  # --- Diffusion and convection term coefficients --- #
+  # 1. Compute transport coefficients from all models.
+  transport_coefficients = (
+      transport_coefficients_builder.calculate_all_transport_coeffs(
+          physics_models.pedestal_model,
+          physics_models.transport_model,
+          physics_models.neoclassical_models,
+          runtime_params,
+          geo,
+          core_profiles,
+          use_pereverzev,
+      )
   )
 
-  chi_face_ion_total = (
-      turbulent_transport.chi_face_ion + neoclassical_transport.chi_neo_i
-  )
-  chi_face_el_total = (
-      turbulent_transport.chi_face_el + neoclassical_transport.chi_neo_e
-  )
-  d_face_el_total = (
-      turbulent_transport.d_face_el + neoclassical_transport.D_neo_e
-  )
-  v_face_el_total = (
-      turbulent_transport.v_face_el
-      + neoclassical_transport.V_neo_e
-      + neoclassical_transport.V_neo_ware_e
-  )
+  # Transport coefficients for the psi equation don't come from models
   d_face_psi = geo.g2g3_over_rhon_face
-  # No poloidal flux convection term
   v_face_psi = jnp.zeros_like(d_face_psi)
 
-  # entire coefficient preceding dT/dr in heat transport equations
+  # 2. Convert to "full" coefficients, i.e. the entire coefficient preceding the
+  # gradient term (dT/dr, dn/dr, etc.) in each equation.
+  # Heat equations
   full_chi_face_ion = (
       geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
       * consts.keV_to_J
-      * chi_face_ion_total
+      * transport_coefficients.chi_face_ion_total
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
       * consts.keV_to_J
-      * chi_face_el_total
+      * transport_coefficients.chi_face_el_total
   )
+  # PereverzevTransport convection terms are already "full" coefficients, and
+  # no heat convection terms come from other models.
+  full_v_heat_face_ion = transport_coefficients.full_v_heat_face_ion_pereverzev
+  full_v_heat_face_el = transport_coefficients.full_v_heat_face_el_pereverzev
 
-  # entire coefficient preceding dne/dr in particle equation
-  full_d_face_el = geo.g1_over_vpr_face * d_face_el_total
-  full_v_face_el = geo.g0_face * v_face_el_total
+  # Particle equations
+  full_d_face_el = geo.g1_over_vpr_face * transport_coefficients.d_face_el_total
+  full_v_face_el = geo.g0_face * transport_coefficients.v_face_el_total
 
-  # density source terms. Initialize source matrix to zero
-  source_mat_nn = jnp.zeros_like(geo.rho)
-
-  # density source vector based both on original and updated core profiles
-  source_n_e = merged_source_profiles.total_sources('n_e', geo)
-
-  # Pereverzev-Corrigan correction for heat and particle transport
-  # (deals with stiff nonlinearity of transport coefficients)
-  # TODO(b/311653933) this forces us to include value 0
-  # convection terms in discrete system, slowing compilation down by ~10%.
-  # See if can improve with a different pattern.
-  (
-      chi_face_per_ion,
-      chi_face_per_el,
-      v_heat_face_ion,
-      v_heat_face_el,
-      d_face_per_el,
-      v_face_per_el,
-  ) = jax.lax.cond(
-      use_pereverzev,
-      lambda: _calculate_pereverzev_flux(
-          runtime_params,
-          geo,
-          core_profiles,
-          pedestal_model_output,
-      ),
-      lambda: tuple([jnp.zeros_like(geo.rho_face)] * 6),
-  )
-
-  full_chi_face_ion += chi_face_per_ion
-  full_chi_face_el += chi_face_per_el
-  full_d_face_el += d_face_per_el
-  full_v_face_el += v_face_per_el
-
-  # Add Phi_b_dot terms to heat transport convection
-  v_heat_face_ion += (
+  # 3. Add Phi_b_dot terms to convection equations.
+  # Psi equation doesn't include Phi_b_dot term.
+  # Heat equations
+  full_v_heat_face_ion += (
       -3.0
       / 4.0
       * geo.Phi_b_dot
@@ -432,8 +288,7 @@ def _calc_coeffs_full(
       * core_profiles.n_i.face_value()
       * consts.keV_to_J
   )
-
-  v_heat_face_el += (
+  full_v_heat_face_el += (
       -3.0
       / 4.0
       * geo.Phi_b_dot
@@ -444,17 +299,37 @@ def _calc_coeffs_full(
       * consts.keV_to_J
   )
 
-  # Add Phi_b_dot terms to particle transport convection
+  # Particle equations
   full_v_face_el += (
       -1.0 / 2.0 * geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
   )
 
-  # Fill heat transport equation sources. Initialize source matrices to zero
-
+  # --- Source terms --- #
+  # 1. Construct the source vectors
+  # First need to calculate the implicit source profiles and combine them with
+  # the explicit source profiles.
+  merged_source_profiles = source_profile_builders.build_source_profiles(
+      source_models=physics_models.source_models,
+      neoclassical_models=physics_models.neoclassical_models,
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      explicit=False,
+      explicit_source_profiles=explicit_source_profiles,
+      conductivity=conductivity,
+  )
   source_i = merged_source_profiles.total_sources('T_i', geo)
   source_e = merged_source_profiles.total_sources('T_e', geo)
+  source_n_e = merged_source_profiles.total_sources('n_e', geo)
+  source_psi = merged_source_profiles.total_psi_sources(geo)
 
-  # Add the Qei effects.
+  # 2. Initialize source matrices to zero
+  # We don't initialize heat source matrices because they are populated by the
+  # Qei terms later
+  source_mat_nn = jnp.zeros_like(geo.rho)
+  source_mat_psi = jnp.zeros_like(geo.rho)
+
+  # 3. Add Qei effects to the heat sources.
   qei = merged_source_profiles.qei
   source_mat_ii = qei.implicit_ii * geo.vpr
   source_i += qei.explicit_i * geo.vpr
@@ -463,8 +338,8 @@ def _calc_coeffs_full(
   source_mat_ie = qei.implicit_ie * geo.vpr
   source_mat_ei = qei.implicit_ei * geo.vpr
 
-  # Add effective Phi_b_dot heat source terms
-
+  # 4. Add effective Phi_b_dot terms
+  # Heat equations
   d_vpr53_rhon_n_e_drhon = jnp.gradient(
       geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_e.value,
       geo.rho_norm,
@@ -473,7 +348,6 @@ def _calc_coeffs_full(
       geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_i.value,
       geo.rho_norm,
   )
-
   source_i += (
       3.0
       / 4.0
@@ -484,7 +358,6 @@ def _calc_coeffs_full(
       * core_profiles.T_i.value
       * consts.keV_to_J
   )
-
   source_e += (
       3.0
       / 4.0
@@ -496,9 +369,8 @@ def _calc_coeffs_full(
       * consts.keV_to_J
   )
 
+  # Particle equations
   d_vpr_rhon_drhon = jnp.gradient(geo.vpr * geo.rho_norm, geo.rho_norm)
-
-  # Add effective Phi_b_dot particle source terms
   source_n_e += (
       1.0
       / 2.0
@@ -508,7 +380,7 @@ def _calc_coeffs_full(
       * core_profiles.n_e.value
   )
 
-  # Add effective Phi_b_dot poloidal flux source term
+  # Magnetic flux equation
   source_psi += (
       8.0
       * jnp.pi**2
@@ -521,7 +393,12 @@ def _calc_coeffs_full(
       * core_profiles.psi.grad()
   )
 
-  # Add internal boundary condition source terms
+  # 5. Add internal boundary condition source terms
+  # TODO(b/323504363): Currently pedestal model is called twice, once in
+  # calculate_total_transport_coeffs and once here.
+  pedestal_model_output = physics_models.pedestal_model(
+      runtime_params, geo, core_profiles
+  )
   (
       source_i,
       source_e,
@@ -544,7 +421,8 @@ def _calc_coeffs_full(
       ),
   )
 
-  # Build arguments to solver based on which variables are evolving
+  # --- Build arguments to solver  --- #
+  # Selects only necessary coefficients based on which variables are evolving
   var_to_toc = {
       'T_i': toc_T_i,
       'T_e': toc_T_e,
@@ -569,8 +447,8 @@ def _calc_coeffs_full(
   d_face = tuple(var_to_d_face[var] for var in evolving_names)
 
   var_to_v_face = {
-      'T_i': v_heat_face_ion,
-      'T_e': v_heat_face_el,
+      'T_i': full_v_heat_face_ion,
+      'T_e': full_v_heat_face_el,
       'psi': v_face_psi,
       'n_e': full_v_face_el,
   }
