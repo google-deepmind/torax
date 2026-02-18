@@ -65,6 +65,12 @@ DEFAULT_C_Z_PREFACTOR_INIT: Final[float] = 1e-4
 DEFAULT_T_E_SEPARATRIX_INIT: Final[float] = 200.0  # eV
 DEFAULT_T_E_TARGET_INIT_FORWARD: Final[float] = 100.0  # eV
 
+# Physics defaults for initialization
+DEFAULT_ALPHA_T_INIT: Final[float] = 0.1
+DEFAULT_C_Z_PREFACTOR_INIT: Final[float] = 1e-4
+DEFAULT_T_E_SEPARATRIX_INIT: Final[float] = 100.0  # eV
+DEFAULT_T_E_TARGET_INIT_FORWARD: Final[float] = 300.0  # eV
+
 
 @dataclasses.dataclass(frozen=True)
 class _FitParams:

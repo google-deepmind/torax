@@ -696,6 +696,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
         ' few iterations.',
     )
 
+<<<<<<< HEAD
 
 class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
 
@@ -879,6 +880,8 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     numerics = unique.solver_status.numerics_outcome
     np.testing.assert_array_equal(numerics.error, [0, 1, 0])  # pytype: disable=attribute-error
 
+=======
+>>>>>>> 85479b3d (Fix IMAS required terms check and improve Extended Lengyel edge model)
 
 if __name__ == '__main__':
   absltest.main()
