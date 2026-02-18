@@ -615,7 +615,6 @@ def _construct_parameters(
       toroidal_flux_expansion=toroidal_flux_expansion,
   )
 
-<<<<<<< HEAD
 
 def _get_initial_sol_model(
     params: divertor_sol_1d_lib.ExtendedLengyelParameters,
@@ -651,13 +650,6 @@ def _get_initial_sol_model(
     c_z_prefactor_init = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
     kappa_e_init = extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT
     T_e_separatrix_init = extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
-=======
-  # Initialize values for iterative solver.
-  if initial_guess is not None:
-    alpha_t_init = initial_guess.alpha_t
-    kappa_e_init = initial_guess.kappa_e
-    T_e_separatrix_init = initial_guess.T_e_separatrix
-    # q_parallel is calculated from T_e_separatrix, not passed directly.
     q_parallel_init = divertor_sol_1d_lib.calc_q_parallel(
         params=params,
         T_e_separatrix=T_e_separatrix_init,
@@ -665,45 +657,11 @@ def _get_initial_sol_model(
     )
 
     if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
-      T_e_target_init = T_e_target  # from input
-      assert isinstance(initial_guess, divertor_sol_1d_lib.InverseInitialGuess)
-      c_z_prefactor_init = initial_guess.c_z_prefactor
-    elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
-      assert isinstance(initial_guess, divertor_sol_1d_lib.ForwardInitialGuess)
-      T_e_target_init = initial_guess.T_e_target
-      # Not used as an evolved variable in forward mode.
-      c_z_prefactor_init = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
-    else:
-      raise ValueError(f'Unknown computation mode: {computation_mode}')
-
-  else:
-    alpha_t_init = extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT
-    c_z_prefactor_init = extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
-    kappa_e_init = extended_lengyel_defaults.KAPPA_E_0
-    T_e_separatrix_init = (
-        extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
-    )  # [eV]
->>>>>>> 85479b3d (Fix IMAS required terms check and improve Extended Lengyel edge model)
-    q_parallel_init = divertor_sol_1d_lib.calc_q_parallel(
-        params=params,
-        T_e_separatrix=T_e_separatrix_init,
-        alpha_t=alpha_t_init,
-    )
-
-    if computation_mode == extended_lengyel_enums.ComputationMode.INVERSE:
-<<<<<<< HEAD
       T_e_target_init = T_e_target_input
     elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
       T_e_target_init = (
           extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD
       )
-=======
-      T_e_target_init = T_e_target  # from input
-    elif computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
-      T_e_target_init = (
-          extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD
-      )  # eV.
->>>>>>> 85479b3d (Fix IMAS required terms check and improve Extended Lengyel edge model)
     else:
       raise ValueError(f'Unknown computation mode: {computation_mode}')
 
