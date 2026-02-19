@@ -615,6 +615,40 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     np.testing.assert_allclose(cell, [8.0, 10.0, 12.0, 14.0])
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='dict_input',
+          time_rho_interpolated_input={
+              0.0: {0.0: 1.0, 1.0: 2.0},
+              1.0: {0.0: 3.0, 1.0: 4.0},
+          },
+          expected_values={
+              0.0: np.array([1.0, 0.0, 0.0, 2.0]),
+              0.5: np.array([2.0, 0.0, 0.0, 3.0]),
+              1.0: np.array([3.0, 0.0, 0.0, 4.0]),
+          },
+      ),
+      dict(
+          testcase_name='rho_norm_quantization',
+          time_rho_interpolated_input={0.0: {0.5: 1.0}},
+          expected_values={
+              0.0: np.array([0.0, 1.0, 0.0, 0.0]),
+          },
+      ),
+  )
+  def test_time_varying_points(
+      self, time_rho_interpolated_input, expected_values
+  ):
+    tvp = interpolated_param_2d.TimeVaryingPoints.model_validate(
+        time_rho_interpolated_input
+    )
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    interpolated_param_2d.set_grid(tvp, grid=grid)
+
+    for t, expected_value in expected_values.items():
+      np.testing.assert_array_equal(tvp.get_value(t), expected_value)
+
 
 if __name__ == '__main__':
   absltest.main()
