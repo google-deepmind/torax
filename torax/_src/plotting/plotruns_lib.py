@@ -93,6 +93,7 @@ class PlotProperties:
   attrs: tuple[str, ...]
   labels: tuple[str, ...]
   ylabel: str
+  title: str | None = None
   legend_fontsize: int | None = None  # None reverts to default matplotlib value
   upper_percentile: float = 100.0
   lower_percentile: float = 0.0
@@ -100,6 +101,7 @@ class PlotProperties:
   ylim_min_zero: bool = True
   plot_type: PlotType = PlotType.SPATIAL
   suppress_zero_values: bool = False  # If True, all-zero-data is not plotted
+  profile_time_index: int = 0  # Use this time index for single profile plotting
 
 
 @dataclasses.dataclass
@@ -109,12 +111,15 @@ class FigureProperties:
   rows: int
   cols: int
   axes: tuple[PlotProperties, ...]
+  figure_title: str | None = None
   figure_size_factor: float = 5.0
   tick_fontsize: int = 10
   axes_fontsize: int = 10
   title_fontsize: int = 16
   default_legend_fontsize: int = 10
   colors: tuple[str, ...] = ('r', 'b', 'g', 'm', 'y', 'c')
+  aspect_ratio: float = 1.0  # Height relative to width
+  enable_slider: bool = True
 
   def __post_init__(self):
     if len(self.axes) > self.rows * self.cols:
@@ -551,6 +556,8 @@ def get_lines(
     plotdata: PlotData,
     axes: List[Any],
     comp_plot: bool = False,
+    alpha: float = 1.0,
+    apply_label: bool = True,
 ):
   """Gets lines for all plots."""
   lines = []
@@ -568,9 +575,10 @@ def get_lines(
         rho = get_rho(plotdata, attr)
         (line,) = ax.plot(
             rho,
-            data[0, :],  # Plot data at time zero
+            data[cfg.profile_time_index, :],
             plot_config.colors[line_idx % len(plot_config.colors)] + dashed,
-            label=f'{label}{suffix}',
+            label=f'{label}{suffix}' if apply_label else None,
+            alpha=alpha,
         )
         lines.append(line)
         line_idx += 1
@@ -584,7 +592,8 @@ def get_lines(
             plotdata.t,
             data,  # Plot entire time series
             plot_config.colors[line_idx % len(plot_config.colors)] + dashed,
-            label=f'{label}{suffix}',
+            label=f'{label}{suffix}' if apply_label else None,
+            alpha=alpha,
         )
         line_idx += 1
     else:
@@ -604,13 +613,17 @@ def create_figure(plot_config: FigureProperties):
   fig = plt.figure(
       figsize=(
           cols * plot_config.figure_size_factor,
-          rows * plot_config.figure_size_factor,
+          rows * plot_config.figure_size_factor * plot_config.aspect_ratio,
       ),
       constrained_layout=True,
   )
+
+  if plot_config.figure_title:
+    fig.suptitle(plot_config.figure_title)
+
   # Create the GridSpec - Adjust height ratios to include the slider
   # in the plot, only if a slider is required:
-  if plot_config.contains_spatial_plot_type:
+  if plot_config.contains_spatial_plot_type and plot_config.enable_slider:
     # Add an extra smaller is a spatial plottypeider
     height_ratios = [1] * rows + [0.2]
     gs = gridspec.GridSpec(
