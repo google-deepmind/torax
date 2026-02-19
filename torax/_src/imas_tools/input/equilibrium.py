@@ -178,6 +178,13 @@ def geometry_from_IMAS(
   # jtor_torax \equiv dI/dS = dI/drhon / (dS/drhon) = dI/drhon / spr
   # spr = vpr * <1/R> / ( 2 * np.pi )
   # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
+  # Validate j_phi exists and is non-empty before using it
+  if not IMAS_data.profiles_1d.j_phi or not np.any(IMAS_data.profiles_1d.j_phi):
+    raise ValueError(
+        "Missing required IMAS profile: profiles_1d.j_phi. "
+        "Ensure the equilibrium IDS includes j_phi (e.g. in JETTO outputs) "
+        "before loading into TORAX."
+    )
   jtor = -1 * IMAS_data.profiles_1d.j_phi
   rhon = IMAS_data.profiles_1d.rho_tor_norm
   if not rhon:
