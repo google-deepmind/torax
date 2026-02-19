@@ -16,9 +16,32 @@ from absl.testing import parameterized
 import jax
 from torax._src import jax_utils
 from torax._src.pedestal_model import pydantic_model
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 
 
-class NoPedestalTest(parameterized.TestCase):
+class PedestalModelPydanticTest(parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='set_pped_tpedratio_nped',
+          pydantic_model_class=pydantic_model.SetPpedTpedRatioNped,
+          unsupported_mode=pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT,
+      ),
+      dict(
+          testcase_name='set_tped_nped',
+          pydantic_model_class=pydantic_model.SetTpedNped,
+          unsupported_mode=pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT,
+      ),
+  )
+  def test_unsupported_mode_raises_error(
+      self,
+      pydantic_model_class: type[pydantic_model.BasePedestal],
+      unsupported_mode: pedestal_runtime_params_lib.Mode,
+  ):
+    with self.assertRaises(ValueError):
+      pydantic_model_class.from_dict(
+          {'mode': unsupported_mode, 'set_pedestal': True}
+      )
 
   @parameterized.parameters(
       pydantic_model.SetPpedTpedRatioNped,

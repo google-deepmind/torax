@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Pedestal model that specifies pressure, temperature ratio, and density."""
+
 import dataclasses
 
 import jax
@@ -77,6 +78,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     Z_eff = core_profiles.Z_eff
 
     ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
+    ped_face_idx = jnp.abs(geo.rho_face_norm - rho_norm_ped_top).argmin()
     Z_eff_ped = jnp.take(Z_eff, ped_idx)
     Z_i_ped = jnp.take(Z_i, ped_idx)
     Z_impurity_ped = jnp.take(Z_impurity, ped_idx)
@@ -103,10 +105,11 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # Calculate T_i_ped
     T_i_ped = temperature_ratio * T_e_ped
 
-    return pedestal_model.PedestalModelOutput(
+    return pedestal_model.AdaptiveSourcePedestalModelOutput(
         n_e_ped=n_e_ped,
         T_i_ped=T_i_ped,
         T_e_ped=T_e_ped,
         rho_norm_ped_top=runtime_params.pedestal.rho_norm_ped_top,
-        rho_norm_ped_top_idx=ped_idx,
+        rho_norm_ped_top_nearest_cell_idx=ped_idx,
+        rho_norm_ped_top_nearest_face_idx=ped_face_idx,
     )

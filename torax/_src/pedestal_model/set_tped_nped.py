@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A basic version of the pedestal model that uses direct specification."""
+
 import dataclasses
 
 import jax
@@ -51,24 +52,31 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
   ) -> pedestal_model.PedestalModelOutput:
     pedestal_params = runtime_params.pedestal
     assert isinstance(pedestal_params, RuntimeParams)
+
+    rho_norm_ped_top_nearest_cell_idx = jnp.abs(
+        geo.rho_norm - pedestal_params.rho_norm_ped_top
+    ).argmin()
+    rho_norm_ped_top_nearest_face_idx = jnp.abs(
+        geo.rho_face_norm - pedestal_params.rho_norm_ped_top
+    ).argmin()
+
+    # Calculate n_e_ped in m^-3.
     nGW = (
         runtime_params.profile_conditions.Ip
         / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20
     )
-    # Calculate n_e_ped in m^-3.
     n_e_ped = jnp.where(
         pedestal_params.n_e_ped_is_fGW,
         pedestal_params.n_e_ped * nGW,
         pedestal_params.n_e_ped,
     )
-    return pedestal_model.PedestalModelOutput(
+    return pedestal_model.AdaptiveSourcePedestalModelOutput(
         n_e_ped=n_e_ped,
         T_i_ped=pedestal_params.T_i_ped,
         T_e_ped=pedestal_params.T_e_ped,
         rho_norm_ped_top=pedestal_params.rho_norm_ped_top,
-        rho_norm_ped_top_idx=jnp.abs(
-            geo.rho_norm - pedestal_params.rho_norm_ped_top
-        ).argmin(),
+        rho_norm_ped_top_nearest_cell_idx=rho_norm_ped_top_nearest_cell_idx,
+        rho_norm_ped_top_nearest_face_idx=rho_norm_ped_top_nearest_face_idx,
     )
