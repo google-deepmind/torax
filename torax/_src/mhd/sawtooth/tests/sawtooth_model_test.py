@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Sawtooth model integration tests."""
+
 import dataclasses
+import json
+import pathlib
+
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -23,14 +28,28 @@ from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import step_function
 from torax._src.torax_pydantic import model_config
+from torax.tests.scripts import regenerate_sawtooth_refs
 
-_NRHO = 10
-_CRASH_STEP_DURATION = 1e-3
-_FIXED_DT = 0.1
+# Internal import.
+
+# Import shared constants from the regeneration script
+_NRHO = regenerate_sawtooth_refs.NRHO
+_CRASH_STEP_DURATION = regenerate_sawtooth_refs.CRASH_STEP_DURATION
+_FIXED_DT = regenerate_sawtooth_refs.FIXED_DT
 
 # Needed since we do not call torax.__init__ in this test, which normally sets
 # this.
 jax.config.update('jax_enable_x64', True)
+
+
+def _load_sawtooth_references() -> dict[str, np.ndarray]:
+  """Loads sawtooth reference values from the local JSON file."""
+  json_path = (
+      pathlib.Path(__file__).parent / regenerate_sawtooth_refs.REFERENCES_FILE
+  )
+  with open(str(json_path), 'r') as f:
+    raw = json.load(f)
+  return {k: np.array(v) for k, v in raw.items()}
 
 
 class SawtoothModelTest(parameterized.TestCase):
@@ -38,51 +57,8 @@ class SawtoothModelTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    test_config_dict = {
-        'numerics': {
-            'evolve_current': True,
-            'evolve_density': True,
-            'evolve_ion_heat': True,
-            'evolve_electron_heat': True,
-            'fixed_dt': _FIXED_DT,
-        },
-        # Default initial current will lead to a sawtooth being triggered.
-        'profile_conditions': {
-            'Ip': 13e6,
-            'initial_j_is_total_current': True,
-            'initial_psi_from_j': True,
-            'current_profile_nu': 3,
-            'n_e_nbar_is_fGW': True,
-            'normalize_n_e_to_nbar': True,
-            'nbar': 0.85,
-            'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
-        },
-        'plasma_composition': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': _NRHO},
-        'pedestal': {},
-        'sources': {'ohmic': {}},
-        'solver': {
-            'solver_type': 'linear',
-            'use_pereverzev': False,
-        },
-        'time_step_calculator': {'calculator_type': 'fixed'},
-        'transport': {'model_name': 'constant'},
-        'mhd': {
-            'sawtooth': {
-                'trigger_model': {
-                    'model_name': 'simple',
-                    'minimum_radius': 0.2,
-                    's_critical': 0.2,
-                },
-                'redistribution_model': {
-                    'model_name': 'simple',
-                    'flattening_factor': 1.01,
-                    'mixing_radius_multiplier': 1.5,
-                },
-                'crash_step_duration': _CRASH_STEP_DURATION,
-            }
-        },
-    }
+    # Use the shared test configuration from the regeneration script
+    test_config_dict = regenerate_sawtooth_refs.get_sawtooth_test_config()
     torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
     self._torax_config = torax_config
 
@@ -108,6 +84,11 @@ class SawtoothModelTest(parameterized.TestCase):
         )
     )
 
+    sawtooth_refs = _load_sawtooth_references()
+    self._post_crash_temperature = sawtooth_refs['post_crash_temperature']
+    self._post_crash_n = sawtooth_refs['post_crash_n']
+    self._post_crash_psi = sawtooth_refs['post_crash_psi']
+
   def test_sawtooth_crash(self):
     """Tests that default values lead to crash and compares post-crash to ref."""
     output_state, _ = self.step_fn(
@@ -130,14 +111,18 @@ class SawtoothModelTest(parameterized.TestCase):
 
     np.testing.assert_allclose(
         output_state.core_profiles.T_e.value,
-        _POST_CRASH_TEMPERATURE,
+        self._post_crash_temperature,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.n_e.value, _POST_CRASH_N, rtol=1e-6
+        output_state.core_profiles.n_e.value,
+        self._post_crash_n,
+        rtol=1e-6,
     )
     np.testing.assert_allclose(
-        output_state.core_profiles.psi.value, _POST_CRASH_PSI, rtol=1e-6
+        output_state.core_profiles.psi.value,
+        self._post_crash_psi,
+        rtol=1e-6,
     )
 
   def test_no_sawtooth_crash(self):
@@ -238,46 +223,6 @@ class SawtoothModelTest(parameterized.TestCase):
           output_state_should_crash.t,
           self.initial_state.t + np.array(2 * _CRASH_STEP_DURATION),
       )
-
-
-_POST_CRASH_TEMPERATURE = np.array([
-    9.798375,
-    9.770761,
-    9.743125,
-    9.715467,
-    9.687787,
-    8.183115,
-    6.229396,
-    4.5,
-    3.1,
-    1.7,
-])
-
-_POST_CRASH_N = np.array([
-    9.289564e+19,
-    9.264304e+19,
-    9.239043e+19,
-    9.213783e+19,
-    9.188523e+19,
-    8.818625e+19,
-    8.345811e+19,
-    7.921901e+19,
-    7.569817e+19,
-    7.217732e+19,
-])
-
-_POST_CRASH_PSI = np.array([
-    8.877173,
-    10.473664,
-    13.561018,
-    18.040233,
-    23.815787,
-    30.664264,
-    37.900495,
-    44.750157,
-    50.721585,
-    55.732499,
-])
 
 
 if __name__ == '__main__':

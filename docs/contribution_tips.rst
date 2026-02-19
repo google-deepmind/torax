@@ -227,6 +227,19 @@ circular_references), you can specify it with the --case flag.
 
   python3 torax/tests/scripts/regenerate_torax_refs.py --case=circular_references --write_to_file
 
+Regenerating Sawtooth Test References
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sawtooth model tests use separate reference values stored in
+``torax/_src/mhd/sawtooth/tests/sawtooth_references.json``. If you make a
+change that alters sawtooth crash profiles, regenerate this file with:
+
+.. code-block:: console
+
+  python3 torax/tests/scripts/regenerate_sawtooth_refs.py --write_to_file
+
+For a dry-run with no write, remove the ``--write_to_file`` flag. To also
+print a summary of regenerated values, add ``--print_summary``.
+
 .. important::
   When making changes to the output structure, e.g. adding fields,
   a subset of the sim tests will fail. To pass these specific tests, it is

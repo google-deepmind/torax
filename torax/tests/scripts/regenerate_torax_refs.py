@@ -45,6 +45,7 @@ import pprint
 from typing import Any
 from absl import app
 from absl import flags
+import jax
 import numpy as np
 from torax._src import constants
 from torax._src import path_utils
@@ -55,6 +56,8 @@ from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import torax_refs
 
+jax.config.update('jax_enable_x64', True)
+
 FLAGS = flags.FLAGS
 
 _CASE = flags.DEFINE_multi_string(
@@ -64,17 +67,26 @@ _CASE = flags.DEFINE_multi_string(
     ' regenerated. Options are: '
     + ', '.join(torax_refs.REFERENCES_REGISTRY.keys()),
 )
-_WRITE_TO_FILE = flags.DEFINE_bool(
-    'write_to_file',
-    False,
-    'If True, saves the new reference values to references.json, overwriting'
-    ' the old file.',
-)
-_PRINT_SUMMARY = flags.DEFINE_bool(
-    'print_summary',
-    False,
-    'If True, prints the arrays to the console.',
-)
+# Guard against DuplicateFlagError when multiple regenerate scripts are
+# imported in the same pytest session (e.g. alongside regenerate_sawtooth_refs).
+
+if 'write_to_file' not in FLAGS:
+  _WRITE_TO_FILE = flags.DEFINE_bool(
+      'write_to_file',
+      False,
+      'If True, saves the new reference values to references.json, overwriting'
+      ' the old file.',
+  )
+else:
+  _WRITE_TO_FILE = FLAGS['write_to_file']
+if 'print_summary' not in FLAGS:
+  _PRINT_SUMMARY = flags.DEFINE_bool(
+      'print_summary',
+      False,
+      'If True, prints the arrays to the console.',
+  )
+else:
+  _PRINT_SUMMARY = FLAGS['print_summary']
 # Needed to test-time name collision with the flag in run_simulation_main.py.
 if 'output_dir' not in FLAGS:
   _OUTPUT_DIR = flags.DEFINE_string(
