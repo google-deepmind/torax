@@ -17,6 +17,7 @@ import abc
 from typing import Annotated, Literal
 
 import chex
+from torax._src.pedestal_model import epednn_mit_pedestal_model
 from torax._src.pedestal_model import no_pedestal
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params
@@ -100,6 +101,44 @@ class SetPpedTpedRatioNped(BasePedestal):
     )
 
 
+class EPEDNNmit(BasePedestal):
+  """Uses EPEDNN-mit to predict pedestal pressure and width.
+
+  Attributes:
+    n_e_ped: The electron density at the pedestal [m^-3] or fGW.
+    n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
+      fGW.
+    T_i_T_e_ratio: Ratio of the ion and electron temperature at the pedestal
+      [dimensionless].
+  """
+
+  model_name: Annotated[Literal['epednn_mit'], torax_pydantic.JAX_STATIC] = (
+      'epednn_mit'
+  )
+  n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      0.7e20
+  )
+  n_e_ped_is_fGW: bool = False
+  T_i_T_e_ratio: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+
+  def build_pedestal_model(
+      self,
+  ) -> epednn_mit_pedestal_model.EPEDNNmitPedestalModel:
+    return epednn_mit_pedestal_model.EPEDNNmitPedestalModel()
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> epednn_mit_pedestal_model.RuntimeParams:
+    return epednn_mit_pedestal_model.RuntimeParams(
+        set_pedestal=self.set_pedestal.get_value(t),
+        n_e_ped=self.n_e_ped.get_value(t),
+        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
+        T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
+    )
+
+
 class SetTpedNped(BasePedestal):
   """A basic version of the pedestal model that uses direct specification.
 
@@ -171,4 +210,4 @@ class NoPedestal(BasePedestal):
     )
 
 
-PedestalConfig = SetPpedTpedRatioNped | SetTpedNped | NoPedestal
+PedestalConfig = SetPpedTpedRatioNped | SetTpedNped | NoPedestal | EPEDNNmit
