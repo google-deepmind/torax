@@ -21,6 +21,7 @@ import jax.numpy as jnp
 from torax._src import constants
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.physics import fast_ions as fast_ions_lib
 import typing_extensions
 
 # pylint: disable=invalid-name
@@ -80,6 +81,13 @@ class SourceProfiles:
   T_i: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
   n_e: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
   psi: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
+  # The fast_ions field differs from the other attributes, which are
+  # dicts of `jax.Array` source profiles on the grid. `FastIon` objects contain
+  # richer information about fast ion distributions beyond what can be
+  # represented in a single profile.
+  fast_ions: dict[str, tuple[fast_ions_lib.FastIon, ...]] = dataclasses.field(
+      default_factory=dict
+  )
 
   # This function can be jitted if source_models is a static argument. However,
   # in our tests, jitting this function actually slightly slows down runs, so
@@ -115,9 +123,21 @@ class SourceProfiles:
       implicit (assuming the source model outputted a non-zero profile).
 
     """
-    sum_profiles = lambda a, b: a + b
+    def is_fast_ions_tuple(x: typing_extensions.Any) -> bool:
+      return isinstance(x, tuple) and (
+          not x or isinstance(x[0], fast_ions_lib.FastIon)
+      )
+
+    def merge_leaves(
+        a: typing_extensions.Any, b: typing_extensions.Any
+    ) -> typing_extensions.Any:
+      return a + b
+
     return jax.tree_util.tree_map(
-        sum_profiles, explicit_source_profiles, implicit_source_profiles
+        merge_leaves,
+        explicit_source_profiles,
+        implicit_source_profiles,
+        is_leaf=is_fast_ions_tuple,
     )
 
   def total_psi_sources(self, geo: geometry.Geometry) -> jax.Array:

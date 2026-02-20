@@ -200,6 +200,7 @@ def update_core_and_source_profiles_after_step(
       toroidal_angular_velocity=updated_core_profiles_t_plus_dt.toroidal_angular_velocity,
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
+      fast_ions=core_profiles_t_plus_dt.fast_ions,
   )
 
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
@@ -223,6 +224,13 @@ def update_core_and_source_profiles_after_step(
       explicit_source_profiles=explicit_source_profiles,
       conductivity=conductivity,
   )
+
+  if runtime_params_t_plus_dt.numerics.enable_fast_ions:
+    intermediate_core_profiles = dataclasses.replace(
+        intermediate_core_profiles,
+        # Flatten the tuple of tuples.
+        fast_ions=sum(total_source_profiles.fast_ions.values(), ()),
+    )
 
   if (
       not runtime_params_t_plus_dt.numerics.evolve_current

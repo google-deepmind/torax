@@ -16,8 +16,10 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.physics import fast_ions
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
@@ -109,6 +111,34 @@ class SourceProfilesTest(parameterized.TestCase):
     for name in ['generic_heat', 'fusion']:
       self.assertIn(name, merged_profiles.T_i)
       self.assertIn(name, merged_profiles.T_e)
+
+  def test_source_profiles_merge_preserves_fast_ions(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    mock_fast_ion = fast_ions.FastIon(
+        species='He3',
+        source='icrh',
+        n=cell_variable.CellVariable(
+            value=jnp.ones(10),
+            face_centers=geo.rho_face_norm,
+        ),
+        T=cell_variable.CellVariable(
+            value=jnp.ones(10) * 10.0,
+            face_centers=geo.rho_face_norm,
+        ),
+    )
+    explicit = source_profiles_lib.SourceProfiles(
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
+        qei=source_profiles_lib.QeiInfo.zeros(geo),
+        fast_ions={'icrh': (mock_fast_ion,)},
+    )
+    implicit = source_profiles_lib.SourceProfiles(
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
+        qei=source_profiles_lib.QeiInfo.zeros(geo),
+        fast_ions={},
+    )
+    merged = source_profiles_lib.SourceProfiles.merge(explicit, implicit)
+    self.assertIn('icrh', merged.fast_ions)
+    self.assertEqual(merged.fast_ions['icrh'], (mock_fast_ion,))
 
 
 def _build_source_profiles_with_single_value(
