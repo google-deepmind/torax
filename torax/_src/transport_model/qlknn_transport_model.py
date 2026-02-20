@@ -14,7 +14,6 @@
 
 """A transport model that uses a QLKNN model."""
 import dataclasses
-import enum
 import functools
 import logging
 import os
@@ -38,22 +37,6 @@ from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
-class ShearSuppressionModel(enum.StrEnum):
-  """Shear suppression model for rotation effects on transport.
-
-  WALTZ_RULE: Simple model from Waltz et al., PoP 1998
-  (https://doi.org/10.1063/1.872847): f_rot_rule = -alpha.
-  VANDEPLASSCHE2020: Fitted rotation rule from Van de Plassche et al., PoP 2020
-  (https://doi.org/10.1063/1.5134126). It was fitted for purely toroidal
-  transport, so has both stabilizing (ExB shear) and destabilizing (parallel
-  velocity shear) effects, with a geometry dependence setting the relative
-  impact.
-  """
-
-  WALTZ_RULE = 'waltz_rule'
-  VANDEPLASSCHE2020 = 'vandeplassche2020'
-
-
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
@@ -65,9 +48,6 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   ETG_correction_factor: float
   clip_inputs: bool
   clip_margin: float
-  shear_suppression_model: ShearSuppressionModel = dataclasses.field(
-      metadata={'static': True}
-  )
   shear_suppression_alpha: float
   output_mode_contributions: bool = dataclasses.field(metadata={'static': True})
 
@@ -200,17 +180,25 @@ def _maybe_apply_rotation_rule(
     model_output: base_qlknn_model.ModelOutput,
     qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
     rotation_mode: qualikiz_based_transport_model.RotationMode,
-    shear_suppression_model: ShearSuppressionModel,
     shear_suppression_alpha: float,
     geo: geometry.Geometry,
 ) -> base_qlknn_model.ModelOutput:
-  """Apply the rotation scaling factor to the model output.
+  """Apply combined rotation scaling factor to the model output.
+
+  This function applies both shear suppression models:
+  - Waltz rule to the poloidal/pressure contribution to gamma_E_GB:
+    Waltz et al., PoP 1998 (https://doi.org/10.1063/1.872847)
+  - Victor rule to the toroidal contribution to gamma_E_GB:
+    Van de Plassche et al., PoP 2020 (https://doi.org/10.1063/1.5134126)
+
+  The combined scaling factor is:
+    scaling = 1 + f_waltz * |gamma_E_GB_poloidal_and_pressure| / gamma_max
+                + f_victor * |gamma_E_GB_toroidal| / gamma_max
 
   Args:
     model_output: The raw model output from QLKNN.
     qualikiz_inputs: Prepared inputs for the quasilinear model.
     rotation_mode: Controls where the rotation rule is applied.
-    shear_suppression_model: Which shear suppression model to use.
     shear_suppression_alpha: Alpha parameter for Waltz rule.
     geo: Geometry of the torus.
 
@@ -221,7 +209,8 @@ def _maybe_apply_rotation_rule(
     # Rotation is disabled. Do not apply the rotation rule.
     return model_output
 
-  gamma_E_GB = qualikiz_inputs.gamma_E_GB
+  gamma_E_GB_pp = qualikiz_inputs.gamma_E_GB_poloidal_and_pressure
+  gamma_E_GB_tor = qualikiz_inputs.gamma_E_GB_toroidal
   if rotation_mode == qualikiz_based_transport_model.RotationMode.HALF_RADIUS:
     # Only consider contribution from the outer half-radius.
     # We use a linear ramp-up between rho 0.4 and 0.6 to avoid a discontinuity.
@@ -232,29 +221,26 @@ def _maybe_apply_rotation_rule(
         jnp.array([0.4, 0.6], dtype=jax_utils.get_dtype()),
         jnp.array([0.0, 1.0], dtype=jax_utils.get_dtype()),
     )
-    gamma_E_GB = gamma_E_GB * scaling
+    gamma_E_GB_pp = gamma_E_GB_pp * scaling
+    gamma_E_GB_tor = gamma_E_GB_tor * scaling
 
-  if shear_suppression_model == ShearSuppressionModel.WALTZ_RULE:
-    c1, c2, c3, c4 = 0.0, 0.0, 0.0, shear_suppression_alpha
-  elif shear_suppression_model == ShearSuppressionModel.VANDEPLASSCHE2020:
-    c1, c2, c3, c4 = _C1, _C2, _C3, _C4
-  else:
-    raise ValueError(
-        f'Unknown shear suppression model: {shear_suppression_model}'
-    )
+  f_rot_waltz = -shear_suppression_alpha
 
-  f_rot_rule = (
-      c1 * qualikiz_inputs.q
-      + c2 * qualikiz_inputs.smag
-      + c3 / (_EPSILON_NN * qualikiz_inputs.x)
-      - c4
+  f_rot_victor = (
+      _C1 * qualikiz_inputs.q
+      + _C2 * qualikiz_inputs.smag
+      + _C3 / (_EPSILON_NN * qualikiz_inputs.x)
+      - _C4
   )
 
   lower_bound = 1e-4
   gamma_max = jnp.maximum(model_output['gamma_max'].squeeze(), lower_bound)
 
   scaling_factor = jnp.clip(
-      1.0 + f_rot_rule * jnp.abs(gamma_E_GB) / gamma_max, 0.0
+      1.0
+      + f_rot_waltz * jnp.abs(gamma_E_GB_pp) / gamma_max
+      + f_rot_victor * jnp.abs(gamma_E_GB_tor) / gamma_max,
+      0.0,
   )
   # Add an extra dimension to match model outputs.
   scaling_factor = scaling_factor[..., jnp.newaxis]
@@ -383,7 +369,6 @@ class QLKNNTransportModel(
         model_output,
         qualikiz_inputs,
         runtime_config_inputs.transport.rotation_mode,
-        runtime_config_inputs.transport.shear_suppression_model,
         runtime_config_inputs.transport.shear_suppression_alpha,
         geo,
     )

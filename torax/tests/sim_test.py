@@ -270,11 +270,6 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_Lmode_combined',
           'test_iterhybrid_predictor_corrector_Lmode_combined.py',
       ),
-      # Test Waltz shear suppression model.
-      (
-          'test_iterhybrid_predictor_corrector_rotation_waltz_suppression',
-          'test_iterhybrid_predictor_corrector_rotation_waltz_suppression.py',
-      ),
       # Predictor-corrector solver with TGLFNNukaea transport and rotation
       (
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea_rotation',

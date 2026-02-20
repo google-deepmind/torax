@@ -323,7 +323,7 @@ class TGLFBasedTransportModel(
         geo: geometry.Geometry,
         poloidal_velocity_multiplier: array_typing.FloatScalar,
     ):
-      v_ExB, _, _ = rotation.calculate_rotation(
+      rotation_output = rotation.calculate_rotation(
           T_i=core_profiles.T_i,
           psi=core_profiles.psi,
           n_i=core_profiles.n_i,
@@ -335,6 +335,7 @@ class TGLFBasedTransportModel(
           geo=geo,
           poloidal_velocity_multiplier=poloidal_velocity_multiplier,
       )
+      v_ExB = rotation_output.v_ExB
       value_face = v_ExB / geo.R_major_profile_face
       cv = cell_variable.CellVariable(
           value=geometry.face_to_cell(value_face),

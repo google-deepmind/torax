@@ -386,42 +386,39 @@ be enabled through the transport model configuration.
     `True` in the transport model configuration.
 
 *   **QLKNN:** The QLKNN transport model
-    incorporates a "rotation rule" that reduces turbulent fluxes (specifically
-    for ITG and TEM modes), see |qlknn10d|. This reduction is based on the
-    ratio of the :math:`E \times B` shearing rate (:math:`\gamma_{E \times B}`)
-    to the maximum linear growth rate (:math:`\gamma_{max}`). The scaling
-    factor is calculated as:
+    incorporates a "rotation rule" that modifies turbulent fluxes (specifically
+    for ITG and TEM modes) based on E×B shear. The modification combines two
+    physical effects:
+
+    * **Waltz rule** applied to poloidal/pressure contributions (from
+      :math:`\nabla P_i` and :math:`v_\theta B_\phi`): Simple suppression
+      :math:`f_{waltz} = -\alpha`, where :math:`\alpha` is set by the
+      ``shear_suppression_alpha`` parameter (default 1.0). See |waltz1998|.
+
+    * **Victor rule** applied to toroidal contributions (from
+      :math:`-v_\phi B_\theta`): A fitted model that can produce both
+      suppression and enhancement depending on local plasma parameters,
+      due to competing stabilizing (E×B shear) and destabilizing (parallel
+      velocity shear) effects. See |qlknn10d|.
+
+    The combined scaling factor is:
 
     .. math::
-      f_{rot} = 1 + f_{rule} \frac{\gamma_{E \times B}}{\gamma_{max}}
+      f_{rot} = \text{clip}\left(1 + f_{waltz}\frac{|\gamma_{pp}|}{\gamma_{max}}
+      + f_{victor}\frac{|\gamma_{tor}|}{\gamma_{max}}, 0\right)
 
-    The factor :math:`f_{rule}` determines the strength of shear suppression
-    and can be computed using one of two models, controlled by the
-    ``shear_suppression_model`` configuration parameter:
-
-    * ``waltz_rule``: Simple model from Waltz et al., PoP 1998:
-      :math:`f_{rule} = -\alpha`, where :math:`\alpha` is set by the
-      ``shear_suppression_alpha`` parameter (default 1.0). This model provides
-      pure suppression of turbulent transport.
-
-    * ``vandeplassche2020``: Fitted rotation rule from Van de Plassche et al.,
-      PoP 2020. This model calculates :math:`f_{rule}` based on the safety
-      factor, magnetic shear, and inverse aspect ratio. Note that this model
-      can produce both suppression and enhancement of transport depending on
-      local plasma parameters. This is because it was fitted for purely
-      toroidal rotation, which has both stabilizing (ExB shear) and
-      destabilizing (parallel velocity shear) effects, with a geometry
-      dependence setting the relative impact.
+    where :math:`\gamma_{pp}` and :math:`\gamma_{tor}` are the E×B shearing
+    rates from poloidal/pressure and toroidal contributions respectively.
 
     The application of the rotation rule is controlled by the
     ``rotation_mode`` configuration parameter. Options for ``rotation_mode`` are:
 
-  * ``off``: No rotation correction is applied.
+    * ``off``: No rotation correction is applied.
 
-  * ``half_radius``: The rotation correction is only applied to the outer
-    half of the radius (:math:`\hat{\rho} > 0.5`).
+    * ``half_radius``: The rotation correction is only applied to the outer
+      half of the radius (:math:`\hat{\rho} > 0.5`).
 
-  * ``full_radius``: The rotation correction is applied everywhere.
+    * ``full_radius``: The rotation correction is applied everywhere.
 
 **Tuning Rotation Effects:**
 

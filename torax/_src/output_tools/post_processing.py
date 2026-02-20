@@ -956,7 +956,7 @@ def make_post_processed_outputs(
       sim_state.core_profiles, sim_state.geometry
   )
 
-  _, radial_electric_field, poloidal_velocity = rotation.calculate_rotation(
+  rotation_output = rotation.calculate_rotation(
       T_i=sim_state.core_profiles.T_i,
       psi=sim_state.core_profiles.psi,
       n_i=sim_state.core_profiles.n_i,
@@ -1039,8 +1039,8 @@ def make_post_processed_outputs(
       beta_pol=beta_pol,
       beta_N=beta_N,
       impurity_species=impurity_radiation_outputs,
-      poloidal_velocity=poloidal_velocity.face_value(),
-      radial_electric_field=radial_electric_field.face_value(),
+      poloidal_velocity=rotation_output.poloidal_velocity.face_value(),
+      radial_electric_field=rotation_output.Er.face_value(),
       first_step=jnp.array(False),
   )
 

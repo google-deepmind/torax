@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Calculations related to the rotation of the plasma."""
+import dataclasses
 
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -24,6 +25,28 @@ from torax._src.physics import psi_calculations
 
 
 # pylint: disable=invalid-name
+@dataclasses.dataclass(frozen=True)
+class RotationOutput:
+  """Structured output from rotation calculations.
+
+  Attributes:
+    v_ExB: Total ExB velocity profile on the face grid [m/s].
+    v_ExB_poloidal_and_pressure: v_ExB from poloidal rotation + pressure
+      gradient contributions:
+      (dpi/dr / (Zi * e * ni) + v_theta * B_phi) / B_total.
+    v_ExB_toroidal: v_ExB from toroidal velocity contribution:
+      -v_phi * B_theta / B_total.
+    Er: Total radial electric field as a cell variable [V/m].
+    poloidal_velocity: Poloidal velocity as a cell variable [m/s].
+  """
+
+  v_ExB: array_typing.FloatVectorFace
+  v_ExB_poloidal_and_pressure: array_typing.FloatVectorFace
+  v_ExB_toroidal: array_typing.FloatVectorFace
+  Er: cell_variable.CellVariable
+  poloidal_velocity: cell_variable.CellVariable
+
+
 def _calculate_radial_electric_field(
     pressure_thermal_i: cell_variable.CellVariable,
     toroidal_angular_velocity: cell_variable.CellVariable,
@@ -33,10 +56,20 @@ def _calculate_radial_electric_field(
     B_pol_face: array_typing.FloatVector,
     B_tor_face: array_typing.FloatVector,
     geo: geometry.Geometry,
-) -> cell_variable.CellVariable:
-  """Calculates the radial electric field Er.
+) -> tuple[
+    cell_variable.CellVariable,
+    array_typing.FloatVectorFace,
+    array_typing.FloatVectorFace,
+]:
+  """Calculates the radial electric field Er with separate components.
 
   Er = (1 / (Zi * e * ni)) * dpi/dr - v_phi * B_theta + v_theta * B_phi
+
+  We split Er into:
+  - Er_poloidal_and_pressure: (1 / (Zi * e * ni)) * dpi/dr + v_theta * B_phi
+    This contribution is from the pressure gradient and poloidal rotation.
+  - Er_toroidal: -v_phi * B_theta
+    This contribution is from toroidal velocity.
 
   Args:
     pressure_thermal_i: Pressure profile as a cell variable.
@@ -49,7 +82,10 @@ def _calculate_radial_electric_field(
     geo: Geometry object.
 
   Returns:
-    Er: Radial electric field [V/m] on the cell grid.
+    Er: Radial electric field [V/m] as a CellVariable.
+    Er_poloidal_and_pressure_face: Er contribution from pressure gradient and
+      poloidal rotation [V/m] on face grid.
+    Er_toroidal_face: Er contribution from toroidal velocity [V/m] on face grid.
   """
   # Calculate dpi/dr with respect to a midplane-averaged radial coordinate.
   dpi_dr = pressure_thermal_i.face_grad(
@@ -58,19 +94,27 @@ def _calculate_radial_electric_field(
 
   # Calculate Er
   denominator = Z_i_face * constants.CONSTANTS.q_e * n_i.face_value()
-  Er = (
+
+  Er_poloidal_and_pressure_face = (
       math_utils.safe_divide(jnp.array(1.0), denominator) * dpi_dr
-      - toroidal_angular_velocity.face_value()
-      * geo.R_major_profile_face
-      * B_pol_face
       + poloidal_velocity.face_value() * B_tor_face
   )
-  return cell_variable.CellVariable(
-      value=geometry.face_to_cell(Er),
+
+  Er_toroidal_face = (
+      -toroidal_angular_velocity.face_value()
+      * geo.R_major_profile_face
+      * B_pol_face
+  )
+
+  Er_face = Er_poloidal_and_pressure_face + Er_toroidal_face
+
+  Er = cell_variable.CellVariable(
+      value=geometry.face_to_cell(Er_face),
       face_centers=geo.rho_face_norm,
-      right_face_constraint=Er[-1],
+      right_face_constraint=Er_face[-1],
       right_face_grad_constraint=None,
   )
+  return Er, Er_poloidal_and_pressure_face, Er_toroidal_face
 
 
 def _calculate_v_ExB(
@@ -93,11 +137,7 @@ def calculate_rotation(
     pressure_thermal_i: cell_variable.CellVariable,
     geo: geometry.Geometry,
     poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0,
-) -> tuple[
-    array_typing.FloatVectorFace,
-    cell_variable.CellVariable,
-    cell_variable.CellVariable,
-]:
+) -> RotationOutput:
   """Calculates quantities related to the rotation of the plasma.
 
   Args:
@@ -114,9 +154,8 @@ def calculate_rotation(
       velocity.
 
   Returns:
-    v_ExB: ExB velocity profile on the face grid [m/s].
-    Er: Radial electric field as a cell variable [V/m] .
-    poloidal_velocity: Poloidal velocity as a cell variable [m/s].
+    RotationOutput with v_ExB, separated v_ExB components, Er, and
+    poloidal_velocity.
   """
 
   # Flux surface average of `B_phi = F/R`.
@@ -142,17 +181,29 @@ def calculate_rotation(
       poloidal_velocity_multiplier=poloidal_velocity_multiplier,
   )
 
-  Er = _calculate_radial_electric_field(
-      pressure_thermal_i=pressure_thermal_i,
-      toroidal_angular_velocity=toroidal_angular_velocity,
-      poloidal_velocity=poloidal_velocity,
-      n_i=n_i,
-      Z_i_face=Z_i_face,
-      B_pol_face=B_pol_face,
-      B_tor_face=B_tor_face,
-      geo=geo,
+  Er, Er_poloidal_and_pressure_face, Er_toroidal_face = (
+      _calculate_radial_electric_field(
+          pressure_thermal_i=pressure_thermal_i,
+          toroidal_angular_velocity=toroidal_angular_velocity,
+          poloidal_velocity=poloidal_velocity,
+          n_i=n_i,
+          Z_i_face=Z_i_face,
+          B_pol_face=B_pol_face,
+          B_tor_face=B_tor_face,
+          geo=geo,
+      )
   )
 
   v_ExB = _calculate_v_ExB(Er.face_value(), B_total_face)
+  v_ExB_poloidal_and_pressure = _calculate_v_ExB(
+      Er_poloidal_and_pressure_face, B_total_face
+  )
+  v_ExB_toroidal = _calculate_v_ExB(Er_toroidal_face, B_total_face)
 
-  return v_ExB, Er, poloidal_velocity
+  return RotationOutput(
+      v_ExB=v_ExB,
+      v_ExB_poloidal_and_pressure=v_ExB_poloidal_and_pressure,
+      v_ExB_toroidal=v_ExB_toroidal,
+      Er=Er,
+      poloidal_velocity=poloidal_velocity,
+  )

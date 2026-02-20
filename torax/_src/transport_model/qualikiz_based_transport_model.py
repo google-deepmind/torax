@@ -71,6 +71,8 @@ class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
   alpha: array_typing.FloatVectorFace
   epsilon: array_typing.FloatVectorFace
   gamma_E_GB: array_typing.FloatVectorFace
+  gamma_E_GB_poloidal_and_pressure: array_typing.FloatVectorFace
+  gamma_E_GB_toroidal: array_typing.FloatVectorFace
   gamma_E_QLK: array_typing.FloatVectorFace
   mach_toroidal: array_typing.FloatVectorFace
 
@@ -209,10 +211,12 @@ class QualikizBasedTransportModel(
     )
     normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
 
-    def _get_v_ExB():
-      if transport.rotation_mode == RotationMode.OFF:
-        return jnp.zeros_like(core_profiles.q_face)
-      v_ExB, _, _ = rotation.calculate_rotation(
+    if transport.rotation_mode == RotationMode.OFF:
+      v_ExB = jnp.zeros_like(core_profiles.q_face)
+      v_ExB_poloidal_and_pressure = jnp.zeros_like(core_profiles.q_face)
+      v_ExB_toroidal = jnp.zeros_like(core_profiles.q_face)
+    else:
+      rotation_output = rotation.calculate_rotation(
           T_i=core_profiles.T_i,
           psi=core_profiles.psi,
           n_i=core_profiles.n_i,
@@ -224,30 +228,38 @@ class QualikizBasedTransportModel(
           geo=geo,
           poloidal_velocity_multiplier=poloidal_velocity_multiplier,
       )
-      return v_ExB
+      v_ExB = rotation_output.v_ExB
+      v_ExB_poloidal_and_pressure = rotation_output.v_ExB_poloidal_and_pressure
+      v_ExB_toroidal = rotation_output.v_ExB_toroidal
 
-    # gamma_E_SI = r / q * d(v_ExB * q / r)/dr
-    v_ExB = _get_v_ExB()
-    # Computing gradient on the cell grid for better numerical accuracy.
-    value_face = v_ExB * q / (rmid_face + constants.eps)
-    cv = cell_variable.CellVariable(
-        value=geometry.face_to_cell(value_face),
-        face_centers=geo.rho_face_norm,
-        right_face_constraint=value_face[-1],
-        right_face_grad_constraint=None,
-        left_face_constraint=None,
-        left_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+    def _calc_gamma_E_SI(v_ExB_component):
+      value_face = v_ExB_component * q / (rmid_face + constants.eps)
+      cv = cell_variable.CellVariable(
+          value=geometry.face_to_cell(value_face),
+          face_centers=geo.rho_face_norm,
+          right_face_constraint=value_face[-1],
+          right_face_grad_constraint=None,
+          left_face_constraint=None,
+          left_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+      )
+      gamma_E_SI = (
+          rmid_face
+          / q
+          * cv.face_grad(x=rmid, x_left=rmid_face[0], x_right=rmid_face[-1])
+      )
+      # Smooth the profile near the axis to avoid numerical instabilities.
+      axis_ramp = jnp.minimum(
+          (geo.rho_face_norm / 0.1) ** 2,
+          1.0,
+      )
+      gamma_E_SI = gamma_E_SI * axis_ramp
+      return gamma_E_SI * transport.rotation_multiplier
+
+    gamma_E_SI = _calc_gamma_E_SI(v_ExB)
+    gamma_E_SI_poloidal_and_pressure = _calc_gamma_E_SI(
+        v_ExB_poloidal_and_pressure
     )
-    gamma_E_SI = rmid_face / q * cv.face_grad(
-        x=rmid, x_left=rmid_face[0], x_right=rmid_face[-1]
-    )
-    # Smooth the profile near the axis to avoid numerical instabilities.
-    axis_ramp = jnp.minimum(
-        (geo.rho_face_norm / 0.1) ** 2,
-        1.0,
-    )
-    gamma_E_SI = gamma_E_SI * axis_ramp
-    gamma_E_SI = gamma_E_SI * transport.rotation_multiplier
+    gamma_E_SI_toroidal = _calc_gamma_E_SI(v_ExB_toroidal)
 
     # We need different normalizations for QuaLiKiz and QLKNN models.
     c_ref = jnp.sqrt(constants.keV_to_J / constants.m_amu)
@@ -265,6 +277,10 @@ class QualikizBasedTransportModel(
         / (core_profiles.A_i * constants.m_amu)
     )
     gamma_E_GB = gamma_E_SI * (geo.a_minor / c_sou)
+    gamma_E_GB_poloidal_and_pressure = gamma_E_SI_poloidal_and_pressure * (
+        geo.a_minor / c_sou
+    )
+    gamma_E_GB_toroidal = gamma_E_SI_toroidal * (geo.a_minor / c_sou)
 
     return QualikizInputs(
         Z_eff_face=core_profiles.Z_eff_face,
@@ -285,6 +301,8 @@ class QualikizBasedTransportModel(
         alpha=alpha,
         epsilon=epsilon,
         gamma_E_GB=gamma_E_GB,
+        gamma_E_GB_poloidal_and_pressure=gamma_E_GB_poloidal_and_pressure,
+        gamma_E_GB_toroidal=gamma_E_GB_toroidal,
         gamma_E_QLK=gamma_E_QLK,
         mach_toroidal=mach_toroidal,
     )

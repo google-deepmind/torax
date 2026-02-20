@@ -46,6 +46,36 @@ def _make_mock_qualikiz_inputs(n_rho: int = 10):
       alpha=jnp.zeros(n_rho),
       epsilon=jnp.linspace(0.0, 0.3, n_rho),
       gamma_E_GB=jnp.ones(n_rho) * 0.5,
+      gamma_E_GB_poloidal_and_pressure=jnp.ones(n_rho) * 0.25,
+      gamma_E_GB_toroidal=jnp.ones(n_rho) * 0.25,
+      gamma_E_QLK=jnp.ones(n_rho) * 0.5,
+      mach_toroidal=jnp.zeros(n_rho),
+  )
+
+
+def _make_mock_qualikiz_inputs_poloidal_only(n_rho: int = 10):
+  """Create mock QualikizInputs with only poloidal/pressure contribution."""
+  return qualikiz_based_transport_model.QualikizInputs(
+      Z_eff_face=jnp.ones(n_rho),
+      lref_over_lti=jnp.ones(n_rho),
+      lref_over_lte=jnp.ones(n_rho),
+      lref_over_lne=jnp.ones(n_rho),
+      lref_over_lni0=jnp.ones(n_rho),
+      lref_over_lni1=jnp.ones(n_rho),
+      q=jnp.linspace(1.0, 4.0, n_rho),
+      smag=jnp.linspace(0.1, 2.0, n_rho),
+      x=jnp.linspace(0.0, 1.0, n_rho),
+      Ti_Te=jnp.ones(n_rho),
+      log_nu_star_face=jnp.zeros(n_rho),
+      normni=jnp.ones(n_rho),
+      chiGB=jnp.ones(n_rho),
+      Rmaj=jnp.array(6.2),
+      Rmin=jnp.array(2.0),
+      alpha=jnp.zeros(n_rho),
+      epsilon=jnp.linspace(0.0, 0.3, n_rho),
+      gamma_E_GB=jnp.ones(n_rho) * 0.5,
+      gamma_E_GB_poloidal_and_pressure=jnp.ones(n_rho) * 0.5,
+      gamma_E_GB_toroidal=jnp.zeros(n_rho),
       gamma_E_QLK=jnp.ones(n_rho) * 0.5,
       mach_toroidal=jnp.zeros(n_rho),
   )
@@ -219,7 +249,6 @@ class ShearSuppressionModelTest(parameterized.TestCase):
         model_output=model_output,
         qualikiz_inputs=qualikiz_inputs,
         rotation_mode=qualikiz_based_transport_model.RotationMode.OFF,
-        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
         shear_suppression_alpha=1.0,
         geo=geo,
     )
@@ -236,14 +265,13 @@ class ShearSuppressionModelTest(parameterized.TestCase):
     """Tests that Waltz rule suppresses ITG and TEM fluxes."""
     n_rho = 10
     model_output = _make_mock_model_output(n_rho)
-    qualikiz_inputs = _make_mock_qualikiz_inputs(n_rho)
+    qualikiz_inputs = _make_mock_qualikiz_inputs_poloidal_only(n_rho)
     geo = _make_mock_geometry(n_rho)
 
     result = qlknn_transport_model._maybe_apply_rotation_rule(
         model_output=model_output,
         qualikiz_inputs=qualikiz_inputs,
         rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
-        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
         shear_suppression_alpha=alpha,
         geo=geo,
     )
@@ -259,14 +287,13 @@ class ShearSuppressionModelTest(parameterized.TestCase):
     """Tests that larger alpha gives more suppression in Waltz rule."""
     n_rho = 10
     model_output = _make_mock_model_output(n_rho)
-    qualikiz_inputs = _make_mock_qualikiz_inputs(n_rho)
+    qualikiz_inputs = _make_mock_qualikiz_inputs_poloidal_only(n_rho)
     geo = _make_mock_geometry(n_rho)
 
     result_small_alpha = qlknn_transport_model._maybe_apply_rotation_rule(
         model_output=model_output,
         qualikiz_inputs=qualikiz_inputs,
         rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
-        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
         shear_suppression_alpha=0.5,
         geo=geo,
     )
@@ -275,7 +302,6 @@ class ShearSuppressionModelTest(parameterized.TestCase):
         model_output=model_output,
         qualikiz_inputs=qualikiz_inputs,
         rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
-        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
         shear_suppression_alpha=2.0,
         geo=geo,
     )
@@ -301,7 +327,6 @@ class ShearSuppressionModelTest(parameterized.TestCase):
         model_output=model_output,
         qualikiz_inputs=qualikiz_inputs,
         rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
-        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.VANDEPLASSCHE2020,
         shear_suppression_alpha=1.0,
         geo=geo,
     )
@@ -324,7 +349,6 @@ class ShearSuppressionModelTest(parameterized.TestCase):
         model_output=model_output,
         qualikiz_inputs=qualikiz_inputs,
         rotation_mode=qualikiz_based_transport_model.RotationMode.HALF_RADIUS,
-        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
         shear_suppression_alpha=1.0,
         geo=geo,
     )
@@ -352,27 +376,24 @@ class ShearSuppressionModelTest(parameterized.TestCase):
     qualikiz_inputs = _make_mock_qualikiz_inputs(n_rho)
     geo = _make_mock_geometry(n_rho)
 
-    for shear_model in qlknn_transport_model.ShearSuppressionModel:
-      for rotation_mode in [
-          qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
-          qualikiz_based_transport_model.RotationMode.HALF_RADIUS,
-      ]:
-        result = qlknn_transport_model._maybe_apply_rotation_rule(
-            model_output=model_output,
-            qualikiz_inputs=qualikiz_inputs,
-            rotation_mode=rotation_mode,
-            shear_suppression_model=shear_model,
-            shear_suppression_alpha=1.0,
-            geo=geo,
-        )
-        npt.assert_array_equal(
-            result['qe_etg'],
-            model_output['qe_etg'],
-            err_msg=(
-                f'ETG flux should be unchanged for  {shear_model},'
-                f' {rotation_mode}'
-            ),
-        )
+    for rotation_mode in [
+        qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
+        qualikiz_based_transport_model.RotationMode.HALF_RADIUS,
+    ]:
+      result = qlknn_transport_model._maybe_apply_rotation_rule(
+          model_output=model_output,
+          qualikiz_inputs=qualikiz_inputs,
+          rotation_mode=rotation_mode,
+          shear_suppression_alpha=1.0,
+          geo=geo,
+      )
+      npt.assert_array_equal(
+          result['qe_etg'],
+          model_output['qe_etg'],
+          err_msg=(
+              f'ETG flux should be unchanged for {rotation_mode}'
+          ),
+      )
 
   def test_zero_gamma_e_gives_no_suppression(self):
     """Tests that zero gamma_E_GB gives no suppression."""
@@ -397,6 +418,8 @@ class ShearSuppressionModelTest(parameterized.TestCase):
         alpha=jnp.zeros(n_rho),
         epsilon=jnp.linspace(0.0, 0.3, n_rho),
         gamma_E_GB=jnp.zeros(n_rho),
+        gamma_E_GB_poloidal_and_pressure=jnp.zeros(n_rho),
+        gamma_E_GB_toroidal=jnp.zeros(n_rho),
         gamma_E_QLK=jnp.zeros(n_rho),
         mach_toroidal=jnp.zeros(n_rho),
     )
@@ -406,7 +429,6 @@ class ShearSuppressionModelTest(parameterized.TestCase):
         model_output=model_output,
         qualikiz_inputs=qualikiz_inputs,
         rotation_mode=qualikiz_based_transport_model.RotationMode.FULL_RADIUS,
-        shear_suppression_model=qlknn_transport_model.ShearSuppressionModel.WALTZ_RULE,
         shear_suppression_alpha=1.0,
         geo=geo,
     )
