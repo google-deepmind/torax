@@ -96,7 +96,7 @@ if 'output_dir' not in FLAGS:
       ' the default location in the TORAX source tree will be used.',
   )
 else:
-  _OUTPUT_DIR = None
+  _OUTPUT_DIR = FLAGS['output_dir']
 
 
 class NumpyEncoder(json.JSONEncoder):

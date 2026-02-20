@@ -71,7 +71,7 @@ if 'output_dir' not in FLAGS:
       ' specified, the default location in the TORAX source tree will be used.',
   )
 else:
-  _OUTPUT_DIR = None
+  _OUTPUT_DIR = FLAGS['output_dir']
 
 NRHO = 10
 CRASH_STEP_DURATION = 1e-3

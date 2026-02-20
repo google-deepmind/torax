@@ -109,7 +109,7 @@ if 'output_dir' not in FLAGS:
       'If provided, overrides the default output directory.',
   )
 else:
-  _OUTPUT_DIR = None
+  _OUTPUT_DIR = FLAGS['output_dir']
 
 _PLOT_CONFIG_PATH = flags.DEFINE_string(
     'plot_config',
