@@ -40,7 +40,7 @@ def get_example_L_LY_data(
       'deltau': np.full((len_psinorm, len_times), fill_value).squeeze(),
       'deltal': np.full((len_psinorm, len_times), fill_value).squeeze(),
       'kappa': np.full((len_psinorm, len_times), fill_value).squeeze(),
-      'epsilon': np.full((len_psinorm, len_times), fill_value).squeeze(),
+      'epsilon': np.full((len_psinorm, len_times), 0.5 * fill_value).squeeze(),
       # When fill_value != 0 (i.e. intended to generate a standard geometry),
       # needs to be linspace to avoid drho_norm = 0.
       'FtPQ': (
