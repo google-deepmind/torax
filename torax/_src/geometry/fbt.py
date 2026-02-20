@@ -24,6 +24,7 @@ import jax
 import numpy as np
 import pydantic
 from torax._src import constants
+from torax._src import math_utils
 from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
@@ -438,7 +439,9 @@ def _from_fbt(
   # TODO(b/426291465): Implement a more accurate calculation of <1/B^2>
   # (either here or upstream in MEQ)
   # Approximate with analytical expressions for circular geometry.
-  flux_surf_avg_B2 = B_0**2 / np.sqrt(1.0 - LY['epsilon'] ** 2)
+  flux_surf_avg_B2 = math_utils.safe_divide(
+      B_0**2, np.sqrt(1.0 - LY['epsilon'] ** 2)
+  )
   flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
 
   # Edge/Divertor geometry
