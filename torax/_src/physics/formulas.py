@@ -65,16 +65,16 @@ def calc_pprime(
       with respect to the normalized toroidal flux coordinate, on the face grid.
   """
 
-  p_total_face = core_profiles.pressure_thermal_total.face_value()
+  p_total_face = core_profiles.pressure_total.face_value()
   psi = core_profiles.psi.face_value()
   n_e = core_profiles.n_e.face_value()
   n_i = core_profiles.n_i.face_value()
-  n_impurity = core_profiles.n_impurity.face_value()
+  n_impurity = core_profiles.n_impurity_thermal.face_value()
   T_i = core_profiles.T_i.face_value()
   T_e = core_profiles.T_e.face_value()
   dne_drhon = core_profiles.n_e.face_grad()
   dni_drhon = core_profiles.n_i.face_grad()
-  dnimp_drhon = core_profiles.n_impurity.face_grad()
+  dnimp_drhon = core_profiles.n_impurity_thermal.face_grad()
   dti_drhon = core_profiles.T_i.face_grad()
   dte_drhon = core_profiles.T_e.face_grad()
   dpsi_drhon = core_profiles.psi.face_grad()
@@ -87,6 +87,11 @@ def calc_pprime(
       + dni_drhon * T_i
       + dnimp_drhon * T_i
   )
+  for fi in core_profiles.fast_ions:
+    dptot_drhon += constants.CONSTANTS.keV_to_J * (
+        fi.n.face_value() * fi.T.face_grad()
+        + fi.n.face_grad() * fi.T.face_value()
+    )
 
   # Calculate on-axis value with L'Hôpital's rule using 2nd order forward
   # difference approximation for second derivative at edge.
@@ -232,7 +237,7 @@ def calculate_betas(
     Tuple of beta_tor, beta_pol, and beta_N
   """
   p_total_volume_avg = math_utils.volume_average(
-      core_profiles.pressure_thermal_total.value, geo
+      core_profiles.pressure_total.value, geo
   )
 
   magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu_0)
