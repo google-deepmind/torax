@@ -32,9 +32,12 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
+from torax._src.physics import fast_ion_utils
+from torax._src.physics import fast_ions as fast_ions_lib
 from torax._src.sources import base
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
@@ -360,29 +363,6 @@ def _get_minority_concentration_from_composition(
   )
 
 
-def _helium3_tail_temperature(
-    power_deposition_he3: jax.Array,
-    core_profiles: state.CoreProfiles,
-    minority_concentration: float,
-    P_total: float,
-) -> jax.Array:
-  """Use a "Stix distribution" to estimate the tail temperature of He3."""
-  helium3_mass = 3.016
-  helium3_charge = 2
-  helium3_fraction = minority_concentration
-  absorbed_power_density = power_deposition_he3 * P_total
-  n_e20 = core_profiles.n_e.value / 1e20
-  # Use a "Stix distribution" [Stix, Nuc. Fus. 1975] to model the non-thermal
-  # He3 distribution based on an analytic solution to the FP equation.
-  xi = (
-      0.24
-      * jnp.sqrt(core_profiles.T_e.value)
-      * helium3_mass
-      * absorbed_power_density
-  ) / (n_e20**2 * helium3_charge**2 * helium3_fraction)
-  return core_profiles.T_e.value * (1 + xi)
-
-
 def icrh_model_func(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
@@ -391,7 +371,11 @@ def icrh_model_func(
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
     toric_nn: ToricNNWrapper,
-) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
+) -> tuple[
+    array_typing.FloatVectorCell,
+    array_typing.FloatVectorCell,
+    tuple[fast_ions_lib.FastIon, ...],
+]:
   """Compute ion/electron heat source terms."""
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)
@@ -481,18 +465,45 @@ def icrh_model_func(
   power_deposition_e /= total_power_deposition
   power_deposition_2T /= total_power_deposition
 
-  # For helium-3 we use a "Stix distribution" to model the non-thermal He3 tail.
-  helium3_birth_energy = _helium3_tail_temperature(
-      power_deposition_he3,
-      core_profiles,
-      minority_concentration_profile,
-      source_params.P_total / 1e6,  # required in MW.
+  # Computing fast ion density and temperatures for He3.
+  # Only He3 is supported for now.
+  species = 'He3'
+  atomic_mass = 3.016
+  charge_number = 2
+
+  n_tail, T_tail = fast_ion_utils.bimaxwellian_split(
+      power_deposition=power_deposition_he3,
+      T_e=core_profiles.T_e.value,
+      n_e=core_profiles.n_e.value,
+      T_i=core_profiles.T_i.value,
+      minority_concentration=minority_concentration_profile,
+      P_total_W=source_params.P_total,
+      charge_number=charge_number,
+      mass_number=atomic_mass,
   )
-  helium3_mass = 3.016
+
+  fast_ions = (
+      fast_ions_lib.FastIon(
+          species=species,
+          source=source_name,
+          n=cell_variable.CellVariable(
+              value=n_tail,
+              face_centers=geo.rho_face_norm,
+              right_face_grad_constraint=None,
+              right_face_constraint=jnp.asarray(0.0),
+          ),
+          T=cell_variable.CellVariable(
+              value=T_tail,
+              face_centers=geo.rho_face_norm,
+              right_face_grad_constraint=None,
+              right_face_constraint=core_profiles.T_i.right_face_constraint,
+          ),
+      ),
+  )
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
-      helium3_birth_energy,
+      T_tail,
       core_profiles.T_e.value,
-      helium3_mass,
+      atomic_mass,
   )
   absorbed_power = source_params.P_total * source_params.absorption_fraction
   source_ion = power_deposition_he3 * frac_ion_heating * absorbed_power
@@ -504,7 +515,7 @@ def icrh_model_func(
   # Assume that all the power from the tritium power profile goes to ions.
   source_ion += power_deposition_2T * absorbed_power
 
-  return (source_ion, source_el)
+  return (source_ion, source_el, fast_ions)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -522,6 +533,31 @@ class IonCyclotronSource(source.Source):
     return (
         source.AffectedCoreProfile.TEMP_ION,
         source.AffectedCoreProfile.TEMP_EL,
+        source.AffectedCoreProfile.FAST_IONS,
+    )
+
+  @classmethod
+  def zero_fast_ions(
+      cls,
+      geo: geometry.Geometry,
+  ) -> tuple[fast_ions_lib.FastIon, ...]:
+    return (
+        fast_ions_lib.FastIon(
+            species='He3',
+            source=cls.SOURCE_NAME,
+            n=cell_variable.CellVariable(
+                value=jnp.zeros_like(geo.rho),
+                face_centers=geo.rho_face_norm,
+                right_face_grad_constraint=None,
+                right_face_constraint=jnp.asarray(0.0),
+            ),
+            T=cell_variable.CellVariable(
+                value=jnp.zeros_like(geo.rho),
+                face_centers=geo.rho_face_norm,
+                right_face_grad_constraint=None,
+                right_face_constraint=jnp.asarray(0.0),
+            ),
+        ),
     )
 
 
