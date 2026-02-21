@@ -33,8 +33,13 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.physics import fast_ions as fast_ions_lib
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
+
+SourceProfileElement = (
+    array_typing.FloatVectorCell | tuple[fast_ions_lib.FastIon, ...]
+)
 
 
 @typing.runtime_checkable
@@ -49,7 +54,7 @@ class SourceProfileFunction(Protocol):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       unused_conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[array_typing.FloatVectorCell, ...]:
+  ) -> tuple[SourceProfileElement, ...]:
     ...
 
 
@@ -69,6 +74,8 @@ class AffectedCoreProfile(enum.IntEnum):
   TEMP_ION = 3
   # Electron temperature equation.
   TEMP_EL = 4
+  # Fast ions.
+  FAST_IONS = 5
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -109,6 +116,54 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
   def affected_core_profiles(self) -> tuple[AffectedCoreProfile, ...]:
     """Returns the core profiles affected by this source."""
 
+  def zero_fast_ions(
+      self,
+      geo: geometry.Geometry,
+  ) -> tuple[fast_ions_lib.FastIon, ...]:
+    """Returns a tuple of zero fast ion profiles."""
+    del geo  # Unused in the default case.
+    if AffectedCoreProfile.FAST_IONS in self.affected_core_profiles:
+      raise NotImplementedError(
+          f'{type(self).__name__} affects FAST_IONS but does not override'
+          ' zero_fast_ions.'
+      )
+    return ()
+
+  def _validate_fast_ions(
+      self,
+      fast_ions: SourceProfileElement,
+      geo: geometry.Geometry,
+  ):
+    """Validates the fast ion profiles."""
+    if not isinstance(fast_ions, tuple):
+      # PRESCRIBED mode might incorrectly supply a single array instead
+      # of a tuple of FastIons if not configured correctly.
+      raise TypeError(
+          'FAST_IONS profile must be a tuple of FastIon, but got'
+          f' {type(fast_ions)}.'
+      )
+    fast_ions = typing.cast(tuple[fast_ions_lib.FastIon, ...], fast_ions)
+    zero_fast_ions = self.zero_fast_ions(geo)
+    if len(fast_ions) != len(zero_fast_ions):
+      raise ValueError(
+          'Fast ion profiles must have the same length as zero_fast_ions. Was:'
+          f' {len(fast_ions)}. Expected:'
+          f' {len(zero_fast_ions)}.'
+      )
+    expected_species_order = [fast_ion.species for fast_ion in zero_fast_ions]
+    actual_species_order = [fast_ion.species for fast_ion in fast_ions]
+    if any(
+        actual_species != expected_species
+        for actual_species, expected_species in zip(
+            actual_species_order, expected_species_order
+        )
+    ):
+      raise ValueError(
+          'Fast ion profiles must have the same species in the same order as'
+          f' zero_fast_ions. Was: {actual_species_order}. Expected:'
+          f' {expected_species_order}.'
+      )
+
   def get_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -116,7 +171,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[array_typing.FloatVectorCell, ...]:
+  ) -> tuple[SourceProfileElement, ...]:
     """Returns the cell grid profile for this source during one time step.
 
     Args:
@@ -141,8 +196,8 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
         implicit sources.
 
     Returns:
-      A tuple of arrays of shape (cell grid length,) with one array per affected
-      core profile.
+      A tuple with one element per affected core profile. Each element is either
+      a FloatVectorCell array or, for FAST_IONS, a tuple of FastIon.
     """
     source_params = runtime_params.sources[self.source_name]
 
@@ -153,7 +208,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
           raise ValueError(
               'Source is in MODEL_BASED mode but has no model function.'
           )
-        return self.model_func(
+        res = self.model_func(
             runtime_params,
             geo,
             self.source_name,
@@ -171,9 +226,25 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
               f'{len(source_params.prescribed_values)} '
               f' Expected: {len(self.affected_core_profiles)}.'
           )
-        return source_params.prescribed_values
+        res = source_params.prescribed_values
       case sources_runtime_params_lib.Mode.ZERO:
         zeros = jnp.zeros(geo.rho_norm.shape)
-        return (zeros,) * len(self.affected_core_profiles)
+        res = tuple(
+            self.zero_fast_ions(geo)
+            if acp == AffectedCoreProfile.FAST_IONS
+            else zeros
+            for acp in self.affected_core_profiles
+        )
       case _:
         raise ValueError(f'Unknown mode: {mode}')
+
+    if AffectedCoreProfile.FAST_IONS in self.affected_core_profiles:
+      fast_ions_idx = self.affected_core_profiles.index(
+          AffectedCoreProfile.FAST_IONS
+      )
+      self._validate_fast_ions(
+          res[fast_ions_idx],
+          geo,
+      )
+
+    return res
