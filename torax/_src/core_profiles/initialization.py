@@ -97,6 +97,10 @@ def initial_core_profiles(
       face_centers=geo.rho_face_norm,
   )
 
+  fast_ions_list = []
+  for s in source_models.standard_sources.values():
+    fast_ions_list.extend(s.zero_fast_ions(geo))
+
   core_profiles = state.CoreProfiles(
       T_i=T_i,
       T_e=T_e,
@@ -114,6 +118,7 @@ def initial_core_profiles(
       A_impurity_face=ions.A_impurity_face,
       Z_eff=ions.Z_eff,
       Z_eff_face=ions.Z_eff_face,
+      fast_ions=tuple(fast_ions_list),
       psi=psi,
       psidot=psidot,
       q_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
