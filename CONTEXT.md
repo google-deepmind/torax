@@ -41,6 +41,11 @@ project.
     intent or physics meaning is not immediately obvious from the name and
     signature.
 
+*   **License Preamble:** Every source file must include the Apache 2.0
+    license preamble. Always add it to newly created files with the copyright
+    year set to the current year. Never remove the preamble from any file,
+    and do **not** modify the copyright year in existing files.
+
 ## Build & test commands
 
 For build and test instructions, see
