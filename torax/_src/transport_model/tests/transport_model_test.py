@@ -25,6 +25,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -113,8 +114,18 @@ class TransportSmoothingTest(parameterized.TestCase):
         source_models,
         neoclassical_models,
     )
+    source_profiles = source_profile_builders.build_source_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+        explicit=True,
+    )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    pedestal_model_outputs = pedestal_model(runtime_params, geo, core_profiles)
+    pedestal_model_outputs = pedestal_model(
+        runtime_params, geo, core_profiles, source_profiles
+    )
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
         runtime_params,
@@ -279,8 +290,18 @@ class TransportSmoothingTest(parameterized.TestCase):
         source_models,
         neoclassical_models,
     )
+    source_profiles = source_profile_builders.build_source_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+        explicit=True,
+    )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    pedestal_model_outputs = pedestal_model(runtime_params, geo, core_profiles)
+    pedestal_model_outputs = pedestal_model(
+        runtime_params, geo, core_profiles, source_profiles
+    )
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
         runtime_params,
@@ -450,20 +471,31 @@ class TransportMaskingTest(parameterized.TestCase):
         torax_config
     )(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
-    # We need a pedestal model even if unused by the fixed transport
-    pedestal_model = torax_config.pedestal.build_pedestal_model()
-    # Mock core profiles (not used by FixedTransportModel but needed for API)
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
-        torax_config.sources.build_models(),
-        torax_config.neoclassical.build_models(),
+        source_models,
+        neoclassical_models,
     )
-    pedestal_outputs = pedestal_model(runtime_params, geo, core_profiles)
+    source_profiles = source_profile_builders.build_source_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+        explicit=True,
+    )
+    # We need a pedestal model even if unused by the fixed transport
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
+    pedestal_model_outputs = pedestal_model(
+        runtime_params, geo, core_profiles, source_profiles
+    )
 
     transport_model = torax_config.transport.build_transport_model()
     coeffs = transport_model(
-        runtime_params, geo, core_profiles, pedestal_outputs
+        runtime_params, geo, core_profiles, pedestal_model_outputs
     )
 
     # Verify chi_i is zeroed out
@@ -507,11 +539,20 @@ class TransportMaskingTest(parameterized.TestCase):
         torax_config.sources.build_models(),
         torax_config.neoclassical.build_models(),
     )
-    pedestal_outputs = pedestal_model(runtime_params, geo, core_profiles)
-
+    source_profiles = source_profile_builders.build_source_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=torax_config.sources.build_models(),
+        neoclassical_models=torax_config.neoclassical.build_models(),
+        explicit=True,
+    )
+    pedestal_model_outputs = pedestal_model(
+        runtime_params, geo, core_profiles, source_profiles
+    )
     transport_model = torax_config.transport.build_transport_model()
     coeffs = transport_model(
-        runtime_params, geo, core_profiles, pedestal_outputs
+        runtime_params, geo, core_profiles, pedestal_model_outputs
     )
 
     # Get reference values from a single fixed model
@@ -526,7 +567,7 @@ class TransportMaskingTest(parameterized.TestCase):
         single_fixed_config
     )(t=0.0)
     ref_coeffs = single_model(
-        single_runtime, geo, core_profiles, pedestal_outputs
+        single_runtime, geo, core_profiles, pedestal_model_outputs
     )
 
     # chi_i should be approx equal to single model (1x contribution)
@@ -621,7 +662,17 @@ class TransportMaskingTest(parameterized.TestCase):
         torax_config.sources.build_models(),
         torax_config.neoclassical.build_models(),
     )
-    pedestal_outputs = pedestal_model(runtime_params, geo, core_profiles)
+    source_profiles = source_profile_builders.build_source_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=torax_config.sources.build_models(),
+        neoclassical_models=torax_config.neoclassical.build_models(),
+        explicit=True,
+    )
+    pedestal_outputs = pedestal_model(
+        runtime_params, geo, core_profiles, source_profiles
+    )
 
     transport_model = torax_config.transport.build_transport_model()
     coeffs = transport_model(

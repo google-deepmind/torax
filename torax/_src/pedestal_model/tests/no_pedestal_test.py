@@ -11,24 +11,54 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from unittest import mock
-
 from absl.testing import absltest
-import jax.numpy as jnp
-from torax._src.pedestal_model import no_pedestal
+from jax import numpy as jnp
+from torax._src.config import build_runtime_params
+from torax._src.core_profiles import initialization
+from torax._src.sources import source_profile_builders
+from torax._src.test_utils import default_configs
+from torax._src.torax_pydantic import model_config
 
 
 class NoPedestalTest(absltest.TestCase):
 
   def test_build_and_call_model(self):
-    no_pedestal_model = no_pedestal.NoPedestal()
-    geo = mock.Mock()
-    geo.torax_mesh.nx = 10
-    runtime_params = mock.Mock()
-    runtime_params.pedestal.set_pedestal = True
-    result = no_pedestal_model(runtime_params, geo, mock.Mock())
-    self.assertEqual(result.rho_norm_ped_top, jnp.inf)
-    self.assertEqual(result.rho_norm_ped_top_idx, 10)
+    config = default_configs.get_default_config_dict()
+    config['pedestal'] = {
+        'model_name': 'no_pedestal',
+        'set_pedestal': True,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    source_models = torax_config.sources.build_models()
+
+    neoclassical_models = torax_config.neoclassical.build_models()
+    geo = torax_config.geometry.build_provider(t=0.0)
+    runtime_params = provider(t=0.0)
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        source_models,
+        neoclassical_models,
+    )
+    source_profiles = source_profile_builders.build_source_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+        explicit=True,
+    )
+    pedestal_model_output = pedestal_model(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_profiles=source_profiles,
+    )
+    self.assertEqual(pedestal_model_output.rho_norm_ped_top, jnp.inf)
 
 
 if __name__ == '__main__':

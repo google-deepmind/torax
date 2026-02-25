@@ -142,6 +142,7 @@ def finalize_outputs(
           runtime_params_t_plus_dt,
           geometry_t_plus_dt,
           final_core_profiles,
+          final_source_profiles,
       )
   )
 

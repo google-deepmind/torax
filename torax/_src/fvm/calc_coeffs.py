@@ -212,6 +212,20 @@ def _calc_coeffs_full(
       )
   )
 
+  # Calculate the implicit source profiles and combine them with the explicit
+  # source profiles. These are needed for the pedestal model, so are computed
+  # here rather than in the source terms section.
+  merged_source_profiles = source_profile_builders.build_source_profiles(
+      source_models=physics_models.source_models,
+      neoclassical_models=physics_models.neoclassical_models,
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      explicit=False,
+      explicit_source_profiles=explicit_source_profiles,
+      conductivity=conductivity,
+  )
+
   # --- Transient term coefficients --- #
   # These have radial dependence through r, n
   toc_T_i = 1.5 * geo.vpr ** (-2.0 / 3.0) * consts.keV_to_J
@@ -243,6 +257,7 @@ def _calc_coeffs_full(
           runtime_params,
           geo,
           core_profiles,
+          merged_source_profiles,
           use_pereverzev,
       )
   )
@@ -306,18 +321,6 @@ def _calc_coeffs_full(
 
   # --- Source terms --- #
   # 1. Construct the source vectors
-  # First need to calculate the implicit source profiles and combine them with
-  # the explicit source profiles.
-  merged_source_profiles = source_profile_builders.build_source_profiles(
-      source_models=physics_models.source_models,
-      neoclassical_models=physics_models.neoclassical_models,
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      explicit=False,
-      explicit_source_profiles=explicit_source_profiles,
-      conductivity=conductivity,
-  )
   source_i = merged_source_profiles.total_sources('T_i', geo)
   source_e = merged_source_profiles.total_sources('T_e', geo)
   source_n_e = merged_source_profiles.total_sources('n_e', geo)
@@ -397,7 +400,7 @@ def _calc_coeffs_full(
   # TODO(b/323504363): Currently pedestal model is called twice, once in
   # calculate_total_transport_coeffs and once here.
   pedestal_model_output = physics_models.pedestal_model(
-      runtime_params, geo, core_profiles
+      runtime_params, geo, core_profiles, merged_source_profiles
   )
   (
       source_i,

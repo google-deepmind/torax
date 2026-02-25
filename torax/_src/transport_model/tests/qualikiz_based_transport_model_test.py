@@ -26,6 +26,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -55,7 +56,24 @@ def _get_config_and_model_inputs(
       source_models=source_models,
       neoclassical_models=neoclassical_models,
   )
-  return torax_config, (runtime_params, geo, core_profiles)
+  source_profiles = source_profile_builders.build_source_profiles(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_models=source_models,
+      neoclassical_models=neoclassical_models,
+      explicit=True,
+  )
+  pedestal_model = torax_config.pedestal.build_pedestal_model()
+  pedestal_model_outputs = pedestal_model(
+      runtime_params, geo, core_profiles, source_profiles
+  )
+  return torax_config, (
+      runtime_params,
+      geo,
+      core_profiles,
+      pedestal_model_outputs,
+  )
 
 
 class QualikizTransportModelTest(parameterized.TestCase):
@@ -77,10 +95,8 @@ class QualikizTransportModelTest(parameterized.TestCase):
         'q_sawtooth_proxy': True,
     })
     transport_model = torax_config.transport.build_transport_model()
-    pedestal_model = torax_config.pedestal.build_pedestal_model()
-    pedestal_model_outputs = pedestal_model(*model_inputs)
 
-    core_transport = transport_model(*model_inputs, pedestal_model_outputs)
+    core_transport = transport_model(*model_inputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
     self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
     self.assertEqual(core_transport.chi_face_el.shape, expected_shape)
@@ -97,7 +113,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         'smag_alpha_correction': True,
     })
     transport_model = torax_config.transport.build_transport_model()
-    runtime_params, geo, core_profiles = model_inputs
+    runtime_params, geo, core_profiles, _ = model_inputs
     assert isinstance(
         runtime_params.transport,
         qualikiz_based_transport_model.RuntimeParams,

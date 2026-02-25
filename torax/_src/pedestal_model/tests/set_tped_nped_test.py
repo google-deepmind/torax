@@ -18,6 +18,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
+from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -75,10 +76,19 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         source_models,
         neoclassical_models,
     )
+    source_profiles = source_profile_builders.build_source_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+        explicit=True,
+    )
     pedestal_model_output = pedestal_model(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_profiles=source_profiles,
     )
 
     if isinstance(T_i_ped, (float, int)):

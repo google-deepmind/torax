@@ -16,6 +16,7 @@
 
 The pedestal model calculates quantities relevant to the pedestal.
 """
+
 import abc
 import dataclasses
 
@@ -27,6 +28,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
+from torax._src.sources import source_profiles as source_profiles_lib
 
 # pylint: disable=invalid-name
 # Using physics notation naming convention
@@ -74,6 +76,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      source_profiles: source_profiles_lib.SourceProfiles,
   ) -> PedestalModelOutput:
     return jax.lax.cond(
         runtime_params.pedestal.set_pedestal,

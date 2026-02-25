@@ -140,6 +140,7 @@ def _get_initial_state(
           runtime_params,
           geo,
           initial_core_profiles,
+          initial_core_sources,
       )
   )
 

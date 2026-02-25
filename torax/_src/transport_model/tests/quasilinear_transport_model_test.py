@@ -31,6 +31,7 @@ from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -68,8 +69,18 @@ def _get_model_and_model_inputs(
       source_models=source_models,
       neoclassical_models=neoclassical_models,
   )
+  source_profiles = source_profile_builders.build_source_profiles(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_models=source_models,
+      neoclassical_models=neoclassical_models,
+      explicit=True,
+  )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
-  pedestal_model_outputs = pedestal_model(runtime_params, geo, core_profiles)
+  pedestal_model_outputs = pedestal_model(
+      runtime_params, geo, core_profiles, source_profiles
+  )
   return torax_config.transport.build_transport_model(), (
       runtime_params,
       geo,
