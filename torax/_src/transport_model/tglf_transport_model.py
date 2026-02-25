@@ -49,6 +49,41 @@ from torax._src.transport_model import transport_model
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(tglf_based_transport_model.RuntimeParams):
   n_processes: int
+  #n_species: int
+  #as_3: float
+  #mass_3: float
+  #rlns_3: float
+  #zs_3: float
+  kygrid_model: int
+  ky: float
+  n_ky: int
+  n_modes: int
+  geometry_flag: int
+  sat_rule: int
+  xnu_model: int
+  n_width: float
+  width_min: float
+  width: float
+  filter: float
+  theta_trapped: float
+  w_dia_trapped: float
+  sign_bt: float
+  sign_it: float
+  xnu_factor: float
+  debye_factor: float
+  etg_factor: float
+  find_width: bool
+  use_mhd_rule: bool
+  use_bpar: bool
+  use_bper: bool
+  use_inboard_trapped: bool
+  use_ave_ion_grid: bool
+  alpha_e: float
+  alpha_zf: float
+  alpha_quench: float
+  n_xgrid: int
+  n_basis_min: int
+  n_basis_max: int
 
 
 _DEFAULT_TGLFRUN_NAME_PREFIX = 'torax_tglf_runs'
@@ -197,29 +232,7 @@ class TGLFTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> transport_model.TurbulentTransport:
-    """Extracts QuaLiKiz run data from runpath."""
-
-    def read_gbflux(path):
-        # Read the out.tglf.gbflux file
-        with open(os.path.join(path, 'out.tglf.gbflux'), 'r') as f:
-            lines = f.readlines()
-        species = []
-        if lines:
-            _fluxes = {
-                'Gamma': 0.0,
-                'Q': 0.0,
-                'Pi': 0.0,
-                'S': 0.0,
-            }
-            # Convert the line of values into a list of floats
-            fluxes_list = [float(value) for value in lines[0].split()]
-            nspecies = len(fluxes_list) // len(list(_fluxes.keys()))
-            for i_species in range(nspecies):
-                fluxes = copy.deepcopy(_fluxes)
-                for i_flux, key_flux in enumerate(_fluxes.keys()):
-                    fluxes[key_flux] = ((fluxes_list[i_flux*nspecies:(i_flux+1)*nspecies])[:nspecies])[i_species]
-                species.append(copy.deepcopy(fluxes))
-        return species
+    """Extracts TGLF run data from runpath."""
 
     qe = np.zeros((len(tglf_plan), ))
     qi = np.zeros((len(tglf_plan), ))
@@ -227,7 +240,6 @@ class TGLFTransportModel(
     for i, run in enumerate(tglf_plan):
         gbfluxes = np.loadtxt(os.path.join(self._runpath, run['location'], 'out.tglf.gbflux'))
         nspecies = len(gbfluxes) // 4
-        #gbfluxes = read_gbflux(os.path.join(self._runpath, run['location']))
         qe[i] = float(gbfluxes[1*nspecies+0])  # Defined TGLF species 1 as electrons
         qi[i] = float(sum(gbfluxes[1*nspecies+1:1*nspecies+nspecies]))
         ge[i] = float(gbfluxes[0*nspecies+0])
@@ -279,20 +291,21 @@ def _extract_tglf_plan(
       'UNITS': 'CGYRO',
       'NS': 3,
       'USE_TRANSPORT_MODEL': '.true.',
-      'GEOMETRY_FLAG': 1,
-      'USE_BPER': '.true.',
-      'USE_BPAR': '.false.',
+      'GEOMETRY_FLAG': f'.{str(transport.geometry_flag).lower()}.',
+      'USE_BPER': f'.{str(transport.use_bper).lower()}.',
+      'USE_BPAR': f'.{str(transport.use_bpar).lower()}.',
       'USE_BISECTION': '.true.',
-      'USE_MHD_RULE': '.false.',
-      'USE_INBOARD_DETRAPPED': '.false.',
-      'SAT_RULE': 3,
-      'KYGRID_MODEL': 4,
-      'XNU_MODEL': 3,
+      'USE_MHD_RULE': f'.{str(transport.use_mhd_rule).lower()}.',
+      'USE_INBOARD_DETRAPPED': f'.{str(transport.use_inboard_detrapped).lower()}.',
+      'USE_AVE_ION_GRID': f'.{str(transport.use_ave_ion_grid).lower()}.',
+      'SAT_RULE': transport.sat_rule,
+      'KYGRID_MODEL': transport.kygrid_model,
+      'XNU_MODEL': transport.xnu_model,
       'VPAR_MODEL': 0,
       #'VPAR_SHEAR_MODEL': 0,
-      'SIGN_BT': 1.0,
-      'SIGN_IT': 1.0,
-      'KY': 0.3,
+      'SIGN_BT': transport.sign_bt,
+      'SIGN_IT': transport.sign_it,
+      'KY': transport.ky,
       'NEW_EIKONAL': '.true.',
       'VEXB': 0.0,
       'VEXB_SHEAR': 0.0,
@@ -302,28 +315,29 @@ def _extract_tglf_plan(
       'DEBYE': 0.0,
       'IFLUX': '.true.',
       'IBRANCH': -1,
-      'NMODES': 5,
-      'NBASIS_MAX': 6,  # Default is 4
-      'NBASIS_MIN': 2,
-      'NXGRID': 16,
-      'NKY': 19,
+      'NMODES': transport.n_modes,
+      'NBASIS_MIN': transport.n_basis_min,
+      'NBASIS_MAX': transport.n_basis_max,
+      'NXGRID': transport.n_xgrid, #4*transport.n_basis_max,
+      'NKY': transport.n_ky,
       'ADIABATIC_ELEC': '.false.',
+      # multipliers
       'ALPHA_P': 1.0,
       'ALPHA_MACH': 0.0,
-      'ALPHA_E': 1.0,
-      'ALPHA_QUENCH': 0.0,
-      'ALPHA_ZF': 1.0,
-      'XNU_FACTOR': 1.0,
-      'DEBYE_FACTOR': 1.0,
-      'ETG_FACTOR': 1.25,
+      'ALPHA_E': transport.alpha_e,
+      'ALPHA_QUENCH': transport.alpha_quench,
+      'ALPHA_ZF': transport.alpha_zf,
+      'XNU_FACTOR': transport.xnu_factor,
+      'DEBYE_FACTOR': transport.debye_factor,
+      'ETG_FACTOR': transport.etg_factor,
       'B_MODEL_SA': 1,
       'FT_MODEL_SA': 1,
       # gaussian
       'WRITE_WAVEFUNCTION_FLAG': 0,
-      'WIDTH': 1.65,
-      'WIDTH_MIN': 0.3,
-      'NWIDTH': 21,
-      'FIND_WIDTH': '.true.',
+      'WIDTH_MIN': transport.width_min,
+      'WIDTH': transport.width,
+      'NWIDTH': transport.n_width,
+      'FIND_WIDTH': f'.{str(transport.find_width).lower()}.',
       # miller
       'RMIN_LOC': 0.5,
       'RMAJ_LOC': 3.0,
@@ -342,18 +356,18 @@ def _extract_tglf_plan(
       'S_ZETA_LOC': 0.0,
       'KX0_LOC': 0.0,
       # expert
-      'THETA_TRAPPED': 0.7,
+      'THETA_TRAPPED': transport.theta_trapped,
       'PARK': 1.0,
       'GHAT': 1.0,
       'GCHAT': 1.0,
       'WD_ZERO': 0.1,
       'LINSKER_FACTOR': 0.0,
       'GRADB_FACTOR': 0.0,
-      'FILTER': 2.0,
+      'FILTER': transport.filter,
       'DAMP_PSI': 0.0,
       'DAMP_SIG': 0.0,
       #'NN_MAX_ERROR': -1.0,
-      'WDIA_TRAPPED': 1.0,
+      'WDIA_TRAPPED': transport.w_dia_trapped,
   }
 
   for s in range(1, 4):
@@ -442,7 +456,7 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
 
   Attributes:
     model_name: The transport model to use. Hardcoded to 'tglf'.
-    n_processes: Set number of cores used QuaLiKiz calculations.
+    n_processes: Set number of cores used TGLF calculations.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
   """
@@ -454,6 +468,48 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
 
+  # species settings
+  #n_species: pydantic.PositiveInt = 3 # currently set to 3 in TORAX
+  #as_3: pydantic.PositiveFloat = 0.0
+  #mass_3: pydantic.PositiveFloat = 0.0
+  #rlns_3: pydantic.FiniteFloat = 0.0
+  #zs_3: pydantic.PositiveFloat = 0.0
+  # mode settings
+  kygrid_model: pydantic.PositiveInt = 4
+  ky: pydantic.PositiveFloat = 0.3
+  n_ky: pydantic.PositiveInt = 19 # in kygrid_model 4 the number of ETG ky
+  n_modes: pydantic.PositiveInt = 5 # default is 2, for numerical efficiency NS+2
+  # model settings
+  geometry_flag: pydantic.PositiveInt = 1 # 0: s-alpha, 1: Miller/MXH, 3: ELITE
+  sat_rule: pydantic.PositiveInt = 3
+  xnu_model: pydantic.PositiveInt = 3
+  n_width: pydantic.PositiveInt = 21
+  width_min: pydantic.FiniteFloat = -0.3 # set negative for electromagnetic search
+  width: pydantic.PositiveFloat = 1.65 # maximum Gaussian width
+  filter: pydantic.FiniteFloat = 2.0
+  theta_trapped: pydantic.PositiveFloat = 0.7 # set to 0.4 with n_basis_max = 8 for low aspect ratio (https://eprints.whiterose.ac.uk/159700/)
+  w_dia_trapped: pydantic.PositiveFloat = 1.0 # set to 1.0 for SAT2 and SAT3
+  sign_bt: pydantic.FiniteFloat = 1.0 # CCW from the top is possitive
+  sign_it: pydantic.FiniteFloat = 1.0 # CCW from the top is possitive
+  xnu_factor: pydantic.PositiveFloat = 1.0
+  debye_factor: pydantic.PositiveFloat = 1.0
+  etg_factor: pydantic.FiniteFloat = 1.25
+  # flags
+  find_width: bool = True
+  use_mhd_rule: bool = False
+  use_bpar: bool = True
+  use_bper: bool = False
+  use_inboard_detrapped: bool = False # set trapped fraction to zero for inward ballooning
+  use_ave_ion_grid: bool = False # use average ion Larmor radius, default False
+  # multipliers
+  alpha_e: pydantic.FiniteFloat = 1.0 # ExB velocity shear in spectral-shift multiplyer
+  alpha_zf: pydantic.FiniteFloat = 1.0 # SAT zf coefficient, -1: filter unphysical low-ky max(gamma/ky)
+  alpha_quench: pydantic.FiniteFloat = 0.0 # 0: spectral-shift model, 1: quench-rule
+  # numerical grid settings
+  n_xgrid: pydantic.PositiveInt = 16 # number of nodes in Gauss-Hermite quadrature (4*n_basis_max recommended)
+  n_basis_min: pydantic.PositiveInt = 2 # number of Hermite polynomials used to find width
+  n_basis_max: pydantic.PositiveInt = 6 # default 4, 6 recommended for SAT2/3
+
   def build_transport_model(self) -> TGLFTransportModel:
     return TGLFTransportModel()
 
@@ -463,5 +519,40 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
         n_processes=self.n_processes,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        #n_species = self.n_species,
+        #as_3 = self.as_3,
+        #mass_3 = self.mass_3,
+        #rlns_3 = self.rlns_3
+        #zs_3 = self.zs_3,
+        kygrid_model = self.kygrid_model,
+        ky = self.ky,
+        n_ky = self.n_ky,
+        n_modes = self.n_modes,
+        geometry_flag = self.geometry_flag,
+        sat_rule = self.sat_rule,
+        xnu_model = self.xnu_model,
+        n_width = self.n_width,
+        width_min = self.width_min,
+        width = self.width,
+        filter = self.filter,
+        theta_trapped = self.theta_trapped,
+        w_dia_trapped = self.w_dia_trapped,
+        sign_bt = self.sign_bt,
+        sign_it = self.sign_it,
+        xnu_factor = self.xnu_factor,
+        debye_factor = self.debye_factor,
+        etg_factor = self.etg_factor,
+        find_width = self.find_width,
+        use_mhd_rule = self.use_mhd_rule,
+        use_bpar = self.use_bpar,
+        use_bper = self.use_bper,
+        use_inboard_detrapped = self.use_inboard_detrapped,
+        use_ave_ion_grid = self.use_ave_ion_grid,
+        alpha_e = self.alpha_e,
+        alpha_zf = self.alpha_zf,
+        alpha_quench = self.alpha_quench,
+        n_xgrid = self.n_xgrid,
+        n_basis_min = self.n_basis_min,
+        n_basis_max = self.n_basis_max,
         **base_kwargs,
     )
