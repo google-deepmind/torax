@@ -22,7 +22,8 @@ from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model
 
@@ -50,7 +51,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> transport_model.TurbulentTransport:
     r"""Calculates transport coefficients using the Critical Gradient Model.
 

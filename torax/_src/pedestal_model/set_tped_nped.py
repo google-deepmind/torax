@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A basic version of the pedestal model that uses direct specification."""
+
 import dataclasses
 
 import jax
@@ -21,6 +22,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model
+from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from typing_extensions import override
 
@@ -48,27 +50,32 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> pedestal_model.PedestalModelOutput:
+  ) -> pedestal_model_output.PedestalModelOutput:
     pedestal_params = runtime_params.pedestal
     assert isinstance(pedestal_params, RuntimeParams)
+
+    # Convert pedestal top to idx
+    rho_norm_ped_top_nearest_cell_idx = jnp.argmin(
+        jnp.abs(geo.rho_norm - pedestal_params.rho_norm_ped_top)
+    )
+
+    # Calculate n_e_ped in m^-3, potentially converting from nGW.
     nGW = (
         runtime_params.profile_conditions.Ip
         / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20
     )
-    # Calculate n_e_ped in m^-3.
     n_e_ped = jnp.where(
         pedestal_params.n_e_ped_is_fGW,
         pedestal_params.n_e_ped * nGW,
         pedestal_params.n_e_ped,
     )
-    return pedestal_model.PedestalModelOutput(
+
+    return pedestal_model_output.PedestalModelOutput(
         n_e_ped=n_e_ped,
         T_i_ped=pedestal_params.T_i_ped,
         T_e_ped=pedestal_params.T_e_ped,
         rho_norm_ped_top=pedestal_params.rho_norm_ped_top,
-        rho_norm_ped_top_idx=jnp.abs(
-            geo.rho_norm - pedestal_params.rho_norm_ped_top
-        ).argmin(),
+        rho_norm_ped_top_idx=rho_norm_ped_top_nearest_cell_idx,
     )

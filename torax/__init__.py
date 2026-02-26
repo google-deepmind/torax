@@ -30,7 +30,7 @@ from torax._src.geometry.geometry import Geometry
 from torax._src.orchestration.run_simulation import run_simulation
 from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
-from torax._src.pedestal_model.pedestal_model import PedestalModelOutput
+from torax._src.pedestal_model.pedestal_model_output import PedestalModelOutput
 from torax._src.sources.source_profiles import SourceProfiles
 from torax._src.state import CoreProfiles
 from torax._src.state import CoreTransport

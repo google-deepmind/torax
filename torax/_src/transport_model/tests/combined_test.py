@@ -19,7 +19,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.pedestal_model import pedestal_model
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import combined
@@ -65,7 +65,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         neoclassical_models,
     )
     mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model.PedestalModelOutput,
+        pedestal_model_output_lib.PedestalModelOutput,
         instance=True,
         rho_norm_ped_top=0.91,
     )
@@ -117,7 +117,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         neoclassical_models,
     )
     mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model.PedestalModelOutput,
+        pedestal_model_output_lib.PedestalModelOutput,
         instance=True,
         rho_norm_ped_top=0.91,
     )
@@ -229,7 +229,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     }
     model, runtime_params, geo = self._build_model_and_params(config)
     mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model.PedestalModelOutput,
+        pedestal_model_output_lib.PedestalModelOutput,
         instance=True,
         rho_norm_ped_top=1.0,  # No pedestal restriction for this test
     )
@@ -265,7 +265,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     }
     model, runtime_params, geo = self._build_model_and_params(config)
     mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model.PedestalModelOutput,
+        pedestal_model_output_lib.PedestalModelOutput,
         instance=True,
         rho_norm_ped_top=1.0,
     )
@@ -305,7 +305,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     }
     model, runtime_params, geo = self._build_model_and_params(config)
     mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model.PedestalModelOutput,
+        pedestal_model_output_lib.PedestalModelOutput,
         instance=True,
         rho_norm_ped_top=1.0,
     )
@@ -376,7 +376,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     geo.rho_face_norm = jnp.linspace(0, 1, 10)
 
     pedestal_output = mock.Mock(
-        spec=transport_model_lib.pedestal_model_lib.PedestalModelOutput
+        spec=transport_model_lib.pedestal_model_output_lib.PedestalModelOutput
     )
     pedestal_output.rho_norm_ped_top = 1.0
 

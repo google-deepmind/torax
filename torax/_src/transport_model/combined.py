@@ -25,7 +25,8 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
@@ -54,7 +55,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
 
     transport_runtime_params = runtime_params.transport
@@ -100,7 +101,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
     r"""Calculates transport coefficients using the Combined model.
 
@@ -152,12 +153,12 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       domain_mask_fn: Callable[
           [
               transport_runtime_params_lib.RuntimeParams,
               geometry.Geometry,
-              pedestal_model_lib.PedestalModelOutput,
+              pedestal_model_output_lib.PedestalModelOutput,
           ],
           jax.Array,
       ],
@@ -253,7 +254,7 @@ def _add_optional(
 def _pedestal_domain_mask(
     unused_params: transport_runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    pedestal_output: pedestal_model_lib.PedestalModelOutput,
+    pedestal_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Calculates the active domain mask for pedestal transport models."""
   return jnp.asarray(geo.rho_face_norm > pedestal_output.rho_norm_ped_top)

@@ -30,7 +30,7 @@ from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 
 # pylint: disable=invalid-name
@@ -126,7 +126,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     transport_runtime_params = runtime_params.transport
 
@@ -182,7 +182,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     pass
 
@@ -215,7 +215,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       transport_coeffs: TurbulentTransport,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     """Sets transport coefficients to zero outside the model's domain."""
     active_mask = compute_core_domain_mask(
@@ -381,7 +381,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       transport_coeffs: TurbulentTransport,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
     smoothing_matrix = _build_smoothing_matrix(
@@ -407,7 +407,7 @@ def _build_smoothing_matrix(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Builds a smoothing matrix for the turbulent transport model.
 
@@ -506,7 +506,7 @@ def _build_smoothing_matrix(
 def compute_core_domain_mask(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Calculates the active domain mask for core transport models.
 

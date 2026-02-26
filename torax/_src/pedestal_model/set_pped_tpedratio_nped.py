@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Pedestal model that specifies pressure, temperature ratio, and density."""
+
 import dataclasses
 
 import jax
@@ -22,6 +23,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model
+from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.physics import formulas
 from typing_extensions import override
@@ -52,8 +54,14 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> pedestal_model.PedestalModelOutput:
+  ) -> pedestal_model_output.PedestalModelOutput:
     assert isinstance(runtime_params.pedestal, RuntimeParams)
+
+    # Convert pedestal top to idx
+    rho_norm_ped_top_nearest_cell_idx = jnp.argmin(
+        jnp.abs(geo.rho_norm - runtime_params.pedestal.rho_norm_ped_top)
+    )
+
     # Convert n_e_ped to reference units.
     # Ip in MA. a_minor in m. nGW in m^-3.
     nGW = (
@@ -103,10 +111,10 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # Calculate T_i_ped
     T_i_ped = temperature_ratio * T_e_ped
 
-    return pedestal_model.PedestalModelOutput(
+    return pedestal_model_output.PedestalModelOutput(
         n_e_ped=n_e_ped,
         T_i_ped=T_i_ped,
         T_e_ped=T_e_ped,
         rho_norm_ped_top=runtime_params.pedestal.rho_norm_ped_top,
-        rho_norm_ped_top_idx=ped_idx,
+        rho_norm_ped_top_idx=rho_norm_ped_top_nearest_cell_idx,
     )

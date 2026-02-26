@@ -24,7 +24,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -45,7 +45,7 @@ class FixedTransportModel(transport_model_lib.TransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
     chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
