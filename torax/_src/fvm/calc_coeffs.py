@@ -17,6 +17,7 @@
 import functools
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
@@ -62,6 +63,8 @@ class CoeffsCallback:
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      prev_core_profiles: state.CoreProfiles | None,
+      dt: array_typing.FloatScalar | None,
       x: tuple[cell_variable.CellVariable, ...],
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       allow_pereverzev: bool = False,
@@ -80,6 +83,9 @@ class CoeffsCallback:
         state x.
       geo: The geometry of the system at this time step.
       core_profiles: The core profiles of the system at this time step.
+      prev_core_profiles: The core profiles of the system at the previous
+        time step.
+      dt: The time step size.
       x: The state with cell-grid values of the evolving variables.
       explicit_source_profiles: Precomputed explicit source profiles. These
         profiles were configured to always depend on state and parameters at
@@ -107,8 +113,10 @@ class CoeffsCallback:
         x,
         runtime_params,
         geo,
-        core_profiles,
-        self.evolving_names,
+        core_profiles=core_profiles,
+        prev_core_profiles=prev_core_profiles,
+        dt=dt,
+        evolving_names=self.evolving_names,
     )
     if allow_pereverzev:
       use_pereverzev = runtime_params.solver.use_pereverzev

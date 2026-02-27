@@ -199,6 +199,7 @@ def theta_method_block_residual(
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
+    core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
     physics_models: physics_models_lib.PhysicsModels,
@@ -214,6 +215,8 @@ def theta_method_block_residual(
     runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: The geometry at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
+    core_profiles_t: Core plasma profiles which contain all available
+      prescribed quantities at the start of the time step.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
@@ -244,7 +247,9 @@ def theta_method_block_residual(
       runtime_params_t_plus_dt,
       geo_t_plus_dt,
       core_profiles_t_plus_dt,
-      evolving_names,
+      prev_core_profiles=core_profiles_t,
+      dt=dt,
+      evolving_names=evolving_names,
   )
   coeffs_new = calc_coeffs.calc_coeffs(
       runtime_params=runtime_params_t_plus_dt,
@@ -288,6 +293,7 @@ def theta_method_block_loss(
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
+    core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
     physics_models: physics_models_lib.PhysicsModels,
@@ -303,6 +309,7 @@ def theta_method_block_loss(
     runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: geometry object at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
+    core_profiles_t: Core profiles from the previous time step.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
@@ -324,6 +331,7 @@ def theta_method_block_loss(
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       x_new_guess_vec=x_new_guess_vec,
+      core_profiles_t=core_profiles_t,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
       physics_models=physics_models,
@@ -347,6 +355,7 @@ def jaxopt_solver(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,
+    core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
     physics_models: physics_models_lib.PhysicsModels,
@@ -364,6 +373,7 @@ def jaxopt_solver(
     x_old: The starting x defined as a tuple of CellVariables.
     init_x_new_vec: Flattened array of initial guess of x_new for all evolving
       core profiles.
+    core_profiles_t: Core profiles from the previous time step.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
@@ -389,6 +399,7 @@ def jaxopt_solver(
       runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
+      core_profiles_t=core_profiles_t,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
       physics_models=physics_models,

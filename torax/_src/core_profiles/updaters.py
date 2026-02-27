@@ -53,6 +53,8 @@ def update_core_profiles_during_step(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    prev_core_profiles: state.CoreProfiles | None,
+    dt: array_typing.FloatScalar | None,
     evolving_names: tuple[str, ...],
 ) -> state.CoreProfiles:
   """Returns the new core profiles after updating the evolving variables.
@@ -67,8 +69,13 @@ def update_core_profiles_during_step(
     runtime_params: The runtime params slice.
     geo: Magnetic geometry.
     core_profiles: The old set of core plasma profiles.
+    prev_core_profiles: Core plasma profiles from the previous timestep if
+      available, used to update the energy state.
+    dt: The size of the last timestep, used to update the energy state.
     evolving_names: The names of the evolving variables.
   """
+  # Currently unused but will be used to update the energy state soon
+  del prev_core_profiles, dt
 
   updated_core_profiles = convertors.solver_x_tuple_to_core_profiles(
       x_new, evolving_names, core_profiles

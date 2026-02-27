@@ -44,6 +44,7 @@ def predictor_corrector_method(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     x_new_guess: tuple[cell_variable.CellVariable, ...],
+    core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
     explicit_source_profiles: source_profiles.SourceProfiles,
@@ -60,6 +61,7 @@ def predictor_corrector_method(
       time t.
     x_new_guess: Tuple of CellVariables corresponding to the initial guess for
       the next time step.
+    core_profiles_t: Core profiles at the current time step.
     core_profiles_t_plus_dt: Core profiles at the next time step.
     coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep.
     explicit_source_profiles: Precomputed explicit source profiles. These
@@ -82,7 +84,9 @@ def predictor_corrector_method(
         runtime_params_t_plus_dt,
         geo_t_plus_dt,
         core_profiles_t_plus_dt,
-        x_new_guess,
+        prev_core_profiles=core_profiles_t,
+        dt=dt,
+        x=x_new_guess,
         explicit_source_profiles=explicit_source_profiles,
         allow_pereverzev=True,
     )
