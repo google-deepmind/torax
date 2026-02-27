@@ -33,6 +33,41 @@ import typing_extensions
 
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class PlasmaInternalEnergy:
+  """Internal energy stored in the plasma and its time derivatives.
+
+  Attributes:
+    W_thermal_i: Ion thermal stored energy [J]
+    W_thermal_e: Electron thermal stored energy [J]
+    W_thermal_total: Total thermal stored energy [J]
+    dW_thermal_i_dt: Time derivative of ion thermal stored energy [W]
+    dW_thermal_e_dt: Time derivative of electron thermal stored energy [W]
+    dW_thermal_i_dt_smoothed: Smoothed time derivative of ion thermal stored
+      energy [W]
+    dW_thermal_e_dt_smoothed: Smoothed time derivative of electron thermal
+      stored energy [W]
+  """
+  W_thermal_i: array_typing.FloatScalar
+  W_thermal_e: array_typing.FloatScalar
+  W_thermal_total: array_typing.FloatScalar
+  dW_thermal_i_dt: array_typing.FloatScalar
+  dW_thermal_e_dt: array_typing.FloatScalar
+  dW_thermal_i_dt_smoothed: array_typing.FloatScalar
+  dW_thermal_e_dt_smoothed: array_typing.FloatScalar
+
+  @property
+  def dW_thermal_dt(self) -> array_typing.FloatScalar:
+    """Total thermal stored energy time derivative [W], raw unsmoothed."""
+    return self.dW_thermal_i_dt + self.dW_thermal_e_dt
+
+  @property
+  def dW_thermal_dt_smoothed(self) -> array_typing.FloatScalar:
+    """Smoothed total thermal stored energy time derivative [W]."""
+    return self.dW_thermal_i_dt_smoothed + self.dW_thermal_e_dt_smoothed
+
+
+@jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
 class CoreProfiles:
   """Dataclass for holding the evolving core plasma profiles.
@@ -78,6 +113,8 @@ class CoreProfiles:
         state information. See `charge_states.ChargeStateInfo`. Cell grid.
       charge_state_info_face: Container with averaged and per-species ion charge
         state information. See `charge_states.ChargeStateInfo`. Face grid.
+      internal_plasma_energy: Container with energy variables. See
+        `PlasmaInternalEnergy`.
   """
 
   T_i: cell_variable.CellVariable
@@ -109,6 +146,7 @@ class CoreProfiles:
   toroidal_angular_velocity: cell_variable.CellVariable
   charge_state_info: charge_states.ChargeStateInfo
   charge_state_info_face: charge_states.ChargeStateInfo
+  internal_plasma_energy: PlasmaInternalEnergy | None = None
 
   @functools.cached_property
   def impurity_density_scaling(self) -> jax.Array:

@@ -581,6 +581,11 @@ class StateHistory:
       if attr_name == "main_ion_fractions":
         continue
 
+      # Skip internal_plasma_energy as it is in post_processed_outputs.
+      # TODO(b/434175938): Remove once we move to V2.
+      if attr_name == "internal_plasma_energy":
+        continue
+
       attr_value = getattr(stacked_core_profiles, attr_name)
 
       output_key = output_name_map.get(attr_name, attr_name)

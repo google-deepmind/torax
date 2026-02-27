@@ -259,9 +259,20 @@ def get_initial_state_and_post_processed_outputs_from_file(
           'dW_thermal_e_dt_smoothed'
       ].to_numpy(),
   )
+  energy_state = initial_state.core_profiles.internal_plasma_energy
+  energy_state = dataclasses.replace(
+      energy_state,
+      dW_thermal_i_dt_smoothed=scalars_dataset.data_vars[
+          'dW_thermal_i_dt_smoothed'
+      ].to_numpy(),
+      dW_thermal_e_dt_smoothed=scalars_dataset.data_vars[
+          'dW_thermal_e_dt_smoothed'
+      ].to_numpy(),
+  )
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,
       v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
+      internal_plasma_energy=energy_state,
   )
   numerics_dataset = data_tree.children[output.NUMERICS].dataset
   numerics_dataset = numerics_dataset.squeeze()

@@ -31,7 +31,9 @@ Includes:
 import dataclasses
 
 import jax
+import jax.numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
@@ -39,6 +41,7 @@ from torax._src.core_profiles import getters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
+from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
@@ -68,15 +71,12 @@ def update_core_profiles_during_step(
     x_new: The new values of the evolving variables.
     runtime_params: The runtime params slice.
     geo: Magnetic geometry.
-    core_profiles: The old set of core plasma profiles.
+    core_profiles: The old set of core plasma profiles for this timestep.
     prev_core_profiles: Core plasma profiles from the previous timestep if
       available, used to update the energy state.
     dt: The size of the last timestep, used to update the energy state.
     evolving_names: The names of the evolving variables.
   """
-  # Currently unused but will be used to update the energy state soon
-  del prev_core_profiles, dt
-
   updated_core_profiles = convertors.solver_x_tuple_to_core_profiles(
       x_new, evolving_names, core_profiles
   )
@@ -88,7 +88,7 @@ def update_core_profiles_during_step(
       updated_core_profiles.T_e,
   )
 
-  return dataclasses.replace(
+  updated_core_profiles = dataclasses.replace(
       updated_core_profiles,
       n_i=ions.n_i,
       n_impurity=ions.n_impurity,
@@ -107,6 +107,24 @@ def update_core_profiles_during_step(
       s_face=psi_calculations.calc_s_face(geo, updated_core_profiles.psi),
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
+  )
+
+  if prev_core_profiles is not None:
+    if dt is None:
+      raise ValueError('dt must be provided when updating the energy state.')
+    energy_state = _update_energy_state(
+        runtime_params,
+        geo,
+        updated_core_profiles,
+        prev_core_profiles.internal_plasma_energy,
+        dt,
+    )
+  else:
+    energy_state = core_profiles.internal_plasma_energy
+
+  return dataclasses.replace(
+      updated_core_profiles,
+      internal_plasma_energy=energy_state,
   )
 
 
@@ -208,6 +226,13 @@ def update_core_and_source_profiles_after_step(
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
   )
+  energy_state = _update_energy_state(
+      runtime_params_t_plus_dt,
+      geo,
+      intermediate_core_profiles,
+      core_profiles_t.internal_plasma_energy,
+      dt,
+  )
 
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
       geo, intermediate_core_profiles
@@ -217,6 +242,7 @@ def update_core_and_source_profiles_after_step(
       intermediate_core_profiles,
       sigma=conductivity.sigma,
       sigma_face=conductivity.sigma_face,
+      internal_plasma_energy=energy_state,
   )
 
   # build_source_profiles calculates the union with explicit + implicit
@@ -316,3 +342,55 @@ def provide_core_profiles_t_plus_dt(
       toroidal_angular_velocity=toroidal_angular_velocity,
   )
   return core_profiles_t_plus_dt
+
+
+def _update_energy_state(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    prev_energy_state: state.PlasmaInternalEnergy,
+    dt: array_typing.FloatScalar,
+) -> state.PlasmaInternalEnergy:
+  """Updates the energy state."""
+  W_thermal_e, W_thermal_i, W_thermal_total = (
+      formulas.calculate_stored_thermal_energy(
+          core_profiles.pressure_thermal_e,
+          core_profiles.pressure_thermal_i,
+          core_profiles.pressure_thermal_total,
+          geo,
+      )
+  )
+  dW_i_dt_raw = (W_thermal_i - prev_energy_state.W_thermal_i) / dt
+  dW_e_dt_raw = (W_thermal_e - prev_energy_state.W_thermal_e) / dt
+
+  exponential_smoothing_alpha = jax.lax.cond(
+      runtime_params.numerics.dW_dt_smoothing_time_scale > 0.0,
+      lambda: jnp.array(1.0, dtype=jax_utils.get_dtype())
+      - jnp.exp(-dt / runtime_params.numerics.dW_dt_smoothing_time_scale),
+      lambda: jnp.array(1.0, dtype=jax_utils.get_dtype()),
+  )
+  dW_i_dt_smoothed = _exponential_smoothing(
+      dW_i_dt_raw,
+      prev_energy_state.dW_thermal_i_dt_smoothed,
+      exponential_smoothing_alpha,
+  )
+  dW_e_dt_smoothed = _exponential_smoothing(
+      dW_e_dt_raw,
+      prev_energy_state.dW_thermal_e_dt_smoothed,
+      exponential_smoothing_alpha,
+  )
+
+  return state.PlasmaInternalEnergy(
+      W_thermal_i=W_thermal_i,
+      W_thermal_e=W_thermal_e,
+      W_thermal_total=W_thermal_total,
+      dW_thermal_i_dt=dW_i_dt_raw,
+      dW_thermal_e_dt=dW_e_dt_raw,
+      dW_thermal_i_dt_smoothed=dW_i_dt_smoothed,
+      dW_thermal_e_dt_smoothed=dW_e_dt_smoothed,
+  )
+
+
+def _exponential_smoothing(new_raw, old_smoothed, alpha):
+  """Exponential moving average (EMA)."""
+  return (1.0 - alpha) * old_smoothed + alpha * new_raw

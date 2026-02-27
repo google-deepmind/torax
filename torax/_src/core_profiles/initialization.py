@@ -32,6 +32,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
@@ -129,12 +130,43 @@ def initial_core_profiles(
       charge_state_info_face=ions.charge_state_info_face,
   )
 
+  # TODO(b/398816463): Clean up energy state initialization as part of V2
+  # core profiles refactor.
+  core_profiles = dataclasses.replace(
+      core_profiles,
+      internal_plasma_energy=_initialise_internal_energy(core_profiles, geo),
+  )
+
   return _init_psi_and_psi_derived(
       runtime_params,
       geo,
       core_profiles,
       source_models,
       neoclassical_models,
+  )
+
+
+def _initialise_internal_energy(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> state.PlasmaInternalEnergy:
+  """Initializes the energy stored in the plasma."""
+  W_thermal_e, W_thermal_i, W_thermal_total = (
+      formulas.calculate_stored_thermal_energy(
+          core_profiles.pressure_thermal_e,
+          core_profiles.pressure_thermal_i,
+          core_profiles.pressure_thermal_total,
+          geo,
+      )
+  )
+  return state.PlasmaInternalEnergy(
+      W_thermal_i=W_thermal_i,
+      W_thermal_e=W_thermal_e,
+      W_thermal_total=W_thermal_total,
+      dW_thermal_i_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+      dW_thermal_e_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+      dW_thermal_i_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+      dW_thermal_e_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
   )
 
 
