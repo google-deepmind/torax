@@ -195,6 +195,7 @@ class PostProcessedOutputs:
 
   pprime: array_typing.FloatVector
   # pylint: disable=invalid-name
+  # TODO(b/434175938) Remove W_thermal terms in favor of terms from energy_state
   W_thermal_i: array_typing.FloatScalar
   W_thermal_e: array_typing.FloatScalar
   W_thermal_total: array_typing.FloatScalar
@@ -257,6 +258,7 @@ class PostProcessedOutputs:
   q95: array_typing.FloatScalar
   W_pol: array_typing.FloatScalar
   li3: array_typing.FloatScalar
+  # TODO(b/434175938) Remove dW_dt terms in favor of terms from energy_state.
   dW_thermal_dt: array_typing.FloatScalar
   dW_thermal_dt_smoothed: array_typing.FloatScalar
   dW_thermal_i_dt_smoothed: array_typing.FloatScalar
@@ -632,6 +634,11 @@ def make_post_processed_outputs(
   Returns:
     post_processed_outputs: The post_processed_outputs for the given state.
   """
+  internal_plasma_energy = sim_state.core_profiles.internal_plasma_energy
+  if internal_plasma_energy is None:
+    raise ValueError(
+        'internal_plasma_energy is None, but is required for post-processing.'
+    )
   # TODO(b/444380540): Remove once aux outputs from sources are exposed.
   impurity_radiation_outputs = (
       impurity_radiation.calculate_impurity_species_output(
@@ -640,15 +647,6 @@ def make_post_processed_outputs(
   )
 
   pprime_face = formulas.calc_pprime(sim_state.core_profiles)
-  # pylint: disable=invalid-name
-  W_thermal_el, W_thermal_ion, W_thermal_tot = (
-      formulas.calculate_stored_thermal_energy(
-          sim_state.core_profiles.pressure_thermal_e,
-          sim_state.core_profiles.pressure_thermal_i,
-          sim_state.core_profiles.pressure_thermal_total,
-          sim_state.geometry,
-      )
-  )
   FFprime_face = formulas.calc_FFprime(
       sim_state.core_profiles, sim_state.geometry
   )
@@ -672,67 +670,15 @@ def make_post_processed_outputs(
       )
   )
 
-  # Calculate dW/dt.
-  # We perform raw calculation and smoothing inside a conditional block to
-  # prevent division by zero on the first step (when dt=0) and to avoid
-  # large transients (since previous W is initialized to 0).
-  def _calculate_dW_dt_terms():
-    # Raw values
-    dW_i_dt_raw = (
-        W_thermal_ion - previous_post_processed_outputs.W_thermal_i
-    ) / sim_state.dt
-    dW_e_dt_raw = (
-        W_thermal_el - previous_post_processed_outputs.W_thermal_e
-    ) / sim_state.dt
-    dW_total_dt_raw = dW_i_dt_raw + dW_e_dt_raw
-
-    # Calculate smoothing parameter
-    alpha = jax.lax.cond(
-        runtime_params.numerics.dW_dt_smoothing_time_scale > 0.0,
-        lambda: jnp.array(1.0, dtype=jax_utils.get_dtype())
-        - jnp.exp(
-            -sim_state.dt / runtime_params.numerics.dW_dt_smoothing_time_scale
-        ),
-        lambda: jnp.array(1.0, dtype=jax_utils.get_dtype()),
-    )
-
-    dW_i_dt_smoothed = _exponential_smoothing(
-        dW_i_dt_raw,
-        previous_post_processed_outputs.dW_thermal_i_dt_smoothed,
-        alpha,
-    )
-    dW_e_dt_smoothed = _exponential_smoothing(
-        dW_e_dt_raw,
-        previous_post_processed_outputs.dW_thermal_e_dt_smoothed,
-        alpha,
-    )
-    dW_total_dt_smoothed = dW_i_dt_smoothed + dW_e_dt_smoothed
-
-    return (
-        dW_total_dt_raw,
-        dW_total_dt_smoothed,
-        dW_i_dt_smoothed,
-        dW_e_dt_smoothed,
-    )
-
-  (
-      dW_thermal_total_dt_raw,
-      dW_thermal_total_dt_smoothed,
-      dW_thermal_i_dt_smoothed,
-      dW_thermal_e_dt_smoothed,
-  ) = jax.lax.cond(
-      previous_post_processed_outputs.first_step,
-      lambda: (0.0, 0.0, 0.0, 0.0),
-      _calculate_dW_dt_terms,
-  )
-
   # Calculate P_SOL (Power crossing separatrix) = P_sources - P_sinks - dW/dt
   integrated_sources['P_SOL_i'] = (
-      integrated_sources['P_heat_i'] - dW_thermal_i_dt_smoothed
+      integrated_sources['P_heat_i']
+      - internal_plasma_energy.dW_thermal_i_dt_smoothed
   )
 
   integrated_sources['P_SOL_e'] = (
-      integrated_sources['P_heat_e'] - dW_thermal_e_dt_smoothed
+      integrated_sources['P_heat_e']
+      - internal_plasma_energy.dW_thermal_e_dt_smoothed
   )
 
   integrated_sources['P_SOL_total'] = (
@@ -747,7 +693,7 @@ def make_post_processed_outputs(
       integrated_sources['P_alpha_total']
       + integrated_sources['P_aux_total']
       + integrated_sources['P_ohmic_e']
-      - dW_thermal_total_dt_smoothed
+      - internal_plasma_energy.dW_thermal_dt_smoothed
       + constants.CONSTANTS.eps  # Division guard.
   )
 
@@ -818,7 +764,7 @@ def make_post_processed_outputs(
       cumulative_values,
   )
 
-  tau_E = W_thermal_tot / P_loss
+  tau_E = internal_plasma_energy.W_thermal_total / P_loss
 
   tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
       sim_state.geometry, sim_state.core_profiles, P_loss, 'H89P'
@@ -971,9 +917,9 @@ def make_post_processed_outputs(
 
   return PostProcessedOutputs(
       pprime=pprime_face,
-      W_thermal_i=W_thermal_ion,
-      W_thermal_e=W_thermal_el,
-      W_thermal_total=W_thermal_tot,
+      W_thermal_i=internal_plasma_energy.W_thermal_i,
+      W_thermal_e=internal_plasma_energy.W_thermal_e,
+      W_thermal_total=internal_plasma_energy.W_thermal_total,
       tau_E=tau_E,
       H89P=H89P,
       H98=H98,
@@ -1003,10 +949,10 @@ def make_post_processed_outputs(
       q95=q95,
       W_pol=W_pol,
       li3=li3,
-      dW_thermal_dt=dW_thermal_total_dt_raw,
-      dW_thermal_dt_smoothed=dW_thermal_total_dt_smoothed,
-      dW_thermal_i_dt_smoothed=dW_thermal_i_dt_smoothed,
-      dW_thermal_e_dt_smoothed=dW_thermal_e_dt_smoothed,
+      dW_thermal_dt=internal_plasma_energy.dW_thermal_dt,
+      dW_thermal_dt_smoothed=internal_plasma_energy.dW_thermal_dt_smoothed,
+      dW_thermal_i_dt_smoothed=internal_plasma_energy.dW_thermal_i_dt_smoothed,
+      dW_thermal_e_dt_smoothed=internal_plasma_energy.dW_thermal_e_dt_smoothed,
       rho_q_min=safety_factor_fit_outputs.rho_q_min,
       q_min=safety_factor_fit_outputs.q_min,
       rho_q_3_2_first=safety_factor_fit_outputs.rho_q_3_2_first,
