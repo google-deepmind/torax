@@ -363,6 +363,15 @@ class StateHistory:
   def simulation_output_to_xr(self) -> xr.DataTree:
     """Build an xr.DataTree of the simulation output.
 
+    This DataTree is the canonical serialized representation of a TORAX
+    simulation and is used for:
+      - Final simulation output at normal termination
+      - Restart from NetCDF
+      - Periodic checkpointing during long-running simulations
+
+    Any checkpointing mechanism must reuse this representation directly,
+    without introducing new schemas or file formats.
+
     Returns:
       A xr.DataTree containing a single top level xr.Dataset and four child
       datasets. The top level dataset contains the following variables:
@@ -482,6 +491,23 @@ class StateHistory:
       data_tree = stitch_state_files(self.torax_config.restart, data_tree)
 
     return data_tree
+
+
+  def write_checkpoint(self, path: str) -> None:
+    """Write a checkpoint NetCDF file for the current simulation state.
+
+    The checkpoint file is overwritten in place and is restart-compatible.
+
+    Args:
+      path: Path to the checkpoint NetCDF file.
+    """
+    tree = self.simulation_output_to_xr()
+
+    # Mark output as a checkpoint
+    tree.attrs = dict(tree.attrs) if tree.attrs is not None else {}
+    tree.attrs["status"] = "checkpoint"
+
+    tree.to_netcdf(path)
 
   def _pack_into_data_array(
       self,

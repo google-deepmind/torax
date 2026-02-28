@@ -15,6 +15,7 @@
 """run_loop for iterating over the simulation step function."""
 
 import time
+from typing import TYPE_CHECKING
 
 from absl import logging
 import jax
@@ -25,6 +26,9 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 import tqdm
 
+if TYPE_CHECKING:
+  from torax._src.torax_pydantic import model_config
+
 
 def run_loop(
     initial_state: sim_state.SimState,
@@ -32,6 +36,7 @@ def run_loop(
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
+    torax_config: 'model_config.ToraxConfig | None' = None,
 ) -> tuple[
     list[sim_state.SimState],
     tuple[post_processing.PostProcessedOutputs, ...],
@@ -57,6 +62,8 @@ def run_loop(
     log_timestep_info: If True, logs basic timestep info, like time, dt, on
       every step.
     progress_bar: If True, displays a progress bar.
+    torax_config: Optional ToraxConfig for checkpointing support. If provided
+      and checkpointing is enabled, periodic checkpoints will be written.
 
   Returns:
     A tuple of:
@@ -97,6 +104,12 @@ def run_loop(
   # the appropriate error code.
   sim_error = state.SimError.NO_ERROR
 
+  # Solver step counter for checkpointing
+  step_counter = 0
+
+  # Simulation-time tracking for checkpointing
+  last_checkpoint_sim_time = initial_state.t
+
   numerics = step_fn.runtime_params_provider.numerics
 
   with tqdm.tqdm(
@@ -123,6 +136,9 @@ def run_loop(
 
       wall_clock_step_times.append(time.time() - step_start_time)
 
+      # Increment solver step counter
+      step_counter += 1
+
       # Checks if sim_state is valid. If not, exit simulation early.
       # We don't raise an Exception because we want to return the truncated
       # simulation history to the user for inspection.
@@ -132,6 +148,43 @@ def run_loop(
       else:
         state_history.append(current_state)
         post_processing_history.append(post_processed_outputs)
+
+        # Periodic checkpointing (solver-step based)
+        if torax_config is not None and torax_config.checkpointing.enabled:
+          ckpt_cfg = torax_config.checkpointing
+          should_checkpoint = False
+
+          # Solver-step–based trigger
+          if (
+              ckpt_cfg.every_n_steps is not None
+              and step_counter % ckpt_cfg.every_n_steps == 0
+          ):
+            should_checkpoint = True
+
+          # Simulation-time–based trigger
+          if (
+              ckpt_cfg.every_n_sim_time is not None
+              and (current_state.t - last_checkpoint_sim_time)
+                  >= ckpt_cfg.every_n_sim_time
+          ):
+            should_checkpoint = True
+
+          if should_checkpoint and ckpt_cfg.path is not None:
+            # Import here to avoid circular dependency
+            from torax._src.output_tools import output as output_module
+
+            # Build a temporary StateHistory for checkpointing
+            temp_output = output_module.StateHistory(
+                state_history=state_history.copy(),
+                post_processed_outputs_history=tuple(
+                    post_processing_history.copy()
+                ),
+                sim_error=state.SimError.NO_ERROR,  # Checkpoints are mid-run
+                torax_config=torax_config,
+            )
+            temp_output.write_checkpoint(ckpt_cfg.path)
+            last_checkpoint_sim_time = current_state.t
+
         # Calculate progress ratio and update pbar.n
         progress_ratio = (
             float(current_state.t) - numerics.t_initial

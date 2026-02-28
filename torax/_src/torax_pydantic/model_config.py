@@ -43,6 +43,48 @@ import typing_extensions
 from typing_extensions import Self
 
 
+class CheckpointConfig(torax_pydantic.BaseModelFrozen):
+  """Configuration for periodic simulation checkpointing.
+
+  This feature is opt-in and disabled by default.
+
+  Attributes:
+    enabled: Whether checkpointing is enabled.
+    every_n_steps: Checkpoint every N solver steps. Must be positive if enabled.
+    every_n_sim_time: Checkpoint every N units of simulation time. Must be positive if enabled.
+    path: Path to the checkpoint NetCDF file (will be overwritten).
+  """
+
+  enabled: bool = False
+  every_n_steps: int | None = None
+  every_n_sim_time: float | None = None
+  path: str | None = None
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.enabled:
+      if (
+          self.every_n_steps is None
+          and self.every_n_sim_time is None
+      ):
+        raise ValueError(
+            'checkpointing requires every_n_steps or every_n_sim_time'
+        )
+      if self.every_n_steps is not None and self.every_n_steps <= 0:
+        raise ValueError(
+            'checkpointing.every_n_steps must be positive'
+        )
+      if self.every_n_sim_time is not None and self.every_n_sim_time <= 0:
+        raise ValueError(
+            'checkpointing.every_n_sim_time must be positive'
+        )
+      if not self.path:
+        raise ValueError(
+            'checkpointing.path must be set when checkpointing is enabled'
+        )
+    return self
+
+
 class ToraxConfig(torax_pydantic.BaseModelFrozen):
   """Base config class for Torax.
 
@@ -64,6 +106,8 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       provided the default chi time step calculator is used.
     restart: Optional config for file restart. If None, no file restart is
       performed.
+    checkpointing: Optional config for periodic checkpointing. If not provided,
+      checkpointing is disabled by default.
   """
 
   profile_conditions: profile_conditions_lib.ProfileConditions
@@ -91,6 +135,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
       default=None
   )
+  checkpointing: CheckpointConfig = CheckpointConfig()
 
   def build_physics_models(self):
     edge_model = self.edge.build_edge_model() if self.edge else None
