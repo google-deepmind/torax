@@ -76,7 +76,7 @@ class RuntimeParams(tglf_based_transport_model.RuntimeParams):
   use_mhd_rule: bool
   use_bpar: bool
   use_bper: bool
-  use_inboard_trapped: bool
+  use_inboard_detrapped: bool
   use_ave_ion_grid: bool
   alpha_e: float
   alpha_zf: float
@@ -109,7 +109,7 @@ class TGLFTransportModel(
     self._runpath = os.path.join(self._tglfrun_parentdir.name, self._tglfrun_name)
     self._frozen = True
 
-  def _call_implementation(
+  def call_implementation(
       self,
       transport_runtime_params: runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params.RuntimeParams,
@@ -131,7 +131,7 @@ class TGLFTransportModel(
     Returns:
       coeffs: transport coefficients
     """
-    del pedestal_model_output, runtime_params  # Unused.
+    del pedestal_model_output  # Unused.
 
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
@@ -140,6 +140,7 @@ class TGLFTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,  # Carried over from TGLFNN
     )
 
     def callback(tglf_inputs, transport_runtime_params, geo, core_profiles):
@@ -465,6 +466,8 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
       'tglf'
   )
   n_processes: pydantic.PositiveInt = 8
+  use_rotation: bool = False
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
 
@@ -517,6 +520,8 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return RuntimeParams(
         n_processes=self.n_processes,
+        use_rotation=self.use_rotation,
+        rotation_multiplier=self.rotation_multiplier,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
         #n_species = self.n_species,
