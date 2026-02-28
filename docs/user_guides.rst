@@ -14,6 +14,7 @@ input and output, the TORAX equation summary, solver details, and physics model 
    output
    running
    running_programmatically
+   checkpointing
    plotting
    using_jax
 
