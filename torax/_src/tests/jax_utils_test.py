@@ -19,6 +19,7 @@ from absl.testing import parameterized
 import chex
 import jax
 from jax import numpy as jnp
+import numpy as np
 from torax._src import jax_utils
 
 
@@ -29,6 +30,7 @@ class JaxUtilsTest(parameterized.TestCase):
     super().setUp()
     jax_utils.get_dtype.cache_clear()
     jax_utils.get_int_dtype.cache_clear()
+    jax_utils.get_np_dtype.cache_clear()
 
   def _should_error(self):
     """Assert that errors are on."""
@@ -234,6 +236,110 @@ class JaxUtilsTest(parameterized.TestCase):
           jax.grad(f_while)(0.5, max_steps=2), jax.grad(f)(0.5, n_times=2)
       )
       chex.assert_trees_all_close(f_while(0.5, max_steps=3), f(0.5, n_times=3))
+
+  # --- Tests for get_np_dtype ---
+
+  @mock.patch.dict(os.environ, {}, clear=True)
+  def test_default_np_dtype(self):
+    """Test that the default np dtype is float64."""
+    self.assertEqual(jax_utils.get_np_dtype(), np.float64)
+
+  @mock.patch.dict(os.environ, {'JAX_PRECISION': 'f64'})
+  def test_f64_np_dtype(self):
+    """Test np dtype is float64 when JAX_PRECISION is 'f64'."""
+    self.assertEqual(jax_utils.get_np_dtype(), np.float64)
+
+  @mock.patch.dict(os.environ, {'JAX_PRECISION': 'f32'})
+  def test_f32_np_dtype(self):
+    """Test np dtype is float32 when JAX_PRECISION is 'f32'."""
+    self.assertEqual(jax_utils.get_np_dtype(), np.float32)
+
+  @mock.patch.dict(os.environ, {'JAX_PRECISION': 'f16'})
+  def test_invalid_np_dtype(self):
+    """Test an assertion error is raised for an invalid precision."""
+    with self.assertRaisesRegex(
+        AssertionError, r'Unknown JAX precision environment variable'
+    ):
+      jax_utils.get_np_dtype()
+
+  # --- Tests for env_bool ---
+
+  @mock.patch.dict(os.environ, {'MY_FLAG': 'True'})
+  def test_env_bool_true_string(self):
+    """Test env_bool returns True for 'True'."""
+    self.assertTrue(jax_utils.env_bool('MY_FLAG', False))
+
+  @mock.patch.dict(os.environ, {'MY_FLAG': 'true'})
+  def test_env_bool_lowercase_true(self):
+    """Test env_bool returns True for 'true'."""
+    self.assertTrue(jax_utils.env_bool('MY_FLAG', False))
+
+  @mock.patch.dict(os.environ, {'MY_FLAG': '1'})
+  def test_env_bool_one_string(self):
+    """Test env_bool returns True for '1'."""
+    self.assertTrue(jax_utils.env_bool('MY_FLAG', False))
+
+  @mock.patch.dict(os.environ, {'MY_FLAG': 'False'})
+  def test_env_bool_false_string(self):
+    """Test env_bool returns False for 'False'."""
+    self.assertFalse(jax_utils.env_bool('MY_FLAG', True))
+
+  @mock.patch.dict(os.environ, {'MY_FLAG': 'false'})
+  def test_env_bool_lowercase_false(self):
+    """Test env_bool returns False for 'false'."""
+    self.assertFalse(jax_utils.env_bool('MY_FLAG', True))
+
+  @mock.patch.dict(os.environ, {'MY_FLAG': '0'})
+  def test_env_bool_zero_string(self):
+    """Test env_bool returns False for '0'."""
+    self.assertFalse(jax_utils.env_bool('MY_FLAG', True))
+
+  @mock.patch.dict(os.environ, {}, clear=True)
+  def test_env_bool_missing_uses_default(self):
+    """Test env_bool returns the default when the variable is not set."""
+    self.assertTrue(jax_utils.env_bool('NONEXISTENT', True))
+    self.assertFalse(jax_utils.env_bool('NONEXISTENT', False))
+
+  @mock.patch.dict(os.environ, {'MY_FLAG': 'maybe'})
+  def test_env_bool_invalid_value_raises(self):
+    """Test env_bool raises ValueError for unrecognized strings."""
+    with self.assertRaisesRegex(ValueError, r'Unrecognized boolean string'):
+      jax_utils.env_bool('MY_FLAG', False)
+
+  # --- Tests for assert_rank ---
+
+  def test_assert_rank_correct_rank(self):
+    """Test assert_rank passes for a correctly-ranked array."""
+    x = jnp.zeros((3, 4))
+    jax_utils.assert_rank(x, 2)  # Should not raise.
+
+  def test_assert_rank_wrong_rank(self):
+    """Test assert_rank raises for an incorrectly-ranked array."""
+    x = jnp.zeros((3, 4))
+    with self.assertRaises(AssertionError):
+      jax_utils.assert_rank(x, 1)
+
+  def test_assert_rank_scalar(self):
+    """Test assert_rank passes for a scalar with rank 0."""
+    x = jnp.array(1.0)
+    jax_utils.assert_rank(x, 0)  # Should not raise.
+
+  # --- Tests for error_if ---
+
+  def test_error_if_passthrough_when_disabled(self):
+    """Test error_if returns the input unchanged when errors are disabled."""
+    x = jnp.array(42.0)
+    with jax_utils.enable_errors(False):
+      result = jax_utils.error_if(x, jnp.array(True), msg='should not fire')
+    chex.assert_trees_all_equal(result, x)
+
+  def test_error_if_passthrough_identity(self):
+    """Test that error_if returns the exact same array object when disabled."""
+    x = jnp.array(7.0)
+    with jax_utils.enable_errors(False):
+      result = jax_utils.error_if(x, jnp.array(True), msg='noop')
+    # When errors are disabled, the function is a no-op passthrough.
+    self.assertIs(result, x)
 
 
 if __name__ == '__main__':
