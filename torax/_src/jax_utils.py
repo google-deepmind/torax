@@ -33,8 +33,19 @@ PyTree: TypeAlias = Any
 
 
 @functools.cache
-def get_dtype() -> type(jnp.float32):
-  # Default TORAX JAX precision is f64
+def get_dtype() -> type[jnp.float32] | type[jnp.float64]:
+  """Returns the JAX floating-point dtype based on the JAX_PRECISION env var.
+
+  Reads the ``JAX_PRECISION`` environment variable (default ``'f64'``) and
+  returns the corresponding JAX dtype class.  The result is cached so the
+  environment variable is only read once per process.
+
+  Returns:
+    ``jnp.float64`` when precision is ``'f64'``, ``jnp.float32`` otherwise.
+
+  Raises:
+    AssertionError: If ``JAX_PRECISION`` is set to an unsupported value.
+  """
   precision = os.getenv('JAX_PRECISION', 'f64')
   assert precision == 'f64' or precision == 'f32', (
       'Unknown JAX precision environment variable: %s' % precision
@@ -43,8 +54,19 @@ def get_dtype() -> type(jnp.float32):
 
 
 @functools.cache
-def get_np_dtype() -> type(np.float32):
-  # Default TORAX JAX precision is f64
+def get_np_dtype() -> type[np.float32] | type[np.float64]:
+  """Returns the NumPy floating-point dtype based on the JAX_PRECISION env var.
+
+  Mirrors :func:`get_dtype` but returns a NumPy dtype class instead of a
+  JAX one.  Useful when constructing NumPy arrays that must match the
+  precision used by JAX.
+
+  Returns:
+    ``np.float64`` when precision is ``'f64'``, ``np.float32`` otherwise.
+
+  Raises:
+    AssertionError: If ``JAX_PRECISION`` is set to an unsupported value.
+  """
   precision = os.getenv('JAX_PRECISION', 'f64')
   assert precision == 'f64' or precision == 'f32', (
       'Unknown JAX precision environment variable: %s' % precision
@@ -53,8 +75,19 @@ def get_np_dtype() -> type(np.float32):
 
 
 @functools.cache
-def get_int_dtype() -> type(jnp.int32):
-  # Default TORAX JAX precision is f64
+def get_int_dtype() -> type[jnp.int32] | type[jnp.int64]:
+  """Returns the JAX integer dtype based on the JAX_PRECISION env var.
+
+  When 64-bit precision is requested (``'f64'``), returns ``jnp.int64``;
+  otherwise returns ``jnp.int32``.  This keeps integer precision aligned
+  with the floating-point precision.
+
+  Returns:
+    ``jnp.int64`` when precision is ``'f64'``, ``jnp.int32`` otherwise.
+
+  Raises:
+    AssertionError: If ``JAX_PRECISION`` is set to an unsupported value.
+  """
   precision = os.getenv('JAX_PRECISION', 'f64')
   assert precision == 'f64' or precision == 'f32', (
       'Unknown JAX precision environment variable: %s' % precision
@@ -282,9 +315,22 @@ def _non_inlined_function_while_loop(f, static_argnames):
   return wrapper
 
 
-def _init_pytree(t):
+def _init_pytree(t: PyTree) -> PyTree:
+  """Initializes a pytree of `ShapeDtypeStruct` leaves into concrete arrays.
 
-  def init_array(x):
+  Each leaf that is a ``jax.ShapeDtypeStruct`` is replaced with an empty
+  ``jnp.ndarray`` of the same shape and dtype.  All other leaves are
+  passed through unchanged.
+
+  Args:
+    t: A pytree whose leaves may be ``jax.ShapeDtypeStruct`` instances.
+
+  Returns:
+    A pytree with the same structure as *t*, but with concrete arrays
+    replacing any ``ShapeDtypeStruct`` leaves.
+  """
+
+  def init_array(x: jax.ShapeDtypeStruct | Any) -> jax.Array | Any:
     if isinstance(x, jax.ShapeDtypeStruct):
       return jnp.empty(shape=x.shape, dtype=x.dtype)
     else:
