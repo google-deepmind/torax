@@ -62,15 +62,10 @@ class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the n_e equation."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_particle'
+  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
+      source.AffectedCoreProfile.NE,
+  )
   model_func: source.SourceProfileFunction = calc_generic_particle_source
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
-    return (source.AffectedCoreProfile.NE,)
 
 
 @jax.tree_util.register_dataclass

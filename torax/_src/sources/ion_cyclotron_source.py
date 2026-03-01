@@ -512,17 +512,10 @@ class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
 
   SOURCE_NAME: ClassVar[str] = 'icrh'
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
-    return (
-        source.AffectedCoreProfile.TEMP_ION,
-        source.AffectedCoreProfile.TEMP_EL,
-    )
+  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
+      source.AffectedCoreProfile.TEMP_ION,
+      source.AffectedCoreProfile.TEMP_EL,
+  )
 
 
 # Cache the result of this function to avoid re-creating the partial function

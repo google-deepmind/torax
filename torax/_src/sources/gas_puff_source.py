@@ -71,15 +71,10 @@ class GasPuffSource(source.Source):
   """Gas puff source for the n_e equation."""
 
   SOURCE_NAME: ClassVar[str] = 'gas_puff'
+  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
+      source.AffectedCoreProfile.NE,
+  )
   model_func: source.SourceProfileFunction = calc_puff_source
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
-    return (source.AffectedCoreProfile.NE,)
 
 
 class GasPuffSourceConfig(base.SourceModelBase):

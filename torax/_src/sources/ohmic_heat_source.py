@@ -93,17 +93,10 @@ class OhmicHeatSource(source_lib.Source):
   """
 
   SOURCE_NAME: ClassVar[str] = 'ohmic'
+  AFFECTED_CORE_PROFILES: ClassVar[
+      tuple[source_lib.AffectedCoreProfile, ...]
+  ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
   model_func: source_lib.SourceProfileFunction = ohmic_model_func
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(
-      self,
-  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
-    return (source_lib.AffectedCoreProfile.TEMP_EL,)
 
 
 class OhmicHeatSourceConfig(base.SourceModelBase):

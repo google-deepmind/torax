@@ -47,17 +47,10 @@ class QeiSource(source.Source):
   """
 
   SOURCE_NAME: ClassVar[str] = 'ei_exchange'
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
-    return (
-        source.AffectedCoreProfile.TEMP_ION,
-        source.AffectedCoreProfile.TEMP_EL,
-    )
+  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
+      source.AffectedCoreProfile.TEMP_ION,
+      source.AffectedCoreProfile.TEMP_EL,
+  )
 
   def get_qei(
       self,

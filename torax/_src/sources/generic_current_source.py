@@ -104,15 +104,10 @@ class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_current'
+  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
+      source.AffectedCoreProfile.PSI,
+  )
   model_func: source.SourceProfileFunction = calculate_generic_current
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
-    return (source.AffectedCoreProfile.PSI,)
 
 
 class GenericCurrentSourceConfig(source_base.SourceModelBase):

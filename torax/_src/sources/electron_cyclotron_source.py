@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Electron cyclotron heating (prescribed Gaussian) and current drive (Lin-Liu model)."""
+"""Electron cyclotron heating and current drive."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 
@@ -126,15 +127,11 @@ class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the T_e and Psi equations."""
 
   SOURCE_NAME: ClassVar[str] = "ecrh"
+  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
+      source.AffectedCoreProfile.TEMP_EL,
+      source.AffectedCoreProfile.PSI,
+  )
   model_func: source.SourceProfileFunction = calc_heating_and_current
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
-    return (source.AffectedCoreProfile.TEMP_EL, source.AffectedCoreProfile.PSI)
 
 
 class ElectronCyclotronSourceConfig(base.SourceModelBase):

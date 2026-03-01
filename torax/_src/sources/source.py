@@ -80,34 +80,39 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
 
   Attributes:
     SOURCE_NAME: The name of the source.
+    AFFECTED_CORE_PROFILES: Core profiles affected by this source's profile(s).
+      This attribute defines which equations the source profiles are terms for.
+      By default, the number of affected core profiles should equal the rank of
+      the output shape returned by `output_shape`.
     runtime_params: Input dataclass containing all the source-specific runtime
       parameters. At runtime, the parameters here are interpolated to a specific
       time t and then passed to the model_func, depending on the mode this
       source is running in.
-    affected_core_profiles: Core profiles affected by this source's profile(s).
-      This attribute defines which equations the source profiles are terms for.
-      By default, the number of affected core profiles should equal the rank of
-      the output shape returned by `output_shape`.
     model_func: The function used when the runtime type is set to "MODEL_BASED".
       If not provided, then it defaults to returning zeros.
-    affected_core_profiles_ints: Derived property from the
-      affected_core_profiles. Integer values of those enums.
   """
 
   SOURCE_NAME: ClassVar[str] = 'source'
+  AFFECTED_CORE_PROFILES: ClassVar[tuple[AffectedCoreProfile, ...]] = ()
   model_func: SourceProfileFunction | None = dataclasses.field(
       default=None, metadata={'hash_by_id': True}
   )
 
-  @property
-  @abc.abstractmethod
-  def source_name(self) -> str:
-    """Returns the name of the source."""
+  def __post_init__(self):
+    if self.SOURCE_NAME == 'source':
+      raise ValueError('Source name must be set.')
+    if not self.AFFECTED_CORE_PROFILES:
+      raise ValueError('Affected core profiles must be set.')
 
   @property
-  @abc.abstractmethod
+  def source_name(self) -> str:
+    """Returns the name of the source."""
+    return self.SOURCE_NAME
+
+  @property
   def affected_core_profiles(self) -> tuple[AffectedCoreProfile, ...]:
     """Returns the core profiles affected by this source."""
+    return self.AFFECTED_CORE_PROFILES
 
   def get_value(
       self,

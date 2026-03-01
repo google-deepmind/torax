@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
+from typing import ClassVar
 from unittest import mock
 
 from absl.testing import absltest
@@ -21,10 +23,23 @@ from torax._src.geometry import geometry
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
+from torax._src.sources import source as source_lib
 
 
 class SourceTest(parameterized.TestCase):
   """Tests for the base class Source."""
+
+  def test_missing_affected_core_profiles_raises_error(self):
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class BadSource(source_lib.Source):
+      SOURCE_NAME: ClassVar[str] = 'bad'
+      model_func = None
+
+    with self.assertRaisesRegex(
+        ValueError, 'Affected core profiles must be set.'
+    ):
+      BadSource()
 
   def test_zero_profile_works_by_default(self):
     """The default source impl should support profiles with all zeros."""

@@ -28,14 +28,5 @@ class ImpurityRadiationHeatSink(source_lib.Source):
   """Impurity radiation heat sink for electron heat equation."""
 
   SOURCE_NAME = "impurity_radiation"
+  AFFECTED_CORE_PROFILES = (source_lib.AffectedCoreProfile.TEMP_EL,)
   model_func: source_lib.SourceProfileFunction
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(
-      self,
-  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
-    return (source_lib.AffectedCoreProfile.TEMP_EL,)

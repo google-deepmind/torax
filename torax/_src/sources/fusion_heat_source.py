@@ -163,18 +163,11 @@ class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
 
   SOURCE_NAME: ClassVar[str] = 'fusion'
+  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
+      source.AffectedCoreProfile.TEMP_ION,
+      source.AffectedCoreProfile.TEMP_EL,
+  )
   model_func: source.SourceProfileFunction = fusion_heat_model_func
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
-    return (
-        source.AffectedCoreProfile.TEMP_ION,
-        source.AffectedCoreProfile.TEMP_EL,
-    )
 
 
 class FusionHeatSourceConfig(base.SourceModelBase):

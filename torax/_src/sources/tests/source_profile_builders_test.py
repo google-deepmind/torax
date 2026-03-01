@@ -82,15 +82,8 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      @property
-      def source_name(self) -> str:
-        return 'foo'
-
-      @property
-      def affected_core_profiles(
-          self,
-      ) -> tuple[source.AffectedCoreProfile, ...]:
-        return (source.AffectedCoreProfile.PSI,)
+      SOURCE_NAME = 'foo'
+      AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
     test_source = TestSource(
         model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)
@@ -136,18 +129,11 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      @property
-      def source_name(self) -> str:
-        return 'foo'
-
-      @property
-      def affected_core_profiles(
-          self,
-      ) -> tuple[source.AffectedCoreProfile, ...]:
-        return (
-            source.AffectedCoreProfile.TEMP_ION,
-            source.AffectedCoreProfile.TEMP_EL,
-        )
+      SOURCE_NAME = 'foo'
+      AFFECTED_CORE_PROFILES = (
+          source.AffectedCoreProfile.TEMP_ION,
+          source.AffectedCoreProfile.TEMP_EL,
+      )
 
     test_source = TestSource(
         model_func=lambda *args: (jnp.ones_like(self.geo.rho),) * 2
@@ -226,15 +212,8 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      @property
-      def source_name(self) -> str:
-        return 'foo'
-
-      @property
-      def affected_core_profiles(
-          self,
-      ) -> tuple[source.AffectedCoreProfile, ...]:
-        return (source.AffectedCoreProfile.PSI,)
+      SOURCE_NAME = 'foo'
+      AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
     test_source = TestSource(
         model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)
