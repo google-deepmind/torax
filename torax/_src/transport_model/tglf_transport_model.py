@@ -292,7 +292,7 @@ def _extract_tglf_plan(
       'UNITS': 'CGYRO',
       'NS': 3,
       'USE_TRANSPORT_MODEL': '.true.',
-      'GEOMETRY_FLAG': f'.{str(transport.geometry_flag).lower()}.',
+      'GEOMETRY_FLAG': transport.geometry_flag,
       'USE_BPER': f'.{str(transport.use_bper).lower()}.',
       'USE_BPAR': f'.{str(transport.use_bpar).lower()}.',
       'USE_BISECTION': '.true.',
