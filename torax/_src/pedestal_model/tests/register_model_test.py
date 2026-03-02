@@ -73,8 +73,13 @@ class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
       Literal['fixed_pedestal'], torax_pydantic.JAX_STATIC
   ] = 'fixed_pedestal'
 
-  def build_pedestal_model(self) -> FixedPedestalModel:
-    return FixedPedestalModel()
+  def build_pedestal_model(
+      self,
+  ) -> FixedPedestalModel:
+    return FixedPedestalModel(
+        formation_model=self.formation_model.build_formation_model(),
+        saturation_model=self.saturation_model.build_saturation_model(),
+    )
 
   def build_runtime_params(
       self,
@@ -82,6 +87,11 @@ class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
   ) -> pedestal_runtime_params_lib.RuntimeParams:
     return pedestal_runtime_params_lib.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
+        mode=self.mode,
+        formation=self.formation_model.build_runtime_params(t),
+        saturation=self.saturation_model.build_runtime_params(t),
+        max_transport_multiplier=self.max_transport_multiplier.get_value(t),
+        min_transport_multiplier=self.min_transport_multiplier.get_value(t),
     )
 
 

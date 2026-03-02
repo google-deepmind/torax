@@ -13,10 +13,43 @@
 # limitations under the License.
 
 """Dataclass representing runtime parameter inputs to the pedestal models."""
+
 import dataclasses
+import enum
 
 import jax
 from torax._src import array_typing
+
+
+@enum.unique
+class Mode(enum.Enum):
+  """Defines how the pedestal is generated."""
+
+  # The pedestal is set by modifying the transport coefficients.
+  ADAPTIVE_TRANSPORT = "ADAPTIVE_TRANSPORT"
+
+  # The pedestal is set by adding a source/sink term.
+  ADAPTIVE_SOURCE = "ADAPTIVE_SOURCE"
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class FormationRuntimeParams:
+  """Runtime params for pedestal formation models."""
+
+  sigmoid_width: array_typing.FloatScalar = 0.1
+  sigmoid_offset: array_typing.FloatScalar = 0.0
+  sigmoid_exponent: array_typing.FloatScalar = 1.0
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class SaturationRuntimeParams:
+  """Runtime params for pedestal saturation models."""
+
+  sigmoid_width: array_typing.FloatScalar = 0.1
+  sigmoid_offset: array_typing.FloatScalar = 0.0
+  sigmoid_exponent: array_typing.FloatScalar = 1.0
 
 
 @jax.tree_util.register_dataclass
@@ -25,3 +58,8 @@ class RuntimeParams:
   """Input params for the pedestal model."""
 
   set_pedestal: array_typing.BoolScalar
+  mode: Mode = dataclasses.field(metadata={"static": True})
+  min_transport_multiplier: array_typing.FloatScalar
+  max_transport_multiplier: array_typing.FloatScalar
+  formation: FormationRuntimeParams
+  saturation: SaturationRuntimeParams

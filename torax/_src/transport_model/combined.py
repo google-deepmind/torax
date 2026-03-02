@@ -88,7 +88,6 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     # rho_inner < rho_norm < min(rho_ped_top, rho_outer) unless
     # smooth_everywhere is True.
     return self._smooth_coeffs(
-        transport_runtime_params,
         runtime_params,
         geo,
         transport_coeffs,
@@ -157,6 +156,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
       domain_mask_fn: Callable[
           [
               transport_runtime_params_lib.RuntimeParams,
+              runtime_params_lib.RuntimeParams,
               geometry.Geometry,
               pedestal_model_output_lib.PedestalModelOutput,
           ],
@@ -190,7 +190,9 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
       coeffs = model.zero_out_disabled_channels(params, coeffs)
 
       # 3. Calculate active domain mask. Values outside this are set to 0.
-      domain_mask = domain_mask_fn(params, geo, pedestal_model_output)
+      domain_mask = domain_mask_fn(
+          params, runtime_params, geo, pedestal_model_output
+      )
 
       coeffs_dict = dataclasses.asdict(coeffs)
       for k in coeffs_dict:
@@ -252,7 +254,8 @@ def _add_optional(
 
 
 def _pedestal_domain_mask(
-    unused_params: transport_runtime_params_lib.RuntimeParams,
+    unused_transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    unused_runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:

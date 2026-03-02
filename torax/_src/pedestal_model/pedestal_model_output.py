@@ -18,6 +18,8 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
+from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 
@@ -29,10 +31,19 @@ from torax._src.internal_boundary_conditions import internal_boundary_conditions
 class TransportMultipliers:
   """Transport multipliers for the pedestal."""
 
-  chi_e_multiplier: array_typing.FloatScalar = 1.0
-  chi_i_multiplier: array_typing.FloatScalar = 1.0
-  D_e_multiplier: array_typing.FloatScalar = 1.0
-  v_e_multiplier: array_typing.FloatScalar = 1.0
+  chi_e_multiplier: array_typing.FloatScalar
+  chi_i_multiplier: array_typing.FloatScalar
+  D_e_multiplier: array_typing.FloatScalar
+  v_e_multiplier: array_typing.FloatScalar
+
+  @classmethod
+  def default(cls):
+    return cls(
+        chi_e_multiplier=jnp.array(1.0, dtype=jax_utils.get_dtype()),
+        chi_i_multiplier=jnp.array(1.0, dtype=jax_utils.get_dtype()),
+        D_e_multiplier=jnp.array(1.0, dtype=jax_utils.get_dtype()),
+        v_e_multiplier=jnp.array(1.0, dtype=jax_utils.get_dtype()),
+    )
 
 
 @jax.tree_util.register_dataclass
@@ -57,7 +68,9 @@ class PedestalModelOutput:
   T_i_ped: array_typing.FloatScalar
   T_e_ped: array_typing.FloatScalar
   n_e_ped: array_typing.FloatScalar
-  transport_multipliers: TransportMultipliers = TransportMultipliers()
+  transport_multipliers: TransportMultipliers = dataclasses.field(
+      default_factory=TransportMultipliers.default
+  )
 
   def to_internal_boundary_conditions(
       self,
@@ -79,3 +92,62 @@ class PedestalModelOutput:
         T_e=jnp.where(pedestal_mask, self.T_e_ped, 0.0),
         n_e=jnp.where(pedestal_mask, self.n_e_ped, 0.0),
     )
+
+  def modify_core_transport(
+      self,
+      core_transport: state.CoreTransport,
+      geo: geometry.Geometry,
+  ) -> state.CoreTransport:
+    """Modify transport coefficients in the entire pedestal region.
+
+    Scales the turbulent and Pereverzev transport coefficients in the pedestal
+    region by the multipliers in the pedestal model output. This will also scale
+    any components of the transport coefficients that are inherited from the
+    turbulent model, such as ITG, ETG, TEM, Bohm, GyroBohm, etc. Transport
+    coefficients from neoclassical and pedestal transport models are not
+    affected.
+
+    Args:
+      core_transport: The core transport coefficients to modify.
+      geo: The geometry of the torus.
+
+    Returns:
+      The modified core transport coefficients.
+    """
+    # We are using the face grid here, since transport coefficients are
+    # applied on the face grid.
+
+    # TODO(b/485147781):  In the case where we have a CombinedTransportModel
+    # with a pedestal transport model specified, we are currently scaling
+    # all the coefficients in the pedestal region, whereas we should be only
+    # scaling the turbulent coeffs and leaving the pedestal coeffs alone.
+    pedestal_active_mask_face = geo.rho_face_norm > self.rho_norm_ped_top
+
+    def multiply_coeff(
+        path: jax.tree_util.KeyPath, coeff: array_typing.FloatVectorFace
+    ) -> array_typing.FloatVectorFace:
+      """Scale turbulent+Pereverzev transport coefficients in the pedestal."""
+      # Get the variable name of the leaf
+      key = str(path[-1])
+
+      # Apply the correct multiplier based on the variable name
+      # TODO(b/488314338): Improve robustness of applying multipliers to
+      # transport coefficients, ideally avoiding string matching.
+      if "neo" in key:
+        # Neoclassical transport should not be affected by scaling from an
+        # ADAPTIVE_TRANSPORT pedestal model.
+        return coeff
+      elif "chi_face_ion" in key:
+        modified_coeff = coeff * self.transport_multipliers.chi_i_multiplier
+      elif "chi_face_el" in key:
+        modified_coeff = coeff * self.transport_multipliers.chi_e_multiplier
+      elif "d_face_el" in key:
+        modified_coeff = coeff * self.transport_multipliers.D_e_multiplier
+      elif "v_face_el" in key:
+        modified_coeff = coeff * self.transport_multipliers.v_e_multiplier
+      else:
+        return coeff
+
+      return jnp.where(pedestal_active_mask_face, modified_coeff, coeff)
+
+    return jax.tree_util.tree_map_with_path(multiply_coeff, core_transport)

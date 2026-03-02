@@ -23,6 +23,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_model as transport_model_lib
@@ -75,17 +76,39 @@ def calculate_all_transport_coeffs(
       geo,
       core_profiles,
   )
-  # Zero out Pereverzev-Corrigan terms in the pedestal for PDE stability
-  pedestal_active_mask_face = (
-      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
-  )
-  pereverzev_transport_coeffs = jax.tree_util.tree_map(
-      lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
-      pereverzev_transport_coeffs,
-  )
 
-  return state.CoreTransport(
+  core_transport = state.CoreTransport(
       **dataclasses.asdict(turbulent_transport_coeffs),
       **dataclasses.asdict(neoclassical_transport_coeffs),
       **dataclasses.asdict(pereverzev_transport_coeffs),
   )
+
+  # Modify the turbulent + Pereverzev transport coefficients if the pedestal
+  # model is in ADAPTIVE_TRANSPORT mode.
+  # TODO(b/488980968): Identify speed issue with ADAPTIVE_TRANSPORT mode.
+  if (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+  ):
+    core_transport = pedestal_model_output.modify_core_transport(
+        core_transport=core_transport,
+        geo=geo,
+    )
+  else:
+    # If in ADAPTIVE_SOURCE mode, set the Pereverzev transport coefficients in
+    # the pedestal region to zero.
+    # TODO(b/485147781) Combine this masking with the turbulent transport
+    # masking.
+    pedestal_active_mask_face = (
+        geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
+    )
+    pereverzev_transport_coeffs = jax.tree_util.tree_map(
+        lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
+        pereverzev_transport_coeffs,
+    )
+    core_transport = dataclasses.replace(
+        core_transport,
+        **dataclasses.asdict(pereverzev_transport_coeffs),
+    )
+
+  return core_transport

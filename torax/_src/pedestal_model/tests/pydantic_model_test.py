@@ -18,7 +18,7 @@ from torax._src import jax_utils
 from torax._src.pedestal_model import pydantic_model
 
 
-class NoPedestalTest(parameterized.TestCase):
+class PedestalModelPydanticTest(parameterized.TestCase):
 
   @parameterized.parameters(
       pydantic_model.SetPpedTpedRatioNped,

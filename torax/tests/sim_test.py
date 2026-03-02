@@ -292,6 +292,12 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_rampup_sawtooth',
           'test_iterhybrid_rampup_sawtooth.py',
       ),
+      # Tests LH transition - #TODO(b/488980968): Re-enable once speed issue is
+      # resolved.
+      # (
+      #     'test_iterhybrid_predictor_corrector_lh_transition',
+      #     'test_iterhybrid_predictor_corrector_lh_transition.py',
+      # ),
       # Tests used for testing changing configs without recompiling.
       # Based on test_iterhybrid_predictor_corrector
       (

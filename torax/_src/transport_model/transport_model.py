@@ -31,6 +31,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 
 # pylint: disable=invalid-name
@@ -147,6 +148,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
     # Restrict the model to operating in its permissible rho domain
     transport_coeffs = self._apply_domain_restriction(
         transport_runtime_params,
+        runtime_params,
         geo,
         transport_coeffs,
         pedestal_model_output,
@@ -168,7 +170,6 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
 
     # Return smoothed coefficients if smoothing is enabled
     return self._smooth_coeffs(
-        transport_runtime_params,
         runtime_params,
         geo,
         transport_coeffs,
@@ -213,13 +214,14 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
   def _apply_domain_restriction(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       transport_coeffs: TurbulentTransport,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> TurbulentTransport:
     """Sets transport coefficients to zero outside the model's domain."""
     active_mask = compute_core_domain_mask(
-        transport_runtime_params, geo, pedestal_model_output
+        transport_runtime_params, runtime_params, geo, pedestal_model_output
     )
 
     coeffs_dict = dataclasses.asdict(transport_coeffs)
@@ -377,7 +379,6 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
 
   def _smooth_coeffs(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       transport_coeffs: TurbulentTransport,
@@ -385,7 +386,6 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
   ) -> TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
     smoothing_matrix = _build_smoothing_matrix(
-        transport_runtime_params,
         runtime_params,
         geo,
         pedestal_model_output,
@@ -404,7 +404,6 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
 
 
 def _build_smoothing_matrix(
-    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
@@ -414,7 +413,6 @@ def _build_smoothing_matrix(
   Uses a Gaussian kernel of HWHM defined in the transport config.
 
   Args:
-    transport_runtime_params: Runtime parameters for this transport model.
     runtime_params: Input runtime parameters of the simulation.
     geo: Geometry of the torus.
     pedestal_model_output: Output of the pedestal model.
@@ -434,36 +432,42 @@ def _build_smoothing_matrix(
   kernel = jnp.exp(
       -jnp.log(2)
       * (geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm) ** 2
-      / (transport_runtime_params.smoothing_width**2 + consts.eps)
+      / (runtime_params.transport.smoothing_width**2 + consts.eps)
   )
 
   # 2. Masking: we do not want transport coefficients calculated in pedestal
-  # region or in inner and outer transport patch regions, to impact
+  # region or in inner and outer transport patch regions to impact
   # transport_model calculated coefficients
-
-  # If set pedestal is False and apply_outer_patch is True, we want to mask
-  # according to rho_outer, otherwise we want to mask according to
-  # rho_norm_ped_top. In the case where set_pedestal is False this is inf
-  # which when we use to make the mask means that we will not mask anything.
-  # If set pedestal is True, we want to mask according to rho_norm_ped_top.
-  mask_outer_edge = jax.lax.cond(
-      jnp.logical_and(
-          jnp.logical_not(runtime_params.pedestal.set_pedestal),
-          transport_runtime_params.apply_outer_patch,
-      ),
-      lambda: transport_runtime_params.rho_outer - consts.eps,
-      lambda: pedestal_model_output.rho_norm_ped_top - consts.eps,
-  )
+  if (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+  ):
+    # If in ADAPTIVE_SOURCE mode: if set_pedestal is True, mask according to the
+    # pedestal top. Otherwise, mask according to the outer patch, if set.
+    mask_outer_edge = jnp.where(
+        jnp.logical_not(runtime_params.pedestal.set_pedestal)
+        & runtime_params.transport.apply_outer_patch,
+        runtime_params.transport.rho_outer - consts.eps,
+        # If pedestal is not set, rho_norm_ped_top is inf.
+        pedestal_model_output.rho_norm_ped_top - consts.eps,
+    )
+  else:
+    # If in ADAPTIVE_TRANSPORT mode, only mask according to the outer patch.
+    mask_outer_edge = jnp.where(
+        runtime_params.transport.apply_outer_patch,
+        runtime_params.transport.rho_outer - consts.eps,
+        jnp.inf,
+    )
 
   mask_inner_edge = jax.lax.cond(
-      transport_runtime_params.apply_inner_patch,
-      lambda: transport_runtime_params.rho_inner + consts.eps,
+      runtime_params.transport.apply_inner_patch,
+      lambda: runtime_params.transport.rho_inner + consts.eps,
       lambda: 0.0,
   )
 
   mask = jnp.where(
       jnp.logical_or(
-          transport_runtime_params.smooth_everywhere,
+          runtime_params.transport.smooth_everywhere,
           jnp.logical_and(
               geo.rho_face_norm > mask_inner_edge,
               geo.rho_face_norm < mask_outer_edge,
@@ -505,6 +509,7 @@ def _build_smoothing_matrix(
 
 def compute_core_domain_mask(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
@@ -512,21 +517,28 @@ def compute_core_domain_mask(
 
   Args:
     transport_runtime_params: Runtime parameters for the transport model.
+    runtime_params: Runtime parameters for the simulation.
     geo: Geometry of the torus.
     pedestal_model_output: Output of the pedestal model.
 
   Returns:
     active_mask: A boolean array indicating the active domain.
   """
-  # Standard case: active range is
-  # rho_min < rho <= rho_max AND rho <= rho_norm_ped_top
-  active_mask = (
-      (geo.rho_face_norm > transport_runtime_params.rho_min)
-      & (geo.rho_face_norm <= transport_runtime_params.rho_max)
-      & (geo.rho_face_norm <= pedestal_model_output.rho_norm_ped_top)
+  # Active range is rho_min < rho <= rho_max
+  # (AND rho <= rho_norm_ped_top, if pedestal is in ADAPTIVE_SOURCE mode)
+  active_mask = (geo.rho_face_norm > transport_runtime_params.rho_min) & (
+      geo.rho_face_norm <= transport_runtime_params.rho_max
   )
-  # Special case: if rho_min is 0, active range is
-  # rho_min <= rho <= rho_norm_ped_top
+  if (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+  ):
+    active_mask = active_mask & (
+        geo.rho_face_norm <= pedestal_model_output.rho_norm_ped_top
+    )
+
+  # Special case: if rho_min is 0, lower bound of active range is the first
+  # grid point.
   active_mask = (
       jnp.asarray(active_mask).at[0].set(transport_runtime_params.rho_min == 0)
   )

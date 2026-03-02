@@ -51,13 +51,21 @@ class FakePedestalPydantic(pedestal.BasePedestal):
   ] = 'fake_pedestal'
 
   def build_pedestal_model(self) -> FakePedestalModel:
-    return FakePedestalModel()
+    return FakePedestalModel(
+        formation_model=self.formation_model.build_formation_model(),
+        saturation_model=self.saturation_model.build_saturation_model(),
+    )
 
   def build_runtime_params(
       self, t,
   ) -> pedestal.RuntimeParams:
     return pedestal.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
+        mode=self.mode,
+        formation=self.formation_model.build_runtime_params(t),
+        saturation=self.saturation_model.build_runtime_params(t),
+        max_transport_multiplier=self.max_transport_multiplier.get_value(t),
+        min_transport_multiplier=self.min_transport_multiplier.get_value(t),
     )
 
 

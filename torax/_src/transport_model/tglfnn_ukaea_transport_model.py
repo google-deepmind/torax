@@ -146,7 +146,7 @@ class TGLFNNukaeaTransportModel(
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
-    del pedestal_model_output
+    del pedestal_model_output  # unused
     tglf_inputs = self._prepare_tglf_inputs(
         transport=transport,
         geo=geo,
