@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """TGLFNN-ukaea transport model."""
+
 from __future__ import annotations
 
 import dataclasses
-import logging
-from typing import Callable, Literal
+from typing import Literal
 
 from fusion_surrogates.tglfnn_ukaea import tglfnn_ukaea_model
 import jax
@@ -27,7 +27,6 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_model as transport_model_lib
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -44,43 +43,18 @@ class TGLFNNukaeaTransportModel(
 ):
   """TGLFNN-ukaea transport model."""
 
-  PrepareTGLFNNInputsFunc = Callable[
-      [typing_extensions.Self, tglf_based_transport_model.TGLFInputs],
-      jax.Array,
-  ]
-
   machine: Literal["step", "multimachine"]
-  # The remaining fields are set by __post_init__
+
+  # The following fields are set by __post_init__
   model: tglfnn_ukaea_model.TGLFNNukaeaModel = dataclasses.field(init=False)
-  _prepare_tglfnn_inputs: PrepareTGLFNNInputsFunc = dataclasses.field(
-      init=False, metadata={"hash_by_id": True}
-  )
 
   def __post_init__(self):
-
+    # Load weights in post-init, so that they are not reloaded on every call.
+    # Use __setattr__ as this is a frozen dataclass, so we can't just do
+    # self.model = ...
     object.__setattr__(
         self, "model", tglfnn_ukaea_model.TGLFNNukaeaModel(self.machine)
     )
-
-    # We need to install <class>.<method>, not self.<method>, as a field.
-    # We let this field hash by id. Installing self.<method> will make `self`
-    # become part of the hash, which we don't want. We want <class>.<method>
-    # to be a singleton with a unique id / unique hash.
-    if self.machine == "step":
-      logging.info("Using STEP version of TGLFNNukaea")
-      object.__setattr__(
-          self,
-          "_prepare_tglfnn_inputs",
-          TGLFNNukaeaTransportModel._make_input_tensor_step,
-      )
-    else:
-      logging.info("Using Multimachine version of TGLFNNukaea")
-      object.__setattr__(
-          self,
-          "_prepare_tglfnn_inputs",
-          TGLFNNukaeaTransportModel._make_input_tensor_multimachine,
-      )
-
     super().__post_init__()
 
   def _make_input_tensor_step(
@@ -138,6 +112,18 @@ class TGLFNNukaeaTransportModel(
         axis=-1,
     )
 
+  def _prepare_tglfnn_inputs(
+      self,
+      tglf_inputs: tglf_based_transport_model.TGLFInputs,
+  ) -> jax.Array:
+    match self.machine:
+      case "step":
+        return self._make_input_tensor_step(tglf_inputs)
+      case "multimachine":
+        return self._make_input_tensor_multimachine(tglf_inputs)
+      case _:
+        raise ValueError(f"Unsupported machine: {self.machine}")
+
   def call_implementation(
       self,
       transport: tglf_based_transport_model.RuntimeParams,
@@ -153,7 +139,7 @@ class TGLFNNukaeaTransportModel(
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
-    tglfnn_inputs = self._prepare_tglfnn_inputs(self, tglf_inputs)
+    tglfnn_inputs = self._prepare_tglfnn_inputs(tglf_inputs)
     predictions = self.model.predict(tglfnn_inputs)
 
     # TODO(b/323504363): expose variance outputs
