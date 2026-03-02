@@ -19,11 +19,6 @@ from torax._src.plotting import plotruns_lib
 PLOT_CONFIG = plotruns_lib.FigureProperties(
     rows=2,
     cols=4,
-    tick_fontsize=10,
-    axes_fontsize=10,
-    default_legend_fontsize=9,
-    figure_size_factor=5,
-    title_fontsize=12,
     axes=(
         # For chi, set histogram percentile for y-axis upper limit, due to
         # volatile nature of the data. Do not include first timepoint since

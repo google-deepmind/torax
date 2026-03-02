@@ -12,25 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities for plotting outputs of Torax runs."""
+"""Utilities for plotting outputs of Torax runs.
 
-from collections.abc import Sequence
+Public API:
+  plot_run: Main entry point. Loads data and returns a plotly Figure.
+  PlotData: Data container exposing all output variables as attributes.
+  FigureProperties: Configuration for the overall figure layout.
+  PlotProperties: Configuration for an individual subplot.
+  PlotType: Enum for spatial vs time-series plot types.
+"""
+
 import dataclasses
 import enum
 import inspect
+import itertools
 from os import path
-from typing import Any, Final, List, Mapping, Set
+import re
+from typing import Any, Final, Mapping
 
 import immutabledict
-import matplotlib
-from matplotlib import figure
-from matplotlib import gridspec
-from matplotlib import widgets
-import matplotlib.pyplot as plt
 import numpy as np
+from plotly import subplots
+import plotly.colors as pcolors
+import plotly.graph_objects as go
 from torax._src.output_tools import output
 import xarray as xr
 
+# Internal import.
 # Internal import.
 
 
@@ -104,17 +112,38 @@ class PlotProperties:
 
 @dataclasses.dataclass
 class FigureProperties:
-  """Dataclass for all figure related data."""
+  """Dataclass for all figure related data.
+
+  Attributes:
+    rows: Number of rows in the subplot grid.
+    cols: Number of columns in the subplot grid.
+    axes: Configuration for each subplot.
+    font_family: Font family for all text in the figure.
+    title_size: Font size for the main figure title.
+    subplot_title_size: Font size for subplot titles.
+    tick_size: Font size for axis ticks.
+    nticks_time: Number of x-axis ticks for the time series plots.
+    tickvals_rho: Values of x-axis ticks for the spatial plots.
+    height: Height of the figure in pixels. If None, autosize is used.
+    legend_spacing: Spacing between legend entries.
+    margin: Margin around the figure. A dict with keys l, r, t and b for left,
+      right, top and bottom margins respectively.
+  """
 
   rows: int
   cols: int
   axes: tuple[PlotProperties, ...]
-  figure_size_factor: float = 5.0
-  tick_fontsize: int = 10
-  axes_fontsize: int = 10
-  title_fontsize: int = 16
-  default_legend_fontsize: int = 10
-  colors: tuple[str, ...] = ('r', 'b', 'g', 'm', 'y', 'c')
+  font_family: str = 'Arial, sans-serif'
+  title_size: int = 16
+  subplot_title_size: int = 12
+  tick_size: int = 8
+  nticks_time: int = 6
+  tickvals_rho: tuple[float, ...] = (0, 0.2, 0.4, 0.6, 0.8, 1.0)
+  height: int | None = None
+  legend_spacing: int = 10
+  margin: dict[str, int] = dataclasses.field(
+      default_factory=lambda: dict(l=40, r=40, t=80, b=40)
+  )
 
   def __post_init__(self):
     if len(self.axes) > self.rows * self.cols:
@@ -244,7 +273,7 @@ class PlotData:
         raise ValueError(f"Unknown grid type '{grid_type}' for {name}")
     return np.zeros((time_steps, spatial_steps))
 
-  def available_variables(self) -> Set[str]:
+  def available_variables(self) -> set[str]:
     """Returns a set of all available attribute names for validation."""
     attrs = set()
 
@@ -272,8 +301,9 @@ class PlotData:
     return attrs
 
 
-def load_data(filename: str) -> PlotData:
-  """Loads an xr.Dataset from a file, handling potential coordinate name changes."""
+def _load_data(filename: str) -> PlotData:
+  """Loads an xr.Dataset from a file, handling coordinate name changes."""
+
   data_tree = output.load_state_file(filename)
 
   def _transform_data(ds: xr.Dataset):
@@ -289,6 +319,7 @@ def load_data(filename: str) -> PlotData:
         'j_generic_current': 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
         output.IP_PROFILE: 1e6,  # A to MA
+        output.IP: 1e6,  # A to MA
         'j_ecrh': 1e6,  # A/m^2 to MA/m^2
         'p_icrh_i': 1e6,  # W/m^3 to MW/m^3
         'p_icrh_e': 1e6,  # W/m^3 to MW/m^3
@@ -326,19 +357,40 @@ def load_data(filename: str) -> PlotData:
   return PlotData(xr.map_over_datasets(_transform_data, data_tree))
 
 
+def _get_file_path(outfile: str) -> str:
+  """Gets the absolute path to the file."""
+  possible_paths = [outfile]
+  path_check_fns = [path.exists]
+
+  for path_check_fn, possible_path in zip(
+      path_check_fns, possible_paths, strict=True
+  ):
+    if path_check_fn(possible_path):
+      return possible_path
+
+  raise ValueError(f'Could not find {outfile}. Tried {possible_paths}.')
+
+
+def _get_title(path1: str, path2: str | None) -> str:
+  """Gets the title for the plot."""
+  names = [f'(1) {path.basename(path1)}']
+  if path2:
+    names.append(f'(2) {path.basename(path2)}')
+  return '  &  '.join(names)
+
+
 def plot_run(
     plot_config: FigureProperties,
     outfile: str,
     outfile2: str | None = None,
     interactive: bool = True,
-) -> figure.Figure:
+) -> go.Figure:
   """Plots a single run or comparison of two runs."""
-  if not path.exists(outfile):
-    raise ValueError(f'File {outfile} does not exist.')
-  if outfile2 is not None and not path.exists(outfile2):
-    raise ValueError(f'File {outfile2} does not exist.')
-  plotdata1 = load_data(outfile)
-  plotdata2 = load_data(outfile2) if outfile2 else None
+  outfile = _get_file_path(outfile)
+  outfile2 = _get_file_path(outfile2) if outfile2 else None
+
+  plotdata1 = _load_data(outfile)
+  plotdata2 = _load_data(outfile2) if outfile2 else None
 
   # Prepare list of datasets to check, associating them with their filenames
   # for clearer errors
@@ -358,177 +410,335 @@ def plot_run(
               f'output file: {filename}'
           )
 
-  fig, axes, slider_ax = create_figure(plot_config)
-
-  # Title handling:
-  title_lines = [f'(1)={outfile}']
-  if outfile2:
-    title_lines.append(f'(2)={outfile2}')
-  fig.suptitle('\n'.join(title_lines))
-
-  lines1 = get_lines(plot_config, plotdata1, axes)
-  lines2 = (
-      get_lines(plot_config, plotdata2, axes, comp_plot=True)
-      if plotdata2
-      else None
-  )
-
-  format_plots(plot_config, plotdata1, plotdata2, axes)
-
-  # Only create the slider if needed.
-  if plot_config.contains_spatial_plot_type:
-    timeslider = create_slider(slider_ax, plotdata1, plotdata2)
-
-    def update(newtime):
-      """Update plots with new values following slider manipulation."""
-      fig.constrained_layout = False
-      _update(newtime, plot_config, plotdata1, lines1, plotdata2, lines2)
-      fig.constrained_layout = True
-      fig.canvas.draw_idle()
-
-    timeslider.on_changed(update)
-
+  fig_title = _get_title(outfile, outfile2)
+  fig = _create_plotly_figure(plot_config, plotdata1, plotdata2, fig_title)
   if interactive:
-    fig.canvas.draw()
-    plt.show()
+    fig.show()
+
   return fig
 
 
-def _update(
-    newtime,
-    plot_config: FigureProperties,
-    plotdata1: PlotData,
-    lines1: Sequence[matplotlib.lines.Line2D],
-    plotdata2: PlotData | None = None,
-    lines2: Sequence[matplotlib.lines.Line2D] | None = None,
-):
-  """Update plots with new values following slider manipulation."""
+def _latex_to_html(latex_str: str) -> str:
+  """Convert 'text $math$' -> 'html_str'."""
 
-  def update_lines(plotdata, lines):
-    idx = np.abs(plotdata.t - newtime).argmin()
-    line_idx = 0
-    for cfg in plot_config.axes:  # Iterate through axes based on plot_config
-      if cfg.plot_type == PlotType.TIME_SERIES:
-        continue  # Time series plots do not need to be updated
-      for attr in cfg.attrs:  # Update all lines in current subplot.
-        data = getattr(plotdata, attr)
-        if cfg.suppress_zero_values and np.all(data == 0):
+  # 1. Strip math delimiters and tildes.
+  html = latex_str.replace('$', '').replace('~', ' ')
+  html = re.sub(r'\\mathrm', '', html)
+
+  # 2. Handle Braced Subscripts/Superscripts.
+  # Matches _{text} or ^{text}
+  html = re.sub(r'_\{([^}]*)\}', r'<sub>\1</sub>', html)
+  html = re.sub(r'\^\{([^}]*)\}', r'<sup>\1</sup>', html)
+
+  # 3. Handle Single Character Subscripts/Superscripts.
+  # Matches _x or ^x (where x is any alphanumeric)
+  html = re.sub(r'_([a-zA-Z0-9])', r'<sub>\1</sub>', html)
+  html = re.sub(r'\^([a-zA-Z0-9])', r'<sup>\1</sup>', html)
+
+  # 4. Greek Letter Map.
+  greek_map = {r'\psi': 'ψ', r'\chi': 'χ'}
+
+  for latex_char, html_entity in greek_map.items():
+    html = html.replace(latex_char, html_entity)
+
+  html = re.sub(r'\\dot\{([^}]*)\}', r'\1&#775;', html)
+  html = re.sub(r'\\hat\{([^}]*)\}', r'\1&#770;', html)
+  html = re.sub(r'\\langle', '<', html)
+  html = re.sub(r'\\rangle', '>', html)
+  return html
+
+
+def _transform_string(input_str: str) -> str:
+  """Convert 'text $math$' -> 'html_str'."""
+
+  match_grp = re.match(
+      r'^(?!(?:\s*)\$[^$]+\$(?:\s*)$)(?=.*[a-zA-Z0-9]).*\$.+\$.*$', input_str
+  )
+  if match_grp:
+    return _latex_to_html(input_str)
+  else:
+    return input_str
+
+
+def _subplot_prefix(idx: int) -> str:
+  result = ''
+
+  # 97 is the ASCII code for the letter 'a'. Loop to handle scaling past 26
+  # For example, 26 -> aa, 27 -> ab, etc.
+  while True:
+    result = chr(97 + (idx % 26)) + result
+    idx = (idx // 26) - 1
+    if idx < 0:
+      break
+
+  return f'({result})'
+
+
+def _setup_subplots(plot_config: FigureProperties) -> go.Figure:
+  """Setup subplots for the figure."""
+
+  subplot_titles = []
+  rows, cols = plot_config.rows, plot_config.cols
+  axes = plot_config.axes
+  for i in range(rows * cols):
+    if i < len(axes):
+      is_spatial = axes[i].plot_type == PlotType.SPATIAL
+      x_label = 'Radius (ρ<sub>norm</sub>)' if is_spatial else 'Time [s]'
+
+      # TODO(b/323504363): Make plot axes labels in html instead of manual
+      # conversion from latex to html.
+      prefix = _subplot_prefix(i)
+      subplot_title = (
+          f'{prefix} {_transform_string(axes[i].ylabel)} vs {x_label}'
+      )
+      subplot_titles.append(subplot_title)
+    else:
+      subplot_titles.append('')
+
+  fig = subplots.make_subplots(
+      rows=rows,
+      cols=cols,
+      subplot_titles=subplot_titles,
+  )
+  fig.update_annotations(
+      font=dict(
+          family=plot_config.font_family, size=plot_config.subplot_title_size
+      )
+  )
+  return fig
+
+
+def _get_limit(
+    plotdata: PlotData,
+    attrs: tuple[str, ...],
+    percentile: float,
+    include_first_timepoint: bool,
+) -> float:
+  """Gets the limit for a set of attributes based a histogram percentile."""
+  if include_first_timepoint:
+    values = np.concatenate(
+        [getattr(plotdata, attr).flatten() for attr in attrs]
+    )
+  else:
+    values = np.concatenate(
+        [getattr(plotdata, attr)[1:, :].flatten() for attr in attrs]
+    )
+  return np.percentile(values, percentile)
+
+
+def _get_y_limits(
+    data1: PlotData,
+    data2: PlotData | None,
+    cfg: PlotProperties,
+) -> tuple[float, float]:
+  """Gets the y limits for a set of attributes."""
+  attrs, lower_percentile, upper_percentile, include_first_timepoint = (
+      cfg.attrs,
+      cfg.lower_percentile,
+      cfg.upper_percentile,
+      cfg.include_first_timepoint,
+  )
+  ymin = _get_limit(data1, attrs, lower_percentile, include_first_timepoint)
+  ymax = _get_limit(data1, attrs, upper_percentile, include_first_timepoint)
+
+  if data2:
+    ymin = min(
+        ymin,
+        _get_limit(data2, attrs, lower_percentile, include_first_timepoint),
+    )
+    ymax = max(
+        ymax,
+        _get_limit(data2, attrs, upper_percentile, include_first_timepoint),
+    )
+
+  lower_bound = ymin / 1.05 if ymin > 0 else ymin * 1.05
+  if cfg.ylim_min_zero:
+    lower_bound = min(lower_bound, 0)
+  if lower_bound == 0:
+    lower_bound = -0.1
+  upper_bound = ymax * 1.05
+
+  return lower_bound, upper_bound
+
+
+def _add_traces_and_update_axes(
+    fig: go.Figure,
+    plot_config: FigureProperties,
+    datasets: list[PlotData],
+    data1: PlotData,
+    data2: PlotData | None,
+) -> list[dict[str, Any]]:
+  """Adds traces to the figure and updates axes."""
+  spatial_traces_info = []
+  trace_count = 0
+
+  for i, axis_config in enumerate(plot_config.axes):
+    row, col = (i // plot_config.cols) + 1, (i % plot_config.cols) + 1
+    is_spatial = axis_config.plot_type == PlotType.SPATIAL
+    prefix = _subplot_prefix(i)
+    colors = itertools.cycle(pcolors.qualitative.Plotly)
+
+    for attr, label in zip(axis_config.attrs, axis_config.labels):
+
+      for idx, dataset in enumerate(datasets):
+        if axis_config.suppress_zero_values and np.all(
+            getattr(dataset, attr) == 0
+        ):
           continue
-        lines[line_idx].set_ydata(data[idx, :])
-        line_idx += 1
 
-  update_lines(plotdata1, lines1)
-  if plotdata2 and lines2:
-    update_lines(plotdata2, lines2)
+        if is_spatial:
+          # Initial plot uses the first time step (index 0)
+          x = _get_rho(dataset, attr)
+          y = getattr(dataset, attr)[0, :]
+
+          # Record this trace so the slider can find it later
+          spatial_traces_info.append(
+              {'trace_idx': trace_count, 'attr': attr, 'dataset': dataset}
+          )
+        else:
+          # Time series plots (static)
+          x = dataset.t
+          y = getattr(dataset, attr)
+
+        label_html = f"{prefix} {_transform_string(f'{label} (Data {idx+1})')}"
+        color = next(colors)
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=y,
+                mode='lines',
+                name=label_html,
+                showlegend=True,
+                legendgroup=prefix,
+                line=dict(color=color, dash='dash' if idx > 0 else 'solid'),
+            ),
+            row=row,
+            col=col,
+        )
+        trace_count += 1
+
+    # Update Axes Labels
+    x_axis_kwargs = dict(
+        tickfont=dict(
+            family=plot_config.font_family, size=plot_config.tick_size
+        ),
+        row=row,
+        col=col,
+    )
+    if is_spatial:
+      x_axis_kwargs['tickvals'] = list(plot_config.tickvals_rho)
+      x_axis_kwargs['range'] = [
+          min(plot_config.tickvals_rho),
+          max(plot_config.tickvals_rho),
+      ]
+    else:
+      x_axis_kwargs['nticks'] = plot_config.nticks_time
+    fig.update_xaxes(**x_axis_kwargs)
+    ylow, yhigh = _get_y_limits(data1, data2, axis_config)
+    fig.update_yaxes(
+        tickfont=dict(
+            family=plot_config.font_family, size=plot_config.tick_size
+        ),
+        row=row,
+        col=col,
+        range=(ylow, yhigh),
+    )
+
+  return spatial_traces_info
 
 
-def create_slider(
-    ax: matplotlib.axes.Axes,
-    plotdata1: PlotData,
-    plotdata2: PlotData | None = None,
-) -> widgets.Slider:
-  """Create a slider tool for the plot."""
-  tmin = (
-      min(plotdata1.t)
-      if plotdata2 is None
-      else min(min(plotdata1.t), min(plotdata2.t))
+def _build_slider(
+    fig: go.Figure,
+    data1: PlotData,
+    spatial_traces_info: list[dict[str, Any]],
+) -> None:
+  """Builds the slider for spatial plots."""
+  if not spatial_traces_info:
+    return
+
+  steps = []
+  # Use data1 time as the master clock
+  for t_idx, t_val in enumerate(data1.t):
+    y_updates = []
+    trace_indices = []
+
+    for info in spatial_traces_info:
+      # Check if this dataset actually has data for this time index
+      if t_idx < len(info['dataset'].t):
+        val_array = getattr(info['dataset'], info['attr'])
+        y_updates.append(val_array[t_idx, :])
+        trace_indices.append(info['trace_idx'])
+
+    step = {
+        'method': 'restyle',
+        'label': f'{t_val:.3f}s',
+        'args': [{'y': y_updates}, trace_indices],
+    }
+    steps.append(step)
+
+  fig.update_layout(
+      sliders=[{
+          'active': 0,
+          'currentvalue': {'prefix': 'Time: ', 'suffix': ' s'},
+          'pad': {'t': 50},
+          'steps': steps,
+      }]
   )
-  tmax = (
-      max(plotdata1.t)
-      if plotdata2 is None
-      else max(max(plotdata1.t), max(plotdata2.t))
-  )
-
-  dt = (
-      min(np.diff(plotdata1.t))
-      if plotdata2 is None
-      else min(min(np.diff(plotdata1.t)), min(np.diff(plotdata2.t)))
-  )
-
-  return widgets.Slider(
-      ax,
-      'Time [s]',
-      tmin,
-      tmax,
-      valinit=tmin,
-      valstep=dt,
-  )
 
 
-def format_plots(
+def _update_global_layout(
+    fig: go.Figure,
     plot_config: FigureProperties,
-    plotdata1: PlotData,
-    plotdata2: PlotData | None,
-    axes: List[Any],
-):
-  """Sets up plot formatting."""
+    title: str,
+) -> None:
+  """Updates the global layout of the figure."""
+  layout_args = {
+      'title': {
+          'text': title,
+          'x': 0.5,
+          'font': {'size': plot_config.title_size},
+      },
+      'margin': plot_config.margin,
+      'showlegend': True,
+      'legend': dict(tracegroupgap=plot_config.legend_spacing),
+      'font': dict(family=plot_config.font_family),
+  }
 
-  # Set default legend fontsize for legends
-  matplotlib.rc('legend', fontsize=plot_config.default_legend_fontsize)
+  if plot_config.height:
+    layout_args['height'] = plot_config.height
+  else:
+    layout_args['autosize'] = True
 
-  def get_limit(plotdata, attrs, percentile, include_first_timepoint):
-    """Gets the limit for a set of attributes based a histogram percentile."""
-    if include_first_timepoint:
-      values = np.concatenate(
-          [getattr(plotdata, attr).flatten() for attr in attrs]
+  fig.update_layout(**layout_args)
+  fig.update_annotations(
+      font=dict(
+          family=plot_config.font_family, size=plot_config.subplot_title_size
       )
-    else:
-      values = np.concatenate(
-          [getattr(plotdata, attr)[1:, :].flatten() for attr in attrs]
-      )
-    return np.percentile(values, percentile)
-
-  for ax, cfg in zip(axes, plot_config.axes):
-    if cfg.plot_type == PlotType.SPATIAL:
-      ax.set_xlabel('Normalized radius')
-    elif cfg.plot_type == PlotType.TIME_SERIES:
-      ax.set_xlabel('Time [s]')
-    else:
-      raise ValueError(f'Unknown plot type: {cfg.plot_type}')
-    ax.set_ylabel(cfg.ylabel)
-
-    # Get limits for y-axis based on percentile values.
-    # 0.0 or 100.0 are special cases for simple min/max values.
-    ymin = get_limit(
-        plotdata1, cfg.attrs, cfg.lower_percentile, cfg.include_first_timepoint
-    )
-    ymax = get_limit(
-        plotdata1, cfg.attrs, cfg.upper_percentile, cfg.include_first_timepoint
-    )
-
-    if plotdata2:
-      ymin = min(
-          ymin,
-          get_limit(
-              plotdata2,
-              cfg.attrs,
-              cfg.lower_percentile,
-              cfg.include_first_timepoint,
-          ),
-      )
-      ymax = max(
-          ymax,
-          get_limit(
-              plotdata2,
-              cfg.attrs,
-              cfg.upper_percentile,
-              cfg.include_first_timepoint,
-          ),
-      )
-
-    lower_bound = ymin / 1.05 if ymin > 0 else ymin * 1.05
-
-    # Guard against empty data
-    if ymax != 0 or ymin != 0:  # Check for meaningful data range
-      if cfg.ylim_min_zero:
-        ax.set_ylim([min(lower_bound, 0), ymax * 1.05])
-      else:
-        ax.set_ylim([lower_bound, ymax * 1.05])
-
-      ax.legend(fontsize=cfg.legend_fontsize)
+  )
 
 
-def get_rho(
+def _create_plotly_figure(
+    plot_config: FigureProperties,
+    data1: PlotData,
+    data2: PlotData | None = None,
+    title: str = 'Torax Simulation Results',
+) -> go.Figure:
+  """Create a plotly figure."""
+
+  fig = _setup_subplots(plot_config)
+  datasets = [d for d in [data1, data2] if d is not None]
+
+  spatial_traces_info = _add_traces_and_update_axes(
+      fig, plot_config, datasets, data1, data2
+  )
+
+  _build_slider(fig, data1, spatial_traces_info)
+  _update_global_layout(fig, plot_config, title)
+
+  return fig
+
+
+def _get_rho(
     plotdata: PlotData,
     data_attr: str,
 ) -> np.ndarray:
@@ -544,87 +754,3 @@ def get_rho(
     raise ValueError(
         f'Data {datalen} does not coincide with either the cell or face grids.'
     )
-
-
-def get_lines(
-    plot_config: FigureProperties,
-    plotdata: PlotData,
-    axes: List[Any],
-    comp_plot: bool = False,
-):
-  """Gets lines for all plots."""
-  lines = []
-  # If comparison, first lines labeled (1) and solid, second set (2) and dashed.
-  suffix = f' ({1 if not comp_plot else 2})'
-  dashed = '--' if comp_plot else ''
-
-  for ax, cfg in zip(axes, plot_config.axes):
-    line_idx = 0  # Reset color selection cycling for each plot.
-    if cfg.plot_type == PlotType.SPATIAL:
-      for attr, label in zip(cfg.attrs, cfg.labels):
-        data = getattr(plotdata, attr)
-        if cfg.suppress_zero_values and np.all(data == 0):
-          continue
-        rho = get_rho(plotdata, attr)
-        (line,) = ax.plot(
-            rho,
-            data[0, :],  # Plot data at time zero
-            plot_config.colors[line_idx % len(plot_config.colors)] + dashed,
-            label=f'{label}{suffix}',
-        )
-        lines.append(line)
-        line_idx += 1
-    elif cfg.plot_type == PlotType.TIME_SERIES:
-      for attr, label in zip(cfg.attrs, cfg.labels):
-        data = getattr(plotdata, attr)
-        if cfg.suppress_zero_values and np.all(data == 0):
-          continue
-        # No need to return a line since this will not need to be updated.
-        _ = ax.plot(
-            plotdata.t,
-            data,  # Plot entire time series
-            plot_config.colors[line_idx % len(plot_config.colors)] + dashed,
-            label=f'{label}{suffix}',
-        )
-        line_idx += 1
-    else:
-      raise ValueError(f'Unknown plot type: {cfg.plot_type}')
-
-  return lines
-
-
-def create_figure(plot_config: FigureProperties):
-  """Creates the figure and axes."""
-  rows = plot_config.rows
-  cols = plot_config.cols
-  matplotlib.rc('xtick', labelsize=plot_config.tick_fontsize)
-  matplotlib.rc('ytick', labelsize=plot_config.tick_fontsize)
-  matplotlib.rc('axes', labelsize=plot_config.axes_fontsize)
-  matplotlib.rc('figure', titlesize=plot_config.title_fontsize)
-  fig = plt.figure(
-      figsize=(
-          cols * plot_config.figure_size_factor,
-          rows * plot_config.figure_size_factor,
-      ),
-      constrained_layout=True,
-  )
-  # Create the GridSpec - Adjust height ratios to include the slider
-  # in the plot, only if a slider is required:
-  if plot_config.contains_spatial_plot_type:
-    # Add an extra smaller is a spatial plottypeider
-    height_ratios = [1] * rows + [0.2]
-    gs = gridspec.GridSpec(
-        rows + 1, cols, figure=fig, height_ratios=height_ratios
-    )
-    # slider spans all columns
-    slider_ax = fig.add_subplot(gs[rows, :])
-  else:
-    gs = gridspec.GridSpec(rows, cols, figure=fig)
-    slider_ax = None
-
-  axes = []
-  for i in range(rows * cols):
-    row = i // cols
-    col = i % cols
-    axes.append(fig.add_subplot(gs[row, col]))  # Add subplots to the grid
-  return fig, axes, slider_ax
