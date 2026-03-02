@@ -26,10 +26,35 @@ from torax._src.pedestal_model import runtime_params
 from torax._src.pedestal_model import set_pped_tpedratio_nped
 from torax._src.pedestal_model import set_tped_nped
 from torax._src.pedestal_model.formation import martin_formation_model
+from torax._src.pedestal_model.formation import no_formation_model
+from torax._src.pedestal_model.saturation import no_saturation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
+
+
+class NoFormation(torax_pydantic.BaseModelFrozen):
+  """Configuration for No formation model."""
+
+  model_name: Annotated[Literal["no_formation"], torax_pydantic.JAX_STATIC] = (
+      "no_formation"
+  )
+
+  def build_formation_model(
+      self,
+  ) -> no_formation_model.NoFormationModel:
+    return no_formation_model.NoFormationModel()
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.FormationRuntimeParams:
+    del t
+    return runtime_params.FormationRuntimeParams(
+        sigmoid_width=0.0,
+        sigmoid_offset=0.0,
+        sigmoid_exponent=1.0,
+    )
 
 
 # TODO(b/323504363): Generalise to pedestal formation models based on power
@@ -87,6 +112,29 @@ class MartinFormation(torax_pydantic.BaseModelFrozen):
     )
 
 
+class NoSaturation(torax_pydantic.BaseModelFrozen):
+  """Configuration for No saturation model."""
+
+  model_name: Annotated[Literal["no_saturation"], torax_pydantic.JAX_STATIC] = (
+      "no_saturation"
+  )
+
+  def build_saturation_model(
+      self,
+  ) -> no_saturation_model.NoSaturationModel:
+    return no_saturation_model.NoSaturationModel()
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.SaturationRuntimeParams:
+    del t
+    return runtime_params.SaturationRuntimeParams(
+        sigmoid_width=0.0,
+        sigmoid_offset=0.0,
+        sigmoid_exponent=1.0,
+    )
+
+
 class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
   """Configuration for ProfileValueSaturation model.
 
@@ -140,8 +188,8 @@ class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
 
 
 # For new formation and saturation models, add to these TypeAliases via Union.
-FormationConfig: TypeAlias = MartinFormation
-SaturationConfig: TypeAlias = ProfileValueSaturation
+FormationConfig: TypeAlias = MartinFormation | NoFormation
+SaturationConfig: TypeAlias = ProfileValueSaturation | NoSaturation
 
 
 class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
