@@ -75,7 +75,7 @@ def calculate_cooling_rate(
       model.
 
   Returns:
-    Cooling rate [W m^-3].
+    Cooling rate on the same grid as T_e [W m^-3].
   """
 
   if ion_symbol not in constants.ION_SYMBOLS:
@@ -89,6 +89,10 @@ def calculate_cooling_rate(
     ion_symbol_lookup = 'He'
   else:
     ion_symbol_lookup = ion_symbol
+
+  # H, D, T are fully ionized and have negligible cooling rates.
+  if ion_symbol in constants.HYDROGENIC_IONS:
+    return jnp.zeros_like(T_e)
 
   # Cooling rate in the coronal regime
   T_e_min_coronal = mavrin_coronal_cooling_rate.MIN_TEMPERATURES[

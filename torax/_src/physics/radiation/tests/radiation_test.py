@@ -417,6 +417,13 @@ class RadiationTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(cooling_rate, coronal_cooling_rate, rtol=1e-2)
 
+  @parameterized.parameters('H', 'D', 'T')
+  def test_hydrogenic_impurity_returns_zero(self, ion_symbol):
+    """Tests that hydrogenic species return zero cooling rate."""
+    T_e = np.array([0.1, 1.0, 10.0])
+    cooling_rate = radiation.calculate_cooling_rate(T_e, ion_symbol)
+    np.testing.assert_array_equal(cooling_rate, np.zeros_like(T_e))
+
   def test_cooling_rate_in_lower_noncoronal_regime_matches_noncoronal_model(
       self,
   ):
