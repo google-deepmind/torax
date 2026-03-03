@@ -55,12 +55,7 @@ def _calculate_P_SOL_total(
       math_utils.volume_integration(source, geo)
       for source in core_sources.T_i.values()
   )
-  return (
-      P_heat_e
-      + P_heat_i
-      + internal_plasma_energy.dW_thermal_e_dt_smoothed
-      + internal_plasma_energy.dW_thermal_i_dt_smoothed
-  )
+  return P_heat_e + P_heat_i - internal_plasma_energy.dW_thermal_dt_smoothed
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
