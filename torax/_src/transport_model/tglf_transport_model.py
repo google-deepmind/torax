@@ -35,13 +35,13 @@ import pydantic
 from torax._src import jax_utils
 from torax._src import constants
 from torax._src import state
-from torax._src.config import runtime_params
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import tglf_based_transport_model
-from torax._src.transport_model import runtime_params as runtime_params_lib
+from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model
 
 
@@ -111,8 +111,8 @@ class TGLFTransportModel(
 
   def call_implementation(
       self,
-      transport_runtime_params: runtime_params_lib.RuntimeParams,
-      runtime_params: runtime_params.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
@@ -293,12 +293,12 @@ def _extract_tglf_plan(
       'NS': 3,
       'USE_TRANSPORT_MODEL': '.true.',
       'GEOMETRY_FLAG': transport.geometry_flag,
-      'USE_BPER': f'.{str(transport.use_bper).lower()}.',
-      'USE_BPAR': f'.{str(transport.use_bpar).lower()}.',
+      'USE_BPER': '.true.' if transport.use_bper else '.false.',
+      'USE_BPAR': '.true.' if transport.use_bpar else '.false.',
       'USE_BISECTION': '.true.',
-      'USE_MHD_RULE': f'.{str(transport.use_mhd_rule).lower()}.',
-      'USE_INBOARD_DETRAPPED': f'.{str(transport.use_inboard_detrapped).lower()}.',
-      'USE_AVE_ION_GRID': f'.{str(transport.use_ave_ion_grid).lower()}.',
+      'USE_MHD_RULE': '.true.' if transport.use_mhd_rule else '.false.',
+      'USE_INBOARD_DETRAPPED': '.true.' if transport.use_inboard_detrapped else '.false.',
+      'USE_AVE_ION_GRID': '.true.' if transport.use_ave_ion_grid else '.false.',
       'SAT_RULE': transport.sat_rule,
       'KYGRID_MODEL': transport.kygrid_model,
       'XNU_MODEL': transport.xnu_model,
@@ -338,7 +338,7 @@ def _extract_tglf_plan(
       'WIDTH_MIN': transport.width_min,
       'WIDTH': transport.width,
       'NWIDTH': transport.n_width,
-      'FIND_WIDTH': f'.{str(transport.find_width).lower()}.',
+      'FIND_WIDTH': '.true.' if transport.find_width else '.false.',
       # miller
       'RMIN_LOC': 0.5,
       'RMAJ_LOC': 3.0,
