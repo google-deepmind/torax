@@ -28,7 +28,7 @@ import inspect
 import itertools
 from os import path
 import re
-from typing import Any, Final, Mapping
+from typing import Any, Final, Mapping, Sequence
 
 import immutabledict
 import numpy as np
@@ -527,28 +527,29 @@ def _get_limit(
 
 
 def _get_y_limits(
-    data1: PlotData,
-    data2: PlotData | None,
+    datasets: Sequence[PlotData],
     cfg: PlotProperties,
 ) -> tuple[float, float]:
   """Gets the y limits for a set of attributes."""
+  if not datasets:
+    raise ValueError('No datasets provided.')
   attrs, lower_percentile, upper_percentile, include_first_timepoint = (
       cfg.attrs,
       cfg.lower_percentile,
       cfg.upper_percentile,
       cfg.include_first_timepoint,
   )
-  ymin = _get_limit(data1, attrs, lower_percentile, include_first_timepoint)
-  ymax = _get_limit(data1, attrs, upper_percentile, include_first_timepoint)
+  ymin = np.inf
+  ymax = -np.inf
 
-  if data2:
+  for dataset in datasets:
     ymin = min(
         ymin,
-        _get_limit(data2, attrs, lower_percentile, include_first_timepoint),
+        _get_limit(dataset, attrs, lower_percentile, include_first_timepoint),
     )
     ymax = max(
         ymax,
-        _get_limit(data2, attrs, upper_percentile, include_first_timepoint),
+        _get_limit(dataset, attrs, upper_percentile, include_first_timepoint),
     )
 
   lower_bound = ymin / 1.05 if ymin > 0 else ymin * 1.05
@@ -565,8 +566,6 @@ def _add_traces_and_update_axes(
     fig: go.Figure,
     plot_config: FigureProperties,
     datasets: list[PlotData],
-    data1: PlotData,
-    data2: PlotData | None,
 ) -> list[dict[str, Any]]:
   """Adds traces to the figure and updates axes."""
   spatial_traces_info = []
@@ -634,7 +633,7 @@ def _add_traces_and_update_axes(
     else:
       x_axis_kwargs['nticks'] = plot_config.nticks_time
     fig.update_xaxes(**x_axis_kwargs)
-    ylow, yhigh = _get_y_limits(data1, data2, axis_config)
+    ylow, yhigh = _get_y_limits(datasets, axis_config)
     fig.update_yaxes(
         tickfont=dict(
             family=plot_config.font_family, size=plot_config.tick_size
@@ -728,9 +727,7 @@ def _create_plotly_figure(
   fig = _setup_subplots(plot_config)
   datasets = [d for d in [data1, data2] if d is not None]
 
-  spatial_traces_info = _add_traces_and_update_axes(
-      fig, plot_config, datasets, data1, data2
-  )
+  spatial_traces_info = _add_traces_and_update_axes(fig, plot_config, datasets)
 
   _build_slider(fig, data1, spatial_traces_info)
   _update_global_layout(fig, plot_config, title)
