@@ -65,7 +65,7 @@ def get_initial_state_and_post_processed_outputs(
       runtime_params_overrides or step_fn.runtime_params_provider
   )
   geometry_provider = geometry_overrides or step_fn.geometry_provider
-  t = t or runtime_params_provider.numerics.t_initial
+  t = t if t is not None else runtime_params_provider.numerics.t_initial
 
   runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
@@ -74,11 +74,13 @@ def get_initial_state_and_post_processed_outputs(
           geometry_provider=geometry_provider,
       )
   )
+
   initial_state = _get_initial_state(
       runtime_params=runtime_params_for_init,
       geo=geo_for_init,
       step_fn=step_fn,
   )
+
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=initial_state,
       runtime_params=runtime_params_for_init,
