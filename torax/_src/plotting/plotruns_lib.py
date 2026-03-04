@@ -28,7 +28,7 @@ import inspect
 import itertools
 from os import path
 import re
-from typing import Any, Final, Mapping
+from typing import Any, Final, Mapping, Sequence
 
 import immutabledict
 import numpy as np
@@ -101,6 +101,7 @@ class PlotProperties:
   attrs: tuple[str, ...]
   labels: tuple[str, ...]
   ylabel: str
+  title: str | None = None
   legend_fontsize: int | None = None  # None reverts to default matplotlib value
   upper_percentile: float = 100.0
   lower_percentile: float = 0.0
@@ -108,6 +109,8 @@ class PlotProperties:
   ylim_min_zero: bool = True
   plot_type: PlotType = PlotType.SPATIAL
   suppress_zero_values: bool = False  # If True, all-zero-data is not plotted
+  profile_time_index: int = 0  # Use this time index for single profile plotting
+  add_legend: bool = True
 
 
 @dataclasses.dataclass
@@ -118,8 +121,9 @@ class FigureProperties:
     rows: Number of rows in the subplot grid.
     cols: Number of columns in the subplot grid.
     axes: Configuration for each subplot.
-    font_family: Font family for all text in the figure.
+    figure_title: Title of the figure.
     title_size: Font size for the main figure title.
+    font_family: Font family for all text in the figure.
     subplot_title_size: Font size for subplot titles.
     tick_size: Font size for axis ticks.
     nticks_time: Number of x-axis ticks for the time series plots.
@@ -128,13 +132,16 @@ class FigureProperties:
     legend_spacing: Spacing between legend entries.
     margin: Margin around the figure. A dict with keys l, r, t and b for left,
       right, top and bottom margins respectively.
+    aspect_ratio: Height relative to width of the figure.
+    enable_slider: Whether to enable the slider for the time series plots.
   """
 
   rows: int
   cols: int
   axes: tuple[PlotProperties, ...]
-  font_family: str = 'Arial, sans-serif'
+  figure_title: str | None = None
   title_size: int = 16
+  font_family: str = 'Arial, sans-serif'
   subplot_title_size: int = 12
   tick_size: int = 8
   nticks_time: int = 6
@@ -144,6 +151,8 @@ class FigureProperties:
   margin: dict[str, int] = dataclasses.field(
       default_factory=lambda: dict(l=40, r=40, t=80, b=40)
   )
+  aspect_ratio: float = 1.0
+  enable_slider: bool = True
 
   def __post_init__(self):
     if len(self.axes) > self.rows * self.cols:
@@ -188,6 +197,11 @@ class PlotData:
   @property
   def D_total_e(self) -> np.ndarray:
     return self.D_turb_e + self.D_neo_e
+
+  @property
+  def line_average_Z_eff(self) -> np.ndarray:
+    """Line average effective charge."""
+    return self._profiles_dataset['Z_eff'].to_numpy().mean(axis=1)
 
   @property
   def V_neo_total_e(self) -> np.ndarray:
@@ -371,7 +385,7 @@ def _get_file_path(outfile: str) -> str:
   raise ValueError(f'Could not find {outfile}. Tried {possible_paths}.')
 
 
-def _get_title(path1: str, path2: str | None) -> str:
+def _get_title_from_paths(path1: str, path2: str | None) -> str:
   """Gets the title for the plot."""
   names = [f'(1) {path.basename(path1)}']
   if path2:
@@ -410,8 +424,8 @@ def plot_run(
               f'output file: {filename}'
           )
 
-  fig_title = _get_title(outfile, outfile2)
-  fig = _create_plotly_figure(plot_config, plotdata1, plotdata2, fig_title)
+  title = plot_config.figure_title or _get_title_from_paths(outfile, outfile2)
+  fig = _create_plotly_figure(plot_config, plotdata1, plotdata2, title)
   if interactive:
     fig.show()
 
@@ -527,28 +541,33 @@ def _get_limit(
 
 
 def _get_y_limits(
-    data1: PlotData,
-    data2: PlotData | None,
+    datasets: Sequence[PlotData],
     cfg: PlotProperties,
 ) -> tuple[float, float]:
   """Gets the y limits for a set of attributes."""
+  if not datasets:
+    raise ValueError('No datasets provided.')
   attrs, lower_percentile, upper_percentile, include_first_timepoint = (
       cfg.attrs,
       cfg.lower_percentile,
       cfg.upper_percentile,
       cfg.include_first_timepoint,
   )
-  ymin = _get_limit(data1, attrs, lower_percentile, include_first_timepoint)
-  ymax = _get_limit(data1, attrs, upper_percentile, include_first_timepoint)
+  ymin = _get_limit(
+      datasets[0], attrs, lower_percentile, include_first_timepoint
+  )
+  ymax = _get_limit(
+      datasets[0], attrs, upper_percentile, include_first_timepoint
+  )
 
-  if data2:
+  for dataset in datasets[1:]:
     ymin = min(
         ymin,
-        _get_limit(data2, attrs, lower_percentile, include_first_timepoint),
+        _get_limit(dataset, attrs, lower_percentile, include_first_timepoint),
     )
     ymax = max(
         ymax,
-        _get_limit(data2, attrs, upper_percentile, include_first_timepoint),
+        _get_limit(dataset, attrs, upper_percentile, include_first_timepoint),
     )
 
   lower_bound = ymin / 1.05 if ymin > 0 else ymin * 1.05
@@ -565,8 +584,8 @@ def _add_traces_and_update_axes(
     fig: go.Figure,
     plot_config: FigureProperties,
     datasets: list[PlotData],
-    data1: PlotData,
-    data2: PlotData | None,
+    apply_labels: bool = True,
+    alpha: float = 1.0,
 ) -> list[dict[str, Any]]:
   """Adds traces to the figure and updates axes."""
   spatial_traces_info = []
@@ -601,16 +620,20 @@ def _add_traces_and_update_axes(
           y = getattr(dataset, attr)
 
         label_html = f"{prefix} {_transform_string(f'{label} (Data {idx+1})')}"
-        color = next(colors)
+        label = label_html if apply_labels else None
+        color = _hex_to_rgba(next(colors), alpha)
         fig.add_trace(
             go.Scatter(
                 x=x,
                 y=y,
                 mode='lines',
-                name=label_html,
-                showlegend=True,
+                name=label,
+                showlegend=axis_config.add_legend,
                 legendgroup=prefix,
-                line=dict(color=color, dash='dash' if idx > 0 else 'solid'),
+                line=dict(
+                    color=color,
+                    dash='dash' if idx > 0 else 'solid',
+                ),
             ),
             row=row,
             col=col,
@@ -634,7 +657,7 @@ def _add_traces_and_update_axes(
     else:
       x_axis_kwargs['nticks'] = plot_config.nticks_time
     fig.update_xaxes(**x_axis_kwargs)
-    ylow, yhigh = _get_y_limits(data1, data2, axis_config)
+    ylow, yhigh = _get_y_limits(datasets, axis_config)
     fig.update_yaxes(
         tickfont=dict(
             family=plot_config.font_family, size=plot_config.tick_size
@@ -689,12 +712,12 @@ def _build_slider(
 def _update_global_layout(
     fig: go.Figure,
     plot_config: FigureProperties,
-    title: str,
+    title_override: str | None = None,
 ) -> None:
   """Updates the global layout of the figure."""
   layout_args = {
       'title': {
-          'text': title,
+          'text': title_override or plot_config.figure_title,
           'x': 0.5,
           'font': {'size': plot_config.title_size},
       },
@@ -721,19 +744,17 @@ def _create_plotly_figure(
     plot_config: FigureProperties,
     data1: PlotData,
     data2: PlotData | None = None,
-    title: str = 'Torax Simulation Results',
+    title_override: str | None = None,
 ) -> go.Figure:
   """Create a plotly figure."""
 
   fig = _setup_subplots(plot_config)
   datasets = [d for d in [data1, data2] if d is not None]
 
-  spatial_traces_info = _add_traces_and_update_axes(
-      fig, plot_config, datasets, data1, data2
-  )
-
-  _build_slider(fig, data1, spatial_traces_info)
-  _update_global_layout(fig, plot_config, title)
+  spatial_traces_info = _add_traces_and_update_axes(fig, plot_config, datasets)
+  if plot_config.enable_slider:
+    _build_slider(fig, data1, spatial_traces_info)
+  _update_global_layout(fig, plot_config, title_override)
 
   return fig
 
@@ -754,3 +775,12 @@ def _get_rho(
     raise ValueError(
         f'Data {datalen} does not coincide with either the cell or face grids.'
     )
+
+
+def _hex_to_rgba(hex_color: str, alpha: float = 1.0) -> str:
+  """Converts a hex color to an rgba color."""
+  hex_color = hex_color.lstrip('#')
+  return (
+      f'rgba({int(hex_color[0:2], 16)}, {int(hex_color[2:4], 16)},'
+      f' {int(hex_color[4:6], 16)}, {alpha})'
+  )
