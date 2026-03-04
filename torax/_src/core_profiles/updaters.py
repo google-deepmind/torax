@@ -258,6 +258,12 @@ def update_core_and_source_profiles_after_step(
       conductivity=conductivity,
   )
 
+  intermediate_core_profiles = dataclasses.replace(
+      intermediate_core_profiles,
+      # Flatten the tuple of tuples.
+      fast_ions=sum(total_source_profiles.fast_ions.values(), ()),
+  )
+
   if (
       not runtime_params_t_plus_dt.numerics.evolve_current
       and runtime_params_t_plus_dt.profile_conditions.psidot is not None

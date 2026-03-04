@@ -16,7 +16,6 @@
 import functools
 
 import jax
-from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -107,6 +106,9 @@ def build_source_profiles(
       T_i=explicit_source_profiles.T_i if explicit_source_profiles else {},
       n_e=explicit_source_profiles.n_e if explicit_source_profiles else {},
       psi=explicit_source_profiles.psi if explicit_source_profiles else {},
+      fast_ions=explicit_source_profiles.fast_ions
+      if explicit_source_profiles
+      else {},
   )
   build_standard_source_profiles(
       calculated_source_profiles=profiles,
@@ -184,7 +186,7 @@ def _update_standard_source_profiles(
     calculated_source_profiles: source_profiles.SourceProfiles,
     source_name: str,
     affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...],
-    profile: tuple[array_typing.FloatVectorCell, ...],
+    profile: tuple[source_lib.SourceProfileElement, ...],
 ):
   """Updates the standard source profiles in calculated_source_profiles.
 
@@ -208,6 +210,8 @@ def _update_standard_source_profiles(
         calculated_source_profiles.T_i[source_name] = profile
       case source_lib.AffectedCoreProfile.TEMP_EL:
         calculated_source_profiles.T_e[source_name] = profile
+      case source_lib.AffectedCoreProfile.FAST_IONS:
+        calculated_source_profiles.fast_ions[source_name] = profile
 
 
 def build_all_zero_profiles(
