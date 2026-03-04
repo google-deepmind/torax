@@ -204,6 +204,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         n_impurity=_get_cell_variable(1.0e20),
         fast_ions=(),
         pressure_fast_i=_get_cell_variable(0.0),
+        n_impurity_thermal=_get_cell_variable(1.0e20),
     )
 
     normalized_logarithmic_gradients = (

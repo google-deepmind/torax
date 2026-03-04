@@ -69,12 +69,12 @@ def calc_pprime(
   psi = core_profiles.psi.face_value()
   n_e = core_profiles.n_e.face_value()
   n_i = core_profiles.n_i.face_value()
-  n_impurity = core_profiles.n_impurity.face_value()
+  n_impurity_thermal = core_profiles.n_impurity_thermal.face_value()
   T_i = core_profiles.T_i.face_value()
   T_e = core_profiles.T_e.face_value()
   dne_drhon = core_profiles.n_e.face_grad()
   dni_drhon = core_profiles.n_i.face_grad()
-  dnimp_drhon = core_profiles.n_impurity.face_grad()
+  dnimp_drhon = core_profiles.n_impurity_thermal.face_grad()
   dti_drhon = core_profiles.T_i.face_grad()
   dte_drhon = core_profiles.T_e.face_grad()
   dpsi_drhon = core_profiles.psi.face_grad()
@@ -82,7 +82,7 @@ def calc_pprime(
   dptot_drhon = constants.CONSTANTS.keV_to_J * (
       n_e * dte_drhon
       + n_i * dti_drhon
-      + n_impurity * dti_drhon
+      + n_impurity_thermal * dti_drhon
       + dne_drhon * T_e
       + dni_drhon * T_i
       + dnimp_drhon * T_i

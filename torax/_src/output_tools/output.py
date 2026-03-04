@@ -574,6 +574,7 @@ class StateHistory:
           "charge_state_info_face",
           "impurity_density_scaling",
           "fast_ions",
+          "n_impurity_thermal",
       ):
         continue
 

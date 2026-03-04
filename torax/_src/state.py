@@ -173,18 +173,44 @@ class CoreProfiles:
     )
 
   @functools.cached_property
+  def n_impurity_thermal(self) -> cell_variable.CellVariable:
+    """True thermal impurity density without fast ions [m^-3].
+
+    TODO(b/868852029): This assumes fast ions subtracted from thermal impurities
+    are originally from thermal species. This needs to be updated when we
+    introduce other sources of fast ions that do not deplete thermal species
+    (e.g. fusion).
+    """
+    n_impurity_thermal_value = self.n_impurity.value
+    n_impurity_thermal_right = self.n_impurity.right_face_constraint
+    for fast_ion in self.fast_ions:
+      if fast_ion.species in self.impurity_fractions:
+        n_impurity_thermal_value -= fast_ion.n.value
+        if (
+            n_impurity_thermal_right is not None
+            and fast_ion.n.right_face_constraint is not None
+        ):
+          n_impurity_thermal_right -= fast_ion.n.right_face_constraint
+    return cell_variable.CellVariable(
+        value=n_impurity_thermal_value,
+        face_centers=self.n_impurity.face_centers,
+        right_face_constraint=n_impurity_thermal_right,
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
   def pressure_thermal_i(self) -> cell_variable.CellVariable:
     """Ion thermal pressure [Pa]."""
     return cell_variable.CellVariable(
         value=self.T_i.value
         * constants.CONSTANTS.keV_to_J
-        * (self.n_i.value + self.n_impurity.value),
+        * (self.n_i.value + self.n_impurity_thermal.value),
         face_centers=self.n_i.face_centers,
         right_face_constraint=self.T_i.right_face_constraint
         * constants.CONSTANTS.keV_to_J
         * (
             self.n_i.right_face_constraint
-            + self.n_impurity.right_face_constraint
+            + self.n_impurity_thermal.right_face_constraint
         ),
         right_face_grad_constraint=None,
     )

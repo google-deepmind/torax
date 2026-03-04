@@ -60,7 +60,7 @@ class NormalizedLogarithmicGradients:
         "lref_over_lte": core_profiles.T_e,
         "lref_over_lne": core_profiles.n_e,
         "lref_over_lni0": core_profiles.n_i,
-        "lref_over_lni1": core_profiles.n_impurity,
+        "lref_over_lni1": core_profiles.n_impurity_thermal,
     }.items():
       gradients[name] = calculate_normalized_logarithmic_gradient(
           var=profile,
@@ -167,7 +167,7 @@ def calculate_alpha(
           normalized_logarithmic_gradients.lref_over_lti
           + normalized_logarithmic_gradients.lref_over_lni0
       )
-      + core_profiles.n_impurity.face_value()
+      + core_profiles.n_impurity_thermal.face_value()
       * core_profiles.T_i.face_value()
       * (
           normalized_logarithmic_gradients.lref_over_lti
