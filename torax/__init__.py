@@ -31,6 +31,7 @@ from torax._src.orchestration.run_simulation import run_simulation
 from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
 from torax._src.pedestal_model.pedestal_model_output import PedestalModelOutput
+from torax._src.plotting.plotruns_lib import plot_run
 from torax._src.sources.source_profiles import SourceProfiles
 from torax._src.state import CoreProfiles
 from torax._src.state import CoreTransport
@@ -38,6 +39,7 @@ from torax._src.state import SimError
 from torax._src.state import SolverNumericOutputs
 from torax._src.torax_pydantic.model_config import ToraxConfig
 from torax._src.torax_pydantic.torax_pydantic import JAX_STATIC
+
 
 # pylint: enable=g-importing-member
 
@@ -55,6 +57,7 @@ __all__ = [
     'transport',
     'build_torax_config_from_file',
     'import_module',
+    'plot_run',
     'run_simulation',
     'CoreProfiles',
     'CoreTransport',
