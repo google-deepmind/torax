@@ -182,14 +182,20 @@ class RuntimeParamsProvider:
     return eqx.tree_at(get_nodes_to_replace, self, replace=new_provider_values)
 
   def get_node_from_path(self, path: str) -> Any:
-    """Iteratively call `getattr` on `self` from dot-separated path of attrs."""
+    """Returns the node at `path`.
+
+    Args:
+      path: A dot-separated sequence of attributes or dictionary keys.
+    """
+
     x = self
-    attributes = path.split(".")
-    for attr in attributes:
-      try:
+    for attr in path.split("."):
+      if isinstance(x, Mapping) and attr in x:
+        x = x[attr]
+      elif hasattr(x, attr):
         x = getattr(x, attr)
-      except AttributeError as exc:
-        raise ValueError(f"Attribute {attr} of {path} not found.") from exc
+      else:
+        raise ValueError(f"'{attr}' not found when traversing path '{path}'.")
     return x
 
   def update_provider_from_mapping(
