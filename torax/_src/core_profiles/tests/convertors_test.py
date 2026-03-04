@@ -87,6 +87,7 @@ class ConvertersTest(parameterized.TestCase):
         toroidal_angular_velocity=mock.ANY,
         charge_state_info=mock.ANY,
         charge_state_info_face=mock.ANY,
+        fast_ions=mock.ANY,
     )
 
   def test_core_profiles_to_solver_x_tuple(self):

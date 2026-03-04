@@ -75,6 +75,7 @@ class ScalingLawsTest(parameterized.TestCase):
         toroidal_angular_velocity=mock.ANY,
         charge_state_info=mock.ANY,
         charge_state_info_face=mock.ANY,
+        fast_ions=mock.ANY,
     )
     P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
         scaling_laws.calculate_plh_scaling_factor(geo, core_profiles)
@@ -146,6 +147,7 @@ class ScalingLawsTest(parameterized.TestCase):
         toroidal_angular_velocity=mock.ANY,
         charge_state_info=mock.ANY,
         charge_state_info_face=mock.ANY,
+        fast_ions=mock.ANY,
     )
     Ploss = jnp.array(50e6)
 
