@@ -331,7 +331,7 @@ class TGLFBasedTransportModel(
           Z_eff_face=core_profiles.Z_eff_face,
           Z_i_face=core_profiles.Z_i_face,
           toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
-          pressure_thermal_i=core_profiles.pressure_thermal_i,
+          pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
           poloidal_velocity_multiplier=poloidal_velocity_multiplier,
       )

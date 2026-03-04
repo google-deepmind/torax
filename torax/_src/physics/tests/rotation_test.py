@@ -45,7 +45,7 @@ class RotationTest(absltest.TestCase):
         toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.0
         ),
-        pressure_thermal_i=core_profile_helpers.make_constant_core_profile(
+        pressure_total_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
         geo=self.geo,
@@ -63,7 +63,7 @@ class RotationTest(absltest.TestCase):
       self,
   ):
     E_r, _, _ = rotation._calculate_radial_electric_field(
-        pressure_thermal_i=core_profile_helpers.make_constant_core_profile(
+        pressure_total_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
         toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
@@ -84,7 +84,7 @@ class RotationTest(absltest.TestCase):
 
   def test_electric_field_is_not_zero_for_toroidal_velocity(self):
     E_r, _, _ = rotation._calculate_radial_electric_field(
-        pressure_thermal_i=core_profile_helpers.make_constant_core_profile(
+        pressure_total_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
         toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
@@ -104,7 +104,7 @@ class RotationTest(absltest.TestCase):
   def test_electric_field_is_not_zero_for_poloidal_velocity(self):
     """Test that radial electric field is not zero for non-zero poloidal velocity."""
     E_r, _, _ = rotation._calculate_radial_electric_field(
-        pressure_thermal_i=core_profile_helpers.make_constant_core_profile(
+        pressure_total_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
         toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
@@ -124,7 +124,7 @@ class RotationTest(absltest.TestCase):
   def test_electric_field_is_not_zero_for_non_constant_pressure(self):
     """Test that radial electric field is not zero for non-zero poloidal velocity."""
     E_r, _, _ = rotation._calculate_radial_electric_field(
-        pressure_thermal_i=cell_variable.CellVariable(
+        pressure_total_i=cell_variable.CellVariable(
             value=np.linspace(1.0, 2.0, self.geo.rho_norm.size),
             face_centers=self.geo.rho_face_norm,
         ),

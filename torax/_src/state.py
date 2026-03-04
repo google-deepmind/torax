@@ -200,6 +200,64 @@ class CoreProfiles:
         right_face_grad_constraint=None,
     )
 
+  @functools.cached_property
+  def pressure_fast_i(self) -> cell_variable.CellVariable:
+    """Fast ion pressure [Pa].
+
+    Sum over all fast ion species: n * T * keV_to_J.
+    Note that this formulation is limited to Maxwellian fast ions, where we
+    take some average energy to be T. This functionality may be extended in
+    future work to include velocity distributions.
+    """
+    p_fast = jnp.zeros_like(self.n_e.value)
+    p_fast_right = jnp.array(0.0)
+    for fast_ion in self.fast_ions:
+      p_fast = (
+          p_fast
+          + fast_ion.n.value * fast_ion.T.value * constants.CONSTANTS.keV_to_J
+      )
+      if (
+          fast_ion.n.right_face_constraint is None
+          or fast_ion.T.right_face_constraint is None
+      ):
+        raise ValueError(
+            "Both fast ion n and T must have a right_face_constraint."
+        )
+      p_fast_right = (
+          p_fast_right
+          + fast_ion.n.right_face_constraint
+          * fast_ion.T.right_face_constraint
+          * constants.CONSTANTS.keV_to_J
+      )
+    return cell_variable.CellVariable(
+        value=p_fast,
+        face_centers=self.n_e.face_centers,
+        right_face_constraint=p_fast_right,
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def pressure_total_i(self) -> cell_variable.CellVariable:
+    """Total ion pressure (thermal + fast) [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.pressure_thermal_i.value + self.pressure_fast_i.value,
+        face_centers=self.pressure_thermal_i.face_centers,
+        right_face_constraint=self.pressure_thermal_i.right_face_constraint
+        + self.pressure_fast_i.right_face_constraint,
+        right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def pressure_total(self) -> cell_variable.CellVariable:
+    """Total pressure (thermal + fast) [Pa]."""
+    return cell_variable.CellVariable(
+        value=self.pressure_thermal_total.value + self.pressure_fast_i.value,
+        face_centers=self.pressure_thermal_total.face_centers,
+        right_face_constraint=self.pressure_thermal_total.right_face_constraint
+        + self.pressure_fast_i.right_face_constraint,
+        right_face_grad_constraint=None,
+    )
+
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""
     return jnp.allclose(

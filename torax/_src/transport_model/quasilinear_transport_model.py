@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for quasilinear models."""
+from collections.abc import Mapping
 import dataclasses
 import chex
 import jax
@@ -42,6 +43,7 @@ class NormalizedLogarithmicGradients:
   lref_over_lne: array_typing.FloatVectorFace
   lref_over_lni0: array_typing.FloatVectorFace
   lref_over_lni1: array_typing.FloatVectorFace
+  fast_ion_gradients: Mapping[str, Mapping[str, array_typing.FloatVectorFace]]
 
   @classmethod
   def from_profiles(
@@ -66,6 +68,26 @@ class NormalizedLogarithmicGradients:
           radial_face_coordinate=radial_face_coordinate,
           reference_length=reference_length,
       )
+    fi_grads = {}
+    for fi in core_profiles.fast_ions:
+      key = f"{fi.source}_{fi.species}"
+      lref_over_ln = calculate_normalized_logarithmic_gradient(
+          var=fi.n,
+          radial_coordinate=radial_coordinate,
+          radial_face_coordinate=radial_face_coordinate,
+          reference_length=reference_length,
+      )
+      lref_over_lt = calculate_normalized_logarithmic_gradient(
+          var=fi.T,
+          radial_coordinate=radial_coordinate,
+          radial_face_coordinate=radial_face_coordinate,
+          reference_length=reference_length,
+      )
+      fi_grads[key] = {
+          "lref_over_ln": lref_over_ln,
+          "lref_over_lt": lref_over_lt,
+      }
+    gradients["fast_ion_gradients"] = fi_grads
     return cls(**gradients)
 
 
@@ -152,6 +174,17 @@ def calculate_alpha(
           + normalized_logarithmic_gradients.lref_over_lni1
       )
   )
+  for fi in core_profiles.fast_ions:
+    key = f"{fi.source}_{fi.species}"
+    lref_over_ln = normalized_logarithmic_gradients.fast_ion_gradients[key][
+        "lref_over_ln"
+    ]
+    lref_over_lT = normalized_logarithmic_gradients.fast_ion_gradients[key][
+        "lref_over_lt"
+    ]
+    alpha += factor_0 * (
+        fi.n.face_value() * fi.T.face_value() * (lref_over_ln + lref_over_lT)
+    )
   return alpha
 
 
