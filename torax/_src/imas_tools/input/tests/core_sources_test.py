@@ -17,6 +17,7 @@ from absl.testing import absltest
 import numpy as np
 from torax._src.imas_tools.input import core_sources
 from torax._src.imas_tools.input import loader
+from torax._src.sources import source as source_module
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 
@@ -35,14 +36,29 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     ec2_heat = np.array([[50.0, 50.0, 50.0], [50.0, 50.0, 50.0]])
     ec2_curr = np.array([[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
 
+    ecrh_affected_profiles = (
+        source_module.AffectedCoreProfile.TEMP_EL,
+        source_module.AffectedCoreProfile.PSI,
+    )
+    profiles1 = {
+        source_module.AffectedCoreProfile.TEMP_EL: ec1_heat,
+        source_module.AffectedCoreProfile.PSI: ec1_curr,
+    }
+    profiles2 = {
+        source_module.AffectedCoreProfile.TEMP_EL: ec2_heat,
+        source_module.AffectedCoreProfile.PSI: ec2_curr,
+    }
     ec1 = core_sources._SourceProfiles(
-        time=time, rho_norm=rho_norm, T_e=ec1_heat, psi=ec1_curr
+        time=time,
+        rho_norm=rho_norm,
+        affected_profiles=ecrh_affected_profiles,
+        profiles=profiles1,
     )
     ec2 = core_sources._SourceProfiles(
         time=time,
         rho_norm=rho_norm,
-        T_e=ec2_heat,
-        psi=ec2_curr,
+        affected_profiles=ecrh_affected_profiles,
+        profiles=profiles2,
     )
     collection = core_sources._SourceCollection()
     collection.add("ecrh", ec1)
@@ -52,7 +68,6 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     # Checks the output is properly built.
     result_dict = collection.to_dict()
     ecrh_data = result_dict["ecrh"]["prescribed_values"]
-    assert "ecrh" in result_dict
     assert len(ecrh_data) == 2
     total_heat = ecrh_data[0][2]
     expected_heat = ec1_heat + ec2_heat
@@ -62,7 +77,7 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(total_current, expected_current)
 
   def test_sources_from_IMAS(self):
-    """Test to compare initialized profiles for consistency.
+    """Test to check config can be built from IMAS sources.
 
     The IMAS netCDF file comes from the same METIS ITER baseline scenario as
     core_profiles_15MA_DT_50_50_flat_top_slice.nc in data/third_party/imas, and

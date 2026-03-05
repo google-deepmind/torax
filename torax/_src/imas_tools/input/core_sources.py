@@ -20,6 +20,17 @@ from imas import ids_structure
 from imas import ids_toplevel
 import numpy as np
 from torax._src.imas_tools.input import loader
+from torax._src.sources import bremsstrahlung_heat_sink as brehmsstrahlung
+from torax._src.sources import cyclotron_radiation_heat_sink as cyclotron_radiation
+from torax._src.sources import electron_cyclotron_source as ecrh
+from torax._src.sources import fusion_heat_source as fusion
+from torax._src.sources import gas_puff_source as gas_puff
+from torax._src.sources import ion_cyclotron_source as icrh
+from torax._src.sources import ohmic_heat_source as ohmic
+from torax._src.sources import pellet_source as pellet
+from torax._src.sources import qei_source as qei
+from torax._src.sources import source as source_module
+from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation
 
 
 @dataclass
@@ -28,11 +39,9 @@ class _SourceProfiles:
 
   time: Sequence[float]
   rho_norm: Sequence[Sequence[float]]
-  # Optional profiles, depending on the source type.
-  psi: Sequence[float] | None = None
-  T_i: Sequence[float] | None = None
-  T_e: Sequence[float] | None = None
-  n_e: Sequence[float] | None = None
+  affected_profiles: tuple[source_module.AffectedCoreProfile, ...]
+  # Dict containing the affected profiles.
+  profiles: dict[source_module.AffectedCoreProfile, Sequence[float]]
 
   def combine_sources(self, new_source: Self) -> None:
     """Combines 2 sources of the same type together (adds the profiles).
@@ -47,23 +56,15 @@ class _SourceProfiles:
       raise ValueError(
           "Can't combine sources with different time or radial coordinates."
       )
+    if not self.affected_profiles == new_source.affected_profiles:
+      raise ValueError(
+          "combines_sources must be used on sources of the same type."
+      )
 
-    def sum_profiles(profile1, profile2):
-      # Profile not affected for this type of source: keep None.
-      if profile1 is None and profile2 is None:
-        return None
-      # Unexpected case: Called outside of sources_from_IMAS with different
-      # sources not affecting the same profiles.
-      if profile1 is None or profile2 is None:
-        raise ValueError(
-            "combine_sources must be used on sources of the same type."
-        )
-      return np.add(profile1, profile2)
-
-    self.psi = sum_profiles(self.psi, new_source.psi)
-    self.T_i = sum_profiles(self.T_i, new_source.T_i)
-    self.T_e = sum_profiles(self.T_e, new_source.T_e)
-    self.n_e = sum_profiles(self.n_e, new_source.n_e)
+    for affected_profile in self.affected_profiles:
+      initial_profile = self.profiles[affected_profile]
+      new_profile = new_source.profiles[affected_profile]
+      self.profiles[affected_profile] = np.add(initial_profile, new_profile)
 
 
 class _SourceCollection:
@@ -74,32 +75,22 @@ class _SourceCollection:
     # TORAX name, which can differ from the IMAS name.
     self._data: dict[str, _SourceProfiles] = {}
 
-  def add(self, source_name: str, profiles: _SourceProfiles) -> None:
+  def add(self, source_name: str, source_data: _SourceProfiles) -> None:
     """Add source to accumulator. If the source already exists, combine them."""
     if source_name not in self._data:
-      self._data[source_name] = profiles
+      self._data[source_name] = source_data
     else:
-      self._data[source_name].combine_sources(profiles)
+      self._data[source_name].combine_sources(source_data)
 
   def to_dict(self) -> dict[str, Any]:
     """Finalize output to expected TORAX sources dict."""
     output = {}
-    for name, profiles in self._data.items():
+    for name, source_data in self._data.items():
       values_list = []
-
-      # Ordered to respect the expected order for each source.
-      # Ion heat
-      if profiles.T_i is not None:
-        values_list.append((profiles.time, profiles.rho_norm, profiles.T_i))
-      # Elec heat
-      if profiles.T_e is not None:
-        values_list.append((profiles.time, profiles.rho_norm, profiles.T_e))
-      # Current
-      if profiles.psi is not None:
-        values_list.append((profiles.time, profiles.rho_norm, profiles.psi))
-      # Particles
-      if profiles.n_e is not None:
-        values_list.append((profiles.time, profiles.rho_norm, profiles.n_e))
+      # Automatically ordered thanks to the affected_profiles class atribute.
+      for affected_profile in source_data.affected_profiles:
+        profile = source_data.profiles[affected_profile]
+        values_list.append((source_data.time, source_data.rho_norm, profile))
 
       if values_list:
         output[name] = {
@@ -142,58 +133,84 @@ def sources_from_IMAS(
     # External fuelling sources.
     if source_name == "pellet":
       # Pellet: particle source.
-      profiles = _extract_source_profiles(source, ["n_e"], t_initial)
-      accumulator.add("pellet", profiles)
+      source_data = _extract_source_profiles(
+          source, pellet.PelletSource.AFFECTED_CORE_PROFILES, t_initial
+      )
+      accumulator.add("pellet", source_data)
 
     elif source_name == "gas_puff":
       # Gas puff: particle source.
-      profiles = _extract_source_profiles(source, ["n_e"], t_initial)
-      accumulator.add("gas_puff", profiles)
+      source_data = _extract_source_profiles(
+          source, gas_puff.GasPuffSource.AFFECTED_CORE_PROFILES, t_initial
+      )
+      accumulator.add("gas_puff", source_data)
 
     # External HCD sources.
     elif source_name == "ec":
       # ECRH: electron heating and current drive.
-      profiles = _extract_source_profiles(source, ["T_e", "psi"], t_initial)
-      accumulator.add("ecrh", profiles)
+      source_data = _extract_source_profiles(
+          source, ecrh.ElectronCyclotronSource.AFFECTED_CORE_PROFILES, t_initial
+      )
+      accumulator.add("ecrh", source_data)
 
     elif source_name == "ic":
       # ICRH: ion heating and current drive.
-      profiles = _extract_source_profiles(source, ["T_i", "T_e"], t_initial)
-      accumulator.add("icrh", profiles)
+      source_data = _extract_source_profiles(
+          source, icrh.IonCyclotronSource.AFFECTED_CORE_PROFILES, t_initial
+      )
+      accumulator.add("icrh", source_data)
 
     if not load_only_external_sources:
       # Physics-based sources
       if source_name == "ohmic":
-        profiles = _extract_source_profiles(source, ["T_e"], t_initial)
-        accumulator.add("ohmic", profiles)
+        source_data = _extract_source_profiles(
+            source, ohmic.OhmicHeatSource.AFFECTED_CORE_PROFILES, t_initial
+        )
+        accumulator.add("ohmic", source_data)
 
       elif source_name == "fusion":
-        profiles = _extract_source_profiles(source, ["T_i", "T_e"], t_initial)
-        accumulator.add("fusion", profiles)
+        source_data = _extract_source_profiles(
+            source, fusion.FusionHeatSource.AFFECTED_CORE_PROFILES, t_initial
+        )
+        accumulator.add("fusion", source_data)
 
       elif source_name == "collisional_equipartition":
-        profiles = _extract_source_profiles(source, ["T_i", "T_e"], t_initial)
-        accumulator.add("ei_exchange", profiles)
+        source_data = _extract_source_profiles(
+            source, qei.QeiSource.AFFECTED_CORE_PROFILES, t_initial
+        )
+        accumulator.add("ei_exchange", source_data)
 
       # Radiation sources
       elif source_name == "cyclotron_radiation":
-        profiles = _extract_source_profiles(source, ["T_e"], t_initial)
-        accumulator.add("cyclotron_radiation", profiles)
+        source_data = _extract_source_profiles(
+            source,
+            cyclotron_radiation.CyclotronRadiationHeatSink.AFFECTED_CORE_PROFILES,
+            t_initial,
+        )
+        accumulator.add("cyclotron_radiation", source_data)
 
       elif source_name == "bremsstrahlung":
-        profiles = _extract_source_profiles(source, ["T_e"], t_initial)
-        accumulator.add("bremsstrahlung", profiles)
+        source_data = _extract_source_profiles(
+            source,
+            brehmsstrahlung.BremsstrahlungHeatSink.AFFECTED_CORE_PROFILES,
+            t_initial,
+        )
+        accumulator.add("bremsstrahlung", source_data)
 
       elif source_name == "impurity_radiation":
-        profiles = _extract_source_profiles(source, ["T_e"], t_initial)
-        accumulator.add("impurity_radiation", profiles)
+        source_data = _extract_source_profiles(
+            source,
+            impurity_radiation.ImpurityRadiationHeatSink.AFFECTED_CORE_PROFILES,
+            t_initial,
+        )
+        accumulator.add("impurity_radiation", source_data)
 
   return accumulator.to_dict()
 
 
 def _extract_source_profiles(
     source: ids_structure.IDSStructure,
-    affected_profiles: Sequence[str],
+    affected_profiles: tuple[source_module.AffectedCoreProfile, ...],
     t_initial: float | None = None,
 ) -> _SourceProfiles:
   """
@@ -201,29 +218,39 @@ def _extract_source_profiles(
 
   Args:
       source: Individual source from the core_sources IDS.
-      affected_profiles: List of profiles to extract. Possible values:
-        ['psi', 'n_e', 'T_e', 'T_i'].
+      affected_profiles: Tuple of profiles to extract. See
+        AFFECTED_CORE_PROFILES class for the possible values.
       t_initial: Initial time used to map the profiles in the dicts.
 
   """
   profiles_1d, rhon_array, time_array = loader.get_time_and_radial_arrays(
       source, t_initial
   )
-  profiles = _SourceProfiles(time=time_array, rho_norm=rhon_array)
 
-  # Extract current profile
-  if "psi" in affected_profiles:
-    # Switch sign due to the difference between input COCOS conventions
-    # and TORAX ones
-    profiles.psi = [-1.0 * profile.j_parallel for profile in profiles_1d]
+  profiles = {}
+  for affected_profile in affected_profiles:
+    if affected_profile == source_module.AffectedCoreProfile.PSI:
+      # Switch sign due to the difference between input COCOS conventions and
+      # TORAX ones
+      profiles[affected_profile] = [
+          -1.0 * profile.j_parallel for profile in profiles_1d
+      ]
+    elif affected_profile == source_module.AffectedCoreProfile.TEMP_ION:
+      profiles[affected_profile] = [
+          profile.total_ion_energy for profile in profiles_1d
+      ]
+    elif affected_profile == source_module.AffectedCoreProfile.TEMP_EL:
+      profiles[affected_profile] = [
+          profile.electrons.energy for profile in profiles_1d
+      ]
+    elif affected_profile == source_module.AffectedCoreProfile.NE:
+      profiles[affected_profile] = [
+          profile.electrons.particles for profile in profiles_1d
+      ]
 
-  # Extract heating profiles
-  if "T_i" in affected_profiles:
-    profiles.T_i = [profile.total_ion_energy for profile in profiles_1d]
-  if "T_e" in affected_profiles:
-    profiles.T_e = [profile.electrons.energy for profile in profiles_1d]
-  # Extract fuelling profile
-  if "n_e" in affected_profiles:
-    profiles.n_e = [profile.electrons.particles for profile in profiles_1d]
-
-  return profiles
+  return _SourceProfiles(
+      time=time_array,
+      rho_norm=rhon_array,
+      affected_profiles=affected_profiles,
+      profiles=profiles,
+  )
