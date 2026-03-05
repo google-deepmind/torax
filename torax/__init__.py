@@ -37,6 +37,7 @@ from torax._src.state import CoreProfiles
 from torax._src.state import CoreTransport
 from torax._src.state import SimError
 from torax._src.state import SolverNumericOutputs
+from torax._src.torax_pydantic.model_config import CheckpointConfig
 from torax._src.torax_pydantic.model_config import ToraxConfig
 from torax._src.torax_pydantic.torax_pydantic import JAX_STATIC
 
@@ -59,6 +60,7 @@ __all__ = [
     'import_module',
     'plot_run',
     'run_simulation',
+    'CheckpointConfig',
     'CoreProfiles',
     'CoreTransport',
     'Geometry',
