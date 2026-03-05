@@ -24,7 +24,7 @@ import numpy as np
 import pydantic
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.physics import fast_ions
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import ion_cyclotron_source
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
@@ -385,7 +385,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     self.assertIsInstance(fast_ion_data, tuple)
     self.assertLen(fast_ion_data, 1)
     fi = fast_ion_data[0]
-    self.assertIsInstance(fi, fast_ions.FastIon)
+    self.assertIsInstance(fi, fast_ion_lib.FastIon)
     self.assertEqual(fi.species, "He3")
     self.assertEqual(
         fi.source, ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
