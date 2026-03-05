@@ -99,8 +99,9 @@ def initial_core_profiles(
   )
 
   fast_ions_list = []
-  for s in source_models.standard_sources.values():
-    fast_ions_list.extend(s.zero_fast_ions(geo))
+  if runtime_params.numerics.enable_fast_ions:
+    for s in source_models.standard_sources.values():
+      fast_ions_list.extend(s.zero_fast_ions(geo))
 
   core_profiles = state.CoreProfiles(
       T_i=T_i,

@@ -222,24 +222,40 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
             conductivity,
         )
       case sources_runtime_params_lib.Mode.PRESCRIBED:
-        if len(self.affected_core_profiles) != len(
-            source_params.prescribed_values
+        expected_len = len(self.affected_core_profiles)
+        prescribed_len = len(source_params.prescribed_values)
+        if (
+            AffectedCoreProfile.FAST_IONS in self.affected_core_profiles
+            and not runtime_params.numerics.enable_fast_ions
+            and prescribed_len == expected_len - 1
         ):
+          fast_ions_idx = self.affected_core_profiles.index(
+              AffectedCoreProfile.FAST_IONS
+          )
+          res_list = list(source_params.prescribed_values)
+          res_list.insert(fast_ions_idx, ())
+          res = tuple(res_list)
+        elif prescribed_len != expected_len:
           raise ValueError(
               'When using PRESCRIBED mode, the number of prescribed values must'
               ' match the number of affected core profiles. Was: '
               f'{len(source_params.prescribed_values)} '
               f' Expected: {len(self.affected_core_profiles)}.'
           )
-        res = source_params.prescribed_values
+        else:
+          res = source_params.prescribed_values
       case sources_runtime_params_lib.Mode.ZERO:
         zeros = jnp.zeros(geo.rho_norm.shape)
-        res = tuple(
-            self.zero_fast_ions(geo)
-            if acp == AffectedCoreProfile.FAST_IONS
-            else zeros
-            for acp in self.affected_core_profiles
-        )
+        res_list = []
+        for affected_core_profile in self.affected_core_profiles:
+          if affected_core_profile == AffectedCoreProfile.FAST_IONS:
+            if runtime_params.numerics.enable_fast_ions:
+              res_list.append(self.zero_fast_ions(geo))
+            else:
+              res_list.append(())
+          else:
+            res_list.append(zeros)
+        res = tuple(res_list)
       case _:
         raise ValueError(f'Unknown mode: {mode}')
 
@@ -247,9 +263,14 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       fast_ions_idx = self.affected_core_profiles.index(
           AffectedCoreProfile.FAST_IONS
       )
-      self._validate_fast_ions(
-          res[fast_ions_idx],
-          geo,
-      )
+      if runtime_params.numerics.enable_fast_ions:
+        self._validate_fast_ions(
+            res[fast_ions_idx],
+            geo,
+        )
+      elif res[fast_ions_idx]:
+        res_list = list(res)
+        res_list[fast_ions_idx] = ()
+        res = tuple(res_list)
 
     return res

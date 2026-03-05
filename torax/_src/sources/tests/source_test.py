@@ -18,6 +18,7 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax._src.config import numerics
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.sources import electron_cyclotron_source
@@ -97,6 +98,9 @@ class SourceTest(parameterized.TestCase):
     dynamic_slice = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
+        numerics=mock.create_autospec(
+            numerics.RuntimeParams, enable_fast_ions=True
+        ),
     )
     # Make a geo with rho_norm as we need it for the zero profile shape.
     geo = mock.create_autospec(
@@ -130,6 +134,9 @@ class SourceTest(parameterized.TestCase):
     dynamic_slice = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
+        numerics=mock.create_autospec(
+            numerics.RuntimeParams, enable_fast_ions=True
+        ),
     )
     profile = source.get_value(
         runtime_params=dynamic_slice,
@@ -166,6 +173,9 @@ class SourceTest(parameterized.TestCase):
     dynamic_slice = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
+        numerics=mock.create_autospec(
+            numerics.RuntimeParams, enable_fast_ions=True
+        ),
     )
     with self.assertRaisesRegex(
         ValueError,
