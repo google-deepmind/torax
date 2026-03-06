@@ -25,21 +25,19 @@ from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params
 from torax._src.pedestal_model import set_pped_tpedratio_nped
 from torax._src.pedestal_model import set_tped_nped
-from torax._src.pedestal_model.formation import martin_formation_model
+from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
 
-# TODO(b/323504363): Generalise to pedestal formation models based on power
-# thresholds (e.g. Metal Wall scaling), not just Martin scaling.
-class MartinFormation(torax_pydantic.BaseModelFrozen):
-  """Configuration for Martin formation model.
+class PowerScalingFormation(torax_pydantic.BaseModelFrozen):
+  """Configuration for Power Scaling formation model.
 
   This formation model triggers a reduction in pedestal transport when P_SOL >
-  P_LH, where P_LH is from the Martin scaling. The reduction is a multiplicative
-  factor between 1.0 and base_multiplier.
+  P_LH, where P_LH is calculated from a chosen scaling law (Martin or Delabie).
+  The reduction is a multiplicative factor between 1.0 and base_multiplier.
 
   The formula is
     transport_multiplier = (1.0 - alpha) * 1.0 + alpha * base_multiplier,
@@ -50,6 +48,7 @@ class MartinFormation(torax_pydantic.BaseModelFrozen):
 
 
   Attributes:
+    scaling_law: The scaling law to use for P_LH.
     sharpness: Scaling factor applied to the argument of the sigmoid function,
       setting the sharpness of the smooth formation window. Decrease for a
       smoother formation, which may be more numerically stable but may lead to
@@ -63,7 +62,12 @@ class MartinFormation(torax_pydantic.BaseModelFrozen):
       P_LH, and therefore start the L-H transition at a higher P_SOL.
   """
 
-  model_name: Annotated[Literal["martin"], torax_pydantic.JAX_STATIC] = "martin"
+  model_name: Annotated[Literal["power_scaling"], torax_pydantic.JAX_STATIC] = (
+      "power_scaling"
+  )
+  scaling_law: Annotated[
+      power_scaling_formation_model.ScalingLaw, torax_pydantic.JAX_STATIC
+  ] = power_scaling_formation_model.ScalingLaw.MARTIN
   sharpness: pydantic.PositiveFloat = 100.0
   offset: Annotated[
       array_typing.FloatScalar, pydantic.Field(ge=-10.0, le=10.0)
@@ -75,18 +79,19 @@ class MartinFormation(torax_pydantic.BaseModelFrozen):
 
   def build_formation_model(
       self,
-  ) -> martin_formation_model.MartinFormationModel:
-    return martin_formation_model.MartinFormationModel()
+  ) -> power_scaling_formation_model.PowerScalingFormationModel:
+    return power_scaling_formation_model.PowerScalingFormationModel()
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> martin_formation_model.MartinFormationRuntimeParams:
+  ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
     del t
-    return martin_formation_model.MartinFormationRuntimeParams(
+    return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
         sharpness=self.sharpness,
         offset=self.offset,
         base_multiplier=self.base_multiplier,
         P_LH_prefactor=self.P_LH_prefactor,
+        scaling_law=self.scaling_law,
     )
 
 
@@ -148,7 +153,7 @@ class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
 
 
 # For new formation and saturation models, add to these TypeAliases via Union.
-FormationConfig: TypeAlias = MartinFormation
+FormationConfig: TypeAlias = PowerScalingFormation
 SaturationConfig: TypeAlias = ProfileValueSaturation
 
 
@@ -172,7 +177,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       runtime_params.Mode.ADAPTIVE_SOURCE
   )
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
-      MartinFormation()
+      PowerScalingFormation()
   )
   saturation_model: SaturationConfig = torax_pydantic.ValidatedDefault(
       ProfileValueSaturation()
@@ -183,12 +188,12 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
     if "formation_model" not in configurable_data:
-      configurable_data["formation_model"] = {"model_name": "martin"}
+      configurable_data["formation_model"] = {"model_name": "power_scaling"}
     if "saturation_model" not in configurable_data:
       configurable_data["saturation_model"] = {"model_name": "profile_value"}
     # Set default model names.
     if "model_name" not in configurable_data["formation_model"]:
-      configurable_data["formation_model"]["model_name"] = "martin"
+      configurable_data["formation_model"]["model_name"] = "power_scaling"
     if "model_name" not in configurable_data["saturation_model"]:
       configurable_data["saturation_model"]["model_name"] = "profile_value"
 
