@@ -60,20 +60,8 @@ CONFIG['pedestal'] = {
     'T_e_ped': 4.5,
     'n_e_ped': 0.62e20,
     'rho_norm_ped_top': 0.9,
-    'saturation_model': {
-        'model_name': 'profile_value',
-        'sigmoid_width': 0.1,
-        'sigmoid_exponent': 1.0,
-        'sigmoid_offset': 0.0,
-    },
-    'formation_model': {
-        'model_name': 'martin',
-        'sigmoid_width': 1e-3,
-        'sigmoid_exponent': 3.0,
-        'sigmoid_offset': 0.0,
-    },
-    'max_transport_multiplier': 10,
-    'min_transport_multiplier': 0.1,
+    'saturation_model': {'model_name': 'profile_value'},
+    'formation_model': {'model_name': 'martin'},
 }
 
 # Use nonlinear solver, as linear solver struggles with the fast dynamics of the

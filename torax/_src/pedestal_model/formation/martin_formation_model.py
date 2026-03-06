@@ -16,7 +16,6 @@
 
 import dataclasses
 import jax
-import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
@@ -86,19 +85,13 @@ class MartinFormationModel(base.FormationModel):
     # If P_SOL > P_LH, multiplier tends to 0.0
     # If P_SOL < P_LH, multiplier tends to 1.0
     # TODO(b/488393318): Add hysteresis to the LH-HL transition.
-    width = runtime_params.pedestal.formation.sigmoid_width
-    exponent = runtime_params.pedestal.formation.sigmoid_exponent
-    offset = runtime_params.pedestal.formation.sigmoid_offset
-    normalized_deviation = (
-        P_SOL_total - rescaled_P_LH
-    ) / rescaled_P_LH - offset
-    transport_multiplier = 1 - jax.nn.sigmoid(normalized_deviation / width)
-    transport_multiplier = transport_multiplier**exponent
-    transport_multiplier = jnp.clip(
-        transport_multiplier,
-        min=runtime_params.pedestal.min_transport_multiplier,
-        max=runtime_params.pedestal.max_transport_multiplier,
-    )
+    sharpness = runtime_params.pedestal.formation.sharpness
+    offset = runtime_params.pedestal.formation.offset
+    base_multiplier = runtime_params.pedestal.formation.base_multiplier
+    normalized_deviation = (P_SOL_total - rescaled_P_LH) / rescaled_P_LH
+    shifted_deviation = normalized_deviation - offset
+    alpha = jax.nn.sigmoid(shifted_deviation * sharpness)
+    transport_multiplier = (1.0 - alpha) * 1.0 + alpha * base_multiplier
 
     return pedestal_model_output.TransportMultipliers(
         chi_e_multiplier=transport_multiplier,

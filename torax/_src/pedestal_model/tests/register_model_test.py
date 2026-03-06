@@ -90,8 +90,6 @@ class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
         mode=self.mode,
         formation=self.formation_model.build_runtime_params(t),
         saturation=self.saturation_model.build_runtime_params(t),
-        max_transport_multiplier=self.max_transport_multiplier.get_value(t),
-        min_transport_multiplier=self.min_transport_multiplier.get_value(t),
     )
 
 

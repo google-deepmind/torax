@@ -11,11 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src import constants
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_model_output
@@ -49,18 +47,18 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='active',
-          # P_current >> P_target -> saturation is active.
-          P_current_over_P_target=1e3,
+          # T_current >> T_target -> saturation is active.
+          T_target_over_T_current=1e-3,
       ),
       dict(
           testcase_name='inactive',
-          # P_current << P_target -> no saturation.
-          P_current_over_P_target=1e-3,
+          # T_current << T_target -> no saturation.
+          T_target_over_T_current=1e3,
       ),
   )
   def test_saturation_multiplier(
       self,
-      P_current_over_P_target,
+      T_target_over_T_current,
   ):
     saturation_model = (
         profile_value_saturation_model.ProfileValueSaturationModel()
@@ -68,24 +66,16 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
 
     # For this test, we put the pedestal top at the last grid point.
     ped_top_idx = -1
-
-    # Get the current pressure at the pedestal top.
-    current_pressure = self.core_profiles.pressure_thermal_total.value[
-        ped_top_idx
-    ]
+    current_T_e_ped = self.core_profiles.T_e.face_value()[ped_top_idx]
 
     # Construct a pedestal output that is asking for a pedestal with
-    # target_pressure.
-    target_pressure = current_pressure / P_current_over_P_target
+    # target temperature.
     pedestal_output = pedestal_model_output.PedestalModelOutput(
         rho_norm_ped_top=self.geo.rho_face[ped_top_idx],
         rho_norm_ped_top_idx=ped_top_idx,
-        # Set T_i_ped, T_e_ped, and n_e_ped such that target_pressure is
-        # achieved. This case has n_impurity = 0 and Z_i = 1, so
-        # P = (T_i + T_e)*keV_to_J*n_e.
-        T_i_ped=(1.0 / constants.CONSTANTS.keV_to_J) / 2,
-        T_e_ped=(1.0 / constants.CONSTANTS.keV_to_J) / 2,
-        n_e_ped=target_pressure,
+        T_i_ped=1.0,
+        T_e_ped=current_T_e_ped * T_target_over_T_current,
+        n_e_ped=1.0,
     )
 
     transport_multipliers = saturation_model(
@@ -95,16 +85,14 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
         pedestal_output,
     )
 
-    if P_current_over_P_target > 1.0:
-      # If the current pressure is above the target pressure, we expect the
-      # multiplier to be greater than 1.0.
-      for multiplier in dataclasses.asdict(transport_multipliers).values():
-        self.assertGreater(multiplier, 1.0)
+    if T_target_over_T_current > 1.0:
+      # If the target temperature is above the current temperature, we expect
+      # the multiplier to be equal to 1.0 - the pedestal is not saturated.
+      np.testing.assert_allclose(transport_multipliers.chi_e_multiplier, 1.0)
     else:
-      # If the current pressure is below the target pressure, we expect the
-      # multiplier to be 1.0.
-      for multiplier in dataclasses.asdict(transport_multipliers).values():
-        np.testing.assert_allclose(multiplier, 1.0, rtol=1e-3)
+      # If the target temperature is below the current temperature, we expect
+      # the multiplier to be greater than 1.0 - the pedestal is saturated.
+      self.assertGreater(transport_multipliers.chi_e_multiplier, 1.0)
 
 
 if __name__ == '__main__':

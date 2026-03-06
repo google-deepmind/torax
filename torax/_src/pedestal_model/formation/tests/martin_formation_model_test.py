@@ -66,12 +66,11 @@ class MartinFormationModelTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          # If P_sol >> P_LH, we expect the suppression multiplier to be very
-          # small (significant suppression). However, it's clipped internally to
-          # be 0.1.
+          # If P_sol >> P_LH, we expect the suppression multiplier to be
+          # base_multiplier.
           testcase_name='above_threshold',
           power=1e6,
-          expected_multiplier=0.1,
+          expected_multiplier=1e-6,
       ),
       dict(
           # If P_sol << P_LH, we expect the suppression multiplier to be 1.0

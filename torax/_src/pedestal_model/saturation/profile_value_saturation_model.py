@@ -91,18 +91,11 @@ class ProfileValueSaturationModel(base.SaturationModel):
     Returns:
       The transport increase multiplier.
     """
-    width = pedestal_runtime_params.saturation.sigmoid_width
-    exponent = pedestal_runtime_params.saturation.sigmoid_exponent
-    offset = pedestal_runtime_params.saturation.sigmoid_offset
+    steepness = pedestal_runtime_params.saturation.steepness
+    offset = pedestal_runtime_params.saturation.offset
+    base_multiplier = pedestal_runtime_params.saturation.base_multiplier
     normalized_deviation = (current - target) / target - offset
-    transport_multiplier = 1 / (
-        1 - jax.nn.sigmoid(normalized_deviation / width)
+    transport_multiplier = 1 + base_multiplier * jax.nn.softplus(
+        normalized_deviation * steepness
     )
-    transport_multiplier = transport_multiplier**exponent
-    transport_multiplier = jnp.clip(
-        transport_multiplier,
-        min=pedestal_runtime_params.min_transport_multiplier,
-        max=pedestal_runtime_params.max_transport_multiplier,
-    )
-
     return transport_multiplier

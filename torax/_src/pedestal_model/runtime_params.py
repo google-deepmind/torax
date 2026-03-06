@@ -37,9 +37,9 @@ class Mode(enum.Enum):
 class FormationRuntimeParams:
   """Runtime params for pedestal formation models."""
 
-  sigmoid_width: array_typing.FloatScalar = 0.1
-  sigmoid_offset: array_typing.FloatScalar = 0.0
-  sigmoid_exponent: array_typing.FloatScalar = 1.0
+  sharpness: array_typing.FloatScalar
+  offset: array_typing.FloatScalar
+  base_multiplier: array_typing.FloatScalar
 
 
 @jax.tree_util.register_dataclass
@@ -47,9 +47,9 @@ class FormationRuntimeParams:
 class SaturationRuntimeParams:
   """Runtime params for pedestal saturation models."""
 
-  sigmoid_width: array_typing.FloatScalar = 0.1
-  sigmoid_offset: array_typing.FloatScalar = 0.0
-  sigmoid_exponent: array_typing.FloatScalar = 1.0
+  steepness: array_typing.FloatScalar
+  offset: array_typing.FloatScalar
+  base_multiplier: array_typing.FloatScalar
 
 
 @jax.tree_util.register_dataclass
@@ -59,7 +59,5 @@ class RuntimeParams:
 
   set_pedestal: array_typing.BoolScalar
   mode: Mode = dataclasses.field(metadata={"static": True})
-  min_transport_multiplier: array_typing.FloatScalar
-  max_transport_multiplier: array_typing.FloatScalar
   formation: FormationRuntimeParams
   saturation: SaturationRuntimeParams
