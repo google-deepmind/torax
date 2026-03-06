@@ -18,10 +18,13 @@ Functions:
     - calculate_plh_scaling_factor: Calculates the H-mode transition power
       according to Martin 2008, and the density corresponding to the P_LH_min
       according to Ryter 2014.
+    - calculate_plh_delabie: Calculates the H-mode transition
+      power according to the TC-26(B_t) scaling law from Delabie 2026.
     - calculate_scaling_law_confinement_time: Calculates the predicted
       thermal energy confinement time from a given empirical scaling law.
 """
 
+from typing import Literal
 import jax
 from jax import numpy as jnp
 from torax._src import constants
@@ -100,6 +103,60 @@ def calculate_plh_scaling_factor(
   P_LH_min = P_LH_min_D * A_deuterium / core_profiles.A_i
   P_LH = jnp.maximum(P_LH_min, P_LH_hi_dens)
   return P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH
+
+
+def calculate_plh_delabie(
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    divertor_configuration: Literal['HT', 'VT'] = 'HT',
+) -> jax.Array:
+  """Calculates the H-mode transition power according to TC-26(B_t) scaling law.
+
+  Equation 5 from: "Empirical scaling of the L–H threshold power for
+  metal wall tokamaks using a multi-device database", E. Delabie et al 2026
+  Nucl. Fusion 66 036016
+
+  P_LH/S = (0.0441±0.0025) * B_t^(0.580±0.039) * n_e^(1.08±0.03)
+        * 2/M_eff^(0.975±0.032) * D
+
+  Args:
+    geo: Torus geometry.
+    core_profiles: Core plasma profiles.
+    divertor_configuration: Divertor configuration, either 'HT' or 'VT'. See
+      Delabie et al. for details.
+
+  Returns:
+    H-mode transition power in MW.
+  """
+  if divertor_configuration == 'HT':
+    D = 1.0
+  elif divertor_configuration == 'VT':
+    D = 1.93
+  else:
+    raise ValueError(
+        f'Unknown divertor configuration: {divertor_configuration}'
+    )
+
+  # n_e in units of 10^20 m^-3
+  line_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo) * 1e-20
+
+  # M_eff is the effective main ion atomic mass,
+  #   f_H * m_H + f_D * m_D + f_T * m_T
+  # Hence, we can use A_i directly.
+
+  P_LH_over_S = (
+      0.0441
+      * geo.B_0**0.580
+      * line_avg_n_e**1.08
+      * 2.0
+      / core_profiles.A_i ** (0.975)
+      * D
+  )
+
+  # S is the surface area of the LCFS
+  P_LH = P_LH_over_S * geo.area_face[-1]
+
+  return P_LH
 
 
 def calculate_scaling_law_confinement_time(

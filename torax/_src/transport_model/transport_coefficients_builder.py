@@ -85,7 +85,6 @@ def calculate_all_transport_coeffs(
 
   # Modify the turbulent + Pereverzev transport coefficients if the pedestal
   # model is in ADAPTIVE_TRANSPORT mode.
-  # TODO(b/488980968): Identify speed issue with ADAPTIVE_TRANSPORT mode.
   if (
       runtime_params.pedestal.mode
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
