@@ -19,6 +19,7 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
+from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -222,10 +223,12 @@ class TGLFBasedTransportModel(
     c_s = (T_e_J / m_D) ** 0.5  # T_e [J], m_D [kg], gives c_s in [m/s]
     a = geo.a_minor  # Device minor radius at LCFS [m]
     r = geo.r_mid_face  # Flux surface centroid minor radius [m]
-    B_unit = (
+    # r is zero on axis, so use safe_divide to avoid division by zero.
+    # Use face_grad to correctly handle constraints on the psi CellVariable.
+    B_unit = math_utils.safe_divide(
         core_profiles.q_face
-        / (2 * jnp.pi * r)  # Note: psi_TGLF is psi_TORAX/2π
-        * jnp.gradient(core_profiles.psi.face_value(), r)
+        * core_profiles.psi.face_grad(x=geo.r_mid, x_left=r[0], x_right=r[-1]),
+        (2 * jnp.pi * r),  # Note: psi_TGLF is psi_TORAX/2π
     )
     rho_s = m_D * c_s / (constants.CONSTANTS.q_e * B_unit)  # Ion gyroradius
 
@@ -278,11 +281,12 @@ class TGLFBasedTransportModel(
     # - TGLF definition is q^2 a^2 s / r^2
     #   where s = r/q dq/dr
     #   (https://gacode.io/cgyro/cgyro_list.html#s)
-    q_prime = (
+    # - r_mid is zero on axis, so use safe_divide to avoid division by zero.
+    q_prime = math_utils.safe_divide(
         psi_calculations.calc_s_rmid(geo, core_profiles.psi)
         * core_profiles.q_face**2
-        * a**2
-        / r**2
+        * a**2,
+        r**2,
     )
 
     # Electron beta
