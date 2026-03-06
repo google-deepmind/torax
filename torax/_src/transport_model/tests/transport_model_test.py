@@ -309,6 +309,13 @@ class TransportSmoothingTest(parameterized.TestCase):
         core_profiles,
         pedestal_model_outputs,
     )
+
+    # Apply the smoothing
+    transport_coeffs = transport_model.smooth_coeffs(
+        runtime_params, geo, transport_coeffs, pedestal_model_outputs
+    )
+
+    # Set up original transport coefficients for comparison
     inner_patch_idx = np.searchsorted(
         geo.rho_face_norm, runtime_params.transport.rho_inner
     )

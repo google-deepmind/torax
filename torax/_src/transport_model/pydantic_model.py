@@ -441,6 +441,9 @@ except ImportError:
 class CombinedTransportModel(pydantic_model_base.TransportBase):
   """Model for the Combined transport model.
 
+  Note: smoothing and patches should be applied on the combined model, not the
+  individual component models.
+
   Attributes:
     model_name: The transport model to use. Hardcoded to 'combined'.
     transport_models: A sequence of transport models, whose outputs will be
@@ -491,6 +494,22 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
         pedestal_transport_model_params=pedestal_transport_model_params,
         **base_kwargs,
     )
+
+  @pydantic.model_validator(mode='after')
+  def _check_no_smoothing_in_components(self) -> typing_extensions.Self:
+    for model_list in ['transport_models', 'pedestal_transport_models']:
+      for i, model in enumerate(getattr(self, model_list)):
+        if model.smoothing_width > 0.0:
+          logging.warning(
+              'smoothing_width > 0.0 is not supported for component models of'
+              ' CombinedTransportModel; instead, smoothing_width should be set'
+              ' on the CombinedTransportModel itself. Smoothing width set on %s'
+              ' component %i (%s) will be ignored.',
+              model_list,
+              i,
+              model.model_name,
+          )
+    return self
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:

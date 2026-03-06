@@ -464,6 +464,38 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
     ):
       transport_pydantic_model.CombinedTransportModel(transport_models=[m1, m2])
 
+  def test_smoothing_in_combined_core_component_logs_warning(self):
+    component_model = transport_pydantic_model.ConstantTransportModel(
+        smoothing_width=0.1
+    )
+    with self.assertLogs(level='WARNING') as log_watcher:
+      transport_pydantic_model.CombinedTransportModel(
+          transport_models=[component_model]
+      )
+    self.assertLen(log_watcher.output, 1)
+    self.assertIn(
+        'smoothing_width > 0.0 is not supported for component models of'
+        ' CombinedTransportModel',
+        log_watcher.output[0],
+    )
+
+  def test_smoothing_in_combined_pedestal_component_logs_warning(
+      self,
+  ):
+    component_model = transport_pydantic_model.ConstantTransportModel(
+        smoothing_width=0.1
+    )
+    with self.assertLogs(level='WARNING') as log_watcher:
+      transport_pydantic_model.CombinedTransportModel(
+          pedestal_transport_models=[component_model]
+      )
+    self.assertLen(log_watcher.output, 1)
+    self.assertIn(
+        'smoothing_width > 0.0 is not supported for component models of'
+        ' CombinedTransportModel',
+        log_watcher.output[0],
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

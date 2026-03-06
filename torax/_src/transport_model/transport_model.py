@@ -168,13 +168,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
         transport_coeffs,
     )
 
-    # Return smoothed coefficients if smoothing is enabled
-    return self._smooth_coeffs(
-        runtime_params,
-        geo,
-        transport_coeffs,
-        pedestal_model_output,
-    )
+    return transport_coeffs
 
   @abc.abstractmethod
   def call_implementation(
@@ -377,7 +371,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
         v_face_el=v_face_el,
     )
 
-  def _smooth_coeffs(
+  def smooth_coeffs(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,

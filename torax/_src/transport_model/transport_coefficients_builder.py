@@ -111,4 +111,35 @@ def calculate_all_transport_coeffs(
         **dataclasses.asdict(pereverzev_transport_coeffs),
     )
 
+  # TODO(b/485147781) Clean up this post-processing.
+  # Apply smoothing to the final turbulent transport coefficients
+  turbulent_transport_coeffs = transport_model_lib.TurbulentTransport(
+      chi_face_ion=core_transport.chi_face_ion,
+      chi_face_el=core_transport.chi_face_el,
+      d_face_el=core_transport.d_face_el,
+      v_face_el=core_transport.v_face_el,
+      chi_face_ion_bohm=core_transport.chi_face_ion_bohm,
+      chi_face_ion_gyrobohm=core_transport.chi_face_ion_gyrobohm,
+      chi_face_ion_itg=core_transport.chi_face_ion_itg,
+      chi_face_ion_tem=core_transport.chi_face_ion_tem,
+      chi_face_el_bohm=core_transport.chi_face_el_bohm,
+      chi_face_el_gyrobohm=core_transport.chi_face_el_gyrobohm,
+      chi_face_el_itg=core_transport.chi_face_el_itg,
+      chi_face_el_tem=core_transport.chi_face_el_tem,
+      chi_face_el_etg=core_transport.chi_face_el_etg,
+      d_face_el_itg=core_transport.d_face_el_itg,
+      d_face_el_tem=core_transport.d_face_el_tem,
+      v_face_el_itg=core_transport.v_face_el_itg,
+      v_face_el_tem=core_transport.v_face_el_tem,
+  )
+  turbulent_transport_coeffs = transport_model.smooth_coeffs(
+      runtime_params=runtime_params,
+      geo=geo,
+      pedestal_model_output=pedestal_model_output,
+      transport_coeffs=turbulent_transport_coeffs,
+  )
+  core_transport = dataclasses.replace(
+      core_transport,
+      **dataclasses.asdict(turbulent_transport_coeffs),
+  )
   return core_transport

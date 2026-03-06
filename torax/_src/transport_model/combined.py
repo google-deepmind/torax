@@ -84,15 +84,8 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     # should be handled by instantiating constant component models instead.
     # However, the rho_inner and rho_outer arguments are currently required
     # in the case where the inner/outer region are to be excluded from
-    # smoothing. Smoothing is applied to
-    # rho_inner < rho_norm < min(rho_ped_top, rho_outer) unless
-    # smooth_everywhere is True.
-    return self._smooth_coeffs(
-        runtime_params,
-        geo,
-        transport_coeffs,
-        pedestal_model_output,
-    )
+    # smoothing.
+    return transport_coeffs
 
   def call_implementation(
       self,
