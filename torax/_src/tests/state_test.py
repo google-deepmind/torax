@@ -29,7 +29,7 @@ from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
-from torax._src.physics import fast_ions as fast_ions_lib
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -361,7 +361,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
     base_core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
 
-    fast_ion_he3 = fast_ions_lib.FastIon(
+    fast_ion_he3 = fast_ion_lib.FastIon(
         species='He3',
         source='ICRH',
         n=core_profile_helpers.make_constant_core_profile(geo, 0.05e20),

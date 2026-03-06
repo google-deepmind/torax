@@ -36,8 +36,8 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.physics import fast_ion_utils
-from torax._src.physics import fast_ions as fast_ions_lib
 from torax._src.sources import base
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
@@ -374,7 +374,7 @@ def icrh_model_func(
 ) -> tuple[
     array_typing.FloatVectorCell,
     array_typing.FloatVectorCell,
-    tuple[fast_ions_lib.FastIon, ...],
+    tuple[fast_ion_lib.FastIon, ...],
 ]:
   """Compute ion/electron heat source terms."""
   source_params = runtime_params.sources[source_name]
@@ -491,7 +491,7 @@ def icrh_model_func(
   )
 
   fast_ions = (
-      fast_ions_lib.FastIon(
+      fast_ion_lib.FastIon(
           species=species,
           source=source_name,
           n=cell_variable.CellVariable(
@@ -541,10 +541,10 @@ class IonCyclotronSource(source.Source):
   def zero_fast_ions(
       cls,
       geo: geometry.Geometry,
-  ) -> tuple[fast_ions_lib.FastIon, ...]:
+  ) -> tuple[fast_ion_lib.FastIon, ...]:
     # TODO(b/483988192): Add support for other species.
     return (
-        fast_ions_lib.FastIon(
+        fast_ion_lib.FastIon(
             species='He3',
             source=cls.SOURCE_NAME,
             n=cell_variable.CellVariable(

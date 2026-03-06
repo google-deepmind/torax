@@ -33,12 +33,12 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.physics import fast_ions as fast_ions_lib
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
 
 SourceProfileElement = (
-    array_typing.FloatVectorCell | tuple[fast_ions_lib.FastIon, ...]
+    array_typing.FloatVectorCell | tuple[fast_ion_lib.FastIon, ...]
 )
 
 
@@ -124,7 +124,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
   def zero_fast_ions(
       self,
       geo: geometry.Geometry,
-  ) -> tuple[fast_ions_lib.FastIon, ...]:
+  ) -> tuple[fast_ion_lib.FastIon, ...]:
     """Returns a tuple of zero fast ion profiles."""
     del geo  # Unused in the default case.
     if AffectedCoreProfile.FAST_IONS in self.affected_core_profiles:
@@ -147,7 +147,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
           'FAST_IONS profile must be a tuple of FastIon, but got'
           f' {type(fast_ions)}.'
       )
-    fast_ions = typing.cast(tuple[fast_ions_lib.FastIon, ...], fast_ions)
+    fast_ions = typing.cast(tuple[fast_ion_lib.FastIon, ...], fast_ions)
     zero_fast_ions = self.zero_fast_ions(geo)
     if len(fast_ions) != len(zero_fast_ions):
       raise ValueError(

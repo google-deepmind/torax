@@ -22,7 +22,7 @@ import jax.numpy as jnp
 from torax._src import constants
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
-from torax._src.physics import fast_ions as fast_ions_lib
+from torax._src.physics import fast_ion as fast_ion_lib
 import typing_extensions
 
 # pylint: disable=invalid-name
@@ -86,7 +86,7 @@ class SourceProfiles:
   # dicts of `jax.Array` source profiles on the grid. `FastIon` objects contain
   # richer information about fast ion distributions beyond what can be
   # represented in a single profile.
-  fast_ions: dict[str, tuple[fast_ions_lib.FastIon, ...]] = dataclasses.field(
+  fast_ions: dict[str, tuple[fast_ion_lib.FastIon, ...]] = dataclasses.field(
       default_factory=dict
   )
 
@@ -127,7 +127,7 @@ class SourceProfiles:
     def _is_fast_ions_dict(x: typing_extensions.Any) -> bool:
       return isinstance(x, dict) and all(
           isinstance(v, tuple)
-          and all(isinstance(el, fast_ions_lib.FastIon) for el in v)
+          and all(isinstance(el, fast_ion_lib.FastIon) for el in v)
           for v in x.values()
       )
 
