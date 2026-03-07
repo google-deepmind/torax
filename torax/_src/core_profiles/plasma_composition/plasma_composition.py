@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Plasma composition parameters used throughout TORAX simulations."""
+
 import copy
 import dataclasses
 import functools
@@ -43,6 +44,7 @@ _IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 @dataclasses.dataclass
 class RuntimeParams:
   """Runtime parameters for the plasma composition."""
+
   main_ion_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   impurity_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
   main_ion: ion_mixture.RuntimeParams
@@ -55,7 +57,6 @@ class RuntimeParams:
   Z_eff_face: array_typing.FloatVectorFace
 
 
-# TODO(b/440667088): Consider validation against duplicate species.
 @jax.tree_util.register_pytree_node_class
 class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   """Configuration for the plasma composition.
@@ -184,6 +185,19 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
           "Z_eff is provided but impurity_mode is '%s'. Z_eff will be an"
           ' emergent quantity and the input value will be ignored.',
           _IMPURITY_MODE_NE_RATIOS,
+      )
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _check_duplicate_species(self) -> typing_extensions.Self:
+    """Validates that no species appears in both main_ion and impurity."""
+    main_ion_names = set(self._main_ion_mixture.species.keys())
+    impurity_names = set(self.impurity.species.keys())
+    duplicates = main_ion_names & impurity_names
+    if duplicates:
+      raise ValueError(
+          'Species cannot appear in both main_ion and impurity.'
+          f' Duplicate species: {sorted(duplicates)}'
       )
     return self
 
