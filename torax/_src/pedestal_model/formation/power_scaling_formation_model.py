@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Martin scaling pedestal formation model."""
+"""Power scaling pedestal formation model."""
 
 import dataclasses
+import enum
+from typing import Literal
 import jax
 from torax._src import array_typing
 from torax._src import math_utils
@@ -30,12 +32,20 @@ from torax._src.sources import source_profiles as source_profiles_lib
 # pylint: disable=invalid-name
 
 
+@enum.unique
+class ScalingLaw(enum.Enum):
+  """Defines which scaling law to use for pedestal formation."""
+
+  MARTIN = "MARTIN"
+  DELABIE = "DELABIE"
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class MartinFormationRuntimeParams(
+class PowerScalingFormationRuntimeParams(
     pedestal_runtime_params_lib.FormationRuntimeParams
 ):
-  """Runtime params for pedestal formation models."""
+  """Runtime params for power scaling pedestal formation models."""
 
   P_LH_prefactor: array_typing.FloatScalar = 1.0
 
@@ -58,8 +68,17 @@ def _calculate_P_SOL_total(
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class MartinFormationModel(base.FormationModel):
-  """Pedestal formation based on P_SOL and P_LH, using Martin scaling."""
+class PowerScalingFormationModel(base.FormationModel):
+  """Pedestal formation based on P_SOL and P_LH thresholds.
+
+  Attributes:
+    scaling_law: The scaling law to use for pedestal formation.
+    divertor_configuration: The divertor configuration. Only used for the
+      Delabie scaling law.
+  """
+
+  scaling_law: ScalingLaw
+  divertor_configuration: Literal["HT", "VT"] | None = None
 
   def __call__(
       self,
@@ -68,15 +87,30 @@ class MartinFormationModel(base.FormationModel):
       core_profiles: state.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
   ) -> pedestal_model_output.TransportMultipliers:
-    """Calculates the transport decrease multipliers using Martin scaling."""
+    """Calculates transport decrease multipliers based on P_SOL and P_LH."""
     assert isinstance(
-        runtime_params.pedestal.formation, MartinFormationRuntimeParams
+        runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
 
     P_SOL_total = _calculate_P_SOL_total(
         core_profiles.internal_plasma_energy, core_sources, geo
     )
-    _, _, P_LH, _ = scaling_laws.calculate_plh_martin(geo, core_profiles)
+
+    match self.scaling_law:
+      case ScalingLaw.MARTIN:
+        _, _, P_LH, _ = scaling_laws.calculate_plh_martin(geo, core_profiles)
+      case ScalingLaw.DELABIE:
+        P_LH = scaling_laws.calculate_plh_delabie(
+            geo,
+            core_profiles,
+            divertor_configuration=self.divertor_configuration,
+        )
+      case _:
+        raise ValueError(
+            "Unknown scaling law:"
+            f" {runtime_params.pedestal.formation.scaling_law}"
+        )
+
     rescaled_P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
 
     # Calculate transport_multiplier

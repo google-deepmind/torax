@@ -25,21 +25,19 @@ from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params
 from torax._src.pedestal_model import set_pped_tpedratio_nped
 from torax._src.pedestal_model import set_tped_nped
-from torax._src.pedestal_model.formation import martin_formation_model
+from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
 
-# TODO(b/323504363): Generalise to pedestal formation models based on power
-# thresholds (e.g. Metal Wall scaling), not just Martin scaling.
-class MartinFormation(torax_pydantic.BaseModelFrozen):
-  """Configuration for Martin formation model.
+class PowerScalingFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
+  """Configuration for power scaling formation model.
 
   This formation model triggers a reduction in pedestal transport when P_SOL >
-  P_LH, where P_LH is from the Martin scaling. The reduction is a multiplicative
-  factor between 1.0 and base_multiplier.
+  P_LH, where P_LH is calculated from an appropriate scaling law.
+  The reduction is a multiplicative factor between 1.0 and base_multiplier.
 
   The formula is
     transport_multiplier = (1.0 - alpha) * 1.0 + alpha * base_multiplier,
@@ -63,7 +61,6 @@ class MartinFormation(torax_pydantic.BaseModelFrozen):
       P_LH, and therefore start the L-H transition at a higher P_SOL.
   """
 
-  model_name: Annotated[Literal["martin"], torax_pydantic.JAX_STATIC] = "martin"
   sharpness: pydantic.PositiveFloat = 100.0
   offset: Annotated[
       array_typing.FloatScalar, pydantic.Field(ge=-10.0, le=10.0)
@@ -73,16 +70,79 @@ class MartinFormation(torax_pydantic.BaseModelFrozen):
   ] = 1e-6
   P_LH_prefactor: pydantic.PositiveFloat = 1.0
 
+  @abc.abstractmethod
   def build_formation_model(
       self,
-  ) -> martin_formation_model.MartinFormationModel:
-    return martin_formation_model.MartinFormationModel()
+  ) -> power_scaling_formation_model.PowerScalingFormationModel:
+    """Builds the formation model."""
+
+  @abc.abstractmethod
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
+    """Builds the runtime params."""
+
+
+class MartinScalingFormation(PowerScalingFormation):
+  """Configuration for Martin scaling formation model.
+
+  This formation model triggers a reduction in pedestal transport when P_SOL >
+  P_LH, where P_LH is calculated from the Martin scaling law. See
+  `PowerScalingFormation` for more details.
+  """
+
+  model_name: Annotated[
+      Literal["martin_scaling"], torax_pydantic.JAX_STATIC
+  ] = "martin_scaling"
+
+  def build_formation_model(
+      self,
+  ) -> power_scaling_formation_model.PowerScalingFormationModel:
+    return power_scaling_formation_model.PowerScalingFormationModel(
+        scaling_law=power_scaling_formation_model.ScalingLaw.MARTIN,
+    )
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> martin_formation_model.MartinFormationRuntimeParams:
+  ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
     del t
-    return martin_formation_model.MartinFormationRuntimeParams(
+    return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
+        sharpness=self.sharpness,
+        offset=self.offset,
+        base_multiplier=self.base_multiplier,
+        P_LH_prefactor=self.P_LH_prefactor,
+    )
+
+
+class DelabieScalingFormation(PowerScalingFormation):
+  """Configuration for Delabie scaling formation model.
+
+  This formation model triggers a reduction in pedestal transport when P_SOL >
+  P_LH, where P_LH is calculated from the Delabie scaling law. See
+  `PowerScalingFormation` for more details.
+  """
+
+  model_name: Annotated[
+      Literal["delabie_scaling"], torax_pydantic.JAX_STATIC
+  ] = "delabie_scaling"
+
+  divertor_configuration: Annotated[
+      Literal["HT", "VT"], torax_pydantic.JAX_STATIC
+  ] = "VT"
+
+  def build_formation_model(
+      self,
+  ) -> power_scaling_formation_model.PowerScalingFormationModel:
+    return power_scaling_formation_model.PowerScalingFormationModel(
+        scaling_law=power_scaling_formation_model.ScalingLaw.DELABIE,
+        divertor_configuration=self.divertor_configuration,
+    )
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
+    del t
+    return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
         sharpness=self.sharpness,
         offset=self.offset,
         base_multiplier=self.base_multiplier,
@@ -148,7 +208,7 @@ class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
 
 
 # For new formation and saturation models, add to these TypeAliases via Union.
-FormationConfig: TypeAlias = MartinFormation
+FormationConfig: TypeAlias = DelabieScalingFormation | MartinScalingFormation
 SaturationConfig: TypeAlias = ProfileValueSaturation
 
 
@@ -172,7 +232,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       runtime_params.Mode.ADAPTIVE_SOURCE
   )
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
-      MartinFormation()
+      MartinScalingFormation()
   )
   saturation_model: SaturationConfig = torax_pydantic.ValidatedDefault(
       ProfileValueSaturation()
@@ -183,12 +243,12 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
     if "formation_model" not in configurable_data:
-      configurable_data["formation_model"] = {"model_name": "martin"}
+      configurable_data["formation_model"] = {"model_name": "martin_scaling"}
     if "saturation_model" not in configurable_data:
       configurable_data["saturation_model"] = {"model_name": "profile_value"}
     # Set default model names.
     if "model_name" not in configurable_data["formation_model"]:
-      configurable_data["formation_model"]["model_name"] = "martin"
+      configurable_data["formation_model"]["model_name"] = "martin_scaling"
     if "model_name" not in configurable_data["saturation_model"]:
       configurable_data["saturation_model"]["model_name"] = "profile_value"
 

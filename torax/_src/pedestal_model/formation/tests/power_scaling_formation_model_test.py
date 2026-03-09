@@ -19,23 +19,24 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
-from torax._src.pedestal_model.formation import martin_formation_model
+from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
 
 
-class MartinFormationModelTest(parameterized.TestCase):
+class PowerScalingFormationModelTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
     config = default_configs.get_default_config_dict()
-    # Switch to use the Martin formation model.
+    # Switch to use the PowerScaling formation model.
     config['pedestal'] = {
         'set_pedestal': True,
         'mode': 'ADAPTIVE_TRANSPORT',
-        'formation_model': {'model_name': 'martin'},
+        # Individual tests will override the model name.
+        'formation_model': {'model_name': 'martin_scaling'},
     }
     # Add a source so that P_SOL is non-zero.
     config['sources'] = {
@@ -54,7 +55,7 @@ class MartinFormationModelTest(parameterized.TestCase):
     self.runtime_params = step_fn.runtime_params_provider(t=0.0)
 
   def test_calculate_P_SOL_total(self):
-    P_SOL_total = martin_formation_model._calculate_P_SOL_total(
+    P_SOL_total = power_scaling_formation_model._calculate_P_SOL_total(
         self.initial_state.core_profiles.internal_plasma_energy,
         self.initial_state.core_sources,
         self.initial_state.geometry,
@@ -66,24 +67,37 @@ class MartinFormationModelTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          # If P_sol >> P_LH, we expect the suppression multiplier to be
-          # base_multiplier.
-          testcase_name='above_threshold',
+          testcase_name='martin_above_threshold',
+          scaling_law=power_scaling_formation_model.ScalingLaw.MARTIN,
           power=1e6,
           expected_multiplier=1e-6,
       ),
       dict(
-          # If P_sol << P_LH, we expect the suppression multiplier to be 1.0
-          # (no suppression).
-          testcase_name='below_threshold',
-          # We set the aux power to be negative (equivalent to a heat sink)
-          # to make sure that P_sol < P_LH.
+          testcase_name='martin_below_threshold',
+          scaling_law=power_scaling_formation_model.ScalingLaw.MARTIN,
+          power=-1e6,
+          expected_multiplier=1.0,
+      ),
+      dict(
+          testcase_name='delabie_above_threshold',
+          scaling_law=power_scaling_formation_model.ScalingLaw.DELABIE,
+          power=1e6,
+          expected_multiplier=1e-6,
+      ),
+      dict(
+          testcase_name='delabie_below_threshold',
+          scaling_law=power_scaling_formation_model.ScalingLaw.DELABIE,
           power=-1e6,
           expected_multiplier=1.0,
       ),
   )
-  def test_martin_formation_model_suppression(self, power, expected_multiplier):
-    formation_model = martin_formation_model.MartinFormationModel()
+  def test_power_scaling_formation_model_suppression(
+      self, scaling_law, power, expected_multiplier
+  ):
+    formation_model = power_scaling_formation_model.PowerScalingFormationModel(
+        scaling_law=scaling_law,
+        divertor_configuration='VT',
+    )
 
     aux_power_profile = power * jnp.ones_like(self.initial_state.geometry.rho)
     high_power_profiles = dataclasses.replace(
@@ -105,7 +119,7 @@ class MartinFormationModelTest(parameterized.TestCase):
           atol=1e-3,
           err_msg=(
               f'{k}={multiplier} is not close to the expected value of'
-              f' {expected_multiplier}.'
+              f' {expected_multiplier} for scaling law {scaling_law}.'
           ),
       )
 

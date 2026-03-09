@@ -117,7 +117,7 @@ CONFIG['pedestal'] = {
     'T_e_ped': 4.5,
     'n_e_ped': 0.62e20,
     'rho_norm_ped_top': 0.9,
-    'formation_model': {'model_name': 'martin'},
+    'formation_model': {'model_name': 'martin_scaling'},
     'saturation_model': {'model_name': 'profile_value'},
 }
 
