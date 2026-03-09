@@ -26,6 +26,7 @@ from torax._src.pedestal_model import runtime_params
 from torax._src.pedestal_model import set_pped_tpedratio_nped
 from torax._src.pedestal_model import set_tped_nped
 from torax._src.pedestal_model.formation import power_scaling_formation_model
+from torax._src.pedestal_model.saturation import ballooning_stability_saturation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -207,9 +208,72 @@ class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
     )
 
 
+class BallooningStabilitySaturation(torax_pydantic.BaseModelFrozen):
+  """Configuration for BallooningStabilitySaturation model.
+
+  This saturation model triggers an increase in pedestal transport when the
+  normalized pressure gradient alpha is above alpha_crit.
+
+  The formula is
+    transport_multiplier = 1 + alpha * base_multiplier,
+  where alpha is a softplus function of the normalized deviation from the target
+  value, with given steepness and offset:
+    x = (current - target) / target - offset
+    alpha = log(1 + exp(steepness * x))
+
+  Attributes:
+    alpha_crit: Margin above which transport is enhanced.
+    steepness: Scaling factor applied to the argument of the softplus function,
+      setting the steepness of the smooth saturation function. Decrease for a
+      smoother saturation, which may be more numerically stable but may lead to
+      starting saturation at a temperature or density below the target values.
+    offset: Bias applied to the argument of the softplus function, setting the
+      dimensionless offset of the saturation window. Increase to start
+      saturation at a higher temperature or density.
+    base_multiplier: The base value of the transport multiplier. Increase for
+      stronger increases in transport once saturation starts.
+  """
+
+  model_name: Annotated[
+      Literal["ballooning_stability"], torax_pydantic.JAX_STATIC
+  ] = "ballooning_stability"
+  alpha_crit: pydantic.PositiveFloat = 1.0
+  steepness: pydantic.PositiveFloat = 100.0
+  # Default offset is > 0 as otherwise saturation starts too early. This is
+  # because the softplus function is nonzero before the argument is zero.
+  offset: Annotated[
+      array_typing.FloatScalar, pydantic.Field(ge=-10.0, le=10.0)
+  ] = 0.1
+  base_multiplier: Annotated[
+      array_typing.FloatScalar, pydantic.Field(gt=1.0)
+  ] = 1e6
+
+  def build_saturation_model(
+      self,
+  ) -> ballooning_stability_saturation_model.BallooningStabilitySaturationModel:
+    return (
+        ballooning_stability_saturation_model.BallooningStabilitySaturationModel()
+    )
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> (
+      ballooning_stability_saturation_model.BallooningStabilitySaturationRuntimeParams
+  ):
+    del t
+    return ballooning_stability_saturation_model.BallooningStabilitySaturationRuntimeParams(
+        alpha_crit=self.alpha_crit,
+        steepness=self.steepness,
+        offset=self.offset,
+        base_multiplier=self.base_multiplier,
+    )
+
+
 # For new formation and saturation models, add to these TypeAliases via Union.
 FormationConfig: TypeAlias = DelabieScalingFormation | MartinScalingFormation
-SaturationConfig: TypeAlias = ProfileValueSaturation
+SaturationConfig: TypeAlias = (
+    ProfileValueSaturation | BallooningStabilitySaturation
+)
 
 
 class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
