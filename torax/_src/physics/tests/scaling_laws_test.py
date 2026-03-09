@@ -27,7 +27,7 @@ from torax._src.physics import scaling_laws
 # pylint: disable=invalid-name
 class ScalingLawsTest(parameterized.TestCase):
 
-  def test_calculate_plh_scaling_factor(self):
+  def test_calculate_plh_martin(self):
     geo = circular_geometry.CircularConfig(
         n_rho=25,
         elongation_LCFS=1.0,
@@ -38,7 +38,7 @@ class ScalingLawsTest(parameterized.TestCase):
     ).build_geometry()
 
     # Using mock.ANY instead of mock.create_autospec to maintain the Ip_total
-    # property needed in calculate_plh_scaling_factor.
+    # property needed in calculate_plh_martin.
     core_profiles = state.CoreProfiles(
         n_e=cell_variable.CellVariable(
             value=jnp.ones_like(geo.rho_norm) * 2e20,
@@ -78,7 +78,7 @@ class ScalingLawsTest(parameterized.TestCase):
         fast_ions=mock.ANY,
     )
     P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
-        scaling_laws.calculate_plh_scaling_factor(geo, core_profiles)
+        scaling_laws.calculate_plh_martin(geo, core_profiles)
     )
     expected_PLH_hi_dens = (
         2.15 * 2**0.782 * 5**0.772 * 2**0.975 * 6**0.999 * (2.0141 / 3)
@@ -110,7 +110,7 @@ class ScalingLawsTest(parameterized.TestCase):
         B_0=5.0,
     ).build_geometry()
     # Using mock.ANY instead of mock.create_autospec to maintain the Ip_total
-    # property needed in calculate_plh_scaling_factor.
+    # property needed in calculate_plh_delabie.
     core_profiles = state.CoreProfiles(
         n_e=cell_variable.CellVariable(
             value=jnp.ones_like(geo.rho_norm) * 2e20,
@@ -215,6 +215,69 @@ class ScalingLawsTest(parameterized.TestCase):
     np.testing.assert_allclose(H98, expected_H98, rtol=1e-6)
     np.testing.assert_allclose(H97L, expected_H97L, rtol=1e-6)
     np.testing.assert_allclose(H20, expected_H20, rtol=1e-6)
+
+  def test_calculate_plh_delabie(self):
+    geo = circular_geometry.CircularConfig(
+        n_rho=25,
+        elongation_LCFS=1.0,
+        hires_factor=4,
+        R_major=6.0,
+        a_minor=2.0,
+        B_0=5.0,
+    ).build_geometry()
+
+    core_profiles = state.CoreProfiles(
+        n_e=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 2e20,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(2.0e20),
+            face_centers=geo.rho_face_norm,
+        ),
+        n_i=mock.ANY,
+        n_impurity=mock.ANY,
+        impurity_fractions=mock.ANY,
+        main_ion_fractions=mock.ANY,
+        T_i=mock.ANY,
+        T_e=mock.ANY,
+        psi=mock.ANY,
+        psidot=mock.ANY,
+        v_loop_lcfs=mock.ANY,
+        q_face=mock.ANY,
+        s_face=mock.ANY,
+        Z_i=mock.ANY,
+        Z_i_face=mock.ANY,
+        A_i=3.0,
+        Z_impurity=mock.ANY,
+        Z_impurity_face=mock.ANY,
+        A_impurity=mock.ANY,
+        A_impurity_face=mock.ANY,
+        Z_eff=mock.ANY,
+        Z_eff_face=mock.ANY,
+        sigma=mock.ANY,
+        sigma_face=mock.ANY,
+        j_total=mock.ANY,
+        j_total_face=mock.ANY,
+        Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+        toroidal_angular_velocity=mock.ANY,
+        charge_state_info=mock.ANY,
+        charge_state_info_face=mock.ANY,
+        fast_ions=mock.ANY,
+    )
+
+    P_LH = scaling_laws.calculate_plh_delabie(geo, core_profiles)
+
+    expected_P_LH = (
+        0.0441
+        * 5.0**0.580
+        * 2.0**1.08
+        * 2.0
+        / 3.0**0.975
+        * 1.93  # D=1.93 for VT
+        * geo.area_face[-1]
+    )
+
+    np.testing.assert_allclose(P_LH, expected_P_LH, rtol=1e-6)
 
 
 if __name__ == '__main__':

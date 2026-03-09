@@ -76,9 +76,7 @@ class MartinFormationModel(base.FormationModel):
     P_SOL_total = _calculate_P_SOL_total(
         core_profiles.internal_plasma_energy, core_sources, geo
     )
-    _, _, P_LH, _ = scaling_laws.calculate_plh_scaling_factor(
-        geo, core_profiles
-    )
+    _, _, P_LH, _ = scaling_laws.calculate_plh_martin(geo, core_profiles)
     rescaled_P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
 
     # Calculate transport_multiplier

@@ -665,7 +665,7 @@ def make_post_processed_outputs(
   )
 
   P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
-      scaling_laws.calculate_plh_scaling_factor(
+      scaling_laws.calculate_plh_martin(
           sim_state.geometry, sim_state.core_profiles
       )
   )
