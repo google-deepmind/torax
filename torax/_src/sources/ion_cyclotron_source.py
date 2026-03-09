@@ -498,7 +498,7 @@ def icrh_model_func(
               value=n_tail,
               face_centers=geo.rho_face_norm,
               right_face_grad_constraint=None,
-              right_face_constraint=jnp.asarray(0.0),
+              right_face_constraint=jnp.zeros(()),
           ),
           T=cell_variable.CellVariable(
               value=T_tail,
@@ -551,13 +551,13 @@ class IonCyclotronSource(source.Source):
                 value=jnp.zeros_like(geo.rho),
                 face_centers=geo.rho_face_norm,
                 right_face_grad_constraint=None,
-                right_face_constraint=jnp.asarray(0.0),
+                right_face_constraint=jnp.zeros(()),
             ),
             T=cell_variable.CellVariable(
                 value=jnp.zeros_like(geo.rho),
                 face_centers=geo.rho_face_norm,
                 right_face_grad_constraint=None,
-                right_face_constraint=jnp.asarray(0.0),
+                right_face_constraint=jnp.zeros(()),
             ),
         ),
     )
