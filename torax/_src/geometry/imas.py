@@ -75,7 +75,7 @@ class IMASConfig(base.BaseGeometryConfig):
       None
   )
   Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
-  imas_filepath: str | None = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
+  imas_filepath: str | None = None
   imas_uri: str | None = None
   equilibrium_object: ids_toplevel.IDSToplevel | None = None
   slice_index: pydantic.NonNegativeInt = 0
