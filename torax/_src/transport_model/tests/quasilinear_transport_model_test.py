@@ -257,6 +257,259 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         normalized_logarithmic_gradient_expected,
     )
 
+  def test_apply_fast_ion_stabilization_multiplier_scales_correction(self):
+    """Tests that the multiplier scales (factor-1), not the whole factor."""
+    n_rho = 5
+    smag = jnp.ones(n_rho)
+    q = 1.5 * jnp.ones(n_rho)
+    n_e = 1e20 * jnp.ones(n_rho)
+    T_e = jnp.ones(n_rho)
+    T_fi = 15.0 * T_e
+    lref_over_lt_fi = 30.0 * jnp.ones(n_rho)
+    lref_over_lti = 5.0 * jnp.ones(n_rho)
+    rho_face = jnp.linspace(0.0, 1.0, n_rho)
+
+    def _make_face_cv(face_value):
+      cv = cell_variable.CellVariable(
+          value=jnp.zeros(n_rho - 1),
+          face_centers=rho_face,
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(0.0),
+      )
+      cv = mock.create_autospec(cv, instance=True)
+      cv.face_value.return_value = face_value
+      return cv
+
+    key = 'icrh_He3'
+    fast_ion_zero = mock.MagicMock()
+    fast_ion_zero.species = 'He3'
+    fast_ion_zero.source = 'icrh'
+    fast_ion_zero.n = _make_face_cv(jnp.zeros(n_rho))
+    fast_ion_zero.T = _make_face_cv(T_fi)
+
+    fast_ion_nonzero = mock.MagicMock()
+    fast_ion_nonzero.species = 'He3'
+    fast_ion_nonzero.source = 'icrh'
+    fast_ion_nonzero.n = _make_face_cv(0.01 * n_e)
+    fast_ion_nonzero.T = _make_face_cv(T_fi)
+
+    core_profiles_zero = mock.create_autospec(
+        state.CoreProfiles,
+        instance=True,
+        fast_ions=(fast_ion_zero,),
+    )
+    core_profiles_zero.n_e = _make_face_cv(n_e)
+    core_profiles_zero.T_e = _make_face_cv(T_e)
+
+    core_profiles_nonzero = mock.create_autospec(
+        state.CoreProfiles,
+        instance=True,
+        fast_ions=(fast_ion_nonzero,),
+    )
+    core_profiles_nonzero.n_e = _make_face_cv(n_e)
+    core_profiles_nonzero.T_e = _make_face_cv(T_e)
+
+    gradients_base = quasilinear_transport_model.NormalizedLogarithmicGradients(
+        lref_over_lti=lref_over_lti,
+        lref_over_lte=jnp.zeros(n_rho),
+        lref_over_lne=jnp.zeros(n_rho),
+        lref_over_lni0=jnp.zeros(n_rho),
+        lref_over_lni1=jnp.zeros(n_rho),
+        fast_ion_gradients={key: {'lref_over_lt': lref_over_lt_fi}},
+    )
+
+    factor_zero = (
+        quasilinear_transport_model._compute_fast_ion_stabilization_factor(
+            core_profiles=core_profiles_zero,
+            smag=smag,
+            q=q,
+            normalized_logarithmic_gradients=gradients_base,
+        )
+    )
+
+    factor_nonzero = (
+        quasilinear_transport_model._compute_fast_ion_stabilization_factor(
+            core_profiles=core_profiles_nonzero,
+            smag=smag,
+            q=q,
+            normalized_logarithmic_gradients=gradients_base,
+        )
+    )
+
+    # Regardless of multiplier, if no fast ions, should be 1.
+    np.testing.assert_allclose(factor_zero, jnp.ones(n_rho))
+    self.assertTrue(jnp.all(factor_nonzero > 1.0))
+
+    multiplier = 3.0
+    transport = mock.create_autospec(
+        transport_model_runtime_params.RuntimeParams,
+        instance=True,
+        fast_ion_stabilization=True,
+        fast_ion_stabilization_model=(),
+        fast_ion_stabilization_multiplier=multiplier,
+    )
+    result = quasilinear_transport_model.apply_fast_ion_stabilization(
+        core_profiles=core_profiles_nonzero,
+        smag=smag,
+        q=q,
+        normalized_logarithmic_gradients=gradients_base,
+        transport=transport,
+    )
+    expected_factor = (factor_nonzero - 1) * multiplier + 1
+    np.testing.assert_allclose(result, lref_over_lti / expected_factor)
+
+  @mock.patch.object(
+      quasilinear_transport_model,
+      '_load_fi_stabilization_model',
+  )
+  @mock.patch.object(
+      quasilinear_transport_model,
+      '_get_default_fi_stabilization_model',
+  )
+  def test_per_species_model_selection(
+      self, mock_get_default, mock_load_model
+  ):
+    """Tests that per-species model map routes correctly."""
+    n_rho = 5
+    smag = jnp.ones(n_rho)
+    q = 1.5 * jnp.ones(n_rho)
+    n_e = 1e20 * jnp.ones(n_rho)
+    T_e = jnp.ones(n_rho)
+    T_fi = 15.0 * T_e
+    lref_over_lt_fi = 30.0 * jnp.ones(n_rho)
+
+    rho_face = jnp.linspace(0.0, 1.0, n_rho)
+
+    def _make_face_cv(face_value):
+      cv = cell_variable.CellVariable(
+          value=jnp.zeros(n_rho - 1),
+          face_centers=rho_face,
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(0.0),
+      )
+      cv = mock.create_autospec(cv, instance=True)
+      cv.face_value.return_value = face_value
+      return cv
+
+    fast_ion_he3 = mock.MagicMock()
+    fast_ion_he3.species = 'He3'
+    fast_ion_he3.source = 'icrh'
+    fast_ion_he3.n = _make_face_cv(0.01 * n_e)
+    fast_ion_he3.T = _make_face_cv(T_fi)
+
+    fast_ion_h = mock.MagicMock()
+    fast_ion_h.species = 'H'
+    fast_ion_h.source = 'nbi'
+    fast_ion_h.n = _make_face_cv(0.01 * n_e)
+    fast_ion_h.T = _make_face_cv(T_fi)
+
+    core_profiles = mock.create_autospec(
+        state.CoreProfiles,
+        instance=True,
+        fast_ions=(fast_ion_he3, fast_ion_h),
+    )
+    core_profiles.n_e = _make_face_cv(n_e)
+    core_profiles.T_e = _make_face_cv(T_e)
+
+    gradients = quasilinear_transport_model.NormalizedLogarithmicGradients(
+        lref_over_lti=jnp.zeros(n_rho),
+        lref_over_lte=jnp.zeros(n_rho),
+        lref_over_lne=jnp.zeros(n_rho),
+        lref_over_lni0=jnp.zeros(n_rho),
+        lref_over_lni1=jnp.zeros(n_rho),
+        fast_ion_gradients={
+            'icrh_He3': {'lref_over_lt': lref_over_lt_fi},
+            'nbi_H': {'lref_over_lt': lref_over_lt_fi},
+        },
+    )
+
+    dummy_model = mock.MagicMock()
+    dummy_model.predict.return_value = jnp.ones((n_rho, 1))
+    mock_get_default.return_value = dummy_model
+    mock_load_model.return_value = dummy_model
+
+    model_map = {'He3': 'custom_he3_model'}
+    quasilinear_transport_model._compute_fast_ion_stabilization_factor(
+        core_profiles=core_profiles,
+        smag=smag,
+        q=q,
+        normalized_logarithmic_gradients=gradients,
+        model_map=model_map,
+    )
+
+    mock_load_model.assert_called_once_with('custom_he3_model')
+    mock_get_default.assert_called_once_with('H')
+
+  @mock.patch.object(
+      quasilinear_transport_model,
+      '_get_default_fi_stabilization_model',
+  )
+  def test_he4_maps_to_he3_default(self, mock_get_default):
+    """Tests that He4 uses the same default model as He3."""
+    n_rho = 5
+    smag = jnp.ones(n_rho)
+    q = 1.5 * jnp.ones(n_rho)
+    n_e = 1e20 * jnp.ones(n_rho)
+    T_e = jnp.ones(n_rho)
+    T_fi = 15.0 * T_e
+    lref_over_lt_fi = 30.0 * jnp.ones(n_rho)
+    rho_face = jnp.linspace(0.0, 1.0, n_rho)
+
+    def _make_face_cv(face_value):
+      cv = cell_variable.CellVariable(
+          value=jnp.zeros(n_rho - 1),
+          face_centers=rho_face,
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(0.0),
+      )
+      cv = mock.create_autospec(cv, instance=True)
+      cv.face_value.return_value = face_value
+      return cv
+
+    fast_ion_he4 = mock.MagicMock()
+    fast_ion_he4.species = 'He4'
+    fast_ion_he4.source = 'icrh'
+    fast_ion_he4.n = _make_face_cv(0.01 * n_e)
+    fast_ion_he4.T = _make_face_cv(T_fi)
+
+    core_profiles = mock.create_autospec(
+        state.CoreProfiles,
+        instance=True,
+        fast_ions=(fast_ion_he4,),
+    )
+    core_profiles.n_e = _make_face_cv(n_e)
+    core_profiles.T_e = _make_face_cv(T_e)
+
+    gradients = quasilinear_transport_model.NormalizedLogarithmicGradients(
+        lref_over_lti=jnp.zeros(n_rho),
+        lref_over_lte=jnp.zeros(n_rho),
+        lref_over_lne=jnp.zeros(n_rho),
+        lref_over_lni0=jnp.zeros(n_rho),
+        lref_over_lni1=jnp.zeros(n_rho),
+        fast_ion_gradients={
+            'icrh_He4': {'lref_over_lt': lref_over_lt_fi},
+        },
+    )
+
+    dummy_model = mock.MagicMock()
+    dummy_model.predict.return_value = jnp.ones((n_rho, 1))
+    mock_get_default.return_value = dummy_model
+
+    quasilinear_transport_model._compute_fast_ion_stabilization_factor(
+        core_profiles=core_profiles,
+        smag=smag,
+        q=q,
+        normalized_logarithmic_gradients=gradients,
+    )
+
+    mock_get_default.assert_called_once_with('He4')
+
+  def test_unsupported_species_raises(self):
+    """Tests that an unsupported species raises ValueError."""
+    quasilinear_transport_model._get_default_fi_stabilization_model.cache_clear()
+    with self.assertRaises(ValueError):
+      quasilinear_transport_model._get_default_fi_stabilization_model('Ar')
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeQuasilinearTransportModel(

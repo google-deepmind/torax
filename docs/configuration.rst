@@ -1186,6 +1186,27 @@ transport model.
   Note that ``rho_inner`` and ``rho_outer`` must have the same interpolation
   mode to simplify the validation test ``rho_inner < rho_outer`` at all times.
 
+``fast_ion_stabilization`` (**time-varying-scalar** [default = False])
+  If ``True``, apply a fast ion stabilization correction to the :math:`R/L_{Ti}`
+  input of quasilinear transport models (QLKNN, TGLFNN, QuaLiKiz). The fast ion
+  stabilization model predicts an ITG threshold upshift factor based on fast ion
+  parameters (:math:`\hat{s}`, :math:`q`, :math:`n_{fi}/n_e`,
+  :math:`T_{fi}/T_e`, :math:`R/L_{T_{fi}}`). The input :math:`R/L_{Ti}` is
+  divided by this factor, reducing the effective gradient seen by the transport
+  model. For multiple fast ion species, the product of per-species factors is
+  used. Requires ``numerics.enable_fast_ions`` to be ``True``.
+
+``fast_ion_stabilization_multiplier`` (float [default = 2.0])
+  Multiplier for the fast ion stabilization factor. The raw model prediction is
+  multiplied by this value before being applied to :math:`R/L_{Ti}`. The default
+  of 2.0 accounts for the fact that true gyrokinetic simulations predict
+  stronger stabilization than the QuaLiKiz-based surrogate model.
+
+``fast_ion_stabilization_model`` (str [default = ''])
+  Name or path of the fast ion stabilization model. If empty (default), the
+  default model for each species is used. If a registered model name (e.g.
+  ``'fast_ion_H_v1'``), it is loaded from the model registry. Otherwise treated
+  as a file path to a ``.fistab`` model file.
 
 constant
 ^^^^^^^^

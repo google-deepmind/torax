@@ -134,6 +134,14 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   disable_V_e: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(False)
   )
+  fast_ion_stabilization: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+  fast_ion_stabilization_model: Annotated[
+      dict[str, str],
+      torax_pydantic.JAX_STATIC,
+  ] = {}
+  fast_ion_stabilization_multiplier: float = 2.0
   merge_mode: Annotated[enums.MergeMode, torax_pydantic.JAX_STATIC] = (
       enums.MergeMode.ADD
   )
@@ -180,6 +188,13 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
     return runtime_params.RuntimeParams(
+        fast_ion_stabilization=self.fast_ion_stabilization.get_value(t),
+        fast_ion_stabilization_model=tuple(
+            sorted(
+                self.fast_ion_stabilization_model.items()
+            )
+        ),
+        fast_ion_stabilization_multiplier=self.fast_ion_stabilization_multiplier,
         chi_min=self.chi_min,
         chi_max=self.chi_max,
         D_e_min=self.D_e_min,

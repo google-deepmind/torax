@@ -12,13 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for quasilinear models."""
+
 from collections.abc import Mapping
 import dataclasses
+import functools
 import chex
+from fusion_surrogates.fast_ion_stabilization import fast_ion_model
+from fusion_surrogates.fast_ion_stabilization.models import registry as fi_registry
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants as constants_module
+from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -203,7 +208,7 @@ def calculate_normalized_logarithmic_gradient(
     radial_face_coordinate: jax.Array,
     reference_length: jax.Array,
 ) -> jax.Array:
-  """Calculates the normalized logarithmic gradient of a CellVariable on the face grid."""
+  """Face-grid normalized logarithmic gradient of a CellVariable."""
 
   # var ~ 0 is only possible for ions (e.g. zero impurity density), and we
   # guard against possible division by zero.
@@ -245,6 +250,151 @@ class QuasilinearInputs:
   lref_over_lne: array_typing.FloatVectorFace
   lref_over_lni0: array_typing.FloatVectorFace
   lref_over_lni1: array_typing.FloatVectorFace
+
+
+@functools.lru_cache(maxsize=2)
+def _get_default_fi_stabilization_model(species: str):
+  """Loads the default fast ion stabilization model for a species.
+
+  Maps hydrogenic ions (H, D, T) to 'H' and helium isotopes (He3, He4)
+  to 'He3' before looking up the default model.
+
+  maxsize is the total number of fast ion models supported. maxsize will need
+  to be increased if more distinct models are added.
+
+  Args:
+    species: Ion species name (e.g. 'He3', 'H', 'D').
+
+  Returns:
+    A loaded ``FastIonStabilizationModel`` instance.
+
+  Raises:
+    ValueError: If no default model exists for the mapped species.
+  """
+  if species in constants_module.HYDROGENIC_IONS:
+    model_species = "H"
+  elif species in ("He3", "He4"):
+    model_species = "He3"
+  else:
+    model_species = species
+  return (
+      fast_ion_model.FastIonStabilizationModel.load_default_model_for_species(
+          model_species
+      )
+  )
+
+
+@functools.lru_cache(maxsize=2)
+def _load_fi_stabilization_model(model: str):
+  """Loads a fast ion stabilization model by name or path.
+
+  Checks the model registry first; if not found, treats ``model``
+  as a file path.
+
+  maxsize is the total number of fast ion models supported. maxsize will need
+  to be increased if more distinct models are added.
+
+  Args:
+    model: Registered model name or file path.
+
+  Returns:
+    A loaded ``FastIonStabilizationModel`` instance.
+  """
+  if model in fi_registry.MODELS:
+    return fast_ion_model.FastIonStabilizationModel.load_model_from_name(model)
+  return fast_ion_model.FastIonStabilizationModel.load_model_from_path(model)
+
+
+def _compute_fast_ion_stabilization_factor(
+    core_profiles: state.CoreProfiles,
+    smag: jax.Array,
+    q: jax.Array,
+    normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
+    model_map: dict[str, str] | None = None,
+) -> jax.Array:
+  """Computes the combined fast ion stabilization factor for R/LTi.
+
+  For each fast ion species, constructs model inputs (smag, q, n_fi/n_e,
+  T_fi/T_e, R/L_{T_fi}) and predicts the ITG threshold modification factor.
+  Returns the product over all species.
+
+  Args:
+    core_profiles: Core plasma profiles containing fast ion data.
+    smag: Magnetic shear on the face grid.
+    q: Safety factor on the face grid.
+    normalized_logarithmic_gradients: Normalized logarithmic gradients
+      containing fast ion gradient data.
+    model_map: Mapping from species name to model name/path. If a species is not
+      in the map, the default model for that species is loaded.
+
+  Returns:
+    Stabilization factor on the face grid.
+  """
+  if model_map is None:
+    model_map = {}
+  factor = jnp.ones_like(smag)
+  for fast_ion in core_profiles.fast_ions:
+    key = f"{fast_ion.source}_{fast_ion.species}"
+    n_fi_over_ne = fast_ion.n.face_value() / core_profiles.n_e.face_value()
+    t_fi_over_te = fast_ion.T.face_value() / core_profiles.T_e.face_value()
+    lref_over_lt_fi = normalized_logarithmic_gradients.fast_ion_gradients[key][
+        "lref_over_lt"
+    ]
+    # Feature ordering must match INPUT_FEATURES in fast_ion_model.py:
+    # https://github.com/google-deepmind/fusion_surrogates/blob/main/fusion_surrogates/fast_ion_stabilization/fast_ion_model.py  # pylint: disable=line-too-long
+    inputs = jnp.stack(
+        [smag, q, n_fi_over_ne, t_fi_over_te, lref_over_lt_fi], axis=-1
+    )
+    species_model = model_map.get(fast_ion.species, "")
+    if species_model:
+      fi_model = _load_fi_stabilization_model(species_model)
+    else:
+      fi_model = _get_default_fi_stabilization_model(fast_ion.species)
+    species_factor = fi_model.predict(inputs).squeeze(axis=-1)
+    factor = factor * species_factor
+  return factor
+
+
+def apply_fast_ion_stabilization(
+    core_profiles: state.CoreProfiles,
+    smag: jax.Array,
+    q: jax.Array,
+    normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
+    transport: RuntimeParams,
+) -> jax.Array:
+  """Applies fast ion stabilization to the ion temperature gradient.
+
+  The stabilization model returns a factor = 1 + n_fi/n_e * correction.
+  The multiplier scales only the correction part:
+    adjusted_factor = (factor - 1) * multiplier + 1
+
+  Args:
+    core_profiles: Core plasma profiles containing fast ion data.
+    smag: Magnetic shear on the face grid.
+    q: Safety factor on the face grid.
+    normalized_logarithmic_gradients: Normalized logarithmic gradients.
+    transport: Transport runtime parameters.
+
+  Returns:
+    Modified lref_over_lti with stabilization applied.
+  """
+  lref_over_lti = normalized_logarithmic_gradients.lref_over_lti
+  model_map = dict(transport.fast_ion_stabilization_model)
+  fi_stab_factor = _compute_fast_ion_stabilization_factor(
+      core_profiles=core_profiles,
+      smag=smag,
+      q=q,
+      normalized_logarithmic_gradients=normalized_logarithmic_gradients,
+      model_map=model_map,
+  )
+  fi_stab_factor = (
+      fi_stab_factor - 1
+  ) * transport.fast_ion_stabilization_multiplier + 1
+  return jnp.where(
+      transport.fast_ion_stabilization,
+      math_utils.safe_divide(lref_over_lti, fi_stab_factor),
+      lref_over_lti,
+  )
 
 
 class QuasilinearTransportModel(transport_model_lib.TransportModel):

@@ -369,12 +369,21 @@ class TGLFBasedTransportModel(
     else:
       v_ExB_shear = jnp.zeros_like(core_profiles.q_face)
 
+    smag = psi_calculations.calc_s_rmid(geo, core_profiles.psi)
+    lref_over_lti = quasilinear_transport_model.apply_fast_ion_stabilization(
+        core_profiles=core_profiles,
+        smag=smag,
+        q=core_profiles.q_face,
+        normalized_logarithmic_gradients=normalized_log_gradients,
+        transport=transport,
+    )
+
     return TGLFInputs(
         # From QuasilinearInputs
         chiGB=jnp.zeros_like(geo.rho_face_norm),  # unused
         Rmin=geo.a_minor,
         Rmaj=geo.R_major,
-        lref_over_lti=normalized_log_gradients.lref_over_lti,
+        lref_over_lti=lref_over_lti,
         lref_over_lte=normalized_log_gradients.lref_over_lte,
         lref_over_lne=normalized_log_gradients.lref_over_lne,
         lref_over_lni0=normalized_log_gradients.lref_over_lni0,

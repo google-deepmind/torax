@@ -211,6 +211,14 @@ class QualikizBasedTransportModel(
     )
     normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
 
+    lref_over_lti = quasilinear_transport_model.apply_fast_ion_stabilization(
+        core_profiles=core_profiles,
+        smag=smag,
+        q=q,
+        normalized_logarithmic_gradients=normalized_logarithmic_gradients,
+        transport=transport,
+    )
+
     if transport.rotation_mode == RotationMode.OFF:
       v_ExB = jnp.zeros_like(core_profiles.q_face)
       v_ExB_poloidal_and_pressure = jnp.zeros_like(core_profiles.q_face)
@@ -284,7 +292,7 @@ class QualikizBasedTransportModel(
 
     return QualikizInputs(
         Z_eff_face=core_profiles.Z_eff_face,
-        lref_over_lti=normalized_logarithmic_gradients.lref_over_lti,
+        lref_over_lti=lref_over_lti,
         lref_over_lte=normalized_logarithmic_gradients.lref_over_lte,
         lref_over_lne=normalized_logarithmic_gradients.lref_over_lne,
         lref_over_lni0=normalized_logarithmic_gradients.lref_over_lni0,
