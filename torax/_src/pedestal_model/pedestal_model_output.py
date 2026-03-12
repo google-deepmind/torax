@@ -18,11 +18,13 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+
 # pylint: disable=invalid-name
 
 
@@ -44,6 +46,36 @@ class TransportMultipliers:
         D_e_multiplier=jnp.array(1.0, dtype=jax_utils.get_dtype()),
         v_e_multiplier=jnp.array(1.0, dtype=jax_utils.get_dtype()),
     )
+
+
+def _build_smoothing_matrix(
+    rho_face_norm: array_typing.FloatVectorFace,
+    rho_norm_ped_top: array_typing.FloatScalar,
+    smoothing_width: array_typing.FloatScalar,
+    n_sigma: float = 2.0,
+) -> jax.Array:
+  """Builds a smoothing matrix for the pedestal top."""
+  # Gaussian kernel with sigma = smoothing_width.
+  kernel = jnp.exp(
+      -jnp.log(2)
+      * (rho_face_norm[:, jnp.newaxis] - rho_face_norm) ** 2
+      / (smoothing_width**2 + constants.CONSTANTS.eps)
+  )
+  # Smoothing matrix is only non-identity within n_sigma of the pedestal top.
+  mask = jnp.abs(rho_face_norm - rho_norm_ped_top) < (n_sigma * smoothing_width)
+  # Zero out restricted columns so active points don't read from them
+  masked_kernel = jnp.where(mask, kernel, 0.0)
+  # Replace restricted rows with identity so they are unmodified (pass-through)
+  smoothing_matrix = jnp.where(
+      mask[:, jnp.newaxis], masked_kernel, jnp.eye(kernel.shape[0])
+  )
+  # Normalize the smoothing matrix
+  smoothing_matrix /= jnp.sum(smoothing_matrix, axis=1, keepdims=True)
+  # Remove small values
+  smoothing_matrix = jnp.where(smoothing_matrix < 1e-3, 0.0, smoothing_matrix)
+  # Re-normalize
+  smoothing_matrix /= jnp.sum(smoothing_matrix, axis=1, keepdims=True)
+  return smoothing_matrix
 
 
 @jax.tree_util.register_dataclass
@@ -125,6 +157,12 @@ class PedestalModelOutput:
     # scaling the turbulent coeffs and leaving the pedestal coeffs alone.
     pedestal_active_mask_face = geo.rho_face_norm > self.rho_norm_ped_top
 
+    smoothing_matrix = _build_smoothing_matrix(
+        geo.rho_face_norm,
+        self.rho_norm_ped_top,
+        pedestal_runtime_params.pedestal_top_smoothing_width,
+    )
+
     def multiply_coeff(
         path: jax.tree_util.KeyPath, coeff: array_typing.FloatVectorFace
     ) -> array_typing.FloatVectorFace:
@@ -178,6 +216,14 @@ class PedestalModelOutput:
       else:
         return coeff
 
-      return jnp.where(pedestal_active_mask_face, modified_coeff, coeff)
+      # Only modify the coefficients in the pedestal region.
+      modified_coeff = jnp.where(
+          pedestal_active_mask_face, modified_coeff, coeff
+      )
+
+      # Apply smoothing to the pedestal top
+      modified_coeff = jnp.dot(smoothing_matrix, modified_coeff)
+
+      return modified_coeff
 
     return jax.tree_util.tree_map_with_path(multiply_coeff, core_transport)

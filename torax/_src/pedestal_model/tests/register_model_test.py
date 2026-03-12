@@ -94,6 +94,7 @@ class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
         D_e_max=self.D_e_max,
         V_e_max=self.V_e_max,
         V_e_min=self.V_e_min,
+        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width,
     )
 
 

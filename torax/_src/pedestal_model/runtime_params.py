@@ -67,3 +67,4 @@ class RuntimeParams:
   D_e_max: array_typing.FloatScalar
   V_e_max: array_typing.FloatScalar
   V_e_min: array_typing.FloatScalar
+  pedestal_top_smoothing_width: array_typing.FloatScalar

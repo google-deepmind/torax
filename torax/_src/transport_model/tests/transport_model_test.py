@@ -311,7 +311,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
 
     # Apply the smoothing
-    transport_coeffs = transport_model.smooth_coeffs(
+    transport_coeffs = transport_model._smooth_coeffs(
         runtime_params, geo, transport_coeffs, pedestal_model_outputs
     )
 

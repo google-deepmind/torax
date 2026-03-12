@@ -85,6 +85,14 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     # However, the rho_inner and rho_outer arguments are currently required
     # in the case where the inner/outer region are to be excluded from
     # smoothing.
+
+    transport_coeffs = self._smooth_coeffs(
+        runtime_params,
+        geo,
+        transport_coeffs,
+        pedestal_model_output,
+    )
+
     return transport_coeffs
 
   def call_implementation(

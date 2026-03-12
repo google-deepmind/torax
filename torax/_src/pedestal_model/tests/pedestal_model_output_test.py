@@ -108,6 +108,7 @@ class PedestalModelOutputTest(absltest.TestCase):
     pedestal_runtime_params.D_e_max = jnp.array(1.0)
     pedestal_runtime_params.V_e_max = jnp.array(1.0)
     pedestal_runtime_params.V_e_min = jnp.array(-1.0)
+    pedestal_runtime_params.pedestal_top_smoothing_width = jnp.array(0.0)
 
     modified_core_transport = self.pedestal_model_output.modify_core_transport(
         core_transport, self.geo, pedestal_runtime_params

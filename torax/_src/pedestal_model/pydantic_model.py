@@ -265,6 +265,9 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   V_e_min: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       -1.0
   )
+  pedestal_top_smoothing_width: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.02)
+  )
 
   @pydantic.model_validator(mode="before")
   @classmethod
@@ -299,6 +302,9 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
         D_e_max=self.D_e_max.get_value(t),
         V_e_max=self.V_e_max.get_value(t),
         V_e_min=self.V_e_min.get_value(t),
+        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
+            t
+        ),
     )
 
 
@@ -358,6 +364,9 @@ class SetPpedTpedRatioNped(BasePedestal):
         D_e_max=self.D_e_max.get_value(t),
         V_e_max=self.V_e_max.get_value(t),
         V_e_min=self.V_e_min.get_value(t),
+        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
+            t
+        ),
     )
 
 
@@ -416,6 +425,9 @@ class SetTpedNped(BasePedestal):
         D_e_max=self.D_e_max.get_value(t),
         V_e_max=self.V_e_max.get_value(t),
         V_e_min=self.V_e_min.get_value(t),
+        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
+            t
+        ),
     )
 
 
@@ -451,6 +463,9 @@ class NoPedestal(BasePedestal):
         D_e_max=self.D_e_max.get_value(t),
         V_e_max=self.V_e_max.get_value(t),
         V_e_min=self.V_e_min.get_value(t),
+        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
+            t
+        ),
     )
 
 

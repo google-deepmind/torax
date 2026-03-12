@@ -117,8 +117,15 @@ CONFIG['pedestal'] = {
     'T_e_ped': 4.5,
     'n_e_ped': 0.62e20,
     'rho_norm_ped_top': 0.9,
-    'formation_model': {'model_name': 'martin_scaling'},
-    'saturation_model': {'model_name': 'profile_value'},
+    'formation_model': {
+        'model_name': 'martin_scaling',
+        'sharpness': 10.0,
+    },
+    'saturation_model': {
+        'model_name': 'profile_value',
+        'steepness': 100.0,
+    },
+    'pedestal_top_smoothing_width': 0.02,
 }
 
 # Use nonlinear solver, as linear solver struggles with the fast dynamics of the
