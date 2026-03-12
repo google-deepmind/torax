@@ -19,6 +19,7 @@ import numpy as np
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 
 
 class PedestalModelOutputTest(absltest.TestCase):
@@ -99,8 +100,17 @@ class PedestalModelOutputTest(absltest.TestCase):
         d_face_el_pereverzev=jnp.ones(n_face),
         v_face_el_pereverzev=jnp.ones(n_face),
     )
+
+    pedestal_runtime_params = mock.create_autospec(
+        pedestal_runtime_params_lib.RuntimeParams, instance=True
+    )
+    pedestal_runtime_params.chi_max = jnp.array(1.0)
+    pedestal_runtime_params.D_e_max = jnp.array(1.0)
+    pedestal_runtime_params.V_e_max = jnp.array(1.0)
+    pedestal_runtime_params.V_e_min = jnp.array(-1.0)
+
     modified_core_transport = self.pedestal_model_output.modify_core_transport(
-        core_transport, self.geo
+        core_transport, self.geo, pedestal_runtime_params
     )
     pedestal_mask = (
         self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_ped_top

@@ -92,6 +92,7 @@ def calculate_all_transport_coeffs(
     core_transport = pedestal_model_output.modify_core_transport(
         core_transport=core_transport,
         geo=geo,
+        pedestal_runtime_params=runtime_params.pedestal,
     )
   else:
     # If in ADAPTIVE_SOURCE mode, set the Pereverzev transport coefficients in

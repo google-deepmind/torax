@@ -20,6 +20,8 @@ import enum
 import jax
 from torax._src import array_typing
 
+# pylint: disable=invalid-name
+
 
 @enum.unique
 class Mode(enum.Enum):
@@ -61,3 +63,7 @@ class RuntimeParams:
   mode: Mode = dataclasses.field(metadata={"static": True})
   formation: FormationRuntimeParams
   saturation: SaturationRuntimeParams
+  chi_max: array_typing.FloatScalar
+  D_e_max: array_typing.FloatScalar
+  V_e_max: array_typing.FloatScalar
+  V_e_min: array_typing.FloatScalar

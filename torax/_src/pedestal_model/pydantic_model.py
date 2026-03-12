@@ -223,6 +223,20 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       region, allowing the pedestal to self-consistently evolve. Set to
       ADAPTIVE_SOURCE to set the pedestal by adding a source/sink term at the
       pedestal top, forcing the pedestal top values to be as prescribed.
+    formation_model: Configuration for the pedestal formation model.
+    saturation_model: Configuration for the pedestal saturation model.
+    chi_max: Maximum effective thermal diffusion coefficient from the core
+      transport model in the pedestal region (i.e., before applying
+      ADAPTIVE_TRANSPORT) [m^2/s].
+    D_e_max: Maximum effective particle diffusion coefficient from the core
+      transport model in the pedestal region (i.e., before applying
+      ADAPTIVE_TRANSPORT) [m^2/s].
+    V_e_max: Maximum effective particle pinch velocity from the core transport
+      model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
+      [m/s].
+    V_e_min: Minimum effective particle pinch velocity from the core transport
+      model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
+      [m/s].
   """
 
   set_pedestal: torax_pydantic.TimeVaryingScalar = (
@@ -236,6 +250,20 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   )
   saturation_model: SaturationConfig = torax_pydantic.ValidatedDefault(
       ProfileValueSaturation()
+  )
+  # TODO(b/491895183): Do a sweep across different cases to find good default
+  # values for these parameters.
+  chi_max: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      1.0
+  )
+  D_e_max: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      1.0
+  )
+  V_e_max: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      1.0
+  )
+  V_e_min: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      -1.0
   )
 
   @pydantic.model_validator(mode="before")
@@ -267,6 +295,10 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
         mode=self.mode,
         formation=self.formation_model.build_runtime_params(t),
         saturation=self.saturation_model.build_runtime_params(t),
+        chi_max=self.chi_max.get_value(t),
+        D_e_max=self.D_e_max.get_value(t),
+        V_e_max=self.V_e_max.get_value(t),
+        V_e_min=self.V_e_min.get_value(t),
     )
 
 
@@ -322,6 +354,10 @@ class SetPpedTpedRatioNped(BasePedestal):
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
         formation=base_runtime_params.formation,
         saturation=base_runtime_params.saturation,
+        chi_max=self.chi_max.get_value(t),
+        D_e_max=self.D_e_max.get_value(t),
+        V_e_max=self.V_e_max.get_value(t),
+        V_e_min=self.V_e_min.get_value(t),
     )
 
 
@@ -376,6 +412,10 @@ class SetTpedNped(BasePedestal):
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
         formation=base_runtime_params.formation,
         saturation=base_runtime_params.saturation,
+        chi_max=self.chi_max.get_value(t),
+        D_e_max=self.D_e_max.get_value(t),
+        V_e_max=self.V_e_max.get_value(t),
+        V_e_min=self.V_e_min.get_value(t),
     )
 
 
@@ -407,6 +447,10 @@ class NoPedestal(BasePedestal):
         mode=base_runtime_params.mode,
         formation=base_runtime_params.formation,
         saturation=base_runtime_params.saturation,
+        chi_max=self.chi_max.get_value(t),
+        D_e_max=self.D_e_max.get_value(t),
+        V_e_max=self.V_e_max.get_value(t),
+        V_e_min=self.V_e_min.get_value(t),
     )
 
 

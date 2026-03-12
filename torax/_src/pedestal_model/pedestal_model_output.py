@@ -22,7 +22,7 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
-
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 # pylint: disable=invalid-name
 
 
@@ -97,6 +97,7 @@ class PedestalModelOutput:
       self,
       core_transport: state.CoreTransport,
       geo: geometry.Geometry,
+      pedestal_runtime_params: pedestal_runtime_params_lib.RuntimeParams,
   ) -> state.CoreTransport:
     """Modify transport coefficients in the entire pedestal region.
 
@@ -110,6 +111,7 @@ class PedestalModelOutput:
     Args:
       core_transport: The core transport coefficients to modify.
       geo: The geometry of the torus.
+      pedestal_runtime_params: The runtime parameters of the pedestal model.
 
     Returns:
       The modified core transport coefficients.
@@ -138,13 +140,41 @@ class PedestalModelOutput:
         # ADAPTIVE_TRANSPORT pedestal model.
         return coeff
       elif "chi_face_ion" in key:
-        modified_coeff = coeff * self.transport_multipliers.chi_i_multiplier
+        # If transport suppression is not in effect, perform no scaling
+        # (L-mode). If transport suppression is in effect (i.e. H-mode,
+        # chi_i_multiplier != 1.0), then we clip the chi before scaling, to
+        # avoid unrealistic values.
+        modified_coeff = jnp.where(
+            jnp.isclose(self.transport_multipliers.chi_i_multiplier, 1.0),
+            coeff,
+            jnp.clip(coeff, max=pedestal_runtime_params.chi_max)
+            * self.transport_multipliers.chi_i_multiplier,
+        )
       elif "chi_face_el" in key:
-        modified_coeff = coeff * self.transport_multipliers.chi_e_multiplier
+        modified_coeff = jnp.where(
+            jnp.isclose(self.transport_multipliers.chi_e_multiplier, 1.0),
+            coeff,
+            jnp.clip(coeff, max=pedestal_runtime_params.chi_max)
+            * self.transport_multipliers.chi_e_multiplier,
+        )
       elif "d_face_el" in key:
-        modified_coeff = coeff * self.transport_multipliers.D_e_multiplier
+        modified_coeff = jnp.where(
+            jnp.isclose(self.transport_multipliers.D_e_multiplier, 1.0),
+            coeff,
+            jnp.clip(coeff, max=pedestal_runtime_params.D_e_max)
+            * self.transport_multipliers.D_e_multiplier,
+        )
       elif "v_face_el" in key:
-        modified_coeff = coeff * self.transport_multipliers.v_e_multiplier
+        modified_coeff = jnp.where(
+            jnp.isclose(self.transport_multipliers.v_e_multiplier, 1.0),
+            coeff,
+            jnp.clip(
+                coeff,
+                min=pedestal_runtime_params.V_e_min,
+                max=pedestal_runtime_params.V_e_max,
+            )
+            * self.transport_multipliers.v_e_multiplier,
+        )
       else:
         return coeff
 
