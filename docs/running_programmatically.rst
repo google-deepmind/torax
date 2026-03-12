@@ -33,3 +33,30 @@ We can then run the simulation:
 
   # Example below shows how to access the fusion gain at time=2 seconds.
   Q_fusion_t2 = data_tree.scalars.Q_fusion.sel(time=2, method='nearest')
+
+Plotting from an in-memory simulation
+######################################
+
+If you have already run a simulation and have a ``data_tree`` in memory, you can
+plot it directly without saving to a file first using
+``torax.plot_run_from_data_tree``:
+
+.. code-block:: python
+
+  plot_config = torax.import_module('plotting/configs/default_plot_config.py')['PLOT_CONFIG']
+
+  # Plot directly from the in-memory data_tree returned by run_simulation.
+  fig = torax.plot_run_from_data_tree(plot_config, data_tree)
+
+To compare two in-memory runs:
+
+.. code-block:: python
+
+  fig = torax.plot_run_from_data_tree(plot_config, data_tree, data_tree2)
+
+If you have saved the output to a ``.nc`` file and want to plot from disk,
+use ``torax.plot_run`` instead:
+
+.. code-block:: python
+
+  fig = torax.plot_run(plot_config, PATH_TO_LOCAL_NC_FILE)

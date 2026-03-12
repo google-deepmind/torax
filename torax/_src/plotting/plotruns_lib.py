@@ -15,7 +15,8 @@
 """Utilities for plotting outputs of Torax runs.
 
 Public API:
-  plot_run: Main entry point. Loads data and returns a plotly Figure.
+  plot_run: Main entry point. Loads data from file and returns a plotly Figure.
+  plot_run_from_data_tree: Plots from an in-memory xr.DataTree.
   PlotData: Data container exposing all output variables as attributes.
   FigureProperties: Configuration for the overall figure layout.
   PlotProperties: Configuration for an individual subplot.
@@ -315,59 +316,57 @@ class PlotData:
     return attrs
 
 
-def _load_data(filename: str) -> PlotData:
-  """Loads an xr.Dataset from a file, handling coordinate name changes."""
+def _transform_data(ds: xr.Dataset) -> xr.Dataset:
+  """Transforms dataset variables to plotting units."""
+  # TODO(b/414755419)
+  ds = ds.copy()
 
-  data_tree = output.load_state_file(filename)
+  transformations = {
+      output.J_TOROIDAL_TOTAL: 1e6,  # A/m^2 to MA/m^2
+      output.J_TOROIDAL_OHMIC: 1e6,  # A/m^2 to MA/m^2
+      output.J_TOROIDAL_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
+      output.J_TOROIDAL_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
+      'j_generic_current': 1e6,  # A/m^2 to MA/m^2
+      output.I_BOOTSTRAP: 1e6,  # A to MA
+      output.IP_PROFILE: 1e6,  # A to MA
+      output.IP: 1e6,  # A to MA
+      'j_ecrh': 1e6,  # A/m^2 to MA/m^2
+      'p_icrh_i': 1e6,  # W/m^3 to MW/m^3
+      'p_icrh_e': 1e6,  # W/m^3 to MW/m^3
+      'p_generic_heat_i': 1e6,  # W/m^3 to MW/m^3
+      'p_generic_heat_e': 1e6,  # W/m^3 to MW/m^3
+      'p_ecrh_e': 1e6,  # W/m^3 to MW/m^3
+      'p_alpha_i': 1e6,  # W/m^3 to MW/m^3
+      'p_alpha_e': 1e6,  # W/m^3 to MW/m^3
+      'p_ohmic_e': 1e6,  # W/m^3 to MW/m^3
+      'p_bremsstrahlung_e': 1e6,  # W/m^3 to MW/m^3
+      'p_cyclotron_radiation_e': 1e6,  # W/m^3 to MW/m^3
+      'p_impurity_radiation_e': 1e6,  # W/m^3 to MW/m^3
+      'ei_exchange': 1e6,  # W/m^3 to MW/m^3
+      'P_ohmic_e': 1e6,  # W to MW
+      'P_aux_total': 1e6,  # W to MW
+      'P_alpha_total': 1e6,  # W to MW
+      'P_bremsstrahlung_e': 1e6,  # W to MW
+      'P_cyclotron_e': 1e6,  # W to MW
+      'P_ecrh': 1e6,  # W to MW
+      'P_radiation_e': 1e6,  # W to MW
+      'I_ecrh': 1e6,  # A to MA
+      'I_aux_generic': 1e6,  # A to MA
+      'W_thermal_total': 1e6,  # J to MJ
+      output.N_E: 1e20,  # m^-3 to 10^{20} m^-3
+      output.N_I: 1e20,  # m^-3 to 10^{20} m^-3
+      output.N_IMPURITY: 1e20,  # m^-3 to 10^{20} m^-3
+  }
 
-  def _transform_data(ds: xr.Dataset):
-    """Transforms data in-place to the desired units."""
-    # TODO(b/414755419)
-    ds = ds.copy()
+  for var_name, scale in transformations.items():
+    if var_name in ds:
+      ds[var_name] /= scale
 
-    transformations = {
-        output.J_TOROIDAL_TOTAL: 1e6,  # A/m^2 to MA/m^2
-        output.J_TOROIDAL_OHMIC: 1e6,  # A/m^2 to MA/m^2
-        output.J_TOROIDAL_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
-        output.J_TOROIDAL_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
-        'j_generic_current': 1e6,  # A/m^2 to MA/m^2
-        output.I_BOOTSTRAP: 1e6,  # A to MA
-        output.IP_PROFILE: 1e6,  # A to MA
-        output.IP: 1e6,  # A to MA
-        'j_ecrh': 1e6,  # A/m^2 to MA/m^2
-        'p_icrh_i': 1e6,  # W/m^3 to MW/m^3
-        'p_icrh_e': 1e6,  # W/m^3 to MW/m^3
-        'p_generic_heat_i': 1e6,  # W/m^3 to MW/m^3
-        'p_generic_heat_e': 1e6,  # W/m^3 to MW/m^3
-        'p_ecrh_e': 1e6,  # W/m^3 to MW/m^3
-        'p_alpha_i': 1e6,  # W/m^3 to MW/m^3
-        'p_alpha_e': 1e6,  # W/m^3 to MW/m^3
-        'p_ohmic_e': 1e6,  # W/m^3 to MW/m^3
-        'p_bremsstrahlung_e': 1e6,  # W/m^3 to MW/m^3
-        'p_cyclotron_radiation_e': 1e6,  # W/m^3 to MW/m^3
-        'p_impurity_radiation_e': 1e6,  # W/m^3 to MW/m^3
-        'ei_exchange': 1e6,  # W/m^3 to MW/m^3
-        'P_ohmic_e': 1e6,  # W to MW
-        'P_aux_total': 1e6,  # W to MW
-        'P_alpha_total': 1e6,  # W to MW
-        'P_bremsstrahlung_e': 1e6,  # W to MW
-        'P_cyclotron_e': 1e6,  # W to MW
-        'P_ecrh': 1e6,  # W to MW
-        'P_radiation_e': 1e6,  # W to MW
-        'I_ecrh': 1e6,  # A to MA
-        'I_aux_generic': 1e6,  # A to MA
-        'W_thermal_total': 1e6,  # J to MJ
-        output.N_E: 1e20,  # m^-3 to 10^{20} m^-3
-        output.N_I: 1e20,  # m^-3 to 10^{20} m^-3
-        output.N_IMPURITY: 1e20,  # m^-3 to 10^{20} m^-3
-    }
+  return ds
 
-    for var_name, scale in transformations.items():
-      if var_name in ds:
-        ds[var_name] /= scale
 
-    return ds
-
+def _data_tree_to_plot_data(data_tree: xr.DataTree) -> PlotData:
+  """Converts an xr.DataTree to a PlotData object with unit transformations."""
   return PlotData(xr.map_over_datasets(_transform_data, data_tree))
 
 
@@ -399,23 +398,38 @@ def plot_run(
     outfile2: str | None = None,
     interactive: bool = True,
 ) -> go.Figure:
-  """Plots a single run or comparison of two runs."""
+  """Plots a single run or comparison of two runs from output files."""
+  fig_title = plot_config.figure_title or _get_title_from_paths(
+      outfile, outfile2
+  )
+
   outfile = _get_file_path(outfile)
   outfile2 = _get_file_path(outfile2) if outfile2 else None
 
-  plotdata1 = _load_data(outfile)
-  plotdata2 = _load_data(outfile2) if outfile2 else None
+  data_tree = output.load_state_file(outfile)
+  data_tree2 = output.load_state_file(outfile2) if outfile2 else None
+  return plot_run_from_data_tree(
+      plot_config, data_tree, data_tree2, interactive, fig_title
+  )
 
-  # Prepare list of datasets to check, associating them with their filenames
-  # for clearer errors
-  datasets_to_check = [(plotdata1, outfile)]
+
+def plot_run_from_data_tree(
+    plot_config: FigureProperties,
+    data_tree: xr.DataTree,
+    data_tree2: xr.DataTree | None = None,
+    interactive: bool = True,
+    fig_title: str = 'Torax Simulation Results',
+) -> go.Figure:
+  """Plots a single run or comparison of two runs from in-memory DataTrees."""
+  plotdata1 = _data_tree_to_plot_data(data_tree)
+  plotdata2 = _data_tree_to_plot_data(data_tree2) if data_tree2 else None
+
+  datasets_to_check = [(plotdata1, 'data_tree')]
   if plotdata2 is not None:
-    datasets_to_check.append((plotdata2, outfile2))
+    datasets_to_check.append((plotdata2, 'data_tree2'))
 
   for plotdata, filename in datasets_to_check:
-    # Get the set of valid keys for this specific dataset
     available_vars = plotdata.available_variables()
-
     for cfg in plot_config.axes:
       for attr in cfg.attrs:
         if attr not in available_vars:
@@ -424,8 +438,7 @@ def plot_run(
               f'output file: {filename}'
           )
 
-  title = plot_config.figure_title or _get_title_from_paths(outfile, outfile2)
-  fig = _create_plotly_figure(plot_config, plotdata1, plotdata2, title)
+  fig = _create_plotly_figure(plot_config, plotdata1, plotdata2, fig_title)
   if interactive:
     fig.show()
 

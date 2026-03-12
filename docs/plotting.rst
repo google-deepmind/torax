@@ -175,13 +175,16 @@ plot layout and content. Dataclass fields and defaults are as follows:
 - ``cols`` (int): Number of columns in the figure.
 - ``axes`` (tuple of ``PlotProperties``):  Configuration for each subplot.
   See below.
-- ``figure_size_factor`` (float=5.0): Scaling factor for the figure size.
-- ``tick_fontsize`` (int=10): Font size for axis ticks.
-- ``axes_fontsize`` (int=10): Font size for axis labels.
-- ``title_fontsize`` (int=16): Font size for the figure title.
-- ``default_legend_fontsize`` (int=10): Default font size for legends.
-- ``colors`` (tuple[str, ...] = ('r', 'b', 'g', 'm', 'y', 'c')): Colors to use
-  for plot lines. Cycles through the tuple for multiple lines.
+- ``font_family`` (str = 'Arial, sans-serif'): Font family for all text in the figure.
+- ``title_size`` (int = 16): Font size for the main figure title.
+- ``subplot_title_size`` (int = 12): Font size for subplot titles.
+- ``tick_size`` (int = 8): Font size for axis ticks.
+- ``nticks_time`` (int = 6): Number of x-axis ticks for the time series plots.
+- ``tickvals_rho`` (tuple[float, ...] = (0, 0.2, 0.4, 0.6, 0.8, 1.0)): Values of x-axis ticks for the spatial plots.
+- ``height`` (int | None = None): Height of the figure in pixels. If None, autosize is used.
+- ``legend_spacing`` (int = 10): Spacing between legend entries.
+- ``margin`` (dict[str, int] = {'l': 40, 'r': 40, 't': 80, 'b': 40}): Margin around the figure. A dict with keys l,
+  r, t and b for left, right, top and bottom margins respectively.
 
 The ``PlotProperties`` dataclass configures individual subplots. For example,
 the ``PlotProperties`` object for plotting ion and electron temperatures looks

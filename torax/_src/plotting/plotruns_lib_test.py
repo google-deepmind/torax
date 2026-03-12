@@ -22,6 +22,7 @@ import numpy as np
 import plotly.graph_objects as go
 from torax._src import path_utils
 from torax._src.config import config_loader
+from torax._src.output_tools import output
 from torax._src.plotting import plotruns_lib
 from torax._src.test_utils import paths
 import xarray as xr
@@ -57,7 +58,8 @@ class PlotrunsLibTest(parameterized.TestCase):
     test_data_dir = paths.test_data_dir()
     data_file = 'test_iterhybrid_rampup.nc'
     test_data_path = os.path.join(test_data_dir, data_file)
-    plotruns_lib._load_data(test_data_path)
+    data_tree = output.load_state_file(test_data_path)
+    plotruns_lib._data_tree_to_plot_data(data_tree)
 
   @parameterized.named_parameters(_generate_all_test_cases())
   def test_plot_config_all(self, config_name: str, data_file: str):
