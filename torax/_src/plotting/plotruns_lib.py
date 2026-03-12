@@ -579,6 +579,7 @@ def _add_traces_and_update_axes(
 
     for attr, label in zip(axis_config.attrs, axis_config.labels):
 
+      color = next(colors)
       for idx, dataset in enumerate(datasets):
         if axis_config.suppress_zero_values and np.all(
             getattr(dataset, attr) == 0
@@ -600,7 +601,6 @@ def _add_traces_and_update_axes(
           y = getattr(dataset, attr)
 
         label_html = f"{prefix} {_transform_string(f'{label} (Data {idx+1})')}"
-        color = next(colors)
         fig.add_trace(
             go.Scatter(
                 x=x,
