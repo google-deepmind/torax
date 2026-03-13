@@ -32,6 +32,7 @@ from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
 from torax._src.pedestal_model.pedestal_model_output import PedestalModelOutput
 from torax._src.plotting.plotruns_lib import plot_run
+from torax._src.plotting.plotruns_lib import plot_run_from_data_tree
 from torax._src.sources.source_profiles import SourceProfiles
 from torax._src.state import CoreProfiles
 from torax._src.state import CoreTransport
@@ -58,6 +59,7 @@ __all__ = [
     'build_torax_config_from_file',
     'import_module',
     'plot_run',
+    'plot_run_from_data_tree',
     'run_simulation',
     'CoreProfiles',
     'CoreTransport',
