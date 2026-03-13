@@ -275,6 +275,7 @@ class ScalingLawsTest(parameterized.TestCase):
         / 3.0**0.975
         * 1.93  # D=1.93 for VT
         * geo.area_face[-1]
+        * 1e6  # convert MW -> W
     )
 
     np.testing.assert_allclose(P_LH, expected_P_LH, rtol=1e-6)

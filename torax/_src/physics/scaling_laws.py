@@ -126,7 +126,7 @@ def calculate_plh_delabie(
       Delabie et al. for details.
 
   Returns:
-    H-mode transition power in MW.
+    H-mode transition power in W.
   """
   if divertor_configuration == 'HT':
     D = 1.0
@@ -144,6 +144,7 @@ def calculate_plh_delabie(
   #   f_H * m_H + f_D * m_D + f_T * m_T
   # Hence, we can use A_i directly.
 
+  # Note: convert MW -> W
   P_LH_over_S = (
       0.0441
       * geo.B_0**0.580
@@ -151,6 +152,7 @@ def calculate_plh_delabie(
       * 2.0
       / core_profiles.A_i ** (0.975)
       * D
+      * 1e6
   )
 
   # S is the surface area of the LCFS
