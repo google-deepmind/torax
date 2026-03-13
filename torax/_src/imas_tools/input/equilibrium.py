@@ -122,29 +122,29 @@ def geometry_from_IMAS(
   B_0 = np.asarray(np.abs(equilibrium.vacuum_toroidal_field.b0[0]))
 
   # Poloidal flux.
-  psi = np.abs(IMAS_data.profiles_1d.psi)
+  psi = np.asarray(IMAS_data.profiles_1d.psi)
 
   # Toroidal flux.
-  phi = np.abs(IMAS_data.profiles_1d.phi)
+  phi = np.asarray(IMAS_data.profiles_1d.phi)
 
   # Midplane radii.
   R_in = IMAS_data.profiles_1d.r_inboard
   R_out = IMAS_data.profiles_1d.r_outboard
   R_major_profile = (R_in + R_out) / 2.0
   # toroidal field flux function
-  F = np.abs(IMAS_data.profiles_1d.f)
+  F = np.asarray(IMAS_data.profiles_1d.f)
 
   # Flux surface integrals of various geometry quantities.
   # IDS Contour integrals.
   if IMAS_data.profiles_1d.dvolume_dpsi:
-    dvoldpsi = np.abs(IMAS_data.profiles_1d.dvolume_dpsi)
+    dvoldpsi = np.asarray(IMAS_data.profiles_1d.dvolume_dpsi)
   else:
     dvoldpsi = np.gradient(
         IMAS_data.profiles_1d.volume, IMAS_data.profiles_1d.psi
     )
   # dpsi_drho_tor
   if IMAS_data.profiles_1d.dpsi_drho_tor:
-    dpsidrhotor = np.abs(IMAS_data.profiles_1d.dpsi_drho_tor)
+    dpsidrhotor = np.asarray(IMAS_data.profiles_1d.dpsi_drho_tor)
   else:
     rho_tor = IMAS_data.profiles_1d.rho_tor
     if not rho_tor:
