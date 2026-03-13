@@ -28,7 +28,7 @@ import inspect
 import itertools
 from os import path
 import re
-from typing import Any, Final, Mapping, Sequence
+from typing import Any, Final, Iterable, Mapping, Sequence
 
 import immutabledict
 import numpy as np
@@ -101,13 +101,19 @@ class PlotProperties:
   attrs: tuple[str, ...]
   labels: tuple[str, ...]
   ylabel: str
-  legend_fontsize: int | None = None  # None reverts to default matplotlib value
+  legend_fontsize: int | None = None  # None reverts to default value
+  colors: Iterable[str] = tuple(pcolors.qualitative.Plotly)
   upper_percentile: float = 100.0
   lower_percentile: float = 0.0
   include_first_timepoint: bool = True
   ylim_min_zero: bool = True
   plot_type: PlotType = PlotType.SPATIAL
   suppress_zero_values: bool = False  # If True, all-zero-data is not plotted
+  # Use this time index for single profile plotting or the initial timepoint for
+  # spatial plots in interactive plotting.
+  profile_time_index: int = 0
+  title: str | None = None
+  include_legend: bool = True
 
 
 @dataclasses.dataclass
@@ -128,6 +134,8 @@ class FigureProperties:
     legend_spacing: Spacing between legend entries.
     margin: Margin around the figure. A dict with keys l, r, t and b for left,
       right, top and bottom margins respectively.
+    figure_title: Title of the figure. If None, a title is generated from input
+      file names.
   """
 
   rows: int
@@ -144,6 +152,7 @@ class FigureProperties:
   margin: dict[str, int] = dataclasses.field(
       default_factory=lambda: dict(l=40, r=40, t=80, b=40)
   )
+  figure_title: str | None = None
 
   def __post_init__(self):
     if len(self.axes) > self.rows * self.cols:
@@ -188,6 +197,11 @@ class PlotData:
   @property
   def D_total_e(self) -> np.ndarray:
     return self.D_turb_e + self.D_neo_e
+
+  @property
+  def line_average_Z_eff(self) -> np.ndarray:
+    """Line average effective charge."""
+    return self._profiles_dataset['Z_eff'].to_numpy().mean(axis=1)
 
   @property
   def V_neo_total_e(self) -> np.ndarray:
@@ -371,7 +385,7 @@ def _get_file_path(outfile: str) -> str:
   raise ValueError(f'Could not find {outfile}. Tried {possible_paths}.')
 
 
-def _get_title(path1: str, path2: str | None) -> str:
+def _get_title_from_paths(path1: str, path2: str | None) -> str:
   """Gets the title for the plot."""
   names = [f'(1) {path.basename(path1)}']
   if path2:
@@ -410,8 +424,8 @@ def plot_run(
               f'output file: {filename}'
           )
 
-  fig_title = _get_title(outfile, outfile2)
-  fig = _create_plotly_figure(plot_config, plotdata1, plotdata2, fig_title)
+  title = plot_config.figure_title or _get_title_from_paths(outfile, outfile2)
+  fig = create_plotly_figure(plot_config, plotdata1, plotdata2, title)
   if interactive:
     fig.show()
 
@@ -575,7 +589,7 @@ def _add_traces_and_update_axes(
     row, col = (i // plot_config.cols) + 1, (i % plot_config.cols) + 1
     is_spatial = axis_config.plot_type == PlotType.SPATIAL
     prefix = _subplot_prefix(i)
-    colors = itertools.cycle(pcolors.qualitative.Plotly)
+    colors = itertools.cycle(axis_config.colors)
 
     for attr, label in zip(axis_config.attrs, axis_config.labels):
 
@@ -587,9 +601,8 @@ def _add_traces_and_update_axes(
           continue
 
         if is_spatial:
-          # Initial plot uses the first time step (index 0)
-          x = _get_rho(dataset, attr)
-          y = getattr(dataset, attr)[0, :]
+          x = get_rho(dataset, attr)
+          y = getattr(dataset, attr)[axis_config.profile_time_index, :]
 
           # Record this trace so the slider can find it later
           spatial_traces_info.append(
@@ -688,12 +701,12 @@ def _build_slider(
 def _update_global_layout(
     fig: go.Figure,
     plot_config: FigureProperties,
-    title: str,
+    title_override: str | None = None,
 ) -> None:
   """Updates the global layout of the figure."""
   layout_args = {
       'title': {
-          'text': title,
+          'text': title_override or plot_config.figure_title,
           'x': 0.5,
           'font': {'size': plot_config.title_size},
       },
@@ -716,7 +729,7 @@ def _update_global_layout(
   )
 
 
-def _create_plotly_figure(
+def create_plotly_figure(
     plot_config: FigureProperties,
     data1: PlotData,
     data2: PlotData | None = None,
@@ -735,7 +748,7 @@ def _create_plotly_figure(
   return fig
 
 
-def _get_rho(
+def get_rho(
     plotdata: PlotData,
     data_attr: str,
 ) -> np.ndarray:

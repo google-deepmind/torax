@@ -23,11 +23,13 @@ from torax._src.orchestration.jit_run_loop import run_loop_jit
 from torax._src.orchestration.run_simulation import make_step_fn
 from torax._src.orchestration.sim_state import SimState
 from torax._src.orchestration.step_function import SimulationStepFn
+from torax._src.plotting.plotruns_lib import create_plotly_figure
 from torax._src.torax_pydantic.interpolated_param_1d import TimeVaryingScalarUpdate
 from torax._src.torax_pydantic.interpolated_param_2d import TimeVaryingArrayUpdate
 from torax.experimental import geometry
 
 __all__ = [
+    'create_plotly_figure',
     'geometry',
     'make_step_fn',
     'run_loop_jit',
