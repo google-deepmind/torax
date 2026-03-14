@@ -75,15 +75,17 @@ class Constants:
   eps: chex.Numeric
 
 
+# Values from the 2019 SI redefinition (exact) and 2018 CODATA recommended
+# values. See https://physics.nist.gov/cuu/Constants/index.html
 CONSTANTS: Final[Constants] = Constants(
     keV_to_J=1e3 * 1.602176634e-19,
-    eV_to_J=1.602176634e-19,
-    m_amu=1.6605390666e-27,
-    q_e=1.602176634e-19,
-    m_e=9.1093837e-31,
-    epsilon_0=8.85418782e-12,
-    mu_0=4 * jnp.pi * 1e-7,
-    k_B=1.380649e-23,
+    eV_to_J=1.602176634e-19,  # exact (2019 SI redefinition)
+    m_amu=1.6605390666e-27,  # CODATA 2018
+    q_e=1.602176634e-19,  # exact (2019 SI redefinition)
+    m_e=9.1093837e-31,  # CODATA 2018 (rounded from 9.1093837015e-31)
+    epsilon_0=8.85418782e-12,  # CODATA 2018
+    mu_0=4 * jnp.pi * 1e-7,  # exact in pre-2019 SI
+    k_B=1.380649e-23,  # exact (2019 SI redefinition)
     eps=1e-7,
 )
 
