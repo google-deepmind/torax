@@ -412,9 +412,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     )
     torax_pydantic.set_grid(pc_ne_ratios, geo.torax_mesh)
     ne_params = pc_ne_ratios.impurity.build_runtime_params(t)
-    assert isinstance(
-        ne_params, electron_density_ratios.RuntimeParams
-    )
+    assert isinstance(ne_params, electron_density_ratios.RuntimeParams)
 
     pc_fractions = plasma_composition.PlasmaComposition(
         impurity={
@@ -590,9 +588,7 @@ class IonMixtureTest(parameterized.TestCase):
   )
   def test_ion_mixture_averaging(self, species, time, expected_Z, expected_A):
     """Tests the averaging of Z and A for different mixtures."""
-    mixture = ion_mixture.IonMixture.model_validate(
-        dict(species=species)
-    )
+    mixture = ion_mixture.IonMixture.model_validate(dict(species=species))
     mixture_params = mixture.build_runtime_params(time)
     calculated_Z = charge_states.get_average_charge_state(
         T_e=np.array([10.0]),  # Ensure that all ions in test are fully ionized
@@ -654,6 +650,67 @@ class IonMixtureTest(parameterized.TestCase):
     self.assertEqual(mixture.A_override, a)
 
   # pylint: enable=invalid-name
+
+
+class DuplicateSpeciesValidationTest(parameterized.TestCase):
+  """Tests for the duplicate species validation in PlasmaComposition."""
+
+  def test_no_duplicate_species_single_main_ion(self):
+    """No error when main_ion and impurity have disjoint species."""
+    pc = plasma_composition.PlasmaComposition(
+        main_ion='D',
+        impurity={'impurity_mode': 'fractions', 'species': {'Ne': 1.0}},
+    )
+    self.assertEqual(pc.get_main_ion_names(), ('D',))
+    self.assertEqual(pc.get_impurity_names(), ('Ne',))
+
+  def test_no_duplicate_species_mixture_main_ion(self):
+    """No error when main_ion mixture and impurity have disjoint species."""
+    pc = plasma_composition.PlasmaComposition(
+        main_ion={'D': 0.5, 'T': 0.5},
+        impurity={'impurity_mode': 'fractions', 'species': {'Ar': 1.0}},
+    )
+    self.assertEqual(set(pc.get_main_ion_names()), {'D', 'T'})
+    self.assertEqual(pc.get_impurity_names(), ('Ar',))
+
+  def test_duplicate_species_single_main_ion_raises(self):
+    """Error when single main_ion species appears in impurity."""
+    with self.assertRaises(pydantic.ValidationError) as cm:
+      plasma_composition.PlasmaComposition(
+          main_ion='D',
+          impurity={'impurity_mode': 'fractions', 'species': {'D': 1.0}},
+      )
+    self.assertIn('Duplicate species', str(cm.exception))
+
+  def test_duplicate_species_mixture_main_ion_raises(self):
+    """Error when a mixture main_ion species appears in impurity."""
+    with self.assertRaises(pydantic.ValidationError) as cm:
+      plasma_composition.PlasmaComposition(
+          main_ion={'D': 0.5, 'T': 0.5},
+          impurity={'impurity_mode': 'fractions', 'species': {'T': 1.0}},
+      )
+    self.assertIn('Duplicate species', str(cm.exception))
+
+  def test_duplicate_species_error_message_lists_duplicates(self):
+    """Error message contains the duplicate species names."""
+    with self.assertRaises(pydantic.ValidationError) as cm:
+      plasma_composition.PlasmaComposition(
+          main_ion={'D': 0.5, 'T': 0.5},
+          impurity={
+              'impurity_mode': 'fractions',
+              'species': {'D': 0.5, 'T': 0.5},
+          },
+      )
+    error_str = str(cm.exception)
+    self.assertIn('D', error_str)
+    self.assertIn('T', error_str)
+
+  def test_default_composition_no_duplicate(self):
+    """Default PlasmaComposition has no duplicate species."""
+    pc = plasma_composition.PlasmaComposition()
+    main_names = set(pc.get_main_ion_names())
+    impurity_names = set(pc.get_impurity_names())
+    self.assertFalse(main_names & impurity_names)
 
 
 if __name__ == '__main__':
