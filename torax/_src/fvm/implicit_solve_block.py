@@ -23,7 +23,6 @@ import jax
 from jax import numpy as jnp
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
-from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 
 
@@ -81,10 +80,9 @@ def implicit_solve_block(
   # or from Picard iterations with predictor-corrector.
   # See residual_and_loss.theta_method_matrix_equation for a complete
   # description of how the equation is set up.
+  x_old_reshaped = jnp.stack([var.value for var in x_old], axis=-1)
 
-  x_old_vec = fvm_conversions.cell_variable_tuple_to_vec(x_old)
-
-  lhs_mat, lhs_vec, rhs_mat, rhs_vec = (
+  lhs, lhs_vec, rhs_matrix, rhs_vec = (
       residual_and_loss.theta_method_matrix_equation(
           dt=dt,
           x_old=x_old,
@@ -97,16 +95,12 @@ def implicit_solve_block(
       )
   )
 
-  rhs = jnp.dot(rhs_mat, x_old_vec) + rhs_vec - lhs_vec
-  x_new = jnp.linalg.solve(lhs_mat, rhs)
+  rhs_result = rhs_matrix.matvec(x_old_reshaped) + rhs_vec - lhs_vec
+  x_new = lhs.solve(rhs_result)
 
   # Create updated CellVariable instances based on state_plus_dt which has
   # updated boundary conditions and prescribed profiles.
-  x_new = jnp.split(x_new, len(x_old))
-  out = [
-      dataclasses.replace(var, value=value)
-      for var, value in zip(x_new_guess, x_new)
-  ]
-  out = tuple(out)
-
-  return out
+  return tuple(
+      dataclasses.replace(var, value=x_new[:, i])
+      for i, var in enumerate(x_new_guess)
+  )
