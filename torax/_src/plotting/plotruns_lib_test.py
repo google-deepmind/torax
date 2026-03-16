@@ -57,7 +57,7 @@ class PlotrunsLibTest(parameterized.TestCase):
     test_data_dir = paths.test_data_dir()
     data_file = 'test_iterhybrid_rampup.nc'
     test_data_path = os.path.join(test_data_dir, data_file)
-    plotruns_lib._load_data(test_data_path)
+    plotruns_lib.load_data(test_data_path)
 
   @parameterized.named_parameters(_generate_all_test_cases())
   def test_plot_config_all(self, config_name: str, data_file: str):

@@ -315,7 +315,7 @@ class PlotData:
     return attrs
 
 
-def _load_data(filename: str) -> PlotData:
+def load_data(filename: str) -> PlotData:
   """Loads an xr.Dataset from a file, handling coordinate name changes."""
 
   data_tree = output.load_state_file(filename)
@@ -403,8 +403,8 @@ def plot_run(
   outfile = _get_file_path(outfile)
   outfile2 = _get_file_path(outfile2) if outfile2 else None
 
-  plotdata1 = _load_data(outfile)
-  plotdata2 = _load_data(outfile2) if outfile2 else None
+  plotdata1 = load_data(outfile)
+  plotdata2 = load_data(outfile2) if outfile2 else None
 
   # Prepare list of datasets to check, associating them with their filenames
   # for clearer errors
@@ -425,7 +425,7 @@ def plot_run(
           )
 
   title = plot_config.figure_title or _get_title_from_paths(outfile, outfile2)
-  fig = _create_plotly_figure(plot_config, plotdata1, plotdata2, title)
+  fig = create_plotly_figure(plot_config, plotdata1, plotdata2, title)
   if interactive:
     fig.show()
 
@@ -729,7 +729,7 @@ def _update_global_layout(
   )
 
 
-def _create_plotly_figure(
+def create_plotly_figure(
     plot_config: FigureProperties,
     data1: PlotData,
     data2: PlotData | None = None,
