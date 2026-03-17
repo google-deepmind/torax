@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -18,6 +20,7 @@ import numpy as np
 from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import get_example_L_LY_data
+from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import interpolated_param_2d
 
@@ -224,6 +227,45 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_array_less(
         0, intermediates.flux_surf_avg_grad_psi2_over_R2
     )
+
+  @parameterized.named_parameters(
+      ('circular', {'geometry_type': 'circular'}),
+      (
+          'chease',
+          {
+              'geometry_type': 'chease',
+              'geometry_file': 'iterhybrid.mat2cols',
+          },
+      ),
+      (
+          'eqdsk',
+          {
+              'geometry_type': 'eqdsk',
+              'geometry_file': 'iterhybrid_cocos02.eqdsk',
+              'cocos': 2,
+          },
+      ),
+      (
+          'imas',
+          {
+              'geometry_type': 'imas',
+              'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+          },
+      ),
+  )
+  def test_g0_g1_cauchy_schwarz_consistency(self, geo_config):
+    """Tests that g0^2 / g1 is in a physically reasonable range."""
+    geo_provider = geometry_pydantic_model.Geometry.from_dict(
+        geo_config
+    ).build_provider
+    geo = geo_provider(0.0)
+
+    # By Cauchy-Schwarz, <|nabla V|>^2 <= <(nabla V)^2>, so g0^2 / g1
+    # must be <= 1. For a shaped tokamak this ratio is typically 0.6-1.0.
+    ratio = geo.g0_face[1:] ** 2 / geo.g1_face[1:]
+    trimmed = ratio[3:]
+    np.testing.assert_array_less(trimmed, 1.0 + 1e-10)
+    np.testing.assert_array_less(0.5, trimmed)
 
 
 if __name__ == '__main__':

@@ -513,7 +513,7 @@ def _from_fbt(
       flux_surf_avg_1_over_R=LY['Q0Q'],
       flux_surf_avg_1_over_R2=LY['Q2Q'],
       flux_surf_avg_grad_psi2_over_R2=LY['Q3Q'],
-      flux_surf_avg_grad_psi=LY['Q5Q'],
+      flux_surf_avg_grad_psi=2 * np.pi * LY['Q5Q'],
       flux_surf_avg_grad_psi2=LY['Q4Q'],
       flux_surf_avg_B2=flux_surf_avg_B2,
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
