@@ -118,33 +118,38 @@ def geometry_from_IMAS(
         f"{len(equilibrium.time_slice)} time slices"
     )
   IMAS_data = equilibrium.time_slice[slice_index]
+  # IMAS python API returns custom primitive types (e.g. IDSFloat0D,
+  # IDSNumericArray) instead of standard python floats or numpy arrays. We must
+  # cast these to standard numpy arrays using np.asarray() (or via implicit
+  # numpy operations like np.abs), otherwise JAX JIT compilation will fail with
+  # TypeErrors during PyTree tracing.
   R_major = np.asarray(equilibrium.vacuum_toroidal_field.r0)
-  B_0 = np.asarray(np.abs(equilibrium.vacuum_toroidal_field.b0[0]))
+  B_0 = np.abs(equilibrium.vacuum_toroidal_field.b0[0])
 
   # Poloidal flux.
-  psi = np.abs(IMAS_data.profiles_1d.psi)
+  psi = np.asarray(IMAS_data.profiles_1d.psi)
 
   # Toroidal flux.
-  phi = np.abs(IMAS_data.profiles_1d.phi)
+  phi = np.asarray(IMAS_data.profiles_1d.phi)
 
   # Midplane radii.
   R_in = IMAS_data.profiles_1d.r_inboard
   R_out = IMAS_data.profiles_1d.r_outboard
   R_major_profile = (R_in + R_out) / 2.0
   # toroidal field flux function
-  F = np.abs(IMAS_data.profiles_1d.f)
+  F = np.asarray(IMAS_data.profiles_1d.f)
 
   # Flux surface integrals of various geometry quantities.
   # IDS Contour integrals.
   if IMAS_data.profiles_1d.dvolume_dpsi:
-    dvoldpsi = np.abs(IMAS_data.profiles_1d.dvolume_dpsi)
+    dvoldpsi = np.asarray(IMAS_data.profiles_1d.dvolume_dpsi)
   else:
     dvoldpsi = np.gradient(
         IMAS_data.profiles_1d.volume, IMAS_data.profiles_1d.psi
     )
   # dpsi_drho_tor
   if IMAS_data.profiles_1d.dpsi_drho_tor:
-    dpsidrhotor = np.abs(IMAS_data.profiles_1d.dpsi_drho_tor)
+    dpsidrhotor = np.asarray(IMAS_data.profiles_1d.dpsi_drho_tor)
   else:
     rho_tor = IMAS_data.profiles_1d.rho_tor
     if not rho_tor:

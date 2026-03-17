@@ -251,12 +251,43 @@ class StandardGeometryIntermediates:
   B_pol_OMP: array_typing.FloatScalar | None
 
   def __post_init__(self):
-    """Extrapolates edge values and smooths near-axis values.
+    """Enforces sign conventions, extrapolates edge, and smooths near-axis.
 
+    Sign conventions - TODO(b/335204606): Replace with proper COCOS handling:
+    - psi must grow with radius, i.e. psi(axis) < psi(separatrix).
+    - Total Ip must be positive.
+    - Positive-definite quantities are enforced via abs(): Phi, F,
+      int_dl_over_Bp, vpr, flux_surf_avg_grad_psi, flux_surf_avg_grad_psi2,
+      flux_surf_avg_grad_psi2_over_R2.
+    Then:
     - Edge extrapolation for a subset of attributes based on a Cubic spline fit.
     - Near-axis smoothing for a subset of attributes based on a Savitzky-Golay
       filter with an appropriate polynominal order based on the attribute.
     """
+
+    if self.psi[-1] < self.psi[0]:
+      object.__setattr__(self, 'psi', -self.psi)
+
+    if self.Ip_profile[-1] < 0:
+      object.__setattr__(self, 'Ip_profile', -self.Ip_profile)
+
+    object.__setattr__(self, 'Phi', np.abs(self.Phi))
+    object.__setattr__(self, 'F', np.abs(self.F))
+    object.__setattr__(
+        self, 'int_dl_over_Bp', np.abs(self.int_dl_over_Bp)
+    )
+    object.__setattr__(self, 'vpr', np.abs(self.vpr))
+    object.__setattr__(
+        self, 'flux_surf_avg_grad_psi', np.abs(self.flux_surf_avg_grad_psi)
+    )
+    object.__setattr__(
+        self, 'flux_surf_avg_grad_psi2', np.abs(self.flux_surf_avg_grad_psi2)
+    )
+    object.__setattr__(
+        self,
+        'flux_surf_avg_grad_psi2_over_R2',
+        np.abs(self.flux_surf_avg_grad_psi2_over_R2),
+    )
 
     # Check if last flux surface is diverted and correct via spline fit if so
     if self.diverted or self.flux_surf_avg_grad_psi2_over_R2[-1] < 1e-10:

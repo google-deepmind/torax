@@ -146,6 +146,85 @@ class GeometryTest(parameterized.TestCase):
         stacked_geo.g1_over_vpr2_face[:, 0], 1 / stacked_geo.rho_b**2
     )
 
+  def _make_intermediates(self, **overrides):
+    defaults = dict(
+        geometry_type=geometry.GeometryType.FBT,
+        Ip_from_parameters=True,
+        R_major=6.2,
+        a_minor=2.0,
+        B_0=5.3,
+        psi=np.linspace(0, 1.0, 100),
+        Ip_profile=np.linspace(0, 1e6, 100),
+        Phi=np.linspace(0, 1.0, 100),
+        R_in=np.linspace(4.0, 4.2, 100),
+        R_out=np.linspace(8.0, 8.4, 100),
+        F=np.linspace(30.0, 33.0, 100),
+        int_dl_over_Bp=np.linspace(0.01, 1.0, 100),
+        flux_surf_avg_1_over_R=np.linspace(0.1, 0.2, 100),
+        flux_surf_avg_1_over_R2=np.linspace(0.01, 0.04, 100),
+        flux_surf_avg_grad_psi2=np.linspace(0.01, 1.0, 100),
+        flux_surf_avg_grad_psi=np.linspace(0.01, 1.0, 100),
+        flux_surf_avg_grad_psi2_over_R2=np.linspace(0.01, 1.0, 100),
+        flux_surf_avg_B2=np.linspace(25.0, 30.0, 100),
+        flux_surf_avg_1_over_B2=np.linspace(0.03, 0.04, 100),
+        delta_upper_face=np.linspace(0.0, 0.3, 100),
+        delta_lower_face=np.linspace(0.0, 0.3, 100),
+        elongation=np.linspace(1.0, 1.7, 100),
+        vpr=np.linspace(0.01, 1.0, 100),
+        face_centers=interpolated_param_2d.get_face_centers(25),
+        hires_factor=4,
+        z_magnetic_axis=np.array(0.0),
+        diverted=None,
+        connection_length_target=None,
+        connection_length_divertor=None,
+        angle_of_incidence_target=None,
+        R_OMP=None,
+        R_target=None,
+        B_pol_OMP=None,
+    )
+    defaults.update(overrides)
+    return standard_geometry.StandardGeometryIntermediates(**defaults)
+
+  def test_post_init_flips_psi_when_decreasing(self):
+    psi_decreasing = np.linspace(1.0, 0.0, 100)
+    intermediates = self._make_intermediates(psi=psi_decreasing)
+    self.assertGreater(intermediates.psi[-1], intermediates.psi[0])
+
+  def test_post_init_preserves_psi_when_increasing(self):
+    psi_increasing = np.linspace(0.0, 1.0, 100)
+    intermediates = self._make_intermediates(psi=psi_increasing)
+    np.testing.assert_array_equal(intermediates.psi, psi_increasing)
+
+  def test_post_init_flips_negative_Ip(self):
+    Ip_negative = np.linspace(0, -1e6, 100)
+    intermediates = self._make_intermediates(Ip_profile=Ip_negative)
+    self.assertGreater(intermediates.Ip_profile[-1], 0)
+
+  def test_post_init_preserves_positive_Ip(self):
+    Ip_positive = np.linspace(0, 1e6, 100)
+    intermediates = self._make_intermediates(Ip_profile=Ip_positive)
+    np.testing.assert_array_equal(intermediates.Ip_profile, Ip_positive)
+
+  def test_post_init_enforces_positive_definite_quantities(self):
+    intermediates = self._make_intermediates(
+        Phi=-np.linspace(0, 1.0, 100),
+        F=-np.linspace(30.0, 33.0, 100),
+        int_dl_over_Bp=-np.linspace(0.01, 1.0, 100),
+        vpr=-np.linspace(0.01, 1.0, 100),
+        flux_surf_avg_grad_psi=-np.linspace(0.01, 1.0, 100),
+        flux_surf_avg_grad_psi2=-np.linspace(0.01, 1.0, 100),
+        flux_surf_avg_grad_psi2_over_R2=-np.linspace(0.01, 1.0, 100),
+    )
+    np.testing.assert_array_less(-1e-15, intermediates.Phi)
+    np.testing.assert_array_less(0, intermediates.F)
+    np.testing.assert_array_less(0, intermediates.int_dl_over_Bp)
+    np.testing.assert_array_less(0, intermediates.vpr)
+    np.testing.assert_array_less(0, intermediates.flux_surf_avg_grad_psi)
+    np.testing.assert_array_less(0, intermediates.flux_surf_avg_grad_psi2)
+    np.testing.assert_array_less(
+        0, intermediates.flux_surf_avg_grad_psi2_over_R2
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
