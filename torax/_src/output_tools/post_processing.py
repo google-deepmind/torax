@@ -104,11 +104,14 @@ class PostProcessedOutputs:
     P_icrh_e: Ion cyclotron resonance heating to electrons [W]
     P_icrh_i: Ion cyclotron resonance heating to ions [W]
     P_icrh_total: Total ion cyclotron resonance heating power [W]
-    P_LH_high_density: H-mode transition power for high density branch [W]
-    P_LH_min: Minimum H-mode transition power for at n_e_min_P_LH [W]
-    P_LH: H-mode transition power from maximum of P_LH_high_density and P_LH_min
-      [W]
+    P_LH_high_density: H-mode transition power from the Martin scaling law for
+      high density branch [W]
+    P_LH_min: Minimum H-mode transition power from the Martin scaling law for at
+      n_e_min_P_LH [W]
+    P_LH: H-mode transition power from the Martin scaling law, taken as the
+      maximum of P_LH_high_density and P_LH_min [W]
     n_e_min_P_LH: Density corresponding to the P_LH_min [m^-3]
+    P_LH_delabie: H-mode transition power from the Delabie scaling law [W]
     E_fusion: Total cumulative fusion energy [J]
     E_aux_total: Total auxiliary heating energy absorbed by the plasma ( time
       integral of P_aux_total) [J].
@@ -238,10 +241,12 @@ class PostProcessedOutputs:
   P_icrh_e: array_typing.FloatScalar
   P_icrh_i: array_typing.FloatScalar
   P_icrh_total: array_typing.FloatScalar
+  # TODO(b/434175938) Rename to P_LH_martin_high_density etc
   P_LH_high_density: array_typing.FloatScalar
   P_LH_min: array_typing.FloatScalar
   P_LH: array_typing.FloatScalar
   n_e_min_P_LH: array_typing.FloatScalar
+  P_LH_delabie: array_typing.FloatScalar
   E_fusion: array_typing.FloatScalar
   E_aux_total: array_typing.FloatScalar
   E_ohmic_e: array_typing.FloatScalar
@@ -353,6 +358,7 @@ class PostProcessedOutputs:
         P_LH_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_delabie=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         E_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         E_aux_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         E_ohmic_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -669,6 +675,9 @@ def make_post_processed_outputs(
           sim_state.geometry, sim_state.core_profiles
       )
   )
+  P_LH_delabie = scaling_laws.calculate_plh_delabie(
+      sim_state.geometry, sim_state.core_profiles
+  )
 
   # Calculate P_SOL (Power crossing separatrix) = P_sources - P_sinks - dW/dt
   integrated_sources['P_SOL_i'] = (
@@ -933,6 +942,7 @@ def make_post_processed_outputs(
       P_LH_min=P_LH_min,
       P_LH_high_density=P_LH_hi_dens,
       n_e_min_P_LH=n_e_min_P_LH,
+      P_LH_delabie=P_LH_delabie,
       E_fusion=E_fusion,
       E_aux_total=E_aux_total,
       E_ohmic_e=E_ohmic_e,
