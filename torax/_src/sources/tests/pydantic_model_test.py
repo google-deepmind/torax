@@ -187,50 +187,6 @@ class PydanticModelTest(parameterized.TestCase):
     value = source.prescribed_values[1].get_value(0.0)
     np.testing.assert_equal(value, 4.0)
 
-  def test_bremsstrahlung_and_mavrin_validator_with_bremsstrahlung_zero(self):
-    valid_config = {
-        'bremsstrahlung': {'mode': 'ZERO'},
-        'impurity_radiation': {
-            'mode': 'PRESCRIBED',
-            'model_name': 'mavrin_fit',
-        },
-    }
-    pydantic_model.Sources.from_dict(valid_config)
-
-  def test_bremsstrahlung_and_mavrin_validator_with_mavrin_zero(self):
-    valid_config = {
-        'bremsstrahlung': {'mode': 'PRESCRIBED'},
-        'impurity_radiation': {
-            'mode': 'ZERO',
-            'model_name': 'mavrin_fit',
-        },
-    }
-    pydantic_model.Sources.from_dict(valid_config)
-
-  def test_bremsstrahlung_and_mavrin_validator_with_constant_fraction(self):
-    valid_config = {
-        'bremsstrahlung': {'mode': 'PRESCRIBED'},
-        'impurity_radiation': {
-            'mode': 'PRESCRIBED',
-            'model_name': 'P_in_scaled_flat_profile',
-        },
-    }
-    pydantic_model.Sources.from_dict(valid_config)
-
-  def test_bremsstrahlung_and_mavrin_validator_with_invalid_config(self):
-    invalid_config = {
-        'bremsstrahlung': {'mode': 'PRESCRIBED'},
-        'impurity_radiation': {
-            'mode': 'PRESCRIBED',
-            'model_name': 'mavrin_fit',
-        },
-    }
-    with self.assertRaisesRegex(
-        ValueError,
-        'Both bremsstrahlung and impurity_radiation',
-    ):
-      pydantic_model.Sources.from_dict(invalid_config)
-
   @parameterized.named_parameters(
       dict(
           testcase_name='bremsstrahlung',

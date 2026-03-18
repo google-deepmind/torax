@@ -56,7 +56,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     )
     return impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
         runtime_params=runtime_params,
-        unused_geo=geo,
+        geo=geo,
         source_name=self._source_name,
         core_profiles=core_profiles,
         unused_calculated_source_profiles=None,
@@ -280,8 +280,6 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
       impurity_ratios: dict[str, float],
       t_e_keV: float,
   ):
-    """Verifies that radiation from a mixture equals the sum from individual species."""
-
     # --- 1. Calculate ground truth from individual impurity contributions ---
     n_e_true = 1e20  # m^-3
     # Calculate Z and LZ for each individual impurity species
@@ -314,11 +312,21 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
             n_impurities_true.values(), impurities_z.values()
         )
     )
-    # This is the reference radiation we expect TORAX to calculate.
-    radiation_ref = -n_e_true * sum(
+    # The Mavrin cooling rates include impurity bremsstrahlung, but the model
+    # now subtracts it to avoid double-counting with the dedicated brems source.
+    # So the expected output is: -(total_cooling - impurity_bremsstrahlung)
+    total_cooling = n_e_true * sum(
         n_imp * lz
         for n_imp, lz in zip(n_impurities_true.values(), impurities_lz.values())
     )
+    # Z_eff_imp = Z_eff - n_i * Z_i^2 / n_e (impurity contribution to Z_eff)
+    # Assumes Z_i = 1.0 for main ion
+    z_eff_imp = zeff_true - ni_true * 1.0**2 / n_e_true
+    impurity_brems = (
+        5.35e-3 * z_eff_imp * (n_e_true / 1e20) ** 2
+        * np.sqrt(t_e_keV) * 1e6
+    )  # W/m^3
+    radiation_ref = -(total_cooling - impurity_brems)
 
     # --- 2. Set up TORAX with an effective impurity mixture ---
     n_imp_total_true = sum(n_impurities_true.values())

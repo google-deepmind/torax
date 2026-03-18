@@ -56,8 +56,10 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
     P_brem_total, P_brems_profile = (
         bremsstrahlung_heat_sink.calc_bremsstrahlung(
-            core_profiles,
-            geo,
+            n_e=core_profiles.n_e,
+            T_e=core_profiles.T_e,
+            Z_eff_face=core_profiles.Z_eff_face,
+            geo=geo,
         )
     )
 
@@ -66,8 +68,10 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
     P_brem_total_stott, P_brems_profile_stott = (
         bremsstrahlung_heat_sink.calc_bremsstrahlung(
-            core_profiles,
-            geo,
+            n_e=core_profiles.n_e,
+            T_e=core_profiles.T_e,
+            Z_eff_face=core_profiles.Z_eff_face,
+            geo=geo,
             use_relativistic_correction=True,
         )
     )

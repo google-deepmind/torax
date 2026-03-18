@@ -15,6 +15,7 @@
 # pylint: disable=invalid-name
 
 """Bremsstrahlung heat sink for electron heat equation.."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Final, Literal
 import chex
@@ -24,6 +25,7 @@ import jaxtyping as jt
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
@@ -45,7 +47,9 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
 
 
 def calc_bremsstrahlung(
-    core_profiles: state.CoreProfiles,
+    n_e: cell_variable.CellVariable,
+    T_e: cell_variable.CellVariable,
+    Z_eff_face: jax.Array,
     geo: geometry.Geometry,
     use_relativistic_correction: bool = False,
 ) -> tuple[jt.Float[jax.Array, ''], jt.Float[jax.Array, '']]:
@@ -56,29 +60,30 @@ def calc_bremsstrahlung(
   enabled with the flag "use_relativistic_correction".
 
   Args:
-      core_profiles (state.CoreProfiles): core plasma profiles.
-      geo (geometry.Geometry): geometry object.
-      use_relativistic_correction (bool, optional): Set to true to include the
-        relativistic correction from Stott. Defaults to False.
+      n_e: Electron density as a CellVariable.
+      T_e: Electron temperature as a CellVariable.
+      Z_eff_face: Effective charge on the face grid.
+      geo: Geometry object.
+      use_relativistic_correction: Set to true to include the relativistic
+        correction from Stott. Defaults to False.
 
   Returns:
       jax.Array: total bremsstrahlung radiation power [MW]
       jax.Array: bremsstrahlung radiation power profile [W/m^3]
   """
-  n_e20 = core_profiles.n_e.face_value() / 1e20
+  n_e20 = n_e.face_value() / 1e20
 
-  T_e_kev = core_profiles.T_e.face_value()
+  T_e_kev = T_e.face_value()
 
   P_brem_profile_face: jax.Array = (
-      5.35e-3 * core_profiles.Z_eff_face * n_e20**2 * jnp.sqrt(T_e_kev)
+      5.35e-3 * Z_eff_face * n_e20**2 * jnp.sqrt(T_e_kev)
   )  # MW/m^3
 
   def calc_relativistic_correction() -> jax.Array:
     # Apply the Stott relativistic correction.
     Tm = 511.0  # m_e * c**2 in keV
     correction = (1.0 + 2.0 * T_e_kev / Tm) * (
-        1.0
-        + (2.0 / core_profiles.Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
+        1.0 + (2.0 / Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
     )
     return correction
 
@@ -109,8 +114,10 @@ def bremsstrahlung_model_func(
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)
   _, P_brem_profile = calc_bremsstrahlung(
-      core_profiles,
-      geo,
+      n_e=core_profiles.n_e,
+      T_e=core_profiles.T_e,
+      Z_eff_face=core_profiles.Z_eff_face,
+      geo=geo,
       use_relativistic_correction=source_params.use_relativistic_correction,
   )
   # As a sink, the power is negative.

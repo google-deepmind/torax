@@ -703,6 +703,10 @@ The following models are available:
 
   The valid temperature range of the fit is [0.1-100] keV.
 
+  The radiation model includes impurity Bremsstrahlung. To avoid
+  double-counting with the Bremsstrahlung model, the impurity contribution to
+  Bremsstrahlung is subtracted from the Mavrin radiation.
+
 Ion Cyclotron Resonance Heating
 -------------------------------
 

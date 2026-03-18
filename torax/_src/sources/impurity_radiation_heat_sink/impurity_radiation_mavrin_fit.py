@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Routines for calculating impurity radiation based on a polynomial fit."""
+
 import dataclasses
 import functools
 from typing import Annotated, Literal, Sequence
@@ -26,6 +27,7 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics.radiation import radiation
 from torax._src.sources import base
+from torax._src.sources import bremsstrahlung_heat_sink
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
@@ -75,7 +77,7 @@ def calculate_total_impurity_radiation(
 
 def impurity_radiation_mavrin_fit(
     runtime_params: runtime_params_lib.RuntimeParams,
-    unused_geo: geometry.Geometry,
+    geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
@@ -118,9 +120,40 @@ def impurity_radiation_mavrin_fit(
       * source_params.radiation_multiplier
   )
 
+  # The Mavrin cooling rates (L_Z) include impurity bremsstrahlung. Since TORAX
+  # separately computes total bremsstrahlung (using full Z_eff), we subtract
+  # the impurity bremsstrahlung component here to avoid double-counting.
+  # Z_eff_imp = Z_eff - n_i * Z_i^2 / n_e is the impurity contribution to
+  # Z_eff, computed on the face grid for use with calc_bremsstrahlung.
+  Z_eff_imp_face = (
+      core_profiles.Z_eff_face
+      - core_profiles.n_i.face_value()
+      * core_profiles.Z_i_face**2
+      / core_profiles.n_e.face_value()
+  )
+  # Use the bremsstrahlung source's relativistic correction setting if
+  # available, otherwise default to False.
+  brems_source_name = (
+      bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME
+  )
+  brems_params = runtime_params.sources.get(brems_source_name)
+  use_relativistic_correction = (
+      brems_params.use_relativistic_correction
+      if isinstance(brems_params, bremsstrahlung_heat_sink.RuntimeParams)
+      else False
+  )
+  _, impurity_bremsstrahlung = bremsstrahlung_heat_sink.calc_bremsstrahlung(
+      n_e=core_profiles.n_e,
+      T_e=core_profiles.T_e,
+      Z_eff_face=Z_eff_imp_face,
+      geo=geo,
+      use_relativistic_correction=use_relativistic_correction,
+  )
+
   # The impurity radiation heat sink is a negative source, so we return a
-  # negative profile.
-  return (-radiation_profile,)
+  # negative profile. Subtract the impurity bremsstrahlung (which is handled
+  # by the dedicated bremsstrahlung source) to avoid double-counting.
+  return (-(radiation_profile - impurity_bremsstrahlung),)
 
 
 @jax.tree_util.register_dataclass
