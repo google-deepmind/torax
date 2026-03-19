@@ -155,8 +155,8 @@ def calculate_plh_delabie(
       * 1e6
   )
 
-  # S is the surface area of the LCFS
-  P_LH = P_LH_over_S * geo.area_face[-1]
+  # S = g0[-1], the surface area of the entire plasma at the LCFS.
+  P_LH = P_LH_over_S * geo.g0_face[-1]
 
   return P_LH
 

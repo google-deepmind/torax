@@ -274,7 +274,7 @@ class ScalingLawsTest(parameterized.TestCase):
         * 2.0
         / 3.0**0.975
         * 1.93  # D=1.93 for VT
-        * geo.area_face[-1]
+        * geo.g0_face[-1]
         * 1e6  # convert MW -> W
     )
 
