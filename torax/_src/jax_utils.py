@@ -367,13 +367,20 @@ def while_loop_bounded(
     init_val: _State,
     max_steps: int,
     scan_unroll: int = 1,
-) -> _State:
+) -> tuple[_State, chex.Numeric, _State]:
   """A reverse-mode differentiable while_loop.
 
   This makes use of jax.lax.scan and `max_steps` to define a fixed size
   computational graph. The body_fun is called the same number of times it would
   be under a jax.lax.while_loop i.e. until `cond_fun` returns False (unless the
   `max_steps` is reached).
+
+  The state at each step is accumulated using scan's output mechanism. The
+  initial state is prepended to the output, giving a history of shape
+  `(max_steps + 1, ...)` where index 0 is the initial state and subsequent
+  indices are the state after each step. Steps that did not execute (because
+  `cond_fun` returned False or `max_steps` was reached) will contain a copy
+  of the last valid state.
 
   Args:
     cond_fun: As in jax.lax.while_loop.
@@ -385,13 +392,25 @@ def while_loop_bounded(
     scan_unroll: The number of iterations to unroll the internal scan by.
 
   Returns:
-    The final state after `cond_fun` returns `False` or `max_steps` are reached.
+    A tuple of:
+      - The final state after `cond_fun` returns `False` or `max_steps` are
+        reached.
+      - The number of steps that were actually executed (integer scalar).
+      - The output history: a pytree with the same structure as `init_val`
+        where each leaf has an additional leading dimension of size
+        `max_steps + 1`. Index 0 is the initial state, and subsequent indices
+        are the state after each step.
   """
-  # Initial carry for the scan: (current_state, while_loop_condition_met)
-  initial_scan_carry = (init_val, jnp.array(True, dtype=jnp.bool_))
+  # Initial carry for the scan: (current_state, counter,
+  # while_loop_condition_met)
+  initial_scan_carry = (
+      init_val,
+      jnp.array(0, dtype=jnp.int32),
+      jnp.array(True, dtype=jnp.bool_),
+  )
 
   def scan_body(carry, _):
-    current_state, cond_prev = carry
+    current_state, counter, cond_prev = carry
     # Only execute cond if the previous cond was True.
     should_execute_body = jax.lax.cond(
         cond_prev, cond_fun, lambda _: False, current_state
@@ -400,11 +419,21 @@ def while_loop_bounded(
     next_state = jax.lax.cond(
         should_execute_body, body_fun, lambda s: s, current_state
     )
+    next_counter = counter + should_execute_body.astype(jnp.int32)
 
-    return (next_state, should_execute_body), None
+    return (next_state, next_counter, should_execute_body), next_state
 
-  (final_state, _), _ = jax.lax.scan(
+  (final_state, num_steps, _), stacked_outputs = jax.lax.scan(
       scan_body, initial_scan_carry, length=max_steps, unroll=scan_unroll
   )
 
-  return final_state
+  # Prepend initial state to give (max_steps + 1, ...) output.
+  output_history = jax.tree_util.tree_map(
+      lambda init, stacked: jnp.concatenate(
+          [jnp.expand_dims(init, axis=0), stacked], axis=0
+      ),
+      init_val,
+      stacked_outputs,
+  )
+
+  return final_state, num_steps, output_history
