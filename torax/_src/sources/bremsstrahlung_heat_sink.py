@@ -42,12 +42,14 @@ DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'wesson'
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool
+  exclude_impurity_bremsstrahlung: bool
 
 
 def calc_bremsstrahlung(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
     use_relativistic_correction: bool = False,
+    exclude_impurity_bremsstrahlung: bool = False,
 ) -> tuple[jt.Float[jax.Array, ''], jt.Float[jax.Array, '']]:
   """Calculate the Bremsstrahlung radiation power profile.
 
@@ -56,10 +58,15 @@ def calc_bremsstrahlung(
   enabled with the flag "use_relativistic_correction".
 
   Args:
-      core_profiles (state.CoreProfiles): core plasma profiles.
-      geo (geometry.Geometry): geometry object.
-      use_relativistic_correction (bool, optional): Set to true to include the
+      core_profiles: core plasma profiles.
+      geo: geometry object.
+      use_relativistic_correction: Set to True to include the
         relativistic correction from Stott. Defaults to False.
+      exclude_impurity_bremsstrahlung: If True, only include main-ion
+        bremsstrahlung by using Z_eff_main = n_i * Z_i^2 / n_e instead
+        of the full Z_eff. This is used when the Mavrin impurity radiation
+        model is active, since it already accounts for impurity bremsstrahlung
+        via ADAS data. Defaults to False.
 
   Returns:
       jax.Array: total bremsstrahlung radiation power [MW]
@@ -69,8 +76,17 @@ def calc_bremsstrahlung(
 
   T_e_kev = core_profiles.T_e.face_value()
 
+  # When exclude_impurity_bremsstrahlung is True, use the main-ion-only
+  # contribution to Z_eff: Z_eff_main = n_i * Z_i^2 / n_e.
+  Z_eff_face = jnp.where(
+      exclude_impurity_bremsstrahlung,
+      core_profiles.n_i.face_value() * core_profiles.Z_i_face**2
+      / core_profiles.n_e.face_value(),
+      core_profiles.Z_eff_face,
+  )
+
   P_brem_profile_face: jax.Array = (
-      5.35e-3 * core_profiles.Z_eff_face * n_e20**2 * jnp.sqrt(T_e_kev)
+      5.35e-3 * Z_eff_face * n_e20**2 * jnp.sqrt(T_e_kev)
   )  # MW/m^3
 
   def calc_relativistic_correction() -> jax.Array:
@@ -78,7 +94,7 @@ def calc_bremsstrahlung(
     Tm = 511.0  # m_e * c**2 in keV
     correction = (1.0 + 2.0 * T_e_kev / Tm) * (
         1.0
-        + (2.0 / core_profiles.Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
+        + (2.0 / Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
     )
     return correction
 
@@ -112,6 +128,7 @@ def bremsstrahlung_model_func(
       core_profiles,
       geo,
       use_relativistic_correction=source_params.use_relativistic_correction,
+      exclude_impurity_bremsstrahlung=source_params.exclude_impurity_bremsstrahlung,
   )
   # As a sink, the power is negative.
   return (-1.0 * P_brem_profile,)
@@ -133,10 +150,14 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
 
   Attributes:
     use_relativistic_correction: Whether to use relativistic correction.
+    exclude_impurity_bremsstrahlung: If True, only include main-ion
+      bremsstrahlung. Automatically set to True by the Sources pydantic
+      validator when the Mavrin impurity radiation model is also active.
   """
 
   model_name: Annotated[Literal['wesson'], torax_pydantic.JAX_STATIC] = 'wesson'
   use_relativistic_correction: bool = False
+  exclude_impurity_bremsstrahlung: bool = False
   mode: Annotated[
       sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
   ] = sources_runtime_params_lib.Mode.MODEL_BASED
@@ -156,6 +177,7 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
         mode=self.mode,
         is_explicit=self.is_explicit,
         use_relativistic_correction=self.use_relativistic_correction,
+        exclude_impurity_bremsstrahlung=self.exclude_impurity_bremsstrahlung,
     )
 
   def build_source(self) -> BremsstrahlungHeatSink:

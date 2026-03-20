@@ -665,7 +665,13 @@ Bremsstrahlung
 
 Uses the model from Wesson, John, and David J. Campbell. Tokamaks. Vol. 149.
 An optional correction for relativistic effects from Stott PPCF 2005 can be
-enabled with the flag "use_relativistic_correction".
+enabled with the flag ``use_relativistic_correction``.
+
+When the Mavrin impurity radiation model is also active, the bremsstrahlung
+source automatically excludes the impurity bremsstrahlung component (using only
+the main-ion contribution to :math:`Z_\text{eff}`) to avoid double-counting,
+since the Mavrin model already accounts for impurity bremsstrahlung via
+higher-fidelity fits to ADAS data.
 
 Cyclotron Radiation
 ^^^^^^^^^^^^^^^^^^^

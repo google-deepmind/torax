@@ -182,18 +182,17 @@ class Sources(torax_pydantic.BaseModelFrozen):
     return constructor_data
 
   @pydantic.model_validator(mode='after')
-  def validate_radiation_models(self) -> Self:
-    """Validate that bremsstrahlung and Mavrin models are not both active at the same time.
+  def _set_exclude_impurity_bremsstrahlung(self) -> Self:
+    """Auto-configure bremsstrahlung when Mavrin impurity radiation is active.
 
-    This prevents double counting radiation losses.
+    When the Mavrin model is active, it already accounts for impurity
+    bremsstrahlung via higher-fidelity ADAS data. To avoid double-counting,
+    we set exclude_impurity_bremsstrahlung=True on the bremsstrahlung source
+    so it only computes main-ion bremsstrahlung.
 
     Returns:
       Self for method chaining.
-
-    Raises:
-      ValueError: If both bremsstrahlung and Mavrin models are active.
     """
-    # Check if both sources are defined
     if isinstance(
         self.bremsstrahlung,
         bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSinkConfig,
@@ -201,21 +200,17 @@ class Sources(torax_pydantic.BaseModelFrozen):
         self.impurity_radiation,
         impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
     ):
-
       bremsstrahlung_active = (
           self.bremsstrahlung.mode != runtime_params.Mode.ZERO
       )
-
       impurity_active = self.impurity_radiation.mode != runtime_params.Mode.ZERO
 
-      # Only raise error if both are active (not in ZERO mode)
       if bremsstrahlung_active and impurity_active:
-        raise ValueError("""
-            Both bremsstrahlung and impurity_radiation
-            with the Mavrin model should not be active at the same time to avoid
-            double-counting Bremstrahlung losses. Please either set one of them
-            to Mode.ZERO or remove one of them (most likely Bremstrahlung).
-            """)
+        object.__setattr__(
+            self.bremsstrahlung,
+            'exclude_impurity_bremsstrahlung',
+            True,
+        )
 
     return self
 

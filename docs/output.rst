@@ -432,8 +432,10 @@ These are called out in the list of profiles below, and generally relate to:
 ``radiation_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   Impurity radiation power density per species [:math:`W/m^3`]. Only output
   if the ``mavrin_fit`` model is active for ``impurity_radiation``. In this
-  case, the radiation corresponds to combined line radiation and Bremsstrahlung,
-  and both ``p_bremsstrahlung_e`` and ``P_bremsstrahlung_e`` will be zero.
+  case, the radiation corresponds to combined line radiation and Bremsstrahlung
+  from the ADAS-based Mavrin fit model. When Mavrin is active, the separate
+  ``bremsstrahlung`` source automatically excludes the impurity contribution
+  to avoid double-counting (computing only main-ion Bremsstrahlung).
 
 ``R_in`` (time, rho_norm)
   Inner (minimum) radius of each flux surface [:math:`m`].
