@@ -69,7 +69,7 @@ class PowerScalingFormationModel(base.FormationModel):
 
   scaling_law: scaling_laws.PLHScalingLaw
   divertor_configuration: scaling_laws.DivertorConfiguration = (
-      scaling_laws.DivertorConfiguration.VT
+      scaling_laws.DivertorConfiguration.HT
   )
 
   def __call__(

@@ -142,7 +142,7 @@ def calculate_P_LH(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     scaling_law: PLHScalingLaw,
-    divertor_configuration: DivertorConfiguration = DivertorConfiguration.VT,
+    divertor_configuration: DivertorConfiguration = DivertorConfiguration.HT,
     prefactor: float = 1.0,
 ) -> tuple[jax.Array, PLHAuxiliaryData]:
   """Calculates the H-mode transition power from a given scaling law.

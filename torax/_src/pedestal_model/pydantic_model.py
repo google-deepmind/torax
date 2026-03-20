@@ -129,7 +129,7 @@ class DelabieScalingFormation(PowerScalingFormation):
 
   divertor_configuration: Annotated[
       scaling_laws.DivertorConfiguration, torax_pydantic.JAX_STATIC
-  ] = scaling_laws.DivertorConfiguration.VT
+  ] = scaling_laws.DivertorConfiguration.HT
 
   def build_formation_model(
       self,
