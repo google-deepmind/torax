@@ -20,6 +20,7 @@ import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model.formation import power_scaling_formation_model
+from torax._src.physics import scaling_laws
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -68,25 +69,25 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='martin_above_threshold',
-          scaling_law=power_scaling_formation_model.ScalingLaw.MARTIN,
+          scaling_law='martin',
           power=1e6,
           expected_multiplier=1e-6,
       ),
       dict(
           testcase_name='martin_below_threshold',
-          scaling_law=power_scaling_formation_model.ScalingLaw.MARTIN,
+          scaling_law='martin',
           power=-1e6,
           expected_multiplier=1.0,
       ),
       dict(
           testcase_name='delabie_above_threshold',
-          scaling_law=power_scaling_formation_model.ScalingLaw.DELABIE,
+          scaling_law='delabie',
           power=1e6,
           expected_multiplier=1e-6,
       ),
       dict(
           testcase_name='delabie_below_threshold',
-          scaling_law=power_scaling_formation_model.ScalingLaw.DELABIE,
+          scaling_law='delabie',
           power=-1e6,
           expected_multiplier=1.0,
       ),
@@ -96,7 +97,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
   ):
     formation_model = power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_law,
-        divertor_configuration='VT',
+        divertor_configuration=scaling_laws.DivertorConfiguration.VT,
     )
 
     aux_power_profile = power * jnp.ones_like(self.initial_state.geometry.rho)

@@ -15,19 +15,16 @@
 """Calculations related to empirical scaling laws.
 
 Functions:
-    - calculate_plh_martin: Calculates the H-mode transition power
-      according to Martin 2008, and the density corresponding to the P_LH_min
-      according to Ryter 2014.
-    - calculate_plh_delabie: Calculates the H-mode transition
-      power according to the TC-26(B_t) scaling law from Delabie 2026.
+    - calculate_P_LH: Calculates the H-mode transition power according to a
+      given scaling law.
     - calculate_scaling_law_confinement_time: Calculates the predicted
       thermal energy confinement time from a given empirical scaling law.
 """
 
-from typing import Literal
+import dataclasses
+import enum
 import jax
 from jax import numpy as jnp
-from torax._src import constants
 from torax._src import math_utils
 from torax._src import state
 from torax._src.geometry import geometry
@@ -37,53 +34,101 @@ _trapz = jax.scipy.integrate.trapezoid
 # pylint: disable=invalid-name
 
 
-def calculate_plh_martin(
+class PLHScalingLaw(enum.StrEnum):
+  MARTIN = 'martin'
+  DELABIE = 'delabie'
+
+
+class DivertorConfiguration(enum.StrEnum):
+  HT = 'HT'
+  VT = 'VT'
+
+
+_P_LH_SCALING_PARAMS = {
+    PLHScalingLaw.MARTIN: {
+        # Equation 2 in Y.R. Martin and T. Takizuka, "Power requirement for
+        # accessing the H-mode in ITER." Journal of Physics: Conference Series.
+        # Vol. 123. No. 1. (2008)
+        'prefactor': 0.0488,
+        'Bt_exponent': 0.803,
+        'ne_exponent': 0.717,
+        'Meff_exponent': 1.0,
+        'S_exponent': 0.941,
+    },
+    PLHScalingLaw.DELABIE: {
+        # Equation 5 in E. Delabie et al. "Empirical scaling of the L–H
+        # threshold power for metal wall tokamaks using a multi-device
+        # database." Nuclear Fusion 66 (2026) 036016
+        'prefactor': 0.0441,
+        'Bt_exponent': 0.580,
+        'ne_exponent': 1.08,
+        'Meff_exponent': 0.975,
+        'S_exponent': 1.0,
+    },
+}
+
+
+@dataclasses.dataclass
+class PLHAuxiliaryData:
+  """Auxiliary data for P_LH calculations."""
+
+  P_LH_high_density: jax.Array
+  P_LH_low_density: jax.Array
+  P_LH_min: jax.Array
+  line_average_n_e_at_P_LH_min: jax.Array
+
+
+def _calculate_P_LH_high_density(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-  """Calculates the H-mode transition power scalings.
+    line_average_n_e: jax.Array,
+    scaling_law: PLHScalingLaw,
+    divertor_factor: float = 1.0,
+    custom_prefactor: float = 1.0,
+) -> jax.Array:
+  """Calculates the H-mode transition power for the high density branch.
 
-  See Y.R. Martin and Tomonori Takizuka.
-  "Power requirement for accessing the H-mode in ITER."
-  Journal of Physics: Conference Series. Vol. 123. No. 1. IOP Publishing, 2008.
-
-  Only valid for hydrogenic isotopes and mixtures (H, D, T).
-  Includes a simple inverse scaling of the factor to average isotope mass.
-
-  For an overview see U Plank, U., et al. "Overview of L-to H-mode transition
-  experiments at ASDEX Upgrade."
-  Plasma Physics and Controlled Fusion 65.1 (2022): 014001.
+  See Eq. 3 in E. Delabie et al 2026 Nucl. Fusion 66 036016 for the general
+  form. This unifies the Martin and Delabie scaling laws.
 
   Args:
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
+    line_average_n_e: Line average electron density in m^-3.
+    scaling_law: Scaling law to use.
+    divertor_factor: Factor D to account for divertor configuration.
+    custom_prefactor: Prefactor to multiply the P_LH by.
 
   Returns:
-    Tuple of: P_LH scaling factor for high density branch, minimum P_LH,
-      P_LH = max(P_LH_min, P_LH_hi_dens) for practical use, and the density
-      corresponding to the P_LH_min.
+    P_LH in W.
   """
+  params = _P_LH_SCALING_PARAMS[scaling_law]
 
-  line_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
+  line_avg_n_e_20 = line_average_n_e / 1e20  # [10^20 m^-3]
+  Bt = geo.B_0  # [T]
+  S = geo.g0_face[-1]  # Surface (not cross-section) area of LCFS [m^2]
+  Meff = core_profiles.A_i  # Effective main ion atomic mass [amu]
 
-  # LH transition power for deuterium, in W. Eq 3 from Martin 2008.
-  P_LH_hi_dens_D = (
-      2.15
-      * (line_avg_n_e / 1e20) ** 0.782
-      * geo.B_0**0.772
-      * geo.a_minor**0.975
-      * geo.R_major**0.999
-      * 1e6
+  P_LH_MW = (
+      custom_prefactor  # Prefactor from the user
+      * params['prefactor']  # Prefactor from the scaling law
+      * Bt ** params['Bt_exponent']
+      * line_avg_n_e_20 ** params['ne_exponent']
+      * (2.0 / Meff) ** params['Meff_exponent']
+      * divertor_factor
+      * S ** params['S_exponent']
   )
 
-  # Scale to average isotope mass.
-  A_deuterium = constants.ION_PROPERTIES_DICT['D'].A
-  P_LH_hi_dens = P_LH_hi_dens_D * A_deuterium / core_profiles.A_i
+  return P_LH_MW * 1e6
 
+
+def _calculate_line_average_n_e_at_P_LH_min(
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+) -> jax.Array:
+  """Calculates the density at P_LH_min from equation 3 in Ryter 2014."""
   Ip_total = core_profiles.Ip_profile_face[..., -1]
-
-  # Calculate density corresponding to P_LH_min from Eq 3 Ryter 2014
-  n_e_min_P_LH = (
+  return (
       0.7
       * (Ip_total / 1e6) ** 0.34
       * geo.a_minor**-0.95
@@ -91,74 +136,81 @@ def calculate_plh_martin(
       * (geo.R_major / geo.a_minor) ** 0.4
       * 1e19
   )
-  # Calculate P_LH_min at n_e_min from Eq 4 Ryter 2014
-  P_LH_min_D = (
-      0.36
-      * (Ip_total / 1e6) ** 0.27
-      * geo.B_0**1.25
-      * geo.R_major**1.23
-      * (geo.R_major / geo.a_minor) ** 0.08
-      * 1e6
-  )
-  P_LH_min = P_LH_min_D * A_deuterium / core_profiles.A_i
-  P_LH = jnp.maximum(P_LH_min, P_LH_hi_dens)
-  return P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH
 
 
-def calculate_plh_delabie(
+def calculate_P_LH(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    divertor_configuration: Literal['HT', 'VT'] = 'VT',
-) -> jax.Array:
-  """Calculates the H-mode transition power according to TC-26(B_t) scaling law.
-
-  Equation 5 from: "Empirical scaling of the L–H threshold power for
-  metal wall tokamaks using a multi-device database", E. Delabie et al 2026
-  Nucl. Fusion 66 036016
-
-  P_LH/S = (0.0441±0.0025) * B_t^(0.580±0.039) * n_e^(1.08±0.03)
-        * 2/M_eff^(0.975±0.032) * D
+    scaling_law: PLHScalingLaw,
+    divertor_configuration: DivertorConfiguration = DivertorConfiguration.VT,
+    prefactor: float = 1.0,
+) -> tuple[jax.Array, PLHAuxiliaryData]:
+  """Calculates the H-mode transition power from a given scaling law.
 
   Args:
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
-    divertor_configuration: Divertor configuration, either 'HT' or 'VT'. See
-      Delabie et al. for details.
+    scaling_law: Scaling law to use.
+    divertor_configuration: Divertor configuration to use.
+    prefactor: Prefactor to multiply the P_LH by.
 
   Returns:
-    H-mode transition power in W.
+    P_LH in W, and auxiliary data.
   """
-  if divertor_configuration == 'HT':
-    D = 1.0
-  elif divertor_configuration == 'VT':
-    D = 1.93
+  if scaling_law == PLHScalingLaw.DELABIE:
+    if divertor_configuration == DivertorConfiguration.HT:
+      divertor_factor = 1.0
+    elif divertor_configuration == DivertorConfiguration.VT:
+      divertor_factor = 1.93
+    else:
+      raise ValueError(
+          'Unknown divertor configuration for Delabie scaling law:'
+          f' {divertor_configuration}'
+      )
   else:
-    raise ValueError(
-        f'Unknown divertor configuration: {divertor_configuration}'
-    )
+    divertor_factor = 1.0
 
-  # n_e in units of 10^20 m^-3
-  line_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo) * 1e-20
-
-  # M_eff is the effective main ion atomic mass,
-  #   f_H * m_H + f_D * m_D + f_T * m_T
-  # Hence, we can use A_i directly.
-
-  # Note: convert MW -> W
-  P_LH_over_S = (
-      0.0441
-      * geo.B_0**0.580
-      * line_avg_n_e**1.08
-      * 2.0
-      / core_profiles.A_i ** (0.975)
-      * D
-      * 1e6
+  line_average_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
+  line_average_n_e_at_P_LH_min = _calculate_line_average_n_e_at_P_LH_min(
+      geo, core_profiles
   )
 
-  # S = g0[-1], the surface area of the entire plasma at the LCFS.
-  P_LH = P_LH_over_S * geo.g0_face[-1]
+  # P_LH_high_density is the value given by the high density scaling law.
+  P_LH_high_density = _calculate_P_LH_high_density(
+      geo=geo,
+      core_profiles=core_profiles,
+      line_average_n_e=line_average_n_e,
+      scaling_law=scaling_law,
+      divertor_factor=divertor_factor,
+      custom_prefactor=prefactor,
+  )
+  # P_LH_min is the value given by the high density scaling law evaluated at
+  # line_average_n_e_at_P_LH_min.
+  P_LH_min = _calculate_P_LH_high_density(
+      geo=geo,
+      core_profiles=core_profiles,
+      line_average_n_e=line_average_n_e_at_P_LH_min,
+      scaling_law=scaling_law,
+      divertor_factor=divertor_factor,
+      custom_prefactor=prefactor,
+  )
+  # Assume P_LH scales as n_e^-2 for the low density branch.
+  P_LH_low_density = (
+      P_LH_min * (line_average_n_e_at_P_LH_min / line_average_n_e) ** 2.0
+  )
 
-  return P_LH
+  P_LH = jnp.where(
+      line_average_n_e > line_average_n_e_at_P_LH_min,
+      P_LH_high_density,
+      P_LH_low_density,
+  )
+
+  return P_LH, PLHAuxiliaryData(
+      P_LH_high_density=P_LH_high_density,
+      P_LH_low_density=P_LH_low_density,
+      P_LH_min=P_LH_min,
+      line_average_n_e_at_P_LH_min=line_average_n_e_at_P_LH_min,
+  )
 
 
 def calculate_scaling_law_confinement_time(
@@ -167,7 +219,7 @@ def calculate_scaling_law_confinement_time(
     P_loss: jax.Array,
     scaling_law: str,
 ) -> jax.Array:
-  """Calculates the thermal energy confinement time for a given empirical scaling law.
+  """Calculates the thermal energy confinement time for a given scaling law.
 
   Args:
     geo: Torus geometry.

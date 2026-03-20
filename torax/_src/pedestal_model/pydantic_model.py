@@ -27,6 +27,7 @@ from torax._src.pedestal_model import set_pped_tpedratio_nped
 from torax._src.pedestal_model import set_tped_nped
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
+from torax._src.physics import scaling_laws
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -99,7 +100,7 @@ class MartinScalingFormation(PowerScalingFormation):
       self,
   ) -> power_scaling_formation_model.PowerScalingFormationModel:
     return power_scaling_formation_model.PowerScalingFormationModel(
-        scaling_law=power_scaling_formation_model.ScalingLaw.MARTIN,
+        scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
     )
 
   def build_runtime_params(
@@ -127,14 +128,14 @@ class DelabieScalingFormation(PowerScalingFormation):
   ] = "delabie_scaling"
 
   divertor_configuration: Annotated[
-      Literal["HT", "VT"], torax_pydantic.JAX_STATIC
-  ] = "VT"
+      scaling_laws.DivertorConfiguration, torax_pydantic.JAX_STATIC
+  ] = scaling_laws.DivertorConfiguration.VT
 
   def build_formation_model(
       self,
   ) -> power_scaling_formation_model.PowerScalingFormationModel:
     return power_scaling_formation_model.PowerScalingFormationModel(
-        scaling_law=power_scaling_formation_model.ScalingLaw.DELABIE,
+        scaling_law=scaling_laws.PLHScalingLaw.DELABIE,
         divertor_configuration=self.divertor_configuration,
     )
 

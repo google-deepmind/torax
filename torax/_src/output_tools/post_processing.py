@@ -106,12 +106,22 @@ class PostProcessedOutputs:
     P_icrh_total: Total ion cyclotron resonance heating power [W]
     P_LH_high_density: H-mode transition power from the Martin scaling law for
       high density branch [W]
-    P_LH_min: Minimum H-mode transition power from the Martin scaling law for at
+    P_LH_min: Minimum H-mode transition power from the Martin scaling law at
       n_e_min_P_LH [W]
     P_LH: H-mode transition power from the Martin scaling law, taken as the
       maximum of P_LH_high_density and P_LH_min [W]
-    n_e_min_P_LH: Density corresponding to the P_LH_min [m^-3]
-    P_LH_delabie: H-mode transition power from the Delabie scaling law [W]
+    P_LH_low_density: H-mode transition power from a heuristic extension of the
+      Martin scaling law for low density branch [W]
+    n_e_min_P_LH: Density corresponding to the P_LH_min, from the Ryter scaling
+      law [m^-3]
+    P_LH_delabie_high_density: H-mode transition power from the Delabie scaling
+      law for high density branch [W]
+    P_LH_delabie_min: Minimum H-mode transition power from the Delabie scaling
+      law at n_e_min_P_LH [W]
+    P_LH_delabie_low_density: H-mode transition power from a heuristic extension
+      of the Delabie scaling law for low density branch [W]
+    P_LH_delabie: H-mode transition power from the Delabie scaling law, taken as
+      the maximum of P_LH_delabie_high_density and P_LH_delabie_min [W]
     E_fusion: Total cumulative fusion energy [J]
     E_aux_total: Total auxiliary heating energy absorbed by the plasma ( time
       integral of P_aux_total) [J].
@@ -244,8 +254,12 @@ class PostProcessedOutputs:
   # TODO(b/434175938) Rename to P_LH_martin_high_density etc
   P_LH_high_density: array_typing.FloatScalar
   P_LH_min: array_typing.FloatScalar
+  P_LH_low_density: array_typing.FloatScalar
   P_LH: array_typing.FloatScalar
   n_e_min_P_LH: array_typing.FloatScalar
+  P_LH_delabie_high_density: array_typing.FloatScalar
+  P_LH_delabie_min: array_typing.FloatScalar
+  P_LH_delabie_low_density: array_typing.FloatScalar
   P_LH_delabie: array_typing.FloatScalar
   E_fusion: array_typing.FloatScalar
   E_aux_total: array_typing.FloatScalar
@@ -356,8 +370,12 @@ class PostProcessedOutputs:
         P_icrh_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_low_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_delabie_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_delabie_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_delabie_low_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_delabie=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         E_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         E_aux_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -670,13 +688,15 @@ def make_post_processed_outputs(
       integrated_sources['P_external_total'] + constants.CONSTANTS.eps
   )
 
-  P_LH_hi_dens, P_LH_min, P_LH, n_e_min_P_LH = (
-      scaling_laws.calculate_plh_martin(
-          sim_state.geometry, sim_state.core_profiles
-      )
+  P_LH_martin, P_LH_martin_aux_data = scaling_laws.calculate_P_LH(
+      sim_state.geometry,
+      sim_state.core_profiles,
+      scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
   )
-  P_LH_delabie = scaling_laws.calculate_plh_delabie(
-      sim_state.geometry, sim_state.core_profiles
+  P_LH_delabie, P_LH_delabie_aux_data = scaling_laws.calculate_P_LH(
+      sim_state.geometry,
+      sim_state.core_profiles,
+      scaling_law=scaling_laws.PLHScalingLaw.DELABIE,
   )
 
   # Calculate P_SOL (Power crossing separatrix) = P_sources - P_sinks - dW/dt
@@ -938,11 +958,15 @@ def make_post_processed_outputs(
       psi_norm=psi_norm_face,
       **integrated_sources,
       Q_fusion=Q_fusion,
-      P_LH=P_LH,
-      P_LH_min=P_LH_min,
-      P_LH_high_density=P_LH_hi_dens,
-      n_e_min_P_LH=n_e_min_P_LH,
+      P_LH=P_LH_martin,
+      P_LH_min=P_LH_martin_aux_data.P_LH_min,
+      P_LH_high_density=P_LH_martin_aux_data.P_LH_high_density,
+      P_LH_low_density=P_LH_martin_aux_data.P_LH_low_density,
+      n_e_min_P_LH=P_LH_martin_aux_data.line_average_n_e_at_P_LH_min,
       P_LH_delabie=P_LH_delabie,
+      P_LH_delabie_min=P_LH_delabie_aux_data.P_LH_min,
+      P_LH_delabie_high_density=P_LH_delabie_aux_data.P_LH_high_density,
+      P_LH_delabie_low_density=P_LH_delabie_aux_data.P_LH_low_density,
       E_fusion=E_fusion,
       E_aux_total=E_aux_total,
       E_ohmic_e=E_ohmic_e,

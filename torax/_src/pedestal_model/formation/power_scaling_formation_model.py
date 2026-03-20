@@ -15,8 +15,6 @@
 """Power scaling pedestal formation model."""
 
 import dataclasses
-import enum
-from typing import Literal
 import jax
 from torax._src import array_typing
 from torax._src import math_utils
@@ -30,14 +28,6 @@ from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles as source_profiles_lib
 
 # pylint: disable=invalid-name
-
-
-@enum.unique
-class ScalingLaw(enum.Enum):
-  """Defines which scaling law to use for pedestal formation."""
-
-  MARTIN = "MARTIN"
-  DELABIE = "DELABIE"
 
 
 @jax.tree_util.register_dataclass
@@ -77,8 +67,10 @@ class PowerScalingFormationModel(base.FormationModel):
       Delabie scaling law.
   """
 
-  scaling_law: ScalingLaw
-  divertor_configuration: Literal["HT", "VT"] | None = None
+  scaling_law: scaling_laws.PLHScalingLaw
+  divertor_configuration: scaling_laws.DivertorConfiguration = (
+      scaling_laws.DivertorConfiguration.VT
+  )
 
   def __call__(
       self,
@@ -96,20 +88,12 @@ class PowerScalingFormationModel(base.FormationModel):
         core_profiles.internal_plasma_energy, core_sources, geo
     )
 
-    match self.scaling_law:
-      case ScalingLaw.MARTIN:
-        _, _, P_LH, _ = scaling_laws.calculate_plh_martin(geo, core_profiles)
-      case ScalingLaw.DELABIE:
-        P_LH = scaling_laws.calculate_plh_delabie(
-            geo,
-            core_profiles,
-            divertor_configuration=self.divertor_configuration,
-        )
-      case _:
-        raise ValueError(
-            "Unknown scaling law:"
-            f" {runtime_params.pedestal.formation.scaling_law}"
-        )
+    P_LH, _ = scaling_laws.calculate_P_LH(
+        geo,
+        core_profiles,
+        scaling_law=self.scaling_law,
+        divertor_configuration=self.divertor_configuration,
+    )
 
     rescaled_P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
 
