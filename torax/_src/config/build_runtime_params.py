@@ -20,6 +20,7 @@
   optionally updates temperature boundary conditions and impurity
   concentrations based on the edge model outputs.
 """
+
 import dataclasses
 from typing import Any, Callable, Mapping, Sequence, TypeAlias
 
@@ -114,7 +115,7 @@ class RuntimeParamsProvider:
       self,
       t: chex.Numeric,
   ) -> runtime_params_lib.RuntimeParams:
-    """Returns a runtime_params.RuntimeParams to use during time t of the sim."""
+    """Returns a runtime_params.RuntimeParams to use during time t."""
     return runtime_params_lib.RuntimeParams(
         transport=self.transport_model.build_runtime_params(t),
         solver=self.solver.build_runtime_params,
@@ -303,8 +304,15 @@ def get_consistent_runtime_params_and_geometry(
   """Returns the runtime params and geometry for a given time."""
   geo = geometry_provider(t)
   runtime_params_from_provider = runtime_params_provider(t=t)
+  if (
+      runtime_params_from_provider.profile_conditions.n_e_right_bc_mode
+      == profile_conditions_lib.NeBoundaryConditionMode.DENSITY_FRACTION
+  ):
+    raise NotImplementedError(
+        'n_e_right_bc_mode="density_fraction" is not yet implemented. '
+        "This will be implemented in a follow-up PR."
+    )
   runtime_params = edge_updaters.update_runtime_params(
       runtime_params_from_provider, edge_outputs
   )
   return runtime_params_lib.make_ip_consistent(runtime_params, geo)
-

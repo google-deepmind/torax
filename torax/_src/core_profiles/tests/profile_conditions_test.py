@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -113,10 +115,8 @@ class ProfileConditionsTest(parameterized.TestCase):
         'n_e_right_bc': n_e_right_bc,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    dcs_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
     dcs = dcs_provider(t=0.0).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_initial_value)
@@ -249,7 +249,6 @@ class ProfileConditionsTest(parameterized.TestCase):
       values,
       raises,
   ):
-    """Tests that an error is raised if the boundary condition is not defined."""
     if raises:
       with self.assertRaisesRegex(
           pydantic.ValidationError, 'must include a rho=1.0 boundary'
@@ -521,6 +520,83 @@ class ProfileConditionsTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, '3 errors were found'):
       profile_conditions.ProfileConditions(**config_overrides)
 
+  def test_ne_bc_mode_defaults_to_prescribed(self):
+    pc = profile_conditions.ProfileConditions()
+    self.assertEqual(
+        pc.n_e_right_bc_mode,
+        profile_conditions.NeBoundaryConditionMode.PRESCRIBED,
+    )
+    self.assertIsNone(pc.n_e_right_bc_reference_rho)
+    self.assertIsNone(pc.n_e_right_bc_multiplier)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='both_set',
+          reference_rho=0.85,
+          multiplier=1.2,
+          should_raise=False,
+      ),
+      dict(
+          testcase_name='reference_rho_missing',
+          reference_rho=None,
+          multiplier=1.2,
+          should_raise=True,
+          expected_error_msg='n_e_right_bc_reference_rho must be set',
+      ),
+      dict(
+          testcase_name='multiplier_missing',
+          reference_rho=0.85,
+          multiplier=None,
+          should_raise=True,
+          expected_error_msg='n_e_right_bc_multiplier must be set',
+      ),
+      dict(
+          testcase_name='both_missing',
+          reference_rho=None,
+          multiplier=None,
+          should_raise=True,
+          expected_error_msg='2 errors were found',
+      ),
+  )
+  def test_ne_bc_density_fraction_requires_reference_rho_and_multiplier(
+      self, reference_rho, multiplier, should_raise, expected_error_msg=None
+  ):
+    config_overrides = {
+        'n_e_right_bc_mode': 'density_fraction',
+        'n_e_right_bc_reference_rho': reference_rho,
+        'n_e_right_bc_multiplier': multiplier,
+    }
+    if should_raise:
+      with self.assertRaisesRegex(ValueError, expected_error_msg):
+        profile_conditions.ProfileConditions(**config_overrides)
+    else:
+      profile_conditions.ProfileConditions(**config_overrides)
+
+  def test_ne_bc_prescribed_warns_on_unused_attrs(self):
+    with self.assertLogs(level=logging.WARNING) as cm:
+      profile_conditions.ProfileConditions(
+          n_e_right_bc_mode='prescribed',
+          n_e_right_bc_reference_rho=0.85,
+          n_e_right_bc_multiplier=1.2,
+      )
+    log_output = '\n'.join(cm.output)
+    self.assertIn(
+        'n_e_right_bc_reference_rho is set but will be ignored', log_output
+    )
+    self.assertIn(
+        'n_e_right_bc_multiplier is set but will be ignored', log_output
+    )
+
+  def test_ne_bc_density_fraction_warns_on_explicit_n_e_right_bc(self):
+    with self.assertLogs(level=logging.WARNING) as cm:
+      profile_conditions.ProfileConditions(
+          n_e_right_bc_mode='density_fraction',
+          n_e_right_bc_reference_rho=0.85,
+          n_e_right_bc_multiplier=1.2,
+          n_e_right_bc=1e20,
+      )
+    log_output = '\n'.join(cm.output)
+    self.assertIn('n_e_right_bc is set but will be ignored', log_output)
 
 if __name__ == '__main__':
   absltest.main()

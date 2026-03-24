@@ -13,8 +13,10 @@
 # limitations under the License.
 
 """Profile condition parameters used throughout TORAX simulations."""
+
 import dataclasses
 import enum
+import logging
 from typing import Annotated, Callable, Final
 
 import chex
@@ -43,6 +45,21 @@ class InitialPsiMode(enum.StrEnum):
   J = 'j'
 
 
+class NeBoundaryConditionMode(enum.StrEnum):
+  """Mode for the electron density right boundary condition.
+
+  Attributes:
+    PRESCRIBED: The boundary condition is prescribed directly via `n_e_right_bc`
+      or taken from the `n_e` profile at rho_norm=1.
+    DENSITY_FRACTION: The boundary condition is computed as `n_e(reference_rho,
+      t) * multiplier`, where `reference_rho` and `multiplier` are
+      user-specified. t is the time at the beginning of each time step interval.
+  """
+
+  PRESCRIBED = 'prescribed'
+  DENSITY_FRACTION = 'density_fraction'
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class RuntimeParams:
@@ -66,6 +83,11 @@ class RuntimeParams:
   n_e_nbar_is_fGW: bool
   n_e_right_bc: array_typing.FloatScalar
   n_e_right_bc_is_fGW: bool
+  n_e_right_bc_mode: NeBoundaryConditionMode = dataclasses.field(
+      metadata={'static': True}
+  )
+  n_e_right_bc_reference_rho: array_typing.FloatScalar | None
+  n_e_right_bc_multiplier: array_typing.FloatScalar | None
   current_profile_nu: float
   initial_j_is_total_current: bool = dataclasses.field(
       metadata={'static': True}
@@ -186,6 +208,14 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   n_e_nbar_is_fGW: bool = False
   n_e_right_bc: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_is_fGW: bool = False
+  # TODO(b/495851657): V2 API: move boundary condition attributes to a
+  # dedicated nested object, and merge with attributes currently in edge model,
+  # e.g. update_temperatures.
+  n_e_right_bc_mode: Annotated[
+      NeBoundaryConditionMode, torax_pydantic.JAX_STATIC
+  ] = NeBoundaryConditionMode.PRESCRIBED
+  n_e_right_bc_reference_rho: torax_pydantic.TimeVaryingScalar | None = None
+  n_e_right_bc_multiplier: torax_pydantic.TimeVaryingScalar | None = None
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/434175938): Remove this before the V2 API release in place of
@@ -217,8 +247,40 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       _sanity_check_profile_boundary_conditions(self.T_i, 'T_i', error_messages)
     if self.T_e_right_bc is None:
       _sanity_check_profile_boundary_conditions(self.T_e, 'T_e', error_messages)
-    if self.n_e_right_bc is None:
+    if (
+        self.n_e_right_bc is None
+        and self.n_e_right_bc_mode == NeBoundaryConditionMode.PRESCRIBED
+    ):
       _sanity_check_profile_boundary_conditions(self.n_e, 'n_e', error_messages)
+
+    # Validate density_fraction mode attributes.
+    if self.n_e_right_bc_mode == NeBoundaryConditionMode.DENSITY_FRACTION:
+      if self.n_e_right_bc_reference_rho is None:
+        error_messages.append(
+            'n_e_right_bc_reference_rho must be set when'
+            ' n_e_right_bc_mode is "density_fraction".'
+        )
+      if self.n_e_right_bc_multiplier is None:
+        error_messages.append(
+            'n_e_right_bc_multiplier must be set when'
+            ' n_e_right_bc_mode is "density_fraction".'
+        )
+      if self.n_e_right_bc is not None:
+        logging.warning(
+            'n_e_right_bc is set but will be ignored because'
+            ' n_e_right_bc_mode is "density_fraction".'
+        )
+    elif self.n_e_right_bc_mode == NeBoundaryConditionMode.PRESCRIBED:
+      if self.n_e_right_bc_reference_rho is not None:
+        logging.warning(
+            'n_e_right_bc_reference_rho is set but will be ignored because'
+            ' n_e_right_bc_mode is "prescribed".'
+        )
+      if self.n_e_right_bc_multiplier is not None:
+        logging.warning(
+            'n_e_right_bc_multiplier is set but will be ignored because'
+            ' n_e_right_bc_mode is "prescribed".'
+        )
 
     # Validate plasma current input order of magnitude.
     if np.any(self.Ip.value < _MIN_IP_AMPS):
