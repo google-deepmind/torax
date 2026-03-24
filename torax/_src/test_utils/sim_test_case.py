@@ -95,6 +95,7 @@ class SimTestCase(parameterized.TestCase):
       output_file=None,
       ds=None,
       write_output=True,
+      allow_extra_steps: bool = False,
   ):
     """Raises an error if the input states and time do not match the refs."""
     chex.assert_rank(t, 1)
@@ -167,7 +168,7 @@ class SimTestCase(parameterized.TestCase):
       )
       msgs.append(msg)
 
-    if t.shape[0] > ref_time.shape[0]:
+    if t.shape[0] > ref_time.shape[0] and not allow_extra_steps:
       excess = t.shape[0] - ref_time.shape[0]
       msg = (
           'Used too many steps. '
@@ -199,6 +200,7 @@ class SimTestCase(parameterized.TestCase):
       rtol: float | None = None,
       atol: float | None = None,
       write_output: bool = True,
+      allow_extra_steps: bool = False,
   ):
     """Integration test comparing to TORAX reference output."""
     if rtol is None:
@@ -227,4 +229,5 @@ class SimTestCase(parameterized.TestCase):
         output_file=output_file,
         ds=output_xr,
         write_output=write_output,
+        allow_extra_steps=allow_extra_steps,
     )

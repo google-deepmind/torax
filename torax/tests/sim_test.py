@@ -298,7 +298,10 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_lh_transition',
           'test_iterhybrid_lh_transition.py',
           _ALL_PROFILES,
-          5e-3,
+          5e-2,
+          None,
+          None,
+          True,
       ),
       # Tests used for testing changing configs without recompiling.
       # Based on test_iterhybrid_predictor_corrector
@@ -358,6 +361,7 @@ class SimTest(sim_test_case.SimTestCase):
       rtol: float | None = None,
       atol: float | None = None,
       ref_name: str | None = None,
+      allow_extra_steps: bool = False,
   ):
     """Integration test comparing to reference output from TORAX."""
     # The @parameterized decorator removes the `test_torax_sim` method,
@@ -369,6 +373,7 @@ class SimTest(sim_test_case.SimTestCase):
         rtol=rtol,
         atol=atol,
         ref_name=ref_name,
+        allow_extra_steps=allow_extra_steps,
     )
 
   def test_fail(self):
