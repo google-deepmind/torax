@@ -16,9 +16,12 @@ import copy
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax.numpy as jnp
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.fvm import calc_coeffs
+from torax._src.internal_boundary_conditions import internal_boundary_conditions
+from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
@@ -157,6 +160,90 @@ class CoreProfileSettersTest(parameterized.TestCase):
               model_config.ToraxConfig.from_dict(torax_config_with_pedestal)
           ),
       )
+
+
+class TransitionCalculationsTest(parameterized.TestCase):
+
+  def test_pedestal_transition_state_initial_state(self):
+    state = pedestal_transition_state.PedestalTransitionState.initial_state()
+    self.assertTrue(jnp.isneginf(state.transition_start_time))
+    self.assertEqual(state.T_i_ped_L_mode, 0.0)
+    self.assertFalse(state.in_H_mode)
+
+  def test_compute_ramp_fraction_very_small_width(self):
+    state = pedestal_transition_state.PedestalTransitionState(
+        transition_start_time=jnp.array(1.0),
+        T_i_ped_L_mode=jnp.array(0.0),
+        T_e_ped_L_mode=jnp.array(0.0),
+        n_e_ped_L_mode=jnp.array(0.0),
+        in_H_mode=jnp.array(True),
+    )
+    # Very small transition_time_width clips to 1.0 when elapsed > 0.
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1e-10, 1.5), 1.0
+    )
+
+  def test_compute_ramp_fraction_ramp(self):
+    state = pedestal_transition_state.PedestalTransitionState(
+        transition_start_time=jnp.array(1.0),
+        T_i_ped_L_mode=jnp.array(0.0),
+        T_e_ped_L_mode=jnp.array(0.0),
+        n_e_ped_L_mode=jnp.array(0.0),
+        in_H_mode=jnp.array(True),
+    )
+    # transition_time_width = 1.0. Start at 1.0.
+    # Clip at both ends
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 0.5), 0.0
+    )  # t < start
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 1.0), 0.0
+    )  # t = start
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 1.5), 0.5
+    )  # t = start + 0.5
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 2.0), 1.0
+    )  # t = start + 1.0
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 2.5), 1.0
+    )  # t = start + 1.5
+
+  def test_apply_transition_ramp_scaling_l_to_h(self):
+    l_mode_baseline = 1.0
+    h_mode_target = 3.0
+
+    state = pedestal_transition_state.PedestalTransitionState(
+        transition_start_time=jnp.array(1.0),
+        T_i_ped_L_mode=jnp.array(l_mode_baseline),
+        T_e_ped_L_mode=jnp.array(l_mode_baseline),
+        n_e_ped_L_mode=jnp.array(l_mode_baseline),
+        in_H_mode=jnp.array(True),  # L -> H
+    )
+
+    pedestal_top_values = (
+        internal_boundary_conditions.InternalBoundaryConditions(
+            T_i=jnp.array([0.0, h_mode_target, 0.0]),
+            T_e=jnp.array([0.0, h_mode_target, 0.0]),
+            n_e=jnp.array([0.0, h_mode_target, 0.0]),
+        )
+    )
+
+    class MockPedestalRuntimeParams:
+      transition_time_width = 1.0
+
+    class MockRuntimeParams:
+      pedestal = MockPedestalRuntimeParams()
+      t = 1.5  # halfway
+
+    scaled_ibc = calc_coeffs._apply_transition_ramp_scaling(  # pytype: disable=wrong-arg-types
+        pedestal_top_values=pedestal_top_values,
+        pedestal_transition_state=state,
+        runtime_params=MockRuntimeParams(),
+    )
+
+    # Expected: 1.0 + 0.5 * (3.0 - 1.0) = 2.0
+    self.assertTrue(jnp.allclose(scaled_ibc.T_i, jnp.array([0.0, 2.0, 0.0])))
 
 
 if __name__ == '__main__':

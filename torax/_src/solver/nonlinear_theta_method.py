@@ -26,6 +26,7 @@ from torax._src.fvm import enums
 from torax._src.fvm import newton_raphson_solve_block
 from torax._src.fvm import optimizer_solve_block
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import runtime_params as solver_runtime_params_lib
 from torax._src.solver import solver
 from torax._src.sources import source_profiles
@@ -65,6 +66,9 @@ class NonlinearThetaMethod(solver.Solver):
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -89,6 +93,7 @@ class NonlinearThetaMethod(solver.Solver):
         explicit_source_profiles=explicit_source_profiles,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
+        pedestal_transition_state=pedestal_transition_state,
     )
 
     return (
@@ -109,6 +114,9 @@ class NonlinearThetaMethod(solver.Solver):
       explicit_source_profiles: source_profiles.SourceProfiles,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -140,6 +148,9 @@ class NonlinearThetaMethod(solver.Solver):
         iterative solvers.
       evolving_names: The names of variables within the core profiles that
         should evolve.
+      pedestal_transition_state: State for tracking pedestal L-H and H-L
+        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+        use_formation_model_with_adaptive_source=True. None otherwise.
 
     Returns:
       A tuple containing:
@@ -164,6 +175,9 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       explicit_source_profiles: source_profiles.SourceProfiles,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -194,6 +208,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         ),
         maxiter=solver_params.n_max_iterations,
         tol=solver_params.loss_tol,
+        pedestal_transition_state=pedestal_transition_state,
     )
     return (
         x_new,
@@ -216,6 +231,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       explicit_source_profiles: source_profiles.SourceProfiles,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -251,6 +269,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         coarse_tol=solver_params.residual_coarse_tol,
         delta_reduction_factor=solver_params.delta_reduction_factor,
         tau_min=solver_params.tau_min,
+        pedestal_transition_state=pedestal_transition_state,
     )
     return (
         x_new,
