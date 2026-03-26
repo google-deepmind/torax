@@ -28,8 +28,10 @@ import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
+from torax._src import state as state_lib
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import getters as getters_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
@@ -294,25 +296,77 @@ def _get_provider_value_from_replace_value(
       )
 
 
+# TODO(b/495937662): Refactor to a cleaner implementation.
+def _update_ne_density_fraction_boundary_condition(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state_lib.CoreProfiles | None = None,
+) -> runtime_params_lib.RuntimeParams:
+  """Updates n_e boundary condition for ``density_fraction`` mode."""
+  if (
+      runtime_params.profile_conditions.n_e_right_bc_mode
+      != profile_conditions_lib.NeBoundaryConditionMode.DENSITY_FRACTION
+  ):
+    return runtime_params
+
+  reference_rho = runtime_params.profile_conditions.n_e_right_bc_reference_rho
+  multiplier = runtime_params.profile_conditions.n_e_right_bc_multiplier
+
+  if core_profiles is not None:
+    n_e_face_values = core_profiles.n_e.face_value()
+  else:  # Fall back to prescribed n_e profile (e.g. at initialization).
+    n_e = getters_lib.get_updated_electron_density(
+        runtime_params.profile_conditions, geo
+    )
+    n_e_face_values = n_e.face_value()
+
+  n_e_at_ref = jnp.interp(reference_rho, geo.rho_face_norm, n_e_face_values)
+  n_e_right_bc = n_e_at_ref * multiplier
+
+  return dataclasses.replace(
+      runtime_params,
+      profile_conditions=dataclasses.replace(
+          runtime_params.profile_conditions,
+          n_e_right_bc=n_e_right_bc,
+      ),
+  )
+
+
 def get_consistent_runtime_params_and_geometry(
     *,
     t: chex.Numeric,
     runtime_params_provider: RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     edge_outputs: edge_base.EdgeModelOutputs | None = None,
+    core_profiles: state_lib.CoreProfiles | None = None,
+    is_initialization: bool = False,
 ) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
-  """Returns the runtime params and geometry for a given time."""
+  """Returns the runtime params and geometry for a given time.
+
+  Args:
+    t: The time at which to evaluate the runtime params and geometry.
+    runtime_params_provider: Provider for runtime params.
+    geometry_provider: Provider for geometry.
+    edge_outputs: Optional edge model outputs for updating boundary conditions.
+    core_profiles: Optional core profiles from the current state. Used by the
+      ``density_fraction`` boundary condition mode to derive ``n_e_right_bc``
+      from the evolved electron density. If ``None`` (e.g. at initialization),
+      the prescribed ``n_e`` from the runtime params is used.
+    is_initialization: Indicates if the simulation is currently initializing.
+      If this is `False`, then `core_profiles` cannot be `None`.
+
+  Returns:
+    A tuple of (RuntimeParams, Geometry).
+  """
+  if core_profiles is None and not is_initialization:
+    raise ValueError("`core_profiles` cannot be `None` after initialization.")
+
   geo = geometry_provider(t)
-  runtime_params_from_provider = runtime_params_provider(t=t)
-  if (
-      runtime_params_from_provider.profile_conditions.n_e_right_bc_mode
-      == profile_conditions_lib.NeBoundaryConditionMode.DENSITY_FRACTION
-  ):
-    raise NotImplementedError(
-        'n_e_right_bc_mode="density_fraction" is not yet implemented. '
-        "This will be implemented in a follow-up PR."
-    )
+  runtime_params = runtime_params_provider(t=t)
+  runtime_params = _update_ne_density_fraction_boundary_condition(
+      runtime_params, geo, core_profiles
+  )
   runtime_params = edge_updaters.update_runtime_params(
-      runtime_params_from_provider, edge_outputs
+      runtime_params, edge_outputs
   )
   return runtime_params_lib.make_ip_consistent(runtime_params, geo)

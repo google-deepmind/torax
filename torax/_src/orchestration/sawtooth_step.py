@@ -87,6 +87,7 @@ def sawtooth_step(
           t=input_state.t + dt_crash,
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
+          core_profiles=input_state.core_profiles,
       )
   )
 

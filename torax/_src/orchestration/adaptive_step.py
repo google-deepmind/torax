@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Functions for calculating adaptive step for step function with whilei_loop."""
+"""Functions for calculating adaptive step function with whilei_loop."""
 import dataclasses
 
 import chex
@@ -94,6 +94,7 @@ def compute_state(
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
           edge_outputs=edge_outputs,
+          core_profiles=input_state.core_profiles,
       )
   )
   core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(

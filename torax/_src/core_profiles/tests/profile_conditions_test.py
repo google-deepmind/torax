@@ -598,5 +598,17 @@ class ProfileConditionsTest(parameterized.TestCase):
     log_output = '\n'.join(cm.output)
     self.assertIn('n_e_right_bc is set but will be ignored', log_output)
 
+  def test_ne_bc_density_fraction_rejects_is_fgw(self):
+    with self.assertRaisesRegex(
+        ValueError, 'n_e_right_bc_is_fGW must be False'
+    ):
+      profile_conditions.ProfileConditions(
+          n_e_right_bc_mode='density_fraction',
+          n_e_right_bc_reference_rho=0.85,
+          n_e_right_bc_multiplier=1.2,
+          n_e_right_bc_is_fGW=True,
+      )
+
+
 if __name__ == '__main__':
   absltest.main()

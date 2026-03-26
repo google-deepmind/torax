@@ -539,6 +539,7 @@ class SimulationStepFn:
             runtime_params_provider=runtime_params_provider,
             geometry_provider=geometry_provider,
             edge_outputs=edge_outputs,
+            core_profiles=input_state.core_profiles,
         )
     )
     core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(

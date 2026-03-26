@@ -328,6 +328,32 @@ time-dependence of temperature, density, and current.
 ``n_e_right_bc_is_fGW`` (bool [default = False])
   Toggle units of ``n_e_right_bc``.
 
+``n_e_right_bc_mode`` (str [default = "prescribed"])
+  Mode for setting the electron density boundary condition at :math:`r = a`.
+  Options:
+
+  - ``"prescribed"``: Use the value of ``n_e_right_bc`` directly (or the edge
+    value of ``n_e`` if ``n_e_right_bc`` is ``None``).
+  - ``"density_fraction"``: Compute ``n_e_right_bc`` from the evolved electron
+    density profile at
+    :math:`n_e(\hat{\rho}_{\text{ref}}, t) \times \text{multiplier}`, where
+    :math:`t` refers to the beginning of each time step,
+    :math:`\hat{\rho}_{\text{ref}}` is set by ``n_e_right_bc_reference_rho`` and
+    the multiplier by ``n_e_right_bc_multiplier``. At initialization (before any
+    evolved profile exists), the prescribed ``n_e`` profile is used as a
+    fallback. When using this mode, ``n_e_right_bc`` and ``n_e_right_bc_is_fGW``
+    are ignored.
+
+``n_e_right_bc_reference_rho`` (float | None [default = None])
+  Reference normalized toroidal flux coordinate :math:`\hat{\rho}` at which to
+  evaluate the electron density when using the ``"density_fraction"`` boundary
+  condition mode. Required when ``n_e_right_bc_mode = "density_fraction"``.
+
+``n_e_right_bc_multiplier`` (float | None [default = None])
+  Multiplicative factor applied to the electron density at the reference
+  :math:`\hat{\rho}` when using the ``"density_fraction"`` boundary condition
+  mode. Required when ``n_e_right_bc_mode = "density_fraction"``.
+
 ``current_profile_nu`` (float [default = 1.0])
   Peaking factor of initial current, either total or "Ohmic":
   :math:`j = j_0(1 - r^2/a^2)^{\text{current_profile_nu}}`. Used if

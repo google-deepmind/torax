@@ -51,6 +51,7 @@ def pre_step(
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
           edge_outputs=input_state.edge_outputs,
+          core_profiles=input_state.core_profiles,
       )
   )
 

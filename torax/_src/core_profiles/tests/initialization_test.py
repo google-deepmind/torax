@@ -509,6 +509,7 @@ def _get_initial_state(
               torax_config
           ),
           geometry_provider=torax_config.geometry.build_provider,
+          is_initialization=True,
       )
   )
   core_profiles = initialization.initial_core_profiles(

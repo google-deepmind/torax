@@ -445,6 +445,7 @@ class GettersTest(parameterized.TestCase):
             t=torax_config.numerics.t_initial,
             runtime_params_provider=runtime_params_provider,
             geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
         )
     )
     core_profiles = initialization.initial_core_profiles(

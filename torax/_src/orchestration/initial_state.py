@@ -72,6 +72,7 @@ def get_initial_state_and_post_processed_outputs(
           t=t,
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
+          is_initialization=True,
       )
   )
 
@@ -218,6 +219,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
           t=t,
           runtime_params_provider=runtime_params_provider,
           geometry_provider=geometry_provider,
+          is_initialization=True,
       )
   )
   runtime_params_for_init, geo_for_init = (

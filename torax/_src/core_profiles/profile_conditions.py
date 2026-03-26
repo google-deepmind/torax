@@ -265,6 +265,12 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
             'n_e_right_bc_multiplier must be set when'
             ' n_e_right_bc_mode is "density_fraction".'
         )
+      if self.n_e_right_bc_is_fGW:
+        error_messages.append(
+            'n_e_right_bc_is_fGW must be False when n_e_right_bc_mode is'
+            ' "density_fraction". The density_fraction mode computes an'
+            ' absolute boundary condition in SI units (m^-3).'
+        )
       if self.n_e_right_bc is not None:
         logging.warning(
             'n_e_right_bc is set but will be ignored because'
@@ -481,7 +487,16 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
             self.toroidal_angular_velocity.get_value(t, grid_type='face_right')
         )
 
-    if self.n_e_right_bc is None:
+    if (
+        self.n_e_right_bc_mode
+        == NeBoundaryConditionMode.DENSITY_FRACTION
+    ):
+      # In density_fraction mode, the actual n_e_right_bc value is computed
+      # later in build_runtime_params.py. Set a placeholder here and mark
+      # it as absolute (SI units, not Greenwald fraction).
+      runtime_params['n_e_right_bc'] = 1e19
+      runtime_params['n_e_right_bc_is_absolute'] = True
+    elif self.n_e_right_bc is None:
       runtime_params['n_e_right_bc'] = self.n_e.get_value(
           t, grid_type='face_right'
       )

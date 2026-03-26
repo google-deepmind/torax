@@ -90,6 +90,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
             t=torax_config.numerics.t_initial,
             runtime_params_provider=step_fn.runtime_params_provider,
             geometry_provider=step_fn.geometry_provider,
+            is_initialization=True,
         )
     )
 

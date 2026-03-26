@@ -71,6 +71,7 @@ class AngioniSauterTest(absltest.TestCase):
             t=torax_config.numerics.t_initial,
             runtime_params_provider=params_provider,
             geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
         )
     )
 

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -21,6 +23,7 @@ from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
@@ -515,6 +518,94 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
     with self.assertRaises(ValueError, msg='Attribute IP not found.'):
       f(ip_update)
+
+  def test_ne_bc_density_fraction_from_runtime_params(self):
+    """Tests density_fraction mode with core_profiles=None (init fallback)."""
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'n_e': {0: {0.0: 1.5e20, 1.0: 1.0e20}},
+        'n_e_nbar_is_fGW': False,
+        'normalize_n_e_to_nbar': False,
+        'n_e_right_bc_mode': 'density_fraction',
+        'n_e_right_bc_reference_rho': 0.5,
+        'n_e_right_bc_multiplier': 0.8,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    geo_provider = torax_config.geometry.build_provider
+    geo = geo_provider(0.0)
+
+    # Call without core_profiles → fallback to prescribed n_e.
+    runtime_params, _ = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=0.0,
+            runtime_params_provider=dcs_provider,
+            geometry_provider=geo_provider,
+            is_initialization=True,
+        )
+    )
+
+    n_e_cell_variable = getters.get_updated_electron_density(
+        dcs_provider(t=0.0).profile_conditions, geo
+    )
+    expected_n_e_at_ref = jax.numpy.interp(
+        0.5, geo.rho_face_norm, n_e_cell_variable.face_value()
+    )
+    expected_bc = expected_n_e_at_ref * 0.8
+
+    np.testing.assert_allclose(
+        runtime_params.profile_conditions.n_e_right_bc,
+        expected_bc,
+        rtol=1e-6,
+    )
+    self.assertTrue(runtime_params.profile_conditions.n_e_right_bc_is_absolute)
+    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_fGW)
+
+  def test_ne_bc_density_fraction_from_core_profiles(self):
+    """Tests density_fraction mode with a mock CoreProfiles."""
+    config = default_configs.get_default_config_dict()
+    config['profile_conditions'] = {
+        'n_e_right_bc_mode': 'density_fraction',
+        'n_e_right_bc_reference_rho': 0.5,
+        'n_e_right_bc_multiplier': 0.8,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    geo_provider = torax_config.geometry.build_provider
+    geo = geo_provider(0.0)
+
+    # Create a mock CoreProfiles with known n_e face values.
+    n_e_face_profile = jax.numpy.linspace(
+        2.0e20, 1.0e20, geo.rho_face_norm.shape[0]
+    )
+    mock_core_profiles = mock.MagicMock()
+    mock_core_profiles.n_e.face_value.return_value = n_e_face_profile
+
+    runtime_params, _ = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=0.0,
+            runtime_params_provider=dcs_provider,
+            geometry_provider=geo_provider,
+            core_profiles=mock_core_profiles,
+        )
+    )
+
+    expected_n_e_at_ref = jax.numpy.interp(
+        0.5, geo.rho_face_norm, n_e_face_profile
+    )
+    expected_bc = expected_n_e_at_ref * 0.8
+
+    np.testing.assert_allclose(
+        runtime_params.profile_conditions.n_e_right_bc,
+        expected_bc,
+        rtol=1e-6,
+    )
+    self.assertTrue(runtime_params.profile_conditions.n_e_right_bc_is_absolute)
+    self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_fGW)
 
 
 if __name__ == '__main__':
