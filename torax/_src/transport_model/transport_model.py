@@ -444,13 +444,16 @@ def _build_smoothing_matrix(
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
   ):
     # If in ADAPTIVE_SOURCE mode: if set_pedestal is True, mask according to the
-    # pedestal top. Otherwise, mask according to the outer patch, if set.
+    # pedestal top. Otherwise, mask according to the outer patch, if set. If no
+    # outer patch, do not mask.
     mask_outer_edge = jnp.where(
-        jnp.logical_not(runtime_params.pedestal.set_pedestal)
-        & runtime_params.transport.apply_outer_patch,
-        runtime_params.transport.rho_outer - consts.eps,
-        # If pedestal is not set, rho_norm_ped_top is inf.
+        runtime_params.pedestal.set_pedestal,
         pedestal_model_output.rho_norm_ped_top - consts.eps,
+        jnp.where(
+            runtime_params.transport.apply_outer_patch,
+            runtime_params.transport.rho_outer - consts.eps,
+            jnp.inf,
+        ),
     )
   else:
     # If in ADAPTIVE_TRANSPORT mode, only mask according to the outer patch.
