@@ -164,60 +164,26 @@ class FBTGeometryTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
       fbt._validate_fbt_data(LY, L)
 
-  @parameterized.named_parameters(
-      (
-          'lower_null',
-          fbt.DivertorDomain.LOWER_NULL,
-          np.array([10.0, 20.0]),
-          np.array([1.0, 2.0]),
-          np.array([3.0, 4.0]),
-          np.array([6.0, 7.0]),
-          np.array([5.0, 6.0]),
-          np.array([0.5, 0.7]),
-      ),
-      (
-          'upper_null',
-          fbt.DivertorDomain.UPPER_NULL,
-          np.array([15.0, 25.0]),
-          np.array([1.5, 2.5]),
-          np.array([3.5, 4.5]),
-          np.array([6.0, 7.0]),
-          np.array([5.5, 6.5]),
-          np.array([0.5, 0.7]),
-      ),
-  )
-  def test_fbt_edge_parameters(
-      self,
-      divertor_domain,
-      expected_connection_length_target,
-      expected_connection_length_divertor,
-      expected_angle_of_incidence_target,
-      expected_r_omp,
-      expected_r_target,
-      expected_bp_omp,
-  ):
+  def test_fbt_edge_parameters(self):
+    """Tests edge parameters are extracted using shortest Lpar_div."""
     len_psinorm = 20
     len_times = 2
     L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
 
-    # Add edge parameters to LY: (n_domains, n_times)
-    # Rows: domains, Cols: time.
-    # Domain 0 (Lower): [10, 20] over time for Lpar_target.
-    # Domain 1 (Upper): [15, 25] over time for Lpar_target.
+    # Add edge parameters to LY: (n_directions, n_times)
+    # Rows: directions, Cols: time.
+    # Direction 0: shorter Lpar_div -> should be selected.
+    # Direction 1: longer Lpar_div.
     LY['Lpar_target'] = np.array([[10.0, 20.0], [15.0, 25.0]])
     LY['Lpar_div'] = np.array([[1.0, 2.0], [1.5, 2.5]])
     LY['alpha_target'] = np.deg2rad(np.array([[3.0, 4.0], [3.5, 4.5]]))
     # r_OMP and Bp_OMP must be time_only_shape (shape (len_times,)).
-    # They do not depend on direction/domain.
+    # They do not depend on direction.
     LY['r_OMP'] = np.array([6.0, 7.0])
     LY['Bp_OMP'] = np.array([0.5, 0.7])
     LY['r_target'] = np.array([[5.0, 6.0], [5.5, 6.5]])
 
-    # z_div to distinguish nulls.
-    # Index 0: lower null (<0), Index 1: upper null (>0) for ALL times.
-    LY['z_div'] = np.array([[-1.0, -1.0], [1.2, 1.2]])
-
-    # Set diverted flag to true to trigger the domain selection logic.
+    # Set diverted flag.
     LY['lX'] = np.ones(len_times, dtype=int)
 
     geo_intermediates = fbt._from_fbt_bundle(
@@ -225,7 +191,6 @@ class FBTGeometryTest(parameterized.TestCase):
         LY_bundle_object=LY,
         LY_to_torax_times=np.array([0.0, 1.0]),
         L_object=L,
-        divertor_domain=divertor_domain,
         face_centers=interpolated_param_2d.get_face_centers(25),
     )
 
@@ -233,26 +198,28 @@ class FBTGeometryTest(parameterized.TestCase):
     # objects, so we need to extract the values for each time slice.
     intermediates_list = list(geo_intermediates.values())
 
+    # Direction 0 has the shortest Lpar_div at each time, so its values
+    # should be selected.
     np.testing.assert_allclose(
         [i.connection_length_target for i in intermediates_list],
-        expected_connection_length_target,
+        np.array([10.0, 20.0]),
     )
     np.testing.assert_allclose(
         [i.connection_length_divertor for i in intermediates_list],
-        expected_connection_length_divertor,
+        np.array([1.0, 2.0]),
     )
     np.testing.assert_allclose(
         [i.angle_of_incidence_target for i in intermediates_list],
-        expected_angle_of_incidence_target,
+        np.array([3.0, 4.0]),
     )
     np.testing.assert_allclose(
-        [i.R_OMP for i in intermediates_list], expected_r_omp
+        [i.R_OMP for i in intermediates_list], np.array([6.0, 7.0])
     )
     np.testing.assert_allclose(
-        [i.R_target for i in intermediates_list], expected_r_target
+        [i.R_target for i in intermediates_list], np.array([5.0, 6.0])
     )
     np.testing.assert_allclose(
-        [i.B_pol_OMP for i in intermediates_list], expected_bp_omp
+        [i.B_pol_OMP for i in intermediates_list], np.array([0.5, 0.7])
     )
 
   def test_fbt_edge_parameters_missing_edge_parameters(self):
@@ -274,25 +241,6 @@ class FBTGeometryTest(parameterized.TestCase):
       self.assertIsNone(intermediate.R_target)
       self.assertIsNone(intermediate.B_pol_OMP)
 
-  def test_fbt_edge_parameters_bad_domain_request(self):
-    len_psinorm = 20
-    len_times = 2
-    L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
-    LY['z_div'] = np.array([[1.0, 1.2], [2.0, 2.2]])  # All upper null.
-    LY['lX'] = np.ones(len_times, dtype=int).squeeze()
-
-    with self.assertRaisesRegex(
-        ValueError, 'not present in edge geometry data'
-    ):
-      fbt._from_fbt_bundle(
-          geometry_directory=None,
-          LY_bundle_object=LY,
-          LY_to_torax_times=np.array([0.0, 1.0]),
-          L_object=L,
-          divertor_domain=fbt.DivertorDomain.LOWER_NULL,
-          face_centers=interpolated_param_2d.get_face_centers(25),
-      )
-
   @parameterized.named_parameters(
       ('valid_n_directions1', (10,), (10,)),
       ('valid_n_directions2', (10,), (2, 10)),
@@ -311,7 +259,7 @@ class FBTGeometryTest(parameterized.TestCase):
 
     # Add optional keys
     LY['r_OMP'] = np.zeros(omp_shape)
-    LY['z_div'] = np.zeros(target_shape)
+    LY['Lpar_target'] = np.zeros(target_shape)
 
     should_fail = (omp_shape != (len_times,)) or (
         target_shape != (len_times,) and target_shape != (2, len_times)
@@ -333,11 +281,11 @@ class FBTGeometryTest(parameterized.TestCase):
 
     # 1. Valid scalar OMP, scalar target (n_directions=1)
     LY['r_OMP'] = np.array(1.0)  # scalar
-    LY['z_div'] = np.array(1.0)  # scalar
+    LY['Lpar_target'] = np.array(1.0)  # scalar
     fbt._validate_fbt_data(LY, L)
 
     # 2. Valid scalar OMP, 1D target (n_directions=2) -> shape (2,)
-    LY['z_div'] = np.array([1.0, 2.0])
+    LY['Lpar_target'] = np.array([1.0, 2.0])
     fbt._validate_fbt_data(LY, L)
 
     # 3. Invalid OMP shape (vector instead of scalar)
@@ -348,9 +296,9 @@ class FBTGeometryTest(parameterized.TestCase):
 
     # 4. Invalid target shape (n_directions=3)
     LY['r_OMP'] = np.array(1.0)
-    # z_div (3,) -> n_directions can only be 1 or 2
+    # Lpar_target (3,) -> n_directions can only be 1 or 2
     # consistent check: 3 != 1.
-    LY['z_div'] = np.array([1.0, 2.0, 3.0])
+    LY['Lpar_target'] = np.array([1.0, 2.0, 3.0])
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
       fbt._validate_fbt_data(LY, L)
 

@@ -38,6 +38,16 @@ LY_OBJECT_TYPE: TypeAlias = (
     str | Mapping[str, torax_pydantic.NumpyArray | float]
 )
 
+# Edge model geometry keys expected in LY data.
+_EDGE_MODEL_OMP_KEYS = frozenset({'r_OMP', 'Bp_OMP'})
+_EDGE_MODEL_TARGET_KEYS = frozenset({
+    'Lpar_target',
+    'Lpar_div',
+    'alpha_target',
+    'r_target',
+})
+_ALL_EDGE_KEYS = _EDGE_MODEL_OMP_KEYS | _EDGE_MODEL_TARGET_KEYS
+
 
 @enum.unique
 class DivertorDomain(enum.StrEnum):
@@ -349,15 +359,7 @@ def _get_LY_single_slice_from_bundle(
 
   # The keys below are the optional LY keys for the FBT geometry provider.
   # They are used to extract edge quantities for extended Lengyel.
-  optional_keys = [
-      'z_div',
-      'Lpar_target',
-      'Lpar_div',
-      'alpha_target',
-      'r_OMP',
-      'r_target',
-      'Bp_OMP',
-  ]
+  optional_keys = list(_ALL_EDGE_KEYS)
 
   LY_single_slice_required = {
       key: LY_bundle[key][..., idx] for key in required_keys
@@ -407,6 +409,9 @@ def _from_fbt(
     can then be used to build a StandardGeometry by passing to
     `build_standard_geometry`.
   """
+  # This is kept as an input argument while we fully investigate the best way
+  # to chose the edge quantities to use.
+  del divertor_domain
   # lX is a flag for diverted (1) or limited (0) geometry. Converted to
   # boolean when constructing the StandardGeometryIntermediates.
   if LY['lX'] not in [0, 1]:
@@ -453,49 +458,29 @@ def _from_fbt(
   R_target = None
   B_pol_OMP = None
 
-  if 'z_div' in LY:
-    # Ensure z_div is a 1D array, even if it contains a single element, e.g.
-    # if only a single direction was traced.
-    z_div = np.atleast_1d(LY['z_div'])
+  # All edge model keys must be present to extract edge quantities.
+  all_edge_keys = _ALL_EDGE_KEYS
 
-    # Find index corresponding to requested domain.
-    if diverted:
-      if divertor_domain == DivertorDomain.LOWER_NULL:
-        idx_array = np.where(z_div < 0)[0]
-      else:  # UPPER_NULL
-        idx_array = np.where(z_div > 0)[0]
-      if idx_array.size == 0:
-        raise ValueError(
-            f'{divertor_domain} not present in edge geometry data.'
-        )
-      # There should only be one entry per domain.
-      idx = idx_array[0]
+  if all_edge_keys.issubset(LY.keys()):
+    Lpar_div = np.asarray(LY['Lpar_div'])
+    # OMP quantities are scalars so no indexing is needed.
+    R_OMP = LY['r_OMP']
+    B_pol_OMP = LY['Bp_OMP']
+
+    if Lpar_div.ndim == 0:
+      # Scalar values: all edge quantities are scalars, no indexing needed.
+      connection_length_target = LY['Lpar_target']
+      connection_length_divertor = Lpar_div
+      angle_of_incidence_target = np.rad2deg(LY['alpha_target'])
+      R_target = LY['r_target']
     else:
-      # Limited geometry: minor difference between directions.
-      idx = 0
-
-    # Helper to safe get and index
-    def _get_val(key):
-      if key not in LY:
-        return None
-      val = np.asarray(LY[key])
-      if not val.shape:  # Scalar value
-        return val
-      else:
-        return val[idx]
-
-    # Lpar_target -> connection_length_target [m]
-    connection_length_target = _get_val('Lpar_target')
-    # Lpar_div -> connection_length_divertor [m]
-    connection_length_divertor = _get_val('Lpar_div')
-    # alpha_target [radians] -> angle_of_incidence_target [degrees]
-    angle_of_incidence_target = np.rad2deg(_get_val('alpha_target'))
-    # r_OMP -> R_OMP [m]
-    R_OMP = _get_val('r_OMP')
-    # r_target -> R_target [m]
-    R_target = _get_val('r_target')
-    # Bp_OMP -> B_pol_OMP [T]
-    B_pol_OMP = _get_val('Bp_OMP')
+      # Multiple directions traced. Select the index with the shortest
+      # connection length to the divertor (Lpar_div).
+      idx = int(np.argmin(Lpar_div))
+      connection_length_target = LY['Lpar_target'][idx]
+      connection_length_divertor = Lpar_div[idx]
+      angle_of_incidence_target = np.rad2deg(LY['alpha_target'][idx])
+      R_target = LY['r_target'][idx]
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.FBT,
@@ -588,14 +573,8 @@ def _validate_fbt_data(
       'FtPQ': psi_and_time_shape,
   }
   # Optional edge model inputs
-  edge_model_omp_keys = {'r_OMP', 'Bp_OMP'}
-  edge_model_target_keys = {
-      'z_div',
-      'Lpar_target',
-      'Lpar_div',
-      'alpha_target',
-      'r_target',
-  }
+  edge_model_omp_keys = _EDGE_MODEL_OMP_KEYS
+  edge_model_target_keys = _EDGE_MODEL_TARGET_KEYS
 
   missing_LY_keys = required_LY_spec.keys() - LY.keys()
   if missing_LY_keys:
