@@ -40,7 +40,7 @@ class PowerScalingFormationRuntimeParams(
   P_LH_prefactor: array_typing.FloatScalar = 1.0
 
 
-def _calculate_P_SOL_total(
+def calculate_P_SOL_total(
     internal_plasma_energy: state.PlasmaInternalEnergy,
     core_sources: source_profiles_lib.SourceProfiles,
     geo: geometry.Geometry,
@@ -84,7 +84,7 @@ class PowerScalingFormationModel(base.FormationModel):
         runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
 
-    P_SOL_total = _calculate_P_SOL_total(
+    P_SOL_total = calculate_P_SOL_total(
         core_profiles.internal_plasma_energy, core_sources, geo
     )
 

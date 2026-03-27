@@ -43,6 +43,10 @@ class PedestalTransitionState:
       start of the most recent L-mode to H-mode transition [keV].
     n_e_ped_L_mode: Electron density at the pedestal top captured at the start
       of the most recent L-mode to H-mode transition [m^-3].
+    rho_norm_ped_top: Location of the pedestal top in normalized rho. Persisted
+      across timesteps so that models which compute rho_norm_ped_top dynamically
+      (e.g. EPEDNN) can propagate it to the next pre_step for L-mode baseline
+      extraction.
   """
 
   in_H_mode: array_typing.BoolScalar
@@ -52,15 +56,37 @@ class PedestalTransitionState:
   T_i_ped_L_mode: array_typing.FloatScalar
   T_e_ped_L_mode: array_typing.FloatScalar
   n_e_ped_L_mode: array_typing.FloatScalar
+  rho_norm_ped_top: array_typing.FloatScalar
 
   @classmethod
-  def initial_state(cls) -> typing_extensions.Self:
-    """Creates an initial transition state starting in L-mode."""
+  def initial_state(
+      cls,
+      T_i_ped: float = 0.0,
+      T_e_ped: float = 0.0,
+      n_e_ped: float = 0.0,
+      rho_norm_ped_top: float = 0.9,
+  ) -> typing_extensions.Self:
+    """Creates an initial transition state starting in L-mode.
+
+    Args:
+      T_i_ped: Ion temperature at the pedestal top from initial conditions
+        [keV].
+      T_e_ped: Electron temperature at the pedestal top from initial conditions
+        [keV].
+      n_e_ped: Electron density at the pedestal top from initial conditions
+        [m^-3].
+      rho_norm_ped_top: Initial pedestal top location in normalized rho.
+
+    Returns:
+      A PedestalTransitionState initialized in L-mode with the given pedestal
+      top values as L-mode baselines.
+    """
     dtype = jax_utils.get_dtype()
     return cls(
         in_H_mode=jnp.bool_(False),
         transition_start_time=jnp.array(-jnp.inf, dtype=dtype),
-        T_i_ped_L_mode=jnp.array(0.0, dtype=dtype),
-        T_e_ped_L_mode=jnp.array(0.0, dtype=dtype),
-        n_e_ped_L_mode=jnp.array(0.0, dtype=dtype),
+        T_i_ped_L_mode=jnp.array(T_i_ped, dtype=dtype),
+        T_e_ped_L_mode=jnp.array(T_e_ped, dtype=dtype),
+        n_e_ped_L_mode=jnp.array(n_e_ped, dtype=dtype),
+        rho_norm_ped_top=jnp.array(rho_norm_ped_top, dtype=dtype),
     )
