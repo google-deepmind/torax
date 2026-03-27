@@ -88,6 +88,8 @@ class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
     return pedestal_runtime_params_lib.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
         mode=self.mode,
+        use_formation_model_with_adaptive_source=self.use_formation_model_with_adaptive_source,
+        transition_time_width=self.transition_time_width.get_value(t),
         formation=self.formation_model.build_runtime_params(t),
         saturation=self.saturation_model.build_runtime_params(t),
         chi_max=self.chi_max,

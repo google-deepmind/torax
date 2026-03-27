@@ -46,9 +46,9 @@ class FakePedestalModel(pedestal.PedestalModel):
 class FakePedestalPydantic(pedestal.BasePedestal):
   """Fake pedestal model pydantic config."""
 
-  model_name: Annotated[
-      Literal['fake_pedestal'], torax.JAX_STATIC
-  ] = 'fake_pedestal'
+  model_name: Annotated[Literal['fake_pedestal'], torax.JAX_STATIC] = (
+      'fake_pedestal'
+  )
 
   def build_pedestal_model(self) -> FakePedestalModel:
     return FakePedestalModel(
@@ -57,7 +57,8 @@ class FakePedestalPydantic(pedestal.BasePedestal):
     )
 
   def build_runtime_params(
-      self, t,
+      self,
+      t,
   ) -> pedestal.RuntimeParams:
     return pedestal.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
@@ -71,6 +72,8 @@ class FakePedestalPydantic(pedestal.BasePedestal):
         pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
             t
         ),
+        use_formation_model_with_adaptive_source=self.use_formation_model_with_adaptive_source,
+        transition_time_width=self.transition_time_width.get_value(t),
     )
 
 

@@ -57,10 +57,36 @@ class SaturationRuntimeParams:
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams:
-  """Input params for the pedestal model."""
+  """Input params for the pedestal model.
+
+  Attributes:
+    set_pedestal: Whether to use the pedestal model and set the pedestal.
+    mode: Defines how the pedestal is generated.
+    use_formation_model_with_adaptive_source: When True and mode is
+      ADAPTIVE_SOURCE, enables state-dependent L-H transitions based on P_SOL vs
+      P_LH comparison. The formation model is used to check the transition
+      condition. When False, ADAPTIVE_SOURCE mode always applies the pedestal
+      values directly, whenever set_pedestal is True.
+    transition_time_width: Duration of the L-H or H-L transition ramp [s].
+      During a transition, pedestal values are linearly interpolated between
+      L-mode and H-mode values over this time window. Only used when
+      use_formation_model_with_adaptive_source is True.
+    formation: Runtime params for the formation model.
+    saturation: Runtime params for the saturation model.
+    chi_max: Maximum effective thermal diffusion coefficient [m^2/s].
+    D_e_max: Maximum effective particle diffusion coefficient [m^2/s].
+    V_e_max: Maximum effective particle pinch velocity [m/s].
+    V_e_min: Minimum effective particle pinch velocity [m/s].
+    pedestal_top_smoothing_width: Width of the smoothing kernel at the pedestal
+      top.
+  """
 
   set_pedestal: array_typing.BoolScalar
   mode: Mode = dataclasses.field(metadata={"static": True})
+  use_formation_model_with_adaptive_source: bool = dataclasses.field(
+      metadata={"static": True}
+  )
+  transition_time_width: array_typing.FloatScalar
   formation: FormationRuntimeParams
   saturation: SaturationRuntimeParams
   chi_max: array_typing.FloatScalar

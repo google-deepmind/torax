@@ -224,6 +224,15 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       region, allowing the pedestal to self-consistently evolve. Set to
       ADAPTIVE_SOURCE to set the pedestal by adding a source/sink term at the
       pedestal top, forcing the pedestal top values to be as prescribed.
+    use_formation_model_with_adaptive_source: When True and mode is
+      ADAPTIVE_SOURCE, enables state-dependent L-H transitions based on P_SOL vs
+      P_LH comparison. When False, ADAPTIVE_SOURCE mode always applies the
+      prescribed pedestal values (legacy behavior). Ignored when mode is
+      ADAPTIVE_TRANSPORT.
+    transition_time_width: Duration of the L-H or H-L transition ramp [s].
+      During a transition, pedestal values are linearly interpolated between
+      L-mode baseline and H-mode target values over this time window. Only used
+      when use_formation_model_with_adaptive_source is True.
     formation_model: Configuration for the pedestal formation model.
     saturation_model: Configuration for the pedestal saturation model.
     chi_max: Maximum effective thermal diffusion coefficient from the core
@@ -245,6 +254,12 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   )
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
       runtime_params.Mode.ADAPTIVE_SOURCE
+  )
+  use_formation_model_with_adaptive_source: Annotated[
+      bool, torax_pydantic.JAX_STATIC
+  ] = False
+  transition_time_width: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.5)
   )
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
       MartinScalingFormation()
@@ -297,6 +312,8 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     return runtime_params.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
         mode=self.mode,
+        use_formation_model_with_adaptive_source=self.use_formation_model_with_adaptive_source,
+        transition_time_width=self.transition_time_width.get_value(t),
         formation=self.formation_model.build_runtime_params(t),
         saturation=self.saturation_model.build_runtime_params(t),
         chi_max=self.chi_max.get_value(t),
@@ -354,6 +371,8 @@ class SetPpedTpedRatioNped(BasePedestal):
     return set_pped_tpedratio_nped.RuntimeParams(
         set_pedestal=base_runtime_params.set_pedestal,
         mode=base_runtime_params.mode,
+        use_formation_model_with_adaptive_source=base_runtime_params.use_formation_model_with_adaptive_source,
+        transition_time_width=base_runtime_params.transition_time_width,
         P_ped=self.P_ped.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
@@ -415,6 +434,8 @@ class SetTpedNped(BasePedestal):
     return set_tped_nped.RuntimeParams(
         set_pedestal=base_runtime_params.set_pedestal,
         mode=base_runtime_params.mode,
+        use_formation_model_with_adaptive_source=base_runtime_params.use_formation_model_with_adaptive_source,
+        transition_time_width=base_runtime_params.transition_time_width,
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_ped=self.T_i_ped.get_value(t),
@@ -458,6 +479,8 @@ class NoPedestal(BasePedestal):
     return runtime_params.RuntimeParams(
         set_pedestal=base_runtime_params.set_pedestal,
         mode=base_runtime_params.mode,
+        use_formation_model_with_adaptive_source=base_runtime_params.use_formation_model_with_adaptive_source,
+        transition_time_width=base_runtime_params.transition_time_width,
         formation=base_runtime_params.formation,
         saturation=base_runtime_params.saturation,
         chi_max=self.chi_max.get_value(t),

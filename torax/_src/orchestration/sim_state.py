@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Full simulator state to be used for orchestration."""
+
 import dataclasses
 
 from absl import logging
@@ -22,6 +23,7 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles
 
 
@@ -44,6 +46,9 @@ class SimState:
     edge_outputs: Outputs from the edge model, if one is active.
     geometry: Geometry at this time step used for the simulation.
     solver_numeric_outputs: Numerical quantities related to the solver.
+    pedestal_transition_state: State for tracking pedestal L-H and H-L
+      transitions. Only present when the pedestal model is in ADAPTIVE_SOURCE
+      mode with use_formation_model_with_adaptive_source=True.
   """
 
   t: array_typing.FloatScalar
@@ -54,6 +59,9 @@ class SimState:
   edge_outputs: edge_base.EdgeModelOutputs | None
   geometry: geometry.Geometry
   solver_numeric_outputs: state.SolverNumericOutputs
+  pedestal_transition_state: (
+      pedestal_transition_state_lib.PedestalTransitionState | None
+  ) = None
 
   def check_for_errors(self) -> state.SimError:
     """Checks for errors in the simulation state."""
