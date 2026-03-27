@@ -28,6 +28,7 @@ import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
+from torax._src import jax_utils
 from torax._src import state as state_lib
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
@@ -119,6 +120,7 @@ class RuntimeParamsProvider:
   ) -> runtime_params_lib.RuntimeParams:
     """Returns a runtime_params.RuntimeParams to use during time t."""
     return runtime_params_lib.RuntimeParams(
+        t=jnp.asarray(t, dtype=jax_utils.get_dtype()),
         transport=self.transport_model.build_runtime_params(t),
         solver=self.solver.build_runtime_params,
         sources={
@@ -352,8 +354,8 @@ def get_consistent_runtime_params_and_geometry(
       ``density_fraction`` boundary condition mode to derive ``n_e_right_bc``
       from the evolved electron density. If ``None`` (e.g. at initialization),
       the prescribed ``n_e`` from the runtime params is used.
-    is_initialization: Indicates if the simulation is currently initializing.
-      If this is `False`, then `core_profiles` cannot be `None`.
+    is_initialization: Indicates if the simulation is currently initializing. If
+      this is `False`, then `core_profiles` cannot be `None`.
 
   Returns:
     A tuple of (RuntimeParams, Geometry).

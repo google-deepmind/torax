@@ -40,6 +40,7 @@ from collections.abc import Mapping
 import dataclasses
 
 import jax
+from torax._src import array_typing
 from torax._src.config import numerics
 from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles.plasma_composition import plasma_composition
@@ -75,6 +76,7 @@ class RuntimeParams:
   be changed without recompilation.
   """
 
+  t: array_typing.FloatScalar
   edge: edge_runtime_params.RuntimeParams | None
   mhd: mhd_runtime_params.RuntimeParams
   neoclassical: neoclassical_params.RuntimeParams
