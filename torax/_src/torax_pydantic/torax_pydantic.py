@@ -52,6 +52,7 @@ BaseModelFrozen = model_base.BaseModelFrozen
 
 TimeVaryingScalar = interpolated_param_1d.TimeVaryingScalar
 TimeVaryingArray = interpolated_param_2d.TimeVaryingArray
+TimeVaryingScalarStep = interpolated_param_1d.TimeVaryingScalarStep
 NonNegativeTimeVaryingArray = interpolated_param_2d.NonNegativeTimeVaryingArray
 PositiveTimeVaryingScalar = interpolated_param_1d.PositiveTimeVaryingScalar
 NonNegativeTimeVaryingScalar = (

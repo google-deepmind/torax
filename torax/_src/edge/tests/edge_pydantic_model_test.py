@@ -491,6 +491,29 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     ):
       pydantic_model.ExtendedLengyelConfig(multistart_num_guesses=1)
 
+  def test_update_temperatures_time_varying(self):
+    config = pydantic_model.ExtendedLengyelConfig(
+        use_enrichment_model=False,
+        computation_mode='inverse',
+        T_e_target=10.0,
+        seed_impurity_weights={'N': 1.0},
+        enrichment_factor={'N': 1.0},
+        update_temperatures={0.0: False, 1.0: True},
+    )
+    # Check that before the step the value is False.
+    runtime_params_before = config.build_runtime_params(t=0.9)
+    self.assertFalse(runtime_params_before.update_temperatures)
+
+    # STEP interpolation uses left-open intervals: for x in (x_k, x_k+1],
+    # the output is y_k+1. At t=1.0 we are still in the first interval so
+    # the value has not yet switched. See b/454891040.
+    runtime_params_at = config.build_runtime_params(t=1.0)
+    self.assertFalse(runtime_params_at.update_temperatures)
+
+    # Just past the breakpoint the value switches to True.
+    runtime_params_after = config.build_runtime_params(t=1.01)
+    self.assertTrue(runtime_params_after.update_temperatures)
+
 
 if __name__ == '__main__':
   absltest.main()

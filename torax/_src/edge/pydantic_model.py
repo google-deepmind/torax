@@ -77,8 +77,12 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   ] = extended_lengyel_model.FixedImpuritySourceOfTruth.CORE
   # Flags allowing user to test simulation sensitivity to boundary condition
   # updates, while still providing edge model outputs even if not used.
-  update_temperatures: bool = True
-  update_impurities: bool = True
+  update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(True)
+  )
+  update_impurities: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(True)
+  )
   fixed_point_iterations: pydantic.PositiveInt | None = None
   newton_raphson_iterations: pydantic.PositiveInt = (
       extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS
@@ -92,7 +96,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
 
   # Optional boolean to specify if the geometry is diverted.
   # Required for non-FBT geometries. Not allowed for FBT geometries.
-  diverted: torax_pydantic.TimeVaryingScalar | None = None
+  diverted: torax_pydantic.TimeVaryingScalarStep | None = None
 
   # --- Physical parameters ---
   # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
@@ -402,8 +406,8 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         solver_mode=self.solver_mode,
         impurity_sot=self.impurity_sot,
         diverted=_get_optional_value(self.diverted, t),
-        update_temperatures=self.update_temperatures,
-        update_impurities=self.update_impurities,
+        update_temperatures=self.update_temperatures.get_value(t),
+        update_impurities=self.update_impurities.get_value(t),
         fixed_point_iterations=self.fixed_point_iterations,
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,
