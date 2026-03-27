@@ -43,7 +43,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
   formation_model: formation_base.FormationModel
   saturation_model: saturation_base.SaturationModel
 
-  def __call__(
+  def _evaluate_pedestal(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
@@ -79,16 +79,29 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
           pedestal_output, transport_multipliers=transport_multipliers
       )
 
+    return pedestal_output
+
+  def __call__(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      source_profiles: source_profiles_lib.SourceProfiles,
+  ) -> pedestal_model_output.PedestalModelOutput:
     return jax.lax.cond(
         runtime_params.pedestal.set_pedestal,
-        lambda: pedestal_output,
-        lambda: pedestal_model_output.PedestalModelOutput(
+        self._evaluate_pedestal,
+        lambda runtime_params, geo, core_profiles, source_profiles: pedestal_model_output.PedestalModelOutput(
             rho_norm_ped_top=jnp.inf,
             rho_norm_ped_top_idx=geo.torax_mesh.nx,
             T_i_ped=0.0,
             T_e_ped=0.0,
             n_e_ped=0.0,
         ),
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
     )
 
   @abc.abstractmethod
