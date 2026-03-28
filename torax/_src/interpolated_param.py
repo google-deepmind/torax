@@ -58,6 +58,9 @@ class InterpolationMode(enum.Enum):
   input greater than x_n.
 
   Options:
+    NONE: No interpolation. Values are zeros everywhere except for the provided
+      points. Should only be used internally, for the rho dimension in
+      InterpolatedVarTimeRho.
     PIECEWISE_LINEAR: Does piecewise-linear interpolation between the values
       provided. See numpy.interp for a longer description of how it works. (This
       uses JAX, but the behavior is the same.)
@@ -65,12 +68,13 @@ class InterpolationMode(enum.Enum):
       x_k+1), the output will be y_k.
   """
 
+  NONE = 'none'
   PIECEWISE_LINEAR = 'piecewise_linear'
   STEP = 'step'
 
 
 InterpolationModeLiteral: TypeAlias = Literal[
-    'step', 'STEP', 'piecewise_linear', 'PIECEWISE_LINEAR'
+    'step', 'STEP', 'piecewise_linear', 'PIECEWISE_LINEAR', 'none', 'NONE'
 ]
 
 
@@ -515,18 +519,60 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     self._rho_interpolation_mode = rho_interpolation_mode
     self._time_interpolation_mode = time_interpolation_mode
 
-    sorted_indices = np.array(sorted(values.keys()))
-    rho_norm_interpolated_values = np.stack(
-        [
-            InterpolatedVarSingleAxis(
-                values[t], rho_interpolation_mode
-            ).get_value(rho_norm)
-            for t in sorted_indices
-        ],
-        axis=0,
-    )
+    sorted_times = np.array(sorted(values.keys()))
+    if self._rho_interpolation_mode == InterpolationMode.NONE:
+      # If no rho interpolation is needed, the given rho_norm locations will be
+      # quantized onto the rho_norm grid, and the values are delta functions at
+      # the quantized rho_norm locations.
+
+      # Check that the same rho_norm values are used for all times
+      given_rho_norm_locations = values[sorted_times[0]][0]
+      for t in sorted_times[1:]:
+        if not np.array_equal(values[t][0], given_rho_norm_locations):
+          raise ValueError(
+              'When rho_interpolation_mode is InterpolationMode.NONE, the'
+              'rho_norm locations must be the same for all times.'
+          )
+
+      # Find the index of the closest rho_norm values on the grid to the
+      # requested rho_norm locations for each time.
+      quantized_rho_norm_indices = np.stack(
+          [
+              [
+                  np.argmin(np.abs(rho_norm - given_rho_norm_locations))
+                  # values[t] is a tuple of (rho_norm, values) arrays, so
+                  # values[t][0] is the set of specified rho_norm locations for
+                  # the time t.
+                  for given_rho_norm_locations in values[t][0]
+              ]
+              for t in sorted_times
+          ],
+          axis=0,
+      )
+
+      # Convert to a grid of delta functions of height `values` at the quantized
+      # rho_norm locations.
+      rho_norm_interpolated_values = np.zeros(
+          (len(sorted_times), len(rho_norm)),
+          dtype=jax_utils.get_np_dtype(),
+      )
+      rho_norm_interpolated_values[
+          np.arange(len(sorted_times))[:, None], quantized_rho_norm_indices
+      ] = np.array(
+          [values[t][1] for t in sorted_times], dtype=jax_utils.get_np_dtype()
+      )
+    else:
+      rho_norm_interpolated_values = np.stack(
+          [
+              InterpolatedVarSingleAxis(
+                  values[t], rho_interpolation_mode
+              ).get_value(rho_norm)
+              for t in sorted_times
+          ],
+          axis=0,
+      )
     self._time_interpolated_var = InterpolatedVarSingleAxis(
-        value=(sorted_indices, rho_norm_interpolated_values),
+        value=(sorted_times, rho_norm_interpolated_values),
         interpolation_mode=time_interpolation_mode,
     )
 
