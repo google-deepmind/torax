@@ -43,74 +43,27 @@ def run_loop_jit(
       )
   )
 
-  # Pre-allocate history buffers
-  states_history = jax.tree_util.tree_map(
-      lambda x: jnp.zeros((max_steps + 1,) + x.shape, dtype=x.dtype),
-      initial_state,
-  )
-  post_processed_outputs_history = jax.tree_util.tree_map(
-      lambda x: jnp.zeros((max_steps + 1,) + x.shape, dtype=x.dtype),
-      initial_post_processed_outputs,
-  )
-
-  # Store initial state
-  states_history = jax.tree_util.tree_map(
-      lambda hist, val: hist.at[0].set(val), states_history, initial_state
-  )
-  post_processed_outputs_history = jax.tree_util.tree_map(
-      lambda hist, val: hist.at[0].set(val),
-      post_processed_outputs_history,
-      initial_post_processed_outputs,
-  )
-
   def _cond_fun(inputs):
-    i, current_state, _, _, _ = inputs
+    current_state, _ = inputs
     is_done = step_fn.is_done(current_state.t)
-    return jnp.logical_and(i < max_steps, jnp.logical_not(is_done))
+    return jnp.logical_not(is_done)
 
   def _step_fn(inputs):
-    (
-        i,
-        previous_state,
-        previous_post_processed_outputs,
-        states_hist,
-        post_processed_outputs_hist,
-    ) = inputs
+    previous_state, previous_post_processed_outputs = inputs
     current_state, post_processed_outputs = step_fn(
         previous_state,
         previous_post_processed_outputs,
         runtime_params_overrides=runtime_params_overrides,
     )
-    states_hist = jax.tree_util.tree_map(
-        lambda hist, val: hist.at[i + 1].set(val), states_hist, current_state
-    )
-    post_processed_outputs_hist = jax.tree_util.tree_map(
-        lambda hist, val: hist.at[i + 1].set(val),
-        post_processed_outputs_hist,
-        post_processed_outputs,
-    )
-    return (
-        i + 1,
-        current_state,
-        post_processed_outputs,
-        states_hist,
-        post_processed_outputs_hist,
-    )
+    return current_state, post_processed_outputs
 
-  final_i, _, _, states_history, post_processed_outputs_history = (
-      jax_utils.while_loop_bounded(
-          _cond_fun,
-          _step_fn,
-          (
-              0,
-              initial_state,
-              initial_post_processed_outputs,
-              states_history,
-              post_processed_outputs_history,
-          ),
-          max_steps,
-      )
+  _, final_i, history = jax_utils.while_loop_bounded(
+      _cond_fun,
+      _step_fn,
+      (initial_state, initial_post_processed_outputs),
+      max_steps,
   )
+  states_history, post_processed_outputs_history = history
 
   return states_history, post_processed_outputs_history, final_i
 
