@@ -34,6 +34,7 @@ from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import jax_root_finding
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
@@ -75,6 +76,9 @@ def newton_raphson_solve_block(
     delta_reduction_factor: float,
     tau_min: float,
     log_iterations: bool = False,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state_module.SolverNumericOutputs,
@@ -145,6 +149,8 @@ def newton_raphson_solve_block(
       routine resets at a lower timestep.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
+    pedestal_transition_state: State of the pedestal transition model if using
+      the formation model with adaptive source.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
@@ -163,6 +169,7 @@ def newton_raphson_solve_block(
       x=x_old,
       explicit_source_profiles=explicit_source_profiles,
       explicit_call=True,
+      pedestal_transition_state=pedestal_transition_state,
   )
 
   match initial_guess_mode:
@@ -182,6 +189,7 @@ def newton_raphson_solve_block(
           explicit_source_profiles=explicit_source_profiles,
           allow_pereverzev=True,
           explicit_call=True,
+          pedestal_transition_state=pedestal_transition_state,
       )
 
       # See linear_theta_method.py for comments on the predictor_corrector API
@@ -199,6 +207,7 @@ def newton_raphson_solve_block(
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
           explicit_source_profiles=explicit_source_profiles,
+          pedestal_transition_state=pedestal_transition_state,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case enums.InitialGuessMode.X_OLD:
@@ -223,6 +232,7 @@ def newton_raphson_solve_block(
       explicit_source_profiles=explicit_source_profiles,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
+      pedestal_transition_state=pedestal_transition_state,
   )
 
   x_root, metadata = jax_root_finding.root_newton_raphson(
