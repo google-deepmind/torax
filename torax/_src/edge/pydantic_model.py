@@ -181,9 +181,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
 
   # --- Impurity Configuration ---
   # Will be validated for consistency with plasma_composition impurity symbols.
-  seed_impurity_weights: (
-      Mapping[str, torax_pydantic.PositiveTimeVaryingScalar] | None
-  ) = None
+  seed_impurity_weights: Mapping[
+      str, torax_pydantic.UnitIntervalTimeVaryingScalar
+  ] | None = None
   fixed_impurity_concentrations: Mapping[
       str, torax_pydantic.NonNegativeTimeVaryingScalar
   ] = {}
