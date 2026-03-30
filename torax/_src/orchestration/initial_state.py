@@ -30,6 +30,7 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.transport_model import transport_coefficients_builder
@@ -135,6 +136,22 @@ def _get_initial_state(
   else:
     edge_outputs = None
 
+  # Initialize the pedestal transition state if the feature is enabled.
+  if runtime_params.pedestal.use_formation_model_with_adaptive_source:
+    rho_norm_ped_top = getattr(
+        runtime_params.pedestal, 'rho_norm_ped_top', 0.91
+    )
+    ped_top_idx = jnp.argmin(jnp.abs(geo.rho_norm - rho_norm_ped_top))
+    pedestal_transition_state = (
+        pedestal_transition_state_lib.PedestalTransitionState.initial_state(
+            T_i_ped=initial_core_profiles.T_i.value[ped_top_idx],
+            T_e_ped=initial_core_profiles.T_e.value[ped_top_idx],
+            n_e_ped=initial_core_profiles.n_e.value[ped_top_idx],
+        )
+    )
+  else:
+    pedestal_transition_state = None
+
   transport_coeffs = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           physics_models.pedestal_model,
@@ -144,6 +161,7 @@ def _get_initial_state(
           geo,
           initial_core_profiles,
           initial_core_sources,
+          pedestal_transition_state=pedestal_transition_state,
       )
   )
 
@@ -163,6 +181,7 @@ def _get_initial_state(
       ),
       geometry=geo,
       edge_outputs=edge_outputs,
+      pedestal_transition_state=pedestal_transition_state,
   )
 
 

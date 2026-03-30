@@ -30,6 +30,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles
 
 
@@ -60,6 +61,9 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -88,6 +92,9 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         or were independent of the core profiles. Because they were calculated
         outside the possibly-JAX-jitted solver logic, they can be calculated in
         non-JAX-friendly ways.
+      pedestal_transition_state: State for tracking pedestal L-H and H-L
+        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+        use_formation_model_with_adaptive_source=True. None otherwise.
 
     Returns:
       x_new: Tuple containing new cell-grid values of the evolving variables.
@@ -112,6 +119,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
           evolving_names=runtime_params_t.numerics.evolving_names,
+          pedestal_transition_state=pedestal_transition_state,
       )
     else:
       x_new = tuple()
@@ -138,6 +146,9 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -163,6 +174,9 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         are not being evolved by the PDE system.
       explicit_source_profiles: see the docstring of __call__
       evolving_names: The names of core_profiles variables that should evolve.
+      pedestal_transition_state: State for tracking pedestal L-H and H-L
+        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+        use_formation_model_with_adaptive_source=True. None otherwise.
 
     Returns:
       x_new: The values of the evolving variables at time t + dt.
