@@ -189,7 +189,7 @@ def calculate_mavrin_cooling_rate(
   T_e = jnp.clip(T_e, T_e_min, T_e_max)
 
   # Restrict residence parameter to below the coronal limit
-  ne_tau = jnp.clip(ne_tau, a_max=_NE_TAU_CORONAL_LIMIT)
+  ne_tau = jnp.clip(ne_tau, max=_NE_TAU_CORONAL_LIMIT)
 
   # Gather coefficients for each temperature
   # If the ion has different coefficients for different temperature ranges, we
