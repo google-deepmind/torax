@@ -79,7 +79,7 @@ def calculate_mavrin_noncoronal_charge_state(
   max_temp = mavrin_2017_charge_states_data.MAX_TEMPERATURES[ion_symbol_lookup]
   T_e_ev = jnp.clip(T_e_ev, min_temp, max_temp)
   # Residence parameter capped at 10^19, which is the coronal limit.
-  ne_tau = jnp.clip(ne_tau, a_max=_NE_TAU_CORONAL_LIMIT)
+  ne_tau = jnp.clip(ne_tau, max=_NE_TAU_CORONAL_LIMIT)
 
   # Gather coefficients for each temperature
   interval_indices = jnp.searchsorted(
