@@ -37,6 +37,9 @@ from torax._src.torax_pydantic import torax_pydantic
 # Internal import.
 # Internal import.
 
+# Index of He3 in _FAST_ION_SPECIES.
+_HE3_INDEX = 3
+
 
 _DUMMY_MODEL_PATH = "/tmp/toricnn.json"
 
@@ -383,8 +386,8 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     self.assertLen(output, 3)
     fast_ion_data = output[2]
     self.assertIsInstance(fast_ion_data, tuple)
-    self.assertLen(fast_ion_data, 1)
-    fi = fast_ion_data[0]
+    self.assertLen(fast_ion_data, 5)
+    fi = fast_ion_data[_HE3_INDEX]
     self.assertIsInstance(fi, fast_ion_lib.FastIon)
     self.assertEqual(fi.species, "He3")
     self.assertEqual(
@@ -428,7 +431,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         conductivity=None,
     )
     fast_ion_data = output[2]
-    n_tail = fast_ion_data[0].n.value
+    n_tail = fast_ion_data[_HE3_INDEX].n.value
     n_total = core_profiles.n_e.value * minority_conc
     self.assertTrue(jnp.all(n_tail >= 0))
     self.assertTrue(jnp.all(n_tail <= n_total))
@@ -463,7 +466,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         conductivity=None,
     )
     fast_ion_data = output[2]
-    temperature_tail = fast_ion_data[0].T.value
+    temperature_tail = fast_ion_data[_HE3_INDEX].T.value
     self.assertTrue(jnp.all(temperature_tail >= core_profiles.T_e.value))
 
   def test_zero_power_produces_zero_fast_ions(self):
@@ -496,9 +499,11 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         conductivity=None,
     )
     fast_ion_data = output[2]
-    np.testing.assert_allclose(fast_ion_data[0].n.value, 0.0, atol=1e-9)
     np.testing.assert_allclose(
-        fast_ion_data[0].T.value, core_profiles.T_i.value
+        fast_ion_data[_HE3_INDEX].n.value, 0.0, atol=1e-9
+    )
+    np.testing.assert_allclose(
+        fast_ion_data[_HE3_INDEX].T.value, core_profiles.T_i.value
     )
 
 

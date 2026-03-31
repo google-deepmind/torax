@@ -61,6 +61,9 @@ _HELIUM3_ID = 'He3'
 _TRITIUM_SECOND_HARMONIC_ID = '2T'
 _ELECTRON_ID = 'e'
 
+# All fast ion species supported by the ICRH source.
+_FAST_ION_SPECIES: Final[tuple[str, ...]] = ('H', 'D', 'T', 'He3', 'He4')
+
 
 def _from_json(json_file) -> dict[str, Any]:
   """Load the model config and weights from a JSON file."""
@@ -466,12 +469,8 @@ def icrh_model_func(
   power_deposition_2T /= total_power_deposition
 
   # Computing fast ion density and temperatures for He3.
-  # Only He3 is supported for now.
-  # TODO(b/483988192): Add support for other species.
-
-  species = 'He3'
-  atomic_mass = 3.016
-  charge_number = 2
+  he3_atomic_mass = 3.016
+  he3_charge_number = 2
 
   n_tail, T_tail = fast_ion_utils.bimaxwellian_split(
       power_deposition=power_deposition_he3,
@@ -481,8 +480,8 @@ def icrh_model_func(
       n_i=core_profiles.n_i.value,
       minority_concentration=minority_concentration_profile,
       P_total_W=source_params.P_total,
-      charge_number=charge_number,
-      mass_number=atomic_mass,
+      charge_number=he3_charge_number,
+      mass_number=he3_atomic_mass,
       bulk_ion_mass=core_profiles.A_i,
       Z_i=core_profiles.Z_i,
       n_impurity=core_profiles.n_impurity.value,
@@ -490,28 +489,34 @@ def icrh_model_func(
       A_impurity=core_profiles.A_impurity,
   )
 
-  fast_ions = (
-      fast_ion_lib.FastIon(
-          species=species,
-          source=source_name,
-          n=cell_variable.CellVariable(
-              value=n_tail,
-              face_centers=geo.rho_face_norm,
-              right_face_grad_constraint=None,
-              right_face_constraint=jnp.zeros(()),
-          ),
-          T=cell_variable.CellVariable(
-              value=T_tail,
-              face_centers=geo.rho_face_norm,
-              right_face_grad_constraint=None,
-              right_face_constraint=core_profiles.T_i.right_face_constraint,
-          ),
+  # Build fast ion output for all supported species.
+  # Only He3 has non-zero values from the model; others are zeroed.
+  he3_fast_ion = fast_ion_lib.FastIon(
+      species='He3',
+      source=source_name,
+      n=cell_variable.CellVariable(
+          value=n_tail,
+          face_centers=geo.rho_face_norm,
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.zeros(()),
+      ),
+      T=cell_variable.CellVariable(
+          value=T_tail,
+          face_centers=geo.rho_face_norm,
+          right_face_grad_constraint=None,
+          right_face_constraint=core_profiles.T_i.right_face_constraint,
       ),
   )
+  fast_ions = _build_fast_ions(
+      source_name=source_name,
+      geo=geo,
+      fast_ions=[he3_fast_ion],
+  )
+
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
       T_tail,
       core_profiles.T_e.value,
-      atomic_mass,
+      he3_atomic_mass,
   )
   absorbed_power = source_params.P_total * source_params.absorption_fraction
   source_ion = power_deposition_he3 * frac_ion_heating * absorbed_power
@@ -524,6 +529,53 @@ def icrh_model_func(
   source_ion += power_deposition_2T * absorbed_power
 
   return (source_ion, source_el, fast_ions)
+
+
+def _build_fast_ions(
+    source_name: str,
+    geo: geometry.Geometry,
+    fast_ions: Sequence[fast_ion_lib.FastIon] = (),
+) -> tuple[fast_ion_lib.FastIon, ...]:
+  """Builds a complete FastIon tuple for all supported species.
+
+  Takes a list of computed FastIon objects (for a subset of species) and
+  produces a full tuple covering all species in _FAST_ION_SPECIES. Species
+  not present in the input list are filled with zero density and temperature.
+
+  Args:
+    source_name: The name of the source.
+    geo: Geometry.
+    fast_ions: Computed FastIon objects for a subset of species.
+
+  Returns:
+    Tuple of FastIon objects, one per species in _FAST_ION_SPECIES, in order.
+  """
+  computed = {fi.species: fi for fi in fast_ions}
+  zeros = jnp.zeros_like(geo.rho)
+  result = []
+  for species in _FAST_ION_SPECIES:
+    if species in computed:
+      result.append(computed[species])
+    else:
+      result.append(
+          fast_ion_lib.FastIon(
+              species=species,
+              source=source_name,
+              n=cell_variable.CellVariable(
+                  value=zeros,
+                  face_centers=geo.rho_face_norm,
+                  right_face_grad_constraint=None,
+                  right_face_constraint=jnp.zeros(()),
+              ),
+              T=cell_variable.CellVariable(
+                  value=zeros,
+                  face_centers=geo.rho_face_norm,
+                  right_face_grad_constraint=None,
+                  right_face_constraint=jnp.zeros(()),
+              ),
+          )
+      )
+  return tuple(result)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -542,25 +594,7 @@ class IonCyclotronSource(source.Source):
       cls,
       geo: geometry.Geometry,
   ) -> tuple[fast_ion_lib.FastIon, ...]:
-    # TODO(b/483988192): Add support for other species.
-    return (
-        fast_ion_lib.FastIon(
-            species='He3',
-            source=cls.SOURCE_NAME,
-            n=cell_variable.CellVariable(
-                value=jnp.zeros_like(geo.rho),
-                face_centers=geo.rho_face_norm,
-                right_face_grad_constraint=None,
-                right_face_constraint=jnp.zeros(()),
-            ),
-            T=cell_variable.CellVariable(
-                value=jnp.zeros_like(geo.rho),
-                face_centers=geo.rho_face_norm,
-                right_face_grad_constraint=None,
-                right_face_constraint=jnp.zeros(()),
-            ),
-        ),
-    )
+    return _build_fast_ions(source_name=cls.SOURCE_NAME, geo=geo)
 
 
 # Cache the result of this function to avoid re-creating the partial function
