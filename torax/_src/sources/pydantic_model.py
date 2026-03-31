@@ -91,7 +91,7 @@ class Sources(torax_pydantic.BaseModelFrozen):
       discriminator='model_name',
       default=None,
   )
-  icrh: ion_cyclotron_source_lib.IonCyclotronSourceConfig | None = (
+  icrh: ion_cyclotron_source_lib.ToricNNIonCyclotronSourceConfig | None = (
       pydantic.Field(
           discriminator='model_name',
           default=None,

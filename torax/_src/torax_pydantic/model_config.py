@@ -350,9 +350,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     is not set.
     """
     if (
-        self.sources.icrh is not None
-        and self.sources.icrh.model_name
-        == ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        isinstance(
+            self.sources.icrh,
+            ion_cyclotron_source_lib.ToricNNIonCyclotronSourceConfig,
+        )
         and self.sources.icrh.minority_species is not None
     ):
       he3_present = (

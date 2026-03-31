@@ -100,14 +100,14 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     self.dummy_input = model_input
     self.dummy_output = model_output
     super().setUp(
-        source_config_class=ion_cyclotron_source.IonCyclotronSourceConfig,
+        source_config_class=ion_cyclotron_source.ToricNNIonCyclotronSourceConfig,
         source_name=ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
     )
     # pytype: enable=signature-mismatch
 
   def config_raises_if_model_path_does_not_exist(self):
     with self.assertRaises(FileNotFoundError):
-      ion_cyclotron_source.IonCyclotronSourceConfig.from_dict(
+      ion_cyclotron_source.ToricNNIonCyclotronSourceConfig.from_dict(
           {"model_path": "/tmp/non_existent_file.json"}
       )
 
@@ -338,21 +338,25 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
 
   def test_minority_concentration_warning_by_default(self):
     with self.assertLogs(level="WARNING") as cm:
-      ion_cyclotron_source.IonCyclotronSourceConfig()
+      ion_cyclotron_source.ToricNNIonCyclotronSourceConfig()
     self.assertTrue(
         any("minority_concentration is provided" in o for o in cm.output)
     )
 
   def test_minority_concentration_warning_when_explicitly_set_to_non_none(self):
     with self.assertLogs(level="WARNING") as cm:
-      ion_cyclotron_source.IonCyclotronSourceConfig(minority_concentration=0.05)
+      ion_cyclotron_source.ToricNNIonCyclotronSourceConfig(
+          minority_concentration=0.05
+      )
     self.assertTrue(
         any("minority_concentration is provided" in o for o in cm.output)
     )
 
   def test_minority_concentration_no_warning_when_none(self):
     with self.assertNoLogs(level="WARNING"):
-      ion_cyclotron_source.IonCyclotronSourceConfig(minority_concentration=None)
+      ion_cyclotron_source.ToricNNIonCyclotronSourceConfig(
+          minority_concentration=None
+      )
 
   def test_icrh_returns_fast_ion_data(self):
     config = default_configs.get_default_config_dict()

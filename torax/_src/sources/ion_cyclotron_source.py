@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Surrogate model for ion-cyclotron resonance heating (ICRH) model."""
+"""Ion-cyclotron resonance heating (ICRH) source models."""
 
 import dataclasses
 import functools
@@ -580,7 +580,7 @@ def _build_fast_ions(
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class IonCyclotronSource(source.Source):
-  """Ion cyclotron source with surrogate model."""
+  """Ion cyclotron source."""
 
   SOURCE_NAME: ClassVar[str] = 'icrh'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
@@ -615,7 +615,37 @@ def _icrh_model_func_with_toric_nn(
 
 
 class IonCyclotronSourceConfig(base.SourceModelBase):
-  """Configuration for the IonCyclotronSource.
+  """Base configuration for IonCyclotronSource.
+
+  This base class contains fields common to all ICRH model implementations.
+  Subclasses implement the specific model logic (e.g., ToricNN, scaled curves)
+  and must override `model_name` with a `Literal` to serve as discriminator.
+
+  Attributes:
+    model_name: Discriminator field for Pydantic. Subclasses must override with
+      a `Literal` value.
+    P_total: Total heating power [W].
+    absorption_fraction: Fraction of absorbed power.
+    mode: Defines how the source values are computed.
+  """
+
+  model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''
+  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      10e6
+  )
+  absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  mode: Annotated[source_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
+      source_runtime_params_lib.Mode.MODEL_BASED
+  )
+
+  def build_source(self) -> IonCyclotronSource:
+    return IonCyclotronSource(model_func=self.model_func)
+
+
+class ToricNNIonCyclotronSourceConfig(IonCyclotronSourceConfig):
+  """Configuration for the IonCyclotronSource using the ToricNN model.
 
   Attributes:
     model_path: Path to JSON weights and model config of ToricNN model.
@@ -633,8 +663,6 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       plasma_composition instead of using minority_concentration parameter. The
       species can be either a main ion (if hydrogenic) or an impurity (if
       helium).
-    P_total: Total heating power [W].
-    absorption_fraction: Fraction of absorbed power.
   """
 
   model_name: Annotated[Literal['toric_nn'], torax_pydantic.JAX_STATIC] = (
@@ -651,15 +679,6 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       torax_pydantic.ValidatedDefault(0.03)
   )
   minority_species: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
-  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      10e6
-  )
-  absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  mode: Annotated[source_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
-      source_runtime_params_lib.Mode.MODEL_BASED
-  )
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -713,6 +732,3 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
         P_total=self.P_total.get_value(t),
         absorption_fraction=self.absorption_fraction.get_value(t),
     )
-
-  def build_source(self) -> IonCyclotronSource:
-    return IonCyclotronSource(model_func=self.model_func)
