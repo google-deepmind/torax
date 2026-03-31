@@ -27,6 +27,9 @@
 .. _kim1991_link: https://doi.org/10.1063/1.859671
 .. _hinton1976_link: https://doi.org/10.1103/RevModPhys.48.239
 .. _waltz1998_link: https://doi.org/10.1063/1.872847
+.. _stix1972_link: https://doi.org/10.1088/0032-1028/14/4/002
+.. _stix1975_link: https://doi.org/10.1088/0029-5515/15/5/003
+.. _disiena2021_link: https://doi.org/10.1103/PhysRevLett.127.025002
 
 .. Define substitutions using link targets
 .. |qlknn10d| replace:: `[van de Plassche et al, Phys. Plasmas 2020] <qlknn10d_link_>`_
@@ -57,3 +60,6 @@
 .. |kim1991| replace:: `[Kim et al, Phys. Fluids B 1991] <kim1991_link_>`_
 .. |hinton1976| replace:: `[Hinton & Hazeltine, Rev. Mod. Phys. 1976] <hinton1976_link_>`_
 .. |waltz1998| replace:: `[Waltz et al, Phys. Plasmas 1998] <waltz1998_link_>`_
+.. |stix1972| replace:: `[Stix, Plasma Phys. 1972] <stix1972_link_>`_
+.. |stix1975| replace:: `[Stix, Nucl. Fusion 1975] <stix1975_link_>`_
+.. |disiena2021| replace:: `[Di Siena et al, PRL 2021] <disiena2021_link_>`_
