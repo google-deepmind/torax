@@ -89,6 +89,9 @@ class _SourceCollection:
       values_list = []
       # Automatically ordered thanks to the affected_profiles class atribute.
       for affected_profile in source_data.affected_profiles:
+        # Not implemented yet for fast ion sources.
+        if affected_profile == source_module.AffectedCoreProfile.FAST_IONS:
+          continue
         profile = source_data.profiles[affected_profile]
         values_list.append((source_data.time, source_data.rho_norm, profile))
 
@@ -247,6 +250,9 @@ def _extract_source_profiles(
       profiles[affected_profile] = [
           profile.electrons.particles for profile in profiles_1d
       ]
+    # Handling of fast ions from ICRH not taken into account yet.
+    elif affected_profile == source_module.AffectedCoreProfile.FAST_IONS:
+      profiles[affected_profile] = None
 
   return _SourceProfiles(
       time=time_array,
