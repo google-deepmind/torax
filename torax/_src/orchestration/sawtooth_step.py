@@ -31,6 +31,7 @@ from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function_processing
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.physics import formulas
 from torax._src.sources import source_profiles as source_profiles_lib
 
@@ -54,6 +55,9 @@ def sawtooth_step(
     edge_outputs: edge_base.EdgeModelOutputs | None,
     input_state: sim_state.SimState,
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Checks for and handles a sawtooth crash.
 
@@ -75,6 +79,9 @@ def sawtooth_step(
     edge_outputs: Explicit edge outputs at time t.
     input_state: State at the start of the time step.
     input_post_processed_outputs: Post-processed outputs from the previous step.
+    pedestal_transition_state: State for tracking pedestal L-H and H-L
+      transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+      use_formation_model_with_adaptive_source=True. None otherwise.
 
   Returns:
     Returns a tuple (output_state, post_processed_outputs).
@@ -152,6 +159,7 @@ def sawtooth_step(
         physics_models=sawtooth_solver.physics_models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
+        pedestal_transition_state=pedestal_transition_state,
     )
 
   return jax.lax.cond(

@@ -29,6 +29,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import sim_state
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 
@@ -85,6 +86,9 @@ def compute_state(
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     solver: solver_lib.Solver,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> tuple[AdaptiveStepState, dict[str, array_typing.IntScalar]]:
   """Computes the state for attempt i of the adaptive step."""
   dt = initial_dt / runtime_params_t.numerics.dt_reduction_factor**i
@@ -116,6 +120,7 @@ def compute_state(
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_transition_state=pedestal_transition_state,
   )
   loop_statistics[
       'inner_solver_iterations'

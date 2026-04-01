@@ -54,13 +54,31 @@ class PedestalTransitionState:
   n_e_ped_L_mode: array_typing.FloatScalar
 
   @classmethod
-  def initial_state(cls) -> typing_extensions.Self:
-    """Creates an initial transition state starting in L-mode."""
+  def initial_state(
+      cls,
+      T_i_ped: float = 0.0,
+      T_e_ped: float = 0.0,
+      n_e_ped: float = 0.0,
+  ) -> typing_extensions.Self:
+    """Creates an initial transition state starting in L-mode.
+
+    Args:
+      T_i_ped: Ion temperature at the pedestal top from initial conditions
+        [keV].
+      T_e_ped: Electron temperature at the pedestal top from initial conditions
+        [keV].
+      n_e_ped: Electron density at the pedestal top from initial conditions
+        [m^-3].
+
+    Returns:
+      A PedestalTransitionState initialized in L-mode with the given pedestal
+      top values as L-mode baselines.
+    """
     dtype = jax_utils.get_dtype()
     return cls(
         in_H_mode=jnp.bool_(False),
         transition_start_time=jnp.array(-jnp.inf, dtype=dtype),
-        T_i_ped_L_mode=jnp.array(0.0, dtype=dtype),
-        T_e_ped_L_mode=jnp.array(0.0, dtype=dtype),
-        n_e_ped_L_mode=jnp.array(0.0, dtype=dtype),
+        T_i_ped_L_mode=jnp.array(T_i_ped, dtype=dtype),
+        T_e_ped_L_mode=jnp.array(T_e_ped, dtype=dtype),
+        n_e_ped_L_mode=jnp.array(n_e_ped, dtype=dtype),
     )
