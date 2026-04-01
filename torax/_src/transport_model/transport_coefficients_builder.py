@@ -23,10 +23,13 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_model as transport_model_lib
+
+# pylint: disable=invalid-name
 
 
 @jax.jit(
@@ -45,8 +48,34 @@ def calculate_all_transport_coeffs(
     core_profiles: state.CoreProfiles,
     source_profiles: source_profiles_lib.SourceProfiles,
     use_pereverzev: bool = False,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients from all models."""
+
+  if (
+      runtime_params.pedestal.use_formation_model_with_adaptive_source
+      and pedestal_transition_state is not None
+  ):
+    is_L_mode = ~pedestal_transition_state.in_H_mode
+    is_transitioning = (
+        runtime_params.t >= pedestal_transition_state.transition_start_time
+    ) & (
+        runtime_params.t
+        <= pedestal_transition_state.transition_start_time
+        + runtime_params.pedestal.transition_time_width
+    )
+    need_mask = ~is_L_mode | is_transitioning
+
+    pedestal_params = dataclasses.replace(
+        runtime_params.pedestal,
+        set_pedestal=need_mask,
+    )
+    runtime_params = dataclasses.replace(
+        runtime_params,
+        pedestal=pedestal_params,
+    )
   pedestal_model_output = pedestal_model(
       runtime_params, geo, core_profiles, source_profiles
   )

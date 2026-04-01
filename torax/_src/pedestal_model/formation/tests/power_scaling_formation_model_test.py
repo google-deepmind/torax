@@ -56,7 +56,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     self.runtime_params = step_fn.runtime_params_provider(t=0.0)
 
   def test_calculate_P_SOL_total(self):
-    P_SOL_total = power_scaling_formation_model._calculate_P_SOL_total(
+    P_SOL_total = power_scaling_formation_model.calculate_P_SOL_total(
         self.initial_state.core_profiles.internal_plasma_energy,
         self.initial_state.core_sources,
         self.initial_state.geometry,
