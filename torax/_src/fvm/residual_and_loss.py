@@ -38,6 +38,7 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import discrete_system
 from torax._src.fvm import fvm_conversions
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles
 
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
@@ -205,6 +206,9 @@ def theta_method_block_residual(
     physics_models: physics_models_lib.PhysicsModels,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> jax.Array:
   """Residual of theta-method equation for core profiles at next time-step.
 
@@ -227,6 +231,8 @@ def theta_method_block_residual(
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
+    pedestal_transition_state: State of the pedestal transition model if using
+      the formation model with adaptive source.
 
   Returns:
     residual: Vector residual between LHS and RHS of the theta method equation.
@@ -259,6 +265,7 @@ def theta_method_block_residual(
       physics_models=physics_models,
       evolving_names=evolving_names,
       use_pereverzev=False,
+      pedestal_transition_state=pedestal_transition_state,
   )
 
   solver_params = runtime_params_t_plus_dt.solver

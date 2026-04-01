@@ -24,6 +24,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import solver
 from torax._src.sources import source_profiles as source_profiles_lib
 
@@ -47,6 +48,9 @@ class SawtoothSolver(solver.Solver):
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       evolving_names: tuple[str, ...],
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -71,6 +75,9 @@ class SawtoothSolver(solver.Solver):
         prescribed profiles at time t + crash_dt.
       explicit_source_profiles: Explicit source profiles at time t.
       evolving_names: Names of evolving variables.
+      pedestal_transition_state: State for tracking pedestal L-H and H-L
+        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+        use_formation_model_with_adaptive_source=True. None otherwise.
 
     Returns:
       Updated tuple of evolving CellVariables from CoreProfiles
