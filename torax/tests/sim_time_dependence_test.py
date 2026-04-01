@@ -109,6 +109,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         step_fn: step_function.SimulationStepFn,
         log_timestep_info: bool = False,
         progress_bar: bool = True,
+        max_steps: int | None = None,
     ) -> tuple[
         tuple[sim_state.SimState, ...],
         tuple[post_processing.PostProcessedOutputs, ...],
@@ -117,6 +118,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       del (
           log_timestep_info,
           progress_bar,
+          max_steps,
       )
       output_state, post_processed_outputs = step_fn(
           initial_state,

@@ -32,6 +32,7 @@ def run_loop(
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
+    max_steps: int | None = None,
 ) -> tuple[
     list[sim_state.SimState],
     tuple[post_processing.PostProcessedOutputs, ...],
@@ -57,6 +58,8 @@ def run_loop(
     log_timestep_info: If True, logs basic timestep info, like time, dt, on
       every step.
     progress_bar: If True, displays a progress bar.
+    max_steps: The maximum number of steps to take, if not provided, then
+      the simulation will run until the maximum time is reached.
 
   Returns:
     A tuple of:
@@ -88,6 +91,7 @@ def run_loop(
 
   running_main_loop_start_time = time.time()
   wall_clock_step_times = []
+  step_count = 0
 
   current_state = initial_state
   state_history = [current_state]
@@ -107,6 +111,9 @@ def run_loop(
   ) as pbar:
     # Advance the simulation until the time_step_calculator tells us we are done
     while not step_fn.is_done(current_state.t):
+      if max_steps is not None and step_count >= max_steps:
+        sim_error = state.SimError.DID_NOT_REACH_T_FINAL
+        break
       # Measure how long in wall clock time each simulation step takes.
       step_start_time = time.time()
       if log_timestep_info:
@@ -142,6 +149,7 @@ def run_loop(
         pbar.n = int(progress_ratio * pbar.total)
         pbar.set_description(f'Simulating (t={current_state.t:.5f})')
         pbar.refresh()
+      step_count += 1
 
   # Log final timestep
   if log_timestep_info and sim_error == state.SimError.NO_ERROR:

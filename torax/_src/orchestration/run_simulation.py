@@ -104,6 +104,7 @@ def run_simulation(
     torax_config: model_config.ToraxConfig,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
+    max_steps: int | None = None,
 ) -> tuple[xr.DataTree, output.StateHistory]:
   """Runs a TORAX simulation using the config and returns the outputs.
 
@@ -111,6 +112,8 @@ def run_simulation(
     torax_config: The TORAX config to use for the simulation.
     log_timestep_info: Whether to log the timestep information.
     progress_bar: Whether to show a progress bar.
+    max_steps: The maximum number of steps to take, if not provided, then the
+      simulation will run until the maximum time is reached.
 
   Returns:
     A tuple of the simulation outputs in the form of a DataTree and the state
@@ -131,6 +134,7 @@ def run_simulation(
       step_fn=step_fn,
       log_timestep_info=log_timestep_info,
       progress_bar=progress_bar,
+      max_steps=max_steps,
   )
 
   state_history = output.StateHistory(

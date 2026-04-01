@@ -17,6 +17,7 @@ import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax._src import state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
@@ -115,6 +116,18 @@ class RunSimulationTest(sim_test_case.SimTestCase):
           any('Finished XLA compilation' in line for line in l.output),
           msg=l,
       )
+
+  def test_did_not_reach_t_final_error_when_max_steps_too_low(self):
+    torax_config = self._get_torax_config('test_implicit.py')
+
+    # Use max_steps=1 which is far too few to reach t_final=1.
+    _, state_history = run_simulation.run_simulation(
+        torax_config, max_steps=1
+    )
+
+    self.assertEqual(
+        state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
+    )
 
 
 if __name__ == '__main__':
