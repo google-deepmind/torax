@@ -61,9 +61,6 @@ _HELIUM3_ID = 'He3'
 _TRITIUM_SECOND_HARMONIC_ID = '2T'
 _ELECTRON_ID = 'e'
 
-# All fast ion species supported by the ICRH source.
-_FAST_ION_SPECIES: Final[tuple[str, ...]] = ('H', 'D', 'T', 'He3', 'He4')
-
 
 def _from_json(json_file) -> dict[str, Any]:
   """Load the model config and weights from a JSON file."""
@@ -539,8 +536,10 @@ def _build_fast_ions(
   """Builds a complete FastIon tuple for all supported species.
 
   Takes a list of computed FastIon objects (for a subset of species) and
-  produces a full tuple covering all species in _FAST_ION_SPECIES. Species
-  not present in the input list are filled with zero density and temperature.
+  produces a full tuple covering all species in
+  ``fast_ion_lib.FAST_ION_SPECIES``.
+  Species not present in the input list are filled with zero density and
+  temperature.
 
   Args:
     source_name: The name of the source.
@@ -548,12 +547,13 @@ def _build_fast_ions(
     fast_ions: Computed FastIon objects for a subset of species.
 
   Returns:
-    Tuple of FastIon objects, one per species in _FAST_ION_SPECIES, in order.
+    Tuple of FastIon objects, one per species in
+    ``fast_ion_lib.FAST_ION_SPECIES``, in order.
   """
   computed = {fi.species: fi for fi in fast_ions}
   zeros = jnp.zeros_like(geo.rho)
   result = []
-  for species in _FAST_ION_SPECIES:
+  for species in fast_ion_lib.FAST_ION_SPECIES:
     if species in computed:
       result.append(computed[species])
     else:

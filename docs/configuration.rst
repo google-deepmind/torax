@@ -383,6 +383,41 @@ time-dependence of temperature, density, and current.
   ``toroidal_angular_velocity`` at :math:`\hat{\rho}=1`. If ``toroidal_angular_velocity`` is
   also ``None``, then the boundary condition will be set to zero.
 
+``fast_ions`` (list[dict] | None [default = None])
+  Prescribed fast ion density and temperature profiles. Each entry prescribes
+  a fast ion species for a specific source, overriding any model-computed fast
+  ion values for that (source, species) pair. Requires
+  ``numerics.enable_fast_ions`` to be ``True``.
+
+  Each entry in the list is a dict with the following keys:
+
+  * ``source`` (str): The source name (e.g., ``'icrh'``).
+  * ``species`` (str): The species name (must be one of ``'H'``, ``'D'``,
+    ``'T'``, ``'He3'``, ``'He4'``).
+  * ``n`` (**time-varying-array**): Prescribed density profile [m\ :sup:`-3`].
+  * ``n_right_bc`` (**time-varying-scalar**): Right boundary condition for
+    density [m\ :sup:`-3`].
+  * ``T`` (**time-varying-array**): Prescribed temperature profile [keV].
+  * ``T_right_bc`` (**time-varying-scalar**): Right boundary condition for
+    temperature [keV].
+
+  Example:
+
+  .. code-block:: python
+
+    'profile_conditions': {
+        'fast_ions': [
+            {
+                'source': 'icrh',
+                'species': 'He3',
+                'n': {0.0: 1e19},
+                'n_right_bc': 0.0,
+                'T': {0.0: 100.0},
+                'T_right_bc': 0.0,
+            },
+        ],
+    }
+
 .. _numerics_dataclass:
 
 numerics

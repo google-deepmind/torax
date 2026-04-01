@@ -20,6 +20,10 @@ import jax
 from torax._src.fvm import cell_variable
 
 
+# All fast ion species that can be modeled/prescribed in TORAX.
+FAST_ION_SPECIES: tuple[str, ...] = ('H', 'D', 'T', 'He3', 'He4')
+
+
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)

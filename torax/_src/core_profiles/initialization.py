@@ -102,6 +102,14 @@ def initial_core_profiles(
   if runtime_params.numerics.enable_fast_ions:
     for s in source_models.standard_sources.values():
       fast_ions_list.extend(s.zero_fast_ions(geo))
+    # Override with prescribed fast ions from profile_conditions.
+    fast_ions_list = list(
+        profile_conditions_lib.apply_prescribed_fast_ions(
+            fast_ions_list,
+            runtime_params.profile_conditions.prescribed_fast_ions,
+            geo.rho_face_norm,
+        )
+    )
 
   core_profiles = state.CoreProfiles(
       T_i=T_i,

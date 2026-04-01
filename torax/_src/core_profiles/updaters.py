@@ -38,6 +38,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
+from torax._src.core_profiles import profile_conditions
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
@@ -260,8 +261,12 @@ def update_core_and_source_profiles_after_step(
 
   intermediate_core_profiles = dataclasses.replace(
       intermediate_core_profiles,
-      # Flatten the tuple of tuples.
-      fast_ions=sum(total_source_profiles.fast_ions.values(), ()),
+      # Flatten the tuple of tuples, then apply prescribed overrides.
+      fast_ions=profile_conditions.apply_prescribed_fast_ions(
+          sum(total_source_profiles.fast_ions.values(), ()),
+          runtime_params_t_plus_dt.profile_conditions.prescribed_fast_ions,
+          geo.rho_face_norm,
+      ),
   )
 
   if (

@@ -17,13 +17,15 @@
 import dataclasses
 import enum
 import logging
-from typing import Annotated, Callable, Final
+from typing import Annotated, Callable, Final, Sequence
 
 import chex
 import jax
 import numpy as np
 import pydantic
 from torax._src import array_typing
+from torax._src.fvm import cell_variable
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 
@@ -35,6 +37,58 @@ _MIN_DENSITY_M3: Final[float] = 1e10
 _MAX_DENSITY_GW: Final[float] = 1e2
 _MAX_TEMPERATURE_KEV: Final[float] = 1e3
 _MAX_TEMPERATURE_BC_KEV: Final[float] = 5e1
+
+
+class PrescribedFastIon(torax_pydantic.BaseModelFrozen):
+  """User-facing config for prescribed fast ion density and temperature.
+
+  This is the Pydantic configuration class that users interact with. Fields
+  support time-varying interpolation (e.g. ``{0.0: 1e19, 1.0: 2e19}``).
+  At simulation time, these are evaluated into concrete arrays via
+  ``PrescribedFastIonData`` for use in JAX-compiled functions.
+
+  Attributes:
+    source: Source name (e.g. 'icrh').
+    species: Species name (e.g. 'He3'). Must be one of
+      ``fast_ion_lib.FAST_ION_SPECIES``.
+    n: Prescribed density profile [m^-3].
+    n_right_bc: Right boundary condition for density [m^-3].
+    T: Prescribed temperature profile [keV].
+    T_right_bc: Right boundary condition for temperature [keV].
+  """
+
+  source: Annotated[str, torax_pydantic.JAX_STATIC]
+  species: Annotated[str, torax_pydantic.JAX_STATIC]
+  n: torax_pydantic.TimeVaryingArray
+  n_right_bc: torax_pydantic.TimeVaryingScalar
+  T: torax_pydantic.TimeVaryingArray
+  T_right_bc: torax_pydantic.TimeVaryingScalar
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class PrescribedFastIonData:
+  """Evaluated prescribed fast ion data for a single species at time t.
+
+  This is the JAX-compatible runtime counterpart of ``PrescribedFastIon``.
+  It holds concrete array values evaluated at a specific time ``t``, and is
+  stored on ``RuntimeParams`` for use inside JIT-compiled simulation steps.
+
+  Attributes:
+    source: Source name (e.g. 'icrh').
+    species: Species name (e.g. 'He3').
+    n: Prescribed density profile [m^-3].
+    n_right_bc: Right boundary condition for density [m^-3].
+    T: Prescribed temperature profile [keV].
+    T_right_bc: Right boundary condition for temperature [keV].
+  """
+
+  source: str = dataclasses.field(metadata={'static': True})
+  species: str = dataclasses.field(metadata={'static': True})
+  n: array_typing.FloatVector
+  n_right_bc: array_typing.FloatScalar
+  T: array_typing.FloatVector
+  T_right_bc: array_typing.FloatScalar
 
 
 class InitialPsiMode(enum.StrEnum):
@@ -101,6 +155,7 @@ class RuntimeParams:
   initial_psi_mode: InitialPsiMode = dataclasses.field(
       metadata={'static': True}
   )
+  prescribed_fast_ions: tuple[PrescribedFastIonData, ...] = ()
 
 
 class ProfileConditions(torax_pydantic.BaseModelFrozen):
@@ -224,6 +279,20 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   initial_psi_mode: Annotated[InitialPsiMode, torax_pydantic.JAX_STATIC] = (
       InitialPsiMode.PROFILE_CONDITIONS
   )
+  fast_ions: list[PrescribedFastIon] | None = None
+
+  @pydantic.model_validator(mode='after')
+  def _validate_fast_ion_species(self) -> Self:
+    """Validates that prescribed fast ion species are known."""
+    if self.fast_ions is not None:
+      for pfi in self.fast_ions:
+        if pfi.species not in fast_ion_lib.FAST_ION_SPECIES:
+          raise ValueError(
+              f'Prescribed fast ion species {pfi.species!r} for source'
+              f' {pfi.source!r} is not a supported species. Supported'
+              f' species: {fast_ion_lib.FAST_ION_SPECIES}'
+          )
+    return self
 
   @pydantic.model_validator(mode='after')
   def after_validator(self) -> Self:
@@ -466,7 +535,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     runtime_params = {
         x.name: getattr(self, x.name)
         for x in dataclasses.fields(RuntimeParams)
-        if x.name != 'n_e_right_bc_is_absolute'
+        if x.name not in ('n_e_right_bc_is_absolute', 'prescribed_fast_ions')
     }
 
     if self.T_e_right_bc is None:
@@ -505,6 +574,10 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     else:
       runtime_params['n_e_right_bc_is_absolute'] = True
 
+    # Evaluate prescribed fast ions at time t.
+    prescribed_fast_ions = _build_prescribed_fast_ions(self.fast_ions, t)
+    runtime_params['prescribed_fast_ions'] = prescribed_fast_ions
+
     def _get_value(x):
       if isinstance(
           x, (torax_pydantic.TimeVaryingScalar, torax_pydantic.TimeVaryingArray)
@@ -515,6 +588,85 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
 
     runtime_params = {k: _get_value(v) for k, v in runtime_params.items()}
     return RuntimeParams(**runtime_params)
+
+
+def _build_prescribed_fast_ions(
+    fast_ions: list[PrescribedFastIon] | None,
+    t: chex.Numeric,
+) -> tuple[PrescribedFastIonData, ...]:
+  """Evaluates prescribed fast ion configs at time t.
+
+  Args:
+    fast_ions: List of prescribed fast ion configs.
+    t: Time at which to evaluate the time-varying fields.
+
+  Returns:
+    Tuple of PrescribedFastIonData evaluated at time t.
+  """
+  if fast_ions is None:
+    return ()
+  return tuple(
+      PrescribedFastIonData(
+          source=pfi.source,
+          species=pfi.species,
+          n=pfi.n.get_value(t),
+          n_right_bc=pfi.n_right_bc.get_value(t),
+          T=pfi.T.get_value(t),
+          T_right_bc=pfi.T_right_bc.get_value(t),
+      )
+      for pfi in fast_ions
+  )
+
+
+def apply_prescribed_fast_ions(
+    fast_ions: Sequence[fast_ion_lib.FastIon],
+    prescribed: tuple[PrescribedFastIonData, ...],
+    face_centers: jax.Array,
+) -> tuple[fast_ion_lib.FastIon, ...]:
+  """Overrides matching fast ions with prescribed data.
+
+  For each prescribed fast ion, if a matching (source, species) pair exists in
+  the fast_ions list, it is replaced with the prescribed values. Prescribed
+  entries that do not match any existing fast ion are ignored.
+
+  Args:
+    fast_ions: Existing fast ion objects (from sources or initialization).
+    prescribed: Prescribed fast ion data from profile_conditions.
+    face_centers: Face-grid coordinates for building CellVariables.
+
+  Returns:
+    Updated tuple of FastIon objects with prescribed overrides applied.
+  """
+  if not prescribed:
+    return tuple(fast_ions)
+
+  prescribed_by_key = {(p.source, p.species): p for p in prescribed}
+  result = []
+  for fi in fast_ions:
+    key = (fi.source, fi.species)
+    if key in prescribed_by_key:
+      p = prescribed_by_key[key]
+      result.append(
+          fast_ion_lib.FastIon(
+              species=fi.species,
+              source=fi.source,
+              n=cell_variable.CellVariable(
+                  value=p.n,
+                  face_centers=face_centers,
+                  right_face_grad_constraint=None,
+                  right_face_constraint=p.n_right_bc,
+              ),
+              T=cell_variable.CellVariable(
+                  value=p.T,
+                  face_centers=face_centers,
+                  right_face_grad_constraint=None,
+                  right_face_constraint=p.T_right_bc,
+              ),
+          )
+      )
+    else:
+      result.append(fi)
+  return tuple(result)
 
 
 def _get_first_failing_value_and_time_or_rho(

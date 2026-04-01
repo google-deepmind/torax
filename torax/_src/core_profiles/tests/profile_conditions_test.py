@@ -24,7 +24,9 @@ from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import profile_conditions
+from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -597,6 +599,139 @@ class ProfileConditionsTest(parameterized.TestCase):
       )
     log_output = '\n'.join(cm.output)
     self.assertIn('n_e_right_bc is set but will be ignored', log_output)
+
+  def test_fast_ions_default_is_none(self):
+    pc = profile_conditions.ProfileConditions()
+    self.assertIsNone(pc.fast_ions)
+
+  def test_fast_ions_invalid_species_raises(self):
+    with self.assertRaisesRegex(ValueError, 'not a supported species'):
+      profile_conditions.ProfileConditions(
+          fast_ions=[
+              {
+                  'source': 'icrh',
+                  'species': 'UNKNOWN',
+                  'n': {0.0: 1e19},
+                  'n_right_bc': 0.0,
+                  'T': {0.0: 100.0},
+                  'T_right_bc': 0.0,
+              },
+          ],
+      )
+
+  def test_fast_ions_valid_species_accepted(self):
+    pc = profile_conditions.ProfileConditions(
+        fast_ions=[
+            {
+                'source': 'icrh',
+                'species': 'He3',
+                'n': {0.0: 1e19},
+                'n_right_bc': 0.0,
+                'T': {0.0: 100.0},
+                'T_right_bc': 0.0,
+            },
+        ],
+    )
+    self.assertIsNotNone(pc.fast_ions)
+    self.assertLen(pc.fast_ions, 1)
+    self.assertEqual(pc.fast_ions[0].source, 'icrh')
+    self.assertEqual(pc.fast_ions[0].species, 'He3')
+
+  def test_build_runtime_params_evaluates_fast_ions(self):
+    pc = profile_conditions.ProfileConditions(
+        fast_ions=[
+            {
+                'source': 'icrh',
+                'species': 'He3',
+                'n': {0.0: {0.0: 1e19, 1.0: 1e19}},
+                'n_right_bc': {0.0: 0.0},
+                'T': {0.0: {0.0: 100.0, 1.0: 50.0}},
+                'T_right_bc': {0.0: 0.0},
+            },
+        ],
+    )
+    geo = circular_geometry.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    rp = pc.build_runtime_params(t=0.0)
+    self.assertLen(rp.prescribed_fast_ions, 1)
+    pfi = rp.prescribed_fast_ions[0]
+    self.assertEqual(pfi.source, 'icrh')
+    self.assertEqual(pfi.species, 'He3')
+    np.testing.assert_allclose(pfi.n_right_bc, 0.0, atol=1e-9)
+    np.testing.assert_allclose(pfi.T_right_bc, 0.0, atol=1e-9)
+
+  def test_build_runtime_params_no_fast_ions_produces_empty_tuple(self):
+    pc = profile_conditions.ProfileConditions()
+    geo = circular_geometry.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    rp = pc.build_runtime_params(t=0.0)
+    self.assertEmpty(rp.prescribed_fast_ions)
+
+  def test_apply_prescribed_fast_ions_overwrites_matching(self):
+
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    zeros = np.zeros(4)
+    zero_n = cell_variable.CellVariable(
+        value=zeros,
+        face_centers=geo.rho_face_norm,
+        right_face_grad_constraint=None,
+        right_face_constraint=np.float64(0.0),
+    )
+    zero_t = cell_variable.CellVariable(
+        value=zeros,
+        face_centers=geo.rho_face_norm,
+        right_face_grad_constraint=None,
+        right_face_constraint=np.float64(0.0),
+    )
+    fi_list = [
+        fast_ion_lib.FastIon(species='He3', source='icrh', n=zero_n, T=zero_t),
+        fast_ion_lib.FastIon(species='D', source='icrh', n=zero_n, T=zero_t),
+    ]
+    prescribed = (
+        profile_conditions.PrescribedFastIonData(
+            source='icrh',
+            species='He3',
+            n=np.full(4, 1e19),
+            n_right_bc=np.float64(0.0),
+            T=np.full(4, 100.0),
+            T_right_bc=np.float64(0.0),
+        ),
+    )
+    result = profile_conditions.apply_prescribed_fast_ions(
+        fi_list,
+        prescribed,
+        geo.rho_face_norm,
+    )
+    self.assertLen(result, 2)
+    # He3 should be overridden
+    np.testing.assert_allclose(result[0].n.value, 1e19, atol=1e-9)
+    np.testing.assert_allclose(result[0].T.value, 100.0, atol=1e-9)
+    # D should remain zero
+    np.testing.assert_allclose(result[1].n.value, 0.0, atol=1e-9)
+    np.testing.assert_allclose(result[1].T.value, 0.0, atol=1e-9)
+
+  def test_apply_prescribed_fast_ions_no_prescribed_returns_unchanged(self):
+
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    zeros = np.zeros(4)
+    zero_cv = cell_variable.CellVariable(
+        value=zeros,
+        face_centers=geo.rho_face_norm,
+        right_face_grad_constraint=None,
+        right_face_constraint=np.float64(0.0),
+    )
+    fi_list = [
+        fast_ion_lib.FastIon(
+            species='He3', source='icrh', n=zero_cv, T=zero_cv
+        ),
+    ]
+    result = profile_conditions.apply_prescribed_fast_ions(
+        fi_list,
+        (),
+        geo.rho_face_norm,
+    )
+    self.assertLen(result, 1)
+    np.testing.assert_allclose(result[0].n.value, 0.0, atol=1e-9)
 
   def test_ne_bc_density_fraction_rejects_is_fgw(self):
     with self.assertRaisesRegex(
