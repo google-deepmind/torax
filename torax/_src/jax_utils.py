@@ -16,7 +16,6 @@
 
 import contextlib
 import functools
-import inspect
 import os
 from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
 
@@ -169,128 +168,6 @@ def get_number_of_compiles(
     )
   return jitted_function._cache_size()
   # pylint: enable=protected-access
-
-
-# pylint: enable=g-bare-generic
-
-
-# TODO(b/424382924)
-def non_inlined_function(
-    f: Callable[..., Any],
-    implementation: Literal['while_loop', 'pure_callback'],
-) -> Callable[..., Any]:
-  """A decorator that prevents XLA from inlining a function.
-
-  XLA inlines all functions in a computational graph. As XLA does global
-  optimization, the compile times increase super-linearly. This decorator
-  allows preventing inlining of functions using `jax.lax.while_loop` or
-  `jax.pure_callback`. In the case of `jax.pure_callback`, what is called from
-  the Python callback is a black box to XLA, and cannot be inlined. In the case
-  of `jax.lax.while_loop`, the body function is not inlined with the rest of the
-  computation.
-
-  Args:
-    f: A JITted function.
-    implementation: If 'while_loop', use `jax.lax.while_loop` with a single
-      iteration. If 'pure_callback', use `jax.pure_callback`. This comes at the
-      cost of a roughly 0.7ms constant overhead per call. It is recommended that
-      `f` is a JITted function in this case, as it will be called directly from
-      Python.
-
-  Returns:
-    The function.
-  """
-
-  if not hasattr(f, 'lower'):
-    raise ValueError('Must be a JITted function.')
-
-  if not hasattr(f, '_jit_info'):
-    raise ValueError('The function must have a _jit_info attribute.')
-
-  static_argnames = f._jit_info.static_argnames  # pylint: disable=protected-access
-
-  match implementation:
-    case 'while_loop':
-      return _non_inlined_function_while_loop(
-          f, static_argnames=static_argnames
-      )
-    case 'pure_callback':
-      return _non_inlined_function_pure_callback(
-          f, static_argnames=static_argnames
-      )
-    case _:
-      raise ValueError(f'Unknown implementation: {implementation}')
-
-
-def _non_inlined_function_pure_callback(f, static_argnames):
-  """A decorator that prevents XLA from inlining a function."""
-
-  @functools.wraps(f)
-  def wrapper(*args, **kwargs):
-    nonlocal f, static_argnames
-    bound = inspect.signature(f).bind(*args, **kwargs)
-    bound.apply_defaults()
-    kwargs = bound.arguments
-    if 'self' in kwargs:
-      kwargs.pop('self')
-
-    if static_argnames:
-      static_args = {k: bound.arguments[k] for k in static_argnames}
-
-      kwargs = {k: v for k, v in kwargs.items() if k not in static_argnames}
-      f = functools.partial(f, **static_args)
-
-    result_shape_dtypes = jax.eval_shape(f, **kwargs)
-    return jax.pure_callback(f, result_shape_dtypes, **kwargs)
-
-  return wrapper
-
-
-def _non_inlined_function_while_loop(f, static_argnames):
-  """A decorator that prevents XLA from inlining a function."""
-
-  @functools.wraps(f)
-  def wrapper(*args, **kwargs):
-    nonlocal f, static_argnames
-    bound = inspect.signature(f).bind(*args, **kwargs)
-    bound.apply_defaults()
-    kwargs = bound.arguments
-    if 'self' in kwargs:
-      kwargs.pop('self')
-
-    if static_argnames:
-      static_args = {k: bound.arguments[k] for k in static_argnames}
-      kwargs = {k: v for k, v in kwargs.items() if k not in static_argnames}
-      f = functools.partial(f, **static_args)
-
-    continue_loop = True
-    empty_out = _init_pytree(jax.eval_shape(f, **kwargs))
-
-    def body(val):
-      return False, val[1], f(**val[1])
-
-    def cond(val):
-      return val[0]
-
-    out = jax.lax.while_loop(
-        cond_fun=cond,
-        body_fun=body,
-        init_val=(continue_loop, kwargs, empty_out),
-    )
-    return out[-1]
-
-  return wrapper
-
-
-def _init_pytree(t):
-
-  def init_array(x):
-    if isinstance(x, jax.ShapeDtypeStruct):
-      return jnp.empty(shape=x.shape, dtype=x.dtype)
-    else:
-      return x
-
-  return jax.tree_util.tree_map(init_array, t)
 
 
 def batched_cond(
