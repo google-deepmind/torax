@@ -21,6 +21,7 @@ from torax._src.edge.pydantic_model import ExtendedLengyelConfig
 from torax._src.orchestration.initial_state import get_initial_state_and_post_processed_outputs
 from torax._src.orchestration.jit_run_loop import run_loop_jit
 from torax._src.orchestration.run_simulation import make_step_fn
+from torax._src.orchestration.run_simulation import run_simulation_jitted
 from torax._src.orchestration.sim_state import SimState
 from torax._src.orchestration.step_function import SimulationStepFn
 from torax._src.plotting.plotruns_lib import create_plotly_figure
@@ -41,4 +42,5 @@ __all__ = [
     'get_initial_state_and_post_processed_outputs',
     'SimState',
     'ExtendedLengyelConfig',
+    'run_simulation_jitted',
 ]

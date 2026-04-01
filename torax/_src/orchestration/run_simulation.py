@@ -23,8 +23,10 @@ torax_config.update(updated_fields)
 new_sim_outputs = torax.run_simulation(torax_config)
 ```
 """
+
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
+from torax._src.orchestration import jit_run_loop
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
@@ -138,6 +140,48 @@ def run_simulation(
       torax_config=torax_config,
   )
 
+  return (
+      state_history.simulation_output_to_xr(),
+      state_history,
+  )
+
+
+def run_simulation_jitted(
+    torax_config: model_config.ToraxConfig,
+    max_steps: int | None = None,
+) -> tuple[xr.DataTree, output.StateHistory]:
+  """Runs a TORAX simulation using the config and returns the outputs.
+
+  NOTE: This function doesn't guarantee that the simulation will complete. If
+  the simulation does not complete successfully, then the state history will
+  contain the error state `SimError.DID_NOT_REACH_T_FINAL` and a truncated
+  simulation history.
+
+  Args:
+    torax_config: The TORAX config to use for the simulation.
+    max_steps: The maximum number of steps to take, if not provided, then the
+      maximum number of steps will be determined by the numerics.t_final and
+      numerics.min_dt.
+
+  Returns:
+    A tuple of the simulation outputs in the form of a DataTree and the state
+    history which is intended for helpful use with debugging as it contains
+    the `CoreProfiles`, `CoreTransport`, `CoreSources`, `Geometry`, and
+    `PostProcessedOutputs` dataclasses for each step of the simulation.
+  """
+  step_fn = make_step_fn(torax_config)
+  states_history, post_processed_outputs_history, sim_error = (
+      jit_run_loop.run_loop(
+          step_fn,
+          max_steps=max_steps,
+      )
+  )
+  state_history = output.StateHistory(
+      state_history=states_history,
+      post_processed_outputs_history=post_processed_outputs_history,
+      sim_error=sim_error,
+      torax_config=torax_config,
+  )
   return (
       state_history.simulation_output_to_xr(),
       state_history,

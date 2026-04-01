@@ -155,6 +155,7 @@ def run_loop(
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
+    max_steps: int | None = None,
 ) -> tuple[
     list[sim_state.SimState],
     tuple[post_processing.PostProcessedOutputs, ...],
@@ -170,6 +171,9 @@ def run_loop(
       is). The state_history that run_simulation() outputs comes from these
       ToraxSimState objects.
     runtime_params_overrides: Optional runtime params overrides to use.
+    max_steps: Optional maximum number of steps to take. If not provided, then
+      the maximum number of steps will be determined by the numerics.t_final and
+      numerics.min_dt.
 
   Returns:
     A tuple of:
@@ -187,9 +191,10 @@ def run_loop(
       - The sim error state.
   """
   numerics = step_fn.runtime_params_provider.numerics
-  max_steps = int(
-      ((numerics.t_final - numerics.t_initial) / numerics.min_dt) / 1e5
-  )
+  if max_steps is None:
+    max_steps = int(
+        ((numerics.t_final - numerics.t_initial) / numerics.min_dt) / 1e5
+    )
   states_history, post_processed_outputs_history, final_i = run_loop_jit(
       step_fn,
       max_steps,
@@ -202,6 +207,9 @@ def run_loop(
       unstacked_states[-1],
       unstacked_post_processed_outputs[-1],
   )
+  if sim_error == state.SimError.NO_ERROR:
+    if not step_fn.is_done(unstacked_states[-1].t):
+      sim_error = state.SimError.DID_NOT_REACH_T_FINAL
   return (
       unstacked_states,
       tuple(unstacked_post_processed_outputs),

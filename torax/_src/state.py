@@ -49,6 +49,7 @@ class PlasmaInternalEnergy:
     dW_thermal_e_dt_smoothed: Smoothed time derivative of electron thermal
       stored energy [W]
   """
+
   W_thermal_i: array_typing.FloatScalar
   W_thermal_e: array_typing.FloatScalar
   W_thermal_total: array_typing.FloatScalar
@@ -505,6 +506,7 @@ class SimError(enum.Enum):
   NEGATIVE_CORE_PROFILES = 3
   REACHED_MIN_DT = 4
   LOW_TEMPERATURE_COLLAPSE = 5
+  DID_NOT_REACH_T_FINAL = 6
 
   def log_error(self):
     match self:
@@ -539,6 +541,15 @@ class SimError(enum.Enum):
           configured minimum threshold. This is usually caused by radiative
           collapse. Output file contains all profiles up to the last valid step.
           """)
+      case SimError.DID_NOT_REACH_T_FINAL:
+        logging.error("""
+            Simulation did not reach the final timestep t_final while running
+            the jitted run loop where max steps is bounded. This is because
+            max_steps was exhausted before the simulation reached t_final,
+            likely due to adaptive time stepping and the simulation needing a
+            high number of steps to converege.
+            Consider increasing max_steps or investigating convergence issues.
+            """)
       case SimError.NO_ERROR:
         pass
       case _:

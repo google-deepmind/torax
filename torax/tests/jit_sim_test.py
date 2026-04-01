@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests that TORAX can be run with compilation disabled."""
+"""Tests for JIT run loop and run_simulation_jitted."""
+
 import functools
 import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax._src import state
 from torax._src.config import config_loader
-from torax._src.orchestration import jit_run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.test_utils import paths
@@ -264,7 +265,7 @@ class JitSimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_imas.py',
       ),
   )
-  def test_run_simulation_with_jit_run_loop(
+  def test_run_simulation_jitted(
       self,
       config_name: str,
   ):
@@ -273,18 +274,8 @@ class JitSimTest(sim_test_case.SimTestCase):
     data_path = os.path.join(test_data_dir, config_name).replace('.py', '.nc')
     torax_config = config_loader.build_torax_config_from_file(config_path)
     reference_file = output.load_state_file(data_path)
-    step_fn = run_simulation.make_step_fn(torax_config)
 
-    state_history, post_processed_outputs_history, sim_error = (
-        jit_run_loop.run_loop(step_fn)
-    )
-    state_history = output.StateHistory(
-        state_history=state_history,
-        post_processed_outputs_history=post_processed_outputs_history,
-        sim_error=sim_error,
-        torax_config=torax_config,
-    )
-    xr_data_tree = state_history.simulation_output_to_xr()
+    xr_data_tree, _ = run_simulation.run_simulation_jitted(torax_config)
 
     # Allow for small numerical differences due to the change in the order of
     # operations in the jitted versus non-jitted case.
@@ -292,6 +283,20 @@ class JitSimTest(sim_test_case.SimTestCase):
         xr.testing.assert_allclose, atol=1e-6
     )
     xr.map_over_datasets(assert_allclose_fn, xr_data_tree, reference_file)
+
+  def test_did_not_reach_t_final_error_when_max_steps_too_low(self):
+    test_data_dir = paths.test_data_dir()
+    config_path = os.path.join(test_data_dir, 'test_implicit.py')
+    torax_config = config_loader.build_torax_config_from_file(config_path)
+
+    # Use max_steps=1 which is far too few to reach t_final=1.
+    _, state_history = run_simulation.run_simulation_jitted(
+        torax_config, max_steps=1
+    )
+
+    self.assertEqual(
+        state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
+    )
 
 
 if __name__ == '__main__':
