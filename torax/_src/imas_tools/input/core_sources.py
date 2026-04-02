@@ -16,6 +16,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, Final
 
+from imas import ids_struct_array
 from imas import ids_structure
 from imas import ids_toplevel
 from torax._src.imas_tools.input import loader
@@ -91,8 +92,34 @@ def _extract_source_profiles(
     ]
   # Extract fuelling profile
   if "n_e" in affected_profiles:
-    profiles["particle"] = [
-        profile.electrons.particles for profile in profiles_1d
-    ]
+    profiles["particle"] = _get_particle_profile(profiles_1d)
 
   return profiles
+
+
+# TODO: Add option to provide full set of ion particle sources when ion
+# density transport will be possible in TORAX.
+def _get_particle_profile(
+    profiles_1d: ids_struct_array.IDSStructArray,
+) -> Sequence[float]:
+  """Extract particle profile from either electron or ion profiles."""
+  # Sum over all ion species to get total particle source profile.
+  if profiles_1d[0].electrons.particles.has_value:
+    particles = [profile.electrons.particles for profile in profiles_1d]
+  # If no electron particle source is defined, deduce it from the ions
+  # particle sources (assuming quasi-neutrality).
+  elif any(ion.particles is not None for ion in profiles_1d[0].ion):
+    particles = [
+        sum(
+            ion.particles * ion.element[0].z_n
+            for ion in profile.ion
+            if ion.particles is not None
+        )
+        for profile in profiles_1d
+    ]
+  else:
+    raise ValueError(
+        "Expected particle source, but none of electrons or ion particle source"
+        "is defined in the IDS."
+    )
+  return particles
