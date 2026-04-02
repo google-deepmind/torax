@@ -21,6 +21,7 @@ from fusion_surrogates.qlknn import qlknn_model
 from fusion_surrogates.qlknn import qlknn_model_test_utils
 import jax.numpy as jnp
 from torax._src.transport_model import qlknn_model_wrapper
+from torax._src.transport_model import qualikiz_based_transport_model
 
 
 class QlknnModelWrapperTest(parameterized.TestCase):
@@ -85,8 +86,43 @@ class QlknnModelWrapperTest(parameterized.TestCase):
     qlknn_model_wrapper.QLKNNModelWrapper(path='', name='')
     mock_load_default_model.assert_called_once()
 
-  # TODO(b/381134347): Add tests for get_model_inputs_from_qualikiz_inputs
-  # and inputs_and_ranges.
+  def test_inputs_and_ranges(self):
+    """Tests inputs_and_ranges property."""
+    inputs_and_ranges = self._qlknn_model_wrapper.inputs_and_ranges
+    self.assertEqual(list(inputs_and_ranges.keys()), self._config.input_names)
+
+  def test_get_model_inputs_from_qualikiz_inputs(self):
+    """Tests get_model_inputs_from_qualikiz_inputs method."""
+    input_names = self._config.input_names
+
+    mock_inputs = mock.MagicMock(
+        spec=qualikiz_based_transport_model.QualikizInputs
+    )
+
+    for i, name in enumerate(input_names):
+      setattr(mock_inputs, name, jnp.array([float(i)]))
+
+    if 'Ani' in input_names:
+      mock_inputs.Ani0 = jnp.array([77.0])
+    if 'LogNuStar' in input_names:
+      mock_inputs.log_nu_star_face = jnp.array([88.0])
+
+    model_inputs = (
+        self._qlknn_model_wrapper.get_model_inputs_from_qualikiz_inputs(
+            mock_inputs
+        )
+    )
+
+    self.assertEqual(model_inputs.shape, (1, len(input_names)))
+
+    for i, name in enumerate(input_names):
+      if name == 'Ani':
+        expected_val = 77.0
+      elif name == 'LogNuStar':
+        expected_val = 88.0
+      else:
+        expected_val = float(i)
+      self.assertEqual(model_inputs[0, i], expected_val)
 
 
 if __name__ == '__main__':
