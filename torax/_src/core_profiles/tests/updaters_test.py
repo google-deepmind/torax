@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
@@ -26,6 +26,7 @@ from torax._src.core_profiles import initialization
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
+from torax._src.physics import formulas
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -50,12 +51,33 @@ class UpdatersTest(parameterized.TestCase):
         right_face_constraint=1.0,
         right_face_grad_constraint=None,
     )
+    pressure_thermal_e = cell_variable.CellVariable(
+        value=jnp.ones_like(self.geo.rho_norm),
+        face_centers=self.geo.rho_face_norm,
+        right_face_constraint=1.0,
+        right_face_grad_constraint=None,
+    )
+    pressure_thermal_i = cell_variable.CellVariable(
+        value=jnp.ones_like(self.geo.rho_norm),
+        face_centers=self.geo.rho_face_norm,
+        right_face_constraint=1.0,
+        right_face_grad_constraint=None,
+    )
+    pressure_thermal_total = cell_variable.CellVariable(
+        value=jnp.ones_like(self.geo.rho_norm),
+        face_centers=self.geo.rho_face_norm,
+        right_face_constraint=1.0,
+        right_face_grad_constraint=None,
+    )
 
     self.core_profiles_t = mock.create_autospec(
         state.CoreProfiles,
         instance=True,
         T_e=T_e,
         n_e=n_e,
+        pressure_thermal_e=pressure_thermal_e,
+        pressure_thermal_i=pressure_thermal_i,
+        pressure_thermal_total=pressure_thermal_total,
     )
 
   @parameterized.named_parameters(
@@ -215,6 +237,128 @@ class UpdatersTest(parameterized.TestCase):
     # and evolving vars are handled by the solver).
     # Since it wasn't updated in provide_..., it should remain 10.0 here.
     np.testing.assert_allclose(core_profiles_t1.psi.value, 10.0)
+
+  def test_update_energy_state(self):
+    """Tests that energy state is updated correctly."""
+    config = default_configs.get_default_config_dict()
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+
+    energy_state_t = initialization._initialise_internal_energy(
+        runtime_params, self.core_profiles_t, self.geo
+    )
+
+    # Pretend we take a step of half the window size and increase the electron
+    # and ion pressure.
+    mock_dt = runtime_params.numerics.dW_dt_window / 2.0
+    core_profiles_t_plus_dt = copy.deepcopy(self.core_profiles_t)
+    core_profiles_t_plus_dt.pressure_thermal_e = cell_variable.CellVariable(
+        value=jnp.full_like(self.geo.rho_norm, 2.0),
+        face_centers=self.geo.rho_face_norm,
+        right_face_constraint=1.0,
+        right_face_grad_constraint=None,
+    )
+    core_profiles_t_plus_dt.pressure_thermal_i = cell_variable.CellVariable(
+        value=jnp.full_like(self.geo.rho_norm, 3.0),
+        face_centers=self.geo.rho_face_norm,
+        right_face_constraint=1.0,
+        right_face_grad_constraint=None,
+    )
+    W_thermal_e_t_plus_dt, W_thermal_i_t_plus_dt, _ = (
+        formulas.calculate_stored_thermal_energy(
+            core_profiles_t_plus_dt.pressure_thermal_e,
+            core_profiles_t_plus_dt.pressure_thermal_i,
+            core_profiles_t_plus_dt.pressure_thermal_total,
+            self.geo,
+        )
+    )
+
+    # Get the new energy state from the update function.
+    energy_state_t_plus_dt = updaters._update_energy_state(
+        runtime_params,
+        self.geo,
+        core_profiles_t_plus_dt,
+        energy_state_t,
+        mock_dt,
+    )
+
+    # Check that the time history is updated.
+    expected_t_history = jnp.concatenate([
+        energy_state_t.t_history[1:],
+        jnp.atleast_1d(energy_state_t.t_history[-1]) + mock_dt,
+    ])
+    np.testing.assert_allclose(
+        energy_state_t_plus_dt.t_history, expected_t_history
+    )
+
+    # Check that the W_thermal history is updated.
+    expected_W_thermal_i_history = jnp.concatenate([
+        energy_state_t.W_thermal_i_history[1:],
+        jnp.atleast_1d(W_thermal_i_t_plus_dt),
+    ])
+    np.testing.assert_allclose(
+        energy_state_t_plus_dt.W_thermal_i_history, expected_W_thermal_i_history
+    )
+    expected_W_thermal_e_history = jnp.concatenate([
+        energy_state_t.W_thermal_e_history[1:],
+        jnp.atleast_1d(W_thermal_e_t_plus_dt),
+    ])
+    np.testing.assert_allclose(
+        energy_state_t_plus_dt.W_thermal_e_history, expected_W_thermal_e_history
+    )
+
+    # Check that the dW_dt is calculated correctly.
+    np.testing.assert_allclose(
+        energy_state_t_plus_dt.dW_thermal_i_dt,
+        (W_thermal_i_t_plus_dt - energy_state_t.W_thermal_i) / mock_dt,
+    )
+    np.testing.assert_allclose(
+        energy_state_t_plus_dt.dW_thermal_e_dt,
+        (W_thermal_e_t_plus_dt - energy_state_t.W_thermal_e) / mock_dt,
+    )
+
+    # As we took a step of half the window size, the smoothed dW_dt should be
+    # the same as the un-smoothed dW_dt.
+    np.testing.assert_allclose(
+        energy_state_t_plus_dt.dW_thermal_i_dt_smoothed,
+        energy_state_t_plus_dt.dW_thermal_i_dt,
+    )
+    np.testing.assert_allclose(
+        energy_state_t_plus_dt.dW_thermal_e_dt_smoothed,
+        energy_state_t_plus_dt.dW_thermal_e_dt,
+    )
+
+    # Take another step and check the dW_dt.
+    energy_state_t_plus_2dt = updaters._update_energy_state(
+        runtime_params,
+        self.geo,
+        core_profiles_t_plus_dt,
+        energy_state_t_plus_dt,
+        mock_dt,
+    )
+    # Raw dW_dt values should be zero as we haven't changed the pressures.
+    np.testing.assert_allclose(
+        energy_state_t_plus_2dt.dW_thermal_i_dt,
+        0.0,
+    )
+    np.testing.assert_allclose(
+        energy_state_t_plus_2dt.dW_thermal_e_dt,
+        0.0,
+    )
+    # Smoothed dW_dt values should be computed vs the 0th state
+    np.testing.assert_allclose(
+        energy_state_t_plus_2dt.dW_thermal_i_dt_smoothed,
+        (energy_state_t_plus_2dt.W_thermal_i - energy_state_t.W_thermal_i)
+        / (runtime_params.numerics.dW_dt_window),
+    )
+    np.testing.assert_allclose(
+        energy_state_t_plus_2dt.dW_thermal_e_dt_smoothed,
+        (energy_state_t_plus_2dt.W_thermal_e - energy_state_t.W_thermal_e)
+        / (runtime_params.numerics.dW_dt_window),
+    )
 
 
 if __name__ == '__main__':
