@@ -707,7 +707,7 @@ def _solve_for_c_z_prefactor(
       PhysicsOutcome.SUCCESS,
   )
 
-  return c_z_prefactor, status
+  return c_z_prefactor, status  # pytype: disable=bad-return-type
 
 
 def _solve_for_qcc(

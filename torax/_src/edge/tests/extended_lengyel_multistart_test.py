@@ -139,7 +139,7 @@ class ExtendedLengyelMultistartTest(parameterized.TestCase):
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
         )
 
-        status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+        status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(  # pytype: disable=wrong-arg-types
             physics_outcome=phys_outcome,
             numerics_outcome=jax_root_finding.RootMetadata(
                 iterations=jnp.array(5),
