@@ -31,6 +31,7 @@ from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import safety_factor_fit
+from torax._src.physics import collisions
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
@@ -203,6 +204,8 @@ class PostProcessedOutputs:
     impurity_species: Dictionary of outputs for each impurity species.
     poloidal_velocity: Poloidal velocity [m/s]
     radial_electric_field: Radial electric field [V/m]
+    nu_star: Electron-ion collisionality (collision frequency normalized by
+      bounce frequency) on the face grid [dimensionless].
     first_step: Whether the outputs are from the first step of the simulation.
   """
 
@@ -319,6 +322,7 @@ class PostProcessedOutputs:
   impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
   poloidal_velocity: array_typing.FloatVector
   radial_electric_field: array_typing.FloatVector
+  nu_star: array_typing.FloatVector
   first_step: array_typing.BoolScalar
   # pylint: enable=invalid-name
 
@@ -432,6 +436,7 @@ class PostProcessedOutputs:
         impurity_species={},
         poloidal_velocity=jnp.zeros(geo.rho_face.shape),
         radial_electric_field=jnp.zeros(geo.rho_face.shape),
+        nu_star=jnp.zeros(geo.rho_face.shape),
         first_step=jnp.array(True),
     )
 
@@ -931,6 +936,14 @@ def make_post_processed_outputs(
       sim_state.core_profiles, sim_state.geometry
   )
 
+  # Use collisionality_multiplier=1.0 for the physical value. The non-unity
+  # multiplier in QLKNN is a model-specific calibration factor, not physics.
+  nu_star = collisions.calc_nu_star(
+      geo=sim_state.geometry,
+      core_profiles=sim_state.core_profiles,
+      collisionality_multiplier=1.0,
+  )
+
   rotation_output = rotation.calculate_rotation(
       T_i=sim_state.core_profiles.T_i,
       psi=sim_state.core_profiles.psi,
@@ -1021,6 +1034,7 @@ def make_post_processed_outputs(
       impurity_species=impurity_radiation_outputs,
       poloidal_velocity=rotation_output.poloidal_velocity.face_value(),
       radial_electric_field=rotation_output.Er.face_value(),
+      nu_star=nu_star,
       first_step=jnp.array(False),
   )
 
