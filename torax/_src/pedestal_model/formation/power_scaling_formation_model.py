@@ -38,22 +38,26 @@ class PowerScalingFormationRuntimeParams(
   """Runtime params for power scaling pedestal formation models."""
 
   P_LH_prefactor: array_typing.FloatScalar = 1.0
+  rho_norm_for_P_SOL: array_typing.FloatScalar = 0.9
 
 
-def _calculate_P_SOL_total(
+def _calculate_P_SOL_total_up_to_rho_norm(
+    rho_norm_for_P_SOL: array_typing.FloatScalar,
     internal_plasma_energy: state.PlasmaInternalEnergy,
     core_sources: source_profiles_lib.SourceProfiles,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates the total power out of the separatrix."""
+  mask = geo.rho_norm <= rho_norm_for_P_SOL
   P_heat_e = sum(
-      math_utils.volume_integration(source, geo)
+      math_utils.volume_integration(source * mask, geo)
       for source in core_sources.T_e.values()
   )
   P_heat_i = sum(
-      math_utils.volume_integration(source, geo)
+      math_utils.volume_integration(source * mask, geo)
       for source in core_sources.T_i.values()
   )
+  # TODO(b/323504363): Also recompute dW_dt with the mask.
   return P_heat_e + P_heat_i - internal_plasma_energy.dW_thermal_dt_smoothed
 
 
@@ -84,8 +88,11 @@ class PowerScalingFormationModel(base.FormationModel):
         runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
 
-    P_SOL_total = _calculate_P_SOL_total(
-        core_profiles.internal_plasma_energy, core_sources, geo
+    P_SOL_total = _calculate_P_SOL_total_up_to_rho_norm(
+        runtime_params.pedestal.formation.rho_norm_for_P_SOL,
+        core_profiles.internal_plasma_energy,
+        core_sources,
+        geo,
     )
 
     P_LH, _ = scaling_laws.calculate_P_LH(
