@@ -18,6 +18,7 @@ Picard iterations to approximate the nonlinear solution. If
 runtime_params_slice.solver.use_predictor_corrector is False, reverts to
 a standard linear solution.
 """
+
 import functools
 
 import jax
@@ -28,6 +29,7 @@ from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import jax_fixed_point
 from torax._src.sources import source_profiles
 
@@ -49,6 +51,9 @@ def predictor_corrector_method(
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
     explicit_source_profiles: source_profiles.SourceProfiles,
     coeffs_callback: calc_coeffs.CoeffsCallback,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Predictor-corrector method.
 
@@ -71,6 +76,7 @@ def predictor_corrector_method(
       iterations. For sources that are implicit, their explicit profiles are set
       to all zeros.
     coeffs_callback: coefficient callback function.
+    pedestal_transition_state: State tracking the pedestal transitions.
 
   Returns:
     x_new: Solution of evolving core profile state variables
@@ -88,6 +94,7 @@ def predictor_corrector_method(
         dt=dt,
         x=x_new_guess,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_transition_state=pedestal_transition_state,
         allow_pereverzev=True,
     )
 

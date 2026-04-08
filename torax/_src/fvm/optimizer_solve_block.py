@@ -15,6 +15,7 @@
 
 See function docstring for details.
 """
+
 import functools
 from typing import TypeAlias
 
@@ -32,6 +33,7 @@ from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
 
@@ -63,6 +65,9 @@ def optimizer_solve_block(
     initial_guess_mode: enums.InitialGuessMode,
     maxiter: int,
     tol: float,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state.SolverNumericOutputs,
@@ -110,6 +115,9 @@ def optimizer_solve_block(
       solver for the optional initial guess from the linear solver.
     maxiter: See docstring of `jaxopt.LBFGS`.
     tol: See docstring of `jaxopt.LBFGS`.
+    pedestal_transition_state: State for tracking pedestal L-H and H-L
+      transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+      use_formation_model_with_adaptive_source=True. None otherwise.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
@@ -127,6 +135,7 @@ def optimizer_solve_block(
       x=x_old,
       explicit_source_profiles=explicit_source_profiles,
       explicit_call=True,
+      pedestal_transition_state=pedestal_transition_state,
   )
 
   match initial_guess_mode:
@@ -147,6 +156,7 @@ def optimizer_solve_block(
           explicit_source_profiles=explicit_source_profiles,
           allow_pereverzev=True,
           explicit_call=True,
+          pedestal_transition_state=pedestal_transition_state,
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
       x_new_guess = convertors.core_profiles_to_solver_x_tuple(

@@ -36,6 +36,7 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function_processing
 from torax._src.orchestration import whilei_loop
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import solver as solver_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
@@ -222,13 +223,17 @@ class SimulationStepFn:
         runtime_params_overrides or self.runtime_params_provider
     )
     geometry_provider = geo_overrides or self._geometry_provider
-    runtime_params_t, geo_t, explicit_source_profiles, edge_outputs = (
-        step_function_processing.pre_step(
-            input_state=input_state,
-            runtime_params_provider=runtime_params_provider,
-            geometry_provider=geometry_provider,
-            physics_models=self._solver.physics_models,
-        )
+    (
+        runtime_params_t,
+        geo_t,
+        explicit_source_profiles,
+        edge_outputs,
+        pedestal_transition_state,
+    ) = step_function_processing.pre_step(
+        input_state=input_state,
+        runtime_params_provider=runtime_params_provider,
+        geometry_provider=geometry_provider,
+        physics_models=self._solver.physics_models,
     )
 
     def _step():
@@ -243,6 +248,7 @@ class SimulationStepFn:
           previous_post_processed_outputs,
           runtime_params_provider,
           geometry_provider,
+          pedestal_transition_state,
       )
       # If adaptive dt is enabled, take the adaptive step if the max_dt is
       # greater than the min_dt, otherwise take the fixed step.
@@ -267,6 +273,7 @@ class SimulationStepFn:
           previous_post_processed_outputs,
           runtime_params_provider,
           geometry_provider,
+          pedestal_transition_state,
       )
 
       output_state, post_processed_outputs = jax.lax.cond(
@@ -377,6 +384,9 @@ class SimulationStepFn:
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -406,6 +416,7 @@ class SimulationStepFn:
           edge_outputs=edge_outputs,
           input_state=input_state,
           input_post_processed_outputs=previous_post_processed_outputs,
+          pedestal_transition_state=pedestal_transition_state,
       )
 
     # If a sawtooth crash is not triggered for any reason,the input
@@ -430,6 +441,9 @@ class SimulationStepFn:
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -457,7 +471,11 @@ class SimulationStepFn:
 
     result = whilei_loop.whilei_loop(
         adaptive_step.cond_fun,
-        functools.partial(adaptive_step.compute_state, solver=self.solver),
+        functools.partial(
+            adaptive_step.compute_state,
+            solver=self.solver,
+            pedestal_transition_state=pedestal_transition_state,
+        ),
         (
             initial_state,
             initial_loop_stats,
@@ -504,6 +522,7 @@ class SimulationStepFn:
             physics_models=self._solver.physics_models,
             evolving_names=evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
+            pedestal_transition_state=pedestal_transition_state,
         )
     )
     return output_state, post_processed_outputs
@@ -519,6 +538,9 @@ class SimulationStepFn:
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -561,6 +583,7 @@ class SimulationStepFn:
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
+        pedestal_transition_state=pedestal_transition_state,
     )
     output_state, post_processed_outputs = (
         step_function_processing.finalize_outputs(
@@ -577,6 +600,7 @@ class SimulationStepFn:
             physics_models=self._solver.physics_models,
             evolving_names=runtime_params_t.numerics.evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
+            pedestal_transition_state=pedestal_transition_state,
         )
     )
     return output_state, post_processed_outputs
