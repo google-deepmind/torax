@@ -53,7 +53,7 @@ class PedestalTransitionState:
       of the most recent L-mode to H-mode transition [m^-3].
   """
 
-  confinement_mode: ConfinementMode
+  confinement_mode: array_typing.IntScalar
   transition_start_time: array_typing.FloatScalar
   # TODO(b/496703290) provide a way for these to be initialized in config, to
   # avoid edge case where we start in H-mode and have no good L-mode values.
@@ -68,7 +68,9 @@ class PedestalTransitionState:
     These will be overwritten when the first L-mode to H-mode transition begins.
     """
     return cls(
-        confinement_mode=ConfinementMode.L_MODE,
+        confinement_mode=jnp.array(
+            ConfinementMode.L_MODE, dtype=jax_utils.get_int_dtype()
+        ),
         transition_start_time=jnp.array(-jnp.inf, dtype=jax_utils.get_dtype()),
         T_i_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         T_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
