@@ -799,6 +799,67 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   mock up a pedestal, this feature can also be used for L-mode modeling with a
   desired internal boundary condition below :math:`\hat{\rho}=1`.
 
+``mode`` (str [default = 'ADAPTIVE_SOURCE'])
+  Defines how the pedestal is generated. Options:
+
+  * ``'ADAPTIVE_SOURCE'``: Sets the pedestal by adding a source/sink term at the
+    pedestal top, forcing the pedestal top values to be as prescribed by the
+    pedestal model. This is the default mode whenever ``set_pedestal`` is True.
+  * ``'ADAPTIVE_TRANSPORT'``: Sets the pedestal by modifying the transport
+    coefficients in the pedestal region, allowing the pedestal to
+    self-consistently evolve. Transport coefficients are scaled to allow the
+    temperature and density to evolve towards the prescribed pedestal values.
+
+``use_formation_model_with_adaptive_source`` (bool [default = False])
+  Only applicable when ``mode`` is ``'ADAPTIVE_SOURCE'``. When True, enables
+  state-dependent L-H and H-L transitions based on comparison of the power
+  crossing the separatrix (:math:`P_{SOL}`) with the L-H power threshold
+  (:math:`P_{LH}`), as determined by the formation model. Pedestal values are
+  ramped over the ``transition_time_width`` during transitions. When False,
+  ``ADAPTIVE_SOURCE`` mode always applies the prescribed pedestal values
+  (legacy behavior). Raises an error if set to True when ``mode`` is not
+  ``'ADAPTIVE_SOURCE'``.
+
+``transition_time_width`` (**time-varying-scalar** [default = 0.5])
+  Duration of the L-H or H-L transition ramp in seconds. During a transition,
+  pedestal values are linearly interpolated between L-mode baseline values
+  and H-mode target values over this time window. Must be strictly positive.
+  Only used when ``use_formation_model_with_adaptive_source`` is True.
+
+``formation_model`` (dict)
+  Configuration for the pedestal formation model, which determines when L-H
+  and H-L transitions occur. The ``model_name`` key selects the model:
+
+  * ``'martin_scaling'``: Uses the Martin scaling law to determine the L-H
+    power threshold. Additional parameters:
+
+    * ``sharpness`` (float [default = 10.0]): Controls the sharpness of the
+      transition sigmoid function.
+
+  * ``'delabie_scaling'``: Uses the Delabie scaling law for the L-H power
+    threshold. Additional parameters:
+
+    * ``sharpness`` (float [default = 10.0]): Controls the sharpness of the
+      transition sigmoid function.
+
+``saturation_model`` (dict)
+  Configuration for the pedestal saturation model, which determines how the
+  pedestal values scale relative to H-mode target values. The ``model_name``
+  key selects the model:
+
+  * ``'profile_value'``: Uses the current profile value at the pedestal top
+    for saturation. Additional parameters:
+
+    * ``steepness`` (float [default = 100.0]): Controls the steepness of the
+      saturation function.
+    * ``offset`` (float [default = 0.0]): Offset for the saturation function.
+    * ``base_multiplier`` (float [default = 0.0]): Base multiplier for the
+      saturation function.
+
+``pedestal_top_smoothing_width`` (**time-varying-scalar** [default = 0.02])
+  Width of the smoothing region at the pedestal top boundary, in units of
+  :math:`\hat{\rho}`.
+
 The following ``model_name`` options are currently supported:
 
 no_pedestal
