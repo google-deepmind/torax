@@ -16,6 +16,7 @@ from absl.testing import parameterized
 import jax
 from torax._src import jax_utils
 from torax._src.pedestal_model import pydantic_model
+from torax._src.pedestal_model import runtime_params
 
 
 class PedestalModelPydanticTest(parameterized.TestCase):
@@ -34,18 +35,47 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     def f(x: pydantic_model.BasePedestal):
       return x.build_runtime_params(t=0.0)
 
-    with self.subTest('first_jit_compiles_and_returns_expected_value'):
+    with self.subTest("first_jit_compiles_and_returns_expected_value"):
       output = f(pedestal_model)
       self.assertIsInstance(output, pydantic_model.runtime_params.RuntimeParams)
       self.assertFalse(output.set_pedestal)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
-    with self.subTest('second_jit_updates_value_without_recompile'):
-      pedestal_model._update_fields({'set_pedestal': True})
+    with self.subTest("second_jit_updates_value_without_recompile"):
+      pedestal_model._update_fields({"set_pedestal": True})
       output = f(pedestal_model)
       self.assertTrue(output.set_pedestal)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
+  def test_source_mode_validation(self):
+    with self.subTest("allow_adaptive_source"):
+      pydantic_model.SetTpedNped.from_dict(
+          {"use_formation_model_with_adaptive_source": True}
+      )
 
-if __name__ == '__main__':
+    with self.subTest("disallow_adaptive_transport"):
+      with self.assertRaisesRegex(
+          ValueError,
+          "use_formation_model_with_adaptive_source can only be True when mode"
+          " is ADAPTIVE_SOURCE",
+      ):
+        pydantic_model.SetTpedNped.from_dict({
+            "use_formation_model_with_adaptive_source": True,
+            "mode": runtime_params.Mode.ADAPTIVE_TRANSPORT,
+        })
+
+  def test_transition_time_width_validation(self):
+    with self.subTest("allow_positive_values"):
+      pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.5})
+
+    with self.subTest("disallow_zero_values"):
+      with self.assertRaises(ValueError):
+        pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.0})
+
+    with self.subTest("disallow_negative_values"):
+      with self.assertRaises(ValueError):
+        pydantic_model.SetTpedNped.from_dict({"transition_time_width": -1.0})
+
+
+if __name__ == "__main__":
   absltest.main()

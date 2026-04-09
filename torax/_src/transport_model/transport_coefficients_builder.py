@@ -23,10 +23,13 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_model as transport_model_lib
+
+# pylint: disable=invalid-name
 
 
 @jax.jit(
@@ -45,8 +48,39 @@ def calculate_all_transport_coeffs(
     core_profiles: state.CoreProfiles,
     source_profiles: source_profiles_lib.SourceProfiles,
     use_pereverzev: bool = False,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients from all models."""
+
+  # Toggle the pedestal model on/off based on the pedestal transition state.
+  # TODO(b/434175938): Find an alternative method for propagating pedestal
+  # transition state to the core transport masking. Currently, we're overriding
+  # the runtime params which is a bit hacky. Options include passing the
+  # transition state to the pedestal model or to the transport model, both of
+  # which are breaking API changes.
+  if (
+      runtime_params.pedestal.use_formation_model_with_adaptive_source
+      and pedestal_transition_state is not None
+  ):
+    # Pedestal model is active if we are in H-mode or in a transition.
+    set_pedestal = (
+        pedestal_transition_state.confinement_mode
+        != pedestal_transition_state_lib.ConfinementMode.L_MODE
+    )
+
+    pedestal_params = dataclasses.replace(
+        runtime_params.pedestal,
+        set_pedestal=set_pedestal,
+    )
+    runtime_params = dataclasses.replace(
+        runtime_params,
+        pedestal=pedestal_params,
+    )
+
+  # TODO(b/500260959): Currently pedestal model is called twice, once in
+  # calc_coeffs.py and once here.
   pedestal_model_output = pedestal_model(
       runtime_params, geo, core_profiles, source_profiles
   )

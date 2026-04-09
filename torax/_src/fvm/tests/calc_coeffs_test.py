@@ -13,18 +13,22 @@
 # limitations under the License.
 
 import copy
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax.numpy as jnp
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.fvm import calc_coeffs
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
 
 
-class CoreProfileSettersTest(parameterized.TestCase):
+class CalcCoeffsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(num_cells=4, theta_implicit=0, set_pedestal=False),
@@ -157,6 +161,65 @@ class CoreProfileSettersTest(parameterized.TestCase):
               model_config.ToraxConfig.from_dict(torax_config_with_pedestal)
           ),
       )
+
+
+class TransitionCalculationsTest(parameterized.TestCase):
+
+  def test_compute_ramp_fraction(self):
+    state = pedestal_transition_state.PedestalTransitionState(
+        transition_start_time=jnp.array(1.0),
+        T_i_ped_L_mode=jnp.array(0.0),
+        T_e_ped_L_mode=jnp.array(0.0),
+        n_e_ped_L_mode=jnp.array(0.0),
+        confinement_mode=pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
+    )
+    # transition_time_width = 1.0. Start at 1.0.
+    # Clip at both ends
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 0.5), 0.0
+    )  # t < start
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 1.0), 0.0
+    )  # t = start
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 1.5), 0.5
+    )  # t = start + 0.5
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 2.0), 1.0
+    )  # t = start + 1.0
+    self.assertEqual(
+        calc_coeffs._compute_ramp_fraction(state, 1.0, 2.5), 1.0
+    )  # t = start + 1.5
+
+  def test_apply_transition_ramp_scaling_l_to_h(self):
+    l_mode_baseline = 1.0
+    h_mode_target = 3.0
+
+    state = pedestal_transition_state.PedestalTransitionState(
+        transition_start_time=jnp.array(1.0),
+        T_i_ped_L_mode=jnp.array(l_mode_baseline),
+        T_e_ped_L_mode=jnp.array(l_mode_baseline),
+        n_e_ped_L_mode=jnp.array(l_mode_baseline),
+        confinement_mode=pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
+    )
+
+    pedestal_model_output = pedestal_model_output_lib.PedestalModelOutput(
+        T_i_ped=h_mode_target,
+        T_e_ped=h_mode_target,
+        n_e_ped=h_mode_target,
+        rho_norm_ped_top=0.5,
+        rho_norm_ped_top_idx=1,
+        transport_multipliers=mock.Mock(),
+    )
+
+    scaled_pedestal_model_output = calc_coeffs._apply_transition_ramp_scaling(  # pytype: disable=wrong-arg-types
+        pedestal_model_output=pedestal_model_output,
+        pedestal_transition_state=state,
+        ramp_fraction=0.5,
+    )
+
+    # Expected: 1.0 + 0.5 * (3.0 - 1.0) = 2.0
+    self.assertTrue(jnp.allclose(scaled_pedestal_model_output.T_i_ped, 2.0))
 
 
 if __name__ == '__main__':

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Tests torax.sim for handling time dependent input runtime params."""
+
 import dataclasses
 from typing import Annotated, Literal
 from unittest import mock
@@ -33,6 +34,7 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import source_profiles
@@ -58,7 +60,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     model_config.ToraxConfig.model_rebuild(force=True)
 
   @parameterized.named_parameters(
-      ('with_adaptive_dt', True, 3, 0, 2.44444444444, [2, 3], 3+3+2),
+      ('with_adaptive_dt', True, 3, 0, 2.44444444444, [2, 3], 3 + 3 + 2),
       ('without_adaptive_dt', False, 1, 1, 3.0, [0, 4], 4),
   )
   def test_time_dependent_params_update_in_adaptive_dt(
@@ -216,6 +218,9 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,

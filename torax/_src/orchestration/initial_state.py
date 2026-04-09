@@ -30,6 +30,7 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.transport_model import transport_coefficients_builder
@@ -135,6 +136,17 @@ def _get_initial_state(
   else:
     edge_outputs = None
 
+  # If using adaptive source pedestal, initialize the transition state to empty.
+  # The values will be populated in the pre-step of the simulation.
+  if runtime_params.pedestal.use_formation_model_with_adaptive_source:
+    # TODO(b/500713368): Ensure that this works as expected when we start from
+    # H mode.
+    pedestal_transition_state = (
+        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+    )
+  else:
+    pedestal_transition_state = None
+
   transport_coeffs = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           physics_models.pedestal_model,
@@ -144,6 +156,7 @@ def _get_initial_state(
           geo,
           initial_core_profiles,
           initial_core_sources,
+          pedestal_transition_state=pedestal_transition_state,
       )
   )
 
@@ -163,6 +176,7 @@ def _get_initial_state(
       ),
       geometry=geo,
       edge_outputs=edge_outputs,
+      pedestal_transition_state=pedestal_transition_state,
   )
 
 

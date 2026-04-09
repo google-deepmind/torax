@@ -29,7 +29,7 @@ from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.physics import scaling_laws
 from torax._src.torax_pydantic import torax_pydantic
-
+import typing_extensions
 # pylint: disable=invalid-name
 
 
@@ -258,7 +258,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   use_formation_model_with_adaptive_source: Annotated[
       bool, torax_pydantic.JAX_STATIC
   ] = False
-  transition_time_width: torax_pydantic.TimeVaryingScalar = (
+  transition_time_width: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.5)
   )
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
@@ -300,6 +300,26 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       configurable_data["saturation_model"]["model_name"] = "profile_value"
 
     return configurable_data
+
+  @pydantic.model_validator(mode="after")
+  def _check_source_mode(self) -> typing_extensions.Self:
+    if (
+        self.use_formation_model_with_adaptive_source
+        and self.mode != runtime_params.Mode.ADAPTIVE_SOURCE
+    ):
+      raise ValueError(
+          "use_formation_model_with_adaptive_source can only be True when mode"
+          " is ADAPTIVE_SOURCE"
+      )
+    if self.use_formation_model_with_adaptive_source and not isinstance(
+        self.formation_model,
+        PowerScalingFormation,
+    ):
+      raise ValueError(
+          "use_formation_model_with_adaptive_source can only be True when"
+          " formation_model is PowerScalingFormationModel"
+      )
+    return self
 
   @abc.abstractmethod
   def build_pedestal_model(self) -> pedestal_model.PedestalModel:

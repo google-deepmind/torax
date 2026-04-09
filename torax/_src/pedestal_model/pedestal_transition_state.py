@@ -15,13 +15,21 @@
 """State for tracking pedestal L-H and H-L transitions."""
 
 import dataclasses
+import enum
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
-import typing_extensions
 
 # pylint: disable=invalid-name
+
+
+# Store confinement mode as an int so that it is a valid JAX dynamic type.
+class ConfinementMode(enum.IntEnum):
+  L_MODE = 0
+  H_MODE = 1
+  TRANSITIONING_TO_H_MODE = 2
+  TRANSITIONING_TO_L_MODE = 3
 
 
 @jax.tree_util.register_dataclass
@@ -34,7 +42,7 @@ class PedestalTransitionState:
   timesteps to track the current confinement mode and enable smooth transitions.
 
   Attributes:
-    in_H_mode: Whether the plasma is currently in H-mode.
+    confinement_mode: The current confinement mode.
     transition_start_time: The simulation time at which the current transition
       started. Set to -inf when no transition is active.
     T_i_ped_L_mode: Ion temperature at the pedestal top captured at the start of
@@ -45,7 +53,7 @@ class PedestalTransitionState:
       of the most recent L-mode to H-mode transition [m^-3].
   """
 
-  in_H_mode: array_typing.BoolScalar
+  confinement_mode: ConfinementMode
   transition_start_time: array_typing.FloatScalar
   # TODO(b/496703290) provide a way for these to be initialized in config, to
   # avoid edge case where we start in H-mode and have no good L-mode values.
@@ -54,13 +62,15 @@ class PedestalTransitionState:
   n_e_ped_L_mode: array_typing.FloatScalar
 
   @classmethod
-  def initial_state(cls) -> typing_extensions.Self:
-    """Creates an initial transition state starting in L-mode."""
-    dtype = jax_utils.get_dtype()
+  def empty_L_mode(cls):
+    """An L-mode transition state with no stored values.
+
+    These will be overwritten when the first L-mode to H-mode transition begins.
+    """
     return cls(
-        in_H_mode=jnp.bool_(False),
-        transition_start_time=jnp.array(-jnp.inf, dtype=dtype),
-        T_i_ped_L_mode=jnp.array(0.0, dtype=dtype),
-        T_e_ped_L_mode=jnp.array(0.0, dtype=dtype),
-        n_e_ped_L_mode=jnp.array(0.0, dtype=dtype),
+        confinement_mode=ConfinementMode.L_MODE,
+        transition_start_time=jnp.array(-jnp.inf, dtype=jax_utils.get_dtype()),
+        T_i_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        T_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        n_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )

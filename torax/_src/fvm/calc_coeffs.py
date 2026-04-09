@@ -14,6 +14,7 @@
 
 """Calculates Block1DCoeffs for a time step."""
 
+import dataclasses
 import functools
 import jax
 import jax.numpy as jnp
@@ -28,6 +29,8 @@ from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -72,6 +75,9 @@ class CoeffsCallback:
       # Checks if reduced calc_coeffs for explicit terms when theta_implicit=1
       # should be called
       explicit_call: bool = False,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState | None
+      ) = None,
   ) -> block_1d_coeffs.Block1DCoeffs:
     """Returns coefficients given a state x.
 
@@ -84,8 +90,8 @@ class CoeffsCallback:
         state x.
       geo: The geometry of the system at this time step.
       core_profiles: The core profiles of the system at this time step.
-      prev_core_profiles: The core profiles of the system at the previous
-        time step.
+      prev_core_profiles: The core profiles of the system at the previous time
+        step.
       dt: The time step size.
       x: The state with cell-grid values of the evolving variables.
       explicit_source_profiles: Precomputed explicit source profiles. These
@@ -104,6 +110,9 @@ class CoeffsCallback:
       explicit_call: If True, then if theta_implicit=1, only a reduced
         Block1DCoeffs is calculated since most explicit coefficients will not be
         used.
+      pedestal_transition_state: State for tracking pedestal L-H and H-L
+        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+        use_formation_model_with_adaptive_source=True. None otherwise.
 
     Returns:
       coeffs: The diffusion, convection, etc. coefficients for this state.
@@ -133,6 +142,7 @@ class CoeffsCallback:
         evolving_names=self.evolving_names,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
+        pedestal_transition_state=pedestal_transition_state,
     )
 
 
@@ -145,6 +155,9 @@ def calc_coeffs(
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
     explicit_call: bool = False,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """Calculates Block1DCoeffs for the time step described by `core_profiles`.
 
@@ -170,6 +183,9 @@ def calc_coeffs(
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
       theta_implicit=1. This saves computation for the default fully implicit
       implementation.
+    pedestal_transition_state: State for tracking pedestal L-H and H-L
+      transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+      use_formation_model_with_adaptive_source=True. None otherwise.
 
   Returns:
     coeffs: Block1DCoeffs containing the coefficients at this time step.
@@ -192,6 +208,7 @@ def calc_coeffs(
         physics_models=physics_models,
         evolving_names=evolving_names,
         use_pereverzev=use_pereverzev,
+        pedestal_transition_state=pedestal_transition_state,
     )
 
 
@@ -210,6 +227,9 @@ def _calc_coeffs_full(
     physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """See `calc_coeffs` for details."""
 
@@ -268,6 +288,7 @@ def _calc_coeffs_full(
           core_profiles,
           merged_source_profiles,
           use_pereverzev,
+          pedestal_transition_state=pedestal_transition_state,
       )
   )
 
@@ -406,15 +427,66 @@ def _calc_coeffs_full(
   )
 
   # 5. Add internal boundary condition source terms
-  # TODO(b/323504363): Currently pedestal model is called twice, once in
-  # calculate_total_transport_coeffs and once here.
-  pedestal_model_output = physics_models.pedestal_model(
-      runtime_params, geo, core_profiles, merged_source_profiles
-  )
   if (
       runtime_params.pedestal.mode
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
   ):
+    # TODO(b/500260959): Currently pedestal model is called twice, once in
+    # calculate_all_transport_coeffs and once here.
+    pedestal_model_output = physics_models.pedestal_model(
+        runtime_params, geo, core_profiles, merged_source_profiles
+    )
+    if runtime_params.pedestal.use_formation_model_with_adaptive_source:
+      assert pedestal_transition_state is not None, (
+          'pedestal_transition_state must not be None when'
+          ' use_formation_model_with_adaptive_source is True.'
+      )
+      ramp_fraction = _compute_ramp_fraction(
+          pedestal_transition_state=pedestal_transition_state,
+          transition_time_width=runtime_params.pedestal.transition_time_width,
+          t=runtime_params.t,
+      )
+      # Scale the pedestal output by the ramp fraction.
+      # Will be a no-op in H-mode after the transition_time_width has passed.
+      pedestal_model_output = _apply_transition_ramp_scaling(
+          pedestal_model_output=pedestal_model_output,
+          pedestal_transition_state=pedestal_transition_state,
+          ramp_fraction=ramp_fraction,
+      )
+      # Adaptive source should be applied if we're in H mode or still in the
+      # LH/HL ramp.
+      apply_adaptive_source = (
+          pedestal_transition_state.confinement_mode
+          != pedestal_transition_state_lib.ConfinementMode.L_MODE
+      )
+    else:
+      apply_adaptive_source = jnp.bool_(True)
+
+    def _apply_source():
+      pedestal_internal_boundary_conditions = (
+          pedestal_model_output.to_internal_boundary_conditions(geo)
+      )
+      return internal_boundary_conditions_lib.apply_adaptive_source(
+          source_T_i=source_i,
+          source_T_e=source_e,
+          source_n_e=source_n_e,
+          source_mat_ii=source_mat_ii,
+          source_mat_ee=source_mat_ee,
+          source_mat_nn=source_mat_nn,
+          runtime_params=runtime_params,
+          internal_boundary_conditions=pedestal_internal_boundary_conditions,
+      )
+
+    def _skip_source():
+      return (
+          source_i,
+          source_e,
+          source_n_e,
+          source_mat_ii,
+          source_mat_ee,
+          source_mat_nn,
+      )
+
     (
         source_i,
         source_e,
@@ -422,19 +494,10 @@ def _calc_coeffs_full(
         source_mat_ii,
         source_mat_ee,
         source_mat_nn,
-    ) = internal_boundary_conditions_lib.apply_adaptive_source(
-        source_T_i=source_i,
-        source_T_e=source_e,
-        source_n_e=source_n_e,
-        source_mat_ii=source_mat_ii,
-        source_mat_ee=source_mat_ee,
-        source_mat_nn=source_mat_nn,
-        runtime_params=runtime_params,
-        # Pedestal contributes an internal boundary condition to the source
-        # terms at the pedestal top.
-        internal_boundary_conditions=pedestal_model_output.to_internal_boundary_conditions(
-            geo
-        ),
+    ) = jax.lax.cond(
+        apply_adaptive_source,
+        _apply_source,
+        _skip_source,
     )
 
   # --- Build arguments to solver  --- #
@@ -539,3 +602,82 @@ def _calc_coeffs_reduced(
       transient_in_cell=transient_in_cell,
   )
   return coeffs
+
+
+def _compute_ramp_fraction(
+    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    transition_time_width: array_typing.FloatScalar,
+    t: array_typing.FloatScalar,
+) -> array_typing.FloatScalar:
+  """Computes the ramp fraction for a pedestal transition.
+
+  Returns a value in [0, 1] representing the progress of the current
+  transition. 0 means the transition just started, 1 means it is complete.
+
+  Args:
+    pedestal_transition_state: Current transition state.
+    transition_time_width: Duration of the transition ramp.
+    t: Current simulation time (i.e. t + dt when called from the solver).
+
+  Returns:
+    Ramp fraction clipped to [0, 1].
+  """
+  elapsed = t - pedestal_transition_state.transition_start_time
+  fraction = elapsed / transition_time_width
+  return jnp.clip(fraction, 0.0, 1.0)
+
+
+def _apply_transition_ramp_scaling(
+    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    ramp_fraction: array_typing.FloatScalar,
+) -> pedestal_model_output_lib.PedestalModelOutput:
+  """Applies ramp scaling to internal boundary conditions during transitions.
+
+  During an L-H transition, linearly ramps from L-mode values to the H-mode
+  targets. During an H-L transition, ramps from the H-mode targets back to
+  the L-mode values.
+
+  The L-mode values are stored in the pedestal_transition_state (captured
+  at the start of an L->H transition). The H-mode targets are the full
+  pedestal model output.
+
+  Args:
+    pedestal_model_output: Output from the pedestal model.
+    pedestal_transition_state: Current transition state containing L-mode
+      baseline values.
+    ramp_fraction: Progress of the current transition, in [0, 1].
+
+  Returns:
+    Scaled pedestal model output.
+  """
+  def _interpolate_transition(l_val, h_val):
+    """Linearly interpolates between L-mode and H-mode values."""
+    l_to_h_ramp = l_val + ramp_fraction * (h_val - l_val)
+    h_to_l_ramp = h_val + ramp_fraction * (l_val - h_val)
+    return jnp.where(
+        pedestal_transition_state.confinement_mode
+        == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
+        l_to_h_ramp,
+        h_to_l_ramp,
+    )
+
+  scaled_T_i = _interpolate_transition(
+      l_val=pedestal_transition_state.T_i_ped_L_mode,
+      h_val=pedestal_model_output.T_i_ped,
+  )
+  scaled_T_e = _interpolate_transition(
+      l_val=pedestal_transition_state.T_e_ped_L_mode,
+      h_val=pedestal_model_output.T_e_ped,
+  )
+  scaled_n_e = _interpolate_transition(
+      l_val=pedestal_transition_state.n_e_ped_L_mode,
+      h_val=pedestal_model_output.n_e_ped,
+  )
+
+  return dataclasses.replace(
+      pedestal_model_output,
+      T_i_ped=scaled_T_i,
+      T_e_ped=scaled_T_e,
+      n_e_ped=scaled_n_e,
+  )

@@ -17,6 +17,7 @@
 import dataclasses
 import functools
 import jax
+import jax.numpy as jnp
 from torax._src import physics_models as physics_models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -28,9 +29,160 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model.formation import power_scaling_formation_model as power_scaling_formation_model_lib
+from torax._src.physics import scaling_laws
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
+
+# pylint: disable=invalid-name
+
+
+def _update_pedestal_transition_state(
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    core_sources: source_profiles_lib.SourceProfiles,
+    physics_models: physics_models_lib.PhysicsModels,
+) -> pedestal_transition_state_lib.PedestalTransitionState:
+  """Evaluates P_SOL vs P_LH and updates the pedestal transition state.
+
+  Called once per timestep in pre_step. Determines whether the plasma should
+  enter or exit H-mode based on the power crossing the separatrix (P_SOL)
+  compared to the L-H transition threshold power (P_LH).
+
+  When transitioning from L-mode to H-mode (currently in L-mode and P_SOL >
+  P_LH):
+    - Records the current simulation time as transition_start_time
+    - Saves the current values of the pedestal-top
+
+  When transitioning from H-mode to L-mode (currently in H-mode and P_SOL <
+  P_LH):
+    - Records the current simulation time as transition_start_time
+    - Loads the saved L-mode pedestal-top values
+
+  Args:
+    pedestal_transition_state: Current transition state from previous timestep.
+    runtime_params: Runtime parameters at time t.
+    geo: Geometry at time t.
+    core_profiles: Core plasma profiles at time t.
+    core_sources: Source profiles at time t.
+    physics_models: Physics models (used to access formation model config).
+
+  Returns:
+    Updated PedestalTransitionState.
+  """
+  formation_model = physics_models.pedestal_model.formation_model
+  # Explicitly check types (required for pytype).
+  assert isinstance(
+      formation_model,
+      power_scaling_formation_model_lib.PowerScalingFormationModel,
+  )
+  assert isinstance(
+      runtime_params.pedestal.formation,
+      power_scaling_formation_model_lib.PowerScalingFormationRuntimeParams,
+  )
+
+  # Calculate P_SOL (total power crossing the separatrix).
+  P_SOL = power_scaling_formation_model_lib.calculate_P_SOL_total(
+      internal_plasma_energy=core_profiles.internal_plasma_energy,
+      core_sources=core_sources,
+      geo=geo,
+  )
+
+  # Calculate P_LH (L-H transition threshold power), with a configurable
+  # prefactor to allow for tuning.
+  P_LH, _ = scaling_laws.calculate_P_LH(
+      geo=geo,
+      core_profiles=core_profiles,
+      scaling_law=formation_model.scaling_law,
+      divertor_configuration=formation_model.divertor_configuration,
+  )
+  P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
+
+  # Update transition state based on P_SOL vs P_LH.
+  old_confinement_mode = pedestal_transition_state.confinement_mode
+  transition_is_complete = (
+      runtime_params.t
+      >= pedestal_transition_state.transition_start_time
+      + runtime_params.pedestal.transition_time_width
+  )
+  ConfinementMode = pedestal_transition_state_lib.ConfinementMode
+  conditions = [
+      # L-H transition.
+      (old_confinement_mode == ConfinementMode.L_MODE) & (P_SOL > P_LH),
+      # H-L transition.
+      (old_confinement_mode == ConfinementMode.H_MODE) & (P_SOL < P_LH),
+      # In H-mode after L-H transition completed.
+      (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE)
+      & transition_is_complete,
+      # In L-mode after H-L transition completed.
+      (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
+      & transition_is_complete,
+  ]
+  new_confinement_modes = [
+      ConfinementMode.TRANSITIONING_TO_H_MODE,
+      ConfinementMode.TRANSITIONING_TO_L_MODE,
+      ConfinementMode.H_MODE,
+      ConfinementMode.L_MODE,
+  ]
+  new_confinement_mode = jnp.select(
+      conditions,
+      new_confinement_modes,
+      old_confinement_mode,
+  )
+
+  # If we've just entered a transition, record the current time.
+  new_is_transitioning = (
+      new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
+  ) | (new_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
+  old_is_transitioning = (
+      old_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
+  ) | (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
+  new_transition_start_time = jnp.where(
+      new_is_transitioning & ~old_is_transitioning,
+      runtime_params.t,
+      pedestal_transition_state.transition_start_time,
+  )
+
+  # If we've just entered an LH transition, record the pedestal top values.
+  # TODO(b/500260959): Avoid calling the pedestal model again.
+  beginning_LH_transition = (old_confinement_mode == ConfinementMode.L_MODE) & (
+      new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
+  )
+  pedestal_model_output = physics_models.pedestal_model(
+      runtime_params, geo, core_profiles, core_sources
+  )
+  ped_top_idx = jnp.argmin(
+      jnp.abs(geo.rho_norm - pedestal_model_output.rho_norm_ped_top)
+  )
+  new_T_i_ped_L_mode = jnp.where(
+      beginning_LH_transition,
+      core_profiles.T_i.value[ped_top_idx],
+      pedestal_transition_state.T_i_ped_L_mode,
+  )
+  new_T_e_ped_L_mode = jnp.where(
+      beginning_LH_transition,
+      core_profiles.T_e.value[ped_top_idx],
+      pedestal_transition_state.T_e_ped_L_mode,
+  )
+  new_n_e_ped_L_mode = jnp.where(
+      beginning_LH_transition,
+      core_profiles.n_e.value[ped_top_idx],
+      pedestal_transition_state.n_e_ped_L_mode,
+  )
+
+  return pedestal_transition_state_lib.PedestalTransitionState(
+      confinement_mode=new_confinement_mode,
+      transition_start_time=new_transition_start_time,
+      T_i_ped_L_mode=new_T_i_ped_L_mode,
+      T_e_ped_L_mode=new_T_e_ped_L_mode,
+      n_e_ped_L_mode=new_n_e_ped_L_mode,
+  )
 
 
 def pre_step(
@@ -43,6 +195,7 @@ def pre_step(
     geometry.Geometry,
     source_profiles_lib.SourceProfiles,
     edge_base.EdgeModelOutputs | None,
+    pedestal_transition_state_lib.PedestalTransitionState | None,
 ]:
   """Performs the pre-step operations for the step function."""
   runtime_params_t, geo_t = (
@@ -95,7 +248,39 @@ def pre_step(
   else:
     edge_outputs = None
 
-  return runtime_params_t, geo_t, explicit_source_profiles, edge_outputs
+  # Update pedestal transition state if use_formation_model_with_adaptive_source
+  # is enabled.
+  pedestal_transition_state = input_state.pedestal_transition_state
+  if runtime_params_t.pedestal.use_formation_model_with_adaptive_source:
+    assert pedestal_transition_state is not None, (
+        'pedestal_transition_state must not be None when'
+        ' use_formation_model_with_adaptive_source is True.'
+    )
+    # Merge explicit sources with previous implicit sources for accurate
+    # P_SOL calculation (same pattern as the edge model above).
+    merged_sources = dataclasses.replace(
+        input_state.core_sources,
+        T_e=input_state.core_sources.T_e | explicit_source_profiles.T_e,
+        T_i=input_state.core_sources.T_i | explicit_source_profiles.T_i,
+        n_e=input_state.core_sources.n_e | explicit_source_profiles.n_e,
+        psi=input_state.core_sources.psi | explicit_source_profiles.psi,
+    )
+    pedestal_transition_state = _update_pedestal_transition_state(
+        pedestal_transition_state=pedestal_transition_state,
+        runtime_params=runtime_params_t,
+        geo=geo_t,
+        core_profiles=input_state.core_profiles,
+        core_sources=merged_sources,
+        physics_models=physics_models,
+    )
+
+  return (
+      runtime_params_t,
+      geo_t,
+      explicit_source_profiles,
+      edge_outputs,
+      pedestal_transition_state,
+  )
 
 
 @functools.partial(
@@ -119,6 +304,9 @@ def finalize_outputs(
     physics_models: physics_models_lib.PhysicsModels,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ) = None,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
   final_core_profiles, final_source_profiles = (
@@ -144,6 +332,7 @@ def finalize_outputs(
           geometry_t_plus_dt,
           final_core_profiles,
           final_source_profiles,
+          pedestal_transition_state=pedestal_transition_state,
       )
   )
 
@@ -156,6 +345,7 @@ def finalize_outputs(
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
       edge_outputs=edge_outputs,
+      pedestal_transition_state=pedestal_transition_state,
   )
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=output_state,
