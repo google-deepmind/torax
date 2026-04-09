@@ -446,8 +446,9 @@ def _calc_coeffs_full(
           transition_time_width=runtime_params.pedestal.transition_time_width,
           t=runtime_params.t,
       )
-      # Scale the pedestal output by the ramp fraction.
-      # Will be a no-op in H-mode after the transition_time_width has passed.
+      # Scale the pedestal output by the ramp fraction during transitions.
+      # In H-mode, returns full H-mode values. In L-mode, returns L-mode
+      # values. During transitions, linearly interpolates between the two.
       pedestal_model_output = _apply_transition_ramp_scaling(
           pedestal_model_output=pedestal_model_output,
           pedestal_transition_state=pedestal_transition_state,
@@ -652,14 +653,30 @@ def _apply_transition_ramp_scaling(
     Scaled pedestal model output.
   """
   def _interpolate_transition(l_val, h_val):
-    """Linearly interpolates between L-mode and H-mode values."""
+    """Interpolates between L-mode and H-mode values based on confinement mode.
+
+    Args:
+      l_val: L-mode baseline value.
+      h_val: H-mode target value from the pedestal model output.
+
+    Returns:
+      The interpolated value based on the current confinement mode.
+    """
     l_to_h_ramp = l_val + ramp_fraction * (h_val - l_val)
     h_to_l_ramp = h_val + ramp_fraction * (l_val - h_val)
-    return jnp.where(
-        pedestal_transition_state.confinement_mode
-        == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
-        l_to_h_ramp,
-        h_to_l_ramp,
+    confinement_mode = pedestal_transition_state.confinement_mode
+    return jnp.select(
+        [
+            confinement_mode
+            == pedestal_transition_state_lib.ConfinementMode.L_MODE,
+            confinement_mode
+            == pedestal_transition_state_lib.ConfinementMode.H_MODE,
+            confinement_mode
+            == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
+            confinement_mode
+            == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
+        ],
+        [l_val, h_val, l_to_h_ramp, h_to_l_ramp],
     )
 
   scaled_T_i = _interpolate_transition(
