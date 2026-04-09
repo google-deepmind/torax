@@ -367,7 +367,9 @@ def _transform_data(ds: xr.Dataset) -> xr.Dataset:
 
 def _data_tree_to_plot_data(data_tree: xr.DataTree) -> PlotData:
   """Converts an xr.DataTree to a PlotData object with unit transformations."""
-  return PlotData(xr.map_over_datasets(_transform_data, data_tree))
+  return PlotData(
+      xr.map_over_datasets(_transform_data, data_tree.copy(deep=True))
+  )
 
 
 def load_data(filename: str) -> PlotData:
