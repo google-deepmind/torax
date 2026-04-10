@@ -443,13 +443,9 @@ def calculate_psidot_from_psi_sources(
   )
 
   c_mat = diffusion_mat + conv_mat
-  c = diffusion_vec + conv_vec
+  c = diffusion_vec + conv_vec + psi_sources
 
-  c += psi_sources
-
-  psidot = (jnp.dot(c_mat, psi.value) + c) / toc_psi
-
-  return psidot
+  return (c_mat.matvec(psi.value) + c) / toc_psi
 
 
 def j_toroidal_to_j_parallel(

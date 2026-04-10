@@ -20,13 +20,13 @@ Builds the diffusion terms of the discrete matrix equation.
 import chex
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import math_utils
+from torax._src import tridiagonal
 from torax._src.fvm import cell_variable
 
 
 def make_diffusion_terms(
     d_face: array_typing.FloatVectorFace, var: cell_variable.CellVariable
-) -> tuple[array_typing.FloatMatrixCell, array_typing.FloatVectorCell]:
+) -> tuple[tridiagonal.TriDiagonal, array_typing.FloatVectorCell]:
   """Makes the terms of the matrix equation derived from the diffusion term.
 
   The diffusion term is of the form
@@ -112,6 +112,4 @@ def make_diffusion_terms(
         d_face[-1] * var.right_face_grad_constraint / dx[-1]
     )
 
-  # Build the matrix
-  mat = math_utils.tridiag(diag, upper_off, lower_off)
-  return mat, vec
+  return tridiagonal.TriDiagonal(diag, upper_off, lower_off), vec

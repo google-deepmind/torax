@@ -39,7 +39,7 @@ class DiffusionTermsTest(absltest.TestCase):
         d_face=jnp.array([1.0, 2.0, 3.0, 4.0, 5.0]),
         var=cell_var,
     )
-    np.testing.assert_allclose(mat, np.array([
+    np.testing.assert_allclose(mat.to_dense(), np.array([
         [-4, 2, 0, 0,],
         [2, -5, 3, 0,],
         [0, 3, -7, 4,],
@@ -60,7 +60,7 @@ class DiffusionTermsTest(absltest.TestCase):
         d_face=jnp.array([1.0, 2.0, 3.0, 4.0, 5.0]),
         var=cell_var,
     )
-    np.testing.assert_allclose(mat, np.array([
+    np.testing.assert_allclose(mat.to_dense(), np.array([
         [-2, 2, 0, 0,],
         [2, -5, 3, 0,],
         [0, 3, -7, 4,],
@@ -81,7 +81,7 @@ class DiffusionTermsTest(absltest.TestCase):
         d_face=jnp.array([1.0, 2.0, 3.0, 4.0, 5.0]),
         var=cell_var,
     )
-    np.testing.assert_allclose(mat, np.array([
+    np.testing.assert_allclose(mat.to_dense(), np.array([
         [-100, 50, 0, 0,],
         [50, -125, 75, 0,],
         [0, 75, -175, 100,],
@@ -102,13 +102,14 @@ class DiffusionTermsTest(absltest.TestCase):
         d_face=jnp.array([1.0, 2.0, 3.0, 4.0, 5.0]),
         var=cell_var,
     )
-    np.testing.assert_allclose(mat, np.array([
+    np.testing.assert_allclose(mat.to_dense(), np.array([
         [-50, 50, 0, 0,],
         [50, -125, 75, 0,],
         [0, 75, -175, 100,],
         [0, 0, 100, -100,],
     ]))
     np.testing.assert_allclose(vec, np.array([50.0, 0.0, 0.0, 250.0]))
+
 
 if __name__ == "__main__":
   absltest.main()

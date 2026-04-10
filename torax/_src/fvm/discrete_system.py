@@ -97,7 +97,7 @@ def calc_c(
           x[i],
       )
 
-      c_mat[i][i] += diffusion_mat
+      c_mat[i][i] += diffusion_mat.to_dense()
       c[i] += diffusion_vec
 
   # Add convection terms
@@ -118,7 +118,7 @@ def calc_c(
           neumann_mode=convection_neumann_mode,
       )
 
-      c_mat[i][i] += conv_mat
+      c_mat[i][i] += conv_mat.to_dense()
       c[i] += conv_vec
 
   # Add implicit source terms

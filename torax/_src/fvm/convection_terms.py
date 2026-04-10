@@ -21,7 +21,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax._src import jax_utils
-from torax._src import math_utils
+from torax._src import tridiagonal
 from torax._src.fvm import cell_variable
 
 
@@ -32,7 +32,7 @@ def make_convection_terms(
     var: cell_variable.CellVariable,
     dirichlet_mode: str = 'ghost',
     neumann_mode: str = 'ghost',
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[tridiagonal.TriDiagonal, jax.Array]:
   """Makes the terms of the matrix equation derived from the convection term.
 
   The convection term of the differential equation is of the form
@@ -119,12 +119,6 @@ def make_convection_terms(
   right_v = v_face[1:]
 
   diag = (left_alpha * left_v - right_alpha * right_v) / var.cell_widths
-  above = -(1.0 - right_alpha) * right_v / var.cell_widths
-  above = above[:-1]
-  below = (1.0 - left_alpha) * left_v / var.cell_widths
-  below = below[1:]
-  mat = math_utils.tridiag(diag, above, below)
-
   vec = jnp.zeros_like(diag)
 
   if vec.shape[0] < 2:
@@ -149,77 +143,89 @@ def make_convection_terms(
 
   if var.left_face_constraint is not None:
     # Dirichlet condition at leftmost face
-    if dirichlet_mode == 'ghost':
-      mat_value = (
-          v_face[0] * (2.0 * left_alpha[0] - 1.0) - v_face[1] * right_alpha[0]
-      ) / cell_spacings[0]
-      vec_value = (
-          2.0 * v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
-      ) / cell_spacings[0]
-    elif dirichlet_mode == 'direct':
-      vec_value = v_face[0] * var.left_face_constraint / cell_spacings[0]
-      mat_value = -v_face[1] * right_alpha[0] / cell_spacings[0]
-    elif dirichlet_mode == 'semi-implicit':
-      vec_value = (
-          v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
-      ) / cell_spacings[0]
-      mat_value = mat[0, 0]
-    else:
-      raise ValueError(dirichlet_mode)
+    match dirichlet_mode:
+      case 'ghost':
+        diag_left_face = (
+            v_face[0] * (2.0 * left_alpha[0] - 1.0) - v_face[1] * right_alpha[0]
+        ) / cell_spacings[0]
+        vec_left_face = (
+            2.0 * v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
+        ) / cell_spacings[0]
+      case 'direct':
+        vec_left_face = v_face[0] * var.left_face_constraint / cell_spacings[0]
+        diag_left_face = -v_face[1] * right_alpha[0] / cell_spacings[0]
+      case 'semi-implicit':
+        vec_left_face = (
+            v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
+        ) / cell_spacings[0]
+        diag_left_face = diag[0]
+      case _:
+        raise ValueError(dirichlet_mode)
   else:
     # Gradient boundary condition at leftmost face
-    mat_value = (v_face[0] - right_alpha[0] * v_face[1]) / cell_spacings[0]
-    vec_value = (
+    diag_left_face = (v_face[0] - right_alpha[0] * v_face[1]) / cell_spacings[0]
+    vec_left_face = (
         -v_face[0] * (1.0 - left_alpha[0]) * var.left_face_grad_constraint
     )
-    if neumann_mode == 'ghost':
-      pass  # no adjustment needed
-    elif neumann_mode == 'semi-implicit':
-      vec_value /= 2.0
-    else:
-      raise ValueError(neumann_mode)
+    match neumann_mode:
+      case 'ghost':
+        pass  # no adjustment needed
+      case 'semi-implicit':
+        vec_left_face /= 2.0
+      case _:
+        raise ValueError(neumann_mode)
 
-  mat = mat.at[0, 0].set(mat_value)
-  vec = vec.at[0].set(vec_value)
+  diag = diag.at[0].set(diag_left_face)
+  vec = vec.at[0].set(vec_left_face)
 
   if var.right_face_constraint is not None:
     # Dirichlet condition at rightmost face
-    if dirichlet_mode == 'ghost':
-      mat_value = (
-          v_face[-2] * left_alpha[-1]
-          + v_face[-1] * (1.0 - 2.0 * right_alpha[-1])
-      ) / cell_spacings[-1]
-      vec_value = (
-          -2.0
-          * v_face[-1]
-          * (1.0 - right_alpha[-1])
-          * var.right_face_constraint
-      ) / cell_spacings[-1]
-    elif dirichlet_mode == 'direct':
-      mat_value = v_face[-2] * left_alpha[-1] / cell_spacings[-1]
-      vec_value = -v_face[-1] * var.right_face_constraint / cell_spacings[-1]
-    elif dirichlet_mode == 'semi-implicit':
-      mat_value = mat[-1, -1]
-      vec_value = (
-          -(v_face[-1] * (1.0 - right_alpha[-1]) * var.right_face_constraint)
-          / cell_spacings[-1]
-      )
-    else:
-      raise ValueError(dirichlet_mode)
+    match dirichlet_mode:
+      case 'ghost':
+        diag_right_face = (
+            v_face[-2] * left_alpha[-1]
+            + v_face[-1] * (1.0 - 2.0 * right_alpha[-1])
+        ) / cell_spacings[-1]
+        vec_right_face = (
+            -2.0
+            * v_face[-1]
+            * (1.0 - right_alpha[-1])
+            * var.right_face_constraint
+        ) / cell_spacings[-1]
+      case 'direct':
+        diag_right_face = v_face[-2] * left_alpha[-1] / cell_spacings[-1]
+        vec_right_face = (
+            -v_face[-1] * var.right_face_constraint / cell_spacings[-1]
+        )
+      case 'semi-implicit':
+        diag_right_face = diag[-1]
+        vec_right_face = (
+            -(v_face[-1] * (1.0 - right_alpha[-1]) * var.right_face_constraint)
+            / cell_spacings[-1]
+        )
+      case _:
+        raise ValueError(dirichlet_mode)
   else:
     # Gradient boundary condition at rightmost face
-    mat_value = -(v_face[-1] - v_face[-2] * left_alpha[-1]) / cell_spacings[-1]
-    vec_value = (
+    diag_right_face = (
+        -(v_face[-1] - v_face[-2] * left_alpha[-1]) / cell_spacings[-1]
+    )
+    vec_right_face = (
         -v_face[-1] * (1.0 - right_alpha[-1]) * var.right_face_grad_constraint
     )
-    if neumann_mode == 'ghost':
-      pass  # no adjustment needed
-    elif neumann_mode == 'semi-implicit':
-      vec_value /= 2.0
-    else:
-      raise ValueError(neumann_mode)
+    match neumann_mode:
+      case 'ghost':
+        pass  # no adjustment needed
+      case 'semi-implicit':
+        vec_right_face /= 2.0
+      case _:
+        raise ValueError(neumann_mode)
 
-  mat = mat.at[-1, -1].set(mat_value)
-  vec = vec.at[-1].set(vec_value)
+  diag = diag.at[-1].set(diag_right_face)
+  above = -(1.0 - right_alpha) * right_v / var.cell_widths
+  below = (1.0 - left_alpha) * left_v / var.cell_widths
+  mat = tridiagonal.TriDiagonal(
+      diagonal=diag, above=above[:-1], below=below[1:]
+  )
 
-  return mat, vec
+  return mat, vec.at[-1].set(vec_right_face)

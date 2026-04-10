@@ -24,7 +24,6 @@ import functools
 import chex
 import jax
 from jax import numpy as jnp
-import jaxtyping as jt
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.geometry import geometry
@@ -130,26 +129,6 @@ def cell_to_face(
 
   face_values = jnp.concatenate([face_values_without_right, right[None]])
   return face_values
-
-
-@array_typing.jaxtyped
-def tridiag(
-    diag: jt.Shaped[array_typing.Array, 'size'],
-    above: jt.Shaped[array_typing.Array, 'size-1'],
-    below: jt.Shaped[array_typing.Array, 'size-1'],
-) -> jt.Shaped[array_typing.Array, 'size size']:
-  """Builds a tridiagonal matrix.
-
-  Args:
-    diag: The main diagonal.
-    above: The +1 diagonal.
-    below: The -1 diagonal.
-
-  Returns:
-    The tridiagonal matrix.
-  """
-
-  return jnp.diag(diag) + jnp.diag(above, 1) + jnp.diag(below, -1)
 
 
 def cumulative_trapezoid(
