@@ -63,7 +63,7 @@ class SawtoothModelTest(parameterized.TestCase):
     self._torax_config = torax_config
 
     solver = torax_config.solver.build_solver(
-        physics_models=torax_config.build_physics_models(),
+        models=torax_config.build_models(),
     )
 
     geometry_provider = torax_config.geometry.build_provider
@@ -73,7 +73,7 @@ class SawtoothModelTest(parameterized.TestCase):
 
     self.step_fn = step_function.SimulationStepFn(
         solver=solver,
-        time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
+        time_step_calculator=torax_config.time_step_calculator.build_time_step_calculator(),
         geometry_provider=geometry_provider,
         runtime_params_provider=self.runtime_params_provider,
     )

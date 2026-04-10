@@ -28,7 +28,7 @@ import jax
 from jax import numpy as jnp
 import jaxopt
 from torax._src import jax_utils
-from torax._src import physics_models as physics_models_lib
+from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
@@ -191,7 +191,7 @@ def theta_method_matrix_equation(
     jax.jit,
     static_argnames=[
         'evolving_names',
-        'physics_models',
+        'models',
     ],
 )
 def theta_method_block_residual(
@@ -203,7 +203,7 @@ def theta_method_block_residual(
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    physics_models: physics_models_lib.PhysicsModels,
+    models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
     pedestal_transition_state: (
@@ -227,7 +227,7 @@ def theta_method_block_residual(
       being evolved by the PDE system.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
-    physics_models: Physics models used for the calculations.
+    models: Models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
@@ -262,7 +262,7 @@ def theta_method_block_residual(
       geo=geo_t_plus_dt,
       core_profiles=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
-      physics_models=physics_models,
+      models=models,
       evolving_names=evolving_names,
       use_pereverzev=False,
       pedestal_transition_state=pedestal_transition_state,
@@ -290,7 +290,7 @@ def theta_method_block_residual(
 @functools.partial(
     jax.jit,
     static_argnames=[
-        'physics_models',
+        'models',
         'evolving_names',
     ],
 )
@@ -303,7 +303,7 @@ def theta_method_block_loss(
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    physics_models: physics_models_lib.PhysicsModels,
+    models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
 ) -> jax.Array:
@@ -323,7 +323,7 @@ def theta_method_block_loss(
       being evolved by the PDE system.
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE
-    physics_models: Physics models used for the calculations.
+    models: Models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
@@ -341,7 +341,7 @@ def theta_method_block_loss(
       core_profiles_t=core_profiles_t,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
-      physics_models=physics_models,
+      models=models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
   )
@@ -352,7 +352,7 @@ def theta_method_block_loss(
 @functools.partial(
     jax.jit,
     static_argnames=[
-        'physics_models',
+        'models',
         'evolving_names',
     ],
 )
@@ -365,7 +365,7 @@ def jaxopt_solver(
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    physics_models: physics_models_lib.PhysicsModels,
+    models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
     maxiter: int,
@@ -387,7 +387,7 @@ def jaxopt_solver(
       being evolved by the PDE system.
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE.
-    physics_models: Physics models used for the calculations.
+    models: Models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
@@ -409,7 +409,7 @@ def jaxopt_solver(
       core_profiles_t=core_profiles_t,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
-      physics_models=physics_models,
+      models=models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
   )

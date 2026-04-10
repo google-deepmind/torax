@@ -18,7 +18,7 @@ import dataclasses
 import functools
 import jax
 import jax.numpy as jnp
-from torax._src import physics_models as physics_models_lib
+from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -47,7 +47,7 @@ def _update_pedestal_transition_state(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles_lib.SourceProfiles,
-    physics_models: physics_models_lib.PhysicsModels,
+    models: models_lib.Models,
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
   """Evaluates P_SOL vs P_LH and updates the pedestal transition state.
 
@@ -71,12 +71,12 @@ def _update_pedestal_transition_state(
     geo: Geometry at time t.
     core_profiles: Core plasma profiles at time t.
     core_sources: Source profiles at time t.
-    physics_models: Physics models (used to access formation model config).
+    models: Models for the simulation (used to access formation model config).
 
   Returns:
     Updated PedestalTransitionState.
   """
-  formation_model = physics_models.pedestal_model.formation_model
+  formation_model = models.pedestal_model.formation_model
   # Explicitly check types (required for pytype).
   assert isinstance(
       formation_model,
@@ -154,7 +154,7 @@ def _update_pedestal_transition_state(
   beginning_LH_transition = (old_confinement_mode == ConfinementMode.L_MODE) & (
       new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
   )
-  pedestal_model_output = physics_models.pedestal_model(
+  pedestal_model_output = models.pedestal_model(
       runtime_params, geo, core_profiles, core_sources
   )
   ped_top_idx = jnp.argmin(
@@ -189,7 +189,7 @@ def pre_step(
     input_state: sim_state.SimState,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
-    physics_models: physics_models_lib.PhysicsModels,
+    models: models_lib.Models,
 ) -> tuple[
     runtime_params_lib.RuntimeParams,
     geometry.Geometry,
@@ -214,14 +214,14 @@ def pre_step(
       runtime_params=runtime_params_t,
       geo=geo_t,
       core_profiles=input_state.core_profiles,
-      source_models=physics_models.source_models,
-      neoclassical_models=physics_models.neoclassical_models,
+      source_models=models.source_models,
+      neoclassical_models=models.neoclassical_models,
       explicit=True,
   )
 
   # Execute the edge model if one is configured. The edge model uses the state
   # at time t to calculate new edge conditions for the next time step.
-  edge_model = physics_models.edge_model
+  edge_model = models.edge_model
   if edge_model is not None:
 
     # Update core sources with any newly calculated explicit sources.
@@ -271,7 +271,7 @@ def pre_step(
         geo=geo_t,
         core_profiles=input_state.core_profiles,
         core_sources=merged_sources,
-        physics_models=physics_models,
+        models=models,
     )
 
   return (
@@ -286,7 +286,7 @@ def pre_step(
 @functools.partial(
     jax.jit,
     static_argnames=[
-        'physics_models',
+        'models',
         'evolving_names',
     ],
 )
@@ -301,7 +301,7 @@ def finalize_outputs(
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     edge_outputs: edge_base.EdgeModelOutputs | None,
-    physics_models: physics_models_lib.PhysicsModels,
+    models: models_lib.Models,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
     pedestal_transition_state: (
@@ -318,16 +318,16 @@ def finalize_outputs(
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
-          source_models=physics_models.source_models,
-          neoclassical_models=physics_models.neoclassical_models,
+          source_models=models.source_models,
+          neoclassical_models=models.neoclassical_models,
           evolving_names=evolving_names,
       )
   )
   final_total_transport = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          physics_models.pedestal_model,
-          physics_models.transport_model,
-          physics_models.neoclassical_models,
+          models.pedestal_model,
+          models.transport_model,
+          models.neoclassical_models,
           runtime_params_t_plus_dt,
           geometry_t_plus_dt,
           final_core_profiles,

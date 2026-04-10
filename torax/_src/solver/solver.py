@@ -24,7 +24,7 @@ import functools
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
-from torax._src import physics_models as physics_models_lib
+from torax._src import models as models_lib
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -39,10 +39,10 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
   """Solves for a single time step's update to State.
 
   Attributes:
-    physics_models: Physics models.
+    models: Physics models.
   """
 
-  physics_models: physics_models_lib.PhysicsModels
+  models: models_lib.Models
 
   @functools.partial(
       jax.jit,

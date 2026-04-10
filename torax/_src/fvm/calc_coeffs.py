@@ -20,7 +20,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import physics_models as physics_models_lib
+from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
@@ -44,21 +44,21 @@ class CoeffsCallback:
 
   def __init__(
       self,
-      physics_models: physics_models_lib.PhysicsModels,
+      models: models_lib.Models,
       evolving_names: tuple[str, ...],
   ):
-    self.physics_models = physics_models
+    self.models = models
     self.evolving_names = evolving_names
 
   def __hash__(self) -> int:
     return hash((
-        self.physics_models,
+        self.models,
         self.evolving_names,
     ))
 
   def __eq__(self, other: typing_extensions.Self) -> bool:
     return (
-        self.physics_models == other.physics_models
+        self.models == other.models
         and self.evolving_names == other.evolving_names
     )
 
@@ -138,7 +138,7 @@ class CoeffsCallback:
         geo=geo,
         core_profiles=core_profiles,
         explicit_source_profiles=explicit_source_profiles,
-        physics_models=self.physics_models,
+        models=self.models,
         evolving_names=self.evolving_names,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
@@ -151,7 +151,7 @@ def calc_coeffs(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    physics_models: physics_models_lib.PhysicsModels,
+    models: models_lib.Models,
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
     explicit_call: bool = False,
@@ -175,7 +175,7 @@ def calc_coeffs(
       original core profiles at the start of the time step, not the "live"
       updating core profiles. For sources that are implicit, their explicit
       profiles are set to all zeros.
-    physics_models: The physics models to use for the simulation.
+    models: The models to use for the simulation.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
@@ -205,7 +205,7 @@ def calc_coeffs(
         geo=geo,
         core_profiles=core_profiles,
         explicit_source_profiles=explicit_source_profiles,
-        physics_models=physics_models,
+        models=models,
         evolving_names=evolving_names,
         use_pereverzev=use_pereverzev,
         pedestal_transition_state=pedestal_transition_state,
@@ -215,7 +215,7 @@ def calc_coeffs(
 @functools.partial(
     jax.jit,
     static_argnames=[
-        'physics_models',
+        'models',
         'evolving_names',
     ],
 )
@@ -224,7 +224,7 @@ def _calc_coeffs_full(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    physics_models: physics_models_lib.PhysicsModels,
+    models: models_lib.Models,
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
     pedestal_transition_state: (
@@ -235,18 +235,16 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
-  conductivity = (
-      physics_models.neoclassical_models.conductivity.calculate_conductivity(
-          geo, core_profiles
-      )
+  conductivity = models.neoclassical_models.conductivity.calculate_conductivity(
+      geo, core_profiles
   )
 
   # Calculate the implicit source profiles and combine them with the explicit
   # source profiles. These are needed for the pedestal model, so are computed
   # here rather than in the source terms section.
   merged_source_profiles = source_profile_builders.build_source_profiles(
-      source_models=physics_models.source_models,
-      neoclassical_models=physics_models.neoclassical_models,
+      source_models=models.source_models,
+      neoclassical_models=models.neoclassical_models,
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
@@ -280,9 +278,9 @@ def _calc_coeffs_full(
   # 1. Compute transport coefficients from all models.
   transport_coefficients = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          physics_models.pedestal_model,
-          physics_models.transport_model,
-          physics_models.neoclassical_models,
+          models.pedestal_model,
+          models.transport_model,
+          models.neoclassical_models,
           runtime_params,
           geo,
           core_profiles,
@@ -433,7 +431,7 @@ def _calc_coeffs_full(
   ):
     # TODO(b/500260959): Currently pedestal model is called twice, once in
     # calculate_all_transport_coeffs and once here.
-    pedestal_model_output = physics_models.pedestal_model(
+    pedestal_model_output = models.pedestal_model(
         runtime_params, geo, core_profiles, merged_source_profiles
     )
     if runtime_params.pedestal.use_formation_model_with_adaptive_source:

@@ -83,7 +83,7 @@ class SawtoothSolver(solver.Solver):
       Updated tuple of evolving CellVariables from CoreProfiles
       SolverNumericOutputs indicating a sawtooth crash.
     """
-    sawtooth_models = self.physics_models.mhd_models.sawtooth_models
+    sawtooth_models = self.models.mhd_models.sawtooth_models
     if sawtooth_models is None:
       raise ValueError('Sawtooth model is None.')
 

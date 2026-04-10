@@ -61,7 +61,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    physics_models = torax_config.build_physics_models()
+    models = torax_config.build_models()
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(
@@ -71,23 +71,23 @@ class CalcCoeffsTest(parameterized.TestCase):
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
-        source_models=physics_models.source_models,
-        neoclassical_models=physics_models.neoclassical_models,
+        source_models=models.source_models,
+        neoclassical_models=models.neoclassical_models,
     )
     evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
-        source_models=physics_models.source_models,
+        source_models=models.source_models,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        neoclassical_models=physics_models.neoclassical_models,
+        neoclassical_models=models.neoclassical_models,
         explicit=True,
     )
     calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        physics_models=physics_models,
+        models=models,
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
@@ -97,10 +97,10 @@ class CalcCoeffsTest(parameterized.TestCase):
     def create_coeffs_callback(
         torax_config: model_config.ToraxConfig,
     ) -> calc_coeffs.CoeffsCallback:
-      physics_models = torax_config.build_physics_models()
+      models = torax_config.build_models()
       evolving_names = tuple(['T_i'])
       return calc_coeffs.CoeffsCallback(
-          physics_models=physics_models,
+          models=models,
           evolving_names=evolving_names,
       )
 

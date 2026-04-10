@@ -82,9 +82,9 @@ class SimulationStepFn:
         (in order to support time-dependent geometries).
     """
     self._solver = solver
-    if self._solver.physics_models.mhd_models.sawtooth_models is not None:
+    if self._solver.models.mhd_models.sawtooth_models is not None:
       self._sawtooth_solver = sawtooth_solver_lib.SawtoothSolver(
-          physics_models=self._solver.physics_models,
+          models=self._solver.models,
       )
     else:
       self._sawtooth_solver = None
@@ -233,7 +233,7 @@ class SimulationStepFn:
         input_state=input_state,
         runtime_params_provider=runtime_params_provider,
         geometry_provider=geometry_provider,
-        physics_models=self._solver.physics_models,
+        models=self._solver.models,
     )
 
     def _step():
@@ -519,7 +519,7 @@ class SimulationStepFn:
             core_profiles_t_plus_dt=result.state.core_profiles,
             explicit_source_profiles=explicit_source_profiles,
             edge_outputs=edge_outputs,
-            physics_models=self._solver.physics_models,
+            models=self._solver.models,
             evolving_names=evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
             pedestal_transition_state=pedestal_transition_state,
@@ -597,7 +597,7 @@ class SimulationStepFn:
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             explicit_source_profiles=explicit_source_profiles,
             edge_outputs=edge_outputs,
-            physics_models=self._solver.physics_models,
+            models=self._solver.models,
             evolving_names=runtime_params_t.numerics.evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
             pedestal_transition_state=pedestal_transition_state,

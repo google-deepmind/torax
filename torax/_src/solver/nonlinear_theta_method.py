@@ -76,7 +76,7 @@ class NonlinearThetaMethod(solver.Solver):
     """See Solver._x_new docstring."""
 
     coeffs_callback = calc_coeffs.CoeffsCallback(
-        physics_models=self.physics_models,
+        models=self.models,
         evolving_names=evolving_names,
     )
     (
@@ -199,7 +199,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         ),
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        physics_models=self.physics_models,
+        models=self.models,
         explicit_source_profiles=explicit_source_profiles,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
@@ -257,7 +257,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
-        physics_models=self.physics_models,
+        models=self.models,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         log_iterations=solver_params.log_iterations,

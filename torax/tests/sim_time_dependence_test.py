@@ -23,7 +23,7 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax._src import physics_models as physics_models_lib
+from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
@@ -167,12 +167,12 @@ class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
 
   def build_solver(
       self,
-      physics_models: physics_models_lib.PhysicsModels,
+      models: models_lib.Models,
   ) -> 'FakeSolver':
     return FakeSolver(
         param=self.param,
         max_value=self.max_value,
-        physics_models=physics_models,
+        models=models,
         inner_solver_iterations=self.inner_solver_iterations,
     )
 
@@ -197,11 +197,11 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       self,
       param: str,
       max_value: float,
-      physics_models: physics_models_lib.PhysicsModels,
+      models: models_lib.Models,
       inner_solver_iterations: list[int] | None = None,
   ):
     super().__init__(
-        physics_models=physics_models,
+        models=models,
     )
     self._param = param
     self._max_value = max_value

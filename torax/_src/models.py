@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""A container for all physics models."""
+"""A container for all models."""
+
 import dataclasses
 
 from torax._src import static_dataclass
@@ -20,12 +21,13 @@ from torax._src.mhd import base as mhd_model_lib
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
+from torax._src.time_step_calculator.time_step_calculator import TimeStepCalculator
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class PhysicsModels(static_dataclass.StaticDataclass):
-  """A container for all physics models.
+class Models(static_dataclass.StaticDataclass):
+  """A container for all models used within TORAX.
 
   This class is used as a static argument to Jax functions. It is therefore
   designed to be immutable and support comparison and hashing by value.
@@ -39,3 +41,4 @@ class PhysicsModels(static_dataclass.StaticDataclass):
   neoclassical_models: neoclassical_models_lib.NeoclassicalModels
   mhd_models: mhd_model_lib.MHDModels
   edge_model: edge_model_lib.EdgeModel | None
+  time_step_calculator: TimeStepCalculator

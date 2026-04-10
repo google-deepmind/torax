@@ -51,7 +51,7 @@ class PydanticModelTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     solver = torax_config.solver.build_solver(
-        physics_models=torax_config.build_physics_models(),
+        models=torax_config.build_models(),
     )
     self.assertIsInstance(solver, expected_type)
     self.assertEqual(torax_config.solver.theta_implicit, 0.5)

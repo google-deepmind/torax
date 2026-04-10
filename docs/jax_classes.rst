@@ -45,7 +45,7 @@ Designing JAX-compatible classes
        avoid paying the cost of recompilation when multiple calls to
        ``run_simulation`` (for example during pulse optimization) result in
        constructing multiple copies of equivalent objects (``Solver`` contains
-       many objects such as ``PhysicsModels``, ``TransportModel``, ``Source``,
+       many objects such as ``Models``, ``TransportModel``, ``Source``,
        etc.),
        with one copy of each object per call to ``run_simulation``.
      * None of our ``__hash__`` methods are used for the persistent cache at all.

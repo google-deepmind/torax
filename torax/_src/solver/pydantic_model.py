@@ -18,7 +18,7 @@ import functools
 from typing import Annotated, Any, Literal
 
 import pydantic
-from torax._src import physics_models as physics_models_lib
+from torax._src import models as models_lib
 from torax._src.fvm import enums
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
@@ -74,7 +74,7 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   @abc.abstractmethod
   def build_solver(
       self,
-      physics_models: physics_models_lib.PhysicsModels,
+      models: models_lib.Models,
   ) -> solver_lib.Solver:
     """Builds a solver from the config."""
 
@@ -114,10 +114,10 @@ class LinearThetaMethod(BaseSolver):
 
   def build_solver(
       self,
-      physics_models: physics_models_lib.PhysicsModels,
+      models: models_lib.Models,
   ) -> solver_lib.Solver:
     return linear_theta_method.LinearThetaMethod(
-        physics_models=physics_models,
+        models=models,
     )
 
 
@@ -174,10 +174,10 @@ class NewtonRaphsonThetaMethod(BaseSolver):
 
   def build_solver(
       self,
-      physics_models: physics_models_lib.PhysicsModels,
+      models: models_lib.Models,
   ) -> nonlinear_theta_method.NewtonRaphsonThetaMethod:
     return nonlinear_theta_method.NewtonRaphsonThetaMethod(
-        physics_models=physics_models,
+        models=models,
     )
 
 
@@ -220,10 +220,10 @@ class OptimizerThetaMethod(BaseSolver):
 
   def build_solver(
       self,
-      physics_models: physics_models_lib.PhysicsModels,
+      models: models_lib.Models,
   ) -> nonlinear_theta_method.OptimizerThetaMethod:
     return nonlinear_theta_method.OptimizerThetaMethod(
-        physics_models=physics_models,
+        models=models,
     )
 
 

@@ -156,7 +156,7 @@ def sawtooth_step(
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
         explicit_source_profiles=explicit_source_profiles,
         edge_outputs=edge_outputs,
-        physics_models=sawtooth_solver.physics_models,
+        models=sawtooth_solver.models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
         pedestal_transition_state=pedestal_transition_state,

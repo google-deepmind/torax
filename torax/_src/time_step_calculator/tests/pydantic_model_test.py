@@ -47,7 +47,7 @@ class PydanticModelTest(parameterized.TestCase):
     """Builds a time step calculator from the config."""
     time_stepper = time_step_pydantic_model.TimeStepCalculator.from_dict(
         {'calculator_type': calculator_type}
-    ).time_step_calculator
+    ).build_time_step_calculator()
     self.assertIsInstance(time_stepper, expected_type)
 
   @parameterized.named_parameters(

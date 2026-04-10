@@ -22,7 +22,7 @@ from typing import TypeAlias
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
-from torax._src import physics_models as physics_models_lib
+from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
@@ -43,7 +43,7 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 @functools.partial(
     jax.jit,
     static_argnames=[
-        'physics_models',
+        'models',
         'coeffs_callback',
         'evolving_names',
         'initial_guess_mode',
@@ -59,7 +59,7 @@ def optimizer_solve_block(
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    physics_models: physics_models_lib.PhysicsModels,
+    models: models_lib.Models,
     coeffs_callback: calc_coeffs.CoeffsCallback,
     evolving_names: tuple[str, ...],
     initial_guess_mode: enums.InitialGuessMode,
@@ -103,7 +103,7 @@ def optimizer_solve_block(
       being evolved by the PDE system.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
-    physics_models: Physics models used for the calculations.
+    models: Physics models used for the calculations.
     coeffs_callback: Calculates diffusion, convection etc. coefficients given a
       core_profiles. Repeatedly called by the iterative optimizer.
     evolving_names: The names of variables within the core profiles that should
@@ -196,7 +196,7 @@ def optimizer_solve_block(
       core_profiles_t=core_profiles_t,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
-      physics_models=physics_models,
+      models=models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
       maxiter=maxiter,

@@ -99,26 +99,26 @@ def _get_initial_state(
     step_fn: step_function.SimulationStepFn,
 ) -> sim_state.SimState:
   """Returns the initial state to be used by run_simulation()."""
-  physics_models = step_fn.solver.physics_models
+  models = step_fn.solver.models
   initial_core_profiles = initialization.initial_core_profiles(
       runtime_params,
       geo,
-      source_models=physics_models.source_models,
-      neoclassical_models=physics_models.neoclassical_models,
+      source_models=models.source_models,
+      neoclassical_models=models.neoclassical_models,
   )
   initial_core_sources = source_profile_builders.get_all_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=initial_core_profiles,
-      source_models=physics_models.source_models,
-      neoclassical_models=physics_models.neoclassical_models,
+      source_models=models.source_models,
+      neoclassical_models=models.neoclassical_models,
       conductivity=conductivity_base.Conductivity(
           sigma=initial_core_profiles.sigma,
           sigma_face=initial_core_profiles.sigma_face,
       ),
   )
 
-  if physics_models.edge_model is not None:
+  if models.edge_model is not None:
     # If `runtime_params.edge.use_enrichment_model` is True, then the
     # `runtime_params.edge.enrichment_factor`
     # in this initialization step was calculated with a guess for the divertor
@@ -126,7 +126,7 @@ def _get_initial_state(
     # PlasmaComposition.impurity_source_of_truth == CORE. All subsequent
     # calls to the edge model will use the divertor neutral pressure from a
     # previous calculation.
-    edge_outputs = physics_models.edge_model(
+    edge_outputs = models.edge_model(
         runtime_params,
         geo,
         initial_core_profiles,
@@ -149,9 +149,9 @@ def _get_initial_state(
 
   transport_coeffs = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          physics_models.pedestal_model,
-          physics_models.transport_model,
-          physics_models.neoclassical_models,
+          models.pedestal_model,
+          models.transport_model,
+          models.neoclassical_models,
           runtime_params,
           geo,
           initial_core_profiles,

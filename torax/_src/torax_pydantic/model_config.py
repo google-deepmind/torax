@@ -19,7 +19,7 @@ import logging
 from typing import Any, Mapping
 
 import pydantic
-from torax._src import physics_models
+from torax._src import models
 from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
@@ -92,15 +92,16 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       default=None
   )
 
-  def build_physics_models(self):
+  def build_models(self):
     edge_model = self.edge.build_edge_model() if self.edge else None
-    return physics_models.PhysicsModels(
+    return models.Models(
         pedestal_model=self.pedestal.build_pedestal_model(),
         source_models=self.sources.build_models(),
         transport_model=self.transport.build_transport_model(),
         neoclassical_models=self.neoclassical.build_models(),
         mhd_models=self.mhd.build_mhd_models(),
         edge_model=edge_model,
+        time_step_calculator=self.time_step_calculator.build_time_step_calculator(),
     )
 
   # TODO(b/434175938): Remove this once V1 API is deprecated
