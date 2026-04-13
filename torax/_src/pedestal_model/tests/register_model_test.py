@@ -90,6 +90,7 @@ class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
         mode=self.mode,
         use_formation_model_with_adaptive_source=self.use_formation_model_with_adaptive_source,
         transition_time_width=self.transition_time_width.get_value(t),
+        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
         formation=self.formation_model.build_runtime_params(t),
         saturation=self.saturation_model.build_runtime_params(t),
         chi_max=self.chi_max,

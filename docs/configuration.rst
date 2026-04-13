@@ -826,6 +826,16 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   and H-mode target values over this time window. Must be strictly positive.
   Only used when ``use_formation_model_with_adaptive_source`` is True.
 
+``P_LH_hysteresis_factor`` (**time-varying-scalar** [default = 0.8])
+  Hysteresis factor for H-to-L back transitions. When checking for an H-L
+  transition, the L-H threshold power :math:`P_{LH}` is multiplied by this
+  factor, i.e. the back transition occurs when
+  :math:`P_{SOL} < P_{LH} \times` ``P_LH_hysteresis_factor``. A value less
+  than 1 means the plasma must lose more power to transition back to L-mode
+  than was required to enter H-mode, consistent with experimentally observed
+  hysteresis. Must be in [0, 1]. Currently, only used when
+  ``use_formation_model_with_adaptive_source`` is True.
+
 ``formation_model`` (dict)
   Configuration for the pedestal formation model, which determines when L-H
   and H-L transitions occur. The ``model_name`` key selects the model:

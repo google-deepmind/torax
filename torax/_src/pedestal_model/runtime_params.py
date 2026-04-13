@@ -71,6 +71,14 @@ class RuntimeParams:
       During a transition, pedestal values are linearly interpolated between
       L-mode and H-mode values over this time window. Only used when
       use_formation_model_with_adaptive_source is True.
+    P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
+      checking for an H-L transition, the L-H threshold power P_LH is
+      multiplied by this factor, i.e. the back transition occurs when
+      P_SOL < P_LH * P_LH_hysteresis_factor. A value less than 1 means that
+      the plasma must lose more power to transition back to L-mode than was
+      required to enter H-mode, which is the experimentally observed behavior.
+      Must be in [0, 1]. Only used when
+      use_formation_model_with_adaptive_source is True.
     formation: Runtime params for the formation model.
     saturation: Runtime params for the saturation model.
     chi_max: Maximum effective thermal diffusion coefficient [m^2/s].
@@ -87,6 +95,7 @@ class RuntimeParams:
       metadata={"static": True}
   )
   transition_time_width: array_typing.FloatScalar
+  P_LH_hysteresis_factor: array_typing.FloatScalar
   formation: FormationRuntimeParams
   saturation: SaturationRuntimeParams
   chi_max: array_typing.FloatScalar

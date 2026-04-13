@@ -74,6 +74,7 @@ class FakePedestalPydantic(pedestal.BasePedestal):
         ),
         use_formation_model_with_adaptive_source=self.use_formation_model_with_adaptive_source,
         transition_time_width=self.transition_time_width.get_value(t),
+        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
     )
 
 

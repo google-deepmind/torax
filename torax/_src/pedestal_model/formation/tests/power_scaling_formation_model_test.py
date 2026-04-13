@@ -13,12 +13,15 @@
 # limitations under the License.
 
 import dataclasses
+from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
+from torax._src.orchestration import step_function_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.physics import scaling_laws
 from torax._src.test_utils import default_configs
@@ -49,11 +52,11 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         }
     }
     self.torax_config = model_config.ToraxConfig.from_dict(config)
-    step_fn = run_simulation.make_step_fn(self.torax_config)
+    self.step_fn = run_simulation.make_step_fn(self.torax_config)
     self.initial_state, self.initial_post_processed_outputs = (
-        initial_state.get_initial_state_and_post_processed_outputs(step_fn)
+        initial_state.get_initial_state_and_post_processed_outputs(self.step_fn)
     )
-    self.runtime_params = step_fn.runtime_params_provider(t=0.0)
+    self.runtime_params = self.step_fn.runtime_params_provider(t=0.0)
 
   def test_calculate_P_SOL_total(self):
     P_SOL_total = power_scaling_formation_model.calculate_P_SOL_total(
@@ -123,6 +126,69 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
               f' {expected_multiplier} for scaling law {scaling_law}.'
           ),
       )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='stays_in_h_mode',
+          p_sol_factor=0.9,
+          expected_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE,
+      ),
+      dict(
+          testcase_name='transitions_to_l_mode',
+          p_sol_factor=0.7,
+          expected_mode=pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
+      ),
+  )
+  def test_pedestal_transition_hysteresis(self, p_sol_factor, expected_mode):
+    """Tests that H-L transition respects the hysteresis factor."""
+    # Get P_LH
+    P_LH, _ = scaling_laws.calculate_P_LH(
+        geo=self.initial_state.geometry,
+        core_profiles=self.initial_state.core_profiles,
+        scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
+        divertor_configuration=scaling_laws.DivertorConfiguration.VT,
+    )
+
+    # Set hysteresis factor
+    runtime_params = dataclasses.replace(
+        self.runtime_params,
+        pedestal=dataclasses.replace(
+            self.runtime_params.pedestal,
+            P_LH_hysteresis_factor=0.8,
+        ),
+    )
+
+    # Create a state in H-mode
+    initial_transition_state = (
+        pedestal_transition_state_lib.PedestalTransitionState(
+            confinement_mode=jnp.array(
+                pedestal_transition_state_lib.ConfinementMode.H_MODE
+            ),
+            transition_start_time=jnp.array(0.0),
+            T_i_ped_L_mode=jnp.array(0.5),
+            T_e_ped_L_mode=jnp.array(0.5),
+            n_e_ped_L_mode=jnp.array(0.5e19),
+        )
+    )
+
+    target_P_SOL = P_LH * p_sol_factor
+
+    with mock.patch.object(
+        step_function_processing.power_scaling_formation_model_lib,
+        'calculate_P_SOL_total',
+    ) as mock_calc:
+      mock_calc.return_value = target_P_SOL
+
+      new_state = step_function_processing._update_pedestal_transition_state(
+          pedestal_transition_state=initial_transition_state,
+          runtime_params=runtime_params,
+          geo=self.initial_state.geometry,
+          core_profiles=self.initial_state.core_profiles,
+          core_sources=self.initial_state.core_sources,
+          models=self.step_fn._solver.models,
+      )
+
+      self.assertEqual(new_state.confinement_mode, expected_mode)
 
 
 if __name__ == '__main__':

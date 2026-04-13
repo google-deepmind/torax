@@ -115,8 +115,10 @@ def _update_pedestal_transition_state(
   conditions = [
       # L-H transition.
       (old_confinement_mode == ConfinementMode.L_MODE) & (P_SOL > P_LH),
-      # H-L transition.
-      (old_confinement_mode == ConfinementMode.H_MODE) & (P_SOL < P_LH),
+      # H-L back transition with hysteresis: P_SOL must drop below
+      # P_LH * hysteresis_factor to transition back to L-mode.
+      (old_confinement_mode == ConfinementMode.H_MODE)
+      & (P_SOL < P_LH * runtime_params.pedestal.P_LH_hysteresis_factor),
       # In H-mode after L-H transition completed.
       (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE)
       & transition_is_complete,

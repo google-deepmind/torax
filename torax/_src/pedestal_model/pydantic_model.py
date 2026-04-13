@@ -233,6 +233,14 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       During a transition, pedestal values are linearly interpolated between
       L-mode baseline and H-mode target values over this time window. Only used
       when use_formation_model_with_adaptive_source is True.
+    P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
+      checking for an H-L transition, the L-H threshold power P_LH is
+      multiplied by this factor, i.e. the back transition occurs when
+      P_SOL < P_LH * P_LH_hysteresis_factor. A value less than 1 means that
+      the plasma must lose more power to transition back to L-mode than was
+      required to enter H-mode, which is the experimentally observed behavior.
+      Must be in [0, 1]. Only applicable when
+      use_formation_model_with_adaptive_source is True.
     formation_model: Configuration for the pedestal formation model.
     saturation_model: Configuration for the pedestal saturation model.
     chi_max: Maximum effective thermal diffusion coefficient from the core
@@ -260,6 +268,9 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   ] = False
   transition_time_width: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.5)
+  )
+  P_LH_hysteresis_factor: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.8)
   )
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
       MartinScalingFormation()
@@ -334,6 +345,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
         mode=self.mode,
         use_formation_model_with_adaptive_source=self.use_formation_model_with_adaptive_source,
         transition_time_width=self.transition_time_width.get_value(t),
+        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
         formation=self.formation_model.build_runtime_params(t),
         saturation=self.saturation_model.build_runtime_params(t),
         chi_max=self.chi_max.get_value(t),
@@ -393,6 +405,7 @@ class SetPpedTpedRatioNped(BasePedestal):
         mode=base_runtime_params.mode,
         use_formation_model_with_adaptive_source=base_runtime_params.use_formation_model_with_adaptive_source,
         transition_time_width=base_runtime_params.transition_time_width,
+        P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         P_ped=self.P_ped.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
@@ -456,6 +469,7 @@ class SetTpedNped(BasePedestal):
         mode=base_runtime_params.mode,
         use_formation_model_with_adaptive_source=base_runtime_params.use_formation_model_with_adaptive_source,
         transition_time_width=base_runtime_params.transition_time_width,
+        P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_ped=self.T_i_ped.get_value(t),
@@ -501,6 +515,7 @@ class NoPedestal(BasePedestal):
         mode=base_runtime_params.mode,
         use_formation_model_with_adaptive_source=base_runtime_params.use_formation_model_with_adaptive_source,
         transition_time_width=base_runtime_params.transition_time_width,
+        P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         formation=base_runtime_params.formation,
         saturation=base_runtime_params.saturation,
         chi_max=self.chi_max.get_value(t),
