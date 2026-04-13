@@ -279,8 +279,8 @@ def _fill_profiles_1d_currents(
       [cp_state.j_total], np.array([cp_state.j_total_face])
   )[0]
   j_bootstrap = output.extend_cell_grid_to_boundaries(
-      [cs_state.bootstrap_current.j_bootstrap],
-      np.array([cs_state.bootstrap_current.j_bootstrap_face]),
+      [cs_state.bootstrap_current.j_parallel_bootstrap],
+      np.array([cs_state.bootstrap_current.j_parallel_bootstrap_face]),
   )[0]
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
   # Currents sign flipped due to the difference between TORAX COCOS convention
