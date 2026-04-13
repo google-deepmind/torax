@@ -14,7 +14,6 @@
 """Combined model for atomic cooling rates."""
 
 import enum
-import functools
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -41,8 +40,7 @@ class MavrinModelType(enum.StrEnum):
   NONCORONAL = 'noncoronal'
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'ion_symbol',
     ],

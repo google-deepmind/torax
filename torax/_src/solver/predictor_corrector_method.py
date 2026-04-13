@@ -19,7 +19,6 @@ runtime_params_slice.solver.use_predictor_corrector is False, reverts to
 a standard linear solution.
 """
 
-import functools
 
 import jax
 from torax._src import state
@@ -34,8 +33,7 @@ from torax._src.solver import jax_fixed_point
 from torax._src.sources import source_profiles
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'coeffs_callback',
     ],

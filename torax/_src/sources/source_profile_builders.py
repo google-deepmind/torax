@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Functions for building source profiles in TORAX."""
-import functools
 
 import jax
 from torax._src import state
@@ -32,8 +31,7 @@ _FINAL_SOURCES = frozenset(
 )
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'source_models',
         'neoclassical_models',

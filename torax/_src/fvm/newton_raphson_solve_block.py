@@ -46,8 +46,7 @@ from torax._src.sources import source_profiles
 MIN_DELTA: Final[float] = 1e-7
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'evolving_names',
         'models',

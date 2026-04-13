@@ -16,7 +16,6 @@
 See function docstring for details.
 """
 
-import functools
 from typing import TypeAlias
 
 import jax
@@ -40,8 +39,7 @@ from torax._src.sources import source_profiles
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'models',
         'coeffs_callback',

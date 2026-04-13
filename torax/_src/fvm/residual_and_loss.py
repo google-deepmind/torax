@@ -44,8 +44,7 @@ from torax._src.sources import source_profiles
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
@@ -187,8 +186,7 @@ def theta_method_matrix_equation(
   return lhs_mat, lhs_vec, rhs_mat, rhs_vec
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'evolving_names',
         'models',
@@ -287,8 +285,7 @@ def theta_method_block_residual(
   return residual
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'models',
         'evolving_names',
@@ -349,8 +346,7 @@ def theta_method_block_loss(
   return loss
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'models',
         'evolving_names',

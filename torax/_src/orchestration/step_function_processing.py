@@ -15,7 +15,6 @@
 """Functions for pre and post processing used in the step function call."""
 
 import dataclasses
-import functools
 import jax
 import jax.numpy as jnp
 from torax._src import models as models_lib
@@ -283,8 +282,7 @@ def pre_step(
   )
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'models',
         'evolving_names',

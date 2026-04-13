@@ -19,7 +19,6 @@ Abstract base class defining updates to State.
 
 import abc
 import dataclasses
-import functools
 
 import jax
 import jax.numpy as jnp
@@ -44,8 +43,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
 
   models: models_lib.Models
 
-  @functools.partial(
-      jax.jit,
+  @jax.jit(
       static_argnames=[
           'self',
       ],

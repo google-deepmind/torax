@@ -15,7 +15,6 @@
 """Calculates Block1DCoeffs for a time step."""
 
 import dataclasses
-import functools
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -212,8 +211,7 @@ def calc_coeffs(
     )
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'models',
         'evolving_names',
@@ -570,8 +568,7 @@ def _calc_coeffs_full(
   return coeffs
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'evolving_names',
     ],

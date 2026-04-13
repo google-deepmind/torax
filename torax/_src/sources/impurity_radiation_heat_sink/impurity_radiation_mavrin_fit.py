@@ -14,7 +14,6 @@
 
 """Routines for calculating impurity radiation based on a polynomial fit."""
 import dataclasses
-import functools
 from typing import Annotated, Literal, Sequence
 import chex
 import jax
@@ -40,8 +39,7 @@ from torax._src.torax_pydantic import torax_pydantic
 DEFAULT_MODEL_FUNCTION_NAME: str = 'mavrin_fit'
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'ion_symbols',
     ],

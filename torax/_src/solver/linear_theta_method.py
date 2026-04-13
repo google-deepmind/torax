@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """The LinearThetaMethod solver class."""
-import functools
 
 import jax
 from jax import numpy as jnp
@@ -33,8 +32,7 @@ from torax._src.sources import source_profiles
 class LinearThetaMethod(solver_lib.Solver):
   """Time step update using theta method, linearized on coefficients at t."""
 
-  @functools.partial(
-      jax.jit,
+  @jax.jit(
       static_argnames=[
           'self',
           'evolving_names',

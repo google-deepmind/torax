@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import dataclasses
-import functools
 from typing import Mapping
 
 import jax
@@ -295,8 +294,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     return self.__class__(**output_args)
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'computation_mode',
         'solver_mode',

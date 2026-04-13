@@ -15,7 +15,6 @@
 """Functions for performing a sawtooth step."""
 
 import dataclasses
-import functools
 import jax
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -38,8 +37,7 @@ from torax._src.sources import source_profiles as source_profiles_lib
 # pylint: disable=invalid-name
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'sawtooth_solver',
     ],

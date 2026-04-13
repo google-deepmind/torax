@@ -15,7 +15,6 @@
 """Time step calculator base class."""
 
 import abc
-import functools
 
 import jax
 from jax import numpy as jnp
@@ -45,8 +44,7 @@ class TimeStepCalculator(abc.ABC):
   ) -> bool | jax.Array:
     return t >= (t_final - tolerance)
 
-  @functools.partial(
-      jax.jit,
+  @jax.jit(
       static_argnames=['self'],
   )
   def next_dt(

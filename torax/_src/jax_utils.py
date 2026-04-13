@@ -234,8 +234,7 @@ def batched_cond(
       raise ValueError(f'Unknown implementation: {implementation}')
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=['cond_fun', 'body_fun', 'max_steps', 'scan_unroll'],
 )
 def while_loop_bounded(

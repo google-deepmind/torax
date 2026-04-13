@@ -17,7 +17,6 @@
 See function docstring for details.
 """
 import dataclasses
-import functools
 
 import jax
 from jax import numpy as jnp
@@ -27,8 +26,7 @@ from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 
 
-@functools.partial(
-    jax.jit,
+@jax.jit(
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
