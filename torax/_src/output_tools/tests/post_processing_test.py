@@ -48,6 +48,7 @@ class PostProcessingTest(parameterized.TestCase):
             t=0.0
         )
     )
+    self.models = torax_config.build_models()
     self.geo = torax_config.geometry.build_provider(t=0.0)
     # Make some dummy source profiles.
     ones = np.ones_like(self.geo.rho)
@@ -77,13 +78,11 @@ class PostProcessingTest(parameterized.TestCase):
         },
         n_e={},
     )
-    source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
-        source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        source_models=self.models.source_models,
+        neoclassical_models=self.models.neoclassical_models,
     )
 
   def test_calculate_integrated_sources(self):
@@ -226,6 +225,9 @@ class PostProcessingTest(parameterized.TestCase):
             sawtooth_crash=False,
         ),
         edge_outputs=None,
+        time_step_calculator_state=(
+            self.models.time_step_calculator.initial_state(self.runtime_params)
+        ),
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
@@ -270,6 +272,9 @@ class PostProcessingTest(parameterized.TestCase):
             sawtooth_crash=False,
         ),
         edge_outputs=None,
+        time_step_calculator_state=(
+            self.models.time_step_calculator.initial_state(self.runtime_params)
+        ),
     )
 
     outputs = post_processing.make_post_processed_outputs(

@@ -164,7 +164,9 @@ def _get_initial_state(
       t=jnp.array(
           runtime_params.numerics.t_initial, dtype=jax_utils.get_dtype()
       ),
-      dt=jnp.zeros((), dtype=jax_utils.get_dtype()),
+      dt=jnp.array(
+          runtime_params.numerics.fixed_dt, dtype=jax_utils.get_dtype()
+      ),
       core_profiles=initial_core_profiles,
       core_sources=initial_core_sources,
       core_transport=transport_coeffs,
@@ -177,6 +179,9 @@ def _get_initial_state(
       geometry=geo,
       edge_outputs=edge_outputs,
       pedestal_transition_state=pedestal_transition_state,
+      time_step_calculator_state=step_fn.time_step_calculator.initial_state(
+          runtime_params
+      ),
   )
 
 

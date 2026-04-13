@@ -139,11 +139,12 @@ CONFIG['solver'] = {
 # Nonlinear solver requires more smoothness in the transport coefficients.
 CONFIG['transport']['smoothing_width'] = 0.1
 
-# Switch from chi to fixed timestep calculator, as chi will be varying within
-# timesteps due to the ADAPTIVE_TRANSPORT pedestal model.
-CONFIG['time_step_calculator'] = {'calculator_type': 'fixed'}
-CONFIG['numerics']['fixed_dt'] = 1.0
+# Use the from_previous_dt time step calculator to speed up the simulation.
+CONFIG['time_step_calculator'] = {'calculator_type': 'from_previous_dt'}
 CONFIG['numerics']['min_dt'] = 1e-3
+CONFIG['numerics']['max_dt'] = 1.0
+CONFIG['numerics']['fixed_dt'] = 1.0
+CONFIG['numerics']['dt_reduction_factor'] = 2.0
 
 # Turn off resistivity multiplier, as otherwise high chi -> low temp -> high
 # resistivity becomes unstable.

@@ -318,7 +318,8 @@ class SimulationStepFn:
       else:
         exit_min_dt = False
       return jnp.logical_and(
-          remaining_dt > constants.CONSTANTS.eps, ~exit_min_dt)
+          remaining_dt > constants.CONSTANTS.eps, ~exit_min_dt
+      )
 
     def body(args):
       remaining_dt, prev_state, prev_post_processed = args
@@ -416,6 +417,7 @@ class SimulationStepFn:
           edge_outputs=edge_outputs,
           input_state=input_state,
           input_post_processed_outputs=previous_post_processed_outputs,
+          time_step_calculator_state_t=input_state.time_step_calculator_state,
           pedestal_transition_state=pedestal_transition_state,
       )
 
@@ -451,11 +453,8 @@ class SimulationStepFn:
     """Performs a (possibly) adaptive simulation step."""
     evolving_names = runtime_params_t.numerics.evolving_names
     initial_dt = self.time_step_calculator.next_dt(
-        input_state.t,
         runtime_params_t,
-        geo_t,
-        input_state.core_profiles,
-        input_state.core_transport,
+        input_state,
     )
     initial_dt = jnp.minimum(initial_dt, max_dt)
     initial_loop_stats = {
@@ -522,6 +521,7 @@ class SimulationStepFn:
             models=self._solver.models,
             evolving_names=evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
+            time_step_calculator_state_t=input_state.time_step_calculator_state,
             pedestal_transition_state=pedestal_transition_state,
         )
     )
@@ -547,11 +547,8 @@ class SimulationStepFn:
   ]:
     """Performs a single simulation step."""
     dt = self.time_step_calculator.next_dt(
-        input_state.t,
         runtime_params_t,
-        geo_t,
-        input_state.core_profiles,
-        input_state.core_transport,
+        input_state,
     )
     dt = jnp.minimum(dt, max_dt)
 
@@ -600,6 +597,7 @@ class SimulationStepFn:
             models=self._solver.models,
             evolving_names=runtime_params_t.numerics.evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
+            time_step_calculator_state_t=input_state.time_step_calculator_state,
             pedestal_transition_state=pedestal_transition_state,
         )
     )

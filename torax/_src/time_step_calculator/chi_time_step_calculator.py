@@ -18,9 +18,8 @@ Steps through time using a heuristic based on chi_max.
 """
 import jax
 from jax import numpy as jnp
-from torax._src import state as state_module
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.geometry import geometry
+from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.time_step_calculator import time_step_calculator
 
 
@@ -30,9 +29,7 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
   def _next_dt(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state_module.CoreProfiles,
-      core_transport: state_module.CoreTransport,
+      sim_state: sim_state_lib.SimState,
   ) -> jax.Array:
     """Calculates the next time step duration.
 
@@ -41,14 +38,13 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
 
     Args:
       runtime_params: Input runtime parameters for the current timestep.
-      geo: Geometry for the tokamak being simulated for the current timestep.
-      core_profiles: Current core plasma profiles.
-      core_transport: Used to calculate maximum step size.
+      sim_state: Current state of the simulation.
 
     Returns:
       dt: Scalar time step duration.
     """
-
+    core_transport = sim_state.core_transport
+    geo = sim_state.geometry
     chi_max = core_transport.chi_max(geo)
 
     # Use minimum cell width for stability

@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src.orchestration import run_simulation
@@ -31,7 +32,7 @@ class TimeStepCalculatorTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics'] = {
         'fixed_dt': 2.0,
-        't_initial': 0.0,
+        't_initial': t,
         't_final': 5.0,
         'exact_t_final': exact_t_final,
     }
@@ -40,11 +41,8 @@ class TimeStepCalculatorTest(parameterized.TestCase):
 
     runtime_params_t = step_fn.runtime_params_provider(t=t)
     dt = time_step_calculator_instance.next_dt(
-        t=t,
         runtime_params=runtime_params_t,
-        geo=sim_state.geometry,
-        core_profiles=sim_state.core_profiles,
-        core_transport=sim_state.core_transport,
+        sim_state=sim_state,
     )
     self.assertEqual(dt, expected_dt)
 
@@ -69,7 +67,7 @@ class TimeStepCalculatorTest(parameterized.TestCase):
             2.0 - epsilon: 1.0,
             4.0 - epsilon: 2.0,
         },
-        't_initial': 0.0,
+        't_initial': t,
         't_final': 5.0,
         'exact_t_final': exact_t_final,
     }
@@ -78,11 +76,8 @@ class TimeStepCalculatorTest(parameterized.TestCase):
 
     runtime_params_t = step_fn.runtime_params_provider(t=t)
     dt = time_step_calculator_instance.next_dt(
-        t=t,
         runtime_params=runtime_params_t,
-        geo=sim_state.geometry,
-        core_profiles=sim_state.core_profiles,
-        core_transport=sim_state.core_transport,
+        sim_state=sim_state,
     )
     self.assertEqual(dt, expected_dt)
 

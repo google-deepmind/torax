@@ -19,6 +19,7 @@ from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.test_utils import core_profile_helpers
+from torax._src.test_utils import default_configs
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 
@@ -26,6 +27,16 @@ from torax._src.torax_pydantic import model_config
 
 
 class InitialStateTest(sim_test_case.SimTestCase):
+
+  def test_initial_state_has_dt(self):
+    torax_config = model_config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict()
+    )
+    step_fn = run_simulation.make_step_fn(torax_config)
+    sim_state, _ = initial_state.get_initial_state_and_post_processed_outputs(
+        step_fn=step_fn,
+    )
+    self.assertEqual(sim_state.dt, torax_config.numerics.fixed_dt.value)
 
   def test_from_file_restart(self):
     torax_config = self._get_torax_config('test_iterhybrid_rampup_restart.py')

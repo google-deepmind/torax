@@ -33,6 +33,7 @@ from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.physics import formulas
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
 
 # pylint: disable=invalid-name
 
@@ -53,6 +54,7 @@ def sawtooth_step(
     edge_outputs: edge_base.EdgeModelOutputs | None,
     input_state: sim_state.SimState,
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
+    time_step_calculator_state_t: time_step_calculator_state_lib.TimeStepCalculatorState,
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState | None
     ) = None,
@@ -77,6 +79,8 @@ def sawtooth_step(
     edge_outputs: Explicit edge outputs at time t.
     input_state: State at the start of the time step.
     input_post_processed_outputs: Post-processed outputs from the previous step.
+    time_step_calculator_state_t: Time step calculator state at the start of the
+      time step.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
       use_formation_model_with_adaptive_source=True. None otherwise.
@@ -157,6 +161,7 @@ def sawtooth_step(
         models=sawtooth_solver.models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
+        time_step_calculator_state_t=time_step_calculator_state_t,
         pedestal_transition_state=pedestal_transition_state,
     )
 

@@ -57,6 +57,7 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         'transport': {'model_name': 'constant'},
         'pedestal': {},
     })
+    models = self.torax_config.build_models()
 
     self.geo = self.torax_config.geometry.build_provider(t=0.0)
     ones = jnp.ones_like(self.geo.rho)
@@ -80,13 +81,11 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         psi={},
     )
 
-    source_models = self.torax_config.sources.build_models()
-    neoclassical_models = self.torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,
         geo=self.geo,
-        source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        source_models=models.source_models,
+        neoclassical_models=models.neoclassical_models,
     )
     self.core_transport = state.CoreTransport.zeros(self.geo)
 
@@ -106,6 +105,9 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         ),
         geometry=self.geo,
         edge_outputs=None,
+        time_step_calculator_state=(
+            models.time_step_calculator.initial_state(runtime_params)
+        ),
     )
 
     previous_post_processed_outputs = (

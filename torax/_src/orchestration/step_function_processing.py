@@ -33,6 +33,7 @@ from torax._src.pedestal_model.formation import power_scaling_formation_model as
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
 from torax._src.transport_model import transport_coefficients_builder
 
 # pylint: disable=invalid-name
@@ -302,6 +303,7 @@ def finalize_outputs(
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
+    time_step_calculator_state_t: time_step_calculator_state_lib.TimeStepCalculatorState,
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState | None
     ) = None,
@@ -333,7 +335,6 @@ def finalize_outputs(
           pedestal_transition_state=pedestal_transition_state,
       )
   )
-
   output_state = sim_state.SimState(
       t=t + dt,
       dt=dt,
@@ -344,7 +345,22 @@ def finalize_outputs(
       solver_numeric_outputs=solver_numeric_outputs,
       edge_outputs=edge_outputs,
       pedestal_transition_state=pedestal_transition_state,
+      time_step_calculator_state=time_step_calculator_state_t,
   )
+
+  # Update the time step calculator state.
+  # time_step_calculator_state_t is the state before this time step, and
+  # time_step_calculator_state_t_plus_dt is the state after this time step.
+  time_step_calculator_state_t_plus_dt = (
+      models.time_step_calculator.get_updated_state(
+          sim_state=output_state,
+      )
+  )
+  output_state = dataclasses.replace(
+      output_state,
+      time_step_calculator_state=time_step_calculator_state_t_plus_dt,
+  )
+
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=output_state,
       runtime_params=runtime_params_t_plus_dt,

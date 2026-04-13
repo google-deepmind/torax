@@ -18,9 +18,9 @@ import abc
 
 import jax
 from jax import numpy as jnp
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.geometry import geometry
+from torax._src.orchestration import sim_state as sim_state_lib
+from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
 
 
 class TimeStepCalculator(abc.ABC):
@@ -39,6 +39,29 @@ class TimeStepCalculator(abc.ABC):
       sim_state = <update sim_state with step of size dt>
   """
 
+  def initial_state(
+      self, runtime_params: runtime_params_lib.RuntimeParams
+  ) -> time_step_calculator_state_lib.TimeStepCalculatorState:
+    """Returns the initial state for the time step calculator."""
+    del runtime_params
+    return time_step_calculator_state_lib.TimeStepCalculatorState()
+
+  def get_updated_state(
+      self,
+      sim_state: sim_state_lib.SimState,
+  ) -> time_step_calculator_state_lib.TimeStepCalculatorState:
+    """Returns the updated time step calculator state.
+
+    By default, the state is not updated.
+
+    Args:
+      sim_state: State of the simulation.
+
+    Returns:
+      Updated time step calculator state.
+    """
+    return sim_state.time_step_calculator_state
+
   def is_done(
       self, t: float | jax.Array, t_final: float, tolerance: float
   ) -> bool | jax.Array:
@@ -49,28 +72,23 @@ class TimeStepCalculator(abc.ABC):
   )
   def next_dt(
       self,
-      t: jax.Array,
       runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      core_transport: state.CoreTransport,
+      sim_state: sim_state_lib.SimState,
   ) -> jax.Array:
     """Returns the next time step duration."""
     dt = self._next_dt(
         runtime_params,
-        geo,
-        core_profiles,
-        core_transport,
+        sim_state,
     )
-    crosses_t_final = (t < runtime_params.numerics.t_final) * (
-        t + dt > runtime_params.numerics.t_final
+    crosses_t_final = (sim_state.t < runtime_params.numerics.t_final) * (
+        sim_state.t + dt > runtime_params.numerics.t_final
     )
     dt = jax.lax.select(
         jnp.logical_and(
             runtime_params.numerics.exact_t_final,
             crosses_t_final,
         ),
-        runtime_params.numerics.t_final - t,
+        runtime_params.numerics.t_final - sim_state.t,
         dt,
     )
     return dt
@@ -79,9 +97,7 @@ class TimeStepCalculator(abc.ABC):
   def _next_dt(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      core_transport: state.CoreTransport,
+      sim_state: sim_state_lib.SimState,
   ) -> jax.Array:
     """Returns the next time step duration."""
 

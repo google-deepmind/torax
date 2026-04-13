@@ -25,6 +25,7 @@ from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles
+from torax._src.time_step_calculator.time_step_calculator_state import TimeStepCalculatorState
 
 
 @jax.tree_util.register_dataclass
@@ -49,6 +50,7 @@ class SimState:
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions. Only present when the pedestal model is in ADAPTIVE_SOURCE
       mode with use_formation_model_with_adaptive_source=True.
+    time_step_calculator_state: State for the time step calculator.
   """
 
   t: array_typing.FloatScalar
@@ -59,6 +61,9 @@ class SimState:
   edge_outputs: edge_base.EdgeModelOutputs | None
   geometry: geometry.Geometry
   solver_numeric_outputs: state.SolverNumericOutputs
+  # TODO(b/434175938): Separate states required for models from states of the
+  # PDE system.
+  time_step_calculator_state: TimeStepCalculatorState
   pedestal_transition_state: (
       pedestal_transition_state_lib.PedestalTransitionState | None
   ) = None

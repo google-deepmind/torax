@@ -74,6 +74,7 @@ class StateHistoryTest(parameterized.TestCase):
         },
         'pedestal': {},
     })
+    models = self.torax_config.build_models()
     # Make some dummy source profiles that could have come from these sources.
     self.geo = self.torax_config.geometry.build_provider(t=0.0)
     ones = jnp.ones_like(self.geo.rho)
@@ -99,16 +100,14 @@ class StateHistoryTest(parameterized.TestCase):
         n_e={},
         psi={},
     )
-    source_models = self.torax_config.sources.build_models()
-    neoclassical_models = self.torax_config.neoclassical.build_models()
     self.core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,
         geo=self.geo,
-        source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        source_models=models.source_models,
+        neoclassical_models=models.neoclassical_models,
     )
     self.core_transport = state.CoreTransport.zeros(self.geo)
-    self.source_models = source_models
+    self.source_models = models.source_models
     # Setup a state history object.
     t = jnp.array(0.0)
     dt = jnp.array(0.1)
@@ -126,6 +125,9 @@ class StateHistoryTest(parameterized.TestCase):
         ),
         geometry=self.geo,
         edge_outputs=None,
+        time_step_calculator_state=(
+            models.time_step_calculator.initial_state(runtime_params)
+        ),
     )
     sim_error = state.SimError.NO_ERROR
     previous_post_processed_outputs = (
