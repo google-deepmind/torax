@@ -77,7 +77,7 @@ class NewtonRaphsonSolveBlockTest(parameterized.TestCase):
       _, metadata = root_jax(x_init, tol=tol, maxiter=1)
       self.assertEqual(int(metadata.iterations), 1)
       self.assertEqual(int(metadata.error), 1)
-      self.assertTrue(jnp.isdtype(metadata.iterations, 'integral'))
+      self.assertTrue(jnp.isdtype(metadata.iterations.dtype, 'integral'))
 
     def loss(x, a, b):
       root = jax_root_finding.root_newton_raphson(
