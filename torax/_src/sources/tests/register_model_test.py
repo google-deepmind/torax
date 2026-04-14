@@ -26,11 +26,11 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base as source_base_pydantic_model
 from torax._src.sources import gas_puff_source as gas_puff_source_lib
+from torax._src.sources import register_model
 from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
-from torax._src.torax_pydantic import register_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -128,7 +128,7 @@ class RegisterConfigTest(parameterized.TestCase):
     config_module = config_loader.import_module(test_config_path)
     config = copy.deepcopy(config_module['CONFIG'])
     # Register the new source model config against the gas puff source.
-    register_config.register_source_model_config(
+    register_model.register_source_model_config(
         NewGasPuffSourceModelConfig, 'gas_puff'
     )
 
@@ -161,7 +161,7 @@ class RegisterConfigTest(parameterized.TestCase):
 
   def test_error_thrown_if_model_name_is_already_registered(self):
     with self.assertRaises(ValueError):
-      register_config.register_source_model_config(
+      register_model.register_source_model_config(
           DuplicateGasPuffSourceModelConfig, 'gas_puff'
       )
 
@@ -172,7 +172,7 @@ class RegisterConfigTest(parameterized.TestCase):
         'Cannot register a new source model config for the qei or j_bootstrap'
         ' sources.',
     ):
-      register_config.register_source_model_config(
+      register_model.register_source_model_config(
           NewGasPuffSourceModelConfig, special_source
       )
 
@@ -181,7 +181,7 @@ class RegisterConfigTest(parameterized.TestCase):
         ValueError,
         'The source name foo_source is not supported.',
     ):
-      register_config.register_source_model_config(
+      register_model.register_source_model_config(
           NewGasPuffSourceModelConfig, 'foo_source'
       )
 
