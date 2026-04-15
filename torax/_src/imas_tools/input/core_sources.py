@@ -16,8 +16,8 @@ from collections.abc import Mapping, Sequence
 import dataclasses
 from typing import Any, NamedTuple, Self
 
-from imas import ids_struct_array
 from absl import logging
+from imas import ids_struct_array
 from imas import ids_structure
 from imas import ids_toplevel
 import numpy as np
