@@ -602,9 +602,10 @@ def _add_traces_and_update_axes(
     fig: go.Figure,
     plot_config: FigureProperties,
     datasets: list[PlotData],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
   """Adds traces to the figure and updates axes."""
   spatial_traces_info = []
+  timestamp_line_info = []
   trace_count = 0
 
   for i, axis_config in enumerate(plot_config.axes):
@@ -627,9 +628,12 @@ def _add_traces_and_update_axes(
           y = getattr(dataset, attr)[axis_config.profile_time_index, :]
 
           # Record this trace so the slider can find it later
-          spatial_traces_info.append(
-              {'trace_idx': trace_count, 'attr': attr, 'dataset': dataset}
-          )
+          spatial_traces_info.append({
+              'trace_idx': trace_count,
+              'attr': attr,
+              'dataset': dataset,
+              'x': x,
+          })
         else:
           # Time series plots (static)
           x = dataset.t
@@ -650,6 +654,27 @@ def _add_traces_and_update_axes(
             col=col,
         )
         trace_count += 1
+
+    # Add vertical line to denote current slider time for time series plots
+    if not is_spatial:
+      ylow, yhigh = _get_y_limits(datasets, axis_config)
+      fig.add_trace(
+          go.Scatter(
+              x=[datasets[0].t[0], datasets[0].t[0]],
+              y=[ylow, yhigh],
+              mode='lines',
+              name='Current Time',
+              showlegend=False,
+              line=dict(color='gray', width=1, dash='dot'),
+          ),
+          row=row,
+          col=col,
+      )
+      timestamp_line_info.append({
+          'trace_idx': trace_count,
+          'y': [ylow, yhigh],
+      })
+      trace_count += 1
 
     # Update Axes Labels
     x_axis_kwargs = dict(
@@ -678,22 +703,24 @@ def _add_traces_and_update_axes(
         range=(ylow, yhigh),
     )
 
-  return spatial_traces_info
+  return spatial_traces_info, timestamp_line_info
 
 
 def _build_slider(
     fig: go.Figure,
     data1: PlotData,
     spatial_traces_info: list[dict[str, Any]],
+    timestamp_line_info: list[dict[str, Any]],
 ) -> None:
   """Builds the slider for spatial plots."""
-  if not spatial_traces_info:
+  if not spatial_traces_info and not timestamp_line_info:
     return
 
   steps = []
   # Use data1 time as the master clock
   for t_idx, t_val in enumerate(data1.t):
     y_updates = []
+    x_updates = []
     trace_indices = []
 
     for info in spatial_traces_info:
@@ -701,12 +728,18 @@ def _build_slider(
       if t_idx < len(info['dataset'].t):
         val_array = getattr(info['dataset'], info['attr'])
         y_updates.append(val_array[t_idx, :])
+        x_updates.append(info['x'])
         trace_indices.append(info['trace_idx'])
+
+    for info in timestamp_line_info:
+      y_updates.append(info['y'])
+      x_updates.append([t_val, t_val])
+      trace_indices.append(info['trace_idx'])
 
     step = {
         'method': 'restyle',
         'label': f'{t_val:.3f}s',
-        'args': [{'y': y_updates}, trace_indices],
+        'args': [{'y': y_updates, 'x': x_updates}, trace_indices],
     }
     steps.append(step)
 
@@ -762,9 +795,11 @@ def create_plotly_figure(
   fig = _setup_subplots(plot_config)
   datasets = [d for d in [data1, data2] if d is not None]
 
-  spatial_traces_info = _add_traces_and_update_axes(fig, plot_config, datasets)
+  spatial_traces_info, timestamp_line_info = _add_traces_and_update_axes(
+      fig, plot_config, datasets
+  )
 
-  _build_slider(fig, data1, spatial_traces_info)
+  _build_slider(fig, data1, spatial_traces_info, timestamp_line_info)
   _update_global_layout(fig, plot_config, title)
 
   return fig
