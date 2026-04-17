@@ -20,6 +20,7 @@ from torax._src.imas_tools.input import loader
 from torax._src.sources import source as source_module
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
+import torax
 
 # pylint: disable=invalid-name
 
@@ -91,7 +92,10 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     sources = core_sources.sources_from_IMAS(ids_in, None, False)
     config["sources"] |= sources
     # Checks the config can be built properly with input sources.
-    model_config.ToraxConfig.from_dict(config)
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    _, imas_results = torax.run_simulation(torax_config, progress_bar=False)
+    self.assertEqual(imas_results.sim_error, torax.SimError.NO_ERROR)
+
 
 
 if __name__ == "__main__":
