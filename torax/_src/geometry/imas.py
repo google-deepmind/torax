@@ -101,6 +101,7 @@ class IMASConfig(base.BaseGeometryConfig):
   slice_index: pydantic.NonNegativeInt = 0
   slice_time: float | None = None
   explicit_convert: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
+  # TODO(b/434175938): Set to `True` by default when we move to V2.
   load_all_time_slices: Annotated[
       bool, torax_pydantic.TIME_INVARIANT
   ] = False
