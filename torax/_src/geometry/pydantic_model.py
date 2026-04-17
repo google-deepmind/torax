@@ -84,14 +84,23 @@ class Geometry(torax_pydantic.BaseModelFrozen):
 
   @functools.cached_property
   def build_provider(self) -> geometry_provider.GeometryProvider:
-    # TODO(b/398191165): Remove this branch once the FBT bundle logic is
-    # redesigned.
+    # Time-varying geometries from FBT and IMAS can be loaded directly and we
+    # special-case both paths here.
+    # TODO(b/398191165): Remove these branches once the Geometry configuration
+    # is redesigned.
     if self.geometry_type == geometry.GeometryType.FBT:
       if not isinstance(self.geometry_configs, dict):
         assert isinstance(self.geometry_configs.config, fbt.FBTConfig)
         fbt_config = self.geometry_configs.config
         if fbt_config.LY_bundle_object is not None:
           return fbt_config.build_fbt_geometry_provider_from_bundle(
+              self.calcphibdot
+          )
+    if self.geometry_type == geometry.GeometryType.IMAS:
+      if not isinstance(self.geometry_configs, dict):
+        assert isinstance(self.geometry_configs.config, imas.IMASConfig)
+        if self.geometry_configs.config.load_all_time_slices:
+          return self.geometry_configs.config.build_geometry_provider(
               self.calcphibdot
           )
 

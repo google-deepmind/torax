@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Input mapping functions for use of IMAS equilibrium IDSs with TORAX."""
+from collections.abc import Mapping
 import logging
 from typing import Any
 
@@ -24,33 +25,20 @@ from torax._src.imas_tools.input import loader
 
 # TODO(b/379832500) - Modify for consistency when we have a fixed TORAX COCOS.
 # pylint: disable=invalid-name
-def geometry_from_IMAS(
-    face_centers: np.ndarray,
+
+
+def _load_equilibrium(
     geometry_directory: str | None = None,
-    Ip_from_parameters: bool = False,
-    hires_factor: int = 4,
-    slice_time: float | None = None,
-    slice_index: int = 0,
     equilibrium_object: ids_toplevel.IDSToplevel | None = None,
     imas_uri: str | None = None,
     imas_filepath: str | None = None,
     explicit_convert: bool = False,
-) -> dict[str, Any]:
-  """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
-
-  Currently written for COCOSv17 and DDv4.
+) -> ids_toplevel.IDSToplevel:
+  """Loads an equilibrium IDS from the given source.
 
   Args:
-    face_centers: Array of face center coordinates in normalized rho (0 to 1).
     geometry_directory: Directory where to find the equilibrium object. If None,
       it defaults to another dir. See `load_geo_data` implementation.
-    Ip_from_parameters: If True, the Ip is taken from the parameters and the
-      values in the Geometry are rescaled to match the new Ip.
-    hires_factor: Grid refinement factor for poloidal flux <--> plasma current
-      calculations.
-    slice_time: Time of slice to load from IMAS IDS. If given, overrides
-      slice_index.
-    slice_index: Index of slice to load from IMAS IDS.
     equilibrium_object: The equilibrium IDS containing the relevant data.
     imas_uri: The IMAS uri containing the equilibrium data.
     imas_filepath: The path to the IMAS netCDF file containing the equilibrium
@@ -61,14 +49,12 @@ def geometry_from_IMAS(
       https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
 
   Returns:
-    A StandardGeometry instance based on the input file. This can then be
-    used to build a StandardGeometry by passing to `build_standard_geometry`.
+    The loaded equilibrium IDS.
 
   Raises:
-    IndexError: If `slice_index` is out of bounds for the available time slices
-      in the equilibrium object.
+    ValueError: If none of the three input sources are provided.
+    TypeError: If the loaded IDS is not an equilibrium IDS.
   """
-  # If the equilibrium_object is the file name, load the ids from the netCDF.
   if equilibrium_object is not None:
     equilibrium = equilibrium_object
   elif imas_uri is not None:
@@ -88,35 +74,30 @@ def geometry_from_IMAS(
     raise TypeError(
         f"Expected equilibrium IDS, got {equilibrium.metadata.name} IDS."
     )
-  # TODO(b/431977390): Currently only a single time slice is used, extend to
-  # support multiple time slices.
-  # Convert time to index
-  if slice_time is not None:
-    if not np.all(equilibrium.time[:-1] <= equilibrium.time[1:]):
-      sorting_indices = np.argsort(equilibrium.time)
-    else:
-      sorting_indices = np.arange(len(equilibrium.time))
-    # Find the closest time in the IDS that is <= slice_time
-    slice_index = (
-        np.searchsorted(
-            equilibrium.time[sorting_indices], slice_time, side="right"
-        )
-        - 1
-    )
-    if not np.allclose(
-        equilibrium.time[sorting_indices][slice_index], slice_time, atol=1e-9
-    ):
-      logging.warning(
-          "Requested t=%s not in IDS; using t=%s)",
-          slice_time,
-          equilibrium.time[slice_index],
-      )
+  return equilibrium
 
-  if slice_index >= len(equilibrium.time_slice):
-    raise IndexError(
-        f"slice_index={slice_index} out of range for IDS with "
-        f"{len(equilibrium.time_slice)} time slices"
-    )
+
+def _geometry_from_single_slice(
+    equilibrium: ids_toplevel.IDSToplevel,
+    face_centers: np.ndarray,
+    Ip_from_parameters: bool = False,
+    hires_factor: int = 4,
+    slice_index: int = 0,
+) -> dict[str, Any]:
+  """Extracts geometry data from a single time slice of an equilibrium IDS.
+
+  Args:
+    equilibrium: The equilibrium IDS.
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
+    Ip_from_parameters: If True, the Ip is taken from the parameters and the
+      values in the Geometry are rescaled to match the new Ip.
+    hires_factor: Grid refinement factor for poloidal flux <--> plasma current
+      calculations.
+    slice_index: Index of the time slice to process.
+
+  Returns:
+    A dict of intermediate geometry values for building a StandardGeometry.
+  """
   IMAS_data = equilibrium.time_slice[slice_index]
   # IMAS python API returns custom primitive types (e.g. IDSFloat0D,
   # IDSNumericArray) instead of standard python floats or numpy arrays. We must
@@ -253,3 +234,151 @@ def geometry_from_IMAS(
       "R_target": None,
       "B_pol_OMP": None,
   }
+
+
+def geometry_from_IMAS(
+    face_centers: np.ndarray,
+    geometry_directory: str | None = None,
+    Ip_from_parameters: bool = False,
+    hires_factor: int = 4,
+    equilibrium_object: ids_toplevel.IDSToplevel | None = None,
+    imas_uri: str | None = None,
+    imas_filepath: str | None = None,
+    explicit_convert: bool = False,
+) -> Mapping[float, dict[str, Any]]:
+  """Constructs geometry intermediates for all time slices in an IMAS IDS.
+
+  Currently written for COCOSv17 and DDv4.
+
+  Args:
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
+    geometry_directory: Directory where to find the equilibrium object. If None,
+      it defaults to another dir. See `load_geo_data` implementation.
+    Ip_from_parameters: If True, the Ip is taken from the parameters and the
+      values in the Geometry are rescaled to match the new Ip.
+    hires_factor: Grid refinement factor for poloidal flux <--> plasma current
+      calculations.
+    equilibrium_object: The equilibrium IDS containing the relevant data.
+    imas_uri: The IMAS uri containing the equilibrium data.
+    imas_filepath: The path to the IMAS netCDF file containing the equilibrium
+      data.
+    explicit_convert: Whether to explicitly convert the IDS to the current DD
+      version. If True, an explicit conversion will be attempted. Explicit
+      conversion is recommended when converting between major DD versions.
+      https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
+
+  Returns:
+    A mapping from times to dicts of intermediate geometry values, one per
+    time slice in the IDS.
+  """
+  equilibrium = _load_equilibrium(
+      equilibrium_object=equilibrium_object,
+      imas_uri=imas_uri,
+      imas_filepath=imas_filepath,
+      geometry_directory=geometry_directory,
+      explicit_convert=explicit_convert,
+  )
+
+  n_slices = len(equilibrium.time_slice)
+  times = np.asarray(equilibrium.time)
+
+  intermediates = {}
+  for idx in range(n_slices):
+    t = float(times[idx])
+    intermediates[t] = _geometry_from_single_slice(
+        equilibrium=equilibrium,
+        slice_index=idx,
+        face_centers=face_centers,
+        Ip_from_parameters=Ip_from_parameters,
+        hires_factor=hires_factor,
+    )
+
+  return intermediates
+
+
+def geometry_from_single_IMAS_slice(
+    face_centers: np.ndarray,
+    geometry_directory: str | None = None,
+    Ip_from_parameters: bool = False,
+    hires_factor: int = 4,
+    equilibrium_object: ids_toplevel.IDSToplevel | None = None,
+    imas_uri: str | None = None,
+    imas_filepath: str | None = None,
+    explicit_convert: bool = False,
+    slice_index: int = 0,
+    slice_time: float | None = None,
+) -> dict[str, Any]:
+  """Constructs geometry intermediates for a single time slice in an IMAS IDS.
+
+  Currently written for COCOSv17 and DDv4.
+
+  This is the single-slice counterpart to ``geometry_from_IMAS``. It loads
+  only one time slice and returns the intermediate geometry values for building
+  a ``StandardGeometry``. This enables IMAS geometry to be used in the same
+  way as other single-file geometry types (e.g. CHEASE, EQDSK), including as
+  entries in a time-dependent ``geometry_configs`` dict.
+
+  The slice to load is selected by one of two mutually exclusive options:
+
+  - ``slice_time``: The IDS time slice whose time is closest to this value
+    (in seconds) is selected. Takes precedence over ``slice_index`` when set.
+  - ``slice_index``: Integer index into the IDS time slice array. Defaults to
+    0 (the first time slice).
+
+  Args:
+    face_centers: Array of face center coordinates in normalized rho (0 to 1).
+    geometry_directory: Directory where to find the equilibrium object. If None,
+      it defaults to another dir. See `load_geo_data` implementation.
+    Ip_from_parameters: If True, the Ip is taken from the parameters and the
+      values in the Geometry are rescaled to match the new Ip.
+    hires_factor: Grid refinement factor for poloidal flux <-> plasma current
+      calculations.
+    equilibrium_object: The equilibrium IDS containing the relevant data.
+    imas_uri: The IMAS uri containing the equilibrium data.
+    imas_filepath: The path to the IMAS netCDF file containing the equilibrium
+      data.
+    explicit_convert: Whether to explicitly convert the IDS to the current DD
+      version. If True, an explicit conversion will be attempted. Explicit
+      conversion is recommended when converting between major DD versions.
+      https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
+    slice_index: Index of the time slice to load. Defaults to 0 (the first time
+      slice). Ignored when ``slice_time`` is provided.
+    slice_time: Time (in seconds) of the IDS time slice to load. The slice whose
+      time is closest to this value is selected. When provided, takes precedence
+      over ``slice_index``.
+
+  Returns:
+    A dict of intermediate geometry values for building a StandardGeometry,
+    corresponding to the selected time slice.
+
+  Raises:
+    ValueError: If `slice_index` is out of range for the number of time slices
+      in the IDS.
+  """
+  equilibrium = _load_equilibrium(
+      equilibrium_object=equilibrium_object,
+      imas_uri=imas_uri,
+      imas_filepath=imas_filepath,
+      geometry_directory=geometry_directory,
+      explicit_convert=explicit_convert,
+  )
+
+  n_slices = len(equilibrium.time_slice)
+
+  if slice_time is not None:
+    times = np.asarray(equilibrium.time)
+    slice_index = int(np.argmin(np.abs(times - slice_time)))
+
+  if slice_index < 0 or slice_index >= n_slices:
+    raise ValueError(
+        f"slice_index={slice_index} is out of range for IDS with "
+        f"{n_slices} time slice(s)."
+    )
+
+  return _geometry_from_single_slice(
+      equilibrium=equilibrium,
+      slice_index=slice_index,
+      face_centers=face_centers,
+      Ip_from_parameters=Ip_from_parameters,
+      hires_factor=hires_factor,
+  )

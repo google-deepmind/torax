@@ -18,6 +18,7 @@ from imas import ids_toplevel
 import pydantic
 from torax._src.geometry import base
 from torax._src.geometry import geometry
+from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
 from torax._src.imas_tools.input import equilibrium as imas_geometry
 from torax._src.torax_pydantic import torax_pydantic
@@ -30,6 +31,20 @@ class IMASConfig(base.BaseGeometryConfig):
 
   Currently written for COCOSv17 and DDv4. Note the IMASConfig is experimental
   for now and may undergo changes.
+
+  Supports two loading modes:
+
+  1. **Single time slice** (default, ``load_all_time_slices=False``): Only a
+     single time slice is loaded, selected by ``slice_index``. Use
+     ``build_geometry`` to obtain a ``StandardGeometry``. This mode is
+     analogous to the single-file loading used by other geometry types (e.g.
+     CHEASE, EQDSK) and is compatible with the standard time-dependent
+     ``geometry_configs`` dict.
+
+  2. **All time slices** (``load_all_time_slices=True``): All time
+    slices present in the IDS are loaded and used to build a time-dependent
+    ``StandardGeometryProvider`` that interpolates across them. Use
+    ``build_geometry_provider`` to obtain the provider.
 
   Note the input here supports one and only one of the following:
   1. imas_filepath: Path to the IMAS netCDF file containing the equilibrium
@@ -64,8 +79,13 @@ class IMASConfig(base.BaseGeometryConfig):
     slice_index: Index of slice to load from IMAS IDS.
     explicit_convert: Whether to explicitly convert the IDS to the current DD
       version. If True, an explicit conversion will be attempted. Explicit
-      conversion is recommended when converting between major DD versions.
+      conversion is required when converting between major DD versions.
       https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
+    load_all_time_slices: If True, all time slices in the IDS are loaded by the
+      `Geometry` config and a time-dependent ``StandardGeometryProvider`` is
+      built via ``build_geometry_provider``. If False (default), only the single
+      time slice selected by ``slice_time`` or ``slice_index`` is loaded via
+      ``build_geometry``.
   """
 
   geometry_type: Annotated[Literal['imas'], torax_pydantic.TIME_INVARIANT] = (
@@ -81,6 +101,9 @@ class IMASConfig(base.BaseGeometryConfig):
   slice_index: pydantic.NonNegativeInt = 0
   slice_time: float | None = None
   explicit_convert: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
+  load_all_time_slices: Annotated[
+      bool, torax_pydantic.TIME_INVARIANT
+  ] = False
 
   @pydantic.model_validator(mode='after')
   def _validate_model(self) -> typing_extensions.Self:
@@ -102,7 +125,19 @@ class IMASConfig(base.BaseGeometryConfig):
     return self
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
-    inputs = imas_geometry.geometry_from_IMAS(
+    """Builds a StandardGeometry from a single IDS time slice.
+
+    Loads a single time slice from the equilibrium IDS and returns a
+    ``StandardGeometry``. The slice is selected by ``slice_time`` (closest
+    match by time) or ``slice_index`` (integer index, default 0).
+
+    Returns:
+      A StandardGeometry built from the selected time slice.
+
+    Raises:
+      ValueError: If ``slice_index`` is out of range for the IDS.
+    """
+    inputs = imas_geometry.geometry_from_single_IMAS_slice(
         geometry_directory=self.geometry_directory,
         equilibrium_object=self.equilibrium_object,
         imas_uri=self.imas_uri,
@@ -110,12 +145,47 @@ class IMASConfig(base.BaseGeometryConfig):
         Ip_from_parameters=self.Ip_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
-        slice_time=self.slice_time,
-        slice_index=self.slice_index,
         explicit_convert=self.explicit_convert,
+        slice_index=self.slice_index,
+        slice_time=self.slice_time,
     )
     intermediates = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.IMAS, **inputs
     )
-
     return standard_geometry.build_standard_geometry(intermediates)
+
+  def build_geometry_provider(
+      self,
+      calcphibdot: bool,
+  ) -> geometry_provider.GeometryProvider:
+    """Builds a time-dependent GeometryProvider from all IDS time slices.
+
+    Loads all time slices from the equilibrium IDS and returns a
+    `StandardGeometryProvider` that interpolates geometry across them.
+
+    Args:
+      calcphibdot: Whether to calculate Phibdot.
+
+    Returns:
+      A StandardGeometryProvider interpolating across all time slices.
+    """
+    all_inputs = imas_geometry.geometry_from_IMAS(
+        geometry_directory=self.geometry_directory,
+        equilibrium_object=self.equilibrium_object,
+        imas_uri=self.imas_uri,
+        imas_filepath=self.imas_filepath,
+        Ip_from_parameters=self.Ip_from_parameters,
+        face_centers=self.get_face_centers(),
+        hires_factor=self.hires_factor,
+        explicit_convert=self.explicit_convert,
+    )
+    geometries = {}
+    for t, inputs in all_inputs.items():
+      intermediates = standard_geometry.StandardGeometryIntermediates(
+          geometry_type=geometry.GeometryType.IMAS, **inputs
+      )
+      geometries[t] = standard_geometry.build_standard_geometry(intermediates)
+    return standard_geometry.StandardGeometryProvider.create_provider(
+        geometries,
+        calcphibdot=calcphibdot,
+    )

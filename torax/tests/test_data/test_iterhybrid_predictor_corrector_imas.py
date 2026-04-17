@@ -23,4 +23,5 @@ CONFIG['geometry'] = {
     'geometry_type': 'imas',
     'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
     'Ip_from_parameters': True,
+    'load_all_time_slices': True,
 }

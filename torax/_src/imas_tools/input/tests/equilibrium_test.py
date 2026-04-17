@@ -21,6 +21,7 @@ import numpy as np
 from torax._src import path_utils
 from torax._src.geometry import chease
 from torax._src.geometry import imas as imas_config
+from torax._src.geometry import standard_geometry
 from torax._src.imas_tools.input import loader
 
 
@@ -156,15 +157,21 @@ class EquilibriumTest(parameterized.TestCase):
 
   def test_IMAS_raises_if_slice_out_of_range(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
-    with self.assertRaisesRegex(
-        IndexError,
-        'out of range',
-    ):
-      config = imas_config.IMASConfig(
-          imas_filepath=filename,
-          slice_index=100,
-      )
+    config = imas_config.IMASConfig(
+        imas_filepath=filename,
+        slice_index=100,
+    )
+    with self.assertRaisesRegex(ValueError, 'out of range'):
       config.build_geometry()
+
+  def test_IMAS_load_all_slices(self):
+    """Test that all time slices are loaded from a multi-slice IDS."""
+    filename = 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc'
+    config = imas_config.IMASConfig(imas_filepath=filename)
+    provider = config.build_geometry_provider(calcphibdot=True)
+    self.assertIsInstance(provider, standard_geometry.StandardGeometryProvider)
+    # Provider should span 11 time slices (check via the interpolated psi times)
+    self.assertLen(provider.psi.xs, 11)
 
 
 if __name__ == '__main__':
