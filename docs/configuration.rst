@@ -356,7 +356,7 @@ time-dependence of temperature, density, and current.
 
 ``current_profile_nu`` (float [default = 1.0])
   Peaking factor of initial current, either total or "Ohmic":
-  :math:`j = j_0(1 - r^2/a^2)^{\text{current_profile_nu}}`. Used if
+  :math:`j = j_0(1 - r^2/a^2)^\nu` where :math:`\nu` is ``current_profile_nu``. Used if
   ``initial_psi_from_j`` is ``True``. In that case, then this sets the
   peaking factor of either the total or Ohmic initial current profile, depending
   on the ``initial_j_is_total_current`` flag.
@@ -1574,7 +1574,7 @@ It is recommended to not set ``qlknn_model_name``,  or
   :math:`D_{eff}`, if ``DV_effective==True``.
 
 ``rotation_multiplier`` (float [default = 1.0])
-  Multiplier for :math:`v_ExB` in the rotation correction factor.
+  Multiplier for :math:`v_{E\times B}` in the rotation correction factor.
 
 ``rotation_mode`` (str [default = 'off'])
   Defines how the rotation correction is applied. Options are:
@@ -1617,10 +1617,10 @@ Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cit
   :math:`D_{eff}`, if ``DV_effective==True``.
 
 ``rotation_multiplier`` (float [default = 1.0])
-  Multiplier for :math:`v_{ExB}_shear`.
+  Multiplier for :math:`v_{E\times B}^{\text{shear}}`.
 
 ``use_rotation`` (bool [default = False])
-  If ``True``, use the rotation term :math:`v_{ExB}_shear` in the model.
+  If ``True``, use the rotation term :math:`v_{E\times B}^{\text{shear}}` in the model.
 
 qualikiz
 ^^^^^^^^
