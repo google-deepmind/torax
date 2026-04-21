@@ -164,57 +164,101 @@ class JaxUtilsTest(parameterized.TestCase):
     out_gt = jnp.array([[4.0, 9.0, 16.0]], dtype=jnp.float32)
     chex.assert_trees_all_equal(out, out_gt)
 
-  def test_max_steps_while_loop(self):
-    terminating_step = 4
 
-    def cond_fun(state):
-      i, _ = state
-      return i < terminating_step
+class WhileLoopBoundedTest(parameterized.TestCase):
 
-    def body_fun(state):
-      i, value = state
-      next_i = i + 1
-      next_value = jnp.sin(value)
-      return next_i, next_value
+  def setUp(self):
+    super().setUp()
 
-    init_state = (0, 0.5)
-    max_steps = 10
+    self._terminating_step = 4
+    self._max_steps = 10
+    self._init_value = 0.5
+    self.init_state = (0, self._init_value)
 
-    with self.subTest('forward_agrees_with_while_loop'):
-      output_state = jax_utils.while_loop_bounded(
-          cond_fun, body_fun, init_state, max_steps
-      )
-      chex.assert_trees_all_close(
-          output_state, jax.lax.while_loop(cond_fun, body_fun, init_state)
-      )
+    self._cond_fun = lambda state: state[0] < self._terminating_step
+    self._body_fun = lambda state: (state[0] + 1, jnp.sin(state[1]))
 
-    def f_while(x, max_steps=max_steps):
+    def f_while(x, max_steps=self._max_steps):
       init_state = (0, x)
       return jax_utils.while_loop_bounded(
-          cond_fun, body_fun, init_state, max_steps=max_steps
-      )[1]
+          self._cond_fun, self._body_fun, init_state, max_steps=max_steps
+      )[0][1]
 
-    def f(x, n_times=terminating_step):
+    def f_explicit(x, n_times=self._terminating_step):
       result = x
       for _ in range(n_times):
         result = jnp.sin(result)
       return result
 
-    with self.subTest('forward_agrees_with_explicit'):
-      chex.assert_trees_all_close(f_while(0.5), f(0.5))
-    with self.subTest('grad_agrees_with_explicit'):
-      chex.assert_trees_all_close(jax.grad(f_while)(0.5), jax.grad(f)(0.5))
+    self._f_while = f_while
+    self._f_explicit = f_explicit
 
-    with self.subTest('max_steps_is_respected'):
-      final_i, final_value = jax_utils.while_loop_bounded(
-          cond_fun, body_fun, init_state, max_steps=2
-      )
-      self.assertEqual(final_i, 2)
-      chex.assert_trees_all_close(final_value, f(0.5, n_times=2))
+  def test_forward_agrees_with_while_loop(self):
+    output_state, _, _ = jax_utils.while_loop_bounded(
+        self._cond_fun,
+        self._body_fun,
+        self.init_state,
+        self._max_steps,
+    )
+    chex.assert_trees_all_close(
+        output_state,
+        jax.lax.while_loop(self._cond_fun, self._body_fun, self.init_state),
+    )
+
+  def test_forward_agrees_with_explicit(self):
+    chex.assert_trees_all_close(
+        self._f_while(self._init_value),
+        self._f_explicit(self._init_value),
+    )
+
+  def test_grad_agrees_with_explicit(self):
+    chex.assert_trees_all_close(
+        jax.grad(self._f_while)(self._init_value),
+        jax.grad(self._f_explicit)(self._init_value),
+    )
+
+  def test_max_steps_is_respected_if_loop_would_continue(self):
+    final_state, num_steps, _ = jax_utils.while_loop_bounded(
+        self._cond_fun, self._body_fun, self.init_state, max_steps=2
+    )
+    final_i, final_value = final_state
+    self.assertEqual(final_i, 2)
+    self.assertEqual(num_steps, 2)
+    chex.assert_trees_all_close(
+        final_value, self._f_explicit(self._init_value, n_times=2)
+    )
+
+  def test_grad_max_steps_is_respected_if_loop_would_continue(self):
+    chex.assert_trees_all_close(
+        jax.grad(self._f_while)(self._init_value, max_steps=2),
+        jax.grad(self._f_explicit)(self._init_value, n_times=2),
+    )
+
+  def test_output_history(self):
+    _, num_steps, output_history = jax_utils.while_loop_bounded(
+        self._cond_fun,
+        self._body_fun,
+        self.init_state,
+        max_steps=self._max_steps,
+    )
+    history_i, history_values = output_history
+    # output_history should be (max_steps + 1, ...) shaped.
+    self.assertEqual(history_i.shape, (self._max_steps + 1,))
+    self.assertEqual(history_values.shape, (self._max_steps + 1,))
+    self.assertEqual(num_steps, self._terminating_step)
+    # Index 0 is the initial state.
+    self.assertEqual(history_i[0], 0)
+    chex.assert_trees_all_close(history_values[0], self._init_value)
+    # Check each executed step.
+    for step in range(1, self._terminating_step + 1):
       chex.assert_trees_all_close(
-          jax.grad(f_while)(0.5, max_steps=2), jax.grad(f)(0.5, n_times=2)
+          history_values[step],
+          self._f_explicit(self._init_value, n_times=step),
       )
-      chex.assert_trees_all_close(f_while(0.5, max_steps=3), f(0.5, n_times=3))
+    # Steps after termination should contain NaNs for floats and 0 for ints.
+    for step in range(self._terminating_step + 1, self._max_steps + 1):
+      self.assertTrue(jnp.isnan(history_values[step]))
+      self.assertEqual(history_i[step], 0)
 
 
 if __name__ == '__main__':
