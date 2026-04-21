@@ -58,10 +58,10 @@ def main(args):
         'Error loading plot config: %s: %s', plot_config_module_path, e
     )
     raise
-  if len(args.outfile) == 1:
-    plotruns_lib.plot_run(plot_config, args.outfile[0])
-  else:
-    plotruns_lib.plot_run(plot_config, args.outfile[0], args.outfile[1])
+  outfiles = {
+      f'Data {i + 1}': f for i, f in enumerate(args.outfile)
+  }
+  plotruns_lib.plot_run(plot_config, outfiles)
 
 
 # Method used by the `plot_torax` binary.

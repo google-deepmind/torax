@@ -46,17 +46,25 @@ plot it directly without saving to a file first using
   plot_config = torax.import_module('plotting/configs/default_plot_config.py')['PLOT_CONFIG']
 
   # Plot directly from the in-memory data_tree returned by run_simulation.
-  fig = torax.plot_run_from_data_tree(plot_config, data_tree)
+  fig = torax.plot_run_from_data_tree(plot_config, {"TORAX": data_tree})
 
-To compare two in-memory runs:
+To compare multiple in-memory runs, pass a dictionary mapping labels to
+DataTrees. The labels appear in the plot legends:
 
 .. code-block:: python
 
-  fig = torax.plot_run_from_data_tree(plot_config, data_tree, data_tree2)
+  fig = torax.plot_run_from_data_tree(
+      plot_config,
+      {
+          "TORAX": torax_data_tree,
+          "JINTRAC": jintrac_data_tree,
+          "EXPERIMENT": experimental_data_tree,
+      },
+  )
 
 If you have saved the output to a ``.nc`` file and want to plot from disk,
 use ``torax.plot_run`` instead:
 
 .. code-block:: python
 
-  fig = torax.plot_run(plot_config, PATH_TO_LOCAL_NC_FILE)
+  fig = torax.plot_run(plot_config, {"TORAX": PATH_TO_LOCAL_NC_FILE})

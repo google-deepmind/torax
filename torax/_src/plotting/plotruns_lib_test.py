@@ -71,7 +71,7 @@ class PlotrunsLibTest(parameterized.TestCase):
     plot_config = config_loader.import_module(config_path)['PLOT_CONFIG']
     test_data_path = test_data_dir / data_file
     fig = plotruns_lib.plot_run(
-        plot_config, str(test_data_path), interactive=False
+        plot_config, {'Data 1': str(test_data_path)}, interactive=False
     )
     self.assertIsInstance(
         fig, go.Figure, msg=f'Plotting of {test_data_path.name} failed'

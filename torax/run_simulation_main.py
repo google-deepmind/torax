@@ -329,16 +329,21 @@ def _post_run_plotting(
     return
   match input_text:
     case '0':
-      return plotruns_lib.plot_run(plot_config, output_files[-1])
+      return plotruns_lib.plot_run(
+          plot_config, {'Run 1': output_files[-1]}
+      )
     case '1':
       if len(output_files) == 1:
         simulation_app.log_to_stdout(
             'Only one output run file found, only plotting the last run.',
             color=simulation_app.AnsiColors.RED,
         )
-        return plotruns_lib.plot_run(plot_config, output_files[-1])
+        return plotruns_lib.plot_run(
+            plot_config, {'Run 1': output_files[-1]}
+        )
       return plotruns_lib.plot_run(
-          plot_config, output_files[-1], output_files[-2]
+          plot_config,
+          {'Run 1': output_files[-1], 'Run 2': output_files[-2]},
       )
     case '2':
       reference_run = _REFERENCE_RUN.value
@@ -347,7 +352,10 @@ def _post_run_plotting(
             'No reference run provided, only plotting the last run.',
             color=simulation_app.AnsiColors.RED,
         )
-      return plotruns_lib.plot_run(plot_config, output_files[-1], reference_run)
+      outfiles = {'Run 1': output_files[-1]}
+      if reference_run is not None:
+        outfiles['Reference Run'] = reference_run
+      return plotruns_lib.plot_run(plot_config, outfiles)
     case _:
       raise ValueError('Unknown command')
 
