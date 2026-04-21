@@ -756,18 +756,19 @@ def _build_slider(
 
   steps = []
   # Use data1 time as the master clock
-  for t_idx, t_val in enumerate(data1.t):
+  for t_val in data1.t:
     y_updates = []
     x_updates = []
     trace_indices = []
 
     for info in spatial_traces_info:
-      # Check if this dataset actually has data for this time index
-      if t_idx < len(info['dataset'].t):
-        val_array = getattr(info['dataset'], info['attr'])
-        y_updates.append(val_array[t_idx, :])
-        x_updates.append(info['x'])
-        trace_indices.append(info['trace_idx'])
+      # Find the nearest time index in this dataset for the target time.
+      dataset_t = info['dataset'].t
+      nearest_t_idx = int(np.argmin(np.abs(dataset_t - t_val)))
+      val_array = getattr(info['dataset'], info['attr'])
+      y_updates.append(val_array[nearest_t_idx, :])
+      x_updates.append(info['x'])
+      trace_indices.append(info['trace_idx'])
 
     for info in timestamp_line_info:
       y_updates.append(info['y'])
