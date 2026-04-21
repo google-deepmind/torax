@@ -13,12 +13,14 @@
 # limitations under the License.
 """Helper functions for IMAS output."""
 
+import datetime
 import logging
 
 import imas
 from imas import ids_toplevel
 import numpy as np
 from torax._src.geometry import standard_geometry
+from torax._src.imas_tools.input import loader
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import post_processing
 
@@ -57,9 +59,20 @@ def torax_state_to_imas_equilibrium(
   # Rebuilding the equilibrium from the geometry object
   equilibrium = imas.IDSFactory().equilibrium()
   equilibrium.ids_properties.homogeneous_time = 1
+  equilibrium.ids_properties.creation_date = datetime.date.today().isoformat()
+  equilibrium.ids_properties.version_put.data_dictionary = (
+      loader._TORAX_IMAS_DD_VERSION
+  )
   equilibrium.ids_properties.comment = (
       "equilibrium IDS built from ToraxSimState object."
   )
+  equilibrium.code.name = "TORAX"
+  equilibrium.code.description = (
+      "TORAX is a differentiable tokamak core transport simulator aimed for"
+      " fast and accurate forward modelling, pulse-design, trajectory"
+      " optimization, and controller design workflows."
+  )
+  equilibrium.code.repository = "https://github.com/google-deepmind/torax"
   equilibrium.time.resize(1)
   equilibrium.time = [sim_state.t]
   equilibrium.vacuum_toroidal_field.r0 = geometry.R_major
@@ -72,7 +85,7 @@ def torax_state_to_imas_equilibrium(
   eq.profiles_1d.psi = core_profiles.psi.face_value()
   psi_axis = core_profiles.psi.face_value()[0]
   psi_boundary = core_profiles.psi.face_value()[-1]
-  eq.global_quantities.psi_axis = psi_axis
+  eq.global_quantities.psi_magnetic_axis = psi_axis
   eq.global_quantities.psi_boundary = psi_boundary
   eq.profiles_1d.psi_norm = (core_profiles.psi.face_value() - psi_axis) / (
       psi_boundary - psi_axis
