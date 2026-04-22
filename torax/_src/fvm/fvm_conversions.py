@@ -33,8 +33,7 @@ def cell_variable_tuple_to_vec(
   Returns:
     A flat array of evolving state variables.
   """
-  x_vec = jnp.concatenate([x.value for x in x_tuple])
-  return x_vec
+  return jnp.concatenate([x.value for x in x_tuple])
 
 
 def vec_to_cell_variable_tuple(
@@ -77,3 +76,20 @@ def vec_to_cell_variable_tuple(
   ]
 
   return tuple(x_out)
+
+
+def cell_variable_tuple_to_array(
+    x_tuple: tuple[cell_variable.CellVariable, ...],
+    axis: int,
+) -> jax.Array:
+  """Converts a tuple of CellVariables to a multi-dimensional array.
+
+
+  Args:
+    x_tuple: A tuple of CellVariables.
+    axis: The axis along which to stack the CellVariables.
+
+  Returns:
+    A multi-dimensional array of CellVariables.
+  """
+  return jnp.stack([var.value for var in x_tuple], axis=axis)

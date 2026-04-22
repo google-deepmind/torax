@@ -30,6 +30,7 @@ import jaxopt
 from torax._src import jax_utils
 from torax._src import models as models_lib
 from torax._src import state
+from torax._src import tridiagonal
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
@@ -60,8 +61,13 @@ def theta_method_matrix_equation(
     theta_implicit: float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
-) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-  """Returns the left-hand and right-hand sides of the theta method equation.
+) -> tuple[
+    tridiagonal.BlockTriDiagonal,
+    jax.Array,
+    tridiagonal.BlockTriDiagonal,
+    jax.Array,
+]:
+  """Returns the banded left-hand and right-hand sides of the theta method.
 
   The theta method solves a differential equation
 
@@ -116,23 +122,21 @@ def theta_method_matrix_equation(
       `neumann_mode` argument.
 
   Returns:
-    For the equation A x_new + a_vec = B x_old + b_vec. This function returns
-     - left-hand side matrix, A
-     - left-hand side vector, a
-     - right-hand side matrix B
-     - right-hand side vector, b
+    A tuple of (lhs, lhs_vec, rhs, rhs_vec) where:
+      lhs_matrix: BlockTriDiagonal for the LHS matrix A.
+      lhs_vec: LHS vector a.
+      rhs_matrix: BlockTriDiagonal for the RHS matrix B.
+      rhs_vec: RHS vector b.
   """
-
-  x_new_guess_vec = fvm_conversions.cell_variable_tuple_to_vec(x_new_guess)
 
   theta_exp = 1.0 - theta_implicit
 
-  tc_in_old = jnp.concatenate(coeffs_old.transient_in_cell)
-  tc_out_new = jnp.concatenate(coeffs_new.transient_out_cell)
-  tc_in_new = jnp.concatenate(coeffs_new.transient_in_cell)
-  chex.assert_rank(tc_in_old, 1)
-  chex.assert_rank(tc_out_new, 1)
-  chex.assert_rank(tc_in_new, 1)
+  tc_in_old = jnp.stack(coeffs_old.transient_in_cell, axis=-1)
+  tc_out_new = jnp.stack(coeffs_new.transient_out_cell, axis=-1)
+  tc_in_new = jnp.stack(coeffs_new.transient_in_cell, axis=-1)
+  chex.assert_rank(tc_in_old, 2)
+  chex.assert_rank(tc_out_new, 2)
+  chex.assert_rank(tc_in_new, 2)
 
   eps = 1e-7
   # adding sanity checks for values in denominators
@@ -148,42 +152,63 @@ def theta_method_matrix_equation(
       msg='|tc_out_new*tc_in_new| unexpectedly < eps',
   )
 
-  left_transient = jnp.identity(len(x_new_guess_vec))
-  right_transient = jnp.diag(jnp.squeeze(tc_in_old / tc_in_new))
+  scale_new = dt * theta_implicit / (tc_out_new * tc_in_new)
 
-  c_mat_new, c_new = discrete_system.calc_c(
+  c_new_matrix, c_new_forcing = discrete_system.calc_c(
       x_new_guess,
       coeffs_new,
       convection_dirichlet_mode,
       convection_neumann_mode,
   )
 
-  broadcasted = jnp.expand_dims(1 / (tc_out_new * tc_in_new), 1)
-
-  lhs_mat = left_transient - dt * theta_implicit * broadcasted * c_mat_new
-  lhs_vec = -theta_implicit * dt * (1 / (tc_out_new * tc_in_new)) * c_new
+  # Compute LHS = I - scale_new * C_new directly, avoiding intermediate
+  # BlockTriDiagonal objects. The transient part (I) only contributes to the
+  # diagonal, so off-diagonal blocks are just -scale * C_new.
+  ch_idx = jnp.arange(len(x_old))
+  lhs_diag = -scale_new[:, :, None] * c_new_matrix.diagonal
+  lhs_diag = lhs_diag.at[:, ch_idx, ch_idx].add(1.0)
+  lhs_matrix = tridiagonal.BlockTriDiagonal(
+      lower=-scale_new[1:, :, None] * c_new_matrix.lower,
+      diagonal=lhs_diag,
+      upper=-scale_new[:-1, :, None] * c_new_matrix.upper,
+  )
+  lhs_vec = -scale_new * c_new_forcing
 
   if theta_exp > 0.0:
-    tc_out_old = jnp.concatenate(coeffs_old.transient_out_cell)
+    tc_out_old = jnp.stack(coeffs_old.transient_out_cell, axis=-1)
     tc_in_new = jax_utils.error_if(
         tc_in_new,
         jnp.any(jnp.abs(tc_out_old * tc_in_new) < eps),
         msg='|tc_out_old*tc_in_new| unexpectedly < eps',
     )
-    c_mat_old, c_old = discrete_system.calc_c(
+    c_old_matrix, c_old_forcing = discrete_system.calc_c(
         x_old,
         coeffs_old,
         convection_dirichlet_mode,
         convection_neumann_mode,
     )
-    broadcasted = jnp.expand_dims(1 / (tc_out_old * tc_in_new), 1)
-    rhs_mat = right_transient + dt * theta_exp * broadcasted * c_mat_old
-    rhs_vec = dt * theta_exp * (1 / (tc_out_old * tc_in_new)) * c_old
-  else:
-    rhs_mat = right_transient
-    rhs_vec = jnp.zeros_like(x_new_guess_vec)
 
-  return lhs_mat, lhs_vec, rhs_mat, rhs_vec
+    scale_old = dt * theta_exp / (tc_out_old * tc_in_new)
+
+    # Compute RHS = diag(tc_in_old/tc_in_new) + scale_old * C_old directly.
+    # The transient part only contributes to the diagonal.
+    rhs_diag = scale_old[:, :, None] * c_old_matrix.diagonal
+    rhs_diag = rhs_diag.at[:, ch_idx, ch_idx].add((tc_in_old / tc_in_new))
+    rhs_matrix = tridiagonal.BlockTriDiagonal(
+        lower=scale_old[1:, :, None] * c_old_matrix.lower,
+        diagonal=rhs_diag,
+        upper=scale_old[:-1, :, None] * c_old_matrix.upper,
+    )
+    rhs_vec = scale_old * c_old_forcing
+  else:
+    rhs_matrix = tridiagonal.BlockTriDiagonal.from_diagonal(
+        tc_in_old / tc_in_new
+        )
+    rhs_vec = jnp.zeros(
+        (rhs_matrix.num_blocks, rhs_matrix.block_size), dtype=tc_in_new.dtype
+        )
+
+  return lhs_matrix, lhs_vec, rhs_matrix, rhs_vec
 
 
 @jax.jit(
@@ -217,8 +242,8 @@ def theta_method_block_residual(
     runtime_params_t_plus_dt: Runtime parameters for time t + dt.
     geo_t_plus_dt: The geometry at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
-    core_profiles_t: Core plasma profiles which contain all available
-      prescribed quantities at the start of the time step.
+    core_profiles_t: Core plasma profiles which contain all available prescribed
+      quantities at the start of the time step.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
@@ -235,7 +260,6 @@ def theta_method_block_residual(
   Returns:
     residual: Vector residual between LHS and RHS of the theta method equation.
   """
-  x_old_vec = jnp.concatenate([var.value for var in x_old])
   # Prepare core_profiles_t_plus_dt for calc_coeffs. Explanation:
   # 1. The original (before iterative solving) core_profiles_t_plus_dt contained
   #    updated boundary conditions and prescribed profiles.
@@ -267,7 +291,7 @@ def theta_method_block_residual(
   )
 
   solver_params = runtime_params_t_plus_dt.solver
-  lhs_mat, lhs_vec, rhs_mat, rhs_vec = theta_method_matrix_equation(
+  lhs, lhs_vec, rhs, rhs_vec = theta_method_matrix_equation(
       dt=dt,
       x_old=x_old,
       x_new_guess=x_new_guess,
@@ -278,11 +302,18 @@ def theta_method_block_residual(
       convection_neumann_mode=solver_params.convection_neumann_mode,
   )
 
-  lhs = jnp.dot(lhs_mat, x_new_guess_vec) + lhs_vec
-  rhs = jnp.dot(rhs_mat, x_old_vec) + rhs_vec
+  # TODO(b/505253351) Remove the reshape and transpose.
+  x_old_array = fvm_conversions.cell_variable_tuple_to_array(x_old, axis=1)
+  # Reshape x_new_guess_vec to a 2D array with shape (num_channels, num_cells)
+  # then transpose it to (num_cells, num_channels) to allow for block
+  # tridiagonal matvec multiplication with lhs and rhs.
+  num_cells, num_channels = x_old_array.shape
+  x_new_array = x_new_guess_vec.reshape(num_channels, num_cells).T
 
-  residual = lhs - rhs
-  return residual
+  lhs_result = lhs.matvec(x_new_array) + lhs_vec
+  rhs_result = rhs.matvec(x_old_array) + rhs_vec
+
+  return (lhs_result - rhs_result).T.reshape(-1)
 
 
 @jax.jit(
