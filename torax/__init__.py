@@ -41,12 +41,11 @@ from torax._src.state import SolverNumericOutputs
 from torax._src.torax_pydantic.model_config import ToraxConfig
 from torax._src.torax_pydantic.torax_pydantic import JAX_STATIC
 
-
 # pylint: enable=g-importing-member
 
+
 os.environ['XLA_FLAGS'] = (
-    os.environ.get('XLA_FLAGS', '')
-    + ' --xla_backend_extra_options=xla_cpu_flatten_after_fusion'
+    os.environ.get('XLA_FLAGS', '') + ' --xla_cpu_opt_preset=FAST_COMPILE'
 )
 
 __version__ = version.TORAX_VERSION

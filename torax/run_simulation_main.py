@@ -39,7 +39,7 @@ from torax._src.torax_pydantic import model_config
 
 os.environ['XLA_FLAGS'] = (
     os.environ.get('XLA_FLAGS', '')
-    + ' --xla_backend_extra_options=xla_cpu_flatten_after_fusion'
+    + ' --xla_cpu_opt_preset=FAST_COMPILE'
 )
 
 # String used when prompting the user to make a choice of command
