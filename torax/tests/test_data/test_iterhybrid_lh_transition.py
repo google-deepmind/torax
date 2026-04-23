@@ -14,13 +14,11 @@
 
 """An ITER hybrid config with ADAPTIVE_TRANSPORT pedestal and LH transition.
 
-This configuration is designed to test the L-mode to H-mode transition.
-Low heating for t=0 to 30, ramp to reach high heating at t=60.
-
 - Pedestal formation governed by Martin scaling.
 - Pedestal height from user.
 - Nonlinear solver.
 - Evolve Te, Ti, psi only.
+- Ramp heat up slowly to trigger L-H transition with dithering.
 """
 
 import copy
@@ -45,13 +43,12 @@ CONFIG['profile_conditions']['n_e_right_bc_is_fGW'] = False
 CONFIG['profile_conditions']['n_e_nbar_is_fGW'] = False
 CONFIG['profile_conditions']['normalize_n_e_to_nbar'] = False
 
-# Low heating for t=0 to 10, ramp to reach high heating at t=50.
+# Ramp heat up and down to trigger LH and HL transitions
 CONFIG['numerics']['t_initial'] = 0
 CONFIG['numerics']['t_final'] = 60
 CONFIG['sources']['generic_heat']['P_total'] = {
-    0.0: 1e6,
-    10.0: 1e6,
-    50.0: 6e7,
+    0.0: 2e6,
+    60.0: 6e7,
 }
 
 # Set transport
