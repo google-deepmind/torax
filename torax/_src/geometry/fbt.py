@@ -419,7 +419,7 @@ def _from_fbt(
   # Convert to bool instead of dim 0 array of ints
   diverted = bool(LY['lX'] == 1)
   R_major = LY['rgeom'][-1]  # Major radius
-  B_0 = LY['rBt'] / R_major  # Vacuum toroidal magnetic field on axis
+  B_0 = LY['rBt'] / R_major  # Vacuum toroidal magnetic field at R_major
   a_minor = LY['aminor'][-1]  # Minor radius
   # Toroidal flux including plasma contribution
   # load FtPVQ if it exists, otherwise use FtPQ for toroidal flux.

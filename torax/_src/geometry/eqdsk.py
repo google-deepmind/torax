@@ -144,7 +144,12 @@ def _construct_intermediates_from_eqdsk(
   # R_major taken as Rgeo (LCFS R_major)
   R_major = (eqfile['xbdry'].max() + eqfile['xbdry'].min()) / 2.0
   a_minor = (eqfile['xbdry'].max() - eqfile['xbdry'].min()) / 2.0
-  B_0 = eqfile['bcentre']
+  # Vacuum toroidal magnetic field at R_major. EQDSK vacuum field, bcentre, is
+  # defined at an arbitrary reference radius, xcentre. To get B at R_major,
+  # use B_vacuum ∝ 1/R.
+
+  # See EQDSKInterface in https://github.com/Fusion-Power-Plant-Framework/eqdsk
+  B_0 = eqfile['bcentre'] * eqfile['xcentre'] / R_major
   Raxis = eqfile['xmag']
   Zaxis = eqfile['zmag']
   Btor_axis = eqfile['fpol'][0] / eqfile['xmag']

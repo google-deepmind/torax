@@ -141,7 +141,7 @@ nonlinearity in the PDE system. TORAX currently offers five transport models:
     .. math::
 
       \chi_{GB} = \frac{(A_i m_p)^{1/2}}{(eB_0)^2}
-      \frac{(T_i k_B)^{3/2}}{R_\textit{maj}}
+      \frac{(T_i k_B)^{3/2}}{R_\mathrm{major}}
 
     and the |guo-romanelli| ion-temperature-gradient (ITG) mode critical
     gradient formula.
@@ -154,8 +154,8 @@ nonlinearity in the PDE system. TORAX currently offers five transport models:
     :math:`\chi`, :math:`L_{Ti}\equiv-\frac{T_i}{\nabla T_i}` is the ion
     temperature gradient length, :math:`A_i` is the main ion atomic mass number,
     :math:`m_p` the proton mass, :math:`e` the electron charge, :math:`B_0` the
-    magnetic field on axis, and :math:`R_\mathrm{maj}` the major radius. The
-    stiffness factor :math:`C` and the exponent :math:`\alpha` are
+    vacuum toroidal magnetic field at the major radius :math:`R_\mathrm{major}`.
+    The stiffness factor :math:`C` and the exponent :math:`\alpha` are
     user-configurable model parameters.
 
     Regarding additional transport coefficient outputs, the electron heat
@@ -202,10 +202,10 @@ nonlinearity in the PDE system. TORAX currently offers five transport models:
 
     where :math:`R_\text{min}` is the minor radius, :math:`q` is the safety
     factor, :math:`e` is the elementary charge, :math:`B_\text{0}` is the
-    toroidal magnetic field at the magnetic axis, :math:`n_e` is the electron
-    density, :math:`\rho_{\text{tor}}` is the (unnormalized) toroidal flux
-    coordinate, :math:`p_e` is the electron pressure, and :math:`T_e` is the
-    electron temperature.
+    vacuum toroidal magnetic field at :math:`R_\mathrm{major}`, :math:`n_e` is
+    the electron density, :math:`\rho_{\text{tor}}` is the (unnormalized)
+    toroidal flux coordinate, :math:`p_e` is the electron pressure, and
+    :math:`T_e` is the electron temperature.
 
     The electron diffusivity is given by |garzotti2003|:
 

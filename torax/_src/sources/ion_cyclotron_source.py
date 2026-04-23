@@ -47,7 +47,6 @@ import typing_extensions
 
 # Internal import.
 
-
 # Default value for the model function to be used for the ion cyclotron
 # source. This is also used as an identifier for the model function in
 # the default source config for Pydantic to "discriminate" against.
@@ -100,7 +99,10 @@ class ToricNNInputs:
   temperature_peaking_factor: array_typing.FloatScalar
   # Density profile peaking factor, training range = 1.15 to 1.65.
   density_peaking_factor: array_typing.FloatScalar
-  # Toroidal magnetic field on axis in T, training range = 11.8 to 12.5.
+  # Vacuum toroidal magnetic field at R_major [T].
+  # Training range = 11.8 to 12.5.
+  # TODO(b/350494588): double-check with TORIC-NN team on the definition of B_0
+  # used during training.
   B_0: array_typing.FloatScalar
 
 
@@ -587,7 +589,7 @@ class IonCyclotronSource(source.Source):
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
       source.AffectedCoreProfile.FAST_IONS,
-    )
+  )
 
   @classmethod
   def zero_fast_ions(

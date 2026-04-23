@@ -30,7 +30,7 @@ class CircularConfig(base.BaseGeometryConfig):
     geometry_type: Always set to 'circular'.
     R_major: Major radius (R) in meters.
     a_minor: Minor radius (a) in meters.
-    B_0: Vacuum toroidal magnetic field on axis [T].
+    B_0: Vacuum toroidal magnetic field at `R_major` [T].
     elongation_LCFS: Sets the plasma elongation used for volume, area and
       q-profile corrections.
   """
@@ -75,7 +75,7 @@ def _build_circular_geometry(
     elongation_LCFS: Elongation at last closed flux surface.
     R_major: major radius (R) in meters
     a_minor: minor radius (a) in meters
-    B_0: Toroidal magnetic field on axis [T]
+    B_0: Vacuum toroidal magnetic field at `R_major` [T]
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
 

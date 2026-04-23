@@ -36,7 +36,7 @@ class CheaseConfig(base.BaseGeometryConfig):
       calculated from the geometry file is scaled to match the desired `I_p`.
     R_major: Major radius (R) in meters.
     a_minor: Minor radius (a) in meters.
-    B_0: Vacuum toroidal magnetic field on axis [T].
+    B_0: Vacuum toroidal magnetic field at `R_major` [T].
   """
 
   geometry_type: Annotated[Literal['chease'], torax_pydantic.TIME_INVARIANT] = (
@@ -95,10 +95,12 @@ def _construct_intermediates_from_chease(
     Ip_from_parameters: If True, the Ip is taken from the parameters and the
       values in the Geometry are rescaled to match the new Ip.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
-    R_major: major radius (R) in meters. CHEASE geometries are normalized, so
+    R_major: Major radius (R) in meters, commonly defined in TORAX as the
+      midplane average of the LCFS radius. CHEASE geometries are normalized, so
       this is used as an unnormalization factor.
-    a_minor: minor radius (a) in meters
-    B_0: Toroidal magnetic field on axis [T].
+    a_minor: Minor radius (a) in meters, commonly defined in TORAX as half the
+      horizontal width of the LCFS.
+    B_0: Vacuum toroidal magnetic field at `R_major` [T].
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
 

@@ -78,9 +78,13 @@ class Geometry:
     torax_mesh: `Grid1D` object representing the radial mesh used by TORAX.
     Phi: Toroidal magnetic flux at each radial grid point [:math:`\mathrm{Wb}`].
     Phi_face: Toroidal magnetic flux at each radial face [:math:`\mathrm{Wb}`].
-    R_major: Tokamak major radius (geometric center) [:math:`\mathrm{m}`].
-    a_minor: Tokamak minor radius [:math:`\mathrm{m}`].
-    B_0: Vacuum toroidal magnetic field on axis [:math:`\mathrm{T}`].
+    R_major: Major radius defined as midplane average of the LCFS radius,
+      :math:`R_\mathrm{major} = (R_\mathrm{max} + R_\mathrm{min}) / 2`
+      [:math:`\mathrm{m}`].
+    a_minor: Minor radius, defined as half the horizontal width of the LCFS,
+      :math:`a_\mathrm{minor} = (R_\mathrm{max} - R_\mathrm{min}) / 2`
+      [:math:`\mathrm{m}`].
+    B_0: Vacuum toroidal magnetic field at ``R_major`` [:math:`\mathrm{T}`].
     volume: Plasma volume enclosed by each flux surface on cell grid
       [:math:`\mathrm{m}^3`].
     volume_face: Plasma volume enclosed by each flux surface on face grid
@@ -272,8 +276,8 @@ class Geometry:
 
     The toroidal flux coordinate is defined as
     :math:`\rho=\sqrt{\frac{\Phi}{\pi B_0}}`, where :math:`\Phi` is the
-    toroidal flux enclosed by the flux surface, and :math:`B_0` the magnetic
-    field on the magnetic axis.
+    toroidal flux enclosed by the flux surface, and :math:`B_0` is the vacuum
+    toroidal magnetic field at the geometric center of the LCFS.
     """
     return self.rho_norm * jnp.expand_dims(self.rho_b, axis=-1)
 

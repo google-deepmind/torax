@@ -1076,13 +1076,15 @@ Geometry dicts for analytical circular geometry require the following additional
 keys.
 
 ``R_major`` (float [default = 6.2])
-  Major radius "R" in meters.
+  Major radius, defined as the midplane average of the LCFS radius,
+  :math:`R_\mathrm{major} = (R_\mathrm{max} + R_\mathrm{min}) / 2`, in meters.
 
 ``a_minor`` (float [default = 2.0])
-  Minor radius "a" in meters.
+  Minor radius, defined as half the horizontal width of the LCFS,
+  :math:`a_\mathrm{minor} = (R_\mathrm{max} - R_\mathrm{min}) / 2`, in meters.
 
 ``B_0`` (float [default = 5.3])
-  Vacuum toroidal magnetic field on axis in :math:`T`.
+  Vacuum toroidal magnetic field at ``R_major``, in :math:`T`.
 
 ``elongation_LCFS`` (float [default = 1.72])
   Sets the plasma elongation used for volume, area and q-profile corrections.
@@ -1091,13 +1093,15 @@ Geometry dicts for CHEASE geometry require the following additional keys for
 denormalization.
 
 ``R_major`` (float [default = 6.2])
-  Major radius "R" in meters.
+  Major radius, defined as the midplane average of the LCFS radius,
+  :math:`R_\mathrm{major} = (R_\mathrm{max} + R_\mathrm{min}) / 2`, in meters.
 
 ``a_minor`` (float [default = 2.0])
-  Minor radius "a" in meters.
+  Minor radius, defined as half the horizontal width of the LCFS,
+  :math:`a_\mathrm{minor} = (R_\mathrm{max} - R_\mathrm{min}) / 2`, in meters.
 
 ``B_0`` (float [default = 5.3])
-  Vacuum toroidal magnetic field on axis :math:`T`.
+  Vacuum toroidal magnetic field at ``R_major``, in :math:`T`.
 
 Geometry dicts for FBT geometry require the following additional keys.
 

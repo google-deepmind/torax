@@ -160,9 +160,13 @@ class StandardGeometryIntermediates:
       EQDSK).
     Ip_from_parameters: If True, the Ip is taken from the parameters and the
       values in the Geometry are rescaled to match the new Ip.
-    R_major: major radius on the magnetic axis in [:math:`\mathrm{m}`].
-    a_minor: minor radius (a) in [:math:`\mathrm{m}`].
-    B_0: Toroidal magnetic field on axis [:math:`\mathrm{T}`].
+    R_major: Major radius defined as midplane average of the LCFS radius,
+      :math:`R_\mathrm{major} = (R_\mathrm{max} + R_\mathrm{min}) / 2`
+      [:math:`\mathrm{m}`].
+    a_minor: Minor radius, defined as half the horizontal width of the LCFS,
+      :math:`a_\mathrm{minor} = (R_\mathrm{max} - R_\mathrm{min}) / 2`
+      [:math:`\mathrm{m}`].
+    B_0: Vacuum toroidal magnetic field at ``R_major`` [:math:`\mathrm{T}`].
     psi: Poloidal flux profile [:math:`\mathrm{Wb}`].
     Ip_profile: Plasma current profile [:math:`\mathrm{A}`].
     Phi: Toroidal flux profile [:math:`\mathrm{Wb}`].

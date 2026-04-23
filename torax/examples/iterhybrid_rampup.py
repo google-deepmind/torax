@@ -65,7 +65,7 @@ CONFIG = {
         'Ip_from_parameters': True,
         'R_major': 6.2,  # major radius (R) in meters
         'a_minor': 2.0,  # minor radius (a) in meters
-        'B_0': 5.3,  # Toroidal magnetic field on axis [T]
+        'B_0': 5.3,  # Vacuum toroidal magnetic field at R_major [T]
     },
     'neoclassical': {
         'bootstrap_current': {
