@@ -16,8 +16,8 @@
 
 import copy
 import dataclasses
+import itertools
 from typing import Annotated, Any, Literal, Sequence
-
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
@@ -34,6 +34,7 @@ from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import qualikiz_based_transport_model
+from torax._src.transport_model import tglf_transport_model
 from torax._src.transport_model import tglfnn_ukaea_transport_model
 import typing_extensions
 
@@ -220,6 +221,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
   # Quasilinear transport options
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
+  collisionality_multiplier: float = 1.0
 
   def build_transport_model(
       self,
@@ -237,6 +239,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
         An_min=self.An_min,
         rotation_multiplier=self.rotation_multiplier,
         use_rotation=self.use_rotation,
+        collisionality_multiplier=self.collisionality_multiplier,
         # From base
         **base_kwargs,
     )
@@ -425,6 +428,7 @@ try:
       | ConstantTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
+      | tglf_transport_model.TGLFTransportModelConfig
       | qualikiz_transport_model.QualikizTransportModelConfig
   )
 
@@ -435,6 +439,7 @@ except ImportError:
       | ConstantTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
+      | tglf_transport_model.TGLFTransportModelConfig
   )
 
 
@@ -518,7 +523,11 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
         any([
             np.any(model.apply_inner_patch.value)
             or np.any(model.apply_outer_patch.value)
-            for model in self.transport_models + self.pedestal_transport_models
+            # Use itertools.chain to iterate over both lists of models without
+            # needing to make a new list.
+            for model in itertools.chain(
+                self.transport_models, self.pedestal_transport_models
+            )
         ])
         or np.any(self.apply_inner_patch.value)
         or np.any(self.apply_outer_patch.value)

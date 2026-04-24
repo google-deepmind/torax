@@ -125,7 +125,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         "lref_over_lne",
         "lref_over_lni0",
         "lref_over_lni1",
-        "Ti_over_Te",
+        "T_i_over_T_e",
         "r_minor",
         "dr_major",
         "q",
@@ -136,7 +136,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         "delta",
         "delta_shear",
         "beta_e",
-        "Zeff",
+        "Z_eff",
     ]
     scalar_keys = ["Rmaj", "Rmin"]
     expected_vector_length = geo.rho_face_norm.shape[0]
@@ -224,6 +224,7 @@ class TGLFBasedTransportModelConfig(
         An_min=0.05,
         use_rotation=True,
         rotation_multiplier=1.0,
+        collisionality_multiplier=1.0,
         **base_kwargs,
     )
 
