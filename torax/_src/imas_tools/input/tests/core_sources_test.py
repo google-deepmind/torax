@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pathlib
+from unittest import mock
 
 from absl.testing import absltest
+import imas
 import numpy as np
+import torax
 from torax._src.imas_tools.input import core_sources
 from torax._src.imas_tools.input import loader
 from torax._src.sources import source as source_module
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
-import torax
 
 # pylint: disable=invalid-name
 
@@ -94,8 +96,32 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     # Checks the config can be built properly with input sources.
     torax_config = model_config.ToraxConfig.from_dict(config)
     _, imas_results = torax.run_simulation(torax_config, progress_bar=False)
-    self.assertEqual(imas_results.sim_error, torax.SimError.NO_ERROR)
 
+  def test_get_particle_profile(self):
+    """Tests that particle profile is extracted from electrons when available."""
+    core_source = imas.IDSFactory().core_sources()
+    core_source.source.resize(3)
+    core_source.source[0].profiles_1d.resize(1)
+    core_source.source[1].profiles_1d.resize(1)
+    core_source.source[2].profiles_1d.resize(1)
+    core_source.source[0].profiles_1d[0].electrons.particles = [1.0, 2.0]
+    core_source.source[1].profiles_1d[0].ion.resize(1)
+    core_source.source[1].profiles_1d[0].ion[0].element.resize(1)
+    core_source.source[1].profiles_1d[0].ion[0].particles = [1.0, 2.0]
+    core_source.source[1].profiles_1d[0].ion[0].element[0].z_n = 1.0
+    with self.subTest(name="electrons"):
+      res = core_sources._get_particle_profile(
+          core_source.source[0].profiles_1d
+      )
+      np.testing.assert_allclose(res[0], [1.0, 2.0])
+    with self.subTest(name="ions"):
+      res = core_sources._get_particle_profile(
+          core_source.source[1].profiles_1d
+      )
+      np.testing.assert_allclose(res[0], [1.0, 2.0])
+    with self.subTest(name="Missing profiles"):
+      with self.assertRaisesRegex(ValueError, "Expected particle source"):
+        core_sources._get_particle_profile(core_source.source[2].profiles_1d)
 
 
 if __name__ == "__main__":

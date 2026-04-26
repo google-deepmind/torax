@@ -58,11 +58,7 @@ _IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
         True,
     ),
-    "ic": _SourceMappingEntry(
-        ion_cyclotron_source.IonCyclotronSource.AFFECTED_CORE_PROFILES,
-        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
-        True,
-    ),
+    # TODO: Re-add IC mapping once workaround for the issue with default model is found
     # Physics-based and radiation sources
     "ohmic": _SourceMappingEntry(
         ohmic_heat_source.OhmicHeatSource.AFFECTED_CORE_PROFILES,
@@ -277,7 +273,7 @@ def _extract_source_profiles(
 # density transport will be possible in TORAX.
 def _get_particle_profile(
     profiles_1d: ids_struct_array.IDSStructArray,
-) -> Sequence[float]:
+) -> Sequence[Sequence[float]]:
   """Extract particle profile from either electron or ion profiles."""
   # Sum over all ion species to get total particle source profile.
   if profiles_1d[0].electrons.particles.has_value:
