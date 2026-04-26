@@ -175,14 +175,29 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         -Compares the profiles of the TORAX output with the initial IMAS IDS 
          profiles.
     """
-    rtol = 3e-3
+    rtol = 1e-10
     atol = 0
 
     # Input core_profiles reading and config loading
     config = self._get_config_dict("test_iterhybrid_rampup_short.py")
-    path = "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
+    # path = "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
+    path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     initial_core_profiles = loader.load_imas_data(path, "core_profiles")
     rhon_in = initial_core_profiles.profiles_1d[0].grid.rho_tor_norm
+    for i in range(len(initial_core_profiles.profiles_1d)):
+        initial_core_profiles.profiles_1d[i].ion.resize(3)
+        initial_core_profiles.profiles_1d[i].ion[0].name = "D"
+        initial_core_profiles.profiles_1d[i].ion[1].name = "T"
+        initial_core_profiles.profiles_1d[i].ion[2].name = "He"
+        initial_core_profiles.profiles_1d[i].ion[0].density = 0.48 * initial_core_profiles.profiles_1d[i].electrons.density
+        initial_core_profiles.profiles_1d[i].ion[1].density = 0.48 * initial_core_profiles.profiles_1d[i].electrons.density
+        initial_core_profiles.profiles_1d[i].ion[2].density = 0.02 * initial_core_profiles.profiles_1d[i].electrons.density
+        Z_eff = 2 * 0.48 + 0.02 * 2 **2
+        initial_core_profiles.profiles_1d[i].zeff = np.full_like(rhon_in, Z_eff)
+        initial_core_profiles.profiles_1d[i].n_i_total_over_n_e = np.sum([
+            initial_core_profiles.profiles_1d[i].ion[j].density / initial_core_profiles.profiles_1d[i].electrons.density
+            for j in range(3)
+        ], axis=0)
 
     # Modifying the input config profiles_conditions class
     core_profiles_conditions = input_core_profiles.profile_conditions_from_IMAS(
@@ -192,10 +207,9 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     plasma_composition = input_core_profiles.plasma_composition_from_IMAS(
     initial_core_profiles,
     t_initial=0.0,
-    excluded_impurities=["Sn", "B"],
     main_ions_symbols=["D", "T"],
     )
-    config["geometry"]["n_rho"] = 200
+    config["geometry"]["n_rho"] = 25
     config["profile_conditions"] = core_profiles_conditions
     config["plasma_composition"] = plasma_composition
 
