@@ -18,6 +18,7 @@ This is a geometry object that is used for most geometries sources
 CHEASE, FBT, etc.
 """
 import dataclasses
+import logging
 
 import chex
 import jax
@@ -35,6 +36,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 _RHO_SMOOTHING_LIMIT = 0.1
+_COARSE_GRID_THRESHOLD = 0.02
 
 
 @jax.tree_util.register_dataclass
@@ -356,6 +358,20 @@ class StandardGeometryIntermediates:
         self.flux_surf_avg_grad_psi, idx_limit, 1
     )
     self.vpr[:] = _smooth_savgol(self.vpr, idx_limit, 1)
+
+    # Warn if the input grid is too coarse, which can cause artifacts in
+    # derived quantities such as j_total.
+    drho_norm = np.diff(rhon)
+    max_spacing = np.max(drho_norm)
+    if max_spacing > _COARSE_GRID_THRESHOLD:
+      logging.warning(
+          'The input equilibrium grid is coarse (max rho_norm spacing ='
+          ' %.4f > %.4f). This can create numerical artifacts in derived'
+          ' quantities such as j_total. Consider using a higher-resolution'
+          ' equilibrium file.',
+          max_spacing,
+          _COARSE_GRID_THRESHOLD,
+      )
 
 
 def build_standard_geometry(

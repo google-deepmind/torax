@@ -228,6 +228,65 @@ class GeometryTest(parameterized.TestCase):
         0, intermediates.flux_surf_avg_grad_psi2_over_R2
     )
 
+  def test_coarse_grid_warning(self):
+    """Tests that a warning is emitted when the input grid is too coarse."""
+    # 10 points: rhon = linspace(0,1,10), spacing = 1/9 ~ 0.111,
+    # above 0.02 threshold.
+    Phi = np.linspace(0, 1.0, 10) ** 2
+    n = len(Phi)
+    with self.assertLogs(level='WARNING') as log_ctx:
+      self._make_intermediates(
+          Phi=Phi,
+          psi=np.linspace(0, 1.0, n),
+          Ip_profile=np.linspace(0, 1e6, n),
+          R_in=np.linspace(4.0, 4.2, n),
+          R_out=np.linspace(8.0, 8.4, n),
+          F=np.linspace(30.0, 33.0, n),
+          int_dl_over_Bp=np.linspace(0.01, 1.0, n),
+          flux_surf_avg_1_over_R=np.linspace(0.1, 0.2, n),
+          flux_surf_avg_1_over_R2=np.linspace(0.01, 0.04, n),
+          flux_surf_avg_grad_psi2=np.linspace(0.01, 1.0, n),
+          flux_surf_avg_grad_psi=np.linspace(0.01, 1.0, n),
+          flux_surf_avg_grad_psi2_over_R2=np.linspace(0.01, 1.0, n),
+          flux_surf_avg_B2=np.linspace(25.0, 30.0, n),
+          flux_surf_avg_1_over_B2=np.linspace(0.03, 0.04, n),
+          delta_upper_face=np.linspace(0.0, 0.3, n),
+          delta_lower_face=np.linspace(0.0, 0.3, n),
+          elongation=np.linspace(1.0, 1.7, n),
+          vpr=np.linspace(0.01, 1.0, n),
+      )
+    self.assertTrue(
+        any('input equilibrium grid is coarse' in o for o in log_ctx.output)
+    )
+
+  def test_fine_grid_no_warning(self):
+    """Tests that no warning is emitted when the input grid is fine."""
+    # 100 points: rhon = linspace(0,1,100), spacing = 1/99 ~ 0.0101,
+    # below 0.02 threshold.
+    Phi = np.linspace(0, 1.0, 100) ** 2
+    n = len(Phi)
+    with self.assertNoLogs(level='WARNING'):
+      self._make_intermediates(
+          Phi=Phi,
+          psi=np.linspace(0, 1.0, n),
+          Ip_profile=np.linspace(0, 1e6, n),
+          R_in=np.linspace(4.0, 4.2, n),
+          R_out=np.linspace(8.0, 8.4, n),
+          F=np.linspace(30.0, 33.0, n),
+          int_dl_over_Bp=np.linspace(0.01, 1.0, n),
+          flux_surf_avg_1_over_R=np.linspace(0.1, 0.2, n),
+          flux_surf_avg_1_over_R2=np.linspace(0.01, 0.04, n),
+          flux_surf_avg_grad_psi2=np.linspace(0.01, 1.0, n),
+          flux_surf_avg_grad_psi=np.linspace(0.01, 1.0, n),
+          flux_surf_avg_grad_psi2_over_R2=np.linspace(0.01, 1.0, n),
+          flux_surf_avg_B2=np.linspace(25.0, 30.0, n),
+          flux_surf_avg_1_over_B2=np.linspace(0.03, 0.04, n),
+          delta_upper_face=np.linspace(0.0, 0.3, n),
+          delta_lower_face=np.linspace(0.0, 0.3, n),
+          elongation=np.linspace(1.0, 1.7, n),
+          vpr=np.linspace(0.01, 1.0, n),
+      )
+
   @parameterized.named_parameters(
       ('circular', {'geometry_type': 'circular'}),
       (
