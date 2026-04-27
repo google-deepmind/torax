@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pathlib
-from unittest import mock
 
 from absl.testing import absltest
 import imas
@@ -98,7 +97,11 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     _, imas_results = torax.run_simulation(torax_config, progress_bar=False)
 
   def test_get_particle_profile(self):
-    """Tests that particle profile is extracted from electrons when available."""
+    """Tests that particle profile is extracted correctly.
+    
+    Test that profiles is extracted from either electrons or ions when 
+    available, and raise an error if none of them is filled. 
+    """
     core_source = imas.IDSFactory().core_sources()
     core_source.source.resize(3)
     core_source.source[0].profiles_1d.resize(1)
