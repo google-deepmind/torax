@@ -18,7 +18,9 @@ from typing import Annotated, ClassVar, Literal
 
 import chex
 import jax
+import jax.numpy as jnp
 from torax._src import array_typing
+from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -42,6 +44,8 @@ DEFAULT_MODEL_FUNCTION_NAME: str = 'exponential'
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   puff_decay_length: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
+  target_line_average_n_e: array_typing.FloatScalar
+  feedback_gain: array_typing.FloatScalar
 
 
 # Default formula: exponential
@@ -61,6 +65,35 @@ def calc_puff_source(
           decay_start=1.0,
           width=source_params.puff_decay_length,
           total=source_params.S_total,
+          geo=geo,
+      ),
+  )
+
+
+# Gas puff with feedback on line averaged density
+def calc_puff_feedback_source(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    source_name: str,
+    core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_conductivity: conductivity_base.Conductivity | None,
+) -> tuple[array_typing.FloatVectorCell, ...]:
+  """Calculates external source term for n from puffs with feedback."""
+  source_params = runtime_params.sources[source_name]
+  assert isinstance(source_params, RuntimeParams)
+
+  current_line_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
+  error = source_params.target_line_average_n_e - current_line_avg_n_e
+
+  S_total = source_params.feedback_gain * error
+  S_total = jnp.clip(S_total, 0.0, jnp.inf)
+
+  return (
+      formulas.exponential_profile(
+          decay_start=1.0,
+          width=source_params.puff_decay_length,
+          total=S_total,
           geo=geo,
       ),
   )
@@ -86,14 +119,20 @@ class GasPuffSourceConfig(base.SourceModelBase):
     S_total: total gas puff particles/s
   """
 
-  model_name: Annotated[Literal['exponential'], torax_pydantic.JAX_STATIC] = (
-      'exponential'
-  )
+  model_name: Annotated[
+      Literal['exponential', 'feedback'], torax_pydantic.JAX_STATIC
+  ] = 'exponential'
   puff_decay_length: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.05)
   )
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1e22
+  )
+  target_line_average_n_e: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  feedback_gain: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
   )
   mode: Annotated[
       sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
@@ -101,20 +140,29 @@ class GasPuffSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
+    if self.model_name == 'feedback':
+      return calc_puff_feedback_source
     return calc_puff_source
 
   def build_runtime_params(
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    if self.model_name == 'feedback':
+      is_explicit = True
+    else:
+      is_explicit = self.is_explicit
+
     return RuntimeParams(
         prescribed_values=tuple(
             [v.get_value(t) for v in self.prescribed_values]
         ),
         mode=self.mode,
-        is_explicit=self.is_explicit,
+        is_explicit=is_explicit,
         puff_decay_length=self.puff_decay_length.get_value(t),
         S_total=self.S_total.get_value(t),
+        target_line_average_n_e=self.target_line_average_n_e.get_value(t),
+        feedback_gain=self.feedback_gain.get_value(t),
     )
 
   def build_source(self) -> GasPuffSource:
