@@ -88,12 +88,25 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     Z_eff_ped = jnp.take(Z_eff, ped_idx)
     Z_i_ped = jnp.take(Z_i, ped_idx)
     Z_impurity_ped = jnp.take(Z_impurity, ped_idx)
-    dilution_factor_ped = formulas.calculate_main_ion_dilution_factor(
-        Z_i_ped, Z_impurity_ped, Z_eff_ped
+    dilution_factor_ped = jnp.where(
+        Z_eff_ped == 1.0,
+        1.0,
+        formulas.calculate_main_ion_dilution_factor(
+            Z_i_ped, Z_impurity_ped, Z_eff_ped
+        ),
     )
     # Calculate n_i and n_impurity.
     n_i_ped = dilution_factor_ped * n_e_ped
-    n_impurity_ped = (n_e_ped - Z_i_ped * n_i_ped) / Z_impurity_ped
+    # Guard against division by zero when Z_impurity_ped is zero or
+    # degenerate (pure plasma case).
+    safe_Z_impurity_ped = jnp.where(
+        Z_eff_ped == 1.0, 1.0, Z_impurity_ped
+    )
+    n_impurity_ped = jnp.where(
+        Z_eff_ped == 1.0,
+        0.0,
+        (n_e_ped - Z_i_ped * n_i_ped) / safe_Z_impurity_ped,
+    )
     # Assumption that impurity is at the same temperature as the ion AND
     # the pressure P = P_e + P_i + P_imp.
     # P = T_e*n_e + T_i*n_i + T_i*n_imp.

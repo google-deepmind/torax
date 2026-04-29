@@ -684,17 +684,32 @@ def get_updated_ions(
       * ion_properties.dilution_factor_edge,
   )
 
+  # Guard the dead branch of jnp.where against division by zero.
+  # JAX evaluates both branches, so we must use a safe denominator
+  # to prevent NaN propagation when Z_impurity is zero or degenerate.
+  # dilution_factor == 1.0 indicates no impurities (Z_eff=1.0), so we set
+  # safe_Z_impurity to an arbitrary non-zero value, i.e. 1.0.
+  safe_Z_impurity = jnp.where(
+      ion_properties.dilution_factor == 1.0,
+      1.0,
+      ion_properties.Z_impurity,
+  )
   n_impurity_value = jnp.where(
       ion_properties.dilution_factor == 1.0,
       0.0,
-      (n_e.value - n_i.value * Z_i) / ion_properties.Z_impurity,
+      (n_e.value - n_i.value * Z_i) / safe_Z_impurity,
   )
 
+  safe_Z_impurity_edge = jnp.where(
+      ion_properties.dilution_factor_edge == 1.0,
+      1.0,
+      ion_properties.Z_impurity_face[-1],
+  )
   n_impurity_right_face_constraint = jnp.where(
       ion_properties.dilution_factor_edge == 1.0,
       0.0,
       (n_e.right_face_constraint - n_i.right_face_constraint * Z_i_face[-1])
-      / ion_properties.Z_impurity_face[-1],
+      / safe_Z_impurity_edge,
   )
 
   n_impurity = cell_variable.CellVariable(

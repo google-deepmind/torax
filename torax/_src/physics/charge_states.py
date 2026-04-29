@@ -112,7 +112,11 @@ class ChargeStateInfo:
 
   @property
   def Z_mixture(self) -> array_typing.FloatVector:
-    return self.Z2_avg / self.Z_avg
+    # Guard against division by zero when Z_avg is zero (e.g. no impurities).
+    # This also prevents NaN propagation through jnp.where dead branches that
+    # evaluate this property.
+    safe_Z_avg = jnp.where(self.Z_avg == 0.0, 1.0, self.Z_avg)
+    return jnp.where(self.Z_avg == 0.0, 0.0, self.Z2_avg / safe_Z_avg)
 
 
 # pylint: disable=invalid-name
