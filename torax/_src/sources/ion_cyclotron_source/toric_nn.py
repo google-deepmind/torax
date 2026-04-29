@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2026 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,14 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Ion-cyclotron resonance heating (ICRH) source models."""
+"""ToricNN surrogate model for ion-cyclotron resonance heating (ICRH)."""
 
 import dataclasses
 import functools
 import json
 import logging
 import os  # pylint: disable=unused-import
-from typing import Annotated, Any, ClassVar, Final, Literal, Sequence
+from typing import Annotated, Any, Final, Literal, Sequence
 
 import chex
 import flax.linen as nn
@@ -38,19 +38,14 @@ from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.physics import fast_ion_utils
-from torax._src.sources import base
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
 # Internal import.
-
-# Default value for the model function to be used for the ion cyclotron
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'toric_nn'
 
 # If no path is set in either the config or the environment variable, use
 # this path.
@@ -506,7 +501,7 @@ def icrh_model_func(
           right_face_constraint=core_profiles.T_i.right_face_constraint,
       ),
   )
-  fast_ions = _build_fast_ions(
+  fast_ions = base.build_fast_ions(
       source_name=source_name,
       geo=geo,
       fast_ions=[he3_fast_ion],
@@ -530,75 +525,6 @@ def icrh_model_func(
   return (source_ion, source_el, fast_ions)
 
 
-def _build_fast_ions(
-    source_name: str,
-    geo: geometry.Geometry,
-    fast_ions: Sequence[fast_ion_lib.FastIon] = (),
-) -> tuple[fast_ion_lib.FastIon, ...]:
-  """Builds a complete FastIon tuple for all supported species.
-
-  Takes a list of computed FastIon objects (for a subset of species) and
-  produces a full tuple covering all species in
-  ``fast_ion_lib.FAST_ION_SPECIES``.
-  Species not present in the input list are filled with zero density and
-  temperature.
-
-  Args:
-    source_name: The name of the source.
-    geo: Geometry.
-    fast_ions: Computed FastIon objects for a subset of species.
-
-  Returns:
-    Tuple of FastIon objects, one per species in
-    ``fast_ion_lib.FAST_ION_SPECIES``, in order.
-  """
-  computed = {fi.species: fi for fi in fast_ions}
-  zeros = jnp.zeros_like(geo.rho)
-  result = []
-  for species in fast_ion_lib.FAST_ION_SPECIES:
-    if species in computed:
-      result.append(computed[species])
-    else:
-      result.append(
-          fast_ion_lib.FastIon(
-              species=species,
-              source=source_name,
-              n=cell_variable.CellVariable(
-                  value=zeros,
-                  face_centers=geo.rho_face_norm,
-                  right_face_grad_constraint=None,
-                  right_face_constraint=jnp.zeros(()),
-              ),
-              T=cell_variable.CellVariable(
-                  value=zeros,
-                  face_centers=geo.rho_face_norm,
-                  right_face_grad_constraint=None,
-                  right_face_constraint=jnp.zeros(()),
-              ),
-          )
-      )
-  return tuple(result)
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class IonCyclotronSource(source.Source):
-  """Ion cyclotron source."""
-
-  SOURCE_NAME: ClassVar[str] = 'icrh'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.TEMP_ION,
-      source.AffectedCoreProfile.TEMP_EL,
-      source.AffectedCoreProfile.FAST_IONS,
-  )
-
-  @classmethod
-  def zero_fast_ions(
-      cls,
-      geo: geometry.Geometry,
-  ) -> tuple[fast_ion_lib.FastIon, ...]:
-    return _build_fast_ions(source_name=cls.SOURCE_NAME, geo=geo)
-
-
 # Cache the result of this function to avoid re-creating the partial function
 # every time it is called and ensure we hit the same JAX compile cache (as
 # model_func) is part of the key.
@@ -616,37 +542,7 @@ def _icrh_model_func_with_toric_nn(
   )
 
 
-class IonCyclotronSourceConfig(base.SourceModelBase):
-  """Base configuration for IonCyclotronSource.
-
-  This base class contains fields common to all ICRH model implementations.
-  Subclasses implement the specific model logic (e.g., ToricNN, scaled curves)
-  and must override `model_name` with a `Literal` to serve as discriminator.
-
-  Attributes:
-    model_name: Discriminator field for Pydantic. Subclasses must override with
-      a `Literal` value.
-    P_total: Total heating power [W].
-    absorption_fraction: Fraction of absorbed power.
-    mode: Defines how the source values are computed.
-  """
-
-  model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''
-  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      10e6
-  )
-  absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  mode: Annotated[source_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
-      source_runtime_params_lib.Mode.MODEL_BASED
-  )
-
-  def build_source(self) -> IonCyclotronSource:
-    return IonCyclotronSource(model_func=self.model_func)
-
-
-class ToricNNIonCyclotronSourceConfig(IonCyclotronSourceConfig):
+class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
   """Configuration for the IonCyclotronSource using the ToricNN model.
 
   Attributes:
@@ -660,11 +556,6 @@ class ToricNNIonCyclotronSourceConfig(IonCyclotronSourceConfig):
       the electron density. This parameter is used when minority_species is not
       specified (legacy mode). When minority_species is set, the concentration
       is automatically extracted from plasma_composition.
-    minority_species: Optional symbol of the minority species (e.g., 'He3', 'D',
-      'T'). When specified, the minority concentration is extracted from the
-      plasma_composition instead of using minority_concentration parameter. The
-      species can be either a main ion (if hydrogenic) or an impurity (if
-      helium).
   """
 
   model_name: Annotated[Literal['toric_nn'], torax_pydantic.JAX_STATIC] = (
@@ -680,7 +571,6 @@ class ToricNNIonCyclotronSourceConfig(IonCyclotronSourceConfig):
   minority_concentration: torax_pydantic.TimeVaryingScalar | None = (
       torax_pydantic.ValidatedDefault(0.03)
   )
-  minority_species: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

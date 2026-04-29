@@ -33,8 +33,8 @@ from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.solver import pydantic_model as solver_pydantic_model
-from torax._src.sources import ion_cyclotron_source as ion_cyclotron_source_lib
 from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.sources.ion_cyclotron_source import toric_nn
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
@@ -353,7 +353,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     if (
         isinstance(
             self.sources.icrh,
-            ion_cyclotron_source_lib.ToricNNIonCyclotronSourceConfig,
+            toric_nn.ToricNNIonCyclotronSourceConfig,
         )
         and self.sources.icrh.minority_species is not None
     ):

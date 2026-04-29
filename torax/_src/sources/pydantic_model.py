@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Pydantic config for source models."""
+
 import copy
 from typing import Any
 
@@ -27,7 +28,6 @@ from torax._src.sources import gas_puff_source as gas_puff_source_lib
 from torax._src.sources import generic_current_source as generic_current_source_lib
 from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat_source_lib
 from torax._src.sources import generic_particle_source as generic_particle_source_lib
-from torax._src.sources import ion_cyclotron_source as ion_cyclotron_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import qei_source as qei_source_lib
@@ -35,6 +35,8 @@ from torax._src.sources import runtime_params
 from torax._src.sources import source_models
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
+from torax._src.sources.ion_cyclotron_source import base as icrh_base
+from torax._src.sources.ion_cyclotron_source import toric_nn
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 
@@ -91,7 +93,7 @@ class Sources(torax_pydantic.BaseModelFrozen):
       discriminator='model_name',
       default=None,
   )
-  icrh: ion_cyclotron_source_lib.ToricNNIonCyclotronSourceConfig | None = (
+  icrh: toric_nn.ToricNNIonCyclotronSourceConfig | None = (
       pydantic.Field(
           discriminator='model_name',
           default=None,
@@ -173,7 +175,7 @@ class Sources(torax_pydantic.BaseModelFrozen):
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = icrh_base.DEFAULT_MODEL_FUNCTION_NAME
         case 'ohmic':
           if 'model_name' not in v:
             constructor_data[k][

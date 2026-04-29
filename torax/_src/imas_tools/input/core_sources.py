@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Useful functions to load IMAS core_sources IDSs."""
+
 from collections.abc import Mapping, Sequence
 import dataclasses
 from typing import Any, NamedTuple, Self
@@ -26,12 +27,12 @@ from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import fusion_heat_source
 from torax._src.sources import gas_puff_source
-from torax._src.sources import ion_cyclotron_source
 from torax._src.sources import ohmic_heat_source
 from torax._src.sources import pellet_source
 from torax._src.sources import qei_source
 from torax._src.sources import source as source_module
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
+from torax._src.sources.ion_cyclotron_source import base as ion_cyclotron_source
 
 
 class _SourceMappingEntry(NamedTuple):

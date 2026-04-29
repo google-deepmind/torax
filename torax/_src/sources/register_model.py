@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utilities for registering new pydantic configs."""
+
 from torax._src.sources import base
 from torax._src.sources import bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
 from torax._src.sources import cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
@@ -21,12 +22,12 @@ from torax._src.sources import gas_puff_source as gas_puff_source_lib
 from torax._src.sources import generic_current_source as generic_current_source_lib
 from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat_source_lib
 from torax._src.sources import generic_particle_source as generic_particle_source_lib
-from torax._src.sources import ion_cyclotron_source as ion_cyclotron_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit as impurity_radiation_mavrin_fit_lib
+from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.torax_pydantic import model_config
 
 
@@ -83,8 +84,8 @@ def _validate_source_model_config(
       default_model_name = (
           impurity_radiation_mavrin_fit_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
-    case ion_cyclotron_source_lib.IonCyclotronSource.SOURCE_NAME:
-      default_model_name = ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+    case icrh_base.IonCyclotronSource.SOURCE_NAME:
+      default_model_name = icrh_base.DEFAULT_MODEL_FUNCTION_NAME
     case ohmic_heat_source_lib.OhmicHeatSource.SOURCE_NAME:
       default_model_name = ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case generic_current_source_lib.GenericCurrentSource.SOURCE_NAME:
