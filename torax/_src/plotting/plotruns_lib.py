@@ -744,19 +744,27 @@ def _add_traces_and_update_axes(
   return spatial_traces_info, timestamp_line_info
 
 
-def _build_slider(
-    fig: go.Figure,
+def _get_slider_steps(
     data1: PlotData,
     spatial_traces_info: list[dict[str, Any]],
     timestamp_line_info: list[dict[str, Any]],
-) -> None:
-  """Builds the slider for spatial plots."""
-  if not spatial_traces_info and not timestamp_line_info:
-    return
-
+    linear_time: bool = False,
+) -> list[dict[str, Any]]:
+  """Generates slider steps for spatial plots."""
   steps = []
-  # Use data1 time as the master clock
-  for t_val in data1.t:
+  # If linear_time is True, the slider ticks will be linearly spaced in time.
+  # Otherwise, the slider ticks will follow the timesteps taken by the sim.
+  # Ticks will always use data1 as the master clock.
+  if linear_time:
+    t_min = np.min(data1.t)
+    t_max = np.max(data1.t)
+    num_steps = len(data1.t)
+    t_vals = np.linspace(t_min, t_max, num_steps)
+
+  else:
+    t_vals = data1.t
+
+  for t_val in t_vals:
     y_updates = []
     x_updates = []
     trace_indices = []
@@ -781,14 +789,99 @@ def _build_slider(
         'args': [{'y': y_updates, 'x': x_updates}, trace_indices],
     }
     steps.append(step)
+  return steps
+
+
+def _build_slider(
+    fig: go.Figure,
+    data1: PlotData,
+    spatial_traces_info: list[dict[str, Any]],
+    timestamp_line_info: list[dict[str, Any]],
+    plot_config: FigureProperties,
+) -> None:
+  """Builds the slider for spatial plots."""
+  if not spatial_traces_info and not timestamp_line_info:
+    return
+
+  # Increase bottom margin to create whitespace for slider and dropdown.
+  current_margin = plot_config.margin
+  new_margin = dict(current_margin) if current_margin else {}
+  new_margin['b'] = new_margin.get('b', 50) + 100
+  fig.update_layout(margin=new_margin)
+
+  steps_timesteps = _get_slider_steps(
+      data1, spatial_traces_info, timestamp_line_info, linear_time=False
+  )
+  steps_linear_time = _get_slider_steps(
+      data1, spatial_traces_info, timestamp_line_info, linear_time=True
+  )
+
+  slider_linear_time = {
+      'active': 0,
+      'currentvalue': {'prefix': 'Time: ', 'suffix': ' s'},
+      'steps': steps_linear_time,
+      'len': 0.85,
+      'x': 0.0,
+      'y': -0.1,
+      'yanchor': 'middle',
+  }
+
+  fig.update_layout(sliders=[slider_linear_time])
 
   fig.update_layout(
-      sliders=[{
-          'active': 0,
-          'currentvalue': {'prefix': 'Time: ', 'suffix': ' s'},
-          'pad': {'t': 50},
-          'steps': steps,
-      }]
+      updatemenus=[
+          dict(
+              type='buttons',
+              direction='right',
+              active=0,
+              buttons=[
+                  dict(
+                      args=[
+                          steps_linear_time[0]['args'][0],
+                          {
+                              'sliders[0].steps': steps_linear_time,
+                              'sliders[0].active': 0,
+                          },
+                          steps_linear_time[0]['args'][1],
+                      ],
+                      label='Plasma time',
+                      method='update',
+                  ),
+                  dict(
+                      args=[
+                          steps_timesteps[0]['args'][0],
+                          {
+                              'sliders[0].steps': steps_timesteps,
+                              'sliders[0].active': 0,
+                          },
+                          steps_timesteps[0]['args'][1],
+                      ],
+                      label='Simulation steps',
+                      method='update',
+                  ),
+              ],
+              showactive=True,
+              x=0.9,
+              xanchor='left',
+              y=-0.15,
+              yanchor='middle',
+              pad={'t': 2, 'b': 2, 'l': 5, 'r': 5},
+          )
+      ]
+  )
+
+  fig.add_annotation(
+      text='Slider mode',
+      x=0.9,
+      y=-0.095,
+      xref='paper',
+      yref='paper',
+      showarrow=False,
+      xanchor='left',
+      yanchor='bottom',
+      font=dict(
+          family=plot_config.font_family, size=plot_config.subplot_title_size
+      ),
   )
 
 
@@ -832,8 +925,8 @@ def create_plotly_figure(
 
   Args:
     plot_config: Configuration for the figure layout and subplots.
-    datasets: A mapping ``{label: PlotData}`` where *label* is the string
-      that will appear in the plot legend for that dataset.
+    datasets: A mapping ``{label: PlotData}`` where *label* is the string that
+      will appear in the plot legend for that dataset.
     title: Title of the figure.
 
   Returns:
@@ -847,8 +940,10 @@ def create_plotly_figure(
 
   # Use the first dataset's time as the master clock for the slider.
   first_dataset = next(iter(datasets.values()))
-  _build_slider(fig, first_dataset, spatial_traces_info, timestamp_line_info)
   _update_global_layout(fig, plot_config, title)
+  _build_slider(
+      fig, first_dataset, spatial_traces_info, timestamp_line_info, plot_config
+  )
 
   return fig
 
