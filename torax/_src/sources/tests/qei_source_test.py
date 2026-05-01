@@ -23,15 +23,9 @@ from torax._src.torax_pydantic import model_config
 class QeiSourceTest(test_lib.SourceTestCase):
   """Tests for QeiSource."""
 
-  # pytype: disable=signature-mismatch
-  def setUp(self):
-    super().setUp(
-        source_name=qei_source.QeiSource.SOURCE_NAME,
-        source_config_class=qei_source.QeiSourceConfig,
-        needs_source_models=False,
-    )
-
-  # pytype: enable=signature-mismatch
+  source_name = qei_source.QeiSource.SOURCE_NAME
+  source_config_class = qei_source.QeiSourceConfig
+  needs_source_models = False
 
   def test_source_value(self):
     """Checks that the default implementation from Sources gives values."""

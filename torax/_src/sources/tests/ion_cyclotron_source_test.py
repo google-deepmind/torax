@@ -44,14 +44,8 @@ class _DummyConfig(icrh_base.IonCyclotronSourceConfig):
 class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
   """Tests for model-agnostic IonCyclotronSource infrastructure."""
 
-  # TODO(b/507871842): Refactor SourceTestCase to avoid pytype disabling.
-  # pytype: disable=signature-mismatch
-  def setUp(self):
-    super().setUp(
-        source_name=icrh_base.IonCyclotronSource.SOURCE_NAME,
-        source_config_class=_DummyConfig,
-    )
-  # pytype: enable=signature-mismatch
+  source_name = icrh_base.IonCyclotronSource.SOURCE_NAME
+  source_config_class = _DummyConfig
 
   def test_source_name(self):
     self.assertEqual(icrh_base.IonCyclotronSource.SOURCE_NAME, 'icrh')

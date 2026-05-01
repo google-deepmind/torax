@@ -32,12 +32,13 @@ from torax._src.torax_pydantic import torax_pydantic
 
 class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
-  def setUp(self):
-    super().setUp(
-        source_config_class=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
-        source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
-        model_name=impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME,
-    )
+  source_config_class = (
+      impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
+  )
+  source_name = (
+      impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME
+  )
+  model_name = impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME
 
   def _run_source_model(self, torax_config: model_config.ToraxConfig):
     """Helper to run the impurity radiation model for a given config."""

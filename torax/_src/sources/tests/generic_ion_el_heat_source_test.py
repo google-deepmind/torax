@@ -19,11 +19,10 @@ from torax._src.sources.tests import test_lib
 class GenericIonElectronHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   """Tests for GenericIonElectronHeatSource."""
 
-  def setUp(self):
-    super().setUp(
-        source_config_class=generic_ion_el_heat_source.GenericIonElHeatSourceConfig,
-        source_name=generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME,
-    )
+  source_config_class = generic_ion_el_heat_source.GenericIonElHeatSourceConfig
+  source_name = (
+      generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME
+  )
 
 
 if __name__ == '__main__':

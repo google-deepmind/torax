@@ -30,13 +30,14 @@ class ImpurityRadiationConstantFractionTest(
     test_lib.SingleProfileSourceTestCase
 ):
 
-  def setUp(self):
-    super().setUp(
-        source_config_class=impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
-        source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
-        model_name='P_in_scaled_flat_profile',
-        needs_source_models=True,
-    )
+  source_config_class = (
+      impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig
+  )
+  source_name = (
+      impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME
+  )
+  model_name = 'P_in_scaled_flat_profile'
+  needs_source_models = True
 
   def test_source_value(self):
     heat_name = (

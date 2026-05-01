@@ -19,11 +19,8 @@ from torax._src.sources.tests import test_lib
 class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
   """Tests for ElectronCyclotronSource."""
 
-  def setUp(self):
-    super().setUp(
-        source_config_class=electron_cyclotron_source.ElectronCyclotronSourceConfig,
-        source_name=electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
-    )
+  source_config_class = electron_cyclotron_source.ElectronCyclotronSourceConfig
+  source_name = electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME
 
 
 if __name__ == "__main__":

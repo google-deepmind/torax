@@ -26,7 +26,6 @@ import pydantic
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.physics import fast_ion as fast_ion_lib
-from torax._src.sources import base as sources_base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
@@ -50,21 +49,11 @@ _DUMMY_MODEL_PATH = "/tmp/toricnn.json"
 class ToricNNTest(test_lib.SourceTestCase):
   """Test cases for the ToricNN ICRH model."""
 
-  def setUp(
-      self,
-      source_name: str = icrh_base.IonCyclotronSource.SOURCE_NAME,
-      source_config_class: type[
-          sources_base.SourceModelBase
-      ] = ion_cyclotron_source.ToricNNIonCyclotronSourceConfig,
-      needs_source_models: bool = False,
-      model_name: str | None = None,
-  ):
-    super().setUp(
-        source_name=source_name,
-        source_config_class=source_config_class,
-        needs_source_models=needs_source_models,
-        model_name=model_name,
-    )
+  source_name = icrh_base.IonCyclotronSource.SOURCE_NAME
+  source_config_class = ion_cyclotron_source.ToricNNIonCyclotronSourceConfig
+
+  def setUp(self):
+    super().setUp()
     # pylint: disable=protected-access
     # Construct a dummy network and save parameters and model config to JSON.
     toric_nn = ion_cyclotron_source._ToricNN(

@@ -26,12 +26,9 @@ from torax._src.test_utils import torax_refs
 class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   """Tests for FusionHeatSource."""
 
-  def setUp(self):
-    super().setUp(
-        source_name=fusion_heat_source.FusionHeatSource.SOURCE_NAME,
-        source_config_class=fusion_heat_source.FusionHeatSourceConfig,
-        needs_source_models=True,
-    )
+  source_name = fusion_heat_source.FusionHeatSource.SOURCE_NAME
+  source_config_class = fusion_heat_source.FusionHeatSourceConfig
+  needs_source_models = True
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),

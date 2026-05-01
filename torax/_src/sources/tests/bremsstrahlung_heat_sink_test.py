@@ -31,11 +31,8 @@ from torax._src.test_utils import torax_refs
 class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   """Tests for BremsstrahlungHeatSink."""
 
-  def setUp(self):
-    super().setUp(
-        source_config_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSinkConfig,
-        source_name=bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
-    )
+  source_config_class = bremsstrahlung_heat_sink.BremsstrahlungHeatSinkConfig
+  source_name = bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),

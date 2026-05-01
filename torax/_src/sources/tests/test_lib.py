@@ -14,7 +14,7 @@
 
 """Utilities to help with testing sources."""
 
-from typing import Type
+from typing import ClassVar, Type
 
 from absl.testing import parameterized
 import chex
@@ -42,18 +42,17 @@ class SourceTestCase(parameterized.TestCase):
   Extend this class for source-specific tests.
   """
 
-  def setUp(
-      self,
-      source_name: str,
-      source_config_class: Type[base.SourceModelBase],
-      needs_source_models: bool = False,
-      model_name: str | None = None,
-  ):
-    self._source_name = source_name
-    self._model_name = model_name
-    self._source_config_class = source_config_class
-    self._needs_source_models = needs_source_models
+  source_name: ClassVar[str]
+  source_config_class: ClassVar[Type[base.SourceModelBase]]
+  needs_source_models: ClassVar[bool] = False
+  model_name: ClassVar[str | None] = None
+
+  def setUp(self):
     super().setUp()
+    self._source_name = self.source_name
+    self._model_name = self.model_name
+    self._source_config_class = self.source_config_class
+    self._needs_source_models = self.needs_source_models
 
   def test_build_runtime_params(self):
     source = self._source_config_class.from_dict({})

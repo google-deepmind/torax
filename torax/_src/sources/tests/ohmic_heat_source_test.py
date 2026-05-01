@@ -26,12 +26,9 @@ from torax._src.torax_pydantic import torax_pydantic
 class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for OhmicHeatSource."""
 
-  def setUp(self):
-    super().setUp(
-        source_config_class=ohmic_heat_source.OhmicHeatSourceConfig,
-        source_name=ohmic_heat_source.OhmicHeatSource.SOURCE_NAME,
-        needs_source_models=True,
-    )
+  source_config_class = ohmic_heat_source.OhmicHeatSourceConfig
+  source_name = ohmic_heat_source.OhmicHeatSource.SOURCE_NAME
+  needs_source_models = True
 
   def test_raises_error_if_calculated_source_profiles_is_none(self):
     source = ohmic_heat_source.OhmicHeatSource(

@@ -19,11 +19,8 @@ from torax._src.sources.tests import test_lib
 class SourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GenericParticleSource."""
 
-  def setUp(self):
-    super().setUp(
-        source_config_class=generic_particle_source.GenericParticleSourceConfig,
-        source_name=generic_particle_source.GenericParticleSource.SOURCE_NAME,
-    )
+  source_config_class = generic_particle_source.GenericParticleSourceConfig
+  source_name = generic_particle_source.GenericParticleSource.SOURCE_NAME
 
 
 if __name__ == '__main__':
