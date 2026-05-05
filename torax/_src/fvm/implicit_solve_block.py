@@ -19,6 +19,7 @@ See function docstring for details.
 import dataclasses
 
 import jax
+from torax._src import tridiagonal
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import fvm_conversions
@@ -29,6 +30,7 @@ from torax._src.fvm import residual_and_loss
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
+        'implicit_solver_type',
         'theta_implicit',
     ],
 )
@@ -41,6 +43,7 @@ def implicit_solve_block(
     theta_implicit: float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
+    implicit_solver_type: tridiagonal.SolverType = tridiagonal.SolverType.THOMAS,
 ) -> tuple[cell_variable.CellVariable, ...]:
   # pyformat: disable  # pyformat removes line breaks needed for readability
   """Runs one time step of an implicit solver on the equation defined by `coeffs`.
@@ -65,6 +68,8 @@ def implicit_solve_block(
       `dirichlet_mode` argument.
     convection_neumann_mode: See docstring of the `convection_terms` function,
       `neumann_mode` argument.
+    implicit_solver_type: The tridiagonal solver algorithm to use for the
+      implicit linear system solve.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
@@ -94,7 +99,7 @@ def implicit_solve_block(
   )
 
   rhs_result = rhs_matrix.matvec(x_old_array) + rhs_vec - lhs_vec
-  x_new = lhs_matrix.solve(rhs_result)
+  x_new = lhs_matrix.solve(rhs_result, solver_type=implicit_solver_type)
 
   # Create updated CellVariable instances based on state_plus_dt which has
   # updated boundary conditions and prescribed profiles.

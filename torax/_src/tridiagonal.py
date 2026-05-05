@@ -15,6 +15,7 @@
 """Tridiagonal matrix representations and operations."""
 
 import dataclasses
+import enum
 
 import jax
 from jax import numpy as jnp
@@ -23,6 +24,12 @@ import jaxtyping as jt
 from torax._src import array_typing
 from torax._src import jax_utils
 import typing_extensions
+
+
+@enum.unique
+class SolverType(enum.StrEnum):
+  DENSE = enum.auto()
+  THOMAS = enum.auto()
 
 
 @jax.tree_util.register_dataclass
@@ -187,17 +194,24 @@ class BlockTriDiagonal:
     return mat + lower_mat + upper_mat
 
   def solve(
-      self, rhs: jt.Float[array_typing.Array, 'num_blocks block_size']
+      self,
+      rhs: jt.Float[array_typing.Array, 'num_blocks block_size'],
+      solver_type: SolverType,
   ) -> jt.Float[array_typing.Array, 'num_blocks block_size']:
     """Solves A @ x = rhs.
 
     Args:
       rhs: Right-hand side, shape (num_blocks, block_size).
+      solver_type: Solver type to use for the solution.
 
     Returns:
       Solution x, shape (num_blocks, block_size).
     """
-    return dense_solve(self, rhs)
+    match solver_type:
+      case SolverType.DENSE:
+        return dense_solve(self, rhs)
+      case SolverType.THOMAS:
+        return thomas_solve(self, rhs)
 
   def matvec(
       self, x: jt.Float[array_typing.Array, 'num_blocks block_size']
@@ -234,3 +248,68 @@ def dense_solve(
   """
   x_flat = jax.scipy.linalg.solve(block_tridiag.to_dense(), rhs.flatten())
   return x_flat.reshape((block_tridiag.num_blocks, block_tridiag.block_size))
+
+
+def thomas_solve(
+    block_tridiag: BlockTriDiagonal,
+    rhs: jt.Float[array_typing.Array, 'num_blocks block_size'],
+) -> jt.Float[array_typing.Array, 'num_blocks block_size']:
+  """Solves A @ x = rhs using the Thomas algorithm.
+
+  See (https://en.wikipedia.org/wiki/Tridiagonal_matrix_algorithm) for details
+  of the scalar algorithm. It performs Gaussian elimination on the block-
+  tridiagonal matrix, accumulating the modified upper diagonal and right-hand
+  side in-place, then performs back-substitution to recover the solution.
+
+  This solves the system in O(N M^3) operations, where N is the number of blocks
+  and M is the block size, rather than O(N^3 M^3) for the dense method.
+
+  Args:
+    block_tridiag: Block tridiagonal matrix.
+    rhs: Right-hand side
+
+  Returns:
+    Solution x
+  """
+
+  def forward_step(carry, inp):
+    """Eliminates sub-diagonal blocks using forward substitution."""
+    prev_diag_inv, prev_rhs, prev_upper = carry
+    cur_lower, cur_diag, cur_upper, cur_rhs = inp
+    factor = cur_lower @ prev_diag_inv
+    new_diag = cur_diag - factor @ prev_upper
+    new_rhs = cur_rhs - factor @ prev_rhs
+    new_diag_inv = jnp.linalg.inv(new_diag)
+    # we output (new_diag_inv, new_rhs) for use in the backward pass
+    return (new_diag_inv, new_rhs, cur_upper), (new_diag_inv, new_rhs)
+
+  pad_upper = jnp.pad(block_tridiag.upper, ((0, 1), (0, 0), (0, 0)))
+
+  diag0_inv = jnp.linalg.inv(block_tridiag.diagonal[0])
+  init_carry = (diag0_inv, rhs[0], block_tridiag.upper[0])
+
+  _, (fwd_diag_invs, fwd_rhs) = jax.lax.scan(
+      forward_step,
+      init_carry,
+      (block_tridiag.lower, block_tridiag.diagonal[1:], pad_upper[1:], rhs[1:]),
+  )
+
+  all_diag_invs = jnp.concatenate([diag0_inv[None], fwd_diag_invs], axis=0)
+  all_rhs = jnp.concatenate([rhs[0:1], fwd_rhs], axis=0)
+
+  def backward_step(next_x, inp):
+    """Eliminates super-diagonal blocks using backward substitution."""
+    cur_diag_inv, cur_upper, cur_rhs = inp
+    x_i = cur_diag_inv @ (cur_rhs - cur_upper @ next_x)
+    return x_i, x_i
+
+  last_x = all_diag_invs[-1] @ all_rhs[-1]
+
+  _, x_reversed = jax.lax.scan(
+      backward_step,
+      last_x,
+      (all_diag_invs[:-1], block_tridiag.upper, all_rhs[:-1]),
+      reverse=True,
+  )
+
+  return jnp.concatenate([x_reversed, last_x[None]], axis=0)

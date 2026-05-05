@@ -19,6 +19,7 @@ from typing import Annotated, Any, Literal
 
 import pydantic
 from torax._src import models as models_lib
+from torax._src import tridiagonal
 from torax._src.fvm import enums
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
@@ -45,6 +46,8 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       `neumann_mode` argument.
     use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
       the nonlinear solver for the optional initial guess from the linear solver
+    implicit_solver_type: The tridiagonal solver algorithm to use for the
+      implicit linear system solve.
     chi_pereverzev: (deliberately) large heat conductivity for Pereverzev rule.
     D_pereverzev: (deliberately) large particle diffusion for Pereverzev rule.
   """
@@ -63,6 +66,9 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       Literal['ghost', 'semi-implicit'], torax_pydantic.JAX_STATIC
   ] = 'ghost'
   use_pereverzev: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  implicit_solver_type: Annotated[
+      tridiagonal.SolverType, torax_pydantic.JAX_STATIC
+  ] = tridiagonal.SolverType.THOMAS
   chi_pereverzev: pydantic.PositiveFloat = 30.0
   D_pereverzev: pydantic.NonNegativeFloat = 15.0
 
@@ -107,6 +113,7 @@ class LinearThetaMethod(BaseSolver):
         convection_neumann_mode=self.convection_neumann_mode,
         use_pereverzev=self.use_pereverzev,
         use_predictor_corrector=self.use_predictor_corrector,
+        implicit_solver_type=self.implicit_solver_type,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         n_corrector_steps=self.n_corrector_steps,
@@ -160,6 +167,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         convection_neumann_mode=self.convection_neumann_mode,
         use_pereverzev=self.use_pereverzev,
         use_predictor_corrector=self.use_predictor_corrector,
+        implicit_solver_type=self.implicit_solver_type,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         maxiter=self.n_max_iterations,
@@ -210,6 +218,7 @@ class OptimizerThetaMethod(BaseSolver):
         convection_neumann_mode=self.convection_neumann_mode,
         use_pereverzev=self.use_pereverzev,
         use_predictor_corrector=self.use_predictor_corrector,
+        implicit_solver_type=self.implicit_solver_type,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         n_max_iterations=self.n_max_iterations,

@@ -15,6 +15,7 @@
 import dataclasses
 
 import jax
+from torax._src import tridiagonal
 
 
 @jax.tree_util.register_dataclass
@@ -27,5 +28,8 @@ class RuntimeParams:
   convection_dirichlet_mode: str = dataclasses.field(metadata={'static': True})
   convection_neumann_mode: str = dataclasses.field(metadata={'static': True})
   use_pereverzev: bool = dataclasses.field(metadata={'static': True})
+  implicit_solver_type: tridiagonal.SolverType = dataclasses.field(
+      metadata={'static': True}
+  )
   chi_pereverzev: float
   D_pereverzev: float  # pylint: disable=invalid-name

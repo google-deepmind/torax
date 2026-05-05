@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from absl.testing import absltest
+from absl.testing import parameterized
+import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import tridiagonal
@@ -71,7 +73,7 @@ class TridiagonalTest(absltest.TestCase):
     np.testing.assert_allclose(result, expected)
 
 
-class BlockTriDiagonalTest(absltest.TestCase):
+class BlockTriDiagonalTest(parameterized.TestCase):
 
   def _make_block_tridiag(
       self, num_blocks: int, block_size: int
@@ -276,23 +278,31 @@ class BlockTriDiagonalTest(absltest.TestCase):
 
     np.testing.assert_allclose(result, expected)
 
-  def test_solve(self):
+  @parameterized.parameters(
+      tridiagonal.SolverType.THOMAS,
+      tridiagonal.SolverType.DENSE,
+  )
+  def test_solve(self, solver_type):
     bt = self._make_nonsingular_block_tridiag(num_blocks=4, block_size=3)
     rng = np.random.RandomState(123)
     x_true = jnp.array(rng.randn(4, 3), dtype=jnp.float64)
     rhs = bt.matvec(x_true)
 
-    x_solved = bt.solve(rhs)
+    x_solved = bt.solve(rhs, solver_type=solver_type)
 
     np.testing.assert_allclose(x_solved, x_true, atol=1e-10)
 
-  def test_solve_recovers_rhs(self):
+  @parameterized.parameters(
+      tridiagonal.SolverType.THOMAS,
+      tridiagonal.SolverType.DENSE,
+  )
+  def test_solve_recovers_rhs(self, solver_type):
     """Verify A @ solve(A, b) = b."""
     bt = self._make_nonsingular_block_tridiag(num_blocks=3, block_size=2)
     rng = np.random.RandomState(55)
     rhs = jnp.array(rng.randn(3, 2), dtype=jnp.float64)
 
-    x = bt.solve(rhs)
+    x = bt.solve(rhs, solver_type=solver_type)
     reconstructed_rhs = bt.matvec(x)
 
     np.testing.assert_allclose(reconstructed_rhs, rhs, atol=1e-10)
@@ -343,6 +353,175 @@ class BlockTriDiagonalTest(absltest.TestCase):
         expected_full = expected_full.at[2 * r + 1, 2 * c + 1].set(d1[r, c])
 
     np.testing.assert_allclose(dense, expected_full)
+
+
+class ThomasSolveTest(absltest.TestCase):
+  """Tests specifically targeting the Thomas algorithm for block-tridiagonal."""
+
+  def _make_nonsingular_block_tridiag(
+      self, num_blocks: int, block_size: int, seed: int = 0
+  ) -> tridiagonal.BlockTriDiagonal:
+    """Helper to create a diagonally-dominant BlockTriDiagonal."""
+    rng = np.random.RandomState(seed)
+    lower = jnp.array(
+        rng.randn(num_blocks - 1, block_size, block_size), dtype=jnp.float64
+    )
+    upper = jnp.array(
+        rng.randn(num_blocks - 1, block_size, block_size), dtype=jnp.float64
+    )
+    diag_blocks = jnp.array(
+        rng.randn(num_blocks, block_size, block_size), dtype=jnp.float64
+    )
+    diag_blocks = diag_blocks + 10.0 * jnp.eye(block_size, dtype=jnp.float64)
+    return tridiagonal.BlockTriDiagonal(
+        lower=lower, diagonal=diag_blocks, upper=upper
+    )
+
+  def test_thomas_matches_dense_solve(self):
+    """Thomas and dense solvers should produce the same result."""
+    bt = self._make_nonsingular_block_tridiag(num_blocks=5, block_size=3)
+    rng = np.random.RandomState(42)
+    rhs = jnp.array(rng.randn(5, 3), dtype=jnp.float64)
+
+    x_thomas = tridiagonal.thomas_solve(bt, rhs)
+    x_dense = tridiagonal.dense_solve(bt, rhs)
+
+    np.testing.assert_allclose(x_thomas, x_dense, atol=1e-10)
+
+  def test_thomas_small_known_system(self):
+    """Thomas algorithm on a small 2-block system with known answer."""
+    # 2x2 block system: [[D0, U0], [L0, D1]] @ x = rhs
+    # D0 = [[10, 0], [0, 10]], U0 = [[1, 0], [0, 1]]
+    # L0 = [[1, 0], [0, 1]], D1 = [[10, 0], [0, 10]]
+    # This is close to identity so the answer is close to rhs/10.
+    diag = jnp.array(
+        [[[10.0, 0.0], [0.0, 10.0]], [[10.0, 0.0], [0.0, 10.0]]],
+        dtype=jnp.float64,
+    )
+    upper = jnp.array([[[1.0, 0.0], [0.0, 1.0]]], dtype=jnp.float64)
+    lower = jnp.array([[[1.0, 0.0], [0.0, 1.0]]], dtype=jnp.float64)
+    bt = tridiagonal.BlockTriDiagonal(lower=lower, diagonal=diag, upper=upper)
+
+    x_true = jnp.array([[1.0, 2.0], [3.0, 4.0]], dtype=jnp.float64)
+    rhs = bt.matvec(x_true)
+
+    x_solved = tridiagonal.thomas_solve(bt, rhs)
+
+    np.testing.assert_allclose(x_solved, x_true, atol=1e-12)
+
+  def test_thomas_identity_blocks(self):
+    """Solving with block-identity should return the RHS itself."""
+    num_blocks = 4
+    block_size = 2
+    bt = tridiagonal.BlockTriDiagonal(
+        lower=jnp.zeros(
+            (num_blocks - 1, block_size, block_size), dtype=jnp.float64
+        ),
+        diagonal=jnp.tile(
+            jnp.eye(block_size, dtype=jnp.float64), (num_blocks, 1, 1)
+        ),
+        upper=jnp.zeros(
+            (num_blocks - 1, block_size, block_size), dtype=jnp.float64
+        ),
+    )
+    rng = np.random.RandomState(11)
+    rhs = jnp.array(rng.randn(num_blocks, block_size), dtype=jnp.float64)
+
+    x = tridiagonal.thomas_solve(bt, rhs)
+
+    np.testing.assert_allclose(x, rhs, atol=1e-14)
+
+  def test_thomas_scalar_blocks(self):
+    """Thomas algorithm with block_size=1 should match scalar tridiagonal."""
+    bt = self._make_nonsingular_block_tridiag(
+        num_blocks=6, block_size=1, seed=7
+    )
+    rng = np.random.RandomState(13)
+    rhs = jnp.array(rng.randn(6, 1), dtype=jnp.float64)
+
+    x = tridiagonal.thomas_solve(bt, rhs)
+
+    np.testing.assert_allclose(bt.matvec(x), rhs, atol=1e-12)
+
+  def test_thomas_two_blocks(self):
+    """Minimal multi-block case: 2 blocks."""
+    bt = self._make_nonsingular_block_tridiag(
+        num_blocks=2, block_size=2, seed=99
+    )
+    rng = np.random.RandomState(17)
+    x_true = jnp.array(rng.randn(2, 2), dtype=jnp.float64)
+    rhs = bt.matvec(x_true)
+
+    x_solved = tridiagonal.thomas_solve(bt, rhs)
+
+    np.testing.assert_allclose(x_solved, x_true, atol=1e-10)
+
+  def test_thomas_large_system(self):
+    """Thomas should handle larger systems accurately."""
+    bt = self._make_nonsingular_block_tridiag(
+        num_blocks=50, block_size=4, seed=22
+    )
+    rng = np.random.RandomState(33)
+    x_true = jnp.array(rng.randn(50, 4), dtype=jnp.float64)
+    rhs = bt.matvec(x_true)
+
+    x_solved = tridiagonal.thomas_solve(bt, rhs)
+
+    np.testing.assert_allclose(x_solved, x_true, atol=1e-8)
+
+  def test_solver_type_dispatch_thomas(self):
+    """solve() with SolverType.THOMAS should use thomas_solve."""
+    bt = self._make_nonsingular_block_tridiag(num_blocks=3, block_size=2)
+    rng = np.random.RandomState(44)
+    rhs = jnp.array(rng.randn(3, 2), dtype=jnp.float64)
+
+    x_via_type = bt.solve(rhs, solver_type=tridiagonal.SolverType.THOMAS)
+    x_direct = tridiagonal.thomas_solve(bt, rhs)
+
+    np.testing.assert_allclose(x_via_type, x_direct, atol=1e-14)
+
+  def test_solver_type_dispatch_dense(self):
+    """solve() with SolverType.DENSE should use dense_solve."""
+    bt = self._make_nonsingular_block_tridiag(num_blocks=3, block_size=2)
+    rng = np.random.RandomState(44)
+    rhs = jnp.array(rng.randn(3, 2), dtype=jnp.float64)
+
+    x_via_type = bt.solve(rhs, solver_type=tridiagonal.SolverType.DENSE)
+    x_direct = tridiagonal.dense_solve(bt, rhs)
+
+    np.testing.assert_allclose(x_via_type, x_direct, atol=1e-14)
+
+  def test_thomas_jit_compatible(self):
+    """thomas_solve should work under jax.jit."""
+    bt = self._make_nonsingular_block_tridiag(num_blocks=4, block_size=2)
+    rng = np.random.RandomState(66)
+    x_true = jnp.array(rng.randn(4, 2), dtype=jnp.float64)
+    rhs = bt.matvec(x_true)
+
+    jitted_solve = jax.jit(tridiagonal.thomas_solve)
+    x_solved = jitted_solve(bt, rhs)
+
+    np.testing.assert_allclose(x_solved, x_true, atol=1e-10)
+
+  def test_thomas_from_tridiagonals(self):
+    """Thomas solve on a block system built from per-channel scalar tridiagonals."""
+    ch0 = tridiagonal.TriDiagonal(
+        diagonal=jnp.array([10.0, 12.0, 14.0], dtype=jnp.float64),
+        above=jnp.array([1.0, 3.0], dtype=jnp.float64),
+        below=jnp.array([5.0, 7.0], dtype=jnp.float64),
+    )
+    ch1 = tridiagonal.TriDiagonal(
+        diagonal=jnp.array([11.0, 13.0, 15.0], dtype=jnp.float64),
+        above=jnp.array([2.0, 4.0], dtype=jnp.float64),
+        below=jnp.array([6.0, 8.0], dtype=jnp.float64),
+    )
+    bt = tridiagonal.BlockTriDiagonal.from_tridiagonals([ch0, ch1])
+    rng = np.random.RandomState(77)
+    rhs = jnp.array(rng.randn(3, 2), dtype=jnp.float64)
+
+    x = tridiagonal.thomas_solve(bt, rhs)
+
+    np.testing.assert_allclose(bt.matvec(x), rhs, atol=1e-12)
 
 
 if __name__ == '__main__':

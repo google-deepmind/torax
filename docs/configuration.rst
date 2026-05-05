@@ -2237,6 +2237,21 @@ specific solver are defined in the relevant section below.
 ``D_pereverzev`` (float [default = 15.0])
   Large particle diffusion used for the Pereverzev-Corrigan term.
 
+``implicit_solver_type`` (str [default = 'THOMAS'])
+  Selects the algorithm used to solve the block-tridiagonal linear system that
+  arises at each implicit time step. The available options are:
+
+* ``'THOMAS'``
+    The Thomas algorithm (block LU factorization), which solves the system in
+    linear complexity in the number of grid cells by exploiting the tridiagonal
+    sparsity structure. This is the recommended default for most simulations.
+
+* ``'DENSE'``
+    Converts the block-tridiagonal system to a dense matrix and solves it with a
+    general-purpose linear solver. This is primarily useful for debugging,
+    validation or small systems, as it does not exploit sparsity and scales
+    as cubicly with the number of grid cells.
+
 linear
 ^^^^^^
 
