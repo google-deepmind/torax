@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """JAX root finding functions."""
+
 import dataclasses
 import functools
 from typing import Callable, Final
@@ -21,6 +22,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import jax_utils
+from torax._src.solver import linesearch
 
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
@@ -123,9 +125,7 @@ def root_newton_raphson(
 
   if use_jax_custom_root:
     if custom_jac is not None:
-      raise ValueError(
-          'custom_jac is not compatible with use_jax_custom_root.'
-      )
+      raise ValueError('custom_jac is not compatible with use_jax_custom_root.')
     x_out, metadata = jax.lax.custom_root(
         f=fun,
         initial_guess=x0,
@@ -199,109 +199,44 @@ def _body(
   dtype = input_state['x'].dtype
   a_mat = jacobian_fun(input_state['x'])
   rhs = -input_state['residual']
-  # delta = x_new - x_old
-  # tau = delta/delta0, where delta0 is the delta that sets the linearized
-  # residual to zero. tau < 1 when needed such that x_new meets
-  # conditions of reduced residual and valid state quantities.
-  # If tau < taumin while residual > tol, then the routine exits with an
-  # error flag, leading to either a warning or recalculation at lower dt
-  initial_delta_state = {
-      'x': input_state['x'],
-      'delta': jnp.linalg.solve(a_mat, rhs),
-      'residual_old': input_state['residual'],
-      'residual_new': input_state['residual'],
-      'tau': jnp.array(1.0, dtype=dtype),
-  }
-  output_delta_state = _compute_output_delta_state(
-      initial_delta_state, residual_fun, delta_reduction_factor
+
+  direction = jnp.linalg.solve(a_mat, rhs)
+
+  def norm_fn(res):
+    return jnp.mean(jnp.abs(res))
+
+  init_norm = norm_fn(input_state['residual'])
+
+  def accept_fn(step_size, trial_norm):
+    del step_size  # Unused
+    return (trial_norm <= init_norm) & (~jnp.isnan(trial_norm))
+
+  ls_state = linesearch.backtracking_linesearch(
+      residual_fn=residual_fun,
+      x_init=input_state['x'],
+      direction=direction,
+      accept_fn=accept_fn,
+      norm_fn=norm_fn,
+      initial_residual=input_state['residual'],
+      initial_residual_norm=init_norm,
+      delta_reduction_factor=delta_reduction_factor,
+      max_steps=100,
+      min_step_norm=MIN_DELTA,
   )
 
   output_state = {
-      'x': input_state['x'] + output_delta_state['delta'],
-      'residual': output_delta_state['residual_new'],
+      'x': ls_state.x,
+      'residual': ls_state.residual,
       'iterations': jnp.array(input_state['iterations'][...], dtype=dtype) + 1,
-      'last_tau': output_delta_state['tau'],
+      'last_tau': ls_state.step_size,
   }
+
   if log_iterations:
     jax.debug.print(
         'Iteration: {iteration:d}. Residual: {residual:.16f}. tau = {tau:.6f}',
         iteration=output_state['iterations'].astype(jax_utils.get_int_dtype()),
         residual=_residual_scalar(output_state['residual']),
-        tau=output_delta_state['tau'],
+        tau=ls_state.step_size,
     )
 
   return output_state
-
-
-def _compute_output_delta_state(
-    initial_state: dict[str, jax.Array],
-    residual_fun: Callable[[jax.Array], jax.Array],
-    delta_reduction_factor: float,
-):
-  """Updates output delta state."""
-  delta_body_fun = functools.partial(
-      _delta_body,
-      delta_reduction_factor=delta_reduction_factor,
-  )
-  delta_cond_fun = functools.partial(
-      _delta_cond,
-      residual_fun=residual_fun,
-  )
-  output_delta_state = jax.lax.while_loop(
-      delta_cond_fun, delta_body_fun, initial_state
-  )
-
-  x_new = output_delta_state['x'] + output_delta_state['delta']
-  residual_vec_x_new = residual_fun(x_new)
-  output_delta_state |= dict(
-      residual_new=residual_vec_x_new,
-  )
-  return output_delta_state
-
-
-def _delta_cond(
-    delta_state: dict[str, jax.Array],
-    residual_fun: Callable[[jax.Array], jax.Array],
-) -> bool:
-  """Check if delta obtained from Newton step is valid.
-
-  Args:
-    delta_state: see `delta_body`.
-    residual_fun: Residual function.
-
-  Returns:
-    True if the new value of `x` causes any NaNs or has increased the residual
-    relative to the old value of `x`.
-  """
-  x_old = delta_state['x']
-  x_new = x_old + delta_state['delta']
-  residual_vec_x_old = delta_state['residual_old']
-  residual_scalar_x_old = _residual_scalar(residual_vec_x_old)
-  # Avoid sanity checking inside residual, since we directly
-  # afterwards check sanity on the output (NaN checking)
-  # TODO(b/312453092) consider instead sanity-checking x_new
-  with jax_utils.enable_errors(False):
-    residual_vec_x_new = residual_fun(x_new)
-    residual_scalar_x_new = _residual_scalar(residual_vec_x_new)
-    delta_state['residual_new'] = residual_vec_x_new
-  return jnp.bool_(
-      jnp.logical_and(
-          jnp.max(jnp.abs(delta_state['delta'])) > MIN_DELTA,
-          jnp.logical_or(
-              residual_scalar_x_old < residual_scalar_x_new,
-              jnp.isnan(residual_scalar_x_new),
-          ),
-      ),
-  )
-
-
-def _delta_body(
-    input_delta_state: dict[str, jax.Array],
-    delta_reduction_factor: float,
-) -> dict[str, jax.Array]:
-  """Reduces step size for this Newton iteration."""
-  return input_delta_state | dict(
-      delta=input_delta_state['delta'] * delta_reduction_factor,
-      tau=jnp.array(input_delta_state['tau'][...], dtype=jax_utils.get_dtype())
-      * delta_reduction_factor,
-  )
