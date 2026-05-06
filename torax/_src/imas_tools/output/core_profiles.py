@@ -26,6 +26,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.imas_tools.input import loader
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles
@@ -103,6 +104,7 @@ def _fill_metadata(ids: ids_toplevel.IDSToplevel):
   )
   ids.ids_properties.homogeneous_time = 1
   ids.ids_properties.creation_date = datetime.date.today().isoformat()
+  ids.ids_properties.version_put.data_dictionary = loader._TORAX_IMAS_DD_VERSION
   ids.code.name = 'TORAX'
   ids.code.description = (
       'TORAX is a differentiable tokamak core transport simulator aimed for'
@@ -345,13 +347,7 @@ def _fill_main_ions(
 ) -> None:
   """Fills main ion quantities for the IDS."""
   ion_properties = constants.ION_PROPERTIES_DICT[symbol]
-  # TODO(b/459479939): i/539) - Indicate supported dd_versions and switch on
-  # that instead of using a try-except.
-  try:
-    ids.profiles_1d[i].ion[ion].name = symbol
-  except AttributeError:
-    # Case ids is plasma_profiles in early DDv4 releases.
-    ids.profiles_1d[i].ion[ion].label = symbol
+  ids.profiles_1d[i].ion[ion].name = symbol
   ids.profiles_1d[i].ion[ion].temperature = T_i
   ids.profiles_1d[i].ion[ion].density = n_i * frac
   ids.profiles_1d[i].ion[ion].density_thermal = n_i * frac
@@ -393,13 +389,7 @@ def _fill_impurities(
   index = num_of_main_ions + ion
   ion_properties = constants.ION_PROPERTIES_DICT[symbol]
   # TODO(b/459479939): i/1814) - Map ion.z_ion_1d
-  # TODO(b/459479939): i/539) - Indicate supported dd_versions and switch on
-  # that instead of using a try-except.
-  try:
-    ids.profiles_1d[i].ion[index].name = symbol
-  except AttributeError:
-    # Case ids is plasma_profiles in early DDv4 releases.
-    ids.profiles_1d[i].ion[index].label = symbol
+  ids.profiles_1d[i].ion[index].name = symbol
   ids.profiles_1d[i].ion[index].temperature = T_i
   # TODO(b/459479939): i/1814) - Map density from computed frac
   ids.profiles_1d[i].ion[index].density_fast = np.zeros(
