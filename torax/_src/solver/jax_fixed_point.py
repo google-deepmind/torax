@@ -16,8 +16,11 @@
 
 from typing import Any, Callable, Literal, TypeAlias
 import jax
+import jax.flatten_util
 import jax.numpy as jnp
 from torax._src import jax_utils
+from torax._src.solver import anderson
+from torax._src.solver import linesearch
 
 PyTree: TypeAlias = Any
 
@@ -28,9 +31,15 @@ def fixed_point(
     args: tuple[PyTree, ...] = (),
     xtol: float | None = 1e-08,
     maxiter: int = 500,
-    method: Literal['del2', 'iteration'] = 'del2',
+    method: Literal['del2', 'iteration', 'anderson'] = 'del2',
+    atol: float | None = None,
+    rtol: float | None = None,
+    use_backtracking: bool = True,
+    delta_reduction_factor: float = 0.5,
+    max_backtrack_steps: int = 10,
+    anderson_settings: anderson.AndersonSettings | None = None,
 ) -> PyTree:
-  """A JAX version of `scipy.optimize.fixed_point`.
+  """A JAX version of `scipy.optimize.fixed_point` with backtracking linesearch.
 
   Unlike `scipy.optimize.fixed_point`, this function will not raise a
   `RuntimeError` if convergence is not reached.
@@ -44,21 +53,44 @@ def fixed_point(
       tolerance is used and `maxiter` iterations will be performed.
     maxiter: The maximum number of iterations to perform.
     method: The method to use. 'del2' (the default) uses Steffensen’s Method
-      with Aitken’s Del^2 convergence acceleration, taken from Burden, Faires,
-      “Numerical Analysis”, 5th edition, pg. 80. 'iteration' just iterates the
-      function until the tolerance is reached.
+      with Aitken’s Del^2 convergence acceleration. 'iteration' just iterates
+      the function until the tolerance is reached. 'anderson' uses Anderson
+      acceleration with safeguarding.
+    atol: Absolute tolerance on the residual norm.
+    rtol: Relative tolerance on the residual norm.
+    use_backtracking: If true, use backtracking linesearch in 'iteration' method
+      or as fallback in 'anderson' method.
+    delta_reduction_factor: Factor by which step_size is reduced each step.
+    max_backtrack_steps: Maximum number of backtracking steps.
+    anderson_settings: Settings for Anderson acceleration. Only used if method
+      is 'anderson'.
 
   Returns:
     The fixed point `jax.Array`.
   """
-  if method not in ['del2', 'iteration']:
+  if method not in ['del2', 'iteration', 'anderson']:
     raise ValueError(f'Invalid method: {method}')
   if maxiter <= 0:
     raise ValueError(f'Invalid maxiter: {maxiter} must be positive.')
 
-  def body(x):
-    x, count, _ = x
+  def residual_fn(x):
+    return jax.tree.map(lambda a, b: a - b, func(x, *args), x)
+
+  def norm_fn(res):
+    return jnp.sqrt(sum(jnp.sum(leaf**2) for leaf in jax.tree.leaves(res)))
+
+  def residual_norm(x):
+    return norm_fn(residual_fn(x))
+
+  if rtol is not None:
+    initial_residual_norm = residual_norm(x0)
+  else:
+    initial_residual_norm = jnp.array(0.0)
+
+  def body(x_state):
+    x, count, _, history = x_state
     out1 = func(x, *args)
+
     if method == 'del2':
       out2 = func(out1, *args)
 
@@ -68,11 +100,113 @@ def fixed_point(
         return jax.lax.select(d != 0, out3, p2)
 
       out = jax.tree.map(_del2, x, out1, out2)
-    else:
-      out = out1
+      new_history = history
+    elif method == 'iteration':
+      if use_backtracking:
+        direction = jax.tree.map(lambda a, b: a - b, out1, x)
 
-    if xtol:
+        init_res = direction
+        init_norm = norm_fn(init_res)
 
+        decrease = 1e-4
+        current_norm_sq = init_norm**2
+
+        def accept_fn(step_size, trial_norm):
+          target = (1.0 - 2.0 * decrease * step_size) * current_norm_sq
+          return (trial_norm**2) <= target
+
+        ls_state = linesearch.backtracking_linesearch(
+            residual_fn=residual_fn,
+            x_init=x,
+            direction=direction,
+            accept_fn=accept_fn,
+            norm_fn=norm_fn,
+            initial_residual=init_res,
+            initial_residual_norm=init_norm,
+            delta_reduction_factor=delta_reduction_factor,
+            max_steps=max_backtrack_steps,
+        )
+        out = ls_state.x
+      else:
+        out = out1
+      new_history = history
+    elif method == 'anderson':
+      # out1 is func(x, *args) = G(x)
+      # residual is G(x) - x
+      res = jax.tree.map(lambda a, b: a - b, out1, x)
+
+      flat_x, unflatten = jax.flatten_util.ravel_pytree(x)
+      flat_res, _ = jax.flatten_util.ravel_pytree(res)
+
+      current_norm = norm_fn(res)
+
+      def residual_fn_flat(flat_candidate):
+        cand = unflatten(flat_candidate)
+        cand_out = func(cand, *args)
+        cand_res = jax.tree.map(lambda a, b: a - b, cand_out, cand)
+        flat_cand_res, _ = jax.flatten_util.ravel_pytree(cand_res)
+        return flat_cand_res
+
+      aa_res = anderson.try_step(
+          x=flat_x,
+          picard_step=flat_res,
+          residual_fn=residual_fn_flat,
+          current_residual_norm=current_norm,
+          current_history=history,
+          settings=anderson_settings,
+      )
+
+      def accept_aa():
+        return unflatten(aa_res.candidate), jnp.array(True)
+
+      def reject_aa():
+        if use_backtracking:
+          direction = res
+          init_res = direction
+          init_norm = current_norm
+          decrease = 1e-4
+          current_norm_sq = init_norm**2
+
+          def ls_accept_fn(step_size, trial_norm):
+            target = (1.0 - 2.0 * decrease * step_size) * current_norm_sq
+            return (trial_norm**2) <= target
+
+          ls_state = linesearch.backtracking_linesearch(
+              residual_fn=residual_fn,
+              x_init=x,
+              direction=direction,
+              accept_fn=ls_accept_fn,
+              norm_fn=norm_fn,
+              initial_residual=init_res,
+              initial_residual_norm=init_norm,
+              delta_reduction_factor=delta_reduction_factor,
+              max_steps=max_backtrack_steps,
+          )
+          return ls_state.x, jnp.array(False)
+        else:
+          return out1, jnp.array(False)
+
+      out, accepted = jax.lax.cond(
+          aa_res.accepted,
+          lambda _: accept_aa(),
+          lambda _: reject_aa(),
+          operand=None,
+      )
+
+      new_history = history.update(
+          accepted,
+          flat_x,
+          flat_res,
+          anderson_settings,
+      )
+
+    if atol is not None or rtol is not None:
+      # Terminate based on residual norm.
+      res_norm = residual_norm(out)
+      combined_tol = atol + rtol * initial_residual_norm
+      stop = res_norm <= combined_tol
+    elif xtol:
+      # Terminate based on relative error.
       def _relative_error(actual, expected):
         relative_error = (actual - expected) / expected
         relerr = jax.lax.select(x != 0, relative_error, actual)
@@ -83,17 +217,29 @@ def fixed_point(
     else:
       stop = jnp.array(False, dtype=jnp.bool_)
     count += 1
-    return out, count, stop
+    return out, count, stop, new_history
 
-  def cond(x):
-    _, count, stop = x
+  def cond(x_state):
+    _, count, stop, _ = x_state
     return jnp.logical_not(stop) & (count < maxiter)
 
   count = jnp.array(0, dtype=jax_utils.get_int_dtype())
   stop = jnp.array(False, dtype=jnp.bool_)
-  x_init = (x0, count, stop)
 
-  if xtol is None:
+  if method == 'anderson':
+    if anderson_settings is None:
+      anderson_settings = anderson.AndersonSettings()
+    flat_x0, _ = jax.flatten_util.ravel_pytree(x0)
+    n = flat_x0.shape[0]
+    history = anderson.AndersonHistory.create(
+        n, anderson_settings.window_size, dtype=flat_x0.dtype
+    )
+  else:
+    history = anderson.AndersonHistory.create(1, 1, dtype=jnp.float32)  # dummy
+
+  x_init = (x0, count, stop, history)
+
+  if xtol is None and atol is None and rtol is None:
     return jax.lax.fori_loop(0, maxiter, lambda i, val: body(val), x_init)[0]
   else:
     return jax.lax.while_loop(cond, body, x_init)[0]

@@ -13,9 +13,11 @@
 # limitations under the License.
 
 """Pydantic config for Solver."""
+
 import abc
 import functools
 from typing import Annotated, Any, Literal
+import warnings
 
 import pydantic
 from torax._src import models as models_lib
@@ -50,6 +52,10 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       implicit linear system solve.
     chi_pereverzev: (deliberately) large heat conductivity for Pereverzev rule.
     D_pereverzev: (deliberately) large particle diffusion for Pereverzev rule.
+    predictor_corrector_atol: Absolute tolerance on the residual norm for the
+      predictor-corrector method.
+    predictor_corrector_rtol: Relative tolerance on the residual norm for the
+      predictor-corrector method.
   """
 
   theta_implicit: Annotated[
@@ -71,6 +77,10 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   ] = tridiagonal.SolverType.THOMAS
   chi_pereverzev: pydantic.PositiveFloat = 30.0
   D_pereverzev: pydantic.NonNegativeFloat = 15.0
+  predictor_corrector_atol: float | None = None
+  predictor_corrector_rtol: float | None = None
+  use_backtracking: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  delta_reduction_factor: float = 0.5
 
   @property
   @abc.abstractmethod
@@ -117,6 +127,10 @@ class LinearThetaMethod(BaseSolver):
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         n_corrector_steps=self.n_corrector_steps,
+        predictor_corrector_atol=self.predictor_corrector_atol,
+        predictor_corrector_rtol=self.predictor_corrector_rtol,
+        use_backtracking=self.use_backtracking,
+        delta_reduction_factor=self.delta_reduction_factor,
     )
 
   def build_solver(
@@ -157,6 +171,18 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   delta_reduction_factor: float = 0.5
   tau_min: float = 0.01
 
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def enforce_backtracking(cls, data: Any) -> Any:
+    if isinstance(data, dict) and 'use_backtracking' in data:
+      if not data['use_backtracking']:
+        warnings.warn(
+            'use_backtracking is always True for Newton-Raphson solver. '
+            'Ignoring user setting of False.'
+        )
+        data['use_backtracking'] = True
+    return data
+
   @functools.cached_property
   def build_runtime_params(
       self,
@@ -178,6 +204,9 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         tau_min=self.tau_min,
         initial_guess_mode=self.initial_guess_mode.value,
         log_iterations=self.log_iterations,
+        predictor_corrector_atol=self.predictor_corrector_atol,
+        predictor_corrector_rtol=self.predictor_corrector_rtol,
+        use_backtracking=self.use_backtracking,
     )
 
   def build_solver(
@@ -225,6 +254,10 @@ class OptimizerThetaMethod(BaseSolver):
         loss_tol=self.loss_tol,
         n_corrector_steps=self.n_corrector_steps,
         initial_guess_mode=self.initial_guess_mode.value,
+        predictor_corrector_atol=self.predictor_corrector_atol,
+        predictor_corrector_rtol=self.predictor_corrector_rtol,
+        use_backtracking=self.use_backtracking,
+        delta_reduction_factor=self.delta_reduction_factor,
     )
 
   def build_solver(
