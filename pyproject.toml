@@ -43,6 +43,7 @@ dependencies = [
     "tqdm>=4.67.0",
     "treelib>=1.3.2",
     "imas-python==2.1.0",
+    "imas-data-dictionary==4.0.0",
     "typeguard==2.13.3",
     "plotly>=6.0.0",
 ]
