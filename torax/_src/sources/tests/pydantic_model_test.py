@@ -304,12 +304,20 @@ class PydanticModelTest(parameterized.TestCase):
           updated_value=2e22,
       ),
       dict(
-          testcase_name='icrh',
+          testcase_name='icrh_toric_nn',
           source_name='icrh',
           model_name='toric_nn',
           field_to_update='wall_inner',
           initial_value=1.24,
           updated_value=1.25,
+      ),
+      dict(
+          testcase_name='icrh_scaled_profile',
+          source_name='icrh',
+          model_name='scaled_profile',
+          field_to_update='reference_B0',
+          initial_value=12.2,
+          updated_value=8.71,
       ),
       dict(
           testcase_name='impurity_radiation_mavrin_fit',

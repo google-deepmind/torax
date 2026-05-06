@@ -36,6 +36,7 @@ from torax._src.sources import source_models
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
+from torax._src.sources.ion_cyclotron_source import scaled_profile
 from torax._src.sources.ion_cyclotron_source import toric_nn
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
@@ -93,7 +94,11 @@ class Sources(torax_pydantic.BaseModelFrozen):
       discriminator='model_name',
       default=None,
   )
-  icrh: toric_nn.ToricNNIonCyclotronSourceConfig | None = (
+  icrh: (
+      toric_nn.ToricNNIonCyclotronSourceConfig
+      | scaled_profile.ScaledProfileIonCyclotronSourceConfig
+      | None
+  ) = (
       pydantic.Field(
           discriminator='model_name',
           default=None,

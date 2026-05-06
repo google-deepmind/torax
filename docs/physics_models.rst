@@ -712,7 +712,17 @@ The following models are available:
 Ion Cyclotron Resonance Heating
 -------------------------------
 
-Presently this source is implemented for a SPARC specific ICRH scenario.
+TORAX supports ICRH through two models, selectable via the ``model_name``
+discriminator in the ``icrh`` source configuration.
+
+**Common parameters** shared by all ICRH models are the total injected power
+:math:`P_\mathrm{total}` and the absorption fraction :math:`\alpha`. The
+absorbed power is :math:`P_\mathrm{abs} = P_\mathrm{total} \times \alpha`.
+
+ToricNN Surrogate (``toric_nn``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is the default ICRH model, currently specific to the SPARC tokamak.
 
 A core Ion Cyclotron Range of Frequencies (ICRF) heating surrogate model trained
 on TORIC ICRH spectrum solver simulations is used to provide power profiles for
@@ -727,6 +737,42 @@ parameterized model of Mikkelsen, as for Fusion Power.
 
 It is assumed that all tritium heating goes to ions and all electron heating
 goes to electrons.
+
+Scaled Profile (``scaled_profile``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A lightweight model that takes user-prescribed reference heating profiles
+and adapts them to different magnetic field operating points using a
+physically-motivated radial shift.
+
+The model performs two operations:
+
+1. **Resonance shift:** The ICRH resonance occurs where
+   :math:`\omega = n \omega_{ci}(R)`, and since the vacuum toroidal field scales
+   as :math:`B_t \propto 1/R`, the resonance radius scales linearly with
+   the on-axis field: :math:`R_\mathrm{res} \propto B_0`. When the actual
+   :math:`B_0` differs from the reference field :math:`B_{0,\mathrm{ref}}`, the
+   heating profile shifts in normalised radius space.
+
+   For each grid point, the shifted outboard midplane radius is:
+
+   .. math::
+
+     R'_\mathrm{out}(\rho) = R_\mathrm{out}(\rho) \cdot \frac{B_0}{B_{0,\mathrm{ref}}}
+
+   where :math:`R_\mathrm{out}(\rho) = R_\mathrm{major} + r(\rho)` is the
+   outboard midplane radius, which is monotonically increasing with
+   :math:`\rho`. The reference profiles are then evaluated at the :math:`\rho`
+   coordinate that corresponds to :math:`R'_\mathrm{out}` on the original
+   :math:`R_\mathrm{out}(\rho)` mapping.
+
+2. **Power normalisation:** The shifted ion and electron heating profiles are
+   rescaled so that the volume-integrated total heating equals
+   :math:`P_\mathrm{total} \times \alpha`.
+
+This model does not include a fast-ion calculation; all fast-ion outputs are
+zero. It is useful when reference profiles from a full-wave RF code are
+available and need to be quickly approximated for different field scenarios.
 
 Fast Ion Physics
 ================
