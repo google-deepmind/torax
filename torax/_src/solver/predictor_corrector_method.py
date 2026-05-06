@@ -111,8 +111,6 @@ def predictor_corrector_method(
         loop_body,
         x_new_guess,
         maxiter=solver_params.n_corrector_steps + 1,
-        xtol=None,
-        method='iteration',
     )
   else:
     x_new = loop_body(x_new_guess)

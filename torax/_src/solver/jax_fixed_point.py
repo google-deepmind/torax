@@ -14,7 +14,7 @@
 
 """JAX fixed point functions."""
 
-from typing import Any, Callable, Literal, TypeAlias
+from typing import Any, Callable, TypeAlias
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
@@ -23,81 +23,59 @@ PyTree: TypeAlias = Any
 
 
 def fixed_point(
-    func: Callable[..., jax.Array],
+    func: Callable[..., PyTree],
     x0: PyTree,
     args: tuple[PyTree, ...] = (),
-    xtol: float | None = 1e-08,
     maxiter: int = 500,
-    method: Literal['del2', 'iteration'] = 'del2',
+    atol: float = 0.0,
+    rtol: float = 0.0,
 ) -> PyTree:
-  """A JAX version of `scipy.optimize.fixed_point`.
+  """Solves `func(x, *args) = x` for `x`.
 
-  Unlike `scipy.optimize.fixed_point`, this function will not raise a
-  `RuntimeError` if convergence is not reached.
+  Iterates x_new = func(x_old, *args) until either the requested tolerance is
+  satisfied or the maximum number of iterations is reached.
 
   Args:
-    func: The function to solve, of the form `f(x, *args)` returning a
-      `jax.Array` of the same shape as `x`.
+    func: The function to solve, of the form `f(x, *args)` returning a `PyTree`
+      of the same structure as `x`.
     x0: The initial guess.
     args: Additional arguments to pass to the function.
-    xtol: The tolerance on the absolute value of the function value. If None, no
-      tolerance is used and `maxiter` iterations will be performed.
     maxiter: The maximum number of iterations to perform.
-    method: The method to use. 'del2' (the default) uses Steffensen’s Method
-      with Aitken’s Del^2 convergence acceleration, taken from Burden, Faires,
-      “Numerical Analysis”, 5th edition, pg. 80. 'iteration' just iterates the
-      function until the tolerance is reached.
+    atol: Absolute tolerance on the residual norm.
+    rtol: Relative tolerance on the residual norm.
 
   Returns:
-    The fixed point `jax.Array`.
+    The fixed point `PyTree`.
   """
-  if method not in ['del2', 'iteration']:
-    raise ValueError(f'Invalid method: {method}')
   if maxiter <= 0:
     raise ValueError(f'Invalid maxiter: {maxiter} must be positive.')
 
-  def body(x):
-    x, count, _ = x
-    out1 = func(x, *args)
-    if method == 'del2':
-      out2 = func(out1, *args)
+  def residual_sq_norm(x, f_x):
+    """Computes the squared norm of the residual `x - f(x)`."""
+    leaf_sq_norms = jax.tree.map(lambda a, b: jnp.sum((a - b) ** 2), f_x, x)
+    return jax.tree_util.tree_reduce(jnp.add, leaf_sq_norms)
 
-      def _del2(p0, p1, p2):
-        d = p2 - 2.0 * p1 + x
-        out3 = x - (p1 - p0) ** 2 / d
-        return jax.lax.select(d != 0, out3, p2)
+  # Precompute the tolerance for convergence.
+  f_x0 = func(x0, *args)
+  initial_sq_norm = residual_sq_norm(x0, f_x0)
+  initial_residual_norm = jnp.sqrt(initial_sq_norm)
+  tol = atol + rtol * initial_residual_norm
+  sq_tol = tol**2
 
-      out = jax.tree.map(_del2, x, out1, out2)
-    else:
-      out = out1
-
-    if xtol:
-
-      def _relative_error(actual, expected):
-        relative_error = (actual - expected) / expected
-        relerr = jax.lax.select(x != 0, relative_error, actual)
-        return jnp.all(jnp.abs(relerr) < xtol)
-
-      stop = jax.tree.map(_relative_error, out, x)
-      stop = jnp.all(jnp.hstack(jax.tree.leaves(stop)))
-    else:
-      stop = jnp.array(False, dtype=jnp.bool_)
+  def body(carry):
+    x, _, count = carry
+    f_x = func(x, *args)
+    sq_norm = residual_sq_norm(x, f_x)
     count += 1
-    return out, count, stop
+    return f_x, sq_norm, count
 
-  def cond(x):
-    _, count, stop = x
-    return jnp.logical_not(stop) & (count < maxiter)
+  def cond(carry):
+    _, sq_norm, count = carry
+    is_converged = sq_norm <= sq_tol
+    return (count < maxiter) & jnp.logical_not(is_converged)
 
-  count = jnp.array(0, dtype=jax_utils.get_int_dtype())
-  stop = jnp.array(False, dtype=jnp.bool_)
-  x_init = (x0, count, stop)
-
-  if xtol is None:
-    return jax.lax.fori_loop(0, maxiter, lambda i, val: body(val), x_init)[0]
-  else:
-    return jax.lax.while_loop(cond, body, x_init)[0]
-
-
-def _fixed_point_del2(p0, p1, d):
-  return (p0 + p1 - d) / 2.0
+  # Initialize the iteration counter to 1, since we start counting from the
+  # first iteration in the `body` function.
+  count = jnp.array(1, dtype=jax_utils.get_int_dtype())
+  init_carry = (f_x0, initial_sq_norm, count)
+  return jax.lax.while_loop(cond, body, init_carry)[0]
