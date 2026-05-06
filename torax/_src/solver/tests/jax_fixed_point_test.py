@@ -89,6 +89,34 @@ class FixedPointTest(parameterized.TestCase):
 
     chex.assert_trees_all_close(out_expected, out_jnp)
 
+  def test_fixed_point_backtracking(self):
+    c1 = np.array([10, 12.0])
+    c2 = np.array([3, 5.0])
+    x = np.array([1.2, 1.3])
+
+    out_with_backtracking = jax_fixed_point.fixed_point(
+        _func_jnp,
+        x,
+        args=(c1, c2),
+        maxiter=500,
+        use_backtracking=True,
+        step_size_reduction_factor=0.5,
+        max_backtrack_steps=5,
+        atol=1e-5,
+    )
+
+    out_without_backtracking = jax_fixed_point.fixed_point(
+        _func_jnp,
+        x,
+        args=(c1, c2),
+        maxiter=500,
+        use_backtracking=False,
+        atol=1e-5,
+    )
+    chex.assert_trees_all_close(
+        out_with_backtracking, out_without_backtracking, atol=1e-5
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
