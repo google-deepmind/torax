@@ -29,6 +29,8 @@ def fixed_point(
     xtol: float | None = 1e-08,
     maxiter: int = 500,
     method: Literal['del2', 'iteration'] = 'del2',
+    atol: float | None = None,
+    rtol: float | None = None,
 ) -> PyTree:
   """A JAX version of `scipy.optimize.fixed_point`.
 
@@ -47,6 +49,8 @@ def fixed_point(
       with Aitken’s Del^2 convergence acceleration, taken from Burden, Faires,
       “Numerical Analysis”, 5th edition, pg. 80. 'iteration' just iterates the
       function until the tolerance is reached.
+    atol: Absolute tolerance on the residual norm.
+    rtol: Relative tolerance on the residual norm.
 
   Returns:
     The fixed point `jax.Array`.
@@ -55,6 +59,19 @@ def fixed_point(
     raise ValueError(f'Invalid method: {method}')
   if maxiter <= 0:
     raise ValueError(f'Invalid maxiter: {maxiter} must be positive.')
+
+  def _residual_norm(x):
+    value = func(x, *args)
+    residual = jax.tree.map(lambda a, b: (a - b) ** 2, value, x)
+
+    return jnp.sqrt(
+        sum(jnp.sum(leaf) for leaf in jax.tree.leaves(residual))
+    )
+
+  if rtol is not None:
+    initial_residual_norm = _residual_norm(x0)
+  else:
+    initial_residual_norm = jnp.array(0.0)
 
   def body(x):
     x, count, _ = x
@@ -71,7 +88,17 @@ def fixed_point(
     else:
       out = out1
 
-    if xtol:
+    # Terminate based on residual norm.
+    if atol is not None or rtol is not None:
+      res_norm = _residual_norm(out)
+      converged = jnp.array(False, dtype=jnp.bool_)
+      if atol is not None:
+        converged = converged | (res_norm <= atol)
+      if rtol is not None:
+        converged = converged | (res_norm <= rtol * initial_residual_norm)
+      stop = converged
+    # Terminate based on relative error.
+    elif xtol:
 
       def _relative_error(actual, expected):
         relative_error = (actual - expected) / expected
@@ -93,7 +120,7 @@ def fixed_point(
   stop = jnp.array(False, dtype=jnp.bool_)
   x_init = (x0, count, stop)
 
-  if xtol is None:
+  if xtol is None and atol is None and rtol is None:
     return jax.lax.fori_loop(0, maxiter, lambda i, val: body(val), x_init)[0]
   else:
     return jax.lax.while_loop(cond, body, x_init)[0]
