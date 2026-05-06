@@ -19,7 +19,6 @@ runtime_params_slice.solver.use_predictor_corrector is False, reverts to
 a standard linear solution.
 """
 
-
 import jax
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -29,6 +28,7 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.solver import anderson
 from torax._src.solver import jax_fixed_point
 from torax._src.sources import source_profiles
 
@@ -109,12 +109,27 @@ def predictor_corrector_method(
     )
 
   if solver_params.use_predictor_corrector:
+    if solver_params.fixed_point_method == 'anderson':
+      anderson_settings = anderson.AndersonSettings(
+          window_size=solver_params.anderson_window_size,
+          safeguard_eta=solver_params.anderson_safeguard_eta,
+          regularization=solver_params.anderson_regularization,
+          beta=solver_params.anderson_beta,
+      )
+    else:
+      anderson_settings = None
+
     x_new = jax_fixed_point.fixed_point(
         loop_body,
         x_new_guess,
         maxiter=solver_params.n_corrector_steps + 1,
         xtol=None,
-        method='iteration',
+        method=solver_params.fixed_point_method,
+        atol=solver_params.atol,
+        rtol=solver_params.rtol,
+        use_backtracking=solver_params.use_backtracking,
+        delta_reduction_factor=solver_params.delta_reduction_factor,
+        anderson_settings=anderson_settings,
     )
   else:
     x_new = loop_body(x_new_guess)

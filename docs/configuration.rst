@@ -2276,6 +2276,38 @@ specific solver are defined in the relevant section below.
   Number of corrector steps for the predictor-corrector linear solver. 0 means a
   pure linear solve with no corrector steps. Must be a positive integer.
 
+``atol`` (float | None [default = None])
+  Absolute tolerance for fixed-point iterations in the predictor-corrector solver.
+  If specified, iterations can exit early when the normalized residual falls below this threshold.
+
+``rtol`` (float | None [default = None])
+  Relative tolerance for fixed-point iterations in the predictor-corrector solver.
+  If specified, iterations can exit early when the normalized residual falls below this fraction of the initial residual.
+
+``use_backtracking`` (bool [default = True])
+  Enables backtracking linesearch to improve stability. Can be used with any
+  solver. For the Newton-Raphson solver, this option is always enforced as True.
+
+``delta_reduction_factor`` (float [default = 0.5])
+  Factor by which the step size is reduced during backtracking.
+
+``fixed_point_method`` (str [default = 'iteration'])
+  Method to use for fixed-point iterations in the predictor-corrector solver.
+  Available options: ``'del2'``, ``'iteration'``, ``'anderson'``.
+
+``anderson_window_size`` (int [default = 5])
+  Number of retained iterates for Anderson acceleration. Set to 0 to disable.
+
+``anderson_safeguard_eta`` (float [default = 1.0])
+  Safeguarding factor for Anderson acceleration. Accept candidate if residual norm increases by at most this factor.
+
+``anderson_regularization`` (float [default = 1e-10])
+  Tikhonov regularization for the Anderson least-squares solve.
+
+``anderson_beta`` (float [default = 1.0])
+  Relaxation parameter for Anderson acceleration.
+
+
 ``use_pereverzev`` (bool [default = False])
   Use Pereverzev-Corrigan terms in the heat and particle flux when using the
   linear solver. Critical for stable calculation of stiff transport, at the cost
