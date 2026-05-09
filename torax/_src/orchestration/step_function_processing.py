@@ -65,6 +65,12 @@ def _update_pedestal_transition_state(
     - Records the current simulation time as transition_start_time
     - Loads the saved L-mode pedestal-top values
 
+  If mid-transition and then starting to revert back to the original
+  confinement mode:
+    - Sets the transition_start_time such that the time spent in the
+      reverse transition is the same as the time spent in the original
+      transition.
+
   Args:
     pedestal_transition_state: Current transition state from previous timestep.
     runtime_params: Runtime parameters at time t.
@@ -104,25 +110,34 @@ def _update_pedestal_transition_state(
   )
   P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
 
-  # Update transition state based on P_SOL vs P_LH.
-  old_confinement_mode = pedestal_transition_state.confinement_mode
-  transition_is_complete = (
-      runtime_params.t
-      >= pedestal_transition_state.transition_start_time
-      + runtime_params.pedestal.transition_time_width
+  # Has the transition time elapsed? Used for exiting transition states.
+  elapsed_transition_time = (
+      runtime_params.t - pedestal_transition_state.transition_start_time
   )
+  transition_is_complete = (
+      elapsed_transition_time >= runtime_params.pedestal.transition_time_width
+  )
+
+  # Update transition state based on P_SOL vs P_LH.
+  # The transition has hysteresis, which boils down to the following:
+  # - If P_SOL > P_LH, start transitioning to H-mode if not already in H-mode.
+  # - If P_SOL < h*P_LH, where 0 < h < 1, start transitioning to L-mode if not
+  #   already in L-mode.
+  # - If in a transition and the transition time has elapsed, exit transition
+  #   and enter the target mode.
+  # - Otherwise, remain in the current state.
   ConfinementMode = pedestal_transition_state_lib.ConfinementMode
+  old_confinement_mode = pedestal_transition_state.confinement_mode
   conditions = [
       # L-H transition.
-      (old_confinement_mode == ConfinementMode.L_MODE) & (P_SOL > P_LH),
-      # H-L back transition with hysteresis: P_SOL must drop below
-      # P_LH * hysteresis_factor to transition back to L-mode.
-      (old_confinement_mode == ConfinementMode.H_MODE)
+      (old_confinement_mode != ConfinementMode.H_MODE) & (P_SOL > P_LH),
+      # H-L back transition, with hysteresis.
+      (old_confinement_mode != ConfinementMode.L_MODE)
       & (P_SOL < P_LH * runtime_params.pedestal.P_LH_hysteresis_factor),
-      # In H-mode after L-H transition completed.
+      # Completed LH transition.
       (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE)
       & transition_is_complete,
-      # In L-mode after H-L transition completed.
+      # Completed HL transition.
       (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
       & transition_is_complete,
   ]
@@ -138,42 +153,70 @@ def _update_pedestal_transition_state(
       old_confinement_mode,
   )
 
-  # If we've just entered a transition, record the current time.
-  new_is_transitioning = (
-      new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
-  ) | (new_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
-  old_is_transitioning = (
-      old_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
-  ) | (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
-  new_transition_start_time = jnp.where(
-      new_is_transitioning & ~old_is_transitioning,
-      runtime_params.t,
-      pedestal_transition_state.transition_start_time,
+  # Update the transition start time.
+  # - If we've gone from L-mode to LH transition, or from H-mode to HL
+  #   transition, set the start time to the current time.
+  # - If we are dithering, set the start time so that we
+  #   spend the same amount of time in the back-transition as we did in the
+  #   forward transition.
+  # - Otherwise, keep the current start time.
+  standard_transition = (
+      (old_confinement_mode == ConfinementMode.L_MODE)
+      & (new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE)
+  ) | (
+      (old_confinement_mode == ConfinementMode.H_MODE)
+      & (new_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
+  )
+  dithering_transition = (
+      (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE)
+      & (new_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
+  ) | (
+      (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
+      & (new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE)
+  )
+  # At time t, suppose we have been in forward transition since t0, with desired
+  # transition duration w. If we now begin a back-transition, we have been in
+  # forward transition for t - t0, and so we want to end the back-transition at
+  # time t + (t - t0) = 2t - t0. As we have specified the transition time width
+  # as w, to achieve this we set the start time to (2t - t0) - w.
+  new_transition_start_time = jnp.select(
+      [standard_transition, dithering_transition],
+      [
+          runtime_params.t,
+          2.0 * runtime_params.t
+          - pedestal_transition_state.transition_start_time
+          - runtime_params.pedestal.transition_time_width,
+      ],
+      # If not in a transition, set the start time to infinity.
+      default=jnp.inf,
   )
 
-  # If we've just entered an LH transition, record the pedestal top values.
-  # TODO(b/500260959): Avoid calling the pedestal model again.
-  beginning_LH_transition = (old_confinement_mode == ConfinementMode.L_MODE) & (
+  # Update the target values for transitions to L-mode.
+  update_L_mode_values = (old_confinement_mode == ConfinementMode.L_MODE) & (
       new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
   )
+  # TODO(b/500260959): Avoid calling the pedestal model again.
   pedestal_model_output = models.pedestal_model(
-      runtime_params, geo, core_profiles, core_sources
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_profiles=core_sources,
   )
   ped_top_idx = jnp.argmin(
       jnp.abs(geo.rho_norm - pedestal_model_output.rho_norm_ped_top)
   )
   new_T_i_ped_L_mode = jnp.where(
-      beginning_LH_transition,
+      update_L_mode_values,
       core_profiles.T_i.value[ped_top_idx],
       pedestal_transition_state.T_i_ped_L_mode,
   )
   new_T_e_ped_L_mode = jnp.where(
-      beginning_LH_transition,
+      update_L_mode_values,
       core_profiles.T_e.value[ped_top_idx],
       pedestal_transition_state.T_e_ped_L_mode,
   )
   new_n_e_ped_L_mode = jnp.where(
-      beginning_LH_transition,
+      update_L_mode_values,
       core_profiles.n_e.value[ped_top_idx],
       pedestal_transition_state.n_e_ped_L_mode,
   )
