@@ -502,14 +502,17 @@ equations being solved, constant numerical variables.
   Prefactor for adaptive source term for setting density internal boundary
   conditions.
 
-``dW_dt_smoothing_time_scale`` (float [default = 0.3])
-  Time scale [s] for the exponential moving average smoothing of dW/dt terms
-  used in P_SOL and confinement time calculations. If 0.0, no smoothing is
-  applied and raw dW/dt is used.
-
 ``min_rho_norm`` (float [default = 0.015])
   Minimum rho_norm value below which current profile values are extrapolated to
   the axis in psi calculations, to avoid numerical artifacts near rho=0.
+
+``dW_dt_window`` (float [default = 0.01])
+  Time window [s] over which to compute the windowed derivative of the stored
+  thermal energy.
+
+``dW_dt_buffer_length`` (int [default = 50])
+  Number of elements to keep in the history buffer for computing the windowed
+  derivative.
 
 .. TODO (b/434175938): consolidate naming to _min or _minimum.
 

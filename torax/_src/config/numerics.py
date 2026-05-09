@@ -45,7 +45,8 @@ class RuntimeParams:
   resistivity_multiplier: array_typing.FloatScalar
   adaptive_T_source_prefactor: float
   adaptive_n_source_prefactor: float
-  dW_dt_smoothing_time_scale: float
+  dW_dt_window: array_typing.FloatScalar
+  dW_dt_buffer_length: int = dataclasses.field(metadata={'static': True})
   min_rho_norm: float
   evolve_ion_heat: bool = dataclasses.field(metadata={'static': True})
   evolve_electron_heat: bool = dataclasses.field(metadata={'static': True})
@@ -121,7 +122,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   min_dt: torax_pydantic.Second = 1e-8
   chi_timestep_prefactor: pydantic.PositiveFloat = 50.0
   fixed_dt: torax_pydantic.NonNegativeTimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(1e-1)
+      torax_pydantic.ValidatedDefault(0.1)
   )
   adaptive_dt: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   dt_reduction_factor: pydantic.PositiveFloat = 3.0
@@ -135,7 +136,10 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   )
   adaptive_T_source_prefactor: pydantic.PositiveFloat = 2.0e10
   adaptive_n_source_prefactor: pydantic.PositiveFloat = 2.0e8
-  dW_dt_smoothing_time_scale: pydantic.NonNegativeFloat = 0.3
+  dW_dt_window: torax_pydantic.NonNegativeTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.01)
+  )
+  dW_dt_buffer_length: Annotated[int, torax_pydantic.JAX_STATIC] = 10
   min_rho_norm: torax_pydantic.UnitInterval = 0.015
 
   T_minimum_eV: pydantic.PositiveFloat = 5.0
@@ -182,7 +186,8 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
         adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,
         adaptive_n_source_prefactor=self.adaptive_n_source_prefactor,
-        dW_dt_smoothing_time_scale=self.dW_dt_smoothing_time_scale,
+        dW_dt_window=self.dW_dt_window.get_value(t),
+        dW_dt_buffer_length=self.dW_dt_buffer_length,
         min_rho_norm=self.min_rho_norm,
         evolve_ion_heat=self.evolve_ion_heat,
         evolve_electron_heat=self.evolve_electron_heat,
