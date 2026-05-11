@@ -17,7 +17,6 @@
 from collections.abc import Mapping
 import dataclasses
 import functools
-import logging
 from typing import Any, Literal, TypeAlias
 
 import chex
@@ -246,11 +245,8 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         else self.get_cached_interpolated_param_cell.xs
     )
     if replace_value.rho_norm is not None and replace_value.value is not None:
-      logging.info(
-          'Linearly interpolating provided values and grid onto TORAX grid in'
-          ' interval [0, 1]. Constant extrapolation is used outside provided'
-          ' intervals.'
-      )
+      # NOTE: This assumes that the provided value covers the entire grid.
+      # Constant interpolation is used outside of the provided range.
       cell_value = _vmap_interp(
           self.grid.cell_centers, replace_value.rho_norm, replace_value.value
       )
