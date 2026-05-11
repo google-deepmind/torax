@@ -296,9 +296,10 @@ class TGLFBasedTransportModel(
     # r is zero on axis, so use safe_divide to avoid division by zero.
     # Use face_grad to correctly handle constraints on the psi CellVariable.
     B_unit = math_utils.safe_divide(
-        core_profiles.q_face
+        num=core_profiles.q_face
         * core_profiles.psi.face_grad(x=geo.r_mid, x_left=r[0], x_right=r[-1]),
-        (2 * jnp.pi * r),  # Note: psi_TGLF is psi_TORAX/2π
+        denom=(2 * jnp.pi * r),  # Note: psi_TGLF is psi_TORAX/2π
+        eps=1e-7,
     )
 
     # Ion gyroradius
@@ -306,8 +307,9 @@ class TGLFBasedTransportModel(
     # avoid being swamped by the eps in the denominator.
     rho_s = (
         math_utils.safe_divide(
-            m_D * c_s,
-            B_unit,
+            num=m_D * c_s,
+            denom=B_unit,
+            eps=1e-7,
         )
         / constants.CONSTANTS.q_e
     )
@@ -317,13 +319,14 @@ class TGLFBasedTransportModel(
     # - In the TGLF docs, the prefactor of 743.0 comes from a combination of the
     #   constants below plus being in CGS units. Below is the SI version.
     normalized_debye = math_utils.safe_divide(
-        (
+        num=(
             (constants.CONSTANTS.epsilon_0 / constants.CONSTANTS.q_e)
             * (core_profiles.T_e.face_value() * 1e3)  # keV -> eV
             / n_e
         )
         ** 0.5,
-        rho_s,
+        denom=rho_s,
+        eps=1e-7,
     )
 
     # Temperature ratio
@@ -389,10 +392,11 @@ class TGLFBasedTransportModel(
     #   (https://gacode.io/cgyro/cgyro_list.html#s)
     # - r_mid is zero on axis, so use safe_divide to avoid division by zero.
     q_prime = math_utils.safe_divide(
-        psi_calculations.calc_s_rmid(geo, core_profiles.psi)
+        num=psi_calculations.calc_s_rmid(geo, core_profiles.psi)
         * core_profiles.q_face**2
         * a**2,
-        r**2,
+        denom=r**2,
+        eps=1e-7,
     )
 
     # Dimensionless pressure gradient
@@ -402,13 +406,14 @@ class TGLFBasedTransportModel(
     # - 8 * pi factor missing since TGLF internally operates on it using
     #   beta/(8*pi)
     p_prime = math_utils.safe_divide(
-        1.0e-7
+        num=1.0e-7
         * core_profiles.pressure_thermal_total.face_grad(
             x=geo.r_mid, x_left=r[0], x_right=r[-1]
         )
         * core_profiles.q_face
         * a**2,
-        r * B_unit**2,
+        denom=r * B_unit**2,
+        eps=1e-7,
     )
 
     # Electron beta
@@ -418,8 +423,9 @@ class TGLFBasedTransportModel(
     # - In the TGLF docs, beta_e equation shown in CGS units, this is the SI
     #   version
     beta_e = math_utils.safe_divide(
-        2 * constants.CONSTANTS.mu_0 * n_e * T_e_J,
-        B_unit**2,
+        num=2 * constants.CONSTANTS.mu_0 * n_e * T_e_J,
+        denom=B_unit**2,
+        eps=1e-7,
     )
 
     # Major radius shear = drmaj/drmin, where 'rmaj' is the flux surface
@@ -563,12 +569,18 @@ class TGLFBasedTransportModel(
     dT_e_drhon = core_profiles.T_e.face_grad() * constants.CONSTANTS.keV_to_J
     dT_i_drhon = core_profiles.T_i.face_grad() * constants.CONSTANTS.keV_to_J
     chi_e = math_utils.safe_divide(
-        -P_e,
-        core_profiles.n_e.face_value() * dT_e_drhon * geo.g1_over_vpr_face,
+        num=-P_e,
+        denom=core_profiles.n_e.face_value()
+        * dT_e_drhon
+        * geo.g1_over_vpr_face,
+        eps=1e-7,
     )
     chi_i = math_utils.safe_divide(
-        -P_i,
-        core_profiles.n_i.face_value() * dT_i_drhon * geo.g1_over_vpr_face,
+        num=-P_i,
+        denom=core_profiles.n_i.face_value()
+        * dT_i_drhon
+        * geo.g1_over_vpr_face,
+        eps=1e-7,
     )
 
     # Convert from particle rate to D, V using effective
@@ -576,12 +588,14 @@ class TGLFBasedTransportModel(
     # regions where the flux is with the temperature gradient, otherwise it
     # sets purely convective transport.
     D_eff = math_utils.safe_divide(
-        -S_e,
-        core_profiles.n_e.face_grad() * geo.g1_over_vpr_face,
+        num=-S_e,
+        denom=core_profiles.n_e.face_grad() * geo.g1_over_vpr_face,
+        eps=1e-7,
     )
     V_eff = math_utils.safe_divide(
-        S_e,
-        core_profiles.n_e.face_value() * geo.g0_face,
+        num=S_e,
+        denom=core_profiles.n_e.face_value() * geo.g0_face,
+        eps=1e-7,
     )
     D_eff = jnp.where(jnp.isfinite(D_eff), D_eff, 0.0)
     V_eff = jnp.where(jnp.isfinite(V_eff), V_eff, 0.0)

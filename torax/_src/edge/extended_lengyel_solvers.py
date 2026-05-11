@@ -794,8 +794,10 @@ def _solve_for_qcc(
   # argument is order 1 (or 0), allowing a fixed dimensionless epsilon to be
   # effective. This prevents vanishing gradients for deep negative excursions.
   qcc_norm = math_utils.smooth_sqrt(
-      math_utils.safe_divide(qcc_squared, qu**2), epsilon=1e-3
-  )
+      math_utils.safe_divide(
+          # TODO(b/512078510): Pick a reasonable eps value for safe_divide here.
+          num=qcc_squared, denom=qu**2, eps=1e-7), epsilon=1e-3
+      )
 
   qcc = qcc_norm * jnp.sqrt(qu**2)
 

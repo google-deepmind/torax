@@ -96,7 +96,9 @@ def _calculate_radial_electric_field(
   denominator = Z_i_face * constants.CONSTANTS.q_e * n_i.face_value()
 
   Er_poloidal_and_pressure_face = (
-      math_utils.safe_divide(jnp.array(1.0), denominator) * dpi_dr
+      math_utils.safe_divide(
+          num=jnp.array(1.0), denom=denominator, eps=1e-7
+      ) * dpi_dr
       + poloidal_velocity.face_value() * B_tor_face
   )
 

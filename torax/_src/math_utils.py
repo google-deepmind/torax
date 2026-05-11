@@ -300,8 +300,21 @@ def cumulative_volume_integration(
   return cumulative_cell_integration(value * geo.vpr, geo)
 
 
-def safe_divide(y: chex.Array, x: chex.Array) -> chex.Array:
-  return y / (x + constants.CONSTANTS.eps)
+def safe_divide(
+    *, num: chex.Array, denom: chex.Array, eps: float
+) -> chex.Array:
+  """Divides y by x, adding eps to the denominator for numerical stability.
+
+  Args:
+    num: Numerator.
+    denom: Denominator.
+    eps: Small value added to the denominator to prevent division by zero.
+      Choose a value that is small relative to the expected magnitude of x.
+
+  Returns:
+    num / (denom + eps).
+  """
+  return num / (denom + eps)
 
 
 def inverse_softplus(x: jax.Array) -> jax.Array:

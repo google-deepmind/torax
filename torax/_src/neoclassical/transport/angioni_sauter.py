@@ -251,16 +251,24 @@ def _calculate_angioni_sauter_transport(
   # --- Step 4: Calculate thermodynamic forces ---
   dpsi_drhon = core_profiles.psi.face_grad()
   dlnne_dpsi = math_utils.safe_divide(
-      core_profiles.n_e.face_grad() / core_profiles.n_e.face_value(), dpsi_drhon
+      num=core_profiles.n_e.face_grad() / core_profiles.n_e.face_value(),
+      denom=dpsi_drhon,
+      eps=1e-7,
   )
   dlnte_dpsi = math_utils.safe_divide(
-      core_profiles.T_e.face_grad() / core_profiles.T_e.face_value(), dpsi_drhon
+      num=core_profiles.T_e.face_grad() / core_profiles.T_e.face_value(),
+      denom=dpsi_drhon,
+      eps=1e-7,
   )
   dlnni_dpsi = math_utils.safe_divide(
-      core_profiles.n_i.face_grad() / core_profiles.n_i.face_value(), dpsi_drhon
+      num=core_profiles.n_i.face_grad() / core_profiles.n_i.face_value(),
+      denom=dpsi_drhon,
+      eps=1e-7,
   )
   dlnti_dpsi = math_utils.safe_divide(
-      core_profiles.T_i.face_grad() / core_profiles.T_i.face_value(), dpsi_drhon
+      num=core_profiles.T_i.face_grad() / core_profiles.T_i.face_value(),
+      denom=dpsi_drhon,
+      eps=1e-7,
   )
 
   # --- Step 5: Calculate neoclassical fluxes ---

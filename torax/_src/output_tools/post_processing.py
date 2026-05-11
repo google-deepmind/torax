@@ -1010,10 +1010,14 @@ def make_post_processed_outputs(
       I_external=I_external,
       I_non_inductive=I_non_inductive,
       f_non_inductive=math_utils.safe_divide(
-          I_non_inductive, sim_state.core_profiles.Ip_profile_face[-1]
+          num=I_non_inductive,
+          denom=sim_state.core_profiles.Ip_profile_face[-1],
+          eps=1e-7,
       ),
       f_bootstrap=math_utils.safe_divide(
-          I_bootstrap, sim_state.core_profiles.Ip_profile_face[-1]
+          num=I_bootstrap,
+          denom=sim_state.core_profiles.Ip_profile_face[-1],
+          eps=1e-7,
       ),
       beta_tor=beta_tor,
       beta_pol=beta_pol,

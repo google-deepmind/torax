@@ -392,7 +392,7 @@ def apply_fast_ion_stabilization(
   ) * transport.fast_ion_stabilization_multiplier + 1
   return jnp.where(
       transport.fast_ion_stabilization,
-      math_utils.safe_divide(lref_over_lti, fi_stab_factor),
+      math_utils.safe_divide(num=lref_over_lti, denom=fi_stab_factor, eps=1e-7),
       lref_over_lti,
   )
 

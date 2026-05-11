@@ -69,7 +69,7 @@ def _nu_epsilon(
       * ln_lambda
   )
   denom = jnp.power(m_b_amu * T_a_ev + m_a_amu * T_b_ev, 1.5)
-  return jnp.asarray(math_utils.safe_divide(num, denom))
+  return jnp.asarray(math_utils.safe_divide(num=num, denom=denom, eps=1e-7))
 
 
 def _compute_T_tail(
@@ -106,8 +106,9 @@ def _compute_T_tail(
   n_e_cm3 = n_e / 1.0e6
 
   tau_s = math_utils.safe_divide(
-      6.27e8 * mass_number * jnp.power(T_e_eV, 1.5),
-      charge_number**2 * n_e_cm3 * log_lambda_ei,
+      num=6.27e8 * mass_number * jnp.power(T_e_eV, 1.5),
+      denom=charge_number**2 * n_e_cm3 * log_lambda_ei,
+      eps=1e-7,
   )
   T_e_J = T_e * constants.CONSTANTS.keV_to_J
   energy_density = 1.5 * n_total * T_e_J
@@ -116,7 +117,7 @@ def _compute_T_tail(
   energy_slowing_down_time = 0.5 * tau_s
 
   xi = math_utils.safe_divide(
-      P_density_W * energy_slowing_down_time, energy_density
+      num=P_density_W * energy_slowing_down_time, denom=energy_density, eps=1e-7
   )
 
   return T_e * (1.0 + xi)
@@ -238,7 +239,10 @@ def bimaxwellian_split(
       )
   )
 
-  n_tail = math_utils.safe_divide(P_density_W, energy_loss_rate_per_particle)
+  # TODO(b/512078510): Choose a reasonable eps value for safe_divide here.
+  n_tail = math_utils.safe_divide(
+      num=P_density_W, denom=energy_loss_rate_per_particle, eps=1e-7
+  )
   n_tail = jnp.clip(n_tail, 0.0, n_total * 0.99)
 
   n_tail = jnp.where(P_density_W <= 1.0e-6, 0.0, n_tail)

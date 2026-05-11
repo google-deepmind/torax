@@ -311,10 +311,10 @@ class PostProcessingTest(parameterized.TestCase):
     # f_non_inductive = I_non_inductive / Ip
     # Ip comes from core_profiles.Ip_profile_face[-1]
     ip = self.core_profiles.Ip_profile_face[-1]
-    # Code uses constants.CONSTANTS.eps for division guard
+    # Code uses eps=1e-7 for division guard
     np.testing.assert_allclose(
         outputs.f_non_inductive,
-        math_utils.safe_divide(outputs.I_non_inductive, ip),
+        math_utils.safe_divide(num=outputs.I_non_inductive, denom=ip, eps=1e-7),
         rtol=1e-5,
     )
 
@@ -322,7 +322,7 @@ class PostProcessingTest(parameterized.TestCase):
     # f_bootstrap = I_bootstrap / Ip
     np.testing.assert_allclose(
         outputs.f_bootstrap,
-        math_utils.safe_divide(outputs.I_bootstrap, ip),
+        math_utils.safe_divide(num=outputs.I_bootstrap, denom=ip, eps=1e-7),
         rtol=1e-5,
     )
 

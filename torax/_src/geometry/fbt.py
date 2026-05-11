@@ -445,7 +445,7 @@ def _from_fbt(
   # (either here or upstream in MEQ)
   # Approximate with analytical expressions for circular geometry.
   flux_surf_avg_B2 = math_utils.safe_divide(
-      B_0**2, np.sqrt(1.0 - LY['epsilon'] ** 2)
+      num=B_0**2, denom=np.sqrt(1.0 - LY['epsilon'] ** 2), eps=1e-7
   )
   flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
 
