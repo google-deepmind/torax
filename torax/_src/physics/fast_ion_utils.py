@@ -239,9 +239,8 @@ def bimaxwellian_split(
       )
   )
 
-  # TODO(b/512078510): Choose a reasonable eps value for safe_divide here.
   n_tail = math_utils.safe_divide(
-      num=P_density_W, denom=energy_loss_rate_per_particle, eps=1e-7
+      num=P_density_W, denom=energy_loss_rate_per_particle, eps=1e-30
   )
   n_tail = jnp.clip(n_tail, 0.0, n_total * 0.99)
 

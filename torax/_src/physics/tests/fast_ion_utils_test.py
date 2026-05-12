@@ -14,6 +14,8 @@
 
 """Unit tests for fast_ion_utils.py."""
 
+import os
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
@@ -21,6 +23,8 @@ import numpy as np
 from torax._src import constants
 from torax._src.geometry import circular_geometry
 from torax._src.physics import fast_ion_utils
+
+# Internal import.
 
 
 # pylint: disable=invalid-name
@@ -108,7 +112,7 @@ class FastIonUtilsTest(parameterized.TestCase):
 
     n_tail, T_tail = self._call_bimaxwellian_split()
 
-    np.testing.assert_allclose(n_tail[0], 1.0e13, rtol=5e-2)
+    np.testing.assert_allclose(n_tail[0], 6.746e17, rtol=1e-4)
     np.testing.assert_allclose(T_tail[0], 46.4197, rtol=1e-4)
 
   def test_bimaxwellian_energy_consistency(self):
