@@ -489,6 +489,12 @@ equations being solved, constant numerical variables.
 ``evolve_density`` (bool [default = False])
   Solve the electron density equation in the time-dependent PDE.
 
+``enable_fast_ions`` (bool [default = False])
+  Enables the tracking and computation of fast ion density and temperature
+  profiles. Required to be True to use ``profile_conditions.fast_ions``,
+  ``transport.fast_ion_stabilization``, and to allow sources like ``toric-nn``
+  to provide fast ion profiles to the simulation.
+
 ``resistivity_multiplier`` (**time-varying-scalar** [default = 1.0])
   1/multiplication factor for :math:`\sigma` (conductivity) to reduce the
   current diffusion timescale to be closer to the energy confinement timescale,
