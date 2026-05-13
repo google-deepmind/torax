@@ -350,7 +350,12 @@ def _compute_fast_ion_stabilization_factor(
       fi_model = _load_fi_stabilization_model(species_model)
     else:
       fi_model = _get_default_fi_stabilization_model(fast_ion.species)
-    species_factor = fi_model.predict(inputs).squeeze(axis=-1)
+    prediction = fi_model.predict(inputs)
+    if isinstance(prediction, tuple):
+      species_factor, _ = prediction
+    else:
+      species_factor = prediction
+    species_factor = species_factor.squeeze(axis=-1)
     factor = factor * species_factor
   return factor
 

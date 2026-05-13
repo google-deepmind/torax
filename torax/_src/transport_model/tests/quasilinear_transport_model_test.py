@@ -424,7 +424,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
 
     dummy_model = mock.MagicMock()
-    dummy_model.predict.return_value = jnp.ones((n_rho, 1))
+    dummy_model.predict.return_value = (jnp.ones((n_rho, 1)), None)
     mock_get_default.return_value = dummy_model
     mock_load_model.return_value = dummy_model
 
@@ -492,7 +492,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
 
     dummy_model = mock.MagicMock()
-    dummy_model.predict.return_value = jnp.ones((n_rho, 1))
+    dummy_model.predict.return_value = (jnp.ones((n_rho, 1)), None)
     mock_get_default.return_value = dummy_model
 
     quasilinear_transport_model._compute_fast_ion_stabilization_factor(
