@@ -33,3 +33,5 @@ class RuntimeParams:
   )
   chi_pereverzev: float
   D_pereverzev: float  # pylint: disable=invalid-name
+  atol: float | None = dataclasses.field(metadata={'static': True})
+  rtol: float | None = dataclasses.field(metadata={'static': True})

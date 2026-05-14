@@ -50,6 +50,10 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       implicit linear system solve.
     chi_pereverzev: (deliberately) large heat conductivity for Pereverzev rule.
     D_pereverzev: (deliberately) large particle diffusion for Pereverzev rule.
+    predictor_corrector_atol: Absolute tolerance on the residual norm for the
+      predictor-corrector method.
+    predictor_corrector_rtol: Relative tolerance on the residual norm for the
+      predictor-corrector method.
   """
 
   theta_implicit: Annotated[
@@ -71,6 +75,8 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   ] = tridiagonal.SolverType.THOMAS
   chi_pereverzev: pydantic.PositiveFloat = 30.0
   D_pereverzev: pydantic.NonNegativeFloat = 15.0
+  predictor_corrector_atol: float | None = None
+  predictor_corrector_rtol: float | None = None
 
   @property
   @abc.abstractmethod
@@ -117,6 +123,8 @@ class LinearThetaMethod(BaseSolver):
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         n_corrector_steps=self.n_corrector_steps,
+        predictor_corrector_atol=self.predictor_corrector_atol,
+        predictor_corrector_rtol=self.predictor_corrector_rtol,
     )
 
   def build_solver(
@@ -178,6 +186,8 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         tau_min=self.tau_min,
         initial_guess_mode=self.initial_guess_mode.value,
         log_iterations=self.log_iterations,
+        predictor_corrector_atol=self.predictor_corrector_atol,
+        predictor_corrector_rtol=self.predictor_corrector_rtol,
     )
 
   def build_solver(
@@ -225,6 +235,8 @@ class OptimizerThetaMethod(BaseSolver):
         loss_tol=self.loss_tol,
         n_corrector_steps=self.n_corrector_steps,
         initial_guess_mode=self.initial_guess_mode.value,
+        predictor_corrector_atol=self.predictor_corrector_atol,
+        predictor_corrector_rtol=self.predictor_corrector_rtol,
     )
 
   def build_solver(
