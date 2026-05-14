@@ -44,7 +44,9 @@ class PedestalTransitionState:
   Attributes:
     confinement_mode: The current confinement mode.
     transition_start_time: The simulation time at which the current transition
-      started. Set to -inf when no transition is active.
+      started. Set to -inf when no transition is active. If dithering occurs,
+      transition_start_time is a pseudo-value such that the dither has the
+      desired duration.
     T_i_ped_L_mode: Ion temperature at the pedestal top captured at the start of
       the most recent L-mode to H-mode transition [keV].
     T_e_ped_L_mode: Electron temperature at the pedestal top captured at the
