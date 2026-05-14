@@ -363,8 +363,7 @@ def _get_ion_properties_from_n_e_ratios(
           ]),
           axis=0,
       )
-      / Z_i
-  )
+  ) / Z_i
   dilution_factor_edge = (
       1
       - jnp.sum(
@@ -374,8 +373,7 @@ def _get_ion_properties_from_n_e_ratios(
           ]),
           axis=0,
       )
-      / Z_i_face[-1]
-  )
+  ) / Z_i_face[-1]
   Z_eff = dilution_factor * Z_i**2 + jnp.sum(
       jnp.array([
           average_charge_state.Z_per_species[ion] ** 2 * n_e_ratio

@@ -814,6 +814,88 @@ class GettersTest(parameterized.TestCase):
     # 5. Assertions
     chex.assert_trees_all_close(ions_ne_ratios, ions_fractions, rtol=1e-5)
 
+  def test_get_updated_ions_with_n_e_ratios_He_main_ion(self):
+    """Catches operator precedence bugs in the dilution factor calculation."""
+    t_e_keV = 10.0
+    n_e_val = 1e20
+    n_e_ratios = {'C': 0.01, 'Ne': 0.005}
+
+    config_dict = {
+        'profile_conditions': {
+            'n_e': n_e_val,
+            'T_e': t_e_keV,
+            'T_e_right_bc': t_e_keV,
+            'n_e_right_bc': n_e_val,
+        },
+        'plasma_composition': {
+            'main_ion': 'He4',
+            'impurity': {
+                'impurity_mode': (
+                    plasma_composition_lib._IMPURITY_MODE_NE_RATIOS
+                ),
+                'species': n_e_ratios,
+            },
+        },
+        'numerics': {},
+        'geometry': {'geometry_type': 'circular', 'n_rho': 4},
+        'sources': {},
+        'solver': {},
+        'transport': {},
+        'pedestal': {},
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+
+    T_e_cv = cell_variable.CellVariable(
+        value=jnp.full_like(geo.rho_norm, t_e_keV),
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=t_e_keV,
+        right_face_grad_constraint=None,
+    )
+    n_e_cv = cell_variable.CellVariable(
+        value=jnp.full_like(geo.rho_norm, n_e_val),
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=n_e_val,
+        right_face_grad_constraint=None,
+    )
+    ions = getters.get_updated_ions(
+        runtime_params,
+        geo,
+        n_e_cv,
+        T_e_cv,
+    )
+
+    # Calculate expected dilution factor analytically.
+    # From quasineutrality: n_e = n_i * Z_i + sum(n_j * Z_j)
+    # => dilution = n_i/n_e = (1 - sum(r_j * Z_j)) / Z_i
+    z_main = constants.ION_PROPERTIES_DICT['He4'].Z  # = 2
+    z_impurities = {
+        symbol: charge_states.calculate_average_charge_state_single_species(
+            jnp.array([t_e_keV]), symbol
+        )
+        for symbol in n_e_ratios
+    }
+    total_impurity_charge = sum(
+        r * z_impurities[s][0] for s, r in n_e_ratios.items()
+    )
+    expected_dilution = (1.0 - total_impurity_charge) / z_main
+
+    np.testing.assert_allclose(
+        ions.n_i.value / n_e_cv.value,
+        expected_dilution,
+        rtol=1e-6,
+    )
+
+    # Also verify Z_eff is consistent.
+    expected_zeff = expected_dilution * z_main**2 + sum(
+        r * z_impurities[s][0] ** 2 for s, r in n_e_ratios.items()
+    )
+    np.testing.assert_allclose(ions.Z_eff, expected_zeff, rtol=1e-6)
+
   def test_get_updated_ions_with_n_e_ratios_radially_dependent(self):
     """Tests get_updated_ions for n_e_ratios vs fractions mode."""
     # Define ground truth plasma parameters
