@@ -440,6 +440,145 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     )
 
 
+class SparseTimeVaryingArray(model_base.BaseModelFrozen):
+  """A class for specifying profiles that are zero except at particular locations.
+
+  This class conforms data from the format: {time: {point_or_range: value}}.
+  It evaluates to a full profile on the grid, but is zero except at the
+  specified points or ranges.
+
+  Note that internally, this is stored as a list of tuples
+  (point_or_range, TimeVaryingArray). This is for ease of interpolation and
+  to avoid JAX sorting errors with mixed dict keys.
+
+  Attributes:
+    values: A list of tuples mapping a point (float) or range (tuple of floats)
+      to a TimeVaryingArray.
+    grid: The grid to use for evaluating the profile.
+  """
+
+  values: list[tuple[float | tuple[float, float], TimeVaryingArray]]
+  grid: Grid1D | None = None
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _conform_data(cls, data: Any) -> Any:
+    # If a single scalar value is passed, we assume it is a constant profile for
+    # all times and locations.
+    if isinstance(data, (float, int)):
+      return {'values': [((0.0, 1.0), TimeVaryingArray.model_validate(data))]}
+
+    # If the data is not a dict, we assume it is already in the final format.
+    if not isinstance(data, dict):
+      return data
+
+    # Support creating from {'values': ..., 'grid': } dict, which is used in
+    # Pydantic serialization and deserialization
+    if set(data.keys()).issubset(cls.model_fields.keys()):
+      return data
+
+    # The standard input format is {time: {location: value}}.
+    # To convert to [(location, TimeVaryingArray), ...], we first group all
+    # time-dependent values for a specific spatial location together.
+    grouped_by_location: dict[float | tuple[float, float], dict[float, Any]] = (
+        {}
+    )
+    for t, vals in data.items():
+      # Check type.
+      if not isinstance(vals, dict):
+        raise ValueError(
+            f'Expected dict for values at time {t}, got {type(vals)}'
+        )
+      keys = list(vals.keys())
+      # Check for overlapping locations. We check every pair of locations.
+      for i in range(len(keys)):
+        for j in range(i + 1, len(keys)):
+          location1 = keys[i]
+          location2 = keys[j]
+          # Convert points to ranges.
+          range1 = (
+              location1
+              if isinstance(location1, tuple)
+              else (location1, location1)
+          )
+          range2 = (
+              location2
+              if isinstance(location2, tuple)
+              else (location2, location2)
+          )
+          if max(range1[0], range2[0]) <= min(range1[1], range2[1]):
+            raise ValueError(
+                f'Overlapping locations {location1} and {location2} at time'
+                f' {t}.'
+            )
+      # Group values by location.
+      for key, val in vals.items():
+        if key not in grouped_by_location:
+          grouped_by_location[key] = {}
+        grouped_by_location[key][t] = val
+
+    # Convert the grouped values to the final format.
+    list_of_tuples = []
+    for key, time_mapping in grouped_by_location.items():
+      list_of_tuples.append(
+          (key, TimeVaryingArray.model_validate(time_mapping))
+      )
+
+    return {'values': list_of_tuples}
+
+  def get_value(
+      self,
+      t: chex.Numeric,
+      grid_type: Literal['cell', 'face', 'face_right'] = 'cell',
+  ) -> array_typing.Array:
+    """Returns the evaluated profile on the grid at time t."""
+    if self.grid is None:
+      raise RuntimeError('grid must be set.')
+
+    match grid_type:
+      case 'cell':
+        grid_pts = self.grid.cell_centers
+      case 'face':
+        grid_pts = self.grid.face_centers
+      case 'face_right':
+        grid_pts = self.grid.face_centers[-1:]  # Make it 1D
+      case _:
+        raise ValueError(f'Unknown grid type: {grid_type}')
+
+    # Populate specified entries, leaving others at zero
+    full_profile = jnp.zeros_like(grid_pts)
+    for key, val in self.values:
+      # Evaluate the TimeVaryingArray at time t
+      evaluated_val = val.get_value(t, grid_type=grid_type)
+
+      # Handle point or range
+      if isinstance(key, float):  # Point
+        idx = jnp.argmin(jnp.abs(grid_pts - key))
+        mask = jnp.arange(grid_pts.shape[0]) == idx
+      elif isinstance(key, tuple):  # Range
+        mask = (grid_pts >= key[0]) & (grid_pts <= key[1])
+      else:
+        raise ValueError(f'Unknown key type: {type(key)}')
+
+      full_profile = jnp.where(mask, evaluated_val, full_profile)
+
+    return full_profile
+
+  def tree_flatten(self):
+    children = tuple(val for _, val in self.values)
+    aux_data = (tuple(key for key, _ in self.values), self.grid)
+    return children, aux_data
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    keys, grid = aux_data
+    values = list(zip(keys, children))
+    return cls.model_construct(
+        values=values,
+        grid=grid,
+    )
+
+
 def _is_positive(array: TimeVaryingArray) -> TimeVaryingArray:
   for _, value in array.value.values():
     if not np.all(value > 0):
@@ -586,7 +725,7 @@ def set_grid(
           )
 
   for submodel in model.submodels:
-    if isinstance(submodel, TimeVaryingArray):
+    if isinstance(submodel, (TimeVaryingArray, SparseTimeVaryingArray)):
       _update_rule(submodel)
 
 

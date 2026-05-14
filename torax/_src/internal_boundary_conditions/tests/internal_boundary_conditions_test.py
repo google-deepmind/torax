@@ -16,6 +16,7 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
+from torax._src.torax_pydantic import interpolated_param_2d
 
 # pylint: disable=invalid-name
 
@@ -86,6 +87,31 @@ class InternalBoundaryConditionsTest(absltest.TestCase):
     np.testing.assert_allclose(source_mat_ee, jnp.array([0.0, -2.0, 0.0, 0.0]))
     np.testing.assert_allclose(source_n_e, jnp.array([0.0, 0.0, 90.0, 0.0]))
     np.testing.assert_allclose(source_mat_nn, jnp.array([0.0, 0.0, -3.0, 0.0]))
+
+  def test_from_config(self):
+    config = {
+        'T_e': {
+            0.0: {
+                0.2: 10.0,
+                (0.5, 0.9): 20.0,
+            }
+        }
+    }
+    ibc = internal_boundary_conditions.InternalBoundaryConditionsConfig.model_validate(
+        config
+    )
+
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    interpolated_param_2d.set_grid(ibc, grid=grid)
+
+    runtime_params = ibc.build_runtime_params(0.0)
+
+    # Cell centers: [0.125, 0.375, 0.625, 0.875]
+    # 0.2 is closest to 0.125 (cell 0). Value is 10.0.
+    # (0.5, 0.9) covers cell 2 (0.625) and cell 3 (0.875).
+    expected_T_e = np.array([10.0, 0.0, 20.0, 20.0])
+    np.testing.assert_allclose(runtime_params.T_e, expected_T_e)
 
 
 if __name__ == '__main__':

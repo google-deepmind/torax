@@ -515,7 +515,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           testcase_name='update_values',
           new_values=interpolated_param_2d.TimeVaryingArrayUpdate(
               value=np.array([[0.0, 2.0, 4.0], [1.0, 3.0, 5.0]]),
-              rho_norm=np.array([0.0, 0.5, 1.0,])
+              rho_norm=np.array([0.0, 0.5, 1.0]),
           ),
           expected_cell_values=np.array([0.5, 1.5, 2.5, 3.5]),
           expected_face_values=np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
@@ -524,7 +524,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       dict(
           testcase_name='update_time',
           new_values=interpolated_param_2d.TimeVaryingArrayUpdate(
-              time=np.array([-1.0, 0.0,]),
+              time=np.array([-1.0, 0.0]),
           ),
           # expect to receive the previous t=1 values.
           expected_cell_values=np.array([3.5, 4.5, 5.5, 6.5]),
@@ -614,6 +614,134 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     np.testing.assert_allclose(face_right, 15.0)
     np.testing.assert_allclose(cell, [8.0, 10.0, 12.0, 14.0])
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+
+class SparseTimeVaryingArrayTest(parameterized.TestCase):
+
+  def test_sparse_points_and_ranges(self):
+    data = {0.0: {0.9: 1.5, (0.5, 0.7): 3.0}}
+    stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
+    # Cell centers at 0.125, 0.375, 0.625, 0.875
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    interpolated_param_2d.set_grid(stva, grid=grid)
+
+    # 0.9 is closest to 0.875 (idx 3).
+    # (0.5, 0.7) covers 0.625 (idx 2).
+    expected = np.array([0.0, 0.0, 3.0, 1.5])
+    np.testing.assert_allclose(stva.get_value(0.0), expected)
+
+  def test_sparse_profile_in_range(self):
+    data = {0.0: {(0.5, 0.7): {0.5: 1.0, 0.7: 2.0}}}
+    stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
+    # Cell centers at 0.125, 0.375, 0.625, 0.875
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    interpolated_param_2d.set_grid(stva, grid=grid)
+
+    # (0.5, 0.7) covers 0.625 (idx 2).
+    # Value at 0.625 is interpolated between (0.5, 1.0) and (0.7, 2.0).
+    expected = np.array([0.0, 0.0, 1.625, 0.0])
+    np.testing.assert_allclose(stva.get_value(0.0), expected)
+
+  def test_sparse_profile_in_range_multi_time(self):
+    data = {
+        0.0: {(0.5, 0.7): {0.5: 1.0, 0.7: 2.0}},
+        1.0: {(0.5, 0.7): {0.5: 2.0, 0.7: 4.0}},
+    }
+    stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    interpolated_param_2d.set_grid(stva, grid=grid)
+
+    expected_t0 = np.array([0.0, 0.0, 1.625, 0.0])
+    expected_t1 = np.array([0.0, 0.0, 3.25, 0.0])
+    expected_t05 = np.array([0.0, 0.0, 2.4375, 0.0])
+
+    np.testing.assert_allclose(stva.get_value(0.0), expected_t0)
+    np.testing.assert_allclose(stva.get_value(1.0), expected_t1)
+    np.testing.assert_allclose(stva.get_value(0.5), expected_t05)
+
+  def test_sparse_time_varying_array_under_jit(self):
+    data = {
+        0.0: {
+            0.9: 1.5,
+            (0.5, 0.7): {0.5: 1.0, 0.7: 2.0},
+        }
+    }
+    stva = interpolated_param_2d.SparseTimeVaryingArray.model_validate(data)
+    face_centers = interpolated_param_2d.get_face_centers(4)
+    grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
+    interpolated_param_2d.set_grid(stva, grid=grid)
+
+    @jax.jit
+    def f(
+        stva_model: interpolated_param_2d.SparseTimeVaryingArray,
+        t: chex.Numeric,
+    ):
+      return stva_model.get_value(t)
+
+    with self.subTest('jit_result_matches_non_jit'):
+      np.testing.assert_allclose(f(stva, 0.0), stva.get_value(t=0.0))
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+    with self.subTest('jit_cache_hit_only_once'):
+      # Create a new instance with different values but same structure
+      data_new = {
+          0.0: {
+              0.9: 2.5,
+              (0.5, 0.7): {0.5: 2.0, 0.7: 4.0},
+          }
+      }
+      stva_new = interpolated_param_2d.SparseTimeVaryingArray.model_validate(
+          data_new
+      )
+      interpolated_param_2d.set_grid(stva_new, grid=grid)
+
+      np.testing.assert_allclose(f(stva_new, 0.0), stva_new.get_value(t=0.0))
+      self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+  def test_sparse_overlapping_locations(self):
+    with self.assertRaisesRegex(ValueError, 'Overlapping locations'):
+      interpolated_param_2d.SparseTimeVaryingArray.model_validate(
+          {
+              0.0: {
+                  (0.1, 0.5): 1.0,
+                  (0.4, 0.6): 2.0,
+              }
+          }
+      )
+
+    with self.assertRaisesRegex(ValueError, 'Overlapping locations'):
+      interpolated_param_2d.SparseTimeVaryingArray.model_validate(
+          {
+              0.0: {
+                  (0.1, 0.5): 1.0,
+                  0.3: 2.0,
+              }
+          }
+      )
+
+    with self.assertRaisesRegex(ValueError, 'Overlapping locations'):
+      interpolated_param_2d.SparseTimeVaryingArray.model_validate(
+          {
+              0.0: {
+                  0.3: 1.0,
+                  (0.1, 0.5): 2.0,
+              }
+          }
+      )
+
+    with self.assertRaisesRegex(ValueError, 'Overlapping locations'):
+      interpolated_param_2d.SparseTimeVaryingArray.model_validate({
+          0.0: {
+              (0.1, 0.3): 1.0,
+          },
+          1.0: {
+              (0.1, 0.5): 1.0,
+              (0.4, 0.6): 2.0,
+          },
+      })
 
 
 if __name__ == '__main__':

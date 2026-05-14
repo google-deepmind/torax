@@ -16,12 +16,15 @@
 
 import dataclasses
 
+import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.torax_pydantic import torax_pydantic
+from torax._src.torax_pydantic.interpolated_param_2d import SparseTimeVaryingArray
 
 # pylint: disable=invalid-name
 
@@ -69,6 +72,21 @@ class InternalBoundaryConditions:
         T_i=jnp.zeros(nx, dtype=jax_utils.get_dtype()),
         T_e=jnp.zeros(nx, dtype=jax_utils.get_dtype()),
         n_e=jnp.zeros(nx, dtype=jax_utils.get_dtype()),
+    )
+
+
+class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):
+  """Pydantic model for internal boundary conditions."""
+  T_i: SparseTimeVaryingArray = torax_pydantic.ValidatedDefault(0.0)
+  T_e: SparseTimeVaryingArray = torax_pydantic.ValidatedDefault(0.0)
+  n_e: SparseTimeVaryingArray = torax_pydantic.ValidatedDefault(0.0)
+
+  def build_runtime_params(self, t: chex.Numeric) -> InternalBoundaryConditions:
+    """Builds the runtime params for the internal boundary conditions."""
+    return InternalBoundaryConditions(
+        T_i=self.T_i.get_value(t),
+        T_e=self.T_e.get_value(t),
+        n_e=self.n_e.get_value(t),
     )
 
 
