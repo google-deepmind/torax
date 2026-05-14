@@ -1116,7 +1116,7 @@ class GettersTest(parameterized.TestCase):
       total += impurity_value * z_impurity
       total_sq += impurity_value * z_impurity**2
 
-    zeff = 1.0 - total * z_main + total_sq
+    zeff = (1.0 - total) * z_main + total_sq
     config_dict_ne_ratios_zeff['plasma_composition'] = {
         'main_ion': 'D',
         'impurity': {
