@@ -13,7 +13,7 @@
 # limitations under the License.
 """Runtime params for the solver."""
 import dataclasses
-
+from typing import Literal
 import jax
 from torax._src import tridiagonal
 
@@ -33,3 +33,12 @@ class RuntimeParams:
   )
   chi_pereverzev: float
   D_pereverzev: float  # pylint: disable=invalid-name
+  atol: float | None = dataclasses.field(metadata={'static': True})
+  rtol: float | None = dataclasses.field(metadata={'static': True})
+  use_backtracking: bool = dataclasses.field(metadata={'static': True})
+  delta_reduction_factor: float = dataclasses.field(metadata={'static': True})
+  fixed_point_method: Literal['del2', 'iteration', 'anderson'] = dataclasses.field(metadata={'static': True})  # pytype: disable=annotation-type-mismatch
+  anderson_window_size: int = dataclasses.field(metadata={'static': True})
+  anderson_safeguard_eta: float
+  anderson_regularization: float
+  anderson_beta: float
