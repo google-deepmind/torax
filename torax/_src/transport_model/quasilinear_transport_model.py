@@ -350,11 +350,10 @@ def _compute_fast_ion_stabilization_factor(
       fi_model = _load_fi_stabilization_model(species_model)
     else:
       fi_model = _get_default_fi_stabilization_model(fast_ion.species)
-    prediction = fi_model.predict(inputs)
-    if isinstance(prediction, tuple):
-      species_factor, _ = prediction
-    else:
-      species_factor = prediction
+    # TODO(b/512128432): Extend the parameter space based on values ranges
+    # observed following analysis of integrated modelling results.
+    # TODO(b/512476967): Propagate and handle OOD warnings.
+    species_factor, _ = fi_model.predict(inputs, clip_inputs=True)
     species_factor = species_factor.squeeze(axis=-1)
     factor = factor * species_factor
   return factor
