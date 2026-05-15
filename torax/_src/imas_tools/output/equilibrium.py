@@ -60,11 +60,9 @@ def torax_state_to_imas_equilibrium(
   equilibrium.ids_properties.comment = (
       "equilibrium IDS built from ToraxSimState object."
   )
-  equilibrium.time.resize(1)
-  equilibrium.time = [sim_state.t]
+  equilibrium.time = np.array([sim_state.t])
   equilibrium.vacuum_toroidal_field.r0 = geometry.R_major
-  equilibrium.vacuum_toroidal_field.b0.resize(1)
-  equilibrium.vacuum_toroidal_field.b0[0] = -1 * geometry.B_0
+  equilibrium.vacuum_toroidal_field.b0 = np.array([-1 * geometry.B_0])
   equilibrium.time_slice.resize(1)
   eq = equilibrium.time_slice[0]
   eq.boundary.geometric_axis.r = geometry.R_major
