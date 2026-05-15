@@ -15,6 +15,7 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
@@ -45,6 +46,8 @@ class GettersTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     jax_utils.enable_errors(True)
+    # TODO(b/512741582): Remove cache clearing after finding underlying issue.
+    jax.clear_caches()
     self.geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
 
   def test_updated_ion_temperature(self):
