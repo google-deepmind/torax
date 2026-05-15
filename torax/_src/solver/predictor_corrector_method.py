@@ -33,6 +33,7 @@ from torax._src.solver import jax_fixed_point
 from torax._src.sources import source_profiles
 
 
+# TODO(b/434175938): Rename to Picard iteration method.
 @jax.jit(
     static_argnames=[
         'coeffs_callback',

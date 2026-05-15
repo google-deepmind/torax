@@ -55,6 +55,7 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   theta_implicit: Annotated[
       torax_pydantic.UnitInterval, torax_pydantic.JAX_STATIC
   ] = 1.0
+  # TODO(b/434175938): Rename to Picard iteration method.
   use_predictor_corrector: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   n_corrector_steps: Annotated[
       pydantic.PositiveInt, torax_pydantic.JAX_STATIC
