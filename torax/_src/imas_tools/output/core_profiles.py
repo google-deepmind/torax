@@ -167,8 +167,8 @@ def _fill_global_quantities(
   # Resize global_quantities.ion to create its substructure for every ion.
   ids.global_quantities.ion.resize(num_ions)
   for ion in range(num_ions):
-    ids.global_quantities.ion[ion].t_i_volume_average.resize(len(times))
-    ids.global_quantities.ion[ion].n_i_volume_average.resize(len(times))
+    ids.global_quantities.ion[ion].t_i_volume_average = np.zeros(len(times))
+    ids.global_quantities.ion[ion].n_i_volume_average = np.zeros(len(times))
 
 
 def _fill_profiles_1d(
