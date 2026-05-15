@@ -437,68 +437,81 @@ def _calc_coeffs_full(
           'pedestal_transition_state must not be None when'
           ' use_formation_model_with_adaptive_source is True.'
       )
+
+      # Scale the pedestal output by the ramp fraction during transitions.
+      # In H-mode, returns full H-mode values. In L-mode, returns L-mode
+      # values. During transitions, linearly interpolates between the two.
       ramp_fraction = _compute_ramp_fraction(
           pedestal_transition_state=pedestal_transition_state,
           transition_time_width=runtime_params.pedestal.transition_time_width,
           t=runtime_params.t,
       )
-      # Scale the pedestal output by the ramp fraction during transitions.
-      # In H-mode, returns full H-mode values. In L-mode, returns L-mode
-      # values. During transitions, linearly interpolates between the two.
       pedestal_model_output = _apply_transition_ramp_scaling(
           pedestal_model_output=pedestal_model_output,
           pedestal_transition_state=pedestal_transition_state,
           ramp_fraction=ramp_fraction,
       )
+
       # Adaptive source should be applied if we're in H mode or still in the
       # LH/HL ramp.
-      apply_adaptive_source = (
+      apply_pedestal_internal_boundary_conditions = (
           pedestal_transition_state.confinement_mode
           != pedestal_transition_state_lib.ConfinementMode.L_MODE
       )
+      pedestal_internal_boundary_conditions = jax.lax.cond(
+          apply_pedestal_internal_boundary_conditions,
+          lambda: pedestal_model_output.to_internal_boundary_conditions(geo),
+          lambda: internal_boundary_conditions_lib.InternalBoundaryConditions.empty(
+              geo
+          ),
+      )
     else:
-      apply_adaptive_source = jnp.bool_(True)
-
-    def _apply_source():
+      # If not using the formation model, we always apply the adaptive source.
       pedestal_internal_boundary_conditions = (
           pedestal_model_output.to_internal_boundary_conditions(geo)
       )
-      return internal_boundary_conditions_lib.apply_adaptive_source(
-          source_T_i=source_i,
-          source_T_e=source_e,
-          source_n_e=source_n_e,
-          source_mat_ii=source_mat_ii,
-          source_mat_ee=source_mat_ee,
-          source_mat_nn=source_mat_nn,
-          runtime_params=runtime_params,
-          internal_boundary_conditions=pedestal_internal_boundary_conditions,
-      )
 
-    def _skip_source():
-      return (
-          source_i,
-          source_e,
-          source_n_e,
-          source_mat_ii,
-          source_mat_ee,
-          source_mat_nn,
-      )
-
-    (
-        source_i,
-        source_e,
-        source_n_e,
-        source_mat_ii,
-        source_mat_ee,
-        source_mat_nn,
-    ) = jax.lax.cond(
-        apply_adaptive_source,
-        _apply_source,
-        _skip_source,
+    # Combine the user-specified internal boundary conditions with the pedestal
+    # model output. The pedestal model output will overwrite the user-specified
+    # values if they conflict.
+    # Prioritizing the pedestal model output over the user-specified internal
+    # boundary conditions is a choice we make to get smooth, physically-
+    # realistic pedestal evolution (governed by a model) rather than getting
+    # potentially disjoint behaviour where the user-specified boundary condition
+    # collides with the predictions of the pedestal model.
+    combined_internal_boundary_conditions = (
+        runtime_params.profile_conditions.internal_boundary_conditions.merge(
+            pedestal_internal_boundary_conditions
+        )
+    )
+  else:
+    # No pedestal model, so just use the user-specified internal boundary
+    # conditions.
+    combined_internal_boundary_conditions = (
+        runtime_params.profile_conditions.internal_boundary_conditions
     )
 
+  # Apply the combined internal boundary conditions to the source terms.
+  (
+      source_i,
+      source_e,
+      source_n_e,
+      source_mat_ii,
+      source_mat_ee,
+      source_mat_nn,
+  ) = internal_boundary_conditions_lib.apply_adaptive_source(
+      source_T_i=source_i,
+      source_T_e=source_e,
+      source_n_e=source_n_e,
+      source_mat_ii=source_mat_ii,
+      source_mat_ee=source_mat_ee,
+      source_mat_nn=source_mat_nn,
+      runtime_params=runtime_params,
+      internal_boundary_conditions=combined_internal_boundary_conditions,
+  )
+
   # --- Build arguments to solver  --- #
-  # Selects only necessary coefficients based on which variables are evolving
+  # Build arguments to solver based on which variables are evolving
   var_to_toc = {
       'T_i': toc_T_i,
       'T_e': toc_T_e,
@@ -647,6 +660,7 @@ def _apply_transition_ramp_scaling(
   Returns:
     Scaled pedestal model output.
   """
+
   def _interpolate_transition(l_val, h_val):
     """Interpolates between L-mode and H-mode values based on confinement mode.
 

@@ -13,17 +13,52 @@
 # limitations under the License.
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
+from torax._src.geometry import circular_geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.torax_pydantic import interpolated_param_2d
+from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
 
-class InternalBoundaryConditionsTest(absltest.TestCase):
+class InternalBoundaryConditionsTest(parameterized.TestCase):
 
-  def test_update(self):
+  @parameterized.named_parameters(
+      ('initial_time', 0.0, [1.0, 0.0, 0.0, 2.0]),
+      ('intermediate_time', 0.5, [2.0, 0.0, 0.0, 3.0]),
+      ('final_time', 1.0, [3.0, 0.0, 0.0, 4.0]),
+      ('after_final_time', 1.5, [3.0, 0.0, 0.0, 4.0]),
+  )
+  def test_internal_boundary_conditions_config_build_runtime_params(
+      self, t, expected_T_i
+  ):
+    ibc_config = internal_boundary_conditions.InternalBoundaryConditionsConfig(
+        T_i={
+            0.0: {0: 1.0, 1: 2.0},
+            1.0: {0: 3.0, 1: 4.0},
+        },
+    )
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    torax_pydantic.set_grid(ibc_config, geo.torax_mesh)
+
+    runtime_params = ibc_config.build_runtime_params(t=t)
+    np.testing.assert_array_equal(
+        runtime_params.T_i,
+        np.array(expected_T_i),
+    )
+    np.testing.assert_array_equal(
+        runtime_params.T_e,
+        np.array([0.0, 0.0, 0.0, 0.0]),
+    )
+    np.testing.assert_array_equal(
+        runtime_params.n_e,
+        np.array([0.0, 0.0, 0.0, 0.0]),
+    )
+
+  def test_merge(self):
     ibc1 = internal_boundary_conditions.InternalBoundaryConditions(
         T_i=jnp.array([1.0, 0.0, 0.0]),
         T_e=jnp.array([0.0, 2.0, 0.0]),
@@ -35,7 +70,7 @@ class InternalBoundaryConditionsTest(absltest.TestCase):
         n_e=jnp.array([3.3, 0.0, 0.0]),
     )
 
-    updated_ibc = ibc1.update(ibc2)
+    updated_ibc = ibc1.merge(ibc2)
 
     np.testing.assert_allclose(updated_ibc.T_i, jnp.array([1.1, 1.1, 0.0]))
     np.testing.assert_allclose(updated_ibc.T_e, jnp.array([0.0, 2.0, 2.2]))

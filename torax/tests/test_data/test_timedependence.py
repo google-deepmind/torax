@@ -15,8 +15,9 @@
 """Tests time dependent boundary conditions and sources.
 
 Ip from parameters. implicit + pereverzev-corrigan, T_i+T_e+Psi, Pei standard
-dens, pedestal, chi from QLKNN. Includes time dependent Ip, P_total, and
-pedestal, mocking up current-overshoot and an LH transition
+dens, pedestal, chi from QLKNN. Internal boundary conditions for T_e.
+Includes time dependent Ip, P_total, and pedestal, mocking up current-overshoot
+and an LH transition.
 """
 
 CONFIG = {
@@ -28,6 +29,9 @@ CONFIG = {
         'n_e_nbar_is_fGW': False,
         'normalize_n_e_to_nbar': True,
         'nbar': 0.33820425407e20,  # fGW=0.85 for Ip(t=0)
+        'internal_boundary_conditions': {
+            'T_e': {0.0: {(0.0, 0.3): 7.0}, 5.0: {(0.0, 0.3): 15.0}},
+        },
     },
     'numerics': {
         'evolve_current': True,

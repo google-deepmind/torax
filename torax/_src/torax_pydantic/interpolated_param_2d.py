@@ -515,7 +515,10 @@ class SparseTimeVaryingArray(model_base.BaseModelFrozen):
       for key, val in vals.items():
         if key not in grouped_by_location:
           grouped_by_location[key] = {}
-        grouped_by_location[key][t] = val
+        if isinstance(val, (float, int)):
+          grouped_by_location[key][t] = {0.0: val}
+        else:
+          grouped_by_location[key][t] = val
 
     # Convert the grouped values to the final format.
     list_of_tuples = []

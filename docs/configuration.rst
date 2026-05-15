@@ -383,6 +383,47 @@ time-dependence of temperature, density, and current.
   ``toroidal_angular_velocity`` at :math:`\hat{\rho}=1`. If ``toroidal_angular_velocity`` is
   also ``None``, then the boundary condition will be set to zero.
 
+``internal_boundary_conditions`` (dict [default = {}])
+  Internal boundary conditions for :math:`T_i`, :math:`T_e`, and :math:`n_e`.
+  These conditions are enforced via adaptive sources. The dictionary can contain
+  the keys ``T_i``, ``T_e``, and ``n_e``. Each of these keys accepts a
+  **sparse time-varying-array** type, allowing specification of time-varying
+  values at fixed spatial points.
+
+  Values are specified as ``{time: {rho_norm: value, ...}, ...}``. For example:
+
+  .. code-block:: python
+
+    'internal_boundary_conditions': {
+        'T_e': {
+            0.0: {0.85: 1.0},
+            1.0: {0.85: 1.5}
+        }
+    }
+
+  This will set the electron temperature to 1.0 keV at :math:`\hat{\rho}=0.85`
+  at t=0, and 1.5 keV at :math:`\hat{\rho}=0.85` at t=1, with linear
+  interpolation in time in between.
+
+  In addition, time-varying values can be specified for a given **range** of
+  :math:`\hat{\rho}` values. For example:
+
+  .. code-block:: python
+
+    'T_i': {
+        0.0: {
+            (0.85, 1.0): {0.85: 1.5, 1.0: 1.0}
+        }
+    }
+
+  This will set the ion temperature to 1.5keV at :math:`\hat{\rho}=0.85` with
+  linear interpolation to 1.0keV at :math:`\hat{\rho}=1.0` at t=0.
+
+  Note that the radial locations (:math:`\hat{\rho}` keys) of the internal
+  boundary conditions must be the same at all times - there is currently no way
+  to specify time-varying radial locations for the internal boundary
+  conditions.
+
 ``fast_ions`` (list[dict] | None [default = None])
   Prescribed fast ion density and temperature profiles. Each entry prescribes
   a fast ion species for a specific source, overriding any model-computed fast

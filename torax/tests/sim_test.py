@@ -138,7 +138,8 @@ class SimTest(sim_test_case.SimTestCase):
           'test_psichease_prescribed_johm',
           'test_psichease_prescribed_johm.py',
       ),
-      # Tests time-dependent pedestal, P_total, Ip. CHEASE geometry. QLKNN.
+      # Tests time-dependent pedestal, P_total, Ip, and internal boundary
+      # conditions.
       (
           'test_timedependence',
           'test_timedependence.py',

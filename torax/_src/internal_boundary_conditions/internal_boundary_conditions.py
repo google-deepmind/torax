@@ -15,16 +15,16 @@
 """Internal boundary conditions."""
 
 import dataclasses
+import typing
 
 import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.torax_pydantic.interpolated_param_2d import SparseTimeVaryingArray
 
 # pylint: disable=invalid-name
 
@@ -52,7 +52,7 @@ class InternalBoundaryConditions:
   T_e: array_typing.FloatVectorCell
   n_e: array_typing.FloatVectorCell
 
-  def update(
+  def merge(
       self,
       other: 'InternalBoundaryConditions',
   ) -> 'InternalBoundaryConditions':
@@ -77,9 +77,16 @@ class InternalBoundaryConditions:
 
 class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):
   """Pydantic model for internal boundary conditions."""
-  T_i: SparseTimeVaryingArray = torax_pydantic.ValidatedDefault(0.0)
-  T_e: SparseTimeVaryingArray = torax_pydantic.ValidatedDefault(0.0)
-  n_e: SparseTimeVaryingArray = torax_pydantic.ValidatedDefault(0.0)
+
+  T_i: interpolated_param_2d.SparseTimeVaryingArray = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  T_e: interpolated_param_2d.SparseTimeVaryingArray = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  n_e: interpolated_param_2d.SparseTimeVaryingArray = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
 
   def build_runtime_params(self, t: chex.Numeric) -> InternalBoundaryConditions:
     """Builds the runtime params for the internal boundary conditions."""
@@ -98,7 +105,7 @@ def apply_adaptive_source(
     source_mat_ii: array_typing.FloatVectorCell,
     source_mat_ee: array_typing.FloatVectorCell,
     source_mat_nn: array_typing.FloatVectorCell,
-    runtime_params: runtime_params_lib.RuntimeParams,
+    runtime_params: typing.Any,
     internal_boundary_conditions: InternalBoundaryConditions,
 ) -> tuple[
     array_typing.FloatVectorCell,

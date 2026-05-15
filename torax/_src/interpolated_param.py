@@ -337,8 +337,8 @@ def convert_input_to_xs_ys(
           f'{interp_input}.'
       )
     xs, ys = interp_input
-    xs = np.asarray(xs, dtype=jax_utils.get_np_dtype())
-    ys = np.asarray(ys, dtype=jax_utils.get_np_dtype())
+    xs = np.atleast_1d(np.asarray(xs, dtype=jax_utils.get_np_dtype()))
+    ys = np.atleast_1d(np.asarray(ys, dtype=jax_utils.get_np_dtype()))
     return xs, ys, interpolation_mode, is_bool_param
   if isinstance(interp_input, dict):
     if not interp_input:
