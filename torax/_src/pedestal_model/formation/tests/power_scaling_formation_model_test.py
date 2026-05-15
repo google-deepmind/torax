@@ -137,7 +137,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
       dict(
           testcase_name='transitions_to_l_mode',
           p_sol_factor=0.7,
-          expected_mode=pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
+          expected_mode=pedestal_transition_state_lib.ConfinementMode.L_MODE,
       ),
   )
   def test_pedestal_transition_hysteresis(self, p_sol_factor, expected_mode):

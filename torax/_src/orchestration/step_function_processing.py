@@ -29,6 +29,7 @@ from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model as power_scaling_formation_model_lib
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profile_builders
@@ -37,6 +38,8 @@ from torax._src.time_step_calculator import time_step_calculator_state as time_s
 from torax._src.transport_model import transport_coefficients_builder
 
 # pylint: disable=invalid-name
+
+ConfinementMode = pedestal_transition_state_lib.ConfinementMode
 
 
 def _update_pedestal_transition_state(
@@ -51,25 +54,8 @@ def _update_pedestal_transition_state(
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
   """Evaluates P_SOL vs P_LH and updates the pedestal transition state.
 
-  Called once per timestep in pre_step. Determines whether the plasma should
-  enter or exit H-mode based on the power crossing the separatrix (P_SOL)
-  compared to the L-H transition threshold power (P_LH).
-
-  When transitioning from L-mode to H-mode (currently in L-mode and P_SOL >
-  P_LH):
-    - Records the current simulation time as transition_start_time
-    - Saves the current values of the pedestal-top
-
-  When transitioning from H-mode to L-mode (currently in H-mode and P_SOL <
-  P_LH):
-    - Records the current simulation time as transition_start_time
-    - Loads the saved L-mode pedestal-top values
-
-  If mid-transition and then starting to revert back to the original
-  confinement mode:
-    - Sets the transition_start_time such that the time spent in the
-      reverse transition is the same as the time spent in the original
-      transition.
+  Called once per timestep in pre_step. Computes P_SOL and P_LH, then
+  delegates to the mode-specific update function.
 
   Args:
     pedestal_transition_state: Current transition state from previous timestep.
@@ -110,6 +96,120 @@ def _update_pedestal_transition_state(
   )
   P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
 
+  if (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+  ):
+    return _update_adaptive_transport(
+        pedestal_transition_state, runtime_params, P_SOL, P_LH,
+    )
+
+  return _update_adaptive_source(
+      pedestal_transition_state, runtime_params, geo, core_profiles,
+      core_sources, models, P_SOL, P_LH,
+  )
+
+
+def _update_adaptive_transport(
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    runtime_params: runtime_params_lib.RuntimeParams,
+    P_SOL: jax.Array,
+    P_LH: jax.Array,
+) -> pedestal_transition_state_lib.PedestalTransitionState:
+  """Updates pedestal transition state for ADAPTIVE_TRANSPORT mode.
+
+  Simple L-mode <-> H-mode transitions with hysteresis. No transitioning
+  states, timers, or L-mode value capture. The sigmoid in the formation
+  model handles the dynamics of the transition.
+
+  Note that interpretation of ConfinementMode is on the expectation of the
+  confinement regime at the end of the timestep interval based on the
+  P_SOL/P_LH ratio at the beginning of the timestep interval. There is no
+  information on the dynamics and where we are in the transition.
+
+  Args:
+    pedestal_transition_state: Current transition state from previous timestep.
+    runtime_params: Runtime parameters at time t.
+    P_SOL: Total power crossing the separatrix.
+    P_LH: L-H transition threshold power (already rescaled by P_LH_prefactor).
+
+  Returns:
+    Updated PedestalTransitionState.
+  """
+  old_confinement_mode = pedestal_transition_state.confinement_mode
+  new_confinement_mode = jnp.select(
+      [
+          # L-H transition.
+          (old_confinement_mode == ConfinementMode.L_MODE) & (P_SOL > P_LH),
+          # H-L back transition, with hysteresis.
+          (old_confinement_mode == ConfinementMode.H_MODE)
+          & (P_SOL < P_LH * runtime_params.pedestal.P_LH_hysteresis_factor),
+      ],
+      [ConfinementMode.H_MODE, ConfinementMode.L_MODE],
+      default=old_confinement_mode,
+  )
+
+  return pedestal_transition_state_lib.PedestalTransitionState(
+      confinement_mode=new_confinement_mode,
+      transition_start_time=pedestal_transition_state.transition_start_time,
+      T_i_ped_L_mode=pedestal_transition_state.T_i_ped_L_mode,
+      T_e_ped_L_mode=pedestal_transition_state.T_e_ped_L_mode,
+      n_e_ped_L_mode=pedestal_transition_state.n_e_ped_L_mode,
+  )
+
+
+def _update_adaptive_source(
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    core_sources: source_profiles_lib.SourceProfiles,
+    models: models_lib.Models,
+    P_SOL: jax.Array,
+    P_LH: jax.Array,
+) -> pedestal_transition_state_lib.PedestalTransitionState:
+  """Updates pedestal transition state for ADAPTIVE_SOURCE mode.
+
+  Full 4-state machine with TRANSITIONING_TO_H/L states, transition timers,
+  dithering support, and L-mode value capture for ramp interpolation.
+
+  When transitioning from L-mode to H-mode (currently in L-mode and P_SOL >
+  P_LH):
+    - Records the current simulation time as transition_start_time
+    - Saves the current kinetic profile values at the pedestal-top for the
+      lower target values when setting up pedestal ramp up/down.
+
+  When transitioning from H-mode to L-mode (currently in H-mode and P_SOL <
+  P_LH):
+    - Records the current simulation time as transition_start_time
+    - Loads the saved L-mode pedestal-top values as a target for the end of
+      the transition.
+
+  If mid-transition and then starting to revert back to the original
+  confinement mode:
+    - Sets the transition_start_time such that the time spent in the
+      reverse transition is the same as the time spent in the original
+      transition.
+
+  Args:
+    pedestal_transition_state: Current transition state from previous timestep.
+    runtime_params: Runtime parameters at time t.
+    geo: Geometry at time t.
+    core_profiles: Core plasma profiles at time t.
+    core_sources: Source profiles at time t.
+    models: Models for the simulation.
+    P_SOL: Total power crossing the separatrix.
+    P_LH: L-H transition threshold power (already rescaled by P_LH_prefactor).
+
+  Returns:
+    Updated PedestalTransitionState.
+  """
+  old_confinement_mode = pedestal_transition_state.confinement_mode
+
   # Has the transition time elapsed? Used for exiting transition states.
   elapsed_transition_time = (
       runtime_params.t - pedestal_transition_state.transition_start_time
@@ -126,8 +226,6 @@ def _update_pedestal_transition_state(
   # - If in a transition and the transition time has elapsed, exit transition
   #   and enter the target mode.
   # - Otherwise, remain in the current state.
-  ConfinementMode = pedestal_transition_state_lib.ConfinementMode
-  old_confinement_mode = pedestal_transition_state.confinement_mode
   conditions = [
       # Completed LH transition. Checked first so that completed transitions
       # take priority over starting new transitions in jnp.select.
@@ -195,6 +293,7 @@ def _update_pedestal_transition_state(
   )
 
   # Update the target values for transitions to L-mode.
+  # Only needed for ADAPTIVE_SOURCE, which uses ramp interpolation.
   update_L_mode_values = (old_confinement_mode == ConfinementMode.L_MODE) & (
       new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
   )
@@ -297,14 +396,19 @@ def pre_step(
   else:
     edge_outputs = None
 
-  # Update pedestal transition state if use_formation_model_with_adaptive_source
-  # is enabled.
+  # Update pedestal transition state for hysteresis tracking.
+  # Called for both ADAPTIVE_SOURCE (with formation model) and
+  # ADAPTIVE_TRANSPORT modes.
   pedestal_transition_state = input_state.pedestal_transition_state
-  if runtime_params_t.pedestal.use_formation_model_with_adaptive_source:
-    assert pedestal_transition_state is not None, (
-        'pedestal_transition_state must not be None when'
-        ' use_formation_model_with_adaptive_source is True.'
-    )
+  if (
+      (
+          runtime_params_t.pedestal.mode
+          == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+          and runtime_params_t.pedestal.use_formation_model_with_adaptive_source
+      )
+      or runtime_params_t.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+  ):
     # Merge explicit sources with previous implicit sources for accurate
     # P_SOL calculation (same pattern as the edge model above).
     merged_sources = dataclasses.replace(

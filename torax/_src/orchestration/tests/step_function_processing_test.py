@@ -300,5 +300,107 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     np.testing.assert_allclose(new_state.n_e_ped_L_mode, original_n_e)
 
 
+class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
+  """Tests for the simplified ADAPTIVE_TRANSPORT state machine."""
+
+  def setUp(self):
+    super().setUp()
+    config = default_configs.get_default_config_dict()
+    config['pedestal'] = {
+        'set_pedestal': True,
+        'mode': 'ADAPTIVE_TRANSPORT',
+        'formation_model': {'model_name': 'martin_scaling'},
+        'P_LH_hysteresis_factor': _HYSTERESIS,
+    }
+    config['sources'] = {
+        'generic_heat': {
+            'gaussian_location': 0.15,
+            'gaussian_width': 0.1,
+            'P_total': 20.0e6,
+            'electron_heat_fraction': 0.8,
+        }
+    }
+    self.torax_config = model_config.ToraxConfig.from_dict(config)
+    self.step_fn = run_simulation.make_step_fn(self.torax_config)
+    self.initial_state, _ = (
+        initial_state.get_initial_state_and_post_processed_outputs(self.step_fn)
+    )
+    self.runtime_params = self.step_fn.runtime_params_provider(t=0.0)
+    self.models = self.step_fn._solver.models
+
+  def _call_update(
+      self,
+      transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+      P_SOL: float,
+      t: float = 5.0,
+  ) -> pedestal_transition_state_lib.PedestalTransitionState:
+    runtime_params = dataclasses.replace(self.runtime_params, t=jnp.array(t))
+    with mock.patch.object(
+        step_function_processing.power_scaling_formation_model_lib,
+        'calculate_P_SOL_total',
+        return_value=jnp.array(P_SOL),
+    ), mock.patch.object(
+        step_function_processing.scaling_laws,
+        'calculate_P_LH',
+        return_value=(jnp.array(_P_LH), None),
+    ):
+      return step_function_processing._update_pedestal_transition_state(
+          pedestal_transition_state=transition_state,
+          runtime_params=runtime_params,
+          geo=self.initial_state.geometry,
+          core_profiles=self.initial_state.core_profiles,
+          core_sources=self.initial_state.core_sources,
+          models=self.models,
+      )
+
+  def test_L_mode_stays_L_mode_below_threshold(self):
+    state = _make_transition_state(ConfinementMode.L_MODE)
+    new_state = self._call_update(state, P_SOL=_P_LH * 0.5)
+    self.assertEqual(new_state.confinement_mode, ConfinementMode.L_MODE)
+
+  def test_L_mode_to_H_mode_directly(self):
+    """ADAPTIVE_TRANSPORT goes directly L→H, no TRANSITIONING state."""
+    state = _make_transition_state(ConfinementMode.L_MODE)
+    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
+    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
+
+  def test_H_mode_stays_H_mode_above_threshold(self):
+    state = _make_transition_state(ConfinementMode.H_MODE)
+    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
+    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
+
+  def test_H_mode_stays_in_hysteresis_band(self):
+    """P_SOL between h*P_LH and P_LH should stay in H_MODE."""
+    state = _make_transition_state(ConfinementMode.H_MODE)
+    P_SOL = _P_LH * (_HYSTERESIS + (1.0 - _HYSTERESIS) / 2.0)
+    new_state = self._call_update(state, P_SOL=P_SOL)
+    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
+
+  def test_H_mode_to_L_mode_directly(self):
+    """ADAPTIVE_TRANSPORT goes directly H→L, no TRANSITIONING state."""
+    state = _make_transition_state(ConfinementMode.H_MODE)
+    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5)
+    self.assertEqual(new_state.confinement_mode, ConfinementMode.L_MODE)
+
+  def test_no_L_mode_value_capture(self):
+    """ADAPTIVE_TRANSPORT should preserve L-mode values unchanged."""
+    original_T_i = 0.5
+    state = _make_transition_state(
+        ConfinementMode.L_MODE, T_i_ped_L=original_T_i
+    )
+    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
+    # L-mode values should be preserved (not updated from core_profiles).
+    np.testing.assert_allclose(new_state.T_i_ped_L_mode, original_T_i)
+
+  def test_no_transition_timer_updates(self):
+    """ADAPTIVE_TRANSPORT should not update transition_start_time."""
+    original_start = jnp.inf
+    state = _make_transition_state(
+        ConfinementMode.L_MODE, start_time=float(original_start)
+    )
+    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
+    np.testing.assert_allclose(new_state.transition_start_time, original_start)
+
+
 if __name__ == '__main__':
   absltest.main()
