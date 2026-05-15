@@ -85,10 +85,10 @@ def compute_state(
     edge_outputs: edge_base.EdgeModelOutputs | None,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
-    solver: solver_lib.Solver,
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
+    ),
+    solver: solver_lib.Solver,
 ) -> tuple[AdaptiveStepState, dict[str, array_typing.IntScalar]]:
   """Computes the state for attempt i of the adaptive step."""
   dt = initial_dt / runtime_params_t.numerics.dt_reduction_factor**i
@@ -149,6 +149,9 @@ def cond_fun(
     unused_edge_outputs: edge_base.EdgeModelOutputs | None,
     unused_runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     unused_geometry_provider: geometry_provider_lib.GeometryProvider,
+    unused_pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState | None
+    ),
 ) -> array_typing.BoolScalar:
   """Condition function for the adaptive step to keep stepping."""
   solver_outputs = inputs.solver_numeric_outputs

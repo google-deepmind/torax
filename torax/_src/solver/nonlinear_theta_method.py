@@ -66,9 +66,7 @@ class NonlinearThetaMethod(solver.Solver):
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -114,9 +112,7 @@ class NonlinearThetaMethod(solver.Solver):
       explicit_source_profiles: source_profiles.SourceProfiles,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -150,7 +146,7 @@ class NonlinearThetaMethod(solver.Solver):
         should evolve.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
         transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-        use_formation_model_with_adaptive_source=True. None otherwise.
+        use_formation_model_with_adaptive_source=True.
 
     Returns:
       A tuple containing:
@@ -175,9 +171,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       explicit_source_profiles: source_profiles.SourceProfiles,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -231,9 +225,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       explicit_source_profiles: source_profiles.SourceProfiles,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,

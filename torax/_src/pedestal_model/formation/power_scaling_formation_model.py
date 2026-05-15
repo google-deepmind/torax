@@ -22,6 +22,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import base
 from torax._src.physics import scaling_laws
@@ -78,6 +79,7 @@ class PowerScalingFormationModel(base.FormationModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.TransportMultipliers:
     """Calculates transport decrease multipliers based on P_SOL and P_LH."""
     assert isinstance(

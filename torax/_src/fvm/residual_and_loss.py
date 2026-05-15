@@ -229,9 +229,7 @@ def theta_method_block_residual(
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
+    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
 ) -> jax.Array:
   """Residual of theta-method equation for core profiles at next time-step.
 
@@ -334,6 +332,7 @@ def theta_method_block_loss(
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
+    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
 ) -> jax.Array:
   """Loss for the optimizer method of nonlinear solution.
 
@@ -355,6 +354,8 @@ def theta_method_block_loss(
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
+    pedestal_transition_state: State of the pedestal transition model if using
+      the formation model with adaptive source.
 
   Returns:
     loss: mean squared loss of theta method residual.
@@ -372,6 +373,7 @@ def theta_method_block_loss(
       models=models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
+      pedestal_transition_state=pedestal_transition_state,
   )
   loss = jnp.mean(jnp.square(residual))
   return loss
@@ -395,6 +397,7 @@ def jaxopt_solver(
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
+    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
     maxiter: int,
     tol: float,
 ) -> tuple[jax.Array, float, int]:
@@ -418,6 +421,8 @@ def jaxopt_solver(
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
+    pedestal_transition_state: State of the pedestal transition model if using
+      the formation model with adaptive source.
     maxiter: maximum number of iterations of jaxopt solver.
     tol: tolerance for jaxopt solver convergence.
 
@@ -439,6 +444,7 @@ def jaxopt_solver(
       models=models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
+      pedestal_transition_state=pedestal_transition_state,
   )
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, implicit_diff=True)
   solver_output = solver.run(init_x_new_vec)

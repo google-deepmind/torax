@@ -39,7 +39,6 @@ from torax._src.solver import jax_root_finding
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
 
-
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
 # cases with bad numerics.
@@ -74,10 +73,8 @@ def newton_raphson_solve_block(
     coarse_tol: float,
     delta_reduction_factor: float,
     tau_min: float,
+    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
     log_iterations: bool = False,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state_module.SolverNumericOutputs,
@@ -146,10 +143,11 @@ def newton_raphson_solve_block(
       line search step.
     tau_min: Minimum delta/delta_original allowed before the newton raphson
       routine resets at a lower timestep.
-    log_iterations: If true, output diagnostic information from within iteration
-      loop.
     pedestal_transition_state: State of the pedestal transition model if using
       the formation model with adaptive source.
+    log_iterations: If true, output diagnostic information from within iteration
+      loop.
+
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step

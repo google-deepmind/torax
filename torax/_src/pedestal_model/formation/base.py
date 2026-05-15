@@ -21,6 +21,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 
 
@@ -35,6 +36,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.TransportMultipliers:
     """Calculates the transport decrease multipliers.
 
@@ -43,6 +45,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: Geometry.
       core_profiles: Core profiles.
       source_profiles: Source profiles.
+      pedestal_transition_state: Current pedestal transition state.
 
     Returns:
       transport_decrease_multiplier: Factors to multiply transport coefficients

@@ -27,6 +27,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import base as formation_base
 from torax._src.pedestal_model.saturation import base as saturation_base
@@ -49,6 +50,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalModelOutput:
     pedestal_output = self._call_implementation(
         runtime_params, geo, core_profiles
@@ -61,7 +63,11 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
         == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
     ):
       transport_decrease_multipliers = self.formation_model(
-          runtime_params, geo, core_profiles, source_profiles
+          runtime_params,
+          geo,
+          core_profiles,
+          source_profiles,
+          pedestal_transition_state,
       )
       transport_increase_multipliers = self.saturation_model(
           runtime_params, geo, core_profiles, pedestal_output
@@ -87,11 +93,12 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalModelOutput:
     return jax.lax.cond(
         runtime_params.pedestal.set_pedestal,
         self._evaluate_pedestal,
-        lambda runtime_params, geo, core_profiles, source_profiles: pedestal_model_output.PedestalModelOutput(
+        lambda runtime_params, geo, core_profiles, source_profiles, pedestal_transition_state: pedestal_model_output.PedestalModelOutput(
             rho_norm_ped_top=jnp.inf,
             rho_norm_ped_top_idx=geo.torax_mesh.nx,
             T_i_ped=0.0,
@@ -102,6 +109,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
         geo,
         core_profiles,
         source_profiles,
+        pedestal_transition_state,
     )
 
   @abc.abstractmethod

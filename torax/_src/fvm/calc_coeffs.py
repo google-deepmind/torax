@@ -70,13 +70,13 @@ class CoeffsCallback:
       dt: array_typing.FloatScalar | None,
       x: tuple[cell_variable.CellVariable, ...],
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
       allow_pereverzev: bool = False,
       # Checks if reduced calc_coeffs for explicit terms when theta_implicit=1
       # should be called
       explicit_call: bool = False,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
   ) -> block_1d_coeffs.Block1DCoeffs:
     """Returns coefficients given a state x.
 
@@ -99,6 +99,9 @@ class CoeffsCallback:
         not recalculated at time t+plus_dt with updated state during the solver
         iterations. For sources that are implicit, their explicit profiles are
         set to all zeros.
+      pedestal_transition_state: State for tracking pedestal L-H and H-L
+        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+        use_formation_model_with_adaptive_source=True.
       allow_pereverzev: If True, then the coeffs are being called within a
         linear solver. Thus could be either the use_predictor_corrector solver
         or as part of calculating the initial guess for the nonlinear solver. In
@@ -109,9 +112,6 @@ class CoeffsCallback:
       explicit_call: If True, then if theta_implicit=1, only a reduced
         Block1DCoeffs is calculated since most explicit coefficients will not be
         used.
-      pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-        use_formation_model_with_adaptive_source=True. None otherwise.
 
     Returns:
       coeffs: The diffusion, convection, etc. coefficients for this state.
@@ -152,11 +152,11 @@ def calc_coeffs(
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
     use_pereverzev: bool = False,
     explicit_call: bool = False,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """Calculates Block1DCoeffs for the time step described by `core_profiles`.
 
@@ -177,14 +177,14 @@ def calc_coeffs(
     models: The models to use for the simulation.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
+    pedestal_transition_state: State for tracking pedestal L-H and H-L
+      transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
+      use_formation_model_with_adaptive_source=True.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
     explicit_call: If True, indicates that calc_coeffs is being called for the
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
       theta_implicit=1. This saves computation for the default fully implicit
       implementation.
-    pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-      use_formation_model_with_adaptive_source=True. None otherwise.
 
   Returns:
     coeffs: Block1DCoeffs containing the coefficients at this time step.
@@ -224,10 +224,10 @@ def _calc_coeffs_full(
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
-    use_pereverzev: bool = False,
     pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """See `calc_coeffs` for details."""
 
@@ -283,8 +283,8 @@ def _calc_coeffs_full(
           geo,
           core_profiles,
           merged_source_profiles,
+          pedestal_transition_state,
           use_pereverzev,
-          pedestal_transition_state=pedestal_transition_state,
       )
   )
 
@@ -430,13 +430,13 @@ def _calc_coeffs_full(
     # TODO(b/500260959): Currently pedestal model is called twice, once in
     # calculate_all_transport_coeffs and once here.
     pedestal_model_output = models.pedestal_model(
-        runtime_params, geo, core_profiles, merged_source_profiles
+        runtime_params,
+        geo,
+        core_profiles,
+        merged_source_profiles,
+        pedestal_transition_state,
     )
     if runtime_params.pedestal.use_formation_model_with_adaptive_source:
-      assert pedestal_transition_state is not None, (
-          'pedestal_transition_state must not be None when'
-          ' use_formation_model_with_adaptive_source is True.'
-      )
 
       # Scale the pedestal output by the ramp fraction during transitions.
       # In H-mode, returns full H-mode values. In L-mode, returns L-mode

@@ -19,6 +19,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -91,6 +92,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
     if isinstance(rho_norm_ped_top, (float, int)):

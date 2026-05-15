@@ -204,6 +204,7 @@ def _update_pedestal_transition_state(
       geo=geo,
       core_profiles=core_profiles,
       source_profiles=core_sources,
+      pedestal_transition_state=pedestal_transition_state,
   )
   ped_top_idx = jnp.argmin(
       jnp.abs(geo.rho_norm - pedestal_model_output.rho_norm_ped_top)
@@ -353,8 +354,8 @@ def finalize_outputs(
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
     time_step_calculator_state_t: time_step_calculator_state_lib.TimeStepCalculatorState,
     pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
   final_core_profiles, final_source_profiles = (

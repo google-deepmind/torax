@@ -26,6 +26,7 @@ from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
 from torax._src.fvm import residual_and_loss
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_sources
@@ -258,6 +259,7 @@ class FVMTest(parameterized.TestCase):
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     # dt well under the explicit stability limit for dx=1 and chi=1
     dt = jnp.array(0.2)
@@ -291,6 +293,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
       )
 
       residual = residual_and_loss.theta_method_block_residual(
@@ -305,6 +308,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
       )
 
       np.testing.assert_allclose(loss, 0.0, atol=1e-7)
@@ -366,6 +370,7 @@ class FVMTest(parameterized.TestCase):
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     initial_right_boundary = jnp.array(0.0)
     x_0 = cell_variable.CellVariable(
@@ -483,6 +488,7 @@ class FVMTest(parameterized.TestCase):
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
     initial_right_boundary = jnp.array(0.0)
@@ -519,6 +525,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
       )
       np.testing.assert_allclose(residual, 0.0)
     with self.subTest('updated_boundary_conditions'):
@@ -543,6 +550,7 @@ class FVMTest(parameterized.TestCase):
           models=models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_implicit > 0, the residual should be non-zero.
@@ -563,6 +571,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
 

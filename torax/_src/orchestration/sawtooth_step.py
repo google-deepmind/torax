@@ -56,8 +56,8 @@ def sawtooth_step(
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
     time_step_calculator_state_t: time_step_calculator_state_lib.TimeStepCalculatorState,
     pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Checks for and handles a sawtooth crash.
 
@@ -82,8 +82,7 @@ def sawtooth_step(
     time_step_calculator_state_t: Time step calculator state at the start of the
       time step.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-      use_formation_model_with_adaptive_source=True. None otherwise.
+      transitions.
 
   Returns:
     Returns a tuple (output_state, post_processed_outputs).
@@ -123,6 +122,7 @@ def sawtooth_step(
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
       explicit_source_profiles=explicit_source_profiles,
+      pedestal_transition_state=pedestal_transition_state,
   )
 
   def _make_post_crash_state_and_post_processed_outputs():

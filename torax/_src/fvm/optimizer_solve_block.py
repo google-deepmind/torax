@@ -63,9 +63,7 @@ def optimizer_solve_block(
     initial_guess_mode: enums.InitialGuessMode,
     maxiter: int,
     tol: float,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
+    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state.SolverNumericOutputs,
@@ -115,7 +113,7 @@ def optimizer_solve_block(
     tol: See docstring of `jaxopt.LBFGS`.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-      use_formation_model_with_adaptive_source=True. None otherwise.
+      use_formation_model_with_adaptive_source=True.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
@@ -171,6 +169,7 @@ def optimizer_solve_block(
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
           explicit_source_profiles=explicit_source_profiles,
+          pedestal_transition_state=pedestal_transition_state,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case enums.InitialGuessMode.X_OLD:
@@ -197,6 +196,7 @@ def optimizer_solve_block(
       models=models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
+      pedestal_transition_state=pedestal_transition_state,
       maxiter=maxiter,
       tol=tol,
   )

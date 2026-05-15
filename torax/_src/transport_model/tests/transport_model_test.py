@@ -25,6 +25,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -124,7 +125,11 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
-        runtime_params, geo, core_profiles, source_profiles
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
@@ -300,7 +305,11 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
-        runtime_params, geo, core_profiles, source_profiles
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     transport_model = torax_config.transport.build_transport_model()
     transport_coeffs = transport_model(
@@ -497,7 +506,11 @@ class TransportMaskingTest(parameterized.TestCase):
     # We need a pedestal model even if unused by the fixed transport
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     pedestal_model_outputs = pedestal_model(
-        runtime_params, geo, core_profiles, source_profiles
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
     transport_model = torax_config.transport.build_transport_model()
@@ -555,7 +568,11 @@ class TransportMaskingTest(parameterized.TestCase):
         explicit=True,
     )
     pedestal_model_outputs = pedestal_model(
-        runtime_params, geo, core_profiles, source_profiles
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     transport_model = torax_config.transport.build_transport_model()
     coeffs = transport_model(
@@ -678,7 +695,11 @@ class TransportMaskingTest(parameterized.TestCase):
         explicit=True,
     )
     pedestal_outputs = pedestal_model(
-        runtime_params, geo, core_profiles, source_profiles
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
     transport_model = torax_config.transport.build_transport_model()

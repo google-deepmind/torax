@@ -136,16 +136,14 @@ def _get_initial_state(
   else:
     edge_outputs = None
 
-  # If using adaptive source pedestal, initialize the transition state to empty.
-  # The values will be populated in the pre-step of the simulation.
-  if runtime_params.pedestal.use_formation_model_with_adaptive_source:
-    # TODO(b/500713368): Ensure that this works as expected when we start from
-    # H mode.
-    pedestal_transition_state = (
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
-    )
-  else:
-    pedestal_transition_state = None
+  # Initialize the pedestal transition state. This is used to track the
+  # confinement mode for hysteresis in both ADAPTIVE_SOURCE and
+  # ADAPTIVE_TRANSPORT modes.
+  # TODO(b/500713368): Ensure that this works as expected when we start from
+  # H mode.
+  pedestal_transition_state = (
+      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+  )
 
   transport_coeffs = (
       transport_coefficients_builder.calculate_all_transport_coeffs(

@@ -49,9 +49,7 @@ def predictor_corrector_method(
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
     explicit_source_profiles: source_profiles.SourceProfiles,
     coeffs_callback: calc_coeffs.CoeffsCallback,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
+    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Predictor-corrector method.
 

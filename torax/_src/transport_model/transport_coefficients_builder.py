@@ -47,10 +47,10 @@ def calculate_all_transport_coeffs(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_profiles: source_profiles_lib.SourceProfiles,
-    use_pereverzev: bool = False,
     pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
-    ) = None,
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    use_pereverzev: bool = False,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients from all models."""
 
@@ -60,10 +60,7 @@ def calculate_all_transport_coeffs(
   # the runtime params which is a bit hacky. Options include passing the
   # transition state to the pedestal model or to the transport model, both of
   # which are breaking API changes.
-  if (
-      runtime_params.pedestal.use_formation_model_with_adaptive_source
-      and pedestal_transition_state is not None
-  ):
+  if runtime_params.pedestal.use_formation_model_with_adaptive_source:
     # Pedestal model is active if we are in H-mode or in a transition.
     set_pedestal = (
         pedestal_transition_state.confinement_mode
@@ -82,7 +79,11 @@ def calculate_all_transport_coeffs(
   # TODO(b/500260959): Currently pedestal model is called twice, once in
   # calc_coeffs.py and once here.
   pedestal_model_output = pedestal_model(
-      runtime_params, geo, core_profiles, source_profiles
+      runtime_params,
+      geo,
+      core_profiles,
+      source_profiles,
+      pedestal_transition_state,
   )
   turbulent_transport_coeffs = transport_model(
       runtime_params=runtime_params,

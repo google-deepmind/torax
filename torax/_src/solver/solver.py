@@ -59,9 +59,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -92,7 +90,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         non-JAX-friendly ways.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
         transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-        use_formation_model_with_adaptive_source=True. None otherwise.
+        use_formation_model_with_adaptive_source=True.
 
     Returns:
       x_new: Tuple containing new cell-grid values of the evolving variables.
@@ -144,9 +142,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -174,7 +170,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       evolving_names: The names of core_profiles variables that should evolve.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
         transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-        use_formation_model_with_adaptive_source=True. None otherwise.
+        use_formation_model_with_adaptive_source=True.
 
     Returns:
       x_new: The values of the evolving variables at time t + dt.

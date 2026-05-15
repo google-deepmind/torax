@@ -386,8 +386,8 @@ class SimulationStepFn:
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -444,8 +444,8 @@ class SimulationStepFn:
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -473,7 +473,6 @@ class SimulationStepFn:
         functools.partial(
             adaptive_step.compute_state,
             solver=self.solver,
-            pedestal_transition_state=pedestal_transition_state,
         ),
         (
             initial_state,
@@ -487,6 +486,7 @@ class SimulationStepFn:
         edge_outputs,
         runtime_params_provider,
         geometry_provider,
+        pedestal_transition_state,
     )
     assert isinstance(
         result.state, adaptive_step.AdaptiveStepState
@@ -539,8 +539,8 @@ class SimulationStepFn:
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,

@@ -49,8 +49,8 @@ class SawtoothSolver(solver.Solver):
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       evolving_names: tuple[str, ...],
       pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -76,8 +76,7 @@ class SawtoothSolver(solver.Solver):
       explicit_source_profiles: Explicit source profiles at time t.
       evolving_names: Names of evolving variables.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-        use_formation_model_with_adaptive_source=True. None otherwise.
+        transitions.
 
     Returns:
       Updated tuple of evolving CellVariables from CoreProfiles

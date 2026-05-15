@@ -26,6 +26,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import interpolated_param_1d
@@ -198,6 +199,7 @@ class StepFunctionTest(parameterized.TestCase):
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
         geometry_provider=step_fn.geometry_provider,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     self.assertGreater(config_dt, passed_max_dt)
     np.testing.assert_allclose(
@@ -231,6 +233,7 @@ class StepFunctionTest(parameterized.TestCase):
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
         geometry_provider=step_fn.geometry_provider,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     self.assertGreater(passed_max_dt, config_dt)
     np.testing.assert_allclose(
@@ -263,6 +266,7 @@ class StepFunctionTest(parameterized.TestCase):
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
         geometry_provider=step_fn.geometry_provider,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     self.assertTrue(np.less_equal(output_state.dt, passed_max_dt))
 

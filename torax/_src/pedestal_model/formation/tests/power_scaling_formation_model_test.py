@@ -115,6 +115,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         self.initial_state.geometry,
         self.initial_state.core_profiles,
         high_power_profiles,
+        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     for k, multiplier in dataclasses.asdict(transport_multipliers).items():
       np.testing.assert_allclose(
