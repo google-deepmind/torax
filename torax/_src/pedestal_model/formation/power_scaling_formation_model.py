@@ -16,6 +16,7 @@
 
 import dataclasses
 import jax
+import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
@@ -99,14 +100,22 @@ class PowerScalingFormationModel(base.FormationModel):
 
     rescaled_P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
 
+    # Apply hysteresis: in H-mode, use a lower effective P_LH threshold,
+    # making it harder to transition back to L-mode.
+    effective_P_LH = jnp.where(
+        pedestal_transition_state.confinement_mode
+        == pedestal_transition_state_lib.ConfinementMode.H_MODE,
+        rescaled_P_LH * runtime_params.pedestal.P_LH_hysteresis_factor,
+        rescaled_P_LH,
+    )
+
     # Calculate transport_multiplier
-    # If P_SOL > P_LH, multiplier tends to 0.0
-    # If P_SOL < P_LH, multiplier tends to 1.0
-    # TODO(b/488393318): Add hysteresis to the LH-HL transition.
+    # If P_SOL > effective_P_LH, multiplier tends to 0.0
+    # If P_SOL < effective_P_LH, multiplier tends to 1.0
     sharpness = runtime_params.pedestal.formation.sharpness
     offset = runtime_params.pedestal.formation.offset
     base_multiplier = runtime_params.pedestal.formation.base_multiplier
-    normalized_deviation = (P_SOL_total - rescaled_P_LH) / rescaled_P_LH
+    normalized_deviation = (P_SOL_total - effective_P_LH) / effective_P_LH
     shifted_deviation = normalized_deviation - offset
     alpha = jax.nn.sigmoid(shifted_deviation * sharpness)
     transport_multiplier = (1.0 - alpha) * 1.0 + alpha * base_multiplier

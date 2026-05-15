@@ -89,8 +89,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         outside the possibly-JAX-jitted solver logic, they can be calculated in
         non-JAX-friendly ways.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-        use_formation_model_with_adaptive_source=True.
+        transitions.
 
     Returns:
       x_new: Tuple containing new cell-grid values of the evolving variables.
@@ -169,8 +168,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       explicit_source_profiles: see the docstring of __call__
       evolving_names: The names of core_profiles variables that should evolve.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-        use_formation_model_with_adaptive_source=True.
+        transitions.
 
     Returns:
       x_new: The values of the evolving variables at time t + dt.

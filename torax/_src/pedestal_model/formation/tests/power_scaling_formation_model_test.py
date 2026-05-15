@@ -141,7 +141,17 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
       ),
   )
   def test_pedestal_transition_hysteresis(self, p_sol_factor, expected_mode):
-    """Tests that H-L transition respects the hysteresis factor."""
+    """Tests that H-L transition respects the hysteresis factor.
+
+    With ADAPTIVE_TRANSPORT mode, the state machine uses simple L<->H
+    transitions (no TRANSITIONING states). The hysteresis factor means:
+    - Stays in H_MODE when P_SOL > P_LH * hysteresis_factor
+    - Transitions to L_MODE when P_SOL < P_LH * hysteresis_factor
+
+    Args:
+      p_sol_factor: Factor to multiply P_LH to get target P_SOL.
+      expected_mode: Expected confinement mode after update.
+    """
     # Get P_LH
     P_LH, _ = scaling_laws.calculate_P_LH(
         geo=self.initial_state.geometry,
@@ -190,6 +200,77 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
       )
 
       self.assertEqual(new_state.confinement_mode, expected_mode)
+
+  def test_formation_model_uses_hysteresis_threshold_in_h_mode(self):
+    """Verifies that in H-mode the sigmoid center uses P_LH * hysteresis."""
+    formation_model = power_scaling_formation_model.PowerScalingFormationModel(
+        scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
+        divertor_configuration=scaling_laws.DivertorConfiguration.VT,
+    )
+
+    # Set hysteresis factor
+    runtime_params = dataclasses.replace(
+        self.runtime_params,
+        pedestal=dataclasses.replace(
+            self.runtime_params.pedestal,
+            P_LH_hysteresis_factor=0.5,
+        ),
+    )
+
+    l_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
+        confinement_mode=jnp.array(
+            pedestal_transition_state_lib.ConfinementMode.L_MODE
+        ),
+        transition_start_time=jnp.inf,
+        T_i_ped_L_mode=jnp.array(0.0),
+        T_e_ped_L_mode=jnp.array(0.0),
+        n_e_ped_L_mode=jnp.array(0.0),
+    )
+    h_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
+        confinement_mode=jnp.array(
+            pedestal_transition_state_lib.ConfinementMode.H_MODE
+        ),
+        transition_start_time=jnp.array(0.0),
+        T_i_ped_L_mode=jnp.array(0.0),
+        T_e_ped_L_mode=jnp.array(0.0),
+        n_e_ped_L_mode=jnp.array(0.0),
+    )
+
+    # Mock calculate_P_SOL_total and calculate_P_LH to avoid depending on
+    # specific profile values and scaling laws in this test.
+    target_P_LH = 100.0e6
+    target_P_SOL = 75.0e6
+
+    with mock.patch.object(
+        power_scaling_formation_model, 'calculate_P_SOL_total'
+    ) as mock_calc_p_sol:
+      mock_calc_p_sol.return_value = jnp.array(target_P_SOL)
+
+      with mock.patch.object(scaling_laws, 'calculate_P_LH') as mock_calc_p_lh:
+        mock_calc_p_lh.return_value = (jnp.array(target_P_LH), None)
+
+        multiplier_l_mode = formation_model(
+            runtime_params,
+            self.initial_state.geometry,
+            self.initial_state.core_profiles,
+            self.initial_state.core_sources,
+            l_mode_state,
+        )
+        multiplier_h_mode = formation_model(
+            runtime_params,
+            self.initial_state.geometry,
+            self.initial_state.core_profiles,
+            self.initial_state.core_sources,
+            h_mode_state,
+        )
+
+    # In H-mode, the effective P_LH is lower (P_LH * 0.5), so P_SOL is
+    # more likely to be above threshold, meaning the multiplier should be
+    # smaller (more suppression). In L-mode the full P_LH is used.
+    self.assertLess(
+        multiplier_h_mode.chi_e_multiplier,
+        multiplier_l_mode.chi_e_multiplier,
+    )
 
 
 if __name__ == '__main__':

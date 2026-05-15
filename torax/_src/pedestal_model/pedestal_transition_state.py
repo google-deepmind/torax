@@ -37,9 +37,9 @@ class ConfinementMode(enum.IntEnum):
 class PedestalTransitionState:
   """Tracks the state of pedestal L-H and H-L transitions.
 
-  This state is used when the pedestal model is in ADAPTIVE_SOURCE mode
-  with `use_formation_model_with_adaptive_source=True`. It persists across
-  timesteps to track the current confinement mode and enable smooth transitions.
+  This state is used when the pedestal model uses a formation model for
+  L-H and H-L transitions. It persists across timesteps to track the current
+  confinement mode and enable smooth transitions.
 
   Attributes:
     confinement_mode: The current confinement mode.

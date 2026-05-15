@@ -252,8 +252,8 @@ def theta_method_block_residual(
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
-    pedestal_transition_state: State of the pedestal transition model if using
-      the formation model with adaptive source.
+    pedestal_transition_state: State for tracking pedestal L-H and H-L
+      transitions.
 
   Returns:
     residual: Vector residual between LHS and RHS of the theta method equation.
@@ -354,8 +354,8 @@ def theta_method_block_loss(
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
-    pedestal_transition_state: State of the pedestal transition model if using
-      the formation model with adaptive source.
+    pedestal_transition_state: State for tracking pedestal L-H and H-L
+      transitions.
 
   Returns:
     loss: mean squared loss of theta method residual.
@@ -421,8 +421,8 @@ def jaxopt_solver(
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
-    pedestal_transition_state: State of the pedestal transition model if using
-      the formation model with adaptive source.
+    pedestal_transition_state: State for tracking pedestal L-H and H-L
+      transitions.
     maxiter: maximum number of iterations of jaxopt solver.
     tol: tolerance for jaxopt solver convergence.
 

@@ -145,8 +145,7 @@ class NonlinearThetaMethod(solver.Solver):
       evolving_names: The names of variables within the core profiles that
         should evolve.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-        use_formation_model_with_adaptive_source=True.
+        transitions.
 
     Returns:
       A tuple containing:

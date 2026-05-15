@@ -112,8 +112,7 @@ def optimizer_solve_block(
     maxiter: See docstring of `jaxopt.LBFGS`.
     tol: See docstring of `jaxopt.LBFGS`.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-      use_formation_model_with_adaptive_source=True.
+      transitions.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step

@@ -143,8 +143,8 @@ def newton_raphson_solve_block(
       line search step.
     tau_min: Minimum delta/delta_original allowed before the newton raphson
       routine resets at a lower timestep.
-    pedestal_transition_state: State of the pedestal transition model if using
-      the formation model with adaptive source.
+    pedestal_transition_state: State for tracking pedestal L-H and H-L
+      transitions.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
 

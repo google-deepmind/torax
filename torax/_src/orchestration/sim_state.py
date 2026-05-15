@@ -48,8 +48,7 @@ class SimState:
     geometry: Geometry at this time step used for the simulation.
     solver_numeric_outputs: Numerical quantities related to the solver.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions. Only present when the pedestal model is in ADAPTIVE_SOURCE
-      mode with use_formation_model_with_adaptive_source=True.
+      transitions.
     time_step_calculator_state: State for the time step calculator.
   """
 

@@ -100,8 +100,7 @@ class CoeffsCallback:
         iterations. For sources that are implicit, their explicit profiles are
         set to all zeros.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-        use_formation_model_with_adaptive_source=True.
+        transitions.
       allow_pereverzev: If True, then the coeffs are being called within a
         linear solver. Thus could be either the use_predictor_corrector solver
         or as part of calculating the initial guess for the nonlinear solver. In
@@ -178,8 +177,7 @@ def calc_coeffs(
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions. Only used when the pedestal mode is ADAPTIVE_SOURCE with
-      use_formation_model_with_adaptive_source=True.
+      transitions.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
     explicit_call: If True, indicates that calc_coeffs is being called for the
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
