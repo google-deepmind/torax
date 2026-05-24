@@ -33,3 +33,7 @@ class RuntimeParams:
   )
   chi_pereverzev: float
   D_pereverzev: float  # pylint: disable=invalid-name
+  atol: float | None = dataclasses.field(metadata={'static': True})
+  rtol: float | None = dataclasses.field(metadata={'static': True})
+  use_backtracking: bool = dataclasses.field(metadata={'static': True})
+  delta_reduction_factor: float = dataclasses.field(metadata={'static': True})
