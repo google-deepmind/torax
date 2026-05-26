@@ -154,7 +154,7 @@ def _calculate_impurity_scaling_factor(
   # This scales the whole profile shape to match the edge value.
   current_val_at_edge = impurity_params.n_e_ratios_face[species][-1]
   return math_utils.safe_divide(
-      num=conc_lcfs, denom=current_val_at_edge, eps=1e-7
+      num=conc_lcfs, denom=current_val_at_edge, eps=1e-14
   )
 
 
