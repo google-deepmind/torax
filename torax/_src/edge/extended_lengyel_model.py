@@ -332,7 +332,7 @@ def _resolve_geometric_parameters(
     bpol_avg_lcfs = jnp.sqrt(
         psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
     )[-1]
-    geo_ratio_bpol = jnp.abs(geo.B_pol_OMP) / jnp.sqrt(bpol_avg_lcfs)
+    geo_ratio_bpol = jnp.abs(geo.B_pol_OMP) / bpol_avg_lcfs
   else:
     geo_ratio_bpol = None
 
