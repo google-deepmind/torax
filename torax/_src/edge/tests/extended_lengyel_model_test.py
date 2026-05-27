@@ -845,6 +845,9 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
     self.assertEqual(resolved.connection_length_divertor, 10.0)
     self.assertEqual(resolved.angle_of_incidence_target, 5.0)
     self.assertEqual(resolved.toroidal_flux_expansion, 2.0)
+    self.assertAlmostEqual(
+        resolved.ratio_bpol_omp_to_bpol_avg, 2 * np.pi, places=5
+    )
 
   def test_resolve_geo_params_fallback_to_config(self):
     """Test fallback to Config values when Geometry values are missing, with warning."""
