@@ -133,7 +133,44 @@ def _calculate_impurity_scaling_factor(
     runtime_params: runtime_params_lib.RuntimeParams,
     impurity_params: electron_density_ratios.RuntimeParams,
 ) -> chex.Numeric:
-  """Calculates the scaling factor for impurity profiles."""
+  """Calculates the scaling factor to rescale a core impurity profile.
+
+  The extended Lengyel edge model determines impurity concentrations at the
+  divertor. This function computes a uniform scaling factor that, when applied
+  to the user-provided core impurity profile, adjusts it so that the profile
+  value at the LCFS matches the edge-determined concentration.
+
+  The scaling is computed as:
+    conc_lcfs = edge_concentration / enrichment_factor
+    scaling_factor = conc_lcfs / current_profile_value_at_lcfs
+
+  Where:
+    - `edge_concentration` is the divertor concentration from the edge model.
+    - `enrichment_factor` is the ratio of divertor to upstream concentration
+      (either calculated by the enrichment model or user-specified).
+    - `current_profile_value_at_lcfs` is the user-provided profile's value
+      at rho_norm=1.
+
+  The entire core profile is then uniformly scaled by this factor, preserving
+  the user-defined profile shape while matching the edge boundary value.
+
+  Important: This requires the user's input profile to have a non-zero value
+  at the LCFS. If the profile is zero at the LCFS, the scaling factor is
+  effectively infinite but clipped by safe_divide, and the rescaled profile
+  remains near zero regardless of the edge model output, silently breaking
+  the edge-core coupling. A pydantic validator in ToraxConfig catches this
+  at config time.
+
+  Args:
+    conc: The target edge concentration for this impurity species.
+    edge_outputs: The outputs from the edge model.
+    species: The symbol of the impurity species (e.g., 'Ne').
+    runtime_params: The current runtime parameters.
+    impurity_params: The current core impurity runtime parameters.
+
+  Returns:
+    A scaling factor (numeric) to apply to the core impurity profile.
+  """
   assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
   if runtime_params.edge.use_enrichment_model:
     if not isinstance(
@@ -162,7 +199,36 @@ def _update_impurities(
     runtime_params: runtime_params_lib.RuntimeParams,
     edge_outputs: edge_base.EdgeModelOutputs,
 ) -> runtime_params_lib.RuntimeParams:
-  """Updates impurity concentrations based on edge model outputs."""
+  """Updates impurity concentrations based on edge model outputs.
+
+  Iterates over all impurity species and applies one of three cases:
+
+  Case 1 - Seeded impurities (inverse mode): The edge model has computed
+    a divertor concentration for this species via the inverse solver
+    (stored in `edge_outputs.seed_impurity_concentrations`). The core
+    profile is rescaled to match the edge-determined LCFS concentration.
+
+  Case 2 - Fixed impurities with EDGE source of truth: The concentration
+    is specified in `runtime_params.edge.fixed_impurity_concentrations`
+    and the edge config is set as the authoritative source. The core
+    profile is rescaled to match this fixed concentration at the LCFS
+    (adjusted by the enrichment factor).
+
+  Case 3 - No edge update: The species is either a fixed impurity with
+    CORE as the source of truth, or not referenced by the edge model at
+    all. The profile is left unchanged (scaling_factor=1.0).
+
+  In cases 1 and 2, the rescaling preserves the user-defined profile shape
+  while adjusting the magnitude to match the edge boundary condition.
+  See `_calculate_impurity_scaling_factor` for details on the scaling.
+
+  Args:
+    runtime_params: The current runtime parameters.
+    edge_outputs: The outputs from the edge model.
+
+  Returns:
+    Updated runtime parameters with rescaled core impurity profiles.
+  """
   if not isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams):
     raise ValueError(
         'Impurity updates from the edge model are only supported for the'

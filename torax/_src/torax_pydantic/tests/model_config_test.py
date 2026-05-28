@@ -547,6 +547,114 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     # Should not raise
     model_config.ToraxConfig.from_dict(self.config)
 
+  def test_zero_n_e_ratio_at_lcfs_raises_error_for_seeded_impurity(self):
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "T_e_target": 10.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+        "diverted": True,
+    }
+    # Profile that goes to zero at rho_norm=1.0.
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": {0: {0: 0.01, 0.5: 0.005, 1.0: 0.0}}},
+        }
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "has a zero or negative n_e_ratio at rho_norm=1.0",
+    ):
+      model_config.ToraxConfig.from_dict(self.config)
+
+  def test_positive_n_e_ratio_at_lcfs_passes_for_seeded_impurity(self):
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "T_e_target": 10.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+        "diverted": True,
+    }
+    # Profile with a small but positive value at rho_norm=1.0.
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": {0: {0: 0.01, 0.5: 0.005, 1.0: 0.001}}},
+        }
+    }
+    # Should not raise.
+    model_config.ToraxConfig.from_dict(self.config)
+
+  def test_zero_n_e_ratio_at_lcfs_passes_for_fixed_impurity_with_core_sot(self):
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "forward",
+        "fixed_impurity_concentrations": {"Ne": 0.01},
+        "enrichment_factor": {"Ne": 1.0},
+        "diverted": True,
+    }
+    # Profile that goes to zero at rho_norm=1.0.
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": {0: {0: 0.01, 0.5: 0.005, 1.0: 0.0}}},
+        }
+    }
+    # Should not raise because Ne is a fixed impurity in forward mode,
+    # and SoT is core.
+    model_config.ToraxConfig.from_dict(self.config)
+
+  def test_zero_n_e_ratio_at_lcfs_raises_error_for_fixed_impurity_with_edge_sot(
+      self,
+  ):
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "forward",
+        "impurity_sot": "edge",
+        "fixed_impurity_concentrations": {"Ne": 0.01},
+        "enrichment_factor": {"Ne": 1.0},
+        "diverted": True,
+    }
+    # Profile that goes to zero at rho_norm=1.0.
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": {0: {0: 0.01, 0.5: 0.005, 1.0: 0.0}}},
+        }
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "has a zero or negative n_e_ratio at rho_norm=1.0",
+    ):
+      model_config.ToraxConfig.from_dict(self.config)
+
+  def test_zero_n_e_ratio_at_extrapolated_lcfs_raises_error(self):
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "T_e_target": 10.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+        "diverted": True,
+    }
+    # Profile where the rightmost anchor is at 0.8 and is zero.
+    # Because of constant extrapolation, this means the value at 1.0 is also
+    # zero.
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": {0: {0: 0.01, 0.8: 0.0}}},
+        }
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "has a zero or negative n_e_ratio at rho_norm=1.0",
+    ):
+      model_config.ToraxConfig.from_dict(self.config)
+
 
 if __name__ == "__main__":
   absltest.main()

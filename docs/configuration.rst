@@ -763,6 +763,19 @@ Tungsten starts hollow, and evolves to a flat profile at t=10s.
       # 'Z_eff': 2.0 # This would be ignored and a warning would be issued.
   }
 
+.. note::
+
+  **Edge Model Boundary Requirement:** If an edge model (such as the
+  ``extended_lengyel`` model) is active, any impurity species whose core
+  profile is rescaled by the edge model (e.g. seeded impurities in inverse
+  mode, or fixed impurities when ``impurity_sot='edge'``) **must have a
+  strictly positive value at the LCFS (rho_norm=1.0)** in the input
+  configuration. If the profile goes to zero at ``rho_norm=1.0``, the rescaling
+  mechanism fails, leaving the core profile at zero and silently breaking the
+  edge-core coupling. A configuration validation error will be raised in this
+  case. To resolve it, set a small positive value at the LCFS (the actual value
+  will be overwritten by the edge model). See :ref:`edge_models` for details.
+
 Too large impurity ratios may lead to negative main ion densities being
 calculated, which will lead to TORAX returning an error.
 

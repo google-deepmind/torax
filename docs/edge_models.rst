@@ -132,6 +132,33 @@ The model accounts for divertor retention via the enrichment factor
 *   **Manual:** Set ``use_enrichment_model`` to ``False`` and provide specific
     values in the ``enrichment_factor`` dictionary.
 
+Core Profile Rescaling and LCFS Boundary Requirement
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+When the edge model updates the core impurity inventory (either for seeded
+impurities, or for fixed impurities when ``impurity_sot='edge'``), it rescales
+the user-provided core impurity density profile (``n_e_ratios``) to match the
+edge-determined concentration at the LCFS (reduced by the enrichment factor).
+
+This rescaling preserves the *shape* of the user-provided profile. The scaling
+factor is calculated by dividing the edge-determined concentration at the LCFS
+by the user-provided profile value at the LCFS (rho_norm=1.0):
+
+.. math::
+
+  \text{scaling\_factor} = \frac{c_{LCFS, edge}}{c_{LCFS, core\_provided}}
+
+Because of this division, **the user-provided core impurity profile must have a
+strictly positive value at the LCFS (rho_norm=1.0)**. If the user-provided
+profile value is zero at the LCFS, the scaling has no effect (the profile
+remains zero everywhere), which silently breaks the edge-core coupling.
+
+To prevent this, ``ToraxConfig`` performs a validation at configuration time.
+If an edge model is active and any impurity species has a zero (or negative)
+value at ``rho_norm=1.0`` in the configuration, a ``ValueError`` will be raised.
+To resolve this, please set a small positive value at ``rho_norm=1.0`` (e.g.,
+``1e-5`` or similar) in the core profile config; the actual boundary value will
+be overwritten by the edge model during execution.
+
 Geometry Configuration
 ----------------------
 The model requires specific edge geometric parameters (connection lengths,

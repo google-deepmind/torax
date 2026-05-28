@@ -124,7 +124,7 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
         'impurity_mode': 'n_e_ratios',
         'species': {
             'N': {0: self._INITIAL_AXIS_RATIO, 1: self._INITIAL_EDGE_RATIO},
-            'Ne': {0: 0.0, 1: 0.0},  # Dummy values in setup
+            'Ne': {0: 0.01, 1: 0.01},  # Positive dummy value to pass validation
         },
     }
     self.config_dict['geometry'] = {

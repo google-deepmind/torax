@@ -23,8 +23,10 @@ from torax._src import models
 from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import extended_lengyel_enums
+from torax._src.edge import extended_lengyel_model
 from torax._src.edge import pydantic_model as edge_pydantic_model
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
@@ -282,6 +284,70 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
             'impurity.species.'
         )
 
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_nonzero_n_e_ratios_at_lcfs(self) -> typing_extensions.Self:
+    """Validates that n_e_ratio profiles are non-zero at the LCFS.
+
+    When the extended Lengyel edge model is active, core impurity profiles
+    are rescaled by dividing by the profile value at the LCFS (rho_norm=1).
+    If this value is zero, the rescaled profile will also be zero regardless
+    of what the edge model computes, silently breaking edge-core coupling.
+
+    This validator checks the raw TimeVaryingArray data for each impurity
+    species, and raises an error if any time slice has a zero value at
+    rho_norm=1.
+    """
+    if not isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
+      return self
+    impurity = self.plasma_composition.impurity
+    if not isinstance(impurity, electron_density_ratios.ElectronDensityRatios):
+      return self
+
+    if (
+        self.edge.computation_mode
+        == extended_lengyel_enums.ComputationMode.INVERSE
+    ):
+      seeded_species = (
+          set(self.edge.seed_impurity_weights.keys())
+          if self.edge.seed_impurity_weights
+          else set()
+      )
+    else:
+      seeded_species = set()
+
+    # Fixed impurities with EDGE as source of truth.
+    if (
+        self.edge.impurity_sot
+        == extended_lengyel_model.FixedImpuritySourceOfTruth.EDGE
+    ):
+      fixed_edge_species = set(self.edge.fixed_impurity_concentrations.keys())
+    else:
+      fixed_edge_species = set()
+
+    species_to_check = seeded_species | fixed_edge_species
+
+    for species_name, species_profile in impurity.species.items():
+      if species_name not in species_to_check:
+        continue
+      if species_profile is None:
+        continue
+      for t, (_, values) in species_profile.value.items():
+        # Sufficient to check the last rho_norm value, due to constant
+        # extrapolation to the LCFS if rho_norm=1 is not directly included.
+        if values[-1] <= 0.0:
+          raise ValueError(
+              f"Impurity species '{species_name}' has a zero or negative"
+              f' n_e_ratio at rho_norm=1.0 (the LCFS) at time t={t}.'
+              ' When the extended Lengyel edge model is active, it rescales'
+              ' core impurity profiles by dividing by the LCFS value. A'
+              ' zero LCFS value means the rescaled profile will remain'
+              ' zero regardless of the edge model output, silently'
+              ' breaking edge-core coupling. Please set a small positive'
+              ' value at rho_norm=1.0 (the actual value will be overwritten'
+              ' by the edge model).'
+          )
     return self
 
   def update_fields(self, x: Mapping[str, Any]):
