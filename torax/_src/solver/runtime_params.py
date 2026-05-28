@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Runtime params for the solver."""
+
 import dataclasses
 
 import jax
@@ -22,6 +23,7 @@ from torax._src import tridiagonal
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams:
   """Input params for the solver which can be used as compiled args."""
+
   theta_implicit: float = dataclasses.field(metadata={'static': True})
   use_predictor_corrector: bool = dataclasses.field(metadata={'static': True})
   n_corrector_steps: int = dataclasses.field(metadata={'static': True})
@@ -33,3 +35,8 @@ class RuntimeParams:
   )
   chi_pereverzev: float
   D_pereverzev: float  # pylint: disable=invalid-name
+  fixed_point_atol: float
+  fixed_point_rtol: float
+  fixed_point_termination_criterion: str = dataclasses.field(
+      metadata={'static': True}
+  )

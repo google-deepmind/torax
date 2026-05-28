@@ -50,6 +50,12 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       implicit linear system solve.
     chi_pereverzev: (deliberately) large heat conductivity for Pereverzev rule.
     D_pereverzev: (deliberately) large particle diffusion for Pereverzev rule.
+    fixed_point_atol: Absolute tolerance on the residual norm for the fixed
+      point (predictor-corrector) method.
+    fixed_point_rtol: Relative tolerance on the residual norm for the fixed
+      point (predictor-corrector) method.
+    fixed_point_termination_criterion: Termination criterion for the fixed point
+      (predictor-corrector) method.
   """
 
   theta_implicit: Annotated[
@@ -72,6 +78,11 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   ] = tridiagonal.SolverType.THOMAS
   chi_pereverzev: pydantic.PositiveFloat = 30.0
   D_pereverzev: pydantic.NonNegativeFloat = 15.0
+  fixed_point_atol: float = 1e-8
+  fixed_point_rtol: float = 1e-6
+  fixed_point_termination_criterion: Annotated[
+      Literal['tolerance', 'max_iterations'], torax_pydantic.JAX_STATIC
+  ] = 'max_iterations'
 
   @property
   @abc.abstractmethod
@@ -118,6 +129,9 @@ class LinearThetaMethod(BaseSolver):
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
         n_corrector_steps=self.n_corrector_steps,
+        fixed_point_atol=self.fixed_point_atol,
+        fixed_point_rtol=self.fixed_point_rtol,
+        fixed_point_termination_criterion=self.fixed_point_termination_criterion,
     )
 
   def build_solver(
@@ -179,6 +193,9 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         tau_min=self.tau_min,
         initial_guess_mode=self.initial_guess_mode.value,
         log_iterations=self.log_iterations,
+        fixed_point_atol=self.fixed_point_atol,
+        fixed_point_rtol=self.fixed_point_rtol,
+        fixed_point_termination_criterion=self.fixed_point_termination_criterion,
     )
 
   def build_solver(
@@ -226,6 +243,9 @@ class OptimizerThetaMethod(BaseSolver):
         loss_tol=self.loss_tol,
         n_corrector_steps=self.n_corrector_steps,
         initial_guess_mode=self.initial_guess_mode.value,
+        fixed_point_atol=self.fixed_point_atol,
+        fixed_point_rtol=self.fixed_point_rtol,
+        fixed_point_termination_criterion=self.fixed_point_termination_criterion,
     )
 
   def build_solver(

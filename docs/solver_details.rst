@@ -234,6 +234,17 @@ these coefficients become known at every iteration step, describing a `linear`
 system of equations. :math:`\mathbf{x}_{t+\Delta t}^k` can then be solved using
 standard linear algebra methods implemented in JAX.
 
+Optionally, the fixed-point iteration can be configured to terminate early
+once a specified tolerance is achieved, rather than running for a fixed number
+of iterations. This is controlled by user-configurable absolute and relative
+tolerances on the residual norm, denoted by :math:`\varepsilon_{abs}` and
+:math:`\varepsilon_{rel}` respectively. The solve iterates until the normalized
+residual falls below the absolute tolerance
+:math:`\| \mathbf{R} \|_{norm} < \varepsilon_{abs}` or becomes smaller than the
+relative tolerance multiplied by the initial residual, i.e.,
+:math:`\| \mathbf{R} \|_{norm} < \varepsilon_{rel} \| \mathbf{R}_{0} \|_{norm}`.
+
+
 To further enhance the stability of the linear solver, particularly in the
 presence of stiff transport coefficients (e.g., when using the QLKNN turbulent
 transport model, see :ref:`physics_models`), the |pereverzev-corrigan-method|

@@ -112,6 +112,9 @@ def predictor_corrector_method(
         loop_body,
         x_new_guess,
         maxiter=solver_params.n_corrector_steps + 1,
+        atol=solver_params.fixed_point_atol,
+        rtol=solver_params.fixed_point_rtol,
+        termination_criterion=solver_params.fixed_point_termination_criterion,
     )
   else:
     x_new = loop_body(x_new_guess)
