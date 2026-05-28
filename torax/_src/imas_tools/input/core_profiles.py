@@ -194,13 +194,7 @@ def plasma_composition_from_IMAS(
   impurity_species = {}
   main_ion_density = {}
   for ion in range(len(profiles_1d[0].ion)):
-    try:
-      symbol = str(profiles_1d[0].ion[ion].name)
-    except AttributeError:
-      # TODO(b/459479939): i/539) - Indicate supported dd_versions and switch on
-      # that instead of using a try-except.
-      # Case ids is plasma_profiles in early DDv4 releases.
-      symbol = str(profiles_1d[0].ion[ion].label)
+    symbol = str(profiles_1d[0].ion[ion].name)
     if symbol in parsed_ions:
       # Fill main ions
       if symbol in main_ions_symbols:

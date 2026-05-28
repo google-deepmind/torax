@@ -23,8 +23,8 @@ from imas import ids_toplevel
 from torax._src import path_utils
 
 # Names of the IDSs that can be loaded and used in TORAX.
-IDS = Literal["core_profiles", "plasma_profiles", "equilibrium"]
-_TORAX_IMAS_DD_VERSION = "4.0.0"
+IDS = Literal["core_profiles", "plasma_profiles", "equilibrium", "core_sources"]
+_TORAX_IMAS_DD_VERSION = "4.1.1"
 
 
 def load_imas_data(
@@ -47,7 +47,7 @@ def load_imas_data(
     directory: The directory of the IDS to load.
     explicit_convert: Whether to explicitly convert the IDS to the current DD
       version. If True, an explicit conversion will be attempted. Explicit
-      conversion is recommended when converting between major DD versions.
+      conversion is mandatory when converting between major DD versions.
       https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
   Returns:
     An IDS object.
