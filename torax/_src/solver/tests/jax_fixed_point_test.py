@@ -37,56 +37,57 @@ class FixedPointTest(parameterized.TestCase):
     super().setUp()
     jax.config.update('jax_enable_x64', True)
 
-  @parameterized.product(
-      method=['del2', 'iteration'], maxiter=[1, 2, 500], xtol=[1e-08, 1e-3, 1.0]
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='maxiter',
+          maxiter=2,
+          atol=0.0,
+          rtol=0.0,
+      ),
+      dict(
+          testcase_name='atol',
+          maxiter=500,
+          atol=1e-8,
+          rtol=0.0,
+      ),
+      dict(
+          testcase_name='rtol',
+          maxiter=500,
+          atol=0.0,
+          rtol=1e-5,
+      ),
   )
-  def test_fixed_point_basic(self, method, maxiter, xtol):
-
+  def test_fixed_point_convergence(self, maxiter, atol, rtol):
     c1 = np.array([10, 12.0])
     c2 = np.array([3, 5.0])
     x = np.array([1.2, 1.3])
-
-    # If there is no convergence, the SciPy implementation will raise a
-    # RuntimeError of the form
-    # 'Failed to converge after 1 iterations, value is [1.49240205 1.37228787]'
-    # Extract the value from the message.
-    try:
-      out_np = optimize.fixed_point(
-          _func_np, x, args=(c1, c2), method=method, maxiter=maxiter, xtol=xtol
-      )
-    except RuntimeError as e:
-      out_np = np.array(
-          [float(f) for f in re.split(r'\[|]|\s+', e.args[0])[-3:-1]]
-      )
-
-    @jax.jit
-    def fixed_point(x):
-      return jax_fixed_point.fixed_point(
-          _func_jnp, x, args=(c1, c2), method=method, maxiter=maxiter, xtol=xtol
-      )
-
-    out_jnp = fixed_point(x)
-    chex.assert_trees_all_close(out_np, out_jnp, atol=1e-8)
-
-  def test_fixed_point_none(self):
-    c1 = np.array([10, 12.0])
-    c2 = np.array([3, 5.0])
-    x = np.array([1.2, 1.3])
-    maxiter = 100
-
-    out_expected = x
-    for _ in range(maxiter):
-      out_expected = _func_jnp(out_expected, c1, c2)
 
     out_jnp = jax_fixed_point.fixed_point(
         _func_jnp,
         x,
         args=(c1, c2),
-        method='iteration',
         maxiter=maxiter,
-        xtol=None,
+        atol=atol,
+        rtol=rtol,
     )
-    chex.assert_trees_all_close(out_expected, out_jnp, atol=1e-8)
+
+    # Scipy's fixed_point raises a RuntimeError if the maximum number of
+    # iterations is reached. As a fallback, we can extract the expected output
+    # from the error message.
+    try:
+      out_expected = optimize.fixed_point(
+          _func_np,
+          x,
+          args=(c1, c2),
+          maxiter=maxiter,
+          method='iteration',
+      )
+    except RuntimeError as e:
+      out_expected = np.array(
+          [float(f) for f in re.split(r'\[|]|\s+', e.args[0])[-3:-1]]
+      )
+
+    chex.assert_trees_all_close(out_expected, out_jnp)
 
 
 if __name__ == '__main__':
