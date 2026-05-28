@@ -38,6 +38,7 @@ class RuntimeParams(pedestal_runtime_params_lib.RuntimeParams):
   T_e_ped: array_typing.FloatScalar
   rho_norm_ped_top: array_typing.FloatScalar
   n_e_ped_is_fGW: array_typing.BoolScalar
+  # TODO(b/517487852): Add pedestal height multiplier.
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

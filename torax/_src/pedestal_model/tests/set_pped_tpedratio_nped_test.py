@@ -128,6 +128,69 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
           T_i_T_e_ratio[time],
       )
 
+  def test_pedestal_pressure_multiplier(self):
+    config = default_configs.get_default_config_dict()
+    config['pedestal'] = {
+        'model_name': 'set_P_ped_n_ped',
+        'set_pedestal': True,
+        'n_e_ped': 0.7e20,
+        'n_e_ped_is_fGW': False,
+        'rho_norm_ped_top': 0.91,
+        'T_i_T_e_ratio': 1.0,
+        'P_ped': 1e5,
+        'P_ped_multiplier': 1.0,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
+
+    geo = torax_config.geometry.build_provider(0.0)
+    runtime_params = provider(t=0.0)
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        source_models,
+        neoclassical_models,
+    )
+    source_profiles = source_profile_builders.build_source_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+        explicit=True,
+    )
+    output_1 = pedestal_model(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_profiles=source_profiles,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+    )
+
+    # Modify multiplier to 1.5
+    config['pedestal']['P_ped_multiplier'] = 1.5
+    torax_config_2 = model_config.ToraxConfig.from_dict(config)
+    provider_2 = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config_2
+    )
+    runtime_params_2 = provider_2(t=0.0)
+    output_2 = pedestal_model(
+        runtime_params=runtime_params_2,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_profiles=source_profiles,
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+    )
+
+    np.testing.assert_allclose(output_2.T_e_ped, output_1.T_e_ped * 1.5)
+    np.testing.assert_allclose(output_2.T_i_ped, output_1.T_i_ped * 1.5)
+    np.testing.assert_allclose(output_2.n_e_ped, output_1.n_e_ped)
+
 
 if __name__ == '__main__':
   absltest.main()

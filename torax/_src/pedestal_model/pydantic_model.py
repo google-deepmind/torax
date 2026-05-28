@@ -363,6 +363,8 @@ class SetPpedTpedRatioNped(BasePedestal):
 
   Attributes:
     P_ped: The plasma pressure at the pedestal [Pa].
+    P_ped_multiplier: Multiplier for the pedestal pressure (mostly used for
+      sensitivity analysis) [dimensionless].
     n_e_ped: The electron density at the pedestal [m^-3] or fGW.
     n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
       fGW.
@@ -375,6 +377,9 @@ class SetPpedTpedRatioNped(BasePedestal):
       Literal["set_P_ped_n_ped"], torax_pydantic.JAX_STATIC
   ] = "set_P_ped_n_ped"
   P_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1e5)
+  P_ped_multiplier: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
   n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.7e20
   )
@@ -407,6 +412,7 @@ class SetPpedTpedRatioNped(BasePedestal):
         transition_time_width=base_runtime_params.transition_time_width,
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         P_ped=self.P_ped.get_value(t),
+        P_ped_multiplier=self.P_ped_multiplier.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
@@ -448,6 +454,7 @@ class SetTpedNped(BasePedestal):
   T_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       5.0
   )
+  # TODO(b/517487852): Add pedestal height multiplier.
   rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.91)
   )

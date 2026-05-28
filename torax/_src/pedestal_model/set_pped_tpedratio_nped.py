@@ -40,6 +40,7 @@ class RuntimeParams(pedestal_runtime_params_lib.RuntimeParams):
   T_i_T_e_ratio: array_typing.FloatScalar
   rho_norm_ped_top: array_typing.FloatScalar
   n_e_ped_is_fGW: array_typing.BoolScalar
+  P_ped_multiplier: array_typing.FloatScalar = 1.0
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -111,7 +112,10 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # the pressure P = P_e + P_i + P_imp.
     # P = T_e*n_e + T_i*n_i + T_i*n_imp.
     T_e_ped = (
-        runtime_params.pedestal.P_ped
+        (
+            runtime_params.pedestal.P_ped
+            * runtime_params.pedestal.P_ped_multiplier
+        )
         / (
             n_e_ped  # Electron pressure contribution.
             + temperature_ratio * n_i_ped  # Ion pressure contribution.
