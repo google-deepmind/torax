@@ -148,7 +148,9 @@ def initial_core_profiles(
   # core profiles refactor.
   core_profiles = dataclasses.replace(
       core_profiles,
-      internal_plasma_energy=_initialise_internal_energy(core_profiles, geo),
+      internal_plasma_energy=_initialise_internal_energy(
+          runtime_params, core_profiles, geo
+      ),
   )
 
   return _init_psi_and_psi_derived(
@@ -161,6 +163,7 @@ def initial_core_profiles(
 
 
 def _initialise_internal_energy(
+    runtime_params: runtime_params_lib.RuntimeParams,
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
 ) -> state.PlasmaInternalEnergy:
@@ -173,6 +176,7 @@ def _initialise_internal_energy(
           geo,
       )
   )
+  N = runtime_params.numerics.dW_dt_buffer_length
   return state.PlasmaInternalEnergy(
       W_thermal_i=W_thermal_i,
       W_thermal_e=W_thermal_e,
@@ -181,6 +185,9 @@ def _initialise_internal_energy(
       dW_thermal_e_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
       dW_thermal_i_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
       dW_thermal_e_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+      W_thermal_i_history=jnp.full((N,), W_thermal_i),
+      W_thermal_e_history=jnp.full((N,), W_thermal_e),
+      t_history=jnp.full((N,), runtime_params.numerics.t_initial),
   )
 
 
