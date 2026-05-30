@@ -655,6 +655,94 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     ):
       model_config.ToraxConfig.from_dict(self.config)
 
+  def test_zero_n_e_ratio_at_lcfs_passes_when_update_impurities_false(self):
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "T_e_target": 10.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+        "update_impurities": False,
+        "diverted": True,
+    }
+    # Profile that goes to zero at rho_norm=1.0.
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": {0: {0: 0.01, 0.5: 0.005, 1.0: 0.0}}},
+        }
+    }
+    # Should not raise because update_impurities is False, so the edge
+    # model won't rescale impurity profiles.
+    model_config.ToraxConfig.from_dict(self.config)
+
+  def test_zero_lcfs_passes_when_update_impurities_false_at_that_time(self):
+    # update_impurities: True at t=0, False at t=5 (step interpolation).
+    # Species profile: zero at LCFS only at t=5 (where update is off).
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "T_e_target": 10.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+        "update_impurities": {0: True, 5: False},
+        "diverted": True,
+    }
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {
+                "Ne": {
+                    0: {0: 0.01, 1.0: 0.001},
+                    2: {0: 0.01, 1.0: 0.001},
+                    5: {0: 0.01, 1.0: 0.0},
+                    8: {0: 0.01, 1.0: 0.0},
+                },
+            },
+        }
+    }
+    # Should not raise.
+    model_config.ToraxConfig.from_dict(self.config)
+
+  def test_zero_lcfs_raises_when_update_impurities_true_at_that_time(self):
+    # update_impurities: False at t=0, True at t=5 (step interpolation).
+    # Species profile: zero at LCFS at t=5 (where update is on).
+    self.config["edge"] = {
+        "model_name": "extended_lengyel",
+        "computation_mode": "inverse",
+        "T_e_target": 10.0,
+        "seed_impurity_weights": {"Ne": 1.0},
+        "enrichment_factor": {"Ne": 1.0},
+        "update_impurities": {0: False, 5: True},
+        "diverted": True,
+    }
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {
+                "Ne": {
+                    0: {0: 0.01, 1.0: 0.0},
+                    5: {0: 0.01, 1.0: 0.0},  # (BAD, update on)
+                },
+            },
+        }
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "has a zero or negative n_e_ratio at rho_norm=1.0",
+    ):
+      model_config.ToraxConfig.from_dict(self.config)
+
+  def test_zero_n_e_ratio_at_lcfs_passes_when_no_edge_model(self):
+    self.config["plasma_composition"] = {
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"Ne": {0: {0: 0.01, 0.5: 0.005, 1.0: 0.0}}},
+        }
+    }
+    # Should not raise because no edge model is active.
+    model_config.ToraxConfig.from_dict(self.config)
+
 
 if __name__ == "__main__":
   absltest.main()
