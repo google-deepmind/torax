@@ -7,14 +7,11 @@ Inherits the vmap/interp/_make_core_transport machinery from
 
 import dataclasses
 from functools import lru_cache
-import glob
-import pathlib
 import pickle
 from typing import Annotated, Any, Dict, Literal, Optional, Tuple
 import warnings
 
 import chex
-import gyaradax as _gyaradax_pkg
 from gyaradax.integrals import calculate_fluxes
 from gyaradax.integrals import geom_tensors
 from gyaradax.params import GKParams
@@ -32,11 +29,6 @@ from torax._src.transport_model.gyaradax_based_transport_model import RuntimePar
 
 # nan-guard / clip on per-radius q_i (poisons TORAX Newton otherwise)
 _QI_CLIP_ABS = 1e3
-# key the cn-head 'auto' search off the gyaradax install, not this file's location,
-# so it resolves correctly when dropped into torax/_src/transport_model
-_GYARADAX_DATA = (
-    pathlib.Path(_gyaradax_pkg.__file__).resolve().parent.parent / "data"
-)
 
 
 @jax.tree_util.register_dataclass
@@ -47,34 +39,57 @@ class RuntimeParams(_BaseRuntimeParams):
 
 @lru_cache(maxsize=8)
 def _get_cn_head(path: str):
-  """Cache calibration heads by path. 'auto' = newest data/cn_iter_hybrid_*.pkl."""
+  """Resolve a Cn calibration head (the cn-version parametric/polynomial weights).
+
+  Resolution mirrors fusion_surrogates' name-or-path scheme:
+    '' / falsy   -> no head (the basic-ql scalar Cn is used instead).
+    'auto'       -> the default head bundled with gyaradax.
+    a registry name (gyaradax.quasilinear.models.registry.MODELS) -> that
+                    bundled head, resolved by name.
+    anything else -> a path to a user pickle (calibrate your own via
+                    gyaradax.quasilinear.fit_cn_heads).
+  Returns the head (with `cn_jax`) or None.
+  """
   if not path:
     return None
   if path == "auto":
-    candidates = sorted(glob.glob(str(_GYARADAX_DATA / "cn_iter_hybrid_*.pkl")))
-    if not candidates:
-      warnings.warn(
-          "gyaradax-QL: cn_calibration_path='auto' but no "
-          "data/cn_iter_hybrid_*.pkl fit found; falling back to cn_scalar=1.",
-          RuntimeWarning,
-          stacklevel=2,
-      )
-      return None
-    path = candidates[-1]
-  try:
-    with open(path, "rb") as f:
-      obj = pickle.load(f)
-  except FileNotFoundError:
-    warnings.warn(
-        f"gyaradax-QL: cn_calibration_path='{path}' does not exist; "
-        "falling back to cn_scalar=1.",
-        RuntimeWarning,
-        stacklevel=2,
-    )
-    return None
+    from gyaradax.quasilinear import load_default_cn_weights
+
+    obj = load_default_cn_weights()
+  else:
+    from gyaradax.quasilinear.models import registry
+
+    if path in registry.MODELS:
+      from gyaradax.quasilinear import load_cn_weights_from_name
+
+      obj = load_cn_weights_from_name(path)
+    else:
+      try:
+        with open(path, "rb") as f:
+          obj = pickle.load(f)
+      except FileNotFoundError:
+        warnings.warn(
+            f"gyaradax-QL: cn_calibration_path='{path}' is neither a bundled "
+            "model name nor an existing file; falling back to the basic-ql "
+            "scalar Cn.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return None
   if isinstance(obj, dict) and "polynomial" in obj:
     return obj["polynomial"]
   return obj
+
+
+@lru_cache(maxsize=1)
+def _default_cn_scalar() -> float:
+  """Calibrated scalar Cn bundled with gyaradax (the basic-ql amplitude)."""
+  try:
+    from gyaradax.quasilinear import load_default_cn_weights
+
+    return float(load_default_cn_weights().get("scalar", 1.0))
+  except Exception:  # pylint: disable=broad-except
+    return 1.0
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -112,6 +127,7 @@ class GyaradaxQLTransportModel(GyaradaxBasedTransportModel):
         nky=cfg.nky,
         ikxspace=cfg.ikxspace,
         cn_calibration_path=cfg.cn_calibration_path or "",
+        cn_scalar=_default_cn_scalar(),
         early_stop=cfg.early_stop,
         early_stop_block=cfg.early_stop_block,
         early_stop_atol=cfg.early_stop_atol,
@@ -257,8 +273,12 @@ class GyaradaxQLConfig(pydantic_model_base.TransportBase):
     n_steps_linear: hard cap on RK4 steps per linear gyaradax run.
     ncv_eigensolve: 0 uses the IVP growth rate; >0 uses the JAX-Arnoldi
       eigensolver with this many Krylov vectors.
-    cn_calibration_path: path to a pickled calibration head, or 'auto' to use
-      the newest bundled fit, or None for cn=1.
+    cn_calibration_path: selects the Cn calibration (cn version). 'auto'
+      (default) uses the head bundled with gyaradax; a registry name
+      (gyaradax.quasilinear.models.registry.MODELS) selects a named bundled
+      head; any other value is a path to your own pickled head (produce one
+      with gyaradax.quasilinear.fit_cn_heads on your (X_QL, Y_NL, F) dataset);
+      None uses the basic-ql scalar Cn (also bundled, calibrated).
     early_stop: stop the linear solve once per-ky growth rates converge.
     early_stop_block: gksolve steps per convergence-check block.
     early_stop_atol: absolute tolerance on the growth-rate change.
