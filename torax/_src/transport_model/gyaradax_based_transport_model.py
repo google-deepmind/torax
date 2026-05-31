@@ -13,6 +13,7 @@ The subclass (`GyaradaxQLTransportModel`) implements
 
 import abc
 import dataclasses
+import math
 from functools import lru_cache
 from typing import Any, Dict, Tuple
 
@@ -54,6 +55,9 @@ _GEOM_TYPE = "circ"
 # initial-df seed amplitude (cosine along s, every non-zonal ky)
 _DF_SEED_AMPLITUDE = 1e-3
 
+# gyaradax gyrobohm flux unit is 2*sqrt(2) larger than TORAX
+_GYARADAX_GB_FLUX_FACTOR = 2.0 * math.sqrt(2.0)
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
@@ -69,11 +73,12 @@ def _get_topology_cached(nkx: int, nky: int, ikxspace: int, ns: int):
 
 def build_quasilinear_inputs(core_profiles, geo) -> QuasilinearInputs:
   """Build TORAX's QuasilinearInputs on the full face grid."""
+  # gyaradax normalizes the gyrobohm flux to the MAJOR radius
   chi_gb = calculate_chiGB(
       reference_temperature=core_profiles.T_i.face_value(),
       reference_magnetic_field=geo.B_0,
       reference_mass=core_profiles.A_i,
-      reference_length=geo.a_minor,
+      reference_length=geo.R_major,
   )
   log_grads = NormalizedLogarithmicGradients.from_profiles(
       core_profiles=core_profiles,
@@ -242,6 +247,10 @@ class GyaradaxBasedTransportModel(QuasilinearTransportModel, abc.ABC):
     qe_face = jnp.interp(rho_face, rho_match_arr, qe_m)
     pfe_face = jnp.interp(rho_face, rho_match_arr, pfe_m)
 
+    qi_face = qi_face * _GYARADAX_GB_FLUX_FACTOR
+    qe_face = qe_face * _GYARADAX_GB_FLUX_FACTOR
+    pfe_face = pfe_face * _GYARADAX_GB_FLUX_FACTOR
+
     return self._make_core_transport(
         qi=qi_face,
         qe=qe_face,
@@ -251,5 +260,5 @@ class GyaradaxBasedTransportModel(QuasilinearTransportModel, abc.ABC):
         geo=geo,
         core_profiles=core_profiles,
         gradient_reference_length=geo.R_major,
-        gyrobohm_flux_reference_length=geo.a_minor,
+        gyrobohm_flux_reference_length=geo.R_major,
     )
