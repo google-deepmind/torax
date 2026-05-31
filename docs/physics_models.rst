@@ -291,6 +291,19 @@ nonlinearity in the PDE system. TORAX currently offers five transport models:
          use TORAX as the same framework for both ML-surrogate and high-fidelity
          simulations.
 
+  - **gyaradax-QL:** A quasilinear transport model backed by `gyaradax
+    <https://github.com/gerkone/gyaradax>`_, a pure-JAX reimplementation of the
+    GKW gyrokinetic solver. At each of a user-chosen set of flux-tube radii
+    (``rho_match``) it runs a linear gyrokinetic eigenmode solve, applies a
+    quasilinear saturation rule, and interpolates the resulting fluxes onto the
+    TORAX face grid. Because it is pure JAX and end-to-end differentiable it can
+    run inside the ``newton_raphson`` solver without disabling JAX compilation.
+    gyaradax is an external dependency that is not on PyPI and must be installed
+    separately from GitHub (``pip install git+https://github.com/gerkone/gyaradax``).
+    When gyaradax is importable the ``model_name: 'gyaradax-ql'`` transport model
+    becomes available, otherwise it is silently skipped. An optional calibration
+    head (``cn_calibration_path``) rescales the saturated fluxes.
+
 For all transport models, optional spatial smoothing of the transport
 coefficients using a Gaussian convolution kernel is implemented, to improve
 solver convergence rates, an issue which can arise with stiff transport
