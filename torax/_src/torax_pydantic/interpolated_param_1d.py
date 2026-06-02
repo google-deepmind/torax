@@ -110,6 +110,54 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 
     return eqx.tree_at(get_leaves, self, (time, value),)
 
+  def step_true_intervals(self) -> list[tuple[float, float]]:
+    """Returns time intervals where this boolean step parameter is True.
+
+    Only supported for boolean parameters (``is_bool_param=True``) with STEP
+    interpolation. Returns a list of half-open intervals ``[start, end)``
+    where the underlying float value exceeds 0.5. Consecutive True steps are
+    merged into a single interval.
+
+    Constant extrapolation is applied outside the defined time range: if the
+    first value is True, the interval extends back to ``-np.inf``; if the
+    last value is True, the interval extends to ``+np.inf``.
+
+    Raises:
+      ValueError: If ``is_bool_param`` is False or the interpolation mode is
+        not STEP.
+    """
+    if not self.is_bool_param:
+      raise ValueError(
+          'step_true_intervals is only supported for boolean parameters.'
+      )
+    if self.interpolation_mode != interpolated_param.InterpolationMode.STEP:
+      raise ValueError(
+          'step_true_intervals is only supported for STEP interpolation mode.'
+          f' Got {self.interpolation_mode}'
+      )
+
+    windows = []
+
+    # Constant extrapolation before the first time point.
+    if self.value[0] > 0.5:
+      windows.append((float('-inf'), float(self.time[0])))
+
+    for i, (t, v) in enumerate(zip(self.time, self.value, strict=True)):
+      if v > 0.5:
+        start = float(t)
+        # Window extends to the next time point, or +inf if last.
+        end = (
+            float(self.time[i + 1]) if i + 1 < len(self.time) else float('inf')
+        )
+        # Merge with the previous window if contiguous.
+        if windows:
+          prev_window_start, prev_window_end = windows[-1]
+          if prev_window_end == start:
+            windows[-1] = (prev_window_start, end)
+            continue
+        windows.append((start, end))
+    return windows
+
   def __eq__(self, other):
     return (
         np.array_equal(self.time, other.time)
