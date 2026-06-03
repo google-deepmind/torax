@@ -22,6 +22,7 @@ import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import step_function_processing
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -49,6 +50,13 @@ def _make_transition_state(
       T_i_ped_L_mode=jnp.array(T_i_ped_L),
       T_e_ped_L_mode=jnp.array(T_e_ped_L),
       n_e_ped_L_mode=jnp.array(n_e_ped_L),
+      previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
+          rho_norm_ped_top=jnp.inf,
+          rho_norm_ped_top_idx=0,
+          T_i_ped=0.0,
+          T_e_ped=0.0,
+          n_e_ped=0.0,
+      ),
   )
 
 

@@ -53,7 +53,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalModelOutput:
     pedestal_output = self._call_implementation(
-        runtime_params, geo, core_profiles
+        runtime_params, geo, core_profiles, pedestal_transition_state,
     )
 
     # If in ADAPTIVE_TRANSPORT mode, calculate the transport multipliers based
@@ -118,5 +118,6 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalModelOutput:
     """Calculate the pedestal properties."""

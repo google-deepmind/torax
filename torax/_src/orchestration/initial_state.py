@@ -136,16 +136,14 @@ def _get_initial_state(
   else:
     edge_outputs = None
 
-  # Initialize the pedestal transition state. This is used to track the
-  # confinement mode for hysteresis in both ADAPTIVE_SOURCE and
-  # ADAPTIVE_TRANSPORT modes.
+  # Initialize the pedestal transition state.
   # TODO(b/500713368): Ensure that this works as expected when we start from
   # H mode.
   pedestal_transition_state = (
       pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
   )
 
-  transport_coeffs = (
+  transport_coeffs, pedestal_transition_state = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           models.pedestal_model,
           models.transport_model,

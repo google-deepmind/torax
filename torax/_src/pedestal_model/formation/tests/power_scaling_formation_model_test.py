@@ -21,6 +21,7 @@ import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import step_function_processing
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.physics import scaling_laws
@@ -170,16 +171,21 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
 
     # Create a state in H-mode
-    initial_transition_state = (
-        pedestal_transition_state_lib.PedestalTransitionState(
-            confinement_mode=jnp.array(
-                pedestal_transition_state_lib.ConfinementMode.H_MODE
-            ),
-            transition_start_time=jnp.array(0.0),
-            T_i_ped_L_mode=jnp.array(0.5),
-            T_e_ped_L_mode=jnp.array(0.5),
-            n_e_ped_L_mode=jnp.array(0.5e19),
-        )
+    initial_transition_state = pedestal_transition_state_lib.PedestalTransitionState(
+        confinement_mode=jnp.array(
+            pedestal_transition_state_lib.ConfinementMode.H_MODE
+        ),
+        transition_start_time=jnp.array(0.0),
+        T_i_ped_L_mode=jnp.array(0.5),
+        T_e_ped_L_mode=jnp.array(0.5),
+        n_e_ped_L_mode=jnp.array(0.5e19),
+        previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
+            rho_norm_ped_top=jnp.inf,
+            rho_norm_ped_top_idx=0,
+            T_i_ped=0.0,
+            T_e_ped=0.0,
+            n_e_ped=0.0,
+        ),
     )
 
     target_P_SOL = P_LH * p_sol_factor
@@ -217,6 +223,13 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         ),
     )
 
+    _dummy_pedestal_output = pedestal_model_output_lib.PedestalModelOutput(
+        rho_norm_ped_top=jnp.inf,
+        rho_norm_ped_top_idx=0,
+        T_i_ped=0.0,
+        T_e_ped=0.0,
+        n_e_ped=0.0,
+    )
     l_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
         confinement_mode=jnp.array(
             pedestal_transition_state_lib.ConfinementMode.L_MODE
@@ -225,6 +238,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i_ped_L_mode=jnp.array(0.0),
         T_e_ped_L_mode=jnp.array(0.0),
         n_e_ped_L_mode=jnp.array(0.0),
+        previous_pedestal_model_output=_dummy_pedestal_output,
     )
     h_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
         confinement_mode=jnp.array(
@@ -234,6 +248,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i_ped_L_mode=jnp.array(0.0),
         T_e_ped_L_mode=jnp.array(0.0),
         n_e_ped_L_mode=jnp.array(0.0),
+        previous_pedestal_model_output=_dummy_pedestal_output,
     )
 
     # Mock calculate_P_SOL_total and calculate_P_LH to avoid depending on

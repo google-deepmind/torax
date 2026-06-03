@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""State for tracking pedestal L-H and H-L transitions."""
+"""State for tracking pedestal transitions and persisting pedestal outputs."""
 
 import dataclasses
 import enum
@@ -20,6 +20,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 
 # pylint: disable=invalid-name
 
@@ -35,11 +36,13 @@ class ConfinementMode(enum.IntEnum):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class PedestalTransitionState:
-  """Tracks the state of pedestal L-H and H-L transitions.
+  """Tracks pedestal transition state and previous pedestal model output.
 
   This state is used when the pedestal model uses a formation model for
   L-H and H-L transitions. It persists across timesteps to track the current
-  confinement mode and enable smooth transitions.
+  confinement mode, enable smooth transitions, and provide the previous
+  pedestal model output to models that need it (e.g. EPED-NN for
+  self-consistent pedestal width calculations).
 
   Attributes:
     confinement_mode: The current confinement mode.
@@ -53,6 +56,9 @@ class PedestalTransitionState:
       start of the most recent L-mode to H-mode transition [keV].
     n_e_ped_L_mode: Electron density at the pedestal top captured at the start
       of the most recent L-mode to H-mode transition [m^-3].
+    previous_pedestal_model_output: The pedestal model output from the previous
+      completed timestep. Used by some pedestal models (e.g. EPED-NN) to
+      determine pedestal width for input calculations.
   """
 
   confinement_mode: array_typing.IntScalar
@@ -62,6 +68,9 @@ class PedestalTransitionState:
   T_i_ped_L_mode: array_typing.FloatScalar
   T_e_ped_L_mode: array_typing.FloatScalar
   n_e_ped_L_mode: array_typing.FloatScalar
+  previous_pedestal_model_output: (
+      pedestal_model_output_lib.PedestalModelOutput
+  )
 
   @classmethod
   def empty_L_mode(cls):
@@ -77,4 +86,15 @@ class PedestalTransitionState:
         T_i_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         T_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        previous_pedestal_model_output=(
+            pedestal_model_output_lib.PedestalModelOutput(
+                rho_norm_ped_top=jnp.array(
+                    jnp.inf, dtype=jax_utils.get_dtype()
+                ),
+                rho_norm_ped_top_idx=0,
+                T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+                T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+                n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+            )
+        ),
     )
