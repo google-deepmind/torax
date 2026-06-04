@@ -24,6 +24,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import pedestal_model_output
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.physics import formulas
 from typing_extensions import override
@@ -55,6 +56,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalModelOutput:
     assert isinstance(runtime_params.pedestal, RuntimeParams)
 
