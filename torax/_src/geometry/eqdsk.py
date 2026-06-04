@@ -13,11 +13,14 @@
 # limitations under the License.
 """Classes for representing an EQDSK geometry."""
 
+import json
 import logging
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
+from unittest import mock
 
 import contourpy
 import eqdsk
+import eqdsk.tools
 import numpy as np
 import pydantic
 import scipy
@@ -66,6 +69,39 @@ class EQDSKConfig(base.BaseGeometryConfig):
   Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
+
+  @pydantic.field_validator('eqdsk_object', mode='before')
+  @classmethod
+  def _eqdskinterface_before_validator(
+      cls, x: eqdsk.EQDSKInterface | dict[str, Any] | None,
+  ) -> eqdsk.EQDSKInterface | None:
+    """Convert input to an EQDSKInterface object or None."""
+    if x is None:
+      return None
+    elif isinstance(x, eqdsk.EQDSKInterface):
+      return x
+    elif isinstance(x, dict):
+      json_str = json.dumps(x)
+      # Mock all file openers to return the json string, allowing
+      # EQDSKInterface.from_file to deserialize in-memory without disk I/O.
+      # TODO(b/519910776): Use eqdsk library's json_reader when ready.
+      # https://github.com/Fusion-Power-Plant-Framework/eqdsk/issues/140
+      m = mock.mock_open(read_data=json_str)
+      with mock.patch('builtins.open', m), mock.patch('io.open', m):
+        return eqdsk.EQDSKInterface.from_file('eqdsk.json', no_cocos=True)
+    else:
+      raise ValueError(f'Expected EQDSKInterface or dict, but got {type(x)}')
+
+  @pydantic.field_serializer('eqdsk_object', return_type=dict[str, Any] | None)
+  @classmethod
+  def _eqdskinterface_serializer(
+      cls, obj: eqdsk.EQDSKInterface | None,
+  ) -> dict[str, Any] | None:
+    if obj is None:
+      return None
+    # Use eqdsk library's json_writer to serialize in-memory without disk I/O.
+    json_str = eqdsk.tools.json_writer(obj.to_dict())
+    return json.loads(json_str)
 
   @pydantic.model_validator(mode='after')
   def _validate_model(self) -> typing_extensions.Self:

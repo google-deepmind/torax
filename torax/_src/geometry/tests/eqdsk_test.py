@@ -84,6 +84,38 @@ class EqdskGeometryTest(parameterized.TestCase):
       else:
         self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch.')
 
+  def test_eqdsk_serialization_round_trip(self):
+    """Test that EQDSKConfig with eqdsk_object can be serialized and deserialized."""
+    geo_dir = geometry_loader.get_geometry_dir()
+    file_name = 'iterhybrid_cocos11.eqdsk'
+    file_path = f'{geo_dir}/{file_name}'
+    eqdsk_obj = eqdsk_lib.EQDSKInterface.from_file(file_path, from_cocos=11)
+
+    config = eqdsk.EQDSKConfig(eqdsk_object=eqdsk_obj, cocos=11)
+    dumped = config.model_dump()
+    config_restored = eqdsk.EQDSKConfig.from_dict(dumped)
+    self.assertIsNotNone(config_restored.eqdsk_object)
+    self.assertIsInstance(
+        config_restored.eqdsk_object, eqdsk_lib.EQDSKInterface
+    )
+
+    # Verify that the built geometries match
+    geo_original = config.build_geometry()
+    geo_restored = config_restored.build_geometry()
+
+    for field in dataclasses.fields(geo_original):
+      name = field.name
+      val1 = getattr(geo_original, name)
+      val2 = getattr(geo_restored, name)
+      if isinstance(val1, array_typing.Array):
+        np.testing.assert_allclose(
+            val1, val2, err_msg=f'Field "{name}" mismatch (dict).'
+        )
+      elif val1 is None:
+        self.assertIsNone(val2, msg=f'Field "{name}" mismatch (dict).')
+      else:
+        self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch (dict).')
+
 
 if __name__ == '__main__':
   absltest.main()

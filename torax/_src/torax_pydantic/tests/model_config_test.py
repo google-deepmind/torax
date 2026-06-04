@@ -19,8 +19,10 @@ from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import eqdsk as eqdsk_lib
 from torax._src import version
 from torax._src.config import config_loader
+from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -464,6 +466,33 @@ class ConfigTest(parameterized.TestCase):
         },
     }
     model_config.ToraxConfig.from_dict(config_dict)  # Should not raise
+
+  def test_torax_config_eqdsk_roundtrip(self):
+    geo_dir = geometry_loader.get_geometry_dir()
+    file_name = "iterhybrid_cocos11.eqdsk"
+    file_path = f"{geo_dir}/{file_name}"
+    eqdsk_obj = eqdsk_lib.EQDSKInterface.from_file(file_path, from_cocos=11)
+
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {
+        "geometry_type": "eqdsk",
+        "cocos": 11,
+        "eqdsk_object": eqdsk_obj,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    dumped = torax_config.model_dump()
+
+    torax_config_restored = model_config.ToraxConfig.from_dict(dumped)
+    assert (
+        torax_config_restored.geometry.geometry_configs.config.eqdsk_object  # pytype: disable=attribute-error
+        is not None
+    )
+    self.assertIsInstance(
+        torax_config_restored.geometry.geometry_configs.config.eqdsk_object,  # pytype: disable=attribute-error
+        eqdsk_lib.EQDSKInterface,
+    )
+    provider = torax_config_restored.geometry.build_provider
+    self.assertIsNotNone(provider(0.0))
 
 
 class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
