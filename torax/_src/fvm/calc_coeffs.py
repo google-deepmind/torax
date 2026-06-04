@@ -272,7 +272,7 @@ def _calc_coeffs_full(
 
   # --- Diffusion and convection term coefficients --- #
   # 1. Compute transport coefficients from all models.
-  transport_coefficients = (
+  transport_coefficients, _ = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           models.pedestal_model,
           models.transport_model,
@@ -426,7 +426,8 @@ def _calc_coeffs_full(
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
   ):
     # TODO(b/500260959): Currently pedestal model is called twice, once in
-    # calculate_all_transport_coeffs and once here.
+    # calculate_all_transport_coeffs and once here. Consider having the
+    # pedestal_model_output only be computed explicitly for solver stability.
     pedestal_model_output = models.pedestal_model(
         runtime_params,
         geo,

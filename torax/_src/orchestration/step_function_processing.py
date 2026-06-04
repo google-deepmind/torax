@@ -157,6 +157,7 @@ def _update_adaptive_transport(
       T_i_ped_L_mode=pedestal_transition_state.T_i_ped_L_mode,
       T_e_ped_L_mode=pedestal_transition_state.T_e_ped_L_mode,
       n_e_ped_L_mode=pedestal_transition_state.n_e_ped_L_mode,
+      previous_pedestal_model_output=pedestal_transition_state.previous_pedestal_model_output,
   )
 
 
@@ -330,6 +331,7 @@ def _update_adaptive_source(
       T_i_ped_L_mode=new_T_i_ped_L_mode,
       T_e_ped_L_mode=new_T_e_ped_L_mode,
       n_e_ped_L_mode=new_n_e_ped_L_mode,
+      previous_pedestal_model_output=pedestal_transition_state.previous_pedestal_model_output,
   )
 
 
@@ -476,7 +478,7 @@ def finalize_outputs(
           evolving_names=evolving_names,
       )
   )
-  final_total_transport = (
+  final_total_transport, pedestal_transition_state = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           models.pedestal_model,
           models.transport_model,

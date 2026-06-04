@@ -51,7 +51,9 @@ def calculate_all_transport_coeffs(
         pedestal_transition_state_lib.PedestalTransitionState
     ),
     use_pereverzev: bool = False,
-) -> state.CoreTransport:
+) -> tuple[
+    state.CoreTransport, pedestal_transition_state_lib.PedestalTransitionState
+]:
   """Calculates the transport coefficients from all models."""
 
   # Toggle the pedestal model on/off based on the pedestal transition state.
@@ -146,4 +148,11 @@ def calculate_all_transport_coeffs(
         **dataclasses.asdict(pereverzev_transport_coeffs),
     )
 
-  return core_transport
+  # Update the pedestal transition state with the latest pedestal output
+  # so it is available to pedestal models in subsequent timesteps.
+  updated_pedestal_transition_state = dataclasses.replace(
+      pedestal_transition_state,
+      previous_pedestal_model_output=pedestal_model_output,
+  )
+
+  return core_transport, updated_pedestal_transition_state

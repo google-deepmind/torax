@@ -173,6 +173,13 @@ class TransitionCalculationsTest(parameterized.TestCase):
         T_e_ped_L_mode=jnp.array(0.0),
         n_e_ped_L_mode=jnp.array(0.0),
         confinement_mode=pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
+        previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
+            rho_norm_ped_top=jnp.inf,
+            rho_norm_ped_top_idx=0,
+            T_i_ped=0.0,
+            T_e_ped=0.0,
+            n_e_ped=0.0,
+        ),
     )
     # transition_time_width = 1.0. Start at 1.0.
     # Clip at both ends
@@ -202,6 +209,13 @@ class TransitionCalculationsTest(parameterized.TestCase):
         T_e_ped_L_mode=jnp.array(l_mode_baseline),
         n_e_ped_L_mode=jnp.array(l_mode_baseline),
         confinement_mode=pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
+        previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
+            rho_norm_ped_top=jnp.inf,
+            rho_norm_ped_top_idx=0,
+            T_i_ped=0.0,
+            T_e_ped=0.0,
+            n_e_ped=0.0,
+        ),
     )
 
     pedestal_model_output = pedestal_model_output_lib.PedestalModelOutput(
