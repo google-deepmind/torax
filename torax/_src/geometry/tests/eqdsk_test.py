@@ -15,9 +15,11 @@ import dataclasses
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import eqdsk as eqdsk_lib
 import numpy as np
 from torax._src import array_typing
 from torax._src.geometry import eqdsk
+from torax._src.geometry import geometry_loader
 
 # pylint: disable=invalid-name
 
@@ -45,6 +47,34 @@ class EqdskGeometryTest(parameterized.TestCase):
       name = field.name
       val1 = getattr(geo_cocos2, name)
       val2 = getattr(geo_cocos11, name)
+      if isinstance(val1, array_typing.Array):
+        np.testing.assert_allclose(
+            val1, val2, err_msg=f'Field "{name}" mismatch.'
+        )
+      elif val1 is None:
+        self.assertIsNone(val2, msg=f'Field "{name}" mismatch.')
+      else:
+        self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch.')
+
+  def test_build_geometry_from_eqdsk_object(self):
+    """Test that EQDSK geometries can be built from an EQDSKInterface object."""
+    geo_dir = geometry_loader.get_geometry_dir()
+    file_name = 'iterhybrid_cocos02.eqdsk'
+    file_path = f'{geo_dir}/{file_name}'
+
+    eqdsk_obj = eqdsk_lib.EQDSKInterface.from_file(file_path, from_cocos=2)
+
+    geo_file = eqdsk.EQDSKConfig(
+        geometry_file=file_name, cocos=2
+    ).build_geometry()
+    geo_obj = eqdsk.EQDSKConfig(
+        eqdsk_object=eqdsk_obj, cocos=2
+    ).build_geometry()
+
+    for field in dataclasses.fields(geo_file):
+      name = field.name
+      val1 = getattr(geo_file, name)
+      val2 = getattr(geo_obj, name)
       if isinstance(val1, array_typing.Array):
         np.testing.assert_allclose(
             val1, val2, err_msg=f'Field "{name}" mismatch.'

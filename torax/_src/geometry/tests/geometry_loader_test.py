@@ -33,11 +33,11 @@ class GeometryLoaderTest(absltest.TestCase):
     }
     mock_loadmat.return_value = mock_data
 
-    result = geometry_loader._load_fbt_data("dummy_path.mat")
+    result = geometry_loader._load_fbt_file("dummy_path.mat")
     self.assertEqual(result, mock_data)
 
   @mock.patch("scipy.io.loadmat")
-  def test_load_fbt_data_nested_LY(self, mock_loadmat):
+  def test_load_fbt_file_nested_LY(self, mock_loadmat):
     """Tests loading MEQ data nested inside an 'LY' structured array."""
     # Build a structured array to mimic scipy.io.loadmat's behavior for
     # meqlpack outputs.
@@ -48,7 +48,7 @@ class GeometryLoaderTest(absltest.TestCase):
 
     mock_loadmat.return_value = {"LY": LY_array}
 
-    result = geometry_loader._load_fbt_data("dummy_path.mat")
+    result = geometry_loader._load_fbt_file("dummy_path.mat")
 
     self.assertIn("rBt", result)
     self.assertIn("aminor", result)
@@ -56,7 +56,7 @@ class GeometryLoaderTest(absltest.TestCase):
     np.testing.assert_array_equal(result["aminor"], aminor_data)
 
   @mock.patch("scipy.io.loadmat")
-  def test_load_fbt_data_nested_L(self, mock_loadmat):
+  def test_load_fbt_file_nested_L(self, mock_loadmat):
     """Tests loading MEQ data nested inside an 'L' structured array."""
     pQ_data = np.linspace(0.0, 1.0, 20)
     dtype = [("pQ", "O")]
@@ -64,13 +64,13 @@ class GeometryLoaderTest(absltest.TestCase):
 
     mock_loadmat.return_value = {"L": L_array}
 
-    result = geometry_loader._load_fbt_data("dummy_path.mat")
+    result = geometry_loader._load_fbt_file("dummy_path.mat")
 
     self.assertIn("pQ", result)
     np.testing.assert_array_equal(result["pQ"], pQ_data)
 
   @mock.patch("scipy.io.loadmat")
-  def test_load_fbt_data_invalid_item_type(self, mock_loadmat):
+  def test_load_fbt_file_invalid_item_type(self, mock_loadmat):
     """Tests that a ValueError is raised if a nested item is not an array."""
     dtype = [("bad_field", "O")]
     # Create a structured array where the item is NOT a numpy array (e.g., int)
@@ -81,7 +81,7 @@ class GeometryLoaderTest(absltest.TestCase):
     with self.assertRaisesRegex(
         ValueError, "MEQ data field 'bad_field' is not a numpy array"
     ):
-      geometry_loader._load_fbt_data("dummy_path.mat")
+      geometry_loader._load_fbt_file("dummy_path.mat")
 
 
 if __name__ == "__main__":
