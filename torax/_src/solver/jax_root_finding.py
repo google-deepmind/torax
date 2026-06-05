@@ -81,10 +81,19 @@ def root_newton_raphson(
   """
 
   def _newton_raphson(f, x, jacobian_fun=None):
-    residual_fun = f
     init_x_new_vec = x
+    f = jax.jit(f)
+
+    residual_fun = jax_utils.xla_metadata_call(
+        f, compilation_unit='residual_fun_block'
+    )
+
     if jacobian_fun is None:
       jacobian_fun = jax.jacfwd(f)
+      jacobian_fun = jax_utils.xla_metadata_call(
+          jax.jit(jacobian_fun), compilation_unit='jacobian_fun_block'
+      )
+
     # initialize state dict being passed around Newton-Raphson iterations
     residual_vec_init_x_new = residual_fun(init_x_new_vec)
     initial_state = {

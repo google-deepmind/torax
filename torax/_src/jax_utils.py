@@ -18,17 +18,30 @@ import contextlib
 import functools
 import os
 from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
-
 import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
+from jax.experimental import scheduling_groups
 import numpy as np
+from packaging import version
 
 T = TypeVar('T')
 BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
 _State = ParamSpec('_State')
 PyTree: TypeAlias = Any
+
+
+def xla_metadata_call(
+    f: Callable[..., Any], *, compilation_unit: str
+) -> Callable[..., Any]:
+
+  if version.Version(jax.__version__) > version.Version('0.10.1'):
+    return scheduling_groups.xla_metadata_call(
+        f, compilation_unit=compilation_unit
+    )
+  else:
+    return f
 
 
 @functools.cache
@@ -289,7 +302,9 @@ def while_loop_bounded(
   nan_state = jax.tree_util.tree_map(
       lambda x: jnp.ones_like(x) * jnp.nan
       if jnp.issubdtype(x.dtype, jnp.floating)
-      else jnp.zeros_like(x), init_val)
+      else jnp.zeros_like(x),
+      init_val,
+  )
 
   def scan_body(carry, _):
     current_state, counter, cond_prev = carry

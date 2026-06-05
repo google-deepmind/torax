@@ -232,9 +232,9 @@ def newton_raphson_solve_block(
       pedestal_transition_state=pedestal_transition_state,
   )
 
-  x_root, metadata = jax_root_finding.root_newton_raphson(
+  root_finder = functools.partial(
+      jax_root_finding.root_newton_raphson,
       fun=residual_fun,
-      x0=init_x_new_vec,
       maxiter=maxiter,
       tol=tol,
       coarse_tol=coarse_tol,
@@ -242,6 +242,11 @@ def newton_raphson_solve_block(
       tau_min=tau_min,
       log_iterations=log_iterations,
   )
+  root_finder = jax_utils.xla_metadata_call(
+      jax.jit(root_finder), compilation_unit='newton_raphson_root_finder'
+  )
+
+  x_root, metadata = root_finder(x0=init_x_new_vec)
 
   # Create updated CellVariable instances based on state_plus_dt which has
   # updated boundary conditions and prescribed profiles.
