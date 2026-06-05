@@ -18,6 +18,7 @@ import copy
 import logging
 from typing import Any, Mapping
 
+import numpy as np
 import pydantic
 from torax._src import models
 from torax._src import version
@@ -328,6 +329,11 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
     species_to_check = seeded_species | fixed_edge_species
 
+    # update_impurities is a TimeVaryingScalarStep (step-interpolated).
+    # We need to check its value at the same times as the species profile.
+    update_impurities_time = self.edge.update_impurities.time
+    update_impurities_value = self.edge.update_impurities.value
+
     for species_name, species_profile in impurity.species.items():
       if species_name not in species_to_check:
         continue
@@ -337,6 +343,16 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         # Sufficient to check the last rho_norm value, due to constant
         # extrapolation to the LCFS if rho_norm=1 is not directly included.
         if values[-1] <= 0.0:
+          # Step-interpolate update_impurities at time t. Only raise if
+          # the edge model would actually rescale impurities at this time.
+          # searchsorted(side='right') - 1 finds the index of the last
+          # update_impurities time point <= t, i.e. the step value active
+          # at time t.
+          idx = max(0, int(np.searchsorted(
+              update_impurities_time, t, side='right'
+          )) - 1)
+          if not update_impurities_value[idx]:
+            continue
           raise ValueError(
               f"Impurity species '{species_name}' has a zero or negative"
               f' n_e_ratio at rho_norm=1.0 (the LCFS) at time t={t}.'
