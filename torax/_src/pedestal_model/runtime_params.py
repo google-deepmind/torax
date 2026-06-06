@@ -79,6 +79,11 @@ class RuntimeParams:
       required to enter H-mode, which is the experimentally observed behavior.
       Must be in [0, 1]. Only used when
       use_formation_model_with_adaptive_source is True.
+    include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
+      calculation used for comparing against P_LH. When False (default), uses
+      P_heat (total auxiliary + Ohmic power - sinks) instead of
+      P_SOL = P_heat - dW/dt. Excluding dW/dt avoids possible spurious
+      dithering during transients.
     formation: Runtime params for the formation model.
     saturation: Runtime params for the saturation model.
     chi_max: Maximum effective thermal diffusion coefficient [m^2/s].
@@ -96,6 +101,9 @@ class RuntimeParams:
   )
   transition_time_width: array_typing.FloatScalar
   P_LH_hysteresis_factor: array_typing.FloatScalar
+  include_dW_dt_in_P_SOL: bool = dataclasses.field(
+      metadata={"static": True}
+  )
   formation: FormationRuntimeParams
   saturation: SaturationRuntimeParams
   chi_max: array_typing.FloatScalar

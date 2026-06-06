@@ -896,6 +896,13 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   hysteresis. Must be in [0, 1]. Currently, only used when
   ``use_formation_model_with_adaptive_source`` is True.
 
+``include_dW_dt_in_P_SOL`` (**bool** [default = False])
+  Whether to include the :math:`dW/dt` term in the :math:`P_{SOL}` calculation
+  used for comparing against :math:`P_{LH}`. When False (default), uses
+  :math:`P_{heat}` (total auxiliary heating + Ohmic power - sinks) instead of
+  :math:`P_{SOL} = P_{heat} - dW/dt`. When ``False``, avoids spurious dithering
+  during L-mode to H-mode transitions.
+
 ``formation_model`` (dict)
   Configuration for the pedestal formation model, which determines when L-H
   and H-L transitions occur. The ``model_name`` key selects the model:

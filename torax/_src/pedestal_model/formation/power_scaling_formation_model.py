@@ -46,8 +46,20 @@ def calculate_P_SOL_total(
     internal_plasma_energy: state.PlasmaInternalEnergy,
     core_sources: source_profiles_lib.SourceProfiles,
     geo: geometry.Geometry,
+    include_dW_dt: bool = True,
 ) -> jax.Array:
-  """Calculates the total power out of the separatrix."""
+  """Calculates the total power out of the separatrix.
+
+  Args:
+    internal_plasma_energy: Internal plasma energy state.
+    core_sources: Source profiles.
+    geo: Geometry.
+    include_dW_dt: If True, subtracts dW/dt from P_heat to get P_SOL. If
+      False, returns P_heat (total heating power) without the dW/dt correction.
+
+  Returns:
+    P_SOL or P_heat total [W].
+  """
   P_heat_e = sum(
       math_utils.volume_integration(source, geo)
       for source in core_sources.T_e.values()
@@ -56,7 +68,10 @@ def calculate_P_SOL_total(
       math_utils.volume_integration(source, geo)
       for source in core_sources.T_i.values()
   )
-  return P_heat_e + P_heat_i - internal_plasma_energy.dW_thermal_dt_smoothed
+  P_heat_total = P_heat_e + P_heat_i
+  if not include_dW_dt:
+    return P_heat_total
+  return P_heat_total - internal_plasma_energy.dW_thermal_dt_smoothed
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -88,7 +103,10 @@ class PowerScalingFormationModel(base.FormationModel):
     )
 
     P_SOL_total = calculate_P_SOL_total(
-        core_profiles.internal_plasma_energy, core_sources, geo
+        core_profiles.internal_plasma_energy,
+        core_sources,
+        geo,
+        include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
     )
 
     P_LH, _ = scaling_laws.calculate_P_LH(

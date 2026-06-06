@@ -70,6 +70,25 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         P_SOL_total, self.initial_post_processed_outputs.P_SOL_total
     )
 
+  def test_calculate_P_SOL_total_without_dW_dt(self):
+    P_SOL = power_scaling_formation_model.calculate_P_SOL_total(
+        self.initial_state.core_profiles.internal_plasma_energy,
+        self.initial_state.core_sources,
+        self.initial_state.geometry,
+        include_dW_dt=True,
+    )
+    P_heat = power_scaling_formation_model.calculate_P_SOL_total(
+        self.initial_state.core_profiles.internal_plasma_energy,
+        self.initial_state.core_sources,
+        self.initial_state.geometry,
+        include_dW_dt=False,
+    )
+    dW_dt = (
+        self.initial_state.core_profiles
+        .internal_plasma_energy.dW_thermal_dt_smoothed
+    )
+    np.testing.assert_allclose(P_heat, P_SOL + dW_dt)
+
   @parameterized.named_parameters(
       dict(
           testcase_name='martin_above_threshold',

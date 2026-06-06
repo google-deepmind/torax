@@ -84,6 +84,7 @@ def _update_pedestal_transition_state(
       internal_plasma_energy=core_profiles.internal_plasma_energy,
       core_sources=core_sources,
       geo=geo,
+      include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
   )
 
   # Calculate P_LH (L-H transition threshold power), with a configurable
