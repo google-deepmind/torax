@@ -18,6 +18,7 @@ import dataclasses
 from typing import Any, NamedTuple, Self
 
 from absl import logging
+from imas import ids_struct_array
 from imas import ids_structure
 from imas import ids_toplevel
 import numpy as np
@@ -58,11 +59,7 @@ _IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
         True,
     ),
-    "ic": _SourceMappingEntry(
-        ion_cyclotron_source.IonCyclotronSource.AFFECTED_CORE_PROFILES,
-        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
-        True,
-    ),
+    # TODO: Re-add IC mapping once workaround for the issue with default model is found
     # Physics-based and radiation sources
     "ohmic": _SourceMappingEntry(
         ohmic_heat_source.OhmicHeatSource.AFFECTED_CORE_PROFILES,
@@ -260,9 +257,7 @@ def _extract_source_profiles(
           profile.electrons.energy for profile in profiles_1d
       ]
     elif affected_profile == source_module.AffectedCoreProfile.NE:
-      profiles[affected_profile] = [
-          profile.electrons.particles for profile in profiles_1d
-      ]
+      profiles[affected_profile] = _get_particle_profile(profiles_1d)
     # Handling of fast ions from ICRH not taken into account yet.
     elif affected_profile == source_module.AffectedCoreProfile.FAST_IONS:
       profiles[affected_profile] = None
@@ -273,3 +268,31 @@ def _extract_source_profiles(
       affected_profiles=affected_profiles,
       profiles=profiles,
   )
+
+
+# TODO: Add option to provide full set of ion particle sources when ion
+# density transport will be possible in TORAX.
+def _get_particle_profile(
+    profiles_1d: ids_struct_array.IDSStructArray,
+) -> Sequence[Sequence[float]]:
+  """Extract particle profile from either electron or ion profiles."""
+  # Sum over all ion species to get total particle source profile.
+  if profiles_1d[0].electrons.particles.has_value:
+    particles = [profile.electrons.particles for profile in profiles_1d]
+  # If no electron particle source is defined, deduce it from the ions
+  # particle sources (assuming quasi-neutrality).
+  elif any(ion.particles is not None for ion in profiles_1d[0].ion):
+    particles = [
+        sum(
+            ion.particles * ion.element[0].z_n
+            for ion in profile.ion
+            if ion.particles is not None
+        )
+        for profile in profiles_1d
+    ]
+  else:
+    raise ValueError(
+        "Expected particle source, but none of electrons or ion particle source"
+        "is defined in the IDS."
+    )
+  return particles
