@@ -27,6 +27,8 @@ from torax._src.pedestal_model import pedestal_transition_state as pedestal_tran
 from torax._src.sources import source_profiles
 from torax._src.time_step_calculator import time_step_calculator_state
 
+_EXCLUDE_FROM_NAN_CHECK = ("edge_outputs",)
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
@@ -83,7 +85,16 @@ class SimState:
       return state.SimError.NO_ERROR
 
   def has_nan(self) -> bool:
-    return any([np.any(np.isnan(x)) for x in jax.tree.leaves(self)])
+    # Exclude edge outputs from NaN checks. This is acceptable as the edge model
+    # can be run in a decoupled mode for diagnostic purposes, in which case NaNs
+    # are not propagated to the TORAX core profiles and can be ignored. If NaNs
+    # are produced in coupled mode, these will be propagated to the
+    # TORAX core profiles and thus will be caught by the NaN check there.
+    return any([
+        np.any(np.isnan(value))
+        for path, value in jax.tree.leaves_with_path(self)
+        if path[0].name not in _EXCLUDE_FROM_NAN_CHECK
+    ])
 
 
 def _log_nans(
@@ -92,7 +103,7 @@ def _log_nans(
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   nan_count = 0
   for path, value in path_vals:
-    if np.any(np.isnan(value)):
+    if np.any(np.isnan(value)) and path[0].name not in _EXCLUDE_FROM_NAN_CHECK:
       logging.info("Found NaNs in sim_state%s", jax.tree_util.keystr(path))
       nan_count += 1
   if nan_count >= 10:
