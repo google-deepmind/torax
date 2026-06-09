@@ -18,6 +18,7 @@ A dataclass used to represent variables on meshes for the 1D fvm solver.
 Naming conventions and API are similar to those developed in the FiPy fvm solver
 [https://www.ctcms.nist.gov/fipy/]
 """
+
 import dataclasses
 import functools
 
@@ -38,27 +39,50 @@ def _zero() -> array_typing.FloatScalar:
 @jax.jit
 def _compute_inner_grad(
     value: array_typing.FloatVectorCell,
-    value_right_face: array_typing.FloatScalar,
     face_centers: array_typing.FloatVectorFace,
     cell_centers: array_typing.FloatVectorCell,
 ) -> jt.Float[array_typing.Array, 'rhon-1']:
-  """Computes the gradient on inner faces.
+  """Computes the gradient on inner faces using a 3-point Lagrange stencil.
 
-  This gradient is computed using a 3-point stencil and is accurate to second
-  order differences. The gradient on the penultimate rightmost face is
-  determined by the value on the right face.
+  The gradient is evaluated at each face center x_f (from ``face_centers``),
+  using values at three nearby cell centers x_k (from ``cell_centers``) as
+  data points. Given three data points (x_k, v_k), we fit the unique quadratic
+  Lagrange interpolant p(x) = sum_k v_k * L_k(x) through them, where the
+  Lagrange basis polynomials are L_k(x) = prod_{j!=k} (x - x_j) / (x_k - x_j).
+
+  The gradient at an evaluation point x_f is p'(x_f) = sum_k c_k * v_k, where
+  c_k = L_k'(x_f). Using the product rule and defining d_k = x_k - x_f:
+
+    c_1 = (d_2 + d_3) / (-d_1^2 + d_1*d_2 + d_1*d_3 - d_2*d_3)
+    c_3 = (-d_1 - d_2) / (d_1*d_2 - d_1*d_3 - d_2*d_3 + d_3^2)
+
+  Since sum_k L_k(x) = 1 for all x (partition of unity), differentiating
+  gives c_1 + c_2 + c_3 = 0. This lets us write p'(x_f) as a sum of
+  differences: c_1*(v_1 - v_2) + c_3*(v_3 - v_2), which is numerically
+  stable (exact zero when v_1 = v_2 = v_3).
+
+  This formula is exact for any quadratic v(x), and second-order accurate
+  for smooth functions, regardless of where x_f sits relative to the three
+  points. On a uniform grid the far point gets zero weight and the formula
+  reduces to simple forward differencing: (v_right - v_left) / h.
+
+  The stencil uses a left-biased (leftleft-left-right) arrangement to
+  prevent values from cells far to the right (e.g. in the pedestal region)
+  from contaminating core gradients on non-uniform grids. For the first
+  inner face (index 1), a right-biased (left-right-rightright) stencil is
+  used since no leftleft cell exists.
+
+  Requires at least 3 cells for the 3-point stencil.
 
   Note: This gradient can not be compared against FiPy as that is not correct
   to second order differences when the grid is not uniform.
 
   Args:
     value: The value on the cell grid.
-    value_right_face: The value on the right face, used to determine the
-      gradient on the second-to-last face.
     face_centers: The locations of the face centers.
     cell_centers: The locations of the cell centers.
-
   """
+
   @jax.jit
   def gradient(
       d: tuple[chex.Array, chex.Array, chex.Array],
@@ -66,35 +90,35 @@ def _compute_inner_grad(
   ) -> chex.Array:
     d1, d2, d3 = d
     v1, v2, v3 = v
-    c1 = (d2 + d3)/ (-1*d1**2 + d1*d2 + d1*d3 - d2*d3)
+    c1 = (d2 + d3) / (-1 * d1**2 + d1 * d2 + d1 * d3 - d2 * d3)
     # c2 = (-d1 - d3) / (-1*d1*d2 + d1*d3 + d2**2 - d2*d3)
-    c3 = (-d1 - d2) / (d1*d2 - d1*d3 - d2*d3 + d3**2)
-    # We use c1*(v1-v2) + c3*(v3-v2) instead of c1*v1 + c2*v2 + c3*v3
-    # because c1+c2+c3 = 0 analytically, but not numerically.
-    # By using differences we ensure that if v1=v2=v3, the result is exactly 0.
+    c3 = (-d1 - d2) / (d1 * d2 - d1 * d3 - d2 * d3 + d3**2)
     return c1 * (v1 - v2) + c3 * (v3 - v2)
 
-  d_left = cell_centers[:-2] - face_centers[1:-2]
-  d_right = cell_centers[1:-1] - face_centers[1:-2]
-  d_right_right = cell_centers[2:] - face_centers[1:-2]
-  left = value[:-2]
-  right = value[1:-1]
-  right_right = value[2:]
-  inner_grads = gradient(
-      (d_left, d_right, d_right_right), (left, right, right_right)
+  # Ensure at least 3 cells for stencil
+  assert value.shape[0] >= 3
+
+  # First inner face (index 1): right-biased stencil (left-right-rightright)
+  # since there is no leftleft cell.
+  first_d1 = cell_centers[0] - face_centers[1]
+  first_d2 = cell_centers[1] - face_centers[1]
+  first_d3 = cell_centers[2] - face_centers[1]
+  first_grad = gradient(
+      (first_d1, first_d2, first_d3),
+      (value[0], value[1], value[2]),
   )
 
-  penultimate_left = value[-2]
-  penultimate_right = value[-1]
-  penultimate_right_right = value_right_face
-  d_left = cell_centers[-2] - face_centers[-2]
-  d_right = cell_centers[-1] - face_centers[-2]
-  d_right_right = face_centers[-1] - face_centers[-2]
-  penultimate_grad = gradient(
-      (d_left, d_right, d_right_right),
-      (penultimate_left, penultimate_right, penultimate_right_right),
+  # Remaining inner faces (indices 2..N-1): left-biased stencil
+  # (leftleft-left-right) to avoid reaching into the pedestal.
+  d_leftleft = cell_centers[:-2] - face_centers[2:-1]
+  d_left = cell_centers[1:-1] - face_centers[2:-1]
+  d_right = cell_centers[2:] - face_centers[2:-1]
+  inner_grads = gradient(
+      (d_leftleft, d_left, d_right),
+      (value[:-2], value[1:-1], value[2:]),
   )
-  return jnp.concat([inner_grads, jnp.atleast_1d(penultimate_grad)], axis=-1)
+
+  return jnp.concat([jnp.atleast_1d(first_grad), inner_grads], axis=-1)
 
 
 @jax.tree_util.register_dataclass
@@ -121,6 +145,7 @@ class CellVariable:
     right_face_grad_constraint: Analogous to left_face_grad_constraint but for
       the right face, see left_face_grad_constraint.
   """
+
   value: jt.Float[chex.Array, 'cell']
   face_centers: jt.Float[chex.Array, 'cell+1']
   left_face_constraint: jt.Float[chex.Array, ''] | None = None
@@ -161,7 +186,8 @@ class CellVariable:
               f'Expected dtype {jax_dtype}, got {value.dtype} for `{name}`'
           )
     left_constraints = (
-        self.left_face_constraint, self.left_face_grad_constraint
+        self.left_face_constraint,
+        self.left_face_grad_constraint,
     )
     if sum(constraint is not None for constraint in left_constraints) != 1:
       raise ValueError(
@@ -169,12 +195,18 @@ class CellVariable:
           'left_face_grad_constraint must be set.'
       )
     right_constraints = (
-        self.right_face_constraint, self.right_face_grad_constraint,
+        self.right_face_constraint,
+        self.right_face_grad_constraint,
     )
     if sum(constraint is not None for constraint in right_constraints) != 1:
       raise ValueError(
           'Exactly one of right_face_constraint and '
           'right_face_grad_constraint must be set.'
+      )
+    if self.value.ndim >= 1 and self.value.shape[0] < 3:
+      raise ValueError(
+          'CellVariable requires at least 3 cells for the 3-point gradient'
+          f' stencil, got {self.value.shape[0]}.'
       )
 
   def face_grad(
@@ -206,7 +238,6 @@ class CellVariable:
     """
     inner_grad = _compute_inner_grad(
         self.value,
-        self.right_face_value,
         self.face_centers,
         self.cell_centers,
     )
@@ -215,9 +246,7 @@ class CellVariable:
     if x is not None:
       if x_left is None or x_right is None:
         raise ValueError('Must specify both x_left and x_right with x.')
-      dx_dcell = _compute_inner_grad(
-          x, jnp.atleast_1d(x_right), self.face_centers, self.cell_centers
-      )
+      dx_dcell = _compute_inner_grad(x, self.face_centers, self.cell_centers)
       # dval_dx = dval_dcell / dx_dcell
       inner_grad = inner_grad / dx_dcell
 
