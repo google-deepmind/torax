@@ -278,6 +278,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       torax_pydantic.ValidatedDefault(0.8)
   )
   include_dW_dt_in_P_SOL: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  explicit_pedestal: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
       MartinScalingFormation()
   )
@@ -353,6 +354,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
         transition_time_width=self.transition_time_width.get_value(t),
         P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
         include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
+        explicit_pedestal=self.explicit_pedestal,
         formation=self.formation_model.build_runtime_params(t),
         saturation=self.saturation_model.build_runtime_params(t),
         chi_max=self.chi_max.get_value(t),
@@ -419,6 +421,7 @@ class SetPpedTpedRatioNped(BasePedestal):
         transition_time_width=base_runtime_params.transition_time_width,
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
+        explicit_pedestal=base_runtime_params.explicit_pedestal,
         P_ped=self.P_ped.get_value(t),
         P_ped_multiplier=self.P_ped_multiplier.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
@@ -486,6 +489,7 @@ class SetTpedNped(BasePedestal):
         transition_time_width=base_runtime_params.transition_time_width,
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
+        explicit_pedestal=base_runtime_params.explicit_pedestal,
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_ped=self.T_i_ped.get_value(t),
@@ -533,6 +537,7 @@ class NoPedestal(BasePedestal):
         transition_time_width=base_runtime_params.transition_time_width,
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
+        explicit_pedestal=base_runtime_params.explicit_pedestal,
         formation=base_runtime_params.formation,
         saturation=base_runtime_params.saturation,
         chi_max=self.chi_max.get_value(t),

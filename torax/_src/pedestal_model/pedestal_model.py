@@ -22,6 +22,7 @@ import dataclasses
 
 import jax
 import jax.numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -44,6 +45,36 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
   formation_model: formation_base.FormationModel
   saturation_model: saturation_base.SaturationModel
 
+  def compute_transport_multipliers(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      source_profiles: source_profiles_lib.SourceProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+      pedestal_output: pedestal_model_output.PedestalModelOutput,
+  ) -> pedestal_model_output.TransportMultipliers:
+    """Computes transport multipliers from formation and saturation models."""
+
+    transport_decrease = self.formation_model(
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
+        pedestal_transition_state,
+    )
+    transport_increase = self.saturation_model(
+        runtime_params, geo, core_profiles, pedestal_output
+    )
+
+    # Combine via exp(log) for numerical stability, as multipliers can
+    # be very small or large.
+    return jax.tree.map(
+        lambda x, y: jnp.exp(jnp.log(x) + jnp.log(y)),
+        transport_decrease,
+        transport_increase,
+    )
+
   def _evaluate_pedestal(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -62,25 +93,14 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
         runtime_params.pedestal.mode
         == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
     ):
-      transport_decrease_multipliers = self.formation_model(
+      transport_multipliers = self.compute_transport_multipliers(
           runtime_params,
           geo,
           core_profiles,
           source_profiles,
           pedestal_transition_state,
+          pedestal_output,
       )
-      transport_increase_multipliers = self.saturation_model(
-          runtime_params, geo, core_profiles, pedestal_output
-      )
-
-      # Combine via exp(log) for numerical stability, as multipliers can
-      # be very small or large.
-      transport_multipliers = jax.tree.map(
-          lambda x, y: jnp.exp(jnp.log(x) + jnp.log(y)),
-          transport_decrease_multipliers,
-          transport_increase_multipliers,
-      )
-
       pedestal_output = dataclasses.replace(
           pedestal_output, transport_multipliers=transport_multipliers
       )
@@ -99,11 +119,15 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
         runtime_params.pedestal.set_pedestal,
         self._evaluate_pedestal,
         lambda runtime_params, geo, core_profiles, source_profiles, pedestal_transition_state: pedestal_model_output.PedestalModelOutput(
-            rho_norm_ped_top=jnp.inf,
-            rho_norm_ped_top_idx=geo.torax_mesh.nx,
-            T_i_ped=0.0,
-            T_e_ped=0.0,
-            n_e_ped=0.0,
+            rho_norm_ped_top=jnp.array(
+                jnp.inf, dtype=jax_utils.get_dtype()
+            ),
+            rho_norm_ped_top_idx=jnp.array(
+                geo.torax_mesh.nx, dtype=jnp.int_
+            ),
+            T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+            T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+            n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         ),
         runtime_params,
         geo,

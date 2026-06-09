@@ -432,6 +432,22 @@ def pre_step(
         models=models,
     )
 
+  # When explicit_pedestal is True, evaluate the pedestal model once here
+  # and freeze its output for the solver loop. calc_coeffs will skip
+  # re-evaluation and use this stored output.
+  if runtime_params_t.pedestal.explicit_pedestal:
+    pedestal_model_output = models.pedestal_model(
+        runtime_params_t,
+        geo_t,
+        input_state.core_profiles,
+        explicit_source_profiles,
+        pedestal_transition_state,
+    )
+    pedestal_transition_state = dataclasses.replace(
+        pedestal_transition_state,
+        pedestal_model_output=pedestal_model_output,
+    )
+
   return (
       runtime_params_t,
       geo_t,

@@ -94,6 +94,7 @@ class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
         transition_time_width=self.transition_time_width.get_value(t),
         P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
         include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
+        explicit_pedestal=True,
         formation=self.formation_model.build_runtime_params(t),
         saturation=self.saturation_model.build_runtime_params(t),
         chi_max=self.chi_max,

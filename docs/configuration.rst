@@ -903,6 +903,17 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   :math:`P_{SOL} = P_{heat} - dW/dt`. When ``False``, avoids spurious dithering
   during L-mode to H-mode transitions.
 
+``explicit_pedestal`` (**bool** [default = True])
+  Controls whether the pedestal model is evaluated explicitly (once per
+  timestep) or implicitly (every internal iteration). When ``True`` (default),
+  the pedestal model is evaluated once in the pre-step phase and its output is
+  frozen during the solver loop. When ``False``, the pedestal model is
+  re-evaluated every Newton iteration, coupling pedestal physics to the
+  implicit solve, but increasing the non-linearity of the system. Note: for
+  ``ADAPTIVE_TRANSPORT`` mode, transport multipliers are always re-evaluated
+  implicitly with current profiles regardless of this setting, since the
+  saturation model's profile-based feedback loop requires implicit coupling.
+
 ``formation_model`` (dict)
   Configuration for the pedestal formation model, which determines when L-H
   and H-L transitions occur. The ``model_name`` key selects the model:

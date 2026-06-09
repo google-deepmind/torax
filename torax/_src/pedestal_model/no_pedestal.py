@@ -15,6 +15,7 @@
 
 import dataclasses
 from jax import numpy as jnp
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -42,9 +43,11 @@ class NoPedestal(pedestal_model.PedestalModel):
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalModelOutput:
     return pedestal_model_output.PedestalModelOutput(
-        rho_norm_ped_top=jnp.inf,
-        rho_norm_ped_top_idx=geo.torax_mesh.nx,
-        T_i_ped=0.0,
-        T_e_ped=0.0,
-        n_e_ped=0.0,
+        rho_norm_ped_top=jnp.array(jnp.inf, dtype=jax_utils.get_dtype()),
+        rho_norm_ped_top_idx=jnp.array(
+            geo.torax_mesh.nx, dtype=jnp.int_
+        ),
+        T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )

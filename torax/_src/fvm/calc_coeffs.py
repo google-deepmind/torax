@@ -271,21 +271,50 @@ def _calc_coeffs_full(
   tic_dens_el = geo.vpr
 
   # --- Diffusion and convection term coefficients --- #
-  # 1. Compute pedestal model output once and store on transition state.
+  # Compute pedestal model output and store on transition state.
+  # When explicit_pedestal is False, fully re-evaluate the pedestal model every
+  # Newton iteration. When True, the output from pre_step is frozen. However,
+  # for ADAPTIVE_TRANSPORT mode, transport multipliers must still be
+  # re-evaluated implicitly with current profiles (the saturation model's
+  # feedback loop requires it). We call formation + saturation directly to
+  # avoid re-running _call_implementation (the expensive pedestal physics).
   # TODO(b/434175938): V2: Consider having pedestal_model return an updated
   # PedestalTransitionState directly, avoiding the fragile manual
   # dataclasses.replace at every call site.
-  pedestal_model_output = models.pedestal_model(
-      runtime_params,
-      geo,
-      core_profiles,
-      merged_source_profiles,
-      pedestal_transition_state,
-  )
-  pedestal_transition_state = dataclasses.replace(
-      pedestal_transition_state,
-      pedestal_model_output=pedestal_model_output,
-  )
+  if not runtime_params.pedestal.explicit_pedestal:
+    pedestal_model_output = models.pedestal_model(
+        runtime_params,
+        geo,
+        core_profiles,
+        merged_source_profiles,
+        pedestal_transition_state,
+    )
+    pedestal_transition_state = dataclasses.replace(
+        pedestal_transition_state,
+        pedestal_model_output=pedestal_model_output,
+    )
+  elif (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+  ):
+    # Explicit mode with ADAPTIVE_TRANSPORT: pedestal output (T_ped, n_ped,
+    # rho_ped_top) stays frozen from pre_step, but transport multipliers are
+    # re-evaluated with current profiles.
+    frozen_pedestal_output = pedestal_transition_state.pedestal_model_output
+    transport_multipliers = models.pedestal_model.compute_transport_multipliers(
+        runtime_params,
+        geo,
+        core_profiles,
+        merged_source_profiles,
+        pedestal_transition_state,
+        frozen_pedestal_output,
+    )
+    pedestal_transition_state = dataclasses.replace(
+        pedestal_transition_state,
+        pedestal_model_output=dataclasses.replace(
+            frozen_pedestal_output, transport_multipliers=transport_multipliers
+        ),
+    )
 
   # 2. Compute transport coefficients from all models.
   transport_coefficients = (

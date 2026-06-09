@@ -84,6 +84,14 @@ class RuntimeParams:
       P_heat (total auxiliary + Ohmic power - sinks) instead of
       P_SOL = P_heat - dW/dt. Excluding dW/dt avoids possible spurious
       dithering during transients.
+    explicit_pedestal: When True (default), the pedestal model is evaluated once
+      per timestep before the solver loop and its output (T_ped, n_ped,
+      rho_ped_top) is frozen during Newton iterations. When False, the pedestal
+      model is re-evaluated every Newton iteration, coupling pedestal physics to
+      the implicit solve. Note: for ADAPTIVE_TRANSPORT mode, transport
+      multipliers are always re-evaluated implicitly with current profiles
+      regardless of this setting, since the saturation model feedback loop
+      requires implicit coupling.
     formation: Runtime params for the formation model.
     saturation: Runtime params for the saturation model.
     chi_max: Maximum effective thermal diffusion coefficient [m^2/s].
@@ -102,6 +110,9 @@ class RuntimeParams:
   transition_time_width: array_typing.FloatScalar
   P_LH_hysteresis_factor: array_typing.FloatScalar
   include_dW_dt_in_P_SOL: bool = dataclasses.field(
+      metadata={"static": True}
+  )
+  explicit_pedestal: bool = dataclasses.field(
       metadata={"static": True}
   )
   formation: FormationRuntimeParams
