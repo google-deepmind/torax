@@ -198,6 +198,13 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i_ped_L_mode=jnp.array(0.5),
         T_e_ped_L_mode=jnp.array(0.5),
         n_e_ped_L_mode=jnp.array(0.5e19),
+        pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
+            rho_norm_ped_top=jnp.inf,
+            rho_norm_ped_top_idx=0,
+            T_i_ped=0.0,
+            T_e_ped=0.0,
+            n_e_ped=0.0,
+        ),
         previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
             rho_norm_ped_top=jnp.inf,
             rho_norm_ped_top_idx=0,
@@ -257,6 +264,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i_ped_L_mode=jnp.array(0.0),
         T_e_ped_L_mode=jnp.array(0.0),
         n_e_ped_L_mode=jnp.array(0.0),
+        pedestal_model_output=_dummy_pedestal_output,
         previous_pedestal_model_output=_dummy_pedestal_output,
     )
     h_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
@@ -267,6 +275,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i_ped_L_mode=jnp.array(0.0),
         T_e_ped_L_mode=jnp.array(0.0),
         n_e_ped_L_mode=jnp.array(0.0),
+        pedestal_model_output=_dummy_pedestal_output,
         previous_pedestal_model_output=_dummy_pedestal_output,
     )
 

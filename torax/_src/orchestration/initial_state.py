@@ -143,15 +143,26 @@ def _get_initial_state(
       pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
   )
 
-  transport_coeffs, pedestal_transition_state = (
+  # Compute pedestal model output and store on transition state.
+  pedestal_model_output = models.pedestal_model(
+      runtime_params,
+      geo,
+      initial_core_profiles,
+      initial_core_sources,
+      pedestal_transition_state,
+  )
+  pedestal_transition_state = dataclasses.replace(
+      pedestal_transition_state,
+      pedestal_model_output=pedestal_model_output,
+  )
+
+  transport_coeffs = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          models.pedestal_model,
           models.transport_model,
           models.neoclassical_models,
           runtime_params,
           geo,
           initial_core_profiles,
-          initial_core_sources,
           pedestal_transition_state=pedestal_transition_state,
       )
   )

@@ -446,11 +446,13 @@ def _build_smoothing_matrix(
     # If in ADAPTIVE_SOURCE mode: if set_pedestal is True, mask according to the
     # pedestal top. Otherwise, mask according to the outer patch, if set.
     mask_outer_edge = jnp.where(
-        jnp.logical_not(runtime_params.pedestal.set_pedestal)
-        & runtime_params.transport.apply_outer_patch,
-        runtime_params.transport.rho_outer - consts.eps,
-        # If pedestal is not set, rho_norm_ped_top is inf.
+        runtime_params.pedestal.set_pedestal,
         pedestal_model_output.rho_norm_ped_top - consts.eps,
+        jnp.where(
+            runtime_params.transport.apply_outer_patch,
+            runtime_params.transport.rho_outer - consts.eps,
+            jnp.inf,
+        ),
     )
   else:
     # If in ADAPTIVE_TRANSPORT mode, only mask according to the outer patch.
@@ -535,7 +537,8 @@ def compute_core_domain_mask(
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
   ):
     active_mask = active_mask & (
-        geo.rho_face_norm <= pedestal_model_output.rho_norm_ped_top
+        jnp.logical_not(runtime_params.pedestal.set_pedestal)
+        | (geo.rho_face_norm <= pedestal_model_output.rho_norm_ped_top)
     )
 
   # Special case: if rho_min is 0, lower bound of active range is the first

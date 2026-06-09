@@ -158,6 +158,7 @@ def _update_adaptive_transport(
       T_i_ped_L_mode=pedestal_transition_state.T_i_ped_L_mode,
       T_e_ped_L_mode=pedestal_transition_state.T_e_ped_L_mode,
       n_e_ped_L_mode=pedestal_transition_state.n_e_ped_L_mode,
+      pedestal_model_output=pedestal_transition_state.pedestal_model_output,
       previous_pedestal_model_output=pedestal_transition_state.previous_pedestal_model_output,
   )
 
@@ -332,6 +333,7 @@ def _update_adaptive_source(
       T_i_ped_L_mode=new_T_i_ped_L_mode,
       T_e_ped_L_mode=new_T_e_ped_L_mode,
       n_e_ped_L_mode=new_n_e_ped_L_mode,
+      pedestal_model_output=pedestal_transition_state.pedestal_model_output,
       previous_pedestal_model_output=pedestal_transition_state.previous_pedestal_model_output,
   )
 
@@ -479,15 +481,29 @@ def finalize_outputs(
           evolving_names=evolving_names,
       )
   )
-  final_total_transport, pedestal_transition_state = (
+  # Compute pedestal model output and store on transition state.
+  # Also update previous_pedestal_model_output if needed for EPED-NN
+  # next-timestep width calculation.
+  final_pedestal_model_output = models.pedestal_model(
+      runtime_params_t_plus_dt,
+      geometry_t_plus_dt,
+      final_core_profiles,
+      final_source_profiles,
+      pedestal_transition_state,
+  )
+  pedestal_transition_state = dataclasses.replace(
+      pedestal_transition_state,
+      pedestal_model_output=final_pedestal_model_output,
+      previous_pedestal_model_output=final_pedestal_model_output,
+  )
+
+  final_total_transport = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          models.pedestal_model,
           models.transport_model,
           models.neoclassical_models,
           runtime_params_t_plus_dt,
           geometry_t_plus_dt,
           final_core_profiles,
-          final_source_profiles,
           pedestal_transition_state=pedestal_transition_state,
       )
   )

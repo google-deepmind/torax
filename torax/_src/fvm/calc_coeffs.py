@@ -271,16 +271,30 @@ def _calc_coeffs_full(
   tic_dens_el = geo.vpr
 
   # --- Diffusion and convection term coefficients --- #
-  # 1. Compute transport coefficients from all models.
-  transport_coefficients, _ = (
+  # 1. Compute pedestal model output once and store on transition state.
+  # TODO(b/434175938): V2: Consider having pedestal_model return an updated
+  # PedestalTransitionState directly, avoiding the fragile manual
+  # dataclasses.replace at every call site.
+  pedestal_model_output = models.pedestal_model(
+      runtime_params,
+      geo,
+      core_profiles,
+      merged_source_profiles,
+      pedestal_transition_state,
+  )
+  pedestal_transition_state = dataclasses.replace(
+      pedestal_transition_state,
+      pedestal_model_output=pedestal_model_output,
+  )
+
+  # 2. Compute transport coefficients from all models.
+  transport_coefficients = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          models.pedestal_model,
           models.transport_model,
           models.neoclassical_models,
           runtime_params,
           geo,
           core_profiles,
-          merged_source_profiles,
           pedestal_transition_state,
           use_pereverzev,
       )
@@ -425,16 +439,7 @@ def _calc_coeffs_full(
       runtime_params.pedestal.mode
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
   ):
-    # TODO(b/500260959): Currently pedestal model is called twice, once in
-    # calculate_all_transport_coeffs and once here. Consider having the
-    # pedestal_model_output only be computed explicitly for solver stability.
-    pedestal_model_output = models.pedestal_model(
-        runtime_params,
-        geo,
-        core_profiles,
-        merged_source_profiles,
-        pedestal_transition_state,
-    )
+    pedestal_model_output = pedestal_transition_state.pedestal_model_output
     if runtime_params.pedestal.use_formation_model_with_adaptive_source:
 
       # Scale the pedestal output by the ramp fraction during transitions.
@@ -445,8 +450,7 @@ def _calc_coeffs_full(
           transition_time_width=runtime_params.pedestal.transition_time_width,
           t=runtime_params.t,
       )
-      pedestal_model_output = _apply_transition_ramp_scaling(
-          pedestal_model_output=pedestal_model_output,
+      scaled_pedestal_model_output = _apply_transition_ramp_scaling(
           pedestal_transition_state=pedestal_transition_state,
           ramp_fraction=ramp_fraction,
       )
@@ -459,7 +463,9 @@ def _calc_coeffs_full(
       )
       pedestal_internal_boundary_conditions = jax.lax.cond(
           apply_pedestal_internal_boundary_conditions,
-          lambda: pedestal_model_output.to_internal_boundary_conditions(geo),
+          lambda: scaled_pedestal_model_output.to_internal_boundary_conditions(
+              geo
+          ),
           lambda: internal_boundary_conditions_lib.InternalBoundaryConditions.empty(
               geo
           ),
@@ -636,7 +642,6 @@ def _compute_ramp_fraction(
 
 
 def _apply_transition_ramp_scaling(
-    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
     pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
     ramp_fraction: array_typing.FloatScalar,
 ) -> pedestal_model_output_lib.PedestalModelOutput:
@@ -651,9 +656,8 @@ def _apply_transition_ramp_scaling(
   pedestal model output.
 
   Args:
-    pedestal_model_output: Output from the pedestal model.
     pedestal_transition_state: Current transition state containing L-mode
-      baseline values.
+      baseline values and the pedestal model output.
     ramp_fraction: Progress of the current transition, in [0, 1].
 
   Returns:
@@ -686,6 +690,8 @@ def _apply_transition_ramp_scaling(
         ],
         [l_val, h_val, l_to_h_ramp, h_to_l_ramp],
     )
+
+  pedestal_model_output = pedestal_transition_state.pedestal_model_output
 
   scaled_T_i = _interpolate_transition(
       l_val=pedestal_transition_state.T_i_ped_L_mode,

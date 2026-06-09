@@ -46,6 +46,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         ],
         'pedestal_transport_models': [{'model_name': 'constant', 'chi_i': 0.1}],
     }
+    config['pedestal'] = {'set_pedestal': True}
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -98,6 +99,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         ],
         'chi_min': 1.0,
     }
+    config['pedestal'] = {'set_pedestal': True}
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(

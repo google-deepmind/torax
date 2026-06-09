@@ -22,10 +22,8 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
-from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
@@ -34,26 +32,21 @@ from torax._src.transport_model import transport_model as transport_model_lib
 
 @jax.jit(
     static_argnames=(
-        'pedestal_model',
         'transport_model',
         'neoclassical_models',
     )
 )
 def calculate_all_transport_coeffs(
-    pedestal_model: pedestal_model_lib.PedestalModel,
     transport_model: transport_model_lib.TransportModel,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    source_profiles: source_profiles_lib.SourceProfiles,
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
     use_pereverzev: bool = False,
-) -> tuple[
-    state.CoreTransport, pedestal_transition_state_lib.PedestalTransitionState
-]:
+) -> state.CoreTransport:
   """Calculates the transport coefficients from all models."""
 
   # Toggle the pedestal model on/off based on the pedestal transition state.
@@ -78,15 +71,7 @@ def calculate_all_transport_coeffs(
         pedestal=pedestal_params,
     )
 
-  # TODO(b/500260959): Currently pedestal model is called twice, once in
-  # calc_coeffs.py and once here.
-  pedestal_model_output = pedestal_model(
-      runtime_params,
-      geo,
-      core_profiles,
-      source_profiles,
-      pedestal_transition_state,
-  )
+  pedestal_model_output = pedestal_transition_state.pedestal_model_output
   turbulent_transport_coeffs = transport_model(
       runtime_params=runtime_params,
       geo=geo,
@@ -137,7 +122,8 @@ def calculate_all_transport_coeffs(
     # TODO(b/485147781) Combine this masking with the turbulent transport
     # masking.
     pedestal_active_mask_face = (
-        geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
+        runtime_params.pedestal.set_pedestal
+        & (geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top)
     )
     pereverzev_transport_coeffs = jax.tree_util.tree_map(
         lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
@@ -148,11 +134,4 @@ def calculate_all_transport_coeffs(
         **dataclasses.asdict(pereverzev_transport_coeffs),
     )
 
-  # Update the pedestal transition state with the latest pedestal output
-  # so it is available to pedestal models in subsequent timesteps.
-  updated_pedestal_transition_state = dataclasses.replace(
-      pedestal_transition_state,
-      previous_pedestal_model_output=pedestal_model_output,
-  )
-
-  return core_transport, updated_pedestal_transition_state
+  return core_transport

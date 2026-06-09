@@ -56,6 +56,7 @@ class PedestalTransitionState:
       start of the most recent L-mode to H-mode transition [keV].
     n_e_ped_L_mode: Electron density at the pedestal top captured at the start
       of the most recent L-mode to H-mode transition [m^-3].
+    pedestal_model_output: The current pedestal model output for this timestep.
     previous_pedestal_model_output: The pedestal model output from the previous
       completed timestep. Used by some pedestal models (e.g. EPED-NN) to
       determine pedestal width for input calculations.
@@ -68,9 +69,8 @@ class PedestalTransitionState:
   T_i_ped_L_mode: array_typing.FloatScalar
   T_e_ped_L_mode: array_typing.FloatScalar
   n_e_ped_L_mode: array_typing.FloatScalar
-  previous_pedestal_model_output: (
-      pedestal_model_output_lib.PedestalModelOutput
-  )
+  pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput
+  previous_pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput
 
   @classmethod
   def empty_L_mode(cls):
@@ -86,6 +86,17 @@ class PedestalTransitionState:
         T_i_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         T_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        pedestal_model_output=(
+            pedestal_model_output_lib.PedestalModelOutput(
+                rho_norm_ped_top=jnp.array(
+                    jnp.inf, dtype=jax_utils.get_dtype()
+                ),
+                rho_norm_ped_top_idx=0,
+                T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+                T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+                n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+            )
+        ),
         previous_pedestal_model_output=(
             pedestal_model_output_lib.PedestalModelOutput(
                 rho_norm_ped_top=jnp.array(
