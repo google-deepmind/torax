@@ -22,6 +22,7 @@ import jax.numpy as jnp
 import torax
 from torax import pedestal
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.test_utils import default_configs
 
 
@@ -78,6 +79,7 @@ class FakePedestalPydantic(pedestal.BasePedestal):
         P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
         include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
         explicit_pedestal=True,
+        pedestal_profile_form=pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP,
     )
 
 

@@ -493,7 +493,9 @@ def _calc_coeffs_full(
       pedestal_internal_boundary_conditions = jax.lax.cond(
           apply_pedestal_internal_boundary_conditions,
           lambda: scaled_pedestal_model_output.to_internal_boundary_conditions(
-              geo
+              geo,
+              core_profiles=core_profiles,
+              pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
           ),
           lambda: internal_boundary_conditions_lib.InternalBoundaryConditions.empty(
               geo
@@ -502,7 +504,11 @@ def _calc_coeffs_full(
     else:
       # If not using the formation model, we always apply the adaptive source.
       pedestal_internal_boundary_conditions = (
-          pedestal_model_output.to_internal_boundary_conditions(geo)
+          pedestal_model_output.to_internal_boundary_conditions(
+              geo,
+              core_profiles=core_profiles,
+              pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
+          )
       )
 
     # Combine the user-specified internal boundary conditions with the pedestal

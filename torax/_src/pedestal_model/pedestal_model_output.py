@@ -104,25 +104,121 @@ class PedestalModelOutput:
   def to_internal_boundary_conditions(
       self,
       geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles | None = None,
+      pedestal_profile_form: pedestal_runtime_params_lib.PedestalProfileForm = (
+          pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
+      ),
   ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
-    """Convert the pedestal model output to internal boundary conditions."""
-    # In this case, the mask is only the pedestal top, not the whole pedestal
-    # region. This is because we are adding a source/sink term only at the
-    # pedestal top.
-    # We are using the cell grid here, since internal boundary conditions are
-    # applied using an adaptive source (which acts on the cell grid).
+    """Convert the pedestal model output to internal boundary conditions.
+
+    When pedestal_profile_form is MTANH and core_profiles is provided, generates
+    an mtanh-shaped profile across the pedestal region using the formula:
+      a(ψ) = a_sep + a₀·[tanh(1) - tanh(2(ψ - ψ_mid)/Δ)]
+    where a denotes either T_i, T_e, or n_e, and Δ is derived from
+    rho_norm_ped_top via the ψ_N(ρ) mapping:
+      ψ_top = ψ_N(rho_norm_ped_top), Δ = (1 - ψ_top) / 1.5
+
+    When pedestal_profile_form is SET_AT_PED_TOP, falls back to a single-point
+    mask at the nearest cell to rho_norm_ped_top.
+
+    Args:
+      geo: Geometry object for the grid.
+      core_profiles: Core profiles, needed for ψ_N mapping and separatrix values
+        when using mtanh profiles.
+      pedestal_profile_form: Controls the shape of the pedestal profile.
+
+    Returns:
+      Internal boundary conditions for T_i, T_e, n_e.
+    """
+    match pedestal_profile_form:
+      case pedestal_runtime_params_lib.PedestalProfileForm.MTANH:
+        if core_profiles is None:
+          raise ValueError(
+              "core_profiles must be provided when pedestal_profile_form"
+              " is MTANH."
+          )
+        return self._tanh_internal_boundary_conditions(geo, core_profiles)
+      case pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP:
+        # Single-point mask: pin values at the nearest cell to ped top.
+        rho_norm_ped_top_idx = jnp.argmin(
+            jnp.abs(geo.rho_norm - self.rho_norm_ped_top)
+        )
+        pedestal_mask = (
+            jnp.zeros_like(geo.rho, dtype=bool)
+            .at[rho_norm_ped_top_idx]
+            .set(True)
+        )
+        return internal_boundary_conditions_lib.InternalBoundaryConditions(
+            T_i=jnp.where(pedestal_mask, self.T_i_ped, 0.0),
+            T_e=jnp.where(pedestal_mask, self.T_e_ped, 0.0),
+            n_e=jnp.where(pedestal_mask, self.n_e_ped, 0.0),
+        )
+
+  def _tanh_internal_boundary_conditions(
+      self,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
+    """Compute mtanh-shaped internal boundary conditions.
+
+    The mtanh width Δ is derived from rho_norm_ped_top using the ψ_N(ρ)
+    mapping. In the mtanh geometry, the pedestal top is at ψ_top = 1 - 1.5Δ,
+    so Δ = (1 - ψ_top) / 1.5.
+
+    The profile is then:
+      q(ψ) = q_sep + a₀·[tanh(1) - tanh(2(ψ - ψ_mid)/Δ)]
+    where:
+      ψ_mid = 1 - Δ/2 (center of the tanh)
+      a₀ = (q_top - q_sep) / (tanh(1) + tanh(2))
+
+    Values are only applied for cells at or beyond ρ_ped_top (the pedestal
+    region). Core cells get 0.0 (no IBC contribution).
+
+    Args:
+      geo: Geometry object for the grid.
+      core_profiles: Core profiles for ψ_N mapping and separatrix values.
+
+    Returns:
+      Internal boundary conditions with mtanh-shaped profiles for T_i, T_e, n_e.
+    """
+    # Get ψ_N at each cell grid point.
+    psi_face = core_profiles.psi.face_value()
+    psi_norm_cell = (core_profiles.psi.value - psi_face[0]) / (
+        psi_face[-1] - psi_face[0]
+    )
+
+    # Derive Δ from rho_norm_ped_top via ψ_N mapping.
+    # Use psi at the nearest cell to rho_ped_top (not interpolated) so that
+    # the mtanh formula evaluates to exactly q_top at that cell.
     rho_norm_ped_top_idx = jnp.argmin(
         jnp.abs(geo.rho_norm - self.rho_norm_ped_top)
     )
-    pedestal_mask = (
-        jnp.zeros_like(geo.rho, dtype=bool)
-        .at[rho_norm_ped_top_idx]
-        .set(True)
-    )
+    psi_top = psi_norm_cell[rho_norm_ped_top_idx]
+    delta = (1.0 - psi_top) / 1.5
+    psi_mid = 1.0 - delta / 2.0
+
+    # Separatrix values from the rightmost face of core_profiles.
+    T_i_sep = core_profiles.T_i.right_face_value
+    T_e_sep = core_profiles.T_e.right_face_value
+    n_e_sep = core_profiles.n_e.right_face_value
+
+    # Pedestal region mask: cells at or beyond rho_norm_ped_top.
+    ped_mask = geo.rho_norm >= self.rho_norm_ped_top
+
+    def _mtanh_profile(val_top, val_sep):
+      """Evaluate mtanh for one quantity."""
+      tanh1 = jnp.tanh(1.0)
+      tanh2 = jnp.tanh(2.0)
+      a0 = (val_top - val_sep) / (tanh1 + tanh2)
+      profile = val_sep + a0 * (
+          tanh1 - jnp.tanh(2.0 * (psi_norm_cell - psi_mid) / delta)
+      )
+      return jnp.where(ped_mask, profile, 0.0)
+
     return internal_boundary_conditions_lib.InternalBoundaryConditions(
-        T_i=jnp.where(pedestal_mask, self.T_i_ped, 0.0),
-        T_e=jnp.where(pedestal_mask, self.T_e_ped, 0.0),
-        n_e=jnp.where(pedestal_mask, self.n_e_ped, 0.0),
+        T_i=_mtanh_profile(self.T_i_ped, T_i_sep),
+        T_e=_mtanh_profile(self.T_e_ped, T_e_sep),
+        n_e=_mtanh_profile(self.n_e_ped, n_e_sep),
     )
 
   def modify_core_transport(

@@ -34,6 +34,22 @@ class Mode(enum.Enum):
   ADAPTIVE_SOURCE = "ADAPTIVE_SOURCE"
 
 
+@enum.unique
+class PedestalProfileForm(enum.StrEnum):
+  """Controls the shape of internal boundary conditions in the pedestal region.
+
+  Attributes:
+    SET_AT_PED_TOP: Pedestal values are pinned at a single grid cell nearest to
+      rho_norm_ped_top.
+    MTANH: A smooth modified-tanh (mtanh) profile is applied across the pedestal
+      region from the pedestal top to the separatrix, following the mtanh
+      parameterization of Snyder et al., Nucl. Fusion 44 (2004) 320.
+  """
+
+  SET_AT_PED_TOP = "SET_AT_PED_TOP"
+  MTANH = "MTANH"
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class FormationRuntimeParams:
@@ -92,6 +108,12 @@ class RuntimeParams:
       multipliers are always re-evaluated implicitly with current profiles
       regardless of this setting, since the saturation model feedback loop
       requires implicit coupling.
+    pedestal_profile_form: Controls the shape of internal boundary conditions
+      in the pedestal region. SET_AT_PED_TOP (default) pins pedestal values at a
+      single grid cell nearest to rho_norm_ped_top. MTANH applies a smooth
+      modified-tanh profile between the pedestal top and the separatrix, with
+      the mtanh width Δ derived from rho_norm_ped_top via the ψ_N(ρ) mapping
+      in core_profiles.
     formation: Runtime params for the formation model.
     saturation: Runtime params for the saturation model.
     chi_max: Maximum effective thermal diffusion coefficient [m^2/s].
@@ -113,6 +135,9 @@ class RuntimeParams:
       metadata={"static": True}
   )
   explicit_pedestal: bool = dataclasses.field(
+      metadata={"static": True}
+  )
+  pedestal_profile_form: PedestalProfileForm = dataclasses.field(
       metadata={"static": True}
   )
   formation: FormationRuntimeParams

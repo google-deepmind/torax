@@ -914,6 +914,30 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   implicitly with current profiles regardless of this setting, since the
   saturation model's profile-based feedback loop requires implicit coupling.
 
+``pedestal_profile_form`` (**str** [default = ``"SET_AT_PED_TOP"``])
+   Controls the shape of internal boundary conditions in the pedestal region.
+   Options:
+
+   - ``"SET_AT_PED_TOP"``: Pedestal values are pinned at a single grid cell
+     nearest to ``rho_norm_ped_top``.
+   - ``"MTANH"``: A smooth modified-tanh (mtanh) profile is applied across the
+     pedestal region from the pedestal top to the separatrix, following the mtanh
+     parameterization of `Snyder et al., Nucl. Fusion 44 (2004) 320
+     <https://doi.org/10.1088/0029-5515/44/2/014>`_.
+     For simplicity, the core polynomial part of the full mtanh is neglected;
+     only the tanh component is used in the pedestal region.
+     The mtanh width :math:`\Delta` is derived on-the-fly from
+     ``rho_norm_ped_top`` via the :math:`\psi_N(\rho)` mapping in core profiles:
+
+     .. math::
+
+        f(\psi) = f_{\text{sep}} + a_0 \left[\tanh(1) - \tanh\!\left(\frac{2(\psi - \psi_{\text{mid}})}{\Delta}\right)\right]
+
+     where :math:`\psi_{\text{top}} = \psi_N(\rho_{\text{ped,top}})`,
+     :math:`\Delta = (1 - \psi_{\text{top}}) / 1.5`,
+     :math:`\psi_{\text{mid}} = 1 - \Delta/2`, and
+     :math:`a_0 = (f_{\text{top}} - f_{\text{sep}}) / (\tanh(1) + \tanh(2))`.
+
 ``formation_model`` (dict)
   Configuration for the pedestal formation model, which determines when L-H
   and H-L transitions occur. The ``model_name`` key selects the model:

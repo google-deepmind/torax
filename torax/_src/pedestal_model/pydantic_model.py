@@ -279,6 +279,9 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   )
   include_dW_dt_in_P_SOL: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   explicit_pedestal: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  pedestal_profile_form: Annotated[
+      runtime_params.PedestalProfileForm, torax_pydantic.JAX_STATIC
+  ] = runtime_params.PedestalProfileForm.SET_AT_PED_TOP
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
       MartinScalingFormation()
   )
@@ -355,6 +358,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
         P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
         include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
         explicit_pedestal=self.explicit_pedestal,
+        pedestal_profile_form=self.pedestal_profile_form,
         formation=self.formation_model.build_runtime_params(t),
         saturation=self.saturation_model.build_runtime_params(t),
         chi_max=self.chi_max.get_value(t),
@@ -422,6 +426,7 @@ class SetPpedTpedRatioNped(BasePedestal):
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
         explicit_pedestal=base_runtime_params.explicit_pedestal,
+        pedestal_profile_form=base_runtime_params.pedestal_profile_form,
         P_ped=self.P_ped.get_value(t),
         P_ped_multiplier=self.P_ped_multiplier.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
@@ -459,6 +464,7 @@ class SetTpedNped(BasePedestal):
       0.7e20
   )
   n_e_ped_is_fGW: bool = False
+  # TODO(b/434175938): Consider extending to TimeVaryingArray
   T_i_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       5.0
   )
@@ -490,6 +496,7 @@ class SetTpedNped(BasePedestal):
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
         explicit_pedestal=base_runtime_params.explicit_pedestal,
+        pedestal_profile_form=base_runtime_params.pedestal_profile_form,
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_ped=self.T_i_ped.get_value(t),
@@ -538,6 +545,7 @@ class NoPedestal(BasePedestal):
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
         explicit_pedestal=base_runtime_params.explicit_pedestal,
+        pedestal_profile_form=base_runtime_params.pedestal_profile_form,
         formation=base_runtime_params.formation,
         saturation=base_runtime_params.saturation,
         chi_max=self.chi_max.get_value(t),
