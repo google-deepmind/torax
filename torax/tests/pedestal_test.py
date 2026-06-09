@@ -38,7 +38,6 @@ class FakePedestalModel(pedestal.PedestalModel):
   ) -> pedestal.PedestalModelOutput:
     return pedestal.PedestalModelOutput(
         rho_norm_ped_top=jnp.array(0.9),
-        rho_norm_ped_top_idx=jnp.abs(geo.rho_norm - 0.9).argmin(),
         T_i_ped=jnp.array(5.0),
         T_e_ped=jnp.array(5.0),
         n_e_ped=jnp.array(0.7e20),

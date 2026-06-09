@@ -89,7 +89,6 @@ class QualikizTransportModelTest(parameterized.TestCase):
             core_profiles,
             pedestal_model_output_lib.PedestalModelOutput(
                 rho_norm_ped_top=np.inf,
-                rho_norm_ped_top_idx=geo.torax_mesh.nx,
                 T_i_ped=0.0,
                 T_e_ped=0.0,
                 n_e_ped=0.0,

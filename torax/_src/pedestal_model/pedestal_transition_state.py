@@ -91,9 +91,6 @@ class PedestalTransitionState:
                 rho_norm_ped_top=jnp.array(
                     jnp.inf, dtype=jax_utils.get_dtype()
                 ),
-                rho_norm_ped_top_idx=jnp.array(
-                    0, dtype=jnp.int_
-                ),
                 T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
                 T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
                 n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -103,9 +100,6 @@ class PedestalTransitionState:
             pedestal_model_output_lib.PedestalModelOutput(
                 rho_norm_ped_top=jnp.array(
                     jnp.inf, dtype=jax_utils.get_dtype()
-                ),
-                rho_norm_ped_top_idx=jnp.array(
-                    0, dtype=jnp.int_
                 ),
                 T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
                 T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),

@@ -174,14 +174,12 @@ class TransitionCalculationsTest(parameterized.TestCase):
         confinement_mode=pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
         pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
             rho_norm_ped_top=jnp.inf,
-            rho_norm_ped_top_idx=0,
             T_i_ped=0.0,
             T_e_ped=0.0,
             n_e_ped=0.0,
         ),
         previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
             rho_norm_ped_top=jnp.inf,
-            rho_norm_ped_top_idx=0,
             T_i_ped=0.0,
             T_e_ped=0.0,
             n_e_ped=0.0,
@@ -220,11 +218,9 @@ class TransitionCalculationsTest(parameterized.TestCase):
             T_e_ped=h_mode_target,
             n_e_ped=h_mode_target,
             rho_norm_ped_top=0.5,
-            rho_norm_ped_top_idx=1,
         ),
         previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
             rho_norm_ped_top=jnp.inf,
-            rho_norm_ped_top_idx=0,
             T_i_ped=0.0,
             T_e_ped=0.0,
             n_e_ped=0.0,

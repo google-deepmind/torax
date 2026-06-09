@@ -44,9 +44,6 @@ class NoPedestal(pedestal_model.PedestalModel):
   ) -> pedestal_model_output.PedestalModelOutput:
     return pedestal_model_output.PedestalModelOutput(
         rho_norm_ped_top=jnp.array(jnp.inf, dtype=jax_utils.get_dtype()),
-        rho_norm_ped_top_idx=jnp.array(
-            geo.torax_mesh.nx, dtype=jnp.int_
-        ),
         T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),

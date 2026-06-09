@@ -86,7 +86,6 @@ class PedestalModelOutput:
   Attributes:
     rho_norm_ped_top: The requested location of the pedestal top in rho_norm,
       not quantized to either the cell or face grid.
-    rho_norm_ped_top_idx: The nearest cell index of the pedestal top.
     T_i_ped: The ion temperature at the pedestal top in keV.
     T_e_ped: The electron temperature at the pedestal top in keV.
     n_e_ped: The electron density at the pedestal top in m^-3.
@@ -95,8 +94,6 @@ class PedestalModelOutput:
   """
 
   rho_norm_ped_top: array_typing.FloatScalar
-  # TODO(b/434175938): Can we remove rho_norm_ped_top_idx?
-  rho_norm_ped_top_idx: array_typing.IntScalar
   T_i_ped: array_typing.FloatScalar
   T_e_ped: array_typing.FloatScalar
   n_e_ped: array_typing.FloatScalar
@@ -114,9 +111,12 @@ class PedestalModelOutput:
     # pedestal top.
     # We are using the cell grid here, since internal boundary conditions are
     # applied using an adaptive source (which acts on the cell grid).
+    rho_norm_ped_top_idx = jnp.argmin(
+        jnp.abs(geo.rho_norm - self.rho_norm_ped_top)
+    )
     pedestal_mask = (
         jnp.zeros_like(geo.rho, dtype=bool)
-        .at[self.rho_norm_ped_top_idx]
+        .at[rho_norm_ped_top_idx]
         .set(True)
     )
     return internal_boundary_conditions_lib.InternalBoundaryConditions(

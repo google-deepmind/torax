@@ -60,11 +60,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
   ) -> pedestal_model_output.PedestalModelOutput:
     assert isinstance(runtime_params.pedestal, RuntimeParams)
 
-    # Convert pedestal top to idx
-    rho_norm_ped_top_nearest_cell_idx = jnp.argmin(
-        jnp.abs(geo.rho_norm - runtime_params.pedestal.rho_norm_ped_top)
-    )
-
     # Convert n_e_ped to reference units.
     # Ip in MA. a_minor in m. nGW in m^-3.
     nGW = (
@@ -102,9 +97,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     n_i_ped = dilution_factor_ped * n_e_ped
     # Guard against division by zero when Z_impurity_ped is zero or
     # degenerate (pure plasma case).
-    safe_Z_impurity_ped = jnp.where(
-        Z_eff_ped == 1.0, 1.0, Z_impurity_ped
-    )
+    safe_Z_impurity_ped = jnp.where(Z_eff_ped == 1.0, 1.0, Z_impurity_ped)
     n_impurity_ped = jnp.where(
         Z_eff_ped == 1.0,
         0.0,
@@ -135,5 +128,4 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         T_i_ped=T_i_ped,
         T_e_ped=T_e_ped,
         rho_norm_ped_top=runtime_params.pedestal.rho_norm_ped_top,
-        rho_norm_ped_top_idx=rho_norm_ped_top_nearest_cell_idx,
     )

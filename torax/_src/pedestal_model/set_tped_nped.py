@@ -57,11 +57,6 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
     pedestal_params = runtime_params.pedestal
     assert isinstance(pedestal_params, RuntimeParams)
 
-    # Convert pedestal top to idx
-    rho_norm_ped_top_nearest_cell_idx = jnp.argmin(
-        jnp.abs(geo.rho_norm - pedestal_params.rho_norm_ped_top)
-    )
-
     # Calculate n_e_ped in m^-3, potentially converting from nGW.
     nGW = (
         runtime_params.profile_conditions.Ip
@@ -80,5 +75,4 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         T_i_ped=pedestal_params.T_i_ped,
         T_e_ped=pedestal_params.T_e_ped,
         rho_norm_ped_top=pedestal_params.rho_norm_ped_top,
-        rho_norm_ped_top_idx=rho_norm_ped_top_nearest_cell_idx,
     )

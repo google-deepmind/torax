@@ -29,9 +29,9 @@ class PedestalModelOutputTest(absltest.TestCase):
     self.geo = mock.create_autospec(geometry.Geometry, instance=True)
     self.geo.rho_face_norm = jnp.linspace(0, 1, 10)
     self.geo.rho = jnp.linspace(0, 1, 9)
+    self.geo.rho_norm = jnp.linspace(0, 1, 9)
     self.pedestal_model_output = pedestal_model_output.PedestalModelOutput(
         rho_norm_ped_top=0.99,
-        rho_norm_ped_top_idx=-1,
         T_i_ped=1.0,
         T_e_ped=1.1,
         n_e_ped=1.2e19,
@@ -45,7 +45,9 @@ class PedestalModelOutputTest(absltest.TestCase):
 
   def test_to_internal_boundary_conditions(self):
     ibc = self.pedestal_model_output.to_internal_boundary_conditions(self.geo)
-    idx = self.pedestal_model_output.rho_norm_ped_top_idx
+    idx = jnp.argmin(
+        jnp.abs(self.geo.rho_norm - self.pedestal_model_output.rho_norm_ped_top)
+    )
     with self.subTest('T_i'):
       np.testing.assert_allclose(
           ibc.T_i[idx], self.pedestal_model_output.T_i_ped
