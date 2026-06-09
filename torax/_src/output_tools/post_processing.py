@@ -31,6 +31,7 @@ from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import safety_factor_fit
+from torax._src.physics import collisions
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
@@ -65,6 +66,11 @@ class PostProcessedOutputs:
       law derived from the updated (2020) ITER H-mode confinement database
     FFprime: FF' on the face grid, where F is the toroidal flux function
     psi_norm: Normalized poloidal flux on the face grid [Wb]
+    nu_star: Normalized collisionality on the face grid [dimensionless]: the
+      electron-ion collision frequency normalized by the bounce frequency.
+      Reported with a collisionality multiplier of 1.0 (the physical
+      collisionality); the multiplier is a QLKNN sensitivity-testing knob and is
+      intentionally not applied to this diagnostic output.
     P_heat_i: Total ion heating power: all sources - sinks. i.e. auxiliary
       heating + ion-electron exchange + fusion + (negative) radiation sinks [W].
     P_heat_e: Total electron heating power: all sources - sinks. i.e. auxiliary
@@ -219,6 +225,7 @@ class PostProcessedOutputs:
   H20: array_typing.FloatScalar
   FFprime: array_typing.FloatVector
   psi_norm: array_typing.FloatVector
+  nu_star: array_typing.FloatVector
   # Integrated heat sources
   P_SOL_i: array_typing.FloatScalar
   P_SOL_e: array_typing.FloatScalar
@@ -337,6 +344,7 @@ class PostProcessedOutputs:
         H20=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         FFprime=jnp.zeros(geo.rho_face.shape),
         psi_norm=jnp.zeros(geo.rho_face.shape),
+        nu_star=jnp.zeros(geo.rho_face.shape),
         P_SOL_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_SOL_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_SOL_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -677,6 +685,15 @@ def make_post_processed_outputs(
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
   psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+  # Normalized collisionality (electron-ion collision frequency normalized by
+  # the bounce frequency) on the face grid. A collisionality multiplier of 1.0
+  # is used so the reported value is the physical collisionality; the multiplier
+  # is a QLKNN sensitivity-testing knob and is intentionally not applied here.
+  nu_star_face = collisions.calc_nu_star(
+      geo=sim_state.geometry,
+      core_profiles=sim_state.core_profiles,
+      collisionality_multiplier=1.0,
+  )
   integrated_sources = _calculate_integrated_sources(
       sim_state.geometry,
       sim_state.core_profiles,
@@ -956,6 +973,7 @@ def make_post_processed_outputs(
       H20=H20,
       FFprime=FFprime_face,
       psi_norm=psi_norm_face,
+      nu_star=nu_star_face,
       **integrated_sources,
       Q_fusion=Q_fusion,
       P_LH=P_LH_martin,
