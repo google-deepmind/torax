@@ -23,12 +23,13 @@ from multiprocessing import pool
 import os
 import subprocess
 from typing import Annotated
-from typing import Any, Literal, Mapping, Sequence, TypeAlias
+from typing import Any, Literal, TypeAlias
 import uuid
 
 from absl import logging
 import chex
 import jax
+import jax.numpy as jnp
 import numpy as np
 import pydantic
 from torax._src import jax_utils
@@ -47,79 +48,6 @@ from torax._src.transport_model import transport_model
 
 # pylint: disable=invalid-name
 
-
-# Parameters that control TGLF behaviour.
-_TGLF_CONTROL_PARAMS = [
-    'UNITS',
-    'USE_TRANSPORT_MODEL',
-    'GEOMETRY_FLAG',
-    'WRITE_WAVEFUNCTION_FLAG',
-    'SIGN_BT',
-    'SIGN_IT',
-    'THETA_TRAPPED',
-    'WDIA_TRAPPED',
-    'PARK',
-    'GHAT',
-    'GCHAT',
-    'WD_ZERO',
-    'LINSKER_FACTOR',
-    'GRADB_FACTOR',
-    'FILTER',
-    'DAMP_PSI',
-    'DAMP_SIG',
-    'IFLUX',
-    'USE_BPER',
-    'USE_BPAR',
-    'USE_MHD_RULE',
-    'USE_BISECTION',
-    'USE_INBOARD_DETAPPED',
-    'IBRANCH',
-    'NMODES',
-    'NBASIS_MAX',
-    'NBASIS_MIN',
-    'NXGRID',
-    'NKY',
-    'USE_AVE_ION_GRID',
-    'ADIABATIC_ELEC',
-    'ALPHA_MACH',
-    'ALPHA_E',
-    'ALPHA_ZF',
-    'ALPHA_QUENCH',
-]
-
-# Parameters that are fixed for a given species.
-_TGLF_FIXED_SPECIES_PARAMS = ['ZS_1', 'MASS_1', 'AS_1', 'TAUS_1', 'MASS_2']
-
-# Parameters that vary by radial grid cell.
-_TGLF_PROFILE_PARAMS = [
-    'BETAE',
-    'XNUE',
-    'ZEFF',
-    'DEBYE',
-    'RMIN_LOC',
-    'RMAJ_LOC',
-    'Q_LOC',
-    'Q_PRIME_LOC',
-    'P_PRIME_LOC',
-    'DRMAJDX_LOC',
-    'KAPPA_LOC',
-    'S_KAPPA_LOC',
-    'DELTA_LOC',
-    'S_DELTA_LOC',
-    'RLNS_1',
-    'RLTS_1',
-    'ZS_2',
-    'RLNS_2',
-    'RLTS_2',
-    'TAUS_2',
-    'AS_2',
-    'ZS_3',
-    'MASS_3',
-    'RLNS_3',
-    'RLTS_3',
-    'TAUS_3',
-    'AS_3',
-]
 
 # TODO(b/434175938): remove support for parsing via the legacy config kwargs.
 # Most of these are just lower->upper but some have _ in different places.
@@ -213,27 +141,21 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
 
-    def callback(tglf_inputs, transport_runtime_params, geo, core_profiles):
-      tglf_plan = _extract_tglf_plan(
+    def callback(
+        tglf_inputs: tglf_based_transport_model.TGLFInputs,
+        transport_runtime_params: RuntimeParams,
+        geo: geometry.Geometry,
+        core_profiles: state.CoreProfiles,
+    ) -> transport_model.TurbulentTransport:
+      return self._run_tglf(
           tglf_inputs=tglf_inputs,
           transport=transport_runtime_params,
           geo=geo,
-      )
-      plan_output_directory = self._run_tglf(
-          tglf_plan=tglf_plan,
           n_processes=transport_runtime_params.n_processes,
           n_cores_per_process=transport_runtime_params.n_cores_per_process,
           verbose=transport_runtime_params.verbose,
-      )
-      core_transport = self._extract_run_data(
-          tglf_plan=tglf_plan,
-          plan_output_directory=plan_output_directory,
-          tglf_inputs=tglf_inputs,
-          transport=transport_runtime_params,
-          geo=geo,
           core_profiles=core_profiles,
       )
-      return core_transport
 
     face_array_shape_dtype = jax.ShapeDtypeStruct(
         shape=(geo.torax_mesh.nx + 1,), dtype=jax_utils.get_dtype()
@@ -264,21 +186,27 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
 
   def _run_tglf(
       self,
-      tglf_plan: Sequence[dict[str, Any]],
+      tglf_inputs: tglf_based_transport_model.TGLFInputs,
+      transport: RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
       n_processes: int,
       n_cores_per_process: int,
       verbose: bool = True,
-  ) -> str:
+  ) -> transport_model.TurbulentTransport:
     """Runs TGLF using command line tools. Loose coupling with TORAX.
 
     Args:
-      tglf_plan: List of TGLF input dictionaries.
+      tglf_inputs: Precomputed physics data.
+      transport: Runtime parameters for the transport model.
+      geo: TORAX geometry object.
+      core_profiles: TORAX core profiles object.
       n_processes: Number of processes to run in parallel.
       n_cores_per_process: Number of cores to use for each TGLF process.
       verbose: If True, print the output of each TGLF process.
 
     Returns:
-      Path to the directory containing the TGLF output files.
+      core_transport: The core transport coefficients calculated by TGLF.
     """
     # Generate a unique directory for this TGLF plan.
     # Include UUID to prevent collisions when multiple simulations start
@@ -297,24 +225,39 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
     if not os.path.exists(plan_directory):
       os.makedirs(plan_directory)
 
-    run_directories = []
-    for run in tglf_plan:
-      # Create a directory for each individual TGLF run.
-      run_directory = os.path.join(plan_directory, run['label'])
+    def _run_tglf_single(
+        face_index: int,
+    ) -> tuple[float, float, float]:
+      """Execute a single TGLF run.
+
+      Args:
+        face_index: The index of the face to run TGLF for.
+
+      Returns:
+        A tuple of (electron_heat_flux_GB, ion_heat_flux_GB,
+        electron_particle_flux_GB).
+      """
+      # Create a unique directory for this TGLF run.
+      label = f'tglf_run_{face_index:04d}'
+      run_directory = os.path.join(plan_directory, label)
       if not os.path.exists(run_directory):
         os.makedirs(run_directory)
 
-      # Write TGLF input file for this run.
-      assert isinstance(run['inputs'], dict)
-      fstr = '\n'.join([f'{k}={v}' for k, v in run['inputs'].items()])
-      with open(run_directory + '/input.tglf', 'w+') as f:
-        f.write(fstr)
-      run_directories.append(run_directory)
+      # Extract the TGLFInputs for this face.
+      tglf_inputs_i = jax.tree.map(
+          lambda x: x[face_index] if jnp.ndim(x) > 0 else x, tglf_inputs
+      )
 
-    def _run_tglf_single(run_directory: str) -> str | None:
-      """Execute a single TGLF run."""
+      # Create the TGLF input namelist, merging the TGLF settings from the
+      # transport runtime params with the data from tglf_inputs.
+      tglf_namelist = transport.tglf_settings.copy()
+      tglf_namelist.update(dataclasses.asdict(tglf_inputs_i))
+      namelist_str = '\n'.join([f'{k}={v}' for k, v in tglf_namelist.items()])
+      with open(run_directory + '/input.tglf', 'w+') as f:
+        f.write(namelist_str)
+
+      # Run TGLF in the given working directory.
       result = subprocess.run(
-          # Run TGLF in the given working directory.
           [
               str(self.tglf_exec_path),
               '-n',
@@ -335,126 +278,43 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         subprocess_output = result.stdout
         if result.stderr:
           subprocess_output += result.stderr
+        logging.info('TGLF face %s output:\n%s', face_index, subprocess_output)
 
-        return subprocess_output
-      return None
-
-    with pool.ThreadPool(processes=n_processes) as thread_pool:
-      subprocess_outputs = thread_pool.map(_run_tglf_single, run_directories)
-    if verbose:
-      for subprocess_output in subprocess_outputs:
-        logging.info(subprocess_output)
-
-    return plan_directory
-
-  def _extract_run_data(
-      self,
-      tglf_plan: Sequence[Mapping[str, Any]],
-      plan_output_directory: str,
-      tglf_inputs: tglf_based_transport_model.TGLFInputs,
-      transport: RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> transport_model.TurbulentTransport:
-    """Constructs TORAX core transport object from TGLF output.
-
-    Args:
-      tglf_plan: List of TGLF input dictionaries.
-      plan_output_directory: Directory containing a subdirectory for each TGLF
-        run.
-      tglf_inputs: Precomputed physics data.
-      transport: Runtime parameters for the transport model.
-      geo: TORAX geometry object.
-      core_profiles: TORAX CoreProfiles object.
-
-    Returns:
-      TORAX core transport object.
-    """
-    qe = np.zeros((len(tglf_plan),))
-    qi = np.zeros((len(tglf_plan),))
-    ge = np.zeros((len(tglf_plan),))
-    for i, run in enumerate(tglf_plan):
-      # np.fromfile is more efficient than np.loadtxt for reading large files
-      # with a consistent format.
+      # Read the TGLF output.
       gbfluxes = np.fromfile(
-          os.path.join(plan_output_directory, run['label'], 'out.tglf.gbflux'),
+          os.path.join(run_directory, 'out.tglf.gbflux'),
           sep=' ',
       )
       nspecies = len(gbfluxes) // 4
-      # TGLF species 1 is electrons
-      qe[i] = float(gbfluxes[1 * nspecies + 0])
-      qi[i] = float(sum(gbfluxes[1 * nspecies + 1 : 1 * nspecies + nspecies]))
-      ge[i] = float(gbfluxes[0 * nspecies + 0])
+      tglf_elec_eflux_out = float(gbfluxes[1 * nspecies + 0])
+      tglf_ion1_eflux_out = float(
+          sum(gbfluxes[1 * nspecies + 1 : 1 * nspecies + nspecies])
+      )
+      tglf_elec_pflux_out = float(gbfluxes[0 * nspecies + 0])
+
+      return (
+          tglf_elec_eflux_out,
+          tglf_ion1_eflux_out,
+          tglf_elec_pflux_out,
+      )
+
+    cell_indices = range(len(geo.torax_mesh.face_centers))
+    with pool.ThreadPool(processes=n_processes) as thread_pool:
+      subprocess_outputs = thread_pool.map(_run_tglf_single, cell_indices)
+
+    tglf_elec_eflux_out, tglf_ion1_eflux_out, tglf_elec_pflux_out = np.array(
+        subprocess_outputs
+    ).T
 
     return self._make_core_transport(
-        electron_heat_flux_GB=qe,
-        ion_heat_flux_GB=qi,
-        electron_particle_flux_GB=ge,
+        electron_heat_flux_GB=tglf_elec_eflux_out,
+        ion_heat_flux_GB=tglf_ion1_eflux_out,
+        electron_particle_flux_GB=tglf_elec_pflux_out,
         tglf_inputs=tglf_inputs,
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
     )
-
-
-def _extract_tglf_plan(
-    tglf_inputs: tglf_based_transport_model.TGLFInputs,
-    transport: RuntimeParams,
-    geo: geometry.Geometry,
-) -> Sequence[Mapping[str, Any]]:
-  """Converts TORAX parameters to TGLF input dictionary.
-
-  Args:
-      tglf_inputs: Precomputed physics data.
-      transport: Runtime parameters for the qualikiz transport model.
-      geo: TORAX geometry object.
-
-  Returns:
-      A list of dictionaries containing TGLF input namelists, one for each
-      radial grid cell.
-  """
-  tglf_plan = []
-  for i, _ in enumerate(np.array(geo.rho_face_norm)):
-    # Shallow copy is ok, as we are only modifying top-level fields.
-    tglf_runpars = transport.tglf_settings.copy()
-    tglf_runpars['BETAE'] = float(tglf_inputs.BETAE[i])
-    tglf_runpars['XNUE'] = float(tglf_inputs.XNUE[i])
-    tglf_runpars['ZEFF'] = float(tglf_inputs.ZEFF[i])
-    tglf_runpars['DEBYE'] = float(tglf_inputs.DEBYE[i])
-    tglf_runpars['RMIN_LOC'] = float(tglf_inputs.RMIN_LOC[i])
-    tglf_runpars['RMAJ_LOC'] = float(tglf_inputs.RMAJ_LOC[i])
-    tglf_runpars['Q_LOC'] = float(tglf_inputs.Q_LOC[i])
-    tglf_runpars['Q_PRIME_LOC'] = float(tglf_inputs.Q_PRIME_LOC[i])
-    tglf_runpars['P_PRIME_LOC'] = float(tglf_inputs.P_PRIME_LOC[i])
-    tglf_runpars['DRMAJDX_LOC'] = float(tglf_inputs.DRMAJDX_LOC[i])
-    tglf_runpars['KAPPA_LOC'] = float(tglf_inputs.KAPPA_LOC[i])
-    tglf_runpars['S_KAPPA_LOC'] = float(tglf_inputs.S_KAPPA_LOC[i])
-    tglf_runpars['DELTA_LOC'] = float(tglf_inputs.DELTA_LOC[i])
-    tglf_runpars['S_DELTA_LOC'] = float(tglf_inputs.S_DELTA_LOC[i])
-    tglf_runpars['ZS_1'] = float(tglf_inputs.ZS_1[i])
-    tglf_runpars['MASS_1'] = float(tglf_inputs.MASS_1[i])
-    tglf_runpars['RLNS_1'] = float(tglf_inputs.RLNS_1[i])
-    tglf_runpars['RLTS_1'] = float(tglf_inputs.RLTS_1[i])
-    tglf_runpars['TAUS_1'] = float(tglf_inputs.TAUS_1[i])
-    tglf_runpars['AS_1'] = float(tglf_inputs.AS_1[i])
-    tglf_runpars['ZS_2'] = float(tglf_inputs.ZS_2[i])
-    tglf_runpars['MASS_2'] = float(tglf_inputs.MASS_2[i])
-    tglf_runpars['RLNS_2'] = float(tglf_inputs.RLNS_2[i])
-    tglf_runpars['RLTS_2'] = float(tglf_inputs.RLTS_2[i])
-    tglf_runpars['TAUS_2'] = float(tglf_inputs.TAUS_2[i])
-    tglf_runpars['AS_2'] = float(tglf_inputs.AS_2[i])
-    tglf_runpars['ZS_3'] = float(tglf_inputs.ZS_3[i])
-    tglf_runpars['MASS_3'] = float(tglf_inputs.MASS_3[i])
-    tglf_runpars['RLNS_3'] = float(tglf_inputs.RLNS_3[i])
-    tglf_runpars['RLTS_3'] = float(tglf_inputs.RLTS_3[i])
-    tglf_runpars['TAUS_3'] = float(tglf_inputs.TAUS_3[i])
-    tglf_runpars['AS_3'] = float(tglf_inputs.AS_3[i])
-    tglf_plan.append({
-        'inputs': tglf_runpars,
-        'label': f'tglf_run_{i:04d}',
-    })
-
-  return tglf_plan
 
 
 class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
