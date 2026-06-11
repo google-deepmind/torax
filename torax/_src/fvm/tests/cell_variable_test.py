@@ -263,14 +263,14 @@ class CellVariableTest(parameterized.TestCase):
       dict(
           testcase_name='near_identical_values',
           var1_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0, 1.0, 1.0]),
               'right_face_constraint': np.array(1.0),
               'right_face_grad_constraint': None,
           },
           var2_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0 + 1e-7]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0 + 1e-7, 1.0 + 1e-7, 1.0 + 1e-7]),
               'right_face_constraint': np.array(1.0),
               'right_face_grad_constraint': None,
           },
@@ -279,14 +279,14 @@ class CellVariableTest(parameterized.TestCase):
       dict(
           testcase_name='near_identical_right_face_constraint',
           var1_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0, 1.0, 1.0]),
               'right_face_constraint': np.array(1.0),
               'right_face_grad_constraint': None,
           },
           var2_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0, 1.0, 1.0]),
               'right_face_constraint': np.array(1.0 + 1e-7),
               'right_face_grad_constraint': None,
           },
@@ -295,14 +295,14 @@ class CellVariableTest(parameterized.TestCase):
       dict(
           testcase_name='not_near_identical_values',
           var1_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0, 1.0, 1.0]),
               'right_face_constraint': np.array(1.0),
               'right_face_grad_constraint': None,
           },
           var2_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0 + 1e-5]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0 + 1e-5, 1.0 + 1e-5, 1.0 + 1e-5]),
               'right_face_constraint': np.array(1.0),
               'right_face_grad_constraint': None,
           },
@@ -311,14 +311,14 @@ class CellVariableTest(parameterized.TestCase):
       dict(
           testcase_name='not_near_identical_right_face_constraint',
           var1_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0, 1.0, 1.0]),
               'right_face_constraint': np.array(1.0),
               'right_face_grad_constraint': None,
           },
           var2_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0, 1.0, 1.0]),
               'right_face_constraint': np.array(1.0 + 1e-5),
               'right_face_grad_constraint': None,
           },
@@ -327,14 +327,14 @@ class CellVariableTest(parameterized.TestCase):
       dict(
           testcase_name='near_identical_right_face_constraint_low_precision',
           var1_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0, 1.0, 1.0]),
               'right_face_constraint': np.array(1.0),
               'right_face_grad_constraint': None,
           },
           var2_kwargs={
-              'face_centers': _make_face_centers(0.4, 1),
-              'value': np.array([1.0]),
+              'face_centers': _make_face_centers(0.4, 3),
+              'value': np.array([1.0, 1.0, 1.0]),
               'right_face_constraint': np.array(1.0 + 1e-5),
               'right_face_grad_constraint': None,
           },
@@ -434,7 +434,7 @@ class CellVariableTest(parameterized.TestCase):
     face_right = c2 * face_centers[-1]**2 + c1 * face_centers[-1] + c0
     face_grad = 2*c2*face_centers[1:-1] + c1
     inner_grad = cell_variable._compute_inner_grad(
-        cell_values, face_right, face_centers, x,
+        cell_values, face_centers, x,
     )
     np.testing.assert_allclose(face_grad, inner_grad)
 
@@ -449,7 +449,7 @@ class CellVariableTest(parameterized.TestCase):
 
     # Compute the gradient using the accurate method and forward differences.
     inner_grad_accurate = cell_variable._compute_inner_grad(
-        cell_values, face_right_value, face_centers, cell_centers
+        cell_values, face_centers, cell_centers
     )
     forward_difference = jnp.diff(cell_values) / jnp.diff(cell_centers)
 
