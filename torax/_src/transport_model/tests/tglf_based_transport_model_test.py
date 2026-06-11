@@ -122,35 +122,13 @@ class TGLFTransportModelTest(parameterized.TestCase):
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
-
-    vector_keys = [
-        "chiGB",
-        "lref_over_lti",
-        "lref_over_lte",
-        "lref_over_lne",
-        "lref_over_lni0",
-        "lref_over_lni1",
-        "T_i_over_T_e",
-        "r_minor",
-        "dr_major",
-        "q",
-        "q_prime",
-        "nu_ee",
-        "kappa",
-        "kappa_shear",
-        "delta",
-        "delta_shear",
-        "beta_e",
-        "Z_eff",
-    ]
-    scalar_keys = ["Rmaj", "Rmin"]
-    expected_vector_length = geo.rho_face_norm.shape[0]
-    for key in vector_keys:
-      self.assertEqual(
-          getattr(tglf_inputs, key).shape, (expected_vector_length,)
-      )
-    for key in scalar_keys:
-      self.assertEqual(getattr(tglf_inputs, key).shape, ())
+    expected_length = geo.rho_face_norm.shape[0]
+    scalar_keys = ["Rmin", "Rmaj"]  # Inherited from QuasilinearInputs
+    for key in tglf_inputs.__dict__.keys():
+      if key in scalar_keys:
+        self.assertEqual(getattr(tglf_inputs, key).shape, ())
+      else:
+        self.assertEqual(getattr(tglf_inputs, key).shape, (expected_length,))
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

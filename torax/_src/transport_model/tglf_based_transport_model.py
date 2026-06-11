@@ -55,167 +55,66 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
     RLTS_3 = lref / ltimp.
 
   Attributes:
-    T_i_over_T_e: Ratio of ion temperature to electron temperature.
-    n_i_over_n_e: Ratio of main ion density to electron density.
-    n_impurity_over_n_e: Ratio of impurity density to electron density.
-    r_minor: Flux surface centroid minor radius.
-    r_major: Flux surface centroid major radius.
-    dr_major: Gradient of the flux surface centroid major radius with respect to
-      the minor radius (:math:`dr_{major}/dr_{minor}`).
-    q: The safety factor.
-    q_prime: Magnetic shear, defined as :math:`\frac{q^2 a^2 s}{r^2}`.
-    nu_ee: Normalized electron-electron collision frequency.
-    debye_length: Normalized Debye length.
-    kappa: Plasma elongation.
-    kappa_shear: Shear in elongation, defined as :math:`\frac{r}{\kappa}
-      \frac{d\kappa}{dr}`.
-    delta: Plasma triangularity.
-    delta_shear: Shear in triangularity, defined as :math:`r\frac{d\delta}{dr}`.
-    beta_e: Electron pressure normalized by TGLF's :math:`B_\mathrm{unit}`.
-    p_prime: Plasma pressure gradient normalized by TGLF's
-      :math:`B_\mathrm{unit}`.
-    Zeff: Effective charge.
+    TAUS_2: Ratio of ion temperature to electron temperature (species 2).
+    TAUS_3: Ratio of impurity temperature to electron temperature (species 3).
+      As TORAX does not track impurity temp separately, set to T_i / T_e.
+    AS_2: Ratio of main ion density to electron density.
+    AS_3: Ratio of impurity density to electron density.
+    RLNS_1: Electron density gradient normalisation.
+    RLNS_2: Main ion density gradient normalisation.
+    RLNS_3: Impurity density gradient normalisation.
+    RLTS_1: Electron temperature gradient normalisation.
+    RLTS_2: Main ion temperature gradient normalisation.
+    RLTS_3: Impurity temperature gradient normalisation.
+    RMIN_LOC: Flux surface centroid minor radius normalized by minor radius.
+    RMAJ_LOC: Flux surface centroid major radius normalized by minor radius.
+    DRMAJDX_LOC: Gradient of the major radius centroid w.r.t minor radius.
+    Q_LOC: Safety factor.
+    Q_PRIME_LOC: Safety factor gradient.
+    XNUE: Collision frequency.
+    DEBYE: Debye length length.
+    KAPPA_LOC: Plasma elongation.
+    S_KAPPA_LOC: Elongation shear.
+    DELTA_LOC: Plasma triangularity.
+    S_DELTA_LOC: Triangularity shear.
+    BETAE: Electron beta.
+    P_PRIME_LOC: Pressure gradient.
+    ZEFF: Effective charge Z_eff.
+    VEXB_SHEAR: ExB shear.
     Q_GB: TGLF heat flux normalisation factor.
-    Gamma_GB: TGLF particle flux normalisation factor.
-    v_ExB_shear: Toroidal ExB velocity Doppler shift gradient.
+    GAMMA_GB: TGLF particle flux normalisation factor.
   """
 
-  T_i_over_T_e: array_typing.FloatVectorFace
-  n_i_over_n_e: array_typing.FloatVectorFace
-  n_impurity_over_n_e: array_typing.FloatVectorFace
-  r_minor: array_typing.FloatVectorFace
-  r_major: array_typing.FloatVectorFace
-  dr_major: array_typing.FloatVectorFace
-  q: array_typing.FloatVectorFace
-  q_prime: array_typing.FloatVectorFace
-  nu_ee: array_typing.FloatVectorFace
-  debye_length: array_typing.FloatVectorFace
-  kappa: array_typing.FloatVectorFace
-  kappa_shear: array_typing.FloatVectorFace
-  delta: array_typing.FloatVectorFace
-  delta_shear: array_typing.FloatVectorFace
-  beta_e: array_typing.FloatVectorFace
-  p_prime: array_typing.FloatVectorFace
-  Z_eff: array_typing.FloatVectorFace
+  TAUS_2: array_typing.FloatVectorFace
+  TAUS_3: array_typing.FloatVectorFace
+  AS_2: array_typing.FloatVectorFace
+  AS_3: array_typing.FloatVectorFace
+
+  RLNS_1: array_typing.FloatVectorFace
+  RLNS_2: array_typing.FloatVectorFace
+  RLNS_3: array_typing.FloatVectorFace
+  RLTS_1: array_typing.FloatVectorFace
+  RLTS_2: array_typing.FloatVectorFace
+  RLTS_3: array_typing.FloatVectorFace
+
+  RMIN_LOC: array_typing.FloatVectorFace
+  RMAJ_LOC: array_typing.FloatVectorFace
+  DRMAJDX_LOC: array_typing.FloatVectorFace
+  Q_LOC: array_typing.FloatVectorFace
+  Q_PRIME_LOC: array_typing.FloatVectorFace
+  XNUE: array_typing.FloatVectorFace
+  DEBYE: array_typing.FloatVectorFace
+  KAPPA_LOC: array_typing.FloatVectorFace
+  S_KAPPA_LOC: array_typing.FloatVectorFace
+  DELTA_LOC: array_typing.FloatVectorFace
+  S_DELTA_LOC: array_typing.FloatVectorFace
+  BETAE: array_typing.FloatVectorFace
+  P_PRIME_LOC: array_typing.FloatVectorFace
+  ZEFF: array_typing.FloatVectorFace
+  VEXB_SHEAR: array_typing.FloatVectorFace
+
   Q_GB: array_typing.FloatVectorFace
-  Gamma_GB: array_typing.FloatVectorFace
-  v_ExB_shear: array_typing.FloatVectorFace
-
-  # Also define all the TGLF notations for the variables
-  @property
-  def TAUS_2(self) -> array_typing.FloatVectorFace:
-    # TAUS_2 = T_2 / T_1 = T_i / T_e
-    return self.T_i_over_T_e
-
-  @property
-  def TAUS_3(self) -> array_typing.FloatVectorFace:
-    # TAUS_3 = T_3 / T_1 = T_imp / T_e
-    # As TORAX does not track impurity temperature separately, this is set to
-    # T_i / T_e
-    return self.T_i_over_T_e
-
-  @property
-  def AS_2(self) -> array_typing.FloatVectorFace:
-    # AS_2 = n_2 / n_1 = n_i / n_e
-    return self.n_i_over_n_e
-
-  @property
-  def AS_3(self) -> array_typing.FloatVectorFace:
-    # AS_3 = n_3 / n_1 = n_imp / n_e
-    # As TORAX does have a separate n_impurity variable, it will be used here.
-    return self.n_impurity_over_n_e
-
-  @property
-  def DRMAJDX_LOC(self) -> array_typing.FloatVectorFace:
-    return self.dr_major
-
-  @property
-  def Q_LOC(self) -> array_typing.FloatVectorFace:
-    return self.q
-
-  @property
-  def Q_PRIME_LOC(self) -> array_typing.FloatVectorFace:
-    return self.q_prime
-
-  @property
-  def XNUE(self) -> array_typing.FloatVectorFace:
-    return self.nu_ee
-
-  @property
-  def DEBYE(self) -> array_typing.FloatVectorFace:
-    return self.debye_length
-
-  @property
-  def KAPPA_LOC(self) -> array_typing.FloatVectorFace:
-    return self.kappa
-
-  @property
-  def S_KAPPA_LOC(self) -> array_typing.FloatVectorFace:
-    return self.kappa_shear
-
-  @property
-  def DELTA_LOC(self) -> array_typing.FloatVectorFace:
-    return self.delta
-
-  @property
-  def S_DELTA_LOC(self) -> array_typing.FloatVectorFace:
-    return self.delta_shear
-
-  @property
-  def BETAE(self) -> array_typing.FloatVectorFace:
-    return self.beta_e
-
-  @property
-  def ZEFF(self) -> array_typing.FloatVectorFace:
-    return self.Z_eff
-
-  @property
-  def RLNS_1(self) -> array_typing.FloatVectorFace:
-    # RLNS_1 = lref / ln1 = lref / lne
-    return self.lref_over_lne
-
-  @property
-  def RLNS_2(self) -> array_typing.FloatVectorFace:
-    # RLNS_2 = lref / ln2 = lref / lni0 (main ion)
-    return self.lref_over_lni0
-
-  @property
-  def RLNS_3(self) -> array_typing.FloatVectorFace:
-    # RLNS_3 = lref / ln2 = lref / lni1 (impurity)
-    return self.lref_over_lni1
-
-  @property
-  def RLTS_1(self) -> array_typing.FloatVectorFace:
-    # RLTS_1 = lref / lt1 = lref / lte
-    return self.lref_over_lte
-
-  @property
-  def RLTS_2(self) -> array_typing.FloatVectorFace:
-    # RLTS_2 = lref / lt2 = lref / lti (main ion)
-    return self.lref_over_lti
-
-  @property
-  def RLTS_3(self) -> array_typing.FloatVectorFace:
-    # RLTS_3 = lref / lt3 = lref / ltimp (impurity)
-    # As TORAX does not track impurity temperature separately, this is set to
-    # lref / lti
-    return self.lref_over_lti
-
-  @property
-  def P_PRIME_LOC(self) -> array_typing.FloatVectorFace:
-    return self.p_prime
-
-  @property
-  def RMIN_LOC(self) -> array_typing.FloatVectorFace:
-    return self.r_minor
-
-  @property
-  def RMAJ_LOC(self) -> array_typing.FloatVectorFace:
-    return self.r_major
-
-  @property
-  def VEXB_SHEAR(self) -> array_typing.FloatVectorFace:
-    return self.v_ExB_shear
+  GAMMA_GB: array_typing.FloatVectorFace
 
 
 class TGLFBasedTransportModel(
@@ -520,26 +419,33 @@ class TGLFBasedTransportModel(
         lref_over_lni0=normalized_log_gradients.lref_over_lni0,
         lref_over_lni1=normalized_log_gradients.lref_over_lni1,
         # From TGLFInputs
-        T_i_over_T_e=T_i_over_T_e,
-        n_i_over_n_e=n_i_over_n_e,
-        n_impurity_over_n_e=n_impurity_over_n_e,
-        r_minor=r / a,
-        r_major=r_major / a,
-        dr_major=dr_major,
-        q=core_profiles.q_face,
-        q_prime=q_prime,
-        nu_ee=normalized_nu_ee,
-        debye_length=normalized_debye,
-        kappa=kappa,
-        kappa_shear=kappa_shear,
-        delta=geo.delta_face,
-        delta_shear=delta_shear,
-        beta_e=beta_e,
-        p_prime=p_prime,
-        Z_eff=core_profiles.Z_eff_face,
+        TAUS_2=T_i_over_T_e,
+        TAUS_3=T_i_over_T_e,
+        AS_2=n_i_over_n_e,
+        AS_3=n_impurity_over_n_e,
+        RLNS_1=normalized_log_gradients.lref_over_lne,
+        RLNS_2=normalized_log_gradients.lref_over_lni0,
+        RLNS_3=normalized_log_gradients.lref_over_lni1,
+        RLTS_1=normalized_log_gradients.lref_over_lte,
+        RLTS_2=lref_over_lti,
+        RLTS_3=lref_over_lti,
+        RMIN_LOC=r / a,
+        RMAJ_LOC=r_major / a,
+        DRMAJDX_LOC=dr_major,
+        Q_LOC=core_profiles.q_face,
+        Q_PRIME_LOC=q_prime,
+        XNUE=normalized_nu_ee,
+        DEBYE=normalized_debye,
+        KAPPA_LOC=kappa,
+        S_KAPPA_LOC=kappa_shear,
+        DELTA_LOC=geo.delta_face,
+        S_DELTA_LOC=delta_shear,
+        BETAE=beta_e,
+        P_PRIME_LOC=p_prime,
+        ZEFF=core_profiles.Z_eff_face,
         Q_GB=Q_GB,
-        Gamma_GB=Gamma_GB,
-        v_ExB_shear=v_ExB_shear,
+        GAMMA_GB=Gamma_GB,
+        VEXB_SHEAR=v_ExB_shear,
     )
 
   @override
@@ -556,7 +462,7 @@ class TGLFBasedTransportModel(
     # Denormalised TGLF output fluxes.
     Q_e = electron_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
     Q_i = ion_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
-    Gamma_e = electron_particle_flux_GB * tglf_inputs.Gamma_GB  # [s^-1/m^2]
+    Gamma_e = electron_particle_flux_GB * tglf_inputs.GAMMA_GB  # [s^-1/m^2]
 
     # Total thermal power and particle rate.
     dV_drho = geo.vpr_face / geo.rho_b

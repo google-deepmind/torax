@@ -62,8 +62,10 @@ class TGLFNNukaeaTransportModel(
       tglf_inputs: tglf_based_transport_model.TGLFInputs,
   ) -> jax.Array:
     # Note: TGLFNN-ukaea uses a different definition of the magnetic shear
-    # to TGLF. This is not the same as s_hat in s-alpha geometry.
-    s_hat = (tglf_inputs.r_minor / tglf_inputs.q) ** 2 * tglf_inputs.q_prime
+    # to TGLF. This is not the same as S_HAT_LOC in s-alpha geometry.
+    s_hat = (
+        tglf_inputs.RMIN_LOC / tglf_inputs.Q_LOC
+    ) ** 2 * tglf_inputs.Q_PRIME_LOC
     return jnp.stack(
         [
             tglf_inputs.RLNS_1,
@@ -90,8 +92,10 @@ class TGLFNNukaeaTransportModel(
       tglf_inputs: tglf_based_transport_model.TGLFInputs,
   ) -> jax.Array:
     # Note: TGLFNN-ukaea uses a different definition of the magnetic shear
-    # to TGLF. This is not the same as s_hat in s-alpha geometry.
-    s_hat = (tglf_inputs.r_minor / tglf_inputs.q) ** 2 * tglf_inputs.q_prime
+    # to TGLF. This is not the same as S_HAT_LOC in s-alpha geometry.
+    s_hat = (
+        tglf_inputs.RMIN_LOC / tglf_inputs.Q_LOC
+    ) ** 2 * tglf_inputs.Q_PRIME_LOC
 
     return jnp.stack(
         [
