@@ -23,7 +23,7 @@ from multiprocessing import pool
 import os
 import subprocess
 from typing import Annotated
-from typing import Any, Literal, Mapping, Sequence
+from typing import Any, Literal, Mapping, Sequence, TypeAlias
 import uuid
 
 from absl import logging
@@ -40,11 +40,123 @@ from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import tglf_based_transport_model
+from torax._src.transport_model import tglf_defaults
 from torax._src.transport_model import transport_model
 
 # Internal import.
 
 # pylint: disable=invalid-name
+
+
+# Parameters that control TGLF behaviour.
+_TGLF_CONTROL_PARAMS = [
+    'UNITS',
+    'USE_TRANSPORT_MODEL',
+    'GEOMETRY_FLAG',
+    'WRITE_WAVEFUNCTION_FLAG',
+    'SIGN_BT',
+    'SIGN_IT',
+    'THETA_TRAPPED',
+    'WDIA_TRAPPED',
+    'PARK',
+    'GHAT',
+    'GCHAT',
+    'WD_ZERO',
+    'LINSKER_FACTOR',
+    'GRADB_FACTOR',
+    'FILTER',
+    'DAMP_PSI',
+    'DAMP_SIG',
+    'IFLUX',
+    'USE_BPER',
+    'USE_BPAR',
+    'USE_MHD_RULE',
+    'USE_BISECTION',
+    'USE_INBOARD_DETAPPED',
+    'IBRANCH',
+    'NMODES',
+    'NBASIS_MAX',
+    'NBASIS_MIN',
+    'NXGRID',
+    'NKY',
+    'USE_AVE_ION_GRID',
+    'ADIABATIC_ELEC',
+    'ALPHA_MACH',
+    'ALPHA_E',
+    'ALPHA_ZF',
+    'ALPHA_QUENCH',
+]
+
+# Parameters that are fixed for a given species.
+_TGLF_FIXED_SPECIES_PARAMS = ['ZS_1', 'MASS_1', 'AS_1', 'TAUS_1', 'MASS_2']
+
+# Parameters that vary by radial grid cell.
+_TGLF_PROFILE_PARAMS = [
+    'BETAE',
+    'XNUE',
+    'ZEFF',
+    'DEBYE',
+    'RMIN_LOC',
+    'RMAJ_LOC',
+    'Q_LOC',
+    'Q_PRIME_LOC',
+    'P_PRIME_LOC',
+    'DRMAJDX_LOC',
+    'KAPPA_LOC',
+    'S_KAPPA_LOC',
+    'DELTA_LOC',
+    'S_DELTA_LOC',
+    'RLNS_1',
+    'RLTS_1',
+    'ZS_2',
+    'RLNS_2',
+    'RLTS_2',
+    'TAUS_2',
+    'AS_2',
+    'ZS_3',
+    'MASS_3',
+    'RLNS_3',
+    'RLTS_3',
+    'TAUS_3',
+    'AS_3',
+]
+
+# TODO(b/434175938): remove support for parsing via the legacy config kwargs.
+# Most of these are just lower->upper but some have _ in different places.
+_OLD_CONFIG_MAPPING = {
+    'kygrid_model': 'KYGRID_MODEL',
+    'ky': 'KY',
+    'n_ky': 'NKY',
+    'n_modes': 'NMODES',
+    'geometry_flag': 'GEOMETRY_FLAG',
+    'sat_rule': 'SAT_RULE',
+    'xnu_model': 'XNU_MODEL',
+    'n_width': 'NWIDTH',
+    'width_min': 'WIDTH_MIN',
+    'width': 'WIDTH',
+    'filter': 'FILTER',
+    'theta_trapped': 'THETA_TRAPPED',
+    'w_dia_trapped': 'WDIA_TRAPPED',
+    'sign_bt': 'SIGN_BT',
+    'sign_it': 'SIGN_IT',
+    'xnu_factor': 'XNU_FACTOR',
+    'debye_factor': 'DEBYE_FACTOR',
+    'etg_factor': 'ETG_FACTOR',
+    'find_width': 'FIND_WIDTH',
+    'use_mhd_rule': 'USE_MHD_RULE',
+    'use_bpar': 'USE_BPAR',
+    'use_bper': 'USE_BPER',
+    'use_inboard_detrapped': 'USE_INBOARD_DETRAPPED',
+    'use_ave_ion_grid': 'USE_AVE_ION_GRID',
+    'alpha_e': 'ALPHA_E',
+    'alpha_zf': 'ALPHA_ZF',
+    'alpha_quench': 'ALPHA_QUENCH',
+    'n_xgrid': 'NXGRID',
+    'n_basis_min': 'NBASIS_MIN',
+    'n_basis_max': 'NBASIS_MAX',
+}
+
+TGLFSettingsValueTypes: TypeAlias = str | float | int | bool | None
 
 
 @jax.tree_util.register_dataclass
@@ -55,36 +167,9 @@ class RuntimeParams(tglf_based_transport_model.RuntimeParams):
   n_processes: int
   n_cores_per_process: int
   verbose: bool
-  kygrid_model: int
-  ky: float
-  n_ky: int
-  n_modes: int
-  geometry_flag: int
-  sat_rule: int
-  xnu_model: int
-  n_width: float
-  width_min: float
-  width: float
-  filter: float
-  theta_trapped: float
-  w_dia_trapped: float
-  sign_bt: float
-  sign_it: float
-  xnu_factor: float
-  debye_factor: float
-  etg_factor: float
-  find_width: bool
-  use_mhd_rule: bool
-  use_bpar: bool
-  use_bper: bool
-  use_inboard_detrapped: bool
-  use_ave_ion_grid: bool
-  alpha_e: float
-  alpha_zf: float
-  alpha_quench: float
-  n_xgrid: int
-  n_basis_min: int
-  n_basis_max: int
+  tglf_settings: dict[str, TGLFSettingsValueTypes] = dataclasses.field(
+      metadata={'static': True}
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -328,111 +413,10 @@ def _extract_tglf_plan(
       A list of dictionaries containing TGLF input namelists, one for each
       radial grid cell.
   """
-
-  tglf_input_template = {
-      # Control
-      'UNITS': 'CGYRO',
-      'NS': 3,
-      'USE_TRANSPORT_MODEL': '.true.',
-      'GEOMETRY_FLAG': transport.geometry_flag,
-      'USE_BPER': '.true.' if transport.use_bper else '.false.',
-      'USE_BPAR': '.true.' if transport.use_bpar else '.false.',
-      'USE_BISECTION': '.true.',
-      'USE_MHD_RULE': '.true.' if transport.use_mhd_rule else '.false.',
-      'USE_INBOARD_DETRAPPED': (
-          '.true.' if transport.use_inboard_detrapped else '.false.'
-      ),
-      'USE_AVE_ION_GRID': '.true.' if transport.use_ave_ion_grid else '.false.',
-      'SAT_RULE': transport.sat_rule,
-      'KYGRID_MODEL': transport.kygrid_model,
-      'XNU_MODEL': transport.xnu_model,
-      'VPAR_MODEL': 0,
-      'SIGN_BT': transport.sign_bt,
-      'SIGN_IT': transport.sign_it,
-      'KY': transport.ky,
-      'NEW_EIKONAL': '.true.',
-      'VEXB': 0.0,
-      'VEXB_SHEAR': 0.0,
-      'BETAE': 0.0,
-      'XNUE': 0.0,
-      'ZEFF': 1.0,
-      'DEBYE': 0.0,
-      'IFLUX': '.true.',
-      'IBRANCH': -1,
-      'NMODES': transport.n_modes,
-      'NBASIS_MIN': transport.n_basis_min,
-      'NBASIS_MAX': transport.n_basis_max,
-      'NXGRID': transport.n_xgrid,
-      'NKY': transport.n_ky,
-      'ADIABATIC_ELEC': '.false.',
-      # Multipliers
-      'ALPHA_P': 1.0,
-      'ALPHA_MACH': 0.0,
-      'ALPHA_E': transport.alpha_e,
-      'ALPHA_QUENCH': transport.alpha_quench,
-      'ALPHA_ZF': transport.alpha_zf,
-      'XNU_FACTOR': transport.xnu_factor,
-      'DEBYE_FACTOR': transport.debye_factor,
-      'ETG_FACTOR': transport.etg_factor,
-      'B_MODEL_SA': 1,
-      'FT_MODEL_SA': 1,
-      # Gaussian mode width search
-      'WRITE_WAVEFUNCTION_FLAG': 0,
-      'WIDTH_MIN': transport.width_min,
-      'WIDTH': transport.width,
-      'NWIDTH': transport.n_width,
-      'FIND_WIDTH': '.true.' if transport.find_width else '.false.',
-      # Miller shape parameters
-      'RMIN_LOC': 0.5,
-      'RMAJ_LOC': 3.0,
-      'ZMAJ_LOC': 0.0,
-      'Q_LOC': 2.0,
-      'Q_PRIME_LOC': 16.0,
-      'P_PRIME_LOC': 0.0,
-      'DRMINDX_LOC': 1.0,
-      'DRMAJDX_LOC': 0.0,
-      'DZMAJDX_LOC': 0.0,
-      'KAPPA_LOC': 1.0,
-      'S_KAPPA_LOC': 0.0,
-      'DELTA_LOC': 0.0,
-      'S_DELTA_LOC': 0.0,
-      'ZETA_LOC': 0.0,
-      'S_ZETA_LOC': 0.0,
-      'KX0_LOC': 0.0,
-      # Expert options
-      'THETA_TRAPPED': transport.theta_trapped,
-      'PARK': 1.0,
-      'GHAT': 1.0,
-      'GCHAT': 1.0,
-      'WD_ZERO': 0.1,
-      'LINSKER_FACTOR': 0.0,
-      'GRADB_FACTOR': 0.0,
-      'FILTER': transport.filter,
-      'DAMP_PSI': 0.0,
-      'DAMP_SIG': 0.0,
-      'WDIA_TRAPPED': transport.w_dia_trapped,
-  }
-
-  species_template = {
-      'ZS': None,
-      'MASS': None,
-      'RLNS': None,
-      'RLTS': None,
-      'TAUS': None,
-      'AS': None,
-      'VPAR': 0.0,
-      'VPAR_SHEAR': 0.0,
-  }
-  for species_number in range(1, 4):
-    tglf_input_template.update({
-        f'{key}_{species_number}': value
-        for key, value in species_template.items()
-    })
-
   tglf_plan = []
   for i, _ in enumerate(np.array(geo.rho_face_norm)):
     # Shallow copy is ok, as we are only modifying top-level fields.
-    tglf_runpars = tglf_input_template.copy()
+    tglf_runpars = transport.tglf_settings.copy()
     tglf_runpars['BETAE'] = float(tglf_inputs.BETAE[i])
     tglf_runpars['XNUE'] = float(tglf_inputs.XNUE[i])
     tglf_runpars['ZEFF'] = float(tglf_inputs.ZEFF[i])
@@ -476,16 +460,10 @@ def _extract_tglf_plan(
 class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
   r"""Model for the TGLF transport model.
 
-  Attributes:
-    model_name: The transport model to use. Hardcoded to 'tglf'.
-    tglf_exec_path: Path to the TGLF executable.
-    n_processes: Set number of parallel TGLF calculations to run.
-    n_cores_per_process: Number of cores to use for each parallel TGLF
-      calculation.
-    DV_effective: Effective D / effective V approach for particle transport.
-    An_min: Minimum |R/Lne| below which effective V is used instead of effective
-      D.
-    collisionality_multiplier: Collisionality multiplier.
+  TGLF settings used to be passed as kwargs to the constructor of this
+  class. This behavior is now deprecated in favour of setting TGLF parameters
+  via the tglf_settings dictionary. The following options can still be parsed
+  from kwargs for backwards compatibility:
     kygrid_model: 0 = user-defined with n_ky points equally spaced with kymin =
       ky/n_ky. 1 = standard ky spectrum for SAT0 and SAT1 with kymin=0.1/rho_i.
       4 = standard ky spectrum with more low ky points and
@@ -541,6 +519,26 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
     n_basis_max: Maximum number of parallel basis functions (Hermite
       polynomials) used to find mode width. Recommended 4 for SAT0 and  SAT1, 6
       for SAT2 and SAT3.
+
+  Attributes:
+    model_name: The transport model to use. Hardcoded to 'tglf'.
+    tglf_exec_path: Path to the TGLF executable.
+    output_directory: Path to output directory for temp files.
+    n_processes: Set number of parallel TGLF calculations to run.
+    n_cores_per_process: Number of cores to use for each parallel TGLF
+      calculation.
+    verbose: Whether to enable verbose logging for TGLF subprocess runs.
+    use_rotation: Toggles the use of rotation shear model.
+    rotation_multiplier: Multiplier for the input rotation shear.
+    DV_effective: Effective D / effective V approach for particle transport.
+    An_min: Minimum |R/Lne| below which effective V is used instead of effective
+      D.
+    collisionality_multiplier: Collisionality multiplier.
+    tglf_settings: Dictionary of TGLF namelist parameters.
+    use_legacy_torax_defaults: If True, use legacy TORAX defaults for TGLF
+      parameters. Otherwise, use the defaults distributed with TGLF. Note that
+      in a future release, this option will be removed and the defaults will be
+      those distributed with TGLF.
   """
 
   model_name: Annotated[Literal['tglf'], torax_pydantic.JAX_STATIC] = 'tglf'
@@ -556,46 +554,54 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
   collisionality_multiplier: float = 1.0
+  tglf_settings: Annotated[
+      dict[str, TGLFSettingsValueTypes], torax_pydantic.JAX_STATIC
+  ] = pydantic.Field(default_factory=dict)
+  use_legacy_torax_defaults: bool = True
 
-  # Mode settings
-  kygrid_model: pydantic.PositiveInt = 4
-  ky: pydantic.PositiveFloat = 0.3
-  n_ky: pydantic.PositiveInt = 19
-  n_modes: pydantic.PositiveInt = 5
+  # TODO(b/434175938): remove support for parsing via the legacy config kwargs
+  # and remove use_legacy_torax_defaults.
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _validate_tglf_settings(cls, data: dict[str, Any]) -> dict[str, Any]:
+    """Parses tglf_settings combining defaults and old config kwargs."""
+    if data.get('model_name', '') != 'tglf':
+      return data
 
-  # Model settings
-  geometry_flag: pydantic.PositiveInt = 1
-  sat_rule: pydantic.PositiveInt = 3
-  xnu_model: pydantic.PositiveInt = 3
-  n_width: pydantic.PositiveInt = 21
-  width_min: pydantic.FiniteFloat = -0.3
-  width: pydantic.PositiveFloat = 1.65
-  filter: pydantic.FiniteFloat = 2.0
-  theta_trapped: pydantic.PositiveFloat = 0.7
-  w_dia_trapped: pydantic.PositiveFloat = 1.0
-  sign_bt: pydantic.FiniteFloat = 1.0
-  sign_it: pydantic.FiniteFloat = 1.0
-  xnu_factor: pydantic.PositiveFloat = 1.0
-  debye_factor: pydantic.PositiveFloat = 1.0
-  etg_factor: pydantic.FiniteFloat = 1.25
+    if data.get('use_legacy_torax_defaults', True):
+      logging.warning(
+          'use_legacy_torax_defaults=True is deprecated. This flag uses'
+          ' TORAX-specific defaults for TGLF settings. In future, the defaults'
+          ' will be those distributed with TGLF and this flag will be removed.'
+      )
+      tglf_settings = dict(tglf_defaults.LEGACY_TORAX_TGLF_DEFAULTS)
+    else:
+      tglf_settings = dict(tglf_defaults.TGLF_DEFAULTS)
 
-  # Flags
-  find_width: bool = True
-  use_mhd_rule: bool = False
-  use_bpar: bool = True
-  use_bper: bool = False
-  use_inboard_detrapped: bool = False
-  use_ave_ion_grid: bool = False
+    # Merge settings from the legacy config parameters.
+    legacy_config_used = False
+    for old_key, new_key in _OLD_CONFIG_MAPPING.items():
+      if old_key in data:
+        legacy_config_used = True
+        val = data.pop(old_key)
+        if isinstance(val, bool):
+          val = '.true.' if val else '.false.'
+        tglf_settings[new_key] = val
+    if legacy_config_used:
+      logging.warning(
+          'Parsing TGLF settings from the legacy config kwargs is deprecated. '
+          'Please use the tglf_settings dictionary instead.'
+      )
 
-  # Multipliers
-  alpha_e: pydantic.FiniteFloat = 1.0
-  alpha_zf: pydantic.FiniteFloat = 1.0
-  alpha_quench: pydantic.FiniteFloat = 0.0
+    # Merge settings from the user-provided tglf_settings dictionary.
+    user_tglf_settings = data.pop('tglf_settings', {})
+    for k, v in user_tglf_settings.items():
+      if isinstance(v, bool):
+        v = '.true.' if v else '.false.'
+      tglf_settings[k] = v
 
-  # Numerical grid settings
-  n_xgrid: pydantic.PositiveInt = 16
-  n_basis_min: pydantic.PositiveInt = 2
-  n_basis_max: pydantic.PositiveInt = 6
+    data['tglf_settings'] = tglf_settings
+    return data
 
   def build_transport_model(self) -> TGLFTransportModel:
     return TGLFTransportModel(
@@ -614,35 +620,6 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
         DV_effective=self.DV_effective,
         collisionality_multiplier=self.collisionality_multiplier,
         An_min=self.An_min,
-        kygrid_model=self.kygrid_model,
-        ky=self.ky,
-        n_ky=self.n_ky,
-        n_modes=self.n_modes,
-        geometry_flag=self.geometry_flag,
-        sat_rule=self.sat_rule,
-        xnu_model=self.xnu_model,
-        n_width=self.n_width,
-        width_min=self.width_min,
-        width=self.width,
-        filter=self.filter,
-        theta_trapped=self.theta_trapped,
-        w_dia_trapped=self.w_dia_trapped,
-        sign_bt=self.sign_bt,
-        sign_it=self.sign_it,
-        xnu_factor=self.xnu_factor,
-        debye_factor=self.debye_factor,
-        etg_factor=self.etg_factor,
-        find_width=self.find_width,
-        use_mhd_rule=self.use_mhd_rule,
-        use_bpar=self.use_bpar,
-        use_bper=self.use_bper,
-        use_inboard_detrapped=self.use_inboard_detrapped,
-        use_ave_ion_grid=self.use_ave_ion_grid,
-        alpha_e=self.alpha_e,
-        alpha_zf=self.alpha_zf,
-        alpha_quench=self.alpha_quench,
-        n_xgrid=self.n_xgrid,
-        n_basis_min=self.n_basis_min,
-        n_basis_max=self.n_basis_max,
+        tglf_settings=self.tglf_settings,
         **base_kwargs,
     )
