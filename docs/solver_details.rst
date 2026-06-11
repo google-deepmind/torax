@@ -244,6 +244,13 @@ residual falls below the absolute tolerance
 relative tolerance multiplied by the initial residual, i.e.,
 :math:`\| \mathbf{R} \|_{norm} < \varepsilon_{rel} \| \mathbf{R}_{0} \|_{norm}`.
 
+Additionally, a backtracking linesearch can be used to improve stability in
+the solvers. When enabled in fixed-point iteration, if an iteration results
+in an increase in the residual or an invalid state (e.g., NaN values), the
+solver will backtrack along the update direction by reducing the step size.
+For the Newton-Raphson solver, this backtracking linesearch is always required
+and enforced to ensure robustness.
+
 
 To further enhance the stability of the linear solver, particularly in the
 presence of stiff transport coefficients (e.g., when using the QLKNN turbulent

@@ -40,3 +40,8 @@ class RuntimeParams:
   fixed_point_termination_criterion: str = dataclasses.field(
       metadata={'static': True}
   )
+  fixed_point_sufficient_decrease: float
+  fixed_point_use_backtracking: bool = dataclasses.field(
+      metadata={'static': True}
+  )
+  delta_reduction_factor: float

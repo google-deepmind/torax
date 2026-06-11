@@ -46,7 +46,6 @@ class NewtonRaphsonRuntimeParams(solver_runtime_params_lib.RuntimeParams):
   maxiter: int
   residual_tol: float
   residual_coarse_tol: float
-  delta_reduction_factor: float
   tau_min: float
   initial_guess_mode: int = dataclasses.field(metadata={'static': True})
   log_iterations: bool = dataclasses.field(metadata={'static': True})

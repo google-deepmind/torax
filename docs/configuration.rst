@@ -2384,6 +2384,12 @@ specific solver are defined in the relevant section below.
   Termination criterion for the fixed-point iterations in the predictor-corrector solver.
   Must be either 'tolerance' (exit when tolerances are met) or 'max_iterations' (always run for the specified number of iterations).
 
+``fixed_point_use_backtracking`` (bool [default = False])
+  Enables backtracking linesearch for fixed-point iterations (predictor-corrector). Can be used with the linear solver, or in the initial guess for nonlinear solvers.
+
+``delta_reduction_factor`` (float [default = 0.5])
+  Factor by which the step size is reduced during backtracking.
+
 ``use_pereverzev`` (bool [default = False])
   Use Pereverzev-Corrigan terms in the heat and particle flux when using the
   linear solver. Critical for stable calculation of stiff transport, at the cost
