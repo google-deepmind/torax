@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class and utils for TGLF-based models."""
+
 import dataclasses
 
 import jax
@@ -34,6 +35,7 @@ from typing_extensions import override
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   """Shared parameters for TGLF-based models."""
+
   use_rotation: bool = dataclasses.field(metadata={"static": True})
   rotation_multiplier: float
   collisionality_multiplier: float
@@ -85,9 +87,19 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
     GAMMA_GB: TGLF particle flux normalisation factor.
   """
 
+  ZS_1: array_typing.FloatVectorFace
+  MASS_1: array_typing.FloatVectorFace
+  TAUS_1: array_typing.FloatVectorFace
+  AS_1: array_typing.FloatVectorFace
+
+  ZS_2: array_typing.FloatVectorFace
+  MASS_2: array_typing.FloatVectorFace
   TAUS_2: array_typing.FloatVectorFace
-  TAUS_3: array_typing.FloatVectorFace
   AS_2: array_typing.FloatVectorFace
+
+  ZS_3: array_typing.FloatVectorFace
+  MASS_3: array_typing.FloatVectorFace
+  TAUS_3: array_typing.FloatVectorFace
   AS_3: array_typing.FloatVectorFace
 
   RLNS_1: array_typing.FloatVectorFace
@@ -199,6 +211,15 @@ class TGLFBasedTransportModel(
         * core_profiles.psi.face_grad(x=geo.r_mid, x_left=r[0], x_right=r[-1]),
         denom=(2 * jnp.pi * r),  # Note: psi_TGLF is psi_TORAX/2π
         eps=1e-7,
+    )
+
+    # Mass profiles.
+    n_faces = len(geo.rho_face_norm)
+    m_i_over_m_D = (
+        core_profiles.A_i / constants.ION_PROPERTIES_DICT["D"].A
+    ) * jnp.ones(n_faces)
+    m_imp_over_m_D = (
+        core_profiles.A_impurity_face / constants.ION_PROPERTIES_DICT["D"].A
     )
 
     # Ion gyroradius
@@ -408,9 +429,20 @@ class TGLFBasedTransportModel(
         transport=transport,
     )
 
+    Z_e_face = -1.0 * jnp.ones(n_faces)
+    m_e_over_m_D = (
+        constants.CONSTANTS.m_e
+        / (constants.CONSTANTS.m_amu * constants.ION_PROPERTIES_DICT["D"].A)
+    ) * jnp.ones(n_faces)
+    T_e_over_T_e = 1.0 * jnp.ones(n_faces)
+    n_e_over_n_e = 1.0 * jnp.ones(n_faces)
+    T_imp_over_T_e = T_i_over_T_e
+
     return TGLFInputs(
         # From QuasilinearInputs
-        chiGB=jnp.zeros_like(geo.rho_face_norm),  # unused
+        # chiGB is unused as TGLF denormalizes differently from QuaLiKiz, using
+        # Q_GB and Gamma_GB instead.
+        chiGB=jnp.zeros(n_faces),  # unused
         Rmin=geo.a_minor,
         Rmaj=geo.R_major,
         lref_over_lti=lref_over_lti,
@@ -419,9 +451,17 @@ class TGLFBasedTransportModel(
         lref_over_lni0=normalized_log_gradients.lref_over_lni0,
         lref_over_lni1=normalized_log_gradients.lref_over_lni1,
         # From TGLFInputs
+        ZS_1=Z_e_face,
+        MASS_1=m_e_over_m_D,
+        TAUS_1=T_e_over_T_e,
+        AS_1=n_e_over_n_e,
+        ZS_2=core_profiles.Z_i_face,
+        MASS_2=m_i_over_m_D,
         TAUS_2=T_i_over_T_e,
-        TAUS_3=T_i_over_T_e,
         AS_2=n_i_over_n_e,
+        ZS_3=core_profiles.Z_impurity_face,
+        MASS_3=m_imp_over_m_D,
+        TAUS_3=T_imp_over_T_e,
         AS_3=n_impurity_over_n_e,
         RLNS_1=normalized_log_gradients.lref_over_lne,
         RLNS_2=normalized_log_gradients.lref_over_lni0,

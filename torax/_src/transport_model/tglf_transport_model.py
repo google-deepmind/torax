@@ -31,7 +31,6 @@ import chex
 import jax
 import numpy as np
 import pydantic
-from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -134,7 +133,6 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
           tglf_inputs=tglf_inputs,
           transport=transport_runtime_params,
           geo=geo,
-          core_profiles=core_profiles,
       )
       plan_output_directory = self._run_tglf(
           tglf_plan=tglf_plan,
@@ -318,7 +316,6 @@ def _extract_tglf_plan(
     tglf_inputs: tglf_based_transport_model.TGLFInputs,
     transport: RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
 ) -> Sequence[Mapping[str, Any]]:
   """Converts TORAX parameters to TGLF input dictionary.
 
@@ -326,24 +323,12 @@ def _extract_tglf_plan(
       tglf_inputs: Precomputed physics data.
       transport: Runtime parameters for the qualikiz transport model.
       geo: TORAX geometry object.
-      core_profiles: TORAX CoreProfiles object, containing time-evolvable
-        quantities like q
 
   Returns:
       A list of dictionaries containing TGLF input namelists, one for each
       radial grid cell.
   """
 
-  species_template = {
-      'ZS': None,
-      'MASS': None,
-      'RLNS': None,
-      'RLTS': None,
-      'TAUS': None,
-      'AS': None,
-      'VPAR': 0.0,
-      'VPAR_SHEAR': 0.0,
-  }
   tglf_input_template = {
       # Control
       'UNITS': 'CGYRO',
@@ -428,6 +413,16 @@ def _extract_tglf_plan(
       'WDIA_TRAPPED': transport.w_dia_trapped,
   }
 
+  species_template = {
+      'ZS': None,
+      'MASS': None,
+      'RLNS': None,
+      'RLTS': None,
+      'TAUS': None,
+      'AS': None,
+      'VPAR': 0.0,
+      'VPAR_SHEAR': 0.0,
+  }
   for species_number in range(1, 4):
     tglf_input_template.update({
         f'{key}_{species_number}': value
@@ -435,10 +430,6 @@ def _extract_tglf_plan(
     })
 
   tglf_plan = []
-  zi0 = np.array(core_profiles.Z_i_face)
-  ai0 = np.array(core_profiles.A_i)
-  zi1 = np.array(core_profiles.Z_impurity_face)
-  ai1 = np.array(core_profiles.A_impurity_face)
   for i, _ in enumerate(np.array(geo.rho_face_norm)):
     # Shallow copy is ok, as we are only modifying top-level fields.
     tglf_runpars = tglf_input_template.copy()
@@ -456,25 +447,20 @@ def _extract_tglf_plan(
     tglf_runpars['S_KAPPA_LOC'] = float(tglf_inputs.S_KAPPA_LOC[i])
     tglf_runpars['DELTA_LOC'] = float(tglf_inputs.DELTA_LOC[i])
     tglf_runpars['S_DELTA_LOC'] = float(tglf_inputs.S_DELTA_LOC[i])
-    tglf_runpars['ZS_1'] = -1.0
-    tglf_runpars['MASS_1'] = float(
-        constants.CONSTANTS.m_e
-        / (constants.CONSTANTS.m_amu * constants.ION_PROPERTIES_DICT['D'].A)
-    )
+    tglf_runpars['ZS_1'] = float(tglf_inputs.ZS_1[i])
+    tglf_runpars['MASS_1'] = float(tglf_inputs.MASS_1[i])
     tglf_runpars['RLNS_1'] = float(tglf_inputs.RLNS_1[i])
     tglf_runpars['RLTS_1'] = float(tglf_inputs.RLTS_1[i])
-    tglf_runpars['TAUS_1'] = 1.0
-    tglf_runpars['AS_1'] = 1.0
-    tglf_runpars['ZS_2'] = float(zi0[i])
-    tglf_runpars['MASS_2'] = float(ai0 / constants.ION_PROPERTIES_DICT['D'].A)
+    tglf_runpars['TAUS_1'] = float(tglf_inputs.TAUS_1[i])
+    tglf_runpars['AS_1'] = float(tglf_inputs.AS_1[i])
+    tglf_runpars['ZS_2'] = float(tglf_inputs.ZS_2[i])
+    tglf_runpars['MASS_2'] = float(tglf_inputs.MASS_2[i])
     tglf_runpars['RLNS_2'] = float(tglf_inputs.RLNS_2[i])
     tglf_runpars['RLTS_2'] = float(tglf_inputs.RLTS_2[i])
     tglf_runpars['TAUS_2'] = float(tglf_inputs.TAUS_2[i])
     tglf_runpars['AS_2'] = float(tglf_inputs.AS_2[i])
-    tglf_runpars['ZS_3'] = float(zi1[i])
-    tglf_runpars['MASS_3'] = float(
-        ai1[i] / constants.ION_PROPERTIES_DICT['D'].A
-    )
+    tglf_runpars['ZS_3'] = float(tglf_inputs.ZS_3[i])
+    tglf_runpars['MASS_3'] = float(tglf_inputs.MASS_3[i])
     tglf_runpars['RLNS_3'] = float(tglf_inputs.RLNS_3[i])
     tglf_runpars['RLTS_3'] = float(tglf_inputs.RLTS_3[i])
     tglf_runpars['TAUS_3'] = float(tglf_inputs.TAUS_3[i])
