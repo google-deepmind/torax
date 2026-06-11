@@ -19,8 +19,13 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax._src import state
+from torax._src.config import build_runtime_params
+from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.physics import collisions
+from torax._src.test_utils import default_configs
+from torax._src.test_utils import default_sources
+from torax._src.torax_pydantic import model_config
 
 
 # pylint: disable=invalid-name
@@ -148,6 +153,59 @@ class CollisionsTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         collisions._calculate_weighted_Z_eff(core_profiles), expected
+    )
+
+
+class CalcNuStarTest(parameterized.TestCase):
+  """Tests for `calc_nu_star` on a realistic core_profiles + geometry."""
+
+  def setUp(self):
+    super().setUp()
+    config = default_configs.get_default_config_dict()
+    config['sources'] = default_sources.get_default_source_config()
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    self.runtime_params = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
+            t=0.0
+        )
+    )
+    self.models = torax_config.build_models()
+    self.geo = torax_config.geometry.build_provider(t=0.0)
+    self.core_profiles = initialization.initial_core_profiles(
+        runtime_params=self.runtime_params,
+        geo=self.geo,
+        source_models=self.models.source_models,
+        neoclassical_models=self.models.neoclassical_models,
+    )
+
+  def test_nu_star_is_on_face_grid_positive_and_finite(self):
+    """nu_star is a physically positive, finite quantity on the face grid."""
+    nu_star = collisions.calc_nu_star(
+        geo=self.geo,
+        core_profiles=self.core_profiles,
+        collisionality_multiplier=1.0,
+    )
+    self.assertEqual(nu_star.shape, self.geo.rho_face.shape)
+    self.assertTrue(np.all(np.isfinite(nu_star)))
+    self.assertTrue(np.all(nu_star > 0.0))
+
+  @parameterized.parameters([2.0, 3.0, 0.5])
+  def test_nu_star_scales_linearly_with_collisionality_multiplier(
+      self, multiplier
+  ):
+    """nu_star is proportional to the collisionality multiplier."""
+    nu_star_unit = collisions.calc_nu_star(
+        geo=self.geo,
+        core_profiles=self.core_profiles,
+        collisionality_multiplier=1.0,
+    )
+    nu_star_scaled = collisions.calc_nu_star(
+        geo=self.geo,
+        core_profiles=self.core_profiles,
+        collisionality_multiplier=multiplier,
+    )
+    np.testing.assert_allclose(
+        nu_star_scaled, multiplier * nu_star_unit, rtol=1e-6
     )
 
 

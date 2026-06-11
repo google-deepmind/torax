@@ -326,6 +326,39 @@ class PostProcessingTest(parameterized.TestCase):
         rtol=1e-5,
     )
 
+  def test_nu_star_output(self):
+    """Checks nu_star is exposed as a physical, face-grid output."""
+    input_state = sim_state.SimState(
+        t=jnp.array(0.0),
+        dt=jnp.array(1e-3),
+        core_profiles=self.core_profiles,
+        core_transport=state.CoreTransport.zeros(self.geo),
+        core_sources=self.source_profiles,
+        geometry=self.geo,
+        solver_numeric_outputs=state.SolverNumericOutputs(
+            solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+            outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            sawtooth_crash=False,
+        ),
+        edge_outputs=None,
+        time_step_calculator_state=(
+            self.models.time_step_calculator.initial_state(self.runtime_params)
+        ),
+    )
+    outputs = post_processing.make_post_processed_outputs(
+        sim_state=input_state,
+        runtime_params=self.runtime_params,
+        previous_post_processed_outputs=post_processing.PostProcessedOutputs.zeros(
+            self.geo
+        ),
+    )
+    # nu_star is defined on the face grid.
+    self.assertEqual(outputs.nu_star.shape, self.geo.rho_face_norm.shape)
+    # Collisionality is physically finite and positive.
+    self.assertTrue(np.all(np.isfinite(outputs.nu_star)))
+    self.assertTrue(np.all(outputs.nu_star > 0.0))
+
 
 class PostProcessingSimTest(sim_test_case.SimTestCase):
   """Tests for the cumulative outputs."""
