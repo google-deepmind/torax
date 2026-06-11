@@ -20,6 +20,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import eqdsk as eqdsk_lib
+import numpy as np
 from torax._src import version
 from torax._src.config import config_loader
 from torax._src.geometry import geometry_loader
@@ -255,6 +256,29 @@ class ConfigTest(parameterized.TestCase):
     config_dict["numerics"]["evolve_current"] = evolve_current
 
     warning_snippet = "profile_conditions.psidot input is ignored"
+    self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
+
+  @parameterized.named_parameters(
+      ("uniform_no_ped", True, False, False),
+      ("non_uniform_no_ped", False, False, False),
+      ("uniform_ped", True, True, False),
+      ("non_uniform_ped", False, True, True),
+  )
+  def test_pedestal_non_uniform_grid_warning(
+      self, is_uniform, use_pedestal, expect_warning
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    if not is_uniform:
+      # non-uniform grid
+      config_dict["geometry"]["face_centers"] = np.array(
+          [0.0, 0.1, 0.3, 0.6, 0.9, 1.0]
+      )
+    if use_pedestal:
+      config_dict["pedestal"] = {"model_name": "set_T_ped_n_ped"}
+    else:
+      config_dict["pedestal"] = {"model_name": "no_pedestal"}
+
+    warning_snippet = "Config has both a pedestal model and a non-uniform grid."
     self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
 
   def _assert_warning_logged(
