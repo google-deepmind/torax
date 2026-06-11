@@ -48,6 +48,7 @@ def root_newton_raphson(
     coarse_tol: float = 1e-2,
     delta_reduction_factor: float = 0.5,
     tau_min: float = 0.01,
+    sufficient_decrease: float = 1e-4,
     log_iterations: bool = False,
     use_jax_custom_root: bool = True,
     custom_jac: Callable[[jax.Array], jax.Array] | None = None,
@@ -68,6 +69,8 @@ def root_newton_raphson(
       line search step.
     tau_min: Minimum delta/delta_original allowed before the newton raphson
       routine resets at a lower timestep.
+    sufficient_decrease: Acceptance threshold for sufficient decrease in the
+      line search.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
     use_jax_custom_root: If true, use jax.lax.custom_root to allow for
@@ -115,6 +118,7 @@ def root_newton_raphson(
         residual_fun=residual_fun,
         log_iterations=log_iterations,
         delta_reduction_factor=delta_reduction_factor,
+        sufficient_decrease=sufficient_decrease,
     )
     output_state = jax.lax.while_loop(cond_fun, body_fun, initial_state)
     x_out = output_state.pop('x')
@@ -203,6 +207,7 @@ def _body(
     residual_fun: Callable[[jax.Array], jax.Array],
     log_iterations: bool,
     delta_reduction_factor: float,
+    sufficient_decrease: float,
 ) -> dict[str, jax.Array]:
   """Calculates next guess in Newton-Raphson iteration."""
   dtype = input_state['x'].dtype
@@ -217,8 +222,9 @@ def _body(
   init_norm = norm_fn(input_state['residual'])
 
   def accept_fn(step_size, trial_norm):
-    del step_size  # Unused
-    return (trial_norm <= init_norm) & (~jnp.isnan(trial_norm))
+    return (
+        trial_norm <= (1.0 - sufficient_decrease * step_size) * init_norm
+    ) & (~jnp.isnan(trial_norm))
 
   ls_state = linesearch.backtracking_linesearch(
       residual_fn=residual_fun,
