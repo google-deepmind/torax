@@ -442,6 +442,19 @@ except ImportError:
       | tglf_transport_model.TGLFTransportModelConfig
   )
 
+# gyaradax-QL transport model (optional dependency: the gyaradax gyrokinetic solver).
+# the model module imports gyaradax at top, so this import fails when gyaradax is
+# not installed and the config is simply left unregistered (same as qualikiz/tglf).
+try:
+  from torax._src.transport_model import gyaradax_ql_transport_model  # pylint: disable=g-import-not-at-top
+
+  CombinedCompatibleTransportModel = (
+      CombinedCompatibleTransportModel
+      | gyaradax_ql_transport_model.GyaradaxQLConfig
+  )
+except ImportError:
+  pass
+
 
 class CombinedTransportModel(pydantic_model_base.TransportBase):
   """Model for the Combined transport model.
