@@ -16,12 +16,13 @@
 import json
 import logging
 from typing import Annotated, Any, Literal
-from unittest import mock
 
 import contourpy
 import eqdsk
+import eqdsk.file
 import eqdsk.tools
 import numpy as np
+import numpy.typing as npt
 import pydantic
 import scipy
 from torax._src import constants
@@ -31,6 +32,11 @@ from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
+# Inject `npt` into eqdsk.file's runtime namespace to prevent Pydantic from
+# raising `PydanticUndefinedAnnotation: name 'npt' is not defined.`
+# Import of `npt` in upstream eqdsk is gated by TYPE_CHECKING, which is not
+# compatible with Pydantic type validation.
+eqdsk.file.npt = npt
 
 # COCOS convention that TORAX translates all EQDSK geometries to.
 _TORAX_EQDSK_COCOS = 11
@@ -81,14 +87,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
     elif isinstance(x, eqdsk.EQDSKInterface):
       return x
     elif isinstance(x, dict):
-      json_str = json.dumps(x)
-      # Mock all file openers to return the json string, allowing
-      # EQDSKInterface.from_file to deserialize in-memory without disk I/O.
-      # TODO(b/519910776): Use eqdsk library's json_reader when ready.
-      # https://github.com/Fusion-Power-Plant-Framework/eqdsk/issues/140
-      m = mock.mock_open(read_data=json_str)
-      with mock.patch('builtins.open', m), mock.patch('io.open', m):
-        return eqdsk.EQDSKInterface.from_file('eqdsk.json', no_cocos=True)
+      return eqdsk.EQDSKInterface.from_dict(x, no_cocos=True)
     else:
       raise ValueError(f'Expected EQDSKInterface or dict, but got {type(x)}')
 
