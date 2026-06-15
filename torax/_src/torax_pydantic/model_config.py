@@ -192,6 +192,24 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
+  def _check_pedestal_with_non_uniform_grid(self) -> typing_extensions.Self:
+    """Warns if a pedestal and non-uniform grid are used."""
+    if self.pedestal.model_name != 'no_pedestal':
+      face_centers = self.geometry.get_face_centers()
+      is_uniform = np.all(
+          np.isclose(np.diff(face_centers), np.diff(face_centers)[0])
+      )
+      if not is_uniform:
+        logging.warning("""
+            Config has both a pedestal model and a non-uniform grid. Currently,
+            the numerics of the non-uniform grid can cause pedestal gradients to
+            leak into the core, leading to incorrect transport near the pedestal
+            top. This can be mitigated by using a uniform grid around the
+            pedestal top.
+            """)
+    return self
+
+  @pydantic.model_validator(mode='after')
   def _check_edge_with_circular_geometry(self) -> typing_extensions.Self:
     """Validates that edge models are not used with CircularGeometry."""
     if (
