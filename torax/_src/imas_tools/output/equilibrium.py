@@ -67,9 +67,9 @@ def torax_state_to_imas_equilibrium(
   eq = equilibrium.time_slice[0]
   eq.boundary.geometric_axis.r = geometry.R_major
   eq.boundary.minor_radius = geometry.a_minor
-  eq.profiles_1d.psi = core_profiles.psi.face_value()
-  psi_axis = core_profiles.psi.face_value()[0]
-  psi_boundary = core_profiles.psi.face_value()[-1]
+  eq.profiles_1d.psi = -1 * core_profiles.psi.face_value()
+  psi_axis = -1 * core_profiles.psi.face_value()[0]
+  psi_boundary = -1 * core_profiles.psi.face_value()[-1]
   eq.global_quantities.psi_axis = psi_axis
   eq.global_quantities.psi_boundary = psi_boundary
   eq.profiles_1d.psi_norm = (core_profiles.psi.face_value() - psi_axis) / (
@@ -128,11 +128,11 @@ def torax_state_to_imas_equilibrium(
 
   # Quantities useful for coupling with equilibrium code
   eq.profiles_1d.pressure = sim_state.core_profiles.pressure_total.face_value()
-  eq.profiles_1d.dpressure_dpsi = post_processed_outputs.pprime
+  eq.profiles_1d.dpressure_dpsi = -1 * post_processed_outputs.pprime
 
   # <j.B>/B_0, could be useful to calculate and use instead of FF'
   eq.profiles_1d.f = -1 * geometry.F_face
-  eq.profiles_1d.f_df_dpsi = post_processed_outputs.FFprime
+  eq.profiles_1d.f_df_dpsi = -1 * post_processed_outputs.FFprime
   eq.profiles_1d.q = core_profiles.q_face
   eq.profiles_1d.magnetic_shear = core_profiles.s_face
 

@@ -106,7 +106,7 @@ def _geometry_from_single_slice(
   # TypeErrors during PyTree tracing.
 
   # Poloidal flux.
-  psi = np.asarray(IMAS_data.profiles_1d.psi)
+  psi = -1 * np.asarray(IMAS_data.profiles_1d.psi)
 
   # Toroidal flux.
   phi = np.asarray(IMAS_data.profiles_1d.phi)
@@ -130,14 +130,14 @@ def _geometry_from_single_slice(
   # Flux surface integrals of various geometry quantities.
   # IDS Contour integrals.
   if IMAS_data.profiles_1d.dvolume_dpsi:
-    dvoldpsi = np.asarray(IMAS_data.profiles_1d.dvolume_dpsi)
+    dvoldpsi = -1 * np.asarray(IMAS_data.profiles_1d.dvolume_dpsi)
   else:
-    dvoldpsi = np.gradient(
+    dvoldpsi = -1 * np.gradient(
         IMAS_data.profiles_1d.volume, IMAS_data.profiles_1d.psi
     )
   # dpsi_drho_tor
   if IMAS_data.profiles_1d.dpsi_drho_tor:
-    dpsidrhotor = np.asarray(IMAS_data.profiles_1d.dpsi_drho_tor)
+    dpsidrhotor = -1 * np.asarray(IMAS_data.profiles_1d.dpsi_drho_tor)
   else:
     rho_tor = IMAS_data.profiles_1d.rho_tor
     if not rho_tor:
@@ -147,7 +147,7 @@ def _geometry_from_single_slice(
             " equilibrium IDS"
         )
       rho_tor = np.sqrt(IMAS_data.profiles_1d.phi / (np.pi * B_0))
-    dpsidrhotor = np.gradient(IMAS_data.profiles_1d.psi, rho_tor)
+    dpsidrhotor = -1 * np.gradient(IMAS_data.profiles_1d.psi, rho_tor)
 
   flux_surf_avg_grad_psi = IMAS_data.profiles_1d.gm7 * dpsidrhotor
   flux_surf_avg_grad_psi2 = IMAS_data.profiles_1d.gm3 * (dpsidrhotor**2)
