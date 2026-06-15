@@ -24,6 +24,7 @@ from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
+from torax._src.transport_model import tglf_defaults
 
 
 class TGLFTransportModelTest(parameterized.TestCase):
@@ -87,6 +88,18 @@ class TGLFTransportModelTest(parameterized.TestCase):
               n_e_ped=0.0,
           ),
       )
+
+  def test_legacy_torax_tglf_defaults_use_bper_bpar_swapped(self):
+    """Regression test for issue #2145.
+
+    The legacy TORAX TGLF defaults previously had USE_BPER=False and
+    USE_BPAR=True. Domain-expert recommendation is the opposite so that
+    non-expert users get the recommended electromagnetic configuration
+    by default.
+    """
+    legacy = tglf_defaults.LEGACY_TORAX_TGLF_DEFAULTS
+    self.assertEqual(legacy['USE_BPER'], '.true.')
+    self.assertEqual(legacy['USE_BPAR'], '.false.')
 
 
 if __name__ == '__main__':
