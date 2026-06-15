@@ -22,6 +22,9 @@ from torax._src.imas_tools.input import loader
 from torax._src.imas_tools.input import validation
 
 
+# TODO(b/459479939): i/2213) Add NaN checking to input IDS. At the moment we
+# assume that all profiles are filled if the first time slice is filled but this
+# may not be the case, especially with experimental data.
 # pylint: disable=invalid-name
 def profile_conditions_from_IMAS(
     ids: ids_toplevel.IDSToplevel,

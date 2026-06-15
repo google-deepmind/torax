@@ -18,6 +18,7 @@ import dataclasses
 from typing import Any, NamedTuple, Self
 
 from absl import logging
+from imas import ids_struct_array
 from imas import ids_structure
 from imas import ids_toplevel
 import numpy as np
@@ -63,7 +64,6 @@ _IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING = {
         ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
         True,
     ),
-    # Physics-based and radiation sources
     "ohmic": _SourceMappingEntry(
         ohmic_heat_source.OhmicHeatSource.AFFECTED_CORE_PROFILES,
         ohmic_heat_source.OhmicHeatSource.SOURCE_NAME,
@@ -174,6 +174,9 @@ class _SourceCollection:
     return output
 
 
+# TODO(b/459479939): i/2213) Add NaN checking to input IDS. At the moment we
+# assume that all profiles are filled if the first time slice is filled but this
+# may not be the case, especially with experimental data.
 # pylint: disable=invalid-name
 def sources_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
@@ -260,9 +263,7 @@ def _extract_source_profiles(
           profile.electrons.energy for profile in profiles_1d
       ]
     elif affected_profile == source_module.AffectedCoreProfile.NE:
-      profiles[affected_profile] = [
-          profile.electrons.particles for profile in profiles_1d
-      ]
+      profiles[affected_profile] = _get_particle_source_profile(profiles_1d)
     # Handling of fast ions from ICRH not taken into account yet.
     elif affected_profile == source_module.AffectedCoreProfile.FAST_IONS:
       profiles[affected_profile] = None
@@ -273,3 +274,44 @@ def _extract_source_profiles(
       affected_profiles=affected_profiles,
       profiles=profiles,
   )
+
+
+# TODO(b/459479939): i/2212) - Add option to provide full set of ion particle
+# sources when ion density transport will be possible in TORAX.
+# When using z_n we will over predict electron source from impurities, and this
+# will be rectified when using full set of ion particle sources in TORAX and
+# charge state calculations will be done.
+def _get_particle_source_profile(
+    profiles_1d: ids_struct_array.IDSStructArray,
+) -> Sequence[Sequence[float]]:
+  """Extract particle profile from either electron or ion profiles.
+
+  Loads from electrons if available, else falls back to deduce it from the ions
+  particle sources (assuming quasi-neutrality).
+
+  Args:
+    profiles_1d: profiles_1d from the IDS.
+
+  Returns:
+    A list of particle source profiles, one for each time slice.
+  """
+  if profiles_1d[0].electrons.particles.has_value:
+    particles = [profile.electrons.particles for profile in profiles_1d]
+  # If no electron particle source is defined, deduce it from the ions
+  # particle sources (assuming quasi-neutrality).
+  elif any(ion.particles is not None for ion in profiles_1d[0].ion):
+    # Sum over all ion species to get total particle source profile.
+    particles = [
+        sum(
+            ion.particles * ion.element[0].z_n
+            for ion in profile.ion
+            if ion.particles is not None
+        )
+        for profile in profiles_1d
+    ]
+  else:
+    raise ValueError(
+        "Expected particle source, but none of electrons or ion particle source"
+        "is defined in the IDS."
+    )
+  return particles

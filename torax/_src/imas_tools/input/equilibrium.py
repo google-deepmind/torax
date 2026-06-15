@@ -243,6 +243,9 @@ def _geometry_from_single_slice(
   }
 
 
+# TODO(b/459479939): i/2213) Add NaN checking to input IDS. At the moment we
+# assume that all profiles are filled if the first time slice is filled but this
+# may not be the case, especially with experimental data.
 def geometry_from_IMAS(
     face_centers: np.ndarray,
     geometry_directory: str | None = None,
