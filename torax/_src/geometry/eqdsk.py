@@ -20,8 +20,10 @@ from unittest import mock
 
 import contourpy
 import eqdsk
+import eqdsk.file
 import eqdsk.tools
 import numpy as np
+import numpy.typing as npt
 import pydantic
 import scipy
 from torax._src import constants
@@ -31,6 +33,13 @@ from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
+
+# Inject `npt` into eqdsk.file's runtime namespace to prevent Pydantic from
+# raising `PydanticUndefinedAnnotation: name 'npt' is not defined.`
+# Import of `npt` in upstream eqdsk is gated by TYPE_CHECKING, which is not
+# compatible with Pydantic type validation.
+# TODO(b/524519841): Upstream this fix to eqdsk.
+eqdsk.file.npt = npt
 
 # COCOS convention that TORAX translates all EQDSK geometries to.
 _TORAX_EQDSK_COCOS = 11
