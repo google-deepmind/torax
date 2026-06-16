@@ -373,6 +373,12 @@ time-dependence of temperature, density, and current.
   This setting is ignored for the ad-hoc circular geometry, which has no
   numerical geometry.
 
+``initial_psi_mode`` (str [default = 'profile_conditions'])
+  Method for determining initial poloidal flux :math:`\psi`.
+  Options are ``'profile_conditions'`` (uses the ``psi`` array attribute),
+  ``'geometry'`` (uses :math:`\psi` from numerical geometry), or ``'j'``
+  (calculates from the ``current_profile_nu`` current formula).
+
 ``toroidal_angular_velocity`` (**time-varying-array** | None [default = None])
   Toroidal angular velocity profile. If not provided, the velocity will be set
   to zero.
@@ -972,6 +978,22 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   Width of the smoothing region at the pedestal top boundary, in units of
   :math:`\hat{\rho}`.
 
+``chi_max`` (**time-varying-scalar** [default = 1.0])
+  Maximum effective thermal diffusion coefficient from the core transport model
+  allowed in the pedestal region [m^2/s].
+
+``D_e_max`` (**time-varying-scalar** [default = 1.0])
+  Maximum effective particle diffusion coefficient from the core transport model
+  allowed in the pedestal region [m^2/s].
+
+``V_e_max`` (**time-varying-scalar** [default = 1.0])
+  Maximum effective particle pinch velocity from the core transport model
+  allowed in the pedestal region [m/s].
+
+``V_e_min`` (**time-varying-scalar** [default = -1.0])
+  Minimum effective particle pinch velocity from the core transport model
+  allowed in the pedestal region [m/s].
+
 The following ``model_name`` options are currently supported:
 
 no_pedestal
@@ -1008,6 +1030,9 @@ total pressure at the pedestal and the ratio of ion to electron temperature.
 
 ``P_ped`` (**time-varying-scalar** [default = 1e5])
   The plasma pressure at the pedestal in units of :math:`Pa`.
+
+``P_ped_multiplier`` (**time-varying-scalar** [default = 1.0])
+  Multiplier for the pedestal pressure.
 
 ``n_e_ped`` (**time-varying-scalar** [default = 0.7])
   Electron density at the pedestal top. In units of reference density if
@@ -1120,6 +1145,11 @@ geometry
     Dictionary version 4.0.0.
 
 Geometry dicts for all geometry types can contain the following additional keys.
+
+``calcphibdot`` (bool [default = True])
+  Toggles whether to calculate time-dependent toroidal flux derivatives
+  (Phibdot) in the geometry dataclasses. Used in ``calc_coeffs`` for moving
+  mesh / time-dependent geometry terms.
 
 ``n_rho`` (int | None [default = 25])
   Number of radial grid cells. Creates a uniform grid with cell width
@@ -2056,6 +2086,12 @@ effects from Stott PPCF 2005.
 
 ``use_relativistic_correction`` (bool [default = False])
 
+``exclude_impurity_bremsstrahlung`` (bool [default = False])
+  If ``True``, calculates bremsstrahlung using main-ion contributions only.
+  As the Mavrin model computes both line and bremsstrahlung radiation
+  contributions from impurities, this is automatically set to ``True`` when
+  Mavrin impurity radiation is active to prevent double-counting.
+
 cyclotron_radiation
 ^^^^^^^^^^^^^^^^^^^
 
@@ -2435,6 +2471,9 @@ specific solver are defined in the relevant section below.
 ``fixed_point_use_backtracking`` (bool [default = False])
   Enables backtracking linesearch for fixed-point iterations (predictor-corrector). Can be used with the linear solver, or in the initial guess for nonlinear solvers.
 
+``fixed_point_sufficient_decrease`` (float [default = 0.5])
+  Sufficient decrease threshold used in the fixed point (predictor-corrector) backtracking line search.
+
 ``delta_reduction_factor`` (float [default = 0.5])
   Factor by which the step size is reduced during backtracking.
 
@@ -2595,9 +2634,11 @@ bootstrap_current
 ^^^^^^^^^^^^^^^^^
 ``model_name`` (str [default = 'sauter'])
   The name of the model to use. If not provided, the default is to use the
-  Sauter model with default values. One of ``sauter`` or ``zeros`` is supported.
+  Sauter model with default values. Options are ``'sauter'``, ``'redl'``, or ``'zeros'``.
+  Note that the Redl model has been shown to have poor accuracy in some cases
+  for multi-species plasmas.
 
-If the ``sauter`` model is used, the following parameters can be set:
+If the ``sauter`` or ``redl`` model is used, the following parameters can be set:
 
 ``bootstrap_multiplier`` (float [default = 1.0])
   Multiplier for the bootstrap current.
