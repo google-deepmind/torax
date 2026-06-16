@@ -16,7 +16,6 @@
 import json
 import logging
 from typing import Annotated, Any, Literal
-from unittest import mock
 
 import contourpy
 import eqdsk
@@ -90,14 +89,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
     elif isinstance(x, eqdsk.EQDSKInterface):
       return x
     elif isinstance(x, dict):
-      json_str = json.dumps(x)
-      # Mock all file openers to return the json string, allowing
-      # EQDSKInterface.from_file to deserialize in-memory without disk I/O.
-      # TODO(b/519910776): Use eqdsk library's json_reader when ready.
-      # https://github.com/Fusion-Power-Plant-Framework/eqdsk/issues/140
-      m = mock.mock_open(read_data=json_str)
-      with mock.patch('builtins.open', m), mock.patch('io.open', m):
-        return eqdsk.EQDSKInterface.from_file('eqdsk.json', no_cocos=True)
+      return eqdsk.EQDSKInterface.from_dict(x, no_cocos=True)
     else:
       raise ValueError(f'Expected EQDSKInterface or dict, but got {type(x)}')
 
