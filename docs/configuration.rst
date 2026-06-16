@@ -1394,6 +1394,8 @@ transport model.
 * ``'qualikiz'``
   The `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ quasilinear
   gyrokinetic transport model.
+* ``'tglf'``
+  The TGLF quasilinear turbulent transport model.
 * ``'combined'``
   An additive transport model, where contributions from a list of component
   models are summed to produce a combined total.
@@ -1768,6 +1770,52 @@ Runtime parameters for the QuaLiKiz model.
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
+
+
+tglf
+^^^^
+
+Runtime parameters for the TGLF model.
+
+``tglf_exec_path`` (str [default = '~/tglf'])
+  Path to the TGLF executable.
+
+``output_directory`` (str [default = '/tmp/torax_tglf_runs'])
+  Path to the directory where temporary TGLF run files are stored.
+
+``n_processes`` (int [default = 8])
+  Number of parallel TGLF calculations to run across radial faces.
+
+``n_cores_per_process`` (int [default = 2])
+  Number of cores to use for each TGLF process.
+
+``verbose`` (bool [default = False])
+  Whether to enable verbose logging (capturing stdout/stderr) for TGLF subprocesses.
+
+``use_rotation`` (bool [default = False])
+  Toggles the use of the rotation shear model.
+
+``rotation_multiplier`` (float [default = 1.0])
+  Multiplier for the input rotation shear.
+
+``DV_effective`` (bool [default = False])
+  If ``True``, use either :math:`D_{eff}` or :math:`V_{eff}` for particle
+  transport. See :ref:`physics_models` for more details.
+
+``An_min`` (float [default = 0.05])
+  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
+  :math:`D_{eff}`, if ``DV_effective==True``.
+
+``collisionality_multiplier`` (float [default = 1.0])
+  Collisionality multiplier.
+
+``tglf_settings`` (dict [default = {}])
+  Dictionary of TGLF namelist parameters to override default physics settings.
+
+``use_legacy_torax_defaults`` (bool [default = True])
+  *Deprecated.* If ``True``, use legacy TORAX defaults for TGLF parameters.
+  Otherwise, use the defaults distributed with TGLF. Note that in a future release,
+  this option will be removed and the defaults will be those distributed with TGLF.
 
 
 combined
