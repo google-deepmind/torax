@@ -83,6 +83,11 @@ class Block1DCoeffs:
     source_cell: Additional source terms on the cell grid for each channel.
       Depending on the source runtime_params, may be constant values for a
       timestep, or updated iteratively with new states in a nonlinear solver
+    ibc_mask: Boolean array of shape (num_cells, num_channels) indicating which
+      (cell, channel) entries have internal boundary conditions enforced via
+      matrix row replacement. None if no IBCs.
+    ibc_target_vec: Float array of shape (num_cells, num_channels) with target
+      values in solver-scaled units for constrained entries. None if no IBCs.
   """
   transient_in_cell: tuple[jax.Array, ...]
   transient_out_cell: tuple[jax.Array, ...] | None = None
@@ -90,3 +95,5 @@ class Block1DCoeffs:
   v_face: tuple[jax.Array, ...] | None = None
   source_mat_cell: OptionalTupleMatrix = None
   source_cell: tuple[jax.Array | None, ...] | None = None
+  ibc_mask: jax.Array | None = None
+  ibc_target_vec: jax.Array | None = None

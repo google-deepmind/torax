@@ -43,8 +43,6 @@ class RuntimeParams:
   fixed_dt: array_typing.FloatScalar
   dt_reduction_factor: float
   resistivity_multiplier: array_typing.FloatScalar
-  adaptive_T_source_prefactor: float
-  adaptive_n_source_prefactor: float
   dW_dt_smoothing_time_scale: float
   min_rho_norm: float
   evolve_ion_heat: bool = dataclasses.field(metadata={'static': True})
@@ -101,10 +99,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
     resistivity_multiplier:  1/multiplication factor for sigma (conductivity) to
       reduce current diffusion timescale to be closer to heat diffusion
       timescale
-    adaptive_T_source_prefactor: Prefactor for adaptive source term for setting
-      temperature internal boundary conditions.
-    adaptive_n_source_prefactor: Prefactor for adaptive source term for setting
-      density internal boundary conditions.
     dW_dt_smoothing_time_scale: Time scale [s] for the exponential moving
       average smoothing of dW/dt terms used in P_SOL and confinement time
       calculations. If 0.0, no smoothing is applied and raw dW/dt is used.
@@ -133,8 +127,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   resistivity_multiplier: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  adaptive_T_source_prefactor: pydantic.PositiveFloat = 2.0e10
-  adaptive_n_source_prefactor: pydantic.PositiveFloat = 2.0e8
   dW_dt_smoothing_time_scale: pydantic.NonNegativeFloat = 0.3
   min_rho_norm: torax_pydantic.UnitInterval = 0.015
 
@@ -180,8 +172,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         fixed_dt=self.fixed_dt.get_value(t),
         dt_reduction_factor=self.dt_reduction_factor,
         resistivity_multiplier=self.resistivity_multiplier.get_value(t),
-        adaptive_T_source_prefactor=self.adaptive_T_source_prefactor,
-        adaptive_n_source_prefactor=self.adaptive_n_source_prefactor,
         dW_dt_smoothing_time_scale=self.dW_dt_smoothing_time_scale,
         min_rho_norm=self.min_rho_norm,
         evolve_ion_heat=self.evolve_ion_heat,

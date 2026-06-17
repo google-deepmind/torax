@@ -48,19 +48,19 @@ class PedestalModelPydanticTest(parameterized.TestCase):
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
   def test_source_mode_validation(self):
-    with self.subTest("allow_adaptive_source"):
+    with self.subTest("allow_internal_boundary_condition"):
       pydantic_model.SetTpedNped.from_dict(
-          {"use_formation_model_with_adaptive_source": True}
+          {"use_formation_model_with_internal_boundary_condition": True}
       )
 
     with self.subTest("disallow_adaptive_transport"):
       with self.assertRaisesRegex(
           ValueError,
-          "use_formation_model_with_adaptive_source can only be True when mode"
-          " is ADAPTIVE_SOURCE",
+          "use_formation_model_with_internal_boundary_condition can only be"
+          " True when mode is INTERNAL_BOUNDARY_CONDITION",
       ):
         pydantic_model.SetTpedNped.from_dict({
-            "use_formation_model_with_adaptive_source": True,
+            "use_formation_model_with_internal_boundary_condition": True,
             "mode": runtime_params.Mode.ADAPTIVE_TRANSPORT,
         })
 

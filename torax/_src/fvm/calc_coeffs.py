@@ -466,10 +466,12 @@ def _calc_coeffs_full(
   # 5. Add internal boundary condition source terms
   if (
       runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
   ):
     pedestal_model_output = pedestal_transition_state.pedestal_model_output
-    if runtime_params.pedestal.use_formation_model_with_adaptive_source:
+    if (
+        runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
+    ):
 
       # Scale the pedestal output by the ramp fraction during transitions.
       # In H-mode, returns full H-mode values. In L-mode, returns L-mode
@@ -484,7 +486,7 @@ def _calc_coeffs_full(
           ramp_fraction=ramp_fraction,
       )
 
-      # Adaptive source should be applied if we're in H mode or still in the
+      # Direct IBC should be applied if we're in H mode or still in the
       # LH/HL ramp.
       apply_pedestal_internal_boundary_conditions = (
           pedestal_transition_state.confinement_mode
@@ -503,12 +505,10 @@ def _calc_coeffs_full(
       )
     else:
       # If not using the formation model, we always apply the adaptive source.
-      pedestal_internal_boundary_conditions = (
-          pedestal_model_output.to_internal_boundary_conditions(
-              geo,
-              core_profiles=core_profiles,
-              pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
-          )
+      pedestal_internal_boundary_conditions = pedestal_model_output.to_internal_boundary_conditions(
+          geo,
+          core_profiles=core_profiles,
+          pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
       )
 
     # Combine the user-specified internal boundary conditions with the pedestal
@@ -530,25 +530,6 @@ def _calc_coeffs_full(
     combined_internal_boundary_conditions = (
         runtime_params.profile_conditions.internal_boundary_conditions
     )
-
-  # Apply the combined internal boundary conditions to the source terms.
-  (
-      source_i,
-      source_e,
-      source_n_e,
-      source_mat_ii,
-      source_mat_ee,
-      source_mat_nn,
-  ) = internal_boundary_conditions_lib.apply_adaptive_source(
-      source_T_i=source_i,
-      source_T_e=source_e,
-      source_n_e=source_n_e,
-      source_mat_ii=source_mat_ii,
-      source_mat_ee=source_mat_ee,
-      source_mat_nn=source_mat_nn,
-      runtime_params=runtime_params,
-      internal_boundary_conditions=combined_internal_boundary_conditions,
-  )
 
   # --- Build arguments to solver  --- #
   # Build arguments to solver based on which variables are evolving
@@ -609,6 +590,13 @@ def _calc_coeffs_full(
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
+  ibc_mask, ibc_target_vec = (
+      combined_internal_boundary_conditions.to_solver_coeffs(
+          evolving_names=evolving_names,
+          nx=geo.torax_mesh.nx,
+      )
+  )
+
   coeffs = block_1d_coeffs.Block1DCoeffs(
       transient_out_cell=transient_out_cell,
       transient_in_cell=transient_in_cell,
@@ -616,6 +604,8 @@ def _calc_coeffs_full(
       v_face=v_face,
       source_mat_cell=source_mat_cell,
       source_cell=source_cell,
+      ibc_mask=ibc_mask,
+      ibc_target_vec=ibc_target_vec,
   )
 
   return coeffs

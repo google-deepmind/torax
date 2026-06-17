@@ -547,14 +547,6 @@ equations being solved, constant numerical variables.
   current diffusion timescale to be closer to the energy confinement timescale,
   for testing purposes.
 
-``adaptive_T_source_prefactor`` (float [default = 2e10])
-  Prefactor for adaptive source term for setting temperature internal boundary
-  conditions.
-
-``adaptive_n_source_prefactor`` (float [default = 2e8])
-  Prefactor for adaptive source term for setting density internal boundary
-  conditions.
-
 ``dW_dt_smoothing_time_scale`` (float [default = 0.3])
   Time scale [s] for the exponential moving average smoothing of dW/dt terms
   used in P_SOL and confinement time calculations. If 0.0, no smoothing is
@@ -865,10 +857,10 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   mock up a pedestal, this feature can also be used for L-mode modeling with a
   desired internal boundary condition below :math:`\hat{\rho}=1`.
 
-``mode`` (str [default = 'ADAPTIVE_SOURCE'])
+``mode`` (str [default = 'INTERNAL_BOUNDARY_CONDITION'])
   Defines how the pedestal is generated. Options:
 
-  * ``'ADAPTIVE_SOURCE'``: Sets the pedestal by adding a source/sink term at the
+  * ``'INTERNAL_BOUNDARY_CONDITION'``: Sets the pedestal by adding a source/sink term at the
     pedestal top, forcing the pedestal top values to be as prescribed by the
     pedestal model. This is the default mode whenever ``set_pedestal`` is True.
   * ``'ADAPTIVE_TRANSPORT'``: Sets the pedestal by modifying the transport
@@ -876,21 +868,21 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
     self-consistently evolve. Transport coefficients are scaled to allow the
     temperature and density to evolve towards the prescribed pedestal values.
 
-``use_formation_model_with_adaptive_source`` (bool [default = False])
-  Only applicable when ``mode`` is ``'ADAPTIVE_SOURCE'``. When True, enables
+``use_formation_model_with_internal_boundary_condition`` (bool [default = False])
+  Only applicable when ``mode`` is ``'INTERNAL_BOUNDARY_CONDITION'``. When True, enables
   state-dependent L-H and H-L transitions based on comparison of the power
   crossing the separatrix (:math:`P_{SOL}`) with the L-H power threshold
   (:math:`P_{LH}`), as determined by the formation model. Pedestal values are
   ramped over the ``transition_time_width`` during transitions. When False,
-  ``ADAPTIVE_SOURCE`` mode always applies the prescribed pedestal values
+  ``INTERNAL_BOUNDARY_CONDITION`` mode always applies the prescribed pedestal values
   (legacy behavior). Raises an error if set to True when ``mode`` is not
-  ``'ADAPTIVE_SOURCE'``.
+  ``'INTERNAL_BOUNDARY_CONDITION'``.
 
 ``transition_time_width`` (**time-varying-scalar** [default = 0.5])
   Duration of the L-H or H-L transition ramp in seconds. During a transition,
   pedestal values are linearly interpolated between L-mode baseline values
   and H-mode target values over this time window. Must be strictly positive.
-  Only used when ``use_formation_model_with_adaptive_source`` is True.
+  Only used when ``use_formation_model_with_internal_boundary_condition`` is True.
 
 ``P_LH_hysteresis_factor`` (**time-varying-scalar** [default = 0.8])
   Hysteresis factor for H-to-L back transitions. When checking for an H-L
@@ -900,7 +892,7 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   than 1 means the plasma must lose more power to transition back to L-mode
   than was required to enter H-mode, consistent with experimentally observed
   hysteresis. Must be in [0, 1]. Currently, only used when
-  ``use_formation_model_with_adaptive_source`` is True.
+  ``use_formation_model_with_internal_boundary_condition`` is True.
 
 ``include_dW_dt_in_P_SOL`` (**bool** [default = False])
   Whether to include the :math:`dW/dt` term in the :math:`P_{SOL}` calculation
@@ -2873,8 +2865,6 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'evolve_current': True,
           'evolve_density': True,
           'dt_reduction_factor': 3,
-          'adaptive_T_source_prefactor': 1.0e10,
-          'adaptive_n_source_prefactor': 1.0e8,
       },
       'geometry': {
           'geometry_type': 'chease',
