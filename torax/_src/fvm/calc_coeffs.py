@@ -609,6 +609,13 @@ def _calc_coeffs_full(
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
+  ibc_mask, ibc_target_vec = (
+      combined_internal_boundary_conditions.to_solver_coeffs(
+          evolving_names=evolving_names,
+          nx=geo.torax_mesh.nx,
+      )
+  )
+
   coeffs = block_1d_coeffs.Block1DCoeffs(
       transient_out_cell=transient_out_cell,
       transient_in_cell=transient_in_cell,
@@ -616,6 +623,8 @@ def _calc_coeffs_full(
       v_face=v_face,
       source_mat_cell=source_mat_cell,
       source_cell=source_cell,
+      ibc_mask=ibc_mask,
+      ibc_target_vec=ibc_target_vec,
   )
 
   return coeffs
