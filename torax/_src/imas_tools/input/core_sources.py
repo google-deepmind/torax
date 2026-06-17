@@ -15,86 +15,16 @@
 
 from collections.abc import Mapping, Sequence
 import dataclasses
-from typing import Any, NamedTuple, Self
+from typing import Any, Self
 
 from absl import logging
 from imas import ids_struct_array
 from imas import ids_structure
 from imas import ids_toplevel
 import numpy as np
+from torax._src.imas_tools import sources_mapping
 from torax._src.imas_tools.input import loader
-from torax._src.sources import bremsstrahlung_heat_sink
-from torax._src.sources import cyclotron_radiation_heat_sink
-from torax._src.sources import electron_cyclotron_source
-from torax._src.sources import fusion_heat_source
-from torax._src.sources import gas_puff_source
-from torax._src.sources import ohmic_heat_source
-from torax._src.sources import pellet_source
-from torax._src.sources import qei_source
 from torax._src.sources import source as source_module
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
-from torax._src.sources.ion_cyclotron_source import base as ion_cyclotron_source
-
-
-class _SourceMappingEntry(NamedTuple):
-  affected_core_profiles: tuple[source_module.AffectedCoreProfile, ...]
-  torax_source_name: str
-  is_external: bool
-
-
-_IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING = {
-    # External fuelling and HCD sources
-    "pellet": _SourceMappingEntry(
-        pellet_source.PelletSource.AFFECTED_CORE_PROFILES,
-        pellet_source.PelletSource.SOURCE_NAME,
-        True,
-    ),
-    "gas_puff": _SourceMappingEntry(
-        gas_puff_source.GasPuffSource.AFFECTED_CORE_PROFILES,
-        gas_puff_source.GasPuffSource.SOURCE_NAME,
-        True,
-    ),
-    "ec": _SourceMappingEntry(
-        electron_cyclotron_source.ElectronCyclotronSource.AFFECTED_CORE_PROFILES,
-        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
-        True,
-    ),
-    "ic": _SourceMappingEntry(
-        ion_cyclotron_source.IonCyclotronSource.AFFECTED_CORE_PROFILES,
-        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
-        True,
-    ),
-    "ohmic": _SourceMappingEntry(
-        ohmic_heat_source.OhmicHeatSource.AFFECTED_CORE_PROFILES,
-        ohmic_heat_source.OhmicHeatSource.SOURCE_NAME,
-        False,
-    ),
-    "fusion": _SourceMappingEntry(
-        fusion_heat_source.FusionHeatSource.AFFECTED_CORE_PROFILES,
-        fusion_heat_source.FusionHeatSource.SOURCE_NAME,
-        False,
-    ),
-    "collisional_equipartition": _SourceMappingEntry(
-        qei_source.QeiSource.AFFECTED_CORE_PROFILES,
-        qei_source.QeiSource.SOURCE_NAME,
-        False,
-    ),
-    "cyclotron_radiation": _SourceMappingEntry(
-        cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.AFFECTED_CORE_PROFILES,
-        cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_NAME,
-        False,
-    ),
-    "bremsstrahlung": _SourceMappingEntry(
-        bremsstrahlung_heat_sink.BremsstrahlungHeatSink.AFFECTED_CORE_PROFILES,
-        bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
-        False,
-    ),
-    "impurity_radiation": _SourceMappingEntry(
-        impurity_radiation_heat_sink.ImpurityRadiationHeatSink.AFFECTED_CORE_PROFILES,
-        impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME,
-        False,
-    ),
-}
 
 
 @dataclasses.dataclass
@@ -206,8 +136,13 @@ def sources_from_IMAS(
   accumulator = _SourceCollection()
   for source in ids.source:
     imas_source_name = str(source.identifier.name)
-    if imas_source_name in _IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING:
-      source_mapping = _IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING[imas_source_name]
+    if (
+        imas_source_name
+        in sources_mapping.IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING
+    ):
+      source_mapping = sources_mapping.IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING[
+          imas_source_name
+      ]
       if load_only_external_sources and not source_mapping.is_external:
         continue
       source_data = _extract_source_profiles(
