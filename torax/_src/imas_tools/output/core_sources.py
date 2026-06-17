@@ -19,7 +19,10 @@ import datetime
 
 import imas
 from imas import ids_toplevel
+import numpy as np
 from torax._src import array_typing
+from torax._src import constants
+from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.imas_tools import sources_mapping
 from torax._src.sources import qei_source
@@ -28,6 +31,7 @@ from torax._src.sources import source_profiles
 
 # pylint: disable=invalid-name
 def core_sources_to_IMAS(
+    core_profiles: Sequence[state.CoreProfiles],
     core_sources: Sequence[source_profiles.SourceProfiles],
     geometry: Sequence[geometry_lib.Geometry],
     times: array_typing.FloatVector,
@@ -61,11 +65,20 @@ def core_sources_to_IMAS(
     for i in range(num_times):
       t = times[i]
       geo = geometry[i]
+      core_source_state = core_sources[i]
+      core_profile_state = core_profiles[i]
 
       source_node.profiles_1d[i].time = t
       source_node.global_quantities[i].time = t
 
       _fill_grid_coordinates(source_node.profiles_1d[i], geo)
+      _fill_profiles_1d(
+          source_node.profiles_1d[i],
+          core_source_state,
+          core_profile_state,
+          geo,
+          source_name,
+      )
 
   return ids
 
@@ -97,3 +110,54 @@ def _fill_grid_coordinates(
   grid.rho_tor = geo.rho
   grid.volume = geo.volume
   grid.area = geo.area
+
+
+def _fill_profiles_1d(
+    profiles_1d_slice: imas.ids_structure.IDSStructure,
+    core_source_state: source_profiles.SourceProfiles,
+    core_profile_state: state.CoreProfiles,
+    geo: geometry_lib.Geometry,
+    source_name: str,
+) -> None:
+  """Fills 1D profiles for a source at a single time slice."""
+  energy_el = np.zeros_like(geo.rho)
+  energy_ion = np.zeros_like(geo.rho)
+  particles_el = np.zeros_like(geo.rho)
+  j_par = np.zeros_like(geo.rho)
+  # qei source stored differently so needs to be handled separately
+  if source_name == qei_source.QeiSource.SOURCE_NAME:
+    # qei represents power to ions
+    qei_val = core_source_state.qei.qei_coef * (
+        core_profile_state.T_e.value - core_profile_state.T_i.value
+    )
+    energy_ion = qei_val
+    energy_el = -qei_val
+  else:
+    energy_el = core_source_state.T_e.get(source_name, energy_el)
+    energy_ion = core_source_state.T_i.get(source_name, energy_ion)
+    particles_el = core_source_state.n_e.get(source_name, particles_el)
+    j_par = core_source_state.psi.get(source_name, j_par)
+
+  profiles_1d_slice.electrons.energy = energy_el
+  profiles_1d_slice.total_ion_energy = energy_ion
+  profiles_1d_slice.electrons.particles = particles_el
+  # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
+  # Currents sign flipped due to the difference between TORAX COCOS convention
+  # and IMAS COCOS.
+  profiles_1d_slice.j_parallel = -1.0 * j_par
+
+  # TODO: Map Ion Species-Specific Particle Sources. For this we
+  # will need to know which ion(s) each source is affecting. For now we just
+  # create the ion substructure for all ions (including impurities) without
+  # filling the profiles.
+  main_ions = list(core_profile_state.main_ion_fractions.keys())
+  impurities = list(core_profile_state.impurity_fractions.keys())
+  all_ions = main_ions + impurities
+  profiles_1d_slice.ion.resize(len(all_ions))
+  for ion_node, ion_symbol in zip(profiles_1d_slice.ion, all_ions):
+    ion_properties = constants.ION_PROPERTIES_DICT[ion_symbol]
+    ion_node.name = ion_symbol
+    ion_node.element.resize(1)
+    ion_node.element[0].a = ion_properties.A
+    ion_node.element[0].z_n = ion_properties.Z
+
