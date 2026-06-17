@@ -547,14 +547,6 @@ equations being solved, constant numerical variables.
   current diffusion timescale to be closer to the energy confinement timescale,
   for testing purposes.
 
-``adaptive_T_source_prefactor`` (float [default = 2e10])
-  Prefactor for adaptive source term for setting temperature internal boundary
-  conditions.
-
-``adaptive_n_source_prefactor`` (float [default = 2e8])
-  Prefactor for adaptive source term for setting density internal boundary
-  conditions.
-
 ``dW_dt_smoothing_time_scale`` (float [default = 0.3])
   Time scale [s] for the exponential moving average smoothing of dW/dt terms
   used in P_SOL and confinement time calculations. If 0.0, no smoothing is
@@ -2873,8 +2865,6 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'evolve_current': True,
           'evolve_density': True,
           'dt_reduction_factor': 3,
-          'adaptive_T_source_prefactor': 1.0e10,
-          'adaptive_n_source_prefactor': 1.0e8,
       },
       'geometry': {
           'geometry_type': 'chease',
