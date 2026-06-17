@@ -109,7 +109,15 @@ def core_sources_to_IMAS(
       source_node.global_quantities[i].time = t
 
       _fill_grid_coordinates(source_node.profiles_1d[i], geo)
+      _fill_profiles_1d(
           source_node.profiles_1d[i],
+          cs_state,
+          core_profile_state,
+          ppo,
+          geo,
+          torax_config,
+          src_name,
+      )
           source_node.global_quantities[i],
 
   return ids
@@ -151,4 +159,64 @@ def _extend_cell_profile_to_boundaries(
   return output.extend_cell_grid_to_boundaries(
       [cell_val], np.array([face_val])
   )[0]
+
+
+def _fill_profiles_1d(
+    profiles_1d_slice: imas.ids_structure.IDSStructure,
+    cs_state: source_profiles.SourceProfiles,
+    core_profile_state: state_lib.CoreProfiles,
+    ppo: post_processing.PostProcessedOutputs,
+    geo: geometry_lib.Geometry,
+    torax_config: model_config.ToraxConfig,
+    src_name: str,
+) -> None:
+  """Fills 1D profiles for a source at a single time slice."""
+  energy_el_cell = np.zeros_like(geo.rho)
+  energy_ion_cell = np.zeros_like(geo.rho)
+  particles_el_cell = np.zeros_like(geo.rho)
+  j_par_cell = np.zeros_like(geo.rho)
+  # qei source stored differently so needs to be handled separately
+  if src_name == "qei":
+    # qei represents power to ions
+    qei_val = cs_state.qei.qei_coef * (
+        core_profile_state.T_e.value - core_profile_state.T_i.value
+    )
+    energy_ion_cell = qei_val
+    energy_el_cell = -qei_val
+  else:
+    energy_el_cell = cs_state.T_e.get(src_name, energy_el_cell)
+    energy_ion_cell = cs_state.T_i.get(src_name, energy_ion_cell)
+    particles_el_cell = cs_state.n_e.get(src_name, particles_el_cell)
+    j_par_cell = cs_state.psi.get(src_name, j_par_cell)
+
+  profiles_1d_slice.electrons.energy = _extend_cell_profile_to_boundaries(
+      energy_el_cell, geo
+  )
+  profiles_1d_slice.total_ion_energy = _extend_cell_profile_to_boundaries(
+      energy_ion_cell, geo
+  )
+  profiles_1d_slice.electrons.particles = _extend_cell_profile_to_boundaries(
+      particles_el_cell, geo
+  )
+  # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
+  # Currents sign flipped due to the difference between TORAX COCOS convention
+  # and IMAS COCOS.
+  profiles_1d_slice.j_parallel = -1.0 * _extend_cell_profile_to_boundaries(
+      j_par_cell, geo
+  )
+
+  # TODO: Map Ion Species-Specific Particle Sources. For this we
+  # will need to know which ion(s) each source is affecting. For now we just
+  # create the ion substructure for all ions (including impurities) without
+  # filling the profiles.
+  main_ions = list(core_profile_state.main_ion_fractions.keys())
+  impurities = list(core_profile_state.impurity_fractions.keys())
+  all_ions = main_ions + impurities
+  profiles_1d_slice.ion.resize(len(all_ions))
+  for k, symbol in enumerate(all_ions):
+    ion_properties = constants.ION_PROPERTIES_DICT[symbol]
+    profiles_1d_slice.ion[k].name = symbol
+    profiles_1d_slice.ion[k].element.resize(1)
+    profiles_1d_slice.ion[k].element[0].a = ion_properties.A
+    profiles_1d_slice.ion[k].element[0].z_n = ion_properties.Z
 
