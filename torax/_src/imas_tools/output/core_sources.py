@@ -118,7 +118,15 @@ def core_sources_to_IMAS(
           torax_config,
           src_name,
       )
+      _fill_global_quantities(
           source_node.global_quantities[i],
+          cs_state,
+          core_profile_state,
+          ppo,
+          geo,
+          torax_config,
+          src_name,
+      )
 
   return ids
 
@@ -220,3 +228,44 @@ def _fill_profiles_1d(
     profiles_1d_slice.ion[k].element[0].a = ion_properties.A
     profiles_1d_slice.ion[k].element[0].z_n = ion_properties.Z
 
+
+def _fill_global_quantities(
+    global_quantities_slice: imas.ids_structure.IDSStructure,
+    cs_state: source_profiles.SourceProfiles,
+    core_profile_state: state_lib.CoreProfiles,
+    ppo: post_processing.PostProcessedOutputs,
+    geo: geometry_lib.Geometry,
+    torax_config: model_config.ToraxConfig,
+    src_name: str,
+) -> None:
+  """Fills integrated global quantities for a source at a single time slice."""
+  energy_el_cell = np.zeros_like(geo.rho)
+  energy_ion_cell = np.zeros_like(geo.rho)
+  particles_el_cell = np.zeros_like(geo.rho)
+  j_par_cell = np.zeros_like(geo.rho)
+
+  if src_name == "qei":
+    qei_val = cs_state.qei.qei_coef * (
+        core_profile_state.T_e.value - core_profile_state.T_i.value
+    )
+    energy_ion_cell = qei_val
+    energy_el_cell = -qei_val
+  else:
+    energy_el_cell = cs_state.T_e.get(src_name, energy_el_cell)
+    energy_ion_cell = cs_state.T_i.get(src_name, energy_ion_cell)
+    particles_el_cell = cs_state.n_e.get(src_name, particles_el_cell)
+    j_par_cell = cs_state.psi.get(src_name, j_par_cell)
+
+  power_el = math_utils.volume_integration(energy_el_cell, geo)
+  power_ion = math_utils.volume_integration(energy_ion_cell, geo)
+  particles_el_int = math_utils.volume_integration(particles_el_cell, geo)
+  # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
+  # Currents sign flipped due to the difference between TORAX COCOS convention
+  # and IMAS COCOS.
+  j_curr_int = -1.0 * math_utils.area_integration(j_par_cell, geo)
+
+  global_quantities_slice.electrons.power = power_el
+  global_quantities_slice.total_ion_power = power_ion
+  global_quantities_slice.power = power_el + power_ion
+  global_quantities_slice.electrons.particles = particles_el_int
+  global_quantities_slice.current_parallel = j_curr_int
