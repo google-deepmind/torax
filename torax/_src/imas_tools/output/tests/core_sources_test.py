@@ -1,0 +1,175 @@
+# Copyright 2026 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Tests for mapping TORAX sources to IMAS core_sources IDS."""
+
+from absl.testing import absltest
+import numpy as np
+import torax
+from torax._src.imas_tools.input import core_sources as input_core_sources
+from torax._src.imas_tools.input import loader
+from torax._src.imas_tools.output import core_sources as output_core_sources
+from torax._src.orchestration import run_simulation
+from torax._src.test_utils import sim_test_case
+from torax._src.torax_pydantic import config as model_config
+
+# pylint: disable=invalid-name
+
+
+class CoreSourcesTest(sim_test_case.SimTestCase):
+
+  def test_save_sources_to_IMAS(self):
+    """Checks that multiple time slices of sources can be saved into an IDS."""
+    rtol = 1e-6
+    atol = 1e-8
+
+    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    # Adds other TORAX sources to check that all sources are correctly output
+    config["sources"]["ohmic"] = {}
+    config["sources"]["cyclotron_radiation"] = {}
+    config["sources"]["bremsstrahlung"] = {}
+    config["sources"]["impurity_radiation"] = {}
+    config["sources"]["icrh"] = {"mode": "zero"}
+    config["sources"]["ecrh"] = {"mode": "zero"}
+    config["time_step_calculator"]["t_final"] = 0.02
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    state_history = torax.run_simulation(
+        torax_config,
+        log_timestep_info=False,
+        progress_bar=False,
+    )
+
+    # Save output sources to IDS
+    filled_ids = output_core_sources.core_sources_to_IMAS(
+        state_history.core_sources,
+        state_history.geometries,
+        state_history.times,
+    )
+
+    # Validate the output mapping
+    filled_ids.validate()
+    np.testing.assert_allclose(filled_ids.time, state_history.times)
+    source_names = [str(src.identifier.name) for src in filled_ids.source]
+    self.assertIn("fusion", source_names)
+    self.assertIn("pellet", source_names)
+    self.assertIn("gas_puff", source_names)
+    self.assertIn("ohmic", source_names)
+    self.assertIn("cyclotron_radiation", source_names)
+    self.assertIn("bremsstrahlung", source_names)
+    self.assertIn("impurity_radiation", source_names)
+    self.assertIn("ic", source_names)
+    self.assertIn("ec", source_names)
+    self.assertIn("collisional_equipartition", source_names)
+
+    # Check fusion source IMAS output against TORAX for the first time slice.
+    for source in filled_ids.source:
+      if str(source.identifier.name) == "fusion":
+        expected_energy_e = (
+            state_history.core_sources[0].sources["fusion"].power_density_e
+        )
+        actual_energy_e = source.profiles_1d[0].electrons.energy
+        np.testing.assert_allclose(
+            actual_energy_e, expected_energy_e, rtol=rtol, atol=atol
+        )
+
+        expected_energy_i = (
+            state_history.core_sources[0].sources["fusion"].power_density_i
+        )
+        actual_energy_i = source.profiles_1d[0].total_ion_energy
+        np.testing.assert_allclose(
+            actual_energy_i, expected_energy_i, rtol=rtol, atol=atol
+        )
+        break
+
+  def test_round_trip_with_IMAS_sources(self):
+    """Tests a round trip (IMAS -> TORAX -> IMAS) using the input core_sources test IDS."""
+    rtol = 1e-6
+    atol = 1e-8
+
+    ids_in = loader.load_imas_data("core_sources_ddv4.nc", "core_sources")
+
+    # Update TORAX simulation config with IMAS sources
+    imas_sources = input_core_sources.sources_from_IMAS(
+        ids_in, load_only_external_sources=True
+    )
+
+    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    config["sources"] |= imas_sources
+    torax_config = model_config.ToraxConfig.from_dict(config)
+
+    # Prepare simulation
+    initial_state, _, _ = run_simulation.prepare_simulation(torax_config)
+
+    # Save initial state back to IMAS IDS
+    core_sources = [initial_state.core_sources]
+    geometry = [initial_state.geometry]
+    times = np.array([initial_state.t])
+
+    filled_ids = output_core_sources.core_sources_to_IMAS(
+        core_sources,
+        geometry,
+        times,
+    )
+    filled_ids.validate()
+    source_names = [str(source.identifier.name) for source in filled_ids.source]
+    self.assertIn("fusion", source_names)
+    self.assertIn("pellet", source_names)
+    self.assertIn("gas_puff", source_names)
+    self.assertIn("collisional_equipartition", source_names)
+    self.assertIn("ec", source_names)
+    self.assertIn("ic", source_names)
+    self.assertIn("nbi", source_names)
+    # Check that the exported IC and EC IDS profiles match the input IDS ones.
+    for source_out in filled_ids.source:
+      source_name = str(source_out.identifier.name)
+      if source_name not in ["ec", "ic"]:
+        continue
+
+      grid_out = source_out.profiles_1d[0].grid.rho_tor_norm
+      expected_energy_e = np.zeros_like(grid_out)
+      expected_energy_i = np.zeros_like(grid_out)
+      expected_j_parallel = np.zeros_like(grid_out)
+
+      # Combine source profiles in ids_in corresponding to the same source
+      # as there are 2 EC sources (one for each launcher) for example.
+      for source in ids_in.source:
+        if str(source.identifier.name) == source_name:
+          p1d = source.profiles_1d[0]
+          grid_in = p1d.grid.rho_tor_norm
+
+          expected_energy_e += np.interp(
+              grid_out, grid_in, p1d.electrons.energy
+          )
+          expected_energy_i += np.interp(
+              grid_out, grid_in, p1d.total_ion_energy
+          )
+          expected_j_parallel += np.interp(grid_out, grid_in, p1d.j_parallel)
+
+      # Check output profiles against input ones
+      actual = source_out.profiles_1d[0].electrons.energy
+      np.testing.assert_allclose(
+          actual, expected_energy_e, rtol=rtol, atol=atol
+      )
+      actual = source_out.profiles_1d[0].total_ion_energy
+      np.testing.assert_allclose(
+          actual, expected_energy_i, rtol=rtol, atol=atol
+      )
+      actual = source_out.profiles_1d[0].j_parallel
+      np.testing.assert_allclose(
+          actual, expected_j_parallel, rtol=rtol, atol=atol
+      )
+
+
+if __name__ == "__main__":
+  absltest.main()
