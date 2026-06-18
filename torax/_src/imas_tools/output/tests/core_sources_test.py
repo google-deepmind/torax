@@ -64,16 +64,24 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     self.assertIn("fusion", source_names)
     self.assertIn("pellet", source_names)
     self.assertIn("gas_puff", source_names)
+    self.assertIn("collisional_equipartition", source_names)
+    self.assertIn("ec", source_names)
+    self.assertIn("ic", source_names)
     self.assertIn("ohmic", source_names)
     self.assertIn("cyclotron_radiation", source_names)
     self.assertIn("bremsstrahlung", source_names)
     self.assertIn("impurity_radiation", source_names)
-    self.assertIn("ic", source_names)
-    self.assertIn("ec", source_names)
-    self.assertIn("collisional_equipartition", source_names)
+    self.assertIn("custom_1", source_names)
+    self.assertIn("custom_2", source_names)
+    self.assertIn("custom_3", source_names)
 
     # Check fusion source IMAS output against TORAX for the first time slice.
     for source in filled_ids.source:
+      if str(source.identifier.name) == "custom_1":
+        self.assertEqual(
+            source.identifier.description, "TORAX generic current source"
+        )
+
       if str(source.identifier.name) == "fusion":
         expected_energy_e = (
             state_history.core_sources[0].sources["fusion"].power_density_e
@@ -90,7 +98,6 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
         np.testing.assert_allclose(
             actual_energy_i, expected_energy_i, rtol=rtol, atol=atol
         )
-        break
 
   def test_round_trip_with_IMAS_sources(self):
     """Tests a round trip (IMAS -> TORAX -> IMAS) using the input core_sources test IDS."""
@@ -127,6 +134,9 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     self.assertIn("pellet", source_names)
     self.assertIn("gas_puff", source_names)
     self.assertIn("collisional_equipartition", source_names)
+    self.assertIn("custom_1", source_names)
+    self.assertIn("custom_2", source_names)
+    self.assertIn("custom_3", source_names)
     self.assertIn("ec", source_names)
     self.assertIn("ic", source_names)
     self.assertIn("nbi", source_names)

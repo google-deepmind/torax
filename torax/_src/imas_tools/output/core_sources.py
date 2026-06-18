@@ -49,14 +49,10 @@ def core_sources_to_IMAS(
   ids.source.resize(len(active_sources))
 
   for source_name, source_node in zip(active_sources, ids.source, strict=True):
-    if "generic" not in source_name:
-      imas_name = sources_mapping.TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID[
-          source_name
-      ]
-      # TODO: Also map generic sources to the IMAS sources_mapping
-      source_node.identifier = imas.identifiers.core_source_identifier[
-          imas_name
-      ]
+    imas_name = sources_mapping.TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID[source_name]
+    source_node.identifier = imas.identifiers.core_source_identifier[imas_name]
+    if description := sources_mapping.CUSTOM_SOURCE_DESCRIPTIONS.get(imas_name):
+      source_node.identifier.description = description
 
     source_node.profiles_1d.resize(num_times)
     source_node.global_quantities.resize(num_times)
