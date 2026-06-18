@@ -81,6 +81,9 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     self.assertIn("fusion", source_names)
     self.assertIn("pellet", source_names)
     self.assertIn("gas_puff", source_names)
+    self.assertIn("generic_current", source_names)
+    self.assertIn("generic_heat", source_names)
+    self.assertIn("generic_particle", source_names)
     # self.assertIn("collisional_equipartition", source_names)
 
     # Check fusion source IMAS output against TORAX for the first time slice.
@@ -142,6 +145,9 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     self.assertIn("pellet", source_names)
     self.assertIn("gas_puff", source_names)
     self.assertIn("collisional_equipartition", source_names)
+    self.assertIn("generic_current", source_names)
+    self.assertIn("generic_heat", source_names)
+    self.assertIn("generic_particle", source_names)
     self.assertIn("ec", source_names)
     self.assertIn("ic", source_names)
     # Check that the exported IC and EC IDS profiles match the input IDS ones.
