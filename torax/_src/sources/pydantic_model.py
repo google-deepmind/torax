@@ -28,6 +28,7 @@ from torax._src.sources import gas_puff_source as gas_puff_source_lib
 from torax._src.sources import generic_current_source as generic_current_source_lib
 from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat_source_lib
 from torax._src.sources import generic_particle_source as generic_particle_source_lib
+from torax._src.sources import hpi2nn_pellet_source as hpi2nn_pellet_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import qei_source as qei_source_lib
@@ -90,6 +91,12 @@ class Sources(torax_pydantic.BaseModelFrozen):
   )
   generic_particle: (
       generic_particle_source_lib.GenericParticleSourceConfig | None
+  ) = pydantic.Field(
+      discriminator='model_name',
+      default=None,
+  )
+  hpi2nn_pellet_source: (
+      hpi2nn_pellet_source_lib.HPI2NNPelletConfig | None
   ) = pydantic.Field(
       discriminator='model_name',
       default=None,
@@ -161,6 +168,11 @@ class Sources(torax_pydantic.BaseModelFrozen):
             constructor_data[k][
                 'model_name'
             ] = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'hpi2nn_pellet_source':
+          if 'model_name' not in v:
+            constructor_data[k][
+                'model_name'
+            ] = hpi2nn_pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'fusion':
           if 'model_name' not in v:
             constructor_data[k][

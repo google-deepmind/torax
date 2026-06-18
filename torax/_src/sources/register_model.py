@@ -22,6 +22,7 @@ from torax._src.sources import gas_puff_source as gas_puff_source_lib
 from torax._src.sources import generic_current_source as generic_current_source_lib
 from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat_source_lib
 from torax._src.sources import generic_particle_source as generic_particle_source_lib
+from torax._src.sources import hpi2nn_pellet_source as hpi2nn_pellet_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
 from torax._src.sources import pydantic_model as sources_pydantic_model
@@ -72,6 +73,10 @@ def _validate_source_model_config(
       )
     case pellet_source_lib.PelletSource.SOURCE_NAME:
       default_model_name = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+    case hpi2nn_pellet_source_lib.HPI2NNPelletSource.SOURCE_NAME:
+      default_model_name = (
+          hpi2nn_pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+      )
     case fusion_heat_source_lib.FusionHeatSource.SOURCE_NAME:
       default_model_name = fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case (
