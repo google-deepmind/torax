@@ -31,7 +31,7 @@ from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
-
+from torax._src.physics import fast_ion as fast_ion_lib
 
 # pylint: disable=invalid-name
 def core_profiles_to_IMAS(
@@ -206,8 +206,10 @@ def _fill_profiles_1d(
     T_i = cp_state.T_i.cell_plus_boundaries() * 1e3
     n_e = cp_state.n_e.cell_plus_boundaries()
     n_i = cp_state.n_i.cell_plus_boundaries()
-    n_impurity = cp_state.n_impurity.cell_plus_boundaries()
     pressure_thermal_i = cp_state.pressure_thermal_i.cell_plus_boundaries()
+    pressure_fast_i = cp_state.pressure_fast_i.cell_plus_boundaries()
+    pressure_thermal_e = cp_state.pressure_thermal_e.cell_plus_boundaries()
+    pressure_thermal_total = cp_state.pressure_thermal_total.cell_plus_boundaries()
     ids.profiles_1d[i].t_i_average = T_i
     ids.profiles_1d[i].electrons.temperature = (
         cp_state.T_e.cell_plus_boundaries() * 1e3
@@ -217,12 +219,17 @@ def _fill_profiles_1d(
     ids.profiles_1d[i].electrons.density_fast = np.zeros(
         len(ids.profiles_1d[i].grid.rho_tor_norm)
     )
-    ids.profiles_1d[i].electrons.pressure_thermal = (
-        cp_state.pressure_thermal_e.cell_plus_boundaries()
-    )
+    ids.profiles_1d[i].electrons.pressure_thermal = pressure_thermal_e
     ids.profiles_1d[i].pressure_ion_total = pressure_thermal_i
     ids.profiles_1d[i].pressure_thermal = (
-        cp_state.pressure_thermal_total.cell_plus_boundaries()
+        pressure_thermal_total
+    )
+    # Assume isotropic pressure for now. 
+    ids.profiles_1d[i].pressure_perpendicular = (
+        pressure_thermal_total + pressure_fast_i
+    )
+    ids.profiles_1d[i].pressure_parallel = (
+        pressure_thermal_total + pressure_fast_i
     )
     _fill_profiles_1d_ions(
         ids,
@@ -233,7 +240,6 @@ def _fill_profiles_1d(
         T_i,
         n_i,
         n_e,
-        n_impurity,
         pressure_thermal_i,
     )
     Z_eff = output.extend_cell_grid_to_boundaries(
@@ -374,7 +380,6 @@ def _fill_profiles_1d_ions(
     T_i: jt.Float[jax.Array, 't* cell+2'],
     n_i: jt.Float[jax.Array, 't* cell+2'],
     n_e: jt.Float[jax.Array, 't* cell+2'],
-    n_impurity: jt.Float[jax.Array, 't* cell+2'],
     pressure_thermal_i: jt.Float[jax.Array, 't* cell+2'],
 ) -> None:
   """Fills `ion` section of `profiles_1d` in-place for the IDS."""
@@ -393,16 +398,32 @@ def _fill_profiles_1d_ions(
   impurity_density_scaling, Z_avg_per_species = (
       _calculate_impurity_density_scaling_and_charge_states(cp_state)
   )
+  n_impurity = cp_state.n_impurity.cell_plus_boundaries()
+  n_impurity_thermal = cp_state.n_impurity_thermal.cell_plus_boundaries()
+  # Calculate "true" impurity total and thermal densities from computed 
+  # impurity density scaling and average charge states.
   n_impurity_true = (
       n_impurity * impurity_density_scaling * impurity_fractions_sum
   )
+  n_impurity_thermal_true = (
+      n_impurity_thermal * impurity_density_scaling * impurity_fractions_sum
+  )
+  # Subtract fast ions contribution to get the thermal main ion density.
+  n_i_thermal = n_i
+  fast_ions = cp_state.fast_ions
+  for fast_ion in fast_ions:
+    if fast_ion.species in main_ion_fractions.keys():
+      n_i_thermal -= fast_ion.n.cell_plus_boundaries()
+  # Use the true densities to get the real total ion density.
+  ids.profiles_1d[i].n_i_total_over_n_e = (n_i + n_impurity_true) / n_e
+  total_thermal_density = n_i_thermal + n_impurity_thermal_true
+  ids.profiles_1d[i].n_i_thermal_total = total_thermal_density
   # Index variables
   num_of_impurities = len(impurity_symbols)
   num_of_main_ions = len(main_ion_fractions)
   num_ions = num_of_main_ions + num_of_impurities
   ids.profiles_1d[i].ion.resize(num_ions)
-  # Use the true n_impurity to get the real total ion density.
-  ids.profiles_1d[i].n_i_total_over_n_e = (n_i + n_impurity_true) / n_e
+ 
   for ion, symbol in enumerate(cp_state.main_ion_fractions.keys()):
     frac = cp_state.main_ion_fractions[symbol]
     _fill_main_ions(
@@ -414,8 +435,10 @@ def _fill_profiles_1d_ions(
         T_i,
         n_i,
         n_impurity_true,
+        total_thermal_density,
         pressure_thermal_i,
         post_processed_outputs_slice,
+        fast_ions,
     )
 
   # Helper function is called when impurities array is defined to access
@@ -429,6 +452,7 @@ def _fill_profiles_1d_ions(
         n_i,
         n_impurity,
         n_impurity_true,
+        total_thermal_density,
         pressure_thermal_i,
         Z_avg_per_species,
         impurity_density_scaling,
@@ -436,6 +460,7 @@ def _fill_profiles_1d_ions(
         post_processed_outputs_slice,
         geometry_slice,
         impurities,
+        fast_ions,
     )
 
 
@@ -448,8 +473,10 @@ def _fill_main_ions(
     T_i: jt.Float[jax.Array, 't* cell+2'],
     n_i: jt.Float[jax.Array, 't* cell+2'],
     n_impurity_true: jt.Float[jax.Array, 't* cell+2'],
+    total_thermal_density: jt.Float[jax.Array, 't* cell+2'],
     pressure_thermal_i: jt.Float[jax.Array, 't* cell+2'],
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
+    fast_ions: Sequence[fast_ion_lib.FastIon],
 ) -> None:
   """Fills main ion quantities for the IDS."""
   ion_properties = constants.ION_PROPERTIES_DICT[symbol]
@@ -462,16 +489,34 @@ def _fill_main_ions(
     ids.profiles_1d[i].ion[ion].label = symbol
   ids.profiles_1d[i].ion[ion].temperature = T_i
   n_species = n_i * frac  # Individual density
+  # Retrieve fast ion contribution to main ion density and pressure.
+  n_species_fast = np.zeros_like(n_species)
+  ion_pressure_fast = np.zeros_like(n_species)
+  for fast_ion in fast_ions:
+    if fast_ion.species == symbol:
+      n_fast_ion = fast_ion.n.cell_plus_boundaries()
+      n_species_fast += n_fast_ion
+      ion_pressure_fast += (
+          n_fast_ion
+          * fast_ion.T.cell_plus_boundaries()
+          * constants.CONSTANTS.keV_to_J
+      )
+  n_species_thermal = n_species - n_species_fast
+
   ids.profiles_1d[i].ion[ion].density = n_species
-  ids.profiles_1d[i].ion[ion].density_thermal = n_species
-  ids.profiles_1d[i].ion[ion].density_fast = np.zeros(
-      len(ids.profiles_1d[i].grid.rho_tor_norm)
-  )
-  # Proportion of this ion for pressure ratio computation.
-  total_ions_mixture_fraction = n_species / (n_i + n_impurity_true)
-  ion_pressure = total_ions_mixture_fraction * pressure_thermal_i
+  ids.profiles_1d[i].ion[ion].density_thermal = n_species_thermal
+  ids.profiles_1d[i].ion[ion].density_fast = n_species_fast
+
+  # Calculate thermal ion pressure for this species
+  ion_pressure_thermal = (
+      n_species_thermal / total_thermal_density
+  ) * pressure_thermal_i
+
+  ion_pressure = ion_pressure_thermal + ion_pressure_fast
   ids.profiles_1d[i].ion[ion].pressure = ion_pressure
-  ids.profiles_1d[i].ion[ion].pressure_thermal = ion_pressure
+  ids.profiles_1d[i].ion[ion].pressure_thermal = ion_pressure_thermal
+  ids.profiles_1d[i].ion[ion].pressure_fast_perpendicular = ion_pressure_fast
+  ids.profiles_1d[i].ion[ion].pressure_fast_parallel = ion_pressure_fast
   ids.profiles_1d[i].ion[ion].element.resize(1)
   ids.profiles_1d[i].ion[ion].element[0].a = ion_properties.A
   ids.profiles_1d[i].ion[ion].element[0].z_n = ion_properties.Z
@@ -493,6 +538,7 @@ def _fill_impurities(
     n_i: jt.Float[jax.Array, 't* cell+2'],
     n_impurity_eff: jt.Float[jax.Array, 't* cell+2'],
     n_impurity_true: jt.Float[jax.Array, 't* cell+2'],
+    total_thermal_density: jt.Float[jax.Array, 't* cell+2'],
     pressure_thermal_i: jt.Float[jax.Array, 't* cell+2'],
     Z_avg_per_species: dict[str, jt.Float[jax.Array, 't* cell+2']],
     impurity_density_scaling: jt.Float[jax.Array, 't* cell+2'],
@@ -500,6 +546,7 @@ def _fill_impurities(
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
     geometry_slice: geometry_lib.Geometry,
     impurities: Sequence[tuple[str, jt.Float[jax.Array, 't* cell+2']]],
+    fast_ions: Sequence[fast_ion_lib.FastIon],
 ) -> None:
   """Fills impurity quantities for the IDS."""
   # TODO(b/459479939): i/1660) - We can directly use the impurity densities
@@ -519,16 +566,34 @@ def _fill_impurities(
     ids.profiles_1d[i].ion[index].label = symbol
   ids.profiles_1d[i].ion[index].temperature = T_i
   n_impurity_species = n_impurity_eff * scaled_frac
+  # Retrieve fast ion contribution to impurity density and pressure.
+  n_species_fast = np.zeros_like(n_impurity_species)
+  impurity_pressure_fast = np.zeros_like(n_impurity_species)
+  for fast_ion in fast_ions:
+    if fast_ion.species == symbol:
+      n_fast_ion = fast_ion.n.cell_plus_boundaries()
+      n_species_fast += n_fast_ion
+      impurity_pressure_fast += (
+          n_fast_ion
+          * fast_ion.T.cell_plus_boundaries()
+          * constants.CONSTANTS.keV_to_J
+      )
+  n_impurity_species_thermal = n_impurity_species - n_species_fast
+
   ids.profiles_1d[i].ion[index].density = n_impurity_species
-  ids.profiles_1d[i].ion[index].density_thermal = n_impurity_species
-  ids.profiles_1d[i].ion[index].density_fast = np.zeros(
-      len(ids.profiles_1d[i].grid.rho_tor_norm)
-  )
-  # Proportion of this ion for pressure ratio computation.
-  total_ions_mixture_fraction = n_impurity_species / (n_i + n_impurity_true)
-  impurity_pressure = total_ions_mixture_fraction * pressure_thermal_i
+  ids.profiles_1d[i].ion[index].density_thermal = n_impurity_species_thermal
+  ids.profiles_1d[i].ion[index].density_fast = n_species_fast
+
+  # Calculate thermal impurity pressure for this species
+  impurity_pressure_thermal = (
+      n_impurity_species_thermal / total_thermal_density
+  ) * pressure_thermal_i
+
+  impurity_pressure = impurity_pressure_thermal + impurity_pressure_fast
   ids.profiles_1d[i].ion[index].pressure = impurity_pressure
-  ids.profiles_1d[i].ion[index].pressure_thermal = impurity_pressure
+  ids.profiles_1d[i].ion[index].pressure_thermal = impurity_pressure_thermal
+  ids.profiles_1d[i].ion[index].pressure_fast_perpendicular = impurity_pressure_fast
+  ids.profiles_1d[i].ion[index].pressure_fast_parallel = impurity_pressure_fast
   ids.profiles_1d[i].ion[index].element.resize(1)
   ids.profiles_1d[i].ion[index].element[0].a = ion_properties.A
   ids.profiles_1d[i].ion[index].element[0].z_n = ion_properties.Z
