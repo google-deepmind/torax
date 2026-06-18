@@ -92,6 +92,12 @@ IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING: Final[
 }
 
 TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID: Final[dict[str, str]] = {
-    entry.torax_source_name: imas_id
-    for imas_id, entry in IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING.items()
+    **{
+        entry.torax_source_name: imas_id
+        for imas_id, entry in IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING.items()
+    },
+    "generic_current": "custom_1",
+    "generic_heat": "custom_2",
+    "generic_particle": "custom_3",
 }
+
