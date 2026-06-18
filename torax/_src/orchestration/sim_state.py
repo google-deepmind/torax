@@ -28,6 +28,34 @@ from torax._src.sources import source_profiles
 from torax._src.time_step_calculator import time_step_calculator_state
 
 _EXCLUDE_FROM_NAN_CHECK = ("edge_outputs",)
+_GEOMETRY_EXCLUDE_FROM_NAN_CHECK = (
+    "connection_length_target",
+    "connection_length_divertor",
+    "angle_of_incidence_target",
+    "R_OMP",
+    "R_target",
+    "B_pol_OMP",
+    "diverted",
+    "_z_magnetic_axis",
+)
+
+
+def _should_exclude_path(path) -> bool:
+  """Returns whether the path should be excluded from NaN checks."""
+  if not path:
+    return False
+  first_step = path[0]
+  if hasattr(first_step, "name"):
+    if first_step.name in _EXCLUDE_FROM_NAN_CHECK:
+      return True
+    if first_step.name == "geometry" and len(path) > 1:
+      second_step = path[1]
+      if (
+          hasattr(second_step, "name")
+          and second_step.name in _GEOMETRY_EXCLUDE_FROM_NAN_CHECK
+      ):
+        return True
+  return False
 
 
 @jax.tree_util.register_dataclass
@@ -93,7 +121,7 @@ class SimState:
     return any([
         np.any(np.isnan(value))
         for path, value in jax.tree.leaves_with_path(self)
-        if path[0].name not in _EXCLUDE_FROM_NAN_CHECK
+        if not _should_exclude_path(path)
     ])
 
 
@@ -103,9 +131,10 @@ def _log_nans(
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   nan_count = 0
   for path, value in path_vals:
-    if np.any(np.isnan(value)) and path[0].name not in _EXCLUDE_FROM_NAN_CHECK:
+    if np.any(np.isnan(value)) and not _should_exclude_path(path):
       logging.info("Found NaNs in sim_state%s", jax.tree_util.keystr(path))
       nan_count += 1
+
   if nan_count >= 10:
     logging.info("""\nA common cause of widespread NaNs is negative densities or
         temperatures evolving during the solver step. This often arises through
