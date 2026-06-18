@@ -27,6 +27,9 @@ from torax._src.sources import qei_source
 from torax._src.sources import source as source_module
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.sources.ion_cyclotron_source import base as ion_cyclotron_source
+from torax._src.sources import generic_ion_el_heat_source
+from torax._src.sources import generic_current_source
+from torax._src.sources import generic_particle_source
 
 
 class _SourceMappingEntry(NamedTuple):
@@ -95,8 +98,8 @@ TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID = {
 }
 # Manually add generic sources which are not in the input mapping.
 TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID.update({
-    "generic_current": "custom_1",
-    "generic_heat": "custom_2",
-    "generic_particle": "custom_3",
+    generic_current_source.GenericCurrentSource.SOURCE_NAME: "custom_1",
+    generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME: "custom_2",
+    generic_particle_source.GenericParticleSource.SOURCE_NAME: "custom_3",
 })
 

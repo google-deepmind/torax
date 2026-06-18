@@ -94,6 +94,12 @@ def core_sources_to_IMAS(
     source_node.identifier.index = _IMAS_SOURCE_ID_TO_IDENTIFIER_INDEX.get(
         imas_name, 0
     )
+    if imas_name == "custom_1":
+      source_node.identifier.description = "TORAX generic current source"
+    if imas_name == "custom_2":
+      source_node.identifier.description = "TORAX generic heating source"
+    if imas_name == "custom_3":
+      source_node.identifier.description = "TORAX generic particle source"
 
     source_node.profiles_1d.resize(len(times))
     source_node.global_quantities.resize(len(times))
