@@ -17,9 +17,10 @@
 This is a geometry object that is used for most geometries sources
 CHEASE, FBT, etc.
 """
-import dataclasses
-import logging
 
+import dataclasses
+
+from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
@@ -279,9 +280,7 @@ class StandardGeometryIntermediates:
 
     object.__setattr__(self, 'Phi', np.abs(self.Phi))
     object.__setattr__(self, 'F', np.abs(self.F))
-    object.__setattr__(
-        self, 'int_dl_over_Bp', np.abs(self.int_dl_over_Bp)
-    )
+    object.__setattr__(self, 'int_dl_over_Bp', np.abs(self.int_dl_over_Bp))
     object.__setattr__(self, 'vpr', np.abs(self.vpr))
     object.__setattr__(
         self, 'flux_surf_avg_grad_psi', np.abs(self.flux_surf_avg_grad_psi)
@@ -364,11 +363,13 @@ class StandardGeometryIntermediates:
     drho_norm = np.diff(rhon)
     max_spacing = np.max(drho_norm)
     if max_spacing > _COARSE_GRID_THRESHOLD:
-      logging.warning(
+      logging.log_every_n_seconds(
+          logging.WARNING,
           'The input equilibrium grid is coarse (max rho_norm spacing ='
           ' %.4f > %.4f). This can create numerical artifacts in derived'
           ' quantities such as j_total. Consider using a higher-resolution'
           ' equilibrium file.',
+          10 * 60,  # log every 10 minutes
           max_spacing,
           _COARSE_GRID_THRESHOLD,
       )
