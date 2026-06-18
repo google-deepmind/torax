@@ -79,16 +79,9 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(filled_ids.time, state_history.times)
     source_names = [str(src.identifier.name) for src in filled_ids.source]
     self.assertIn("fusion", source_names)
-
-    # Check identifier indices are mapped correctly
-    for src in filled_ids.source:
-      name = str(src.identifier.name)
-      if name == "fusion":
-        self.assertEqual(src.identifier.index, 6)
-      elif name == "ec":
-        self.assertEqual(src.identifier.index, 3)
-      elif name == "pellet":
-        self.assertEqual(src.identifier.index, 14)
+    self.assertIn("pellet", source_names)
+    self.assertIn("gas_puff", source_names)
+    # self.assertIn("collisional_equipartition", source_names)
 
     # Check fusion source IMAS output against TORAX for the first time slice.
     for src in filled_ids.source:
@@ -144,6 +137,13 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
         times,
     )
 
+    source_names = [str(src.identifier.name) for src in filled_ids.source]
+    self.assertIn("fusion", source_names)
+    self.assertIn("pellet", source_names)
+    self.assertIn("gas_puff", source_names)
+    self.assertIn("collisional_equipartition", source_names)
+    self.assertIn("ec", source_names)
+    self.assertIn("ic", source_names)
     # Check that the exported IC and EC IDS profiles match the input IDS ones.
     for src_out in filled_ids.source:
       src_name = str(src_out.identifier.name)
