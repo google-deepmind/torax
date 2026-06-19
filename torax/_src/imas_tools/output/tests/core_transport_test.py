@@ -83,12 +83,7 @@ class CoreTransportTest(sim_test_case.SimTestCase):
 
     self.assertIsNotNone(model_combined)
     profiles_1d = model_combined.profiles_1d[t_idx]
-    ct_state = core_transport[t_idx]
-
-    expected_chi_e = output.extend_cell_grid_to_boundaries(
-        [geometry_lib.face_to_cell(ct_state.chi_face_el_total)],
-        np.array([ct_state.chi_face_el_total]),
-    )[0]
+    expected_chi_e = core_transport[t_idx].chi_face_el_total
 
     np.testing.assert_allclose(
         profiles_1d.electrons.energy.d, expected_chi_e, atol=1e-10, rtol=1e-5
