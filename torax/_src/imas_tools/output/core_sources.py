@@ -56,45 +56,44 @@ def core_sources_to_IMAS(
   ids.source.resize(len(active_sources))
 
   for source_name, source_node in zip(active_sources, ids.source, strict=True):
-    if not "generic" in source_name:
-      imas_name = sources_mapping.TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID[source_name]
-      source_node.identifier.name = imas_name
-      # TODO(b/323504363): b/459479939 - i/2233: Add identifier in once a mapping is available
-      # in IMAS-python https://github.com/iterorganization/IMAS-Python/issues/134
-      if imas_name == "custom_1":
-        source_node.identifier.description = "TORAX generic current source"
-      if imas_name == "custom_2":
-        source_node.identifier.description = "TORAX generic heating source"
-      if imas_name == "custom_3":
-        source_node.identifier.description = "TORAX generic particle source"
+    imas_name = sources_mapping.TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID[source_name]
+    source_node.identifier.name = imas_name
+    # TODO(b/323504363): b/459479939 - i/2233: Add identifier in once a mapping is available
+    # in IMAS-python https://github.com/iterorganization/IMAS-Python/issues/134
+    if imas_name == "custom_1":
+      source_node.identifier.description = "TORAX generic current source"
+    if imas_name == "custom_2":
+      source_node.identifier.description = "TORAX generic heating source"
+    if imas_name == "custom_3":
+      source_node.identifier.description = "TORAX generic particle source"
 
-      source_node.profiles_1d.resize(num_times)
-      source_node.global_quantities.resize(num_times)
+    source_node.profiles_1d.resize(num_times)
+    source_node.global_quantities.resize(num_times)
 
-      for i in range(num_times):
-        t = times[i]
-        geo = geometry[i]
-        core_source_state = core_sources[i]
-        core_profile_state = core_profiles[i]
+    for i in range(num_times):
+      t = times[i]
+      geo = geometry[i]
+      core_source_state = core_sources[i]
+      core_profile_state = core_profiles[i]
 
-        source_node.profiles_1d[i].time = t
-        source_node.global_quantities[i].time = t
+      source_node.profiles_1d[i].time = t
+      source_node.global_quantities[i].time = t
 
-        _fill_grid_coordinates(source_node.profiles_1d[i], geo)
-        _fill_profiles_1d(
-            source_node.profiles_1d[i],
-            core_source_state,
-            core_profile_state,
-            geo,
-            source_name,
-        )
-        _fill_global_quantities(
-            source_node.global_quantities[i],
-            core_source_state,
-            core_profile_state,
-            geo,
-            source_name,
-        )
+      _fill_grid_coordinates(source_node.profiles_1d[i], geo)
+      _fill_profiles_1d(
+          source_node.profiles_1d[i],
+          core_source_state,
+          core_profile_state,
+          geo,
+          source_name,
+      )
+      _fill_global_quantities(
+          source_node.global_quantities[i],
+          core_source_state,
+          core_profile_state,
+          geo,
+          source_name,
+      )
 
   return ids
 
