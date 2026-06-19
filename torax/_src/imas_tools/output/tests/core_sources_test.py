@@ -27,7 +27,6 @@ from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 
-
 class CoreSourcesTest(sim_test_case.SimTestCase):
 
   def test_save_sources_to_IMAS(self):
@@ -36,6 +35,13 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     atol = 1e-8
 
     config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    # Adds other TORAX sources to check that all sources are correctly output
+    config["sources"]["ohmic"] = {}
+    config["sources"]["cyclotron_radiation"] = {}
+    config["sources"]["bremsstrahlung"] = {}
+    config["sources"]["impurity_radiation"] = {}
+    config["sources"]["icrh"] = {"mode": "ZERO"}
+    config["sources"]["ecrh"] = {"mode": "ZERO"}
     config["numerics"]["t_final"] = 0.02
     torax_config = model_config.ToraxConfig.from_dict(config)
 
@@ -77,7 +83,13 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     self.assertIn("fusion", source_names)
     self.assertIn("pellet", source_names)
     self.assertIn("gas_puff", source_names)
-    # self.assertIn("collisional_equipartition", source_names)
+    self.assertIn("ohmic", source_names)
+    self.assertIn("cyclotron_radiation", source_names)
+    self.assertIn("bremsstrahlung", source_names)
+    self.assertIn("impurity_radiation", source_names)
+    self.assertIn("ic", source_names)
+    self.assertIn("ec", source_names)
+    self.assertIn("collisional_equipartition", source_names)
 
     # Check fusion source IMAS output against TORAX for the first time slice.
     for source in filled_ids.source:
