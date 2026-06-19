@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from typing import Final, Sequence
-
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
 import imas
@@ -24,6 +24,7 @@ from torax._src.imas_tools.output import core_profiles as output_core_profiles
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.imas_tools.input import loader
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 
@@ -162,6 +163,98 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         ds=imas_xr,
         write_output=False,
     )
+
+  def test_round_trip_IMAS_TORAX_IMAS(
+      self,
+  ):
+    """Tests a round trip of TORAX simulation with IMAS IDS.
+
+    The test:
+        -Initializes a TORAX simulation with profiles from an IMAS IDS,
+        -Outputs the initial time slice into a core_profiles IDS,
+        -Compares the profiles of the TORAX output with the initial IMAS IDS 
+         profiles.
+    """
+    rtol = 1e-10
+    atol = 0
+
+    # Input core_profiles reading and config loading
+    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    # path = "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
+    path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
+    initial_core_profiles = loader.load_imas_data(path, "core_profiles")
+    rhon_in = initial_core_profiles.profiles_1d[0].grid.rho_tor_norm
+    for i in range(len(initial_core_profiles.profiles_1d)):
+        initial_core_profiles.profiles_1d[i].ion.resize(3)
+        initial_core_profiles.profiles_1d[i].ion[0].name = "D"
+        initial_core_profiles.profiles_1d[i].ion[1].name = "T"
+        initial_core_profiles.profiles_1d[i].ion[2].name = "He"
+        initial_core_profiles.profiles_1d[i].ion[0].density = 0.48 * initial_core_profiles.profiles_1d[i].electrons.density
+        initial_core_profiles.profiles_1d[i].ion[1].density = 0.48 * initial_core_profiles.profiles_1d[i].electrons.density
+        initial_core_profiles.profiles_1d[i].ion[2].density = 0.02 * initial_core_profiles.profiles_1d[i].electrons.density
+        Z_eff = 2 * 0.48 + 0.02 * 2 **2
+        initial_core_profiles.profiles_1d[i].zeff = np.full_like(rhon_in, Z_eff)
+        initial_core_profiles.profiles_1d[i].n_i_total_over_n_e = np.sum([
+            initial_core_profiles.profiles_1d[i].ion[j].density / initial_core_profiles.profiles_1d[i].electrons.density
+            for j in range(3)
+        ], axis=0)
+
+    # Modifying the input config profiles_conditions class
+    core_profiles_conditions = input_core_profiles.profile_conditions_from_IMAS(
+        initial_core_profiles,
+        t_initial=0.0,
+    )
+    plasma_composition = input_core_profiles.plasma_composition_from_IMAS(
+    initial_core_profiles,
+    t_initial=0.0,
+    main_ions_symbols=["D", "T"],
+    )
+    config["geometry"]["n_rho"] = 25
+    config["profile_conditions"] = core_profiles_conditions
+    config["plasma_composition"] = plasma_composition
+
+    # Init sim from config
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    (
+        initial_state,
+        post_processed_outputs,
+        _,
+    ) = run_simulation.prepare_simulation(torax_config)
+
+    # Fill an IDS with the output of the simulation, from the initial time step.
+    core_profiles = [initial_state.core_profiles]
+    core_sources = [initial_state.core_sources]
+    geometry = [initial_state.geometry]
+    times = [initial_state.t]
+    post_processed_outputs = [post_processed_outputs]
+    torax_output_core_profiles_ids= output_core_profiles.core_profiles_to_IMAS(
+        torax_config,
+        post_processed_outputs,
+        core_profiles,
+        core_sources,
+        geometry,
+        times,
+    )
+    rhon_out = torax_output_core_profiles_ids.profiles_1d[0].grid.rho_tor_norm
+    np.testing.assert_allclose(
+        initial_core_profiles.profiles_1d[0].n_i_total_over_n_e,
+        np.interp(
+            rhon_in, rhon_out, torax_output_core_profiles_ids.profiles_1d[0].n_i_total_over_n_e,
+        ),
+        rtol=rtol,
+        atol=atol,
+        err_msg="Inconstent n_i_total_over_n_e",
+    )
+    np.testing.assert_allclose(
+        initial_core_profiles.profiles_1d[0].zeff,
+        np.interp(
+            rhon_in, rhon_out, torax_output_core_profiles_ids.profiles_1d[0].zeff,
+        ),
+        rtol=rtol,
+        atol=atol,
+        err_msg="Inconsistent Zeff",
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
