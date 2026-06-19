@@ -77,7 +77,10 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     self.assertIn("fusion", source_names)
     self.assertIn("pellet", source_names)
     self.assertIn("gas_puff", source_names)
-    # self.assertIn("collisional_equipartition", source_names)
+    self.assertIn("custom_1", source_names)
+    self.assertIn("custom_2", source_names)
+    self.assertIn("custom_3", source_names)
+    self.assertIn("collisional_equipartition", source_names)
 
     # Check fusion source IMAS output against TORAX for the first time slice.
     for source in filled_ids.source:
@@ -133,6 +136,9 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     self.assertIn("pellet", source_names)
     self.assertIn("gas_puff", source_names)
     self.assertIn("collisional_equipartition", source_names)
+    self.assertIn("custom_1", source_names)
+    self.assertIn("custom_2", source_names)
+    self.assertIn("custom_3", source_names)
     self.assertIn("ec", source_names)
     self.assertIn("ic", source_names)
     # Check that the exported IC and EC IDS profiles match the input IDS ones.
@@ -159,17 +165,11 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
 
       # Check output profiles against input ones
       actual = source_out.profiles_1d[0].electrons.energy
-      np.testing.assert_allclose(
-          actual, expected_T_e, rtol=rtol, atol=atol
-      )
+      np.testing.assert_allclose(actual, expected_T_e, rtol=rtol, atol=atol)
       actual = source_out.profiles_1d[0].total_ion_energy
-      np.testing.assert_allclose(
-          actual, expected_T_i, rtol=rtol, atol=atol
-      )
+      np.testing.assert_allclose(actual, expected_T_i, rtol=rtol, atol=atol)
       actual = source_out.profiles_1d[0].j_parallel
-      np.testing.assert_allclose(
-          actual, expected_psi, rtol=rtol, atol=atol
-      )
+      np.testing.assert_allclose(actual, expected_psi, rtol=rtol, atol=atol)
 
 
 if __name__ == "__main__":
