@@ -27,6 +27,7 @@ from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 
+
 class CoreSourcesTest(sim_test_case.SimTestCase):
 
   def test_save_sources_to_IMAS(self):
@@ -112,10 +113,7 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     rtol = 1e-6
     atol = 1e-8
 
-    directory = pathlib.Path(__file__).parent.parent.parent / "input" / "tests"
-    ids_in = loader.load_imas_data(
-        "core_sources_ddv4.nc", "core_sources", directory=directory
-    )
+    ids_in = loader.load_imas_data("core_sources_ddv4.nc", "core_sources")
 
     # Update TORAX simulation config with IMAS sources
     imas_sources = sources_from_IMAS(ids_in, load_only_external_sources=True)
@@ -171,17 +169,11 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
 
       # Check output profiles against input ones
       actual = source_out.profiles_1d[0].electrons.energy
-      np.testing.assert_allclose(
-          actual, expected_T_e, rtol=rtol, atol=atol
-      )
+      np.testing.assert_allclose(actual, expected_T_e, rtol=rtol, atol=atol)
       actual = source_out.profiles_1d[0].total_ion_energy
-      np.testing.assert_allclose(
-          actual, expected_T_i, rtol=rtol, atol=atol
-      )
+      np.testing.assert_allclose(actual, expected_T_i, rtol=rtol, atol=atol)
       actual = source_out.profiles_1d[0].j_parallel
-      np.testing.assert_allclose(
-          actual, expected_psi, rtol=rtol, atol=atol
-      )
+      np.testing.assert_allclose(actual, expected_psi, rtol=rtol, atol=atol)
 
 
 if __name__ == "__main__":

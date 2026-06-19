@@ -57,10 +57,12 @@ def core_sources_to_IMAS(
 
   for source_name, source_node in zip(active_sources, ids.source, strict=True):
     if not "generic" in source_name:
-      imas_name = sources_mapping.TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID[source_name]
-      source_node.identifier.name = imas_name
-      # TODO(b/323504363): b/459479939 - i/2233: Add identifier in once a mapping is available
-      # in IMAS-python https://github.com/iterorganization/IMAS-Python/issues/134
+      imas_name = sources_mapping.TORAX_SOURCE_NAME_TO_IMAS_SOURCE_ID[
+          source_name
+      ]
+      source_node.identifier = imas.identifiers.core_source_identifier[
+          imas_name
+      ]
       source_node.profiles_1d.resize(num_times)
       source_node.global_quantities.resize(num_times)
 
