@@ -114,11 +114,6 @@ class FBTConfig(base.BaseGeometryConfig):
       raise ValueError(
           'LY_bundle_object must be set when using LY_to_torax_times.'
       )
-    logging.warning(
-        '<B^2> and <1/B^2> not currently supported by FBT geometry;'
-        ' approximating using analytical expressions for circular geometry.'
-        ' This might cause inaccuracies in neoclassical transport.'
-    )
     return self
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:

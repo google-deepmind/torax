@@ -1129,6 +1129,9 @@ geometry
 
 * ``'fbt'``
     Loads FBT geometry files.
+    NOTE: ``<B^2>`` and ``<1/B^2>`` are not currently supported by FBT geometry;
+    TORAX approximates these using analytical expressions for circular
+    geometry. This might cause inaccuracies in neoclassical transport.
 
 * ``'eqdsk'``
     Loads a EQDSK geometry file, and carries out the appropriate
