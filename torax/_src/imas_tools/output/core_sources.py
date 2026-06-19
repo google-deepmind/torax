@@ -21,6 +21,7 @@ import imas
 from imas import ids_toplevel
 import numpy as np
 from torax._src import array_typing
+from torax._src import math_utils
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.imas_tools import sources_mapping
@@ -78,6 +79,13 @@ def core_sources_to_IMAS(
           geo,
           source_name,
       )
+      _fill_global_quantities(
+          source_node.global_quantities[i],
+          core_source_state,
+          core_profile_state,
+          geo,
+          source_name,
+      )
 
   return ids
 
@@ -111,14 +119,23 @@ def _fill_grid_coordinates(
   grid.area = geo.area
 
 
-def _fill_profiles_1d(
-    profiles_1d_slice: imas.ids_structure.IDSStructure,
+def _compute_source_profiles(
     core_source_state: source_profiles.SourceProfiles,
     core_profile_state: state.CoreProfiles,
     geo: geometry_lib.Geometry,
     source_name: str,
-) -> None:
-  """Fills 1D profiles for a source at a single time slice."""
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+  """Computes per-source profile arrays for a single time slice.
+
+  Args:
+    core_source_state: TORAX source profiles.
+    core_profile_state: TORAX core profiles.
+    geo: TORAX geometry.
+    source_name: Name of the source to compute profiles for.
+
+  Returns:
+    Tuple of (energy_el, energy_ion, particles_el, j_par).
+  """
   energy_el = np.zeros_like(geo.rho)
   energy_ion = np.zeros_like(geo.rho)
   particles_el = np.zeros_like(geo.rho)
@@ -137,6 +154,20 @@ def _fill_profiles_1d(
     energy_ion = core_source_state.T_i.get(source_name, energy_ion)
     particles_el = core_source_state.n_e.get(source_name, particles_el)
     j_par = core_source_state.psi.get(source_name, j_par)
+  return energy_el, energy_ion, particles_el, j_par
+
+
+def _fill_profiles_1d(
+    profiles_1d_slice: imas.ids_structure.IDSStructure,
+    core_source_state: source_profiles.SourceProfiles,
+    core_profile_state: state.CoreProfiles,
+    geo: geometry_lib.Geometry,
+    source_name: str,
+) -> None:
+  """Fills 1D profiles for a source at a single time slice."""
+  energy_el, energy_ion, particles_el, j_par = _compute_source_profiles(
+      core_source_state, core_profile_state, geo, source_name,
+  )
 
   profiles_1d_slice.electrons.energy = energy_el
   profiles_1d_slice.total_ion_energy = energy_ion
@@ -148,3 +179,29 @@ def _fill_profiles_1d(
 
   # TODO(b/323504363): b/459479939 - i/2212: Map Ion Species-Specific Particle Sources.
 
+
+def _fill_global_quantities(
+    global_quantities_slice: imas.ids_structure.IDSStructure,
+    core_source_state: source_profiles.SourceProfiles,
+    core_profile_state: state.CoreProfiles,
+    geo: geometry_lib.Geometry,
+    source_name: str,
+) -> None:
+  """Fills global quantities for a source at a single time slice."""
+  energy_el, energy_ion, particles_el, j_par = _compute_source_profiles(
+      core_source_state, core_profile_state, geo, source_name,
+  )
+
+  power_el = math_utils.volume_integration(energy_el, geo)
+  power_ion = math_utils.volume_integration(energy_ion, geo)
+  particles_el_int = math_utils.volume_integration(particles_el, geo)
+  # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
+  # Currents sign flipped due to the difference between TORAX COCOS convention
+  # and IMAS COCOS.
+  j_curr_int = -1.0 * math_utils.area_integration(j_par, geo)
+
+  global_quantities_slice.electrons.power = power_el
+  global_quantities_slice.total_ion_power = power_ion
+  global_quantities_slice.power = power_el + power_ion
+  global_quantities_slice.electrons.particles = particles_el_int
+  global_quantities_slice.current_parallel = j_curr_int
