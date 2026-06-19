@@ -27,6 +27,7 @@ from torax._src.geometry import geometry as geometry_lib
 from torax._src.imas_tools import sources_mapping
 from torax._src.sources import qei_source
 from torax._src.sources import source_profiles
+from torax._src import math_utils
 
 
 # pylint: disable=invalid-name
@@ -74,6 +75,13 @@ def core_sources_to_IMAS(
       _fill_grid_coordinates(source_node.profiles_1d[i], geo)
       _fill_profiles_1d(
           source_node.profiles_1d[i],
+          core_source_state,
+          core_profile_state,
+          geo,
+          source_name,
+      )
+      _fill_global_quantities(
+          source_node.global_quantities[i],
           core_source_state,
           core_profile_state,
           geo,
@@ -161,3 +169,42 @@ def _fill_profiles_1d(
     ion_node.element[0].a = ion_properties.A
     ion_node.element[0].z_n = ion_properties.Z
 
+
+def _fill_global_quantities(
+    global_quantities_slice: imas.ids_structure.IDSStructure,
+    core_source_state: source_profiles.SourceProfiles,
+    core_profile_state: state.CoreProfiles,
+    geo: geometry_lib.Geometry,
+    source_name: str,
+) -> None:
+  """Fills global quantities for a source at a single time slice."""
+  energy_el = np.zeros_like(geo.rho)
+  energy_ion = np.zeros_like(geo.rho)
+  particles_el = np.zeros_like(geo.rho)
+  j_par = np.zeros_like(geo.rho)
+
+  if source_name == qei_source.QeiSource.SOURCE_NAME:
+    qei_val = core_source_state.qei.qei_coef * (
+        core_profile_state.T_e.value - core_profile_state.T_i.value
+    )
+    energy_ion = qei_val
+    energy_el = -qei_val
+  else:
+    energy_el = core_source_state.T_e.get(source_name, energy_el)
+    energy_ion = core_source_state.T_i.get(source_name, energy_ion)
+    particles_el = core_source_state.n_e.get(source_name, particles_el)
+    j_par = core_source_state.psi.get(source_name, j_par)
+
+  power_el = math_utils.volume_integration(energy_el, geo)
+  power_ion = math_utils.volume_integration(energy_ion, geo)
+  particles_el_int = math_utils.volume_integration(particles_el, geo)
+  # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
+  # Currents sign flipped due to the difference between TORAX COCOS convention
+  # and IMAS COCOS.
+  j_curr_int = -1.0 * math_utils.area_integration(j_par, geo)
+
+  global_quantities_slice.electrons.power = power_el
+  global_quantities_slice.total_ion_power = power_ion
+  global_quantities_slice.power = power_el + power_ion
+  global_quantities_slice.electrons.particles = particles_el_int
+  global_quantities_slice.current_parallel = j_curr_int
