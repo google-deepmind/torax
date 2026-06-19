@@ -20,6 +20,7 @@ import logging
 from typing import Annotated, Any
 import chex
 import jax
+import numpy as np
 import pydantic
 from torax._src import array_typing
 from torax._src.config import runtime_validation_utils
@@ -176,9 +177,12 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   @pydantic.model_validator(mode='after')
   def _check_zeff_usage(self) -> typing_extensions.Self:
     """Warns user if Z_eff is provided but will be ignored."""
+    is_default_zeff = all(
+        np.allclose(val, 1.0) for _, (_, val) in self.Z_eff.value.items()
+    )
     if (
         isinstance(self.impurity, electron_density_ratios.ElectronDensityRatios)
-        and self.Z_eff.value != 1.0  # default value if input Z_eff is None
+        and not is_default_zeff
     ):
       logging.warning(
           "Z_eff is provided but impurity_mode is '%s'. Z_eff will be an"
