@@ -157,9 +157,14 @@ class CoreProfiles:
   internal_plasma_energy: PlasmaInternalEnergy | None = None
 
   @functools.cached_property
-  def impurity_density_scaling(self) -> jax.Array:
+  def impurity_density_scaling(self) -> array_typing.FloatVectorCell:
     """Scaling factor for impurity density: n_imp_true / n_imp_eff."""
     return self.Z_impurity / self.charge_state_info.Z_avg
+
+  @functools.cached_property
+  def impurity_density_scaling_face(self) -> array_typing.FloatVectorFace:
+    """Scaling factor for impurity density on face grid: n_imp_true / n_imp_eff."""
+    return self.Z_impurity_face / self.charge_state_info_face.Z_avg
 
   @functools.cached_property
   def pressure_thermal_e(self) -> cell_variable.CellVariable:
