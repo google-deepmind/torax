@@ -129,6 +129,22 @@ class RunSimulationTest(sim_test_case.SimTestCase):
         state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
     )
 
+  def test_q_profile_warning_logged(self):
+    torax_config = self._get_torax_config('test_iterhybrid_mockup.py')
+    # Use unphysically high Ip and low B to trigger q < 0.5
+    original_B_0 = torax_config.geometry.B_0
+    torax_config.update_fields({
+        'profile_conditions.Ip': 30e6,
+        'geometry.B_0': original_B_0 * 0.1,
+    })
+    
+    with self.assertLogs(level='WARNING') as cm:
+      run_simulation.run_simulation(torax_config, max_steps=1)
+    
+    self.assertTrue(
+        any('The q-profile is extremely low (q < 0.5)' in log for log in cm.output)
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -32,6 +32,8 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
+from absl import logging
+import numpy as np
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
@@ -91,6 +93,13 @@ def prepare_simulation(
         initial_state_lib.get_initial_state_and_post_processed_outputs(
             step_fn=step_fn,
         )
+    )
+
+  if np.any(np.asarray(initial_state.core_profiles.q_face) < 0.5):
+    logging.warning(
+        'The q-profile is extremely low (q < 0.5). This indicates an '
+        'unphysical configuration, possibly due to excessively high '
+        'plasma current (Ip) and/or low magnetic field (B).'
     )
 
   return (
