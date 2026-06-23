@@ -39,6 +39,7 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base
+from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import tglf_defaults
@@ -252,6 +253,18 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       # transport runtime params with the data from tglf_inputs.
       tglf_namelist = transport.tglf_settings.copy()
       tglf_namelist.update(dataclasses.asdict(tglf_inputs_i))
+      # Drop fields that are inherited from the QuasilinearInputs.
+      excluded_fields = {
+          f.name
+          for f in dataclasses.fields(
+              quasilinear_transport_model.QuasilinearInputs
+          )
+      }
+      # Drop fields that are used for denormalization of the outputs
+      excluded_fields.update({'Q_GB', 'GAMMA_GB'})
+      tglf_namelist = {
+          k: v for k, v in tglf_namelist.items() if k not in excluded_fields
+      }
       namelist_str = '\n'.join([f'{k}={v}' for k, v in tglf_namelist.items()])
       with open(run_directory + '/input.tglf', 'w+') as f:
         f.write(namelist_str)
