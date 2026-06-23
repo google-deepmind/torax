@@ -101,7 +101,7 @@ def scaled_profile_model_func(
   rho = geo.torax_mesh.cell_centers
 
   # Shifted major radius for each grid point.
-  R_shifted = R_out * B_ratio
+  R_shifted = R_out / B_ratio
 
   # Map back to normalised radius: for each shifted R, find the
   # corresponding ρ on the original R_out(ρ) curve.

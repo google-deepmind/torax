@@ -165,12 +165,12 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
     )
 
     # For circular geometry: R_out(ρ) = R_major + ρ * r_minor.
-    # The model shifts R → R * B_ratio and maps back to ρ, so the
+    # The model shifts R → R / B_ratio and maps back to ρ, so the
     # output peak appears at:
-    #   ρ_out = ((R_major + ρ_peak * r_minor) / B_ratio - R_major) / r_minor
+    #   ρ_out = ((R_major + ρ_peak * r_minor) * B_ratio - R_major) / r_minor
     B_ratio = geo.B_0 / reference_B0
     expected_rho = (
-        (geo.R_major + rho_peak_ref * geo.a_minor) / B_ratio - geo.R_major
+        (geo.R_major + rho_peak_ref * geo.a_minor) * B_ratio - geo.R_major
     ) / geo.a_minor
 
     rho_grid = np.array(geo.torax_mesh.cell_centers)
