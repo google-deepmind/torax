@@ -77,6 +77,46 @@ class PlotrunsLibTest(parameterized.TestCase):
         fig, go.Figure, msg=f'Plotting of {test_data_path.name} failed'
     )
 
+  def test_get_limit_with_one_timepoint(self):
+    profiles_ds = xr.Dataset({
+        'T_i': (('time', 'rho'), [[1.0, 2.0]]),
+    })
+    top_level_ds = xr.Dataset({'time': [0.0]})
+    data_tree = xr.DataTree(
+        dataset=top_level_ds,
+        children={
+            'profiles': xr.DataTree(dataset=profiles_ds),
+            'scalars': xr.DataTree(dataset=xr.Dataset()),
+            'numerics': xr.DataTree(dataset=xr.Dataset()),
+        },
+    )
+    plot_data = plotruns_lib.PlotData(data_tree=data_tree)
+
+    limit = plotruns_lib._get_limit(
+        plot_data, ('T_i',), 100.0, include_first_timepoint=False
+    )
+    self.assertEqual(limit, 2.0)
+
+  def test_get_limit_with_empty_dataset(self):
+    profiles_ds = xr.Dataset({
+        'T_i': (('time', 'rho'), np.empty((0, 2))),
+    })
+    top_level_ds = xr.Dataset({'time': []})
+    data_tree = xr.DataTree(
+        dataset=top_level_ds,
+        children={
+            'profiles': xr.DataTree(dataset=profiles_ds),
+            'scalars': xr.DataTree(dataset=xr.Dataset()),
+            'numerics': xr.DataTree(dataset=xr.Dataset()),
+        },
+    )
+    plot_data = plotruns_lib.PlotData(data_tree=data_tree)
+
+    with self.assertRaisesRegex(ValueError, 'No timepoints found'):
+      plotruns_lib._get_limit(
+          plot_data, ('T_i',), 100.0, include_first_timepoint=False
+      )
+
 
 class FigurePropertiesTest(absltest.TestCase):
 
