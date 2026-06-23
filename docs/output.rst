@@ -577,23 +577,21 @@ properties and characteristics, as well as scalar edge geometry quantities.
   present if provided by FBT geometry.
 
 ``dW_thermal_dt`` (time)
-  Time derivative of the total thermal stored energy [:math:`W`], raw unsmoothed
-  value.
+  Time derivative of the total thermal stored energy [:math:`W`], computed over
+  the last time step.
 
 ``dW_thermal_dt_smoothed`` (time)
-  Smoothed time derivative of total stored thermal energy [:math:`W`].
-  Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
-  set in the `numerics` config.
-
-``dW_thermal_e_dt_smoothed`` (time)
-  Smoothed time derivative of electron stored thermal energy [:math:`W`].
-  Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
-  set in the `numerics` config.
+  Time derivative of the total thermal stored energy [:math:`W`], computed over
+  a fixed time window.
 
 ``dW_thermal_i_dt_smoothed`` (time)
-  Smoothed time derivative of ion stored thermal energy [:math:`W`].
-  Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
-  set in the `numerics` config.
+  Time derivative of the ion thermal stored energy [:math:`W`], computed over
+  a fixed time window.
+
+``dW_thermal_e_dt_smoothed`` (time)
+  Time derivative of the electron thermal stored energy [:math:`W`], computed over
+  a fixed time window.
+
 
 ``drho`` (time)
   Radial grid spacing in the unnormalized rho coordinate [:math:`m`].

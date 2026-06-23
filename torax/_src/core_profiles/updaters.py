@@ -33,7 +33,6 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
@@ -372,37 +371,46 @@ def _update_energy_state(
           geo,
       )
   )
-  dW_i_dt_raw = (W_thermal_i - prev_energy_state.W_thermal_i) / dt
-  dW_e_dt_raw = (W_thermal_e - prev_energy_state.W_thermal_e) / dt
 
-  exponential_smoothing_alpha = jax.lax.cond(
-      runtime_params.numerics.dW_dt_smoothing_time_scale > 0.0,
-      lambda: jnp.array(1.0, dtype=jax_utils.get_dtype())
-      - jnp.exp(-dt / runtime_params.numerics.dW_dt_smoothing_time_scale),
-      lambda: jnp.array(1.0, dtype=jax_utils.get_dtype()),
+  # Raw values: dW/dt over the last timestep.
+  dW_i_dt = (W_thermal_i - prev_energy_state.W_thermal_i_history[-1]) / dt
+  dW_e_dt = (W_thermal_e - prev_energy_state.W_thermal_e_history[-1]) / dt
+
+  # Smoothed values: dW/dt over the last window.
+  current_t = prev_energy_state.t_history[-1] + dt
+  t_target = current_t - runtime_params.numerics.dW_dt_window
+
+  # If t_target is before the beginning of the history, use the first element.
+  # Otherwise use closest element to t_target.
+  idx = jnp.maximum(
+      0, jnp.searchsorted(prev_energy_state.t_history, t_target) - 1
   )
-  dW_i_dt_smoothed = _exponential_smoothing(
-      dW_i_dt_raw,
-      prev_energy_state.dW_thermal_i_dt_smoothed,
-      exponential_smoothing_alpha,
-  )
-  dW_e_dt_smoothed = _exponential_smoothing(
-      dW_e_dt_raw,
-      prev_energy_state.dW_thermal_e_dt_smoothed,
-      exponential_smoothing_alpha,
-  )
+  dW_i_dt_smoothed = (
+      W_thermal_i - prev_energy_state.W_thermal_i_history[idx]
+  ) / (current_t - prev_energy_state.t_history[idx])
+  dW_e_dt_smoothed = (
+      W_thermal_e - prev_energy_state.W_thermal_e_history[idx]
+  ) / (current_t - prev_energy_state.t_history[idx])
+
+  # Update history arrays.
+  W_i_hist_new = jnp.roll(prev_energy_state.W_thermal_i_history, -1)
+  W_i_hist_new = W_i_hist_new.at[-1].set(W_thermal_i)
+
+  W_e_hist_new = jnp.roll(prev_energy_state.W_thermal_e_history, -1)
+  W_e_hist_new = W_e_hist_new.at[-1].set(W_thermal_e)
+
+  t_hist_new = jnp.roll(prev_energy_state.t_history, -1)
+  t_hist_new = t_hist_new.at[-1].set(current_t)
 
   return state.PlasmaInternalEnergy(
       W_thermal_i=W_thermal_i,
       W_thermal_e=W_thermal_e,
       W_thermal_total=W_thermal_total,
-      dW_thermal_i_dt=dW_i_dt_raw,
-      dW_thermal_e_dt=dW_e_dt_raw,
+      dW_thermal_i_dt=dW_i_dt,
+      dW_thermal_e_dt=dW_e_dt,
       dW_thermal_i_dt_smoothed=dW_i_dt_smoothed,
       dW_thermal_e_dt_smoothed=dW_e_dt_smoothed,
+      W_thermal_i_history=W_i_hist_new,
+      W_thermal_e_history=W_e_hist_new,
+      t_history=t_hist_new,
   )
-
-
-def _exponential_smoothing(new_raw, old_smoothed, alpha):
-  """Exponential moving average (EMA)."""
-  return (1.0 - alpha) * old_smoothed + alpha * new_raw

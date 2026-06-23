@@ -48,15 +48,21 @@ class PlasmaInternalEnergy:
       energy [W]
     dW_thermal_e_dt_smoothed: Smoothed time derivative of electron thermal
       stored energy [W]
+    W_thermal_i_history: History of ion thermal stored energy [J]
+    W_thermal_e_history: History of electron thermal stored energy [J]
+    t_history: History of time [s]
   """
 
   W_thermal_i: array_typing.FloatScalar
   W_thermal_e: array_typing.FloatScalar
   W_thermal_total: array_typing.FloatScalar
+  W_thermal_i_history: jax.Array
+  W_thermal_e_history: jax.Array
   dW_thermal_i_dt: array_typing.FloatScalar
   dW_thermal_e_dt: array_typing.FloatScalar
   dW_thermal_i_dt_smoothed: array_typing.FloatScalar
   dW_thermal_e_dt_smoothed: array_typing.FloatScalar
+  t_history: jax.Array
 
   @property
   def dW_thermal_dt(self) -> array_typing.FloatScalar:
