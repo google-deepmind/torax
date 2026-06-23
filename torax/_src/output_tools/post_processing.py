@@ -195,6 +195,7 @@ class PostProcessedOutputs:
     f_bootstrap: Bootstrap current fraction of the total current [dimensionless]
     S_gas_puff: Integrated gas puff source [s^-1]
     S_pellet: Integrated pellet source [s^-1]
+    S_pellet_hpi2nn: Integrated HPI2NN pellet source [s^-1]
     S_generic_particle: Integrated generic particle source [s^-1]
     S_total: Total integrated particle sources [s^-1]
     beta_tor: Volume-averaged toroidal plasma beta (thermal) [dimensionless]
@@ -311,6 +312,7 @@ class PostProcessedOutputs:
   f_bootstrap: array_typing.FloatScalar
   S_gas_puff: array_typing.FloatScalar
   S_pellet: array_typing.FloatScalar
+  S_pellet_hpi2nn: array_typing.FloatScalar
   S_generic_particle: array_typing.FloatScalar
   beta_tor: array_typing.FloatScalar
   beta_pol: array_typing.FloatScalar
@@ -424,6 +426,7 @@ class PostProcessedOutputs:
         f_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        S_pellet_hpi2nn=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_tor=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -474,6 +477,7 @@ CURRENT_SOURCE_TRANSFORMATIONS = {
 PARTICLE_SOURCE_TRANSFORMATIONS = {
     'gas_puff': 'S_gas_puff',
     'pellet': 'S_pellet',
+    'hpi2nn_pellet_source': 'S_pellet_hpi2nn',
     'generic_particle': 'S_generic_particle',
 }
 

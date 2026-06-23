@@ -13,8 +13,10 @@
 # limitations under the License.
 
 """Pydantic model for sawtooth configuration."""
+from typing import Annotated, Union
 import chex
 import pydantic
+from torax._src.mhd.sawtooth import pellet_aware_simple_trigger
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import sawtooth_models
 from torax._src.mhd.sawtooth import simple_redistribution
@@ -31,9 +33,16 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
     crash_step_duration: Sawteeth crash period for extra timestep generated.
   """
 
-  trigger_model: simple_trigger.SimpleTriggerConfig = pydantic.Field(
-      discriminator='model_name'
-  )
+  trigger_model: Annotated[
+      Union[
+          simple_trigger.SimpleTriggerConfig,
+          pellet_aware_simple_trigger.PelletAwareSimpleTriggerConfig,
+      ],
+      pydantic.Field(
+          discriminator='model_name',
+          default_factory=simple_trigger.SimpleTriggerConfig,
+      ),
+  ]
 
   redistribution_model: simple_redistribution.SimpleRedistributionConfig = (
       pydantic.Field(discriminator='model_name')
