@@ -55,11 +55,9 @@ class TGLFTransportModelTest(parameterized.TestCase):
 
     def _mock_subprocess_run(cmd, **kwargs):
       """Write a fake TGLF output file and return a mock subprocess result."""
-      del kwargs  # Unused.
-
-      # cmd is [tglf_exec_path, '-n', n_cores_per_process, '-e', run_directory]
-      # Extract the run directory from the command
-      run_dir = cmd[-1]
+      # cmd is [tglf_exec_path, '-n', n_cores_per_process, '-e', label]
+      # Combine cwd and label to get the full run directory path.
+      run_dir = os.path.join(kwargs['cwd'], cmd[-1])
 
       # Populate the run directory with a fake output file.
       os.makedirs(run_dir, exist_ok=True)

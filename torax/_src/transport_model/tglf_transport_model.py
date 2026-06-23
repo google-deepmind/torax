@@ -240,9 +240,9 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       """
       # Create a unique directory for this TGLF run.
       label = f'tglf_run_{face_index:04d}'
-      run_directory = os.path.join(plan_directory, label)
-      if not os.path.exists(run_directory):
-        os.makedirs(run_directory)
+      output_directory = os.path.join(plan_directory, label)
+      if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
 
       # Extract the TGLFInputs for this face.
       tglf_inputs_i = jax.tree.map(
@@ -266,7 +266,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
           k: v for k, v in tglf_namelist.items() if k not in excluded_fields
       }
       namelist_str = '\n'.join([f'{k}={v}' for k, v in tglf_namelist.items()])
-      with open(run_directory + '/input.tglf', 'w+') as f:
+      with open(output_directory + '/input.tglf', 'w+') as f:
         f.write(namelist_str)
 
       # Run TGLF in the given working directory.
@@ -276,13 +276,12 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
               '-n',
               str(n_cores_per_process),
               '-e',
-              run_directory,
+              label,
           ],
           capture_output=verbose,
           text=verbose,
           stdout=None if verbose else subprocess.DEVNULL,
           stderr=None if verbose else subprocess.DEVNULL,
-          # Run from the plan directory to avoid issues with relative paths.
           cwd=plan_directory,
           check=True,  # Raise error if the command fails.
       )
@@ -295,7 +294,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
 
       # Read the TGLF output.
       gbfluxes = np.fromfile(
-          os.path.join(run_directory, 'out.tglf.gbflux'),
+          os.path.join(output_directory, 'out.tglf.gbflux'),
           sep=' ',
       )
       nspecies = len(gbfluxes) // 4
