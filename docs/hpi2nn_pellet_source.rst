@@ -29,7 +29,7 @@ time chosen by the user (trigger time), using the ``T_e``, ``T_i``, ``n_e`` and
     )
 
 The magnetic field ``B_0`` is passed as an input but is no longer used inside
-HPI2-NN in the latest version.
+HPI2-NN in the latest version for WEST.
 
 ``injection_point_1`` and ``injection_point_2`` can be used by HPI2-NN to find
 the closest matching injection line, but this feature is currently not exposed
@@ -40,6 +40,10 @@ See ``torax/_src/sources/hpi2nn_pellet_source.py`` for the full list of source
 attributes (pellet radius/velocity, per-trigger ``pellet_radii`` /
 ``pellet_velocities``, ``trigger_times`` or ``frequency``, ``injection_line``,
 ``ablation_time``, ``use_hpi2nn_ablation_time``).
+
+The source is explicit (is_explicit = True), so HPI2-NN is called once at each trigger time
+and the deposit is held fixed during the implicit solve, instead of being re-evaluated
+at every solver iteration.
 
 Ablation time and source normalisation
 =======================================

@@ -331,6 +331,8 @@ class HPI2NNPelletConfig(base.SourceModelBase):
       sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
   ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
+  is_explicit: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+
   @property
   def model_func(self) -> source.SourceProfileFunction:
     return calc_pellet_source

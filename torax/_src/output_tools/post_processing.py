@@ -195,7 +195,6 @@ class PostProcessedOutputs:
     f_bootstrap: Bootstrap current fraction of the total current [dimensionless]
     S_gas_puff: Integrated gas puff source [s^-1]
     S_pellet: Integrated pellet source [s^-1]
-    S_pellet_hpi2nn: Integrated HPI2NN pellet source [s^-1]
     S_generic_particle: Integrated generic particle source [s^-1]
     S_total: Total integrated particle sources [s^-1]
     beta_tor: Volume-averaged toroidal plasma beta (thermal) [dimensionless]
@@ -312,7 +311,6 @@ class PostProcessedOutputs:
   f_bootstrap: array_typing.FloatScalar
   S_gas_puff: array_typing.FloatScalar
   S_pellet: array_typing.FloatScalar
-  S_pellet_hpi2nn: array_typing.FloatScalar
   S_generic_particle: array_typing.FloatScalar
   beta_tor: array_typing.FloatScalar
   beta_pol: array_typing.FloatScalar
@@ -426,7 +424,6 @@ class PostProcessedOutputs:
         f_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_gas_puff=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_pellet=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        S_pellet_hpi2nn=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         S_generic_particle=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_tor=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -477,7 +474,9 @@ CURRENT_SOURCE_TRANSFORMATIONS = {
 PARTICLE_SOURCE_TRANSFORMATIONS = {
     'gas_puff': 'S_gas_puff',
     'pellet': 'S_pellet',
-    'hpi2nn_pellet_source': 'S_pellet_hpi2nn',
+    # Both pellet sources integrate into S_pellet. Their contributions are
+    # summed. Only one of the two is expected to be used at a time.
+    'hpi2nn_pellet_source': 'S_pellet',
     'generic_particle': 'S_generic_particle',
 }
 
@@ -610,10 +609,16 @@ def _calculate_integrated_sources(
     )
 
   for key, value in PARTICLE_SOURCE_TRANSFORMATIONS.items():
-    integrated[f'{value}'] = _get_integrated_source_value(
+    contribution = _get_integrated_source_value(
         core_sources.n_e, key, geo, math_utils.volume_integration
     )
-    integrated['S_total'] += integrated[f'{value}']
+    # Accumulate so that multiple source names mapping to the same output key
+    # (e.g. 'pellet' and 'hpi2nn_pellet_source' -> 'S_pellet') are summed.
+    integrated[value] = (
+        integrated.get(value, jnp.array(0.0, dtype=jax_utils.get_dtype()))
+        + contribution
+    )
+    integrated['S_total'] += contribution
 
   integrated['P_aux_total'] = integrated['P_aux_i'] + integrated['P_aux_e']
   integrated['P_fusion'] = 5 * integrated['P_alpha_total']
