@@ -574,7 +574,11 @@ def _get_limit(
     include_first_timepoint: bool,
 ) -> float:
   """Gets the limit for a set of attributes based a histogram percentile."""
-  if include_first_timepoint:
+  time_steps = len(plotdata.t)
+  if time_steps == 0:
+    raise ValueError(f"No timepoints found in dataset for attributes {attrs}.")
+
+  if include_first_timepoint or time_steps == 1:
     values = np.concatenate(
         [getattr(plotdata, attr).flatten() for attr in attrs]
     )
@@ -582,6 +586,10 @@ def _get_limit(
     values = np.concatenate(
         [getattr(plotdata, attr)[1:, :].flatten() for attr in attrs]
     )
+
+  if values.size == 0:
+    raise ValueError(f"No data supplied for attributes {attrs}.")
+
   return np.percentile(values, percentile)
 
 
