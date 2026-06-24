@@ -193,8 +193,8 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
 
     def _get_cell_variable(value):
       return cell_variable.CellVariable(
-          value=jnp.array([value]),
-          face_centers=jnp.array([0.0, 1.0]),
+          value=jnp.array([value, value, value]),
+          face_centers=jnp.array([0.0, 1.0, 2.0, 3.0]),
           right_face_grad_constraint=None,
           right_face_constraint=jnp.array(value),
       )
@@ -214,11 +214,11 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
 
     normalized_logarithmic_gradients = (
         quasilinear_transport_model.NormalizedLogarithmicGradients(
-            lref_over_lti=np.array([0.0, 1.0]),
-            lref_over_lte=np.array([0.0, 2.0]),
-            lref_over_lne=np.array([0.0, 3.0]),
-            lref_over_lni0=np.array([0.0, 4.0]),
-            lref_over_lni1=np.array([0.0, 5.0]),
+            lref_over_lti=np.array([0.0, 0.0, 0.0, 1.0]),
+            lref_over_lte=np.array([0.0, 0.0, 0.0, 2.0]),
+            lref_over_lne=np.array([0.0, 0.0, 0.0, 3.0]),
+            lref_over_lni0=np.array([0.0, 0.0, 0.0, 4.0]),
+            lref_over_lni1=np.array([0.0, 0.0, 0.0, 5.0]),
             fast_ion_gradients={},
         )
     )
@@ -230,20 +230,20 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
 
     alpha_expected = np.array(
-        [0, 32 * constants.keV_to_J * 1e20 * constants.mu_0]
+        [0, 0, 0, 32 * constants.keV_to_J * 1e20 * constants.mu_0]
     )
     np.testing.assert_allclose(alpha, alpha_expected)
 
   def test_calculate_normalized_logarithmic_gradient(self):
     """Tests that calculate_normalized_logarithmic_gradient is calculated correctly."""
     dummy_cell_variable = cell_variable.CellVariable(
-        value=jnp.array([2.0, 1.0]),
-        face_centers=jnp.array([0.0, 1.0, 2.0]),
+        value=jnp.array([3.0, 2.0, 1.0]),
+        face_centers=jnp.array([0.0, 1.0, 2.0, 3.0]),
         right_face_constraint=jnp.array(0.5),
         right_face_grad_constraint=None,
     )
-    radial_coordinate = jnp.array([0.0, 1.0])
-    radial_face_coordinate = jnp.array([-0.5, 0.5, 1.5])
+    radial_coordinate = jnp.array([0.5, 1.5, 2.5])
+    radial_face_coordinate = jnp.array([0.0, 1.0, 2.0, 3.0])
     # pylint: disable=protected-access
     normalized_logarithmic_gradient = (
         quasilinear_transport_model.calculate_normalized_logarithmic_gradient(
@@ -255,7 +255,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
     # pylint: enable=protected-access
     normalized_logarithmic_gradient_expected = np.array(
-        [constants.eps, 2.0 / 3.0, 2.0]
+        [constants.eps, 0.4, 2.0 / 3.0, 2.0]
     )
     np.testing.assert_allclose(
         normalized_logarithmic_gradient,
