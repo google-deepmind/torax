@@ -159,6 +159,46 @@ def load_state_file(filepath: str) -> xr.DataTree:
     raise ValueError(f"File {filepath} does not exist.")
 
 
+def _get_units(name: str) -> str | None:
+  """Returns the physical units for a given output variable name."""
+  # Voltages / Fluxes
+  if name in (V_LOOP, V_LOOP_LCFS): return "V"
+  if name == PSI: return "Wb/rad"
+  
+  # Temperatures
+  if name in (T_E, T_I) or name.startswith("T_fast_ion"): return "keV"
+  
+  # Densities
+  if name in (N_E, N_I, N_IMPURITY, "n_impurity_thermal") or name.startswith("n_fast_ion"): return "m^-3"
+  
+  # Particle Sources
+  if name.startswith("s_"): return "m^-3/s"
+  
+  # Power / Heating
+  if name.startswith("P_") and name != PSI: return "W"
+  if name.startswith("p_"): return "W/m^3"
+  
+  # Currents
+  if name.startswith("j_") or name.startswith("J_"): return "A/m^2"
+  if name in (IP, IP_PROFILE, I_BOOTSTRAP): return "A"
+  if name == SIGMA_PARALLEL: return "S/m"
+  
+  # Transport
+  if name.startswith("chi_") or name.startswith("D_"): return "m^2/s"
+  if name.startswith("V_") or name.startswith("v_") and name not in (V_LOOP, V_LOOP_LCFS): return "m/s"
+  
+  # Geometries / Time
+  if name == TIME: return "s"
+  if "rho" in name and "norm" not in name: return "m"
+  if name in (Q, MAGNETIC_SHEAR, Z_IMPURITY, Z_EFF, Q_FUSION) or "norm" in name:
+    return "dimensionless"
+  
+  # Energy
+  if name == "W_thermal_total": return "J"
+  
+  return None
+
+
 def concat_datatrees(
     tree1: xr.DataTree,
     tree2: xr.DataTree,
@@ -526,7 +566,9 @@ class StateHistory:
         )
         return None
 
-    return xr.DataArray(data, dims=dims, name=name)
+    units = _get_units(name)
+    attrs = {"units": units} if units is not None else {}
+    return xr.DataArray(data, dims=dims, name=name, attrs=attrs)
 
   def _save_core_profiles(
       self,

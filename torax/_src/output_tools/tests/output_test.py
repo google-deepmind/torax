@@ -439,6 +439,17 @@ class StateHistoryTest(parameterized.TestCase):
       if data_array_dims:
         self.assertIn(output.TIME, data_array_dims)
 
+  def test_output_variables_have_units(self):
+    """Test that variables have the units attribute populated."""
+    output_xr = self.history.simulation_output_to_xr()
+    
+    profiles = output_xr.children[output.PROFILES].dataset
+    self.assertEqual(profiles[output.T_E].attrs.get('units'), 'keV')
+    self.assertEqual(profiles[output.N_E].attrs.get('units'), 'm^-3')
+    
+    scalars = output_xr.children[output.SCALARS].dataset
+    self.assertEqual(scalars[output.IP].attrs.get('units'), 'A')
+
   def test_impurity_radiation_output(self):
     test_data_dir = paths.test_data_dir()
     torax_config = config_loader.build_torax_config_from_file(
