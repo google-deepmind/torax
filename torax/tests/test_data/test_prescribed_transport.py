@@ -35,19 +35,20 @@ chi_base_t2 = np.exp(-20 * x) + 0.3 * np.exp(-(((x - 0.5) / 0.3) ** 2))
 CONFIG = copy.deepcopy(default_config.CONFIG)
 
 CONFIG['transport'] = {
-    # Note: prescribed transport is currently handled by ConstantTransportModel
-    # The name of this model will change in a future release
-    'model_name': 'constant',
-    'chi_i': (
-        np.array([0.0, 5.0]),
-        x,
-        1.5 * np.stack([chi_base_t1, chi_base_t2]),
-    ),
-    'chi_e': (
-        np.array([0.0, 5.0]),
-        x,
-        np.stack([chi_base_t1, chi_base_t2]),
-    ),
-    'D_e': 1.0,
-    'V_e': -0.33,
+    'model_name': 'combined',
+    'transport_models': [{
+        'model_name': 'constant',
+        'chi_i': (
+            np.array([0.0, 5.0]),
+            x,
+            1.5 * np.stack([chi_base_t1, chi_base_t2]),
+        ),
+        'chi_e': (
+            np.array([0.0, 5.0]),
+            x,
+            np.stack([chi_base_t1, chi_base_t2]),
+        ),
+        'D_e': 1.0,
+        'V_e': -0.33,
+    }],
 }
