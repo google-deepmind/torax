@@ -123,6 +123,8 @@ def profile_conditions_from_IMAS(
   }
 
 
+# TODO(b/528212645): Add support for custom mappings of IMAS ion names to TORAX
+# ion names. Also add support for DT -> 50/50 D, T mix.
 def plasma_composition_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
