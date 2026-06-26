@@ -21,26 +21,37 @@ import dataclasses
 from typing import Callable, Sequence
 import jax
 import jax.numpy as jnp
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
-# pylint: disable=protected-access
+# pylint: disable=protected-access,invalid-name
 
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
+  """Runtime parameters for the CombinedTransportModel."""
+
   transport_model_params: Sequence[transport_runtime_params_lib.RuntimeParams]
   pedestal_transport_model_params: Sequence[
       transport_runtime_params_lib.RuntimeParams
   ]
+  chi_min: float
+  chi_max: float
+  D_e_min: float
+  D_e_max: float
+  V_e_min: float
+  V_e_max: float
+  smoothing_width: float
+  smooth_everywhere: bool
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -59,6 +70,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
   ) -> transport_model_lib.TurbulentTransport:
 
     transport_runtime_params = runtime_params.transport
+    assert isinstance(transport_runtime_params, RuntimeParams)
 
     # Calculate the transport coefficients - includes contribution from pedestal
     # and core transport models.
@@ -242,6 +254,66 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
     return transport_model_lib.TurbulentTransport(**accumulators)
 
+  def _apply_clipping(
+      self,
+      transport_runtime_params: RuntimeParams,
+      transport_coeffs: transport_model_lib.TurbulentTransport,
+  ) -> transport_model_lib.TurbulentTransport:
+    """Applies min/max clipping to transport coefficients for PDE stability."""
+    chi_face_ion = jnp.clip(
+        transport_coeffs.chi_face_ion,
+        transport_runtime_params.chi_min,
+        transport_runtime_params.chi_max,
+    )
+    chi_face_el = jnp.clip(
+        transport_coeffs.chi_face_el,
+        transport_runtime_params.chi_min,
+        transport_runtime_params.chi_max,
+    )
+    d_face_el = jnp.clip(
+        transport_coeffs.d_face_el,
+        transport_runtime_params.D_e_min,
+        transport_runtime_params.D_e_max,
+    )
+    v_face_el = jnp.clip(
+        transport_coeffs.v_face_el,
+        transport_runtime_params.V_e_min,
+        transport_runtime_params.V_e_max,
+    )
+
+    return dataclasses.replace(
+        transport_coeffs,
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
+    )
+
+  def _smooth_coeffs(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      transport_coeffs: transport_model_lib.TurbulentTransport,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+  ) -> transport_model_lib.TurbulentTransport:
+    """Gaussian smoothing of turbulent transport coefficients."""
+    smoothing_matrix = _build_smoothing_matrix(
+        runtime_params,
+        geo,
+        pedestal_model_output,
+    )
+
+    # Iterate over fields of the CoreTransport dataclass.
+    # Ignore optional fields that are made all zero in post_init.
+    def smooth_single_coeff(coeff):
+      return jax.lax.cond(
+          jnp.all(coeff == 0.0),
+          lambda: coeff,
+          lambda: jnp.dot(smoothing_matrix, coeff),
+      )
+
+    return jax.tree_util.tree_map(smooth_single_coeff, transport_coeffs)
+
 
 def _add_optional(
     core_value: jax.Array | None, pedestal_value: jax.Array | None
@@ -262,3 +334,111 @@ def _pedestal_domain_mask(
 ) -> jax.Array:
   """Calculates the active domain mask for pedestal transport models."""
   return jnp.asarray(geo.rho_face_norm > pedestal_output.rho_norm_ped_top)
+
+
+def _build_smoothing_matrix(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+) -> jax.Array:
+  """Builds a smoothing matrix for the turbulent transport model.
+
+  Uses a Gaussian kernel of HWHM defined in the transport config.
+
+  Args:
+    runtime_params: Input runtime parameters of the simulation.
+    geo: Geometry of the torus.
+    pedestal_model_output: Output of the pedestal model.
+
+  Returns:
+    kernel: A smoothing matrix for convolution with the transport outputs.
+  """
+  transport_runtime_params = runtime_params.transport
+  assert isinstance(transport_runtime_params, RuntimeParams)
+
+  # To reduce the range of the convolution, weights under lower_cutoff are
+  # clipped to zero
+  lower_cutoff = 0.01
+
+  # used for eps, small number to avoid divisions by zero for sigma = 0
+  consts = constants.CONSTANTS
+
+  # 1. Kernel matrix
+  kernel = jnp.exp(
+      -jnp.log(2)
+      * (geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm) ** 2
+      / (transport_runtime_params.smoothing_width**2 + consts.eps)
+  )
+
+  # 2. Masking: we do not want transport coefficients calculated in pedestal
+  # region or in inner and outer transport patch regions to impact
+  # transport_model calculated coefficients
+  if (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+  ):
+    # If in ADAPTIVE_SOURCE mode: if set_pedestal is True, mask according to the
+    # pedestal top. Otherwise, mask according to the outer patch, if set.
+    mask_outer_edge = jnp.where(
+        runtime_params.pedestal.set_pedestal,
+        pedestal_model_output.rho_norm_ped_top - consts.eps,
+        jnp.where(
+            transport_runtime_params.apply_outer_patch,
+            transport_runtime_params.rho_outer - consts.eps,
+            jnp.inf,
+        ),
+    )
+  else:
+    # If in ADAPTIVE_TRANSPORT mode, only mask according to the outer patch.
+    mask_outer_edge = jnp.where(
+        transport_runtime_params.apply_outer_patch,
+        transport_runtime_params.rho_outer - consts.eps,
+        jnp.inf,
+    )
+
+  mask_inner_edge = jax.lax.cond(
+      transport_runtime_params.apply_inner_patch,
+      lambda: transport_runtime_params.rho_inner + consts.eps,
+      lambda: 0.0,
+  )
+
+  mask = jnp.where(
+      jnp.logical_or(
+          transport_runtime_params.smooth_everywhere,
+          jnp.logical_and(
+              geo.rho_face_norm > mask_inner_edge,
+              geo.rho_face_norm < mask_outer_edge,
+          ),
+      ),
+      1.0,
+      0.0,
+  )
+
+  # remove impact of smoothing on inner and outer patch, or pedestal zone
+
+  # first zero out all rows corresponding to grid points not to be impacted
+  diag_mask = jnp.diag(mask)
+  kernel = jnp.dot(diag_mask, kernel)
+  # now zero out all columns corresponding to grid points not to be impacted,
+  # such that they don't impact the smoothing of the other grid points
+  num_rows = len(mask)
+  mask_mat = jnp.tile(mask, (num_rows, 1))
+  kernel *= mask_mat
+  # now restore identity to the zero rows, such that smoothing is a no-op for
+  # on the grid points where it shouldn't impact
+  zero_row_mask = jnp.all(kernel == 0, axis=1)
+  kernel = jnp.where(
+      zero_row_mask[:, jnp.newaxis], jnp.eye(kernel.shape[0]), kernel
+  )
+
+  # 3. Normalization
+  row_sums = jnp.sum(kernel, axis=1)
+  kernel /= row_sums[:, jnp.newaxis]
+
+  # 4. Remove small numbers
+  kernel = jnp.where(kernel < lower_cutoff, 0.0, kernel)
+
+  # 5. Final Normalization following removal of small numbers
+  row_sums = jnp.sum(kernel, axis=1)
+  kernel /= row_sums[:, jnp.newaxis]
+  return kernel

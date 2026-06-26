@@ -35,7 +35,12 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def test_call(self, jit: bool):
     """Tests that the model can be called (with entirely mocked TGLF)."""
     config = default_configs.get_default_config_dict()
-    config['transport'] = {'model_name': 'tglf', 'tglf_exec_path': '~/tglf'}
+    config['transport'] = {
+        'model_name': 'combined',
+        'transport_models': [
+            {'model_name': 'tglf', 'tglf_exec_path': '~/tglf'}
+        ],
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()

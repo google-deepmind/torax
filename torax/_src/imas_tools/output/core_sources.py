@@ -124,7 +124,12 @@ def _compute_source_profiles(
     core_profile_state: state.CoreProfiles,
     geo: geometry_lib.Geometry,
     source_name: str,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[
+    array_typing.Array,
+    array_typing.Array,
+    array_typing.Array,
+    array_typing.Array,
+]:
   """Computes per-source profile arrays for a single time slice.
 
   Args:

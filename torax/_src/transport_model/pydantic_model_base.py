@@ -70,12 +70,6 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       region.
   """
 
-  chi_min: torax_pydantic.MeterSquaredPerSecond = 0.05
-  chi_max: torax_pydantic.MeterSquaredPerSecond = 100.0
-  D_e_min: torax_pydantic.MeterSquaredPerSecond = 0.05
-  D_e_max: torax_pydantic.MeterSquaredPerSecond = 100.0
-  V_e_min: torax_pydantic.MeterPerSecond = -50.0
-  V_e_max: torax_pydantic.MeterPerSecond = 50.0
   rho_min: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
@@ -120,8 +114,6 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   rho_outer: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.9)
   )
-  smoothing_width: pydantic.NonNegativeFloat = 0.0
-  smooth_everywhere: bool = False
   disable_chi_i: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(False)
   )
@@ -148,12 +140,6 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    if not self.chi_max > self.chi_min:
-      raise ValueError('chi_min must be less than chi_max.')
-    if not self.D_e_min < self.D_e_max:
-      raise ValueError('D_e_min must be less than D_e_max.')
-    if not self.V_e_min < self.V_e_max:
-      raise ValueError('V_e_min must be less than V_e_max.')
     # For the time-varying parameter pairs (rho_min, rho_max),
     # (rho_inner, rho_outer), we have relative magnitude constraints. These need
     # to be held at all times. We validate this by checking the inequality at
@@ -195,12 +181,6 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
             )
         ),
         fast_ion_stabilization_multiplier=self.fast_ion_stabilization_multiplier,
-        chi_min=self.chi_min,
-        chi_max=self.chi_max,
-        D_e_min=self.D_e_min,
-        D_e_max=self.D_e_max,
-        V_e_min=self.V_e_min,
-        V_e_max=self.V_e_max,
         rho_min=self.rho_min.get_value(t),
         rho_max=self.rho_max.get_value(t),
         apply_inner_patch=self.apply_inner_patch.get_value(t),
@@ -215,8 +195,6 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
         chi_i_outer=self.chi_i_outer.get_value(t),
         chi_e_outer=self.chi_e_outer.get_value(t),
         rho_outer=self.rho_outer.get_value(t),
-        smoothing_width=self.smoothing_width,
-        smooth_everywhere=self.smooth_everywhere,
         disable_chi_i=self.disable_chi_i.get_value(t),
         disable_chi_e=self.disable_chi_e.get_value(t),
         disable_D_e=self.disable_D_e.get_value(t),

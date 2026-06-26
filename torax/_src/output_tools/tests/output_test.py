@@ -69,8 +69,11 @@ class StateHistoryTest(parameterized.TestCase):
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
-            'model_name': 'constant',
-            'chi_i': 2.0,
+            'model_name': 'combined',
+            'transport_models': [{
+                'model_name': 'constant',
+                'chi_i': 2.0,
+            }],
         },
         'pedestal': {},
     })
@@ -305,15 +308,25 @@ class StateHistoryTest(parameterized.TestCase):
     """Tests that the config is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
     config_dict = json.loads(output_xr.attrs[output.CONFIG])
-    self.assertEqual(config_dict['transport']['model_name'], 'constant')
+    self.assertEqual(config_dict['transport']['model_name'], 'combined')
+    self.assertEqual(
+        config_dict['transport']['transport_models'][0]['model_name'],
+        'constant',
+    )
     # Indexing: ['0.0'][1][1][0] = at time 0, at second rho coordinate,
     # get the value list, and the first value
     self.assertEqual(
-        config_dict['transport']['chi_i']['value']['0.0'][1][1][0], 2.0
+        config_dict['transport']['transport_models'][0]['chi_i']['value'][
+            '0.0'
+        ][1][1][0],
+        2.0,
     )
     # Default values are expected to be set in the saved config
     self.assertEqual(
-        config_dict['transport']['chi_e']['value']['0.0'][1][1][0], 1.0
+        config_dict['transport']['transport_models'][0]['chi_e']['value'][
+            '0.0'
+        ][1][1][0],
+        1.0,
     )
 
   def test_config_round_trip(self):
@@ -735,7 +748,10 @@ class StateHistoryTest(parameterized.TestCase):
         'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
-        'transport': {'model_name': 'constant'},
+        'transport': {
+            'model_name': 'combined',
+            'transport_models': [{'model_name': 'constant'}],
+        },
         'pedestal': {},
     })
 
@@ -833,7 +849,10 @@ class StateHistoryTest(parameterized.TestCase):
         'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
-        'transport': {'model_name': 'constant'},
+        'transport': {
+            'model_name': 'combined',
+            'transport_models': [{'model_name': 'constant'}],
+        },
         'pedestal': {},
     })
 

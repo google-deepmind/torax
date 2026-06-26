@@ -38,6 +38,7 @@ from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
 
@@ -50,6 +51,28 @@ def _get_model_and_model_inputs(
 ):
   """Returns the model inputs for testing."""
   config = default_configs.get_default_config_dict()
+  if transport.get('model_name') != 'combined':
+    common_params = {}
+    component_params = dict(transport)
+    for key in [
+        'chi_min',
+        'chi_max',
+        'D_e_min',
+        'D_e_max',
+        'V_e_min',
+        'V_e_max',
+        'smoothing_width',
+        'smooth_everywhere',
+    ]:
+      if key in transport:
+        common_params[key] = transport[key]
+        if key in component_params:
+          del component_params[key]
+    transport = {
+        'model_name': 'combined',
+        'transport_models': [component_params],
+        **common_params,
+    }
   config['transport'] = transport
   config['pedestal'] = {
       'model_name': 'set_T_ped_n_ped',
@@ -99,10 +122,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[
-        'transport'
-    ].annotation |= QuasilinearTransportConfig
-    model_config.ToraxConfig.model_rebuild(force=True)
+    register_model.register_transport_model(QuasilinearTransportConfig)
 
   # pylint: disable=invalid-name
 
@@ -540,12 +560,7 @@ class FakeQuasilinearTransportModel(
         lref_over_lni0=np.array(1.4),
         lref_over_lni1=np.array(1.5),
     )
-    transport = runtime_params.transport
-    # Assert required for pytype.
-    assert isinstance(
-        transport,
-        quasilinear_transport_model.RuntimeParams,
-    )
+    transport = transport_runtime_params
     return self._make_core_transport(
         qi=np.ones(geo.rho_face_norm.shape) * 0.4,
         qe=np.ones(geo.rho_face_norm.shape) * 0.5,

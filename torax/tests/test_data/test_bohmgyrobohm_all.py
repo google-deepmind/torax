@@ -70,7 +70,10 @@ CONFIG = {
         'n_e_ped_is_fGW': True,
     },
     'transport': {
-        'model_name': 'bohm-gyrobohm',
+        'model_name': 'combined',
+        'transport_models': [{
+            'model_name': 'bohm-gyrobohm',
+        }],
     },
     'solver': {
         'solver_type': 'linear',

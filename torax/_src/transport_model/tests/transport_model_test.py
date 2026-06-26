@@ -30,6 +30,7 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import combined
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
@@ -87,15 +88,18 @@ class TransportSmoothingTest(parameterized.TestCase):
     """Tests that smoothing works as expected."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'fixed',
-        'apply_inner_patch': True,
-        'apply_outer_patch': True,
-        'rho_inner': 0.3,
-        'rho_outer': 0.8,
+        'model_name': 'combined',
         'smoothing_width': 0.05,
+        'transport_models': [{
+            'model_name': 'fixed',
+        }],
     }
     config['profile_conditions'] = {
         'n_e_right_bc': 0.5e20,
+    }
+    config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
     }
     config['geometry'] = {'geometry_type': 'circular'}
     torax_config = model_config.ToraxConfig.from_dict(config)
@@ -138,83 +142,62 @@ class TransportSmoothingTest(parameterized.TestCase):
         core_profiles,
         pedestal_model_outputs,
     )
-    inner_patch_idx = np.searchsorted(
-        geo.rho_face_norm, runtime_params.transport.rho_inner
-    )
-    outer_patch_idx = np.searchsorted(
-        geo.rho_face_norm, runtime_params.transport.rho_outer
-    )
-    inner_patch_ones = np.ones(inner_patch_idx)
-    outer_patch_ones = np.ones(geo.rho_face_norm.shape[0] - outer_patch_idx)
-    chi_face_ion_orig = np.concatenate([
-        inner_patch_ones * runtime_params.transport.chi_i_inner,
-        np.linspace(0.5, 2, geo.rho_face_norm.shape[0])[
-            inner_patch_idx:outer_patch_idx
-        ],
-        outer_patch_ones * runtime_params.transport.chi_i_outer,
-    ])
-    chi_face_el_orig = np.concatenate([
-        inner_patch_ones * runtime_params.transport.chi_e_inner,
-        np.linspace(0.25, 1, geo.rho_face_norm.shape[0])[
-            inner_patch_idx:outer_patch_idx
-        ],
-        outer_patch_ones * runtime_params.transport.chi_e_outer,
-    ])
-    d_face_el_orig = np.concatenate([
-        inner_patch_ones * runtime_params.transport.D_e_inner,
-        np.linspace(2, 3, geo.rho_face_norm.shape[0])[
-            inner_patch_idx:outer_patch_idx
-        ],
-        outer_patch_ones * runtime_params.transport.D_e_outer,
-    ])
-    v_face_el_orig = np.concatenate([
-        inner_patch_ones * runtime_params.transport.V_e_inner,
-        np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])[
-            inner_patch_idx:outer_patch_idx
-        ],
-        outer_patch_ones * runtime_params.transport.V_e_outer,
-    ])
 
-    # assert that the smoothing did not impact the zones inside/outside the
-    # inner/outer transport patch locations
+    pedestal_idx = np.searchsorted(
+        geo.rho_face_norm, pedestal_model_outputs.rho_norm_ped_top
+    )
+
+    # Reconstruct original profiles before smoothing (but after masking and
+    # clipping)
+    assert isinstance(runtime_params.transport, combined.RuntimeParams)
+    chi_min = runtime_params.transport.chi_min
+    chi_max = runtime_params.transport.chi_max
+    d_e_min = runtime_params.transport.D_e_min
+    d_e_max = runtime_params.transport.D_e_max
+    v_e_min = runtime_params.transport.V_e_min
+    v_e_max = runtime_params.transport.V_e_max
+
+    chi_i_raw = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
+    chi_e_raw = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
+    d_e_raw = np.linspace(2, 3, geo.rho_face_norm.shape[0])
+    v_e_raw = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
+
+    core_mask = geo.rho_face_norm <= pedestal_model_outputs.rho_norm_ped_top
+
+    chi_face_ion_orig = np.where(core_mask, chi_i_raw, 0.0)
+    chi_face_el_orig = np.where(core_mask, chi_e_raw, 0.0)
+    d_face_el_orig = np.where(core_mask, d_e_raw, 0.0)
+    v_face_el_orig = np.where(core_mask, v_e_raw, 0.0)
+
+    chi_face_ion_orig = np.clip(chi_face_ion_orig, chi_min, chi_max)
+    chi_face_el_orig = np.clip(chi_face_el_orig, chi_min, chi_max)
+    d_face_el_orig = np.clip(d_face_el_orig, d_e_min, d_e_max)
+    v_face_el_orig = np.clip(v_face_el_orig, v_e_min, v_e_max)
+
+    # assert that the smoothing did not impact the pedestal zone (masked out)
     np.testing.assert_allclose(
-        transport_coeffs.chi_face_ion[:inner_patch_idx],
-        chi_face_ion_orig[:inner_patch_idx],
+        transport_coeffs.chi_face_ion[pedestal_idx:],
+        chi_face_ion_orig[pedestal_idx:],
     )
     np.testing.assert_allclose(
-        transport_coeffs.chi_face_el[:inner_patch_idx],
-        chi_face_el_orig[:inner_patch_idx],
+        transport_coeffs.chi_face_el[pedestal_idx:],
+        chi_face_el_orig[pedestal_idx:],
     )
     np.testing.assert_allclose(
-        transport_coeffs.d_face_el[:inner_patch_idx],
-        d_face_el_orig[:inner_patch_idx],
+        transport_coeffs.d_face_el[pedestal_idx:],
+        d_face_el_orig[pedestal_idx:],
     )
     np.testing.assert_allclose(
-        transport_coeffs.v_face_el[:inner_patch_idx],
-        v_face_el_orig[:inner_patch_idx],
+        transport_coeffs.v_face_el[pedestal_idx:],
+        v_face_el_orig[pedestal_idx:],
     )
-    np.testing.assert_allclose(
-        transport_coeffs.chi_face_ion[outer_patch_idx:],
-        chi_face_ion_orig[outer_patch_idx:],
-    )
-    np.testing.assert_allclose(
-        transport_coeffs.chi_face_el[outer_patch_idx:],
-        chi_face_el_orig[outer_patch_idx:],
-    )
-    np.testing.assert_allclose(
-        transport_coeffs.d_face_el[outer_patch_idx:],
-        d_face_el_orig[outer_patch_idx:],
-    )
-    np.testing.assert_allclose(
-        transport_coeffs.v_face_el[outer_patch_idx:],
-        v_face_el_orig[outer_patch_idx:],
-    )
-    # carry out smoothing by hand for a representative middle location.
-    # Check that behaviour is as expected
+
+    # carry out smoothing by hand for a representative middle location in the
+    # core.
     test_idx = 5
     eps = 1e-7
     lower_cutoff = 0.01
-    r_reduced = geo.rho_face_norm[inner_patch_idx:outer_patch_idx]
+    r_reduced = geo.rho_face_norm[:pedestal_idx]
     test_r = r_reduced[test_idx]
     smoothing_array = np.exp(
         -np.log(2)
@@ -227,35 +210,35 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
     smoothing_array /= np.sum(smoothing_array)
     chi_face_ion_orig_smoothed_test_r = (
-        chi_face_ion_orig[inner_patch_idx:outer_patch_idx] * smoothing_array
+        chi_face_ion_orig[:pedestal_idx] * smoothing_array
     )
     chi_face_el_orig_smoothed_test_r = (
-        chi_face_el_orig[inner_patch_idx:outer_patch_idx] * smoothing_array
+        chi_face_el_orig[:pedestal_idx] * smoothing_array
     )
     d_face_el_orig_smoothed_test_r = (
-        d_face_el_orig[inner_patch_idx:outer_patch_idx] * smoothing_array
+        d_face_el_orig[:pedestal_idx] * smoothing_array
     )
     v_face_el_orig_smoothed_test_r = (
-        v_face_el_orig[inner_patch_idx:outer_patch_idx] * smoothing_array
+        v_face_el_orig[:pedestal_idx] * smoothing_array
     )
 
     np.testing.assert_allclose(
-        transport_coeffs.chi_face_ion[inner_patch_idx + test_idx],
+        transport_coeffs.chi_face_ion[test_idx],
         chi_face_ion_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs.chi_face_el[inner_patch_idx + test_idx],
+        transport_coeffs.chi_face_el[test_idx],
         chi_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs.d_face_el[inner_patch_idx + test_idx],
+        transport_coeffs.d_face_el[test_idx],
         d_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        transport_coeffs.v_face_el[inner_patch_idx + test_idx],
+        transport_coeffs.v_face_el[test_idx],
         v_face_el_orig_smoothed_test_r.sum(),
         rtol=1e-6,
     )
@@ -264,13 +247,12 @@ class TransportSmoothingTest(parameterized.TestCase):
     """Tests that smoothing everywhere works as expected."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'fixed',
-        'apply_inner_patch': True,
-        'apply_outer_patch': True,
-        'rho_inner': 0.3,
-        'rho_outer': 0.8,
+        'model_name': 'combined',
         'smoothing_width': 0.05,
         'smooth_everywhere': True,
+        'transport_models': [{
+            'model_name': 'fixed',
+        }],
     }
     config['profile_conditions'] = {
         'n_e_right_bc': 0.5e20,
@@ -324,106 +306,66 @@ class TransportSmoothingTest(parameterized.TestCase):
         runtime_params, geo, transport_coeffs, pedestal_model_outputs
     )
 
-    # Set up original transport coefficients for comparison
-    inner_patch_idx = np.searchsorted(
-        geo.rho_face_norm, runtime_params.transport.rho_inner
-    )
-    # set to mimic pedestal zone minimization
-    outer_patch_idx = np.searchsorted(
+    pedestal_idx = np.searchsorted(
         geo.rho_face_norm,
         pedestal_model_outputs.rho_norm_ped_top,
     )
-    inner_patch_ones = np.ones(inner_patch_idx)
-    outer_patch_ones = np.ones(geo.rho_face_norm.shape[0] - outer_patch_idx)
-    chi_face_ion_orig = np.concatenate([
-        inner_patch_ones * runtime_params.transport.chi_i_inner,
-        np.linspace(0.5, 2, geo.rho_face_norm.shape[0])[
-            inner_patch_idx:outer_patch_idx
-        ],
-        outer_patch_ones * runtime_params.transport.chi_min,
-    ])
-    chi_face_el_orig = np.concatenate([
-        inner_patch_ones * runtime_params.transport.chi_e_inner,
-        np.linspace(0.25, 1, geo.rho_face_norm.shape[0])[
-            inner_patch_idx:outer_patch_idx
-        ],
-        outer_patch_ones * runtime_params.transport.chi_min,
-    ])
-    d_face_el_orig = np.concatenate([
-        inner_patch_ones * runtime_params.transport.D_e_inner,
-        np.linspace(2, 3, geo.rho_face_norm.shape[0])[
-            inner_patch_idx:outer_patch_idx
-        ],
-        outer_patch_ones * runtime_params.transport.D_e_min,
-    ])
-    v_face_el_orig = np.concatenate([
-        inner_patch_ones * runtime_params.transport.V_e_inner,
-        np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])[
-            inner_patch_idx:outer_patch_idx
-        ],
-        outer_patch_ones * runtime_params.transport.V_e_min,
-    ])
 
-    # assert that the smoothing did impact the zones inside/outside the
-    # inner/outer transport patch locations
+    # Reconstruct original profiles before smoothing (but after masking and
+    # clipping)
+    assert isinstance(runtime_params.transport, combined.RuntimeParams)
+    chi_min = runtime_params.transport.chi_min
+    chi_max = runtime_params.transport.chi_max
+    d_e_min = runtime_params.transport.D_e_min
+    d_e_max = runtime_params.transport.D_e_max
+    v_e_min = runtime_params.transport.V_e_min
+    v_e_max = runtime_params.transport.V_e_max
+
+    chi_i_raw = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
+    chi_e_raw = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
+    d_e_raw = np.linspace(2, 3, geo.rho_face_norm.shape[0])
+    v_e_raw = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
+
+    core_mask = geo.rho_face_norm <= pedestal_model_outputs.rho_norm_ped_top
+
+    chi_face_ion_orig = np.where(core_mask, chi_i_raw, 0.0)
+    chi_face_el_orig = np.where(core_mask, chi_e_raw, 0.0)
+    d_face_el_orig = np.where(core_mask, d_e_raw, 0.0)
+    v_face_el_orig = np.where(core_mask, v_e_raw, 0.0)
+
+    chi_face_ion_orig = np.clip(chi_face_ion_orig, chi_min, chi_max)
+    chi_face_el_orig = np.clip(chi_face_el_orig, chi_min, chi_max)
+    d_face_el_orig = np.clip(d_face_el_orig, d_e_min, d_e_max)
+    v_face_el_orig = np.clip(v_face_el_orig, v_e_min, v_e_max)
+
+    # assert that the smoothing did impact the pedestal zone
+    # (smooth_everywhere=True)
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs.chi_face_ion[:inner_patch_idx],
-        chi_face_ion_orig[:inner_patch_idx],
+        transport_coeffs.chi_face_ion[pedestal_idx:],
+        chi_face_ion_orig[pedestal_idx:],
     )
-
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs.chi_face_el[:inner_patch_idx],
-        chi_face_el_orig[:inner_patch_idx],
+        transport_coeffs.chi_face_el[pedestal_idx:],
+        chi_face_el_orig[pedestal_idx:],
     )
-
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs.d_face_el[:inner_patch_idx],
-        d_face_el_orig[:inner_patch_idx],
+        transport_coeffs.d_face_el[pedestal_idx:],
+        d_face_el_orig[pedestal_idx:],
     )
-
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        transport_coeffs.v_face_el[:inner_patch_idx],
-        v_face_el_orig[:inner_patch_idx],
-    )
-
-    np.testing.assert_raises(
-        AssertionError,
-        np.testing.assert_allclose,
-        transport_coeffs.chi_face_ion[outer_patch_idx:],
-        chi_face_ion_orig[outer_patch_idx:],
-    )
-
-    np.testing.assert_raises(
-        AssertionError,
-        np.testing.assert_allclose,
-        transport_coeffs.chi_face_el[outer_patch_idx:],
-        chi_face_el_orig[outer_patch_idx:],
-    )
-
-    np.testing.assert_raises(
-        AssertionError,
-        np.testing.assert_allclose,
-        transport_coeffs.d_face_el[outer_patch_idx:],
-        d_face_el_orig[outer_patch_idx:],
-    )
-
-    np.testing.assert_raises(
-        AssertionError,
-        np.testing.assert_allclose,
-        transport_coeffs.v_face_el[outer_patch_idx:],
-        v_face_el_orig[outer_patch_idx:],
+        transport_coeffs.v_face_el[pedestal_idx:],
+        v_face_el_orig[pedestal_idx:],
     )
 
     # carry out smoothing by hand for a representative middle location.
-    # Check that behaviour is as expected
     test_idx = 12
     eps = 1e-7
     lower_cutoff = 0.01
@@ -473,12 +415,14 @@ class TransportMaskingTest(parameterized.TestCase):
     """Tests that disabling a channel zeroes its output in a single model."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'fixed',
-        'disable_chi_i': True,  # Should be zeroed
-        # Default is non-zero. We want the zero from disabled to be preserved.
+        'model_name': 'combined',
         'chi_min': 0.0,
         'D_e_min': 0.0,
-        'disable_D_e': False,  # Should be present
+        'transport_models': [{
+            'model_name': 'fixed',
+            'disable_chi_i': True,
+            'disable_D_e': False,
+        }],
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
 
@@ -583,7 +527,10 @@ class TransportMaskingTest(parameterized.TestCase):
     single_fixed_config = model_config.ToraxConfig.from_dict({
         **config,
         'transport': {
-            'model_name': 'fixed',
+            'model_name': 'combined',
+            'transport_models': [{
+                'model_name': 'fixed',
+            }],
         },
     })
     single_model = single_fixed_config.transport.build_transport_model()
@@ -610,7 +557,10 @@ class TransportMaskingTest(parameterized.TestCase):
     """Tests that None values are preserved when channel is enabled."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'fixed',
+        'model_name': 'combined',
+        'transport_models': [{
+            'model_name': 'fixed',
+        }],
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
@@ -636,7 +586,10 @@ class TransportMaskingTest(parameterized.TestCase):
     """Tests that None values are preserved when channel is disabled."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'fixed',
+        'model_name': 'combined',
+        'transport_models': [{
+            'model_name': 'fixed',
+        }],
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
@@ -665,12 +618,14 @@ class TransportMaskingTest(parameterized.TestCase):
     """Tests that sub-channels are masked by domain restriction."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'fixed',
-        'rho_max': 0.8,
-        'smoothing_width': 0.0,
+        'model_name': 'combined',
         'chi_min': 0.0,
         'D_e_min': 0.0,
         'V_e_min': 0.0,
+        'transport_models': [{
+            'model_name': 'fixed',
+            'rho_max': 0.8,
+        }],
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(

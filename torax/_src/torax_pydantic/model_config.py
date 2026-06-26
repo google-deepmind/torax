@@ -131,7 +131,11 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         isinstance(configurable_data['transport'], dict)
         and 'model_name' not in configurable_data['transport']
     ):
-      configurable_data['transport']['model_name'] = 'constant'
+      configurable_data['transport']['model_name'] = 'combined'
+      if 'transport_models' not in configurable_data['transport']:
+        configurable_data['transport']['transport_models'] = [
+            {'model_name': 'constant'}
+        ]
     if (
         isinstance(configurable_data['solver'], dict)
         and 'solver_type' not in configurable_data['solver']
@@ -141,11 +145,12 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    using_nonlinear_transport_model = self.transport.model_name in [
-        'qualikiz',
-        'qlknn',
-        'CGM',
-    ]
+    using_nonlinear_transport_model = any(
+        model.model_name in ['qualikiz', 'qlknn', 'CGM']
+        for model in list(self.transport.transport_models) + list(
+            self.transport.pedestal_transport_models
+        )
+    )
     using_linear_solver = isinstance(
         self.solver, solver_pydantic_model.LinearThetaMethod
     )

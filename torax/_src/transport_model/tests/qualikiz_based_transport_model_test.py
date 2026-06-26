@@ -31,8 +31,10 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import combined
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
+from torax._src.transport_model import register_model
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
@@ -41,6 +43,28 @@ def _get_config_and_model_inputs(
 ):
   """Returns the model inputs for testing."""
   config = default_configs.get_default_config_dict()
+  if transport.get('model_name') != 'combined':
+    common_params = {}
+    component_params = dict(transport)
+    for key in [
+        'chi_min',
+        'chi_max',
+        'D_e_min',
+        'D_e_max',
+        'V_e_min',
+        'V_e_max',
+        'smoothing_width',
+        'smooth_everywhere',
+    ]:
+      if key in transport:
+        common_params[key] = transport[key]
+        if key in component_params:
+          del component_params[key]
+    transport = {
+        'model_name': 'combined',
+        'transport_models': [component_params],
+        **common_params,
+    }
   config['transport'] = transport
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = torax_config.sources.build_models()
@@ -86,10 +110,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[
-        'transport'
-    ].annotation |= QualikizBasedTransportModelConfig
-    model_config.ToraxConfig.model_rebuild(force=True)
+    register_model.register_transport_model(QualikizBasedTransportModelConfig)
 
   def test_qualikiz_based_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
@@ -117,14 +138,24 @@ class QualikizTransportModelTest(parameterized.TestCase):
         'q_sawtooth_proxy': True,
         'smag_alpha_correction': True,
     })
-    transport_model = torax_config.transport.build_transport_model()
-    runtime_params, geo, core_profiles, _ = model_inputs
+    combined_transport_model = torax_config.transport.build_transport_model()
+    assert isinstance(combined_transport_model, combined.CombinedTransportModel)
+    transport_model = combined_transport_model.transport_models[0]
     assert isinstance(
-        runtime_params.transport,
+        transport_model,
+        qualikiz_based_transport_model.QualikizBasedTransportModel,
+    )
+    runtime_params, geo, core_profiles, _ = model_inputs
+    assert isinstance(runtime_params.transport, combined.RuntimeParams)
+    component_transport_params = (
+        runtime_params.transport.transport_model_params[0]
+    )
+    assert isinstance(
+        component_transport_params,
         qualikiz_based_transport_model.RuntimeParams,
     )
     qualikiz_inputs = transport_model.prepare_qualikiz_inputs(
-        transport=runtime_params.transport,
+        transport=component_transport_params,
         geo=geo,
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,

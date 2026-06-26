@@ -33,9 +33,13 @@ class BohmGyroBohmTest(absltest.TestCase):
   def setUp(self):
     super().setUp()
     config = default_configs.get_default_config_dict()
-    config['transport'] = {'model_name': 'bohm-gyrobohm'}
+    config['transport'] = {
+        'model_name': 'combined',
+        'transport_models': [{'model_name': 'bohm-gyrobohm'}],
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    self.model = torax_config.transport.build_transport_model()
+    combined_model = torax_config.transport.build_transport_model()
+    self.model = combined_model.transport_models[0]
     self.geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
     )
