@@ -531,25 +531,6 @@ def _calc_coeffs_full(
         runtime_params.profile_conditions.internal_boundary_conditions
     )
 
-  # Apply the combined internal boundary conditions to the source terms.
-  (
-      source_i,
-      source_e,
-      source_n_e,
-      source_mat_ii,
-      source_mat_ee,
-      source_mat_nn,
-  ) = internal_boundary_conditions_lib.apply_adaptive_source(
-      source_T_i=source_i,
-      source_T_e=source_e,
-      source_n_e=source_n_e,
-      source_mat_ii=source_mat_ii,
-      source_mat_ee=source_mat_ee,
-      source_mat_nn=source_mat_nn,
-      runtime_params=runtime_params,
-      internal_boundary_conditions=combined_internal_boundary_conditions,
-  )
-
   # --- Build arguments to solver  --- #
   # Build arguments to solver based on which variables are evolving
   var_to_toc = {
@@ -609,6 +590,13 @@ def _calc_coeffs_full(
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
+  ibc_mask, ibc_target_vec = (
+      combined_internal_boundary_conditions.to_solver_coeffs(
+          evolving_names=evolving_names,
+          nx=geo.torax_mesh.nx,
+      )
+  )
+
   coeffs = block_1d_coeffs.Block1DCoeffs(
       transient_out_cell=transient_out_cell,
       transient_in_cell=transient_in_cell,
@@ -616,6 +604,8 @@ def _calc_coeffs_full(
       v_face=v_face,
       source_mat_cell=source_mat_cell,
       source_cell=source_cell,
+      ibc_mask=ibc_mask,
+      ibc_target_vec=ibc_target_vec,
   )
 
   return coeffs
