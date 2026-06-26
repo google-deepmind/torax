@@ -20,7 +20,7 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector_qualikiz
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector_qualikiz.CONFIG)
 
-CONFIG['transport']['rotation_mode'] = 'half_radius'
+CONFIG['transport']['transport_models'][0]['rotation_mode'] = 'half_radius'
 
 # Reference angular velocity used for mach number calculations.
 # omega_ref ~ sqrt(2 * T_i/ m_i) / R_major
