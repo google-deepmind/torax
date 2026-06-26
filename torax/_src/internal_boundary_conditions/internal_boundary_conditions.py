@@ -15,13 +15,13 @@
 """Internal boundary conditions."""
 
 import dataclasses
-import typing
 
 import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
+from torax._src.core_profiles import convertors
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
@@ -34,8 +34,8 @@ from torax._src.torax_pydantic import torax_pydantic
 class InternalBoundaryConditions:
   """Container for internal boundary conditions.
 
-  Internal boundary conditions are set on the cell grid only, as they are met
-  using an adaptive source (which by nature is on the cell grid).
+  Internal boundary conditions are set on the cell grid. They are enforced
+  via direct matrix row replacement in the solver.
   Zero values in the array are ignored, i.e. they are not treated as boundary
   conditions. This allows us to use a single object to set multiple boundary
   conditions simultaneously. For example, setting
@@ -74,6 +74,54 @@ class InternalBoundaryConditions:
         n_e=jnp.zeros(nx, dtype=jax_utils.get_dtype()),
     )
 
+  def to_solver_coeffs(
+      self,
+      evolving_names: tuple[str, ...],
+      nx: int,
+  ) -> tuple[jax.Array, jax.Array]:
+    """Build stacked IBC mask and target arrays for the solver.
+
+    For each evolving variable, produces a boolean mask (True where the IBC
+    is active, i.e. the target is nonzero) and the corresponding target value
+    scaled to solver units.
+
+    Variables without an IBC (e.g. psi) get zero-filled entries.
+
+    Args:
+      evolving_names: Ordered tuple of evolving variable names
+        (e.g. ('T_i', 'T_e', 'psi', 'n_e')).
+      nx: Number of cells in the radial grid.
+
+    Returns:
+      A (mask, target) tuple where:
+        mask: Bool array of shape (nx, num_channels).
+        target: Float array of shape (nx, num_channels) in solver-scaled units.
+    """
+    ibc_var_map = {
+        'T_i': self.T_i,
+        'T_e': self.T_e,
+        'n_e': self.n_e,
+    }
+    mask_parts = []
+    target_parts = []
+    for var in evolving_names:
+      if var in ibc_var_map:
+        target_phys = ibc_var_map[var]
+        # Only apply the IBC where the target is nonzero.
+        mask_parts.append(target_phys != 0.0)
+        target_parts.append(
+            target_phys / convertors.SCALING_FACTORS[var]
+        )
+      else:
+        # Variables like psi have no IBC.
+        mask_parts.append(jnp.zeros(nx, dtype=jnp.bool_))
+        target_parts.append(jnp.zeros(nx, dtype=jax_utils.get_dtype()))
+    # Stack along axis=-1 to produce shape (nx, num_channels), i.e.
+    # grid-major ordering. This matches the block tridiagonal solver layout
+    # where the leading axis indexes spatial cells and the trailing axis
+    # indexes the evolving channels within each cell's block.
+    return jnp.stack(mask_parts, axis=-1), jnp.stack(target_parts, axis=-1)
+
 
 class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):
   """Pydantic model for internal boundary conditions."""
@@ -96,65 +144,3 @@ class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):
         n_e=self.n_e.get_value(t),
     )
 
-
-def apply_adaptive_source(
-    *,
-    source_T_i: array_typing.FloatVectorCell,
-    source_T_e: array_typing.FloatVectorCell,
-    source_n_e: array_typing.FloatVectorCell,
-    source_mat_ii: array_typing.FloatVectorCell,
-    source_mat_ee: array_typing.FloatVectorCell,
-    source_mat_nn: array_typing.FloatVectorCell,
-    runtime_params: typing.Any,
-    internal_boundary_conditions: InternalBoundaryConditions,
-) -> tuple[
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-]:
-  """Applies an adaptive source to the source profiles to set internal boundary conditions."""
-
-  # Ion temperature
-  source_T_i += (
-      runtime_params.numerics.adaptive_T_source_prefactor
-      * internal_boundary_conditions.T_i
-  )
-  source_mat_ii -= jnp.where(
-      internal_boundary_conditions.T_i != 0.0,
-      runtime_params.numerics.adaptive_T_source_prefactor,
-      0.0,
-  )
-
-  # Electron temperature
-  source_T_e += (
-      runtime_params.numerics.adaptive_T_source_prefactor
-      * internal_boundary_conditions.T_e
-  )
-  source_mat_ee -= jnp.where(
-      internal_boundary_conditions.T_e != 0.0,
-      runtime_params.numerics.adaptive_T_source_prefactor,
-      0.0,
-  )
-
-  # Density
-  source_n_e += (
-      runtime_params.numerics.adaptive_n_source_prefactor
-      * internal_boundary_conditions.n_e
-  )
-  source_mat_nn -= jnp.where(
-      internal_boundary_conditions.n_e != 0.0,
-      runtime_params.numerics.adaptive_n_source_prefactor,
-      0.0,
-  )
-
-  return (
-      source_T_i,
-      source_T_e,
-      source_n_e,
-      source_mat_ii,
-      source_mat_ee,
-      source_mat_nn,
-  )
