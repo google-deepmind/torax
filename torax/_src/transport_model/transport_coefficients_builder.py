@@ -55,7 +55,9 @@ def calculate_all_transport_coeffs(
   # the runtime params which is a bit hacky. Options include passing the
   # transition state to the pedestal model or to the transport model, both of
   # which are breaking API changes.
-  if runtime_params.pedestal.use_formation_model_with_adaptive_source:
+  if (
+      runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
+  ):
     # Pedestal model is active if we are in H-mode or in a transition.
     set_pedestal = (
         pedestal_transition_state.confinement_mode
@@ -117,13 +119,12 @@ def calculate_all_transport_coeffs(
         pedestal_runtime_params=runtime_params.pedestal,
     )
   else:
-    # If in ADAPTIVE_SOURCE mode, set the Pereverzev transport coefficients in
-    # the pedestal region to zero.
+    # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
+    # coefficients in the pedestal region to zero.
     # TODO(b/485147781) Combine this masking with the turbulent transport
     # masking.
-    pedestal_active_mask_face = (
-        runtime_params.pedestal.set_pedestal
-        & (geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top)
+    pedestal_active_mask_face = runtime_params.pedestal.set_pedestal & (
+        geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
     )
     pereverzev_transport_coeffs = jax.tree_util.tree_map(
         lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),

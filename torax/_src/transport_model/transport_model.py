@@ -441,10 +441,11 @@ def _build_smoothing_matrix(
   # transport_model calculated coefficients
   if (
       runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
   ):
-    # If in ADAPTIVE_SOURCE mode: if set_pedestal is True, mask according to the
-    # pedestal top. Otherwise, mask according to the outer patch, if set.
+    # If in INTERNAL_BOUNDARY_CONDITION mode: if set_pedestal is True, mask
+    # according to the pedestal top. Otherwise, mask according to the outer
+    # patch, if set.
     mask_outer_edge = jnp.where(
         runtime_params.pedestal.set_pedestal,
         pedestal_model_output.rho_norm_ped_top - consts.eps,
@@ -528,13 +529,14 @@ def compute_core_domain_mask(
     active_mask: A boolean array indicating the active domain.
   """
   # Active range is rho_min < rho <= rho_max
-  # (AND rho <= rho_norm_ped_top, if pedestal is in ADAPTIVE_SOURCE mode)
+  # (AND rho <= rho_norm_ped_top, if pedestal is in INTERNAL_BOUNDARY_CONDITION
+  # mode)
   active_mask = (geo.rho_face_norm > transport_runtime_params.rho_min) & (
       geo.rho_face_norm <= transport_runtime_params.rho_max
   )
   if (
       runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
   ):
     active_mask = active_mask & (
         jnp.logical_not(runtime_params.pedestal.set_pedestal)

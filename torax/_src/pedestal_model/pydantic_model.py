@@ -30,6 +30,7 @@ from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.physics import scaling_laws
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
+
 # pylint: disable=invalid-name
 
 
@@ -222,30 +223,29 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     mode: Defines how the pedestal is generated. Set to ADAPTIVE_TRANSPORT to
       set the pedestal by modifying the transport coefficients in the pedestal
       region, allowing the pedestal to self-consistently evolve. Set to
-      ADAPTIVE_SOURCE to set the pedestal by adding a source/sink term at the
-      pedestal top, forcing the pedestal top values to be as prescribed.
-    use_formation_model_with_adaptive_source: When True and mode is
-      ADAPTIVE_SOURCE, enables state-dependent L-H transitions based on P_SOL vs
-      P_LH comparison. When False, ADAPTIVE_SOURCE mode always applies the
-      prescribed pedestal values (legacy behavior). Ignored when mode is
-      ADAPTIVE_TRANSPORT.
+      INTERNAL_BOUNDARY_CONDITION to set the pedestal by adding a source/sink
+      term at the pedestal top, forcing the pedestal top values to be as
+      prescribed. use_formation_model_with_internal_boundary_condition: When
+      True and mode is INTERNAL_BOUNDARY_CONDITION, enables state-dependent L-H
+      transitions based on P_SOL vs P_LH comparison. When False,
+      INTERNAL_BOUNDARY_CONDITION mode always applies the prescribed pedestal
+      values (legacy behavior). Ignored when mode is ADAPTIVE_TRANSPORT.
     transition_time_width: Duration of the L-H or H-L transition ramp [s].
       During a transition, pedestal values are linearly interpolated between
       L-mode baseline and H-mode target values over this time window. Only used
-      when use_formation_model_with_adaptive_source is True.
+      when use_formation_model_with_internal_boundary_condition is True.
     P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
-      checking for an H-L transition, the L-H threshold power P_LH is
-      multiplied by this factor, i.e. the back transition occurs when
-      P_SOL < P_LH * P_LH_hysteresis_factor. A value less than 1 means that
-      the plasma must lose more power to transition back to L-mode than was
-      required to enter H-mode, which is the experimentally observed behavior.
-      Must be in [0, 1]. Only applicable when
-      use_formation_model_with_adaptive_source is True.
+      checking for an H-L transition, the L-H threshold power P_LH is multiplied
+      by this factor, i.e. the back transition occurs when P_SOL < P_LH *
+      P_LH_hysteresis_factor. A value less than 1 means that the plasma must
+      lose more power to transition back to L-mode than was required to enter
+      H-mode, which is the experimentally observed behavior. Must be in [0, 1].
+      Only applicable when use_formation_model_with_internal_boundary_condition
+      is True.
     include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
       calculation used for comparing against P_LH. When False (default), uses
-      P_heat (total auxiliary + Ohmic power - sinks) instead of
-      P_SOL = P_heat - dW/dt. Excluding dW/dt avoids unphysical dithering during
-      transients.
+      P_heat (total auxiliary + Ohmic power - sinks) instead of P_SOL = P_heat -
+      dW/dt. Excluding dW/dt avoids unphysical dithering during transients.
     formation_model: Configuration for the pedestal formation model.
     saturation_model: Configuration for the pedestal saturation model.
     chi_max: Maximum effective thermal diffusion coefficient from the core
@@ -266,9 +266,9 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       torax_pydantic.ValidatedDefault(False)
   )
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
-      runtime_params.Mode.ADAPTIVE_SOURCE
+      runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
   )
-  use_formation_model_with_adaptive_source: Annotated[
+  use_formation_model_with_internal_boundary_condition: Annotated[
       bool, torax_pydantic.JAX_STATIC
   ] = False
   transition_time_width: torax_pydantic.PositiveTimeVaryingScalar = (
@@ -325,20 +325,23 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   @pydantic.model_validator(mode="after")
   def _check_source_mode(self) -> typing_extensions.Self:
     if (
-        self.use_formation_model_with_adaptive_source
-        and self.mode != runtime_params.Mode.ADAPTIVE_SOURCE
+        self.use_formation_model_with_internal_boundary_condition
+        and self.mode != runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
     ):
       raise ValueError(
-          "use_formation_model_with_adaptive_source can only be True when mode"
-          " is ADAPTIVE_SOURCE"
+          "use_formation_model_with_internal_boundary_condition can only be"
+          " True when mode is INTERNAL_BOUNDARY_CONDITION"
       )
-    if self.use_formation_model_with_adaptive_source and not isinstance(
-        self.formation_model,
-        PowerScalingFormation,
+    if (
+        self.use_formation_model_with_internal_boundary_condition
+        and not isinstance(
+            self.formation_model,
+            PowerScalingFormation,
+        )
     ):
       raise ValueError(
-          "use_formation_model_with_adaptive_source can only be True when"
-          " formation_model is PowerScalingFormationModel"
+          "use_formation_model_with_internal_boundary_condition can only be"
+          " True when formation_model is PowerScalingFormationModel"
       )
     return self
 
@@ -353,7 +356,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     return runtime_params.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
         mode=self.mode,
-        use_formation_model_with_adaptive_source=self.use_formation_model_with_adaptive_source,
+        use_formation_model_with_internal_boundary_condition=self.use_formation_model_with_internal_boundary_condition,
         transition_time_width=self.transition_time_width.get_value(t),
         P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
         include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
@@ -421,7 +424,7 @@ class SetPpedTpedRatioNped(BasePedestal):
     return set_pped_tpedratio_nped.RuntimeParams(
         set_pedestal=base_runtime_params.set_pedestal,
         mode=base_runtime_params.mode,
-        use_formation_model_with_adaptive_source=base_runtime_params.use_formation_model_with_adaptive_source,
+        use_formation_model_with_internal_boundary_condition=base_runtime_params.use_formation_model_with_internal_boundary_condition,
         transition_time_width=base_runtime_params.transition_time_width,
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
@@ -491,7 +494,7 @@ class SetTpedNped(BasePedestal):
     return set_tped_nped.RuntimeParams(
         set_pedestal=base_runtime_params.set_pedestal,
         mode=base_runtime_params.mode,
-        use_formation_model_with_adaptive_source=base_runtime_params.use_formation_model_with_adaptive_source,
+        use_formation_model_with_internal_boundary_condition=base_runtime_params.use_formation_model_with_internal_boundary_condition,
         transition_time_width=base_runtime_params.transition_time_width,
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
@@ -540,7 +543,7 @@ class NoPedestal(BasePedestal):
     return runtime_params.RuntimeParams(
         set_pedestal=base_runtime_params.set_pedestal,
         mode=base_runtime_params.mode,
-        use_formation_model_with_adaptive_source=base_runtime_params.use_formation_model_with_adaptive_source,
+        use_formation_model_with_internal_boundary_condition=base_runtime_params.use_formation_model_with_internal_boundary_condition,
         transition_time_width=base_runtime_params.transition_time_width,
         P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
         include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
