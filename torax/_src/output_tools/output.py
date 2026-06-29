@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
+
 from collections.abc import Mapping, Sequence
 import dataclasses
 import functools
@@ -112,6 +113,7 @@ TIME = "time"
 
 # Post processed outputs
 Q_FUSION = "Q_fusion"
+TAU_EI = "tau_ei"
 
 # Edge model outputs
 SEED_IMPURITY_CONCENTRATIONS = "seed_impurity_concentrations"

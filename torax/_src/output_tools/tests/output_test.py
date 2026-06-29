@@ -155,6 +155,21 @@ class StateHistoryTest(parameterized.TestCase):
         (1, len(self.geo.rho_face_norm)),
     )
 
+  def test_tau_ei_is_saved(self):
+    """Tests that electron-ion collision time is saved as a face profile."""
+    output_xr = self.history.simulation_output_to_xr()
+    profiles_dataset = output_xr.children[output.PROFILES].dataset
+
+    self.assertIn(output.TAU_EI, profiles_dataset.data_vars)
+    self.assertEqual(
+        profiles_dataset[output.TAU_EI].dims,
+        (output.TIME, output.RHO_FACE_NORM),
+    )
+    np.testing.assert_allclose(
+        profiles_dataset[output.TAU_EI].values[0],
+        self._output_state.tau_ei,
+    )
+
   def test_geometry_is_saved(self):
     """Tests that the geometry is saved correctly."""
     # Construct a second state with a slightly different geometry.
