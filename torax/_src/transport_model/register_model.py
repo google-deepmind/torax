@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Register a transport model with TORAX."""
-from typing import Sequence, Union, get_args
+from typing import Sequence, get_args
 
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model
@@ -36,11 +36,8 @@ def register_transport_model(
   Args:
     pydantic_model_class: The pydantic model class to register.
   """
-  combined_model, *submodels = get_args(
-      model_config.ToraxConfig.model_fields['transport'].annotation
-  )
+  combined_model = model_config.ToraxConfig.model_fields['transport'].annotation
   assert combined_model is pydantic_model.CombinedTransportModel
-  assert isinstance(submodels, list)
 
   combined_model_types = get_args(
       combined_model.model_fields['transport_models'].annotation
@@ -52,8 +49,4 @@ def register_transport_model(
   ]
   combined_model.model_rebuild(force=True)
 
-  type_tuple = (combined_model, *submodels, pydantic_model_class)
-  model_config.ToraxConfig.model_fields['transport'].annotation = Union[
-      *type_tuple
-  ]
   model_config.ToraxConfig.model_rebuild(force=True)

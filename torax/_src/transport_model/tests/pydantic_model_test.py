@@ -96,7 +96,6 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(
         transport, transport_pydantic_model.QLKNNTransportModel
     )
-    self.assertEqual(transport.smoothing_width, 0.1)
     self.assertEqual(transport.ETG_correction_factor, 1.0 / 3.0)
 
   @parameterized.parameters(
@@ -463,38 +462,6 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r" channels \['chi_e'\] in overlapping radial zones",
     ):
       transport_pydantic_model.CombinedTransportModel(transport_models=[m1, m2])
-
-  def test_smoothing_in_combined_core_component_logs_warning(self):
-    component_model = transport_pydantic_model.ConstantTransportModel(
-        smoothing_width=0.1
-    )
-    with self.assertLogs(level='WARNING') as log_watcher:
-      transport_pydantic_model.CombinedTransportModel(
-          transport_models=[component_model]
-      )
-    self.assertLen(log_watcher.output, 1)
-    self.assertIn(
-        'smoothing_width > 0.0 is not supported for component models of'
-        ' CombinedTransportModel',
-        log_watcher.output[0],
-    )
-
-  def test_smoothing_in_combined_pedestal_component_logs_warning(
-      self,
-  ):
-    component_model = transport_pydantic_model.ConstantTransportModel(
-        smoothing_width=0.1
-    )
-    with self.assertLogs(level='WARNING') as log_watcher:
-      transport_pydantic_model.CombinedTransportModel(
-          pedestal_transport_models=[component_model]
-      )
-    self.assertLen(log_watcher.output, 1)
-    self.assertIn(
-        'smoothing_width > 0.0 is not supported for component models of'
-        ' CombinedTransportModel',
-        log_watcher.output[0],
-    )
 
 
 if __name__ == '__main__':

@@ -54,7 +54,10 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': default_sources.get_default_source_config(),
         'solver': {},
-        'transport': {'model_name': 'constant'},
+        'transport': {
+            'model_name': 'combined',
+            'transport_models': [{'model_name': 'constant'}],
+        },
         'pedestal': {},
     })
     models = self.torax_config.build_models()

@@ -166,9 +166,6 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         # The QLK version this specific QLKNN was trained on tends to
         # underpredict ITG electron heat flux in shaped, high-beta scenarios.
         data['ITG_flux_ratio_correction'] = 2.0
-    else:
-      if 'smoothing_width' not in data:
-        data['smoothing_width'] = 0.1
     return data
 
   def build_transport_model(self) -> qlknn_transport_model.QLKNNTransportModel:
@@ -469,6 +466,14 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
   model_name: Annotated[Literal['combined'], torax_pydantic.JAX_STATIC] = (
       'combined'
   )
+  chi_min: torax_pydantic.MeterSquaredPerSecond = 0.05
+  chi_max: torax_pydantic.MeterSquaredPerSecond = 100.0
+  D_e_min: torax_pydantic.MeterSquaredPerSecond = 0.05
+  D_e_max: torax_pydantic.MeterSquaredPerSecond = 100.0
+  V_e_min: torax_pydantic.MeterPerSecond = -50.0
+  V_e_max: torax_pydantic.MeterPerSecond = 50.0
+  smoothing_width: pydantic.NonNegativeFloat = 0.0
+  smooth_everywhere: bool = False
 
   def build_transport_model(self) -> combined.CombinedTransportModel:
     transport_models = tuple(
@@ -497,28 +502,26 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
     return combined.RuntimeParams(
         transport_model_params=transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
+        chi_min=self.chi_min,
+        chi_max=self.chi_max,
+        D_e_min=self.D_e_min,
+        D_e_max=self.D_e_max,
+        V_e_min=self.V_e_min,
+        V_e_max=self.V_e_max,
+        smoothing_width=self.smoothing_width,
+        smooth_everywhere=self.smooth_everywhere,
         **base_kwargs,
     )
 
   @pydantic.model_validator(mode='after')
-  def _check_no_smoothing_in_components(self) -> typing_extensions.Self:
-    for model_list in ['transport_models', 'pedestal_transport_models']:
-      for i, model in enumerate(getattr(self, model_list)):
-        if model.smoothing_width > 0.0:
-          logging.warning(
-              'smoothing_width > 0.0 is not supported for component models of'
-              ' CombinedTransportModel; instead, smoothing_width should be set'
-              ' on the CombinedTransportModel itself. Smoothing width set on %s'
-              ' component %i (%s) will be ignored.',
-              model_list,
-              i,
-              model.model_name,
-          )
-    return self
-
-  @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
     super()._check_fields()
+    if not self.chi_max > self.chi_min:
+      raise ValueError('chi_min must be less than chi_max.')
+    if not self.D_e_min < self.D_e_max:
+      raise ValueError('D_e_min must be less than D_e_max.')
+    if not self.V_e_min < self.V_e_max:
+      raise ValueError('V_e_min must be less than V_e_max.')
     if (
         any([
             np.any(model.apply_inner_patch.value)
@@ -549,7 +552,6 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
           'rho_min and rho_max not supported for pedestal_transport_models, as '
           'their region of validity is set by the pedestal model.'
       )
-
     return self
 
   @pydantic.model_validator(mode='after')
@@ -637,4 +639,4 @@ def _ranges_overlap(
   return (r1_min < r2_max) and (r2_min < r1_max)
 
 
-TransportConfig = CombinedTransportModel | CombinedCompatibleTransportModel  # pytype: disable=invalid-annotation
+TransportConfig = CombinedTransportModel
