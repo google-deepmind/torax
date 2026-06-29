@@ -1,0 +1,164 @@
+!    -*- f90 -*-
+! Copyright 2026 DeepMind Technologies Limited
+!
+! Licensed under the Apache License, Version 2.0 (the "License");
+! you may not use this file except in compliance with the License.
+! You may obtain a copy of the License at
+!
+!     http://www.apache.org/licenses/LICENSE-2.0
+!
+! Unless required by applicable law or agreed to in writing, software
+! distributed under the License is distributed on an "AS IS" BASIS,
+! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+! See the License for the specific language governing permissions and
+! limitations under the License.
+! tglf2py.pyf: Exposes TGLF's static memory bus (`module tglf_interface`)
+! and main subroutines (`tglf_run`, `tglf_shutdown`) to Python as C-structs.
+python module tglf2py_lib
+    interface
+        ! TGLF static memory bus.
+        module tglf_interface
+            use tglf_max_dimensions
+            character(len=256), optional :: tglf_path_in=''
+            character(len=20), optional :: file_dump_local='out.tglf.localdump'
+            logical, optional :: tglf_dump_flag_in=.false.
+            logical, optional :: tglf_quiet_flag_in=.true.
+            integer, optional :: tglf_test_flag_in=0
+            character(len=8), optional :: tglf_units_in='gyro'
+            logical, optional :: tglf_use_transport_model_in=.true.
+            integer, optional :: tglf_geometry_flag_in=1
+            integer, optional :: tglf_write_wavefunction_flag_in=0
+            real*8, optional :: tglf_sign_bt_in=1.0
+            real*8, optional :: tglf_sign_it_in=1.0
+            real*8, optional :: tglf_theta_trapped_in=0.7
+            real*8, optional :: tglf_wdia_trapped_in=0.0
+            real*8, optional :: tglf_park_in=1.0
+            real*8, optional :: tglf_ghat_in=1.0
+            real*8, optional :: tglf_gchat_in=1.0
+            real*8, optional :: tglf_wd_zero_in=0.1
+            real*8, optional :: tglf_linsker_factor_in=0.0
+            real*8, optional :: tglf_gradb_factor_in=0.0
+            real*8, optional :: tglf_filter_in=2.0
+            real*8, optional :: tglf_damp_psi_in=0.0
+            real*8, optional :: tglf_damp_sig_in=0.0
+            logical, optional :: tglf_iflux_in=.true.
+            logical, optional :: tglf_use_bper_in=.false.
+            logical, optional :: tglf_use_bpar_in=.false.
+            logical, optional :: tglf_use_mhd_rule_in=.true.
+            logical, optional :: tglf_use_bisection_in=.true.
+            logical, optional :: tglf_use_inboard_detrapped_in=.false.
+            logical, optional :: tglf_use_ave_ion_grid_in=.false.
+            integer, optional :: tglf_ibranch_in=-1
+            integer, optional :: tglf_nmodes_in=2
+            integer, optional :: tglf_nbasis_max_in=4
+            integer, optional :: tglf_nbasis_min_in=2
+            integer, optional :: tglf_nxgrid_in=16
+            integer, optional :: tglf_nky_in=12
+            logical, optional :: tglf_adiabatic_elec_in=.false.
+            real*8, optional :: tglf_alpha_mach_in=0.0
+            real*8, optional :: tglf_alpha_e_in=1.0
+            real*8, optional :: tglf_alpha_p_in=1.0
+            real*8, optional :: tglf_alpha_quench_in=0.0
+            real*8, optional :: tglf_alpha_zf_in=1.0
+            real*8, optional :: tglf_xnu_factor_in=1.0
+            real*8, optional :: tglf_debye_factor_in=1.0
+            real*8, optional :: tglf_etg_factor_in=1.25
+            real*8, optional :: tglf_rlnp_cutoff_in=18.0
+            integer, optional :: tglf_sat_rule_in=0
+            integer, optional :: tglf_kygrid_model_in=1
+            integer, optional :: tglf_xnu_model_in=2
+            integer, optional :: tglf_vpar_model_in=0
+            integer, optional :: tglf_vpar_shear_model_in=1
+            integer, optional :: tglf_ns_in=2
+            real*8, optional,dimension(6) :: tglf_mass_in=0.0
+            real*8, optional,dimension(6) :: tglf_zs_in=0.0
+            real*8, optional :: tglf_ky_in=0.3
+            real*8, optional :: tglf_width_in=1.65
+            real*8, optional :: tglf_width_min_in=0.3
+            integer, optional :: tglf_nwidth_in=21
+            logical, optional :: tglf_find_width_in=.true.
+            real*8, optional,dimension(6) :: tglf_rlns_in=0.0
+            real*8, optional,dimension(6) :: tglf_rlts_in=0.0
+            real*8, optional,dimension(6) :: tglf_vpar_shear_in=0.0
+            real*8, optional :: tglf_vexb_shear_in=0.0
+            real*8, optional,dimension(6) :: tglf_vns_shear_in=0.0
+            real*8, optional,dimension(6) :: tglf_vts_shear_in=0.0
+            real*8, optional,dimension(6) :: tglf_taus_in=0.0
+            real*8, optional,dimension(6) :: tglf_as_in=0.0
+            real*8, optional,dimension(6) :: tglf_vpar_in=0.0
+            real*8, optional :: tglf_vexb_in=0.0
+            real*8, optional :: tglf_betae_in=0.0
+            real*8, optional :: tglf_xnue_in=0.0
+            real*8, optional :: tglf_zeff_in=1.0
+            real*8, optional :: tglf_debye_in=0.0
+            logical, optional :: tglf_new_eikonal_in=.true.
+            real*8, optional :: tglf_rmin_sa_in=0.5
+            real*8, optional :: tglf_rmaj_sa_in=3.0
+            real*8, optional :: tglf_q_sa_in=2.0
+            real*8, optional :: tglf_shat_sa_in=1.0
+            real*8, optional :: tglf_alpha_sa_in=0.0
+            real*8, optional :: tglf_xwell_sa_in=0.0
+            real*8, optional :: tglf_theta0_sa_in=0.0
+            integer, optional :: tglf_b_model_sa_in=1
+            integer, optional :: tglf_ft_model_sa_in=1
+            real*8, optional :: tglf_rmin_loc_in=0.5
+            real*8, optional :: tglf_rmaj_loc_in=3.0
+            real*8, optional :: tglf_zmaj_loc_in=0.0
+            real*8, optional :: tglf_drmindx_loc_in=1.0
+            real*8, optional :: tglf_drmajdx_loc_in=0.0
+            real*8, optional :: tglf_dzmajdx_loc_in=0.0
+            real*8, optional :: tglf_kappa_loc_in=1.0
+            real*8, optional :: tglf_s_kappa_loc_in=0.0
+            real*8, optional :: tglf_delta_loc_in=0.0
+            real*8, optional :: tglf_s_delta_loc_in=0.0
+            real*8, optional :: tglf_zeta_loc_in=0.0
+            real*8, optional :: tglf_s_zeta_loc_in=0.0
+            real*8, optional :: tglf_shape_sin3_loc_in=0.0
+            real*8, optional :: tglf_shape_s_sin3_loc_in=0.0
+            real*8, optional :: tglf_shape_sin4_loc_in=0.0
+            real*8, optional :: tglf_shape_s_sin4_loc_in=0.0
+            real*8, optional :: tglf_shape_sin5_loc_in=0.0
+            real*8, optional :: tglf_shape_s_sin5_loc_in=0.0
+            real*8, optional :: tglf_shape_sin6_loc_in=0.0
+            real*8, optional :: tglf_shape_s_sin6_loc_in=0.0
+            real*8, optional :: tglf_shape_cos0_loc_in=0.0
+            real*8, optional :: tglf_shape_s_cos0_loc_in=0.0
+            real*8, optional :: tglf_shape_cos1_loc_in=0.0
+            real*8, optional :: tglf_shape_s_cos1_loc_in=0.0
+            real*8, optional :: tglf_shape_cos2_loc_in=0.0
+            real*8, optional :: tglf_shape_s_cos2_loc_in=0.0
+            real*8, optional :: tglf_shape_cos3_loc_in=0.0
+            real*8, optional :: tglf_shape_s_cos3_loc_in=0.0
+            real*8, optional :: tglf_shape_cos4_loc_in=0.0
+            real*8, optional :: tglf_shape_s_cos4_loc_in=0.0
+            real*8, optional :: tglf_shape_cos5_loc_in=0.0
+            real*8, optional :: tglf_shape_s_cos5_loc_in=0.0
+            real*8, optional :: tglf_shape_cos6_loc_in=0.0
+            real*8, optional :: tglf_shape_s_cos6_loc_in=0.0
+            real*8, optional :: tglf_q_loc_in=2.0
+            real*8, optional :: tglf_q_prime_loc_in=16.0
+            real*8, optional :: tglf_p_prime_loc_in=0.0
+            real*8, optional :: tglf_beta_loc_in=0.0
+            real*8, optional :: tglf_kx0_loc_in=0.0
+            real*8, optional :: tglf_elec_pflux_out=0.0
+            real*8, optional :: tglf_elec_eflux_out=0.0
+            real*8, optional :: tglf_elec_eflux_low_out=0.0
+            real*8, optional :: tglf_elec_mflux_out=0.0
+            real*8, optional :: tglf_elec_expwd_out=0.0
+            real*8, optional,dimension(-1 + 6) :: tglf_ion_pflux_out=0.0
+            real*8, optional,dimension(-1 + 6) :: tglf_ion_eflux_out=0.0
+            real*8, optional,dimension(-1 + 6) :: tglf_ion_eflux_low_out=0.0
+            real*8, optional,dimension(-1 + 6) :: tglf_ion_mflux_out=0.0
+            real*8, optional,dimension(-1 + 6) :: tglf_ion_expwd_out=0.0
+            real*8, optional :: tglf_nn_max_error_in=0.0
+        end module tglf_interface
+
+        ! Executes TGLF physics engine using params in tglf_interface memory.
+        subroutine tglf_run
+        end subroutine tglf_run
+
+        ! Cleans up internal TGLF state.
+        subroutine tglf_shutdown
+        end subroutine tglf_shutdown
+    end interface
+end python module tglf2py_lib

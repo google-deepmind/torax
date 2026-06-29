@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import subprocess
+from typing import Any
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -24,6 +23,8 @@ from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
+from torax._src.transport_model.tglf import tglf2py
+# Internal import.
 
 
 class TGLFTransportModelTest(parameterized.TestCase):
@@ -35,7 +36,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def test_call(self, jit: bool):
     """Tests that the model can be called (with entirely mocked TGLF)."""
     config = default_configs.get_default_config_dict()
-    config['transport'] = {'model_name': 'tglf', 'tglf_exec_path': '~/tglf'}
+    config['transport'] = {'model_name': 'tglf'}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
@@ -53,24 +54,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
         neoclassical_models=neoclassical_models,
     )
 
-    def _mock_subprocess_run(cmd, **kwargs):
-      """Write a fake TGLF output file and return a mock subprocess result."""
-      # cmd is [tglf_exec_path, '-n', n_cores_per_process, '-e', label]
-      # Combine cwd and label to get the full run directory path.
-      run_dir = os.path.join(kwargs['cwd'], cmd[-1])
+    def _mock_run_tglf(**kwargs: Any):
+      del kwargs
+      return np.array([1.0]), np.array([1.0]), np.array([1.0]), np.array([1.0])
 
-      # Populate the run directory with a fake output file.
-      os.makedirs(run_dir, exist_ok=True)
-      with open(os.path.join(run_dir, 'out.tglf.gbflux'), 'w') as f:
-        f.write('\n'.join(['1.0'] * 12))
-
-      # Return a mock subprocess result with fake stdout and stderr.
-      result = mock.Mock()
-      result.stdout = 'stdout'
-      result.stderr = 'stderr'
-      return result
-
-    with mock.patch.object(subprocess, 'run', side_effect=_mock_subprocess_run):
+    with mock.patch.object(tglf2py, 'run_tglf', side_effect=_mock_run_tglf):
       model_call = (
           jax.jit(transport_model.__call__) if jit else transport_model.__call__
       )

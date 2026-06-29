@@ -1808,13 +1808,15 @@ Runtime parameters for the QuaLiKiz model.
 tglf
 ^^^^
 
-Runtime parameters for the TGLF model.
+Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
+:ref:`tglf_installation` for installation instructions.
 
 ``tglf_exec_path`` (str [default = '~/tglf'])
-  Path to the TGLF executable.
+  Path to the TGLF executable. Deprecated, and will be ignored.
 
 ``output_directory`` (str [default = '/tmp/torax_tglf_runs'])
-  Path to the directory where temporary TGLF run files are stored.
+  Path to the directory where temporary TGLF run files are stored. Deprecated,
+  and will be ignored.
 
 ``n_processes`` (int [default = 8])
   Number of parallel TGLF calculations to run across radial faces.
