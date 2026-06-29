@@ -41,7 +41,10 @@ CONFIG = {
         'ohmic': {},
     },
     'transport': {
-        'model_name': 'constant',
+        'model_name': 'combined',
+        'transport_models': [
+            {'model_name': 'constant'},
+        ],
     },
     'pedestal': {},
     'solver': {
