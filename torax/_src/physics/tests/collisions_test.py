@@ -77,6 +77,14 @@ class CollisionsTest(parameterized.TestCase):
     result = collisions.calculate_log_lambda_ii(T_i_kev, n_i, Z_i)
     np.testing.assert_allclose(result, expected, atol=1e-6)
 
+  def test_calculate_tau_ei_scales_with_zeff(self):
+    T_e = jnp.array([1.0, 2.0])
+    n_e = jnp.array([1e20, 2e20])
+    tau_z1 = collisions.calculate_tau_ei(T_e, n_e, Z_eff=jnp.ones_like(T_e))
+    tau_z2 = collisions.calculate_tau_ei(T_e, n_e, Z_eff=2 * jnp.ones_like(T_e))
+
+    np.testing.assert_allclose(tau_z2, tau_z1 / 2.0)
+
   # TODO(b/377225415): generalize to arbitrary number of ions.
   @parameterized.parameters([
       dict(

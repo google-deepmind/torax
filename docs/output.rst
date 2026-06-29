@@ -468,6 +468,9 @@ These are called out in the list of profiles below, and generally relate to:
   Derivative of plasma surface area enclosed by each flux surface, with respect
   to the normalized toroidal flux coordinate rho_norm [:math:`m^2`].
 
+``tau_ei`` (time, rho_face_norm)
+  Electron-ion collision time [:math:`s`].
+
 ``T_e`` (time, rho_norm)
   Electron temperature [:math:`keV`].
 
@@ -1003,4 +1006,3 @@ purposes or to rerun the simulation.
   # We can also use ToraxConfig to run the simulation again.
   torax_config = torax.ToraxConfig.from_dict(config_dict)
   new_output = torax.run_simulation(torax_config)
-
