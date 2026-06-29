@@ -155,6 +155,21 @@ class StateHistoryTest(parameterized.TestCase):
         (1, len(self.geo.rho_face_norm)),
     )
 
+  def test_nu_star_is_saved(self):
+    """Tests that normalized collisionality is saved as a face profile."""
+    output_xr = self.history.simulation_output_to_xr()
+    profiles_dataset = output_xr.children[output.PROFILES].dataset
+
+    self.assertIn(output.NU_STAR, profiles_dataset.data_vars)
+    self.assertEqual(
+        profiles_dataset[output.NU_STAR].dims,
+        (output.TIME, output.RHO_FACE_NORM),
+    )
+    np.testing.assert_allclose(
+        profiles_dataset[output.NU_STAR].values[0],
+        self._output_state.nu_star,
+    )
+
   def test_geometry_is_saved(self):
     """Tests that the geometry is saved correctly."""
     # Construct a second state with a slightly different geometry.
