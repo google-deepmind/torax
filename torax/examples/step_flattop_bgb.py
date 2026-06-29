@@ -133,21 +133,24 @@ CONFIG = {
         },
     },
     "transport": {
-        "model_name": "bohm-gyrobohm",
-        # BgB settings from [2] sec 3.3
-        # Tuning factor to achieve desired confinement
-        "chi_e_bohm_multiplier": bgb_multiplier,
-        "chi_i_bohm_multiplier": bgb_multiplier,
-        "chi_e_gyrobohm_multiplier": bgb_multiplier,
-        "chi_i_gyrobohm_multiplier": bgb_multiplier,
-        # Base coefficients
-        "chi_e_bohm_coeff": 0.01 * 2e-4,
-        "chi_e_gyrobohm_coeff": 50 * 5e-6,
-        "chi_i_bohm_coeff": 0.001 * 2e-4,
-        "chi_i_gyrobohm_coeff": 1.0 * 5e-6,
-        "D_face_c1": 1,
-        "D_face_c2": 0.3,
-        "V_face_coeff": -0.1,
+        "model_name": "combined",
+        "transport_models": [{
+            "model_name": "bohm-gyrobohm",
+            # BgB settings from [2] sec 3.3
+            # Tuning factor to achieve desired confinement
+            "chi_e_bohm_multiplier": bgb_multiplier,
+            "chi_i_bohm_multiplier": bgb_multiplier,
+            "chi_e_gyrobohm_multiplier": bgb_multiplier,
+            "chi_i_gyrobohm_multiplier": bgb_multiplier,
+            # Base coefficients
+            "chi_e_bohm_coeff": 0.01 * 2e-4,
+            "chi_e_gyrobohm_coeff": 50 * 5e-6,
+            "chi_i_bohm_coeff": 0.001 * 2e-4,
+            "chi_i_gyrobohm_coeff": 1.0 * 5e-6,
+            "D_face_c1": 1,
+            "D_face_c2": 0.3,
+            "V_face_coeff": -0.1,
+        }],
         # Clipping
         "chi_min": 0.15,
         "chi_max": 100.0,

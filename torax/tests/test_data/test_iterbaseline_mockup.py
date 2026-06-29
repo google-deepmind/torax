@@ -140,29 +140,39 @@ CONFIG = {
         'rho_norm_ped_top': 0.93,  # set ped top location in normalized radius
     },
     'transport': {
-        'model_name': 'qlknn',
-        # set inner core transport coefficients (ad-hoc MHD/EM transport)
-        'apply_inner_patch': True,
-        'D_e_inner': 0.25,
-        'chi_i_inner': 0.5,
-        'chi_e_inner': 0.25,
-        'rho_inner': 0.2,  # radius below which patch transport is applied
+        'model_name': 'combined',
+        'transport_models': [
+            {
+                'model_name': 'qlknn',
+                # qlknn params.
+                'DV_effective': True,
+                'include_ITG': True,  # to toggle ITG modes on or off
+                'include_TEM': True,  # to toggle ITG modes on or off
+                'include_ETG': True,  # to toggle ITG modes on or off
+                # ensure that smag - fusion > -0.2 always, to compensate for
+                # no slab modes
+                'avoid_big_negative_s': True,
+                # minimum |R/Lne| below which effective V is used instead of
+                # effective D
+                'An_min': 0.05,
+                'ITG_flux_ratio_correction': 1,
+                'rho_min': 0.2,
+            },
+            # Inner patch
+            {
+                'model_name': 'constant',
+                'chi_i': 0.5,
+                'chi_e': 0.25,
+                'D_e': 0.25,
+                'V_e': 0.0,
+                'rho_max': 0.2,
+            },
+        ],
         # allowed chi and diffusivity bounds
         'chi_min': 0.05,  # minimum chi
         'chi_max': 100,  # maximum chi (can be helpful for stability)
         'D_e_min': 0.05,  # minimum electron diffusivity
-        # qlknn params.
-        'DV_effective': True,
-        'include_ITG': True,  # to toggle ITG modes on or off
-        'include_TEM': True,  # to toggle ITG modes on or off
-        'include_ETG': True,  # to toggle ITG modes on or off
-        # ensure that smag - fusion > -0.2 always, to compensate for no slab
-        # modes
-        'avoid_big_negative_s': True,
-        # minimum |R/Lne| below which effective V is used instead of
-        # effective D
-        'An_min': 0.05,
-        'ITG_flux_ratio_correction': 1,
+        'smoothing_width': 0.1,
     },
     'solver': {
         'solver_type': 'linear',

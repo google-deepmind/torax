@@ -134,38 +134,51 @@ CONFIG = {
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },
     'transport': {
-        'model_name': 'qlknn',
-        # set inner core transport coefficients (ad-hoc MHD/EM transport)
-        'apply_inner_patch': True,
-        'D_e_inner': 0.25,
-        'V_e_inner': 0.0,
-        'chi_i_inner': 1.0,
-        'chi_e_inner': 1.0,
-        'rho_inner': 0.2,  # radius below which patch transport is applied
-        # set outer core transport coefficients (L-mode near edge region)
-        'apply_outer_patch': True,
-        'D_e_outer': 0.1,
-        'V_e_outer': 0.0,
-        'chi_i_outer': 2.0,
-        'chi_e_outer': 2.0,
-        'rho_outer': 0.9,  # radius above which patch transport is applied
+        'model_name': 'combined',
+        'transport_models': [
+            {
+                'model_name': 'qlknn',
+                # qlknn params.
+                'DV_effective': True,
+                'include_ITG': True,  # to toggle ITG modes on or off
+                'include_TEM': True,  # to toggle TEM modes on or off
+                'include_ETG': True,  # to toggle ETG modes on or off
+                # ensure that smag - fusion > -0.2 always, to compensate for
+                # no slab modes
+                'avoid_big_negative_s': True,
+                # minimum |R/Lne| below which effective V is used instead of
+                # effective D
+                'An_min': 0.05,
+                'ITG_flux_ratio_correction': 1,
+                'output_mode_contributions': True,
+                'rho_min': 0.2,
+                'rho_max': 0.9,
+            },
+            # Inner patch
+            {
+                'model_name': 'constant',
+                'chi_i': 1.0,
+                'chi_e': 1.0,
+                'D_e': 0.25,
+                'V_e': 0.0,
+                'rho_max': 0.2,
+            },
+            # Outer patch
+            {
+                'model_name': 'constant',
+                'chi_i': 2.0,
+                'chi_e': 2.0,
+                'D_e': 0.1,
+                'V_e': 0.0,
+                'rho_min': 0.9,
+                'rho_max': 1.0,
+            },
+        ],
         # allowed chi and diffusivity bounds
         'chi_min': 0.05,  # minimum chi
         'chi_max': 100,  # maximum chi (can be helpful for stability)
         'D_e_min': 0.05,  # minimum electron diffusivity
-        # qlknn params.
-        'DV_effective': True,
-        'include_ITG': True,  # to toggle ITG modes on or off
-        'include_TEM': True,  # to toggle TEM modes on or off
-        'include_ETG': True,  # to toggle ETG modes on or off
-        # ensure that smag - fusion > -0.2 always, to compensate for no slab
-        # modes
-        'avoid_big_negative_s': True,
-        # minimum |R/Lne| below which effective V is used instead of
-        # effective D
-        'An_min': 0.05,
-        'ITG_flux_ratio_correction': 1,
-        'output_mode_contributions': True,
+        'smoothing_width': 0.1,
     },
     'solver': {
         'solver_type': 'linear',

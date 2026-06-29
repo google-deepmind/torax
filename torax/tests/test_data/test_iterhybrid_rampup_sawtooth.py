@@ -26,10 +26,10 @@ CONFIG['sources']['generic_heat']['P_total'] = 0.0
 CONFIG['sources']['ohmic'] = {}
 CONFIG['numerics']['resistivity_multiplier'] = 10.0
 CONFIG['numerics']['fixed_dt'] = 0.5
-CONFIG['transport']['chi_i_inner'] = 0.2
-CONFIG['transport']['chi_e_inner'] = 0.2
-CONFIG['transport']['D_e_inner'] = 0.02
-CONFIG['transport']['rho_inner'] = 0.15
+CONFIG['transport']['transport_models'][1]['chi_i'] = 0.2
+CONFIG['transport']['transport_models'][1]['chi_e'] = 0.2
+CONFIG['transport']['transport_models'][1]['D_e'] = 0.02
+CONFIG['transport']['transport_models'][1]['rho_max'] = 0.15
 CONFIG['solver']['solver_type'] = 'linear'  # to simplify numerics.
 CONFIG['mhd'] = {
     'sawtooth': {

@@ -24,30 +24,40 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 # Set to use TGLFNN
 CONFIG['transport'] = {
-    'model_name': 'tglfnn-ukaea',
-    'machine': 'multimachine',
-    # Inner patch
-    'apply_inner_patch': True,
-    'D_e_inner': 0.25,
-    'V_e_inner': 0.0,
-    'chi_i_inner': 1.0,
-    'chi_e_inner': 1.0,
-    'rho_inner': 0.2,  # radius below which patch transport is applied
-    # Outer patch
-    'apply_outer_patch': True,
-    'D_e_outer': 0.1,
-    'V_e_outer': 0.0,
-    'chi_i_outer': 2.0,
-    'chi_e_outer': 2.0,
-    'rho_outer': 0.9,
-    # Smoothing
-    'smoothing_width': 0.1,
-    'smooth_everywhere': False,
-    # Clipping
+    'model_name': 'combined',
+    'transport_models': [
+        {
+            'model_name': 'tglfnn-ukaea',
+            'machine': 'multimachine',
+            'An_min': 0.05,
+            'DV_effective': True,
+            'rho_min': 0.2,
+            'rho_max': 0.9,
+        },
+        # Inner patch
+        {
+            'model_name': 'constant',
+            'chi_i': 1.0,
+            'chi_e': 1.0,
+            'D_e': 0.25,
+            'V_e': 0.0,
+            'rho_max': 0.2,
+        },
+        # Outer patch
+        {
+            'model_name': 'constant',
+            'chi_i': 2.0,
+            'chi_e': 2.0,
+            'D_e': 0.1,
+            'V_e': 0.0,
+            'rho_min': 0.9,
+            'rho_max': 1.0,
+        },
+    ],
+    # allowed chi and diffusivity bounds
     'chi_min': 0.05,
     'chi_max': 100,
     'D_e_min': 0.05,
-    # Effective D, V method
-    'An_min': 0.05,
-    'DV_effective': True,
+    'smoothing_width': 0.1,
+    'smooth_everywhere': False,
 }
