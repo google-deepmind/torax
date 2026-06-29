@@ -67,11 +67,23 @@ CONFIG = {
         'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
     'transport': {
-        'model_name': 'qlknn',
-        'apply_inner_patch': True,
-        'chi_i_inner': 2.0,
-        'chi_e_inner': 2.0,
-        'rho_inner': 0.3,
+        'model_name': 'combined',
+        'transport_models': [
+            {
+                'model_name': 'qlknn',
+                'rho_min': 0.3,
+            },
+            # Inner patch
+            {
+                'model_name': 'constant',
+                'chi_i': 2.0,
+                'chi_e': 2.0,
+                'D_e': 0.2,
+                'V_e': 0.0,
+                'rho_max': 0.3,
+            },
+        ],
+        'smoothing_width': 0.1,
     },
     'solver': {
         'solver_type': 'linear',
