@@ -346,6 +346,10 @@ These are called out in the list of profiles below, and generally relate to:
 ``n_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   True impurity density per species [:math:`m^{-3}`].
 
+``nu_star`` (time, rho_face_norm)
+  Electron-ion collisionality normalized by the bounce frequency
+  [dimensionless].
+
 ``p_alpha_e`` (time, rho_cell_norm)
   Fusion alpha heating power density to electrons [:math:`W/m^3`]. Only output
   if ``fusion`` source is active.
@@ -1003,4 +1007,3 @@ purposes or to rerun the simulation.
   # We can also use ToraxConfig to run the simulation again.
   torax_config = torax.ToraxConfig.from_dict(config_dict)
   new_output = torax.run_simulation(torax_config)
-

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
+
 from collections.abc import Mapping, Sequence
 import dataclasses
 import functools
@@ -111,6 +112,7 @@ RHO_CELL = "rho_cell"
 TIME = "time"
 
 # Post processed outputs
+NU_STAR = "nu_star"
 Q_FUSION = "Q_fusion"
 
 # Edge model outputs
