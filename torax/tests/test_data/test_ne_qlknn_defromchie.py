@@ -68,9 +68,12 @@ CONFIG = {
         'n_e_ped': 1.0e20,
     },
     'transport': {
-        'model_name': 'qlknn',
-        # qlknn params.
-        'DV_effective': False,
+        'model_name': 'combined',
+        'transport_models': [{
+            'model_name': 'qlknn',
+            'DV_effective': False,
+        }],
+        'smoothing_width': 0.1,
     },
     'solver': {
         'solver_type': 'linear',
