@@ -117,3 +117,32 @@ download the QLKNN dependencies at a location of your choice:
 To use QLKNN10D , you then need to set ``model_path`` in the
 ``transport`` section of your TORAX config to the path of the cloned repository.
 See :ref:`configuration` for more details.
+
+
+(Optional) Install gyaradax
+---------------------------
+
+The ``gyaradax-ql`` transport model is backed by gyaradax, a pure-JAX
+reimplementation of the GKW gyrokinetic solver. gyaradax is an optional
+dependency: TORAX runs without it, and the ``gyaradax-ql`` model only becomes
+selectable once gyaradax is importable in the same environment.
+
+install gyaradax directly from GitHub into your TORAX virtual environment:
+
+.. code-block:: console
+
+  pip install git+https://github.com/gerkone/gyaradax
+
+or clone the repository and install it:
+
+.. code-block:: console
+
+  git clone https://github.com/gerkone/gyaradax.git
+  pip install -e gyaradax
+
+The optional calibration heads selected via ``cn_calibration_path``
+additionally require ``scikit-learn``, the default ITG saturation rule does not.
+
+Once gyaradax is installed, set ``model_name: 'gyaradax-ql'`` in the
+``transport`` section of your TORAX config. See :ref:`configuration` and the
+gyaradax-QL entry under :ref:`physics_models` for the available options.
