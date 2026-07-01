@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -234,7 +235,14 @@ class GeometryTest(parameterized.TestCase):
     # above 0.02 threshold.
     Phi = np.linspace(0, 1.0, 10) ** 2
     n = len(Phi)
-    with self.assertLogs(level='WARNING') as log_ctx:
+    with (
+        mock.patch.object(
+            standard_geometry,
+            '_COARSE_GRID_WARNING_INTERVAL_SEC',
+            -1,
+        ),
+        self.assertLogs(level='WARNING') as log_ctx,
+    ):
       self._make_intermediates(
           Phi=Phi,
           psi=np.linspace(0, 1.0, n),

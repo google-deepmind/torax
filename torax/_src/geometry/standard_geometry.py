@@ -38,6 +38,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 _RHO_SMOOTHING_LIMIT = 0.1
 _COARSE_GRID_THRESHOLD = 0.02
+_COARSE_GRID_WARNING_INTERVAL_SEC = 10 * 60
 
 
 @jax.tree_util.register_dataclass
@@ -369,7 +370,7 @@ class StandardGeometryIntermediates:
           ' %.4f > %.4f). This can create numerical artifacts in derived'
           ' quantities such as j_total. Consider using a higher-resolution'
           ' equilibrium file.',
-          10 * 60,  # log every 10 minutes
+          _COARSE_GRID_WARNING_INTERVAL_SEC,  # log every interval
           max_spacing,
           _COARSE_GRID_THRESHOLD,
       )
