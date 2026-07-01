@@ -35,7 +35,7 @@ class NeoclassicalTransportTest(absltest.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    neoclassical_pydantic_model.Neoclassical.model_fields[
+    neoclassical_pydantic_model.Neoclassical.model_fields[  # pyrefly: ignore[bad-assignment]
         'transport'
     ].annotation |= FakeNeoclassicalTransportModelConfig
     neoclassical_pydantic_model.Neoclassical.model_rebuild(force=True)

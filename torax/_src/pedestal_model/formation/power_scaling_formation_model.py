@@ -70,8 +70,8 @@ def calculate_P_SOL_total(
   )
   P_heat_total = P_heat_e + P_heat_i
   if not include_dW_dt:
-    return P_heat_total
-  return P_heat_total - internal_plasma_energy.dW_thermal_dt_smoothed
+    return P_heat_total  # pyrefly: ignore[bad-return]
+  return P_heat_total - internal_plasma_energy.dW_thermal_dt_smoothed  # pyrefly: ignore[bad-return]
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -103,7 +103,7 @@ class PowerScalingFormationModel(base.FormationModel):
     )
 
     P_SOL_total = calculate_P_SOL_total(
-        core_profiles.internal_plasma_energy,
+        core_profiles.internal_plasma_energy,  # pyrefly: ignore[bad-argument-type]
         core_sources,
         geo,
         include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,

@@ -66,7 +66,7 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
 
     # For this test, we put the pedestal top at the last grid point.
     ped_top_idx = -1
-    current_T_e_ped = self.core_profiles.T_e.face_value()[ped_top_idx]
+    current_T_e_ped = self.core_profiles.T_e.face_value()[ped_top_idx]  # pyrefly: ignore[bad-index]
 
     # Construct a pedestal output that is asking for a pedestal with
     # target temperature.

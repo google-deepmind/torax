@@ -527,7 +527,7 @@ def _calculate_integrated_sources(
   # electron-ion heat exchange always exists, and is not in
   # core_sources.profiles, so we calculate it here.
   qei = core_sources.qei.qei_coef * (
-      core_profiles.T_e.value - core_profiles.T_i.value
+      core_profiles.T_e.value - core_profiles.T_i.value  # pyrefly: ignore[unsupported-operation]
   )
   integrated['P_ei_exchange_i'] = math_utils.volume_integration(qei, geo)
   integrated['P_ei_exchange_e'] = -integrated['P_ei_exchange_i']
@@ -551,10 +551,10 @@ def _calculate_integrated_sources(
           f' Found in T_i: {is_in_T_i}, Found in T_e: {is_in_T_e}.'
       )
     integrated[f'{value}_i'] = _get_integrated_source_value(
-        core_sources.T_i, key, geo, math_utils.volume_integration
+        core_sources.T_i, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
     )
     integrated[f'{value}_e'] = _get_integrated_source_value(
-        core_sources.T_e, key, geo, math_utils.volume_integration
+        core_sources.T_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
     )
     integrated[f'{value}_total'] = (
         integrated[f'{value}_i'] + integrated[f'{value}_e']
@@ -585,7 +585,7 @@ def _calculate_integrated_sources(
           ' (core_sources.T_i).'
       )
     integrated[f'{value}'] = _get_integrated_source_value(
-        core_sources.T_e, key, geo, math_utils.volume_integration
+        core_sources.T_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
     )
     if key in EXTERNAL_HEATING_SOURCES:
       integrated['P_aux_e'] += integrated[f'{value}']
@@ -593,11 +593,11 @@ def _calculate_integrated_sources(
 
   for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
     integrated[value] = _get_integrated_source_value(
-        core_sources.psi,
+        core_sources.psi,  # pyrefly: ignore[bad-argument-type]
         key,
         geo,
         # Convert current sources to toroidal current before integrating
-        lambda x, geo: math_utils.area_integration(
+        lambda x, geo: math_utils.area_integration(  # pyrefly: ignore[bad-argument-type]
             psi_calculations.j_parallel_to_j_toroidal(
                 x, geo, runtime_params.numerics.min_rho_norm
             ),
@@ -607,7 +607,7 @@ def _calculate_integrated_sources(
 
   for key, value in PARTICLE_SOURCE_TRANSFORMATIONS.items():
     integrated[f'{value}'] = _get_integrated_source_value(
-        core_sources.n_e, key, geo, math_utils.volume_integration
+        core_sources.n_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
     )
     integrated['S_total'] += integrated[f'{value}']
 
@@ -676,7 +676,7 @@ def make_post_processed_outputs(
   )
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
-  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])  # pyrefly: ignore[bad-index]
   integrated_sources = _calculate_integrated_sources(
       sim_state.geometry,
       sim_state.core_profiles,
@@ -818,24 +818,24 @@ def make_post_processed_outputs(
 
   # Calculate te and ti volume average [keV]
   te_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_e.value, sim_state.geometry
+      sim_state.core_profiles.T_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
   )
   ti_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_i.value, sim_state.geometry
+      sim_state.core_profiles.T_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
   )
 
   # Calculate n_e and n_i (main ion) volume and line averages in m^-3
   n_e_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry
+      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
   )
   n_i_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry
+      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
   )
   n_e_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry
+      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
   )
   n_i_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry
+      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
   )
   fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
       n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
@@ -847,7 +847,7 @@ def make_post_processed_outputs(
       sim_state.geometry, sim_state.core_profiles.psi
   )
   li3 = psi_calculations.calc_li3(
-      sim_state.geometry.R_major,
+      sim_state.geometry.R_major,  # pyrefly: ignore[bad-argument-type]
       W_pol,
       sim_state.core_profiles.Ip_profile_face[-1],
   )
@@ -899,7 +899,7 @@ def make_post_processed_outputs(
       runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_external,
+      j_parallel_external,  # pyrefly: ignore[bad-argument-type]
       sim_state.geometry,
       runtime_params.numerics.min_rho_norm,
   )
@@ -927,7 +927,7 @@ def make_post_processed_outputs(
   )
   I_non_inductive = I_bootstrap + I_external
 
-  beta_tor, beta_pol, beta_N = formulas.calculate_betas(
+  beta_tor, beta_pol, beta_N = formulas.calculate_betas(  # pyrefly: ignore[not-iterable]
       sim_state.core_profiles, sim_state.geometry
   )
 
@@ -1005,17 +1005,17 @@ def make_post_processed_outputs(
       j_ecrh=j_toroidal_sources['j_ecrh'],
       j_generic_current=j_toroidal_sources['j_generic_current'],
       j_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
-      j_parallel_external=j_parallel_external,
+      j_parallel_external=j_parallel_external,  # pyrefly: ignore[bad-argument-type]
       j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
       I_external=I_external,
       I_non_inductive=I_non_inductive,
-      f_non_inductive=math_utils.safe_divide(
-          num=I_non_inductive,
+      f_non_inductive=math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
+          num=I_non_inductive,  # pyrefly: ignore[bad-argument-type]
           denom=sim_state.core_profiles.Ip_profile_face[-1],
           eps=1e-7,
       ),
-      f_bootstrap=math_utils.safe_divide(
-          num=I_bootstrap,
+      f_bootstrap=math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
+          num=I_bootstrap,  # pyrefly: ignore[bad-argument-type]
           denom=sim_state.core_profiles.Ip_profile_face[-1],
           eps=1e-7,
       ),
@@ -1023,8 +1023,8 @@ def make_post_processed_outputs(
       beta_pol=beta_pol,
       beta_N=beta_N,
       impurity_species=impurity_radiation_outputs,
-      poloidal_velocity=rotation_output.poloidal_velocity.face_value(),
-      radial_electric_field=rotation_output.Er.face_value(),
+      poloidal_velocity=rotation_output.poloidal_velocity.face_value(),  # pyrefly: ignore[bad-argument-type]
+      radial_electric_field=rotation_output.Er.face_value(),  # pyrefly: ignore[bad-argument-type]
       first_step=jnp.array(False),
   )
 

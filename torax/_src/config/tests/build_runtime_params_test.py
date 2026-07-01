@@ -313,7 +313,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     # Create updates for a `TimeVaryingScalar`, `TimeVaryingArray` and `float`.
     ip_value = params_provider.profile_conditions.Ip.value
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 2.0,
+        value=ip_value * 2.0,  # pyrefly: ignore[bad-argument-type]
     )
     T_e_cell_value = (
         params_provider.profile_conditions.T_e.get_cached_interpolated_param_cell.ys
@@ -321,8 +321,8 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     # Needed for pylint.
     assert params_provider.profile_conditions.T_e.grid is not None
     T_e_update = interpolated_param_2d.TimeVaryingArrayUpdate(
-        value=T_e_cell_value * 3.0,
-        rho_norm=params_provider.profile_conditions.T_e.grid.cell_centers,
+        value=T_e_cell_value * 3.0,  # pyrefly: ignore[bad-argument-type]
+        rho_norm=params_provider.profile_conditions.T_e.grid.cell_centers,  # pyrefly: ignore[bad-argument-type]
     )
     qei_update = params_provider.sources.ei_exchange.Qei_multiplier * 4.0
 
@@ -351,7 +351,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     )
     num_compiles1 = jax_utils.get_number_of_compiles(f)
     ip_update_new = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 4.0,
+        value=ip_value * 4.0,  # pyrefly: ignore[bad-argument-type]
     )
     ip_value_2, T_e_value_2, qei_value_2 = f(
         ip_update_new, T_e_update, qei_update
@@ -379,7 +379,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
       ),
       (
           lambda x: (x.profile_conditions.T_e,),
-          (interpolated_param_1d.TimeVaryingScalarUpdate(np.array([1.0])),),
+          (interpolated_param_1d.TimeVaryingScalarUpdate(np.array([1.0])),),  # pyrefly: ignore[bad-argument-type]
           'To replace a `TimeVaryingArray` use a `TimeVaryingArrayReplace`',
       ),
       (
@@ -414,10 +414,10 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     params_provider = self._params_provider
     ip_value = params_provider.profile_conditions.Ip.value
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 2.0,
+        value=ip_value * 2.0,  # pyrefly: ignore[bad-argument-type]
     )
     ip_second_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 4.0,
+        value=ip_value * 4.0,  # pyrefly: ignore[bad-argument-type]
     )
     updated_provider = params_provider.update_provider(
         lambda x: (x.profile_conditions.Ip,),
@@ -435,15 +435,15 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     params_provider = self._params_provider
     ip_value = params_provider.profile_conditions.Ip.value
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 2.0,
+        value=ip_value * 2.0,  # pyrefly: ignore[bad-argument-type]
     )
     T_e_value = (
         params_provider.profile_conditions.T_e.get_cached_interpolated_param_cell.ys
     )
     assert params_provider.profile_conditions.T_e.grid is not None
     T_e_update = interpolated_param_2d.TimeVaryingArrayUpdate(
-        value=T_e_value * 3.0,
-        rho_norm=params_provider.profile_conditions.T_e.grid.cell_centers,
+        value=T_e_value * 3.0,  # pyrefly: ignore[bad-argument-type]
+        rho_norm=params_provider.profile_conditions.T_e.grid.cell_centers,  # pyrefly: ignore[bad-argument-type]
     )
     value_Qei_multiplier = params_provider.sources.ei_exchange.Qei_multiplier
     Qei_multiplier_update = value_Qei_multiplier * 4.0
@@ -489,7 +489,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     )
 
     ip_update_new = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 4.0,
+        value=ip_value * 4.0,  # pyrefly: ignore[bad-argument-type]
     )
     ip_value_new, T_e_value_new, Qei_multiplier_new = f(
         ip_update_new, T_e_update, Qei_multiplier_update
@@ -504,7 +504,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
   def test_update_runtime_params_provider_mapping_raises_for_invalid_key(self):
     value = self._params_provider.profile_conditions.Ip.value
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=value * 2.0,
+        value=value * 2.0,  # pyrefly: ignore[bad-argument-type]
     )
 
     @jax.jit

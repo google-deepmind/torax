@@ -210,8 +210,8 @@ class ToricNNTest(test_lib.SourceTestCase):
         conductivity=None,
     )
     self.assertLen(icrh_out, 3)
-    self.assertEqual(icrh_out[0].shape, geo.rho.shape)
-    self.assertEqual(icrh_out[1].shape, geo.rho.shape)
+    self.assertEqual(icrh_out[0].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
+    self.assertEqual(icrh_out[1].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
 
   def test_source_with_minority_species_from_composition(self):
     """Tests ICRH source with minority_species reading from composition."""
@@ -269,8 +269,8 @@ class ToricNNTest(test_lib.SourceTestCase):
         conductivity=None,
     )
     self.assertLen(icrh_out, 3)
-    self.assertEqual(icrh_out[0].shape, geo.rho.shape)
-    self.assertEqual(icrh_out[1].shape, geo.rho.shape)
+    self.assertEqual(icrh_out[0].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
+    self.assertEqual(icrh_out[1].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
 
   def test_source_with_minority_species_main_ion(self):
     """Tests ICRH source with minority_species as a main ion."""
@@ -323,7 +323,7 @@ class ToricNNTest(test_lib.SourceTestCase):
 
     # Just verify it runs and returns shapes
     self.assertLen(icrh_out, 3)
-    self.assertEqual(icrh_out[0].shape, geo.rho.shape)
+    self.assertEqual(icrh_out[0].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
 
   def test_source_raises_if_minority_species_not_in_composition(self):
     """Tests that a ValueError is raised if minority species is missing."""
@@ -442,7 +442,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         conductivity=None,
     )
     fast_ion_data = output[2]
-    n_tail = fast_ion_data[_HE3_INDEX].n.value
+    n_tail = fast_ion_data[_HE3_INDEX].n.value  # pyrefly: ignore[missing-attribute]
     n_total = core_profiles.n_e.value * minority_conc
     self.assertTrue(jnp.all(n_tail >= 0))
     self.assertTrue(jnp.all(n_tail <= n_total))
@@ -477,7 +477,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         conductivity=None,
     )
     fast_ion_data = output[2]
-    temperature_tail = fast_ion_data[_HE3_INDEX].T.value
+    temperature_tail = fast_ion_data[_HE3_INDEX].T.value  # pyrefly: ignore[missing-attribute]
     self.assertTrue(jnp.all(temperature_tail >= core_profiles.T_e.value))
 
   def test_zero_power_produces_zero_fast_ions(self):
@@ -511,10 +511,10 @@ class ToricNNTest(test_lib.SourceTestCase):
     )
     fast_ion_data = output[2]
     np.testing.assert_allclose(
-        fast_ion_data[_HE3_INDEX].n.value, 0.0, atol=1e-9
+        fast_ion_data[_HE3_INDEX].n.value, 0.0, atol=1e-9  # pyrefly: ignore[missing-attribute]
     )
     np.testing.assert_allclose(
-        fast_ion_data[_HE3_INDEX].T.value, core_profiles.T_i.value
+        fast_ion_data[_HE3_INDEX].T.value, core_profiles.T_i.value  # pyrefly: ignore[missing-attribute]
     )
 
 

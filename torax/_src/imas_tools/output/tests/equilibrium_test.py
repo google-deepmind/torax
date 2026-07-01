@@ -90,7 +90,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
       print(f'{attr1} {attr2}')
       print(f'{var_in.shape}')
       print(f'{var_out.shape}')
-      np.testing.assert_allclose(
+      np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           np.interp(rhon_in, rhon_out, var_out)[n:-n],
           var_in[n:-n],
           rtol=rtol,

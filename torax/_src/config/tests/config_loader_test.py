@@ -45,7 +45,7 @@ class ConfigLoaderTest(parameterized.TestCase):
       path = path.relative_to(path_utils.torax_path())
 
     if use_string:
-      path = str(path)
+      path = str(path)  # pyrefly: ignore[bad-assignment]
 
     config_dict = config_loader.import_module(path)
 
@@ -77,7 +77,7 @@ class ConfigLoaderTest(parameterized.TestCase):
       name=list(config_loader.example_plot_config_paths().keys()),
   )
   def test_get_plot_config_from_file(self, name: str, use_string: bool):
-    path = config_loader.example_plot_config_paths()[name]
+    path = config_loader.example_plot_config_paths()[name]  # pyrefly: ignore[bad-index]
     path = str(path) if use_string else path
     cfg = config_loader.get_plot_config_from_file(path)
     self.assertIsInstance(cfg, plotruns_lib.FigureProperties)

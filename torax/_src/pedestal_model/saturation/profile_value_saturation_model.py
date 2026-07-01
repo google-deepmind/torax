@@ -48,10 +48,10 @@ class ProfileValueSaturationModel(base.SaturationModel):
     rho_norm_face_ped_top_idx = jnp.argmin(
         jnp.abs(geo.rho_face_norm - pedestal_output.rho_norm_ped_top)
     )
-    current_T_e_ped_top = core_profiles.T_e.face_value()[
+    current_T_e_ped_top = core_profiles.T_e.face_value()[  # pyrefly: ignore[bad-index]
         rho_norm_face_ped_top_idx
     ]
-    current_T_i_ped_top = core_profiles.T_i.face_value()[
+    current_T_i_ped_top = core_profiles.T_i.face_value()[  # pyrefly: ignore[bad-index]
         rho_norm_face_ped_top_idx
     ]
 
@@ -63,7 +63,7 @@ class ProfileValueSaturationModel(base.SaturationModel):
         current_T_i_ped_top, pedestal_output.T_i_ped, runtime_params.pedestal
     )
 
-    return pedestal_model_output.TransportMultipliers(
+    return pedestal_model_output.TransportMultipliers(  # pyrefly: ignore[bad-return]
         chi_e_multiplier=chi_e_multiplier,
         chi_i_multiplier=chi_i_multiplier,
         # TODO(b/487920703): set the density transport coefficients based on

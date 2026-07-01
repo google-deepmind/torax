@@ -21,7 +21,7 @@ class PydanticModelTest(parameterized.TestCase):
 
   def test_default_model(self):
     # Disable pylint check since Pydantic before validator handles default.
-    model = pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa
+    model = pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa  # pyrefly: ignore[missing-argument]
     self.assertEqual(model.bootstrap_current.model_name, "zeros")
     self.assertEqual(model.conductivity.model_name, "sauter")
     self.assertEqual(model.transport.model_name, "zeros")

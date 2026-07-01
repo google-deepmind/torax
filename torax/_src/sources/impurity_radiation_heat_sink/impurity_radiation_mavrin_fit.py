@@ -144,7 +144,7 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
-    return impurity_radiation_mavrin_fit
+    return impurity_radiation_mavrin_fit  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

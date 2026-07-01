@@ -322,8 +322,8 @@ def _update_ne_density_fraction_boundary_condition(
     )
     n_e_face_values = n_e.face_value()
 
-  n_e_at_ref = jnp.interp(reference_rho, geo.rho_face_norm, n_e_face_values)
-  n_e_right_bc = n_e_at_ref * multiplier
+  n_e_at_ref = jnp.interp(reference_rho, geo.rho_face_norm, n_e_face_values)  # pyrefly: ignore[bad-argument-type]
+  n_e_right_bc = n_e_at_ref * multiplier  # pyrefly: ignore[unsupported-operation]
 
   return dataclasses.replace(
       runtime_params,

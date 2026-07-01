@@ -121,24 +121,24 @@ def _calculate_bootstrap_current(
 
   # Collision frequencies
   log_lambda_ei = collisions.calculate_log_lambda_ei(
-      T_e.face_value(), n_e.face_value()
+      T_e.face_value(), n_e.face_value()  # pyrefly: ignore[bad-argument-type]
   )
   log_lambda_ii = collisions.calculate_log_lambda_ii(
-      T_i.face_value(), n_i.face_value(), Z_i_face
+      T_i.face_value(), n_i.face_value(), Z_i_face  # pyrefly: ignore[bad-argument-type]
   )
   nu_e_star = formulas.calculate_nu_e_star(
       q=q_face,
       geo=geo,
-      n_e=n_e.face_value(),
-      T_e=T_e.face_value(),
+      n_e=n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      T_e=T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
       Z_eff=Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
   nu_i_star = formulas.calculate_nu_i_star(
       q=q_face,
       geo=geo,
-      n_i=n_i.face_value(),
-      T_i=T_i.face_value(),
+      n_i=n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      T_i=T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
       Z_eff=Z_eff_face,
       log_lambda_ii=log_lambda_ii,
   )

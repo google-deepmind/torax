@@ -68,8 +68,8 @@ def torax_state_to_imas_equilibrium(
   eq.boundary.geometric_axis.r = geometry.R_major
   eq.boundary.minor_radius = geometry.a_minor
   eq.profiles_1d.psi = core_profiles.psi.face_value()
-  psi_axis = core_profiles.psi.face_value()[0]
-  psi_boundary = core_profiles.psi.face_value()[-1]
+  psi_axis = core_profiles.psi.face_value()[0]  # pyrefly: ignore[bad-index]
+  psi_boundary = core_profiles.psi.face_value()[-1]  # pyrefly: ignore[bad-index]
   eq.global_quantities.psi_axis = psi_axis
   eq.global_quantities.psi_boundary = psi_boundary
   eq.profiles_1d.psi_norm = (core_profiles.psi.face_value() - psi_axis) / (
