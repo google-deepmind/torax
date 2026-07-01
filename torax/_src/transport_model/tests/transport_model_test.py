@@ -57,12 +57,12 @@ class FixedTransportModel(transport_model_lib.TransportModel):
     chi_face_ion_gyrobohm = chi_face_ion * 0.7
 
     return transport_model_lib.TurbulentTransport(
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
-        chi_face_ion_bohm=chi_face_ion_bohm,
-        chi_face_ion_gyrobohm=chi_face_ion_gyrobohm,
+        chi_face_ion=chi_face_ion,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el=chi_face_el,  # pyrefly: ignore[bad-argument-type]
+        d_face_el=d_face_el,  # pyrefly: ignore[bad-argument-type]
+        v_face_el=v_face_el,  # pyrefly: ignore[bad-argument-type]
+        chi_face_ion_bohm=chi_face_ion_bohm,  # pyrefly: ignore[bad-argument-type]
+        chi_face_ion_gyrobohm=chi_face_ion_gyrobohm,  # pyrefly: ignore[bad-argument-type]
     )
 
 

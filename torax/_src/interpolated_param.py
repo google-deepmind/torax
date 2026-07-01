@@ -205,7 +205,7 @@ class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
           else:
             return full(x_shape, self.ys[0], dtype=self.ys.dtype)
         else:
-          return interp(x, self.xs, self.ys)
+          return interp(x, self.xs, self.ys)  # pyrefly: ignore[no-matching-overload]
       # The 2D case is mapped across the last dimension.
       case 2:
         # Special case: no interpolation needed.
@@ -275,7 +275,7 @@ def _convert_value_to_floats(
 ) -> InterpolatedVarSingleAxisInput:
   if isinstance(interp_input, dict):
     return {key: float(value) for key, value in interp_input.items()}
-  return float(interp_input)
+  return float(interp_input)  # pyrefly: ignore[bad-argument-type]
 
 
 def convert_input_to_xs_ys(
@@ -309,10 +309,10 @@ def convert_input_to_xs_ys(
       )
     if isinstance(interp_input[1], str):
       interpolation_mode = InterpolationMode[interp_input[1].upper()]
-      interp_input = interp_input[0]
+      interp_input = interp_input[0]  # pyrefly: ignore[bad-assignment]
 
-  if _is_bool(interp_input):
-    interp_input = _convert_value_to_floats(interp_input)
+  if _is_bool(interp_input):  # pyrefly: ignore[bad-argument-type]
+    interp_input = _convert_value_to_floats(interp_input)  # pyrefly: ignore[bad-argument-type]
     is_bool_param = True
   else:
     is_bool_param = False
@@ -404,7 +404,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
       RuntimeError: If the input xs is not sorted.
     """
     xs, ys = value
-    xs = jax_utils.error_if(xs, jnp.any(jnp.diff(xs) < 0), 'xs must be sorted.')
+    xs = jax_utils.error_if(xs, jnp.any(jnp.diff(xs) < 0), 'xs must be sorted.')  # pyrefly: ignore[bad-argument-type]
 
     if not np.issubdtype(xs.dtype, np.floating):
       raise ValueError(f'xs must be a float array, but got {xs.dtype}.')
@@ -473,7 +473,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
     """Returns the JAX-friendly interpolated param used under the hood."""
     return self._param
 
-  def __eq__(self, other: 'InterpolatedVarSingleAxis') -> bool:
+  def __eq__(self, other: 'InterpolatedVarSingleAxis') -> bool:  # pyrefly: ignore[bad-override]
     try:
       chex.assert_trees_all_equal(self, other)
     except AssertionError:

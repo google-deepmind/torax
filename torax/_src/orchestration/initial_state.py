@@ -224,7 +224,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
   geometry_provider = geometry_overrides or step_fn.geometry_provider
   t = t or runtime_params_provider.numerics.t_initial
 
-  data_tree = output.load_state_file(file_restart.filename)
+  data_tree = output.load_state_file(file_restart.filename)  # pyrefly: ignore[bad-argument-type]
   # Find the closest time in the given dataset.
   data_tree = data_tree.sel(time=file_restart.time, method='nearest')
   t_restart = data_tree.time.item()
@@ -290,7 +290,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
       ].to_numpy(),
   )
   energy_state = initial_state.core_profiles.internal_plasma_energy
-  energy_state = dataclasses.replace(
+  energy_state = dataclasses.replace(  # pyrefly: ignore[bad-specialization]
       energy_state,
       dW_thermal_i_dt_smoothed=scalars_dataset.data_vars[
           'dW_thermal_i_dt_smoothed'

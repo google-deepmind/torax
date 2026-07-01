@@ -86,7 +86,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[
+    model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
         "transport"
     ].annotation |= TGLFBasedTransportModelConfig
     model_config.ToraxConfig.model_rebuild(force=True)
@@ -152,7 +152,7 @@ class FakeTGLFBasedTransportModel(
 
   # pylint: enable=invalid-name
 
-  def call_implementation(
+  def call_implementation(  # pyrefly: ignore[bad-override]
       self,
       transport_runtime_params: tglf_based_transport_model.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,

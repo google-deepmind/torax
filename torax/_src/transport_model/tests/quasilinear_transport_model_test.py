@@ -99,7 +99,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[
+    model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
         'transport'
     ].annotation |= QuasilinearTransportConfig
     model_config.ToraxConfig.model_rebuild(force=True)
@@ -522,7 +522,7 @@ class FakeQuasilinearTransportModel(
 ):
   """Fake QuasilinearTransportModel for testing purposes."""
 
-  def call_implementation(
+  def call_implementation(  # pyrefly: ignore[bad-override]
       self,
       transport_runtime_params: quasilinear_transport_model.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -547,9 +547,9 @@ class FakeQuasilinearTransportModel(
         quasilinear_transport_model.RuntimeParams,
     )
     return self._make_core_transport(
-        qi=np.ones(geo.rho_face_norm.shape) * 0.4,
-        qe=np.ones(geo.rho_face_norm.shape) * 0.5,
-        pfe=np.ones(geo.rho_face_norm.shape) * 1.6,
+        qi=np.ones(geo.rho_face_norm.shape) * 0.4,  # pyrefly: ignore[bad-argument-type]
+        qe=np.ones(geo.rho_face_norm.shape) * 0.5,  # pyrefly: ignore[bad-argument-type]
+        pfe=np.ones(geo.rho_face_norm.shape) * 1.6,  # pyrefly: ignore[bad-argument-type]
         quasilinear_inputs=quasilinear_inputs,
         transport=transport,
         geo=geo,

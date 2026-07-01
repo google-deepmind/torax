@@ -55,7 +55,7 @@ class TriDiagonal:
     )
 
   def __add__(self, other: typing_extensions.Self) -> typing_extensions.Self:
-    return TriDiagonal(
+    return TriDiagonal(  # pyrefly: ignore[bad-return]
         diagonal=self.diagonal + other.diagonal,
         above=self.above + other.above,
         below=self.below + other.below,
@@ -98,7 +98,7 @@ class BlockTriDiagonal:
     return self.diagonal.shape[1]
 
   def __add__(self, other: typing_extensions.Self) -> typing_extensions.Self:
-    return BlockTriDiagonal(
+    return BlockTriDiagonal(  # pyrefly: ignore[bad-return]
         lower=self.lower + other.lower,
         diagonal=self.diagonal + other.diagonal,
         upper=self.upper + other.upper,

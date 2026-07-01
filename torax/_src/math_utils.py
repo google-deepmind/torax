@@ -48,13 +48,13 @@ def inner_face_values_from_cell_values(
     cell_centers: chex.Array,
 ) -> chex.Array:
   """Interpolate inner face values from cell values."""
-  face_pts = face_centers[1:-1]
-  left_cells = cell_centers[:-1]
-  right_cells = cell_centers[1:]
+  face_pts = face_centers[1:-1]  # pyrefly: ignore[bad-index]
+  left_cells = cell_centers[:-1]  # pyrefly: ignore[bad-index]
+  right_cells = cell_centers[1:]  # pyrefly: ignore[bad-index]
 
   # Linearly interpolate within cell centers as faces aren't uniformly spaced.
   weights = (face_pts - left_cells) / (right_cells - left_cells)
-  inner = (1.0 - weights) * cell_values[:-1] + weights * cell_values[1:]
+  inner = (1.0 - weights) * cell_values[:-1] + weights * cell_values[1:]  # pyrefly: ignore[bad-index]
   return inner
 
 
@@ -93,7 +93,7 @@ def cell_to_face(
       cell_centers=geo.rho_norm,
   )
   # Linearly extrapolate to get left value.
-  left = cell_values[0] - (inner_face_values[0] - cell_values[0])
+  left = cell_values[0] - (inner_face_values[0] - cell_values[0])  # pyrefly: ignore[bad-index]
   face_values_without_right = jnp.concatenate([left[None], inner_face_values])
   # Use the last cell width for the rightmost face calculation
   last_drho = geo.drho_norm[-1]
@@ -158,7 +158,7 @@ def cumulative_trapezoid(
   """
 
   if x is None:
-    dx = jnp.asarray(dx, dtype=y.dtype)
+    dx = jnp.asarray(dx, dtype=y.dtype)  # pyrefly: ignore[bad-assignment]
   else:
     if x.ndim == 1:
       if y.shape[axis] != len(x):
@@ -172,12 +172,12 @@ def cumulative_trapezoid(
         )
 
     if x.ndim == 1:
-      dx = jnp.diff(x)
+      dx = jnp.diff(x)  # pyrefly: ignore[bad-assignment]
       new_shape = [1] * y.ndim
-      new_shape[axis] = len(dx)
-      dx = jnp.reshape(dx, new_shape)
+      new_shape[axis] = len(dx)  # pyrefly: ignore[bad-argument-type]
+      dx = jnp.reshape(dx, new_shape)  # pyrefly: ignore[bad-assignment]
     else:
-      dx = jnp.diff(x, axis=axis)
+      dx = jnp.diff(x, axis=axis)  # pyrefly: ignore[bad-assignment]
 
   y_sliced = functools.partial(jax.lax.slice_in_dim, y, axis=axis)
 
@@ -331,7 +331,7 @@ def inverse_softplus(x: jax.Array) -> jax.Array:
 
 
 def smooth_sqrt(
-    x: jax.Array, epsilon: float = constants.CONSTANTS.eps
+    x: jax.Array, epsilon: float = constants.CONSTANTS.eps  # pyrefly: ignore[bad-function-definition]
 ) -> jax.Array:
   """Smoothed sqrt that linearly extrapolates for x < epsilon.
 

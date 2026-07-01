@@ -125,7 +125,7 @@ def calc_c(
       for j in range(num_channels):
         source = source_mat_cell[i][j]
         if source is not None:
-          diag = diag.at[:, i, j].add(source)
+          diag = diag.at[:, i, j].add(source)  # pyrefly: ignore[missing-attribute]
     c_matrix = tridiagonal.BlockTriDiagonal(
         lower=c_matrix.lower,
         diagonal=diag,

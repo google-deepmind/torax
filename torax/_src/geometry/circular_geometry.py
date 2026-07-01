@@ -97,8 +97,8 @@ def _build_circular_geometry(
   rho_face = rho_face_norm * rho_b
   rho = rho_norm * rho_b
 
-  R_major = np.array(R_major)
-  B_0 = np.array(B_0)
+  R_major = np.array(R_major)  # pyrefly: ignore[bad-assignment]
+  B_0 = np.array(B_0)  # pyrefly: ignore[bad-assignment]
 
   # Define toroidal flux
   Phi = np.pi * B_0 * rho**2
@@ -270,7 +270,7 @@ def _build_circular_geometry(
       elongation=elongation,
       elongation_face=elongation_face,
       spr_hires=spr_hires,
-      rho_hires_norm=rho_hires_norm,
+      rho_hires_norm=rho_hires_norm,  # pyrefly: ignore[bad-argument-type]
       rho_hires=rho_hires,
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and

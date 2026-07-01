@@ -194,7 +194,7 @@ def bimaxwellian_split(
       mass_number,
       charge_number,
       T_tail,
-      me_amu,
+      me_amu,  # pyrefly: ignore[bad-argument-type]
       1.0,
       n_e,
       T_e,

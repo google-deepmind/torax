@@ -191,7 +191,7 @@ def _calculate_impurity_scaling_factor(
   # This scales the whole profile shape to match the edge value.
   current_val_at_edge = impurity_params.n_e_ratios_face[species][-1]
   return math_utils.safe_divide(
-      num=conc_lcfs, denom=current_val_at_edge, eps=1e-7
+      num=conc_lcfs, denom=current_val_at_edge, eps=1e-7  # pyrefly: ignore[bad-argument-type]
   )
 
 
@@ -246,8 +246,8 @@ def _update_impurities(
 
   for species, n_e_ratio in impurity_params.n_e_ratios.items():
     # Case 1: Seeded impurity (Inverse Mode).
-    if species in edge_outputs.seed_impurity_concentrations:
-      conc = edge_outputs.seed_impurity_concentrations[species]
+    if species in edge_outputs.seed_impurity_concentrations:  # pyrefly: ignore[missing-attribute]
+      conc = edge_outputs.seed_impurity_concentrations[species]  # pyrefly: ignore[missing-attribute]
       scaling_factor = _calculate_impurity_scaling_factor(
           conc, edge_outputs, species, runtime_params, impurity_params
       )
@@ -277,8 +277,8 @@ def _update_impurities(
           runtime_params.plasma_composition,
           impurity=dataclasses.replace(
               runtime_params.plasma_composition.impurity,
-              n_e_ratios=new_n_e_ratios,
-              n_e_ratios_face=new_n_e_ratios_face,
+              n_e_ratios=new_n_e_ratios,  # pyrefly: ignore[unexpected-keyword]
+              n_e_ratios_face=new_n_e_ratios_face,  # pyrefly: ignore[unexpected-keyword]
           ),
       ),
   )

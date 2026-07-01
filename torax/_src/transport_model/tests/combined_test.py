@@ -72,7 +72,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     )
 
     transport_coeffs = model.call_implementation(
-        runtime_params.transport,
+        runtime_params.transport,  # pyrefly: ignore[bad-argument-type]
         runtime_params,
         geo,
         core_profiles,
