@@ -1,0 +1,42 @@
+# Copyright 2026 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""ITER hybrid scenario with gas puff feedback control."""
+
+import copy
+from torax._src.sources import register_model
+from torax.experimental import gas_puff_feedback_source
+from torax.tests.test_data import test_iterhybrid_predictor_corrector
+
+register_model.register_source_model_config(
+    gas_puff_feedback_source.GasPuffFeedbackSourceConfig, 'gas_puff'
+)
+
+CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
+
+CONFIG['numerics']['t_final'] = 20.0
+
+# Configure gas puff to use feedback
+CONFIG['sources']['gas_puff'] = {
+    'model_name': 'feedback',
+    'puff_decay_length': 0.3,
+    'feedback_gain': 1e5,
+    'target_average_n_e': (
+        {
+            0.0: 8e19,
+            10.0: 9e19,
+        },
+        'STEP',
+    ),
+}
