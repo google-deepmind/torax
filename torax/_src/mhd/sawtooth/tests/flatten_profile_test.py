@@ -197,12 +197,12 @@ class FlattenProfileTest(parameterized.TestCase):
 
     with self.subTest('conservation_within_mixing_radius'):
       self._check_conservation_within_mixing_radius(
-          initial_profile.value, flattened_profile.value, rho_norm_mixing
+          initial_profile.value, flattened_profile.value, rho_norm_mixing  # pyrefly: ignore[bad-argument-type]
       )
 
     with self.subTest('total_conservation'):
       self._check_total_conservation(
-          initial_profile.value, flattened_profile.value
+          initial_profile.value, flattened_profile.value  # pyrefly: ignore[bad-argument-type]
       )
 
     # Detailed checks on profile shape
@@ -213,8 +213,8 @@ class FlattenProfileTest(parameterized.TestCase):
     with self.subTest('outer_region_unchanged'):
       if idx_mixing < _NRHO:
         np.testing.assert_allclose(
-            val_after[idx_mixing:],
-            initial_profile.value[idx_mixing:],
+            val_after[idx_mixing:],  # pyrefly: ignore[bad-index]
+            initial_profile.value[idx_mixing:],  # pyrefly: ignore[bad-index]
             err_msg='Profile changed outside mixing radius',
         )
 
@@ -284,22 +284,22 @@ class FlattenProfileTest(parameterized.TestCase):
     )
 
     initial_pressure_profile = self._create_profile(
-        initial_temperature_profile.value * initial_density_profile.value
+        initial_temperature_profile.value * initial_density_profile.value  # pyrefly: ignore[bad-argument-type]
     )
     flattened_pressure_profile = self._create_profile(
-        flattened_temperature_profile.value * flattened_density_profile.value
+        flattened_temperature_profile.value * flattened_density_profile.value  # pyrefly: ignore[bad-argument-type]
     )
 
     with self.subTest('conservation_within_mixing_radius'):
       self._check_conservation_within_mixing_radius(
-          initial_pressure_profile.value,
-          flattened_pressure_profile.value,
+          initial_pressure_profile.value,  # pyrefly: ignore[bad-argument-type]
+          flattened_pressure_profile.value,  # pyrefly: ignore[bad-argument-type]
           rho_norm_mixing,
       )
 
     with self.subTest('total_conservation'):
       self._check_total_conservation(
-          initial_pressure_profile.value, flattened_pressure_profile.value
+          initial_pressure_profile.value, flattened_pressure_profile.value  # pyrefly: ignore[bad-argument-type]
       )
 
   # pylint: disable=invalid-name
@@ -322,7 +322,7 @@ class FlattenProfileTest(parameterized.TestCase):
     )
 
     original_psi_profile = initialization.update_psi_from_j(
-        Ip, self.geo, j_total_hires
+        Ip, self.geo, j_total_hires  # pyrefly: ignore[bad-argument-type]
     )
 
     original_j_total_profile, _, _ = psi_calculations.calc_j_total(
@@ -334,7 +334,7 @@ class FlattenProfileTest(parameterized.TestCase):
     rho_norm_q1 = np.interp(1.0, original_q, self.geo.rho_face_norm)
     rho_norm_mixing = rho_norm_q1 * 1.2
 
-    redistribution_mask = self._get_redistribution_mask(rho_norm_mixing)
+    redistribution_mask = self._get_redistribution_mask(rho_norm_mixing)  # pyrefly: ignore[bad-argument-type]
 
     redistributed_psi_profile = flatten_profile.flatten_current_profile(
         rho_norm_q1=jnp.array(rho_norm_q1),
@@ -358,7 +358,7 @@ class FlattenProfileTest(parameterized.TestCase):
       self._check_conservation_within_mixing_radius(
           original_j_total_profile,
           redistributed_j_total_profile,
-          rho_norm_mixing,
+          rho_norm_mixing,  # pyrefly: ignore[bad-argument-type]
           rtol=2e-2,
       )
 

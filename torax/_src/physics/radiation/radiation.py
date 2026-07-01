@@ -108,7 +108,7 @@ def calculate_cooling_rate(
         T_e
         / T_e_min_coronal
         * calculate_mavrin_cooling_rate(
-            T_e_min_coronal, ion_symbol_lookup, MavrinModelType.CORONAL
+            T_e_min_coronal, ion_symbol_lookup, MavrinModelType.CORONAL  # pyrefly: ignore[bad-argument-type]
         )
     )
   else:
@@ -122,7 +122,7 @@ def calculate_cooling_rate(
         ion_symbol_lookup
     ]
     min_noncoronal_cooling_rate = calculate_mavrin_cooling_rate(
-        T_e_min_noncoronal,
+        T_e_min_noncoronal,  # pyrefly: ignore[bad-argument-type]
         ion_symbol_lookup,
         MavrinModelType.NONCORONAL,
         ne_tau,
@@ -139,11 +139,11 @@ def calculate_cooling_rate(
   # Smoothly transition between the noncoronal and coronal models based on the
   # minimum temperature of the coronal model.
   return math_utils.smoothstep_transition(
-      T_e,
+      T_e,  # pyrefly: ignore[bad-argument-type]
       smoothing_start=T_e_min_coronal / 1.5,
       smoothing_end=T_e_min_coronal * 1.5,
-      y_left=noncoronal_cooling_rate,
-      y_right=coronal_cooling_rate,
+      y_left=noncoronal_cooling_rate,  # pyrefly: ignore[bad-argument-type]
+      y_right=coronal_cooling_rate,  # pyrefly: ignore[bad-argument-type]
       log_scale=True,
   )
 

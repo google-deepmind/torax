@@ -134,7 +134,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         core_profiles,
         core_sources,
         geometry,
-        times,
+        times,  # pyrefly: ignore[bad-argument-type]
     )
     # Modifying the input config profiles_conditions class with the IDS filled
     # from the previous simulation.
@@ -244,7 +244,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         core_profiles,
         core_sources,
         geometry,
-        times,
+        times,  # pyrefly: ignore[bad-argument-type]
     )
     rhon_out = torax_output_core_profiles_ids.profiles_1d[0].grid.rho_tor_norm
     np.testing.assert_allclose(

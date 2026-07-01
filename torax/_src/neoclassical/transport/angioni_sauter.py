@@ -191,21 +191,21 @@ def _calculate_angioni_sauter_transport(
 
   # Collisionalities
   log_lambda_ei = collisions.calculate_log_lambda_ei(
-      core_profiles.T_e.face_value(), core_profiles.n_e.face_value()
+      core_profiles.T_e.face_value(), core_profiles.n_e.face_value()  # pyrefly: ignore[bad-argument-type]
   )
   nu_e_star = formulas.calculate_nu_e_star(
       q=core_profiles.q_face,
       geo=geometry,
-      n_e=core_profiles.n_e.face_value(),
-      T_e=core_profiles.T_e.face_value(),
+      n_e=core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      T_e=core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
       Z_eff=core_profiles.Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
 
   log_lambda_ii = collisions.calculate_log_lambda_ii(
-      core_profiles.T_i.face_value(),
-      core_profiles.n_i.face_value(),
-      core_profiles.Z_i_face,
+      core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
   )
 
   # Equation 18c from Sauter PoP 1999
@@ -311,17 +311,17 @@ def _calculate_angioni_sauter_transport(
   # to avoid division by near-zero and unphysical values.
 
   chi_neo_e_bulk = -Be2[1:] / (
-      core_profiles.n_e.face_value()[1:]
-      * dlnte_dpsi[1:]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
+      core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
+      * dlnte_dpsi[1:]  # pyrefly: ignore[bad-index]
+      * (dpsi_drhon[1:] / geometry.rho_b) ** 2  # pyrefly: ignore[bad-index]
       + constants.CONSTANTS.eps
   )
   chi_neo_e = jnp.concatenate([chi_neo_e_bulk[0:1], chi_neo_e_bulk])
 
   chi_neo_i_bulk = -Bi2[1:] / (
-      core_profiles.n_i.face_value()[1:]
-      * dlnti_dpsi[1:]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
+      core_profiles.n_i.face_value()[1:]  # pyrefly: ignore[bad-index]
+      * dlnti_dpsi[1:]  # pyrefly: ignore[bad-index]
+      * (dpsi_drhon[1:] / geometry.rho_b) ** 2  # pyrefly: ignore[bad-index]
       + constants.CONSTANTS.eps
   )
   chi_neo_i = jnp.concatenate([chi_neo_i_bulk[0:1], chi_neo_i_bulk])
@@ -331,8 +331,8 @@ def _calculate_angioni_sauter_transport(
   # Diffusive part of particle flux
   # D_e * dn_e/drho  = - L00 *dlog(n_e)/dpsi / dpsi/drho
   D_neo_e_bulk = -Lmn_e[1:, 0, 0] / (
-      core_profiles.n_e.face_value()[1:]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
+      core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
+      * (dpsi_drhon[1:] / geometry.rho_b) ** 2  # pyrefly: ignore[bad-index]
       + constants.CONSTANTS.eps
   )
   D_neo_e = jnp.concatenate([D_neo_e_bulk[0:1], D_neo_e_bulk])
@@ -341,14 +341,14 @@ def _calculate_angioni_sauter_transport(
   # V*n*dpsi/rho = (L00+L01)*dlog(Te)/dpsi + (1-Rpe)/Rpe*L00*dlog(ni)/dpsi +
   # (1-Rpe)/Rpe * (L00+alpha*L03) *dlog(Ti)/dpsi
   V_neo_e_bulk = (
-      (Lmn_e[1:, 0, 0] + Lmn_e[1:, 0, 1]) * dlnte_dpsi[1:]
-      + (1 - Rpe[1:]) / Rpe[1:] * Lmn_e[1:, 0, 0] * dlnni_dpsi[1:]
-      + (1 - Rpe[1:])
-      / Rpe[1:]
+      (Lmn_e[1:, 0, 0] + Lmn_e[1:, 0, 1]) * dlnte_dpsi[1:]  # pyrefly: ignore[bad-index]
+      + (1 - Rpe[1:]) / Rpe[1:] * Lmn_e[1:, 0, 0] * dlnni_dpsi[1:]  # pyrefly: ignore[bad-index]
+      + (1 - Rpe[1:])  # pyrefly: ignore[bad-index]
+      / Rpe[1:]  # pyrefly: ignore[bad-index]
       * (Lmn_e[1:, 0, 0] + alpha[1:] * Lmn_e[1:, 0, 3])
-      * dlnti_dpsi[1:]
+      * dlnti_dpsi[1:]  # pyrefly: ignore[bad-index]
   ) / (
-      dpsi_drhon[1:] / geometry.rho_b * core_profiles.n_e.face_value()[1:]
+      dpsi_drhon[1:] / geometry.rho_b * core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
       + constants.CONSTANTS.eps
   )
   V_neo_e = jnp.concatenate([V_neo_e_bulk[0:1], V_neo_e_bulk])
@@ -360,8 +360,8 @@ def _calculate_angioni_sauter_transport(
       * E_parallel[1:]
       / (
           geometry.B_0
-          * (dpsi_drhon[1:] / geometry.rho_b)
-          * core_profiles.n_e.face_value()[1:]
+          * (dpsi_drhon[1:] / geometry.rho_b)  # pyrefly: ignore[bad-index]
+          * core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
           + constants.CONSTANTS.eps
       )
   )
@@ -715,15 +715,15 @@ def _calculate_shaing_transport(
 
   # Collisionality
   ln_Lambda_ii = collisions.calculate_log_lambda_ii(
-      core_profiles.T_i.face_value(),
-      core_profiles.n_i.face_value(),
-      core_profiles.Z_i_face,
+      core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
   )
   tau_ii = collisions.calculate_tau_ii(
-      A_i=core_profiles.A_i,
-      Z_i=core_profiles.Z_i_face,
-      T_i=core_profiles.T_i.face_value(),
-      n_i=core_profiles.n_i.face_value(),
+      A_i=core_profiles.A_i,  # pyrefly: ignore[bad-argument-type]
+      Z_i=core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
+      T_i=core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_i=core_profiles.n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
       ln_Lambda_ii=ln_Lambda_ii,
   )
   nu_ii = 1 / tau_ii  # Ion-ion collision frequency
@@ -744,7 +744,7 @@ def _calculate_shaing_transport(
   # (currently we simply copy the value at i=1). This is ok as chi[0] is never
   # used.
   dpsi_drhon = core_profiles.psi.face_grad()
-  dpsi_drhon = dpsi_drhon.at[0].set(dpsi_drhon[1])
+  dpsi_drhon = dpsi_drhon.at[0].set(dpsi_drhon[1])  # pyrefly: ignore[bad-index]
   conversion_factor = 1 / (dpsi_drhon / (2 * jnp.pi * geometry.rho_b)) ** 2
 
   # Trapped particle fraction (Equation 46, Shaing March 1997)

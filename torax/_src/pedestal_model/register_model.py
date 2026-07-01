@@ -20,7 +20,7 @@ def register_pedestal_model(
     pydantic_model_class: type[pydantic_model.BasePedestal],
 ):
   """Registers a pedestal model with TORAX."""
-  model_config.ToraxConfig.model_fields[
+  model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
       'pedestal'
   ].annotation |= pydantic_model_class
   model_config.ToraxConfig.model_rebuild(force=True)

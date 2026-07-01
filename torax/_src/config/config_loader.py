@@ -76,7 +76,7 @@ def _import_from_path(
 ) -> types.ModuleType:
 
   spec = importlib.util.spec_from_file_location(module_name, file_path)
-  module = importlib.util.module_from_spec(spec)
+  module = importlib.util.module_from_spec(spec)  # pyrefly: ignore[bad-argument-type]
   sys.modules[module_name] = module
   if module is None:
     raise ValueError(f'No loader found for module {module_name}.')

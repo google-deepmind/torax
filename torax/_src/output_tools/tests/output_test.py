@@ -328,8 +328,8 @@ class StateHistoryTest(parameterized.TestCase):
     T_e = cell_variable.CellVariable(  # pylint: disable=invalid-name
         value=jnp.ones_like(self.geo.rho),
         face_centers=self.geo.rho_face_norm,
-        right_face_constraint=2,
-        left_face_constraint=18,
+        right_face_constraint=2,  # pyrefly: ignore[bad-argument-type]
+        left_face_constraint=18,  # pyrefly: ignore[bad-argument-type]
         left_face_grad_constraint=None,
         right_face_grad_constraint=None,
     )

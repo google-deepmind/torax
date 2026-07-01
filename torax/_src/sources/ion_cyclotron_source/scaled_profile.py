@@ -169,7 +169,7 @@ class ScaledProfileIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return scaled_profile_model_func
+    return scaled_profile_model_func  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

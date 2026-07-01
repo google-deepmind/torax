@@ -59,11 +59,11 @@ def _load_equilibrium(
     equilibrium = equilibrium_object
   elif imas_uri is not None:
     equilibrium = loader.load_imas_data(
-        imas_uri, "equilibrium", geometry_directory, explicit_convert
+        imas_uri, "equilibrium", geometry_directory, explicit_convert  # pyrefly: ignore[bad-argument-type]
     )
   elif imas_filepath is not None:
     equilibrium = loader.load_imas_data(
-        imas_filepath, "equilibrium", geometry_directory, explicit_convert
+        imas_filepath, "equilibrium", geometry_directory, explicit_convert  # pyrefly: ignore[bad-argument-type]
     )
   else:
     raise ValueError(

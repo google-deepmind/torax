@@ -96,7 +96,7 @@ def _calculate_conductivity(
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
   log_lambda_ei = collisions.calculate_log_lambda_ei(
-      T_e.face_value(), n_e.face_value()
+      T_e.face_value(), n_e.face_value()  # pyrefly: ignore[bad-argument-type]
   )
 
   sigsptz = (
@@ -110,8 +110,8 @@ def _calculate_conductivity(
   nu_e_star_face = formulas.calculate_nu_e_star(
       q=q_face,
       geo=geo,
-      n_e=n_e.face_value(),
-      T_e=T_e.face_value(),
+      n_e=n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      T_e=T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
       Z_eff=Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )

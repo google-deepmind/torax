@@ -200,7 +200,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         n_corrector_steps=self.n_corrector_steps,
         delta_reduction_factor=self.delta_reduction_factor,
         tau_min=self.tau_min,
-        initial_guess_mode=self.initial_guess_mode.value,
+        initial_guess_mode=self.initial_guess_mode.value,  # pyrefly: ignore[bad-argument-type]
         log_iterations=self.log_iterations,
         fixed_point_atol=self.fixed_point_atol,
         fixed_point_rtol=self.fixed_point_rtol,
@@ -253,7 +253,7 @@ class OptimizerThetaMethod(BaseSolver):
         n_max_iterations=self.n_max_iterations,
         loss_tol=self.loss_tol,
         n_corrector_steps=self.n_corrector_steps,
-        initial_guess_mode=self.initial_guess_mode.value,
+        initial_guess_mode=self.initial_guess_mode.value,  # pyrefly: ignore[bad-argument-type]
         fixed_point_atol=self.fixed_point_atol,
         fixed_point_rtol=self.fixed_point_rtol,
         fixed_point_termination_criterion=self.fixed_point_termination_criterion,

@@ -31,7 +31,7 @@ class ExamplesTest(parameterized.TestCase):
   ])
   def test_validation_of_configs(self, config_name_no_py: str):
     example_config_paths = config_loader.example_config_paths()
-    example_config_path = example_config_paths[config_name_no_py]
+    example_config_path = example_config_paths[config_name_no_py]  # pyrefly: ignore[bad-index]
     cfg = config_loader.build_torax_config_from_file(example_config_path)
     self.assertIsInstance(cfg, model_config.ToraxConfig)
 

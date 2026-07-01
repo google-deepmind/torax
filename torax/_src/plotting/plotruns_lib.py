@@ -723,8 +723,8 @@ def _add_traces_and_update_axes(
         col=col,
     )
     if is_spatial:
-      x_axis_kwargs['tickvals'] = list(plot_config.tickvals_rho)
-      x_axis_kwargs['range'] = [
+      x_axis_kwargs['tickvals'] = list(plot_config.tickvals_rho)  # pyrefly: ignore[bad-assignment]
+      x_axis_kwargs['range'] = [  # pyrefly: ignore[bad-assignment]
           min(plot_config.tickvals_rho),
           max(plot_config.tickvals_rho),
       ]
@@ -904,7 +904,7 @@ def _update_global_layout(
   }
 
   if plot_config.height:
-    layout_args['height'] = plot_config.height
+    layout_args['height'] = plot_config.height  # pyrefly: ignore[bad-assignment]
   else:
     layout_args['autosize'] = True
 
