@@ -450,6 +450,20 @@ except ImportError:
   )
 
 
+class SmoothingZone(torax_pydantic.BaseModelFrozen):
+  """Defines a radial zone with a specific smoothing width."""
+
+  rho_min: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  rho_max: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  smoothing_width: torax_pydantic.NonNegativeTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+
+
 class CombinedTransportModel(pydantic_model_base.TransportBase):
   """Model for the Combined transport model.
 
@@ -462,6 +476,10 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
       summed to give the combined core transport coefficients.
     pedestal_transport_models: A sequence of models that will be combined for
       pedestal transport coefficients.
+    smoothing_zones: A sequence of radial zones with specific smoothing widths.
+      If empty, falls back to the legacy smoothing_width.
+    mask_pedestal: If True, automatically forces smoothing to 0.0 in the
+      pedestal region.
   """
 
   # TODO(b/434175938) V2: rename `transport_models` to `core_transport_models`
@@ -473,6 +491,10 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
   ] = pydantic.Field(
       default_factory=list
   )  # pytype: disable=invalid-annotation
+  smoothing_zones: Sequence[SmoothingZone] = pydantic.Field(
+      default_factory=list
+  )
+  mask_pedestal: bool = True
   model_name: Annotated[Literal['combined'], torax_pydantic.JAX_STATIC] = (
       'combined'
   )
@@ -501,9 +523,19 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
         for model in self.pedestal_transport_models
     ]
 
+    smoothing_zones = tuple(
+        combined.SmoothingZoneParams(
+            rho_min=zone.rho_min.get_value(t),
+            rho_max=zone.rho_max.get_value(t),
+            smoothing_width=zone.smoothing_width.get_value(t),
+        )
+        for zone in self.smoothing_zones
+    )
     return combined.RuntimeParams(
         transport_model_params=transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
+        smoothing_zones=smoothing_zones,
+        mask_pedestal=self.mask_pedestal,
         **base_kwargs,
     )
 

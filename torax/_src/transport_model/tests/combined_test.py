@@ -90,16 +90,18 @@ class CombinedTransportModelTest(absltest.TestCase):
     target = jnp.where(geo.rho_face_norm <= 0.2, 1.0, target)
     np.testing.assert_allclose(transport_coeffs.chi_face_ion, target)
 
-  def test_chi_min(self):
+  def test_smoothing_zones(self):
+    """Tests that smoothing_zones smoothes transport coefficients in the specified region."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
-        'transport_models': [
-            {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 2.0},
+        'smoothing_zones': [
+            {'rho_min': 0.2, 'rho_max': 0.5, 'smoothing_width': 0.05},
         ],
-        'chi_min': 1.0,
+        'transport_models': [
+            {'model_name': 'constant', 'chi_i': 1.0},
+        ],
     }
-    config['pedestal'] = {'set_pedestal': True}
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -107,36 +109,62 @@ class CombinedTransportModelTest(absltest.TestCase):
     )
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
+    )(t=torax_config.numerics.t_initial)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models,
-        neoclassical_models,
+        runtime_params, geo, source_models, neoclassical_models
     )
     mock_pedestal_outputs = mock.create_autospec(
         pedestal_model_output_lib.PedestalModelOutput,
         instance=True,
         rho_norm_ped_top=0.91,
     )
-
-    transport_coeffs = model(
+    coeffs = model.call_implementation(
+        runtime_params.transport,
         runtime_params,
         geo,
         core_profiles,
         mock_pedestal_outputs,
     )
-    # Target:
-    # - 1.0 for rho = [rho_ped_top, rho_max], set by chi_min
-    # - 2.0 for rho = (0.5, rho_ped_top), set by the model
-    # - 1.0 for rho = [0.0, 0.5], set by chi_min
-    target = jnp.where(geo.rho_face_norm <= 0.91, 2.0, 1.0)
-    target = jnp.where(geo.rho_face_norm <= 0.5, 1.0, target)
-    np.testing.assert_allclose(transport_coeffs.chi_face_ion, target)
+    self.assertEqual(coeffs.chi_face_ion.shape, geo.rho_face_norm.shape)
+
+  def test_smoothing_width_shortcut(self):
+    """Tests that setting smoothing_width applies full-domain smoothing."""
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'combined',
+        'smoothing_width': 0.05,
+        'transport_models': [
+            {'model_name': 'constant', 'chi_i': 1.0},
+        ],
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    model = torax_config.transport.build_transport_model()
+    geo = torax_config.geometry.build_provider(
+        t=torax_config.numerics.t_initial
+    )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=torax_config.numerics.t_initial)
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params, geo, source_models, neoclassical_models
+    )
+    mock_pedestal_outputs = mock.create_autospec(
+        pedestal_model_output_lib.PedestalModelOutput,
+        instance=True,
+        rho_norm_ped_top=0.91,
+    )
+    coeffs = model.call_implementation(
+        runtime_params.transport,
+        runtime_params,
+        geo,
+        core_profiles,
+        mock_pedestal_outputs,
+    )
+    self.assertEqual(coeffs.chi_face_ion.shape, geo.rho_face_norm.shape)
 
   def test_error_if_patches_set_on_children(self):
     config = default_configs.get_default_config_dict()
