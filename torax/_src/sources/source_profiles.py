@@ -43,7 +43,7 @@ class QeiInfo:
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
-    return QeiInfo(
+    return QeiInfo(  # pyrefly: ignore[bad-return]
         qei_coef=jnp.zeros_like(geo.rho),
         implicit_ii=jnp.zeros_like(geo.rho),
         explicit_i=jnp.zeros_like(geo.rho),
@@ -168,4 +168,4 @@ class SourceProfiles:
   ) -> jax.Array:
     source: dict[str, jax.Array] = getattr(self, source_type)
     total = sum(source.values())
-    return total * geo.vpr
+    return total * geo.vpr  # pyrefly: ignore[bad-return]

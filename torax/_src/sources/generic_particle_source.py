@@ -49,9 +49,9 @@ def calc_generic_particle_source(
   assert isinstance(source_params, RuntimeParams)
   return (
       formulas.gaussian_profile(
-          center=source_params.deposition_location,
-          width=source_params.particle_width,
-          total=source_params.S_total,
+          center=source_params.deposition_location,  # pyrefly: ignore[bad-argument-type]
+          width=source_params.particle_width,  # pyrefly: ignore[bad-argument-type]
+          total=source_params.S_total,  # pyrefly: ignore[bad-argument-type]
           geo=geo,
       ),
   )
@@ -65,7 +65,7 @@ class GenericParticleSource(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )
-  model_func: source.SourceProfileFunction = calc_generic_particle_source
+  model_func: source.SourceProfileFunction = calc_generic_particle_source  # pyrefly: ignore[bad-assignment]
 
 
 @jax.tree_util.register_dataclass
@@ -106,7 +106,7 @@ class GenericParticleSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return calc_generic_particle_source
+    return calc_generic_particle_source  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

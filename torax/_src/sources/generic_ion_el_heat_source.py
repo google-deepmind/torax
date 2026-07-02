@@ -95,11 +95,11 @@ def default_formula(
   assert isinstance(source_params, RuntimeParams)
   ion, el = calc_generic_heat_source(
       geo,
-      source_params.gaussian_location,
-      source_params.gaussian_width,
-      source_params.P_total,
-      source_params.electron_heat_fraction,
-      source_params.absorption_fraction,
+      source_params.gaussian_location,  # pyrefly: ignore[bad-argument-type]
+      source_params.gaussian_width,  # pyrefly: ignore[bad-argument-type]
+      source_params.P_total,  # pyrefly: ignore[bad-argument-type]
+      source_params.electron_heat_fraction,  # pyrefly: ignore[bad-argument-type]
+      source_params.absorption_fraction,  # pyrefly: ignore[bad-argument-type]
   )
   return (ion, el)
 
@@ -113,7 +113,7 @@ class GenericIonElectronHeatSource(source.Source):
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = default_formula
+  model_func: source.SourceProfileFunction = default_formula  # pyrefly: ignore[bad-assignment]
 
 
 class GenericIonElHeatSourceConfig(base.SourceModelBase):
@@ -151,7 +151,7 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return default_formula
+    return default_formula  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

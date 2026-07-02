@@ -284,7 +284,7 @@ def cyclotron_radiation_albajar(
   # Dimensionless optical thickness parameter, on-axis:
   # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
   # plasma frequency and omega_ce is the cyclotron frequency.
-  p_a_0 = 6.04e3 * geo.a_minor * n_e20_face[0] / geo.B_0
+  p_a_0 = 6.04e3 * geo.a_minor * n_e20_face[0] / geo.B_0  # pyrefly: ignore[bad-index]
 
   # Dimensionless correction term for aspect ratio (equation 15 in Albajar)
   G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.R_major_profile / geo.a_minor))
@@ -293,7 +293,7 @@ def cyclotron_radiation_albajar(
   alpha_n = _alpha_closed_form(
       beta=2.0,
       rho_norm=geo.rho_face_norm,
-      profile_data=n_e20_face,
+      profile_data=n_e20_face,  # pyrefly: ignore[bad-argument-type]
       profile_edge_value=0.0,
   )
   beta_scan_parameters = (
@@ -303,8 +303,8 @@ def cyclotron_radiation_albajar(
   )
   alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
       rho_norm=geo.rho_face_norm,
-      te_data=core_profiles.T_e.face_value(),
-      beta_scan_parameters=beta_scan_parameters,
+      te_data=core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      beta_scan_parameters=beta_scan_parameters,  # pyrefly: ignore[bad-argument-type]
   )
 
   # The "profile factor" (equation 13 in Albajar)
@@ -323,10 +323,10 @@ def cyclotron_radiation_albajar(
       * geo.a_minor**1.38
       * geo.elongation_face[-1] ** 0.79
       * geo.B_0**2.62
-      * n_e20_face[0] ** 0.38
-      * core_profiles.T_e.face_value()[0]
-      * (16 + core_profiles.T_e.face_value()[0]) ** 2.61
-      * (1 + 0.12 * core_profiles.T_e.face_value()[0] / p_a_0**0.41) ** -1.51
+      * n_e20_face[0] ** 0.38  # pyrefly: ignore[bad-index]
+      * core_profiles.T_e.face_value()[0]  # pyrefly: ignore[bad-index]
+      * (16 + core_profiles.T_e.face_value()[0]) ** 2.61  # pyrefly: ignore[bad-index]
+      * (1 + 0.12 * core_profiles.T_e.face_value()[0] / p_a_0**0.41) ** -1.51  # pyrefly: ignore[bad-index]
       * K
       * G
   )
@@ -357,7 +357,7 @@ class CyclotronRadiationHeatSink(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = cyclotron_radiation_albajar
+  model_func: source.SourceProfileFunction = cyclotron_radiation_albajar  # pyrefly: ignore[bad-assignment]
 
 
 class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
@@ -397,7 +397,7 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return cyclotron_radiation_albajar
+    return cyclotron_radiation_albajar  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

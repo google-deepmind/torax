@@ -69,16 +69,16 @@ class QuaLiKizNDNN:
     self._target_names = model_config.get('target_names')
 
     self._feature_prescale_factor = self._load_prescale(
-        'prescale_factor', self._feature_names
+        'prescale_factor', self._feature_names  # pyrefly: ignore[bad-argument-type]
     )
     self._feature_prescale_bias = self._load_prescale(
-        'prescale_bias', self._feature_names
+        'prescale_bias', self._feature_names  # pyrefly: ignore[bad-argument-type]
     )
     self._target_prescale_factor = self._load_prescale(
-        'prescale_factor', self._target_names
+        'prescale_factor', self._target_names  # pyrefly: ignore[bad-argument-type]
     )
     self._target_prescale_bias = self._load_prescale(
-        'prescale_bias', self._target_names
+        'prescale_bias', self._target_names  # pyrefly: ignore[bad-argument-type]
     )
 
     activations = model_config['hidden_activation'] + [

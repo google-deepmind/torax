@@ -197,7 +197,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
     to_replace = {}
 
     for channel_name, config in CHANNEL_CONFIG_STRUCT.items():
-      disable_flag = getattr(transport_runtime_params, config['disable_flag'])
+      disable_flag = getattr(transport_runtime_params, config['disable_flag'])  # pyrefly: ignore[bad-argument-type]
 
       # Handle main channel
       val = getattr(transport_coeffs, channel_name)
@@ -231,7 +231,7 @@ class TransportModel(static_dataclass.StaticDataclass, abc.ABC):
     for channel_name, config in CHANNEL_CONFIG_STRUCT.items():
       # Mask main channel
       val = coeffs_dict[channel_name]
-      to_replace[channel_name] = jnp.where(active_mask, val, 0.0)
+      to_replace[channel_name] = jnp.where(active_mask, val, 0.0)  # pyrefly: ignore[bad-argument-type]
 
       # Mask sub-channels
       for sub_channel in config['sub_channels']:

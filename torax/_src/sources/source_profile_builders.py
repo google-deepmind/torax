@@ -196,20 +196,20 @@ def _update_standard_source_profiles(
     affected_core_profiles: The core profiles affected by the source.
     profile: The profile of the source.
   """
-  for profile, affected_core_profile in zip(
+  for profile, affected_core_profile in zip(  # pyrefly: ignore[bad-assignment]
       profile, affected_core_profiles, strict=True
   ):
     match affected_core_profile:
       case source_lib.AffectedCoreProfile.PSI:
-        calculated_source_profiles.psi[source_name] = profile
+        calculated_source_profiles.psi[source_name] = profile  # pyrefly: ignore[unsupported-operation]
       case source_lib.AffectedCoreProfile.NE:
-        calculated_source_profiles.n_e[source_name] = profile
+        calculated_source_profiles.n_e[source_name] = profile  # pyrefly: ignore[unsupported-operation]
       case source_lib.AffectedCoreProfile.TEMP_ION:
-        calculated_source_profiles.T_i[source_name] = profile
+        calculated_source_profiles.T_i[source_name] = profile  # pyrefly: ignore[unsupported-operation]
       case source_lib.AffectedCoreProfile.TEMP_EL:
-        calculated_source_profiles.T_e[source_name] = profile
+        calculated_source_profiles.T_e[source_name] = profile  # pyrefly: ignore[unsupported-operation]
       case source_lib.AffectedCoreProfile.FAST_IONS:
-        calculated_source_profiles.fast_ions[source_name] = profile
+        calculated_source_profiles.fast_ions[source_name] = profile  # pyrefly: ignore[unsupported-operation]
 
 
 def build_all_zero_profiles(

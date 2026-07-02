@@ -54,7 +54,7 @@ class QLKNNModelWrapper(base_qlknn_model.BaseQLKNNModel):
       self._model = qlknn_model.QLKNNModel.load_model_from_name(name)
     else:
       self._model = qlknn_model.QLKNNModel.load_default_model()
-    super().__init__(path=self._model.path, name=self._model.name)
+    super().__init__(path=self._model.path, name=self._model.name)  # pyrefly: ignore[bad-argument-type]
 
   @property
   def inputs_and_ranges(self) -> base_qlknn_model.InputsAndRanges:

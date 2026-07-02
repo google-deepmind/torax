@@ -117,8 +117,8 @@ class QLKNNRuntimeConfigInputs:
 
     return QLKNNRuntimeConfigInputs(
         transport=transport_runtime_params,
-        Ped_top=pedestal_model_output.rho_norm_ped_top,
-        set_pedestal=runtime_params.pedestal.set_pedestal,
+        Ped_top=pedestal_model_output.rho_norm_ped_top,  # pyrefly: ignore[bad-argument-type]
+        set_pedestal=runtime_params.pedestal.set_pedestal,  # pyrefly: ignore[bad-argument-type]
     )
 
 
@@ -273,7 +273,7 @@ class QLKNNTransportModel(
   path: str
   name: str
 
-  def call_implementation(
+  def call_implementation(  # pyrefly: ignore[bad-override]
       self,
       transport_runtime_params: RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,

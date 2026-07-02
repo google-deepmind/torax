@@ -484,7 +484,7 @@ class QuasilinearTransportModel(transport_model_lib.TransportModel):
           * geo.g1_over_vpr2_face
           * geo.rho_b**2
       ) / (geo.g0_over_vpr_face * geo.rho_b)
-      return d_face_el, v_face_el
+      return d_face_el, v_face_el  # pyrefly: ignore[bad-return]
 
     d_face_el, v_face_el = jax.lax.cond(
         transport.DV_effective,
@@ -492,8 +492,8 @@ class QuasilinearTransportModel(transport_model_lib.TransportModel):
         Dscaled_approach,
     )
     return transport_model_lib.TurbulentTransport(
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
+        chi_face_ion=chi_face_ion,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el=chi_face_el,  # pyrefly: ignore[bad-argument-type]
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )

@@ -162,10 +162,10 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         shape=(geo.torax_mesh.nx + 1,), dtype=jax_utils.get_dtype()
     )
     result_shape_dtypes = transport_model.TurbulentTransport(
-        chi_face_ion=face_array_shape_dtype,
-        chi_face_el=face_array_shape_dtype,
-        d_face_el=face_array_shape_dtype,
-        v_face_el=face_array_shape_dtype,
+        chi_face_ion=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
+        d_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
+        v_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
     )
     # Even though TGLF has side-effects (writing and reading from disk) we
     # still use a pure_callback here as:

@@ -145,10 +145,10 @@ class QualikizTransportModel(
         shape=(geo.torax_mesh.nx + 1,), dtype=jax_utils.get_dtype()
     )
     result_shape_dtypes = transport_model.TurbulentTransport(
-        chi_face_ion=face_array_shape_dtype,
-        chi_face_el=face_array_shape_dtype,
-        d_face_el=face_array_shape_dtype,
-        v_face_el=face_array_shape_dtype,
+        chi_face_ion=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
+        d_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
+        v_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
     )
     # Even though qualikiz has side-effects (writing and reading from disk) we
     # still use a pure_callback here as:
@@ -237,9 +237,9 @@ class QualikizTransportModel(
     pfe = np.loadtxt(self._runpath + '/output/pfe_GB.dat')
 
     return self._make_core_transport(
-        qi=qi,
-        qe=qe,
-        pfe=pfe,
+        qi=qi,  # pyrefly: ignore[bad-argument-type]
+        qe=qe,  # pyrefly: ignore[bad-argument-type]
+        pfe=pfe,  # pyrefly: ignore[bad-argument-type]
         quasilinear_inputs=qualikiz_inputs,
         transport=transport,
         geo=geo,
@@ -428,9 +428,9 @@ def _extract_qualikiz_plan(
   }
   if transport.rotation_mode != qualikiz_based_transport_model.RotationMode.OFF:
     scan_dict['gammaE'] = (
-        transport.rotation_multiplier * qualikiz_inputs.gamma_E_QLK
+        transport.rotation_multiplier * qualikiz_inputs.gamma_E_QLK  # pyrefly: ignore[bad-assignment]
     )
-    scan_dict['Machtor'] = qualikiz_inputs.mach_toroidal
+    scan_dict['Machtor'] = qualikiz_inputs.mach_toroidal  # pyrefly: ignore[bad-assignment]
   # pylint: enable=invalid-name
 
   qualikiz_plan = qualikiz_inputtools.QuaLiKizPlan(

@@ -101,7 +101,7 @@ def calculate_all_transport_coeffs(
 
   core_transport = state.CoreTransport(
       **dataclasses.asdict(turbulent_transport_coeffs),
-      **dataclasses.asdict(neoclassical_transport_coeffs),
+      **dataclasses.asdict(neoclassical_transport_coeffs),  # pyrefly: ignore[bad-argument-type]
       **dataclasses.asdict(pereverzev_transport_coeffs),
   )
 

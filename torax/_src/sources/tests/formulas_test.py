@@ -78,7 +78,7 @@ class GaussianProfileTest(parameterized.TestCase):
     )
     peak_rho = self.geo.rho_norm[np.argmax(profile)]
     # Peak should be within one grid spacing of specified center.
-    np.testing.assert_allclose(peak_rho, center, atol=self.geo.drho_norm[0])
+    np.testing.assert_allclose(peak_rho, center, atol=self.geo.drho_norm[0])  # pyrefly: ignore[no-matching-overload]
 
   def test_wider_profile_is_less_peaked(self):
     narrow_profile = formulas.gaussian_profile(

@@ -130,7 +130,7 @@ def calc_fusion(
   alpha_mass = 4.002602
   frac_i = collisions.fast_ion_fractional_heating_formula(
       birth_energy,
-      core_profiles.T_e.value,
+      core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
       alpha_mass,
   )
   frac_e = 1.0 - frac_i
@@ -167,7 +167,7 @@ class FusionHeatSource(source.Source):
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = fusion_heat_model_func
+  model_func: source.SourceProfileFunction = fusion_heat_model_func  # pyrefly: ignore[bad-assignment]
 
 
 class FusionHeatSourceConfig(base.SourceModelBase):
@@ -182,7 +182,7 @@ class FusionHeatSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return fusion_heat_model_func
+    return fusion_heat_model_func  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

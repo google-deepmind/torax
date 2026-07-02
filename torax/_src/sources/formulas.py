@@ -50,7 +50,7 @@ def exponential_profile(
   S = jnp.exp(-(decay_start - r) / width)
   # calculate constant prefactor
   C = total / math_utils.volume_integration(S, geo)
-  return C * S
+  return C * S  # pyrefly: ignore[bad-return]
 
 
 def gaussian_profile(
@@ -82,4 +82,4 @@ def gaussian_profile(
   S = jnp.exp(-((r - center) ** 2) / (2 * width**2))
   # calculate constant prefactor
   C = total / math_utils.volume_integration(S, geo)
-  return C * S
+  return C * S  # pyrefly: ignore[bad-return]

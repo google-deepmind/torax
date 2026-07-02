@@ -59,8 +59,8 @@ def calc_puff_source(
   return (
       formulas.exponential_profile(
           decay_start=1.0,
-          width=source_params.puff_decay_length,
-          total=source_params.S_total,
+          width=source_params.puff_decay_length,  # pyrefly: ignore[bad-argument-type]
+          total=source_params.S_total,  # pyrefly: ignore[bad-argument-type]
           geo=geo,
       ),
   )
@@ -74,7 +74,7 @@ class GasPuffSource(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )
-  model_func: source.SourceProfileFunction = calc_puff_source
+  model_func: source.SourceProfileFunction = calc_puff_source  # pyrefly: ignore[bad-assignment]
 
 
 class GasPuffSourceConfig(base.SourceModelBase):
@@ -101,7 +101,7 @@ class GasPuffSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return calc_puff_source
+    return calc_puff_source  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

@@ -128,8 +128,8 @@ def calculate_pereverzev_transport(
   return PereverzevTransport(
       chi_face_ion_pereverzev=chi_face_per_ion,
       chi_face_el_pereverzev=chi_face_per_el,
-      full_v_heat_face_ion_pereverzev=full_v_heat_face_per_ion,
-      full_v_heat_face_el_pereverzev=full_v_heat_face_per_el,
+      full_v_heat_face_ion_pereverzev=full_v_heat_face_per_ion,  # pyrefly: ignore[bad-argument-type]
+      full_v_heat_face_el_pereverzev=full_v_heat_face_per_el,  # pyrefly: ignore[bad-argument-type]
       d_face_el_pereverzev=d_face_per_el,
       v_face_el_pereverzev=v_face_per_el,
   )

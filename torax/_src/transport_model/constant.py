@@ -75,8 +75,8 @@ class ConstantTransportModel(transport_model_lib.TransportModel):
     assert isinstance(transport_runtime_params, RuntimeParams)
 
     return transport_model_lib.TurbulentTransport(
-        chi_face_ion=transport_runtime_params.chi_i,
-        chi_face_el=transport_runtime_params.chi_e,
-        d_face_el=transport_runtime_params.D_e,
-        v_face_el=transport_runtime_params.V_e,
+        chi_face_ion=transport_runtime_params.chi_i,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el=transport_runtime_params.chi_e,  # pyrefly: ignore[bad-argument-type]
+        d_face_el=transport_runtime_params.D_e,  # pyrefly: ignore[bad-argument-type]
+        v_face_el=transport_runtime_params.V_e,  # pyrefly: ignore[bad-argument-type]
     )

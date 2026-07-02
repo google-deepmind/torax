@@ -70,7 +70,7 @@ class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
-    return double_gas_puff_source
+    return double_gas_puff_source  # pyrefly: ignore[bad-return]
 
   def build_source(self) -> source_lib.Source:
     return gas_puff_source_lib.GasPuffSource(model_func=self.model_func)
@@ -100,7 +100,7 @@ class DuplicateGasPuffSourceModelConfig(
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
-    return double_gas_puff_source
+    return double_gas_puff_source  # pyrefly: ignore[bad-return]
 
   def build_source(self) -> source_lib.Source:
     return gas_puff_source_lib.GasPuffSource(model_func=self.model_func)

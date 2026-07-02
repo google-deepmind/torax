@@ -518,7 +518,7 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    super()._check_fields()
+    super()._check_fields()  # pyrefly: ignore[not-callable]
     if (
         any([
             np.any(model.apply_inner_patch.value)

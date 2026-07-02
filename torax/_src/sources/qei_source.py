@@ -150,7 +150,7 @@ class QeiSourceConfig(base.SourceModelBase):
   ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
-  def model_func(self) -> None:
+  def model_func(self) -> None:  # pyrefly: ignore[bad-override]
     return None
 
   def build_runtime_params(

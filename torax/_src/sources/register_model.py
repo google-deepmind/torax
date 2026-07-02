@@ -123,7 +123,7 @@ def register_source_model_config(
   """
   _validate_source_model_config(source_model_config_class, source_name)
   # Update the Sources pydantic model to be aware of the new config.
-  sources_pydantic_model.Sources.model_fields[
+  sources_pydantic_model.Sources.model_fields[  # pyrefly: ignore[bad-assignment]
       f'{source_name}'
   ].annotation |= source_model_config_class
   # Rebuild the pydantic schema for both the Sources and ToraxConfig models so

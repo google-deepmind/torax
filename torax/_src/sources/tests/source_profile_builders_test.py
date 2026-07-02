@@ -86,7 +86,7 @@ class SourceModelsTest(parameterized.TestCase):
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
     test_source = TestSource(
-        model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)
+        model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)  # pyrefly: ignore[bad-argument-type]
     )
     source_models = mock.create_autospec(
         source_models_lib.SourceModels,
@@ -136,7 +136,7 @@ class SourceModelsTest(parameterized.TestCase):
       )
 
     test_source = TestSource(
-        model_func=lambda *args: (jnp.ones_like(self.geo.rho),) * 2
+        model_func=lambda *args: (jnp.ones_like(self.geo.rho),) * 2  # pyrefly: ignore[bad-argument-type]
     )
     source_models = mock.create_autospec(
         source_models_lib.SourceModels,
@@ -216,7 +216,7 @@ class SourceModelsTest(parameterized.TestCase):
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
     test_source = TestSource(
-        model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)
+        model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)  # pyrefly: ignore[bad-argument-type]
     )
     source_models = mock.create_autospec(
         source_models_lib.SourceModels,

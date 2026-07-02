@@ -142,7 +142,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         conductivity=conductivity,
     )[0]
     chex.assert_rank(value, 1)
-    self.assertEqual(value.shape, geo.rho.shape)
+    self.assertEqual(value.shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
 
 
 class MultipleProfileSourceTestCase(SourceTestCase):
@@ -184,8 +184,8 @@ class MultipleProfileSourceTestCase(SourceTestCase):
         conductivity=None,
     )
     self.assertLen(value, 2)
-    self.assertEqual(value[0].shape, geo.rho.shape)
-    self.assertEqual(value[1].shape, geo.rho.shape)
+    self.assertEqual(value[0].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
+    self.assertEqual(value[1].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
 
-    self.assertFalse(jnp.any(jnp.isnan(value[0])))
-    self.assertFalse(jnp.any(jnp.isnan(value[1])))
+    self.assertFalse(jnp.any(jnp.isnan(value[0])))  # pyrefly: ignore[bad-argument-type]
+    self.assertFalse(jnp.any(jnp.isnan(value[1])))  # pyrefly: ignore[bad-argument-type]

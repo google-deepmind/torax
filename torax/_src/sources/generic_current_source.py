@@ -107,7 +107,7 @@ class GenericCurrentSource(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.PSI,
   )
-  model_func: source.SourceProfileFunction = calculate_generic_current
+  model_func: source.SourceProfileFunction = calculate_generic_current  # pyrefly: ignore[bad-assignment]
 
 
 class GenericCurrentSourceConfig(source_base.SourceModelBase):
@@ -145,7 +145,7 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return calculate_generic_current
+    return calculate_generic_current  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

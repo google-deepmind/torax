@@ -68,7 +68,7 @@ class SourceTest(parameterized.TestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    np.testing.assert_allclose(profile[0], np.zeros_like(geo.rho_norm))
+    np.testing.assert_allclose(profile[0], np.zeros_like(geo.rho_norm))  # pyrefly: ignore[no-matching-overload]
 
   @parameterized.parameters(
       (sources_runtime_params_lib.Mode.ZERO, np.array([0, 0, 0, 0])),
@@ -113,7 +113,7 @@ class SourceTest(parameterized.TestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         profile[0],
         expected_profile,
         atol=1e-6,
@@ -146,13 +146,13 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
     )
     self.assertLen(profile, 2)
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         profile[0],
         np.full([4], 3.0),
         atol=1e-6,
         rtol=1e-6,
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         profile[1],
         np.full([4], 4.0),
         atol=1e-6,

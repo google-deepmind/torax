@@ -54,6 +54,6 @@ def register_transport_model(
 
   type_tuple = (combined_model, *submodels, pydantic_model_class)
   model_config.ToraxConfig.model_fields['transport'].annotation = Union[
-      *type_tuple
+      *type_tuple  # pyrefly: ignore[not-a-type]
   ]
   model_config.ToraxConfig.model_rebuild(force=True)

@@ -199,11 +199,11 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
       for k in coeffs_dict:
         # Apply domain restriction to values.
         if coeffs_dict[k] is not None:
-          coeffs_dict[k] = jnp.where(domain_mask, coeffs_dict[k], 0.0)
+          coeffs_dict[k] = jnp.where(domain_mask, coeffs_dict[k], 0.0)  # pyrefly: ignore[bad-argument-type]
 
       for channel, config in transport_model_lib.CHANNEL_CONFIG_STRUCT.items():
         disable_flag_name = config['disable_flag']
-        is_disabled = getattr(params, disable_flag_name)
+        is_disabled = getattr(params, disable_flag_name)  # pyrefly: ignore[bad-argument-type]
 
         # A channel is active for this model if it's in the domain AND enabled.
         # Note that this is a boolean array over the face grid.
@@ -215,14 +215,14 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
         if params.merge_mode == enums.MergeMode.OVERWRITE:
           # Wiping: Replace accumulator values where active.
           accumulators[channel] = jnp.where(
-              channel_active, val, accumulators[channel]
+              channel_active, val, accumulators[channel]  # pyrefly: ignore[bad-argument-type]
           )
           # Update lock.
           locks[channel] = jnp.logical_or(locks[channel], channel_active)
         else:  # ADD
           # Add where not locked.
           factor = jnp.where(locks[channel], 0.0, 1.0)
-          accumulators[channel] = accumulators[channel] + val * factor
+          accumulators[channel] = accumulators[channel] + val * factor  # pyrefly: ignore[unsupported-operation]
 
         # Handle sub-channels.
         for sub in config['sub_channels']:

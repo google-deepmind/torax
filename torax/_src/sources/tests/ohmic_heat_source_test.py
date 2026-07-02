@@ -32,7 +32,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
   def test_raises_error_if_calculated_source_profiles_is_none(self):
     source = ohmic_heat_source.OhmicHeatSource(
-        model_func=ohmic_heat_source.ohmic_model_func
+        model_func=ohmic_heat_source.ohmic_model_func  # pyrefly: ignore[bad-argument-type]
     )
     source_config = self._source_config_class.from_dict({})
     face_centers = interpolated_param_2d.get_face_centers(4)
@@ -61,7 +61,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
   def test_raises_error_if_conductivity_is_none(self):
     source = ohmic_heat_source.OhmicHeatSource(
-        model_func=ohmic_heat_source.ohmic_model_func
+        model_func=ohmic_heat_source.ohmic_model_func  # pyrefly: ignore[bad-argument-type]
     )
     source_config = self._source_config_class.from_dict({})
     face_centers = interpolated_param_2d.get_face_centers(4)

@@ -227,7 +227,7 @@ class TGLFBasedTransportModel(
     # avoid being swamped by the eps in the denominator.
     rho_s = (
         math_utils.safe_divide(
-            num=m_D * c_s,
+            num=m_D * c_s,  # pyrefly: ignore[bad-argument-type]
             denom=B_unit,
             eps=1e-7,
         )
@@ -265,9 +265,9 @@ class TGLFBasedTransportModel(
     # Dimensionless gradients
     normalized_log_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
-        radial_coordinate=geo.r_mid,  # On the cell grid
-        radial_face_coordinate=geo.r_mid_face,
-        reference_length=a,
+        radial_coordinate=geo.r_mid,  # On the cell grid  # pyrefly: ignore[bad-argument-type]
+        radial_face_coordinate=geo.r_mid_face,  # pyrefly: ignore[bad-argument-type]
+        reference_length=a,  # pyrefly: ignore[bad-argument-type]
     )
 
     # Dimensionless electron-electron collision frequency = nu_ee / (c_s/a)
@@ -424,7 +424,7 @@ class TGLFBasedTransportModel(
     lref_over_lti = quasilinear_transport_model.apply_fast_ion_stabilization(
         core_profiles=core_profiles,
         smag=smag,
-        q=core_profiles.q_face,
+        q=core_profiles.q_face,  # pyrefly: ignore[bad-argument-type]
         normalized_logarithmic_gradients=normalized_log_gradients,
         transport=transport,
     )
@@ -457,12 +457,12 @@ class TGLFBasedTransportModel(
         AS_1=n_e_over_n_e,
         ZS_2=core_profiles.Z_i_face,
         MASS_2=m_i_over_m_D,
-        TAUS_2=T_i_over_T_e,
-        AS_2=n_i_over_n_e,
+        TAUS_2=T_i_over_T_e,  # pyrefly: ignore[bad-argument-type]
+        AS_2=n_i_over_n_e,  # pyrefly: ignore[bad-argument-type]
         ZS_3=core_profiles.Z_impurity_face,
         MASS_3=m_imp_over_m_D,
-        TAUS_3=T_imp_over_T_e,
-        AS_3=n_impurity_over_n_e,
+        TAUS_3=T_imp_over_T_e,  # pyrefly: ignore[bad-argument-type]
+        AS_3=n_impurity_over_n_e,  # pyrefly: ignore[bad-argument-type]
         RLNS_1=normalized_log_gradients.lref_over_lne,
         RLNS_2=normalized_log_gradients.lref_over_lni0,
         RLNS_3=normalized_log_gradients.lref_over_lni1,
@@ -471,25 +471,25 @@ class TGLFBasedTransportModel(
         RLTS_3=lref_over_lti,
         RMIN_LOC=r / a,
         RMAJ_LOC=r_major / a,
-        DRMAJDX_LOC=dr_major,
+        DRMAJDX_LOC=dr_major,  # pyrefly: ignore[bad-argument-type]
         Q_LOC=core_profiles.q_face,
-        Q_PRIME_LOC=q_prime,
+        Q_PRIME_LOC=q_prime,  # pyrefly: ignore[bad-argument-type]
         XNUE=normalized_nu_ee,
-        DEBYE=normalized_debye,
+        DEBYE=normalized_debye,  # pyrefly: ignore[bad-argument-type]
         KAPPA_LOC=kappa,
-        S_KAPPA_LOC=kappa_shear,
+        S_KAPPA_LOC=kappa_shear,  # pyrefly: ignore[bad-argument-type]
         DELTA_LOC=geo.delta_face,
-        S_DELTA_LOC=delta_shear,
-        BETAE=beta_e,
-        P_PRIME_LOC=p_prime,
+        S_DELTA_LOC=delta_shear,  # pyrefly: ignore[bad-argument-type]
+        BETAE=beta_e,  # pyrefly: ignore[bad-argument-type]
+        P_PRIME_LOC=p_prime,  # pyrefly: ignore[bad-argument-type]
         ZEFF=core_profiles.Z_eff_face,
-        Q_GB=Q_GB,
-        GAMMA_GB=Gamma_GB,
+        Q_GB=Q_GB,  # pyrefly: ignore[bad-argument-type]
+        GAMMA_GB=Gamma_GB,  # pyrefly: ignore[bad-argument-type]
         VEXB_SHEAR=v_ExB_shear,
     )
 
   @override
-  def _make_core_transport(
+  def _make_core_transport(  # pyrefly: ignore[bad-override]
       self,
       electron_heat_flux_GB: jax.Array,
       ion_heat_flux_GB: jax.Array,
@@ -560,8 +560,8 @@ class TGLFBasedTransportModel(
     v_face_el = jnp.where(V_eff_mask, V_eff, 0.0)
 
     return transport_model_lib.TurbulentTransport(
-        chi_face_ion=chi_i,
-        chi_face_el=chi_e,
+        chi_face_ion=chi_i,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el=chi_e,  # pyrefly: ignore[bad-argument-type]
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )

@@ -233,7 +233,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
               AffectedCoreProfile.FAST_IONS
           )
           res_list = list(source_params.prescribed_values)
-          res_list.insert(fast_ions_idx, ())
+          res_list.insert(fast_ions_idx, ())  # pyrefly: ignore[bad-argument-type]
           res = tuple(res_list)
         elif prescribed_len != expected_len:
           raise ValueError(

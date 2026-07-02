@@ -121,7 +121,7 @@ class QualikizBasedTransportModel(
     # gyrobohm diffusivity
     # (defined here with Lref=a_minor due to QLKNN training set normalization)
     chiGB = quasilinear_transport_model.calculate_chiGB(
-        reference_temperature=core_profiles.T_i.face_value(),
+        reference_temperature=core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
         reference_magnetic_field=geo.B_0,
         reference_mass=core_profiles.A_i,
         reference_length=geo.a_minor,
@@ -135,9 +135,9 @@ class QualikizBasedTransportModel(
     # Calculate normalized logarithmic gradients
     normalized_logarithmic_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
-        radial_coordinate=rmid,
-        radial_face_coordinate=rmid_face,
-        reference_length=geo.R_major,
+        radial_coordinate=rmid,  # pyrefly: ignore[bad-argument-type]
+        radial_face_coordinate=rmid_face,  # pyrefly: ignore[bad-argument-type]
+        reference_length=geo.R_major,  # pyrefly: ignore[bad-argument-type]
     )
 
     q = core_profiles.q_face
@@ -300,9 +300,9 @@ class QualikizBasedTransportModel(
         q=q,
         smag=smag,
         x=x,
-        Ti_Te=Ti_Te,
+        Ti_Te=Ti_Te,  # pyrefly: ignore[bad-argument-type]
         log_nu_star_face=log_nu_star_face,
-        normni=normni,
+        normni=normni,  # pyrefly: ignore[bad-argument-type]
         chiGB=chiGB,
         Rmaj=geo.R_major,
         Rmin=geo.a_minor,

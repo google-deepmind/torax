@@ -76,7 +76,7 @@ class ImpurityRadiationConstantFractionTest(
     )
 
     heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource(
-        model_func=generic_ion_el_heat_source.default_formula,
+        model_func=generic_ion_el_heat_source.default_formula,  # pyrefly: ignore[bad-argument-type]
     )
 
     geo = circular_geometry.CircularConfig().build_geometry()
@@ -89,7 +89,7 @@ class ImpurityRadiationConstantFractionTest(
     )
 
     impurity_radiation_sink = impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink(
-        model_func=impurity_radiation_constant_fraction.radially_constant_fraction_of_Pin
+        model_func=impurity_radiation_constant_fraction.radially_constant_fraction_of_Pin  # pyrefly: ignore[bad-argument-type]
     )
 
     impurity_radiation_heat_sink_power_density = (
@@ -100,8 +100,8 @@ class ImpurityRadiationConstantFractionTest(
             calculated_source_profiles=source_profiles.SourceProfiles(
                 bootstrap_current=mock.ANY,
                 qei=mock.ANY,
-                T_e={'foo': el},
-                T_i={'foo_source': ion},
+                T_e={'foo': el},  # pyrefly: ignore[bad-argument-type]
+                T_i={'foo_source': ion},  # pyrefly: ignore[bad-argument-type]
             ),
             conductivity=None,
         )
@@ -115,7 +115,7 @@ class ImpurityRadiationConstantFractionTest(
     # sources, minus P_ei and P_brems.
     # In this case, that is only the generic_ion_el_heat_source.
     impurity_radiation_heat_sink_power = math_utils.volume_integration(
-        impurity_radiation_heat_sink_power_density, geo
+        impurity_radiation_heat_sink_power_density, geo  # pyrefly: ignore[bad-argument-type]
     )
     chex.assert_trees_all_close(
         impurity_radiation_heat_sink_power,

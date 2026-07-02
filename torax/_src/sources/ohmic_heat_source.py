@@ -73,7 +73,7 @@ def ohmic_model_func(
     psidot = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=psi_sources,
         sigma=conductivity.sigma,
-        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
+        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
         psi=core_profiles.psi,
         geo=geo,
     )
@@ -96,7 +96,7 @@ class OhmicHeatSource(source_lib.Source):
   AFFECTED_CORE_PROFILES: ClassVar[
       tuple[source_lib.AffectedCoreProfile, ...]
   ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
-  model_func: source_lib.SourceProfileFunction = ohmic_model_func
+  model_func: source_lib.SourceProfileFunction = ohmic_model_func  # pyrefly: ignore[bad-assignment]
 
 
 class OhmicHeatSourceConfig(base.SourceModelBase):
@@ -111,7 +111,7 @@ class OhmicHeatSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
-    return ohmic_model_func
+    return ohmic_model_func  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

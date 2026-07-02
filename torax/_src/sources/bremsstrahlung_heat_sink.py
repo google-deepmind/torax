@@ -96,7 +96,7 @@ def calc_bremsstrahlung(
         1.0
         + (2.0 / Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
     )
-    return correction
+    return correction  # pyrefly: ignore[bad-return]
 
   # In MW/m^3
   P_brem_profile_face = jnp.where(
@@ -110,7 +110,7 @@ def calc_bremsstrahlung(
 
   # In MW
   P_brem_total = math_utils.volume_integration(P_brem_profile_cell, geo)
-  return P_brem_total, P_brem_profile_cell
+  return P_brem_total, P_brem_profile_cell  # pyrefly: ignore[bad-return]
 
 
 def bremsstrahlung_model_func(
@@ -142,7 +142,7 @@ class BremsstrahlungHeatSink(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = bremsstrahlung_model_func
+  model_func: source.SourceProfileFunction = bremsstrahlung_model_func  # pyrefly: ignore[bad-assignment]
 
 
 class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
@@ -164,7 +164,7 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return bremsstrahlung_model_func
+    return bremsstrahlung_model_func  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,

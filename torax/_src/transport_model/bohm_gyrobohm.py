@@ -172,12 +172,12 @@ class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
     v_face_el = transport_runtime_params.V_face_coeff * d_face_el
 
     return transport_model_lib.TurbulentTransport(
-        chi_face_ion=chi_i,
-        chi_face_el=chi_e,
+        chi_face_ion=chi_i,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el=chi_e,  # pyrefly: ignore[bad-argument-type]
         d_face_el=d_face_el,
-        v_face_el=v_face_el,
-        chi_face_el_bohm=chi_e_bohm,
-        chi_face_el_gyrobohm=chi_e_gyrobohm,
-        chi_face_ion_bohm=chi_i_bohm,
-        chi_face_ion_gyrobohm=chi_i_gyrobohm,
+        v_face_el=v_face_el,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el_bohm=chi_e_bohm,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el_gyrobohm=chi_e_gyrobohm,  # pyrefly: ignore[bad-argument-type]
+        chi_face_ion_bohm=chi_i_bohm,  # pyrefly: ignore[bad-argument-type]
+        chi_face_ion_gyrobohm=chi_i_gyrobohm,  # pyrefly: ignore[bad-argument-type]
     )
