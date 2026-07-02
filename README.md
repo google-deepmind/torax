@@ -271,3 +271,26 @@ this paper to cite TORAX:
   year={2024}
 }
 ```
+## Troubleshooting for Windows Users
+
+If you are deploying TORAX on native Windows (PowerShell/Command Prompt), you may encounter several platform-specific issues. Here is how to resolve them:
+
+### 1. 'python' or 'pip' is not recognized
+* **Cause:** Python was installed without updating the system's PATH variable.
+* **Solution:** Re-run the Python installer (`python-3.13.x-amd64.exe`), click **Modify**, and ensure **"Add python.exe to PATH"** is checked at the bottom of the window.
+
+### 2. Virtual Environment (`venv`) freezing during `ensurepip`
+* **Cause:** Windows Defender or local anti-virus software blocking background script execution during pip bootstrapping.
+* **Solution:** You can bypass the virtual environment and install TORAX directly into your global environment by running:
+  ```powershell
+  pip install torax
+  ```
+
+### 3. NetCDF Layer Structure (KeyError: 'temp_e')
+* **Cause:** TORAX outputs `.nc` files using a multi-layered hierarchical structure (NetCDF groups). Standard `xr.open_dataset()` only reads the root level.
+* **Solution:** To extract physical profiles like electron temperature (`T_e`), specify the target group explicitly:
+  ```python
+  import xarray as xr
+  ds_profiles = xr.open_dataset("your_file.nc", group="profiles")
+  electron_temp = ds_profiles['T_e'][-1, :]
+  ```
