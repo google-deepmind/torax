@@ -61,7 +61,7 @@ class _SourceProfiles:
     for affected_profile in self.affected_profiles:
       initial_profile = self.profiles[affected_profile]
       new_profile = new_source.profiles[affected_profile]
-      self.profiles[affected_profile] = np.add(initial_profile, new_profile)
+      self.profiles[affected_profile] = np.add(initial_profile, new_profile)  # pyrefly: ignore[unsupported-operation]
 
 
 @dataclasses.dataclass
@@ -249,4 +249,4 @@ def _get_particle_source_profile(
         "Expected particle source, but none of electrons or ion particle source"
         "is defined in the IDS."
     )
-  return particles
+  return particles  # pyrefly: ignore[bad-return]

@@ -244,7 +244,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
         main_ion_names=self.get_main_ion_names(),
         impurity_names=self.get_impurity_names(),
         main_ion=self._main_ion_mixture.build_runtime_params(t),
-        impurity=self.impurity.build_runtime_params(t),
+        impurity=self.impurity.build_runtime_params(t),  # pyrefly: ignore[bad-argument-type]
         Z_eff=self.Z_eff.get_value(t),
         Z_eff_face=self.Z_eff.get_value(t, grid_type='face'),
     )

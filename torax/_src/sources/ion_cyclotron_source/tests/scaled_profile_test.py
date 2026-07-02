@@ -120,8 +120,8 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
     # Check proportionality where profiles are non-negligible.
     ref_total_interp = ref_ion_interp + ref_el_interp
     mask = ref_total_interp > np.max(ref_total_interp) * 1e-3
-    scale_ion = out_ion[mask] / ref_ion_interp[mask]
-    scale_el = out_el[mask] / ref_el_interp[mask]
+    scale_ion = out_ion[mask] / ref_ion_interp[mask]  # pyrefly: ignore[bad-index]
+    scale_el = out_el[mask] / ref_el_interp[mask]  # pyrefly: ignore[bad-index]
     # All scale factors should be the same constant.
     np.testing.assert_allclose(scale_ion, scale_ion[0], rtol=1e-5)
     np.testing.assert_allclose(scale_el, scale_el[0], rtol=1e-5)

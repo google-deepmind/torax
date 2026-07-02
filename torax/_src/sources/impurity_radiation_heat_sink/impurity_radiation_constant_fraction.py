@@ -123,4 +123,4 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
-    return radially_constant_fraction_of_Pin
+    return radially_constant_fraction_of_Pin  # pyrefly: ignore[bad-return]

@@ -66,7 +66,7 @@ def flatten_density_profile(
       rho_norm_q1,
       rho_norm_mixing,
       flattening_factor,
-      original_density,
+      original_density,  # pyrefly: ignore[bad-argument-type]
       geo,
   )
 
@@ -75,7 +75,7 @@ def flatten_density_profile(
   )
   scaling = _get_scaling_factor(
       value_at_mixing_edge=density_at_mixing_edge,
-      original_profile=original_density,
+      original_profile=original_density,  # pyrefly: ignore[bad-argument-type]
       trial_profile=trial_density,
       redistribution_mask=redistribution_mask,
       geo=geo,
@@ -146,7 +146,7 @@ def flatten_temperature_profile(
       rho_norm_q1,
       rho_norm_mixing,
       flattening_factor,
-      original_temperature,
+      original_temperature,  # pyrefly: ignore[bad-argument-type]
       geo,
   )
 
@@ -162,7 +162,7 @@ def flatten_temperature_profile(
 
   scaling = _get_scaling_factor(
       value_at_mixing_edge=pressure_at_mixing_edge,
-      original_profile=original_pressure,
+      original_profile=original_pressure,  # pyrefly: ignore[bad-argument-type]
       trial_profile=trial_pressure,
       redistribution_mask=redistribution_mask,
       geo=geo,
@@ -275,8 +275,8 @@ def flatten_current_profile(
   # face boundary.
   new_psi = (
       new_psi.value
-      - new_psi.face_value()[-1]
-      + original_psi_profile.face_value()[-1]
+      - new_psi.face_value()[-1]  # pyrefly: ignore[bad-index]
+      + original_psi_profile.face_value()[-1]  # pyrefly: ignore[bad-index]
   )
 
   return dataclasses.replace(

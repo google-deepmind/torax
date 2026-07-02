@@ -228,7 +228,7 @@ def _change_config(
   return torax_config, config_path
 
 
-def _get_yes_or_no() -> bool:
+def _get_yes_or_no() -> bool:  # pyrefly: ignore[bad-return]
   """Returns a boolean indicating yes depending on user input."""
   input_text = None
   while input_text is None:

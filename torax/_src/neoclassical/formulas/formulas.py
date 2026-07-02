@@ -219,15 +219,15 @@ def calculate_poloidal_velocity(
 
   # Calculate Neoclassical Coefficient k_i
   log_lambda_ii = collisions.calculate_log_lambda_ii(
-      T_i_face,
-      n_i,
-      Z_eff,
+      T_i_face,  # pyrefly: ignore[bad-argument-type]
+      n_i,  # pyrefly: ignore[bad-argument-type]
+      Z_eff,  # pyrefly: ignore[bad-argument-type]
   )
   nu_i_star = calculate_nu_i_star(
       q=q,
       geo=geo,
       n_i=n_i,
-      T_i=T_i_face,
+      T_i=T_i_face,  # pyrefly: ignore[bad-argument-type]
       Z_eff=Z_eff,
       log_lambda_ii=log_lambda_ii,
   )
@@ -310,7 +310,7 @@ def calculate_analytic_bootstrap_current(
   dlnte_drnorm = T_e.face_grad() / T_e.face_value()
   dlnti_drnorm = T_i.face_grad() / T_i.face_value()
 
-  global_coeff = prefactor[1:] / dpsi_drnorm[1:]
+  global_coeff = prefactor[1:] / dpsi_drnorm[1:]  # pyrefly: ignore[bad-index]
   global_coeff = jnp.concatenate([jnp.zeros(1), global_coeff])
 
   necoeff = L31 * pe
@@ -327,6 +327,6 @@ def calculate_analytic_bootstrap_current(
   j_parallel_bootstrap = geometry_lib.face_to_cell(j_parallel_bootstrap_face)
 
   return bootstrap_current_base.BootstrapCurrent(
-      j_parallel_bootstrap=j_parallel_bootstrap,
+      j_parallel_bootstrap=j_parallel_bootstrap,  # pyrefly: ignore[bad-argument-type]
       j_parallel_bootstrap_face=j_parallel_bootstrap_face,
   )

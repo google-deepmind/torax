@@ -114,7 +114,7 @@ class SimTestCase(parameterized.TestCase):
       names = ['t']
       for profile_name, ref_profile in ref_profiles.items():
         actual_value = (
-            ds.children[output.PROFILES]
+            ds.children[output.PROFILES]  # pyrefly: ignore[missing-attribute]
             .dataset[profile_name]
             .to_numpy()[step, :]
         )

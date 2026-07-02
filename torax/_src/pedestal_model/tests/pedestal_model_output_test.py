@@ -166,23 +166,23 @@ class PedestalModelOutputTest(absltest.TestCase):
       )
 
     # Check neoclassical transport is not affected.
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         modified_core_transport.chi_neo_i,
         core_transport.chi_neo_i,
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         modified_core_transport.chi_neo_e,
         core_transport.chi_neo_e,
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         modified_core_transport.D_neo_e,
         core_transport.D_neo_e,
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         modified_core_transport.V_neo_e,
         core_transport.V_neo_e,
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         modified_core_transport.V_neo_ware_e,
         core_transport.V_neo_ware_e,
     )
@@ -281,7 +281,7 @@ class PedestalModelOutputTest(absltest.TestCase):
 
       # Compute psi_norm at cell centers using face_value() to match impl.
       psi_fv = core_profiles.psi.face_value()
-      psi_norm_cell = (psi_cell - psi_fv[0]) / (psi_fv[-1] - psi_fv[0])
+      psi_norm_cell = (psi_cell - psi_fv[0]) / (psi_fv[-1] - psi_fv[0])  # pyrefly: ignore[bad-index]
 
       # Derive delta from nearest cell to rho_ped_top (matching impl).
       ped_top_idx = jnp.argmin(jnp.abs(geo.rho_norm - rho_ped_top))

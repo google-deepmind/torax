@@ -216,7 +216,7 @@ def stitch_state_files(
   Returns:
     A xr.DataTree containing the stitched dataset.
   """
-  previous_datatree = load_state_file(file_restart.filename)
+  previous_datatree = load_state_file(file_restart.filename)  # pyrefly: ignore[bad-argument-type]
   np.testing.assert_array_equal(
       previous_datatree.coords[RHO_CELL_NORM].as_numpy(),
       datatree.coords[RHO_CELL_NORM].as_numpy(),
@@ -614,7 +614,7 @@ class StateHistory:
           face_value = getattr(stacked_core_profiles, "A_impurity_face")
           data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
         xr_dict[output_key] = self._pack_into_data_array(
-            output_key, data_to_save
+            output_key, data_to_save  # pyrefly: ignore[bad-argument-type]
         )
         continue
 
@@ -636,11 +636,11 @@ class StateHistory:
         else:  # cell array with no face counterpart, or a scalar value
           data_to_save = attr_value
 
-      xr_dict[output_key] = self._pack_into_data_array(output_key, data_to_save)
+      xr_dict[output_key] = self._pack_into_data_array(output_key, data_to_save)  # pyrefly: ignore[bad-argument-type]
 
     # Handle derived quantities
     Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]
-    xr_dict[IP] = self._pack_into_data_array(IP, Ip_data)
+    xr_dict[IP] = self._pack_into_data_array(IP, Ip_data)  # pyrefly: ignore[bad-argument-type]
 
     # Handle main_ion_fractions
     main_ions = sorted(list(stacked_core_profiles.main_ion_fractions.keys()))
@@ -665,10 +665,10 @@ class StateHistory:
           cp.fast_ions[i].T.cell_plus_boundaries() for cp in self.core_profiles
       ])
       xr_dict[f"n_fast_ion_{source_key}"] = self._pack_into_data_array(
-          f"n_fast_ion_{source_key}", n_data
+          f"n_fast_ion_{source_key}", n_data  # pyrefly: ignore[bad-argument-type]
       )
       xr_dict[f"T_fast_ion_{source_key}"] = self._pack_into_data_array(
-          f"T_fast_ion_{source_key}", T_data
+          f"T_fast_ion_{source_key}", T_data  # pyrefly: ignore[bad-argument-type]
       )
 
     return xr_dict
@@ -733,7 +733,7 @@ class StateHistory:
     xr_dict[qei_source_lib.QeiSource.SOURCE_NAME] = (
         self._stacked_core_sources.qei.qei_coef
         * (
-            self._stacked_core_profiles.T_e.value
+            self._stacked_core_profiles.T_e.value  # pyrefly: ignore[unsupported-operation]
             - self._stacked_core_profiles.T_i.value
         )
     )
@@ -806,14 +806,14 @@ class StateHistory:
         data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
       else:
         data_to_save = attr_value
-      xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
+      xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)  # pyrefly: ignore[bad-argument-type]
 
     if self._stacked_post_processed_outputs.impurity_species:
       radiation_outputs = (
           impurity_radiation.construct_xarray_for_radiation_output(
               self._stacked_post_processed_outputs.impurity_species,
-              self.times,
-              self.rho_cell_norm,
+              self.times,  # pyrefly: ignore[bad-argument-type]
+              self.rho_cell_norm,  # pyrefly: ignore[bad-argument-type]
               TIME,
               RHO_CELL_NORM,
           )
@@ -862,7 +862,7 @@ class StateHistory:
         field_name = "z_magnetic_axis"
       data_array = self._pack_into_data_array(
           field_name,
-          data,
+          data,  # pyrefly: ignore[bad-argument-type]
       )
       if data_array is not None:
         xr_dict[field_name] = data_array
@@ -881,7 +881,7 @@ class StateHistory:
       if name in EXCLUDED_GEOMETRY_NAMES:
         continue
       if isinstance(value, property):
-        property_data = value.fget(self._stacked_geometry)
+        property_data = value.fget(self._stacked_geometry)  # pyrefly: ignore[not-callable]
         # TODO(b/434175938): Remove this once we move to V2.
         if name == "drho":
           is_uniform = np.all(
@@ -900,7 +900,7 @@ class StateHistory:
           property_data = extend_cell_grid_to_boundaries(
               property_data, face_data
           )
-        data_array = self._pack_into_data_array(name, property_data)
+        data_array = self._pack_into_data_array(name, property_data)  # pyrefly: ignore[bad-argument-type]
         if data_array is not None:
           # Remap to avoid outputting _face suffix in output. Done only for
           # _face variables with no corresponding non-face variable.
@@ -980,7 +980,7 @@ class StateHistory:
 
     # Fields from SolverStatus which depend on the solver type
     xr_dict["solver_physics_outcome"] = self._pack_into_data_array(
-        "solver_physics_outcome", outputs.solver_status.physics_outcome
+        "solver_physics_outcome", outputs.solver_status.physics_outcome  # pyrefly: ignore[bad-argument-type]
     )
     numerics = outputs.solver_status.numerics_outcome
     # Check for RootMetadata structure (newton solver)
@@ -1003,7 +1003,7 @@ class StateHistory:
     else:
       # FixedPointOutcome (fixed point solver)
       xr_dict["fixed_point_outcome"] = self._pack_into_data_array(
-          "fixed_point_outcome", numerics
+          "fixed_point_outcome", numerics  # pyrefly: ignore[bad-argument-type]
       )
 
     return xr.DataTree(dataset=xr.Dataset(xr_dict), children=children)
@@ -1048,7 +1048,7 @@ class StateHistory:
       value = getattr(unique_roots_obj, name)
 
       if isinstance(value, (jax.Array, np.ndarray)):
-        _add_to_xr(name, value)
+        _add_to_xr(name, value)  # pyrefly: ignore[bad-argument-type]
       elif isinstance(value, Mapping):
         for k, v in value.items():
           # Flatten dict fields -> name_key

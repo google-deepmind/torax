@@ -264,7 +264,7 @@ class ToricNNWrapper:
   def __hash__(self) -> int:
     return hash(self._path)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:
+  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
     return isinstance(other, ToricNNWrapper)
 
 
@@ -274,7 +274,7 @@ def _toric_nn_predict(
     inputs: ToricNNInputs,
 ) -> ToricNNOutputs:
   """Make a prediction given the inputs."""
-  inputs = jnp.array(
+  inputs = jnp.array(  # pyrefly: ignore[bad-assignment]
       [
           inputs.frequency,
           inputs.volume_average_temperature,
@@ -299,9 +299,9 @@ def _toric_nn_predict(
       toric_nn.power_deposition_e_params, inputs
   )
   return ToricNNOutputs(
-      power_deposition_He3=outputs_He3,
-      power_deposition_2T=outputs_2T,
-      power_deposition_e=outputs_e,
+      power_deposition_He3=outputs_He3,  # pyrefly: ignore[bad-argument-type]
+      power_deposition_2T=outputs_2T,  # pyrefly: ignore[bad-argument-type]
+      power_deposition_e=outputs_e,  # pyrefly: ignore[bad-argument-type]
   )
 
 
@@ -342,7 +342,7 @@ def _get_minority_concentration_from_composition(
   if minority_species in plasma_composition.main_ion_names:
     # For main ions, concentration is fraction * n_i / n_e
     fraction = core_profiles.main_ion_fractions[minority_species]
-    return core_profiles.n_i.value * fraction / core_profiles.n_e.value
+    return core_profiles.n_i.value * fraction / core_profiles.n_e.value  # pyrefly: ignore[bad-return]
 
   if minority_species in plasma_composition.impurity_names:
     impurity_fractions = core_profiles.impurity_fractions
@@ -351,7 +351,7 @@ def _get_minority_concentration_from_composition(
     n_imp_species = (
         fraction * core_profiles.n_impurity.value * impurity_density_scaling
     )
-    return n_imp_species / core_profiles.n_e.value
+    return n_imp_species / core_profiles.n_e.value  # pyrefly: ignore[bad-return]
 
   raise ValueError(
       f'Minority species {minority_species} not found in plasma composition.'
@@ -399,17 +399,17 @@ def icrh_model_func(
 
   # Construct inputs for ToricNN.
   volume_average_temperature = math_utils.volume_average(
-      core_profiles.T_e.value, geo
+      core_profiles.T_e.value, geo  # pyrefly: ignore[bad-argument-type]
   )
   volume_average_density = math_utils.volume_average(
-      core_profiles.n_e.value, geo
+      core_profiles.n_e.value, geo  # pyrefly: ignore[bad-argument-type]
   )
 
   # Peaking factors are core w.r.t volume averages.
   temperature_peaking_factor = (
-      core_profiles.T_e.value[0] / volume_average_temperature
+      core_profiles.T_e.value[0] / volume_average_temperature  # pyrefly: ignore[bad-index]
   )
-  density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
+  density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density  # pyrefly: ignore[bad-index]
   Router = geo.R_out_face[-1]  # Use LCFS outboard radius
   Rinner = geo.R_in_face[-1]  # Use LCFS inboard radius
   # Assumption: inner and outer gaps are not functions of z0.
@@ -422,11 +422,11 @@ def icrh_model_func(
       volume_average_temperature=volume_average_temperature,
       volume_average_density=volume_average_density
       / 1e20,  # convert to 10^20 m^-3
-      minority_concentration=minority_concentration_scalar
+      minority_concentration=minority_concentration_scalar  # pyrefly: ignore[unsupported-operation]
       * 100,  # Convert to percentage.
       gap_inner=gap_inner,
       gap_outer=gap_outer,
-      z0=geo.z_magnetic_axis(),
+      z0=geo.z_magnetic_axis(),  # pyrefly: ignore[bad-argument-type]
       temperature_peaking_factor=temperature_peaking_factor,
       density_peaking_factor=density_peaking_factor,
       B_0=geo.B_0,
@@ -468,19 +468,19 @@ def icrh_model_func(
 
   n_tail, T_tail = fast_ion_utils.bimaxwellian_split(
       power_deposition=power_deposition_he3,
-      T_e=core_profiles.T_e.value,
-      n_e=core_profiles.n_e.value,
-      T_i=core_profiles.T_i.value,
-      n_i=core_profiles.n_i.value,
-      minority_concentration=minority_concentration_profile,
-      P_total_W=source_params.P_total,
+      T_e=core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
+      n_e=core_profiles.n_e.value,  # pyrefly: ignore[bad-argument-type]
+      T_i=core_profiles.T_i.value,  # pyrefly: ignore[bad-argument-type]
+      n_i=core_profiles.n_i.value,  # pyrefly: ignore[bad-argument-type]
+      minority_concentration=minority_concentration_profile,  # pyrefly: ignore[bad-argument-type]
+      P_total_W=source_params.P_total,  # pyrefly: ignore[bad-argument-type]
       charge_number=he3_charge_number,
       mass_number=he3_atomic_mass,
-      bulk_ion_mass=core_profiles.A_i,
-      Z_i=core_profiles.Z_i,
-      n_impurity=core_profiles.n_impurity.value,
-      Z_impurity=core_profiles.Z_impurity,
-      A_impurity=core_profiles.A_impurity,
+      bulk_ion_mass=core_profiles.A_i,  # pyrefly: ignore[bad-argument-type]
+      Z_i=core_profiles.Z_i,  # pyrefly: ignore[bad-argument-type]
+      n_impurity=core_profiles.n_impurity.value,  # pyrefly: ignore[bad-argument-type]
+      Z_impurity=core_profiles.Z_impurity,  # pyrefly: ignore[bad-argument-type]
+      A_impurity=core_profiles.A_impurity,  # pyrefly: ignore[bad-argument-type]
   )
 
   # Build fast ion output for all supported species.
@@ -509,7 +509,7 @@ def icrh_model_func(
 
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
       T_tail,
-      core_profiles.T_e.value,
+      core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
       he3_atomic_mass,
   )
   absorbed_power = source_params.P_total * source_params.absorption_fraction

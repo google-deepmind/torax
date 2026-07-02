@@ -183,8 +183,8 @@ class PedestalModelOutput:
     """
     # Get ψ_N at each cell grid point.
     psi_face = core_profiles.psi.face_value()
-    psi_norm_cell = (core_profiles.psi.value - psi_face[0]) / (
-        psi_face[-1] - psi_face[0]
+    psi_norm_cell = (core_profiles.psi.value - psi_face[0]) / (  # pyrefly: ignore[bad-index]
+        psi_face[-1] - psi_face[0]  # pyrefly: ignore[bad-index]
     )
 
     # Derive Δ from rho_norm_ped_top via ψ_N mapping.

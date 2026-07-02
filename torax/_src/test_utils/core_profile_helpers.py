@@ -141,7 +141,7 @@ def verify_core_profiles(
           f" {ref_profiles[output.N_E][index, 1:-1]}"
       ),
   )
-  np.testing.assert_allclose(
+  np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
       core_profiles.n_e.right_face_constraint,
       ref_profiles[output.N_E][index, -1],
       err_msg=(
@@ -159,7 +159,7 @@ def verify_core_profiles(
           f" {ref_profiles[output.N_I][index, 1:-1]}"
       ),
   )
-  np.testing.assert_allclose(
+  np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
       core_profiles.n_i.right_face_constraint,
       ref_profiles[output.N_I][index, -1],
       err_msg=(

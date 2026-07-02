@@ -72,12 +72,12 @@ class RuntimeParams:
   @property
   def fractions(self) -> Mapping[str, array_typing.FloatVector]:
     """Returns the impurity fractions calculated from the n_e_ratios."""
-    return calculate_fractions_from_ratios(self.n_e_ratios)
+    return calculate_fractions_from_ratios(self.n_e_ratios)  # pyrefly: ignore[bad-return]
 
   @property
   def fractions_face(self) -> Mapping[str, array_typing.FloatVectorFace]:
     """Returns the impurity fractions calculated from the n_e_ratios."""
-    return calculate_fractions_from_ratios(self.n_e_ratios_face)
+    return calculate_fractions_from_ratios(self.n_e_ratios_face)  # pyrefly: ignore[bad-return]
 
 
 class ElectronDensityRatios(torax_pydantic.BaseModelFrozen):

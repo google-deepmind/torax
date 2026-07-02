@@ -51,16 +51,16 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
         source_module.AffectedCoreProfile.PSI: ec2_curr,
     }
     ec1 = core_sources._SourceProfiles(
-        time=time,
-        rho_norm=rho_norm,
+        time=time,  # pyrefly: ignore[bad-argument-type]
+        rho_norm=rho_norm,  # pyrefly: ignore[bad-argument-type]
         affected_profiles=ecrh_affected_profiles,
-        profiles=profiles1,
+        profiles=profiles1,  # pyrefly: ignore[bad-argument-type]
     )
     ec2 = core_sources._SourceProfiles(
-        time=time,
-        rho_norm=rho_norm,
+        time=time,  # pyrefly: ignore[bad-argument-type]
+        rho_norm=rho_norm,  # pyrefly: ignore[bad-argument-type]
         affected_profiles=ecrh_affected_profiles,
-        profiles=profiles2,
+        profiles=profiles2,  # pyrefly: ignore[bad-argument-type]
     )
     collection = core_sources._SourceCollection()
     collection.add("ecrh", ec1)

@@ -65,7 +65,7 @@ class EquilibriumTest(parameterized.TestCase):
           if a.size > 8:
             a = a[4:-4]
             b = b[4:-4]
-          np.testing.assert_allclose(
+          np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
               a,
               b,
               rtol=rtol,
