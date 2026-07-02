@@ -13,6 +13,8 @@
 # limitations under the License.
 
 """TGLF Python wrapper via f2py."""
+# TODO(b/530577526): Add script to install TGLF wrapper, rather than requiring
+# users to install it manually.
 
 import types
 from typing import Any
