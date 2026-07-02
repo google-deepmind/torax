@@ -482,7 +482,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
               err_msg=f'Impurity concentration for {impurity} does not match.',
           )
       else:
-        np.testing.assert_allclose(getattr(outputs, key), value, rtol=_RTOL)
+        np.testing.assert_allclose(getattr(outputs, key), value, rtol=_RTOL)  # pyrefly: ignore[no-matching-overload]
 
   def test_multistart_num_guesses_validation(self):
     with self.assertRaisesRegex(

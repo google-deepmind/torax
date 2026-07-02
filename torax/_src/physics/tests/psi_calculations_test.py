@@ -243,9 +243,9 @@ class PsiCalculationsTest(parameterized.TestCase):
     )
 
     psidot_calculated = psi_calculations.calculate_psidot_from_psi_sources(
-        psi_sources=sum(source_profiles.psi.values()),
+        psi_sources=sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
         sigma=conductivity.sigma,
-        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
+        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
         psi=references.psi,
         geo=geo,
     )
@@ -420,12 +420,12 @@ class PsiCalculationsTest(parameterized.TestCase):
     psi_t = cell_variable.CellVariable(
         value=np.ones_like(mesh.cell_centers) * 0.5,
         face_centers=mesh.face_centers,
-        right_face_grad_constraint=0.0,
+        right_face_grad_constraint=0.0,  # pyrefly: ignore[bad-argument-type]
     )
     psi_t_plus_dt = cell_variable.CellVariable(
         value=np.ones_like(mesh.cell_centers) * psi_lcfs_t_plus_dt,
         face_centers=mesh.face_centers,
-        right_face_grad_constraint=0.0,
+        right_face_grad_constraint=0.0,  # pyrefly: ignore[bad-argument-type]
     )
 
     v_loop_lcfs_t_plus_dt = psi_calculations.calculate_v_loop_lcfs_from_psi(

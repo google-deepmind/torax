@@ -175,7 +175,7 @@ class FastIonUtilsTest(parameterized.TestCase):
         m_a_amu=m_ion,
         Z_a=Z_ion,
         T_a_keV=T_keV,
-        m_b_amu=m_e,
+        m_b_amu=m_e,  # pyrefly: ignore[bad-argument-type]
         Z_b=Z_e,
         n_b_m3=n_e_m3,
         T_b_keV=T_keV,

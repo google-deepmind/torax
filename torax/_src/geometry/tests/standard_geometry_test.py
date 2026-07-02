@@ -187,7 +187,7 @@ class GeometryTest(parameterized.TestCase):
         B_pol_OMP=None,
     )
     defaults.update(overrides)
-    return standard_geometry.StandardGeometryIntermediates(**defaults)
+    return standard_geometry.StandardGeometryIntermediates(**defaults)  # pyrefly: ignore[bad-argument-type]
 
   def test_post_init_flips_psi_when_decreasing(self):
     psi_decreasing = np.linspace(1.0, 0.0, 100)

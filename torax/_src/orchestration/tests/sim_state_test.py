@@ -68,7 +68,7 @@ class SimStateTest(parameterized.TestCase):
         B_pol_OMP=None,
     )
     defaults.update(overrides)
-    intermediates = standard_geometry.StandardGeometryIntermediates(**defaults)
+    intermediates = standard_geometry.StandardGeometryIntermediates(**defaults)  # pyrefly: ignore[bad-argument-type]
     return standard_geometry.build_standard_geometry(intermediates)
 
   def _make_sim_state(self, geo: geometry.Geometry) -> sim_state.SimState:

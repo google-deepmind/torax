@@ -169,12 +169,12 @@ class ProfileConditionsTest(parameterized.TestCase):
     if psi is None:
       self.assertIsNone(dcs.psi)
     else:
-      np.testing.assert_allclose(dcs.psi, expected_initial_value)
+      np.testing.assert_allclose(dcs.psi, expected_initial_value)  # pyrefly: ignore[no-matching-overload]
     dcs = pc.build_runtime_params(t=1.5)
     if psi is None:
       self.assertIsNone(dcs.psi)
     else:
-      np.testing.assert_allclose(dcs.psi, expected_second_value)
+      np.testing.assert_allclose(dcs.psi, expected_second_value)  # pyrefly: ignore[no-matching-overload]
 
   @parameterized.named_parameters(
       dict(testcase_name='float', values=1.0, raises=True),
@@ -569,7 +569,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         'n_e_right_bc_multiplier': multiplier,
     }
     if should_raise:
-      with self.assertRaisesRegex(ValueError, expected_error_msg):
+      with self.assertRaisesRegex(ValueError, expected_error_msg):  # pyrefly: ignore[bad-argument-type]
         profile_conditions.ProfileConditions(**config_overrides)
     else:
       profile_conditions.ProfileConditions(**config_overrides)
@@ -700,7 +700,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     result = profile_conditions.apply_prescribed_fast_ions(
         fi_list,
         prescribed,
-        geo.rho_face_norm,
+        geo.rho_face_norm,  # pyrefly: ignore[bad-argument-type]
     )
     self.assertLen(result, 2)
     # He3 should be overridden
@@ -728,7 +728,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     result = profile_conditions.apply_prescribed_fast_ions(
         fi_list,
         (),
-        geo.rho_face_norm,
+        geo.rho_face_norm,  # pyrefly: ignore[bad-argument-type]
     )
     self.assertLen(result, 1)
     np.testing.assert_allclose(result[0].n.value, 0.0, atol=1e-9)

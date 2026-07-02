@@ -132,7 +132,7 @@ def scale_cell_variable(
   )
 
   return cell_variable.CellVariable(
-      value=scaled_value,
+      value=scaled_value,  # pyrefly: ignore[bad-argument-type]
       face_centers=cv.face_centers,
       left_face_constraint=scaled_left_face_constraint,
       left_face_grad_constraint=scaled_left_face_grad_constraint,

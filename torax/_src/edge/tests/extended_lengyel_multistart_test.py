@@ -74,7 +74,7 @@ class ExtendedLengyelMultistartTest(parameterized.TestCase):
         high_cond = temp_target_guess > 400.0
 
         error_val = jnp.where(fail_cond, 1, 0)
-        new_numerics = dataclasses.replace(
+        new_numerics = dataclasses.replace(  # pyrefly: ignore[bad-specialization]
             status.numerics_outcome, error=error_val
         )
         status = dataclasses.replace(status, numerics_outcome=new_numerics)
@@ -140,7 +140,7 @@ class ExtendedLengyelMultistartTest(parameterized.TestCase):
         )
 
         status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(  # pytype: disable=wrong-arg-types
-            physics_outcome=phys_outcome,
+            physics_outcome=phys_outcome,  # pyrefly: ignore[bad-argument-type]
             numerics_outcome=jax_root_finding.RootMetadata(
                 iterations=jnp.array(5),
                 error=error_val,

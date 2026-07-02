@@ -338,7 +338,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       dict(
           testcase_name='update_value',
           replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
-              value=np.array([2.0, 3.0, 5.0])
+              value=np.array([2.0, 3.0, 5.0])  # pyrefly: ignore[bad-argument-type]
           ),
           expected_value=np.array([2.0, 3.0, 5.0]),
           expected_time=np.array([0.0, 1.0, 2.0]),
@@ -347,7 +347,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       dict(
           testcase_name='update_time',
           replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
-              time=np.array([0.0, 1.5, 2.5])
+              time=np.array([0.0, 1.5, 2.5])  # pyrefly: ignore[bad-argument-type]
           ),
           # time=[0, 1.5, 2.5], value=[1, 2, 4]. at t=1.0, interp is
           # 1 + (2-1)/(1.5-0) * (1-0) = 1 + 1/1.5 = 1.666...
@@ -358,7 +358,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       dict(
           testcase_name='update_time_and_value',
           replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
-              time=np.array([0.0, 1.5, 2.5]), value=np.array([2.0, 3.0, 5.0])
+              time=np.array([0.0, 1.5, 2.5]), value=np.array([2.0, 3.0, 5.0])  # pyrefly: ignore[bad-argument-type]
           ),
           # time=[0, 1.5, 2.5], value=[2, 3, 5]. at t=1.0, interp is
           # 2 + (3-2)/(1.5-0) * (1-0) = 2 + 1/1.5 = 2.666...
@@ -430,22 +430,22 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       dict(
           testcase_name='wrong_shape_value',
           replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
-              value=np.array([2.0, 3.0])
+              value=np.array([2.0, 3.0])  # pyrefly: ignore[bad-argument-type]
           ),
       ),
       dict(
           testcase_name='wrong_shape_time',
           replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
-              time=np.array([0.0, 1.5])
+              time=np.array([0.0, 1.5])  # pyrefly: ignore[bad-argument-type]
           ),
       ),
       dict(
           testcase_name='wrong_shape_time_and_value',
           replacements=interpolated_param_1d.TimeVaryingScalarUpdate(
-              time=np.array([
+              time=np.array([  # pyrefly: ignore[bad-argument-type]
                   0.0,
               ]),
-              value=np.array([2.0, 3.0]),
+              value=np.array([2.0, 3.0]),  # pyrefly: ignore[bad-argument-type]
           ),
       ),
   )

@@ -129,7 +129,7 @@ class PydanticModelTest(parameterized.TestCase):
     # Test invalid configs:
     for time_key in [0.0, 1.0]:
       invalid_config = base_config.copy()
-      invalid_config['geometry_configs'][time_key][param] = value
+      invalid_config['geometry_configs'][time_key][param] = value  # pyrefly: ignore[bad-index]
       with self.assertRaisesRegex(
           ValueError, 'following parameters cannot be set per geometry_config'
       ):

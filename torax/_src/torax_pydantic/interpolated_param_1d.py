@@ -188,7 +188,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 
     if isinstance(data, dict):
       # A workaround for https://github.com/pydantic/pydantic/issues/10477.
-      data.pop('_get_cached_interpolated_param', None)
+      data.pop('_get_cached_interpolated_param', None)  # pyrefly: ignore[no-matching-overload]
 
       # This is the standard constructor input. No conforming required.
       if set(data.keys()).issubset(cls.model_fields.keys()):
@@ -198,7 +198,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 
     time, value, interpolation_mode, is_bool_param = (
         interpolated_param.convert_input_to_xs_ys(
-            data, default_interpolation_mode
+            data, default_interpolation_mode  # pyrefly: ignore[bad-argument-type]
         )
     )
 

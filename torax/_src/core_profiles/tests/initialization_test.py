@@ -79,7 +79,7 @@ class InitializationTest(parameterized.TestCase):
             bootstrap_current=bootstrap,
             runtime_params=runtime_params,
             geo=geo,
-            j_toroidal_external=j_toroidal_external,
+            j_toroidal_external=j_toroidal_external,  # pyrefly: ignore[bad-argument-type]
         )
     )
     psi = initialization.update_psi_from_j(
@@ -532,7 +532,7 @@ def _get_initial_state(
   j_toroidal_total = core_profiles.j_total
   j_toroidal_total_face = core_profiles.j_total_face
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      sum(core_sources.psi.values()), geo, runtime_params.numerics.min_rho_norm
+      sum(core_sources.psi.values()), geo, runtime_params.numerics.min_rho_norm  # pyrefly: ignore[bad-argument-type]
   )
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
       core_sources.bootstrap_current.j_parallel_bootstrap,
@@ -543,11 +543,11 @@ def _get_initial_state(
       j_toroidal_total - j_toroidal_external - j_toroidal_bootstrap
   )
   currents = _Currents(
-      j_toroidal_total=j_toroidal_total,
-      j_toroidal_total_face=j_toroidal_total_face,
-      j_toroidal_external=j_toroidal_external,
-      j_toroidal_bootstrap=j_toroidal_bootstrap,
-      j_toroidal_ohmic=j_toroidal_ohmic,
+      j_toroidal_total=j_toroidal_total,  # pyrefly: ignore[bad-argument-type]
+      j_toroidal_total_face=j_toroidal_total_face,  # pyrefly: ignore[bad-argument-type]
+      j_toroidal_external=j_toroidal_external,  # pyrefly: ignore[bad-argument-type]
+      j_toroidal_bootstrap=j_toroidal_bootstrap,  # pyrefly: ignore[bad-argument-type]
+      j_toroidal_ohmic=j_toroidal_ohmic,  # pyrefly: ignore[bad-argument-type]
   )
   return core_profiles, geo, currents
 

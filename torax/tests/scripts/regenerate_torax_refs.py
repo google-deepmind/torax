@@ -144,8 +144,8 @@ def _calculate_new_references(
             runtime_params=runtime_params,
             geo=geo,
             bootstrap_current=source_profiles.bootstrap_current,
-            j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
-                sum(source_profiles.psi.values()),
+            j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(  # pyrefly: ignore[bad-argument-type]
+                sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
                 geo,
                 runtime_params.numerics.min_rho_norm,
             ),
@@ -187,9 +187,9 @@ def _calculate_new_references(
       core_profiles=initial_core_profiles,
   )
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
-      psi_sources=external_current,
+      psi_sources=external_current,  # pyrefly: ignore[bad-argument-type]
       sigma=conductivity.sigma,
-      resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
+      resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
       psi=psi,
       geo=geo,
   )
@@ -240,7 +240,7 @@ def main(argv: Sequence[str]) -> None:
     all_data = {}
 
   np.set_printoptions(
-      precision=12, suppress=True, threshold=np.inf, linewidth=100
+      precision=12, suppress=True, threshold=np.inf, linewidth=100  # pyrefly: ignore[bad-argument-type]
   )
 
   # Regenerate data for the selected cases and update the dictionary.

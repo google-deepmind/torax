@@ -432,15 +432,16 @@ class SimTest(sim_test_case.SimTestCase):
       # This is needed for CellVariable but not face variables
       if hasattr(profile_history, 'value'):
         profile_history = profile_history.value
-      first_profile = profile_history[0]
+      first_profile = profile_history[0]  # pyrefly: ignore[bad-index]
       if not all(
-          [np.all(profile == first_profile) for profile in profile_history]
+          [np.all(profile == first_profile) for profile in profile_history]  # pyrefly: ignore[not-iterable]
       ):
-        for i in range(1, len(profile_history)):
+        for i in range(1, len(profile_history)):  # pyrefly: ignore[bad-argument-type]
           # Most profiles should be == but j_total, q_face, and s_face can be
           # merely allclose because they are recalculated on each step.
-          if not np.allclose(profile_history[i], first_profile):
+          if not np.allclose(profile_history[i], first_profile):  # pyrefly: ignore[bad-index]
             msg = (
+                # pyrefly: ignore[bad-index]
                 'Profile changed over time despite all equations being '
                 'disabled.\n'
                 f'Profile name: {profile_name}\n'
@@ -526,13 +527,13 @@ class SimTest(sim_test_case.SimTestCase):
 
     for profile in profiles_to_check:
       np.testing.assert_allclose(
-          profile.value[middle_index, :],
-          profile.value[middle_index, :],
+          profile.value[middle_index, :],  # pyrefly: ignore[bad-index]
+          profile.value[middle_index, :],  # pyrefly: ignore[bad-index]
           rtol=1e-3,
       )
       np.testing.assert_allclose(
-          profile.value[-1, :],
-          profile.value[-1, :],
+          profile.value[-1, :],  # pyrefly: ignore[bad-index]
+          profile.value[-1, :],  # pyrefly: ignore[bad-index]
           rtol=1e-3,
       )
 

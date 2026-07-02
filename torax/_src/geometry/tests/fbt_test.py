@@ -200,25 +200,25 @@ class FBTGeometryTest(parameterized.TestCase):
 
     # Direction 0 has the shortest Lpar_div at each time, so its values
     # should be selected.
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         [i.connection_length_target for i in intermediates_list],
         np.array([10.0, 20.0]),
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         [i.connection_length_divertor for i in intermediates_list],
         np.array([1.0, 2.0]),
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         [i.angle_of_incidence_target for i in intermediates_list],
         np.array([3.0, 4.0]),
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         [i.R_OMP for i in intermediates_list], np.array([6.0, 7.0])
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         [i.R_target for i in intermediates_list], np.array([5.0, 6.0])
     )
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         [i.B_pol_OMP for i in intermediates_list], np.array([0.5, 0.7])
     )
 

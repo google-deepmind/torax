@@ -70,9 +70,9 @@ class InitialStatesTest(parameterized.TestCase):
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
-    np.testing.assert_allclose(core_profiles.T_i.right_face_constraint, 27.7)
-    np.testing.assert_allclose(core_profiles.T_e.right_face_constraint, 42.0)
-    np.testing.assert_allclose(core_profiles.n_e.right_face_constraint, 0.1e20)
+    np.testing.assert_allclose(core_profiles.T_i.right_face_constraint, 27.7)  # pyrefly: ignore[no-matching-overload]
+    np.testing.assert_allclose(core_profiles.T_e.right_face_constraint, 42.0)  # pyrefly: ignore[no-matching-overload]
+    np.testing.assert_allclose(core_profiles.n_e.right_face_constraint, 0.1e20)  # pyrefly: ignore[no-matching-overload]
 
   def test_core_profiles_quasineutrality_check(self):
     """Tests core_profiles quasineutrality check on initial state."""

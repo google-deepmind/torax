@@ -105,7 +105,7 @@ class StepFunctionTest(parameterized.TestCase):
     nan_array[-1] = np.nan
     bootstrap_current = dataclasses.replace(
         sim_state.core_sources.bootstrap_current,
-        j_parallel_bootstrap=nan_array,
+        j_parallel_bootstrap=nan_array,  # pyrefly: ignore[bad-argument-type]
     )
     new_core_sources = dataclasses.replace(
         sim_state.core_sources, bootstrap_current=bootstrap_current
@@ -381,7 +381,7 @@ class StepFunctionTest(parameterized.TestCase):
 
     # Run a step with overriden Ip.
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=params_provider.profile_conditions.Ip.value * 2.0
+        value=params_provider.profile_conditions.Ip.value * 2.0  # pyrefly: ignore[bad-argument-type]
     )
     runtime_params_overrides = params_provider.update_provider(
         lambda x: (x.profile_conditions.Ip,),

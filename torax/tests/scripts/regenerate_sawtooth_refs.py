@@ -219,7 +219,7 @@ def main(argv: Sequence[str]) -> None:
     output_path = get_references_path()
 
   np.set_printoptions(
-      precision=12, suppress=True, threshold=np.inf, linewidth=100
+      precision=12, suppress=True, threshold=np.inf, linewidth=100  # pyrefly: ignore[bad-argument-type]
   )
 
   logging.info('Regenerating sawtooth crash references...')

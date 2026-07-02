@@ -77,13 +77,13 @@ class RedlFormulasTest(parameterized.TestCase):
     )
 
     log_lambda_ei = collisions.calculate_log_lambda_ei(
-        self.core_profiles.T_e.face_value(), self.core_profiles.n_e.face_value()
+        self.core_profiles.T_e.face_value(), self.core_profiles.n_e.face_value()  # pyrefly: ignore[bad-argument-type]
     )
     self.nu_e_star = formulas.calculate_nu_e_star(
         q=self.core_profiles.q_face,
         geo=self.geo,
-        n_e=self.core_profiles.n_e.face_value(),
-        T_e=self.core_profiles.T_e.face_value(),
+        n_e=self.core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+        T_e=self.core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
         Z_eff=self.core_profiles.Z_eff_face,
         log_lambda_ei=log_lambda_ei,
     )

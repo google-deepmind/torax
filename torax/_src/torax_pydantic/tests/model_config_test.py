@@ -111,8 +111,8 @@ class ConfigTest(parameterized.TestCase):
       ]
       assert time_varying_arrays  # Should be non-empty.
       for m in time_varying_arrays:
-        chex.assert_trees_all_equal(mesh.face_centers, m.grid.face_centers)
-        chex.assert_trees_all_equal(mesh.cell_centers, m.grid.cell_centers)
+        chex.assert_trees_all_equal(mesh.face_centers, m.grid.face_centers)  # pyrefly: ignore[missing-attribute]
+        chex.assert_trees_all_equal(mesh.cell_centers, m.grid.cell_centers)  # pyrefly: ignore[missing-attribute]
 
   def test_geometry_direct_nrho_hires_factor_update(self):
 

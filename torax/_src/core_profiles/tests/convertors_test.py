@@ -102,8 +102,8 @@ class ConvertersTest(parameterized.TestCase):
         solver_x_tuple[0].value, self.base_core_profiles.T_e.value, decimal=10
     )
     np.testing.assert_array_almost_equal(
-        solver_x_tuple[0].right_face_constraint,
-        self.base_core_profiles.T_e.right_face_constraint,
+        solver_x_tuple[0].right_face_constraint,  # pyrefly: ignore[bad-argument-type]
+        self.base_core_profiles.T_e.right_face_constraint,  # pyrefly: ignore[bad-argument-type]
         decimal=10,
     )
     np.testing.assert_array_almost_equal(
@@ -112,8 +112,8 @@ class ConvertersTest(parameterized.TestCase):
         decimal=10,
     )
     np.testing.assert_array_almost_equal(
-        solver_x_tuple[1].right_face_constraint,
-        self.base_core_profiles.n_e.right_face_constraint
+        solver_x_tuple[1].right_face_constraint,  # pyrefly: ignore[bad-argument-type]
+        self.base_core_profiles.n_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
         / convertors.SCALING_FACTORS['n_e'],
         decimal=10,
     )
@@ -121,8 +121,8 @@ class ConvertersTest(parameterized.TestCase):
         solver_x_tuple[2].value, self.base_core_profiles.psi.value, decimal=10
     )
     np.testing.assert_array_almost_equal(
-        solver_x_tuple[2].right_face_grad_constraint,
-        self.base_core_profiles.psi.right_face_grad_constraint,
+        solver_x_tuple[2].right_face_grad_constraint,  # pyrefly: ignore[bad-argument-type]
+        self.base_core_profiles.psi.right_face_grad_constraint,  # pyrefly: ignore[bad-argument-type]
         decimal=10,
     )
 

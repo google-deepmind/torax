@@ -677,13 +677,13 @@ def apply_prescribed_fast_ions(
                   value=p.n,
                   face_centers=face_centers,
                   right_face_grad_constraint=None,
-                  right_face_constraint=p.n_right_bc,
+                  right_face_constraint=p.n_right_bc,  # pyrefly: ignore[bad-argument-type]
               ),
               T=cell_variable.CellVariable(
                   value=p.T,
                   face_centers=face_centers,
                   right_face_grad_constraint=None,
-                  right_face_constraint=p.T_right_bc,
+                  right_face_constraint=p.T_right_bc,  # pyrefly: ignore[bad-argument-type]
               ),
           )
       )

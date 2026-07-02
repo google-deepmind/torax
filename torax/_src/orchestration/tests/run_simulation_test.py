@@ -59,7 +59,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
     # Stitch the restart state file to the beginning of the reference dataset.
     datatree_new = output.stitch_state_files(
-        torax_config.restart, data_tree_restart
+        torax_config.restart, data_tree_restart  # pyrefly: ignore[bad-argument-type]
     )
 
     # Check that time coordinates agree.

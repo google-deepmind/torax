@@ -224,9 +224,9 @@ class MathUtilsTest(parameterized.TestCase):
     geo = circular_geometry.CircularConfig(
         n_rho=len(cell_values)
     ).build_geometry()
-    cell_values = jnp.array(cell_values, dtype=jnp.float32)
+    cell_values = jnp.array(cell_values, dtype=jnp.float32)  # pyrefly: ignore[bad-assignment]
 
-    face_values = math_utils.cell_to_face(cell_values, geo, preserved_quantity)
+    face_values = math_utils.cell_to_face(cell_values, geo, preserved_quantity)  # pyrefly: ignore[bad-argument-type]
     chex.assert_shape(face_values, (len(cell_values) + 1,))
 
     np.testing.assert_array_equal(
@@ -236,19 +236,19 @@ class MathUtilsTest(parameterized.TestCase):
     match preserved_quantity:
       case math_utils.IntegralPreservationQuantity.VALUE:
         np.testing.assert_allclose(
-            math_utils.cell_integration(cell_values, geo),
+            math_utils.cell_integration(cell_values, geo),  # pyrefly: ignore[bad-argument-type]
             jax.scipy.integrate.trapezoid(face_values, geo.rho_face_norm),
         )
       case math_utils.IntegralPreservationQuantity.SURFACE:
         np.testing.assert_allclose(
-            math_utils.cell_integration(cell_values * geo.spr, geo),
+            math_utils.cell_integration(cell_values * geo.spr, geo),  # pyrefly: ignore[bad-argument-type]
             jax.scipy.integrate.trapezoid(
                 face_values * geo.spr_face, geo.rho_face_norm
             ),
         )
       case math_utils.IntegralPreservationQuantity.VOLUME:
         np.testing.assert_allclose(
-            math_utils.cell_integration(cell_values * geo.vpr, geo),
+            math_utils.cell_integration(cell_values * geo.vpr, geo),  # pyrefly: ignore[bad-argument-type]
             jax.scipy.integrate.trapezoid(
                 face_values * geo.vpr_face, geo.rho_face_norm
             ),

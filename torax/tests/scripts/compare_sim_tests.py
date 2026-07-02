@@ -99,7 +99,7 @@ def _compare_sim_test_outputs(failed_test_file: str) -> None:
   ds_new = output.load_state_file(new_file).children['profiles']
   print(f'Comparing {old_file} and {new_file}:')
   for profile_name in profile_names:
-    _print_diff(profile_name, ds_old, ds_new)
+    _print_diff(profile_name, ds_old, ds_new)  # pyrefly: ignore[bad-argument-type]
   print('\n')
 
 

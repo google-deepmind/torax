@@ -136,7 +136,7 @@ class StaticDataclassTest(absltest.TestCase):
   def test_frozen(self):
     d = MyData(x=1, y="a")
     with self.assertRaises(dataclasses.FrozenInstanceError):
-      d.x = 2
+      d.x = 2  # pyrefly: ignore[read-only]
     with self.assertRaises(dataclasses.FrozenInstanceError):
       d.z = 3
 

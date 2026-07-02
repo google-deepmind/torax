@@ -133,8 +133,8 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
             mock_geo
         ),
         qei=source_profiles.QeiInfo.zeros(mock_geo),
-        T_e={'generic_heat': el_heat},
-        T_i={'generic_heat': ion_heat},
+        T_e={'generic_heat': el_heat},  # pyrefly: ignore[bad-argument-type]
+        T_i={'generic_heat': ion_heat},  # pyrefly: ignore[bad-argument-type]
     )
 
     # Verify that the mock sources integrate to the target power.
@@ -233,7 +233,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
               err_msg=f'Impurity concentration for {impurity} does not match.',
           )
       else:
-        np.testing.assert_allclose(getattr(outputs, key), value, rtol=_RTOL)
+        np.testing.assert_allclose(getattr(outputs, key), value, rtol=_RTOL)  # pyrefly: ignore[no-matching-overload]
 
   @mock.patch.object(
       extended_lengyel_standalone, 'run_extended_lengyel_standalone'
@@ -814,7 +814,7 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
         ),
     }
     defaults.update(kwargs)
-    return extended_lengyel_model.RuntimeParams(**defaults)
+    return extended_lengyel_model.RuntimeParams(**defaults)  # pyrefly: ignore[bad-argument-type]
 
   def test_resolve_geo_params_precedence_geo_over_config(self):
     mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
@@ -845,7 +845,7 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
     self.assertEqual(resolved.connection_length_divertor, 10.0)
     self.assertEqual(resolved.angle_of_incidence_target, 5.0)
     self.assertEqual(resolved.toroidal_flux_expansion, 2.0)
-    self.assertAlmostEqual(
+    self.assertAlmostEqual(  # pyrefly: ignore[no-matching-overload]
         resolved.ratio_bpol_omp_to_bpol_avg, 2 * np.pi, places=5
     )
 
@@ -1074,23 +1074,23 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
       # BCs should match edge model output
       expected_Te_bc = final_edge_output.T_e_separatrix
       expected_Ti_bc = expected_Te_bc * ion_to_electron_ratio
-      np.testing.assert_allclose(
+      np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           final_state.T_e.right_face_constraint, expected_Te_bc, rtol=1e-5
       )
-      np.testing.assert_allclose(
+      np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           final_state.T_i.right_face_constraint, expected_Ti_bc, rtol=1e-5
       )
       # Sanity check that it actually changed from initial
       with self.assertRaises(AssertionError):
-        np.testing.assert_allclose(
+        np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
             final_state.T_e.right_face_constraint, initial_Te_bc, rtol=1e-5
         )
     else:
       # BCs should remain at initial prescribed values
-      np.testing.assert_allclose(
+      np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           final_state.T_e.right_face_constraint, initial_Te_bc, rtol=1e-5
       )
-      np.testing.assert_allclose(
+      np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           final_state.T_i.right_face_constraint, initial_Ti_bc, rtol=1e-5
       )
 

@@ -47,7 +47,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
     result, post_processed = (
         initial_state.get_initial_state_and_post_processed_outputs_from_file(
-            file_restart=torax_config.restart,
+            file_restart=torax_config.restart,  # pyrefly: ignore[bad-argument-type]
             step_fn=step_fn,
         )
     )

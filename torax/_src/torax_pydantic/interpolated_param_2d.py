@@ -90,7 +90,7 @@ class Grid1D(model_base.BaseModelFrozen):
     """Widths of cells."""
     return jnp.diff(self.face_centers)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:
+  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
     """Custom equality to handle numpy array comparison."""
     if not isinstance(other, Grid1D):
       return False
@@ -249,8 +249,8 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     if not np.any(sign_change):
       return subintervals
 
-    t_cross = t_i + dt * (-v_i[sign_change]) / (
-        v_next[sign_change] - v_i[sign_change]
+    t_cross = t_i + dt * (-v_i[sign_change]) / (  # pyrefly: ignore[bad-index]
+        v_next[sign_change] - v_i[sign_change]  # pyrefly: ignore[bad-index]
     )
 
     # Points nonpositive at t_i are nonpositive on [t_i, t_cross].
@@ -415,7 +415,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         (time, cell_value, time, face_value, time, face_right_value),
     )
 
-  def __eq__(self, other: typing_extensions.Self):
+  def __eq__(self, other: typing_extensions.Self):  # pyrefly: ignore[bad-override]
     try:
       chex.assert_trees_all_equal(self.value, other.value)
       return (
@@ -465,13 +465,13 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
     if isinstance(data, dict):
       # A workaround for https://github.com/pydantic/pydantic/issues/10477.
-      data.pop('_get_cached_interpolated_param_cell_centers', None)
-      data.pop('_get_cached_interpolated_param_face_centers', None)
-      data.pop('_get_cached_interpolated_param_face_right_centers', None)
+      data.pop('_get_cached_interpolated_param_cell_centers', None)  # pyrefly: ignore[no-matching-overload]
+      data.pop('_get_cached_interpolated_param_face_centers', None)  # pyrefly: ignore[no-matching-overload]
+      data.pop('_get_cached_interpolated_param_face_right_centers', None)  # pyrefly: ignore[no-matching-overload]
 
       # This is the standard constructor input. No conforming required.
       if set(data.keys()).issubset(cls.model_fields.keys()):
-        return data
+        return data  # pyrefly: ignore[bad-return]
 
     # Potentially parse the interpolation modes from the input.
     time_interpolation_mode = (
@@ -490,7 +490,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
             data[1]['rho_interpolation_mode'].upper()
         ]
         # First element in tuple assumed to be the input.
-        data = data[0]
+        data = data[0]  # pyrefly: ignore[bad-assignment]
 
     if isinstance(data, xr.DataArray):
       value = _load_from_arrays(data)
@@ -509,7 +509,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
           )
       value = _load_from_arrays(tuple(values))
     elif isinstance(data, Mapping) or isinstance(data, (float, int)):
-      value = _load_from_primitives(data)
+      value = _load_from_primitives(data)  # pyrefly: ignore[bad-argument-type]
     else:
       raise ValueError(
           'Input to TimeVaryingArray unsupported. Input was of type:'
@@ -748,15 +748,15 @@ def _load_from_primitives(
   if isinstance(primitive_values, Mapping) and all(
       isinstance(v, float) for v in primitive_values.values()
   ):
-    primitive_values = {0.0: primitive_values}
+    primitive_values = {0.0: primitive_values}  # pyrefly: ignore[bad-assignment]
 
-  if len(set(primitive_values.keys())) != len(primitive_values):
+  if len(set(primitive_values.keys())) != len(primitive_values):  # pyrefly: ignore[bad-argument-type, missing-attribute]
     raise ValueError('Indicies in values mapping must be unique.')
   if not primitive_values:
     raise ValueError('Values mapping must not be empty.')
 
   loaded_values = {}
-  for t, v in primitive_values.items():
+  for t, v in primitive_values.items():  # pyrefly: ignore[missing-attribute]
     x, y, _, _ = interpolated_param.convert_input_to_xs_ys(v)
     loaded_values[t] = (x, y)
 

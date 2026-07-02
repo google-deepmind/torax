@@ -41,13 +41,13 @@ class UpdatersTest(parameterized.TestCase):
     T_e = cell_variable.CellVariable(
         value=jnp.ones_like(self.geo.rho_norm),
         face_centers=self.geo.rho_face_norm,
-        right_face_constraint=1.0,
+        right_face_constraint=1.0,  # pyrefly: ignore[bad-argument-type]
         right_face_grad_constraint=None,
     )
     n_e = cell_variable.CellVariable(
         value=jnp.ones_like(self.geo.rho_norm),
         face_centers=self.geo.rho_face_norm,
-        right_face_constraint=1.0,
+        right_face_constraint=1.0,  # pyrefly: ignore[bad-argument-type]
         right_face_grad_constraint=None,
     )
 

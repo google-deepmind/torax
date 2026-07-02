@@ -510,7 +510,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
     # Test valid FORWARD mode
     extended_lengyel_standalone._validate_inputs_for_computation_mode(
         computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        T_e_target=None,
+        T_e_target=None,  # pyrefly: ignore[bad-argument-type]
         seed_impurity_weights={},
     )
     # Test invalid FORWARD mode
@@ -530,7 +530,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
     ):
       extended_lengyel_standalone._validate_inputs_for_computation_mode(
           computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-          T_e_target=None,
+          T_e_target=None,  # pyrefly: ignore[bad-argument-type]
           seed_impurity_weights={'N': 1.0},
       )
     # Test valid INVERSE mode
@@ -546,7 +546,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
     ):
       extended_lengyel_standalone._validate_inputs_for_computation_mode(
           computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
-          T_e_target=None,
+          T_e_target=None,  # pyrefly: ignore[bad-argument-type]
           seed_impurity_weights={'N': 1.0},
       )
     with self.assertRaisesRegex(

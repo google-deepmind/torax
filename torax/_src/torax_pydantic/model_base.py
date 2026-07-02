@@ -150,7 +150,7 @@ class BaseModelFrozen(pydantic.BaseModel):
     # Some Pydantic models are values of a dict. We flatten the tree to access
     # them.
     leaves = jax.tree.flatten(leaves, is_leaf=is_leaf)[0]
-    return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))
+    return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))  # pyrefly: ignore[bad-return]
 
   @property
   def submodels(self) -> tuple[Self, ...]:
@@ -215,8 +215,8 @@ class BaseModelFrozen(pydantic.BaseModel):
     for name, value in inspect.getmembers(self.__class__):
       if isinstance(value, functools.cached_property):
         cached_properties.append(name)
-    exceptions = {} if exceptions is None else exceptions
-    cached_properties = set(cached_properties) - set(exceptions)
+    exceptions = {} if exceptions is None else exceptions  # pyrefly: ignore[bad-assignment]
+    cached_properties = set(cached_properties) - set(exceptions)  # pyrefly: ignore[bad-argument-type]
     for p in cached_properties:
       # Note: this is not the idiomatic way to clear a cached property, which
       # is `del self.some_property`. This doesn't work with `del getattr(...)`
@@ -268,7 +268,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       # model, as this has its own config.
       cfg = pydantic.ConfigDict(arbitrary_types_allowed=True)
       try:
-        cfg = None if issubclass(field_type, pydantic.BaseModel) else cfg
+        cfg = None if issubclass(field_type, pydantic.BaseModel) else cfg  # pyrefly: ignore[bad-argument-type]
       except TypeError:
         pass
       value = pydantic.TypeAdapter(field_type, config=cfg).validate_python(
@@ -300,4 +300,4 @@ class BaseModelFrozen(pydantic.BaseModel):
         raise ValueError(f'Cannot look up path {path} in {value}')
     if not isinstance(value, BaseModelFrozen):
       raise ValueError(f'The value at path {paths} is not a Pydantic model.')
-    return value
+    return value  # pyrefly: ignore[bad-return]

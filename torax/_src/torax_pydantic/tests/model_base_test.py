@@ -37,7 +37,7 @@ class PydanticBaseTest(parameterized.TestCase):
 
     with self.subTest('frozen_model_cannot_be_updated'):
       with self.assertRaises(ValueError):
-        m.x = 2.0
+        m.x = 2.0  # pyrefly: ignore[read-only]
 
   def test_model_base_jax_pytree(self):
 

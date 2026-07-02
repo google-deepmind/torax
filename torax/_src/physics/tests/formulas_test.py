@@ -42,7 +42,7 @@ class FormulasTest(parameterized.TestCase):
         n_impurity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.25e20
         ),
-        Ip_profile_face=[np.pi * 1e6],
+        Ip_profile_face=[np.pi * 1e6],  # pyrefly: ignore[bad-argument-type]
     )
 
   # TODO(b/377225415): generalize to arbitrary number of ions.
@@ -74,9 +74,9 @@ class FormulasTest(parameterized.TestCase):
 
     volume = math_utils.volume_integration(np.array([1.0]), self.geo)
 
-    np.testing.assert_allclose(wth_el, 1.5 * p_el.value[0] * volume)
-    np.testing.assert_allclose(wth_ion, 1.5 * p_ion.value[0] * volume)
-    np.testing.assert_allclose(wth_tot, 1.5 * p_tot.value[0] * volume)
+    np.testing.assert_allclose(wth_el, 1.5 * p_el.value[0] * volume)  # pyrefly: ignore[bad-index]
+    np.testing.assert_allclose(wth_ion, 1.5 * p_ion.value[0] * volume)  # pyrefly: ignore[bad-index]
+    np.testing.assert_allclose(wth_tot, 1.5 * p_tot.value[0] * volume)  # pyrefly: ignore[bad-index]
 
   def test_calculate_greenwald_fraction(self):
     """Test that Greenwald fraction is calculated correctly."""
@@ -95,7 +95,7 @@ class FormulasTest(parameterized.TestCase):
   def test_calculate_betas(self):
     """Test that betas are calculated correctly."""
 
-    beta_tor, beta_pol, beta_N = formulas.calculate_betas(
+    beta_tor, beta_pol, beta_N = formulas.calculate_betas(  # pyrefly: ignore[not-iterable]
         self.core_profiles, self.geo
     )
     beta_tor_expected = 0.012530022

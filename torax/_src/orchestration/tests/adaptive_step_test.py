@@ -85,7 +85,7 @@ class AdaptiveStepTest(parameterized.TestCase):
     )
     adaptive_step_state, _ = adaptive_step.compute_state(
         i=0,
-        loop_statistics=loop_statistics,
+        loop_statistics=loop_statistics,  # pyrefly: ignore[bad-argument-type]
         initial_dt=initial_dt,
         runtime_params_t=self.runtime_params,
         geo_t=self.geo,

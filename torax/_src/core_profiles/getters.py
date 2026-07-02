@@ -80,7 +80,7 @@ def get_updated_ion_temperature(
       face_centers=geo.rho_face_norm,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=profile_conditions_params.T_i_right_bc,
+      right_face_constraint=profile_conditions_params.T_i_right_bc,  # pyrefly: ignore[bad-argument-type]
   )
   return T_i
 
@@ -107,7 +107,7 @@ def get_updated_electron_temperature(
       face_centers=geo.rho_face_norm,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=profile_conditions_params.T_e_right_bc,
+      right_face_constraint=profile_conditions_params.T_e_right_bc,  # pyrefly: ignore[bad-argument-type]
   )
   return T_e
 
@@ -234,7 +234,7 @@ def get_updated_psi(
           dt=dt,
           v_loop_lcfs_t=profile_conditions_params.v_loop_lcfs,
           v_loop_lcfs_t_plus_dt=profile_conditions_params.v_loop_lcfs,
-          psi_lcfs_t=original_psi.right_face_constraint,
+          psi_lcfs_t=original_psi.right_face_constraint,  # pyrefly: ignore[bad-argument-type]
           theta=theta,
       )
       if profile_conditions_params.use_v_loop_lcfs_boundary_condition
@@ -261,7 +261,7 @@ def get_updated_toroidal_angular_velocity(
       value=value,
       face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=profile_conditions_params.toroidal_angular_velocity_right_bc,
+      right_face_constraint=profile_conditions_params.toroidal_angular_velocity_right_bc,  # pyrefly: ignore[bad-argument-type]
   )
   return toroidal_angular_velocity
 
@@ -293,14 +293,14 @@ def _get_ion_properties_from_fractions(
   """Calculates ion properties when impurity content is defined by fractions."""
 
   charge_state_info = charge_states.get_average_charge_state(
-      T_e=T_e.value,
+      T_e=T_e.value,  # pyrefly: ignore[bad-argument-type]
       fractions=impurity_params.fractions,
       Z_override=impurity_params.Z_override,
   )
   Z_impurity = charge_state_info.Z_mixture
 
   charge_state_info_face = charge_states.get_average_charge_state(
-      T_e=T_e.face_value(),
+      T_e=T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
       fractions=impurity_params.fractions_face,
       Z_override=impurity_params.Z_override,
   )
@@ -343,12 +343,12 @@ def _get_ion_properties_from_n_e_ratios(
 ) -> _IonProperties:
   """Calculates ion properties when impurity content is defined by n_e ratios."""
   average_charge_state = charge_states.get_average_charge_state(
-      T_e=T_e.value,
+      T_e=T_e.value,  # pyrefly: ignore[bad-argument-type]
       fractions=impurity_params.fractions,
       Z_override=impurity_params.Z_override,
   )
   average_charge_state_face = charge_states.get_average_charge_state(
-      T_e=T_e.face_value(),
+      T_e=T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
       fractions=impurity_params.fractions_face,
       Z_override=impurity_params.Z_override,
   )
@@ -439,13 +439,13 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
   impurity_symbols = tuple(impurity_params.n_e_ratios.keys())
   Z_per_species = jnp.stack([
       charge_states.calculate_average_charge_state_single_species(
-          T_e.value, symbol
+          T_e.value, symbol  # pyrefly: ignore[bad-argument-type]
       )
       for symbol in impurity_symbols
   ])
   Z_per_species_face = jnp.stack([
       charge_states.calculate_average_charge_state_single_species(
-          T_e.face_value(), symbol
+          T_e.face_value(), symbol  # pyrefly: ignore[bad-argument-type]
       )
       for symbol in impurity_symbols
   ])
@@ -557,19 +557,19 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
   else:
     A_avg = jnp.ones_like(T_e.value) * impurity_params.A_override
     A_avg_face = (
-        jnp.ones_like(T_e.face_value()) * impurity_params.A_override_face
+        jnp.ones_like(T_e.face_value()) * impurity_params.A_override_face  # pyrefly: ignore[unsupported-operation]
     )
 
   charge_state_info = charge_states.get_average_charge_state(
-      T_e=T_e.value,
-      fractions=fractions,
+      T_e=T_e.value,  # pyrefly: ignore[bad-argument-type]
+      fractions=fractions,  # pyrefly: ignore[bad-argument-type]
       Z_override=impurity_params.Z_override,
   )
   Z_impurity = charge_state_info.Z_mixture
 
   charge_state_info_face = charge_states.get_average_charge_state(
-      T_e=T_e.face_value(),
-      fractions=fractions_face,
+      T_e=T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      fractions=fractions_face,  # pyrefly: ignore[bad-argument-type]
       Z_override=impurity_params.Z_override,
   )
   Z_impurity_face = charge_state_info_face.Z_mixture
@@ -582,7 +582,7 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
       Z_eff=Z_eff_from_config,
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_face[-1],
-      impurity_fractions=fractions,
+      impurity_fractions=fractions,  # pyrefly: ignore[bad-argument-type]
       charge_state_info=charge_state_info,
       charge_state_info_face=charge_state_info_face,
   )
@@ -631,13 +631,13 @@ def get_updated_ions(
   """
 
   Z_i = charge_states.get_average_charge_state(
-      T_e=T_e.value,
-      fractions=runtime_params.plasma_composition.main_ion.fractions,
+      T_e=T_e.value,  # pyrefly: ignore[bad-argument-type]
+      fractions=runtime_params.plasma_composition.main_ion.fractions,  # pyrefly: ignore[bad-argument-type]
       Z_override=runtime_params.plasma_composition.main_ion.Z_override,
   ).Z_mixture
   Z_i_face = charge_states.get_average_charge_state(
-      T_e=T_e.face_value(),
-      fractions=runtime_params.plasma_composition.main_ion.fractions,
+      T_e=T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      fractions=runtime_params.plasma_composition.main_ion.fractions,  # pyrefly: ignore[bad-argument-type]
       Z_override=runtime_params.plasma_composition.main_ion.Z_override,
   ).Z_mixture
 
@@ -678,7 +678,7 @@ def get_updated_ions(
       value=n_e.value * ion_properties.dilution_factor,
       face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=n_e.right_face_constraint
+      right_face_constraint=n_e.right_face_constraint  # pyrefly: ignore[bad-argument-type, unsupported-operation]
       * ion_properties.dilution_factor_edge,
   )
 
@@ -706,7 +706,7 @@ def get_updated_ions(
   n_impurity_right_face_constraint = jnp.where(
       ion_properties.dilution_factor_edge == 1.0,
       0.0,
-      (n_e.right_face_constraint - n_i.right_face_constraint * Z_i_face[-1])
+      (n_e.right_face_constraint - n_i.right_face_constraint * Z_i_face[-1])  # pyrefly: ignore[unsupported-operation]
       / safe_Z_impurity_edge,
   )
 
@@ -724,9 +724,9 @@ def get_updated_ions(
   Z_eff_face = _calculate_Z_eff(
       Z_i_face,
       ion_properties.Z_impurity_face,
-      n_i.face_value(),
-      n_impurity.face_value(),
-      n_e.face_value(),
+      n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_impurity.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
   )
 
   # Convert array of fractions to a mapping from symbol to fraction profile.

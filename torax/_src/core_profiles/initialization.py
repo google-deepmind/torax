@@ -107,7 +107,7 @@ def initial_core_profiles(
         profile_conditions_lib.apply_prescribed_fast_ions(
             fast_ions_list,
             runtime_params.profile_conditions.prescribed_fast_ions,
-            geo.rho_face_norm,
+            geo.rho_face_norm,  # pyrefly: ignore[bad-argument-type]
         )
     )
 
@@ -210,7 +210,7 @@ def update_psi_from_j(
   assert y.ndim == 1
   assert geo.rho_hires.ndim == 1
   Ip_profile = math_utils.cumulative_trapezoid(
-      y=y, x=geo.rho_hires_norm, initial=0.0
+      y=y, x=geo.rho_hires_norm, initial=0.0  # pyrefly: ignore[bad-argument-type]
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
@@ -222,7 +222,7 @@ def update_psi_from_j(
 
   # psi on hires cell grid
   psi_hires = math_utils.cumulative_trapezoid(
-      y=dpsi_drhon_hires, x=geo.rho_hires_norm, initial=0.0
+      y=dpsi_drhon_hires, x=geo.rho_hires_norm, initial=0.0  # pyrefly: ignore[bad-argument-type]
   )
 
   psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
@@ -513,7 +513,7 @@ def _calculate_all_psi_dependent_profiles(
     psidot_value = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=psi_sources,
         sigma=conductivity.sigma,
-        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
+        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
         psi=psi,
         geo=geo,
     )
@@ -529,7 +529,7 @@ def _calculate_all_psi_dependent_profiles(
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=psidot_value,
-      right_face_constraint=v_loop_lcfs,
+      right_face_constraint=v_loop_lcfs,  # pyrefly: ignore[bad-argument-type]
       right_face_grad_constraint=None,
   )
   core_profiles = dataclasses.replace(
@@ -594,8 +594,8 @@ def _iterate_psi_and_sources(
         runtime_params,
         geo,
         source_profiles.bootstrap_current,
-        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
-            sum(source_profiles.psi.values()),
+        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(  # pyrefly: ignore[bad-argument-type]
+            sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
             geo,
             runtime_params.numerics.min_rho_norm,
         ),

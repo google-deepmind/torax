@@ -184,7 +184,7 @@ class ChargeStatesTest(parameterized.TestCase):
     Z_override = np.array([50.0, 50.0, 50.0])
     Z_calculated = charge_states.get_average_charge_state(
         T_e,
-        species,
+        species,  # pyrefly: ignore[bad-argument-type]
         np.array([50.0, 50.0, 50.0]),
     ).Z_mixture
     np.testing.assert_allclose(Z_calculated, Z_override)

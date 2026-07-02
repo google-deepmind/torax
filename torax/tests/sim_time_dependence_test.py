@@ -51,10 +51,10 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[
+    model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
         'transport'
     ].annotation |= FakeTransportConfig
-    model_config.ToraxConfig.model_fields[
+    model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
         'solver'
     ].annotation |= FakeSolverConfig
     model_config.ToraxConfig.model_rebuild(force=True)
@@ -117,7 +117,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         tuple[post_processing.PostProcessedOutputs, ...],
         state.SimError,
     ]:
-      del (
+      del (  # pyrefly: ignore[unsupported-delete]
           log_timestep_info,
           progress_bar,
           max_steps,
@@ -160,7 +160,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
 class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
   """Fake solver config that allows us to hook into the error logic."""
 
-  solver_type: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'
+  solver_type: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'  # pyrefly: ignore[bad-override]
   param: Annotated[str, torax_pydantic.JAX_STATIC] = 'T_i_right_bc'
   max_value: float = 2.5
   inner_solver_iterations: list[int] | None = None

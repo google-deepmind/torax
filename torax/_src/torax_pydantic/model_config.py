@@ -75,7 +75,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_model.Sources
   neoclassical: neoclassical_pydantic_model.Neoclassical = (
-      neoclassical_pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa
+      neoclassical_pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa  # pyrefly: ignore[missing-argument]
   )
   solver: solver_pydantic_model.SolverConfig = pydantic.Field(
       discriminator='solver_type'
@@ -155,7 +155,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     initial_guess_mode_is_linear = (
         False
         if using_linear_solver
-        else self.solver.initial_guess_mode == enums.InitialGuessMode.LINEAR
+        else self.solver.initial_guess_mode == enums.InitialGuessMode.LINEAR  # pyrefly: ignore[missing-attribute]
     )
 
     if (

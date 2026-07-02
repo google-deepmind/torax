@@ -471,7 +471,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
         'Either both or neither of rho_norm and value must be provided.',
     ):
       interpolated_param_2d.TimeVaryingArrayUpdate(
-          value=np.array([[1.0]]), rho_norm=None
+          value=np.array([[1.0]]), rho_norm=None  # pyrefly: ignore[bad-argument-type]
       )
 
   def test_time_varying_array_update_validations_rhonorm_only(self):
@@ -480,7 +480,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
         'Either both or neither of rho_norm and value must be provided.',
     ):
       interpolated_param_2d.TimeVaryingArrayUpdate(
-          value=None, rho_norm=np.array([1.0])
+          value=None, rho_norm=np.array([1.0])  # pyrefly: ignore[bad-argument-type]
       )
 
   def test_time_varying_array_update_validations_shape_mismatch(self):
@@ -489,7 +489,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
         'rho_norm and value must have the same trailing dimension.',
     ):
       interpolated_param_2d.TimeVaryingArrayUpdate(
-          value=np.array([[1.0, 2.0], [3.0, 4.0]]), rho_norm=np.array([1.0])
+          value=np.array([[1.0, 2.0], [3.0, 4.0]]), rho_norm=np.array([1.0])  # pyrefly: ignore[bad-argument-type]
       )
 
   def test_time_varying_array_update_validations_time_dimension_mismatch(self):
@@ -498,24 +498,24 @@ class InterpolatedParam2dTest(parameterized.TestCase):
         'value and time arrays must have same leading dimension.',
     ):
       interpolated_param_2d.TimeVaryingArrayUpdate(
-          value=np.array([[1.0, 2.0], [3.0, 4.0]]),
-          rho_norm=np.array([0.0, 1.0]),
-          time=np.array([0.0]),
+          value=np.array([[1.0, 2.0], [3.0, 4.0]]),  # pyrefly: ignore[bad-argument-type]
+          rho_norm=np.array([0.0, 1.0]),  # pyrefly: ignore[bad-argument-type]
+          time=np.array([0.0]),  # pyrefly: ignore[bad-argument-type]
       )
 
   def test_allowed_mix_of_numpy_and_jax_arrays_for_update(self):
     interpolated_param_2d.TimeVaryingArrayUpdate(
         value=jnp.array([[1.0, 2.0], [3.0, 4.0]]),
-        rho_norm=np.array([0.0, 1.0]),
-        time=np.array([0.0, 1.0]),
+        rho_norm=np.array([0.0, 1.0]),  # pyrefly: ignore[bad-argument-type]
+        time=np.array([0.0, 1.0]),  # pyrefly: ignore[bad-argument-type]
     )
 
   @parameterized.named_parameters(
       dict(
           testcase_name='update_values',
           new_values=interpolated_param_2d.TimeVaryingArrayUpdate(
-              value=np.array([[0.0, 2.0, 4.0], [1.0, 3.0, 5.0]]),
-              rho_norm=np.array([0.0, 0.5, 1.0]),
+              value=np.array([[0.0, 2.0, 4.0], [1.0, 3.0, 5.0]]),  # pyrefly: ignore[bad-argument-type]
+              rho_norm=np.array([0.0, 0.5, 1.0]),  # pyrefly: ignore[bad-argument-type]
           ),
           expected_cell_values=np.array([0.5, 1.5, 2.5, 3.5]),
           expected_face_values=np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
@@ -524,7 +524,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       dict(
           testcase_name='update_time',
           new_values=interpolated_param_2d.TimeVaryingArrayUpdate(
-              time=np.array([-1.0, 0.0]),
+              time=np.array([-1.0, 0.0]),  # pyrefly: ignore[bad-argument-type]
           ),
           # expect to receive the previous t=1 values.
           expected_cell_values=np.array([3.5, 4.5, 5.5, 6.5]),
