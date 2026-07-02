@@ -172,7 +172,7 @@ class CoreProfiles:
     return cell_variable.CellVariable(
         value=self.n_e.value * self.T_e.value * constants.CONSTANTS.keV_to_J,
         face_centers=self.n_e.face_centers,
-        right_face_constraint=self.n_e.right_face_constraint
+        right_face_constraint=self.n_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
         * self.T_e.right_face_constraint
         * constants.CONSTANTS.keV_to_J,
         right_face_grad_constraint=None,
@@ -191,12 +191,12 @@ class CoreProfiles:
     n_impurity_thermal_right = self.n_impurity.right_face_constraint
     for fast_ion in self.fast_ions:
       if fast_ion.species in self.impurity_fractions:
-        n_impurity_thermal_value -= fast_ion.n.value
+        n_impurity_thermal_value -= fast_ion.n.value  # pyrefly: ignore[unsupported-operation]
         if (
             n_impurity_thermal_right is not None
             and fast_ion.n.right_face_constraint is not None
         ):
-          n_impurity_thermal_right -= fast_ion.n.right_face_constraint
+          n_impurity_thermal_right -= fast_ion.n.right_face_constraint  # pyrefly: ignore[unsupported-operation]
     return cell_variable.CellVariable(
         value=n_impurity_thermal_value,
         face_centers=self.n_impurity.face_centers,
@@ -212,10 +212,10 @@ class CoreProfiles:
         * constants.CONSTANTS.keV_to_J
         * (self.n_i.value + self.n_impurity_thermal.value),
         face_centers=self.n_i.face_centers,
-        right_face_constraint=self.T_i.right_face_constraint
+        right_face_constraint=self.T_i.right_face_constraint  # pyrefly: ignore[unsupported-operation]
         * constants.CONSTANTS.keV_to_J
         * (
-            self.n_i.right_face_constraint
+            self.n_i.right_face_constraint  # pyrefly: ignore[unsupported-operation]
             + self.n_impurity_thermal.right_face_constraint
         ),
         right_face_grad_constraint=None,
@@ -227,7 +227,7 @@ class CoreProfiles:
     return cell_variable.CellVariable(
         value=self.pressure_thermal_e.value + self.pressure_thermal_i.value,
         face_centers=self.pressure_thermal_e.face_centers,
-        right_face_constraint=self.pressure_thermal_e.right_face_constraint
+        right_face_constraint=self.pressure_thermal_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
         + self.pressure_thermal_i.right_face_constraint,
         right_face_grad_constraint=None,
     )
@@ -274,7 +274,7 @@ class CoreProfiles:
     return cell_variable.CellVariable(
         value=self.pressure_thermal_i.value + self.pressure_fast_i.value,
         face_centers=self.pressure_thermal_i.face_centers,
-        right_face_constraint=self.pressure_thermal_i.right_face_constraint
+        right_face_constraint=self.pressure_thermal_i.right_face_constraint  # pyrefly: ignore[unsupported-operation]
         + self.pressure_fast_i.right_face_constraint,
         right_face_grad_constraint=None,
     )
@@ -285,7 +285,7 @@ class CoreProfiles:
     return cell_variable.CellVariable(
         value=self.pressure_thermal_total.value + self.pressure_fast_i.value,
         face_centers=self.pressure_thermal_total.face_centers,
-        right_face_constraint=self.pressure_thermal_total.right_face_constraint
+        right_face_constraint=self.pressure_thermal_total.right_face_constraint  # pyrefly: ignore[unsupported-operation]
         + self.pressure_fast_i.right_face_constraint,
         right_face_grad_constraint=None,
     )
@@ -309,9 +309,9 @@ class CoreProfiles:
     )
     # Check if any profile is less than -eps
     # (allowing for numerical precision errors)
-    return np.any(
+    return np.any(  # pyrefly: ignore[bad-return]
         np.array([
-            np.any(np.less(x, -constants.CONSTANTS.eps))
+            np.any(np.less(x, -constants.CONSTANTS.eps))  # pyrefly: ignore[unsupported-operation]
             for x in jax.tree.leaves(profiles_to_check)
         ])
     )
@@ -410,23 +410,23 @@ class CoreTransport:
   @property
   def chi_face_ion_total(self) -> jax.Array:
     """Calculates the total ion heat diffusion coefficient."""
-    return self.chi_face_ion + self.chi_face_ion_pereverzev + self.chi_neo_i
+    return self.chi_face_ion + self.chi_face_ion_pereverzev + self.chi_neo_i  # pyrefly: ignore[unsupported-operation]
 
   @property
   def chi_face_el_total(self) -> jax.Array:
     """Calculates the total electron heat diffusion coefficient."""
-    return self.chi_face_el + self.chi_face_el_pereverzev + self.chi_neo_e
+    return self.chi_face_el + self.chi_face_el_pereverzev + self.chi_neo_e  # pyrefly: ignore[unsupported-operation]
 
   @property
   def d_face_el_total(self) -> jax.Array:
     """Calculates the total particle diffusion coefficient."""
-    return self.d_face_el + self.d_face_el_pereverzev + self.D_neo_e
+    return self.d_face_el + self.d_face_el_pereverzev + self.D_neo_e  # pyrefly: ignore[unsupported-operation]
 
   @property
   def v_face_el_total(self) -> jax.Array:
     """Calculates the total particle convection coefficient."""
     return (
-        self.v_face_el
+        self.v_face_el  # pyrefly: ignore[unsupported-operation]
         + self.v_face_el_pereverzev
         + self.V_neo_e
         + self.V_neo_ware_e
@@ -445,8 +445,8 @@ class CoreTransport:
       chi_max: Maximum value of chi.
     """
     return jnp.maximum(
-        jnp.max((self.chi_face_ion + self.chi_neo_i) * geo.g1_over_vpr2_face),
-        jnp.max((self.chi_face_el + self.chi_neo_e) * geo.g1_over_vpr2_face),
+        jnp.max((self.chi_face_ion + self.chi_neo_i) * geo.g1_over_vpr2_face),  # pyrefly: ignore[unsupported-operation]
+        jnp.max((self.chi_face_el + self.chi_neo_e) * geo.g1_over_vpr2_face),  # pyrefly: ignore[unsupported-operation]
     )
 
   @classmethod

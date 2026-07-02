@@ -91,7 +91,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       extended_lengyel_defaults.NEWTON_RAPHSON_TOL
   )
   multistart_num_guesses: Annotated[
-      pydantic.conint(ge=2), torax_pydantic.JAX_STATIC
+      pydantic.conint(ge=2), torax_pydantic.JAX_STATIC  # pyrefly: ignore[invalid-annotation]
   ] = extended_lengyel_defaults.MULTISTART_NUM_GUESSES
 
   # Optional boolean to specify if the geometry is diverted.
@@ -408,7 +408,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         diverted=_get_optional_value(self.diverted, t),
         update_temperatures=self.update_temperatures.get_value(t),
         update_impurities=self.update_impurities.get_value(t),
-        fixed_point_iterations=self.fixed_point_iterations,
+        fixed_point_iterations=self.fixed_point_iterations,  # pyrefly: ignore[bad-argument-type]
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,
         multistart_num_guesses=self.multistart_num_guesses,

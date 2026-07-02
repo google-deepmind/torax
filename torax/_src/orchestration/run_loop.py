@@ -110,7 +110,7 @@ def run_loop(
       leave=True,
   ) as pbar:
     # Advance the simulation until the time_step_calculator tells us we are done
-    while not step_fn.is_done(current_state.t):
+    while not step_fn.is_done(current_state.t):  # pyrefly: ignore[bad-argument-type]
       if max_steps is not None and step_count >= max_steps:
         sim_error = state.SimError.DID_NOT_REACH_T_FINAL
         break

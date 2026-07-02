@@ -97,18 +97,18 @@ def calc_pprime(
   # difference approximation for second derivative at edge.
   pprime_face_axis = jnp.expand_dims(
       (
-          2 * p_total_face[0]
-          - 5 * p_total_face[1]
-          + 4 * p_total_face[2]
-          - p_total_face[3]
+          2 * p_total_face[0]  # pyrefly: ignore[bad-index]
+          - 5 * p_total_face[1]  # pyrefly: ignore[bad-index]
+          + 4 * p_total_face[2]  # pyrefly: ignore[bad-index]
+          - p_total_face[3]  # pyrefly: ignore[bad-index]
       )
-      / (2 * psi[0] - 5 * psi[1] + 4 * psi[2] - psi[3]),
+      / (2 * psi[0] - 5 * psi[1] + 4 * psi[2] - psi[3]),  # pyrefly: ignore[bad-index]
       axis=0,
   )
 
   # Zero on-axis due to boundary conditions. Avoid division by zero.
   pprime_face = jnp.concatenate(
-      [pprime_face_axis, dptot_drhon[1:] / dpsi_drhon[1:]]
+      [pprime_face_axis, dptot_drhon[1:] / dpsi_drhon[1:]]  # pyrefly: ignore[bad-index]
   )
 
   return pprime_face
@@ -169,9 +169,9 @@ def calculate_stored_thermal_energy(
     wth_ion: Ion thermal stored energy [J]
     wth_tot: Total thermal stored energy [J]
   """
-  wth_el = math_utils.volume_integration(1.5 * p_el.value, geo)
-  wth_ion = math_utils.volume_integration(1.5 * p_ion.value, geo)
-  wth_tot = math_utils.volume_integration(1.5 * p_tot.value, geo)
+  wth_el = math_utils.volume_integration(1.5 * p_el.value, geo)  # pyrefly: ignore[bad-argument-type]
+  wth_ion = math_utils.volume_integration(1.5 * p_ion.value, geo)  # pyrefly: ignore[bad-argument-type]
+  wth_tot = math_utils.volume_integration(1.5 * p_tot.value, geo)  # pyrefly: ignore[bad-argument-type]
 
   return wth_el, wth_ion, wth_tot
 
@@ -237,13 +237,13 @@ def calculate_betas(
     Tuple of beta_tor, beta_pol, and beta_N
   """
   p_total_volume_avg = math_utils.volume_average(
-      core_profiles.pressure_total.value, geo
+      core_profiles.pressure_total.value, geo  # pyrefly: ignore[bad-argument-type]
   )
 
   magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu_0)
   # Add a division guard though B0 should typically be non-zero.
   beta_tor = math_utils.safe_divide(
-      num=p_total_volume_avg, denom=magnetic_pressure_on_axis, eps=1e-7
+      num=p_total_volume_avg, denom=magnetic_pressure_on_axis, eps=1e-7  # pyrefly: ignore[bad-argument-type]
   )
 
   beta_pol = (
@@ -268,4 +268,4 @@ def calculate_betas(
       )
   )
 
-  return beta_tor, beta_pol, beta_N
+  return beta_tor, beta_pol, beta_N  # pyrefly: ignore[bad-return]

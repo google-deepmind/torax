@@ -132,7 +132,7 @@ def theta_method_matrix_equation(
   theta_exp = 1.0 - theta_implicit
 
   tc_in_old = jnp.stack(coeffs_old.transient_in_cell, axis=-1)
-  tc_out_new = jnp.stack(coeffs_new.transient_out_cell, axis=-1)
+  tc_out_new = jnp.stack(coeffs_new.transient_out_cell, axis=-1)  # pyrefly: ignore[bad-argument-type]
   tc_in_new = jnp.stack(coeffs_new.transient_in_cell, axis=-1)
   chex.assert_rank(tc_in_old, 2)
   chex.assert_rank(tc_out_new, 2)
@@ -175,7 +175,7 @@ def theta_method_matrix_equation(
   lhs_vec = -scale_new * c_new_forcing
 
   if theta_exp > 0.0:
-    tc_out_old = jnp.stack(coeffs_old.transient_out_cell, axis=-1)
+    tc_out_old = jnp.stack(coeffs_old.transient_out_cell, axis=-1)  # pyrefly: ignore[bad-argument-type]
     tc_in_new = jax_utils.error_if(
         tc_in_new,
         jnp.any(jnp.abs(tc_out_old * tc_in_new) < eps),

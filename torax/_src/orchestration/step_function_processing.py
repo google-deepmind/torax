@@ -81,7 +81,7 @@ def _update_pedestal_transition_state(
 
   # Calculate P_SOL (total power crossing the separatrix).
   P_SOL = power_scaling_formation_model_lib.calculate_P_SOL_total(
-      internal_plasma_energy=core_profiles.internal_plasma_energy,
+      internal_plasma_energy=core_profiles.internal_plasma_energy,  # pyrefly: ignore[bad-argument-type]
       core_sources=core_sources,
       geo=geo,
       include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
@@ -313,17 +313,17 @@ def _update_adaptive_source(
   )
   new_T_i_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.T_i.value[ped_top_idx],
+      core_profiles.T_i.value[ped_top_idx],  # pyrefly: ignore[bad-index]
       pedestal_transition_state.T_i_ped_L_mode,
   )
   new_T_e_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.T_e.value[ped_top_idx],
+      core_profiles.T_e.value[ped_top_idx],  # pyrefly: ignore[bad-index]
       pedestal_transition_state.T_e_ped_L_mode,
   )
   new_n_e_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.n_e.value[ped_top_idx],
+      core_profiles.n_e.value[ped_top_idx],  # pyrefly: ignore[bad-index]
       pedestal_transition_state.n_e_ped_L_mode,
   )
 
@@ -424,7 +424,7 @@ def pre_step(
         psi=input_state.core_sources.psi | explicit_source_profiles.psi,
     )
     pedestal_transition_state = _update_pedestal_transition_state(
-        pedestal_transition_state=pedestal_transition_state,
+        pedestal_transition_state=pedestal_transition_state,  # pyrefly: ignore[bad-argument-type]
         runtime_params=runtime_params_t,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
@@ -441,9 +441,9 @@ def pre_step(
         geo_t,
         input_state.core_profiles,
         explicit_source_profiles,
-        pedestal_transition_state,
+        pedestal_transition_state,  # pyrefly: ignore[bad-argument-type]
     )
-    pedestal_transition_state = dataclasses.replace(
+    pedestal_transition_state = dataclasses.replace(  # pyrefly: ignore[bad-specialization]
         pedestal_transition_state,
         pedestal_model_output=pedestal_model_output,
     )

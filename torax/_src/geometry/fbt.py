@@ -119,8 +119,8 @@ class FBTConfig(base.BaseGeometryConfig):
   def build_geometry(self) -> standard_geometry.StandardGeometry:
     intermediates = _from_fbt_single_slice(
         geometry_directory=self.geometry_directory,
-        LY_object=self.LY_object,
-        L_object=self.L_object,
+        LY_object=self.LY_object,  # pyrefly: ignore[bad-argument-type]
+        L_object=self.L_object,  # pyrefly: ignore[bad-argument-type]
         Ip_from_parameters=self.Ip_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
@@ -138,8 +138,8 @@ class FBTConfig(base.BaseGeometryConfig):
     """Builds a `GeometryProvider` from the input config."""
     intermediates = _from_fbt_bundle(
         geometry_directory=self.geometry_directory,
-        LY_bundle_object=self.LY_bundle_object,
-        L_object=self.L_object,
+        LY_bundle_object=self.LY_bundle_object,  # pyrefly: ignore[bad-argument-type]
+        L_object=self.L_object,  # pyrefly: ignore[bad-argument-type]
         LY_to_torax_times=self.LY_to_torax_times,
         Ip_from_parameters=self.Ip_from_parameters,
         face_centers=self.get_face_centers(),
@@ -214,7 +214,7 @@ def _from_fbt_single_slice(
   # Convert any scalar LY values to ndarrays such that validation method works
   for key in LY:
     if not isinstance(LY[key], np.ndarray):
-      LY[key] = np.array(LY[key])
+      LY[key] = np.array(LY[key])  # pyrefly: ignore[unsupported-operation]
 
   LY, L = jax.tree_util.tree_map(np.squeeze, (LY, L))
 
@@ -413,9 +413,9 @@ def _from_fbt(
     raise ValueError(f"LY['lX'] must be 0 or 1, but got {LY['lX']}")
   # Convert to bool instead of dim 0 array of ints
   diverted = bool(LY['lX'] == 1)
-  R_major = LY['rgeom'][-1]  # Major radius
+  R_major = LY['rgeom'][-1]  # Major radius  # pyrefly: ignore[bad-index]
   B_0 = LY['rBt'] / R_major  # Vacuum toroidal magnetic field at R_major
-  a_minor = LY['aminor'][-1]  # Minor radius
+  a_minor = LY['aminor'][-1]  # Minor radius  # pyrefly: ignore[bad-index]
   # Toroidal flux including plasma contribution
   # load FtPVQ if it exists, otherwise use FtPQ for toroidal flux.
   if 'FtPVQ' in LY:
@@ -429,7 +429,7 @@ def _from_fbt(
     )
     Phi = LY['FtPQ']
 
-  rhon = np.sqrt(Phi / Phi[-1])  # Normalized toroidal flux coordinate
+  rhon = np.sqrt(Phi / Phi[-1])  # Normalized toroidal flux coordinate  # pyrefly: ignore[bad-index]
   psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']  # Poloidal flux
   # To avoid possible divisions by zero in diverted geometry. Value of what
   # replaces the zero does not matter, since it will be replaced by a spline
@@ -472,10 +472,10 @@ def _from_fbt(
       # Multiple directions traced. Select the index with the shortest
       # connection length to the divertor (Lpar_div).
       idx = int(np.argmin(Lpar_div))
-      connection_length_target = LY['Lpar_target'][idx]
+      connection_length_target = LY['Lpar_target'][idx]  # pyrefly: ignore[bad-index]
       connection_length_divertor = Lpar_div[idx]
-      angle_of_incidence_target = np.rad2deg(LY['alpha_target'][idx])
-      R_target = LY['r_target'][idx]
+      angle_of_incidence_target = np.rad2deg(LY['alpha_target'][idx])  # pyrefly: ignore[bad-index]
+      R_target = LY['r_target'][idx]  # pyrefly: ignore[bad-index]
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.FBT,
@@ -484,23 +484,23 @@ def _from_fbt(
       a_minor=a_minor,
       B_0=B_0,
       psi=psi,
-      Phi=Phi,
-      Ip_profile=LY['ItQ'],
-      R_in=LY['rgeom'] - LY['aminor'],
-      R_out=LY['rgeom'] + LY['aminor'],
-      F=LY['TQ'],
+      Phi=Phi,  # pyrefly: ignore[bad-argument-type]
+      Ip_profile=LY['ItQ'],  # pyrefly: ignore[bad-argument-type]
+      R_in=LY['rgeom'] - LY['aminor'],  # pyrefly: ignore[bad-argument-type]
+      R_out=LY['rgeom'] + LY['aminor'],  # pyrefly: ignore[bad-argument-type]
+      F=LY['TQ'],  # pyrefly: ignore[bad-argument-type]
       int_dl_over_Bp=1 / LY_Q1Q,
-      flux_surf_avg_1_over_R=LY['Q0Q'],
-      flux_surf_avg_1_over_R2=LY['Q2Q'],
-      flux_surf_avg_grad_psi2_over_R2=LY['Q3Q'],
-      flux_surf_avg_grad_psi=2 * np.pi * LY['Q5Q'],
-      flux_surf_avg_grad_psi2=LY['Q4Q'],
-      flux_surf_avg_B2=flux_surf_avg_B2,
+      flux_surf_avg_1_over_R=LY['Q0Q'],  # pyrefly: ignore[bad-argument-type]
+      flux_surf_avg_1_over_R2=LY['Q2Q'],  # pyrefly: ignore[bad-argument-type]
+      flux_surf_avg_grad_psi2_over_R2=LY['Q3Q'],  # pyrefly: ignore[bad-argument-type]
+      flux_surf_avg_grad_psi=2 * np.pi * LY['Q5Q'],  # pyrefly: ignore[bad-argument-type]
+      flux_surf_avg_grad_psi2=LY['Q4Q'],  # pyrefly: ignore[bad-argument-type]
+      flux_surf_avg_B2=flux_surf_avg_B2,  # pyrefly: ignore[bad-argument-type]
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
-      delta_upper_face=LY['deltau'],
-      delta_lower_face=LY['deltal'],
-      elongation=LY['kappa'],
-      vpr=4 * np.pi * Phi[-1] * rhon / (LY['TQ'] * LY['Q2Q']),
+      delta_upper_face=LY['deltau'],  # pyrefly: ignore[bad-argument-type]
+      delta_lower_face=LY['deltal'],  # pyrefly: ignore[bad-argument-type]
+      elongation=LY['kappa'],  # pyrefly: ignore[bad-argument-type]
+      vpr=4 * np.pi * Phi[-1] * rhon / (LY['TQ'] * LY['Q2Q']),  # pyrefly: ignore[bad-index]
       face_centers=face_centers,
       hires_factor=hires_factor,
       diverted=diverted,

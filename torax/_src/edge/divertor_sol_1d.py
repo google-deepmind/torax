@@ -165,7 +165,7 @@ class DivertorSOL1D:
             self.state.T_e_target
         )
     )
-    return self.state.T_e_target / (
+    return self.state.T_e_target / (  # pyrefly: ignore[bad-return]
         (1.0 - momentum_loss) / (2.0 * density_ratio)
     )
 
@@ -217,7 +217,7 @@ class DivertorSOL1D:
     separatrix, including both electron and ion contributions.
     """
     return (
-        (1.0 + self.params.mach_separatrix**2)
+        (1.0 + self.params.mach_separatrix**2)  # pyrefly: ignore[bad-return]
         * self.params.separatrix_electron_density
         * self.T_e_separatrix
         * constants.CONSTANTS.eV_to_J
@@ -276,7 +276,7 @@ class DivertorSOL1D:
   @property
   def parallel_heat_flux_at_target(self) -> jax.Array:
     """Parallel heat flux at the divertor target [W/m^2]."""
-    return self.state.q_parallel * (1.0 - self.required_power_loss)
+    return self.state.q_parallel * (1.0 - self.required_power_loss)  # pyrefly: ignore[bad-return]
 
   @property
   def parallel_heat_flux_at_cc_interface(self) -> jax.Array:
@@ -392,7 +392,7 @@ def calc_q_parallel(
       * params.fieldline_pitch_at_omp
   )
 
-  return q_parallel
+  return q_parallel  # pyrefly: ignore[bad-return]
 
 
 def calc_alpha_t(

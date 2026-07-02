@@ -103,7 +103,7 @@ def sawtooth_step(
   # Prepare core_profiles_t_plus_crash_dt with new boundary conditions
   # and prescribed profiles if present.
   core_profiles_t_plus_crash_dt = updaters.provide_core_profiles_t_plus_dt(
-      dt=dt_crash,
+      dt=dt_crash,  # pyrefly: ignore[bad-argument-type]
       runtime_params_t=runtime_params_t,
       runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
       geo_t_plus_dt=geo_t_plus_crash_dt,
@@ -145,7 +145,7 @@ def sawtooth_step(
         geo_t_plus_crash_dt=geo_t_plus_crash_dt,
         previous_post_processed_outputs=input_post_processed_outputs,
         evolving_names=runtime_params_t.numerics.evolving_names,
-        dt_crash=dt_crash,
+        dt_crash=dt_crash,  # pyrefly: ignore[bad-argument-type]
     )
 
     return step_function_processing.finalize_outputs(

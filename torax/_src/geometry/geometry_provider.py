@@ -196,11 +196,11 @@ class TimeDependentGeometryProvider:
       # None for all geometries.
       initial_val = getattr(initial_geometry, attr.name)
       if initial_val is None:
-        kwargs[attr.name] = None
+        kwargs[attr.name] = None  # pyrefly: ignore[unsupported-operation]
         continue
 
       # Remaining attributes are set up for interpolation.
-      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(
+      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(  # pyrefly: ignore[unsupported-operation]
           (
               times,
               np.stack(
@@ -211,7 +211,7 @@ class TimeDependentGeometryProvider:
           ),
           is_bool_param=isinstance(initial_val, bool),
       )
-    return cls(**kwargs)
+    return cls(**kwargs)  # pyrefly: ignore[missing-argument]
 
   def _get_geometry_base(
       self, t: chex.Numeric, geometry_class: Type[geometry.Geometry]
@@ -232,17 +232,17 @@ class TimeDependentGeometryProvider:
         continue
       if attr.name == 'Phi_b_dot':
         if self.calcphibdot:
-          kwargs[attr.name] = jnp.asarray(
+          kwargs[attr.name] = jnp.asarray(  # pyrefly: ignore[bad-assignment]
               _Phi_b_grad(self.Phi_face, t), dtype=jax_utils.get_dtype()
           )
         else:
-          kwargs[attr.name] = jnp.zeros((), dtype=jax_utils.get_dtype())
+          kwargs[attr.name] = jnp.zeros((), dtype=jax_utils.get_dtype())  # pyrefly: ignore[bad-assignment]
         continue
       provider_attr = getattr(self, attr.name)
       if isinstance(
           provider_attr, interpolated_param.InterpolatedVarSingleAxis
       ):
-        kwargs[attr.name] = provider_attr.get_value(t)
+        kwargs[attr.name] = provider_attr.get_value(t)  # pyrefly: ignore[unsupported-operation]
       else:
         # For None attributes.
         kwargs[attr.name] = provider_attr

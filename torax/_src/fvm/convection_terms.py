@@ -77,8 +77,8 @@ def make_convection_terms(
   ones = jnp.ones_like(v_face[1:-1])
   scale = jnp.concatenate((half, ones, half))
 
-  distance_to_left_ghost_cell_center = var.cell_widths[0]
-  distance_to_right_ghost_cell_center = var.cell_widths[-1]
+  distance_to_left_ghost_cell_center = var.cell_widths[0]  # pyrefly: ignore[bad-index]
+  distance_to_right_ghost_cell_center = var.cell_widths[-1]  # pyrefly: ignore[bad-index]
   cell_spacings = jnp.concat([
       jnp.array([distance_to_left_ghost_cell_center]),
       var.cell_spacings,

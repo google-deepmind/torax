@@ -103,7 +103,7 @@ def _calculate_radial_electric_field(
   )
 
   Er_toroidal_face = (
-      -toroidal_angular_velocity.face_value()
+      -toroidal_angular_velocity.face_value()  # pyrefly: ignore[unsupported-operation]
       * geo.R_major_profile_face
       * B_pol_face
   )
@@ -196,7 +196,7 @@ def calculate_rotation(
       )
   )
 
-  v_ExB = _calculate_v_ExB(Er.face_value(), B_total_face)
+  v_ExB = _calculate_v_ExB(Er.face_value(), B_total_face)  # pyrefly: ignore[bad-argument-type]
   v_ExB_poloidal_and_pressure = _calculate_v_ExB(
       Er_poloidal_and_pressure_face, B_total_face
   )

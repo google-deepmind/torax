@@ -142,7 +142,7 @@ def calc_separatrix_average_poloidal_field(
     The average poloidal field at the separatrix [T].
   """
   poloidal_circumference = 2.0 * jnp.pi * minor_radius * shaping_factor
-  return constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference
+  return constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference  # pyrefly: ignore[bad-return]
 
 
 def calc_cylindrical_safety_factor(
@@ -291,7 +291,7 @@ def calc_Z_eff(
   # Contribution from main ions
   n_i = (1 - dilution_factor) / Z_i
   Z_eff += n_i * Z_i**2
-  return Z_eff[0]  # Return scalar for extended-lengyel.
+  return Z_eff[0]  # Return scalar for extended-lengyel.  # pyrefly: ignore[bad-index]
 
 
 def calc_enrichment_kallenbach(

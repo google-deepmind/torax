@@ -55,7 +55,7 @@ class CoeffsCallback:
         self.evolving_names,
     ))
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:
+  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
     return (
         self.models == other.models
         and self.evolving_names == other.evolving_names
@@ -419,7 +419,7 @@ def _calc_coeffs_full(
       geo.rho_norm,
   )
   source_i += (
-      3.0
+      3.0  # pyrefly: ignore[unsupported-operation]
       / 4.0
       * geo.vpr ** (-2.0 / 3.0)
       * d_vpr53_rhon_n_i_drhon
@@ -429,7 +429,7 @@ def _calc_coeffs_full(
       * consts.keV_to_J
   )
   source_e += (
-      3.0
+      3.0  # pyrefly: ignore[unsupported-operation]
       / 4.0
       * geo.vpr ** (-2.0 / 3.0)
       * d_vpr53_rhon_n_e_drhon
@@ -442,7 +442,7 @@ def _calc_coeffs_full(
   # Particle equations
   d_vpr_rhon_drhon = jnp.gradient(geo.vpr * geo.rho_norm, geo.rho_norm)
   source_n_e += (
-      1.0
+      1.0  # pyrefly: ignore[unsupported-operation]
       / 2.0
       * d_vpr_rhon_drhon
       * geo.Phi_b_dot
@@ -610,12 +610,12 @@ def _calc_coeffs_full(
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
   coeffs = block_1d_coeffs.Block1DCoeffs(
-      transient_out_cell=transient_out_cell,
-      transient_in_cell=transient_in_cell,
-      d_face=d_face,
-      v_face=v_face,
-      source_mat_cell=source_mat_cell,
-      source_cell=source_cell,
+      transient_out_cell=transient_out_cell,  # pyrefly: ignore[bad-argument-type]
+      transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
+      d_face=d_face,  # pyrefly: ignore[bad-argument-type]
+      v_face=v_face,  # pyrefly: ignore[bad-argument-type]
+      source_mat_cell=source_mat_cell,  # pyrefly: ignore[bad-argument-type]
+      source_cell=source_cell,  # pyrefly: ignore[bad-argument-type]
   )
 
   return coeffs
@@ -648,7 +648,7 @@ def _calc_coeffs_reduced(
   transient_in_cell = tuple(var_to_tic[var] for var in evolving_names)
 
   coeffs = block_1d_coeffs.Block1DCoeffs(
-      transient_in_cell=transient_in_cell,
+      transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
   )
   return coeffs
 

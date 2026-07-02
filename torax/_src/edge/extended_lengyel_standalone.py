@@ -52,7 +52,7 @@ def _roots_are_distinct(
       extended_lengyel_defaults.MULTISTART_ROOT_ATOL
       + extended_lengyel_defaults.MULTISTART_ROOT_RTOL * jnp.abs(ref_values)
   )
-  return diffs > threshold
+  return diffs > threshold  # pyrefly: ignore[bad-return]
 
 
 def _extract_solver_metrics(
@@ -431,7 +431,7 @@ def run_extended_lengyel_standalone(
     seed_impurity_weights = {}
 
   _validate_inputs_for_computation_mode(
-      computation_mode, T_e_target, seed_impurity_weights
+      computation_mode, T_e_target, seed_impurity_weights  # pyrefly: ignore[bad-argument-type]
   )
 
   params = _construct_parameters(
@@ -668,7 +668,7 @@ def _get_initial_sol_model(
       alpha_t=alpha_t_init,
       c_z_prefactor=c_z_prefactor_init,
       kappa_e=kappa_e_init,
-      T_e_target=T_e_target_init,
+      T_e_target=T_e_target_init,  # pyrefly: ignore[bad-argument-type]
   )
 
   return divertor_sol_1d_lib.DivertorSOL1D(
@@ -829,16 +829,16 @@ def _run_forward_mode_multistart(
     )
 
     output = ExtendedLengyelOutputs(
-        T_e_target=model_out.state.T_e_target,
+        T_e_target=model_out.state.T_e_target,  # pyrefly: ignore[bad-argument-type]
         pressure_neutral_divertor=pressure_neutral_divertor,
-        alpha_t=model_out.state.alpha_t,
-        kappa_e=model_out.state.kappa_e,
-        c_z_prefactor=model_out.state.c_z_prefactor,
-        q_parallel=model_out.state.q_parallel,
+        alpha_t=model_out.state.alpha_t,  # pyrefly: ignore[bad-argument-type]
+        kappa_e=model_out.state.kappa_e,  # pyrefly: ignore[bad-argument-type]
+        c_z_prefactor=model_out.state.c_z_prefactor,  # pyrefly: ignore[bad-argument-type]
+        q_parallel=model_out.state.q_parallel,  # pyrefly: ignore[bad-argument-type]
         q_perpendicular_target=q_perpendicular_target,
         T_e_separatrix=model_out.T_e_separatrix / 1e3,
         Z_eff_separatrix=model_out.Z_eff_separatrix,
-        seed_impurity_concentrations=model_out.seed_impurity_concentrations,
+        seed_impurity_concentrations=model_out.seed_impurity_concentrations,  # pyrefly: ignore[bad-argument-type]
         solver_status=status,
         calculated_enrichment=calculated_enrichment,
         roots=None,
@@ -927,16 +927,16 @@ def _run_single_solver(
     )
 
   return ExtendedLengyelOutputs(
-      T_e_target=output_sol_model.state.T_e_target,
+      T_e_target=output_sol_model.state.T_e_target,  # pyrefly: ignore[bad-argument-type]
       pressure_neutral_divertor=pressure_neutral_divertor,
-      alpha_t=output_sol_model.state.alpha_t,
-      kappa_e=output_sol_model.state.kappa_e,
-      c_z_prefactor=output_sol_model.state.c_z_prefactor,
-      q_parallel=output_sol_model.state.q_parallel,
+      alpha_t=output_sol_model.state.alpha_t,  # pyrefly: ignore[bad-argument-type]
+      kappa_e=output_sol_model.state.kappa_e,  # pyrefly: ignore[bad-argument-type]
+      c_z_prefactor=output_sol_model.state.c_z_prefactor,  # pyrefly: ignore[bad-argument-type]
+      q_parallel=output_sol_model.state.q_parallel,  # pyrefly: ignore[bad-argument-type]
       q_perpendicular_target=q_perpendicular_target,
       T_e_separatrix=output_sol_model.T_e_separatrix / 1e3,
       Z_eff_separatrix=output_sol_model.Z_eff_separatrix,
-      seed_impurity_concentrations=output_sol_model.seed_impurity_concentrations,
+      seed_impurity_concentrations=output_sol_model.seed_impurity_concentrations,  # pyrefly: ignore[bad-argument-type]
       solver_status=solver_status,
       calculated_enrichment=calculated_enrichment,
       roots=None,
