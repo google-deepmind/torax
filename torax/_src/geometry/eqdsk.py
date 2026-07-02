@@ -65,7 +65,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
       grid. Needed to avoid divergent integrations in diverted geometries.
   """
 
-  cocos: torax_pydantic.COCOSInt = ...
+  cocos: torax_pydantic.COCOSInt = ...  # pyrefly: ignore[bad-assignment]
   geometry_file: str | None = None
   eqdsk_object: eqdsk.EQDSKInterface | None = None
   geometry_type: Annotated[Literal['eqdsk'], torax_pydantic.TIME_INVARIANT] = (
@@ -208,7 +208,7 @@ def _construct_intermediates_from_eqdsk(
 
   # Check TORAX sign convention.
   eq_dict = _enforce_torax_sign_convention(eq_dict)
-  _validate_torax_sign_convention(eq_dict)
+  _validate_torax_sign_convention(eq_dict)  # pyrefly: ignore[bad-argument-type]
 
   # Reference geometry terms
   # TODO(b/375696414): deal with updown asymmetric cases.

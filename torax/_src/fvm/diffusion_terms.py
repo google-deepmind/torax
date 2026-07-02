@@ -43,8 +43,8 @@ def make_diffusion_terms(
 
   # Start by using the formula for the interior rows everywhere
   dx = var.cell_widths
-  distance_to_left_ghost_cell_center = dx[0]
-  distance_to_right_ghost_cell_center = dx[-1]
+  distance_to_left_ghost_cell_center = dx[0]  # pyrefly: ignore[bad-index]
+  distance_to_right_ghost_cell_center = dx[-1]  # pyrefly: ignore[bad-index]
   cell_spacings = jnp.concat([
       jnp.array([distance_to_left_ghost_cell_center]),
       var.cell_spacings,
@@ -57,8 +57,8 @@ def make_diffusion_terms(
 
   off = d_face[1:-1] / var.cell_spacings
   # Divide by different cell widths for the upper and lower diagonals.
-  upper_off = off / dx[:-1]
-  lower_off = off / dx[1:]
+  upper_off = off / dx[:-1]  # pyrefly: ignore[bad-index]
+  lower_off = off / dx[1:]  # pyrefly: ignore[bad-index]
 
   vec = jnp.zeros_like(diag)
 
@@ -83,21 +83,21 @@ def make_diffusion_terms(
 
   if var.left_face_constraint is not None:
     # Left face Dirichlet condition.
-    denom_left = cell_spacings[0] * dx[0]
-    denom_right = cell_spacings[1] * dx[0]
-    diag = diag.at[0].set(-2 * d_face[0] / denom_left - d_face[1] / denom_right)
+    denom_left = cell_spacings[0] * dx[0]  # pyrefly: ignore[bad-index]
+    denom_right = cell_spacings[1] * dx[0]  # pyrefly: ignore[bad-index]
+    diag = diag.at[0].set(-2 * d_face[0] / denom_left - d_face[1] / denom_right)  # pyrefly: ignore[missing-attribute]
     vec = vec.at[0].set(2 * d_face[0] * var.left_face_constraint / denom_left)
   else:
     # Left face gradient condition.
-    denom_right = cell_spacings[1] * dx[0]
-    diag = diag.at[0].set(-d_face[1] / denom_right)
+    denom_right = cell_spacings[1] * dx[0]  # pyrefly: ignore[bad-index]
+    diag = diag.at[0].set(-d_face[1] / denom_right)  # pyrefly: ignore[missing-attribute]
     vec = vec.at[0].set(
-        -d_face[0] * var.left_face_grad_constraint / dx[0]
+        -d_face[0] * var.left_face_grad_constraint / dx[0]  # pyrefly: ignore[bad-index, unsupported-operation]
     )
   if var.right_face_constraint is not None:
     # Right face Dirichlet condition.
-    denom_left = cell_spacings[-2] * dx[-1]
-    denom_right = cell_spacings[-1] * dx[-1]
+    denom_left = cell_spacings[-2] * dx[-1]  # pyrefly: ignore[bad-index]
+    denom_right = cell_spacings[-1] * dx[-1]  # pyrefly: ignore[bad-index]
     diag = diag.at[-1].set(
         -2 * d_face[-1] / denom_right - d_face[-2] / denom_left
     )
@@ -106,10 +106,10 @@ def make_diffusion_terms(
     )
   else:
     # Right face gradient condition.
-    denom_left = cell_spacings[-2] * dx[-1]
+    denom_left = cell_spacings[-2] * dx[-1]  # pyrefly: ignore[bad-index]
     diag = diag.at[-1].set(-d_face[-2] / denom_left)
     vec = vec.at[-1].set(
-        d_face[-1] * var.right_face_grad_constraint / dx[-1]
+        d_face[-1] * var.right_face_grad_constraint / dx[-1]  # pyrefly: ignore[bad-index, unsupported-operation]
     )
 
   return tridiagonal.TriDiagonal(diag, upper_off, lower_off), vec

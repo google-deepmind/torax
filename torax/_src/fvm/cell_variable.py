@@ -68,11 +68,11 @@ def _compute_inner_grad(
     v1, v2, v3 = v
     c1 = (d2 + d3)/ (-1*d1**2 + d1*d2 + d1*d3 - d2*d3)
     # c2 = (-d1 - d3) / (-1*d1*d2 + d1*d3 + d2**2 - d2*d3)
-    c3 = (-d1 - d2) / (d1*d2 - d1*d3 - d2*d3 + d3**2)
+    c3 = (-d1 - d2) / (d1*d2 - d1*d3 - d2*d3 + d3**2)  # pyrefly: ignore[unsupported-operation]
     # We use c1*(v1-v2) + c3*(v3-v2) instead of c1*v1 + c2*v2 + c3*v3
     # because c1+c2+c3 = 0 analytically, but not numerically.
     # By using differences we ensure that if v1=v2=v3, the result is exactly 0.
-    return c1 * (v1 - v2) + c3 * (v3 - v2)
+    return c1 * (v1 - v2) + c3 * (v3 - v2)  # pyrefly: ignore[unsupported-operation]
 
   d_left = cell_centers[:-2] - face_centers[1:-2]
   d_right = cell_centers[1:-1] - face_centers[1:-2]
@@ -126,10 +126,10 @@ class CellVariable:
   left_face_constraint: jt.Float[chex.Array, ''] | None = None
   right_face_constraint: jt.Float[chex.Array, ''] | None = None
   left_face_grad_constraint: jt.Float[chex.Array, ''] | None = (
-      dataclasses.field(default_factory=_zero)
+      dataclasses.field(default_factory=_zero)  # pyrefly: ignore[bad-assignment]
   )
   right_face_grad_constraint: jt.Float[chex.Array, ''] | None = (
-      dataclasses.field(default_factory=_zero)
+      dataclasses.field(default_factory=_zero)  # pyrefly: ignore[bad-assignment]
   )
   # Can't make the above default values be jax zeros because that would be a
   # call to jax before absl.app.run
@@ -137,7 +137,7 @@ class CellVariable:
   @functools.cached_property
   def cell_centers(self) -> jt.Float[chex.Array, 'cell']:
     """Locations of the cell centers."""
-    return (self.face_centers[..., 1:] + self.face_centers[..., :-1]) / 2.0
+    return (self.face_centers[..., 1:] + self.face_centers[..., :-1]) / 2.0  # pyrefly: ignore[bad-index]
 
   @property
   def cell_widths(self) -> jt.Float[chex.Array, 'cell']:
@@ -236,17 +236,17 @@ class CellVariable:
               'a face variable.'
           )
         if x is None:
-          cell_width = self.cell_widths[-1] if right else self.cell_widths[0]
+          cell_width = self.cell_widths[-1] if right else self.cell_widths[0]  # pyrefly: ignore[bad-index]
           d_cell = cell_width / 2.0
           sign = -1 if right else 1
-          return sign * (cell - face) / d_cell
+          return sign * (cell - face) / d_cell  # pyrefly: ignore[unsupported-operation]
         else:
           if right:
-            dx = x_right - x[-1]
+            dx = x_right - x[-1]  # pyrefly: ignore[bad-index, unsupported-operation]
           else:
-            dx = x[0] - x_left
+            dx = x[0] - x_left  # pyrefly: ignore[bad-index, unsupported-operation]
           sign = -1 if right else 1
-          return sign * (cell - face) / dx
+          return sign * (cell - face) / dx  # pyrefly: ignore[unsupported-operation]
       else:
         if grad is None:
           raise ValueError('Must specify one of value or gradient.')
@@ -258,13 +258,13 @@ class CellVariable:
     left_grad = constrained_grad(
         self.left_face_constraint,
         self.left_face_grad_constraint,
-        self.value[0],
+        self.value[0],  # pyrefly: ignore[bad-index]
         right=False,
     )
     right_grad = constrained_grad(
         self.right_face_constraint,
         self.right_face_grad_constraint,
-        self.value[-1],
+        self.value[-1],  # pyrefly: ignore[bad-index]
         right=True,
     )
 
@@ -282,7 +282,7 @@ class CellVariable:
     else:
       # When there is no constraint, leftmost face equals
       # leftmost cell
-      value = self.value[..., 0:1]
+      value = self.value[..., 0:1]  # pyrefly: ignore[bad-index]
     return value
 
   @functools.cached_property
@@ -294,10 +294,10 @@ class CellVariable:
       value = jnp.expand_dims(value, axis=-1)
     else:
       # Maintain right_face consistent with right_face_grad_constraint
-      dr = self.cell_widths[-1]
+      dr = self.cell_widths[-1]  # pyrefly: ignore[bad-index]
       value = (
-          self.value[..., -1:]
-          + jnp.expand_dims(self.right_face_grad_constraint, axis=-1)
+          self.value[..., -1:]  # pyrefly: ignore[bad-index]
+          + jnp.expand_dims(self.right_face_grad_constraint, axis=-1)  # pyrefly: ignore[bad-argument-type]
           * jnp.expand_dims(dr, axis=-1)
           / 2
       )

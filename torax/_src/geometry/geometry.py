@@ -231,7 +231,7 @@ class Geometry:
   Phi_b_dot: array_typing.FloatScalar
   _z_magnetic_axis: array_typing.FloatScalar | None
 
-  def __eq__(self, other: 'Geometry') -> bool:
+  def __eq__(self, other: 'Geometry') -> bool:  # pyrefly: ignore[bad-override]
     try:
       chex.assert_trees_all_equal(self, other)
     except AssertionError:
@@ -361,7 +361,7 @@ class Geometry:
   @property
   def gm9(self) -> jax.Array:
     r"""<1/R> on cell grid [:math:`\mathrm{m}^{-1}`]."""
-    return 2 * jnp.pi * self.spr / self.vpr
+    return 2 * jnp.pi * self.spr / self.vpr  # pyrefly: ignore[bad-return]
 
   @property
   def gm9_face(self) -> jax.Array:
@@ -375,12 +375,12 @@ class Geometry:
   @property
   def R_major_profile(self) -> jax.Array:
     """Local major radius on cell grid [m]."""
-    return (self.R_in + self.R_out) / 2
+    return (self.R_in + self.R_out) / 2  # pyrefly: ignore[bad-return]
 
   @property
   def R_major_profile_face(self) -> jax.Array:
     """Local major radius on face grid [m]."""
-    return (self.R_in_face + self.R_out_face) / 2
+    return (self.R_in_face + self.R_out_face) / 2  # pyrefly: ignore[bad-return]
 
   def z_magnetic_axis(self) -> chex.Numeric:
     """z position of magnetic axis [m]."""
@@ -423,7 +423,7 @@ def stack_geometries(geometries: Sequence[GeometryT]) -> GeometryT:
     field_name = field.name
     field_value = getattr(first_geo, field_name)
     # Stack stackable fields. Save first geo's value for non-stackable fields.
-    if isinstance(field_value, (array_typing.Array, array_typing.FloatScalar)):
+    if isinstance(field_value, (array_typing.Array, array_typing.FloatScalar)):  # pyrefly: ignore[invalid-argument]
       field_values = [getattr(geo, field_name) for geo in geometries]
       stacked_data[field_name] = np.stack(field_values)
     else:
@@ -467,9 +467,9 @@ def increase_grid_resolution(faces: chex.Array, factor: int) -> chex.Array:
   """Increase the grid resolution by a factor."""
   if factor <= 1:
     raise ValueError('factor must be >= 1.')
-  num_faces = len(faces)
+  num_faces = len(faces)  # pyrefly: ignore[bad-argument-type]
   num_cells = num_faces - 1
-  grid_indices = np.arange(len(faces))
+  grid_indices = np.arange(len(faces))  # pyrefly: ignore[bad-argument-type]
   new_num_faces = num_cells * factor + 1
   new_indices = np.linspace(0, num_cells, new_num_faces)
   return np.interp(new_indices, grid_indices, faces)

@@ -45,7 +45,7 @@ def xla_metadata_call(
 
 
 @functools.cache
-def get_dtype() -> type(jnp.float32):
+def get_dtype() -> type(jnp.float32):  # pyrefly: ignore[invalid-annotation]
   # Default TORAX JAX precision is f64
   precision = os.getenv('JAX_PRECISION', 'f64')
   assert precision == 'f64' or precision == 'f32', (
@@ -55,7 +55,7 @@ def get_dtype() -> type(jnp.float32):
 
 
 @functools.cache
-def get_np_dtype() -> type(np.float32):
+def get_np_dtype() -> type(np.float32):  # pyrefly: ignore[invalid-annotation]
   # Default TORAX JAX precision is f64
   precision = os.getenv('JAX_PRECISION', 'f64')
   assert precision == 'f64' or precision == 'f32', (
@@ -65,7 +65,7 @@ def get_np_dtype() -> type(np.float32):
 
 
 @functools.cache
-def get_int_dtype() -> type(jnp.int32):
+def get_int_dtype() -> type(jnp.int32):  # pyrefly: ignore[invalid-annotation]
   # Default TORAX JAX precision is f64
   precision = os.getenv('JAX_PRECISION', 'f64')
   assert precision == 'f64' or precision == 'f32', (
@@ -251,12 +251,12 @@ def batched_cond(
     static_argnames=['cond_fun', 'body_fun', 'max_steps', 'scan_unroll'],
 )
 def while_loop_bounded(
-    cond_fun: Callable[[_State], BooleanNumeric],
-    body_fun: Callable[[_State], _State],
-    init_val: _State,
+    cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
+    body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
+    init_val: _State,  # pyrefly: ignore[invalid-annotation]
     max_steps: int,
     scan_unroll: int = 1,
-) -> tuple[_State, chex.Numeric, _State]:
+) -> tuple[_State, chex.Numeric, _State]:  # pyrefly: ignore[invalid-annotation]
   """A reverse-mode differentiable while_loop.
 
   This makes use of jax.lax.scan and `max_steps` to define a fixed size

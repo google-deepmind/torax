@@ -260,7 +260,7 @@ class SimulationStepFn:
             *step_args,
         )
       else:
-        return self._fixed_step(*step_args)
+        return self._fixed_step(*step_args)  # pyrefly: ignore[bad-argument-type]
 
     if self._sawtooth_solver is not None:
       output_state, post_processed_outputs = self._sawtooth_step(
@@ -273,7 +273,7 @@ class SimulationStepFn:
           previous_post_processed_outputs,
           runtime_params_provider,
           geometry_provider,
-          pedestal_transition_state,
+          pedestal_transition_state,  # pyrefly: ignore[bad-argument-type]
       )
 
       output_state, post_processed_outputs = jax.lax.cond(

@@ -59,13 +59,13 @@ def coll_exchange(
   """
   # Calculate Coulomb logarithm
   log_lambda_ei = calculate_log_lambda_ei(
-      core_profiles.T_e.value, core_profiles.n_e.value
+      core_profiles.T_e.value, core_profiles.n_e.value  # pyrefly: ignore[bad-argument-type]
   )
   # ion-electron collisionality for Z_eff=1. Ion charge and multiple ion effects
   # are included in the Qei_coef calculation below.
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.T_e.value,
-      core_profiles.n_e.value,
+      core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
+      core_profiles.n_e.value,  # pyrefly: ignore[bad-argument-type]
       log_lambda_ei,
   )
   # pylint: disable=invalid-name
@@ -104,14 +104,14 @@ def calc_nu_star(
 
   # Calculate Coulomb logarithm
   log_lambda_ei_face = calculate_log_lambda_ei(
-      core_profiles.T_e.face_value(),
-      core_profiles.n_e.face_value(),
+      core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
   )
 
   # ion_electron collisionality
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.T_e.face_value(),
-      core_profiles.n_e.face_value(),
+      core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
       log_lambda_ei_face,
   )
 
@@ -136,7 +136,7 @@ def calc_nu_star(
       )
   )
   # due to pathological on-axis epsilon=0 term
-  tau_bounce = tau_bounce.at[0].set(tau_bounce[1])
+  tau_bounce = tau_bounce.at[0].set(tau_bounce[1])  # pyrefly: ignore[missing-attribute]
 
   # calculate normalized collisionality
   nustar = nu_e * tau_bounce
@@ -285,7 +285,7 @@ def _calculate_weighted_Z_eff(
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
   """Calculates ion mass weighted Z_eff. Used for collisional heat exchange."""
-  return (
+  return (  # pyrefly: ignore[bad-return]
       core_profiles.n_i.value * core_profiles.Z_i**2 / core_profiles.A_i
       + core_profiles.n_impurity.value
       * core_profiles.Z_impurity**2

@@ -82,7 +82,7 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
       return self.face_centers
     return interpolated_param_2d.get_face_centers(self.n_rho)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:
+  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
     """Equality operator for BaseGeometryConfig."""
     if not isinstance(other, type(self)):
       return False

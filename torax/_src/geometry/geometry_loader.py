@@ -143,6 +143,6 @@ def load_geo_data(
     case GeometrySource.FBT:
       return _load_fbt_file(filepath)
     case GeometrySource.EQDSK:
-      return _load_eqdsk_file(cocos=cocos, file_path=filepath)
+      return _load_eqdsk_file(cocos=cocos, file_path=filepath)  # pyrefly: ignore[bad-argument-type]
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')

@@ -102,7 +102,7 @@ def compute_state(
       )
   )
   core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
-      dt=dt,
+      dt=dt,  # pyrefly: ignore[bad-argument-type]
       runtime_params_t=runtime_params_t,
       runtime_params_t_plus_dt=runtime_params_t_plus_dt,
       geo_t_plus_dt=geo_t_plus_dt,

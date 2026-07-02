@@ -349,15 +349,15 @@ class StandardGeometryIntermediates:
     # Bp goes like rho near-axis. So Bp2 terms are smoothed with order 2,
     # and Bp terms with order 1. vpr also goes like rho near-axis
     self.flux_surf_avg_grad_psi2_over_R2[:] = _smooth_savgol(
-        self.flux_surf_avg_grad_psi2_over_R2, idx_limit, 2
+        self.flux_surf_avg_grad_psi2_over_R2, idx_limit, 2  # pyrefly: ignore[bad-argument-type]
     )
     self.flux_surf_avg_grad_psi2[:] = _smooth_savgol(
-        self.flux_surf_avg_grad_psi2, idx_limit, 2
+        self.flux_surf_avg_grad_psi2, idx_limit, 2  # pyrefly: ignore[bad-argument-type]
     )
     self.flux_surf_avg_grad_psi[:] = _smooth_savgol(
-        self.flux_surf_avg_grad_psi, idx_limit, 1
+        self.flux_surf_avg_grad_psi, idx_limit, 1  # pyrefly: ignore[bad-argument-type]
     )
-    self.vpr[:] = _smooth_savgol(self.vpr, idx_limit, 1)
+    self.vpr[:] = _smooth_savgol(self.vpr, idx_limit, 1)  # pyrefly: ignore[bad-argument-type]
 
     # Warn if the input grid is too coarse, which can cause artifacts in
     # derived quantities such as j_total.
@@ -604,7 +604,7 @@ def build_standard_geometry(
       elongation=elongation,
       elongation_face=elongation_face,
       spr_hires=spr_hires,
-      rho_hires_norm=rho_hires_norm,
+      rho_hires_norm=rho_hires_norm,  # pyrefly: ignore[bad-argument-type]
       rho_hires=rho_hires,
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
