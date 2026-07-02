@@ -34,8 +34,8 @@ from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import qualikiz_based_transport_model
-from torax._src.transport_model import tglf_transport_model
 from torax._src.transport_model import tglfnn_ukaea_transport_model
+from torax._src.transport_model.tglf import tglf_transport_model
 import typing_extensions
 
 

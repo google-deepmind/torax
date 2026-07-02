@@ -12,24 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A transport model that calls TGLF.
+"""A TORAX transport model that calls TGLF in-memory using a threadpool."""
 
-Used for generating ground truth for surrogate model evaluations.
-"""
-
+from concurrent import futures
 import dataclasses
-import datetime
-from multiprocessing import pool
-import os
-import subprocess
-from typing import Annotated
-from typing import Any, Literal, TypeAlias
-import uuid
+from typing import Annotated, Any, Literal, TypeAlias
 
 from absl import logging
 import chex
 import jax
-import jax.numpy as jnp
 import numpy as np
 import pydantic
 from torax._src import jax_utils
@@ -39,13 +30,13 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base
-from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import tglf_based_transport_model
-from torax._src.transport_model import tglf_defaults
 from torax._src.transport_model import transport_model
+from torax._src.transport_model.tglf import defaults as tglf_defaults
+from torax._src.transport_model.tglf import tglf2py
 
-# Internal import.
+import multiprocessing
 
 # pylint: disable=invalid-name
 
@@ -99,14 +90,62 @@ class RuntimeParams(tglf_based_transport_model.RuntimeParams):
   tglf_settings: dict[str, TGLFSettingsValueTypes] = dataclasses.field(
       metadata={'static': True}
   )
+  tglf_exec_path: str = dataclasses.field(
+      default='~/tglf', metadata={'static': True}
+  )
+  output_directory: str = dataclasses.field(
+      default='/tmp/torax_tglf_runs', metadata={'static': True}
+  )
+
+
+def _run_single_tglf(
+    i: int,
+    local_tglf_settings: dict[str, Any],
+    global_tglf_settings: dict[str, Any],
+) -> tuple[int, float, float, float]:
+  """Runs a single tglf2py evaluation in a worker process.
+
+  Merges the TGLF input parameters for the i-th face with the global TGLF
+  settings and then calls tglf2py.run_tglf() to compute the turbulent fluxes.
+
+  This function must be at the top level of the module to be pickleable, which
+  is required for passing to the executor.
+
+  Args:
+    i: The index of the run
+    local_tglf_settings: Dictionary of TGLF input arrays, whose values are
+      length n_faces.
+    global_tglf_settings: Dictionary of global TGLF settings (scalars).
+
+  Returns:
+    A tuple of the index, electron particle flux, electron heat flux and total
+    ion heat flux.
+  """
+  tglf_inputs_i = jax.tree.map(
+      lambda x: float(x[i]),
+      local_tglf_settings,
+  )
+  run_inputs = global_tglf_settings | tglf_inputs_i
+  (
+      electron_particle_flux,
+      _,
+      electron_heat_flux,
+      ion_heat_flux,
+  ) = tglf2py.run_tglf(**run_inputs)
+  return (
+      i,
+      float(electron_particle_flux),
+      float(electron_heat_flux),
+      float(np.sum(ion_heat_flux)),
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
-  """Calculates turbulent transport coefficients with TGLF."""
+  """Calculates turbulent transport coefficients with tglf2py in-memory."""
 
-  tglf_exec_path: str = '~/tglf'
-  output_directory: str = '/tmp/torax_tglf_runs'
+  # Hash by id as should be unique per instance
+  executor: futures.Executor = dataclasses.field(metadata={'hash_by_id': True})
 
   def call_implementation(
       self,
@@ -141,25 +180,47 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
+    n_faces = len(geo.rho_face_norm)
+    # Discard fields that aren't needed for the TGLF calculation.
+    local_settings_dict = dataclasses.asdict(tglf_inputs)
+    valid_keys = tglf_defaults.TGLF_DEFAULTS.keys()
+    local_settings_dict = {
+        key: val
+        for key, val in local_settings_dict.items()
+        if key in valid_keys
+    }
+    global_settings_dict = dict(transport_runtime_params.tglf_settings)
 
-    def callback(
-        tglf_inputs: tglf_based_transport_model.TGLFInputs,
-        transport_runtime_params: RuntimeParams,
-        geo: geometry.Geometry,
-        core_profiles: state.CoreProfiles,
-    ) -> transport_model.TurbulentTransport:
-      return self._run_tglf(
-          tglf_inputs=tglf_inputs,
-          transport=transport_runtime_params,
-          geo=geo,
-          n_processes=transport_runtime_params.n_processes,
-          n_cores_per_process=transport_runtime_params.n_cores_per_process,
-          verbose=transport_runtime_params.verbose,
-          core_profiles=core_profiles,
+    def callback(local_settings_dict):
+      electron_heat_flux_array = np.zeros((n_faces,))
+      electron_particle_flux_array = np.zeros((n_faces,))
+      total_ion_heat_flux_array = np.zeros((n_faces,))
+
+      future_list = [
+          self.executor.submit(
+              _run_single_tglf,
+              i,
+              local_settings_dict,
+              global_settings_dict,
+          )
+          for i in range(n_faces)
+      ]
+      for future in futures.as_completed(future_list):
+        i, electron_particle_flux, electron_heat_flux, total_ion_heat_flux = (
+            future.result()
+        )
+        electron_particle_flux_array[i] = electron_particle_flux
+        electron_heat_flux_array[i] = electron_heat_flux
+        total_ion_heat_flux_array[i] = total_ion_heat_flux
+
+      return (
+          electron_heat_flux_array,
+          total_ion_heat_flux_array,
+          electron_particle_flux_array,
       )
 
     face_array_shape_dtype = jax.ShapeDtypeStruct(
-        shape=(geo.torax_mesh.nx + 1,), dtype=jax_utils.get_dtype()
+        shape=(n_faces,), dtype=jax_utils.get_dtype()
     )
     result_shape_dtypes = transport_model.TurbulentTransport(
         chi_face_ion=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
@@ -167,166 +228,29 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         d_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
         v_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
     )
-    # Even though TGLF has side-effects (writing and reading from disk) we
-    # still use a pure_callback here as:
-    # 1. Nothing outside of this method depends on the side-effect.
-    # 2. We don't mind if results are cached or recomputed.
-    # 3. DCE will not happen here as we make use of the `core_transport` result.
-    # This is based on the current implementation of pure_callback and JAX
-    # may change the implementation making this not appropriate down the line.
-    core_transport = jax.pure_callback(
-        callback,
-        result_shape_dtypes,
-        tglf_inputs,
-        transport_runtime_params,
-        geo,
-        core_profiles,
+
+    # We must pass local_settings_dict explicitly as an argument (*args) to
+    # jax.pure_callback so JAX concretizes the abstract tracer arrays into
+    # real NumPy arrays before invoking callback().
+    electron_heat_flux, ion_heat_flux, electron_particle_flux = (
+        jax.pure_callback(
+            callback,
+            result_shape_dtypes,
+            local_settings_dict,
+        )
     )
 
-    return core_transport
-
-  def _run_tglf(
-      self,
-      tglf_inputs: tglf_based_transport_model.TGLFInputs,
-      transport: RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      n_processes: int,
-      n_cores_per_process: int,
-      verbose: bool = True,
-  ) -> transport_model.TurbulentTransport:
-    """Runs TGLF using command line tools. Loose coupling with TORAX.
-
-    Args:
-      tglf_inputs: Precomputed physics data.
-      transport: Runtime parameters for the transport model.
-      geo: TORAX geometry object.
-      core_profiles: TORAX core profiles object.
-      n_processes: Number of processes to run in parallel.
-      n_cores_per_process: Number of cores to use for each TGLF process.
-      verbose: If True, print the output of each TGLF process.
-
-    Returns:
-      core_transport: The core transport coefficients calculated by TGLF.
-    """
-    # Generate a unique directory for this TGLF plan.
-    # Include UUID to prevent collisions when multiple simulations start
-    # simultaneously.
-    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    short_uuid = uuid.uuid4().hex[:8]
-    unique_suffix = f'uuid_{short_uuid}'
-    # Add SLURM job ID to the unique suffix if running on SLURM.
-    slurm_job_id = os.environ.get('SLURM_JOB_ID')
-    if slurm_job_id:
-      unique_suffix = f'job_{slurm_job_id}_{unique_suffix}'
-    plan_directory = os.path.join(
-        self.output_directory,
-        f'torax_tglf_run_{timestamp}_{unique_suffix}',
-    )
-    if not os.path.exists(plan_directory):
-      os.makedirs(plan_directory)
-
-    def _run_tglf_single(
-        face_index: int,
-    ) -> tuple[float, float, float]:
-      """Execute a single TGLF run.
-
-      Args:
-        face_index: The index of the face to run TGLF for.
-
-      Returns:
-        A tuple of (electron_heat_flux_GB, ion_heat_flux_GB,
-        electron_particle_flux_GB).
-      """
-      # Create a unique directory for this TGLF run.
-      label = f'tglf_run_{face_index:04d}'
-      output_directory = os.path.join(plan_directory, label)
-      if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
-
-      # Extract the TGLFInputs for this face.
-      tglf_inputs_i = jax.tree.map(
-          lambda x: x[face_index] if jnp.ndim(x) > 0 else x, tglf_inputs
-      )
-
-      # Create the TGLF input namelist, merging the TGLF settings from the
-      # transport runtime params with the data from tglf_inputs.
-      tglf_namelist = transport.tglf_settings.copy()
-      tglf_namelist.update(dataclasses.asdict(tglf_inputs_i))
-      # Drop fields that are inherited from the QuasilinearInputs.
-      excluded_fields = {
-          f.name
-          for f in dataclasses.fields(
-              quasilinear_transport_model.QuasilinearInputs
-          )
-      }
-      # Drop fields that are used for denormalization of the outputs
-      excluded_fields.update({'Q_GB', 'GAMMA_GB'})
-      tglf_namelist = {
-          k: v for k, v in tglf_namelist.items() if k not in excluded_fields
-      }
-      namelist_str = '\n'.join([f'{k}={v}' for k, v in tglf_namelist.items()])
-      with open(output_directory + '/input.tglf', 'w+') as f:
-        f.write(namelist_str)
-
-      # Run TGLF in the given working directory.
-      result = subprocess.run(
-          [
-              str(self.tglf_exec_path),
-              '-n',
-              str(n_cores_per_process),
-              '-e',
-              label,
-          ],
-          capture_output=verbose,
-          text=verbose,
-          stdout=None if verbose else subprocess.DEVNULL,
-          stderr=None if verbose else subprocess.DEVNULL,
-          cwd=plan_directory,
-          check=True,  # Raise error if the command fails.
-      )
-
-      if verbose:
-        subprocess_output = result.stdout
-        if result.stderr:
-          subprocess_output += result.stderr
-        logging.info('TGLF face %s output:\n%s', face_index, subprocess_output)
-
-      # Read the TGLF output.
-      gbfluxes = np.fromfile(
-          os.path.join(output_directory, 'out.tglf.gbflux'),
-          sep=' ',
-      )
-      nspecies = len(gbfluxes) // 4
-      tglf_elec_eflux_out = float(gbfluxes[1 * nspecies + 0])
-      tglf_ion1_eflux_out = float(
-          sum(gbfluxes[1 * nspecies + 1 : 1 * nspecies + nspecies])
-      )
-      tglf_elec_pflux_out = float(gbfluxes[0 * nspecies + 0])
-
-      return (
-          tglf_elec_eflux_out,
-          tglf_ion1_eflux_out,
-          tglf_elec_pflux_out,
-      )
-
-    cell_indices = range(len(geo.torax_mesh.face_centers))
-    with pool.ThreadPool(processes=n_processes) as thread_pool:
-      subprocess_outputs = thread_pool.map(_run_tglf_single, cell_indices)
-
-    tglf_elec_eflux_out, tglf_ion1_eflux_out, tglf_elec_pflux_out = np.array(
-        subprocess_outputs
-    ).T
-
-    return self._make_core_transport(
-        electron_heat_flux_GB=tglf_elec_eflux_out,
-        ion_heat_flux_GB=tglf_ion1_eflux_out,
-        electron_particle_flux_GB=tglf_elec_pflux_out,
+    core_transport = self._make_core_transport(
+        electron_heat_flux_GB=electron_heat_flux,
+        ion_heat_flux_GB=ion_heat_flux,
+        electron_particle_flux_GB=electron_particle_flux,
         tglf_inputs=tglf_inputs,
-        transport=transport,
+        transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
     )
+
+    return core_transport
 
 
 class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
@@ -394,8 +318,6 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
 
   Attributes:
     model_name: The transport model to use. Hardcoded to 'tglf'.
-    tglf_exec_path: Path to the TGLF executable.
-    output_directory: Path to output directory for temp files.
     n_processes: Set number of parallel TGLF calculations to run.
     n_cores_per_process: Number of cores to use for each parallel TGLF
       calculation.
@@ -432,13 +354,22 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
   use_legacy_torax_defaults: bool = True
 
   # TODO(b/434175938): remove support for parsing via the legacy config kwargs
-  # and remove use_legacy_torax_defaults.
+  # and remove use_legacy_torax_defaults. Note that when we remove the legacy
+  # TORAX defaults, we can remove all of the merging in this function as the
+  # tglf2py module will handle setting the defaults.
   @pydantic.model_validator(mode='before')
   @classmethod
   def _validate_tglf_settings(cls, data: dict[str, Any]) -> dict[str, Any]:
     """Parses tglf_settings combining defaults and old config kwargs."""
     if data.get('model_name', '') != 'tglf':
       return data
+
+    for deprecated_param in ['tglf_exec_path', 'output_directory', 'verbose']:
+      if deprecated_param in data:
+        logging.warning(
+            "Config option '%s' is deprecated and has no effect.",
+            deprecated_param,
+        )
 
     if data.get('use_legacy_torax_defaults', True):
       logging.warning(
@@ -476,9 +407,12 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
     return data
 
   def build_transport_model(self) -> TGLFTransportModel:
+    mp_context = multiprocessing.get_context('spawn')
     return TGLFTransportModel(
-        tglf_exec_path=self.tglf_exec_path,
-        output_directory=self.output_directory,
+        executor=futures.ProcessPoolExecutor(
+            max_workers=self.n_processes,
+            mp_context=mp_context,
+        )
     )
 
   def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
@@ -487,6 +421,8 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
         n_processes=self.n_processes,
         n_cores_per_process=self.n_cores_per_process,
         verbose=self.verbose,
+        tglf_exec_path=self.tglf_exec_path,
+        output_directory=self.output_directory,
         use_rotation=self.use_rotation,
         rotation_multiplier=self.rotation_multiplier,
         DV_effective=self.DV_effective,

@@ -27,7 +27,6 @@ import os
 import pathlib
 import time
 
-from absl import app
 from absl import flags
 from absl import logging
 import jax
@@ -36,6 +35,8 @@ from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
+
+from absl import app
 
 os.environ['XLA_FLAGS'] = (
     os.environ.get('XLA_FLAGS', '')

@@ -18,7 +18,6 @@ import copy
 
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
-# Internal import.
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
@@ -45,6 +44,22 @@ CONFIG['transport'] = {
     # Smoothing.
     'smoothing_width': 0.1,
     # TGLF params
-    'tglf_exec_path': '~/gacode/tglf/bin/tglf',
+    'n_cores_per_process': 1,
+    'n_processes': 16,
     'DV_effective': True,
+    'use_legacy_torax_defaults': False,
+    # These settings match the tglfnn-ukaea transport model.
+    'tglf_settings': {
+        'USE_TRANSPORT_MODEL': 2,
+        'NS': 2,
+        'NXGRID': 16,
+        'GEOMETRY_FLAG': 1,
+        'KYGRID_MODEL': 4,
+        'SAT_RULE': 2,
+        'NBASIS_MAX': 6,
+        'NBASIS_MIN': 2,
+        'USE_MHD_RULE': False,
+        'ALPHA_ZF': -1,
+        'FILTER': 2.0,
+    },
 }
