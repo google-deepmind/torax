@@ -102,12 +102,21 @@ def _update_pedestal_transition_state(
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
   ):
     return _update_adaptive_transport(
-        pedestal_transition_state, runtime_params, P_SOL, P_LH,
+        pedestal_transition_state,
+        runtime_params,
+        P_SOL,
+        P_LH,
     )
 
-  return _update_adaptive_source(
-      pedestal_transition_state, runtime_params, geo, core_profiles,
-      core_sources, models, P_SOL, P_LH,
+  return _update_internal_boundary_condition(
+      pedestal_transition_state,
+      runtime_params,
+      geo,
+      core_profiles,
+      core_sources,
+      models,
+      P_SOL,
+      P_LH,
   )
 
 
@@ -163,7 +172,7 @@ def _update_adaptive_transport(
   )
 
 
-def _update_adaptive_source(
+def _update_internal_boundary_condition(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
@@ -175,7 +184,7 @@ def _update_adaptive_source(
     P_SOL: jax.Array,
     P_LH: jax.Array,
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
-  """Updates pedestal transition state for ADAPTIVE_SOURCE mode.
+  """Updates pedestal transition state for INTERNAL_BOUNDARY_CONDITION mode.
 
   Full 4-state machine with TRANSITIONING_TO_H/L states, transition timers,
   dithering support, and L-mode value capture for ramp interpolation.
@@ -296,7 +305,7 @@ def _update_adaptive_source(
   )
 
   # Update the target values for transitions to L-mode.
-  # Only needed for ADAPTIVE_SOURCE, which uses ramp interpolation.
+  # Only needed for INTERNAL_BOUNDARY_CONDITION, which uses ramp interpolation.
   update_L_mode_values = (old_confinement_mode == ConfinementMode.L_MODE) & (
       new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
   )
@@ -402,14 +411,14 @@ def pre_step(
     edge_outputs = None
 
   # Update pedestal transition state for hysteresis tracking.
-  # Called for both ADAPTIVE_SOURCE (with formation model) and
+  # Called for both INTERNAL_BOUNDARY_CONDITION (with formation model) and
   # ADAPTIVE_TRANSPORT modes.
   pedestal_transition_state = input_state.pedestal_transition_state
   if (
       (
           runtime_params_t.pedestal.mode
-          == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
-          and runtime_params_t.pedestal.use_formation_model_with_adaptive_source
+          == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+          and runtime_params_t.pedestal.use_formation_model_with_internal_boundary_condition
       )
       or runtime_params_t.pedestal.mode
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT

@@ -300,10 +300,10 @@ class SimTest(sim_test_case.SimTestCase):
       #     'test_iterhybrid_lh_transition.py',
       #     _ALL_PROFILES,
       # ),
-      # Tests LH transition with ADAPTIVE_SOURCE and formation model
+      # Tests LH transition with INTERNAL_BOUNDARY_CONDITION and formation model
       (
-          'test_iterhybrid_lh_transition_adaptive_source',
-          'test_iterhybrid_lh_transition_adaptive_source.py',
+          'test_iterhybrid_lh_transition_internal_boundary_condition',
+          'test_iterhybrid_lh_transition_internal_boundary_condition.py',
           _ALL_PROFILES,
       ),
       # Tests used for testing changing configs without recompiling.

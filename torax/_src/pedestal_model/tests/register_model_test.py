@@ -89,7 +89,7 @@ class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
     return pedestal_runtime_params_lib.RuntimeParams(
         set_pedestal=self.set_pedestal.get_value(t),
         mode=self.mode,
-        use_formation_model_with_adaptive_source=self.use_formation_model_with_adaptive_source,
+        use_formation_model_with_internal_boundary_condition=self.use_formation_model_with_internal_boundary_condition,
         transition_time_width=self.transition_time_width.get_value(t),
         P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
         include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,

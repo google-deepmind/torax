@@ -466,10 +466,12 @@ def _calc_coeffs_full(
   # 5. Add internal boundary condition source terms
   if (
       runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.ADAPTIVE_SOURCE
+      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
   ):
     pedestal_model_output = pedestal_transition_state.pedestal_model_output
-    if runtime_params.pedestal.use_formation_model_with_adaptive_source:
+    if (
+        runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
+    ):
 
       # Scale the pedestal output by the ramp fraction during transitions.
       # In H-mode, returns full H-mode values. In L-mode, returns L-mode
@@ -484,8 +486,8 @@ def _calc_coeffs_full(
           ramp_fraction=ramp_fraction,
       )
 
-      # Adaptive source should be applied if we're in H mode or still in the
-      # LH/HL ramp.
+      # internal boundary conditions should be applied if we're in H mode
+      # or still in the LH/HL ramp.
       apply_pedestal_internal_boundary_conditions = (
           pedestal_transition_state.confinement_mode
           != pedestal_transition_state_lib.ConfinementMode.L_MODE
