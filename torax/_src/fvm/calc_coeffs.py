@@ -503,12 +503,10 @@ def _calc_coeffs_full(
       )
     else:
       # If not using the formation model, we always apply the adaptive source.
-      pedestal_internal_boundary_conditions = (
-          pedestal_model_output.to_internal_boundary_conditions(
-              geo,
-              core_profiles=core_profiles,
-              pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
-          )
+      pedestal_internal_boundary_conditions = pedestal_model_output.to_internal_boundary_conditions(
+          geo,
+          core_profiles=core_profiles,
+          pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
       )
 
     # Combine the user-specified internal boundary conditions with the pedestal
@@ -530,25 +528,6 @@ def _calc_coeffs_full(
     combined_internal_boundary_conditions = (
         runtime_params.profile_conditions.internal_boundary_conditions
     )
-
-  # Apply the combined internal boundary conditions to the source terms.
-  (
-      source_i,
-      source_e,
-      source_n_e,
-      source_mat_ii,
-      source_mat_ee,
-      source_mat_nn,
-  ) = internal_boundary_conditions_lib.apply_adaptive_source(
-      source_T_i=source_i,
-      source_T_e=source_e,
-      source_n_e=source_n_e,
-      source_mat_ii=source_mat_ii,
-      source_mat_ee=source_mat_ee,
-      source_mat_nn=source_mat_nn,
-      runtime_params=runtime_params,
-      internal_boundary_conditions=combined_internal_boundary_conditions,
-  )
 
   # --- Build arguments to solver  --- #
   # Build arguments to solver based on which variables are evolving
@@ -609,6 +588,13 @@ def _calc_coeffs_full(
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
+  internal_boundary_condition_mask, internal_boundary_condition_target_vec = (
+      combined_internal_boundary_conditions.to_solver_coeffs(
+          evolving_names=evolving_names,
+          nx=geo.torax_mesh.nx,
+      )
+  )
+
   coeffs = block_1d_coeffs.Block1DCoeffs(
       transient_out_cell=transient_out_cell,  # pyrefly: ignore[bad-argument-type]
       transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
@@ -616,6 +602,10 @@ def _calc_coeffs_full(
       v_face=v_face,  # pyrefly: ignore[bad-argument-type]
       source_mat_cell=source_mat_cell,  # pyrefly: ignore[bad-argument-type]
       source_cell=source_cell,  # pyrefly: ignore[bad-argument-type]
+      internal_boundary_condition_mask=internal_boundary_condition_mask,  # pyrefly: ignore[bad-argument-type]
+      internal_boundary_condition_target_vec=(
+          internal_boundary_condition_target_vec
+      ),  # pyrefly: ignore[bad-argument-type]
   )
 
   return coeffs

@@ -98,6 +98,16 @@ def implicit_solve_block(
       )
   )
 
+  # Apply direct IBC enforcement via matrix row replacement.
+  if coeffs_new.has_internal_boundary_conditions:
+    lhs_matrix, lhs_vec, rhs_matrix, rhs_vec = (
+        residual_and_loss.apply_internal_boundary_conditions(
+            lhs_matrix, lhs_vec, rhs_matrix, rhs_vec,
+            coeffs_new.internal_boundary_condition_mask,
+            coeffs_new.internal_boundary_condition_target_vec,
+        )
+    )
+
   rhs_result = rhs_matrix.matvec(x_old_array) + rhs_vec - lhs_vec
   x_new = lhs_matrix.solve(rhs_result, solver_type=implicit_solver_type)
 

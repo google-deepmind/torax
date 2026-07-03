@@ -22,6 +22,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
+from torax._src.core_profiles import convertors
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
@@ -73,6 +74,54 @@ class InternalBoundaryConditions:
         T_e=jnp.zeros(nx, dtype=jax_utils.get_dtype()),
         n_e=jnp.zeros(nx, dtype=jax_utils.get_dtype()),
     )
+
+  def to_solver_coeffs(
+      self,
+      evolving_names: tuple[str, ...],
+      nx: int,
+  ) -> tuple[jax.Array, jax.Array]:
+    """Build stacked internal boundary condition mask and target arrays.
+
+    For each evolving variable, produces a boolean mask (True where the
+    internal boundary condition is active, i.e. the target is nonzero)
+    and the corresponding target value scaled from their physical units in
+    CoreProfiles, to solver units (e.g. with scaling factors to maintain
+    similar order of magnitude between evolved variables in the state vector).
+
+    Args:
+      evolving_names: Ordered tuple of evolving variable names (e.g. ('T_i',
+        'T_e', 'psi', 'n_e')).
+      nx: Number of cells in the radial grid.
+
+    Returns:
+      A (mask, target) tuple where:
+        mask: Bool array of shape (nx, num_channels).
+        target: Float array of shape (nx, num_channels) in solver-scaled units.
+    """
+    var_map = {
+        'T_i': self.T_i,
+        'T_e': self.T_e,
+        'n_e': self.n_e,
+    }
+    mask_parts = []
+    target_parts = []
+    for var in evolving_names:
+      if var in var_map:
+        target_original_units = var_map[var]
+        # Only apply where the target is nonzero.
+        mask_parts.append(target_original_units != 0.0)
+        target_parts.append(
+            target_original_units / convertors.SCALING_FACTORS[var]
+        )
+      else:
+        # Variables like psi have no internal boundary conditions.
+        mask_parts.append(jnp.zeros(nx, dtype=jnp.bool_))
+        target_parts.append(jnp.zeros(nx, dtype=jax_utils.get_dtype()))
+    # Stack along axis=-1 to produce shape (nx, num_channels), i.e.
+    # grid-major ordering. This matches the block tridiagonal solver layout
+    # where the leading axis indexes spatial cells and the trailing axis
+    # indexes the evolving channels within each cell's block.
+    return jnp.stack(mask_parts, axis=-1), jnp.stack(target_parts, axis=-1)
 
 
 class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):

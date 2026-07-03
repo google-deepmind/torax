@@ -211,6 +211,105 @@ def theta_method_matrix_equation(
   return lhs_matrix, lhs_vec, rhs_matrix, rhs_vec
 
 
+def apply_internal_boundary_conditions(
+    lhs: tridiagonal.BlockTriDiagonal,
+    lhs_vec: jax.Array,
+    rhs: tridiagonal.BlockTriDiagonal,
+    rhs_vec: jax.Array,
+    internal_boundary_condition_mask: jax.Array,
+    internal_boundary_condition_target_vec: jax.Array,
+) -> tuple[
+    tridiagonal.BlockTriDiagonal, jax.Array,
+    tridiagonal.BlockTriDiagonal, jax.Array,
+]:
+  """Enforce internal boundary conditions via matrix row replacement.
+
+  For each (cell, channel) where internal_boundary_condition_mask is True,
+  replaces the PDE row in the matrix equation with the algebraic constraint:
+
+    x_new[cell, channel] = target[cell, channel]
+
+  This is achieved by setting the LHS row to identity and the RHS forcing to
+  the target value. The resulting system is exactly equivalent to a Dirichlet
+  boundary condition without introducing ill-conditioning.
+
+  Args:
+    lhs: LHS block-tridiagonal matrix.
+    lhs_vec: LHS forcing vector, shape (num_cells, num_channels).
+    rhs: RHS block-tridiagonal matrix.
+    rhs_vec: RHS forcing vector, shape (num_cells, num_channels).
+    internal_boundary_condition_mask: Boolean array, shape
+      (num_cells, num_channels). True at constrained (cell, channel) entries.
+    internal_boundary_condition_target_vec: Float array, shape
+      (num_cells, num_channels). Target values in solver-scaled units.
+
+  Returns:
+    Modified (lhs, lhs_vec, rhs, rhs_vec) with Dirichlet rows enforced.
+  """
+  num_channels = lhs.block_size
+
+  # Identity block used to replace constrained rows in the LHS diagonal.
+  eye = jnp.eye(num_channels)
+
+  # --- LHS: constrained rows become identity ---
+  # diagonal has shape (N, C, C).
+  # internal_boundary_condition_mask[:, :, None] broadcasts over the last
+  # axis so that row j of block i is replaced by eye[j, :] when
+  # internal_boundary_condition_mask[i, j] is True. This makes
+  # L · x_new = 1 · x_new at that entry.
+  new_lhs_diag = jnp.where(
+      internal_boundary_condition_mask[:, :, None],
+      eye[None, :, :],
+      lhs.diagonal,
+  )
+  # lower has shape (N-1, C, C): block i couples cell i+1's equation to cell
+  # i, so we index the mask at [1:] (cells 1..N-1) to zero the right rows.
+  new_lhs_lower = jnp.where(
+      internal_boundary_condition_mask[1:, :, None], 0.0, lhs.lower
+  )
+  # upper has shape (N-1, C, C): block i lives in cell i's equation, so we
+  # index the mask at [:-1] (cells 0..N-2).
+  new_lhs_upper = jnp.where(
+      internal_boundary_condition_mask[:-1, :, None], 0.0, lhs.upper
+  )
+  # Zero the LHS source term so the constraint has no additive forcing on the
+  # left-hand side.
+  new_lhs_vec = jnp.where(
+      internal_boundary_condition_mask, 0.0, lhs_vec
+  )
+
+  # --- RHS: zero the matrix where needed (decouple x_old) and inject target ---
+  # All RHS matrix bands are zeroed at constrained rows so x_old does not
+  # enter the constraint equation.
+  new_rhs_diag = jnp.where(
+      internal_boundary_condition_mask[:, :, None], 0.0, rhs.diagonal
+  )
+  new_rhs_lower = jnp.where(
+      internal_boundary_condition_mask[1:, :, None], 0.0, rhs.lower
+  )
+  new_rhs_upper = jnp.where(
+      internal_boundary_condition_mask[:-1, :, None], 0.0, rhs.upper
+  )
+  # The RHS forcing is replaced with the target value, giving
+  # the final constraint: 1 · x_new[i, j] = target[i, j].
+  new_rhs_vec = jnp.where(
+      internal_boundary_condition_mask,
+      internal_boundary_condition_target_vec,
+      rhs_vec,
+  )
+
+  return (
+      tridiagonal.BlockTriDiagonal(
+          lower=new_lhs_lower, diagonal=new_lhs_diag, upper=new_lhs_upper,
+      ),
+      new_lhs_vec,
+      tridiagonal.BlockTriDiagonal(
+          lower=new_rhs_lower, diagonal=new_rhs_diag, upper=new_rhs_upper,
+      ),
+      new_rhs_vec,
+  )
+
+
 @jax.jit(
     static_argnames=[
         'evolving_names',
@@ -299,6 +398,14 @@ def theta_method_block_residual(
       convection_dirichlet_mode=solver_params.convection_dirichlet_mode,
       convection_neumann_mode=solver_params.convection_neumann_mode,
   )
+
+  # Apply direct IBC enforcement via matrix row replacement.
+  if coeffs_new.has_internal_boundary_conditions:
+    lhs, lhs_vec, rhs, rhs_vec = apply_internal_boundary_conditions(
+        lhs, lhs_vec, rhs, rhs_vec,
+        coeffs_new.internal_boundary_condition_mask,
+        coeffs_new.internal_boundary_condition_target_vec,
+    )
 
   # TODO(b/505253351) Remove the reshape and transpose.
   x_old_array = fvm_conversions.cell_variable_tuple_to_array(x_old, axis=1)

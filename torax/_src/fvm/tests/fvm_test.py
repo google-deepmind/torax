@@ -576,5 +576,60 @@ class FVMTest(parameterized.TestCase):
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
 
 
+class Block1DCoeffsTest(parameterized.TestCase):
+
+  def test_post_init_both_none(self):
+    """Both internal_boundary_condition fields None is valid."""
+    coeffs = block_1d_coeffs.Block1DCoeffs(
+        transient_in_cell=(jnp.ones(4),),
+    )
+    self.assertIsNone(coeffs.internal_boundary_condition_mask)
+    self.assertIsNone(coeffs.internal_boundary_condition_target_vec)
+
+  def test_post_init_both_set(self):
+    """Both internal_boundary_condition fields set is valid."""
+    mask = jnp.array([[True, False], [False, True]])
+    target = jnp.array([[1.0, 0.0], [0.0, 2.0]])
+    coeffs = block_1d_coeffs.Block1DCoeffs(
+        transient_in_cell=(jnp.ones(2),),
+        internal_boundary_condition_mask=mask,
+        internal_boundary_condition_target_vec=target,
+    )
+    self.assertIsNotNone(coeffs.internal_boundary_condition_mask)
+    self.assertIsNotNone(coeffs.internal_boundary_condition_target_vec)
+
+  def test_post_init_mask_only_raises(self):
+    """Setting only mask without target raises ValueError."""
+    with self.assertRaises(ValueError):
+      block_1d_coeffs.Block1DCoeffs(
+          transient_in_cell=(jnp.ones(2),),
+          internal_boundary_condition_mask=jnp.array([[True, False]]),
+      )
+
+  def test_post_init_target_only_raises(self):
+    """Setting only target without mask raises ValueError."""
+    with self.assertRaises(ValueError):
+      block_1d_coeffs.Block1DCoeffs(
+          transient_in_cell=(jnp.ones(2),),
+          internal_boundary_condition_target_vec=jnp.array([[1.0, 0.0]]),
+      )
+
+  def test_has_internal_boundary_conditions_false(self):
+    """has_internal_boundary_conditions is False when fields are None."""
+    coeffs = block_1d_coeffs.Block1DCoeffs(
+        transient_in_cell=(jnp.ones(4),),
+    )
+    self.assertFalse(coeffs.has_internal_boundary_conditions)
+
+  def test_has_internal_boundary_conditions_true(self):
+    """has_internal_boundary_conditions is True when fields are set."""
+    coeffs = block_1d_coeffs.Block1DCoeffs(
+        transient_in_cell=(jnp.ones(2),),
+        internal_boundary_condition_mask=jnp.array([[True, False]]),
+        internal_boundary_condition_target_vec=jnp.array([[1.0, 0.0]]),
+    )
+    self.assertTrue(coeffs.has_internal_boundary_conditions)
+
+
 if __name__ == '__main__':
   absltest.main()

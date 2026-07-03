@@ -83,6 +83,13 @@ class Block1DCoeffs:
     source_cell: Additional source terms on the cell grid for each channel.
       Depending on the source runtime_params, may be constant values for a
       timestep, or updated iteratively with new states in a nonlinear solver
+    internal_boundary_condition_mask: Boolean array of shape
+      (num_cells, num_channels) indicating which (cell, channel) entries have
+      internal boundary conditions enforced via matrix row replacement. None if
+      no internal boundary conditions.
+    internal_boundary_condition_target_vec: Float array of shape
+      (num_cells, num_channels) with target values in solver-scaled units for
+      constrained entries. None if no internal boundary conditions.
   """
   transient_in_cell: tuple[jax.Array, ...]
   transient_out_cell: tuple[jax.Array, ...] | None = None
@@ -90,3 +97,20 @@ class Block1DCoeffs:
   v_face: tuple[jax.Array, ...] | None = None
   source_mat_cell: OptionalTupleMatrix = None
   source_cell: tuple[jax.Array | None, ...] | None = None
+  internal_boundary_condition_mask: jax.Array | None = None
+  internal_boundary_condition_target_vec: jax.Array | None = None
+
+  def __post_init__(self):
+    if (self.internal_boundary_condition_mask is None) != (
+        self.internal_boundary_condition_target_vec is None
+    ):
+      raise ValueError(
+          'internal_boundary_condition_mask and'
+          ' internal_boundary_condition_target_vec must both be'
+          ' set or both be None.'
+      )
+
+  @property
+  def has_internal_boundary_conditions(self) -> bool:
+    """Returns True if internal boundary conditions are set."""
+    return self.internal_boundary_condition_mask is not None
