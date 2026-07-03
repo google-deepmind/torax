@@ -22,9 +22,7 @@ import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
-from jax.experimental import scheduling_groups
 import numpy as np
-from packaging import version
 
 T = TypeVar('T')
 BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
@@ -35,13 +33,16 @@ PyTree: TypeAlias = Any
 def xla_metadata_call(
     f: Callable[..., Any], *, compilation_unit: str
 ) -> Callable[..., Any]:
-
-  if version.Version(jax.__version__) > version.Version('0.10.1'):
-    return scheduling_groups.xla_metadata_call(
-        f, compilation_unit=compilation_unit
-    )
-  else:
-    return f
+  """Gated call to scheduling_groups.xla_metadata_call based on JAX version."""
+  # TODO(b/530865065): xla_metadata_call is currently incompatible with
+  # reverse-mode AD through the TORAX Newton solver. Fixing this bug will lead
+  # to improved compilation times (by ~2s).
+  # if version.Version(jax.__version__) > version.Version('0.10.1'):
+  #   return scheduling_groups.xla_metadata_call(
+  #       f, compilation_unit=compilation_unit
+  #   )
+  del compilation_unit  # unused
+  return f
 
 
 @functools.cache
