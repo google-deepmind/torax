@@ -2167,16 +2167,76 @@ from the ``main_ion`` ion mixture.
 gas_puff
 ^^^^^^^^
 
-Exponential based gas puff source. No first-principle-based model is yet
-implemented in TORAX.
+Gas puff particle source for the electron density equation deposited radially
+using an exponential profile decaying inwards from the outer edge boundary
+(:math:`\hat{\rho} = 1.0`).
+
+Two models are supported via ``model_name``:
+
+1. ``'exponential'`` (default): A fixed or time-varying prescribed particle
+   injection rate set by ``S_total``.
+2. ``'feedback'`` (experimental): Computes the injection rate using a proportional
+   feedback control loop added to a baseline feedforward rate:
+   :math:`S_{\text{total}} = \max(0, S_{\text{feedforward}} + \text{feedback\_gain} \cdot (\text{target\_average\_n\_e} - \text{current\_average\_n\_e}))`.
+
+.. warning::
+  Models and features located in ``torax.experimental`` are not guaranteed to
+  be maintained, keep the same API, or remain backward compatible. Fields
+  and behaviors may change without notice or deprecation warnings.
+
+To use the experimental ``'feedback'`` model in TORAX, you must first register
+its configuration class in Python:
+
+.. code-block:: python
+
+  from torax._src.sources import register_model
+  from torax.experimental import gas_puff_feedback_source
+
+  register_model.register_source_model_config(
+      gas_puff_feedback_source.GasPuffFeedbackSourceConfig, 'gas_puff'
+  )
+
+**Common Parameters:**
 
 ``mode`` (str [default = 'model'])
 
 ``puff_decay_length`` (**time-varying-scalar** [default = 0.05])
   Gas puff decay length from edge in units of :math:`\hat{\rho}`.
 
+**Parameters for** ``model_name = 'exponential'`` **:**
+
 ``S_total`` (**time-varying-scalar** [default = 1e22])
   Total number of particle source in units of particles/s.
+
+**Parameters for** ``model_name = 'feedback'`` **:**
+
+``S_feedforward`` (**time-varying-scalar** [default = 1e22])
+  Baseline feedforward particle injection rate [particles/s].
+
+``average_type`` (str [default = 'line'])
+  Method for spatial electron density averaging (``'line'`` or ``'volume'``)
+  used to calculate the feedback error.
+
+``feedback_gain`` (**time-varying-scalar** [default = 1.0])
+  Proportional feedback gain [ :math:`m^3/s` ] mapping density error to an
+  incremental particle fueling rate.
+
+``target_average_n_e`` (**time-varying-scalar** [default = 0.77e20])
+  Desired target average electron density [ :math:`m^{-3}` ] for feedback
+  regulation.
+
+**Example Configuration:**
+
+.. code-block:: python
+
+  config['sources']['gas_puff'] = {
+      'model_name': 'feedback',
+      'average_type': 'line',
+      'feedback_gain': 10.0,
+      'target_average_n_e': 1.0e20,
+      'S_feedforward': 1.0e22,
+      'puff_decay_length': 0.05,
+  }
 
 generic_current
 ^^^^^^^^^^^^^^^
