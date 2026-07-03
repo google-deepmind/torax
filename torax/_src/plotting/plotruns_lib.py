@@ -667,7 +667,6 @@ def _add_traces_and_update_axes(
               'trace_idx': trace_count,
               'attr': attr,
               'dataset': dataset,
-              'x': x,
           })
         else:
           # Time series plots (static)
@@ -693,26 +692,24 @@ def _add_traces_and_update_axes(
         )
         trace_count += 1
 
-    # Add vertical line to denote current slider time for time series plots
+    # Add vertical line to denote current slider time for time series plots.
+    # A layout shape rather than a trace, so slider steps can move it via a
+    # small relayout instead of re-sending x/y arrays per step.
     if not is_spatial:
       ylow, yhigh = _get_y_limits(datasets, axis_config)
-      fig.add_trace(
-          go.Scatter(
-              x=[datasets[0].t[0], datasets[0].t[0]],
-              y=[ylow, yhigh],
-              mode='lines',
-              name='Current Time',
-              showlegend=False,
-              line=dict(color='gray', width=1, dash='dot'),
-          ),
+      fig.add_shape(
+          type='line',
+          x0=datasets[0].t[0],
+          x1=datasets[0].t[0],
+          y0=ylow,
+          y1=yhigh,
+          line=dict(color='gray', width=1, dash='dot'),
           row=row,
           col=col,
       )
       timestamp_line_info.append({
-          'trace_idx': trace_count,
-          'y': [ylow, yhigh],
+          'shape_idx': len(timestamp_line_info),
       })
-      trace_count += 1
 
     # Update Axes Labels
     x_axis_kwargs = dict(
@@ -766,7 +763,6 @@ def _get_slider_steps(
 
   for t_val in t_vals:
     y_updates = []
-    x_updates = []
     trace_indices = []
 
     for info in spatial_traces_info:
@@ -775,18 +771,20 @@ def _get_slider_steps(
       nearest_t_idx = int(np.argmin(np.abs(dataset_t - t_val)))
       val_array = getattr(info['dataset'], info['attr'])
       y_updates.append(val_array[nearest_t_idx, :])
-      x_updates.append(info['x'])
       trace_indices.append(info['trace_idx'])
 
+    # The x-arrays of spatial traces are static rho grids, so only y is
+    # restyled. Timestamp vlines are layout shapes, moved via the relayout
+    # part of the 'update' method. This halves the per-step payload.
+    relayout_updates = {}
     for info in timestamp_line_info:
-      y_updates.append(info['y'])
-      x_updates.append([t_val, t_val])
-      trace_indices.append(info['trace_idx'])
+      relayout_updates[f'shapes[{info["shape_idx"]}].x0'] = t_val
+      relayout_updates[f'shapes[{info["shape_idx"]}].x1'] = t_val
 
     step = {
-        'method': 'restyle',
+        'method': 'update',
         'label': f'{t_val:.3f}s',
-        'args': [{'y': y_updates, 'x': x_updates}, trace_indices],
+        'args': [{'y': y_updates}, relayout_updates, trace_indices],
     }
     steps.append(step)
   return steps
@@ -838,11 +836,12 @@ def _build_slider(
                   dict(
                       args=[
                           steps_linear_time[0]['args'][0],
-                          {
+                          steps_linear_time[0]['args'][1]
+                          | {
                               'sliders[0].steps': steps_linear_time,
                               'sliders[0].active': 0,
                           },
-                          steps_linear_time[0]['args'][1],
+                          steps_linear_time[0]['args'][2],
                       ],
                       label='Plasma time',
                       method='update',
@@ -850,11 +849,12 @@ def _build_slider(
                   dict(
                       args=[
                           steps_timesteps[0]['args'][0],
-                          {
+                          steps_timesteps[0]['args'][1]
+                          | {
                               'sliders[0].steps': steps_timesteps,
                               'sliders[0].active': 0,
                           },
-                          steps_timesteps[0]['args'][1],
+                          steps_timesteps[0]['args'][2],
                       ],
                       label='Simulation steps',
                       method='update',

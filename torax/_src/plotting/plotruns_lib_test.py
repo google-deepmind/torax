@@ -78,6 +78,42 @@ class PlotrunsLibTest(parameterized.TestCase):
     )
 
 
+class SliderPayloadTest(absltest.TestCase):
+  """Verifies slider steps carry a minimal payload (issue #553)."""
+
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    config_path = path_utils.torax_path().joinpath(
+        'plotting', 'configs', 'default_plot_config.py'
+    )
+    plot_config = config_loader.import_module(config_path)['PLOT_CONFIG']
+    test_data_path = paths.test_data_dir() / 'test_iterhybrid_rampup.nc'
+    cls.fig = plotruns_lib.plot_run(
+        plot_config, {'Data 1': str(test_data_path)}, interactive=False
+    )
+
+  def test_steps_do_not_resend_static_x_arrays(self):
+    for step in self.fig.layout.sliders[0].steps:
+      self.assertNotIn('x', step.args[0])
+
+  def test_steps_move_timestamp_shapes_via_relayout(self):
+    shapes = self.fig.layout.shapes
+    self.assertNotEmpty(shapes)
+    for step in self.fig.layout.sliders[0].steps:
+      relayout_updates = step.args[1]
+      for idx in range(len(shapes)):
+        self.assertIn(f'shapes[{idx}].x0', relayout_updates)
+        self.assertIn(f'shapes[{idx}].x1', relayout_updates)
+
+  def test_timestamp_lines_are_shapes_not_traces(self):
+    self.assertNotIn('Current Time', [trace.name for trace in self.fig.data])
+
+  def test_mode_buttons_switch_slider_steps(self):
+    for button in self.fig.layout.updatemenus[0].buttons:
+      self.assertIn('sliders[0].steps', button.args[1])
+
+
 class FigurePropertiesTest(absltest.TestCase):
 
   def test_validation_raises_error(self):
