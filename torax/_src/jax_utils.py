@@ -301,7 +301,7 @@ def while_loop_bounded(
 
   # NaN state to use for state for steps that are not executed.
   nan_state = jax.tree_util.tree_map(
-      lambda x: jnp.ones_like(x) * jnp.nan
+      lambda x: jnp.full_like(x, fill_value=jnp.nan)
       if jnp.issubdtype(x.dtype, jnp.floating)
       else jnp.zeros_like(x),
       init_val,
