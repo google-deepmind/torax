@@ -242,21 +242,19 @@ class WhileLoopBoundedTest(parameterized.TestCase):
         max_steps=self._max_steps,
     )
     history_i, history_values = output_history
-    # output_history should be (max_steps + 1, ...) shaped.
-    self.assertEqual(history_i.shape, (self._max_steps + 1,))
-    self.assertEqual(history_values.shape, (self._max_steps + 1,))
+    # output_history should be (max_steps, ...) shaped.
+    self.assertEqual(history_i.shape, (self._max_steps,))
+    self.assertEqual(history_values.shape, (self._max_steps,))
     self.assertEqual(num_steps, self._terminating_step)
-    # Index 0 is the initial state.
-    self.assertEqual(history_i[0], 0)
-    chex.assert_trees_all_close(history_values[0], self._init_value)
+
     # Check each executed step.
-    for step in range(1, self._terminating_step + 1):
+    for step in range(self._terminating_step):
       chex.assert_trees_all_close(
           history_values[step],
-          self._f_explicit(self._init_value, n_times=step),
+          self._f_explicit(self._init_value, n_times=step+1),
       )
     # Steps after termination should contain NaNs for floats and 0 for ints.
-    for step in range(self._terminating_step + 1, self._max_steps + 1):
+    for step in range(self._terminating_step, self._max_steps):
       self.assertTrue(jnp.isnan(history_values[step]))
       self.assertEqual(history_i[step], 0)
 

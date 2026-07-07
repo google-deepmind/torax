@@ -63,6 +63,16 @@ def run_loop_jit(
       (initial_state, initial_post_processed_outputs),
       max_steps,
   )
+
+  # Prepend initial state to give (max_steps + 1, ...) output.
+  history = jax.tree_util.tree_map(
+      lambda init, stacked: jnp.concatenate(
+          [jnp.expand_dims(init, axis=0), stacked], axis=0
+      ),
+      (initial_state, initial_post_processed_outputs),
+      history,
+  )
+
   states_history, post_processed_outputs_history = history
 
   return states_history, post_processed_outputs_history, final_i
