@@ -99,5 +99,36 @@ class PydanticTypesTest(parameterized.TestCase):
       self.assertEqual(adapter.validate_python(value), value)
 
 
+class FloatOrInfTest(parameterized.TestCase):
+
+  @parameterized.parameters(float('inf'), float('-inf'), 1.0, -1.0, 0.0)
+  def test_json_roundtrip(self, value):
+    adapter = pydantic.TypeAdapter(pydantic_types.FloatOrInf)
+    json_str = adapter.dump_json(value)
+    roundtripped = adapter.validate_json(json_str)
+    self.assertEqual(roundtripped, value)
+
+
+class PositiveFloatOrInfTest(parameterized.TestCase):
+
+  @parameterized.parameters(float('inf'), 1.0, 0.05)
+  def test_json_roundtrip(self, value):
+    adapter = pydantic.TypeAdapter(pydantic_types.PositiveFloatOrInf)
+    json_str = adapter.dump_json(value)
+    roundtripped = adapter.validate_json(json_str)
+    self.assertEqual(roundtripped, value)
+
+  @parameterized.parameters(float('-inf'), -1.0, 0.0)
+  def test_rejects_non_positive(self, value):
+    adapter = pydantic.TypeAdapter(pydantic_types.PositiveFloatOrInf)
+    with self.assertRaises(pydantic.ValidationError):
+      adapter.validate_python(value)
+
+  def test_rejects_negative_inf_from_json(self):
+    adapter = pydantic.TypeAdapter(pydantic_types.PositiveFloatOrInf)
+    with self.assertRaises(pydantic.ValidationError):
+      adapter.validate_json('"-inf"')
+
+
 if __name__ == '__main__':
   absltest.main()

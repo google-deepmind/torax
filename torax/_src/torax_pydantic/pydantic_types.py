@@ -14,6 +14,7 @@
 
 """Pydantic custom types."""
 
+import math
 from typing import Annotated, TypeAlias
 
 import numpy as np
@@ -107,4 +108,36 @@ def _validate_cocos_int(v: int) -> int:
     )
   return v
 
+
 COCOSInt = Annotated[int, pydantic.AfterValidator(_validate_cocos_int)]
+
+
+def _inf_serializer(v: float) -> float | str:
+  """Serializes float infinity to a JSON-compatible string."""
+  if math.isinf(v):
+    return 'inf' if v > 0 else '-inf'
+  return v
+
+
+def _inf_deserializer(v: float | str) -> float:
+  """Deserializes infinity strings back to float('inf')."""
+  if v == 'inf':
+    return float('inf')
+  if v == '-inf':
+    return float('-inf')
+  if not isinstance(v, (int, float)):
+    raise ValueError(f'Expected a number or infinity string, got {type(v)}')
+  return float(v)
+
+
+FloatOrInf = Annotated[
+    float,
+    pydantic.BeforeValidator(_inf_deserializer),
+    pydantic.PlainSerializer(_inf_serializer),
+]
+
+PositiveFloatOrInf = Annotated[
+    pydantic.PositiveFloat,
+    pydantic.BeforeValidator(_inf_deserializer),
+    pydantic.PlainSerializer(_inf_serializer),
+]
