@@ -91,7 +91,7 @@ def _calculate_conductivity(
   # Formulas from Sauter PoP 1999.
 
   # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
+  f_trap = geo.trapped_fraction_face
 
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)

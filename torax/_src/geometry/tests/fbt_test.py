@@ -68,6 +68,7 @@ class FBTGeometryTest(parameterized.TestCase):
         R_OMP=np.array(8.2),
         R_target=np.array(7.0),
         B_pol_OMP=np.array(0.5),
+        trapped_fraction=np.arange(0, 1.0, 0.01),
     )
     geo = standard_geometry.build_standard_geometry(intermediate)
     self.assertTrue(geo.diverted)

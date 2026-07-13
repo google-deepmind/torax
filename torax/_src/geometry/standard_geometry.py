@@ -197,6 +197,8 @@ class StandardGeometryIntermediates:
       [:math:`\mathrm{T}^2`].
     flux_surf_avg_1_over_B2: Flux surface average of :math:`1/B^2`
       [:math:`\mathrm{T}^{-2}`].
+    trapped_fraction: Effective trapped particle fraction [dimensionless];
+      see `torax._src.geometry.base.TrappedFractionSource`.
     delta_upper_face: Upper triangularity [dimensionless]. See `Geometry`
       docstring for definition.
     delta_lower_face: Lower triangularity [dimensionless]. See `Geometry`
@@ -257,6 +259,7 @@ class StandardGeometryIntermediates:
   R_OMP: array_typing.FloatScalar | None
   R_target: array_typing.FloatScalar | None
   B_pol_OMP: array_typing.FloatScalar | None
+  trapped_fraction: array_typing.Array
 
   def __post_init__(self):
     """Enforces sign conventions, extrapolates edge, and smooths near-axis.
@@ -492,6 +495,10 @@ def build_standard_geometry(
   # average triangularity
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
+  trapped_fraction_face = rhon_interpolation_func(
+      rho_face_norm, intermediates.trapped_fraction
+  )
+
   # elongation
   elongation = rhon_interpolation_func(rho_norm, intermediates.elongation)
   elongation_face = rhon_interpolation_func(
@@ -570,6 +577,7 @@ def build_standard_geometry(
       spr=spr_cell,
       spr_face=spr_face,
       delta_face=delta_face,
+      trapped_fraction_face=trapped_fraction_face,
       g0=g0,
       g0_face=g0_face,
       g1=g1,
