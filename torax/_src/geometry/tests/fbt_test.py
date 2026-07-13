@@ -35,6 +35,7 @@ class FBTGeometryTest(parameterized.TestCase):
 
   @parameterized.parameters([
       base.TrappedFractionSource.FILE,
+      base.TrappedFractionSource.EXACT,
   ])
   def test_trapped_fraction_source_not_supported(
       self, trapped_fraction_source: base.TrappedFractionSource

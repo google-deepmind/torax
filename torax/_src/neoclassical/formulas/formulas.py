@@ -48,6 +48,48 @@ def calculate_sauter_trapped_fraction(
   )
 
 
+def calculate_bounce_averaged_trapped_fraction(
+    B: array_typing.Array,
+    dl_over_Bp: array_typing.Array,
+    flux_surf_avg_B2: array_typing.Array,
+) -> array_typing.Array:
+  r"""Effective trapped particle fraction of one flux surface, exactly.
+
+  Computed from the full bounce-averaged integral, as opposed to the
+  `calculate_sauter_trapped_fraction` analytic approximation:
+
+  .. math::
+    f_t = 1 - \frac{3}{4} \langle B^2 \rangle
+      \int_0^{1/B_{max}} \frac{\lambda \, d\lambda}{\langle \sqrt{1 -
+      \lambda B} \rangle}
+
+  where :math:`\langle . \rangle` is the flux surface average, using the same
+  :math:`dl/B_p` weighting as other flux surface averages. This requires the
+  full poloidal variation of :math:`|B|` on the flux surface.
+
+  Args:
+    B: :math:`|B|` at samples of a poloidal contour around one flux surface
+      [:math:`\mathrm{T}`].
+    dl_over_Bp: Poloidal line-element weights :math:`dl / B_p` at the same
+      contour samples [:math:`\mathrm{m/T}`].
+    flux_surf_avg_B2: Flux surface average of :math:`B^2` for this flux
+      surface [:math:`\mathrm{T}^2`].
+
+  Returns:
+    The effective trapped particle fraction of this flux surface.
+  """
+  B_max = B.max()
+  lam = np.linspace(0.0, 1.0, 101) / B_max
+  sqrt_term = np.sqrt(
+      np.clip(1.0 - lam[:, np.newaxis] * B[np.newaxis, :], 0.0, None)
+  )
+  h_lambda = np.sum(sqrt_term * dl_over_Bp[np.newaxis, :], axis=1) / np.sum(
+      dl_over_Bp
+  )
+  bounce_integral = np.trapezoid(lam / np.maximum(h_lambda, 1e-10), lam)
+  return 1.0 - 0.75 * flux_surf_avg_B2 * bounce_integral
+
+
 # TODO(b/428166775): currently we have two very similar implementations for
 # nu_e_star. We should refactor this to have a single one in physics/collisions
 def calculate_nu_e_star(

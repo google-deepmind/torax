@@ -110,7 +110,48 @@ class IMASGeometryTest(parameterized.TestCase):
           trapped_fraction_source=base.TrappedFractionSource.FILE,
       ).build_geometry()
 
-  def test_trapped_fraction_geometry_consistent_with_sauter(self):
+  @parameterized.named_parameters(
+      dict(testcase_name='not_provided_by_equilibrium_code', strip=True),
+      dict(testcase_name='provided_by_equilibrium_code', strip=False),
+  )
+  def test_trapped_fraction_exact_is_computed(self, strip: bool):
+    """Tests the exact bounce-averaged integral, computed from the 2D grid.
+
+    `EXACT` always computes the integral directly from the full 2D
+    equilibrium, regardless of whether the equilibrium code separately
+    provides `profiles_1d.trapped_fraction` (use `FILE` for that instead).
+    """
+    equilibrium_object = loader.load_imas_data(
+        'ITERhybrid_COCOS17_IDS_ddv4.nc', 'equilibrium'
+    )
+    if strip:
+      equilibrium_object.time_slice[0].profiles_1d.trapped_fraction = []
+
+    geo = imas.IMASConfig(
+        equilibrium_object=equilibrium_object,
+        trapped_fraction_source=base.TrappedFractionSource.EXACT,
+    ).build_geometry()
+    trapped_fraction = geo.trapped_fraction_face
+    self.assertTrue(np.all(trapped_fraction >= 0.0))
+    self.assertTrue(np.all(trapped_fraction <= 1.0))
+    self.assertGreater(
+        np.mean(np.diff(trapped_fraction) >= -1e-6),
+        0.8,
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='file',
+          trapped_fraction_source=base.TrappedFractionSource.FILE,
+      ),
+      dict(
+          testcase_name='exact',
+          trapped_fraction_source=base.TrappedFractionSource.EXACT,
+      ),
+  )
+  def test_trapped_fraction_geometry_consistent_with_sauter(
+      self, trapped_fraction_source: base.TrappedFractionSource
+  ):
     """Tests that the exact and Sauter trapped fractions roughly agree."""
     geo_sauter = imas.IMASConfig(
         imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
@@ -118,7 +159,7 @@ class IMASGeometryTest(parameterized.TestCase):
     ).build_geometry()
     geo_geometry = imas.IMASConfig(
         imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-        trapped_fraction_source=base.TrappedFractionSource.FILE,
+        trapped_fraction_source=trapped_fraction_source,
     ).build_geometry()
 
     # Moderately coarse tolerance: Sauter is only an analytic approximation,

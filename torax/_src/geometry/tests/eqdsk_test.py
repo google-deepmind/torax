@@ -18,6 +18,7 @@ from absl.testing import parameterized
 import eqdsk as eqdsk_lib
 import numpy as np
 from torax._src import array_typing
+from torax._src.geometry import base
 from torax._src.geometry import eqdsk
 from torax._src.geometry import geometry_loader
 
@@ -83,6 +84,59 @@ class EqdskGeometryTest(parameterized.TestCase):
         self.assertIsNone(val2, msg=f'Field "{name}" mismatch.')
       else:
         self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch.')
+
+  def test_trapped_fraction_is_physically_sensible(self):
+    """Tests that the exact trapped particle fraction is well-behaved."""
+    geo = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk',
+        cocos=11,
+        trapped_fraction_source=base.TrappedFractionSource.EXACT,
+    ).build_geometry()
+    trapped_fraction = geo.trapped_fraction_face
+    self.assertIsNotNone(trapped_fraction)
+    # No trapped particles on the magnetic axis, where B is uniform.
+    self.assertAlmostEqual(float(trapped_fraction[0]), 0.0)
+    # The trapped particle fraction is a fraction, so must lie in [0, 1].
+    self.assertTrue(np.all(trapped_fraction >= 0.0))
+    self.assertTrue(np.all(trapped_fraction <= 1.0))
+    # Trapped fraction increases with normalized radius over most of the
+    # profile (small deviations from strict monotonicity are possible near
+    # the edge for diverted geometries, due to the X-point).
+    self.assertGreater(
+        np.mean(np.diff(trapped_fraction) >= -1e-6),
+        0.8,
+    )
+
+  def test_trapped_fraction_source_file_not_supported(self):
+    """Tests that FILE is rejected for EQDSK (no precomputed value)."""
+    with self.assertRaisesRegex(ValueError, 'not supported for EQDSKConfig'):
+      eqdsk.EQDSKConfig(
+          geometry_file='iterhybrid_cocos11.eqdsk',
+          cocos=11,
+          trapped_fraction_source=base.TrappedFractionSource.FILE,
+      )
+
+  def test_trapped_fraction_geometry_consistent_with_sauter(self):
+    """Tests that the exact and Sauter trapped fractions roughly agree."""
+    geo_sauter = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk',
+        cocos=11,
+        trapped_fraction_source=base.TrappedFractionSource.SAUTER,
+    ).build_geometry()
+    geo_geometry = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk',
+        cocos=11,
+        trapped_fraction_source=base.TrappedFractionSource.EXACT,
+    ).build_geometry()
+    # Moderately coarse tolerance: Sauter is only an analytic approximation,
+    # so it need not match the exact integral closely, but a large deviation
+    # would indicate a bug rather than the expected model discrepancy.
+    np.testing.assert_allclose(
+        geo_geometry.trapped_fraction_face,
+        geo_sauter.trapped_fraction_face,
+        atol=0.05,
+        rtol=0.15,
+    )
 
   def test_eqdsk_serialization_round_trip(self):
     """Test that EQDSKConfig with eqdsk_object can be serialized and deserialized."""
