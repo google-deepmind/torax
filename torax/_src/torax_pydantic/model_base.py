@@ -48,6 +48,9 @@ class BaseModelFrozen(pydantic.BaseModel):
       extra='forbid',
       arbitrary_types_allowed=True,
       validate_default=True,
+      # Serialize infinity and NaN as literals (Infinity, NaN) instead of
+      # null, enabling JSON roundtripping.
+      ser_json_inf_nan='constants',
   )
 
   def __new__(cls, *unused_args, **unused_kwargs):

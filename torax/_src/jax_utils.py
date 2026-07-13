@@ -267,7 +267,7 @@ def while_loop_bounded(
 
   The state at each step is accumulated using scan's output mechanism. The
   initial state is prepended to the output, giving a history of shape
-  `(max_steps + 1, ...)` where index 0 is the initial state and subsequent
+  `(max_steps, ...)` where index 0 is the initial state and subsequent
   indices are the state after each step. Steps that did not execute (because
   `cond_fun` returned False or `max_steps` was reached) will contain a copy
   of the last valid state.
@@ -288,8 +288,7 @@ def while_loop_bounded(
       - The number of steps that were actually executed (integer scalar).
       - The output history: a pytree with the same structure as `init_val`
         where each leaf has an additional leading dimension of size
-        `max_steps + 1`. Index 0 is the initial state, and subsequent indices
-        are the state after each step.
+        `max_steps`.
   """
   # Initial carry for the scan: (current_state, counter,
   # while_loop_condition_met)
@@ -301,7 +300,7 @@ def while_loop_bounded(
 
   # NaN state to use for state for steps that are not executed.
   nan_state = jax.tree_util.tree_map(
-      lambda x: jnp.ones_like(x) * jnp.nan
+      lambda x: jnp.full_like(x, fill_value=jnp.nan)
       if jnp.issubdtype(x.dtype, jnp.floating)
       else jnp.zeros_like(x),
       init_val,
@@ -328,13 +327,4 @@ def while_loop_bounded(
       scan_body, initial_scan_carry, length=max_steps, unroll=scan_unroll
   )
 
-  # Prepend initial state to give (max_steps + 1, ...) output.
-  output_history = jax.tree_util.tree_map(
-      lambda init, stacked: jnp.concatenate(
-          [jnp.expand_dims(init, axis=0), stacked], axis=0
-      ),
-      init_val,
-      stacked_outputs,
-  )
-
-  return final_state, num_steps, output_history
+  return final_state, num_steps, stacked_outputs
