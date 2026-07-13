@@ -32,11 +32,15 @@ class TrappedFractionSource(enum.StrEnum):
   Attributes:
     SAUTER: Uses the analytic approximation from [1]. Supported by all
       geometry sources.
+    FILE: Reads the value precomputed by the input equilibrium/geometry code
+      directly from the geometry file. Only supported for CHEASE and IMAS
+      sources.
 
   [1] O. Sauter, Fusion Engineering and Design 112 (2016) 633-645, Eqs 33+34.
   """
 
   SAUTER = 'SAUTER'
+  FILE = 'FILE'
 
 
 class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
