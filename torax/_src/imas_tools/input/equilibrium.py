@@ -20,6 +20,7 @@ from typing import Any
 from imas import ids_toplevel
 import numpy as np
 import scipy
+from torax._src.geometry import base
 from torax._src.imas_tools.input import loader
 from torax._src.neoclassical.formulas import formulas
 
@@ -84,6 +85,9 @@ def _geometry_from_single_slice(
     Ip_from_parameters: bool = False,
     hires_factor: int = 4,
     slice_index: int = 0,
+    trapped_fraction_source: base.TrappedFractionSource = (
+        base.TrappedFractionSource.SAUTER
+    ),
 ) -> dict[str, Any]:
   """Extracts geometry data from a single time slice of an equilibrium IDS.
 
@@ -95,6 +99,8 @@ def _geometry_from_single_slice(
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     slice_index: Index of the time slice to process.
+    trapped_fraction_source: Selects how the effective trapped particle
+      fraction is computed; see `base.TrappedFractionSource`.
 
   Returns:
     A dict of intermediate geometry values for building a StandardGeometry.
@@ -206,13 +212,28 @@ def _geometry_from_single_slice(
 
   z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
-  trapped_fraction = formulas.calculate_sauter_trapped_fraction(
-      epsilon=(R_out - R_in) / (R_out + R_in),
-      delta=0.5 * (
-          IMAS_data.profiles_1d.triangularity_upper
-          + IMAS_data.profiles_1d.triangularity_lower
-      ),
-  )
+  match trapped_fraction_source:
+    case base.TrappedFractionSource.SAUTER:
+      trapped_fraction = formulas.calculate_sauter_trapped_fraction(
+          epsilon=(R_out - R_in) / (R_out + R_in),
+          delta=0.5 * (
+              IMAS_data.profiles_1d.triangularity_upper
+              + IMAS_data.profiles_1d.triangularity_lower
+          ),
+      )
+    case base.TrappedFractionSource.FILE:
+      if not IMAS_data.profiles_1d.trapped_fraction:
+        raise ValueError(
+            "trapped_fraction_source=FILE requires the equilibrium IDS to"
+            " populate profiles_1d.trapped_fraction, but this IDS does"
+            " not. Use trapped_fraction_source=SAUTER for the analytic"
+            " approximation instead."
+        )
+      trapped_fraction = np.asarray(IMAS_data.profiles_1d.trapped_fraction)
+    case _:
+      raise ValueError(
+          f"Unknown trapped_fraction_source: {trapped_fraction_source}"
+      )
 
   # TODO(b/446608829): Add support for edge geometries from IMAS.
 
@@ -265,6 +286,9 @@ def geometry_from_IMAS(
     imas_uri: str | None = None,
     imas_filepath: str | None = None,
     explicit_convert: bool = False,
+    trapped_fraction_source: base.TrappedFractionSource = (
+        base.TrappedFractionSource.SAUTER
+    ),
 ) -> Mapping[float, dict[str, Any]]:
   """Constructs geometry intermediates for all time slices in an IMAS IDS.
 
@@ -286,6 +310,8 @@ def geometry_from_IMAS(
       version. If True, an explicit conversion will be attempted. Explicit
       conversion is recommended when converting between major DD versions.
       https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
+    trapped_fraction_source: Selects how the effective trapped particle
+      fraction is computed; see `base.TrappedFractionSource`.
 
   Returns:
     A mapping from times to dicts of intermediate geometry values, one per
@@ -311,6 +337,7 @@ def geometry_from_IMAS(
         face_centers=face_centers,
         Ip_from_parameters=Ip_from_parameters,
         hires_factor=hires_factor,
+        trapped_fraction_source=trapped_fraction_source,
     )
 
   return intermediates
@@ -327,6 +354,9 @@ def geometry_from_single_IMAS_slice(
     explicit_convert: bool = False,
     slice_index: int = 0,
     slice_time: float | None = None,
+    trapped_fraction_source: base.TrappedFractionSource = (
+        base.TrappedFractionSource.SAUTER
+    ),
 ) -> dict[str, Any]:
   """Constructs geometry intermediates for a single time slice in an IMAS IDS.
 
@@ -366,6 +396,8 @@ def geometry_from_single_IMAS_slice(
     slice_time: Time (in seconds) of the IDS time slice to load. The slice whose
       time is closest to this value is selected. When provided, takes precedence
       over ``slice_index``.
+    trapped_fraction_source: Selects how the effective trapped particle
+      fraction is computed; see `base.TrappedFractionSource`.
 
   Returns:
     A dict of intermediate geometry values for building a StandardGeometry,
@@ -401,4 +433,5 @@ def geometry_from_single_IMAS_slice(
       face_centers=face_centers,
       Ip_from_parameters=Ip_from_parameters,
       hires_factor=hires_factor,
+      trapped_fraction_source=trapped_fraction_source,
   )

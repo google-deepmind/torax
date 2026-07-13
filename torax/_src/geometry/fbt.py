@@ -18,6 +18,7 @@ import enum
 import logging
 from typing import Annotated
 from typing import Any
+from typing import ClassVar
 from typing import Literal, TypeAlias
 
 import jax
@@ -81,6 +82,10 @@ class FBTConfig(base.BaseGeometryConfig):
     divertor_domain: The divertor domain (upper or lower null) for extracting
       edge quantities when diverted.
   """
+
+  _supported_trapped_fraction_sources: ClassVar[
+      frozenset[base.TrappedFractionSource]
+  ] = frozenset({base.TrappedFractionSource.SAUTER})
 
   geometry_type: Annotated[Literal['fbt'], torax_pydantic.TIME_INVARIANT] = (
       'fbt'
