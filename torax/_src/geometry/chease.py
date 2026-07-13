@@ -20,6 +20,7 @@ from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
+from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
@@ -149,6 +150,10 @@ def _construct_intermediates_from_chease(
   )
   flux_surf_avg_B2 = chease_data['<B**2>'] * B_0**2
   flux_surf_avg_1_over_B2 = chease_data['<1/B**2>'] / B_0**2
+  trapped_fraction = formulas.calculate_sauter_trapped_fraction(
+      epsilon=(R_out_chease - R_in_chease) / (R_out_chease + R_in_chease),
+      delta=0.5 * (chease_data['delta_upper'] + chease_data['delta_bottom']),
+  )
 
   rhon = np.sqrt(Phi / Phi[-1])
   vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
@@ -173,6 +178,7 @@ def _construct_intermediates_from_chease(
       flux_surf_avg_grad_psi2=flux_surf_avg_grad_psi2,
       flux_surf_avg_B2=flux_surf_avg_B2,
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
+      trapped_fraction=trapped_fraction,
       delta_upper_face=chease_data['delta_upper'],
       delta_lower_face=chease_data['delta_bottom'],
       elongation=chease_data['elongation'],

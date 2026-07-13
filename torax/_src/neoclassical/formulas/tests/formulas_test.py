@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.geometry import geometry
 from torax._src.neoclassical.formulas import formulas
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import model_config
@@ -91,27 +88,17 @@ class FormulasTest(parameterized.TestCase):
         log_lambda_ei=log_lambda_ei,
     )
 
-    self.f_trap = formulas.calculate_f_trap(self.geo)
-
-  def test_calculate_f_trap_positive_triangularity(self):
-    geo = mock.create_autospec(
-        geometry.Geometry,
-        instance=True,
-        delta_face=np.array(0.2),
-        epsilon_face=np.array(0.1),
+  def test_calculate_sauter_trapped_fraction_positive_triangularity(self):
+    result = formulas.calculate_sauter_trapped_fraction(
+        epsilon=np.array(0.1), delta=np.array(0.2)
     )
-    result = formulas.calculate_f_trap(geo)
     expected = 0.4362384616678634
     np.testing.assert_allclose(result, expected)
 
-  def test_calculate_f_trap_negative_triangularity(self):
-    geo = mock.create_autospec(
-        geometry.Geometry,
-        instance=True,
-        delta_face=np.array(-0.2),
-        epsilon_face=np.array(0.1),
+  def test_calculate_sauter_trapped_fraction_negative_triangularity(self):
+    result = formulas.calculate_sauter_trapped_fraction(
+        epsilon=np.array(0.1), delta=np.array(-0.2)
     )
-    result = formulas.calculate_f_trap(geo)
     expected = 0.45134158459680895
     np.testing.assert_allclose(result, expected)
 

@@ -21,6 +21,7 @@ from imas import ids_toplevel
 import numpy as np
 import scipy
 from torax._src.imas_tools.input import loader
+from torax._src.neoclassical.formulas import formulas
 
 
 # TODO(b/379832500) - Modify for consistency when we have a fixed TORAX COCOS.
@@ -205,6 +206,14 @@ def _geometry_from_single_slice(
 
   z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
+  trapped_fraction = formulas.calculate_sauter_trapped_fraction(
+      epsilon=(R_out - R_in) / (R_out + R_in),
+      delta=0.5 * (
+          IMAS_data.profiles_1d.triangularity_upper
+          + IMAS_data.profiles_1d.triangularity_lower
+      ),
+  )
+
   # TODO(b/446608829): Add support for edge geometries from IMAS.
 
   return {
@@ -226,6 +235,7 @@ def _geometry_from_single_slice(
       "flux_surf_avg_grad_psi2_over_R2": flux_surf_avg_grad_psi2_over_R2,
       "flux_surf_avg_B2": IMAS_data.profiles_1d.gm5,
       "flux_surf_avg_1_over_B2": IMAS_data.profiles_1d.gm4,
+      "trapped_fraction": trapped_fraction,
       "delta_upper_face": IMAS_data.profiles_1d.triangularity_upper,
       "delta_lower_face": IMAS_data.profiles_1d.triangularity_lower,
       "elongation": IMAS_data.profiles_1d.elongation,

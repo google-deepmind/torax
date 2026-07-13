@@ -12,13 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for geometry configuration."""
-from typing import Annotated, Any
+import enum
+from typing import Annotated, Any, ClassVar
 
 import numpy as np
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
+
+
+@enum.unique
+class TrappedFractionSource(enum.StrEnum):
+  """Selects how the effective trapped particle fraction is computed.
+
+  Not every option is supported by every geometry source; see
+  `BaseGeometryConfig._supported_trapped_fraction_sources`.
+
+  Attributes:
+    SAUTER: Uses the analytic approximation from [1]. Supported by all
+      geometry sources.
+
+  [1] O. Sauter, Fusion Engineering and Design 112 (2016) 633-645, Eqs 33+34.
+  """
+
+  SAUTER = 'SAUTER'
 
 
 class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
@@ -33,13 +51,25 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
     hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
+    trapped_fraction_source: Selects how the effective trapped particle
+      fraction is computed. See `TrappedFractionSource`.
+    _supported_trapped_fraction_sources: Overridden per subclass to restrict
+      which `TrappedFractionSource` options that geometry source actually
+      supports.
   """
+
+  _supported_trapped_fraction_sources: ClassVar[
+      frozenset[TrappedFractionSource]
+  ] = frozenset(TrappedFractionSource)
 
   n_rho: Annotated[int | None, torax_pydantic.TIME_INVARIANT] = None
   face_centers: Annotated[
       torax_pydantic.NumpyArray1DSorted | None, torax_pydantic.TIME_INVARIANT
   ] = None
   hires_factor: pydantic.PositiveInt = 4
+  trapped_fraction_source: Annotated[
+      TrappedFractionSource, torax_pydantic.TIME_INVARIANT
+  ] = TrappedFractionSource.SAUTER
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -74,6 +104,23 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
     if self.n_rho is not None and self.n_rho < 4:
       raise ValueError('n_rho must be at least 4')
 
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_trapped_fraction_source(self) -> typing_extensions.Self:
+    """Validates that trapped_fraction_source is supported by this geometry."""
+    if (
+        self.trapped_fraction_source
+        not in self._supported_trapped_fraction_sources
+    ):
+      allowed = ', '.join(
+          sorted(s.value for s in self._supported_trapped_fraction_sources)
+      )
+      raise ValueError(
+          f'trapped_fraction_source={self.trapped_fraction_source.value} is'
+          f' not supported for {type(self).__name__}. Supported options:'
+          f' {allowed}.'
+      )
     return self
 
   def get_face_centers(self) -> np.ndarray:
