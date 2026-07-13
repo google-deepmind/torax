@@ -35,12 +35,15 @@ class TrappedFractionSource(enum.StrEnum):
     FILE: Reads the value precomputed by the input equilibrium/geometry code
       directly from the geometry file. Only supported for CHEASE and IMAS
       sources.
+    EXACT: Computes the full bounce-averaged integral directly from the 2D
+      equilibrium. Only supported for EQDSK and IMAS sources.
 
   [1] O. Sauter, Fusion Engineering and Design 112 (2016) 633-645, Eqs 33+34.
   """
 
   SAUTER = 'SAUTER'
   FILE = 'FILE'
+  EXACT = 'EXACT'
 
 
 class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):

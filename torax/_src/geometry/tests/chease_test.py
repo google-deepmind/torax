@@ -43,6 +43,13 @@ class CheaseGeometryTest(parameterized.TestCase):
         0.8,
     )
 
+  def test_trapped_fraction_source_exact_not_supported(self):
+    """Tests that EXACT is rejected for CHEASE (no full 2D equilibrium)."""
+    with self.assertRaisesRegex(ValueError, 'not supported for CheaseConfig'):
+      chease.CheaseConfig(
+          trapped_fraction_source=base.TrappedFractionSource.EXACT,
+      )
+
   def test_trapped_fraction_geometry_consistent_with_sauter(self):
     """Tests that the exact and Sauter trapped fractions roughly agree."""
     geo_sauter = chease.CheaseConfig(
