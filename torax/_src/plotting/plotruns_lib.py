@@ -97,6 +97,23 @@ class PlotType(enum.Enum):
   TIME_SERIES = 2
 
 
+class SliderMode(enum.Enum):
+  """Which slider step list(s) to embed in the figure.
+
+  BOTH: Embed step lists for both linear-time and simulation-step modes,
+    with a UI toggle to switch between them. Matches legacy behavior, at the
+    cost of ~2x slider payload since both step lists are serialized.
+  LINEAR_TIME: Embed only the step list with ticks linearly spaced in time.
+    No mode toggle is shown.
+  SIMULATION_STEPS: Embed only the step list following the sim's own
+    timesteps. No mode toggle is shown.
+  """
+
+  BOTH = 'both'
+  LINEAR_TIME = 'linear_time'
+  SIMULATION_STEPS = 'simulation_steps'
+
+
 @dataclasses.dataclass
 class PlotProperties:
   """Dataclass for individual plot properties."""
@@ -139,6 +156,10 @@ class FigureProperties:
       right, top and bottom margins respectively.
     figure_title: Title of the figure. If None, a title is generated from input
       file names.
+    slider_mode: Which slider step list(s) to embed. BOTH (default) keeps
+      the legacy toggle between linear-time and simulation-step modes, at
+      the cost of duplicating step payload. Pick LINEAR_TIME or
+      SIMULATION_STEPS to embed a single step list and drop the toggle.
   """
 
   rows: int
@@ -156,6 +177,7 @@ class FigureProperties:
       default_factory=lambda: dict(l=40, r=40, t=80, b=40)
   )
   figure_title: str | None = None
+  slider_mode: SliderMode = SliderMode.BOTH
 
   def __post_init__(self):
     if len(self.axes) > self.rows * self.cols:
@@ -801,11 +823,30 @@ def _build_slider(
   if not spatial_traces_info and not timestamp_line_info:
     return
 
-  # Increase bottom margin to create whitespace for slider and dropdown.
+  # Increase bottom margin to create whitespace for slider (and dropdown,
+  # if both modes are embedded).
   current_margin = plot_config.margin
   new_margin = dict(current_margin) if current_margin else {}
   new_margin['b'] = new_margin.get('b', 50) + 100
   fig.update_layout(margin=new_margin)
+
+  if plot_config.slider_mode != SliderMode.BOTH:
+    linear_time = plot_config.slider_mode == SliderMode.LINEAR_TIME
+    steps = _get_slider_steps(
+        data1, spatial_traces_info, timestamp_line_info, linear_time
+    )
+    fig.update_layout(
+        sliders=[{
+            'active': 0,
+            'currentvalue': {'prefix': 'Time: ', 'suffix': ' s'},
+            'steps': steps,
+            'len': 0.85,
+            'x': 0.0,
+            'y': -0.1,
+            'yanchor': 'middle',
+        }]
+    )
+    return
 
   steps_timesteps = _get_slider_steps(
       data1, spatial_traces_info, timestamp_line_info, linear_time=False

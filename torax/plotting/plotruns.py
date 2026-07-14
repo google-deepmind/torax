@@ -18,6 +18,8 @@ Includes a time slider. Reads output files with xarray data or legacy h5 data.
 
 Plots are configured by a plot_config module.
 """
+import dataclasses
+
 from absl import app
 from absl import logging
 from absl.flags import argparse_flags
@@ -44,6 +46,17 @@ def parse_flags(_):
       default='plotting/configs/default_plot_config.py',
       help='Name of the plot config module.',
   )
+  parser.add_argument(
+      '--slider_mode',
+      default=None,
+      choices=[mode.value for mode in plotruns_lib.SliderMode],
+      help=(
+          'Which slider step list(s) to embed in the figure. Overrides '
+          'plot_config.slider_mode. "both" keeps the legacy mode toggle at '
+          'the cost of ~2x slider payload; "linear_time" or '
+          '"simulation_steps" embeds a single step list.'
+      ),
+  )
   return parser.parse_args()
 
 
@@ -58,6 +71,10 @@ def main(args):
         'Error loading plot config: %s: %s', plot_config_module_path, e
     )
     raise
+  if args.slider_mode is not None:
+    plot_config = dataclasses.replace(
+        plot_config, slider_mode=plotruns_lib.SliderMode(args.slider_mode)
+    )
   outfiles = {
       f'Data {i + 1}': f for i, f in enumerate(args.outfile)
   }
