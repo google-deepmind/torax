@@ -78,9 +78,10 @@ __all__ = [
 def set_jax_precision():
   # Default TORAX JAX precision is f64
   precision = os.getenv('JAX_PRECISION', 'f64')
-  assert precision == 'f64' or precision == 'f32', (
-      'Unknown JAX precision environment variable: %s' % precision
-  )
+  if precision not in ('f64', 'f32'):
+    raise ValueError(
+        'Unknown JAX precision environment variable: %s' % precision
+    )
   if precision == 'f64':
     jax.config.update('jax_enable_x64', True)
 
