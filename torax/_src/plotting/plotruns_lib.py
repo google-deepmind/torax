@@ -413,9 +413,9 @@ def plot_run(
 
   Args:
     plot_config: Configuration for the figure layout and subplots.
-    outfiles: A mapping ``{label: filepath}`` where *label* is the string
-      that will appear in the plot legend and *filepath* is the path to
-      the output ``.nc`` file.
+    outfiles: A mapping ``{label: filepath}`` where *label* is the string that
+      will appear in the plot legend and *filepath* is the path to the output
+      ``.nc`` file.
     interactive: If True, calls ``fig.show()`` before returning.
 
   Returns:
@@ -445,8 +445,8 @@ def plot_run_from_data_tree(
 
   Args:
     plot_config: Configuration for the figure layout and subplots.
-    data_trees: A mapping ``{label: xr.DataTree}`` where *label* is the
-      string that will appear in the plot legend for that dataset.
+    data_trees: A mapping ``{label: xr.DataTree}`` where *label* is the string
+      that will appear in the plot legend for that dataset.
     interactive: If True, calls ``fig.show()`` before returning.
     fig_title: Title of the figure.
 
@@ -454,8 +454,7 @@ def plot_run_from_data_tree(
     A plotly ``go.Figure``.
   """
   named_plot_data: dict[str, PlotData] = {
-      name: _data_tree_to_plot_data(dt)
-      for name, dt in data_trees.items()
+      name: _data_tree_to_plot_data(dt) for name, dt in data_trees.items()
   }
 
   for name, plotdata in named_plot_data.items():
@@ -468,9 +467,7 @@ def plot_run_from_data_tree(
               f'output file: {name}'
           )
 
-  fig = create_plotly_figure(
-      plot_config, named_plot_data, title=fig_title
-  )
+  fig = create_plotly_figure(plot_config, named_plot_data, title=fig_title)
   if interactive:
     fig.show()
 
@@ -574,7 +571,11 @@ def _get_limit(
     include_first_timepoint: bool,
 ) -> float:
   """Gets the limit for a set of attributes based a histogram percentile."""
-  if include_first_timepoint:
+  time_steps = len(plotdata.t)
+  if time_steps == 0:
+    raise ValueError('No timepoints found in dataset.')
+
+  if include_first_timepoint or time_steps == 1:
     values = np.concatenate(
         [getattr(plotdata, attr).flatten() for attr in attrs]
     )
@@ -582,6 +583,10 @@ def _get_limit(
     values = np.concatenate(
         [getattr(plotdata, attr)[1:, :].flatten() for attr in attrs]
     )
+
+  if values.size == 0:
+    raise ValueError(f'No data supplied for attributes {attrs}.')
+
   return np.percentile(values, percentile)
 
 
@@ -674,9 +679,7 @@ def _add_traces_and_update_axes(
           x = dataset.t
           y = getattr(dataset, attr)
 
-        label_html = (
-            f"{prefix} {_transform_string(f'{label} ({ds_name})')}"
-        )
+        label_html = f"{prefix} {_transform_string(f'{label} ({ds_name})')}"
         dash = _DASH_PATTERNS[idx % len(_DASH_PATTERNS)]
         fig.add_trace(
             go.Scatter(
