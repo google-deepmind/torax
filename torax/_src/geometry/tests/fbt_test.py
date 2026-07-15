@@ -17,6 +17,7 @@ import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax._src.geometry import base
 from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
@@ -31,6 +32,17 @@ from torax._src.torax_pydantic import interpolated_param_2d
 
 
 class FBTGeometryTest(parameterized.TestCase):
+
+  @parameterized.parameters([
+      base.TrappedFractionSource.FILE,
+      base.TrappedFractionSource.EXACT,
+  ])
+  def test_trapped_fraction_source_not_supported(
+      self, trapped_fraction_source: base.TrappedFractionSource
+  ):
+    """Tests that FBT only supports SAUTER (no file or 2D equilibrium data)."""
+    with self.assertRaisesRegex(ValueError, 'not supported for FBTConfig'):
+      fbt.FBTConfig(trapped_fraction_source=trapped_fraction_source)
 
   def test_edge_geometry_params_are_propagated(self):
     """Tests that edge geometry parameters are propagated to StandardGeometry."""
@@ -68,6 +80,7 @@ class FBTGeometryTest(parameterized.TestCase):
         R_OMP=np.array(8.2),
         R_target=np.array(7.0),
         B_pol_OMP=np.array(0.5),
+        trapped_fraction=np.arange(0, 1.0, 0.01),
     )
     geo = standard_geometry.build_standard_geometry(intermediate)
     self.assertTrue(geo.diverted)

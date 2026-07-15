@@ -172,6 +172,8 @@ class Geometry:
       location of the upper extent of the flux surface. Lower triangularity is
       defined as (R_major_local - R_lower) / a_minor_local, where R_lower is the
       radial location of the lower extent of the flux surface.
+    trapped_fraction_face: Effective trapped particle fraction on the face
+      grid [dimensionless], computed at geometry construction time.
     elongation: Plasma elongation profile on cell grid [dimensionless].
       Elongation is defined as (Z_upper - Z_lower) / (2.0 * a_minor_local),
       where Z_upper and Z_lower are the Z coordinates of the upper and lower
@@ -201,6 +203,7 @@ class Geometry:
   spr: array_typing.Array
   spr_face: array_typing.Array
   delta_face: array_typing.Array
+  trapped_fraction_face: array_typing.Array
   elongation: array_typing.Array
   elongation_face: array_typing.Array
   g0: array_typing.Array

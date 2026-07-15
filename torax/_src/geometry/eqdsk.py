@@ -15,7 +15,7 @@
 
 import json
 import logging
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, ClassVar, Literal
 
 import contourpy
 import eqdsk
@@ -30,6 +30,7 @@ from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
+from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
@@ -64,6 +65,13 @@ class EQDSKConfig(base.BaseGeometryConfig):
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
   """
+
+  _supported_trapped_fraction_sources: ClassVar[
+      frozenset[base.TrappedFractionSource]
+  ] = frozenset({
+      base.TrappedFractionSource.SAUTER,
+      base.TrappedFractionSource.EXACT,
+  })
 
   cocos: torax_pydantic.COCOSInt = ...  # pyrefly: ignore[bad-assignment]
   geometry_file: str | None = None
@@ -127,6 +135,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
         cocos=self.cocos,
         n_surfaces=self.n_surfaces,
         last_surface_factor=self.last_surface_factor,
+        trapped_fraction_source=self.trapped_fraction_source,
     )
     return standard_geometry.build_standard_geometry(intermediates)
 
@@ -141,6 +150,7 @@ def _construct_intermediates_from_eqdsk(
     n_surfaces: int,
     last_surface_factor: float,
     cocos: int,
+    trapped_fraction_source: base.TrappedFractionSource,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -167,6 +177,8 @@ def _construct_intermediates_from_eqdsk(
       grid. Needed to avoid divergent integrations in diverted geometries.
     cocos: COCOS convention of the EQDSK file, specified as an integer between
       1-8 or 11-18 inclusive.
+    trapped_fraction_source: Selects how the effective trapped particle
+      fraction is computed; see `base.TrappedFractionSource`.
 
   Returns:
     A StandardGeometryIntermediates instance based on the input file or object.
@@ -321,6 +333,12 @@ def _construct_intermediates_from_eqdsk(
   flux_surf_avg_grad_psi2 = np.empty(len(surfaces) + 1)  # <|grad(psi)|**2>
   flux_surf_avg_B2 = np.empty(len(surfaces) + 1)  # <B**2>
   flux_surf_avg_1_over_B2 = np.empty(len(surfaces) + 1)  # <1/B**2>
+  compute_exact_trapped_fraction = (
+      trapped_fraction_source == base.TrappedFractionSource.EXACT
+  )
+  exact_trapped_fraction = (
+      np.empty(len(surfaces) + 1) if compute_exact_trapped_fraction else None
+  )  # Effective trapped fraction
   int_dl_over_Bp = np.empty(len(surfaces) + 1)  # int(Rdl / | grad(psi) |)
   Ip = np.empty(len(surfaces) + 1)  # Toroidal plasma current
   delta_upper_face = np.empty(len(surfaces) + 1)  # Upper face delta
@@ -389,6 +407,16 @@ def _construct_intermediates_from_eqdsk(
         / surface_int_dl_over_bpol
     )
 
+    if compute_exact_trapped_fraction:
+      surface_B = np.sqrt(surface_B2)
+      surface_trapped_fraction = (
+          formulas.calculate_bounce_averaged_trapped_fraction(
+              B=surface_B,
+              dl_over_Bp=surface_dl / surface_Bpol,
+              flux_surf_avg_B2=surface_FSA_B2,
+          )
+      )
+
     # Volumes and areas
     area = calculate_area(x_surface, z_surface)
     volume = area * 2 * np.pi * R_major
@@ -425,6 +453,8 @@ def _construct_intermediates_from_eqdsk(
     flux_surf_avg_grad_psi2_over_R2[n + 1] = surface_FSA_abs_grad_psi2_over_R2
     flux_surf_avg_B2[n + 1] = surface_FSA_B2
     flux_surf_avg_1_over_B2[n + 1] = surface_FSA_1_over_B2
+    if compute_exact_trapped_fraction:
+      exact_trapped_fraction[n + 1] = surface_trapped_fraction
     Ip[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
     delta_upper_face[n + 1] = surface_delta_upper_face
     delta_lower_face[n + 1] = surface_delta_lower_face
@@ -445,6 +475,9 @@ def _construct_intermediates_from_eqdsk(
   flux_surf_avg_grad_psi2_over_R2[0] = 0
   flux_surf_avg_B2[0] = Btor_axis**2
   flux_surf_avg_1_over_B2[0] = 1 / Btor_axis**2
+  if compute_exact_trapped_fraction:
+    # No trapped particles on the magnetic axis, where B is uniform.
+    exact_trapped_fraction[0] = 0.0
   Ip[0] = 0
   delta_upper_face[0] = delta_upper_face[1]
   delta_lower_face[0] = delta_lower_face[1]
@@ -458,6 +491,31 @@ def _construct_intermediates_from_eqdsk(
   )
   rhon = np.sqrt(Phi / Phi[-1])
   vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
+
+  sauter_trapped_fraction = formulas.calculate_sauter_trapped_fraction(
+      epsilon=(R_outboard - R_inboard) / (R_outboard + R_inboard),
+      delta=0.5 * (delta_upper_face + delta_lower_face),
+  )
+
+  match trapped_fraction_source:
+    case base.TrappedFractionSource.EXACT:
+      # Fill any unreliable values (NaN, or outside the physically valid
+      # [0, 1] range, e.g. surfaces too close to the magnetic axis for the
+      # integral to resolve well) with the Sauter approximation.
+      exact_is_unreliable = (
+          np.isnan(exact_trapped_fraction)
+          | (exact_trapped_fraction < 0.0)
+          | (exact_trapped_fraction > 1.0)
+      )
+      trapped_fraction = np.where(
+          exact_is_unreliable, sauter_trapped_fraction, exact_trapped_fraction
+      )
+    case base.TrappedFractionSource.SAUTER:
+      trapped_fraction = sauter_trapped_fraction
+    case _:
+      raise ValueError(
+          f'Unknown trapped_fraction_source: {trapped_fraction_source}'
+      )
 
   # ------------------------------------ #
   # ---- 6. Sense-check the results ---- #
@@ -496,6 +554,7 @@ def _construct_intermediates_from_eqdsk(
       flux_surf_avg_grad_psi2_over_R2=flux_surf_avg_grad_psi2_over_R2,
       flux_surf_avg_B2=flux_surf_avg_B2,
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
+      trapped_fraction=trapped_fraction,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
       elongation=elongation,

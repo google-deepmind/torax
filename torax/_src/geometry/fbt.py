@@ -18,6 +18,7 @@ import enum
 import logging
 from typing import Annotated
 from typing import Any
+from typing import ClassVar
 from typing import Literal, TypeAlias
 
 import jax
@@ -30,6 +31,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
+from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
@@ -80,6 +82,10 @@ class FBTConfig(base.BaseGeometryConfig):
     divertor_domain: The divertor domain (upper or lower null) for extracting
       edge quantities when diverted.
   """
+
+  _supported_trapped_fraction_sources: ClassVar[
+      frozenset[base.TrappedFractionSource]
+  ] = frozenset({base.TrappedFractionSource.SAUTER})
 
   geometry_type: Annotated[Literal['fbt'], torax_pydantic.TIME_INVARIANT] = (
       'fbt'
@@ -443,6 +449,10 @@ def _from_fbt(
       num=B_0**2, denom=np.sqrt(1.0 - LY['epsilon'] ** 2), eps=1e-7
   )
   flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
+  trapped_fraction = formulas.calculate_sauter_trapped_fraction(
+      epsilon=LY['epsilon'],
+      delta=0.5 * (LY['deltau'] + LY['deltal']),
+  )
 
   # Edge/Divertor geometry
   # These parameters are optional as older FBT files may not contain them.
@@ -497,6 +507,7 @@ def _from_fbt(
       flux_surf_avg_grad_psi2=LY['Q4Q'],  # pyrefly: ignore[bad-argument-type]
       flux_surf_avg_B2=flux_surf_avg_B2,  # pyrefly: ignore[bad-argument-type]
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
+      trapped_fraction=trapped_fraction,  # pyrefly: ignore[bad-argument-type]
       delta_upper_face=LY['deltau'],  # pyrefly: ignore[bad-argument-type]
       delta_lower_face=LY['deltal'],  # pyrefly: ignore[bad-argument-type]
       elongation=LY['kappa'],  # pyrefly: ignore[bad-argument-type]

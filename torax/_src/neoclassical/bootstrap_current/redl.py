@@ -117,7 +117,7 @@ def _calculate_bootstrap_current(
   # collisionality and for multi-species plasmas.
 
   # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
+  f_trap = geo.trapped_fraction_face
 
   # Collision frequencies
   log_lambda_ei = collisions.calculate_log_lambda_ei(
