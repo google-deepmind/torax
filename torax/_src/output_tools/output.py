@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
+
 from collections.abc import Mapping, Sequence
 import dataclasses
 import functools
@@ -34,6 +35,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
+from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.solver import jax_root_finding
 from torax._src.sources import qei_source as qei_source_lib
@@ -42,104 +44,39 @@ from torax._src.torax_pydantic import file_restart as file_restart_pydantic_mode
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
+# Internal import.
+
 # pylint: disable=invalid-name
 
-# Dataset names.
-PROFILES = "profiles"
-SCALARS = "scalars"
-NUMERICS = "numerics"
-EDGE = "edge"
+# CoreProfiles field names excluded from direct output serialization.
+# These are either redundant, require special handling, or belong elsewhere.
+_EXCLUDED_CORE_PROFILE_FIELDS = frozenset({
+    "impurity_fractions",  # Redundant with n_impurity_species.
+    "charge_state_info",
+    "charge_state_info_face",
+    "impurity_density_scaling",
+    "fast_ions",  # Handled separately via fast ion loop.
+    "n_impurity_thermal",
+    "main_ion_fractions",  # Requires special handling (dict → DataArray).
+    # TODO(b/434175938): Remove once we move to V2.
+    "internal_plasma_energy",  # In post_processed_outputs.
+})
 
-# Core profiles.
-T_E = "T_e"
-T_I = "T_i"
-PSI = "psi"
-V_LOOP = "v_loop"
-N_E = "n_e"
-N_I = "n_i"
-Q = "q"
-MAGNETIC_SHEAR = "magnetic_shear"
-N_IMPURITY = "n_impurity"
-Z_IMPURITY = "Z_impurity"
-Z_EFF = "Z_eff"
-SIGMA_PARALLEL = "sigma_parallel"
-V_LOOP_LCFS = "v_loop_lcfs"
-IP_PROFILE = "Ip_profile"
-IP = "Ip"
+# Geometry field names excluded from direct output serialization.
+_EXCLUDED_GEOMETRY_FIELDS = frozenset({
+    "geometry_type",
+    "Ip_from_parameters",
+    "j_total",  # Already in core_profiles output.
+})
 
-# Calculated or derived current densities (excluding sources)
-J_PARALLEL_TOTAL = "j_parallel_total"
-J_PARALLEL_OHMIC = "j_parallel_ohmic"
-J_PARALLEL_EXTERNAL = "j_parallel_external"
-J_PARALLEL_BOOTSTRAP = "j_parallel_bootstrap"
-J_TOROIDAL_TOTAL = "j_total"
-J_TOROIDAL_OHMIC = "j_ohmic"
-J_TOROIDAL_EXTERNAL = "j_external"
-J_TOROIDAL_BOOTSTRAP = "j_bootstrap"
-I_BOOTSTRAP = "I_bootstrap"
-
-# Core transport.
-CHI_TURB_I = "chi_turb_i"
-CHI_TURB_E = "chi_turb_e"
-CHI_ITG_E = "chi_itg_e"
-CHI_TEM_E = "chi_tem_e"
-CHI_ETG_E = "chi_etg_e"
-CHI_ITG_I = "chi_itg_i"
-CHI_TEM_I = "chi_tem_i"
-D_ITG_E = "D_itg_e"
-D_TEM_E = "D_tem_e"
-D_TURB_E = "D_turb_e"
-V_ITG_E = "V_itg_e"
-V_TEM_E = "V_tem_e"
-V_TURB_E = "V_turb_e"
-CHI_NEO_I = "chi_neo_i"
-CHI_NEO_E = "chi_neo_e"
-D_NEO_E = "D_neo_e"
-V_NEO_E = "V_neo_e"
-V_NEO_WARE_E = "V_neo_ware_e"
-CHI_BOHM_E = "chi_bohm_e"
-CHI_GYROBOHM_E = "chi_gyrobohm_e"
-CHI_BOHM_I = "chi_bohm_i"
-CHI_GYROBOHM_I = "chi_gyrobohm_i"
-
-# Coordinates.
-RHO_FACE_NORM = "rho_face_norm"
-RHO_CELL_NORM = "rho_cell_norm"
-RHO_NORM = "rho_norm"
-RHO_FACE = "rho_face"
-RHO_CELL = "rho_cell"
-TIME = "time"
-
-# Post processed outputs
-Q_FUSION = "Q_fusion"
-
-# Edge model outputs
-SEED_IMPURITY_CONCENTRATIONS = "seed_impurity_concentrations"
-CALCULATED_ENRICHMENT = "calculated_enrichment"
-IMPURITY = "impurity"
-SEED_IMPURITY = "seed_impurity"
-MAIN_ION = "main_ion"
-
-# Numerics.
-SIM_STATUS = "sim_status"
-SIM_ERROR = "sim_error"
-OUTER_SOLVER_ITERATIONS = "outer_solver_iterations"
-INNER_SOLVER_ITERATIONS = "inner_solver_iterations"
-# Boolean array indicating whether the state corresponds to a
-# post-sawtooth-crash state.
-SAWTOOTH_CRASH = "sawtooth_crash"
-
-# ToraxConfig.
-CONFIG = "config"
-
-# Excluded coordinates from geometry since they are at the top DataTree level.
-# Exclude q_correction_factor as it is not an interesting quantity to save.
+# Geometry property names excluded because they are coordinates at the top
+# DataTree level, or are not interesting to save.
 # TODO(b/338033916): consolidate on either rho or rho_cell naming for cell grid
-EXCLUDED_GEOMETRY_NAMES = frozenset({
-    RHO_FACE,
-    RHO_CELL,
-    RHO_CELL_NORM,
-    RHO_FACE_NORM,
+_EXCLUDED_GEOMETRY_PROPERTIES = frozenset({
+    output_keys.RHO_FACE,
+    output_keys.RHO_CELL,
+    output_keys.RHO_CELL_NORM,
+    output_keys.RHO_FACE_NORM,
     "rho",
     "rho_norm",
     "q_correction_factor",
@@ -181,12 +118,12 @@ def concat_datatrees(
   ) -> xr.Dataset:
     """Concats two xr.Datasets."""
     # Do a minimal concat to avoid concatting any non time indexed vars.
-    ds = xr.concat([previous_ds, ds], dim=TIME, data_vars="minimal")
+    ds = xr.concat([previous_ds, ds], dim=output_keys.TIME, data_vars="minimal")
     # Drop any duplicate time steps. Using "first" imposes
     # keeping the restart state from the earlier dataset. In the case of TORAX
     # restarts this contains more complete information e.g. transport and post
     # processed outputs.
-    ds = ds.drop_duplicates(dim=TIME, keep="first")
+    ds = ds.drop_duplicates(dim=output_keys.TIME, keep="first")
     return ds
 
   return xr.map_over_datasets(_concat_datasets, tree1, tree2)
@@ -218,8 +155,8 @@ def stitch_state_files(
   """
   previous_datatree = load_state_file(file_restart.filename)  # pyrefly: ignore[bad-argument-type]
   np.testing.assert_array_equal(
-      previous_datatree.coords[RHO_CELL_NORM].as_numpy(),
-      datatree.coords[RHO_CELL_NORM].as_numpy(),
+      previous_datatree.coords[output_keys.RHO_CELL_NORM].as_numpy(),
+      datatree.coords[output_keys.RHO_CELL_NORM].as_numpy(),
       err_msg=(
           "The rho_cell_norm coordinates of the previous state file and the"
           " current state file must be the same."
@@ -383,24 +320,30 @@ class StateHistory:
     # Add attribute to dataset variables with explanation of contents + units.
 
     # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
-    time = xr.DataArray(self.times, dims=[TIME], name=TIME)
+    time = xr.DataArray(
+        self.times, dims=[output_keys.TIME], name=output_keys.TIME
+    )
     rho_face_norm = xr.DataArray(
-        self.rho_face_norm, dims=[RHO_FACE_NORM], name=RHO_FACE_NORM
+        self.rho_face_norm,
+        dims=[output_keys.RHO_FACE_NORM],
+        name=output_keys.RHO_FACE_NORM,
     )
     rho_cell_norm = xr.DataArray(
-        self.rho_cell_norm, dims=[RHO_CELL_NORM], name=RHO_CELL_NORM
+        self.rho_cell_norm,
+        dims=[output_keys.RHO_CELL_NORM],
+        name=output_keys.RHO_CELL_NORM,
     )
     rho_norm = xr.DataArray(
         self.rho_norm,
-        dims=[RHO_NORM],
-        name=RHO_NORM,
+        dims=[output_keys.RHO_NORM],
+        name=output_keys.RHO_NORM,
     )
 
     coords = {
-        TIME: time,
-        RHO_FACE_NORM: rho_face_norm,
-        RHO_CELL_NORM: rho_cell_norm,
-        RHO_NORM: rho_norm,
+        output_keys.TIME: time,
+        output_keys.RHO_FACE_NORM: rho_face_norm,
+        output_keys.RHO_CELL_NORM: rho_cell_norm,
+        output_keys.RHO_NORM: rho_norm,
     }
 
     # Update dict with flattened StateHistory dataclass containers
@@ -426,27 +369,31 @@ class StateHistory:
     )
 
     numerics_dict = {
-        SIM_STATUS: sim_status.value,
-        SIM_ERROR: self.sim_error.value,
-        SAWTOOTH_CRASH: xr.DataArray(
+        output_keys.SIM_STATUS: sim_status.value,
+        output_keys.SIM_ERROR: self.sim_error.value,
+        output_keys.SAWTOOTH_CRASH: xr.DataArray(
             self._stacked_solver_numeric_outputs.sawtooth_crash,
-            dims=[TIME],
-            name=SAWTOOTH_CRASH,
+            dims=[output_keys.TIME],
+            name=output_keys.SAWTOOTH_CRASH,
         ),
-        OUTER_SOLVER_ITERATIONS: xr.DataArray(
+        output_keys.OUTER_SOLVER_ITERATIONS: xr.DataArray(
             self._stacked_solver_numeric_outputs.outer_solver_iterations,
-            dims=[TIME],
-            name=OUTER_SOLVER_ITERATIONS,
+            dims=[output_keys.TIME],
+            name=output_keys.OUTER_SOLVER_ITERATIONS,
         ),
-        INNER_SOLVER_ITERATIONS: xr.DataArray(
+        output_keys.INNER_SOLVER_ITERATIONS: xr.DataArray(
             self._stacked_solver_numeric_outputs.inner_solver_iterations,
-            dims=[TIME],
-            name=INNER_SOLVER_ITERATIONS,
+            dims=[output_keys.TIME],
+            name=output_keys.INNER_SOLVER_ITERATIONS,
         ),
     }
     numerics = xr.Dataset(numerics_dict)
 
-    spatial_coords = {RHO_FACE_NORM, RHO_CELL_NORM, RHO_NORM}
+    spatial_coords = {
+        output_keys.RHO_FACE_NORM,
+        output_keys.RHO_CELL_NORM,
+        output_keys.RHO_NORM,
+    }
 
     profiles_dict = {
         k: v
@@ -461,18 +408,18 @@ class StateHistory:
     }
     scalars = xr.Dataset(scalars_dict)
     children = {
-        NUMERICS: xr.DataTree(dataset=numerics),
-        PROFILES: xr.DataTree(dataset=profiles),
-        SCALARS: xr.DataTree(dataset=scalars),
+        output_keys.NUMERICS: xr.DataTree(dataset=numerics),
+        output_keys.PROFILES: xr.DataTree(dataset=profiles),
+        output_keys.SCALARS: xr.DataTree(dataset=scalars),
     }
     if self._stacked_edge_outputs is not None:
-      children[EDGE] = self._save_edge_outputs()
+      children[output_keys.EDGE] = self._save_edge_outputs()
     data_tree = xr.DataTree(
         children=children,
         dataset=xr.Dataset(
             data_vars=None,
             coords=coords,
-            attrs={CONFIG: self.torax_config.model_dump_json()},
+            attrs={output_keys.CONFIG: self.torax_config.model_dump_json()},
         ),
     )
     if (
@@ -509,15 +456,15 @@ class StateHistory:
 
     match data:
       case data if is_face_var(data):
-        dims = [TIME, RHO_FACE_NORM]
+        dims = [output_keys.TIME, output_keys.RHO_FACE_NORM]
       case data if is_cell_var(data):
-        dims = [TIME, RHO_CELL_NORM]
+        dims = [output_keys.TIME, output_keys.RHO_CELL_NORM]
       case data if is_scalar(data):
-        dims = [TIME]
+        dims = [output_keys.TIME]
       case data if is_constant(data):
         dims = []
       case data if is_cell_plus_boundaries_var(data):
-        dims = [TIME, RHO_NORM]
+        dims = [output_keys.TIME, output_keys.RHO_NORM]
       case _:
         logging.warning(
             "Unsupported data shape for %s: %s. Skipping persisting.",
@@ -539,11 +486,11 @@ class StateHistory:
     # Needed for attributes that are not 1:1 with the output name.
     # Other attributes will use the same name as in CoreProfiles
     output_name_map = {
-        "psidot": V_LOOP,
-        "sigma": SIGMA_PARALLEL,
-        "Ip_profile_face": IP_PROFILE,
-        "q_face": Q,
-        "s_face": MAGNETIC_SHEAR,
+        "psidot": output_keys.V_LOOP,
+        "sigma": output_keys.SIGMA_PARALLEL,
+        "Ip_profile_face": output_keys.IP_PROFILE,
+        "q_face": output_keys.Q,
+        "s_face": output_keys.MAGNETIC_SHEAR,
     }
 
     core_profile_field_names = {
@@ -564,28 +511,7 @@ class StateHistory:
     )
 
     for attr_name in core_profiles_names:
-      # Skip impurity_fractions since redundant with n_impurity_species.
-      if attr_name == "impurity_fractions":
-        continue
-
-      # Skip attributes that are not needed in the output.
-      if attr_name in (
-          "charge_state_info",
-          "charge_state_info_face",
-          "impurity_density_scaling",
-          "fast_ions",
-          "n_impurity_thermal",
-      ):
-        continue
-
-      # Skip main_ion_fractions as it requires special handling (dict to
-      # DataArray with extra dim)
-      if attr_name == "main_ion_fractions":
-        continue
-
-      # Skip internal_plasma_energy as it is in post_processed_outputs.
-      # TODO(b/434175938): Remove once we move to V2.
-      if attr_name == "internal_plasma_energy":
+      if attr_name in _EXCLUDED_CORE_PROFILE_FIELDS:
         continue
 
       attr_value = getattr(stacked_core_profiles, attr_name)
@@ -640,7 +566,7 @@ class StateHistory:
 
     # Handle derived quantities
     Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]
-    xr_dict[IP] = self._pack_into_data_array(IP, Ip_data)  # pyrefly: ignore[bad-argument-type]
+    xr_dict[output_keys.IP] = self._pack_into_data_array(output_keys.IP, Ip_data)  # pyrefly: ignore[bad-argument-type]
 
     # Handle main_ion_fractions
     main_ions = sorted(list(stacked_core_profiles.main_ion_fractions.keys()))
@@ -650,8 +576,8 @@ class StateHistory:
     )
     xr_dict["main_ion_fractions"] = xr.DataArray(
         data,
-        dims=[MAIN_ION, TIME],
-        coords={MAIN_ION: main_ions, TIME: self.times},
+        dims=[output_keys.MAIN_ION, output_keys.TIME],
+        coords={output_keys.MAIN_ION: main_ions, output_keys.TIME: self.times},
         name="main_ion_fractions",
     )
     # Handle fast ions
@@ -680,33 +606,33 @@ class StateHistory:
     xr_dict = {}
     core_transport = self._stacked_core_transport
 
-    xr_dict[CHI_TURB_I] = core_transport.chi_face_ion
-    xr_dict[CHI_TURB_E] = core_transport.chi_face_el
-    xr_dict[D_TURB_E] = core_transport.d_face_el
-    xr_dict[V_TURB_E] = core_transport.v_face_el
+    xr_dict[output_keys.CHI_TURB_I] = core_transport.chi_face_ion
+    xr_dict[output_keys.CHI_TURB_E] = core_transport.chi_face_el
+    xr_dict[output_keys.D_TURB_E] = core_transport.d_face_el
+    xr_dict[output_keys.V_TURB_E] = core_transport.v_face_el
 
-    xr_dict[CHI_NEO_I] = core_transport.chi_neo_i
-    xr_dict[CHI_NEO_E] = core_transport.chi_neo_e
-    xr_dict[D_NEO_E] = core_transport.D_neo_e
-    xr_dict[V_NEO_E] = core_transport.V_neo_e
-    xr_dict[V_NEO_WARE_E] = core_transport.V_neo_ware_e
+    xr_dict[output_keys.CHI_NEO_I] = core_transport.chi_neo_i
+    xr_dict[output_keys.CHI_NEO_E] = core_transport.chi_neo_e
+    xr_dict[output_keys.D_NEO_E] = core_transport.D_neo_e
+    xr_dict[output_keys.V_NEO_E] = core_transport.V_neo_e
+    xr_dict[output_keys.V_NEO_WARE_E] = core_transport.V_neo_ware_e
 
     # Save optional BohmGyroBohm attributes if present.
     core_transport = self._stacked_core_transport
     optional_transport_map = {
-        CHI_BOHM_E: core_transport.chi_face_el_bohm,
-        CHI_GYROBOHM_E: core_transport.chi_face_el_gyrobohm,
-        CHI_BOHM_I: core_transport.chi_face_ion_bohm,
-        CHI_GYROBOHM_I: core_transport.chi_face_ion_gyrobohm,
-        CHI_ITG_E: core_transport.chi_face_el_itg,
-        CHI_TEM_E: core_transport.chi_face_el_tem,
-        CHI_ETG_E: core_transport.chi_face_el_etg,
-        CHI_ITG_I: core_transport.chi_face_ion_itg,
-        CHI_TEM_I: core_transport.chi_face_ion_tem,
-        D_ITG_E: core_transport.d_face_el_itg,
-        D_TEM_E: core_transport.d_face_el_tem,
-        V_ITG_E: core_transport.v_face_el_itg,
-        V_TEM_E: core_transport.v_face_el_tem,
+        output_keys.CHI_BOHM_E: core_transport.chi_face_el_bohm,
+        output_keys.CHI_GYROBOHM_E: core_transport.chi_face_el_gyrobohm,
+        output_keys.CHI_BOHM_I: core_transport.chi_face_ion_bohm,
+        output_keys.CHI_GYROBOHM_I: core_transport.chi_face_ion_gyrobohm,
+        output_keys.CHI_ITG_E: core_transport.chi_face_el_itg,
+        output_keys.CHI_TEM_E: core_transport.chi_face_el_tem,
+        output_keys.CHI_ETG_E: core_transport.chi_face_el_etg,
+        output_keys.CHI_ITG_I: core_transport.chi_face_ion_itg,
+        output_keys.CHI_TEM_I: core_transport.chi_face_ion_tem,
+        output_keys.D_ITG_E: core_transport.d_face_el_itg,
+        output_keys.D_TEM_E: core_transport.d_face_el_tem,
+        output_keys.V_ITG_E: core_transport.v_face_el_itg,
+        output_keys.V_TEM_E: core_transport.v_face_el_tem,
     }
 
     for name, data in optional_transport_map.items():
@@ -738,7 +664,7 @@ class StateHistory:
         )
     )
 
-    xr_dict[J_PARALLEL_BOOTSTRAP] = extend_cell_grid_to_boundaries(
+    xr_dict[output_keys.J_PARALLEL_BOOTSTRAP] = extend_cell_grid_to_boundaries(
         self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap,
         self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap_face,
     )
@@ -814,8 +740,8 @@ class StateHistory:
               self._stacked_post_processed_outputs.impurity_species,
               self.times,  # pyrefly: ignore[bad-argument-type]
               self.rho_cell_norm,  # pyrefly: ignore[bad-argument-type]
-              TIME,
-              RHO_CELL_NORM,
+              output_keys.TIME,
+              output_keys.RHO_CELL_NORM,
           )
       )
       for key, value in radiation_outputs.items():
@@ -838,9 +764,7 @@ class StateHistory:
               field_name.endswith("_face")
               and field_name.removesuffix("_face") in geometry_attributes
           )
-          or field_name == "geometry_type"
-          or field_name == "Ip_from_parameters"
-          or field_name == "j_total"
+          or field_name in _EXCLUDED_GEOMETRY_FIELDS
           or not isinstance(data, array_typing.Array)
       ):
         continue
@@ -878,7 +802,7 @@ class StateHistory:
           and name.removesuffix("_face") in property_names
       ):
         continue
-      if name in EXCLUDED_GEOMETRY_NAMES:
+      if name in _EXCLUDED_GEOMETRY_PROPERTIES:
         continue
       if isinstance(value, property):
         property_data = value.fget(self._stacked_geometry)  # pyrefly: ignore[not-callable]
@@ -945,7 +869,7 @@ class StateHistory:
           xr_dict[name] = packed
         continue
       # Special handling for seed_impurity_concentrations
-      if name == SEED_IMPURITY_CONCENTRATIONS and value:
+      if name == output_keys.SEED_IMPURITY_CONCENTRATIONS and value:
         # This is a dict of {impurity: array(time,)}, where (time,) is the shape
         # We want to convert it to an array of shape (n_impurities, time) with
         # impurity coord.
@@ -953,13 +877,16 @@ class StateHistory:
         data_array = np.stack([value[i] for i in impurities], axis=0)
         xr_dict[name] = xr.DataArray(
             data_array,
-            dims=[SEED_IMPURITY, TIME],
-            coords={SEED_IMPURITY: impurities, TIME: self.times},
+            dims=[output_keys.SEED_IMPURITY, output_keys.TIME],
+            coords={
+                output_keys.SEED_IMPURITY: impurities,
+                output_keys.TIME: self.times,
+            },
             name=name,
         )
         continue
 
-      if name == CALCULATED_ENRICHMENT and value:
+      if name == output_keys.CALCULATED_ENRICHMENT and value:
         # This is a dict of {impurity: array(time,)}, where (time,) is the shape
         # We want to convert it to an array of shape (n_impurities, time) with
         # impurity coord.
@@ -967,8 +894,11 @@ class StateHistory:
         data_array = np.stack([value[i] for i in impurities], axis=0)
         xr_dict[name] = xr.DataArray(
             data_array,
-            dims=[IMPURITY, TIME],
-            coords={IMPURITY: impurities, TIME: self.times},
+            dims=[output_keys.IMPURITY, output_keys.TIME],
+            coords={
+                output_keys.IMPURITY: impurities,
+                output_keys.TIME: self.times,
+            },
             name=name,
         )
         continue
@@ -1017,7 +947,7 @@ class StateHistory:
       return {}
 
     xr_dict = {}
-    default_dims = [TIME, "n_roots"]
+    default_dims = [output_keys.TIME, "n_roots"]
 
     # Helper to add data to xr_dict with correct dims
     def _add_to_xr(name: str, data: jax.Array):

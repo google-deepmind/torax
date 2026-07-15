@@ -23,17 +23,17 @@ from torax._src import state
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 from torax._src.test_utils import sim_test_case
 import xarray as xr
 
-
 _ALL_PROFILES = (
-    output.T_I,
-    output.T_E,
-    output.PSI,
-    output.Q,
-    output.N_E,
+    output_keys.T_I,
+    output_keys.T_E,
+    output_keys.PSI,
+    output_keys.Q,
+    output_keys.N_E,
 )
 
 

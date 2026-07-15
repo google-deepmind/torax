@@ -28,19 +28,19 @@ import numpy as np
 from torax._src import state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
-
 _ALL_PROFILES: Final[Sequence[str]] = (
-    output.T_I,
-    output.T_E,
-    output.PSI,
-    output.Q,
-    output.N_E,
+    output_keys.T_I,
+    output_keys.T_E,
+    output_keys.PSI,
+    output_keys.Q,
+    output_keys.N_E,
 )
 
 
@@ -56,7 +56,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_crank_nicolson',
           'test_crank_nicolson.py',
-          (output.T_I, output.T_E),
+          (output_keys.T_I, output_keys.T_E),
           2e-1,
           0,
           'test_implicit.nc',
@@ -420,12 +420,12 @@ class SimTest(sim_test_case.SimTestCase):
     self.assertEqual(history_length, history.times.shape[0])
     self.assertGreater(history.times[-1], torax_config.numerics.t_final)
     profiles_to_check = (
-        (output.T_I, history._stacked_core_profiles.T_i),
-        (output.T_E, history._stacked_core_profiles.T_e),
-        (output.N_E, history._stacked_core_profiles.n_e),
-        (output.PSI, history._stacked_core_profiles.psi),
-        (output.Q, history._stacked_core_profiles.q_face),
-        (output.MAGNETIC_SHEAR, history._stacked_core_profiles.s_face),
+        (output_keys.T_I, history._stacked_core_profiles.T_i),
+        (output_keys.T_E, history._stacked_core_profiles.T_e),
+        (output_keys.N_E, history._stacked_core_profiles.n_e),
+        (output_keys.PSI, history._stacked_core_profiles.psi),
+        (output_keys.Q, history._stacked_core_profiles.q_face),
+        (output_keys.MAGNETIC_SHEAR, history._stacked_core_profiles.s_face),
     )
 
     for profile_name, profile_history in profiles_to_check:
@@ -463,8 +463,8 @@ class SimTest(sim_test_case.SimTestCase):
     ref_name = test_config + '.nc'
     output_file = os.path.join(paths.test_data_dir(), ref_name)
     gt_output_xr = output.load_state_file(output_file)
-    profiles_dataset = gt_output_xr.children[output.PROFILES].dataset
-    ref_time = profiles_dataset[output.TIME].to_numpy()
+    profiles_dataset = gt_output_xr.children[output_keys.PROFILES].dataset
+    ref_time = profiles_dataset[output_keys.TIME].to_numpy()
     index = len(ref_time) // 2
     loading_time = ref_time[index]
 

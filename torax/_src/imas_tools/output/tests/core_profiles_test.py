@@ -25,16 +25,16 @@ from torax._src.imas_tools.output import core_profiles as output_core_profiles
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
 
-
 _ALL_PROFILES: Final[Sequence[str]] = (
-    output.T_I,
-    output.T_E,
-    output.PSI,
-    output.Q,
-    output.N_E,
+    output_keys.T_I,
+    output_keys.T_E,
+    output_keys.PSI,
+    output_keys.Q,
+    output_keys.N_E,
 )
 
 

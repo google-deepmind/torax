@@ -27,6 +27,7 @@ from torax._src import state
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
 
@@ -76,12 +77,12 @@ class SimTestCase(parameterized.TestCase):
     expected_results_path = self._expected_results_path(ref_name)
     self.assertTrue(os.path.exists(expected_results_path))
     data_tree = output.load_state_file(expected_results_path)
-    profiles_dataset = data_tree.children[output.PROFILES].dataset
+    profiles_dataset = data_tree.children[output_keys.PROFILES].dataset
     self.assertNotEmpty(profiles)
     ref_profiles = {
         profile: profiles_dataset[profile].to_numpy() for profile in profiles
     }
-    ref_time = profiles_dataset[output.TIME].to_numpy()
+    ref_time = profiles_dataset[output_keys.TIME].to_numpy()
     self.assertEqual(ref_time.shape[0], ref_profiles[profiles[0]].shape[0])
     return ref_profiles, ref_time
 
@@ -114,7 +115,7 @@ class SimTestCase(parameterized.TestCase):
       names = ['t']
       for profile_name, ref_profile in ref_profiles.items():
         actual_value = (
-            ds.children[output.PROFILES]  # pyrefly: ignore[missing-attribute]
+            ds.children[output_keys.PROFILES]  # pyrefly: ignore[missing-attribute]
             .dataset[profile_name]
             .to_numpy()[step, :]
         )

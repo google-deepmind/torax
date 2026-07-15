@@ -34,6 +34,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.solver import jax_root_finding
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -147,11 +148,11 @@ class StateHistoryTest(parameterized.TestCase):
   def test_core_transport_is_saved(self):
     """Tests that the core transport is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
-    core_transport_dataset = output_xr.children[output.PROFILES].dataset
-    self.assertIn(output.CHI_TURB_I, core_transport_dataset.data_vars)
+    core_transport_dataset = output_xr.children[output_keys.PROFILES].dataset
+    self.assertIn(output_keys.CHI_TURB_I, core_transport_dataset.data_vars)
     # Spot check one of the expected variables.
     self.assertEqual(
-        core_transport_dataset[output.CHI_TURB_I].values.shape,
+        core_transport_dataset[output_keys.CHI_TURB_I].values.shape,
         (1, len(self.geo.rho_face_norm)),
     )
 
@@ -174,7 +175,9 @@ class StateHistoryTest(parameterized.TestCase):
         torax_config=self.torax_config,
     )
     output_xr = state_history.simulation_output_to_xr()
-    saved_rmaj = output_xr.children[output.SCALARS].dataset.data_vars['R_major']
+    saved_rmaj = output_xr.children[output_keys.SCALARS].dataset.data_vars[
+        'R_major'
+    ]
     np.testing.assert_allclose(
         saved_rmaj.values[0, ...], self.sim_state.geometry.R_major
     )
@@ -187,13 +190,16 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = self.history.simulation_output_to_xr()
     # Check that the face and cell var for "volume" was merged.
     self.assertIn(
-        'volume', output_xr.children[output.PROFILES].dataset.data_vars
+        'volume', output_xr.children[output_keys.PROFILES].dataset.data_vars
     )
     self.assertNotIn(
-        'volume_face', output_xr.children[output.PROFILES].dataset.data_vars
+        'volume_face',
+        output_xr.children[output_keys.PROFILES].dataset.data_vars,
     )
     volume_values = (
-        output_xr.children[output.PROFILES].dataset.data_vars['volume'].values
+        output_xr.children[output_keys.PROFILES]
+        .dataset.data_vars['volume']
+        .values
     )
     chex.assert_shape(
         volume_values,
@@ -206,7 +212,7 @@ class StateHistoryTest(parameterized.TestCase):
   def test_state_history_saves_ion_el_source(self):
     """Tests that an ion electron source is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
-    profiles_dataset = output_xr.children[output.PROFILES].dataset
+    profiles_dataset = output_xr.children[output_keys.PROFILES].dataset
     self.assertIn('p_alpha_i', profiles_dataset.data_vars)
     self.assertIn('p_alpha_e', profiles_dataset.data_vars)
     np.testing.assert_allclose(
@@ -235,9 +241,9 @@ class StateHistoryTest(parameterized.TestCase):
   def test_expected_keys_in_child_nodes(self):
     data_tree = self.history.simulation_output_to_xr()
     expected_child_keys = [
-        output.PROFILES,
-        output.SCALARS,
-        output.NUMERICS,
+        output_keys.PROFILES,
+        output_keys.SCALARS,
+        output_keys.NUMERICS,
     ]
     for key in expected_child_keys:
       self.assertIn(key, data_tree.children)
@@ -255,7 +261,7 @@ class StateHistoryTest(parameterized.TestCase):
         {
             'key': xr.DataArray(
                 np.array([1, 2, 3]),
-                coords={output.TIME: [1, 2, 3]},
+                coords={output_keys.TIME: [1, 2, 3]},
             ),
         },
     )
@@ -263,7 +269,7 @@ class StateHistoryTest(parameterized.TestCase):
         {
             'key': xr.DataArray(
                 np.array([4, 5, 6, 7]),
-                coords={output.TIME: [3, 4, 5, 6]},
+                coords={output_keys.TIME: [3, 4, 5, 6]},
             ),
         },
     )
@@ -271,7 +277,7 @@ class StateHistoryTest(parameterized.TestCase):
         {
             'key': xr.DataArray(
                 np.array([1, 2, 3, 5, 6, 7]),
-                coords={output.TIME: [1, 2, 3, 4, 5, 6]},
+                coords={output_keys.TIME: [1, 2, 3, 4, 5, 6]},
             ),
         },
     )
@@ -304,7 +310,7 @@ class StateHistoryTest(parameterized.TestCase):
   def test_config_is_saved(self):
     """Tests that the config is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
-    config_dict = json.loads(output_xr.attrs[output.CONFIG])
+    config_dict = json.loads(output_xr.attrs[output_keys.CONFIG])
     self.assertEqual(config_dict['transport']['model_name'], 'constant')
     # Indexing: ['0.0'][1][1][0] = at time 0, at second rho coordinate,
     # get the value list, and the first value
@@ -319,7 +325,7 @@ class StateHistoryTest(parameterized.TestCase):
   def test_config_round_trip(self):
     """Tests that the serialization/deserialization of the config is correct."""
     output_xr = self.history.simulation_output_to_xr()
-    config_dict = json.loads(output_xr.dataset.attrs[output.CONFIG])
+    config_dict = json.loads(output_xr.dataset.attrs[output_keys.CONFIG])
     rebuilt_torax_config = model_config.ToraxConfig.from_dict(config_dict)
     self.assertEqual(rebuilt_torax_config, self.torax_config)
 
@@ -358,28 +364,28 @@ class StateHistoryTest(parameterized.TestCase):
     )
     output_xr = state_history.simulation_output_to_xr()
     np.testing.assert_equal(
-        output_xr.children[output.PROFILES]
-        .dataset.data_vars[output.Z_IMPURITY]
+        output_xr.children[output_keys.PROFILES]
+        .dataset.data_vars[output_keys.Z_IMPURITY]
         .values,
         np.array([[3, 2, 2, 2, 2, 3], [3, 2, 2, 2, 2, 3]]),
     )
     np.testing.assert_equal(
-        output_xr.children[output.PROFILES]
-        .dataset.data_vars[output.T_E]
+        output_xr.children[output_keys.PROFILES]
+        .dataset.data_vars[output_keys.T_E]
         .values,
         np.array([[18, 1, 1, 1, 1, 2], [18, 1, 1, 1, 1, 2]]),
     )
 
   def test_output_profiles_are_correct_shape(self):
     output_xr = self.history.simulation_output_to_xr()
-    profile_output_dataset = output_xr.children[output.PROFILES].dataset
+    profile_output_dataset = output_xr.children[output_keys.PROFILES].dataset
     self.assertCountEqual(
         profile_output_dataset.coords,
         {
-            output.TIME,
-            output.RHO_NORM,
-            output.RHO_FACE_NORM,
-            output.RHO_CELL_NORM,
+            output_keys.TIME,
+            output_keys.RHO_NORM,
+            output_keys.RHO_FACE_NORM,
+            output_keys.RHO_CELL_NORM,
             impurity_radiation.IMPURITY_DIM,
         },
     )
@@ -394,10 +400,14 @@ class StateHistoryTest(parameterized.TestCase):
             msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
         )
         self.assertEqual(data_array_dims[0], impurity_radiation.IMPURITY_DIM)
-        self.assertEqual(data_array_dims[1], output.TIME)
+        self.assertEqual(data_array_dims[1], output_keys.TIME)
         self.assertIn(
             data_array_dims[2],
-            [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
+            [
+                output_keys.RHO_NORM,
+                output_keys.RHO_FACE_NORM,
+                output_keys.RHO_CELL_NORM,
+            ],
         )
       else:
         self.assertLen(
@@ -405,22 +415,26 @@ class StateHistoryTest(parameterized.TestCase):
             2,
             msg=f'Data var {data_var} has incorrect shape {data_array_shape}.',
         )
-        self.assertEqual(data_array_dims[0], output.TIME)
+        self.assertEqual(data_array_dims[0], output_keys.TIME)
         self.assertIn(
             data_array_dims[1],
-            [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
+            [
+                output_keys.RHO_NORM,
+                output_keys.RHO_FACE_NORM,
+                output_keys.RHO_CELL_NORM,
+            ],
         )
 
   def test_output_scalars_are_correct_shape(self):
     output_xr = self.history.simulation_output_to_xr()
-    scalar_output_dataset = output_xr.children[output.SCALARS].dataset
+    scalar_output_dataset = output_xr.children[output_keys.SCALARS].dataset
     # Check coordinates are inherited from top level dataset.
     expected_coords = {
-        output.TIME,
-        output.RHO_NORM,
-        output.RHO_FACE_NORM,
-        output.RHO_CELL_NORM,
-        output.MAIN_ION,
+        output_keys.TIME,
+        output_keys.RHO_NORM,
+        output_keys.RHO_FACE_NORM,
+        output_keys.RHO_CELL_NORM,
+        output_keys.MAIN_ION,
     }
 
     self.assertCountEqual(
@@ -432,12 +446,16 @@ class StateHistoryTest(parameterized.TestCase):
       for dim in data_array.dims:
         self.assertNotIn(
             dim,
-            [output.RHO_NORM, output.RHO_FACE_NORM, output.RHO_CELL_NORM],
+            [
+                output_keys.RHO_NORM,
+                output_keys.RHO_FACE_NORM,
+                output_keys.RHO_CELL_NORM,
+            ],
             msg=f'Data var {data_var} in scalars has spatial dim {dim}.',
         )
       data_array_dims = data_array.dims
       if data_array_dims:
-        self.assertIn(output.TIME, data_array_dims)
+        self.assertIn(output_keys.TIME, data_array_dims)
 
   def test_impurity_radiation_output(self):
     test_data_dir = paths.test_data_dir()
@@ -516,8 +534,8 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = history.simulation_output_to_xr()
     self.assertIsNotNone(output_xr)
 
-    self.assertIn(output.EDGE, output_xr.children)
-    edge_dataset = output_xr.children[output.EDGE].dataset
+    self.assertIn(output_keys.EDGE, output_xr.children)
+    edge_dataset = output_xr.children[output_keys.EDGE].dataset
 
     # Check standard fields
     self.assertIn('q_parallel', edge_dataset.data_vars)
@@ -581,25 +599,27 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
     output_xr = history.simulation_output_to_xr()
-    edge_dataset = output_xr.children[output.EDGE].dataset
+    edge_dataset = output_xr.children[output_keys.EDGE].dataset
 
     # Verify seed_impurity_concentrations has dimension SEED_IMPURITY
-    self.assertIn(output.SEED_IMPURITY, edge_dataset.dims)
-    self.assertIn(output.SEED_IMPURITY_CONCENTRATIONS, edge_dataset.data_vars)
+    self.assertIn(output_keys.SEED_IMPURITY, edge_dataset.dims)
+    self.assertIn(
+        output_keys.SEED_IMPURITY_CONCENTRATIONS, edge_dataset.data_vars
+    )
 
-    seed_var = edge_dataset[output.SEED_IMPURITY_CONCENTRATIONS]
-    self.assertIn(output.SEED_IMPURITY, seed_var.dims)
+    seed_var = edge_dataset[output_keys.SEED_IMPURITY_CONCENTRATIONS]
+    self.assertIn(output_keys.SEED_IMPURITY, seed_var.dims)
 
     # Verify it has ONLY 'Ar'
-    self.assertLen(seed_var.coords[output.SEED_IMPURITY], 1)
-    self.assertEqual(seed_var.coords[output.SEED_IMPURITY].values[0], 'Ar')
+    self.assertLen(seed_var.coords[output_keys.SEED_IMPURITY], 1)
+    self.assertEqual(seed_var.coords[output_keys.SEED_IMPURITY].values[0], 'Ar')
 
     # Verify calculated_enrichment has both
-    enrich_var = edge_dataset[output.CALCULATED_ENRICHMENT]
-    self.assertIn(output.IMPURITY, enrich_var.dims)
-    self.assertLen(enrich_var.coords[output.IMPURITY], 2)
+    enrich_var = edge_dataset[output_keys.CALCULATED_ENRICHMENT]
+    self.assertIn(output_keys.IMPURITY, enrich_var.dims)
+    self.assertLen(enrich_var.coords[output_keys.IMPURITY], 2)
     self.assertCountEqual(
-        enrich_var.coords[output.IMPURITY].values, ['Ar', 'W']
+        enrich_var.coords[output_keys.IMPURITY].values, ['Ar', 'W']
     )
 
   def test_state_history_with_extended_lengyel_outputs_newton(self):
@@ -649,8 +669,8 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = history.simulation_output_to_xr()
     self.assertIsNotNone(output_xr)
 
-    self.assertIn(output.EDGE, output_xr.children)
-    edge_dataset = output_xr.children[output.EDGE].dataset
+    self.assertIn(output_keys.EDGE, output_xr.children)
+    edge_dataset = output_xr.children[output_keys.EDGE].dataset
 
     # Check standard fields
     self.assertIn('q_parallel', edge_dataset.data_vars)
@@ -678,7 +698,7 @@ class StateHistoryTest(parameterized.TestCase):
         edge_dataset['solver_iterations'].values, np.array([10])
     )
     # Check that solver_residual is reduced to a scalar per time step
-    self.assertEqual(edge_dataset['solver_residual'].dims, (output.TIME,))
+    self.assertEqual(edge_dataset['solver_residual'].dims, (output_keys.TIME,))
     # Mean of abs([1e-6, 3e-6]) is 2e-6
     np.testing.assert_allclose(
         edge_dataset['solver_residual'].values, np.array([2e-6])
@@ -887,7 +907,7 @@ class StateHistoryTest(parameterized.TestCase):
     output_xr = history.simulation_output_to_xr()
 
     # Check that main_ion_fractions is present in scalars
-    scalars_dataset = output_xr.children[output.SCALARS].dataset
+    scalars_dataset = output_xr.children[output_keys.SCALARS].dataset
     self.assertIn('main_ion_fractions', scalars_dataset.data_vars)
 
     fractions_xr = scalars_dataset['main_ion_fractions']

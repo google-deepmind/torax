@@ -17,7 +17,7 @@ import chex
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
-from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import sim_test_case
@@ -72,20 +72,20 @@ class InitialStateTest(sim_test_case.SimTestCase):
   )
   def test_core_profile_final_step(self, test_config):
     profiles = [
-        output.T_I,
-        output.T_E,
-        output.N_E,
-        output.N_I,
-        output.PSI,
-        output.V_LOOP,
-        output.IP_PROFILE,
-        output.Q,
-        output.MAGNETIC_SHEAR,
-        output.J_TOROIDAL_BOOTSTRAP,
-        output.J_TOROIDAL_OHMIC,
-        output.J_TOROIDAL_EXTERNAL,
-        output.J_TOROIDAL_TOTAL,
-        output.SIGMA_PARALLEL,
+        output_keys.T_I,
+        output_keys.T_E,
+        output_keys.N_E,
+        output_keys.N_I,
+        output_keys.PSI,
+        output_keys.V_LOOP,
+        output_keys.IP_PROFILE,
+        output_keys.Q,
+        output_keys.MAGNETIC_SHEAR,
+        output_keys.J_TOROIDAL_BOOTSTRAP,
+        output_keys.J_TOROIDAL_OHMIC,
+        output_keys.J_TOROIDAL_EXTERNAL,
+        output_keys.J_TOROIDAL_TOTAL,
+        output_keys.SIGMA_PARALLEL,
     ]
     index = -1
     ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
@@ -106,15 +106,15 @@ class InitialStateTest(sim_test_case.SimTestCase):
     )
 
     # Load in the reference core profiles.
-    Ip_total = ref_profiles[output.IP_PROFILE][index, -1]
+    Ip_total = ref_profiles[output_keys.IP_PROFILE][index, -1]
     # All profiles are on a grid with [left_face, cell_grid, right_face]
-    T_e = ref_profiles[output.T_E][index, 1:-1]
-    T_e_bc = ref_profiles[output.T_E][index, -1]
-    T_i = ref_profiles[output.T_I][index, 1:-1]
-    T_i_bc = ref_profiles[output.T_I][index, -1]
-    n_e = ref_profiles[output.N_E][index, 1:-1]
-    n_e_right_bc = ref_profiles[output.N_E][index, -1]
-    psi = ref_profiles[output.PSI][index, 1:-1]
+    T_e = ref_profiles[output_keys.T_E][index, 1:-1]
+    T_e_bc = ref_profiles[output_keys.T_E][index, -1]
+    T_i = ref_profiles[output_keys.T_I][index, 1:-1]
+    T_i_bc = ref_profiles[output_keys.T_I][index, -1]
+    n_e = ref_profiles[output_keys.N_E][index, 1:-1]
+    n_e_right_bc = ref_profiles[output_keys.N_E][index, -1]
+    psi = ref_profiles[output_keys.PSI][index, 1:-1]
 
     # Override the runtime params with the loaded values.
     runtime_params.profile_conditions.Ip = Ip_total

@@ -25,6 +25,7 @@ from torax._src.edge import extended_lengyel_standalone
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.solver import jax_root_finding
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -187,8 +188,8 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
 
     output_xr = history.simulation_output_to_xr()
     self.assertIsNotNone(output_xr)
-    self.assertIn(output.EDGE, output_xr.children)
-    edge_node = output_xr.children[output.EDGE]
+    self.assertIn(output_keys.EDGE, output_xr.children)
+    edge_node = output_xr.children[output_keys.EDGE]
 
     # Check if 'roots' child node exists
     self.assertIn('roots', edge_node.children)

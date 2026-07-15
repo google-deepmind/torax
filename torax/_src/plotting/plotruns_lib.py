@@ -39,6 +39,7 @@ from plotly import subplots
 import plotly.colors as pcolors
 import plotly.graph_objects as go
 from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 import xarray as xr
 
 # Internal import.
@@ -183,11 +184,11 @@ class PlotData:
   ):
     """Initialize PlotData with TORAX output DataTree."""
     self._top_level_dataset = data_tree.dataset
-    if output.TIME not in self._top_level_dataset:
+    if output_keys.TIME not in self._top_level_dataset:
       raise ValueError('Time variable not found in top-level dataset.')
-    self._scalars_dataset = data_tree.children[output.SCALARS].dataset
-    self._profiles_dataset = data_tree.children[output.PROFILES].dataset
-    self._numerics_dataset = data_tree.children[output.NUMERICS].dataset
+    self._scalars_dataset = data_tree.children[output_keys.SCALARS].dataset
+    self._profiles_dataset = data_tree.children[output_keys.PROFILES].dataset
+    self._numerics_dataset = data_tree.children[output_keys.NUMERICS].dataset
 
   @property
   def chi_total_i(self) -> np.ndarray:
@@ -234,7 +235,7 @@ class PlotData:
   @property
   def t(self) -> np.ndarray:
     """Accessor for the time coordinate."""
-    return self._top_level_dataset[output.TIME].to_numpy()
+    return self._top_level_dataset[output_keys.TIME].to_numpy()
 
   def __getattr__(self, name: str) -> np.ndarray:
     """Dynamically access variables from the output datasets.
@@ -324,14 +325,14 @@ def _transform_data(ds: xr.Dataset) -> xr.Dataset:
   ds = ds.copy()
 
   transformations = {
-      output.J_TOROIDAL_TOTAL: 1e6,  # A/m^2 to MA/m^2
-      output.J_TOROIDAL_OHMIC: 1e6,  # A/m^2 to MA/m^2
-      output.J_TOROIDAL_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
-      output.J_TOROIDAL_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
+      output_keys.J_TOROIDAL_TOTAL: 1e6,  # A/m^2 to MA/m^2
+      output_keys.J_TOROIDAL_OHMIC: 1e6,  # A/m^2 to MA/m^2
+      output_keys.J_TOROIDAL_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
+      output_keys.J_TOROIDAL_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
       'j_generic_current': 1e6,  # A/m^2 to MA/m^2
-      output.I_BOOTSTRAP: 1e6,  # A to MA
-      output.IP_PROFILE: 1e6,  # A to MA
-      output.IP: 1e6,  # A to MA
+      output_keys.I_BOOTSTRAP: 1e6,  # A to MA
+      output_keys.IP_PROFILE: 1e6,  # A to MA
+      output_keys.IP: 1e6,  # A to MA
       'j_ecrh': 1e6,  # A/m^2 to MA/m^2
       'p_icrh_i': 1e6,  # W/m^3 to MW/m^3
       'p_icrh_e': 1e6,  # W/m^3 to MW/m^3
@@ -355,9 +356,9 @@ def _transform_data(ds: xr.Dataset) -> xr.Dataset:
       'I_ecrh': 1e6,  # A to MA
       'I_aux_generic': 1e6,  # A to MA
       'W_thermal_total': 1e6,  # J to MJ
-      output.N_E: 1e20,  # m^-3 to 10^{20} m^-3
-      output.N_I: 1e20,  # m^-3 to 10^{20} m^-3
-      output.N_IMPURITY: 1e20,  # m^-3 to 10^{20} m^-3
+      output_keys.N_E: 1e20,  # m^-3 to 10^{20} m^-3
+      output_keys.N_I: 1e20,  # m^-3 to 10^{20} m^-3
+      output_keys.N_IMPURITY: 1e20,  # m^-3 to 10^{20} m^-3
   }
 
   for var_name, scale in transformations.items():

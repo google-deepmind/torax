@@ -29,6 +29,7 @@ from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
@@ -228,7 +229,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
   # Find the closest time in the given dataset.
   data_tree = data_tree.sel(time=file_restart.time, method='nearest')
   t_restart = data_tree.time.item()
-  profiles_dataset = data_tree.children[output.PROFILES].dataset
+  profiles_dataset = data_tree.children[output_keys.PROFILES].dataset
   profiles_dataset = profiles_dataset.squeeze()
   if t_restart != t:
     logging.warning(
@@ -261,7 +262,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
       geo=geo_for_init,
       step_fn=step_fn,
   )
-  scalars_dataset = data_tree.children[output.SCALARS].dataset
+  scalars_dataset = data_tree.children[output_keys.SCALARS].dataset
   scalars_dataset = scalars_dataset.squeeze()
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=initial_state,
@@ -304,14 +305,14 @@ def get_initial_state_and_post_processed_outputs_from_file(
       v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
       internal_plasma_energy=energy_state,
   )
-  numerics_dataset = data_tree.children[output.NUMERICS].dataset
+  numerics_dataset = data_tree.children[output_keys.NUMERICS].dataset
   numerics_dataset = numerics_dataset.squeeze()
-  sawtooth_crash = bool(numerics_dataset[output.SAWTOOTH_CRASH])
+  sawtooth_crash = bool(numerics_dataset[output_keys.SAWTOOTH_CRASH])
   outer_solver_iterations = int(
-      numerics_dataset[output.OUTER_SOLVER_ITERATIONS]
+      numerics_dataset[output_keys.OUTER_SOLVER_ITERATIONS]
   )
   inner_solver_iterations = int(
-      numerics_dataset[output.INNER_SOLVER_ITERATIONS]
+      numerics_dataset[output_keys.INNER_SOLVER_ITERATIONS]
   )
   return (
       dataclasses.replace(
@@ -346,42 +347,42 @@ def _override_initial_runtime_params_from_file(
 
   runtime_params.numerics.t_initial = t_restart
   runtime_params.profile_conditions.Ip = profiles_ds.data_vars[
-      output.IP_PROFILE
+      output_keys.IP_PROFILE
   ].to_numpy()[-1]
   runtime_params.profile_conditions.T_e = (
-      profiles_ds.data_vars[output.T_E]
-      .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
+      profiles_ds.data_vars[output_keys.T_E]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
       .to_numpy()
   )
   runtime_params.profile_conditions.T_e_right_bc = (
-      profiles_ds.data_vars[output.T_E]
-      .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
+      profiles_ds.data_vars[output_keys.T_E]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
       .to_numpy()
   )
   runtime_params.profile_conditions.T_i = (
-      profiles_ds.data_vars[output.T_I]
-      .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
+      profiles_ds.data_vars[output_keys.T_I]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
       .to_numpy()
   )
   runtime_params.profile_conditions.T_i_right_bc = (
-      profiles_ds.data_vars[output.T_I]
-      .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
+      profiles_ds.data_vars[output_keys.T_I]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
       .to_numpy()
   )
   # Density in output is in m^-3.
   runtime_params.profile_conditions.n_e = (
-      profiles_ds.data_vars[output.N_E]
-      .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
+      profiles_ds.data_vars[output_keys.N_E]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
       .to_numpy()
   )
   runtime_params.profile_conditions.n_e_right_bc = (
-      profiles_ds.data_vars[output.N_E]
-      .sel(rho_norm=profiles_ds.coords[output.RHO_FACE_NORM][-1])
+      profiles_ds.data_vars[output_keys.N_E]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_FACE_NORM][-1])
       .to_numpy()
   )
   runtime_params.profile_conditions.psi = (
-      profiles_ds.data_vars[output.PSI]
-      .sel(rho_norm=profiles_ds.coords[output.RHO_CELL_NORM])
+      profiles_ds.data_vars[output_keys.PSI]
+      .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
       .to_numpy()
   )
   # When loading from file we want ne not to have transformations.

@@ -13,19 +13,20 @@
 # limitations under the License.
 
 """Tests that TORAX can be run with compilation disabled."""
+
 from typing import Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.test_utils import sim_test_case
 
 _ALL_PROFILES = (
-    output.T_I,
-    output.T_E,
-    output.PSI,
-    output.Q,
-    output.N_E,
+    output_keys.T_I,
+    output_keys.T_E,
+    output_keys.PSI,
+    output_keys.Q,
+    output_keys.N_E,
 )
 
 

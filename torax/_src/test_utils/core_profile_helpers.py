@@ -20,7 +20,7 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.output_tools import output
+from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
 
 
@@ -116,120 +116,123 @@ def verify_core_profiles(
   """Verify core profiles matches a reference at given index."""
   np.testing.assert_allclose(
       core_profiles.T_e.value,
-      ref_profiles[output.T_E][index, 1:-1],
+      ref_profiles[output_keys.T_E][index, 1:-1],
       err_msg=(
           f"Mismatch for T_e.value. Core profile: {core_profiles.T_e.value},"
-          f" Ref profile ({output.T_E}):"
-          f" {ref_profiles[output.T_E][index, 1:-1]}"
+          f" Ref profile ({output_keys.T_E}):"
+          f" {ref_profiles[output_keys.T_E][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.T_i.value,
-      ref_profiles[output.T_I][index, 1:-1],
+      ref_profiles[output_keys.T_I][index, 1:-1],
       err_msg=(
           f"Mismatch for T_i.value. Core profile: {core_profiles.T_i.value},"
-          f" Ref profile ({output.T_I}):"
-          f" {ref_profiles[output.T_I][index, 1:-1]}"
+          f" Ref profile ({output_keys.T_I}):"
+          f" {ref_profiles[output_keys.T_I][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.n_e.value,
-      ref_profiles[output.N_E][index, 1:-1],
+      ref_profiles[output_keys.N_E][index, 1:-1],
       err_msg=(
           f"Mismatch for n_e.value. Core profile: {core_profiles.n_e.value},"
-          f" Ref profile ({output.N_E}):"
-          f" {ref_profiles[output.N_E][index, 1:-1]}"
+          f" Ref profile ({output_keys.N_E}):"
+          f" {ref_profiles[output_keys.N_E][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
       core_profiles.n_e.right_face_constraint,
-      ref_profiles[output.N_E][index, -1],
+      ref_profiles[output_keys.N_E][index, -1],
       err_msg=(
           "Mismatch for n_e.right_face_constraint. Core profile:"
           f" {core_profiles.n_e.right_face_constraint}, Ref profile"
-          f" ({output.N_E} end val): {ref_profiles[output.N_E][index, -1]}"
+          f" ({output_keys.N_E} end val):"
+          f" {ref_profiles[output_keys.N_E][index, -1]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.n_i.value,
-      ref_profiles[output.N_I][index, 1:-1],
+      ref_profiles[output_keys.N_I][index, 1:-1],
       err_msg=(
           f"Mismatch for n_i.value. Core profile: {core_profiles.n_i.value},"
-          f" Ref profile ({output.N_I}):"
-          f" {ref_profiles[output.N_I][index, 1:-1]}"
+          f" Ref profile ({output_keys.N_I}):"
+          f" {ref_profiles[output_keys.N_I][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
       core_profiles.n_i.right_face_constraint,
-      ref_profiles[output.N_I][index, -1],
+      ref_profiles[output_keys.N_I][index, -1],
       err_msg=(
           "Mismatch for n_i.right_face_constraint. Core profile:"
           f" {core_profiles.n_i.right_face_constraint}, Ref profile"
-          f" ({output.N_I} end val): {ref_profiles[output.N_I][index, -1]}"
+          f" ({output_keys.N_I} end val):"
+          f" {ref_profiles[output_keys.N_I][index, -1]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.psi.value,
-      ref_profiles[output.PSI][index, 1:-1],
+      ref_profiles[output_keys.PSI][index, 1:-1],
       err_msg=(
           f"Mismatch for psi.value. Core profile: {core_profiles.psi.value},"
-          f" Ref profile ({output.PSI}):"
-          f" {ref_profiles[output.PSI][index, 1:-1]}"
+          f" Ref profile ({output_keys.PSI}):"
+          f" {ref_profiles[output_keys.PSI][index, 1:-1]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.psidot.value,
-      ref_profiles[output.V_LOOP][index, 1:-1],
+      ref_profiles[output_keys.V_LOOP][index, 1:-1],
       err_msg=(
           "Mismatch for psidot.value. Core profile:"
-          f" {core_profiles.psidot.value}, Ref profile ({output.V_LOOP}):"
-          f" {ref_profiles[output.V_LOOP][index, 1:-1]}"
+          f" {core_profiles.psidot.value}, Ref profile ({output_keys.V_LOOP}):"
+          f" {ref_profiles[output_keys.V_LOOP][index, 1:-1]}"
       ),
   )
 
   np.testing.assert_allclose(
       core_profiles.q_face,
-      ref_profiles[output.Q][index, :],
+      ref_profiles[output_keys.Q][index, :],
       err_msg=(
-          f"Mismatch for q_face. Core profile: {core_profiles.q_face},"
-          f" Ref profile ({output.Q}): {ref_profiles[output.Q][index, :]}"
+          f"Mismatch for q_face. Core profile: {core_profiles.q_face}, Ref"
+          f" profile ({output_keys.Q}): {ref_profiles[output_keys.Q][index, :]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.s_face,
-      ref_profiles[output.MAGNETIC_SHEAR][index, :],
+      ref_profiles[output_keys.MAGNETIC_SHEAR][index, :],
       err_msg=(
           f"Mismatch for s_face. Core profile: {core_profiles.s_face},"
-          f" Ref profile ({output.MAGNETIC_SHEAR}):"
-          f" {ref_profiles[output.MAGNETIC_SHEAR][index, :]}"
+          f" Ref profile ({output_keys.MAGNETIC_SHEAR}):"
+          f" {ref_profiles[output_keys.MAGNETIC_SHEAR][index, :]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.j_total_face[0],
-      ref_profiles[output.J_TOROIDAL_TOTAL][index, 0],
+      ref_profiles[output_keys.J_TOROIDAL_TOTAL][index, 0],
       err_msg=(
           "Mismatch for j_total_face[0]. Core profile:"
           f" {core_profiles.j_total_face[0]}, Ref profile"
-          f" ({output.J_TOROIDAL_TOTAL} start val):"
-          f" {ref_profiles[output.J_TOROIDAL_TOTAL][index, 0]}"
+          f" ({output_keys.J_TOROIDAL_TOTAL} start val):"
+          f" {ref_profiles[output_keys.J_TOROIDAL_TOTAL][index, 0]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.j_total_face[-1],
-      ref_profiles[output.J_TOROIDAL_TOTAL][index, -1],
+      ref_profiles[output_keys.J_TOROIDAL_TOTAL][index, -1],
       err_msg=(
           "Mismatch for j_total_face[-1]. Core profile:"
           f" {core_profiles.j_total_face[-1]}, Ref profile"
-          f" ({output.J_TOROIDAL_TOTAL} end val):"
-          f" {ref_profiles[output.J_TOROIDAL_TOTAL][index, -1]}"
+          f" ({output_keys.J_TOROIDAL_TOTAL} end val):"
+          f" {ref_profiles[output_keys.J_TOROIDAL_TOTAL][index, -1]}"
       ),
   )
   np.testing.assert_allclose(
       core_profiles.Ip_profile_face,
-      ref_profiles[output.IP_PROFILE][index, :],
+      ref_profiles[output_keys.IP_PROFILE][index, :],
       err_msg=(
           "Mismatch for Ip_profile_face. Core profile:"
           f" {core_profiles.Ip_profile_face}, Ref profile"
-          f" ({output.IP_PROFILE}): {ref_profiles[output.IP_PROFILE][index, :]}"
+          f" ({output_keys.IP_PROFILE}):"
+          f" {ref_profiles[output_keys.IP_PROFILE][index, :]}"
       ),
   )
