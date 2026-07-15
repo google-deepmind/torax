@@ -98,6 +98,9 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     clip_margin: Margin to clip inputs within desired margin of the QLKNN
       training set boundaries.
     collisionality_multiplier: Collisionality multiplier.
+    max_normalized_collisionality: Maximum normalized collisionality passed to
+      the model. Acts as a ceiling to mitigate unreliable transport predictions
+      at high collisionality. Default is inf (no capping).
     avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
       for no slab modes.
     smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
@@ -125,6 +128,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
   clip_inputs: bool = False
   clip_margin: float = 0.95
   collisionality_multiplier: float = 1.0
+  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
@@ -189,6 +193,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         clip_inputs=self.clip_inputs,
         clip_margin=self.clip_margin,
         collisionality_multiplier=self.collisionality_multiplier,
+        max_normalized_collisionality=self.max_normalized_collisionality,
         avoid_big_negative_s=self.avoid_big_negative_s,
         smag_alpha_correction=self.smag_alpha_correction,
         q_sawtooth_proxy=self.q_sawtooth_proxy,
@@ -222,6 +227,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
   DV_effective: bool = False
   An_min: pydantic.PositiveFloat = 0.05
   collisionality_multiplier: float = 1.0
+  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
 
   def build_transport_model(
       self,
@@ -240,6 +246,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
         rotation_multiplier=self.rotation_multiplier,
         use_rotation=self.use_rotation,
         collisionality_multiplier=self.collisionality_multiplier,
+        max_normalized_collisionality=self.max_normalized_collisionality,
         # From base
         **base_kwargs,
     )

@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
+import numpy as np
 import pydantic
 from torax._src import array_typing
 from torax._src import state
@@ -155,6 +156,50 @@ class QualikizTransportModelTest(parameterized.TestCase):
     for key in scalar_keys:
       self.assertEqual(getattr(qualikiz_inputs, key).shape, ())
 
+  def test_max_normalized_collisionality_caps_nu_star(self):
+    """Tests that max_normalized_collisionality clamps nu_star."""
+    max_normalized_collisionality = 0.5
+    log_cap = jnp.log10(max_normalized_collisionality)
+    # Get uncapped inputs (max_normalized_collisionality=inf).
+    torax_config, uncapped_inputs = _get_config_and_model_inputs({
+        'model_name': 'qualikiz_based',
+    })
+    # Get capped inputs.
+    _, capped_inputs = _get_config_and_model_inputs({
+        'model_name': 'qualikiz_based',
+        'max_normalized_collisionality': max_normalized_collisionality,
+    })
+    transport_model = torax_config.transport.build_transport_model()
+    runtime_params_uncapped, geo, core_profiles, _ = uncapped_inputs
+    runtime_params_capped, _, _, _ = capped_inputs
+
+    uncapped = transport_model.prepare_qualikiz_inputs(
+        transport=runtime_params_uncapped.transport,
+        geo=geo,
+        core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_params_uncapped.neoclassical.poloidal_velocity_multiplier,
+    )
+    capped = transport_model.prepare_qualikiz_inputs(
+        transport=runtime_params_capped.transport,
+        geo=geo,
+        core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_params_capped.neoclassical.poloidal_velocity_multiplier,
+    )
+
+    # Precondition: some uncapped values must exceed the cap.
+    above_cap = uncapped.log_nu_star_face > log_cap
+    self.assertTrue(jnp.any(above_cap))
+    # Where uncapped exceeds cap, capped should equal the cap.
+    np.testing.assert_allclose(
+        capped.log_nu_star_face[above_cap],
+        jnp.full_like(capped.log_nu_star_face[above_cap], log_cap),
+    )
+    # Where uncapped is at or below cap, capped should be unchanged.
+    np.testing.assert_allclose(
+        capped.log_nu_star_face[~above_cap],
+        uncapped.log_nu_star_face[~above_cap],
+    )
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeQualikizBasedTransportModel(
@@ -234,6 +279,7 @@ class QualikizBasedTransportModelConfig(
       Literal['qualikiz_based'], torax_pydantic.JAX_STATIC
   ] = 'qualikiz_based'
   collisionality_multiplier: pydantic.PositiveFloat = 1.0
+  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
@@ -254,6 +300,7 @@ class QualikizBasedTransportModelConfig(
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return qualikiz_based_transport_model.RuntimeParams(
         collisionality_multiplier=self.collisionality_multiplier,
+        max_normalized_collisionality=self.max_normalized_collisionality,
         avoid_big_negative_s=self.avoid_big_negative_s,
         smag_alpha_correction=self.smag_alpha_correction,
         q_sawtooth_proxy=self.q_sawtooth_proxy,

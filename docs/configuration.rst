@@ -1684,6 +1684,16 @@ It is recommended to not set ``qlknn_model_name``,  or
   If using ``QLKNN10D``, the default is 0.25. It is a proxy for the upgraded
   collision operator in QuaLiKiz, in place since ``QLKNN10D`` was developed.
 
+``max_normalized_collisionality`` (float [default = inf])
+  Maximum normalized collisionality (nu_star) passed to the model. For
+  QuaLiKiz-based models, nu_star is the ion-electron collision frequency
+  normalized to the bounce frequency
+  (see `QuaLiKiz docs <https://gitlab.com/qualikiz-group/QuaLiKiz/-/wikis/QuaLiKiz/Input%20and%20output%20variables#debug/>`_).
+  Acts as a ceiling to mitigate unreliable transport predictions at high
+  collisionality. The ceiling is applied after the
+  ``collisionality_multiplier``. Set to a finite value (e.g. 1.0) to cap
+  collisionality in the collisional regime.
+
 ``avoid_big_negative_s`` (bool [default = True])
   If ``True``, modify input magnetic shear such that
   :math:`\hat{s} - \alpha_{MHD} > -0.2` always, to compensate for the lack of
@@ -1757,6 +1767,16 @@ Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cit
 ``use_rotation`` (bool [default = False])
   If ``True``, use the rotation term :math:`v_{E\times B}^{\text{shear}}` in the model.
 
+``collisionality_multiplier`` (float [default = 1.0])
+  Collisionality multiplier for sensitivity analysis.
+
+``max_normalized_collisionality`` (float [default = inf])
+  Maximum dimensionless electron-electron collision frequency (XNUE in TGLF
+  notation) passed to the model. See the `TGLF docs
+  <https://gacode.io/tglf/tglf_list.html>`_ . Acts as a ceiling to mitigate
+  unreliable transport predictions at high collisionality. The ceiling is
+  applied after the ``collisionality_multiplier``.
+
 qualikiz
 ^^^^^^^^
 
@@ -1773,6 +1793,16 @@ Runtime parameters for the QuaLiKiz model.
 
 ``collisionality_multiplier`` (float [default = 1.0])
   Collisionality multiplier for sensitivity analysis.
+
+``max_normalized_collisionality`` (float [default = inf])
+  Maximum normalized collisionality (nu_star) passed to the model. For
+  QuaLiKiz-based models, nu_star is the ion-electron collision frequency
+  normalized to the bounce frequency
+  (see `QuaLiKiz docs <https://gitlab.com/qualikiz-group/QuaLiKiz/-/wikis/QuaLiKiz/Input%20and%20output%20variables#debug/>`_).
+  Acts as a ceiling to mitigate unreliable transport predictions at high
+  collisionality. The ceiling is applied after the
+  ``collisionality_multiplier``. Set to a finite value (e.g. 1.0) to cap
+  collisionality in the collisional regime.
 
 ``avoid_big_negative_s`` (bool [default = True])
   If ``True``, modify input magnetic shear such that
@@ -1837,6 +1867,13 @@ Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
 
 ``collisionality_multiplier`` (float [default = 1.0])
   Collisionality multiplier.
+
+``max_normalized_collisionality`` (float [default = inf])
+  Maximum dimensionless electron-electron collision frequency (XNUE in TGLF
+  notation) passed to the model. See the `TGLF docs
+  <https://gacode.io/tglf/tglf_list.html>`_ . Acts as a ceiling to mitigate
+  unreliable transport predictions at high collisionality. The ceiling is
+  applied after the ``collisionality_multiplier``.
 
 ``tglf_settings`` (dict [default = {}])
   Dictionary of TGLF namelist parameters to override default physics settings.

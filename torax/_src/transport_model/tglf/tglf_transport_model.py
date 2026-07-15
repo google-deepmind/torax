@@ -328,6 +328,9 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
     collisionality_multiplier: Collisionality multiplier.
+    max_normalized_collisionality: Maximum normalized collisionality passed to
+      the model. Acts as a ceiling to mitigate unreliable transport predictions
+      at high collisionality. Default is inf (no capping).
     tglf_settings: Dictionary of TGLF namelist parameters.
     use_legacy_torax_defaults: If True, use legacy TORAX defaults for TGLF
       parameters. Otherwise, use the defaults distributed with TGLF. Note that
@@ -348,6 +351,7 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
   collisionality_multiplier: float = 1.0
+  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
   tglf_settings: Annotated[
       dict[str, TGLFSettingsValueTypes], torax_pydantic.JAX_STATIC
   ] = pydantic.Field(default_factory=dict)
@@ -427,6 +431,7 @@ class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
         rotation_multiplier=self.rotation_multiplier,
         DV_effective=self.DV_effective,
         collisionality_multiplier=self.collisionality_multiplier,
+        max_normalized_collisionality=self.max_normalized_collisionality,
         An_min=self.An_min,
         tglf_settings=self.tglf_settings,
         **base_kwargs,

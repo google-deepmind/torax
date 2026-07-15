@@ -449,6 +449,9 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
     n_max_runs: Set frequency of full QuaLiKiz contour solutions.
     n_processes: Set number of cores used QuaLiKiz calculations.
     collisionality_multiplier: Collisionality multiplier.
+    max_normalized_collisionality: Maximum normalized collisionality passed to
+      the model. Acts as a ceiling to mitigate unreliable transport predictions
+      at high collisionality. Default is inf (no capping).
     avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
       for no slab modes.
     smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
@@ -466,6 +469,7 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
   n_max_runs: pydantic.PositiveInt = 2
   n_processes: pydantic.PositiveInt = 8
   collisionality_multiplier: pydantic.PositiveFloat = 1.0
+  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
@@ -485,6 +489,7 @@ class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
         n_max_runs=self.n_max_runs,
         n_processes=self.n_processes,
         collisionality_multiplier=self.collisionality_multiplier,
+        max_normalized_collisionality=self.max_normalized_collisionality,
         avoid_big_negative_s=self.avoid_big_negative_s,
         smag_alpha_correction=self.smag_alpha_correction,
         q_sawtooth_proxy=self.q_sawtooth_proxy,

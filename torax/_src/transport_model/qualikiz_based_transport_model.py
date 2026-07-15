@@ -48,6 +48,7 @@ class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   """Shared parameters for Qualikiz-based models."""
 
   collisionality_multiplier: float
+  max_normalized_collisionality: float
   avoid_big_negative_s: bool
   smag_alpha_correction: bool
   q_sawtooth_proxy: bool
@@ -164,6 +165,9 @@ class QualikizBasedTransportModel(
         core_profiles=core_profiles,
         collisionality_multiplier=transport.collisionality_multiplier,
     )
+    # Cap nu_star to mitigate unreliable transport predictions at high
+    # collisionality.
+    nu_star = jnp.minimum(nu_star, transport.max_normalized_collisionality)
     log_nu_star_face = jnp.log10(nu_star)
 
     # calculate alpha for magnetic shear correction (see S. van Mulders NF 2021)

@@ -39,6 +39,7 @@ class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   use_rotation: bool = dataclasses.field(metadata={"static": True})
   rotation_multiplier: float
   collisionality_multiplier: float
+  max_normalized_collisionality: float
 
 
 # pylint: disable=invalid-name
@@ -303,6 +304,11 @@ class TGLFBasedTransportModel(
     )
     normalized_nu_ee = (
         jnp.exp(log_nu_ee) / (c_s / a) * transport.collisionality_multiplier
+    )
+    # Cap collision frequency to mitigate unreliable transport predictions
+    # at high collisionality.
+    normalized_nu_ee = jnp.minimum(
+        normalized_nu_ee, transport.max_normalized_collisionality
     )
 
     # Dimensionless safety factor shear

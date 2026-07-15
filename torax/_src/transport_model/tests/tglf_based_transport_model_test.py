@@ -19,6 +19,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -130,6 +131,49 @@ class TGLFTransportModelTest(parameterized.TestCase):
       else:
         self.assertEqual(getattr(tglf_inputs, key).shape, (expected_length,))
 
+  def test_max_normalized_collisionality_caps_xnue(self):
+    """Tests that max_normalized_collisionality clamps XNUE."""
+    max_normalized_collisionality = 0.5
+    # Get uncapped inputs (max_normalized_collisionality=inf).
+    torax_config, uncapped_inputs = _get_config_and_model_inputs({
+        "model_name": "tglf_based",
+    })
+    # Get capped inputs.
+    _, capped_inputs = _get_config_and_model_inputs({
+        "model_name": "tglf_based",
+        "max_normalized_collisionality": max_normalized_collisionality,
+    })
+    transport_model = torax_config.transport.build_transport_model()
+    runtime_uncapped, geo, core_profiles, _ = uncapped_inputs
+    runtime_capped, _, _, _ = capped_inputs
+
+    uncapped = transport_model.prepare_tglf_inputs(
+        transport=runtime_uncapped.transport,
+        geo=geo,
+        core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_uncapped.neoclassical.poloidal_velocity_multiplier,
+    )
+    capped = transport_model.prepare_tglf_inputs(
+        transport=runtime_capped.transport,
+        geo=geo,
+        core_profiles=core_profiles,
+        poloidal_velocity_multiplier=runtime_capped.neoclassical.poloidal_velocity_multiplier,
+    )
+
+    # Precondition: some uncapped values must exceed the cap.
+    above_cap = uncapped.XNUE > max_normalized_collisionality
+    self.assertTrue(jnp.any(above_cap))
+    # Where uncapped exceeds cap, capped should equal the cap.
+    np.testing.assert_allclose(
+        capped.XNUE[above_cap],
+        jnp.full_like(capped.XNUE[above_cap], max_normalized_collisionality),
+    )
+    # Where uncapped is at or below cap, capped should be unchanged.
+    np.testing.assert_allclose(
+        capped.XNUE[~above_cap],
+        uncapped.XNUE[~above_cap],
+    )
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeTGLFBasedTransportModel(
@@ -192,6 +236,7 @@ class TGLFBasedTransportModelConfig(
   model_name: Annotated[Literal["tglf_based"], torax_pydantic.JAX_STATIC] = (
       "tglf_based"
   )
+  max_normalized_collisionality: float = float("inf")
 
   # pylint: disable=undefined-variable
   def build_transport_model(
@@ -208,6 +253,7 @@ class TGLFBasedTransportModelConfig(
         use_rotation=True,
         rotation_multiplier=1.0,
         collisionality_multiplier=1.0,
+        max_normalized_collisionality=self.max_normalized_collisionality,
         **base_kwargs,
     )
 
