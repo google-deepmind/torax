@@ -114,6 +114,7 @@ exclude = ["*tests*"]
 
 [tool.setuptools.package-data]
 "torax.data.third_party.geo" = ["*"]
+"torax.data.third_party.imas" = ["*"]
 
 
 [tool.pytest.ini_options]
