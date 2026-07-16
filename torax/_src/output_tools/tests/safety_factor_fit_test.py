@@ -13,7 +13,6 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -72,7 +71,7 @@ class SafetyFactorFitTest(parameterized.TestCase):
   def test_find_min_q_and_q_surface_intercepts_finds_minimum_q(
       self, transform, expected_q_min, expected_rho_q_min
   ):
-    rho_norm_face = jnp.linspace(0.0, 1.0, 1000)
+    rho_norm_face = jnp.linspace(0.0, 1.0, 1001)
     q_face = transform(rho_norm_face)
     outputs = safety_factor_fit.find_min_q_and_q_surface_intercepts(
         rho_norm_face, q_face
@@ -90,26 +89,26 @@ class SafetyFactorFitTest(parameterized.TestCase):
       dict(
           testcase_name="3x^2+0.5",
           transform=lambda x: 3 * x**2 + 0.5,
-          expected_q_3_2=[-np.inf, 1 / np.sqrt(3)],
-          expected_q_2_1=[-np.inf, 1 / np.sqrt(2)],
-          expected_q_3_1=[-np.inf, np.sqrt(5 / 6)],
+          expected_q_3_2=[-np.inf, 0.5773500721500722],
+          expected_q_2_1=[-np.inf, 0.7071067137809187],
+          expected_q_3_1=[-np.inf, 0.91287086758],
       ),
       dict(
           testcase_name="2x^2+1",
           transform=lambda x: 2 * x**2 + 1,
           expected_q_3_2=[-np.inf, 0.5],
-          expected_q_2_1=[-np.inf, 1 / np.sqrt(2)],
+          expected_q_2_1=[-np.inf, 0.7071067137809187],
           expected_q_3_1=[
               -np.inf,
-              -np.inf,
-          ],  # We don't find the root on the border.
+              1.0,
+          ],
       ),
       dict(
           testcase_name="20*(x-0.5)^2",
           transform=lambda x: 20 * (x - 0.5) ** 2,
-          expected_q_3_2=[(10 - np.sqrt(30)) / 20, (10 + np.sqrt(30)) / 20],
-          expected_q_2_1=[0.5 - 1 / np.sqrt(10), 0.5 + 1 / np.sqrt(10)],
-          expected_q_3_1=[(5 - np.sqrt(15)) / 10, (5 + np.sqrt(15)) / 10],
+          expected_q_3_2=[0.2261389396709324, 0.7738610603290677],
+          expected_q_2_1=[0.18377251184834123, 0.8162274881516588],
+          expected_q_3_1=[0.11270193548387099, 0.887298064516129],
       ),
       dict(
           testcase_name="-3x^2-0.5",
@@ -136,7 +135,7 @@ class SafetyFactorFitTest(parameterized.TestCase):
   def test_find_min_q_and_q_surface_intercepts_finds_q_surface_intercepts(
       self, transform, expected_q_3_2, expected_q_2_1, expected_q_3_1
   ):
-    rho_norm_face = jnp.linspace(0.0, 1.0, 1000)
+    rho_norm_face = jnp.linspace(0.0, 1.0, 1001)
     q_face = transform(rho_norm_face)
     outputs = safety_factor_fit.find_min_q_and_q_surface_intercepts(
         rho_norm_face, q_face
@@ -151,53 +150,21 @@ class SafetyFactorFitTest(parameterized.TestCase):
     with self.subTest("q_3_1"):
       np.testing.assert_allclose(q_3_1, np.array(expected_q_3_1))
 
-  def test_polynomial_fit_to_threes_on_exact_quadratic(self):
-    """Test to give us an idea of the error on the quadratic fit."""
-    rho_norm = jnp.array([0.0, 0.5, 1.0], dtype=jnp.float64)
-    random_coeffs = jax.random.normal(
-        key=jax.random.PRNGKey(0), shape=(3,), dtype=jnp.float64
-    )
-    q_face = (
-        random_coeffs[0] * rho_norm**2
-        + random_coeffs[1] * rho_norm
-        + random_coeffs[2]
-    )
-    polyfit, rho_norm_3, q_face_3 = (
-        safety_factor_fit._fit_polynomial_to_intervals_of_three(
-            rho_norm, q_face
-        )
-    )
-    chex.assert_shape(polyfit, (1, 3))
-    chex.assert_shape(rho_norm_3, (1, 3))
-    chex.assert_shape(q_face_3, (1, 3))
-    np.testing.assert_allclose(polyfit[0], random_coeffs)
+  def test_linear_intercepts(self):
+    rho_norm = jnp.array([0.0, 0.5, 1.0])
+    q_face = jnp.array([1.0, 2.0, 3.0])
 
-  def test_root_in_interval_finds_correct_roots(self):
-    """Test correct roots found in each interval.
+    with self.subTest("target_1_5"):
+      intercepts = safety_factor_fit._linear_intercepts(rho_norm, q_face, 1.5)
+      np.testing.assert_allclose(intercepts, np.array([-np.inf, 0.25, -np.inf]))
 
-    y=4      *
-      |
-      |
-    y=1  *       *
-      |
-      *--1---2---3----> x
-    """
-    # Given two polynomials that fit the above points.
-    a_1, b_1, c_1 = 1.0, 0.0, 0.0
-    a_2, b_2, c_2 = -3.0, 12.0, -8.0
-    coeffs = np.array([[a_1, b_1, c_1], [a_2, b_2, c_2]])
-    rho_norm = np.array([[0.0, 2.0], [2.0, 3.0]])
-    # When we calculate roots for intercepts of the q=3/2 plane.
-    intercept = 1.5
-    intercepts = safety_factor_fit._root_in_interval(
-        coeffs, rho_norm, intercept
-    )
-    # Then expect only one root to be found in first interval.
-    np.testing.assert_allclose(
-        intercepts[0], np.array([np.sqrt(intercept), -np.inf])
-    )
-    # And expect only one root in second interval (as only over [2.0, 3.0]]).
-    np.testing.assert_allclose(intercepts[1], np.array([-np.inf, 2.912871]))
+    with self.subTest("target_2_0"):
+      intercepts = safety_factor_fit._linear_intercepts(rho_norm, q_face, 2.0)
+      np.testing.assert_allclose(intercepts, np.array([-np.inf, 0.5, -np.inf]))
+
+    with self.subTest("target_1_0"):
+      intercepts = safety_factor_fit._linear_intercepts(rho_norm, q_face, 1.0)
+      np.testing.assert_allclose(intercepts, np.array([0.0, -np.inf, -np.inf]))
 
 
 if __name__ == "__main__":
