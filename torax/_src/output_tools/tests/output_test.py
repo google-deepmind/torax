@@ -44,6 +44,8 @@ from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
+# pylint: disable=invalid-name
+
 SequenceKey = tree_util.SequenceKey
 GetAttrKey = tree_util.GetAttrKey
 DictKey = tree_util.DictKey
@@ -936,6 +938,90 @@ class StateHistoryTest(parameterized.TestCase):
         fractions_xr.sel(main_ion='T', time=1.0).values, 0.7
     )
 
+  def test_unit_attrs_attached_to_output_variables(self):
+    """Verify that known output variables have unit attrs attached."""
+    history = self.history
+    output_xr = history.simulation_output_to_xr()
+    profiles_ds = output_xr.children[output_keys.PROFILES].dataset
+
+    # Core profiles should have units.
+    self.assertEqual(profiles_ds[output_keys.T_E].attrs['units'], 'keV')
+    self.assertEqual(profiles_ds[output_keys.T_I].attrs['units'], 'keV')
+    self.assertEqual(profiles_ds[output_keys.N_E].attrs['units'], 'm^-3')
+    self.assertEqual(profiles_ds[output_keys.PSI].attrs['units'], 'Wb')
+
+    # Transport coefficients should have units.
+    self.assertEqual(
+        profiles_ds[output_keys.CHI_TURB_E].attrs['units'], 'm^2/s'
+    )
+
+    # Coordinate variables should have units.
+    self.assertEqual(output_xr.dataset[output_keys.TIME].attrs['units'], 's')
+    self.assertEqual(
+        output_xr.dataset[output_keys.RHO_FACE_NORM].attrs['units'],
+        'dimensionless',
+    )
+
+  def test_get_units_returns_empty_for_unknown(self):
+    """get_units returns empty dict for unknown variable names."""
+    self.assertEqual(output_keys.get_units('unknown_variable'), {})
+
+  def test_get_units_returns_units_for_known(self):
+    """get_units returns units dict for known variable names."""
+    self.assertEqual(output_keys.get_units(output_keys.T_E), {'units': 'keV'})
+    self.assertEqual(
+        output_keys.get_units(output_keys.CHI_TURB_I), {'units': 'm^2/s'}
+    )
+
+  def test_all_output_variables_have_units(self):
+    """Verifies that all output DataArrays carry unit metadata.
+
+    Every physics variable in the output DataTree should have a ``units``
+    attribute via ``output_keys.get_units``.  Variables that are intentionally
+    unitless (status codes, labels, config, etc.) are listed in the exclusion
+    set below. If a new output is added without a corresponding OutputKey
+    entry this test will catch it.
+    """
+    # Variables that intentionally have no units.
+    _UNITLESS_VARIABLES = frozenset({
+        # Numerics / solver status codes.
+        output_keys.SIM_STATUS,
+        output_keys.SIM_ERROR,
+        output_keys.OUTER_SOLVER_ITERATIONS,
+        output_keys.INNER_SOLVER_ITERATIONS,
+        output_keys.SAWTOOTH_CRASH,
+        output_keys.SOLVER_PHYSICS_OUTCOME,
+        output_keys.SOLVER_ITERATIONS,
+        output_keys.SOLVER_RESIDUAL,
+        output_keys.SOLVER_ERROR,
+        output_keys.FIXED_POINT_OUTCOME,
+        output_keys.ROOTS,
+        output_keys.N_ROOTS,
+        # Edge model status.
+        output_keys.MULTIPLE_ROOTS_FOUND,
+    })
+
+    output_xr = self.history.simulation_output_to_xr()
+    missing_units = []
+    for node in output_xr.subtree:
+      for var_name in node.dataset.data_vars:
+        da = node.dataset[var_name]
+        if var_name in _UNITLESS_VARIABLES:
+          continue
+        if 'units' not in da.attrs:
+          missing_units.append(f'{node.path}/{var_name}')
+
+    self.assertEmpty(
+        missing_units,
+        msg=(
+            'The following output variables are missing unit metadata. '
+            'Add an OutputKey definition with units in output_keys.py, or '
+            'add the variable to _UNITLESS_VARIABLES if it is intentionally '
+            'unitless:\n  '
+            + '\n  '.join(sorted(missing_units))
+        ),
+    )
+
   def test_key_builder_functions(self):
     """Tests that key builder functions produce expected output strings."""
     self.assertEqual(output_keys.p_source_i_key('alpha'), 'p_alpha_i')
@@ -960,6 +1046,29 @@ class StateHistoryTest(parameterized.TestCase):
         internal_name, internal_name
     )
     self.assertEqual(output_keys.p_source_i_key(passthrough), 'p_ecrh_i')
+
+  def test_units_enum(self):
+    """Tests Units enum semantics: StrEnum, truthiness, required kwarg."""
+    # StrEnum members compare equal to their string values.
+    self.assertEqual(output_keys.Units.KEV, 'keV')
+    self.assertEqual(output_keys.Units.DIMENSIONLESS, 'dimensionless')
+    self.assertEqual(output_keys.Units.NOT_APPLICABLE, '')
+
+    # NOT_APPLICABLE is falsy, DIMENSIONLESS is truthy.
+    self.assertFalse(output_keys.Units.NOT_APPLICABLE)
+    self.assertTrue(output_keys.Units.DIMENSIONLESS)
+
+    # OutputKey with units=NOT_APPLICABLE should not produce units in attrs.
+    self.assertEqual(output_keys.get_units(output_keys.SIM_STATUS), {})
+
+    # OutputKey with units=DIMENSIONLESS should produce units in attrs.
+    self.assertEqual(
+        output_keys.get_units(output_keys.Q), {'units': 'dimensionless'}
+    )
+
+    # units kwarg is required (keyword-only).
+    with self.assertRaises(TypeError):
+      output_keys.OutputKey('test_no_units')  # pytype: disable=missing-parameter
 
 
 if __name__ == '__main__':

@@ -320,22 +320,28 @@ class StateHistory:
     # Add attribute to dataset variables with explanation of contents + units.
 
     time = xr.DataArray(
-        self.times, dims=[output_keys.TIME], name=output_keys.TIME
+        self.times,
+        dims=[output_keys.TIME],
+        name=output_keys.TIME,
+        attrs=output_keys.get_units(output_keys.TIME),
     )
     rho_face_norm = xr.DataArray(
         self.rho_face_norm,
         dims=[output_keys.RHO_FACE_NORM],
         name=output_keys.RHO_FACE_NORM,
+        attrs=output_keys.get_units(output_keys.RHO_FACE_NORM),
     )
     rho_cell_norm = xr.DataArray(
         self.rho_cell_norm,
         dims=[output_keys.RHO_CELL_NORM],
         name=output_keys.RHO_CELL_NORM,
+        attrs=output_keys.get_units(output_keys.RHO_CELL_NORM),
     )
     rho_norm = xr.DataArray(
         self.rho_norm,
         dims=[output_keys.RHO_NORM],
         name=output_keys.RHO_NORM,
+        attrs=output_keys.get_units(output_keys.RHO_NORM),
     )
 
     coords = {
@@ -472,7 +478,9 @@ class StateHistory:
         )
         return None
 
-    return xr.DataArray(data, dims=dims, name=name)
+    return xr.DataArray(
+        data, dims=dims, name=name, attrs=output_keys.get_units(name)
+    )
 
   def _save_core_profiles(
       self,
@@ -581,6 +589,7 @@ class StateHistory:
             output_keys.TIME: self.times,
         },
         name=output_keys.MAIN_ION_FRACTIONS,
+        attrs=output_keys.get_units(output_keys.MAIN_ION_FRACTIONS),
     )
     # Handle fast ions
     first_fast_ions = self.core_profiles[0].fast_ions
@@ -828,12 +837,12 @@ class StateHistory:
           property_data = extend_cell_grid_to_boundaries(
               property_data, face_data
           )
+        # Remap to avoid outputting _face suffix in output. Done only for
+        # _face variables with no corresponding non-face variable.
+        if name.endswith("_face"):
+          name = name.removesuffix("_face")
         data_array = self._pack_into_data_array(name, property_data)  # pyrefly: ignore[bad-argument-type]
         if data_array is not None:
-          # Remap to avoid outputting _face suffix in output. Done only for
-          # _face variables with no corresponding non-face variable.
-          if name.endswith("_face"):
-            name = name.removesuffix("_face")
           xr_dict[name] = data_array
 
     return xr_dict
@@ -887,6 +896,7 @@ class StateHistory:
                 output_keys.TIME: self.times,
             },
             name=name,
+            attrs=output_keys.get_units(name),
         )
         continue
 

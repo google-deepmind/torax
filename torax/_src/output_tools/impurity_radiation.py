@@ -21,12 +21,12 @@ import numpy as np
 from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
+from torax._src.output_tools import output_keys
 from torax._src.physics.radiation import radiation as radiation_lib
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 import xarray as xr
-
 
 RADIATION_OUTPUT_NAME = "radiation_impurity_species"
 DENSITY_OUTPUT_NAME = "n_impurity_species"
@@ -150,6 +150,7 @@ def construct_xarray_for_radiation_output(
           rho_cell_norm_coord: rho_cell_norm,
       },
       name=RADIATION_OUTPUT_NAME,
+      attrs=output_keys.get_units(RADIATION_OUTPUT_NAME),
   )
   xr_dict[DENSITY_OUTPUT_NAME] = xr.DataArray(
       n_impurity_data,
@@ -160,6 +161,7 @@ def construct_xarray_for_radiation_output(
           rho_cell_norm_coord: rho_cell_norm,
       },
       name=DENSITY_OUTPUT_NAME,
+      attrs=output_keys.get_units(DENSITY_OUTPUT_NAME),
   )
   xr_dict[Z_OUTPUT_NAME] = xr.DataArray(
       Z_impurity_data,
@@ -170,5 +172,6 @@ def construct_xarray_for_radiation_output(
           rho_cell_norm_coord: rho_cell_norm,
       },
       name=Z_OUTPUT_NAME,
+      attrs=output_keys.get_units(Z_OUTPUT_NAME),
   )
   return xr_dict
