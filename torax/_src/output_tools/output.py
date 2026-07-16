@@ -319,7 +319,6 @@ class StateHistory:
     # Cleanup structure by excluding QeiInfo from core_sources altogether.
     # Add attribute to dataset variables with explanation of contents + units.
 
-    # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
     time = xr.DataArray(
         self.times, dims=[output_keys.TIME], name=output_keys.TIME
     )
@@ -574,11 +573,14 @@ class StateHistory:
         [stacked_core_profiles.main_ion_fractions[ion] for ion in main_ions],
         axis=0,
     )
-    xr_dict["main_ion_fractions"] = xr.DataArray(
+    xr_dict[output_keys.MAIN_ION_FRACTIONS] = xr.DataArray(
         data,
         dims=[output_keys.MAIN_ION, output_keys.TIME],
-        coords={output_keys.MAIN_ION: main_ions, output_keys.TIME: self.times},
-        name="main_ion_fractions",
+        coords={
+            output_keys.MAIN_ION: main_ions,
+            output_keys.TIME: self.times,
+        },
+        name=output_keys.MAIN_ION_FRACTIONS,
     )
     # Handle fast ions
     first_fast_ions = self.core_profiles[0].fast_ions
@@ -590,11 +592,13 @@ class StateHistory:
       T_data = np.stack([
           cp.fast_ions[i].T.cell_plus_boundaries() for cp in self.core_profiles
       ])
-      xr_dict[f"n_fast_ion_{source_key}"] = self._pack_into_data_array(
-          f"n_fast_ion_{source_key}", n_data  # pyrefly: ignore[bad-argument-type]
+      n_key = output_keys.n_fast_ion_key(source_key)
+      T_key = output_keys.T_fast_ion_key(source_key)
+      xr_dict[n_key] = self._pack_into_data_array(
+          n_key, n_data  # pyrefly: ignore[bad-argument-type]
       )
-      xr_dict[f"T_fast_ion_{source_key}"] = self._pack_into_data_array(
-          f"T_fast_ion_{source_key}", T_data  # pyrefly: ignore[bad-argument-type]
+      xr_dict[T_key] = self._pack_into_data_array(
+          T_key, T_data  # pyrefly: ignore[bad-argument-type]
       )
 
     return xr_dict
@@ -671,19 +675,19 @@ class StateHistory:
 
     # Add source profiles with suffixes indicating which profile they affect.
     for profile in self._stacked_core_sources.T_i:
-      if profile == "fusion":
-        xr_dict["p_alpha_i"] = self._stacked_core_sources.T_i[profile]
-      else:
-        xr_dict[f"p_{profile}_i"] = self._stacked_core_sources.T_i[profile]
+      name = output_keys.SOURCE_NAME_RENAMES.get(profile, profile)
+      key = output_keys.p_source_i_key(name)
+      xr_dict[key] = self._stacked_core_sources.T_i[profile]
     for profile in self._stacked_core_sources.T_e:
-      if profile == "fusion":
-        xr_dict["p_alpha_e"] = self._stacked_core_sources.T_e[profile]
-      else:
-        xr_dict[f"p_{profile}_e"] = self._stacked_core_sources.T_e[profile]
+      name = output_keys.SOURCE_NAME_RENAMES.get(profile, profile)
+      key = output_keys.p_source_e_key(name)
+      xr_dict[key] = self._stacked_core_sources.T_e[profile]
     for profile in self._stacked_core_sources.psi:
-      xr_dict[f"j_parallel_{profile}"] = self._stacked_core_sources.psi[profile]
+      key = output_keys.j_parallel_source_key(profile)
+      xr_dict[key] = self._stacked_core_sources.psi[profile]
     for profile in self._stacked_core_sources.n_e:
-      xr_dict[f"s_{profile}"] = self._stacked_core_sources.n_e[profile]
+      key = output_keys.s_source_key(profile)
+      xr_dict[key] = self._stacked_core_sources.n_e[profile]
 
     xr_dict = {
         name: self._pack_into_data_array(name, data)
@@ -777,13 +781,13 @@ class StateHistory:
         field_name = field_name.removesuffix("_face")
       if field_name == "Ip_profile":
         # Ip_profile exists in core profiles so rename to avoid duplicate.
-        field_name = "Ip_profile_from_geo"
+        field_name = output_keys.IP_PROFILE_FROM_GEO
       if field_name == "psi":
         # Psi also exists in core profiles so rename to avoid duplicate.
-        field_name = "psi_from_geo"
+        field_name = output_keys.PSI_FROM_GEO
       if field_name == "_z_magnetic_axis":
-        # This logic only reached if not None. Avoid leading underscore in name.
-        field_name = "z_magnetic_axis"
+        # This logic only reached if not None. Avoid leading underscore.
+        field_name = output_keys.Z_MAGNETIC_AXIS
       data_array = self._pack_into_data_array(
           field_name,
           data,  # pyrefly: ignore[bad-argument-type]
@@ -849,14 +853,14 @@ class StateHistory:
       return xr.DataTree(dataset=xr.Dataset(xr_dict))
 
     standard_output_fields = [
-        "q_parallel",
-        "q_perpendicular_target",
-        "T_e_separatrix",
-        "T_e_target",
-        "pressure_neutral_divertor",
-        "alpha_t",
-        "Z_eff_separatrix",
-        "multiple_roots_found",
+        output_keys.Q_PARALLEL,
+        output_keys.Q_PERPENDICULAR_TARGET,
+        output_keys.T_E_SEPARATRIX,
+        output_keys.T_E_TARGET,
+        output_keys.PRESSURE_NEUTRAL_DIVERTOR,
+        output_keys.ALPHA_T,
+        output_keys.Z_EFF_SEPARATRIX,
+        output_keys.MULTIPLE_ROOTS_FOUND,
     ]
 
     edge_output_fields = dataclasses.fields(outputs)
@@ -903,37 +907,39 @@ class StateHistory:
         )
         continue
 
-      if name == "roots" and value is not None:
+      if name == output_keys.ROOTS and value is not None:
         roots_dict = self._process_roots_output(outputs)
         if roots_dict:
-          children["roots"] = xr.DataTree(dataset=xr.Dataset(roots_dict))
+          children[output_keys.ROOTS] = xr.DataTree(
+              dataset=xr.Dataset(roots_dict)
+          )
 
     # Fields from SolverStatus which depend on the solver type
-    xr_dict["solver_physics_outcome"] = self._pack_into_data_array(
-        "solver_physics_outcome", outputs.solver_status.physics_outcome  # pyrefly: ignore[bad-argument-type]
+    xr_dict[output_keys.SOLVER_PHYSICS_OUTCOME] = self._pack_into_data_array(
+        output_keys.SOLVER_PHYSICS_OUTCOME, outputs.solver_status.physics_outcome  # pyrefly: ignore[bad-argument-type]
     )
     numerics = outputs.solver_status.numerics_outcome
     # Check for RootMetadata structure (newton solver)
     # TODO(b/446608829): make numerics itself parse its contents for outputs.
     if isinstance(numerics, jax_root_finding.RootMetadata):
-      xr_dict["solver_iterations"] = self._pack_into_data_array(
-          "solver_iterations", numerics.iterations
+      xr_dict[output_keys.SOLVER_ITERATIONS] = self._pack_into_data_array(
+          output_keys.SOLVER_ITERATIONS, numerics.iterations
       )
       # Handle solver_residual explicitly because it is a vector
       # (time, n_unknowns). We want to output the scalar metric used for
       # convergence checking (mean absolute error).
       residual_scalar = np.mean(np.abs(numerics.residual), axis=-1)
-      xr_dict["solver_residual"] = self._pack_into_data_array(
-          "solver_residual", residual_scalar
+      xr_dict[output_keys.SOLVER_RESIDUAL] = self._pack_into_data_array(
+          output_keys.SOLVER_RESIDUAL, residual_scalar
       )
 
-      xr_dict["solver_error"] = self._pack_into_data_array(
-          "solver_error", numerics.error
+      xr_dict[output_keys.SOLVER_ERROR] = self._pack_into_data_array(
+          output_keys.SOLVER_ERROR, numerics.error
       )
     else:
       # FixedPointOutcome (fixed point solver)
-      xr_dict["fixed_point_outcome"] = self._pack_into_data_array(
-          "fixed_point_outcome", numerics  # pyrefly: ignore[bad-argument-type]
+      xr_dict[output_keys.FIXED_POINT_OUTCOME] = self._pack_into_data_array(
+          output_keys.FIXED_POINT_OUTCOME, numerics  # pyrefly: ignore[bad-argument-type]
       )
 
     return xr.DataTree(dataset=xr.Dataset(xr_dict), children=children)
@@ -947,7 +953,7 @@ class StateHistory:
       return {}
 
     xr_dict = {}
-    default_dims = [output_keys.TIME, "n_roots"]
+    default_dims = [output_keys.TIME, output_keys.N_ROOTS]
 
     # Helper to add data to xr_dict with correct dims
     def _add_to_xr(name: str, data: jax.Array):
@@ -972,7 +978,11 @@ class StateHistory:
     for field in dataclasses.fields(unique_roots_obj):
       name = field.name
       # Skip internal fields or recursion or solver_status (handled explicitly)
-      if name in ("roots", "multiple_roots_found", "solver_status"):
+      if name in (
+          output_keys.ROOTS,
+          output_keys.MULTIPLE_ROOTS_FOUND,
+          "solver_status",
+      ):
         continue
 
       value = getattr(unique_roots_obj, name)
@@ -988,13 +998,14 @@ class StateHistory:
     status = unique_roots_obj.solver_status
     if status.physics_outcome is not None:
       _add_to_xr(
-          "solver_physics_outcome", jax.numpy.asarray(status.physics_outcome)
+          output_keys.SOLVER_PHYSICS_OUTCOME,
+          jax.numpy.asarray(status.physics_outcome),
       )
 
     numerics = status.numerics_outcome
     if isinstance(numerics, jax_root_finding.RootMetadata):
-      _add_to_xr("solver_iterations", numerics.iterations)
-      _add_to_xr("solver_residual", numerics.residual)
-      _add_to_xr("solver_error", numerics.error)
+      _add_to_xr(output_keys.SOLVER_ITERATIONS, numerics.iterations)
+      _add_to_xr(output_keys.SOLVER_RESIDUAL, numerics.residual)
+      _add_to_xr(output_keys.SOLVER_ERROR, numerics.error)
 
     return xr_dict

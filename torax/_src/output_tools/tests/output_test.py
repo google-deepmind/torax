@@ -538,21 +538,25 @@ class StateHistoryTest(parameterized.TestCase):
     edge_dataset = output_xr.children[output_keys.EDGE].dataset
 
     # Check standard fields
-    self.assertIn('q_parallel', edge_dataset.data_vars)
-    self.assertIn('T_e_target', edge_dataset.data_vars)
+    self.assertIn(output_keys.Q_PARALLEL, edge_dataset.data_vars)
+    self.assertIn(output_keys.T_E_TARGET, edge_dataset.data_vars)
 
     # Check extended fields
-    self.assertIn('alpha_t', edge_dataset.data_vars)
-    self.assertIn('Z_eff_separatrix', edge_dataset.data_vars)
-    self.assertIn('seed_impurity_concentrations', edge_dataset.data_vars)
+    self.assertIn(output_keys.ALPHA_T, edge_dataset.data_vars)
+    self.assertIn(output_keys.Z_EFF_SEPARATRIX, edge_dataset.data_vars)
+    self.assertIn(
+        output_keys.SEED_IMPURITY_CONCENTRATIONS, edge_dataset.data_vars
+    )
     self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
-    self.assertIn('calculated_enrichment', edge_dataset.data_vars)
+    self.assertIn(output_keys.CALCULATED_ENRICHMENT, edge_dataset.data_vars)
     self.assertIn('fixed_point_outcome', edge_dataset.data_vars)
 
     # Verify values match
-    np.testing.assert_allclose(edge_dataset['alpha_t'].values, np.array([0.5]))
     np.testing.assert_allclose(
-        edge_dataset['seed_impurity_concentrations']
+        edge_dataset[output_keys.ALPHA_T].values, np.array([0.5])
+    )
+    np.testing.assert_allclose(
+        edge_dataset[output_keys.SEED_IMPURITY_CONCENTRATIONS]
         .sel(seed_impurity='Ar')
         .values,
         np.array([0.01]),
@@ -673,23 +677,27 @@ class StateHistoryTest(parameterized.TestCase):
     edge_dataset = output_xr.children[output_keys.EDGE].dataset
 
     # Check standard fields
-    self.assertIn('q_parallel', edge_dataset.data_vars)
-    self.assertIn('T_e_target', edge_dataset.data_vars)
+    self.assertIn(output_keys.Q_PARALLEL, edge_dataset.data_vars)
+    self.assertIn(output_keys.T_E_TARGET, edge_dataset.data_vars)
 
     # Check extended fields
-    self.assertIn('alpha_t', edge_dataset.data_vars)
-    self.assertIn('Z_eff_separatrix', edge_dataset.data_vars)
-    self.assertIn('seed_impurity_concentrations', edge_dataset.data_vars)
-    self.assertIn('calculated_enrichment', edge_dataset.data_vars)
+    self.assertIn(output_keys.ALPHA_T, edge_dataset.data_vars)
+    self.assertIn(output_keys.Z_EFF_SEPARATRIX, edge_dataset.data_vars)
+    self.assertIn(
+        output_keys.SEED_IMPURITY_CONCENTRATIONS, edge_dataset.data_vars
+    )
+    self.assertIn(output_keys.CALCULATED_ENRICHMENT, edge_dataset.data_vars)
     self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
     self.assertIn('solver_iterations', edge_dataset.data_vars)
     self.assertIn('solver_residual', edge_dataset.data_vars)
     self.assertIn('solver_error', edge_dataset.data_vars)
 
     # Verify values match
-    np.testing.assert_allclose(edge_dataset['alpha_t'].values, np.array([0.5]))
     np.testing.assert_allclose(
-        edge_dataset['seed_impurity_concentrations']
+        edge_dataset[output_keys.ALPHA_T].values, np.array([0.5])
+    )
+    np.testing.assert_allclose(
+        edge_dataset[output_keys.SEED_IMPURITY_CONCENTRATIONS]
         .sel(seed_impurity='Ar')
         .values,
         np.array([0.01]),
@@ -908,9 +916,9 @@ class StateHistoryTest(parameterized.TestCase):
 
     # Check that main_ion_fractions is present in scalars
     scalars_dataset = output_xr.children[output_keys.SCALARS].dataset
-    self.assertIn('main_ion_fractions', scalars_dataset.data_vars)
+    self.assertIn(output_keys.MAIN_ION_FRACTIONS, scalars_dataset.data_vars)
 
-    fractions_xr = scalars_dataset['main_ion_fractions']
+    fractions_xr = scalars_dataset[output_keys.MAIN_ION_FRACTIONS]
 
     # Verify values at t=0
     np.testing.assert_allclose(
@@ -927,6 +935,31 @@ class StateHistoryTest(parameterized.TestCase):
     np.testing.assert_allclose(
         fractions_xr.sel(main_ion='T', time=1.0).values, 0.7
     )
+
+  def test_key_builder_functions(self):
+    """Tests that key builder functions produce expected output strings."""
+    self.assertEqual(output_keys.p_source_i_key('alpha'), 'p_alpha_i')
+    self.assertEqual(output_keys.p_source_e_key('ecrh'), 'p_ecrh_e')
+    self.assertEqual(
+        output_keys.j_parallel_source_key('ecrh'), 'j_parallel_ecrh'
+    )
+    self.assertEqual(output_keys.s_source_key('pellet'), 's_pellet')
+    self.assertEqual(output_keys.n_fast_ion_key('nbi_D'), 'n_fast_ion_nbi_D')
+    self.assertEqual(output_keys.T_fast_ion_key('nbi_D'), 'T_fast_ion_nbi_D')
+
+  def test_source_name_renames_with_key_builders(self):
+    """Tests SOURCE_NAME_RENAMES integrates with key builders correctly."""
+    internal_name = 'fusion'
+    renamed = output_keys.SOURCE_NAME_RENAMES.get(internal_name, internal_name)
+    self.assertEqual(output_keys.p_source_i_key(renamed), 'p_alpha_i')
+    self.assertEqual(output_keys.p_source_e_key(renamed), 'p_alpha_e')
+
+    # Passthrough case (no rename).
+    internal_name = 'ecrh'
+    passthrough = output_keys.SOURCE_NAME_RENAMES.get(
+        internal_name, internal_name
+    )
+    self.assertEqual(output_keys.p_source_i_key(passthrough), 'p_ecrh_i')
 
 
 if __name__ == '__main__':
