@@ -14,6 +14,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 from torax._src.orchestration import whilei_loop
@@ -65,6 +66,14 @@ class WhileiLoopTest(parameterized.TestCase):
       self.assertEqual(f(0.4)[0], g(0.4))
     with self.subTest('grad_test'):
       self.assertEqual(jax.grad(f, has_aux=True)(0.4)[0], jax.grad(g)(0.4))
+    with self.subTest('jvp_test'):
+      _, jvp_f = jax.jvp(lambda a: f(a)[0], (0.4,), (1.0,))
+      _, jvp_g = jax.jvp(g, (0.4,), (1.0,))
+      self.assertEqual(jvp_f, jvp_g)
+    with self.subTest('jvp_vs_vjp_test'):
+      _, jvp_val = jax.jvp(lambda a: f(a)[0], (0.4,), (1.0,))
+      vjp_val = jax.grad(f, has_aux=True)(0.4)[0]
+      chex.assert_trees_all_close(jvp_val, vjp_val)
     with self.subTest('loop_statistics_test'):
       expected_loop_statistics = (
           20 * (terminating_step+1) if terminating_step > 0 else 0.0
@@ -131,6 +140,14 @@ class WhileiLoopTest(parameterized.TestCase):
       self.assertEqual(f(0.4, 0.5), g(0.4, 0.5))
     with self.subTest('grad_test'):
       self.assertEqual(jax.grad(f)(0.4, 0.5), jax.grad(g)(0.4, 0.5))
+    with self.subTest('jvp_test'):
+      _, jvp_f = jax.jvp(f, (0.4, 0.5), (1.0, 0.0))
+      _, jvp_g = jax.jvp(g, (0.4, 0.5), (1.0, 0.0))
+      self.assertEqual(jvp_f, jvp_g)
+    with self.subTest('jvp_vs_vjp_test'):
+      _, jvp_val = jax.jvp(f, (0.4, 0.5), (1.0, 0.0))
+      vjp_val = jax.grad(f)(0.4, 0.5)
+      chex.assert_trees_all_close(jvp_val, vjp_val)
 
 
 if __name__ == '__main__':
