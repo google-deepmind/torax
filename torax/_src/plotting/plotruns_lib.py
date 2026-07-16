@@ -899,7 +899,10 @@ def _update_global_layout(
       },
       'margin': plot_config.margin,
       'showlegend': True,
-      'legend': dict(tracegroupgap=plot_config.legend_spacing),
+      'legend': dict(
+          tracegroupgap=plot_config.legend_spacing,
+          groupclick='toggleitem',
+      ),
       'font': dict(family=plot_config.font_family),
   }
 
