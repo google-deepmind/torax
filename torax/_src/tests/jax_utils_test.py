@@ -69,6 +69,36 @@ class JaxUtilsTest(parameterized.TestCase):
 
     self._should_error()
 
+  def test_error_if_raises_under_jit(self):
+    """Test that error_if raises RuntimeError under jax.jit."""
+
+    @jax.jit
+    def f(x):
+      return jax_utils.error_if(x, x < 0, 'x must be non-negative')
+
+    with self.assertRaises(RuntimeError):
+      f(jnp.array(-1.0))
+
+  def test_error_if_passes_under_jit(self):
+    """Test that error_if passes without error under jax.jit."""
+
+    @jax.jit
+    def f(x):
+      return jax_utils.error_if(x, x < 0, 'x must be non-negative')
+
+    result = f(jnp.array(1.0))
+    chex.assert_trees_all_equal(result, jnp.array(1.0))
+
+  def test_error_if_compatible_with_grad(self):
+    """Test that error_if is compatible with jax.grad under jit."""
+
+    @jax.jit
+    def f(x):
+      x = jax_utils.error_if(x, x < 0, 'x must be non-negative')
+      return x ** 2
+
+    chex.assert_trees_all_close(jax.grad(f)(jnp.array(3.0)), jnp.array(6.0))
+
   @mock.patch.dict(os.environ, {}, clear=True)
   def test_default_dtype(self):
     """Test that the default dtype is float64 when JAX_PRECISION is not set."""

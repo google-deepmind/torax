@@ -19,7 +19,6 @@ import functools
 import os
 from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
 import chex
-import equinox as eqx
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -132,8 +131,6 @@ def error_if(
 ) -> jax.Array:
   """Raises error if cond is true, and `errors_enabled` is True.
 
-  This is just a wrapper around `equinox.error_if`, gated by `errors_enabled`.
-
   Args:
     var: The variable to pass through.
     cond: Boolean array, error if cond is true.
@@ -144,7 +141,13 @@ def error_if(
   """
   if not _ERRORS_ENABLED:
     return var
-  return eqx.error_if(var, cond, msg)
+
+  def _check(cond_val):
+    if cond_val:
+      raise RuntimeError(msg)
+
+  jax.debug.callback(_check, jnp.any(cond))
+  return var
 
 
 def assert_rank(
