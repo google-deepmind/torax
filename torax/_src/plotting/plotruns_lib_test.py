@@ -14,6 +14,7 @@
 
 """Unit tests for torax.plotting.plotruns_lib."""
 
+import dataclasses
 import os
 
 from absl.testing import absltest
@@ -136,6 +137,80 @@ class PlotrunsLibTest(parameterized.TestCase):
       plotruns_lib._get_limit(
           plot_data, ('T_i',), 100.0, include_first_timepoint=False
       )
+
+
+class SliderPayloadTest(absltest.TestCase):
+  """Verifies slider steps carry a minimal payload (issue #553)."""
+
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    config_path = path_utils.torax_path().joinpath(
+        'plotting', 'configs', 'default_plot_config.py'
+    )
+    plot_config = config_loader.import_module(config_path)['PLOT_CONFIG']
+    test_data_path = paths.test_data_dir() / 'test_iterhybrid_rampup.nc'
+    cls.fig = plotruns_lib.plot_run(
+        plot_config, {'Data 1': str(test_data_path)}, interactive=False
+    )
+
+  def test_steps_do_not_resend_static_x_arrays(self):
+    for step in self.fig.layout.sliders[0].steps:
+      self.assertNotIn('x', step.args[0])
+
+  def test_steps_move_timestamp_shapes_via_relayout(self):
+    shapes = self.fig.layout.shapes
+    self.assertNotEmpty(shapes)
+    for step in self.fig.layout.sliders[0].steps:
+      relayout_updates = step.args[1]
+      for idx in range(len(shapes)):
+        self.assertIn(f'shapes[{idx}].x0', relayout_updates)
+        self.assertIn(f'shapes[{idx}].x1', relayout_updates)
+
+  def test_timestamp_lines_are_shapes_not_traces(self):
+    self.assertNotIn('Current Time', [trace.name for trace in self.fig.data])
+
+  def test_mode_buttons_switch_slider_steps(self):
+    for button in self.fig.layout.updatemenus[0].buttons:
+      self.assertIn('sliders[0].steps', button.args[1])
+
+
+class SliderModeSelectionTest(parameterized.TestCase):
+  """Verifies single-mode slider_mode drops the mode toggle (issue #553)."""
+
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    config_path = path_utils.torax_path().joinpath(
+        'plotting', 'configs', 'default_plot_config.py'
+    )
+    cls.base_plot_config = config_loader.import_module(config_path)[
+        'PLOT_CONFIG'
+    ]
+    cls.test_data_path = paths.test_data_dir() / 'test_iterhybrid_rampup.nc'
+
+  @parameterized.parameters(
+      plotruns_lib.SliderMode.LINEAR_TIME,
+      plotruns_lib.SliderMode.SIMULATION_STEPS,
+  )
+  def test_single_mode_drops_toggle_and_shrinks_payload(self, slider_mode):
+    both_config = dataclasses.replace(
+        self.base_plot_config, slider_mode=plotruns_lib.SliderMode.BOTH
+    )
+    single_config = dataclasses.replace(
+        self.base_plot_config, slider_mode=slider_mode
+    )
+    fig_both = plotruns_lib.plot_run(
+        both_config, {'Data 1': str(self.test_data_path)}, interactive=False
+    )
+    fig_single = plotruns_lib.plot_run(
+        single_config, {'Data 1': str(self.test_data_path)}, interactive=False
+    )
+
+    self.assertNotEmpty(fig_both.layout.updatemenus)
+    self.assertEmpty(fig_single.layout.updatemenus)
+    self.assertLen(fig_single.layout.sliders, 1)
+    self.assertLess(len(fig_single.to_json()), len(fig_both.to_json()))
 
 
 class FigurePropertiesTest(absltest.TestCase):

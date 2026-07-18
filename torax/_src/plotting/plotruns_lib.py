@@ -98,6 +98,23 @@ class PlotType(enum.Enum):
   TIME_SERIES = 2
 
 
+class SliderMode(enum.Enum):
+  """Which slider step list(s) to embed in the figure.
+
+  BOTH: Embed step lists for both linear-time and simulation-step modes,
+    with a UI toggle to switch between them. Matches legacy behavior, at the
+    cost of ~2x slider payload since both step lists are serialized.
+  LINEAR_TIME: Embed only the step list with ticks linearly spaced in time.
+    No mode toggle is shown.
+  SIMULATION_STEPS: Embed only the step list following the sim's own
+    timesteps. No mode toggle is shown.
+  """
+
+  BOTH = 'both'
+  LINEAR_TIME = 'linear_time'
+  SIMULATION_STEPS = 'simulation_steps'
+
+
 @dataclasses.dataclass
 class PlotProperties:
   """Dataclass for individual plot properties."""
@@ -140,6 +157,10 @@ class FigureProperties:
       right, top and bottom margins respectively.
     figure_title: Title of the figure. If None, a title is generated from input
       file names.
+    slider_mode: Which slider step list(s) to embed. BOTH (default) keeps
+      the legacy toggle between linear-time and simulation-step modes, at
+      the cost of duplicating step payload. Pick LINEAR_TIME or
+      SIMULATION_STEPS to embed a single step list and drop the toggle.
   """
 
   rows: int
@@ -157,6 +178,7 @@ class FigureProperties:
       default_factory=lambda: dict(l=40, r=40, t=80, b=40)
   )
   figure_title: str | None = None
+  slider_mode: SliderMode = SliderMode.BOTH
 
   def __post_init__(self):
     if len(self.axes) > self.rows * self.cols:
@@ -673,7 +695,6 @@ def _add_traces_and_update_axes(
               'trace_idx': trace_count,
               'attr': attr,
               'dataset': dataset,
-              'x': x,
           })
         else:
           # Time series plots (static)
@@ -697,26 +718,24 @@ def _add_traces_and_update_axes(
         )
         trace_count += 1
 
-    # Add vertical line to denote current slider time for time series plots
+    # Add vertical line to denote current slider time for time series plots.
+    # A layout shape rather than a trace, so slider steps can move it via a
+    # small relayout instead of re-sending x/y arrays per step.
     if not is_spatial:
       ylow, yhigh = _get_y_limits(datasets, axis_config)
-      fig.add_trace(
-          go.Scatter(
-              x=[datasets[0].t[0], datasets[0].t[0]],
-              y=[ylow, yhigh],
-              mode='lines',
-              name='Current Time',
-              showlegend=False,
-              line=dict(color='gray', width=1, dash='dot'),
-          ),
+      fig.add_shape(
+          type='line',
+          x0=datasets[0].t[0],
+          x1=datasets[0].t[0],
+          y0=ylow,
+          y1=yhigh,
+          line=dict(color='gray', width=1, dash='dot'),
           row=row,
           col=col,
       )
       timestamp_line_info.append({
-          'trace_idx': trace_count,
-          'y': [ylow, yhigh],
+          'shape_idx': len(timestamp_line_info),
       })
-      trace_count += 1
 
     # Update Axes Labels
     x_axis_kwargs = dict(
@@ -770,7 +789,6 @@ def _get_slider_steps(
 
   for t_val in t_vals:
     y_updates = []
-    x_updates = []
     trace_indices = []
 
     for info in spatial_traces_info:
@@ -779,18 +797,20 @@ def _get_slider_steps(
       nearest_t_idx = int(np.argmin(np.abs(dataset_t - t_val)))
       val_array = getattr(info['dataset'], info['attr'])
       y_updates.append(val_array[nearest_t_idx, :])
-      x_updates.append(info['x'])
       trace_indices.append(info['trace_idx'])
 
+    # The x-arrays of spatial traces are static rho grids, so only y is
+    # restyled. Timestamp vlines are layout shapes, moved via the relayout
+    # part of the 'update' method. This halves the per-step payload.
+    relayout_updates = {}
     for info in timestamp_line_info:
-      y_updates.append(info['y'])
-      x_updates.append([t_val, t_val])
-      trace_indices.append(info['trace_idx'])
+      relayout_updates[f'shapes[{info["shape_idx"]}].x0'] = t_val
+      relayout_updates[f'shapes[{info["shape_idx"]}].x1'] = t_val
 
     step = {
-        'method': 'restyle',
+        'method': 'update',
         'label': f'{t_val:.3f}s',
-        'args': [{'y': y_updates, 'x': x_updates}, trace_indices],
+        'args': [{'y': y_updates}, relayout_updates, trace_indices],
     }
     steps.append(step)
   return steps
@@ -807,11 +827,30 @@ def _build_slider(
   if not spatial_traces_info and not timestamp_line_info:
     return
 
-  # Increase bottom margin to create whitespace for slider and dropdown.
+  # Increase bottom margin to create whitespace for slider (and dropdown,
+  # if both modes are embedded).
   current_margin = plot_config.margin
   new_margin = dict(current_margin) if current_margin else {}
   new_margin['b'] = new_margin.get('b', 50) + 100
   fig.update_layout(margin=new_margin)
+
+  if plot_config.slider_mode != SliderMode.BOTH:
+    linear_time = plot_config.slider_mode == SliderMode.LINEAR_TIME
+    steps = _get_slider_steps(
+        data1, spatial_traces_info, timestamp_line_info, linear_time
+    )
+    fig.update_layout(
+        sliders=[{
+            'active': 0,
+            'currentvalue': {'prefix': 'Time: ', 'suffix': ' s'},
+            'steps': steps,
+            'len': 0.85,
+            'x': 0.0,
+            'y': -0.1,
+            'yanchor': 'middle',
+        }]
+    )
+    return
 
   steps_timesteps = _get_slider_steps(
       data1, spatial_traces_info, timestamp_line_info, linear_time=False
@@ -842,11 +881,12 @@ def _build_slider(
                   dict(
                       args=[
                           steps_linear_time[0]['args'][0],
-                          {
+                          steps_linear_time[0]['args'][1]
+                          | {
                               'sliders[0].steps': steps_linear_time,
                               'sliders[0].active': 0,
                           },
-                          steps_linear_time[0]['args'][1],
+                          steps_linear_time[0]['args'][2],
                       ],
                       label='Plasma time',
                       method='update',
@@ -854,11 +894,12 @@ def _build_slider(
                   dict(
                       args=[
                           steps_timesteps[0]['args'][0],
-                          {
+                          steps_timesteps[0]['args'][1]
+                          | {
                               'sliders[0].steps': steps_timesteps,
                               'sliders[0].active': 0,
                           },
-                          steps_timesteps[0]['args'][1],
+                          steps_timesteps[0]['args'][2],
                       ],
                       label='Simulation steps',
                       method='update',
