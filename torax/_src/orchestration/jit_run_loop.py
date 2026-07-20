@@ -62,6 +62,7 @@ def run_loop_jit(
       _step_fn,
       (initial_state, initial_post_processed_outputs),
       max_steps,
+      implementation='scan',
   )
 
   # Prepend initial state to give (max_steps + 1, ...) output.

@@ -13,12 +13,12 @@
 # limitations under the License.
 import os
 from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import jax
 from jax import numpy as jnp
+import jax.test_util as jtu
 from torax._src import jax_utils
 
 
@@ -95,7 +95,7 @@ class JaxUtilsTest(parameterized.TestCase):
     @jax.jit
     def f(x):
       x = jax_utils.error_if(x, x < 0, 'x must be non-negative')
-      return x ** 2
+      return x**2
 
     chex.assert_trees_all_close(jax.grad(f)(jnp.array(3.0)), jnp.array(6.0))
 
@@ -208,10 +208,14 @@ class WhileLoopBoundedTest(parameterized.TestCase):
     self._cond_fun = lambda state: state[0] < self._terminating_step
     self._body_fun = lambda state: (state[0] + 1, jnp.sin(state[1]))
 
-    def f_while(x, max_steps=self._max_steps):
+    def f_while(x, max_steps=self._max_steps, implementation='while_loop'):
       init_state = (0, x)
       return jax_utils.while_loop_bounded(
-          self._cond_fun, self._body_fun, init_state, max_steps=max_steps
+          self._cond_fun,
+          self._body_fun,
+          init_state,
+          max_steps=max_steps,
+          implementation=implementation,
       )[0][1]
 
     def f_explicit(x, n_times=self._terminating_step):
@@ -223,33 +227,44 @@ class WhileLoopBoundedTest(parameterized.TestCase):
     self._f_while = f_while
     self._f_explicit = f_explicit
 
-  def test_forward_agrees_with_while_loop(self):
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_forward_agrees_with_while_loop(self, implementation):
     output_state, _, _ = jax_utils.while_loop_bounded(
         self._cond_fun,
         self._body_fun,
         self.init_state,
         self._max_steps,
+        implementation=implementation,
     )
     chex.assert_trees_all_close(
         output_state,
         jax.lax.while_loop(self._cond_fun, self._body_fun, self.init_state),
     )
 
-  def test_forward_agrees_with_explicit(self):
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_forward_agrees_with_explicit(self, implementation):
     chex.assert_trees_all_close(
-        self._f_while(self._init_value),
+        self._f_while(self._init_value, implementation=implementation),
         self._f_explicit(self._init_value),
     )
 
-  def test_grad_agrees_with_explicit(self):
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_grad_agrees_with_explicit(self, implementation):
     chex.assert_trees_all_close(
-        jax.grad(self._f_while)(self._init_value),
+        jax.grad(self._f_while)(
+            self._init_value, implementation=implementation
+        ),
         jax.grad(self._f_explicit)(self._init_value),
     )
 
-  def test_max_steps_is_respected_if_loop_would_continue(self):
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_max_steps_is_respected_if_loop_would_continue(self, implementation):
     final_state, num_steps, _ = jax_utils.while_loop_bounded(
-        self._cond_fun, self._body_fun, self.init_state, max_steps=2
+        self._cond_fun,
+        self._body_fun,
+        self.init_state,
+        max_steps=2,
+        implementation=implementation,
     )
     final_i, final_value = final_state
     self.assertEqual(final_i, 2)
@@ -258,18 +273,25 @@ class WhileLoopBoundedTest(parameterized.TestCase):
         final_value, self._f_explicit(self._init_value, n_times=2)
     )
 
-  def test_grad_max_steps_is_respected_if_loop_would_continue(self):
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_grad_max_steps_is_respected_if_loop_would_continue(
+      self, implementation
+  ):
     chex.assert_trees_all_close(
-        jax.grad(self._f_while)(self._init_value, max_steps=2),
+        jax.grad(self._f_while)(
+            self._init_value, max_steps=2, implementation=implementation
+        ),
         jax.grad(self._f_explicit)(self._init_value, n_times=2),
     )
 
-  def test_output_history(self):
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_output_history(self, implementation):
     _, num_steps, output_history = jax_utils.while_loop_bounded(
         self._cond_fun,
         self._body_fun,
         self.init_state,
         max_steps=self._max_steps,
+        implementation=implementation,
     )
     history_i, history_values = output_history
     # output_history should be (max_steps, ...) shaped.
@@ -281,12 +303,37 @@ class WhileLoopBoundedTest(parameterized.TestCase):
     for step in range(self._terminating_step):
       chex.assert_trees_all_close(
           history_values[step],
-          self._f_explicit(self._init_value, n_times=step+1),
+          self._f_explicit(self._init_value, n_times=step + 1),
       )
     # Steps after termination should contain NaNs for floats and 0 for ints.
     for step in range(self._terminating_step, self._max_steps):
       self.assertTrue(jnp.isnan(history_values[step]))
       self.assertEqual(history_i[step], 0)
+
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_closure_grad(self, implementation):
+    """Test that gradients can be taken through a closure."""
+
+    if implementation == 'while_loop':
+      # TODO(b/532072588): Support closures in the while_loop implementation.
+      self.skipTest('Closures unsupported by while_loop implementation.')
+
+    def f_loss(x):
+      terminating_step = 6
+      cond_fun = lambda state: state[0] < terminating_step
+      body_fun = lambda state: (state[0] + 1, x * jnp.sin(x * state[1]))
+      init_state = (0, 0.5)
+      out = jax_utils.while_loop_bounded(
+          cond_fun,
+          body_fun,
+          init_state,
+          max_steps=10,
+          implementation=implementation,
+      )[0][1]
+      return jnp.sum(out)
+
+    x = 0.2
+    jtu.check_grads(f_loss, (x,), modes=('rev',), order=1)
 
 
 if __name__ == '__main__':
