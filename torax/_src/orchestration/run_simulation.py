@@ -105,6 +105,7 @@ def run_simulation(
     log_timestep_info: bool = False,
     progress_bar: bool = True,
     max_steps: int | None = None,
+    _use_jitted_run_loop: bool = False,  # pylint: disable=invalid-name
 ) -> tuple[xr.DataTree, output.StateHistory]:
   """Runs a TORAX simulation using the config and returns the outputs.
 
@@ -114,6 +115,8 @@ def run_simulation(
     progress_bar: Whether to show a progress bar.
     max_steps: The maximum number of steps to take, if not provided, then the
       simulation will run until the maximum time is reached.
+    _use_jitted_run_loop: If True, then a jitted run loop will be used. A
+      temporary private argument used for testing.
 
   Returns:
     A tuple of the simulation outputs in the form of a DataTree and the state
@@ -128,14 +131,26 @@ def run_simulation(
       step_fn,
   ) = prepare_simulation(torax_config)
 
-  state_history, post_processed_outputs_history, sim_error = run_loop.run_loop(
-      initial_state=initial_state,
-      initial_post_processed_outputs=post_processed_outputs,
-      step_fn=step_fn,
-      log_timestep_info=log_timestep_info,
-      progress_bar=progress_bar,
-      max_steps=max_steps,
-  )
+  if _use_jitted_run_loop:
+    state_history, post_processed_outputs_history, sim_error = (
+        jit_run_loop.run_loop(
+            step_fn,
+            max_steps=max_steps,
+            log_timestep_info=log_timestep_info,
+            progress_bar=progress_bar,
+        )
+    )
+  else:
+    state_history, post_processed_outputs_history, sim_error = (
+        run_loop.run_loop(
+            initial_state=initial_state,
+            initial_post_processed_outputs=post_processed_outputs,
+            step_fn=step_fn,
+            log_timestep_info=log_timestep_info,
+            progress_bar=progress_bar,
+            max_steps=max_steps,
+        )
+    )
 
   state_history = output.StateHistory(
       state_history=state_history,
@@ -144,48 +159,6 @@ def run_simulation(
       torax_config=torax_config,
   )
 
-  return (
-      state_history.simulation_output_to_xr(),
-      state_history,
-  )
-
-
-def run_simulation_jitted(
-    torax_config: model_config.ToraxConfig,
-    max_steps: int | None = None,
-) -> tuple[xr.DataTree, output.StateHistory]:
-  """Runs a TORAX simulation using the config and returns the outputs.
-
-  NOTE: This function doesn't guarantee that the simulation will complete. If
-  the simulation does not complete successfully, then the state history will
-  contain the error state `SimError.DID_NOT_REACH_T_FINAL` and a truncated
-  simulation history.
-
-  Args:
-    torax_config: The TORAX config to use for the simulation.
-    max_steps: The maximum number of steps to take, if not provided, then the
-      maximum number of steps will be determined by the numerics.t_final and
-      numerics.min_dt.
-
-  Returns:
-    A tuple of the simulation outputs in the form of a DataTree and the state
-    history which is intended for helpful use with debugging as it contains
-    the `CoreProfiles`, `CoreTransport`, `CoreSources`, `Geometry`, and
-    `PostProcessedOutputs` dataclasses for each step of the simulation.
-  """
-  step_fn = make_step_fn(torax_config)
-  states_history, post_processed_outputs_history, sim_error = (
-      jit_run_loop.run_loop(
-          step_fn,
-          max_steps=max_steps,
-      )
-  )
-  state_history = output.StateHistory(
-      state_history=states_history,
-      post_processed_outputs_history=post_processed_outputs_history,
-      sim_error=sim_error,
-      torax_config=torax_config,
-  )
   return (
       state_history.simulation_output_to_xr(),
       state_history,
