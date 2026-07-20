@@ -275,7 +275,9 @@ class JitSimTest(sim_test_case.SimTestCase):
     torax_config = config_loader.build_torax_config_from_file(config_path)
     reference_file = output.load_state_file(data_path)
 
-    xr_data_tree, _ = run_simulation.run_simulation_jitted(torax_config)
+    xr_data_tree, _ = run_simulation.run_simulation(
+        torax_config, progress_bar=False, _use_jitted_run_loop=True
+    )
 
     # Allow for small numerical differences due to the change in the order of
     # operations in the jitted versus non-jitted case.
@@ -290,8 +292,8 @@ class JitSimTest(sim_test_case.SimTestCase):
     torax_config = config_loader.build_torax_config_from_file(config_path)
 
     # Use max_steps=1 which is far too few to reach t_final=1.
-    _, state_history = run_simulation.run_simulation_jitted(
-        torax_config, max_steps=1
+    _, state_history = run_simulation.run_simulation(
+        torax_config, max_steps=1, progress_bar=False, _use_jitted_run_loop=True
     )
 
     self.assertEqual(
