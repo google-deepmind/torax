@@ -21,8 +21,8 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
     cols=3,
     axes=(
         plotruns_lib.PlotProperties(
-            attrs=('T_i', 'T_e'),
-            labels=(r'$T_i$', r'$T_e$'),
+            attrs=('T_e', 'T_i'),
+            labels=(r'$T_e$', r'$T_i$'),
             ylabel='Temperature [keV]',
         ),
         plotruns_lib.PlotProperties(
@@ -31,8 +31,8 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylabel=r'Electron density $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('chi_turb_i', 'chi_turb_e'),
-            labels=(r'$\chi_i$', r'$\chi_e$'),
+            attrs=('chi_turb_e', 'chi_turb_i'),
+            labels=(r'$\chi_e$', r'$\chi_i$'),
             ylabel=r'Heat conductivity $[m^2/s]$',
             upper_percentile=98.0,  # Exclude outliers
             include_first_timepoint=False,
