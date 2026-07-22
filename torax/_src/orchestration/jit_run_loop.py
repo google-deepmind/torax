@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """JITted run_loop for iterating over the simulation step function."""
+
 import chex
 import jax
 import jax.numpy as jnp
@@ -119,6 +120,8 @@ def run_loop(
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
+    log_timestep_info: bool = False,
+    progress_bar: bool = False,
     max_steps: int | None = None,
 ) -> tuple[
     list[sim_state.SimState],
@@ -135,6 +138,9 @@ def run_loop(
       is). The state_history that run_simulation() outputs comes from these
       ToraxSimState objects.
     runtime_params_overrides: Optional runtime params overrides to use.
+    log_timestep_info: If True, logs basic timestep info, like time, dt, on
+      every step.
+    progress_bar: If True, displays a progress bar.
     max_steps: Optional maximum number of steps to take. If not provided, then
       the maximum number of steps will be determined by the numerics.t_final and
       numerics.min_dt.
@@ -154,6 +160,16 @@ def run_loop(
         the last valid timestep.
       - The sim error state.
   """
+
+  if progress_bar:
+    raise NotImplementedError(
+        'Progress bar is not supported with the jitted run loop.'
+    )
+  if log_timestep_info:
+    raise NotImplementedError(
+        'Log timestep info is not supported with the jitted run loop.'
+    )
+
   numerics = step_fn.runtime_params_provider.numerics
   if max_steps is None:
     max_steps = int(
