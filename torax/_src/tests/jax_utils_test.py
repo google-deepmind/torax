@@ -310,6 +310,50 @@ class WhileLoopBoundedTest(parameterized.TestCase):
       self.assertTrue(jnp.isnan(history_values[step]))
       self.assertEqual(history_i[step], 0)
 
+  @parameterized.product(implementation=['scan', 'while_loop'])
+  def test_forward_mode_jvp(self, implementation):
+    """Test that forward mode JVP matches that of jax.lax.while_loop."""
+
+    terminating_step = 6
+    max_steps = 10
+    cond_fun = lambda state: state[0] < terminating_step
+    body_fun = lambda state: (
+        state[0] + 1,
+        {
+            'a': state[1]['a'][-1] * jnp.sin(state[1]['b']),
+            'b': state[1]['b'][0] * jnp.cos(state[1]['a']),
+        },
+    )
+
+    def f(x):
+      init_state = (0, x)
+      return jax_utils.while_loop_bounded(
+          cond_fun,
+          body_fun,
+          init_state,
+          max_steps=max_steps,
+          implementation=implementation,
+      )[0][1]
+
+    def f_ref(x):
+      init_state = (0, x)
+      return jax.lax.while_loop(
+          cond_fun,
+          body_fun,
+          init_state,
+      )[1]
+
+    x = {
+        'a': jnp.array([0.2, 0.3, -0.3, 0.0]),
+        'b': jnp.array([1.0, 2.0, 3.0, 4.0]),
+    }
+
+    primals, tangents = jax.jvp(f, (x,), (x,))
+    primals_ref, tangents_ref = jax.jvp(f_ref, (x,), (x,))
+
+    chex.assert_trees_all_close(primals_ref, primals)
+    chex.assert_trees_all_close(tangents_ref, tangents)
+
   @parameterized.parameters(['scan', 'while_loop'])
   def test_closure_grad(self, implementation):
     """Test that gradients can be taken through a closure."""

@@ -21,6 +21,7 @@ from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
 import chex
 import jax
 from jax import numpy as jnp
+from jax.experimental import hijax
 from jax.experimental import scheduling_groups
 import numpy as np
 from packaging import version
@@ -370,18 +371,87 @@ def _while_loop_bounded_scan(
   return final_state, num_steps, stacked_outputs
 
 
-@functools.partial(jax.custom_vjp, nondiff_argnums=(0, 1, 3))
+def _add_axis(x: jax.core.ShapedArray, size: int) -> jax.core.ShapedArray:
+  return jax.core.ShapedArray(shape=(size,) + x.shape, dtype=x.dtype)
+
+
+def _add_axis_pytree(x: PyTree, size: int) -> PyTree:
+  return jax.tree_util.tree_map(lambda y: _add_axis(y, size), x)
+
+
+def _instantiate_zeros(g: PyTree) -> PyTree:
+  return jax.tree.map(
+      hijax.instantiate_zeros, g, is_leaf=lambda x: isinstance(x, hijax.Zero)
+  )
+
+
+class WhileLoopBoundedWhileLoop(hijax.VJPHiPrimitive):
+  """A bounded differentiable while_loop using jax.lax.while_loop."""
+
+  def __init__(
+      self,
+      cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
+      body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
+      init_val: _State,  # pyrefly: ignore[invalid-annotation]
+      max_steps: int,
+  ):
+    self.in_avals = (init_val,)
+
+    history_state_shape = _add_axis_pytree(init_val, max_steps)
+    count_type = jax.core.ShapedArray(shape=(), dtype=_WHILE_LOOP_COUNT_DTYPE)
+    self.out_aval = (init_val, count_type, history_state_shape)
+    # Static parameters.
+    self.params = dict(
+        cond_fun=cond_fun, body_fun=body_fun, max_steps=max_steps
+    )
+    super().__init__()
+
+  # Implementation, used for evaluation and lowering (e.g. under jit).
+  def expand(self, init_val):
+    return _while_loop_bounded_while_loop_fwd(
+        self.params['cond_fun'],
+        self.params['body_fun'],
+        init_val,
+        self.params['max_steps'],
+    )[0]
+
+  # Reverse-mode: forward pass returns (primal_out, residuals).
+  def vjp_fwd(self, nzs_in, init_val):
+    return _while_loop_bounded_while_loop_fwd(
+        self.params['cond_fun'],
+        self.params['body_fun'],
+        init_val,
+        self.params['max_steps'],
+    )
+
+  # Reverse-mode: backward pass maps (residuals, output cotangent) to a tuple
+  # of input cotangents.
+  def vjp_bwd_retval(self, res, g):
+    return _while_loop_bounded_while_loop_bwd(
+        self.params['cond_fun'],
+        self.params['body_fun'],
+        self.params['max_steps'],
+        res,
+        _instantiate_zeros(g),
+    )
+
+  def jvp(self, primals, tangents):
+    tangents = _instantiate_zeros(tangents)
+    return jax.jvp(fun=self.expand, primals=primals, tangents=tangents)
+
+
 def while_loop_bounded_while_loop(
     cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
     body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
     init_val: _State,  # pyrefly: ignore[invalid-annotation]
     max_steps: int,
 ) -> tuple[_State, chex.Numeric, _State]:  # pyrefly: ignore[invalid-annotation]
-  """A bounded differentiable while_loop using jax.lax.while_loop."""
-  primal_outs, _ = _while_loop_bounded_while_loop_fwd(
-      cond_fun, body_fun, init_val, max_steps
-  )
-  return primal_outs
+  return WhileLoopBoundedWhileLoop(
+      cond_fun=cond_fun,
+      body_fun=body_fun,
+      init_val=jax.tree.map(jax.typeof, init_val),
+      max_steps=max_steps,
+  )(init_val)
 
 
 # As the history array could be longer than the number of steps executed, we
@@ -494,8 +564,3 @@ def _while_loop_bounded_while_loop_bwd(cond_fun, body_fun, max_steps, res, g):
   _, g_carry_final = jax.lax.while_loop(cond_back, body_back, init_carry)
 
   return (g_carry_final,)
-
-
-while_loop_bounded_while_loop.defvjp(
-    _while_loop_bounded_while_loop_fwd, _while_loop_bounded_while_loop_bwd
-)
