@@ -21,7 +21,9 @@ from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
 import chex
 import jax
 from jax import numpy as jnp
+from jax.experimental import scheduling_groups
 import numpy as np
+from packaging import version
 
 T = TypeVar('T')
 BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
@@ -34,14 +36,22 @@ _WHILE_LOOP_COUNT_DTYPE = jnp.int32
 def xla_metadata_call(
     f: Callable[..., Any], *, compilation_unit: str
 ) -> Callable[..., Any]:
-  """Gated call to scheduling_groups.xla_metadata_call based on JAX version."""
-  # TODO(b/530865065): xla_metadata_call is currently incompatible with
-  # reverse-mode AD through the TORAX Newton solver. Fixing this bug will lead
-  # to improved compilation times (by ~2s).
-  # if version.Version(jax.__version__) > version.Version('0.10.1'):
-  #   return scheduling_groups.xla_metadata_call(
-  #       f, compilation_unit=compilation_unit
-  #   )
+  """Gated call to scheduling_groups.xla_metadata_call based on JAX version.
+
+  This decorator will ensure that `f` is compiled independently, reducing
+  compilation times but potentially increasing execution time.
+
+  Args:
+    f: The function to be compiled independently.
+    compilation_unit: The compilation unit name to use for the function.
+
+  Returns:
+    The function `f` with the `xla_metadata_call` decorator applied.
+  """
+  if version.Version(jax.__version__) > version.Version('0.10.2'):
+    return scheduling_groups.xla_metadata_call(
+        f, compilation_unit=compilation_unit
+    )
   del compilation_unit  # unused
   return f
 
@@ -424,6 +434,7 @@ def _while_loop_bounded_while_loop_fwd(cond_fun, body_fun, init_val, max_steps):
 
 def _sanitize_cotangent(g, template):
   """Deals with issues like symbolic zeros."""
+
   def sanitize_leaf(g_leaf, t_leaf):
     if not isinstance(g_leaf, jax.Array):
       return jnp.zeros_like(t_leaf)
