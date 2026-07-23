@@ -21,9 +21,8 @@ from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
 import chex
 import jax
 from jax import numpy as jnp
-from jax.experimental import hijax
 import numpy as np
-
+from torax._src import while_loop_bounded as while_loop_bounded_lib
 T = TypeVar('T')
 BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
 _State = ParamSpec('_State')
@@ -247,7 +246,7 @@ def while_loop_bounded(
     body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
     init_val: _State,  # pyrefly: ignore[invalid-annotation]
     max_steps: int,
-    implementation: Literal['scan', 'while_loop'] = 'scan',
+    implementation: Literal['scan', 'while_loop'] = 'while_loop',
 ) -> tuple[_State, chex.Numeric, _State]:  # pyrefly: ignore[invalid-annotation]
   """A bounded reverse-mode differentiable while_loop.
 
@@ -264,10 +263,7 @@ def while_loop_bounded(
       perform.
     implementation: The implementation to use. 'scan' uses `jax.lax.scan` along
       with a `jax.lax.cond`, 'while_loop' uses `jax.lax.while_loop` and a custom
-      VJP. These implementations are numerically equivalent, but can have
-      different performance characteristics: 'while_loop' should generally be
-      faster and composes better under `jax.vmap`, but is currently
-      experimental.
+      VJP. The 'scan' implementation should mainly be used for testing.
 
   Returns:
     A tuple of:
@@ -290,7 +286,7 @@ def while_loop_bounded(
           scan_unroll=1,
       )
     case 'while_loop':
-      return while_loop_bounded_while_loop(
+      return while_loop_bounded_lib.while_loop_bounded(
           cond_fun, body_fun, init_val, max_steps
       )
 
@@ -346,196 +342,6 @@ def _while_loop_bounded_scan(
   return final_state, num_steps, stacked_outputs
 
 
-def _add_axis(x: jax.core.ShapedArray, size: int) -> jax.core.ShapedArray:
-  return jax.core.ShapedArray(shape=(size,) + x.shape, dtype=x.dtype)
 
 
-def _add_axis_pytree(x: PyTree, size: int) -> PyTree:
-  return jax.tree_util.tree_map(lambda y: _add_axis(y, size), x)
 
-
-def _instantiate_zeros(g: PyTree) -> PyTree:
-  return jax.tree.map(
-      hijax.instantiate_zeros, g, is_leaf=lambda x: isinstance(x, hijax.Zero)
-  )
-
-
-class WhileLoopBoundedWhileLoop(hijax.VJPHiPrimitive):
-  """A bounded differentiable while_loop using jax.lax.while_loop."""
-
-  def __init__(
-      self,
-      cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
-      body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
-      init_val: _State,  # pyrefly: ignore[invalid-annotation]
-      max_steps: int,
-  ):
-    self.in_avals = (init_val,)
-
-    history_state_shape = _add_axis_pytree(init_val, max_steps)
-    count_type = jax.core.ShapedArray(shape=(), dtype=_WHILE_LOOP_COUNT_DTYPE)
-    self.out_aval = (init_val, count_type, history_state_shape)
-    # Static parameters.
-    self.params = dict(
-        cond_fun=cond_fun, body_fun=body_fun, max_steps=max_steps
-    )
-    super().__init__()
-
-  # Implementation, used for evaluation and lowering (e.g. under jit).
-  def expand(self, init_val):  # pyrefly: ignore[bad-override]
-    return _while_loop_bounded_while_loop_fwd(
-        self.params['cond_fun'],
-        self.params['body_fun'],
-        init_val,
-        self.params['max_steps'],
-    )[0]
-
-  # Reverse-mode: forward pass returns (primal_out, residuals).
-  def vjp_fwd(self, nzs_in, init_val):  # pyrefly: ignore[bad-override]
-    return _while_loop_bounded_while_loop_fwd(
-        self.params['cond_fun'],
-        self.params['body_fun'],
-        init_val,
-        self.params['max_steps'],
-    )
-
-  # Reverse-mode: backward pass maps (residuals, output cotangent) to a tuple
-  # of input cotangents.
-  def vjp_bwd_retval(self, res, g):
-    return _while_loop_bounded_while_loop_bwd(
-        self.params['cond_fun'],
-        self.params['body_fun'],
-        self.params['max_steps'],
-        res,
-        _instantiate_zeros(g),
-    )
-
-  def jvp(self, primals, tangents):
-    tangents = _instantiate_zeros(tangents)
-    return jax.jvp(fun=self.expand, primals=primals, tangents=tangents)
-
-
-def while_loop_bounded_while_loop(
-    cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
-    body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
-    init_val: _State,  # pyrefly: ignore[invalid-annotation]
-    max_steps: int,
-) -> tuple[_State, chex.Numeric, _State]:  # pyrefly: ignore[invalid-annotation]
-  return WhileLoopBoundedWhileLoop(
-      cond_fun=cond_fun,
-      body_fun=body_fun,
-      init_val=jax.tree.map(jax.typeof, init_val),
-      max_steps=max_steps,
-  )(init_val)
-
-
-# As the history array could be longer than the number of steps executed, we
-# initialize it with NaNs for floats and zeros for integers for unused indices.
-def _init_history_array(x: jax.Array, max_steps: int) -> jax.Array:
-  """Initializes a history array with NaNs or zeros."""
-  shape = (max_steps,) + x.shape
-  value = jnp.nan if jnp.issubdtype(x.dtype, jnp.floating) else 0
-  return jnp.full(shape=shape, fill_value=value, dtype=x.dtype)
-
-
-def _while_loop_bounded_while_loop_fwd(cond_fun, body_fun, init_val, max_steps):
-  """Forward pass for while_loop_bounded_while_loop."""
-  history_init = jax.tree_util.tree_map(
-      lambda x: _init_history_array(x, max_steps),
-      init_val,
-  )
-
-  init_carry = (
-      jnp.array(0, dtype=_WHILE_LOOP_COUNT_DTYPE),
-      init_val,
-      history_init,
-  )
-
-  def cond_tup(carry):
-    step_idx, current_state, _ = carry
-    return jnp.logical_and(step_idx < max_steps, cond_fun(current_state))
-
-  def body_tup(carry):
-    step_idx, current_state, history = carry
-    next_state = body_fun(current_state)
-    next_history = jax.tree_util.tree_map(
-        lambda hist, next_x: hist.at[step_idx].set(next_x),
-        history,
-        next_state,
-    )
-    return step_idx + 1, next_state, next_history
-
-  final_step_idx, final_state, history_final = jax.lax.while_loop(
-      cond_tup, body_tup, init_carry
-  )
-
-  # (primal output, residual)
-  return (final_state, final_step_idx, history_final), (
-      init_val,
-      history_final,
-      final_step_idx,
-  )
-
-
-def _sanitize_cotangent(g, template):
-  """Deals with issues like symbolic zeros."""
-
-  def sanitize_leaf(g_leaf, t_leaf):
-    if not isinstance(g_leaf, jax.Array):
-      return jnp.zeros_like(t_leaf)
-    else:
-      if jnp.issubdtype(t_leaf.dtype, jnp.floating):
-        return g_leaf
-      else:
-        return jnp.zeros_like(t_leaf)
-
-  return jax.tree_util.tree_map(sanitize_leaf, g, template)
-
-
-def _while_loop_bounded_while_loop_bwd(cond_fun, body_fun, max_steps, res, g):
-  """Backward pass for while_loop_bounded_while_loop."""
-
-  del cond_fun, max_steps
-
-  init_val, history, num_steps = res
-  g_final_state, _, g_history = g
-
-  g_final_state = _sanitize_cotangent(g_final_state, init_val)
-  g_history = _sanitize_cotangent(g_history, history)
-
-  # Build a full history that includes init_val at index 0.
-  # full_history[0] = init_val (input to step 0)
-  # full_history[t] = history[t-1] (input to step t, i.e. output of step t-1)
-  full_history = jax.tree_util.tree_map(
-      lambda iv, h: jnp.concatenate([iv[None], h], axis=0),
-      init_val,
-      history,
-  )
-  # Backward from step num_steps-1 down to step 0.
-  init_carry = (num_steps - 1, g_final_state)
-
-  def cond_back(carry):
-    t, _ = carry
-    return t >= 0
-
-  def body_back(carry):
-    t, g_carry = carry
-    # Get the input to body_fun at forward step t.
-    x_input = jax.tree_util.tree_map(lambda fh: fh[t], full_history)
-
-    # Get cotangent for the history output at step t.
-    g_hist_t = jax.tree_util.tree_map(lambda gh: gh[t], g_history)
-
-    # Total cotangent for the output of step t.
-    g_active = jax.tree_util.tree_map(lambda gc, gh: gc + gh, g_carry, g_hist_t)
-
-    # Propagate through body_fun VJP.
-    _, body_vjp = jax.vjp(body_fun, x_input)
-    (g_prev,) = body_vjp(g_active)
-    g_prev = _sanitize_cotangent(g_prev, x_input)
-
-    return t - 1, g_prev
-
-  _, g_carry_final = jax.lax.while_loop(cond_back, body_back, init_carry)
-
-  return (g_carry_final,)

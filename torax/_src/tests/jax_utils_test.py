@@ -320,11 +320,6 @@ class WhileLoopBoundedTest(parameterized.TestCase):
   def test_forward_mode_jvp(self, implementation):
     """Test that forward mode JVP matches that of jax.lax.while_loop."""
 
-    if implementation == 'while_loop':
-      # TODO(b/537753204): Support forward mode JVP in the while_loop
-      # implementation.
-      self.skipTest('Closures unsupported by while_loop implementation.')
-
     terminating_step = 6
     max_steps = 10
     cond_fun = lambda state: state[0] < terminating_step
@@ -369,14 +364,14 @@ class WhileLoopBoundedTest(parameterized.TestCase):
   def test_closure_grad(self, implementation):
     """Test that gradients can be taken through a closure."""
 
-    if implementation == 'while_loop':
-      # TODO(b/532072588): Support closures in the while_loop implementation.
-      self.skipTest('Closures unsupported by while_loop implementation.')
-
+    @jax.jit
     def f_loss(x):
       terminating_step = 6
       cond_fun = lambda state: state[0] < terminating_step
-      body_fun = lambda state: (state[0] + 1, x * jnp.sin(x * state[1]))
+      body_fun = lambda state: (
+          state[0] + 1,
+          x['x'] * jnp.sin(x['x'] * state[1]),
+      )
       init_state = (0, 0.5)
       out = jax_utils.while_loop_bounded(
           cond_fun,
@@ -387,9 +382,53 @@ class WhileLoopBoundedTest(parameterized.TestCase):
       )[0][1]
       return jnp.sum(out)
 
-    x = 0.2
-    jtu.check_grads(f_loss, (x,), modes=('rev',), order=1)
+    x = {'x': 0.2}
+    jtu.check_grads(f_loss, (x,), modes=('rev', 'fwd'), order=1)
+
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_vmap(self, implementation):
+    """Test that while_loop_bounded can be transformed with jax.vmap."""
+
+    def f(x):
+      cond_fun = lambda state: state[0] < 4
+      body_fun = lambda state: (state[0] + 1, jnp.sin(state[1]))
+      init_state = (0, x)
+      return jax_utils.while_loop_bounded(
+          cond_fun,
+          body_fun,
+          init_state,
+          max_steps=10,
+          implementation=implementation,
+      )[0][1]
+
+    xs = jnp.array([0.1, 0.5, 1.0, 2.0])
+    vmapped_out = jax.vmap(f)(xs)
+    expected_out = jnp.array([self._f_explicit(x) for x in xs])
+    chex.assert_trees_all_close(vmapped_out, expected_out)
+
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_vmap_with_closure(self, implementation):
+    """Test that while_loop_bounded with closures works under jax.vmap."""
+
+    def f(a, x):
+      cond_fun = lambda state: state[0] < 4
+      body_fun = lambda state: (state[0] + 1, a * state[1])
+      init_state = (0, x)
+      return jax_utils.while_loop_bounded(
+          cond_fun,
+          body_fun,
+          init_state,
+          max_steps=10,
+          implementation=implementation,
+      )[0][1]
+
+    a = jnp.array([2.0, 3.0])
+    x = jnp.array([1.0, 2.0])
+    vmapped_out = jax.vmap(f)(a, x)
+    expected_out = jnp.array([1.0 * (2.0**4), 2.0 * (3.0**4)])
+    chex.assert_trees_all_close(vmapped_out, expected_out)
 
 
 if __name__ == '__main__':
   absltest.main()
+
