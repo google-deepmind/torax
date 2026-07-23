@@ -363,14 +363,14 @@ class WhileLoopBoundedTest(parameterized.TestCase):
   def test_closure_grad(self, implementation):
     """Test that gradients can be taken through a closure."""
 
-    if implementation == 'while_loop':
-      # TODO(b/532072588): Support closures in the while_loop implementation.
-      self.skipTest('Closures unsupported by while_loop implementation.')
-
+    @jax.jit
     def f_loss(x):
       terminating_step = 6
       cond_fun = lambda state: state[0] < terminating_step
-      body_fun = lambda state: (state[0] + 1, x * jnp.sin(x * state[1]))
+      body_fun = lambda state: (
+          state[0] + 1,
+          x['x'] * jnp.sin(x['x'] * state[1]),
+      )
       init_state = (0, 0.5)
       out = jax_utils.while_loop_bounded(
           cond_fun,
@@ -381,8 +381,8 @@ class WhileLoopBoundedTest(parameterized.TestCase):
       )[0][1]
       return jnp.sum(out)
 
-    x = 0.2
-    jtu.check_grads(f_loss, (x,), modes=('rev',), order=1)
+    x = {'x': 0.2}
+    jtu.check_grads(f_loss, (x,), modes=('rev', 'fwd'), order=1)
 
 
 if __name__ == '__main__':
