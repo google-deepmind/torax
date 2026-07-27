@@ -14,9 +14,11 @@
 
 """JITted run_loop for iterating over the simulation step function."""
 
+from typing import Any, TypeAlias
 import chex
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -24,6 +26,8 @@ from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
+
+PyTree: TypeAlias = Any
 
 
 @jax.jit(static_argnames='max_steps')
@@ -80,19 +84,25 @@ def run_loop_jit(
   return states_history, post_processed_outputs_history, final_i
 
 
+def _unstack_array(x: jax.Array, i: int) -> tuple[np.ndarray, ...]:
+  x = np.asarray(x[:i], copy=False)
+  unstacked = np.unstack(x)
+  # If the array is 1D, then unstack returns a list of scalars. Convert these
+  # to a tuple of scalar NumPy arrays.
+  if x.ndim == 1:
+    return tuple(np.asarray(val) for val in unstacked)
+  return unstacked
+
+
 def _unstack_pytree_history(
-    states_history,
-    post_processed_outputs_history,
-    final_i,
-):
+    history: PyTree,
+    final_i: int,
+) -> list[PyTree]:
   """Unstacks stacked JIT output into a list of unstacked outputs.
 
   Args:
-    states_history: A PyTree where each leaf is a JAX array with shape
-      (max_steps + 1, ...) representing the history of that component over time.
-    post_processed_outputs_history: A PyTree where each leaf is a JAX array with
-      shape (max_steps + 1, ...) representing the history of that component over
-      time.
+    history: A PyTree where each leaf is a JAX array with shape (max_steps + 1,
+      ...) representing the history of that component over time.
     final_i: The actual number of steps taken in the simulation.
 
   Returns:
@@ -100,19 +110,19 @@ def _unstack_pytree_history(
     a time step [0, max_steps]. Each element of the list has the same
     structure and leaf types as the original initial_state.
   """
-  states_history_list = []
-  post_processed_outputs_history_list = []
-  for time_index in range(final_i + 1):
-    # Use tree_map to slice each leaf array at the current time step `i`
-    current_state = jax.tree_util.tree_map(
-        lambda x, i=time_index: x[i], states_history
-    )
-    states_history_list.append(current_state)
-    post_processed_output = jax.tree_util.tree_map(
-        lambda x, i=time_index: x[i], post_processed_outputs_history
-    )
-    post_processed_outputs_history_list.append(post_processed_output)
-  return states_history_list, post_processed_outputs_history_list
+  # This is the number of steps taken in the while_loop + the initial state.
+  num_states = final_i + 1
+  history_list = []
+  vals, treedef = jax.tree.flatten(history)
+  vals = [_unstack_array(x, num_states) for x in vals]
+
+  for time_index in range(num_states):
+    sub_vals = [val[time_index] for val in vals]
+    new_tree = jax.tree.unflatten(treedef, sub_vals)
+    history_list.append(new_tree)
+
+  assert len(history_list) == num_states
+  return history_list
 
 
 def run_loop(
@@ -180,9 +190,12 @@ def run_loop(
       max_steps,
       runtime_params_overrides=runtime_params_overrides,
   )
-  unstacked_states, unstacked_post_processed_outputs = _unstack_pytree_history(
-      states_history, post_processed_outputs_history, final_i
+
+  unstacked_states = _unstack_pytree_history(states_history, final_i)
+  unstacked_post_processed_outputs = _unstack_pytree_history(
+      post_processed_outputs_history, final_i
   )
+
   sim_error = step_fn.check_for_errors(
       unstacked_states[-1],
       unstacked_post_processed_outputs[-1],
