@@ -20,6 +20,7 @@ from typing import Annotated
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
 from torax._src.time_step_calculator import from_previous_time_step_calculator
+from torax._src.time_step_calculator import pellet_aware_time_step_calculator
 from torax._src.time_step_calculator import runtime_params
 from torax._src.time_step_calculator import time_step_calculator
 from torax._src.torax_pydantic import torax_pydantic
@@ -32,7 +33,14 @@ class TimeStepCalculatorType(enum.Enum):
   CHI = 'chi'
   FIXED = 'fixed'
   FROM_PREVIOUS_DT = 'from_previous_dt'
+  PELLET_AWARE = 'pellet_aware'
 
+@enum.unique
+class BaseTimeStepCalculatorType(enum.Enum):
+  """Types of base time step calculators wrapped by pellet-aware mode."""
+
+  CHI = 'chi'
+  FIXED = 'fixed'
 
 class TimeStepCalculator(torax_pydantic.BaseModelFrozen):
   """Config for a time step calculator.
@@ -41,12 +49,21 @@ class TimeStepCalculator(torax_pydantic.BaseModelFrozen):
     calculator_type: The type of time step calculator to use.
     tolerance: The tolerance within the final time for which the simulation will
       be considered done.
+    pellet_source_name: For the 'pellet_aware' calculator, the name of the pellet
+      source to align time steps with. Defaults to 'pellet'.
   """
 
   calculator_type: Annotated[
       TimeStepCalculatorType, torax_pydantic.JAX_STATIC
   ] = TimeStepCalculatorType.CHI
   tolerance: float = 1e-7
+  base_calculator_type: Annotated[
+      BaseTimeStepCalculatorType, torax_pydantic.JAX_STATIC
+  ] = BaseTimeStepCalculatorType.CHI
+  trigger_tolerance: float = 1e-8
+  pellet_source_name: Annotated[str, torax_pydantic.JAX_STATIC] = 'pellet'
+  window_after_pellet: float = 0.0
+  dt_after_pellet: float | None = None
 
   def build_runtime_params(self) -> runtime_params.RuntimeParams:
     return runtime_params.RuntimeParams(tolerance=self.tolerance)
@@ -62,4 +79,12 @@ class TimeStepCalculator(torax_pydantic.BaseModelFrozen):
       case TimeStepCalculatorType.FROM_PREVIOUS_DT:
         return (
             from_previous_time_step_calculator.FromPreviousTimeStepCalculator()
+        )
+      case TimeStepCalculatorType.PELLET_AWARE:
+        return pellet_aware_time_step_calculator.PelletAwareTimeStepCalculator(
+            base_calculator_type=self.base_calculator_type.value,
+            trigger_tolerance=self.trigger_tolerance,
+            pellet_source_name=self.pellet_source_name,
+            window_after_pellet=self.window_after_pellet,
+            dt_after_pellet=self.dt_after_pellet,
         )
