@@ -30,6 +30,12 @@ class JaxUtilsTest(parameterized.TestCase):
     jax_utils.get_dtype.cache_clear()
     jax_utils.get_int_dtype.cache_clear()
 
+  def tearDown(self):
+    """Clear the get_dtype and get_int_dtype caches after each test."""
+    super().tearDown()
+    jax_utils.get_dtype.cache_clear()
+    jax_utils.get_int_dtype.cache_clear()
+
   def _should_error(self):
     """Assert that errors are on."""
     x = jnp.array(0)

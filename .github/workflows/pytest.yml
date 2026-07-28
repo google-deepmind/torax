@@ -19,10 +19,14 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 # Set the correct env variables for all the unit tests
+permissions:
+  contents: read
+
 env:
   TORAX_ERRORS_ENABLED: 1
   TORAX_JAXTYPING: 1
-  PYTEST_NUM_SHARDS: 8  # Controls tests sharding enabled by `pytest-shard`
+  PYTEST_NUM_SHARDS: 12  # Controls tests sharding enabled by `pytest-shard`
+  JAX_ENABLE_X64: 1
 
 jobs:
   shards-job:
@@ -57,10 +61,12 @@ jobs:
         os-version: [ubuntu-latest]
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # refs/tags/v6.1.0
+      with:
+        persist-credentials: false
 
     # Install deps
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # refs/tags/v6.3.0
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -71,13 +77,17 @@ jobs:
 
     # Run tests (in parallel)
     - name: Run core tests
+      env:
+        SHARD_ID: ${{ matrix.shard-id }}
+        NUM_SHARDS: ${{ env.PYTEST_NUM_SHARDS }}
       run: |
+        SHARD_ZERO=$((SHARD_ID - 1))
         pytest \
           -vv -n auto \
           --ignore=torax/tests/sim_no_compile_test.py \
-          --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
+          --shard-id=$SHARD_ZERO --num-shards=$NUM_SHARDS
     # This test requires an extra environment variable, so we run it separately.
     - name: Run sim_no_compile
-      if: ${{ matrix.shard-id == 2 }}
+      if: matrix['shard-id'] == 2
       run: |
         JAX_DISABLE_JIT=True pytest -vv -n auto torax/tests/sim_no_compile_test.py
