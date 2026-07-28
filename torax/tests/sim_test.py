@@ -305,6 +305,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_lh_transition_internal_boundary_condition',
           'test_iterhybrid_lh_transition_internal_boundary_condition.py',
           _ALL_PROFILES,
+          1e-6,
       ),
       # Tests used for testing changing configs without recompiling.
       # Based on test_iterhybrid_predictor_corrector

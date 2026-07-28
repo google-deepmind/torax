@@ -450,6 +450,13 @@ except ImportError:
   )
 
 
+class SmoothingZone(torax_pydantic.BaseModelFrozen):
+  """Defines a radial zone with a specific smoothing width."""
+  rho_min: torax_pydantic.UnitInterval
+  rho_max: torax_pydantic.UnitInterval
+  smoothing_width: pydantic.NonNegativeFloat
+
+
 class CombinedTransportModel(pydantic_model_base.TransportBase):
   """Model for the Combined transport model.
 
@@ -462,6 +469,10 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
       summed to give the combined core transport coefficients.
     pedestal_transport_models: A sequence of models that will be combined for
       pedestal transport coefficients.
+    smoothing_zones: A sequence of radial zones with specific smoothing widths.
+      If empty, falls back to the legacy smoothing_width. Setting a value of
+      0.0 means that both no smoothing will be applied in that zone but also
+      means that zone will not be used for the smoothing of other zones.
   """
 
   # TODO(b/434175938) V2: rename `transport_models` to `core_transport_models`
@@ -473,6 +484,9 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
   ] = pydantic.Field(
       default_factory=list
   )  # pytype: disable=invalid-annotation
+  smoothing_zones: Sequence[SmoothingZone] = pydantic.Field(
+      default_factory=list
+  )
   model_name: Annotated[Literal['combined'], torax_pydantic.JAX_STATIC] = (
       'combined'
   )
@@ -493,17 +507,27 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
   def build_runtime_params(self, t: chex.Numeric) -> combined.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
-    transport_model_params = [
+    transport_model_params = tuple(
         model.build_runtime_params(t) for model in self.transport_models
-    ]
-    pedestal_transport_model_params = [
+    )
+    pedestal_transport_model_params = tuple(
         model.build_runtime_params(t)
         for model in self.pedestal_transport_models
-    ]
+    )
 
+    smoothing_zones = []
+    for zone in self.smoothing_zones:
+      smoothing_zones.append(
+          combined.SmoothingZoneParams(
+              rho_min=zone.rho_min,
+              rho_max=zone.rho_max,
+              smoothing_width=zone.smoothing_width,
+          )
+      )
     return combined.RuntimeParams(
         transport_model_params=transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
+        smoothing_zones=tuple(smoothing_zones),
         **base_kwargs,
     )
 
@@ -521,6 +545,23 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
               i,
               model.model_name,
           )
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _check_smoothing_width_minimum(self) -> typing_extensions.Self:
+    smoothing_widths = [
+        z.smoothing_width for z in self.smoothing_zones
+    ] + [self.smoothing_width]
+    if any(w < 0.0 for w in smoothing_widths):
+      raise ValueError(
+          'Smoothing width must be positive in all smoothing zones.'
+      )
+    if any(0.0 < w < combined.MIN_SMOOTHING_WIDTH for w in smoothing_widths):
+      logging.warning(
+          'Smoothing width < %f will be treated as 0.0. Please consider'
+          ' setting to 0.0 or increasing to a larger value.',
+          combined.MIN_SMOOTHING_WIDTH,
+      )
     return self
 
   @pydantic.model_validator(mode='after')
@@ -581,7 +622,7 @@ def _validate_unique_overwrites(
       continue
 
     # Avoid self-comparison and duplicated checks
-    for model2 in models[i+1:]:
+    for model2 in models[i + 1 :]:
       # Only check models that overwrite
       if model2.merge_mode != enums.MergeMode.OVERWRITE:
         continue

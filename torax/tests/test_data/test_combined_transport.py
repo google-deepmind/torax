@@ -52,7 +52,8 @@ CONFIG['transport'] = {
             'V_e': 0.0,
         },
     ],
-    # Smoothing, clipping etc are all set on the Combined model, not the
-    # components
-    'smoothing_width': 0.05,
+    # Configure explicit smoothing zones on the Combined model
+    'smoothing_zones': [
+        {'rho_min': 0.0, 'rho_max': 0.5, 'smoothing_width': 0.05},
+    ],
 }

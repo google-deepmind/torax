@@ -138,6 +138,247 @@ class CombinedTransportModelTest(absltest.TestCase):
     target = jnp.where(geo.rho_face_norm <= 0.5, 1.0, target)
     np.testing.assert_allclose(transport_coeffs.chi_face_ion, target)
 
+  def test_build_smoothing_matrix_zero_width_is_identity(self):
+    """Tests that a zero smoothing width produces an identity matrix."""
+    config = {
+        'model_name': 'combined',
+        'smoothing_width': 0.0,
+        'transport_models': [{'model_name': 'constant', 'chi_i': 1.0}],
+    }
+    _, runtime_params, geo = self._build_model_and_params(config)
+    mock_pedestal_outputs = mock.create_autospec(
+        pedestal_model_output_lib.PedestalModelOutput,
+        instance=True,
+        rho_norm_ped_top=0.91,
+    )
+    assert isinstance(runtime_params.transport, combined.RuntimeParams)
+    matrix = combined._build_smoothing_matrix(
+        runtime_params.transport,
+        runtime_params,
+        geo,
+        mock_pedestal_outputs,
+    )
+    np.testing.assert_allclose(
+        matrix, np.eye(len(geo.rho_face_norm)), atol=1e-7
+    )
+
+  def test_build_smoothing_matrix_row_sums_and_constant_invariance(self):
+    """Tests that matrix rows sum to 1 and preserve constant profiles."""
+    config = {
+        'model_name': 'combined',
+        'smoothing_width': 0.08,
+        'transport_models': [{'model_name': 'constant', 'chi_i': 1.0}],
+    }
+    _, runtime_params, geo = self._build_model_and_params(config)
+    mock_pedestal_outputs = mock.create_autospec(
+        pedestal_model_output_lib.PedestalModelOutput,
+        instance=True,
+        rho_norm_ped_top=0.91,
+    )
+    assert isinstance(runtime_params.transport, combined.RuntimeParams)
+    matrix = combined._build_smoothing_matrix(
+        runtime_params.transport,
+        runtime_params,
+        geo,
+        mock_pedestal_outputs,
+    )
+    row_sums = np.sum(matrix, axis=1)
+    np.testing.assert_allclose(row_sums, np.ones_like(row_sums), atol=1e-6)
+
+    constant_profile = jnp.full_like(geo.rho_face_norm, 3.5)
+    smoothed = jnp.dot(matrix, constant_profile)
+    np.testing.assert_allclose(smoothed, constant_profile, atol=1e-6)
+
+  def test_build_smoothing_matrix_zone_isolation(self):
+    """Tests that matrix is identity for points outside defined smoothing zones."""
+    config = {
+        'model_name': 'combined',
+        'smoothing_zones': [
+            {'rho_min': 0.3, 'rho_max': 0.7, 'smoothing_width': 0.05},
+        ],
+        'transport_models': [{'model_name': 'constant', 'chi_i': 1.0}],
+    }
+    _, runtime_params, geo = self._build_model_and_params(config)
+    mock_pedestal_outputs = mock.create_autospec(
+        pedestal_model_output_lib.PedestalModelOutput,
+        instance=True,
+        rho_norm_ped_top=0.91,
+    )
+    assert isinstance(runtime_params.transport, combined.RuntimeParams)
+    matrix = combined._build_smoothing_matrix(
+        runtime_params.transport,
+        runtime_params,
+        geo,
+        mock_pedestal_outputs,
+    )
+
+    outside_mask = (geo.rho_face_norm < 0.3) | (geo.rho_face_norm > 0.7)
+    outside_indices = np.where(outside_mask)[0]
+    for idx in outside_indices:
+      expected_row = np.zeros(len(geo.rho_face_norm))
+      expected_row[idx] = 1.0
+      np.testing.assert_allclose(matrix[idx], expected_row, atol=1e-7)
+
+  def test_build_smoothing_matrix_pedestal_boundary_isolation(self):
+    """Tests that smoothing matrix is identity at/above pedestal top in IBC mode."""
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'combined',
+        'smoothing_width': 0.08,
+        'transport_models': [{'model_name': 'constant', 'chi_i': 1.0}],
+    }
+    config['pedestal'] = {
+        'set_pedestal': True,
+        'mode': 'INTERNAL_BOUNDARY_CONDITION',
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=torax_config.numerics.t_initial)
+    geo = torax_config.geometry.build_provider(
+        t=torax_config.numerics.t_initial
+    )
+    mock_pedestal_outputs = mock.create_autospec(
+        pedestal_model_output_lib.PedestalModelOutput,
+        instance=True,
+        rho_norm_ped_top=0.8,
+    )
+    assert isinstance(runtime_params.transport, combined.RuntimeParams)
+    matrix = combined._build_smoothing_matrix(
+        runtime_params.transport,
+        runtime_params,
+        geo,
+        mock_pedestal_outputs,
+    )
+
+    pedestal_mask = geo.rho_face_norm >= 0.8
+    pedestal_indices = np.where(pedestal_mask)[0]
+    for idx in pedestal_indices:
+      expected_row = np.zeros(len(geo.rho_face_norm))
+      expected_row[idx] = 1.0
+      np.testing.assert_allclose(matrix[idx], expected_row, atol=1e-7)
+
+  def test_smoothing_zones(self):
+    """Tests that smoothing_zones smoothes transport coefficients in the specified region."""
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'model_name': 'combined',
+        'smoothing_zones': [
+            {'rho_min': 0.3, 'rho_max': 0.7, 'smoothing_width': 0.08},
+        ],
+        'transport_models': [
+            {'model_name': 'constant', 'rho_max': 0.5, 'chi_i': 1.0},
+            {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 5.0},
+        ],
+        'chi_min': 0.0,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    model = torax_config.transport.build_transport_model()
+    geo = torax_config.geometry.build_provider(
+        t=torax_config.numerics.t_initial
+    )
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=torax_config.numerics.t_initial)
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params, geo, source_models, neoclassical_models
+    )
+    mock_pedestal_outputs = mock.create_autospec(
+        pedestal_model_output_lib.PedestalModelOutput,
+        instance=True,
+        rho_norm_ped_top=0.95,
+    )
+    coeffs = model.call_implementation(
+        runtime_params.transport,
+        runtime_params,
+        geo,
+        core_profiles,
+        mock_pedestal_outputs,
+    )
+    self.assertEqual(coeffs.chi_face_ion.shape, geo.rho_face_norm.shape)
+
+    # 1. Unsmoothed regions: rho < 0.25 should equal 1.0,
+    # rho > 0.75 should equal 5.0
+    unsmoothed_left = geo.rho_face_norm < 0.25
+    unsmoothed_right = geo.rho_face_norm > 0.75
+    np.testing.assert_allclose(
+        coeffs.chi_face_ion[unsmoothed_left], 1.0, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        coeffs.chi_face_ion[unsmoothed_right], 5.0, atol=1e-5
+    )
+
+    # 2. Inside smoothing zone: left of step (rho in (0.4, 0.5))
+    # smoothed upwards (> 1.0), right of step (rho in (0.5, 0.6))
+    # smoothed downwards (< 5.0).
+    near_step_left = np.where(
+        (geo.rho_face_norm > 0.4) & (geo.rho_face_norm < 0.5)
+    )[0]
+    near_step_right = np.where(
+        (geo.rho_face_norm > 0.5) & (geo.rho_face_norm < 0.6)
+    )[0]
+    self.assertTrue(np.all(coeffs.chi_face_ion[near_step_left] > 1.0))
+    self.assertTrue(np.all(coeffs.chi_face_ion[near_step_right] < 5.0))
+
+  def test_smoothing_width_shortcut(self):
+    """Tests that setting smoothing_width applies full-domain smoothing."""
+    config_small = {
+        'model_name': 'combined',
+        'smoothing_width': 0.02,
+        'transport_models': [
+            {'model_name': 'constant', 'rho_max': 0.5, 'chi_i': 1.0},
+            {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 5.0},
+        ],
+        'chi_min': 0.0,
+    }
+    config_large = {
+        'model_name': 'combined',
+        'smoothing_width': 0.12,
+        'transport_models': [
+            {'model_name': 'constant', 'rho_max': 0.5, 'chi_i': 1.0},
+            {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 5.0},
+        ],
+        'chi_min': 0.0,
+    }
+
+    model_small, params_small, geo = self._build_model_and_params(
+        config_small
+    )
+    model_large, params_large, _ = self._build_model_and_params(config_large)
+
+    mock_pedestal_outputs = mock.create_autospec(
+        pedestal_model_output_lib.PedestalModelOutput,
+        instance=True,
+        rho_norm_ped_top=1.0,
+    )
+
+    coeffs_small = model_small.call_implementation(
+        params_small.transport,
+        params_small,
+        geo,
+        mock.ANY,
+        mock_pedestal_outputs,
+    )
+    coeffs_large = model_large.call_implementation(
+        params_large.transport,
+        params_large,
+        geo,
+        mock.ANY,
+        mock_pedestal_outputs,
+    )
+
+    idx_left = np.where(
+        (geo.rho_face_norm > 0.35) & (geo.rho_face_norm < 0.45)
+    )[0]
+    self.assertTrue(
+        np.all(
+            coeffs_large.chi_face_ion[idx_left]
+            > coeffs_small.chi_face_ion[idx_left]
+        )
+    )
+
   def test_error_if_patches_set_on_children(self):
     config = default_configs.get_default_config_dict()
     config['transport'] = {

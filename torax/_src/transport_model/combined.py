@@ -18,29 +18,42 @@ A class for combining transport models.
 """
 
 import dataclasses
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Tuple
+import chex
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
-# pylint: disable=protected-access
+MIN_SMOOTHING_WIDTH = 1e-5
+
+
+@chex.dataclass
+class SmoothingZoneParams:
+  rho_min: array_typing.FloatScalar
+  rho_max: array_typing.FloatScalar
+  smoothing_width: array_typing.FloatScalar
 
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
-  transport_model_params: Sequence[transport_runtime_params_lib.RuntimeParams]
-  pedestal_transport_model_params: Sequence[
-      transport_runtime_params_lib.RuntimeParams
+  """Runtime parameters for the CombinedTransportModel."""
+
+  transport_model_params: Tuple[transport_runtime_params_lib.RuntimeParams, ...]
+  pedestal_transport_model_params: Tuple[
+      transport_runtime_params_lib.RuntimeParams, ...
   ]
+  smoothing_zones: Tuple[SmoothingZoneParams, ...]
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -242,6 +255,33 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
     return transport_model_lib.TurbulentTransport(**accumulators)
 
+  def _smooth_coeffs(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      transport_coeffs: transport_model_lib.TurbulentTransport,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+  ) -> transport_model_lib.TurbulentTransport:
+    """Gaussian smoothing of turbulent transport coefficients."""
+    assert isinstance(runtime_params.transport, RuntimeParams)
+    smoothing_matrix = _build_smoothing_matrix(
+        runtime_params.transport,
+        runtime_params,
+        geo,
+        pedestal_model_output,
+    )
+
+    # Iterate over fields of the CoreTransport dataclass.
+    # Ignore optional fields that are made all zero in post_init.
+    def smooth_single_coeff(coeff):
+      return jax.lax.cond(
+          jnp.all(coeff == 0.0),
+          lambda: coeff,
+          lambda: jnp.dot(smoothing_matrix, coeff),
+      )
+
+    return jax.tree_util.tree_map(smooth_single_coeff, transport_coeffs)
+
 
 def _add_optional(
     core_value: jax.Array | None, pedestal_value: jax.Array | None
@@ -262,3 +302,105 @@ def _pedestal_domain_mask(
 ) -> jax.Array:
   """Calculates the active domain mask for pedestal transport models."""
   return jnp.asarray(geo.rho_face_norm > pedestal_output.rho_norm_ped_top)
+
+
+def _build_smoothing_matrix(
+    transport_runtime_params: RuntimeParams,
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+) -> jax.Array:
+  """Builds a smoothing matrix for the combined transport model."""
+  # To reduce the range of the convolution, weights under lower_cutoff are
+  # clipped to zero
+  lower_cutoff = 0.01
+  # used for eps, small number to avoid divisions by zero for sigma = 0
+  consts = constants.CONSTANTS
+
+  # 1. Build smoothing width profile
+  # Spatially-varying sigma(rho) is constructed across radial grid points.
+  # This supports multiple smoothing_zones with distinct widths.
+  has_zones = len(transport_runtime_params.smoothing_zones) > 0
+
+  def build_profile_from_zones():
+    profile = jnp.zeros_like(geo.rho_face_norm)
+    for zone in transport_runtime_params.smoothing_zones:
+      in_zone = jnp.logical_and(
+          geo.rho_face_norm >= zone.rho_min,
+          geo.rho_face_norm <= zone.rho_max,
+      )
+      profile = jnp.where(in_zone, zone.smoothing_width, profile)
+    return profile
+
+  def build_profile_fallback():
+    return jnp.full_like(
+        geo.rho_face_norm, transport_runtime_params.smoothing_width
+    )
+
+  smoothing_width_profile = jax.lax.cond(
+      has_zones,
+      build_profile_from_zones,
+      build_profile_fallback,
+  )
+
+  # Apply pedestal mask if in INTERNAL_BOUNDARY_CONDITION mode.
+  # Zeros out smoothing_width_profile for rho >= rho_ped_top to avoid bleeding
+  # into boundary condition zone.
+  is_internal_boundary_condition = (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+  )
+  if is_internal_boundary_condition:
+
+    def apply_pedestal_mask(profile):
+      return jnp.where(
+          geo.rho_face_norm
+          < pedestal_model_output.rho_norm_ped_top - consts.eps,
+          profile,
+          0.0,
+      )
+
+    smoothing_width_profile = jax.lax.cond(
+        runtime_params.pedestal.set_pedestal,
+        apply_pedestal_mask,
+        lambda p: p,
+        smoothing_width_profile,
+    )
+
+  # 2. Kernel matrix with variable width (sigma_i for each destination row i)
+  r_diff = geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm
+  sigma = smoothing_width_profile[:, jnp.newaxis]
+
+  kernel = jnp.exp(-jnp.log(2) * r_diff**2 / (sigma**2 + consts.eps))
+
+  # 3. Dynamic active mask derivation (sigma > threshold)
+  # Derives a binary active mask vector directly from smoothing_width_profile.
+  mask = jnp.where(smoothing_width_profile > MIN_SMOOTHING_WIDTH, 1.0, 0.0)
+
+  # Zero out rows (destinations) that should not be smoothed
+  diag_mask = jnp.diag(mask)
+  kernel = jnp.dot(diag_mask, kernel)
+
+  # Zero out columns (sources) that should not contribute to smoothing
+  num_rows = len(mask)
+  mask_mat = jnp.tile(mask, (num_rows, 1))
+  kernel *= mask_mat
+
+  # Restore identity to the zero rows (so smoothing is a no-op there)
+  zero_row_mask = jnp.all(kernel == 0, axis=1)
+  kernel = jnp.where(
+      zero_row_mask[:, jnp.newaxis], jnp.eye(kernel.shape[0]), kernel
+  )
+
+  # 4. Normalization
+  row_sums = jnp.sum(kernel, axis=1, keepdims=True)
+  kernel = kernel / row_sums
+
+  # 5. Remove small numbers
+  kernel = jnp.where(kernel < lower_cutoff, 0.0, kernel)
+
+  # 6. Final Normalization following removal of small numbers
+  row_sums = jnp.sum(kernel, axis=1, keepdims=True)
+  kernel = kernel / row_sums
+
+  return kernel
