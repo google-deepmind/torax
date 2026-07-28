@@ -2497,6 +2497,15 @@ sawtooth
   The minimum normalized radius (:math:`\hat{\rho}`) of the q=1 surface required
   to trigger a crash.
 
+* ``suppression_times`` (tuple[float, ...] [default = ()])
+  Times [s] of events after which sawtooth crashes are suppressed. Empty by default (no suppression). 
+  Available on all trigger models.
+
+* ``suppression_duration`` (float | tuple[float, ...] [default = 0.0])
+  Duration [s] of the suppression window opened by each entry of ``suppression_times``. 
+  A scalar applies to all of them, a list gives a per-event value and must then have the 
+  same length as ``suppression_times``.
+
 ``model_name`` (str [default = 'simple'])
   Currently only 'simple' is supported.
 
