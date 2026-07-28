@@ -31,8 +31,10 @@ _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     'File path to the directory containing failed sim test output'
     ' subdirectories.',
 )
-_REFERENCE_TEST_DATA_DIR = os.path.join(
-    path_utils.torax_path(), 'tests/test_data'
+_REFERENCE_TEST_DATA_DIR = flags.DEFINE_string(
+    'reference_test_data_dir',
+    os.path.join(path_utils.torax_path(), 'tests/test_data'),
+    'File path to the directory containing reference test data files.',
 )
 
 
@@ -75,7 +77,7 @@ def _compare_sim_test_outputs(failed_test_file: str) -> None:
   failed_test_output_dir = _FAILED_TEST_OUTPUT_DIR.value
 
   old_file = os.path.join(
-      _REFERENCE_TEST_DATA_DIR,
+      _REFERENCE_TEST_DATA_DIR.value,
       scripts.get_data_file(test_name),
   )
   new_file = os.path.join(failed_test_output_dir, failed_test_file)

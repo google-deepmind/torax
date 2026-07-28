@@ -18,6 +18,8 @@ Includes a time slider. Reads output files with xarray data or legacy h5 data.
 
 Plots are configured by a plot_config module.
 """
+import os
+
 from absl import app
 from absl import logging
 from absl.flags import argparse_flags
@@ -44,6 +46,12 @@ def parse_flags(_):
       default='plotting/configs/default_plot_config.py',
       help='Name of the plot config module.',
   )
+  parser.add_argument(
+      '--output_dir',
+      default=None,
+      help='Directory path where interactive HTML plots will be saved. If not'
+      ' set, the plots will be shown in a new window.',
+  )
   return parser.parse_args()
 
 
@@ -61,7 +69,13 @@ def main(args):
   outfiles = {
       f'Data {i + 1}': f for i, f in enumerate(args.outfile)
   }
-  plotruns_lib.plot_run(plot_config, outfiles)
+  is_interactive = args.output_dir is None
+  fig = plotruns_lib.plot_run(plot_config, outfiles, interactive=is_interactive)
+  if args.output_dir:
+    os.makedirs(args.output_dir, exist_ok=True)
+    html_path = os.path.join(args.output_dir, 'torax_plot_comparison.html')
+    fig.write_html(html_path)
+    print(f'Saved interactive Plotly HTML to: {html_path}')
 
 
 # Method used by the `plot_torax` binary.

@@ -466,7 +466,7 @@ def _build_smoothing_matrix(
   mask_inner_edge = jax.lax.cond(
       runtime_params.transport.apply_inner_patch,
       lambda: runtime_params.transport.rho_inner + consts.eps,
-      lambda: 0.0,
+      lambda: -consts.eps,
   )
 
   mask = jnp.where(
