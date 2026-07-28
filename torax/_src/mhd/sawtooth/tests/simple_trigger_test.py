@@ -124,6 +124,8 @@ class SimpleTriggerTest(parameterized.TestCase):
                 trigger_params=simple_trigger.RuntimeParams(
                     s_critical=s_critical,
                     minimum_radius=minimum_radius,
+                    suppression_times=(),
+                    suppression_duration=0.0,
                 ),
             )
         ),

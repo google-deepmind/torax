@@ -37,7 +37,7 @@ class SimpleTrigger(
 ):
   """Simple trigger model."""
 
-  def __call__(
+  def compute_trigger(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,

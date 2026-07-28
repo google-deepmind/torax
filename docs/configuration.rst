@@ -2376,6 +2376,12 @@ implemented in TORAX.
 ``S_total`` (**time-varying-scalar** [default = 2e22])
   Total particle source in units of particles/s
 
+An external machine-learning surrogate of pellet ablation and deposition,
+HPI2-NN, can be registered as an alternative ``pellet`` model
+(``model_name: 'hpi2_nn'``) via ``torax.sources.register_source_model_config``.
+See the `HPI2-NN repository <https://github.com/DIFFER-NL/hpi2nn>`_ for
+installation and configuration.
+
 mhd
 ---
 
@@ -2400,6 +2406,14 @@ sawtooth
 * ``minimum_radius`` (**time-varying-scalar** [default = 0.05])
   The minimum normalized radius (:math:`\hat{\rho}`) of the q=1 surface required
   to trigger a crash.
+
+* ``suppression_times`` (tuple[float, ...] [default = ()])
+  Times [s] of events after which sawtooth crashes are suppressed.
+  
+* ``suppression_duration`` (float | tuple[float, ...] [default = 0.0])
+  Duration [s] of the suppression window opened by each entry of
+  ``suppression_times``. A scalar applies to all of them; a list gives a
+  per-event value and must then have the same length as ``suppression_times``.
 
 ``model_name`` (str [default = 'simple'])
   Currently only 'simple' is supported.

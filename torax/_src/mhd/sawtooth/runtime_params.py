@@ -26,9 +26,13 @@ class TriggerRuntimeParams:
 
   Attributes:
     minimum_radius: Minimum radius of q=1 surface for triggering [rho_norm].
+    suppression_times: Times [s] of events after which crashes are suppressed.
+    suppression_duration: Duration [s] of the window opened by each event.
   """
 
   minimum_radius: array_typing.FloatScalar
+  suppression_times: tuple[float, ...]
+  suppression_duration: array_typing.FloatScalar | tuple[float, ...]
 
 
 @jax.tree_util.register_dataclass

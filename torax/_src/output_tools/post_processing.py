@@ -474,9 +474,6 @@ CURRENT_SOURCE_TRANSFORMATIONS = {
 PARTICLE_SOURCE_TRANSFORMATIONS = {
     'gas_puff': 'S_gas_puff',
     'pellet': 'S_pellet',
-    # Both pellet sources integrate into S_pellet. Their contributions are
-    # summed. Only one of the two is expected to be used at a time.
-    'hpi2nn_pellet_source': 'S_pellet',
     'generic_particle': 'S_generic_particle',
 }
 
@@ -613,7 +610,7 @@ def _calculate_integrated_sources(
         core_sources.n_e, key, geo, math_utils.volume_integration
     )
     # Accumulate so that multiple source names mapping to the same output key
-    # (e.g. 'pellet' and 'hpi2nn_pellet_source' -> 'S_pellet') are summed.
+    # are summed.
     integrated[value] = (
         integrated.get(value, jnp.array(0.0, dtype=jax_utils.get_dtype()))
         + contribution

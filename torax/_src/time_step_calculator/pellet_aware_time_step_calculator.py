@@ -18,7 +18,6 @@ import jax
 from jax import numpy as jnp
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
-from torax._src.sources import hpi2nn_pellet_source as hpi2nn_pellet_source_lib
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
 from torax._src.time_step_calculator import time_step_calculator
@@ -40,6 +39,11 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     trigger_tolerance: The time tolerance for determining if the current time is
       at a pellet trigger or ablation boundary.
     pellet_source_name: The name of the pellet source in the runtime parameters.
+      Defaults to 'pellet'. The calculator is generic: it works with any pellet
+      source whose runtime parameters expose 'trigger_times'/'frequency' and
+      'ablation_time'. A source may additionally expose a model-predicted
+      ablation window via a 'use_model_ablation_time' flag and an
+    'ablation_step(geo, core_profiles)' method.
     window_after_pellet: The duration of the window after a pellet trigger during
       which the time step is adjusted. The duration of the first time step will always
       be equal to the ablation time, the other will be equal to dt_after_pellet.
@@ -55,7 +59,7 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
       self,
       base_calculator_type: str = 'chi',
       trigger_tolerance: float = 1e-8,
-      pellet_source_name: str = 'hpi2nn_pellet_source',
+      pellet_source_name: str = 'pellet',
       window_after_pellet: float = 0.0,
       dt_after_pellet: float | None = None,
   ):
@@ -112,12 +116,17 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     at_trigger = jnp.asarray(False)
     model_ablation_time = inf
 
+    # A pellet source that predicts its own ablation time exposes a
+    # 'use_model_ablation_time' flag and an 'ablation_step(geo, core_profiles)'
+    # method returning (at_trigger, ablation_time). Sources without it fall back
+    # to the config 'ablation_time' scheduling below.
+    ablation_step_fn = getattr(pellet_params, 'ablation_step', None)
     use_model_ablation = bool(
-        getattr(pellet_params, 'use_hpi2nn_ablation_time', False)
-    )
+        getattr(pellet_params, 'use_model_ablation_time', False)
+    ) and callable(ablation_step_fn)
     if use_model_ablation:
-      at_trigger, model_ablation_time = hpi2nn_pellet_source_lib.ablation_step(
-          pellet_params, sim_state.geometry, sim_state.core_profiles
+      at_trigger, model_ablation_time = ablation_step_fn(
+          sim_state.geometry, sim_state.core_profiles
       )
       at_trigger = jnp.asarray(at_trigger)
       model_ablation_time = jnp.asarray(model_ablation_time, dtype=dtype)
