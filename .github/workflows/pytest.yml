@@ -18,6 +18,9 @@ concurrency:
   # Cancel only PR intermediate builds
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
+permissions:
+  contents: read
+
 # Set the correct env variables for all the unit tests
 env:
   TORAX_ERRORS_ENABLED: 1
