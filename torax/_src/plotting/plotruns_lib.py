@@ -748,14 +748,102 @@ def _add_traces_and_update_axes(
   return spatial_traces_info, timestamp_line_info
 
 
-def _get_slider_steps(
+# Animation options used by the slider steps. 'immediate' jumps straight to the
+# requested frame, and redraw=False updates the traces in place instead of
+# re-rendering the whole figure, which dominates the cost of a slider move.
+_ANIMATION_ARGS: Final[dict[str, Any]] = {
+    'mode': 'immediate',
+    'frame': {'duration': 0, 'redraw': False},
+    'transition': {'duration': 0},
+}
+
+
+def _get_trace_update(
+    t_val: float,
+    spatial_traces_info: list[dict[str, Any]],
+    timestamp_line_info: list[dict[str, Any]],
+) -> tuple[dict[str, Any], list[int]]:
+  """Returns the (restyle args, trace indices) showing a single timepoint."""
+  y_updates = []
+  x_updates = []
+  trace_indices = []
+
+  for info in spatial_traces_info:
+    # Find the nearest time index in this dataset for the target time.
+    dataset_t = info['dataset'].t
+    nearest_t_idx = int(np.argmin(np.abs(dataset_t - t_val)))
+    val_array = getattr(info['dataset'], info['attr'])
+    y_updates.append(val_array[nearest_t_idx, :])
+    x_updates.append(info['x'])
+    trace_indices.append(info['trace_idx'])
+
+  for info in timestamp_line_info:
+    y_updates.append(info['y'])
+    x_updates.append([t_val, t_val])
+    trace_indices.append(info['trace_idx'])
+
+  return {'y': y_updates, 'x': x_updates}, trace_indices
+
+
+def _build_frames(
     data1: PlotData,
     spatial_traces_info: list[dict[str, Any]],
     timestamp_line_info: list[dict[str, Any]],
+) -> list[go.Frame]:
+  """Builds one animation frame per timestep of the master clock.
+
+  Slider steps animate to these frames rather than carrying the data
+  themselves, so that each timepoint is stored once and moving the slider
+  updates the traces in place instead of re-rendering the whole figure.
+
+  Args:
+    data1: The dataset used as the master clock for the frames.
+    spatial_traces_info: Info on the traces updated by the slider.
+    timestamp_line_info: Info on the vertical lines marking the current time.
+
+  Returns:
+    A list of frames, named by their index in ``data1.t``.
+  """
+  # Fetch each profile once rather than per frame, since attribute access on
+  # PlotData converts the underlying xarray variable to a numpy array.
+  spatial_data = [
+      (info['dataset'].t, getattr(info['dataset'], info['attr']))
+      for info in spatial_traces_info
+  ]
+
+  frames = []
+  for frame_idx, t_val in enumerate(data1.t):
+    frame_data = []
+    trace_indices = []
+
+    for info, (dataset_t, val_array) in zip(
+        spatial_traces_info, spatial_data, strict=True
+    ):
+      # Find the nearest time index in this dataset for the target time.
+      nearest_t_idx = int(np.argmin(np.abs(dataset_t - t_val)))
+      # x is static for spatial traces, so only y is carried by the frame.
+      frame_data.append({'y': val_array[nearest_t_idx, :]})
+      trace_indices.append(info['trace_idx'])
+
+    for info in timestamp_line_info:
+      frame_data.append({'x': [t_val, t_val]})
+      trace_indices.append(info['trace_idx'])
+
+    frames.append(
+        go.Frame(
+            name=str(frame_idx),
+            data=frame_data,
+            traces=trace_indices,
+        )
+    )
+  return frames
+
+
+def _get_slider_steps(
+    data1: PlotData,
     linear_time: bool = False,
 ) -> list[dict[str, Any]]:
-  """Generates slider steps for spatial plots."""
-  steps = []
+  """Generates slider steps animating to the frames built by _build_frames."""
   # If linear_time is True, the slider ticks will be linearly spaced in time.
   # Otherwise, the slider ticks will follow the timesteps taken by the sim.
   # Ticks will always use data1 as the master clock.
@@ -768,31 +856,15 @@ def _get_slider_steps(
   else:
     t_vals = data1.t
 
+  steps = []
   for t_val in t_vals:
-    y_updates = []
-    x_updates = []
-    trace_indices = []
-
-    for info in spatial_traces_info:
-      # Find the nearest time index in this dataset for the target time.
-      dataset_t = info['dataset'].t
-      nearest_t_idx = int(np.argmin(np.abs(dataset_t - t_val)))
-      val_array = getattr(info['dataset'], info['attr'])
-      y_updates.append(val_array[nearest_t_idx, :])
-      x_updates.append(info['x'])
-      trace_indices.append(info['trace_idx'])
-
-    for info in timestamp_line_info:
-      y_updates.append(info['y'])
-      x_updates.append([t_val, t_val])
-      trace_indices.append(info['trace_idx'])
-
-    step = {
-        'method': 'restyle',
+    # Both slider modes share the same frames, and thus the same data.
+    frame_idx = int(np.argmin(np.abs(data1.t - t_val)))
+    steps.append({
+        'method': 'animate',
         'label': f'{t_val:.3f}s',
-        'args': [{'y': y_updates, 'x': x_updates}, trace_indices],
-    }
-    steps.append(step)
+        'args': [[str(frame_idx)], _ANIMATION_ARGS],
+    })
   return steps
 
 
@@ -813,11 +885,15 @@ def _build_slider(
   new_margin['b'] = new_margin.get('b', 50) + 100
   fig.update_layout(margin=new_margin)
 
-  steps_timesteps = _get_slider_steps(
-      data1, spatial_traces_info, timestamp_line_info, linear_time=False
-  )
-  steps_linear_time = _get_slider_steps(
-      data1, spatial_traces_info, timestamp_line_info, linear_time=True
+  fig.frames = _build_frames(data1, spatial_traces_info, timestamp_line_info)
+
+  steps_timesteps = _get_slider_steps(data1, linear_time=False)
+  steps_linear_time = _get_slider_steps(data1, linear_time=True)
+
+  # Switching slider mode resets the figure to the first timepoint, which the
+  # buttons apply directly since a button cannot both relayout and animate.
+  first_trace_update, first_trace_indices = _get_trace_update(
+      data1.t[0], spatial_traces_info, timestamp_line_info
   )
 
   slider_linear_time = {
@@ -841,24 +917,24 @@ def _build_slider(
               buttons=[
                   dict(
                       args=[
-                          steps_linear_time[0]['args'][0],
+                          first_trace_update,
                           {
                               'sliders[0].steps': steps_linear_time,
                               'sliders[0].active': 0,
                           },
-                          steps_linear_time[0]['args'][1],
+                          first_trace_indices,
                       ],
                       label='Plasma time',
                       method='update',
                   ),
                   dict(
                       args=[
-                          steps_timesteps[0]['args'][0],
+                          first_trace_update,
                           {
                               'sliders[0].steps': steps_timesteps,
                               'sliders[0].active': 0,
                           },
-                          steps_timesteps[0]['args'][1],
+                          first_trace_indices,
                       ],
                       label='Simulation steps',
                       method='update',
