@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Basic post-run plotting tool. Plot a single run or comparison of two runs.
+"""Post-run plotting tool. Plot a single run or comparison of multiple runs.
 
-Includes a time slider. Reads output files with xarray data or legacy h5 data.
+Includes a time slider. Reads output files with xarray data.
 
 Plots are configured by a plot_config module.
 """
@@ -37,7 +37,7 @@ def parse_flags(_):
       '--outfile',
       nargs='*',
       help=(
-          'Relative location of output files (if two are provided, a'
+          'Relative location of output files (if more than one is provided, a'
           ' comparison is done)'
       ),
   )

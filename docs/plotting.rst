@@ -11,7 +11,7 @@ Using the plot_torax Script
 ============================
 
 To visualize simulation results, use the ``plot_torax`` script.
-This script offers flexibility in plotting single runs, comparing two runs, and
+This script offers flexibility in plotting single runs, comparing multiple runs, and
 customizing plot configurations.
 
 Plotting a Single Run
@@ -31,17 +31,20 @@ using ``--plot_config``, with the path for the Python file containing the
 ``PLOT_CONFIG`` variable. See :ref:`customizable_plot_configs` for more
 details.
 
-Comparing Two Runs
-------------------
+Comparing Multiple Runs
+-----------------------
 
-To compare the output of two simulations, provide both output file paths:
+To compare the output of multiple simulations, provide additional output file
+paths:
 
 .. code-block:: console
 
   plot_torax --outfile <full_path_to_simulation_output1> \
-   <full_path_to_simulation_output2>
+   <full_path_to_simulation_output2> [<additional_outputs>...]
 
-This overlays the plots of the two runs, allowing for direct comparison.
+This overlays the plots of all provided runs, allowing for direct comparison.
+When comparing two or more runs, a run-visibility dropdown appears above the
+legend to control which runs are shown (see :ref:`run_visibility_dropdown`).
 
 .. _customizable_plot_configs:
 
@@ -101,8 +104,8 @@ below as an example.
       cols=3,
       axes=(
           plotruns_lib.PlotProperties(
-              attrs=('T_i', 'T_e'),
-              labels=(r'$T_i$', r'$T_e$'),
+              attrs=('T_e', 'T_i'),
+              labels=(r'$T_e$', r'$T_i$'),
               ylabel='Temperature [keV]',
           ),
           plotruns_lib.PlotProperties(
@@ -111,8 +114,8 @@ below as an example.
               ylabel=r'Electron density $[10^{20}~m^{-3}]$',
           ),
           plotruns_lib.PlotProperties(
-              attrs=('chi_turb_i', 'chi_turb_e'),
-              labels=(r'$\chi_i$', r'$\chi_e$'),
+              attrs=('chi_turb_e', 'chi_turb_i'),
+              labels=(r'$\chi_e$', r'$\chi_i$'),
               ylabel=r'Heat conductivity $[m^2/s]$',
               upper_percentile=98.0,
               include_first_timepoint=False,
@@ -193,8 +196,8 @@ like this:
 .. code-block:: python
 
   plotruns_lib.PlotProperties(
-      attrs=('T_i', 'T_e'),
-      labels=(r'$T_i$', r'$T_e$'),
+      attrs=('T_e', 'T_i'),
+      labels=(r'$T_e$', r'$T_i$'),
       ylabel='Temperature [keV]',
   ),
 
@@ -248,3 +251,18 @@ different timesteps. The spatial profile plots defined above are dynamically
 updated when the slider is manipulated. The time series plots, defined with
 ``plot_type=PlotType.TIME_SERIES`` stay constant, plotting variables against the
 full Torax simulation timescale.
+
+.. _run_visibility_dropdown:
+
+Run Visibility Dropdown
+=======================
+
+When comparing two or more simulation runs, a **run-visibility dropdown** menu
+appears above the legend. This dropdown allows you to select which runs are
+displayed in the plot:
+
+- **All** - shows every loaded run (the default).
+- **Individual runs** - select a single run to isolate it.
+- **Combinations** - for up to five runs, every possible subset combination is
+  offered. Beyond five runs, only "All" and individual-run options are shown to
+  keep the menu manageable.

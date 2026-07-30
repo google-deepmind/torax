@@ -24,8 +24,8 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         # volatile nature of the data. Do not include first timepoint since
         # chi is defined as zero there and may unduly affect ylim.
         plotruns_lib.PlotProperties(
-            attrs=('T_i', 'T_e'),
-            labels=(r'$T_\mathrm{i}$', r'$T_\mathrm{e}$'),
+            attrs=('T_e', 'T_i'),
+            labels=(r'$T_\mathrm{e}$', r'$T_\mathrm{i}$'),
             ylabel='Temperature [keV]',
         ),
         plotruns_lib.PlotProperties(

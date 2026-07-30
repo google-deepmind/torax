@@ -22,12 +22,12 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
     axes=(
         plotruns_lib.PlotProperties(
             attrs=(
-                'chi_turb_i',
                 'chi_turb_e',
+                'chi_turb_i',
             ),
             labels=(
-                r'$\chi_\mathrm{turb,i}$',
                 r'$\chi_\mathrm{turb,e}$',
+                r'$\chi_\mathrm{turb,i}$',
             ),
             ylabel=r'Turbulent heat conductivity $[m^2/s]$',
             upper_percentile=98.0,
@@ -54,12 +54,12 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             attrs=(
-                'chi_neo_i',
                 'chi_neo_e',
+                'chi_neo_i',
             ),
             labels=(
-                r'$\chi_\mathrm{neo,i}$',
                 r'$\chi_\mathrm{neo,e}$',
+                r'$\chi_\mathrm{neo,i}$',
             ),
             ylabel=r'Neoclassical heat conductivity $[m^2/s]$',
             upper_percentile=98.0,

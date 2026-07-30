@@ -45,6 +45,26 @@ import xarray as xr
 # Internal import.
 # Internal import.
 
+_LEGEND_X: Final[float] = 1.02
+# Rough estimate of the "Legend" annotation's rendered width, as a fraction
+# of figure width. Plotly cannot report the actual value at figure-build
+# time.
+_LEGEND_LABEL_WIDTH_ESTIMATE: Final[float] = 0.04
+# The legend's top edge is shunted down from the plot's top edge (y=1) to
+# leave headroom above it for the "Legend" label and run-visibility
+# dropdown, which sit centered in that headroom at `_CONTROLS_ROW_Y`.
+_LEGEND_Y: Final[float] = 0.95
+_CONTROLS_ROW_Y: Final[float] = 1.0
+# Dash patterns cycled when plotting multiple datasets.
+_DASH_PATTERNS: Final[tuple[str, ...]] = (
+    'solid',
+    'dash',
+    'dot',
+    'dashdot',
+    'longdash',
+    'longdashdot',
+)
+
 
 # For some use-cases it is useful to compare simulations where one will have
 # a given source (e.g. p_icrh) and the other does not. However, the simulation
@@ -627,25 +647,15 @@ def _get_y_limits(
   return lower_bound, upper_bound
 
 
-# Dash patterns cycled when plotting multiple datasets.
-_DASH_PATTERNS: Final[tuple[str, ...]] = (
-    'solid',
-    'dash',
-    'dot',
-    'dashdot',
-    'longdash',
-    'longdashdot',
-)
-
-
 def _add_traces_and_update_axes(
     fig: go.Figure,
     plot_config: FigureProperties,
     named_datasets: Mapping[str, PlotData],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, list[int]]]:
   """Adds traces to the figure and updates axes."""
   spatial_traces_info = []
   timestamp_line_info = []
+  dataset_trace_indices = {ds_name: [] for ds_name in named_datasets}
   trace_count = 0
   datasets = list(named_datasets.values())
 
@@ -695,6 +705,7 @@ def _add_traces_and_update_axes(
             row=row,
             col=col,
         )
+        dataset_trace_indices[ds_name].append(trace_count)
         trace_count += 1
 
     # Add vertical line to denote current slider time for time series plots
@@ -745,7 +756,7 @@ def _add_traces_and_update_axes(
         range=(ylow, yhigh),
     )
 
-  return spatial_traces_info, timestamp_line_info
+  return spatial_traces_info, timestamp_line_info, dataset_trace_indices
 
 
 def _get_slider_steps(
@@ -833,7 +844,8 @@ def _build_slider(
   fig.update_layout(sliders=[slider_linear_time])
 
   fig.update_layout(
-      updatemenus=[
+      updatemenus=list(fig.layout.updatemenus)
+      + [
           dict(
               type='buttons',
               direction='right',
@@ -903,7 +915,14 @@ def _update_global_layout(
       },
       'margin': plot_config.margin,
       'showlegend': True,
-      'legend': dict(tracegroupgap=plot_config.legend_spacing),
+      'legend': dict(
+          tracegroupgap=plot_config.legend_spacing,
+          groupclick='toggleitem',
+          x=_LEGEND_X,
+          xanchor='left',
+          y=_LEGEND_Y,
+          yanchor='top',
+      ),
       'font': dict(family=plot_config.font_family),
   }
 
@@ -917,6 +936,113 @@ def _update_global_layout(
       font=dict(
           family=plot_config.font_family, size=plot_config.subplot_title_size
       )
+  )
+
+
+def _run_combinations(names: Sequence[str]) -> list[tuple[str, ...]]:
+  """Lists the run subsets to offer in the visibility dropdown.
+
+  For up to 5 runs, every non-empty combination is offered (so any subset of
+  runs can be selected). Beyond that the combinations would explode
+  (2**n - 1 options), so only "all runs" and each run in isolation are
+  offered.
+
+  Args:
+    names: The run names to generate combinations for.
+
+  Returns:
+    A list of tuples, each representing a subset of run names. Ordered from
+    largest to smallest subset size.
+  """
+  if len(names) > 5:
+    return [tuple(names)] + [(name,) for name in names]
+  combos = []
+  for size in range(len(names), 0, -1):
+    combos.extend(itertools.combinations(names, size))
+  return combos
+
+
+def _build_run_visibility_dropdown(
+    fig: go.Figure,
+    plot_config: FigureProperties,
+    dataset_trace_indices: Mapping[str, list[int]],
+) -> None:
+  """Adds a dropdown to select which runs' traces are shown.
+
+  Each option is a precomputed combination of runs (e.g. "All", a single run,
+  or a "+"-joined pair) that is applied in full on click.
+
+  The dropdown is placed above the legend (which is top-anchored at y=1).
+
+  Args:
+    fig: The figure to add the dropdown to.
+    plot_config: Configuration for the figure layout and subplots.
+    dataset_trace_indices: A mapping ``{dataset_label: trace_indices}`` giving
+      the indices in ``fig.data`` of all traces belonging to each run.
+  """
+  names = list(dataset_trace_indices.keys())
+  if len(names) < 2:
+    return
+
+  all_indices = sorted(
+      itertools.chain.from_iterable(dataset_trace_indices.values())
+  )
+
+  options = []
+  for combo in _run_combinations(names):
+    visible_indices = set(
+        itertools.chain.from_iterable(
+            dataset_trace_indices[name] for name in combo
+        )
+    )
+    visibility = [
+        True if idx in visible_indices else 'legendonly' for idx in all_indices
+    ]
+    label = 'All' if len(combo) == len(names) else ' + '.join(combo)
+    options.append(
+        dict(
+            label=label,
+            method='restyle',
+            args=[{'visible': visibility}, all_indices],
+        )
+    )
+
+  # "Legend" is left-aligned with the legend's left edge, and the dropdown's
+  # left edge is placed immediately after the "Legend" label's right edge.
+  # Plotly cannot report the label's actual rendered width at figure-build
+  # time, so `_LEGEND_LABEL_WIDTH_ESTIMATE` is a rough estimate that may need
+  # adjustment. The two elements share the same y and use yanchor='middle',
+  # so they are exactly vertically centered with respect to each other.
+  dropdown_x = _LEGEND_X + _LEGEND_LABEL_WIDTH_ESTIMATE
+  label_y = _CONTROLS_ROW_Y
+  fig.add_annotation(
+      text='Legend',
+      x=_LEGEND_X,
+      y=label_y,
+      xref='paper',
+      yref='paper',
+      showarrow=False,
+      xanchor='left',
+      yanchor='middle',
+      font=dict(
+          family=plot_config.font_family, size=plot_config.subplot_title_size
+      ),
+  )
+  fig.update_layout(
+      updatemenus=list(fig.layout.updatemenus)
+      + [
+          dict(
+              type='dropdown',
+              direction='down',
+              x=dropdown_x,
+              xanchor='left',
+              y=label_y,
+              yanchor='middle',
+              showactive=True,
+              active=0,
+              buttons=options,
+          )
+      ]
   )
 
 
@@ -938,13 +1064,14 @@ def create_plotly_figure(
   """
   fig = _setup_subplots(plot_config)
 
-  spatial_traces_info, timestamp_line_info = _add_traces_and_update_axes(
-      fig, plot_config, datasets
+  spatial_traces_info, timestamp_line_info, dataset_trace_indices = (
+      _add_traces_and_update_axes(fig, plot_config, datasets)
   )
 
   # Use the first dataset's time as the master clock for the slider.
   first_dataset = next(iter(datasets.values()))
   _update_global_layout(fig, plot_config, title)
+  _build_run_visibility_dropdown(fig, plot_config, dataset_trace_indices)
   _build_slider(
       fig, first_dataset, spatial_traces_info, timestamp_line_info, plot_config
   )
