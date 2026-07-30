@@ -59,9 +59,12 @@ CONFIG = {
         'set_pedestal': True,
     },
     'transport': {
-        'model_name': 'constant',
-        'chi_i': 0.5,
-        'chi_e': 0.5,
+        'model_name': 'combined',
+        'transport_models': [{
+            'model_name': 'constant',
+            'chi_i': 0.5,
+            'chi_e': 0.5,
+        }],
     },
     'solver': {
         'solver_type': 'linear',

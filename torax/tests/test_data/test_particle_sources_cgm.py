@@ -61,10 +61,12 @@ CONFIG = {
         'n_e_ped': 1.0e20,
     },
     'transport': {
-        'model_name': 'CGM',
-        # cgm params.
-        'chi_D_ratio': 8,
-        'VR_D_ratio': {0: -3.0, 1: 0.0},
+        'model_name': 'combined',
+        'transport_models': [{
+            'model_name': 'CGM',
+            'chi_D_ratio': 8,
+            'VR_D_ratio': {0: -3.0, 1: 0.0},
+        }],
     },
     'solver': {
         'solver_type': 'linear',

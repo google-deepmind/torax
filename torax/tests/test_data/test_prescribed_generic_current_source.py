@@ -81,12 +81,12 @@ CONFIG = {
     },
     'pedestal': {},
     'transport': {
-        'model_name': 'constant',
-        # constant params.
-        # diffusion coefficient in electron density equation in m^2/s
-        'D_e': 0.5,
-        # convection coefficient in electron density equation in m^2/s
-        'V_e': -0.2,
+        'model_name': 'combined',
+        'transport_models': [{
+            'model_name': 'constant',
+            'D_e': 0.5,
+            'V_e': -0.2,
+        }],
     },
     'solver': {
         'solver_type': 'linear',
