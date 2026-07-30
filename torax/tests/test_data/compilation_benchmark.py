@@ -65,10 +65,12 @@ CONFIG = {
         'n_e_ped': 1e20,
     },
     'transport': {
-        'model_name': 'qlknn',
-        'qlknn_params': {
+        'model_name': 'combined',
+        'transport_models': [{
+            'model_name': 'qlknn',
             'DV_effective': False,
-        },
+        }],
+        'smoothing_width': 0.1,
     },
     'solver': {
         'solver_type': 'newton_raphson',
