@@ -18,48 +18,44 @@ import copy
 
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
+# Internal import.
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['transport'] = {
-    'model_name': 'tglf',
-    # set inner core transport coefficients (ad-hoc MHD/EM transport)
-    'apply_inner_patch': True,
-    'D_e_inner': 0.25,
-    'V_e_inner': 0.0,
-    'chi_i_inner': 1.0,
-    'chi_e_inner': 1.0,
-    'rho_inner': 0.2,  # radius below which patch transport is applied
-    # set outer core transport coefficients (L-mode near edge region)
-    'apply_outer_patch': True,
-    'D_e_outer': 0.1,
-    'V_e_outer': 0.0,
-    'chi_i_outer': 2.0,
-    'chi_e_outer': 2.0,
-    'rho_outer': 0.9,  # radius above which patch transport is applied
+    'model_name': 'combined',
+    'transport_models': [
+        {
+            'model_name': 'tglf',
+            # TGLF params
+            'tglf_exec_path': '~/gacode/tglf/bin/tglf',
+            'DV_effective': True,
+            'rho_min': 0.15,
+            'rho_max': 0.95,
+        },
+        # set inner core transport coefficients (ad-hoc MHD/EM transport)
+        {
+            'model_name': 'constant',
+            'chi_i': 1.0,
+            'chi_e': 1.0,
+            'D_e': 0.25,
+            'V_e': 0.0,
+            'rho_max': 0.15,
+        },
+        # set outer core transport coefficients (L-mode near edge region)
+        {
+            'model_name': 'constant',
+            'chi_i': 2.0,
+            'chi_e': 2.0,
+            'D_e': 0.1,
+            'V_e': 0.0,
+            'rho_min': 0.95,
+            'rho_max': 1.0,
+        },
+    ],
     # allowed chi and diffusivity bounds
-    'chi_min': 0.05,  # minimum chi
-    'chi_max': 100,  # maximum chi (can be helpful for stability)
-    'D_e_min': 0.05,  # minimum electron diffusivity
-    # Smoothing.
+    'chi_min': 0.05,
+    'chi_max': 100,
+    'D_e_min': 0.05,
     'smoothing_width': 0.1,
-    # TGLF params
-    'n_cores_per_process': 1,
-    'n_processes': 16,
-    'DV_effective': True,
-    'use_legacy_torax_defaults': False,
-    # These settings match the tglfnn-ukaea transport model.
-    'tglf_settings': {
-        'USE_TRANSPORT_MODEL': 2,
-        'NS': 2,
-        'NXGRID': 16,
-        'GEOMETRY_FLAG': 1,
-        'KYGRID_MODEL': 4,
-        'SAT_RULE': 2,
-        'NBASIS_MAX': 6,
-        'NBASIS_MIN': 2,
-        'USE_MHD_RULE': False,
-        'ALPHA_ZF': -1,
-        'FILTER': 2.0,
-    },
 }

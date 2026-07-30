@@ -20,7 +20,7 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
-CONFIG['transport']['rotation_mode'] = 'half_radius'
+CONFIG['transport']['transport_models'][0]['rotation_mode'] = 'half_radius'
 
 # Reference angular velocity used for mach number calculations.
 # omega_ref ~ sqrt(2 * T_i/ m_i) / R_major
@@ -33,7 +33,7 @@ CONFIG['profile_conditions']['toroidal_angular_velocity'] = {
 
 
 # Modify this if you want to scale up or down the effect of rotation.
-CONFIG['transport']['rotation_multiplier'] = 1.0
+CONFIG['transport']['transport_models'][0]['rotation_multiplier'] = 1.0
 # Modify this if you want to scale up or down the poloidal velocity
 # contribution to the rotation.
 CONFIG['neoclassical']['poloidal_velocity_multiplier'] = 1.0
