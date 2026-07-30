@@ -30,7 +30,7 @@ try:
   from torax._src.transport_model.tglf import tglf2py_lib  # pylint: disable=g-import-not-at-top
 
   tglf_interface = tglf2py_lib.tglf_interface
-  _TGLFInterfaceType = tglf2py_lib.TGLFInterface
+  _TGLFInterfaceType = type(tglf2py_lib.tglf_interface)
   _TGLF2pyLibType = types.ModuleType
 except (ImportError, ModuleNotFoundError, AttributeError):
   # At runtime, if the extension fails to import, then set it to None.
