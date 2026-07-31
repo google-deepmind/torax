@@ -26,7 +26,7 @@ from torax._src.torax_pydantic import model_config
 
 # pylint: disable=g-import-not-at-top
 try:
-  from torax._src.transport_model import qualikiz_transport_model
+  from torax._src.transport_model import qualikiz_transport_model  # pylint: disable=unused-import
 
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
 except ImportError:
@@ -48,7 +48,10 @@ class QualikizTransportModelTest(parameterized.TestCase):
 
     # Building the model inputs.
     config = default_configs.get_default_config_dict()
-    config['transport'] = {'model_name': 'qualikiz'}
+    config['transport'] = {
+        'model_name': 'combined',
+        'transport_models': [{'model_name': 'qualikiz'}],
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
@@ -79,7 +82,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
       with mock.patch.object(np, 'loadtxt', side_effect=fake_qualikiz_results):
 
         # Calling the model
-        test_model = qualikiz_transport_model.QualikizTransportModel()
+        test_model = torax_config.transport.build_transport_model()
         model_call = (
             jax.jit(test_model.__call__) if jit else test_model.__call__
         )

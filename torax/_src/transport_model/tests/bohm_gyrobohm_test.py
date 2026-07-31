@@ -15,28 +15,38 @@
 from unittest import mock
 
 from absl.testing import absltest
-import jax.numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
-from torax._src.core_profiles.plasma_composition import ion_mixture
-from torax._src.core_profiles.plasma_composition import plasma_composition
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import bohm_gyrobohm
 
 
 # pylint: disable=invalid-name
 class BohmGyroBohmTest(absltest.TestCase):
 
-  def setUp(self):
-    super().setUp()
+  def _build_model_and_params(self, **bgb_params):
     config = default_configs.get_default_config_dict()
-    config['transport'] = {'model_name': 'bohm-gyrobohm'}
+    config['transport'] = {
+        'model_name': 'combined',
+        # Set min clipping to 0.0 to avoid values being clipped and hiding
+        # results.
+        'chi_min': 0.0,
+        'chi_max': 1e9,
+        'D_e_min': 0.0,
+        'V_e_min': 0.0,
+        'transport_models': [{
+            'model_name': 'bohm-gyrobohm',
+            'D_face_c1': 0.1,
+            'D_face_c2': 0.2,
+            'V_face_coeff': 0.3,
+            **bgb_params,
+        }],
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    self.model = torax_config.transport.build_transport_model()
-    self.geo = torax_config.geometry.build_provider(
+    model = torax_config.transport.build_transport_model()
+    geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
     )
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -46,60 +56,18 @@ class BohmGyroBohmTest(absltest.TestCase):
     )
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
-    self.core_profiles = initialization.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         runtime_params,
-        self.geo,
+        geo,
         source_models,
         neoclassical_models,
     )
-    # pedestal_model_outputs is not used in the transport model; we can mock it.
-    self.pedestal_outputs = mock.create_autospec(object)
-
-  def _create_runtime_params(
-      self,
-      chi_e_bohm_coeff,
-      chi_e_gyrobohm_coeff,
-      chi_i_bohm_coeff,
-      chi_i_gyrobohm_coeff,
-      chi_e_bohm_multiplier,
-      chi_e_gyrobohm_multiplier,
-      chi_i_bohm_multiplier,
-      chi_i_gyrobohm_multiplier,
-  ):
-    """Creates a mock runtime params for the BohmGyroBohm model."""
-    transport_mock = mock.create_autospec(
-        bohm_gyrobohm.RuntimeParams,
+    pedestal_outputs = mock.create_autospec(
+        pedestal_model_output_lib.PedestalModelOutput,
         instance=True,
-        chi_e_bohm_coeff=chi_e_bohm_coeff,
-        chi_e_gyrobohm_coeff=chi_e_gyrobohm_coeff,
-        chi_i_bohm_coeff=chi_i_bohm_coeff,
-        chi_i_gyrobohm_coeff=chi_i_gyrobohm_coeff,
-        D_face_c1=0.1,
-        D_face_c2=0.2,
-        V_face_coeff=0.3,
-        chi_e_bohm_multiplier=chi_e_bohm_multiplier,
-        chi_e_gyrobohm_multiplier=chi_e_gyrobohm_multiplier,
-        chi_i_bohm_multiplier=chi_i_bohm_multiplier,
-        chi_i_gyrobohm_multiplier=chi_i_gyrobohm_multiplier,
+        rho_norm_ped_top=1.0,
     )
-    plasma_composition_mock = mock.create_autospec(
-        plasma_composition.PlasmaComposition,
-        instance=True,
-        Z_eff_face=jnp.ones_like(self.geo.rho_face),
-        main_ion=mock.create_autospec(
-            ion_mixture.RuntimeParams,
-            instance=True,
-            A_avg=2.0,
-        ),
-    )
-
-    runtime_params = mock.create_autospec(
-        runtime_params_lib.RuntimeParams,
-        instance=True,
-        transport=transport_mock,
-        plasma_composition=plasma_composition_mock,
-    )
-    return runtime_params
+    return model, runtime_params, geo, core_profiles, pedestal_outputs
 
   def test_coeff_multiplier_feature(self):
     """Test that modifying coefficients or multipliers equivalently affects outputs.
@@ -109,44 +77,43 @@ class BohmGyroBohmTest(absltest.TestCase):
     the coefficients at default (1) and scaling the multipliers—the computed
     transport coefficients (chi_face_ion and chi_face_el) remain identical.
     """
-    # Configuration A: Set non-default coefficients with all multipliers = 1.
-    dyn_params_A = self._create_runtime_params(
-        chi_e_bohm_coeff=2.0,
-        chi_e_gyrobohm_coeff=3.0,
-        chi_i_bohm_coeff=4.0,
-        chi_i_gyrobohm_coeff=5.0,
-        chi_e_bohm_multiplier=1.0,
-        chi_e_gyrobohm_multiplier=1.0,
-        chi_i_bohm_multiplier=1.0,
-        chi_i_gyrobohm_multiplier=1.0,
+    model_A, runtime_params_A, geo_A, core_profiles_A, pedestal_outputs_A = (
+        self._build_model_and_params(
+            chi_e_bohm_coeff=2.0,
+            chi_e_gyrobohm_coeff=3.0,
+            chi_i_bohm_coeff=4.0,
+            chi_i_gyrobohm_coeff=5.0,
+            chi_e_bohm_multiplier=1.0,
+            chi_e_gyrobohm_multiplier=1.0,
+            chi_i_bohm_multiplier=1.0,
+            chi_i_gyrobohm_multiplier=1.0,
+        )
     )
 
-    # Configuration B: Set coefficients = 1 and adjust multipliers so that the
-    # effective products are the same as in configuration A.
-    dyn_params_B = self._create_runtime_params(
-        chi_e_bohm_coeff=1.0,
-        chi_e_gyrobohm_coeff=1.0,
-        chi_i_bohm_coeff=1.0,
-        chi_i_gyrobohm_coeff=1.0,
-        chi_e_bohm_multiplier=2.0,
-        chi_e_gyrobohm_multiplier=3.0,
-        chi_i_bohm_multiplier=4.0,
-        chi_i_gyrobohm_multiplier=5.0,
+    model_B, runtime_params_B, geo_B, core_profiles_B, pedestal_outputs_B = (
+        self._build_model_and_params(
+            chi_e_bohm_coeff=1.0,
+            chi_e_gyrobohm_coeff=1.0,
+            chi_i_bohm_coeff=1.0,
+            chi_i_gyrobohm_coeff=1.0,
+            chi_e_bohm_multiplier=2.0,
+            chi_e_gyrobohm_multiplier=3.0,
+            chi_i_bohm_multiplier=4.0,
+            chi_i_gyrobohm_multiplier=5.0,
+        )
     )
 
-    output_A = self.model.call_implementation(
-        dyn_params_A.transport,
-        dyn_params_A,
-        self.geo,
-        self.core_profiles,
-        self.pedestal_outputs,
+    output_A = model_A(
+        runtime_params_A,
+        geo_A,
+        core_profiles_A,
+        pedestal_outputs_A,
     )
-    output_B = self.model.call_implementation(
-        dyn_params_B.transport,
-        dyn_params_B,
-        self.geo,
-        self.core_profiles,
-        self.pedestal_outputs,
+    output_B = model_B(
+        runtime_params_B,
+        geo_B,
+        core_profiles_B,
+        pedestal_outputs_B,
     )
 
     np.testing.assert_allclose(output_A.chi_face_ion, output_B.chi_face_ion)
@@ -154,79 +121,79 @@ class BohmGyroBohmTest(absltest.TestCase):
 
   def test_raw_bohm_and_gyrobohm_fields(self):
     """Test that the raw Bohm and gyro-Bohm fields are computed consistently."""
-    # Configuration A: Non-default coefficients with multipliers set to 1.
-    dyn_params_A = self._create_runtime_params(
-        chi_e_bohm_coeff=2.0,
-        chi_e_gyrobohm_coeff=3.0,
-        chi_i_bohm_coeff=4.0,
-        chi_i_gyrobohm_coeff=5.0,
-        chi_e_bohm_multiplier=1.0,
-        chi_e_gyrobohm_multiplier=1.0,
-        chi_i_bohm_multiplier=1.0,
-        chi_i_gyrobohm_multiplier=1.0,
+    model_A, runtime_params_A, geo_A, core_profiles_A, pedestal_outputs_A = (
+        self._build_model_and_params(
+            chi_e_bohm_coeff=2.0,
+            chi_e_gyrobohm_coeff=3.0,
+            chi_i_bohm_coeff=4.0,
+            chi_i_gyrobohm_coeff=5.0,
+            chi_e_bohm_multiplier=1.0,
+            chi_e_gyrobohm_multiplier=1.0,
+            chi_i_bohm_multiplier=1.0,
+            chi_i_gyrobohm_multiplier=1.0,
+        )
     )
 
-    # Configuration B: Coefficients set to 1 and multipliers adjusted so that
-    # the effective products remain the same as in configuration A.
-    dyn_params_B = self._create_runtime_params(
-        chi_e_bohm_coeff=1.0,
-        chi_e_gyrobohm_coeff=1.0,
-        chi_i_bohm_coeff=1.0,
-        chi_i_gyrobohm_coeff=1.0,
-        chi_e_bohm_multiplier=2.0,
-        chi_e_gyrobohm_multiplier=3.0,
-        chi_i_bohm_multiplier=4.0,
-        chi_i_gyrobohm_multiplier=5.0,
+    model_B, runtime_params_B, geo_B, core_profiles_B, pedestal_outputs_B = (
+        self._build_model_and_params(
+            chi_e_bohm_coeff=1.0,
+            chi_e_gyrobohm_coeff=1.0,
+            chi_i_bohm_coeff=1.0,
+            chi_i_gyrobohm_coeff=1.0,
+            chi_e_bohm_multiplier=2.0,
+            chi_e_gyrobohm_multiplier=3.0,
+            chi_i_bohm_multiplier=4.0,
+            chi_i_gyrobohm_multiplier=5.0,
+        )
     )
 
-    output_A = self.model.call_implementation(
-        dyn_params_A.transport,
-        dyn_params_A,
-        self.geo,
-        self.core_profiles,
-        self.pedestal_outputs,
+    output_A = model_A(
+        runtime_params_A,
+        geo_A,
+        core_profiles_A,
+        pedestal_outputs_A,
     )
-    output_B = self.model.call_implementation(
-        dyn_params_B.transport,
-        dyn_params_B,
-        self.geo,
-        self.core_profiles,
-        self.pedestal_outputs,
+    output_B = model_B(
+        runtime_params_B,
+        geo_B,
+        core_profiles_B,
+        pedestal_outputs_B,
     )
 
     # Verify that the raw fields (which are computed before applying the
     # scaling factors) are identical between the two configurations.
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
+    np.testing.assert_allclose(
         output_A.chi_face_el_bohm, output_B.chi_face_el_bohm
     )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
+    np.testing.assert_allclose(
         output_A.chi_face_el_gyrobohm, output_B.chi_face_el_gyrobohm
     )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
+    np.testing.assert_allclose(
         output_A.chi_face_ion_bohm, output_B.chi_face_ion_bohm
     )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
+    np.testing.assert_allclose(
         output_A.chi_face_ion_gyrobohm, output_B.chi_face_ion_gyrobohm
     )
 
     # Verify the raw fields add up to the total fields.
     np.testing.assert_allclose(
-        output_A.chi_face_ion_bohm + output_A.chi_face_ion_gyrobohm,  # pyrefly: ignore[unsupported-operation]
+        output_A.chi_face_ion_bohm + output_A.chi_face_ion_gyrobohm,
         output_A.chi_face_ion,
     )
     np.testing.assert_allclose(
-        output_A.chi_face_el_bohm + output_A.chi_face_el_gyrobohm,  # pyrefly: ignore[unsupported-operation]
+        output_A.chi_face_el_bohm + output_A.chi_face_el_gyrobohm,
         output_A.chi_face_el,
     )
     np.testing.assert_allclose(
-        output_B.chi_face_ion_bohm + output_B.chi_face_ion_gyrobohm,  # pyrefly: ignore[unsupported-operation]
+        output_B.chi_face_ion_bohm + output_B.chi_face_ion_gyrobohm,
         output_B.chi_face_ion,
     )
     np.testing.assert_allclose(
-        output_B.chi_face_el_bohm + output_B.chi_face_el_gyrobohm,  # pyrefly: ignore[unsupported-operation]
+        output_B.chi_face_el_bohm + output_B.chi_face_el_gyrobohm,
         output_B.chi_face_el,
     )
 
 
 if __name__ == '__main__':
   absltest.main()
+

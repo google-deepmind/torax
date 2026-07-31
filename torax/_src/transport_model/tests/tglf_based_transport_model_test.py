@@ -32,9 +32,12 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import combined
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import register_model
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_model as transport_model_lib
+from torax._src.transport_model.tglf import tglf2py
 
 
 def _get_config_and_model_inputs(
@@ -82,20 +85,24 @@ def _get_config_and_model_inputs(
   )
 
 
+def setUpModule():
+  # This model isn't registered by default as it's actually a base class.
+  register_model.register_transport_model(TGLFBasedTransportModelConfig)
+
+
 class TGLFTransportModelTest(parameterized.TestCase):
 
-  def setUp(self):
-    super().setUp()
-    # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
-        "transport"
-    ].annotation |= TGLFBasedTransportModelConfig
-    model_config.ToraxConfig.model_rebuild(force=True)
-
+  @absltest.skipIf(
+      tglf2py.tglf2py_lib is None,
+      "TGLF extension module 'tglf2py_lib' is not compiled/installed.",
+  )
   def test_tglf_based_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
-        "model_name": "tglf_based",
+        "model_name": "combined",
+        "transport_models": [{
+            "model_name": "tglf_based",
+        }],
     })
     transport_model = torax_config.transport.build_transport_model()
 
@@ -109,16 +116,25 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def test_tglf_based_transport_model_prepare_tglf_inputs_shapes(self):
     """Tests that the tglf inputs have the expected shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
-        "model_name": "tglf_based",
+        "model_name": "combined",
+        "transport_models": [{
+            "model_name": "tglf_based",
+        }],
     })
-    transport_model = torax_config.transport.build_transport_model()
-    runtime_params, geo, core_profiles, _ = model_inputs
-    assert isinstance(
-        runtime_params.transport,
-        tglf_based_transport_model.RuntimeParams,
+    transport_model = (
+        torax_config.transport.build_transport_model().transport_models[0]
     )
-    tglf_inputs = transport_model.prepare_tglf_inputs(
-        transport=runtime_params.transport,
+    assert isinstance(
+        transport_model, tglf_based_transport_model.TGLFBasedTransportModel
+    )
+    runtime_params, geo, core_profiles, _ = model_inputs
+    assert isinstance(runtime_params.transport, combined.RuntimeParams)
+    tglf_params = runtime_params.transport.transport_model_params[0]
+    assert isinstance(
+        tglf_params, tglf_based_transport_model.RuntimeParams
+    )
+    tglf_inputs = transport_model._prepare_tglf_inputs(
+        transport=tglf_params,
         geo=geo,
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
@@ -136,25 +152,51 @@ class TGLFTransportModelTest(parameterized.TestCase):
     max_normalized_collisionality = 0.5
     # Get uncapped inputs (max_normalized_collisionality=inf).
     torax_config, uncapped_inputs = _get_config_and_model_inputs({
-        "model_name": "tglf_based",
+        "model_name": "combined",
+        "transport_models": [{
+            "model_name": "tglf_based",
+        }],
     })
     # Get capped inputs.
     _, capped_inputs = _get_config_and_model_inputs({
-        "model_name": "tglf_based",
-        "max_normalized_collisionality": max_normalized_collisionality,
+        "model_name": "combined",
+        "transport_models": [{
+            "model_name": "tglf_based",
+            "max_normalized_collisionality": max_normalized_collisionality,
+        }],
     })
-    transport_model = torax_config.transport.build_transport_model()
+    transport_model = (
+        torax_config.transport.build_transport_model().transport_models[0]
+    )
+    assert isinstance(
+        transport_model, tglf_based_transport_model.TGLFBasedTransportModel
+    )
     runtime_uncapped, geo, core_profiles, _ = uncapped_inputs
     runtime_capped, _, _, _ = capped_inputs
+    assert isinstance(runtime_uncapped.transport, combined.RuntimeParams)
+    assert isinstance(runtime_capped.transport, combined.RuntimeParams)
 
-    uncapped = transport_model.prepare_tglf_inputs(
-        transport=runtime_uncapped.transport,
+    tglf_params_uncapped = (
+        runtime_uncapped.transport.transport_model_params[0]
+    )
+    tglf_params_capped = (
+        runtime_capped.transport.transport_model_params[0]
+    )
+    assert isinstance(
+        tglf_params_uncapped, tglf_based_transport_model.RuntimeParams
+    )
+    assert isinstance(
+        tglf_params_capped, tglf_based_transport_model.RuntimeParams
+    )
+
+    uncapped = transport_model._prepare_tglf_inputs(
+        transport=tglf_params_uncapped,
         geo=geo,
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_uncapped.neoclassical.poloidal_velocity_multiplier,
     )
-    capped = transport_model.prepare_tglf_inputs(
-        transport=runtime_capped.transport,
+    capped = transport_model._prepare_tglf_inputs(
+        transport=tglf_params_capped,
         geo=geo,
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_capped.neoclassical.poloidal_velocity_multiplier,

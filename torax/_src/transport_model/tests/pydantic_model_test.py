@@ -24,6 +24,7 @@ from torax._src.transport_model import bohm_gyrobohm
 from torax._src.transport_model import constant
 from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model as transport_pydantic_model
+from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
@@ -56,7 +57,7 @@ class PydanticModelTest(parameterized.TestCase):
   )
   def test_build_transport_model(
       self,
-      pydantic_model: type[transport_pydantic_model.TransportConfig],
+      pydantic_model: type[pydantic_model_base.TransportBase],
       expected_runtime_params: type[
           transport_model_runtime_params.RuntimeParams
       ],

@@ -31,15 +31,20 @@ from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
-from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
+
+
+def setUpModule():
+  # This model isn't registered by default as it's actually a base class.
+  register_model.register_transport_model(QuasilinearTransportConfig)
+
 
 constants = constants_module.CONSTANTS
 jax.config.update('jax_enable_x64', True)
@@ -53,40 +58,38 @@ def _get_model_and_model_inputs(
   config['transport'] = transport
   config['pedestal'] = {
       'model_name': 'set_T_ped_n_ped',
-      'set_pedestal': True,
+      'set_pedestal': False,
+      'T_i_ped': 4.0,
+      'T_e_ped': 4.0,
+      'n_e_ped': 0.8,
+      'rho_norm_ped_top': 0.93,
   }
   torax_config = model_config.ToraxConfig.from_dict(config)
-  source_models = torax_config.sources.build_models()
-  neoclassical_models = torax_config.neoclassical.build_models()
+
+  model = torax_config.transport.build_transport_model()
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
       torax_config
-  )(
-      t=torax_config.numerics.t_initial,
-  )
-  geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
+  )(t=0.0)
+
+  source_models = torax_config.sources.build_models()
+  neoclassical_models = torax_config.neoclassical.build_models()
+  geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+
   core_profiles = initialization.initial_core_profiles(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
       neoclassical_models=neoclassical_models,
   )
-  source_profiles = source_profile_builders.build_source_profiles(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_models=source_models,
-      neoclassical_models=neoclassical_models,
-      explicit=True,
+
+  pedestal_model_outputs = pedestal_model_output_lib.PedestalModelOutput(
+      rho_norm_ped_top=np.inf,
+      T_i_ped=0.0,
+      T_e_ped=0.0,
+      n_e_ped=0.0,
   )
-  pedestal_model = torax_config.pedestal.build_pedestal_model()
-  pedestal_model_outputs = pedestal_model(
-      runtime_params,
-      geo,
-      core_profiles,
-      source_profiles,
-      pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
-  )
-  return torax_config.transport.build_transport_model(), (
+
+  return model, (
       runtime_params,
       geo,
       core_profiles,
@@ -95,14 +98,6 @@ def _get_model_and_model_inputs(
 
 
 class QuasilinearTransportModelTest(parameterized.TestCase):
-
-  def setUp(self):
-    super().setUp()
-    # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
-        'transport'
-    ].annotation |= QuasilinearTransportConfig
-    model_config.ToraxConfig.model_rebuild(force=True)
 
   # pylint: disable=invalid-name
 
@@ -113,7 +108,10 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         geo,
         core_profiles,
         pedestal_model_outputs,
-    ) = _get_model_and_model_inputs({'model_name': 'quasilinear'})
+    ) = _get_model_and_model_inputs({
+        'model_name': 'combined',
+        'transport_models': [{'model_name': 'quasilinear'}],
+    })
     core_transport = transport_model(
         runtime_params, geo, core_profiles, pedestal_model_outputs
     )
@@ -156,11 +154,15 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
   ):
     """Tests that the DV_effective approach options behaves as expected."""
     model, model_inputs = _get_model_and_model_inputs({
-        'model_name': 'quasilinear',
-        'DV_effective': DV_effective,
-        'An_min': An_min,
+        'model_name': 'combined',
+        'chi_min': 0.0,
         'D_e_min': 0.0,
         'V_e_min': 0.0,
+        'transport_models': [{
+            'model_name': 'quasilinear',
+            'DV_effective': DV_effective,
+            'An_min': An_min,
+        }],
     })
     core_transport = model(*model_inputs)
     self.assertEqual(
@@ -540,18 +542,12 @@ class FakeQuasilinearTransportModel(
         lref_over_lni0=np.array(1.4),
         lref_over_lni1=np.array(1.5),
     )
-    transport = runtime_params.transport
-    # Assert required for pytype.
-    assert isinstance(
-        transport,
-        quasilinear_transport_model.RuntimeParams,
-    )
     return self._make_core_transport(
-        qi=np.ones(geo.rho_face_norm.shape) * 0.4,  # pyrefly: ignore[bad-argument-type]
-        qe=np.ones(geo.rho_face_norm.shape) * 0.5,  # pyrefly: ignore[bad-argument-type]
-        pfe=np.ones(geo.rho_face_norm.shape) * 1.6,  # pyrefly: ignore[bad-argument-type]
+        qi=jnp.full_like(geo.rho_face_norm, 0.4),
+        qe=jnp.full_like(geo.rho_face_norm, 0.5),
+        pfe=jnp.full_like(geo.rho_face_norm, 1.6),
         quasilinear_inputs=quasilinear_inputs,
-        transport=transport,
+        transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         gradient_reference_length=3.0,
