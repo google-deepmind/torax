@@ -41,8 +41,13 @@ from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_model as transport_model_lib
+
+
+def setUpModule():
+  register_model.register_transport_model(FakeTransportConfig)
 
 
 class SimWithTimeDependenceTest(parameterized.TestCase):
@@ -50,10 +55,6 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    # Register the fake transport config.
-    model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
-        'transport'
-    ].annotation |= FakeTransportConfig
     model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
         'solver'
     ].annotation |= FakeSolverConfig
@@ -94,7 +95,10 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         'geometry': {
             'geometry_type': 'circular',
         },
-        'transport': {'model_name': 'fake'},
+        'transport': {
+            'model_name': 'combined',
+            'transport_models': [{'model_name': 'fake'}],
+        },
         'solver': {
             'solver_type': 'fake',
             'inner_solver_iterations': inner_solver_iterations,

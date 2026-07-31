@@ -193,7 +193,10 @@ class ImpurityFractionsTest(parameterized.TestCase):
         'numerics': {'t_final': 5.0, 'fixed_dt': 1.0},
         'geometry': {'geometry_type': 'circular'},
         'sources': {},
-        'transport': {'model_name': 'constant'},
+        'transport': {
+            'model_name': 'combined',
+            'transport_models': [{'model_name': 'constant'}],
+        },
         'solver': {'solver_type': 'linear'},
         'time_step_calculator': {'calculator_type': 'fixed'},
         'pedestal': {},

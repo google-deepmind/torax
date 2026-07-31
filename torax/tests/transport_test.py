@@ -62,7 +62,8 @@ class TransportTest(absltest.TestCase):
     """Tests that the fake transport model returns zeros."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'fake_api',
+        'model_name': 'combined',
+        'transport_models': [{'model_name': 'fake_api'}],
     }
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)
