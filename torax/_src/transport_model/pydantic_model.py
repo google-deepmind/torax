@@ -683,6 +683,3 @@ def _ranges_overlap(
 
   # Overlap condition: start1 < end2 AND start2 < end1
   return (r1_min < r2_max) and (r2_min < r1_max)
-
-
-TransportConfig = CombinedTransportModel | CombinedCompatibleTransportModel  # pytype: disable=invalid-annotation
