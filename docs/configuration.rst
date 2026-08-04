@@ -1399,12 +1399,191 @@ on-the-fly onto the TORAX time slices where the PDE calculations are done.
 transport
 ---------
 
-Select and configure various transport models. The dictionary consists of keys
-common to all transport models, and additional keys pertaining to a specific
-transport model.
+In TORAX, turbulent transport models for the core and pedestal are combined
+under a single required top-level model container: the **combined** transport
+model (``model_name: 'combined'``, which is the default). Note that neoclassical
+transport is configured separately under the ``neoclassical`` section.
 
-``model_name`` (str [default = 'constant'])
-  Select the transport model according to the following options:
+The combined model calculates turbulent transport coefficients by
+sequentially applying a list of component models. Each component model is
+active only within its defined radial domain, which can be overlapping or
+non-overlapping. Top-level post-processing (min/max clipping and Gaussian
+smoothing) is performed on the summed coefficients from all component models
+across the core and pedestal. These combined coefficients are then added to the
+neoclassical transport coefficients to form the total transport coefficients
+used in the transport PDEs.
+
+Top-level Combined Parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``model_name`` (str [default = 'combined'])
+  Must be set to ``'combined'``.
+
+``transport_models`` (list[dict] [default = []])
+  A list containing config dicts for the component models for turbulent
+  transport in the core. For each component model, ``rho_min`` and ``rho_max``
+  are set to define its active radial domain. If a pedestal is active and
+  configured with an internal boundary condition, the core ``rho_max`` is
+  overridden by max(``rho_max``, ``rho_norm_ped_top``), where
+  ``rho_norm_ped_top`` is set in the ``pedestal`` config.
+
+``pedestal_transport_models`` (list[dict] [default = []])
+  A list containing config dicts for the component models for turbulent
+  transport in the pedestal. The pedestal transport model is active only for
+  radii above ``rho_norm_ped_top``. ``rho_min`` and ``rho_max`` are ignored in
+  these models, and an error is raised if they are specified.
+
+``chi_min`` (float [default = 0.05])
+  Lower allowed bound for heat conductivities :math:`\chi` across all models,
+  in units of :math:`m^2/s`.
+
+``chi_max`` (float [default = 100.0])
+  Upper allowed bound for heat conductivities :math:`\chi` across all models,
+  in units of :math:`m^2/s`.
+
+``D_e_min`` (float [default = 0.05])
+  Lower allowed bound for particle diffusivity :math:`D` across all models,
+  in units of :math:`m^2/s`.
+
+``D_e_max`` (float [default = 100.0])
+  Upper allowed bound for particle diffusivity :math:`D` across all models,
+  in units of :math:`m^2/s`.
+
+``V_e_min`` (float [default = -50.0])
+  Lower allowed bound for particle convection :math:`V` across all models,
+  in units of :math:`m^2/s`.
+
+``V_e_max`` (float [default = 50.0])
+  Upper allowed bound for particle convection :math:`V` across all models,
+  in units of :math:`m^2/s`.
+
+``smoothing_width`` (float [default = 0.0])
+  Width of HWHM Gaussian smoothing kernel operating on combined transport model
+  outputs. Note that if a QLKNN surrogate model (such as ``qlknn`` / ``QLKNN_7_11``)
+  is used and ``smoothing_width`` is set to ``0.0``, a warning is logged
+  recommending non-zero smoothing to avoid sharp numerical artifacts.
+
+``smoothing_zones`` (list[dict] [default = []])
+  Optional list of configuration dictionaries specifying radial zones with
+  distinct Gaussian smoothing widths. Each zone dictionary specifies
+  ``rho_min``, ``rho_max``, and ``smoothing_width``. When ``smoothing_zones`` is
+  provided, the smoothing kernel width :math:`\sigma(\hat{\rho})` varies
+  spatially across the radial grid: inside each defined zone
+  :math:`(\text{rho\_min}, \text{rho\_max}]`, the
+  zone's specific ``smoothing_width`` is used, while outside all defined zones,
+  the smoothing width is set to ``0.0`` (no smoothing). The top-level
+  ``smoothing_width`` parameter is used only when ``smoothing_zones`` is empty.
+
+Combining Logic and Merge Modes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The combination logic is controlled by the ``merge_mode`` of each component
+model inside ``transport_models`` and ``pedestal_transport_models``:
+
+*   **ADD (default)**: The model's coefficients are added to the accumulated
+    total in its active region. However, it does not contribute to regions
+    and channels covered by an OVERWRITE model.
+*   **OVERWRITE**: The model is the sole contributor to the transport
+    coefficients in its active region, for enabled transport channels. It
+    **locks** this region for the specific transport channels it provides,
+    preventing other models in the list from modifying them.
+
+You can selectively enable or disable specific transport channels (e.g.,
+``chi_i``, ``D_e``) for each model using flags like ``disable_chi_i``.
+Disabled channels are "transparent" in OVERWRITE mode; they do not overwrite
+existing values and do not set a lock. An example of when this could be useful
+is when using one model for heat transport across the entire radial range, but
+then using another model specifically for particle transport within
+a restricted range, e.g. towards the LCFS.
+
+Examples:
+
+.. code-block:: python
+
+  ...
+  'transport': {
+      'model_name': 'combined',
+      'transport_models': [
+          {
+              'model_name': 'constant',
+              'chi_i': 1.0,
+              'rho_max': 0.3,
+          },
+          {
+              'model_name': 'constant',
+              'chi_i': 2.0,
+              'rho_min': 0.2,
+          },
+      ],
+      'pedestal_transport_models': [
+          {
+              'model_name': 'constant',
+              'chi_i': 0.5,
+          },
+      ],
+    },
+    'pedestal': {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
+        'rho_norm_ped_top': 0.9,
+        'n_e_ped': 0.8,
+        'n_e_ped_is_fGW': True,
+    },
+    ...
+
+This would produce a ``chi_i`` profile that looks like the following.
+
+.. image:: images/combined_transport_example.png
+  :width: 400
+  :alt: A stepwise constant chi_i profile
+
+Note that in the region :math:`[0, 0.2]`, only the first component is active,
+so ``chi_i = 1.0``. In :math:`(0.2, 0.3]` the first two components are both
+active, leading to a combined value of ``chi_i = 3.0``. In :math:`(0.3, 0.9]`,
+only the second model is active (``chi_i = 2.0``), and in :math:`(0.9, 1.0]`
+only the pedestal transport model is active (``chi_i = 0.5``).
+
+The code for generating the plot above is found in
+docs/scripts/combined_transport_example.py.
+
+The next example shows how to apply a physics-based model (QLKNN) in the core,
+but enforcing specific transport coefficients in the edge region using a
+Constant model with ``OVERWRITE`` mode, effectively overriding the core model
+in that region. This is useful e.g. for L-mode modelling.
+
+.. code-block:: python
+
+  'transport': {
+      'model_name': 'combined',
+      'transport_models': [
+          # Base model: QLKNN applied everywhere (default ADD)
+          {
+              'model_name': 'qlknn',
+              'rho_max': 1.0,
+          },
+          # Edge overwrite: Sets D_e and V_e in the edge, ignoring QLKNN there.
+          # Keeps chi_i/chi_e from QLKNN (because they are disabled here).
+          {
+              'model_name': 'constant',
+              'rho_min': 0.9,
+              'D_e': 0.5,
+              'V_e': -1.0,
+              'merge_mode': 'overwrite',
+              'disable_chi_i': True,
+              'disable_chi_e': True,
+          },
+      ],
+    },
+
+Component Transport Models
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Component models are specified inside ``transport_models`` and
+``pedestal_transport_models``. The following runtime parameters are common to
+all component models:
+
+``model_name`` (str)
+  Select the component transport model according to the following options:
 
 * ``'constant'``
   Constant transport coefficients.
@@ -1423,9 +1602,6 @@ transport model.
   gyrokinetic transport model.
 * ``'tglf'``
   The TGLF quasilinear turbulent transport model.
-* ``'combined'``
-  An additive transport model, where contributions from a list of component
-  models are summed to produce a combined total.
 
 ``rho_min`` (**time-varying-scalar**  [default = 0.0])
   :math:`\hat{\rho}` above which the transport model is applied. For
@@ -1441,33 +1617,13 @@ transport model.
   Note that ``rho_min`` and ``rho_max`` must have the same interpolation mode
   to simplify the validation test ``rho_min < rho_max`` at all times.
 
-``chi_min`` (float [default = 0.05])
-  Lower allowed bound for heat conductivities :math:`\chi`, in units of
-  :math:`m^2/s`.
+``merge_mode`` (str [default = 'add'])
+  Combination mode for this component: ``'add'`` or ``'overwrite'``.
 
-``chi_max`` (float [default = 100.0])
-  Upper allowed bound for heat conductivities :math:`\chi`, in units of
-  :math:`m^2/s`.
-
-``D_e_min`` (float [default = 0.05])
-  Lower allowed bound for particle diffusivity :math:`D`, in units of
-  :math:`m^2/s`.
-
-``D_e_max`` (float [default = 100.0])
-  Upper allowed bound for particle conductivity :math:`D`, in units of
-  :math:`m^2/s`.
-
-``V_e_min`` (float [default = -50.0])
-  Lower allowed bound for particle convection :math:`V`, in units of
-  :math:`m^2/s`.
-
-``V_e_max`` (float [default = 50.0])
-  Upper allowed bound for particle convection :math:`V`, in units of
-  :math:`m^2/s`.
-
-``smoothing_width`` (float [default = 0.0])
-  Width of HWHM Gaussian smoothing kernel operating on transport model outputs.
-  If using the ``QLKNN_7_11`` transport model, the default is set to 0.1.
+``disable_chi_i``, ``disable_chi_e``, ``disable_D_e``, ``disable_V_e``
+(bool [default = False])
+  If ``True``, disables contribution from this channel to the overall transport
+  coefficients.
 
 ``fast_ion_stabilization`` (**time-varying-scalar** [default = False])
   If ``True``, apply a fast ion stabilization correction to the :math:`R/L_{Ti}`
@@ -1494,10 +1650,10 @@ transport model.
 constant
 ^^^^^^^^
 
-Runtime parameters for the prescribed transport model. This model can be used
-to implement constant coefficients (e.g. ``chi_i`` = 1.0 for all rho), as well as
-time-varying prescribed transport profiles of arbitrary form (such as an
-exponential decay) using the time-varying-array syntax.
+Runtime parameters for the constant transport model. This model can be used
+to implement constant coefficients (e.g. ``chi_i`` = 1.0 for all rho), as well
+as time-varying transport profiles of arbitrary form (such as an exponential
+decay) using the time-varying-array syntax.
 
 ``chi_i`` (**time-varying-array** [default = 1.0])
   Ion heat conductivity. In units of :math:`m^2/s`.
@@ -1830,141 +1986,6 @@ Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
   *Deprecated.* If ``True``, use legacy TORAX defaults for TGLF parameters.
   Otherwise, use the defaults distributed with TGLF. Note that in a future release,
   this option will be removed and the defaults will be those distributed with TGLF.
-
-
-combined
-^^^^^^^^
-
-A combined model where the total transport coefficients are calculated by
-sequentially applying a list of component models. Each component model is
-active only within its defined radial domain, which can be overlapping or
-non-overlapping.
-
-The combination logic is controlled by the ``merge_mode`` of each component
-model:
-
-*   **ADD (default)**: The model's coefficients are added to the accumulated
-    total in its active region. However, it does not contribute to regions
-    and channels covered by an OVERWRITE model.
-*   **OVERWRITE**: The model is the sole contributor to the transport
-    coefficients in its active region, for enabled transport channels. It
-    **locks** this region for the specific transport channels it provides,
-    preventing other models in the list from modifying them.
-
-You can selectively enable or disable specific transport channels (e.g.,
-``chi_i``, ``D_e``) for each model using flags like ``disable_chi_i``.
-Disabled channels are "transparent" in OVERWRITE mode; they do not overwrite
-existing values and do not set a lock. An example of when this could be useful
-is when using one model for heat transport across the entire radial range, but
-then using another model specifically for particle transport within
-a restricted range, e.g. towards the LCFS.
-
-Two separate lists of transport models can be provided:
-
-``transport_models`` (list[dict])
-  A list containing config dicts for the component models for turbulent
-  transport in the core. For each component model, ``rho_min`` and ``rho_max``
-  are set to define the active region. If a pedestal is active, the core
-  ``rho_max`` is overridden by max(``rho_max``, ``rho_norm_ped_top``), where
-  ``rho_norm_ped_top`` is set in the ``pedestal`` config, and not in the
-  ``transport_models`` dict.
-
-``pedestal_transport_models`` (list[dict])
-  A list containing config dicts for the component models for turbulent
-  transport in the pedestal. The pedestal transport model is active only for
-  radii above ``rho_norm_ped_top``. ``rho_min`` and ``rho_max`` are ignored,
-  and an error is raised if they are specified.
-
-   .. warning::
-    TORAX will throw a ``ValueError`` if any of the component transport
-    model configs have ``apply_inner_patch`` or ``apply_outer_patch`` set
-    to True. Patches must be set in the config of the ``combined`` model
-    only.
-
-Post-processing (clipping and smoothing) is performed on the summed
-values from all component models, including in the pedestal.
-
-
-Examples:
-
-.. code-block:: python
-
-  ...
-  'transport': {
-      'model_name': 'combined',
-      'transport_models': [
-          {
-              'model_name': 'constant',
-              'chi_i': 1.0,
-              'rho_max': 0.3,
-          },
-          {
-              'model_name': 'constant',
-              'chi_i': 2.0,
-              'rho_min': 0.2,
-          },
-      ],
-      'pedestal_transport_models': [
-          {
-              'model_name': 'constant',
-              'chi_i': 0.5,
-          },
-      ],
-    },
-    'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-        'rho_norm_ped_top': 0.9,
-        'n_e_ped': 0.8,
-        'n_e_ped_is_fGW': True,
-    },
-    ...
-
-This would produce a ``chi_i`` profile that looks like the following.
-
-.. image:: images/combined_transport_example.png
-  :width: 400
-  :alt: A stepwise constant chi_i profile
-
-Note that in the region :math:`[0, 0.2]`, only the first component is active,
-so ``chi_i = 1.0``. In :math:`(0.2, 0.3]` the first two components are both
-active, leading to a combined value of ``chi_i = 3.0``. In :math:`(0.3, 0.9]`,
-only the second model is active (``chi_i = 2.0``), and in :math:`(0.9, 1.0]`
-only the pedestal transport model is active (``chi_i = 0.5``).
-
-The code for generating the plot above is found in
-docs/scripts/combined_transport_example.py.
-
-The next example shows how to apply a physics-based model (QLKNN) in the core,
-but enforcing specific transport coefficients in the edge region using a
-Constant model with ``OVERWRITE`` mode, effectively overriding the core model
-in that region. This is useful e.g. for L-mode modelling. This example is more
-powerful than using the outer_patch API, since we here have fine-grained
-control over each transport channel.
-
-.. code-block:: python
-
-  'transport': {
-      'model_name': 'combined',
-      'transport_models': [
-          # Base model: QLKNN applied everywhere (default ADD)
-          {
-              'model_name': 'qlknn',
-              'rho_max': 1.0,
-          },
-          # Edge overwrite: Sets D_e and V_e in the edge, ignoring QLKNN there.
-          # Keeps chi_i/chi_e from QLKNN (because they are disabled here).
-          {
-              'model_name': 'constant',
-              'rho_min': 0.9,
-              'D_e': 0.5,
-              'V_e': -1.0,
-              'merge_mode': 'overwrite',
-              'disable_chi_i': True,
-              'disable_chi_e': True,
-          },
-      ],
-    },
 
 sources
 -------
