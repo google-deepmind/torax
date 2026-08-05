@@ -16,7 +16,6 @@
 
 import copy
 import dataclasses
-import itertools
 from typing import Annotated, Any, Literal, Sequence
 from absl import logging
 import chex
@@ -34,6 +33,8 @@ from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import qualikiz_based_transport_model
+from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import runtime_params
 from torax._src.transport_model import tglfnn_ukaea_transport_model
 from torax._src.transport_model.tglf import tglf_transport_model
 import typing_extensions
@@ -170,9 +171,6 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         # The QLK version this specific QLKNN was trained on tends to
         # underpredict ITG electron heat flux in shaped, high-beta scenarios.
         data['ITG_flux_ratio_correction'] = 2.0
-    else:
-      if 'smoothing_width' not in data:
-        data['smoothing_width'] = 0.1
     return data
 
   def build_transport_model(self) -> qlknn_transport_model.QLKNNTransportModel:
@@ -457,14 +455,19 @@ class SmoothingZone(torax_pydantic.BaseModelFrozen):
   smoothing_width: pydantic.NonNegativeFloat
 
 
-class CombinedTransportModel(pydantic_model_base.TransportBase):
+class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
   """Model for the Combined transport model.
-
-  Note: smoothing and patches should be applied on the combined model, not the
-  individual component models.
 
   Attributes:
     model_name: The transport model to use. Hardcoded to 'combined'.
+    chi_min: Lower bound on heat conductivity.
+    chi_max: Upper bound on heat conductivity (can be helpful for stability).
+    D_e_min: minimum electron density diffusivity.
+    D_e_max: maximum electron density diffusivity.
+    V_e_min: minimum electron density convection.
+    V_e_max: maximum electron density convection.
+    smoothing_width: Width of HWHM Gaussian smoothing kernel operating on
+      transport model outputs.
     transport_models: A sequence of transport models, whose outputs will be
       summed to give the combined core transport coefficients.
     pedestal_transport_models: A sequence of models that will be combined for
@@ -475,6 +478,13 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
       means that zone will not be used for the smoothing of other zones.
   """
 
+  chi_min: torax_pydantic.MeterSquaredPerSecond = 0.05
+  chi_max: torax_pydantic.MeterSquaredPerSecond = 100.0
+  D_e_min: torax_pydantic.MeterSquaredPerSecond = 0.05
+  D_e_max: torax_pydantic.MeterSquaredPerSecond = 100.0
+  V_e_min: torax_pydantic.MeterPerSecond = -50.0
+  V_e_max: torax_pydantic.MeterPerSecond = 50.0
+  smoothing_width: pydantic.NonNegativeFloat = 0.0
   # TODO(b/434175938) V2: rename `transport_models` to `core_transport_models`
   transport_models: Sequence[CombinedCompatibleTransportModel] = pydantic.Field(
       default_factory=list
@@ -505,8 +515,9 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
         pedestal_transport_models=pedestal_transport_models,
     )
 
-  def build_runtime_params(self, t: chex.Numeric) -> combined.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.CombinedRuntimeParams:
     transport_model_params = tuple(
         model.build_runtime_params(t) for model in self.transport_models
     )
@@ -518,34 +529,24 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
     smoothing_zones = []
     for zone in self.smoothing_zones:
       smoothing_zones.append(
-          combined.SmoothingZoneParams(
+          runtime_params.SmoothingZoneParams(
               rho_min=zone.rho_min,
               rho_max=zone.rho_max,
               smoothing_width=zone.smoothing_width,
           )
       )
-    return combined.RuntimeParams(
+    return runtime_params.CombinedRuntimeParams(
+        chi_min=self.chi_min,
+        chi_max=self.chi_max,
+        D_e_min=self.D_e_min,
+        D_e_max=self.D_e_max,
+        V_e_min=self.V_e_min,
+        V_e_max=self.V_e_max,
+        smoothing_width=self.smoothing_width,
         transport_model_params=transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
         smoothing_zones=tuple(smoothing_zones),
-        **base_kwargs,
     )
-
-  @pydantic.model_validator(mode='after')
-  def _check_no_smoothing_in_components(self) -> typing_extensions.Self:
-    for model_list in ['transport_models', 'pedestal_transport_models']:
-      for i, model in enumerate(getattr(self, model_list)):
-        if model.smoothing_width > 0.0:
-          logging.warning(
-              'smoothing_width > 0.0 is not supported for component models of'
-              ' CombinedTransportModel; instead, smoothing_width should be set'
-              ' on the CombinedTransportModel itself. Smoothing width set on %s'
-              ' component %i (%s) will be ignored.',
-              model_list,
-              i,
-              model.model_name,
-          )
-    return self
 
   @pydantic.model_validator(mode='after')
   def _check_smoothing_width_minimum(self) -> typing_extensions.Self:
@@ -566,29 +567,24 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    super()._check_fields()  # pyrefly: ignore[not-callable]
-    if (
-        any([
-            np.any(model.apply_inner_patch.value)
-            or np.any(model.apply_outer_patch.value)
-            # Use itertools.chain to iterate over both lists of models without
-            # needing to make a new list.
-            for model in itertools.chain(
-                self.transport_models, self.pedestal_transport_models
-            )
-        ])
-        or np.any(self.apply_inner_patch.value)
-        or np.any(self.apply_outer_patch.value)
-    ):
-      raise ValueError(
-          'apply_inner_patch and apply_outer_patch not supported for'
-          ' CombinedTransportModel or its component models.'
+    if not self.chi_min < self.chi_max:
+      raise ValueError('chi_min must be less than chi_max.')
+    if not self.D_e_min < self.D_e_max:
+      raise ValueError('D_e_min must be less than D_e_max.')
+    if not self.V_e_min < self.V_e_max:
+      raise ValueError('V_e_min must be less than V_e_max.')
+    if self.smoothing_width == 0.0:
+      has_quasilinear = any(
+          isinstance(m, quasilinear_transport_model.QuasilinearTransportModel)
+          for m in list(self.transport_models)
+          + list(self.pedestal_transport_models)
       )
-    if np.any(self.rho_min.value != 0.0) or np.any(self.rho_max.value != 1.0):
-      raise ValueError(
-          'rho_min and rho_max should not be set for CombinedTransportModel, as'
-          ' it should be applied across the whole rho domain.'
-      )
+      if has_quasilinear:
+        logging.warning(
+            'A quasilinear transport model is configured in being used with '
+            'a smoothing_width=0. Stiff QLKNN transport coefficients '
+            'without spatial smoothing may degrade solver convergence.'
+        )
     if any([
         np.any(model.rho_min.value != 0.0) or np.any(model.rho_max.value != 1.0)
         for model in self.pedestal_transport_models

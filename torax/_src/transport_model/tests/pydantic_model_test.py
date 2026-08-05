@@ -97,7 +97,6 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(
         transport, transport_pydantic_model.QLKNNTransportModel
     )
-    self.assertEqual(transport.smoothing_width, 0.1)
     self.assertEqual(transport.ETG_correction_factor, 1.0 / 3.0)
 
   @parameterized.parameters(
@@ -151,36 +150,15 @@ class PydanticModelTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       (
-          'mixed_modes_inner_outer_fails',
-          {'rho_inner': 0.3, 'rho_outer': ({0: 0.9}, 'step')},
-          'rho_outer and rho_inner must have the same interpolation mode.',
-          True,
-      ),
-      (
           'mixed_modes_min_max_fails',
           {'rho_min': 0.0, 'rho_max': ({0: 1.0}, 'step')},
           'rho_max and rho_min must have the same interpolation mode.',
           True,
       ),
       (
-          'inner_greater_than_outer_fails',
-          {'rho_inner': 0.9, 'rho_outer': 0.3},
-          'rho_outer must be greater than rho_inner for all time.',
-          True,
-      ),
-      (
           'min_greater_than_max_fails',
           {'rho_min': 0.9, 'rho_max': 0.3},
           'rho_max must be greater than rho_min for all time.',
-          True,
-      ),
-      (
-          'time_varying_inner_gt_outer_fails',
-          {
-              'rho_inner': {0: 0.3, 1: 0.95},
-              'rho_outer': {0: 0.9, 1: 0.9},
-          },
-          'rho_outer must be greater than rho_inner for all time.',
           True,
       ),
       (
@@ -195,8 +173,6 @@ class PydanticModelTest(parameterized.TestCase):
       (
           'time_varying_linear_succeeds',
           {
-              'rho_inner': {0: 0.2, 1: 0.3},
-              'rho_outer': {0: 0.8, 1: 0.9},
               'rho_min': {0: 0.0, 1: 0.1},
               'rho_max': {0: 1.0, 1: 0.95},
           },
@@ -206,8 +182,6 @@ class PydanticModelTest(parameterized.TestCase):
       (
           'time_varying_step_succeeds',
           {
-              'rho_inner': ({0: 0.2, 1: 0.3}, 'step'),
-              'rho_outer': ({0: 0.8, 1: 0.9}, 'step'),
               'rho_min': ({0: 0.0, 1: 0.1}, 'step'),
               'rho_max': ({0: 1.0, 1: 0.95}, 'step'),
           },
@@ -464,38 +438,6 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r" channels \['chi_e'\] in overlapping radial zones",
     ):
       transport_pydantic_model.CombinedTransportModel(transport_models=[m1, m2])
-
-  def test_smoothing_in_combined_core_component_logs_warning(self):
-    component_model = transport_pydantic_model.ConstantTransportModel(
-        smoothing_width=0.1
-    )
-    with self.assertLogs(level='WARNING') as log_watcher:
-      transport_pydantic_model.CombinedTransportModel(
-          transport_models=[component_model]
-      )
-    self.assertLen(log_watcher.output, 1)
-    self.assertIn(
-        'smoothing_width > 0.0 is not supported for component models of'
-        ' CombinedTransportModel',
-        log_watcher.output[0],
-    )
-
-  def test_smoothing_in_combined_pedestal_component_logs_warning(
-      self,
-  ):
-    component_model = transport_pydantic_model.ConstantTransportModel(
-        smoothing_width=0.1
-    )
-    with self.assertLogs(level='WARNING') as log_watcher:
-      transport_pydantic_model.CombinedTransportModel(
-          pedestal_transport_models=[component_model]
-      )
-    self.assertLen(log_watcher.output, 1)
-    self.assertIn(
-        'smoothing_width > 0.0 is not supported for component models of'
-        ' CombinedTransportModel',
-        log_watcher.output[0],
-    )
 
 
 if __name__ == '__main__':

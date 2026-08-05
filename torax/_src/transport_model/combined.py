@@ -18,14 +18,13 @@ A class for combining transport models.
 """
 
 import dataclasses
-from typing import Callable, Sequence, Tuple
-import chex
+from typing import Callable, Sequence
 import jax
 import jax.numpy as jnp
-from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
@@ -37,27 +36,8 @@ from torax._src.transport_model import transport_model as transport_model_lib
 MIN_SMOOTHING_WIDTH = 1e-5
 
 
-@chex.dataclass
-class SmoothingZoneParams:
-  rho_min: array_typing.FloatScalar
-  rho_max: array_typing.FloatScalar
-  smoothing_width: array_typing.FloatScalar
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
-  """Runtime parameters for the CombinedTransportModel."""
-
-  transport_model_params: Tuple[transport_runtime_params_lib.RuntimeParams, ...]
-  pedestal_transport_model_params: Tuple[
-      transport_runtime_params_lib.RuntimeParams, ...
-  ]
-  smoothing_zones: Tuple[SmoothingZoneParams, ...]
-
-
 @dataclasses.dataclass(frozen=True, eq=False)
-class CombinedTransportModel(transport_model_lib.TransportModel):
+class CombinedTransportModel(static_dataclass.StaticDataclass):
   """Combines coefficients from a tuple of transport models."""
 
   transport_models: tuple[transport_model_lib.TransportModel, ...]
@@ -82,7 +62,6 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
         core_profiles,
         pedestal_model_output,
     )
-
     # Apply min/max clipping
     transport_coeffs = self._apply_clipping(
         transport_runtime_params,
@@ -100,7 +79,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.CombinedRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -110,7 +89,8 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
     Args:
       transport_runtime_params: Input runtime parameters for this transport
-        model. Can change without triggering a JAX recompilation.
+        model (expected to be an instance of CombinedRuntimeParams at runtime).
+        Can change without triggering a JAX recompilation.
       runtime_params: Runtime parameters for the simulation at the current time.
       geo: Geometry of the torus at the current time.
       core_profiles: Core plasma profiles.
@@ -119,9 +99,6 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
     Returns:
       coeffs: The transport coefficients
     """
-    # Required for pytype
-    assert isinstance(transport_runtime_params, RuntimeParams)
-
     core_coeffs = self._combine(
         self.transport_models,
         transport_runtime_params.transport_model_params,
@@ -247,11 +224,10 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
   def _apply_clipping(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.CombinedRuntimeParams,
       transport_coeffs: transport_model_lib.TurbulentTransport,
   ) -> transport_model_lib.TurbulentTransport:
     """Applies min/max clipping to transport coefficients for PDE stability."""
-    assert isinstance(transport_runtime_params, RuntimeParams)
     chi_face_ion = jnp.clip(
         transport_coeffs.chi_face_ion,
         transport_runtime_params.chi_min,
@@ -289,7 +265,6 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
-    assert isinstance(runtime_params.transport, RuntimeParams)
     smoothing_matrix = _build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -306,7 +281,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
           lambda: jnp.dot(smoothing_matrix, coeff),
       )
 
-    return jax.tree_util.tree_map(smooth_single_coeff, transport_coeffs)
+    return jax.tree.map(smooth_single_coeff, transport_coeffs)
 
 
 def _add_optional(
@@ -331,14 +306,16 @@ def _pedestal_domain_mask(
 
 
 def _build_smoothing_matrix(
-    transport_runtime_params: RuntimeParams,
+    transport_runtime_params: (
+        transport_runtime_params_lib.CombinedRuntimeParams
+    ),
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Builds a smoothing matrix for the combined transport model."""
   # To reduce the range of the convolution, weights under lower_cutoff are
-  # clipped to zero
+  # clipped to zero.
   lower_cutoff = 0.01
   # used for eps, small number to avoid divisions by zero for sigma = 0
   consts = constants.CONSTANTS

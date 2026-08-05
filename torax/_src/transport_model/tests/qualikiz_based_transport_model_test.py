@@ -32,7 +32,6 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import combined
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import register_model
@@ -130,7 +129,6 @@ class QualikizTransportModelTest(parameterized.TestCase):
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
     runtime_params, geo, core_profiles, _ = model_inputs
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     qualikiz_params = runtime_params.transport.transport_model_params[0]
     assert isinstance(
         qualikiz_params, qualikiz_based_transport_model.RuntimeParams
@@ -195,8 +193,6 @@ class QualikizTransportModelTest(parameterized.TestCase):
     )
     runtime_params_uncapped, geo, core_profiles, _ = uncapped_inputs
     runtime_params_capped, _, _, _ = capped_inputs
-    assert isinstance(runtime_params_uncapped.transport, combined.RuntimeParams)
-    assert isinstance(runtime_params_capped.transport, combined.RuntimeParams)
 
     qualikiz_params_uncapped = (
         runtime_params_uncapped.transport.transport_model_params[0]

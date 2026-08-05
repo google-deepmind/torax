@@ -30,7 +30,6 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import combined
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
@@ -245,9 +244,8 @@ class TransportMaskingTest(parameterized.TestCase):
         chi_face_ion_bohm=None,
     )
 
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     # Test preservation when enabled
-    new_coeffs = model.zero_out_disabled_channels(
+    new_coeffs = model.transport_models[0].zero_out_disabled_channels(
         runtime_params.transport.transport_model_params[0], coeffs
     )
     self.assertIsNone(new_coeffs.chi_face_ion_bohm)
@@ -264,7 +262,6 @@ class TransportMaskingTest(parameterized.TestCase):
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=0.0)
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
 
     coeffs = transport_model_lib.TurbulentTransport(
         chi_face_ion=jnp.array([1.0]),
@@ -279,7 +276,7 @@ class TransportMaskingTest(parameterized.TestCase):
         runtime_params.transport.transport_model_params[0],
         disable_chi_i=True,
     )
-    new_coeffs_disabled = model.zero_out_disabled_channels(
+    new_coeffs_disabled = model.transport_models[0].zero_out_disabled_channels(
         disabled_params, coeffs
     )
     self.assertIsNone(new_coeffs_disabled.chi_face_ion_bohm)

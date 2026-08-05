@@ -24,6 +24,7 @@ from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import combined
 from torax._src.transport_model import enums
+from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
@@ -151,7 +152,6 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     matrix = combined._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -175,7 +175,6 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     matrix = combined._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -204,7 +203,6 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     matrix = combined._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -243,7 +241,6 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.8,
     )
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     matrix = combined._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -378,37 +375,6 @@ class CombinedTransportModelTest(absltest.TestCase):
             > coeffs_small.chi_face_ion[idx_left]
         )
     )
-
-  def test_error_if_patches_set_on_children(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
-        'model_name': 'combined',
-        'transport_models': [
-            {'model_name': 'constant', 'apply_inner_patch': True},
-            {'model_name': 'constant'},
-        ],
-        'pedestal_transport_models': [{'model_name': 'constant'}],
-    }
-    with self.assertRaisesRegex(
-        ValueError, '(?=.*patch)(?=.*CombinedTransportModel)'
-    ):
-      model_config.ToraxConfig.from_dict(config)
-
-  def test_error_if_patches_set_on_self(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
-        'model_name': 'combined',
-        'transport_models': [
-            {'model_name': 'constant'},
-            {'model_name': 'constant'},
-        ],
-        'pedestal_transport_models': [{'model_name': 'constant'}],
-        'apply_inner_patch': True,
-    }
-    with self.assertRaisesRegex(
-        ValueError, '(?=.*patch)(?=.*CombinedTransportModel)'
-    ):
-      model_config.ToraxConfig.from_dict(config)
 
   def test_error_if_pedestal_model_defines_rho_min(self):
     config = default_configs.get_default_config_dict()
@@ -610,7 +576,7 @@ class CombinedTransportModelTest(absltest.TestCase):
 
     # We need a RuntimeParams for combined model
     combined_params = mock.create_autospec(
-        combined.RuntimeParams, instance=True
+        transport_runtime_params_lib.CombinedRuntimeParams, instance=True
     )
     combined_params.transport_model_params = [mock_params]
     combined_params.pedestal_transport_model_params = []
