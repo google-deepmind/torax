@@ -226,37 +226,6 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
     )
 
 
-def _is_positive(time_varying_scalar: TimeVaryingScalar) -> TimeVaryingScalar:
-  if not np.all(time_varying_scalar.value > 0):
-    raise ValueError('All values must be positive.')
-  return time_varying_scalar
-
-
-def _is_non_negative(
-    time_varying_scalar: TimeVaryingScalar,
-) -> TimeVaryingScalar:
-  if not np.all(time_varying_scalar.value >= 0):
-    raise ValueError('All values must be non-negative.')
-  return time_varying_scalar
-
-
-def _interval(
-    time_varying_scalar: TimeVaryingScalar,
-    lower_bound: float,
-    upper_bound: float,
-) -> TimeVaryingScalar:
-  """Validates that values are in the interval [lower_bound, upper_bound]."""
-  if not np.all(
-      (time_varying_scalar.value >= lower_bound)
-      & (time_varying_scalar.value <= upper_bound)
-  ):
-    raise ValueError(
-        'All values must be less than %f and greater than %f.'
-        % (upper_bound, lower_bound)
-    )
-  return time_varying_scalar
-
-
 class TimeVaryingScalarStep(TimeVaryingScalar):
   """TimeVaryingScalar with STEP interpolation mode by default."""
   interpolation_mode: typing_extensions.Annotated[
@@ -264,18 +233,59 @@ class TimeVaryingScalarStep(TimeVaryingScalar):
   ] = interpolated_param.InterpolationMode.STEP
 
 
-PositiveTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
-    TimeVaryingScalar, pydantic.AfterValidator(_is_positive)
-]
-NonNegativeTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
-    TimeVaryingScalar, pydantic.AfterValidator(_is_non_negative)
-]
-NonNegativeTimeVaryingScalarStep: TypeAlias = typing_extensions.Annotated[
-    TimeVaryingScalarStep, pydantic.AfterValidator(_is_non_negative)
-]
-UnitIntervalTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
-    TimeVaryingScalar,
-    pydantic.AfterValidator(
-        functools.partial(_interval, lower_bound=0.0, upper_bound=1.0)
-    ),
-]
+def _validate_scalar_bounds(
+    time_varying_scalar: TimeVaryingScalar,
+    *,
+    gt: float | None = None,
+    ge: float | None = None,
+    lt: float | None = None,
+    le: float | None = None,
+) -> TimeVaryingScalar:
+  """Validates that values in a TimeVaryingScalar satisfy bound constraints."""
+  if gt is not None and not np.all(time_varying_scalar.value > gt):
+    raise ValueError(f'All values must be greater than {gt}.')
+  if ge is not None and not np.all(time_varying_scalar.value >= ge):
+    raise ValueError(f'All values must be greater than or equal to {ge}.')
+  if lt is not None and not np.all(time_varying_scalar.value < lt):
+    raise ValueError(f'All values must be less than {lt}.')
+  if le is not None and not np.all(time_varying_scalar.value <= le):
+    raise ValueError(f'All values must be less than or equal to {le}.')
+  return time_varying_scalar
+
+
+# Named in PascalCase to act as a parameterized pseudo-type constructor
+# matching TimeVaryingScalar and PositiveTimeVaryingScalar in annotations.
+# It is implemented as a function so that bound arguments (gt, ge, lt, le) can
+# be passed dynamically to construct Annotated[TimeVaryingScalar, ...].
+# pylint: disable=invalid-name
+def BoundedTimeVaryingScalar(
+    *,
+    gt: float | None = None,
+    ge: float | None = None,
+    lt: float | None = None,
+    le: float | None = None,
+    step: bool = False,
+) -> Any:
+  """Returns an Annotated TimeVaryingScalar with bound validation."""
+  validator = pydantic.AfterValidator(
+      functools.partial(
+          _validate_scalar_bounds,
+          gt=gt,
+          ge=ge,
+          lt=lt,
+          le=le,
+      )
+  )
+  if step:
+    return typing_extensions.Annotated[TimeVaryingScalarStep, validator]
+  return typing_extensions.Annotated[TimeVaryingScalar, validator]
+
+
+PositiveTimeVaryingScalar: TypeAlias = BoundedTimeVaryingScalar(gt=0.0)
+NonNegativeTimeVaryingScalar: TypeAlias = BoundedTimeVaryingScalar(ge=0.0)
+NonNegativeTimeVaryingScalarStep: TypeAlias = BoundedTimeVaryingScalar(
+    ge=0.0, step=True
+)
+UnitIntervalTimeVaryingScalar: TypeAlias = BoundedTimeVaryingScalar(
+    ge=0.0, le=1.0
+)
