@@ -18,8 +18,6 @@ import jax
 from jax import numpy as jnp
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
-from torax._src.time_step_calculator import chi_time_step_calculator
-from torax._src.time_step_calculator import fixed_time_step_calculator
 from torax._src.time_step_calculator import time_step_calculator
 
 
@@ -33,17 +31,17 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
   and ablation duration, and adjusts the time step to ensure that steps 
   do not skip over these events. 
   
+  The calculator is generic over pellet sources: it reads the 'pellet' source's
+  runtime parameters, expecting 'trigger_times' or 'frequency' and
+  'ablation_time', and optionally a model-predicted ablation window exposed via a
+  'use_model_ablation_time' flag and an 'ablation_step(geo, core_profiles)'
+  method.
+
   Arguments:
-    base_calculator_type: The type of the base time step calculator to use for
-      non-pellet-alignment purposes. Must be 'chi' or 'fixed'.
+    base_calculator: The base time step calculator used away from pellet events
+      (for example a chi or fixed calculator).
     trigger_tolerance: The time tolerance for determining if the current time is
       at a pellet trigger or ablation boundary.
-    pellet_source_name: The name of the pellet source in the runtime parameters.
-      Defaults to 'pellet'. The calculator is generic: it works with any pellet
-      source whose runtime parameters expose 'trigger_times'/'frequency' and
-      'ablation_time'. A source may additionally expose a model-predicted
-      ablation window via a 'use_model_ablation_time' flag and an
-    'ablation_step(geo, core_profiles)' method.
     window_after_pellet: The duration of the window after a pellet trigger during
       which the time step is adjusted. The duration of the first time step will always
       be equal to the ablation time, the other will be equal to dt_after_pellet.
@@ -57,29 +55,17 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
 
   def __init__(
       self,
-      base_calculator_type: str = 'chi',
+      base_calculator: time_step_calculator.TimeStepCalculator,
       trigger_tolerance: float = 1e-8,
-      pellet_source_name: str = 'pellet',
       window_after_pellet: float = 0.0,
       dt_after_pellet: float | None = None,
   ):
-    self._base_calculator_type = base_calculator_type
+    self._base_calculator = base_calculator
     self._trigger_tolerance = float(trigger_tolerance)
-    self._pellet_source_name = pellet_source_name
     self._window_after_pellet = float(window_after_pellet)
     self._dt_after_pellet = (
         float(dt_after_pellet) if dt_after_pellet is not None else None
     )
-    if base_calculator_type == 'chi':
-      self._base_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
-    elif base_calculator_type == 'fixed':
-      self._base_calculator = (
-          fixed_time_step_calculator.FixedTimeStepCalculator()
-      )
-    else:
-      raise ValueError(
-          'base_calculator must be "chi" or "fixed" '
-      )
 
   def _next_dt(
       self,
@@ -92,7 +78,7 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     dtype = dt_standard.dtype
 
     t = sim_state.t
-    pellet_params = runtime_params.sources.get(self._pellet_source_name)
+    pellet_params = runtime_params.sources.get('pellet')
     if pellet_params is None:
       return dt_standard
 
@@ -277,9 +263,8 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
   def __eq__(self, other) -> bool:
     return (
         isinstance(other, type(self))
-        and self._base_calculator_type == other._base_calculator_type
+        and self._base_calculator == other._base_calculator
         and self._trigger_tolerance == other._trigger_tolerance
-        and self._pellet_source_name == other._pellet_source_name
         and self._window_after_pellet == other._window_after_pellet
         and self._dt_after_pellet == other._dt_after_pellet
     )
@@ -288,9 +273,8 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     return hash(
         (
             type(self),
-            self._base_calculator_type,
+            self._base_calculator,
             self._trigger_tolerance,
-            self._pellet_source_name,
             self._window_after_pellet,
             self._dt_after_pellet,
         )
