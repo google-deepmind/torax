@@ -14,6 +14,8 @@
 
 """Time step calculator that aligns steps with pellet trigger windows."""
 
+from typing import Any
+
 import jax
 from jax import numpy as jnp
 from torax._src.config import runtime_params as runtime_params_lib
@@ -25,12 +27,12 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
   """TimeStepCalculator that resolves pellet trigger and ablation windows.
 
   The pellet_aware time step calculator ensures that time steps are aligned with
-  pellet trigger times and ablation windows. 
+  pellet trigger times and ablation windows.
 
-  It checks the current simulation time against the pellet trigger times 
-  and ablation duration, and adjusts the time step to ensure that steps 
-  do not skip over these events. 
-  
+  It checks the current simulation time against the pellet trigger times
+  and ablation duration, and adjusts the time step to ensure that steps
+  do not skip over these events.
+
   The calculator is generic over pellet sources: it reads the 'pellet' source's
   runtime parameters, expecting 'trigger_times' or 'frequency' and
   'ablation_time', and optionally a model-predicted ablation window exposed via a
@@ -40,8 +42,10 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
   Arguments:
     base_calculator: The base time step calculator used away from pellet events
       (for example a chi or fixed calculator).
-    trigger_tolerance: The time tolerance for determining if the current time is
-      at a pellet trigger or ablation boundary.
+    trigger_tolerance: Fallback time tolerance for deciding whether the current
+      time is at a pellet trigger. The pellet source's own 'trigger_tolerance' is
+      used instead when it exposes one, so that the step alignment and the
+      source's deposition agree on when a pellet fires.
     window_after_pellet: The duration of the window after a pellet trigger during
       which the time step is adjusted. The duration of the first time step will always
       be equal to the ablation time, the other will be equal to dt_after_pellet.
@@ -50,7 +54,7 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
       If None, the base calculator's time step is used. Not used by default.
 
     Returns:
-      dt: Scalar time step duration.  
+      dt: Scalar time step duration.
   """
 
   def __init__(
@@ -73,192 +77,166 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
       sim_state: sim_state_lib.SimState,
   ) -> jax.Array:
     """Returns a dt aligned with pellet trigger and ablation windows."""
-    dt_standard = self._base_calculator._next_dt(runtime_params, sim_state)
-    dt_standard = jnp.asarray(dt_standard)
+    dt_standard = jnp.asarray(
+        self._base_calculator._next_dt(runtime_params, sim_state)
+    )
     dtype = dt_standard.dtype
 
-    t = sim_state.t
+    # A compatible pellet source is guaranteed by the ToraxConfig validator.
     pellet_params = runtime_params.sources.get('pellet')
-    if pellet_params is None:
-      return dt_standard
-
     trigger_times = getattr(pellet_params, 'trigger_times', None)
     frequency = getattr(pellet_params, 'frequency', None)
-    ablation_time = getattr(pellet_params, 'ablation_time', None)
-    if ablation_time is None:
-        return dt_standard
+    if (trigger_times is None) == (frequency is None):
+      raise ValueError(
+          "The 'pellet_aware' time step calculator requires the pellet source"
+          " to configure exactly one of 'trigger_times' or 'frequency'."
+      )
 
-    t = jnp.asarray(t, dtype=dtype)
-    tol = jnp.asarray(self._trigger_tolerance, dtype=dtype)
-    ablation_time = jnp.asarray(ablation_time, dtype=dtype)
-    inf = jnp.asarray(jnp.inf, dtype=dtype)
-    window_after_pellet = jnp.asarray(self._window_after_pellet, dtype=dtype)
+    t = jnp.asarray(sim_state.t, dtype=dtype)
+    # Use the pellet source's own trigger tolerance so that the step alignment
+    # and the source's deposition agree on when a pellet fires, fall back to the
+    # configured tolerance for sources that do not expose one.
+    tol = jnp.asarray(
+        getattr(pellet_params, 'trigger_tolerance', self._trigger_tolerance),
+        dtype=dtype,
+    )
 
-    in_ablation = jnp.asarray(False)
-    ablation_remaining = inf
-    dt_trigger = inf
-    next_trigger = inf
-    dt_after_trigger = inf
-    at_trigger = jnp.asarray(False)
-    model_ablation_time = inf
-
-    # A pellet source that predicts its own ablation time exposes a
-    # 'use_model_ablation_time' flag and an 'ablation_step(geo, core_profiles)'
-    # method returning (at_trigger, ablation_time).
-    ablation_step_fn = getattr(pellet_params, 'ablation_step', None)
+    # The whole ablation is resolved as a single step landing on the trigger.
+    # A pellet source can predict it via a 'use_model_ablation_time' flag and an
+    # 'ablation_step(geo, core_profiles)' method. The model output is only valid
+    # at the firing instant, but the calculator detects the trigger itself,
+    # so only the returned duration is used. Otherwise the configured constant
+    # 'ablation_time' is used.
+    ablation_window = jnp.asarray(
+        getattr(pellet_params, 'ablation_time'), dtype=dtype
+    )
+    ablation_step_fn: Any = getattr(pellet_params, 'ablation_step', None)
     use_model_ablation = bool(
         getattr(pellet_params, 'use_model_ablation_time', False)
     ) and callable(ablation_step_fn)
     if use_model_ablation:
-      at_trigger, model_ablation_time = ablation_step_fn(
+      _, model_ablation_time = ablation_step_fn(
           sim_state.geometry, sim_state.core_profiles
       )
-      at_trigger = jnp.asarray(at_trigger)
-      model_ablation_time = jnp.asarray(model_ablation_time, dtype=dtype)
+      ablation_window = jnp.asarray(model_ablation_time, dtype=dtype)
 
     if trigger_times is not None:
-      neg_inf = jnp.asarray(-jnp.inf, dtype=dtype)
-      last_trigger = neg_inf
-
-      for trigger in trigger_times:
-        trigger = jnp.asarray(trigger, dtype=dtype)
-        is_next_trigger = trigger > t - tol
-        next_trigger = jnp.where(
-          is_next_trigger,
-          jnp.minimum(next_trigger, trigger),
-          next_trigger,
-        )
-        is_past = trigger <= t + tol
-        last_trigger = jnp.where(
-          is_past,
-          jnp.maximum(last_trigger, trigger),
-          last_trigger,
-        )
-
-      delta_to_next_trigger = next_trigger - t
-      if use_model_ablation:
-        # One step at the trigger covering the model-predicted ablation time.
-        # ablation_remaining is only read when in_ablation.
-        in_ablation = at_trigger
-        ablation_remaining = model_ablation_time
-        dt_trigger = jnp.where(
-            at_trigger, model_ablation_time, delta_to_next_trigger
-        )
-      else:
-        end = next_trigger + ablation_time
-        in_ablation = jnp.logical_and(
-          t >= next_trigger - tol,
-          t < end - tol,
-        )
-        ablation_remaining = jnp.where(
-            in_ablation,
-            end - t,
-            ablation_remaining,
-        )
-        dt_trigger = jnp.where(
-            in_ablation,
-            ablation_remaining,
-            delta_to_next_trigger,
-        )
-      if self._dt_after_pellet is not None:
-        dt_after_pellet = jnp.asarray(self._dt_after_pellet, dtype=dtype)
-        has_past_trigger = jnp.isfinite(last_trigger)
-        post_window_end = last_trigger + window_after_pellet
-        in_post_pellet = jnp.logical_and(
-            has_past_trigger,
-            jnp.logical_and(
-                jnp.logical_and(
-                    t > last_trigger + tol, jnp.logical_not(in_ablation)
-                ),
-                t < post_window_end - tol,
-            ),
-        )
-        post_remaining = post_window_end - t
-        dt_after_trigger = jnp.where(
-            in_post_pellet,
-            jnp.minimum(dt_after_pellet, post_remaining),
-            inf,
-        )
-
-
-    elif frequency is not None:
-      frequency = jnp.asarray(frequency, dtype=dtype)
-      frequency_t_start = jnp.asarray(
-          getattr(pellet_params, 'frequency_t_start', 0.0), dtype=dtype
+      dt_trigger, dt_after_trigger, at_trigger = self._dt_for_trigger_times(
+          t, dt_standard, trigger_times, ablation_window, tol
       )
-      positive_frequency = frequency > 0.0
-      safe_frequency = jnp.where(
-          positive_frequency, frequency, jnp.asarray(1.0, dtype=dtype)
+    else:
+      # frequency is not None here (guaranteed by the check above).
+      assert frequency is not None
+      frequency_t_start = getattr(pellet_params, 'frequency_t_start', 0.0)
+      dt_trigger, dt_after_trigger, at_trigger = self._dt_for_frequency(
+          t, dt_standard, frequency, frequency_t_start, ablation_window, tol
       )
-      period = 1.0 / safe_frequency
-      # Phase measured from frequency_t_start (consistent with the source).
-      phase = jnp.mod(t - frequency_t_start + tol, period)
-      # Float rounding can leave phase just below period instead of wrapping
-      # to 0 at a pellet time.
-      phase = jnp.where(
-          period - phase < tol, jnp.asarray(0.0, dtype=dtype), phase
-      )
-      delta_to_next_period = period - phase
-
-      after_start = t > frequency_t_start + tol
-      if use_model_ablation:
-        in_ablation = at_trigger
-        ablation_remaining = model_ablation_time
-        dt_trigger_value = jnp.where(
-            at_trigger, model_ablation_time, delta_to_next_period
-        )
-      else:
-        in_ablation = jnp.logical_and(
-            jnp.logical_and(positive_frequency, after_start),
-            phase < ablation_time - tol,
-        )
-        ablation_remaining = jnp.where(
-            in_ablation,
-            ablation_time - phase,
-            ablation_remaining,
-        )
-        dt_trigger_value = jnp.where(
-            in_ablation,
-            ablation_remaining,
-            delta_to_next_period,
-        )
-      dt_trigger = jnp.where(
-          jnp.logical_and(positive_frequency, after_start),
-          dt_trigger_value,
-          dt_trigger,
-      )
-      if self._dt_after_pellet is not None:
-        dt_after_pellet = jnp.asarray(self._dt_after_pellet, dtype=dtype)
-        in_post_pellet_freq = jnp.logical_and(
-            jnp.logical_and(positive_frequency, after_start),
-            jnp.logical_and(
-                jnp.logical_and(phase > tol, jnp.logical_not(in_ablation)),
-                phase < window_after_pellet - tol,
-            ),
-        )
-        post_remaining_freq = window_after_pellet - phase
-        dt_after_trigger = jnp.where(
-            in_post_pellet_freq,
-            jnp.minimum(dt_after_pellet, post_remaining_freq),
-            inf,
-        )
 
     dt = jnp.minimum(dt_standard, jnp.minimum(dt_trigger, dt_after_trigger))
-    # During ablation, never split the window: even if dt_standard is smaller.
-    dt = jnp.where(in_ablation, ablation_remaining, dt)
-
-    crosses_t_final = (t < runtime_params.numerics.t_final) * (
-        t + dt > runtime_params.numerics.t_final
-    )
-    dt = jax.lax.select(
-        jnp.logical_and(
-            runtime_params.numerics.exact_t_final,
-            crosses_t_final,
-        ),
-        runtime_params.numerics.t_final - t,
-        dt,
-    )
+    # During ablation, never split the window, even if dt_standard is smaller.
+    dt = jnp.where(at_trigger, ablation_window, dt)
     return dt
+
+  def _dt_for_trigger_times(
+      self,
+      t: jax.Array,
+      dt_standard: jax.Array,
+      trigger_times: tuple[float, ...],
+      ablation_window: jax.Array,
+      tol: jax.Array,
+  ) -> tuple[jax.Array, jax.Array, jax.Array]:
+    """Aligns dt with an explicit list of pellet trigger times.
+
+    Returns:
+      (dt_trigger, dt_after_trigger, at_trigger).
+    """
+    dtype = dt_standard.dtype
+    inf = jnp.asarray(jnp.inf, dtype=dtype)
+    triggers = jnp.asarray(trigger_times, dtype=dtype)
+    # Earliest trigger strictly after t (inf if none), and most recent trigger
+    # at or before t (-inf if none).
+    next_trigger = jnp.min(jnp.where(triggers > t - tol, triggers, inf))
+    last_trigger = jnp.max(jnp.where(triggers <= t + tol, triggers, -inf))
+    # A single step covers the whole ablation window, so we only need to detect
+    # the firing instant (should be the same test the pellet source uses to deposit).
+    at_trigger = jnp.any(jnp.abs(t - triggers) <= tol)
+    delta_to_next_trigger = next_trigger - t
+    dt_trigger = jnp.where(at_trigger, ablation_window, delta_to_next_trigger)
+
+    dt_after_trigger = dt_standard
+    if self._dt_after_pellet is not None:
+      dt_after_pellet = jnp.asarray(self._dt_after_pellet, dtype=dtype)
+      window_after_pellet = jnp.asarray(self._window_after_pellet, dtype=dtype)
+      post_window_end = last_trigger + window_after_pellet
+      in_post_pellet = jnp.logical_and(
+          jnp.isfinite(last_trigger),
+          jnp.logical_and(
+              jnp.logical_and(
+                  t > last_trigger + tol, jnp.logical_not(at_trigger)
+              ),
+              t < post_window_end - tol,
+          ),
+      )
+      dt_after_trigger = jnp.where(
+          in_post_pellet,
+          jnp.minimum(dt_after_pellet, post_window_end - t),
+          dt_standard,
+      )
+    return dt_trigger, dt_after_trigger, at_trigger
+
+  def _dt_for_frequency(
+      self,
+      t: jax.Array,
+      dt_standard: jax.Array,
+      frequency: jax.Array,
+      frequency_t_start: float | jax.Array,
+      ablation_window: jax.Array,
+      tol: jax.Array,
+  ) -> tuple[jax.Array, jax.Array, jax.Array]:
+    """Aligns dt with a periodic pellet injection frequency.
+
+    Returns:
+      (dt_trigger, dt_after_trigger, at_trigger).
+    """
+    dtype = dt_standard.dtype
+    inf = jnp.asarray(jnp.inf, dtype=dtype)
+    frequency = jnp.asarray(frequency, dtype=dtype)
+    frequency_t_start = jnp.asarray(frequency_t_start, dtype=dtype)
+    positive_frequency = frequency > 0.0
+    safe_frequency = jnp.where(
+        positive_frequency, frequency, jnp.asarray(1.0, dtype=dtype)
+    )
+    period = 1.0 / safe_frequency
+    # Phase measured from frequency_t_start (consistent with the source).
+    phase = jnp.mod(t - frequency_t_start + tol, period)
+    # Float rounding can leave phase just below period instead of wrapping
+    # to 0 at a pellet time.
+    phase = jnp.where(period - phase < tol, jnp.asarray(0.0, dtype=dtype), phase)
+    delta_to_next_period = period - phase
+    active = jnp.logical_and(positive_frequency, t > frequency_t_start + tol)
+    # A single step covers the whole ablation window, so we only need to detect
+    # the firing instant (phase wrapped to 0, the same test the source should use).
+    at_trigger = jnp.logical_and(active, phase <= tol)
+    dt_trigger_value = jnp.where(at_trigger, ablation_window, delta_to_next_period)
+    dt_trigger = jnp.where(active, dt_trigger_value, inf)
+
+    dt_after_trigger = dt_standard
+    if self._dt_after_pellet is not None:
+      dt_after_pellet = jnp.asarray(self._dt_after_pellet, dtype=dtype)
+      window_after_pellet = jnp.asarray(self._window_after_pellet, dtype=dtype)
+      in_post_pellet = jnp.logical_and(
+          active,
+          jnp.logical_and(
+              jnp.logical_and(phase > tol, jnp.logical_not(at_trigger)),
+              phase < window_after_pellet - tol,
+          ),
+      )
+      dt_after_trigger = jnp.where(
+          in_post_pellet,
+          jnp.minimum(dt_after_pellet, window_after_pellet - phase),
+          dt_standard,
+      )
+    return dt_trigger, dt_after_trigger, at_trigger
 
   def __eq__(self, other) -> bool:
     return (
