@@ -186,7 +186,7 @@ def compute_core_domain_mask(
   ):
     active_mask = active_mask & (
         jnp.logical_not(runtime_params.pedestal.set_pedestal)
-        | (geo.rho_face_norm <= pedestal_model_output.rho_norm_ped_top)
+        | (geo.rho_face_norm < pedestal_model_output.rho_norm_ped_top)
     )
 
   # Special case: if rho_min is 0, lower bound of active range is the first

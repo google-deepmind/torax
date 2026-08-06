@@ -62,6 +62,11 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
+        # Set n_rho so that the pedestal top lies exactly on a grid point
+        # (0.9 * 50 = 45).``
+        # This tests a regression where the transport at the pedestal top was
+        # being set incorrectly, leading to excessive Newton backtracking.
+        'n_rho': 50,
         'Ip_from_parameters': True,
         'R_major': 6.2,  # major radius (R) in meters
         'a_minor': 2.0,  # minor radius (a) in meters
