@@ -20,6 +20,8 @@ from typing import Annotated, Literal
 import chex
 import jax
 from jax import numpy as jnp
+import numpy as np
+import pydantic
 from torax._src import array_typing
 from torax._src import state
 from torax._src import static_dataclass
@@ -50,10 +52,10 @@ class SimpleRedistribution(
     """Applies redistribution of profiles with a user-predefined mixing radius.
 
     Redistributes the profiles to a radius of
-    mixing_radius_multiplier * rho_norm_q1. Two linear profiles are created for
+    mixing_radius_multiplier * rho_norm_q1. Two smooth profiles are created for
     the density, temperature, and current profiles in the mixing zone:
-    1. A flattened profile up to the q=1 surface.
-    2. A linear profile up to the mixing radius.
+    1. A smoothstep flattened profile up to the q=1 surface.
+    2. A cubic Hermite spline profile up to the mixing radius.
 
     The value of the redistributed profile at q=1 is set by particle, energy
     and current conservation.
@@ -79,15 +81,26 @@ class SimpleRedistribution(
     )
     redistribution_params = runtime_params.mhd.sawtooth.redistribution_params
 
+    rho_norm = geo.rho_norm
+
     mixing_radius = redistribution_params.mixing_radius_multiplier * rho_norm_q1
 
-    idx_mixing = jnp.searchsorted(geo.rho_norm, mixing_radius, side='left')
+    # Clamp mixing_radius so the mixing region [rho_norm_q1, mixing_radius]
+    # contains at least one cell center, and doesn't extend beyond the grid.
+    idx_first_mixing_cell = jnp.searchsorted(
+        rho_norm, rho_norm_q1, side='right'
+    )
+    min_mixing_radius = rho_norm[
+        jnp.minimum(idx_first_mixing_cell + 1, rho_norm.shape[0] - 1)
+    ]
+    mixing_radius = jnp.clip(mixing_radius, min_mixing_radius, rho_norm[-1])
 
-    # Construct masks for different profile domains.
-    # The redistribution mask is for all cells up to the mixing radius, since
+    idx_mixing = jnp.searchsorted(rho_norm, mixing_radius, side='left')
+
+    # The redistribution mask covers all cells up to the mixing radius, since
     # those are the only locations where the modified values contribute to the
     # volume integrals.
-    indices = jnp.arange(geo.rho_norm.shape[0])
+    indices = jnp.arange(rho_norm.shape[0])
     redistribution_mask = indices < idx_mixing
 
     if runtime_params.numerics.evolve_density:
@@ -200,13 +213,22 @@ class RuntimeParams(sawtooth_runtime_params.RedistributionRuntimeParams):
   mixing_radius_multiplier: array_typing.FloatScalar
 
 
+def _mixing_radius_multiplier_greater_than_one(
+    time_varying_scalar: torax_pydantic.TimeVaryingScalar,
+) -> torax_pydantic.TimeVaryingScalar:
+  if not np.all(time_varying_scalar.value > 1.0):
+    raise ValueError('mixing_radius_multiplier must be greater than 1.0.')
+  return time_varying_scalar
+
+
 class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):
   """Pydantic model for simple redistribution configuration."""
 
   model_name: Annotated[Literal['simple'], torax_pydantic.JAX_STATIC] = 'simple'
-  mixing_radius_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.1)
-  )
+  mixing_radius_multiplier: Annotated[
+      torax_pydantic.TimeVaryingScalar,
+      pydantic.AfterValidator(_mixing_radius_multiplier_greater_than_one),
+  ] = torax_pydantic.ValidatedDefault(1.1)
 
   def build_runtime_params(
       self,
