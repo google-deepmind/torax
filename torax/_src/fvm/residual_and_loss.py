@@ -403,8 +403,8 @@ def theta_method_block_residual(
   if coeffs_new.has_internal_boundary_conditions:
     lhs, lhs_vec, rhs, rhs_vec = apply_internal_boundary_conditions(
         lhs, lhs_vec, rhs, rhs_vec,
-        coeffs_new.internal_boundary_condition_mask,
-        coeffs_new.internal_boundary_condition_target_vec,
+        coeffs_new.internal_boundary_condition_mask,  # pyrefly: ignore[bad-argument-type]
+        coeffs_new.internal_boundary_condition_target_vec,  # pyrefly: ignore[bad-argument-type]
     )
 
   # TODO(b/505253351) Remove the reshape and transpose.
