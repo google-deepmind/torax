@@ -128,8 +128,12 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
       # frequency is not None here (guaranteed by the check above).
       assert frequency is not None
       frequency_t_start = getattr(pellet_params, 'frequency_t_start', 0.0)
+      # Whether the periodic injector is on at t. Defaults to on, so a source
+      # that does not expose it keeps firing at every period.
+      injection_enabled = getattr(pellet_params, 'injection_enabled', True)
       dt_trigger, dt_after_trigger, at_trigger = self._dt_for_frequency(
-          t, dt_standard, frequency, frequency_t_start, ablation_window, tol
+          t, dt_standard, frequency, frequency_t_start, injection_enabled,
+          ablation_window, tol,
       )
 
     dt = jnp.minimum(dt_standard, jnp.minimum(dt_trigger, dt_after_trigger))
@@ -190,10 +194,15 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
       dt_standard: jax.Array,
       frequency: jax.Array,
       frequency_t_start: float | jax.Array,
+      injection_enabled: bool | jax.Array,
       ablation_window: jax.Array,
       tol: jax.Array,
   ) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Aligns dt with a periodic pellet injection frequency.
+
+    The frequency is assumed strictly positive (validated by the pellet source
+    config). injection_enabled toggles the injector on or off. When off, no
+    pellet fires and the base time step is used.
 
     Returns:
       (dt_trigger, dt_after_trigger, at_trigger).
@@ -202,30 +211,31 @@ class PelletAwareTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     inf = jnp.asarray(jnp.inf, dtype=dtype)
     frequency = jnp.asarray(frequency, dtype=dtype)
     frequency_t_start = jnp.asarray(frequency_t_start, dtype=dtype)
-    positive_frequency = frequency > 0.0
-    safe_frequency = jnp.where(
-        positive_frequency, frequency, jnp.asarray(1.0, dtype=dtype)
-    )
-    period = 1.0 / safe_frequency
+    injection_enabled = jnp.asarray(injection_enabled, dtype=bool)
+    period = 1.0 / frequency
     # Phase measured from frequency_t_start (consistent with the source).
-    phase = jnp.mod(t - frequency_t_start + tol, period)
+    phase = jnp.mod(t - frequency_t_start, period)
     # Float rounding can leave phase just below period instead of wrapping
     # to 0 at a pellet time.
     phase = jnp.where(period - phase < tol, jnp.asarray(0.0, dtype=dtype), phase)
     delta_to_next_period = period - phase
-    active = jnp.logical_and(positive_frequency, t > frequency_t_start + tol)
     # A single step covers the whole ablation window, so we only need to detect
     # the firing instant (phase wrapped to 0, the same test the source should use).
-    at_trigger = jnp.logical_and(active, phase <= tol)
+    # A pellet fires when the step lands within tol of a period boundary.
+    # Floating point means the step never lands exactly on the boundary, so a
+    # time varying injection_enabled that switches on exactly at a pellet's time
+    # can still read "off" at the firing instant. Turn it on a small margin
+    # before the intended pellet time.
+    at_trigger = jnp.logical_and(injection_enabled, phase <= tol)
     dt_trigger_value = jnp.where(at_trigger, ablation_window, delta_to_next_period)
-    dt_trigger = jnp.where(active, dt_trigger_value, inf)
+    dt_trigger = jnp.where(injection_enabled, dt_trigger_value, inf)
 
     dt_after_trigger = dt_standard
     if self._dt_after_pellet is not None:
       dt_after_pellet = jnp.asarray(self._dt_after_pellet, dtype=dtype)
       window_after_pellet = jnp.asarray(self._window_after_pellet, dtype=dtype)
       in_post_pellet = jnp.logical_and(
-          active,
+          injection_enabled,
           jnp.logical_and(
               jnp.logical_and(phase > tol, jnp.logical_not(at_trigger)),
               phase < window_after_pellet - tol,
