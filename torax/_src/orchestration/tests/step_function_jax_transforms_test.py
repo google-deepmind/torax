@@ -23,10 +23,12 @@ from torax._src.torax_pydantic import interpolated_param_1d
 class StepFunctionTest(parameterized.TestCase):
 
   @parameterized.parameters([
-      'basic_config',
-      'iterhybrid_predictor_corrector',
+      ('basic_config', 'rev'),
+      ('basic_config', 'fwd'),
+      ('iterhybrid_predictor_corrector', 'rev'),
+      ('iterhybrid_predictor_corrector', 'fwd'),
   ])
-  def test_step_function_grad(self, config_name_no_py):
+  def test_step_function_grad(self, config_name_no_py: str, mode: str):
     example_config_paths = config_loader.example_config_paths()
     example_config_path = example_config_paths[config_name_no_py]
     cfg = config_loader.build_torax_config_from_file(example_config_path)
@@ -54,7 +56,7 @@ class StepFunctionTest(parameterized.TestCase):
       )
       return new_post_processed_outputs.Q_fusion
 
-    jtu.check_grads(f, (input_value,), order=1, modes=('rev',))
+    jtu.check_grads(f, (input_value,), order=1, modes=(mode,))
 
 
 if __name__ == '__main__':
