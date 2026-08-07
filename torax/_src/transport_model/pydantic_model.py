@@ -457,7 +457,7 @@ class SmoothingZone(torax_pydantic.BaseModelFrozen):
   smoothing_width: pydantic.NonNegativeFloat
 
 
-class CombinedTransportModel(pydantic_model_base.TransportBase):
+class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
   """Model for the Combined transport model.
 
   Note: smoothing and patches should be applied on the combined model, not the
@@ -465,6 +465,14 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
   Attributes:
     model_name: The transport model to use. Hardcoded to 'combined'.
+    chi_min: Lower bound on heat conductivity.
+    chi_max: Upper bound on heat conductivity (can be helpful for stability).
+    D_e_min: minimum electron density diffusivity.
+    D_e_max: maximum electron density diffusivity.
+    V_e_min: minimum electron density convection.
+    V_e_max: minimum electron density convection.
+    smoothing_width: Width of HWHM Gaussian smoothing kernel operating on
+      transport model outputs.
     transport_models: A sequence of transport models, whose outputs will be
       summed to give the combined core transport coefficients.
     pedestal_transport_models: A sequence of models that will be combined for
@@ -475,6 +483,13 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
       means that zone will not be used for the smoothing of other zones.
   """
 
+  chi_min: torax_pydantic.MeterSquaredPerSecond = 0.05
+  chi_max: torax_pydantic.MeterSquaredPerSecond = 100.0
+  D_e_min: torax_pydantic.MeterSquaredPerSecond = 0.05
+  D_e_max: torax_pydantic.MeterSquaredPerSecond = 100.0
+  V_e_min: torax_pydantic.MeterPerSecond = -50.0
+  V_e_max: torax_pydantic.MeterPerSecond = 50.0
+  smoothing_width: pydantic.NonNegativeFloat = 0.0
   # TODO(b/434175938) V2: rename `transport_models` to `core_transport_models`
   transport_models: Sequence[CombinedCompatibleTransportModel] = pydantic.Field(
       default_factory=list
@@ -506,7 +521,6 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
     )
 
   def build_runtime_params(self, t: chex.Numeric) -> combined.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     transport_model_params = tuple(
         model.build_runtime_params(t) for model in self.transport_models
     )
@@ -525,10 +539,16 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
           )
       )
     return combined.RuntimeParams(
+        chi_min=self.chi_min,
+        chi_max=self.chi_max,
+        D_e_min=self.D_e_min,
+        D_e_max=self.D_e_max,
+        V_e_min=self.V_e_min,
+        V_e_max=self.V_e_max,
+        smoothing_width=self.smoothing_width,
         transport_model_params=transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
         smoothing_zones=tuple(smoothing_zones),
-        **base_kwargs,
     )
 
   @pydantic.model_validator(mode='after')
@@ -566,28 +586,18 @@ class CombinedTransportModel(pydantic_model_base.TransportBase):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    super()._check_fields()  # pyrefly: ignore[not-callable]
-    if (
-        any([
-            np.any(model.apply_inner_patch.value)
-            or np.any(model.apply_outer_patch.value)
-            # Use itertools.chain to iterate over both lists of models without
-            # needing to make a new list.
-            for model in itertools.chain(
-                self.transport_models, self.pedestal_transport_models
-            )
-        ])
-        or np.any(self.apply_inner_patch.value)
-        or np.any(self.apply_outer_patch.value)
-    ):
+    if any([
+        np.any(model.apply_inner_patch.value)
+        or np.any(model.apply_outer_patch.value)
+        # Use itertools.chain to iterate over both lists of models without
+        # needing to make a new list.
+        for model in itertools.chain(
+            self.transport_models, self.pedestal_transport_models
+        )
+    ]):
       raise ValueError(
           'apply_inner_patch and apply_outer_patch not supported for'
           ' CombinedTransportModel or its component models.'
-      )
-    if np.any(self.rho_min.value != 0.0) or np.any(self.rho_max.value != 1.0):
-      raise ValueError(
-          'rho_min and rho_max should not be set for CombinedTransportModel, as'
-          ' it should be applied across the whole rho domain.'
       )
     if any([
         np.any(model.rho_min.value != 0.0) or np.any(model.rho_max.value != 1.0)

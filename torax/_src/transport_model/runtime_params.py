@@ -62,3 +62,30 @@ class RuntimeParams:
   )
   fast_ion_stabilization_multiplier: float
   merge_mode: enums.MergeMode = dataclasses.field(metadata={'static': True})
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class SmoothingZoneParams:
+  """Runtime parameters for a radial smoothing zone."""
+
+  rho_min: array_typing.FloatScalar
+  rho_max: array_typing.FloatScalar
+  smoothing_width: float
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class CombinedRuntimeParams:
+  """Runtime parameters for the CombinedTransportModel."""
+
+  chi_min: float
+  chi_max: float
+  D_e_min: float
+  D_e_max: float
+  V_e_min: float
+  V_e_max: float
+  smoothing_width: float
+  transport_model_params: tuple[RuntimeParams, ...]
+  pedestal_transport_model_params: tuple[RuntimeParams, ...]
+  smoothing_zones: tuple[SmoothingZoneParams, ...]

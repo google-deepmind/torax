@@ -18,11 +18,9 @@ A class for combining transport models.
 """
 
 import dataclasses
-from typing import Callable, Sequence, Tuple
-import chex
+from typing import Callable, Sequence
 import jax
 import jax.numpy as jnp
-from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
@@ -37,23 +35,8 @@ from torax._src.transport_model import transport_model as transport_model_lib
 MIN_SMOOTHING_WIDTH = 1e-5
 
 
-@chex.dataclass
-class SmoothingZoneParams:
-  rho_min: array_typing.FloatScalar
-  rho_max: array_typing.FloatScalar
-  smoothing_width: array_typing.FloatScalar
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
-  """Runtime parameters for the CombinedTransportModel."""
-
-  transport_model_params: Tuple[transport_runtime_params_lib.RuntimeParams, ...]
-  pedestal_transport_model_params: Tuple[
-      transport_runtime_params_lib.RuntimeParams, ...
-  ]
-  smoothing_zones: Tuple[SmoothingZoneParams, ...]
+SmoothingZoneParams = transport_runtime_params_lib.SmoothingZoneParams
+RuntimeParams = transport_runtime_params_lib.CombinedRuntimeParams
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -98,9 +81,10 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
     return transport_coeffs
 
-  def call_implementation(
+# pylint: disable=g-blanket-type-suppression we are still using pytype
+  def call_implementation(   # pytype: disable=signature-mismatch
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.CombinedRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -110,7 +94,8 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
     Args:
       transport_runtime_params: Input runtime parameters for this transport
-        model. Can change without triggering a JAX recompilation.
+        model (expected to be an instance of combined.RuntimeParams at runtime).
+        Can change without triggering a JAX recompilation.
       runtime_params: Runtime parameters for the simulation at the current time.
       geo: Geometry of the torus at the current time.
       core_profiles: Core plasma profiles.
@@ -247,7 +232,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
   def _apply_clipping(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.CombinedRuntimeParams,
       transport_coeffs: transport_model_lib.TurbulentTransport,
   ) -> transport_model_lib.TurbulentTransport:
     """Applies min/max clipping to transport coefficients for PDE stability."""
