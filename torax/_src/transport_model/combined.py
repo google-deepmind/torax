@@ -83,21 +83,11 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
         pedestal_model_output,
     )
 
-    # In contrast to the base TransportModel, we do not apply domain restriction
-    # or output masking (enabled/disabled channels) as these are handled at the
-    # component model level in call_implementation here.
-
     # Apply min/max clipping
     transport_coeffs = self._apply_clipping(
         transport_runtime_params,
         transport_coeffs,
     )
-
-    # In contrast to the base TransportModel, we do not apply patches, as these
-    # should be handled by instantiating constant component models instead.
-    # However, the rho_inner and rho_outer arguments are currently required
-    # in the case where the inner/outer region are to be excluded from
-    # smoothing.
 
     transport_coeffs = self._smooth_coeffs(
         runtime_params,
@@ -254,6 +244,42 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
               accumulators[sub] = accumulators[sub] + sub_val * factor
 
     return transport_model_lib.TurbulentTransport(**accumulators)
+
+  def _apply_clipping(
+      self,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_coeffs: transport_model_lib.TurbulentTransport,
+  ) -> transport_model_lib.TurbulentTransport:
+    """Applies min/max clipping to transport coefficients for PDE stability."""
+    assert isinstance(transport_runtime_params, RuntimeParams)
+    chi_face_ion = jnp.clip(
+        transport_coeffs.chi_face_ion,
+        transport_runtime_params.chi_min,
+        transport_runtime_params.chi_max,
+    )
+    chi_face_el = jnp.clip(
+        transport_coeffs.chi_face_el,
+        transport_runtime_params.chi_min,
+        transport_runtime_params.chi_max,
+    )
+    d_face_el = jnp.clip(
+        transport_coeffs.d_face_el,
+        transport_runtime_params.D_e_min,
+        transport_runtime_params.D_e_max,
+    )
+    v_face_el = jnp.clip(
+        transport_coeffs.v_face_el,
+        transport_runtime_params.V_e_min,
+        transport_runtime_params.V_e_max,
+    )
+
+    return dataclasses.replace(
+        transport_coeffs,
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
+    )
 
   def _smooth_coeffs(
       self,

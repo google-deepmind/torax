@@ -24,8 +24,8 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.transport_model import combined
 from torax._src.transport_model import pereverzev as pereverzev_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 
 # pylint: disable=invalid-name
 
@@ -37,7 +37,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
     )
 )
 def calculate_all_transport_coeffs(
-    transport_model: transport_model_lib.TransportModel,
+    transport_model: combined.CombinedTransportModel,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
