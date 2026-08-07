@@ -291,12 +291,20 @@ nonlinearity in the PDE system. TORAX currently offers five transport models:
          use TORAX as the same framework for both ML-surrogate and high-fidelity
          simulations.
 
-For all transport models, optional spatial smoothing of the transport
-coefficients using a Gaussian convolution kernel is implemented, to improve
-solver convergence rates, an issue which can arise with stiff transport
-coefficients such as from QLKNN. Furthermore, for all transport models, the user
-can set inner (towards the center) and/or outer (towards the edge) radial zones
-where the transport coefficients are prescribed to fixed values.
+In TORAX, individual transport models (such as QLKNN, Bohm-GyroBohm, Constant,
+and CGM) represent specific physical transport mechanisms and are implemented
+as component models (`TransportModel`). To simulate a full plasma discharge,
+TORAX combines one or more core and pedestal component models within a top-level
+`CombinedTransportModel`.
+
+Numerical conditioning and post-processing of transport coefficients—such as
+minimum/maximum clipping (`chi_min`, `chi_max`, `D_e_min/max`, `V_e_min/max`)
+and spatial Gaussian smoothing (`smoothing_width`, `smoothing_zones`)—are
+configured exclusively on the top-level combined transport model rather than on
+individual leaf models. Furthermore, to prescribe transport coefficients within
+specific radial zones (e.g. inner core or outer edge regions), users can compose
+multiple component models with explicit radial bounds (`rho_min`, `rho_max`) on
+the combined transport model configuration.
 
 An edge-transport-barrier, or pedestal, is set up in TORAX through an adaptive
 source term which sets a desired value (pedestal height) of
