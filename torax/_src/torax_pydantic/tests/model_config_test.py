@@ -315,6 +315,23 @@ class ConfigTest(parameterized.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
+  def test_pellet_aware_calculator_without_pellet_source_raises_error(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["time_step_calculator"] = {"calculator_type": "pellet_aware"}
+    with self.assertRaisesRegex(ValueError, "requires a pellet source"):
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  def test_pellet_aware_calculator_with_incompatible_source_raises_error(self):
+    config_dict = default_configs.get_default_config_dict()
+    # The default pellet source does not support discrete pellet injection
+    # (no trigger_times/frequency and ablation_time).
+    config_dict["sources"] = {**config_dict["sources"], "pellet": {}}
+    config_dict["time_step_calculator"] = {"calculator_type": "pellet_aware"}
+    with self.assertRaisesRegex(
+        ValueError, "supporting discrete pellet injection"
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
   @parameterized.named_parameters(
       ("good_config", None, False, ""),
       (

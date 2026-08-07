@@ -651,7 +651,10 @@ built-in formula-based particle sources for the :math:`n_e` equation:
   - **Pellet Injection:** A Gaussian function approximates the deposition of
     particles from pellets injected into the plasma core. The time-dependent
     configuration parameter feature allows either a continuous approximation or
-    discrete pellets to be modelled.
+    discrete pellets to be modelled. An external machine-learning surrogate of
+    pellet ablation and deposition, `HPI2-NN
+    <https://github.com/DIFFER-NL/hpi2nn>`_, is also available as an alternative
+    model of the pellet source. See its repository for details.
 
   - **Generic particle source:**  An additional Gaussian function which can
     be configured to model arbitrary particle sources, e.g. to mock-up an NBI
