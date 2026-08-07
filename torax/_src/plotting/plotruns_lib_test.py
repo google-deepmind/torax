@@ -258,5 +258,82 @@ class PlotDataTest(absltest.TestCase):
       _ = self.plot_data.non_existent_var
 
 
+class SliderFramesTest(absltest.TestCase):
+  """Tests that the slider animates prebuilt frames instead of carrying data."""
+
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    data_path = paths.test_data_dir() / 'test_iterhybrid_rampup.nc'
+    config_path = path_utils.torax_path().joinpath(
+        'plotting', 'configs', 'default_plot_config.py'
+    )
+    plot_config = config_loader.import_module(config_path)['PLOT_CONFIG']
+    cls.plot_data = plotruns_lib.load_data(str(data_path))
+    cls.fig = plotruns_lib.plot_run(
+        plot_config, {'Data 1': str(data_path)}, interactive=False
+    )
+
+  def test_slider_steps_animate_to_existing_frames(self):
+    frame_names = {frame.name for frame in self.fig.frames}
+    self.assertLen(frame_names, len(self.plot_data.t))
+
+    for step in self.fig.layout.sliders[0].steps:
+      self.assertEqual(step.method, 'animate')
+      # Steps only reference a frame and the animation options: no data.
+      frame_names_arg, animation_opts = step.args
+      self.assertIn(frame_names_arg[0], frame_names)
+      self.assertEqual(animation_opts['mode'], 'immediate')
+      self.assertFalse(animation_opts['frame']['redraw'])
+      self.assertEqual(animation_opts['transition']['duration'], 0)
+
+  def test_frames_carry_profiles_without_static_x(self):
+    # The first trace of default_plot_config is the T_e profile.
+    self.assertIsNotNone(self.fig.data[0].x)
+    for frame_idx, frame in enumerate(self.fig.frames):
+      self.assertEqual(frame.traces[0], 0)
+      np.testing.assert_array_equal(
+          frame.data[0].y, self.plot_data.T_e[frame_idx, :]
+      )
+      # x is static for the profiles, so it stays on the trace itself.
+      self.assertFalse(frame.data[0].x)
+
+  def test_frames_move_the_current_time_lines(self):
+    line_indices = [
+        idx
+        for idx, trace in enumerate(self.fig.data)
+        if trace.name == 'Current Time'
+    ]
+    self.assertNotEmpty(line_indices)
+
+    for frame_idx, frame in enumerate(self.fig.frames):
+      t_val = self.plot_data.t[frame_idx]
+      for line_idx in line_indices:
+        frame_data = frame.data[frame.traces.index(line_idx)]
+        np.testing.assert_array_equal(frame_data.x, [t_val, t_val])
+        # The line spans the full y range of its subplot, which never changes.
+        self.assertFalse(frame_data.y)
+
+  def test_both_slider_modes_share_the_same_frames(self):
+    frame_names = {frame.name for frame in self.fig.frames}
+    buttons = self.fig.layout.updatemenus[0].buttons
+    self.assertLen(buttons, 2)
+
+    for button in buttons:
+      trace_update, layout_update, trace_indices = button.args
+      steps = layout_update['sliders[0].steps']
+      self.assertLen(steps, len(frame_names))
+      for step in steps:
+        self.assertEqual(step['method'], 'animate')
+        self.assertIn(step['args'][0][0], frame_names)
+
+      # Switching mode resets the figure to the first timepoint.
+      self.assertEqual(layout_update['sliders[0].active'], 0)
+      self.assertEqual(trace_indices[0], 0)
+      np.testing.assert_array_equal(
+          trace_update['y'][0], self.plot_data.T_e[0, :]
+      )
+
+
 if __name__ == '__main__':
   absltest.main()
