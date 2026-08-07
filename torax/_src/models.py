@@ -22,7 +22,7 @@ from torax._src.neoclassical import neoclassical_models as neoclassical_models_l
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.time_step_calculator.time_step_calculator import TimeStepCalculator
-from torax._src.transport_model import transport_model as transport_model_lib
+from torax._src.transport_model import combined as combined_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -36,7 +36,7 @@ class Models(static_dataclass.StaticDataclass):
   """
 
   source_models: source_models_lib.SourceModels
-  transport_model: transport_model_lib.TransportModel
+  transport_model: combined_lib.CombinedTransportModel
   pedestal_model: pedestal_model_lib.PedestalModel
   neoclassical_models: neoclassical_models_lib.NeoclassicalModels
   mhd_models: mhd_model_lib.MHDModels

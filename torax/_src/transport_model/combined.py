@@ -24,6 +24,7 @@ import jax.numpy as jnp
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
+from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
@@ -40,7 +41,7 @@ RuntimeParams = transport_runtime_params_lib.CombinedRuntimeParams
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class CombinedTransportModel(transport_model_lib.TransportModel):
+class CombinedTransportModel(static_dataclass.StaticDataclass):
   """Combines coefficients from a tuple of transport models."""
 
   transport_models: tuple[transport_model_lib.TransportModel, ...]
@@ -80,8 +81,7 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
 
     return transport_coeffs
 
-# pylint: disable=g-blanket-type-suppression we are still using pytype
-  def call_implementation(   # pytype: disable=signature-mismatch
+  def call_implementation(
       self,
       transport_runtime_params: transport_runtime_params_lib.CombinedRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,

@@ -14,6 +14,7 @@
 
 import dataclasses
 from typing import Annotated, Literal
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -30,7 +31,6 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import combined
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
@@ -224,18 +224,15 @@ class TransportMaskingTest(parameterized.TestCase):
         coeffs.d_face_el, 2 * ref_coeffs.d_face_el, rtol=1e-5
     )
 
-  def test_preserves_none_enabled(self):
-    """Tests that None values are preserved when channel is enabled."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
-        'model_name': 'combined',
-        'transport_models': [{'model_name': 'fixed'}],
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    model = torax_config.transport.build_transport_model()
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=0.0)
+  def test_preserves_none_channel_enabled(self):
+    model = FixedTransportModel()
+    runtime_params = mock.create_autospec(
+        transport_runtime_params_lib.RuntimeParams,
+        disable_chi_i=False,
+        disable_chi_e=False,
+        disable_D_e=False,
+        disable_V_e=False,
+    )
 
     coeffs = transport_model_lib.TurbulentTransport(
         chi_face_ion=jnp.array([1.0]),
@@ -244,27 +241,20 @@ class TransportMaskingTest(parameterized.TestCase):
         v_face_el=jnp.array([1.0]),
         chi_face_ion_bohm=None,
     )
-
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
-    # Test preservation when enabled
     new_coeffs = model.zero_out_disabled_channels(
-        runtime_params.transport.transport_model_params[0], coeffs
+        runtime_params, coeffs
     )
     self.assertIsNone(new_coeffs.chi_face_ion_bohm)
 
-  def test_preserves_none_disabled(self):
-    """Tests that None values are preserved when channel is disabled."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
-        'model_name': 'combined',
-        'transport_models': [{'model_name': 'fixed'}],
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    model = torax_config.transport.build_transport_model()
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=0.0)
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
+  def test_preserves_none_channel_disabled(self):
+    model = FixedTransportModel()
+    runtime_params = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
+        disable_chi_i=True,
+        disable_chi_e=False,
+        disable_D_e=False,
+        disable_V_e=False,
+    )
 
     coeffs = transport_model_lib.TurbulentTransport(
         chi_face_ion=jnp.array([1.0]),
@@ -273,14 +263,8 @@ class TransportMaskingTest(parameterized.TestCase):
         v_face_el=jnp.array([1.0]),
         chi_face_ion_bohm=None,
     )
-
-    # Test preservation when disabled
-    disabled_params = dataclasses.replace(
-        runtime_params.transport.transport_model_params[0],
-        disable_chi_i=True,
-    )
     new_coeffs_disabled = model.zero_out_disabled_channels(
-        disabled_params, coeffs
+        runtime_params, coeffs
     )
     self.assertIsNone(new_coeffs_disabled.chi_face_ion_bohm)
 
