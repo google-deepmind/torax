@@ -33,6 +33,7 @@ from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import qualikiz_based_transport_model
+from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import tglfnn_ukaea_transport_model
 from torax._src.transport_model.tglf import tglf_transport_model
 import typing_extensions
@@ -169,9 +170,6 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         # The QLK version this specific QLKNN was trained on tends to
         # underpredict ITG electron heat flux in shaped, high-beta scenarios.
         data['ITG_flux_ratio_correction'] = 2.0
-    else:
-      if 'smoothing_width' not in data:
-        data['smoothing_width'] = 0.1
     return data
 
   def build_transport_model(self) -> qlknn_transport_model.QLKNNTransportModel:
@@ -459,9 +457,6 @@ class SmoothingZone(torax_pydantic.BaseModelFrozen):
 class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
   """Model for the Combined transport model.
 
-  Note: smoothing and patches should be applied on the combined model, not the
-  individual component models.
-
   Attributes:
     model_name: The transport model to use. Hardcoded to 'combined'.
     chi_min: Lower bound on heat conductivity.
@@ -469,7 +464,7 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
     D_e_min: minimum electron density diffusivity.
     D_e_max: maximum electron density diffusivity.
     V_e_min: minimum electron density convection.
-    V_e_max: minimum electron density convection.
+    V_e_max: maximum electron density convection.
     smoothing_width: Width of HWHM Gaussian smoothing kernel operating on
       transport model outputs.
     transport_models: A sequence of transport models, whose outputs will be
@@ -551,22 +546,6 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
     )
 
   @pydantic.model_validator(mode='after')
-  def _check_no_smoothing_in_components(self) -> typing_extensions.Self:
-    for model_list in ['transport_models', 'pedestal_transport_models']:
-      for i, model in enumerate(getattr(self, model_list)):
-        if model.smoothing_width > 0.0:
-          logging.warning(
-              'smoothing_width > 0.0 is not supported for component models of'
-              ' CombinedTransportModel; instead, smoothing_width should be set'
-              ' on the CombinedTransportModel itself. Smoothing width set on %s'
-              ' component %i (%s) will be ignored.',
-              model_list,
-              i,
-              model.model_name,
-          )
-    return self
-
-  @pydantic.model_validator(mode='after')
   def _check_smoothing_width_minimum(self) -> typing_extensions.Self:
     smoothing_widths = [
         z.smoothing_width for z in self.smoothing_zones
@@ -585,6 +564,24 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
+    if not self.chi_min < self.chi_max:
+      raise ValueError('chi_min must be less than chi_max.')
+    if not self.D_e_min < self.D_e_max:
+      raise ValueError('D_e_min must be less than D_e_max.')
+    if not self.V_e_min < self.V_e_max:
+      raise ValueError('V_e_min must be less than V_e_max.')
+    if self.smoothing_width == 0.0:
+      has_quasilinear = any(
+          isinstance(m, quasilinear_transport_model.QuasilinearTransportModel)
+          for m in list(self.transport_models)
+          + list(self.pedestal_transport_models)
+      )
+      if has_quasilinear:
+        logging.warning(
+            'A quasilinear transport model is configured in being used with '
+            'a smoothing_width=0. Stiff QLKNN transport coefficients '
+            'without spatial smoothing may degrade solver convergence.'
+        )
     if any([
         np.any(model.rho_min.value != 0.0) or np.any(model.rho_max.value != 1.0)
         for model in self.pedestal_transport_models

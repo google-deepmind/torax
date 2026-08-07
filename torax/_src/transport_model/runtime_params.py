@@ -30,15 +30,8 @@ from torax._src.transport_model import enums
 class RuntimeParams:
   """Input params for the transport model which can be used as compiled args."""
 
-  chi_min: float
-  chi_max: float
-  D_e_min: float
-  D_e_max: float
-  V_e_min: float
-  V_e_max: float
   rho_min: array_typing.FloatScalar
   rho_max: array_typing.FloatScalar
-  smoothing_width: float
   disable_chi_i: array_typing.BoolScalar
   disable_chi_e: array_typing.BoolScalar
   disable_D_e: array_typing.BoolScalar

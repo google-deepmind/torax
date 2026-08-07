@@ -32,40 +32,28 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base model holding parameters common to all transport models.
 
   Attributes:
-    chi_min: Lower bound on heat conductivity.
-    chi_max: Upper bound on heat conductivity (can be helpful for stability).
-    D_e_min: minimum electron density diffusivity.
-    D_e_max: maximum electron density diffusivity.
-    V_e_min: minimum electron density convection.
-    V_e_max: minimum electron density convection.
     rho_min: normalized radius above which this model is applied.
     rho_max: normalized radius below which this model is applied.
-    smoothing_width: Width of HWHM Gaussian smoothing kernel operating on
-      transport model outputs.
     disable_chi_i: If True, sets the ion heat conductivity output to zero.
     disable_chi_e: If True, sets the electron heat conductivity output to zero.
     disable_D_e: If True, sets the electron diffusivity output to zero.
     disable_V_e: If True, sets the electron convection output to zero.
-    merge_mode: Defines how this model is combined with previous models in a
+    fast_ion_stabilization: If True, applies fast ion stabilization.
+    fast_ion_stabilization_model: Fast ion stabilization model config.
+    fast_ion_stabilization_multiplier: Fast ion stabilization multiplier.
+    merge_mode: Defines how transport coefficients are combined within a
       CombinedTransportModel. 'add' (default) adds to the accumulated value.
       'overwrite' overwrites the previous value in this model's valid domain
       and prevents subsequent 'add' models in the sequence from modifying this
       region.
   """
 
-  chi_min: torax_pydantic.MeterSquaredPerSecond = 0.05
-  chi_max: torax_pydantic.MeterSquaredPerSecond = 100.0
-  D_e_min: torax_pydantic.MeterSquaredPerSecond = 0.05
-  D_e_max: torax_pydantic.MeterSquaredPerSecond = 100.0
-  V_e_min: torax_pydantic.MeterPerSecond = -50.0
-  V_e_max: torax_pydantic.MeterPerSecond = 50.0
   rho_min: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
   rho_max: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  smoothing_width: pydantic.NonNegativeFloat = 0.0
   disable_chi_i: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(False)
   )
@@ -92,12 +80,6 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    if not self.chi_max > self.chi_min:
-      raise ValueError('chi_min must be less than chi_max.')
-    if not self.D_e_min < self.D_e_max:
-      raise ValueError('D_e_min must be less than D_e_max.')
-    if not self.V_e_min < self.V_e_max:
-      raise ValueError('V_e_min must be less than V_e_max.')
     # For the time-varying parameter pair (rho_min, rho_max), we have relative
     # magnitude constraints that must hold at all times. We validate this by
     # checking the inequality at the combined time points (knots) of the pair.
@@ -128,15 +110,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
             )
         ),
         fast_ion_stabilization_multiplier=self.fast_ion_stabilization_multiplier,
-        chi_min=self.chi_min,
-        chi_max=self.chi_max,
-        D_e_min=self.D_e_min,
-        D_e_max=self.D_e_max,
-        V_e_min=self.V_e_min,
-        V_e_max=self.V_e_max,
         rho_min=self.rho_min.get_value(t),
         rho_max=self.rho_max.get_value(t),
-        smoothing_width=self.smoothing_width,
         disable_chi_i=self.disable_chi_i.get_value(t),
         disable_chi_e=self.disable_chi_e.get_value(t),
         disable_D_e=self.disable_D_e.get_value(t),
