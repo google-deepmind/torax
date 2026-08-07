@@ -162,10 +162,10 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
   extra_prescribed_power_density: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.0, 1.0: 0.0}})
   )
-  gaussian_width: torax_pydantic.TimeVaryingScalar = (
+  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
-  gaussian_location: torax_pydantic.TimeVaryingScalar = (
+  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
   P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(

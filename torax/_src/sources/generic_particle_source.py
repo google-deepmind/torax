@@ -91,10 +91,10 @@ class GenericParticleSourceConfig(base.SourceModelBase):
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  particle_width: torax_pydantic.TimeVaryingScalar = (
+  particle_width: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.25)
   )
-  deposition_location: torax_pydantic.TimeVaryingScalar = (
+  deposition_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(

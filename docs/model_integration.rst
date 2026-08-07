@@ -392,6 +392,53 @@ Once registered, the model can be used in a TORAX config by setting the
     torax.run_simulation(torax_config)
 
 
+Configuring time-varying parameters and physical bounds
+=======================================================
+
+When defining custom Pydantic config classes for models, TORAX provides several
+type helpers in ``torax._src.torax_pydantic`` to enforce physical constraints
+(such as positivity, non-negativity, intervals, or custom bounds) on
+time-varying scalars and arrays:
+
+* **Positivity (** :math:`> 0` **)**: Use ``PositiveTimeVaryingScalar`` or
+  ``PositiveTimeVaryingArray`` (e.g. for diffusion coefficients, temperatures,
+  or Gaussian widths).
+* **Non-Negativity (** :math:`\ge 0` **)**: Use
+  ``NonNegativeTimeVaryingScalar`` or ``NonNegativeTimeVaryingArray`` (e.g. for
+  transport ratios).
+* **Unit Interval (** :math:`[0, 1]` **)**: Use
+  ``UnitIntervalTimeVaryingScalar`` (e.g. for normalized radial locations or
+  heating fractions).
+* **Custom Bounds**: Use
+  ``BoundedTimeVaryingScalar(gt=..., ge=..., lt=..., le=...)`` or
+  ``BoundedTimeVaryingArray(...)`` for specific bounds (e.g.
+  ``BoundedTimeVaryingScalar(gt=1.0)``).
+
+Example usage in a custom model config:
+
+.. code-block:: python
+
+    from typing import Annotated, Literal
+    from torax import sources
+    from torax._src.torax_pydantic import torax_pydantic
+
+    class MyCustomConfig(sources.SourceModelBase):
+      """Custom source config with bounded parameters."""
+
+      model_name: Annotated[
+          Literal['my_custom'], torax.JAX_STATIC
+      ] = 'my_custom'
+      width: torax_pydantic.PositiveTimeVaryingScalar = (
+          torax_pydantic.ValidatedDefault(0.1)
+      )
+      location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+          torax_pydantic.ValidatedDefault(0.5)
+      )
+      scale: torax_pydantic.BoundedTimeVaryingScalar(gt=1.0) = (
+          torax_pydantic.ValidatedDefault(1.5)
+      )
+
+
 .. toctree::
    :maxdepth: 1
    :caption: Model Integration Topics

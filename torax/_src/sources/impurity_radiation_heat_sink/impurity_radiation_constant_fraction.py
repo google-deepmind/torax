@@ -11,7 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
+"""Impurity radiation heat sink for electron heat equation.
+
+Based on a constant fraction of total power density.
+"""
 import dataclasses
 from typing import Annotated, Literal
 import chex
@@ -94,7 +97,7 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
   model_name: Annotated[
       Literal['P_in_scaled_flat_profile'], torax_pydantic.JAX_STATIC
   ] = 'P_in_scaled_flat_profile'
-  fraction_P_heating: torax_pydantic.TimeVaryingScalar = (
+  fraction_P_heating: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
   mode: Annotated[
