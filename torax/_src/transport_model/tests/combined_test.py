@@ -379,21 +379,6 @@ class CombinedTransportModelTest(absltest.TestCase):
         )
     )
 
-  def test_error_if_patches_set_on_children(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
-        'model_name': 'combined',
-        'transport_models': [
-            {'model_name': 'constant', 'apply_inner_patch': True},
-            {'model_name': 'constant'},
-        ],
-        'pedestal_transport_models': [{'model_name': 'constant'}],
-    }
-    with self.assertRaisesRegex(
-        ValueError, '(?=.*patch)(?=.*CombinedTransportModel)'
-    ):
-      model_config.ToraxConfig.from_dict(config)
-
   def test_error_if_pedestal_model_defines_rho_min(self):
     config = default_configs.get_default_config_dict()
     config['transport'] = {

@@ -65,7 +65,6 @@ class CombinedTransportModel(transport_model_lib.TransportModel):
         core_profiles,
         pedestal_model_output,
     )
-
     # Apply min/max clipping
     transport_coeffs = self._apply_clipping(
         transport_runtime_params,

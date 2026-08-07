@@ -16,7 +16,6 @@
 
 import copy
 import dataclasses
-import itertools
 from typing import Annotated, Any, Literal, Sequence
 from absl import logging
 import chex
@@ -586,19 +585,6 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    if any([
-        np.any(model.apply_inner_patch.value)
-        or np.any(model.apply_outer_patch.value)
-        # Use itertools.chain to iterate over both lists of models without
-        # needing to make a new list.
-        for model in itertools.chain(
-            self.transport_models, self.pedestal_transport_models
-        )
-    ]):
-      raise ValueError(
-          'apply_inner_patch and apply_outer_patch not supported for'
-          ' CombinedTransportModel or its component models.'
-      )
     if any([
         np.any(model.rho_min.value != 0.0) or np.any(model.rho_max.value != 1.0)
         for model in self.pedestal_transport_models

@@ -1469,58 +1469,6 @@ transport model.
   Width of HWHM Gaussian smoothing kernel operating on transport model outputs.
   If using the ``QLKNN_7_11`` transport model, the default is set to 0.1.
 
-``smooth_everywhere`` (bool [default = False])
-  Smooth across entire radial domain regardless of inner and outer patches.
-
-``apply_inner_patch`` (**time-varying-scalar** [default = False])
-  If ``True``, set a patch for inner core transport coefficients below
-  ``rho_inner``. Typically used as an ad-hoc measure for MHD (e.g. sawteeth) or
-  EM (e.g. KBM) transport in the inner-core. If using a
-  `CombinedTransportModel`, ensure that the inner patch is only set on the
-  global model rather than its component models to avoid conflicts.
-
-``D_e_inner``  (**time-varying-scalar** [default = 0.2])
-  Particle diffusivity value for inner transport patch.
-
-``V_e_inner``  (**time-varying-scalar** [default = 0.0])
-  Particle convection value for inner transport patch.
-
-``chi_i_inner``  (**time-varying-scalar** [default = 1.0])
-  Ion heat conduction value for inner transport patch.
-
-``chi_e_inner`` (**time-varying-scalar** [default = 1.0])
-  Electron heat conduction value for inner transport patch.
-
-``rho_inner`` (**time-varying-scalar** [default = 0.3])
-  :math:`\hat{\rho}` below which inner patch is applied.
-  Note that ``rho_inner`` and ``rho_outer`` must have the same interpolation
-  mode to simplify the validation test ``rho_inner < rho_outer`` at all times.
-
-``apply_outer_patch`` (**time-varying-scalar** [default = False])
-  If ``True``, set a patch for outer core transport coefficients above
-  ``rho_outer``. Useful for the L-mode near-edge region where models like
-  QLKNN10D are not applicable. Only used if ``set_pedestal==False``.
-  If using a `CombinedTransportModel`, ensure that the outer patch is
-  only set on the global model rather than its component models to avoid
-  conflicts.
-
-``D_e_outer``  (**time-varying-scalar** [default = 0.2])
-  Particle diffusivity value for outer transport patch.
-
-``V_e_outer``  (**time-varying-scalar** [default = 0.0])
-  Particle convection value for outer transport patch.
-
-``chi_i_outer``  (**time-varying-scalar** [default = 1.0])
-  Ion heat conduction value for outer transport patch.
-
-``chi_e_outer`` (**time-varying-scalar** [default = 1.0])
-  Electron heat conduction value for outer transport patch.
-
-``rho_outer`` (**time-varying-scalar** [default = 0.9])
-  :math:`\hat{\rho}` above which outer patch is applied.
-  Note that ``rho_inner`` and ``rho_outer`` must have the same interpolation
-  mode to simplify the validation test ``rho_inner < rho_outer`` at all times.
-
 ``fast_ion_stabilization`` (**time-varying-scalar** [default = False])
   If ``True``, apply a fast ion stabilization correction to the :math:`R/L_{Ti}`
   input of quasilinear transport models (QLKNN, TGLFNN, QuaLiKiz). The fast ion
@@ -3003,18 +2951,6 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'transport': {
           'model_name': 'qlknn',
-          'apply_inner_patch': True,
-          'D_e_inner': 0.25,
-          'V_e_inner': 0.0,
-          'chi_i_inner': 1.5,
-          'chi_e_inner': 1.5,
-          'rho_inner': 0.3,
-          'apply_outer_patch': True,
-          'D_e_outer': 0.1,
-          'V_e_outer': 0.0,
-          'chi_i_outer': 2.0,
-          'chi_e_outer': 2.0,
-          'rho_outer': 0.9,
           'chi_min': 0.05,
           'chi_max': 100,
           'D_e_min': 0.05,

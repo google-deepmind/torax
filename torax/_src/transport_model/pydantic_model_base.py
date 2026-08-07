@@ -40,25 +40,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     V_e_max: minimum electron density convection.
     rho_min: normalized radius above which this model is applied.
     rho_max: normalized radius below which this model is applied.
-    apply_inner_patch: set inner core transport coefficients (ad-hoc MHD/EM
-      transport).
-    D_e_inner: inner core electron density diffusivity.
-    V_e_inner: inner core electron density convection.
-    chi_i_inner: inner core ion heat equation diffusion term.
-    chi_e_inner: inner core electron heat equation diffusion term.
-    rho_inner: normalized radius below which inner patch is applied.
-    apply_outer_patch: set outer core transport coefficients (ad-hoc MHD/EM
-      transport). Only used when pedestal.set_pedestal = False Useful for L-mode
-      near-edge region where QLKNN10D is not applicable.
-    D_e_outer: outer core electron density diffusivity.
-    V_e_outer: outer core electron density convection.
-    chi_i_outer: outer core ion heat equation diffusion term.
-    chi_e_outer: outer core electron heat equation diffusion term.
-    rho_outer: normalized radius above which outer patch is applied.
     smoothing_width: Width of HWHM Gaussian smoothing kernel operating on
       transport model outputs.
-    smooth_everywhere: Smooth across entire radial domain regardless of inner
-      and outer patches.
     disable_chi_i: If True, sets the ion heat conductivity output to zero.
     disable_chi_e: If True, sets the electron heat conductivity output to zero.
     disable_D_e: If True, sets the electron diffusivity output to zero.
@@ -82,46 +65,7 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   rho_max: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  # TODO(b/434175938): Remove patch mechanism in V2 due to duplication with
-  # combined transport model framework.
-  apply_inner_patch: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(False)
-  )
-  D_e_inner: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.2)
-  )
-  V_e_inner: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  chi_i_inner: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  chi_e_inner: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  rho_inner: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.3)
-  )
-  apply_outer_patch: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(False)
-  )
-  D_e_outer: interpolated_param_1d.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.2)
-  )
-  V_e_outer: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  chi_i_outer: interpolated_param_1d.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  chi_e_outer: interpolated_param_1d.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  rho_outer: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.9)
-  )
   smoothing_width: pydantic.NonNegativeFloat = 0.0
-  smooth_everywhere: bool = False
   disable_chi_i: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(False)
   )
@@ -154,28 +98,17 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       raise ValueError('D_e_min must be less than D_e_max.')
     if not self.V_e_min < self.V_e_max:
       raise ValueError('V_e_min must be less than V_e_max.')
-    # For the time-varying parameter pairs (rho_min, rho_max),
-    # (rho_inner, rho_outer), we have relative magnitude constraints. These need
-    # to be held at all times. We validate this by checking the inequality at
-    # the combined time points (knots) of each pair. This is sufficient
-    # both for STEP and PIECEWISE_LINEAR interpolation modes. However, if the
-    # interpolation modes are mixed, the constraint check becomes more
-    # complicated. For now, we only support the same interpolation mode for
-    # these pairs.
-    if self.rho_outer.interpolation_mode != self.rho_inner.interpolation_mode:
-      raise ValueError(
-          'rho_outer and rho_inner must have the same interpolation mode.'
-      )
+    # For the time-varying parameter pair (rho_min, rho_max), we have relative
+    # magnitude constraints that must hold at all times. We validate this by
+    # checking the inequality at the combined time points (knots) of the pair.
+    # This check is sufficient to guarantee the inequality at all times
+    # provided that both parameters use the same interpolation mode (either step
+    # or linear interpolation). We therefore require their interpolation modes
+    # to match.
     if self.rho_max.interpolation_mode != self.rho_min.interpolation_mode:
       raise ValueError(
           'rho_max and rho_min must have the same interpolation mode.'
       )
-    all_times_inner_outer = np.union1d(self.rho_inner.time, self.rho_outer.time)
-    if not np.all(
-        self.rho_outer.get_value(all_times_inner_outer)
-        > self.rho_inner.get_value(all_times_inner_outer)
-    ):
-      raise ValueError('rho_outer must be greater than rho_inner for all time.')
     all_times_min_max = np.union1d(self.rho_min.time, self.rho_max.time)
     if not np.all(
         self.rho_max.get_value(all_times_min_max)
@@ -203,20 +136,7 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
         V_e_max=self.V_e_max,
         rho_min=self.rho_min.get_value(t),
         rho_max=self.rho_max.get_value(t),
-        apply_inner_patch=self.apply_inner_patch.get_value(t),
-        D_e_inner=self.D_e_inner.get_value(t),
-        V_e_inner=self.V_e_inner.get_value(t),
-        chi_i_inner=self.chi_i_inner.get_value(t),
-        chi_e_inner=self.chi_e_inner.get_value(t),
-        rho_inner=self.rho_inner.get_value(t),
-        apply_outer_patch=self.apply_outer_patch.get_value(t),
-        D_e_outer=self.D_e_outer.get_value(t),
-        V_e_outer=self.V_e_outer.get_value(t),
-        chi_i_outer=self.chi_i_outer.get_value(t),
-        chi_e_outer=self.chi_e_outer.get_value(t),
-        rho_outer=self.rho_outer.get_value(t),
         smoothing_width=self.smoothing_width,
-        smooth_everywhere=self.smooth_everywhere,
         disable_chi_i=self.disable_chi_i.get_value(t),
         disable_chi_e=self.disable_chi_e.get_value(t),
         disable_D_e=self.disable_D_e.get_value(t),
