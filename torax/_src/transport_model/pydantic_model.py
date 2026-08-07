@@ -34,6 +34,7 @@ from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import runtime_params
 from torax._src.transport_model import tglfnn_ukaea_transport_model
 from torax._src.transport_model.tglf import tglf_transport_model
 import typing_extensions
@@ -514,7 +515,9 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
         pedestal_transport_models=pedestal_transport_models,
     )
 
-  def build_runtime_params(self, t: chex.Numeric) -> combined.RuntimeParams:
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.CombinedRuntimeParams:
     transport_model_params = tuple(
         model.build_runtime_params(t) for model in self.transport_models
     )
@@ -526,13 +529,13 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
     smoothing_zones = []
     for zone in self.smoothing_zones:
       smoothing_zones.append(
-          combined.SmoothingZoneParams(
+          runtime_params.SmoothingZoneParams(
               rho_min=zone.rho_min,
               rho_max=zone.rho_max,
               smoothing_width=zone.smoothing_width,
           )
       )
-    return combined.RuntimeParams(
+    return runtime_params.CombinedRuntimeParams(
         chi_min=self.chi_min,
         chi_max=self.chi_max,
         D_e_min=self.D_e_min,

@@ -24,6 +24,7 @@ from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import combined
 from torax._src.transport_model import enums
+from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 
@@ -151,7 +152,6 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     matrix = combined._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -175,7 +175,6 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     matrix = combined._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -204,7 +203,6 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     matrix = combined._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -243,7 +241,6 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.8,
     )
-    assert isinstance(runtime_params.transport, combined.RuntimeParams)
     matrix = combined._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -579,7 +576,7 @@ class CombinedTransportModelTest(absltest.TestCase):
 
     # We need a RuntimeParams for combined model
     combined_params = mock.create_autospec(
-        combined.RuntimeParams, instance=True
+        transport_runtime_params_lib.CombinedRuntimeParams, instance=True
     )
     combined_params.transport_model_params = [mock_params]
     combined_params.pedestal_transport_model_params = []

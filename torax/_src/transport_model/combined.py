@@ -36,10 +36,6 @@ from torax._src.transport_model import transport_model as transport_model_lib
 MIN_SMOOTHING_WIDTH = 1e-5
 
 
-SmoothingZoneParams = transport_runtime_params_lib.SmoothingZoneParams
-RuntimeParams = transport_runtime_params_lib.CombinedRuntimeParams
-
-
 @dataclasses.dataclass(frozen=True, eq=False)
 class CombinedTransportModel(static_dataclass.StaticDataclass):
   """Combines coefficients from a tuple of transport models."""
@@ -93,7 +89,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
 
     Args:
       transport_runtime_params: Input runtime parameters for this transport
-        model (expected to be an instance of combined.RuntimeParams at runtime).
+        model (expected to be an instance of CombinedRuntimeParams at runtime).
         Can change without triggering a JAX recompilation.
       runtime_params: Runtime parameters for the simulation at the current time.
       geo: Geometry of the torus at the current time.
@@ -103,9 +99,6 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
     Returns:
       coeffs: The transport coefficients
     """
-    # Required for pytype
-    assert isinstance(transport_runtime_params, RuntimeParams)
-
     core_coeffs = self._combine(
         self.transport_models,
         transport_runtime_params.transport_model_params,
@@ -235,7 +228,6 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
       transport_coeffs: transport_model_lib.TurbulentTransport,
   ) -> transport_model_lib.TurbulentTransport:
     """Applies min/max clipping to transport coefficients for PDE stability."""
-    assert isinstance(transport_runtime_params, RuntimeParams)
     chi_face_ion = jnp.clip(
         transport_coeffs.chi_face_ion,
         transport_runtime_params.chi_min,
@@ -273,7 +265,6 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
-    assert isinstance(runtime_params.transport, RuntimeParams)
     smoothing_matrix = _build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -290,7 +281,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
           lambda: jnp.dot(smoothing_matrix, coeff),
       )
 
-    return jax.tree_util.tree_map(smooth_single_coeff, transport_coeffs)
+    return jax.tree.map(smooth_single_coeff, transport_coeffs)
 
 
 def _add_optional(
@@ -315,14 +306,16 @@ def _pedestal_domain_mask(
 
 
 def _build_smoothing_matrix(
-    transport_runtime_params: RuntimeParams,
+    transport_runtime_params: (
+        transport_runtime_params_lib.CombinedRuntimeParams
+    ),
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Builds a smoothing matrix for the combined transport model."""
   # To reduce the range of the convolution, weights under lower_cutoff are
-  # clipped to zero
+  # clipped to zero.
   lower_cutoff = 0.01
   # used for eps, small number to avoid divisions by zero for sigma = 0
   consts = constants.CONSTANTS
