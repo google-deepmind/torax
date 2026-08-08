@@ -407,7 +407,7 @@ class WhileLoopBoundedWhileLoop(hijax.VJPHiPrimitive):
     super().__init__()
 
   # Implementation, used for evaluation and lowering (e.g. under jit).
-  def expand(self, init_val):
+  def expand(self, init_val):  # pyrefly: ignore[bad-override]
     return _while_loop_bounded_while_loop_fwd(
         self.params['cond_fun'],
         self.params['body_fun'],
@@ -416,7 +416,7 @@ class WhileLoopBoundedWhileLoop(hijax.VJPHiPrimitive):
     )[0]
 
   # Reverse-mode: forward pass returns (primal_out, residuals).
-  def vjp_fwd(self, nzs_in, init_val):
+  def vjp_fwd(self, nzs_in, init_val):  # pyrefly: ignore[bad-override]
     return _while_loop_bounded_while_loop_fwd(
         self.params['cond_fun'],
         self.params['body_fun'],
