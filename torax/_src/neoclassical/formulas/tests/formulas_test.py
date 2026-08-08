@@ -11,11 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
+import jax
+from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -132,6 +134,19 @@ class FormulasTest(parameterized.TestCase):
         atol=_A_TOL,
         rtol=_R_TOL,
     )
+
+  def test_calculate_f_trap_gradient_on_axis(self):
+    grad_fn = jax.grad(
+        lambda geo: jnp.sum(formulas.calculate_f_trap(geo)),
+        allow_int=True,
+    )
+    grad_geo = grad_fn(self.geo)
+
+    for leaf in jax.tree_util.tree_leaves(grad_geo):
+      if isinstance(leaf, (jax.Array, np.ndarray)) and jnp.issubdtype(
+          leaf.dtype, jnp.inexact
+      ):
+        chex.assert_tree_all_finite(leaf)
 
 
 # Reference values from running test code in a notebook.

@@ -330,6 +330,44 @@ def inverse_softplus(x: jax.Array) -> jax.Array:
   return jnp.where(x > 30.0, x, jnp.log(jnp.expm1(jnp.maximum(x, 1e-20))))
 
 
+@jax.custom_jvp
+def sqrt_with_zero_gradient_at_zero(x: jax.Array) -> jax.Array:
+  """Computes sqrt(x) with a custom gradient that is zero where x is zero.
+
+  The standard ``jnp.sqrt`` has an undefined (infinite) gradient at ``x = 0``.
+  Use in cases where you need a well-defined gradient at zero. For example at
+  (``rho_norm = 0``), where some geometric quantities are zero but we expect a
+  zero gradient.
+
+  This function returns the exact same *values* as ``jnp.sqrt`` but overrides
+  the JVP so that the tangent is zero wherever the primal is zero.
+
+  Args:
+    x: Non-negative input array.
+
+  Returns:
+    ``jnp.sqrt(x)`` with a well-defined gradient at x=0.0.
+  """
+  return jnp.sqrt(x)
+
+
+@sqrt_with_zero_gradient_at_zero.defjvp
+def _sqrt_with_zero_gradient_at_zero_jvp(
+    primals: tuple[jax.Array],  # pylint: disable=g-one-element-tuple
+    tangents: tuple[jax.Array],  # pylint: disable=g-one-element-tuple
+) -> tuple[jax.Array, jax.Array]:
+  """Custom JVP for sqrt that returns zero tangent where the input is zero."""
+  (x,) = primals
+  (x_dot,) = tangents
+  primal_out = jnp.sqrt(x)
+  # Standard derivative: 1 / (2 * sqrt(x)).  We must guard the denominator
+  # because jnp.where evaluates *both* branches: even in the unselected branch,
+  # dividing by sqrt(0)=0 produces NaN/Inf that poisons the result.
+  safe_denom = jnp.where(x == 0.0, 1.0, 2.0 * primal_out)
+  tangent_out = jnp.where(x == 0.0, 0.0, x_dot / safe_denom)
+  return primal_out, tangent_out
+
+
 def smooth_sqrt(
     x: jax.Array, epsilon: float = constants.CONSTANTS.eps  # pyrefly: ignore[bad-function-definition]
 ) -> jax.Array:

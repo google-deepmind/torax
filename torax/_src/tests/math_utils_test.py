@@ -392,6 +392,24 @@ class MathUtilsTest(parameterized.TestCase):
     self.assertFalse(jnp.isnan(grad))
     self.assertFalse(jnp.isinf(grad))
 
+  @parameterized.parameters(
+      (0.0, 0.0), (0.25, 1.0 / (2.0 * np.sqrt(0.25))), (-0.25, np.nan)
+  )
+  def test_sqrt_with_zero_gradient_at_zero_grad_is_zero_at_zero(
+      self, value, expected_grad
+  ):
+    with self.subTest('reverse-mode'):
+      grad_fn = jax.grad(math_utils.sqrt_with_zero_gradient_at_zero)
+      grad_at_zero = grad_fn(jnp.array(value))
+      np.testing.assert_allclose(grad_at_zero, expected_grad)
+    with self.subTest('forward-mode'):
+      _, tangent = jax.jvp(
+          math_utils.sqrt_with_zero_gradient_at_zero,
+          (jnp.array(value),),
+          (jnp.array(1.0),),
+      )
+      np.testing.assert_allclose(tangent, expected_grad)
+
   @parameterized.named_parameters(
       dict(
           testcase_name='linear_scale',
