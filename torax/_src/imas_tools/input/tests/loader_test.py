@@ -88,6 +88,18 @@ class IMASLoaderTest(parameterized.TestCase):
         len(rhon_array[0]), len(ids_node.profiles_1d[0].grid.rho_tor_norm)
     )
 
+  def test_imas_to_torax_xr(self):
+    path = "STEP_SPP_001_ECHD_ftop.nc"
+    imas_data_tree = loader.imas_to_torax_xr(path)
+    self.assertIsNotNone(imas_data_tree)
+    self.assertCountEqual(
+        imas_data_tree.children.keys(), ["profiles", "scalars", "numerics"]
+    )
+
+    # Check that some representative expected variables are present
+    self.assertIn("T_e", imas_data_tree["profiles"].dataset)
+    self.assertIn("Ip", imas_data_tree["scalars"].dataset)
+
 
 if __name__ == "__main__":
   absltest.main()
