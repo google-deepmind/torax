@@ -19,6 +19,7 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
+import pydantic
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.mhd.sawtooth import simple_redistribution
@@ -133,6 +134,34 @@ class SimpleRedistributionTest(parameterized.TestCase):
         1.0,
         'On-axis q should be at least 1.0 after redistribution.',
     )
+
+  @parameterized.parameters(
+      (1.0,),
+      (0.9,),
+      (0.0,),
+      (-1.5,),
+      ({0.0: 1.5, 1.0: 1.0},),
+      ({0.0: 0.8, 1.0: 1.2},),
+  )
+  def test_invalid_mixing_radius_multiplier_raises_error(
+      self, invalid_multiplier
+  ):
+    with self.assertRaises(pydantic.ValidationError):
+      simple_redistribution.SimpleRedistributionConfig(
+          mixing_radius_multiplier=invalid_multiplier
+      )
+
+  @parameterized.parameters(
+      (1.01,),
+      (1.5,),
+      (2.0,),
+      ({0.0: 1.1, 1.0: 1.5},),
+  )
+  def test_valid_mixing_radius_multiplier(self, valid_multiplier):
+    config = simple_redistribution.SimpleRedistributionConfig(
+        mixing_radius_multiplier=valid_multiplier
+    )
+    self.assertIsNotNone(config)
 
 
 if __name__ == '__main__':

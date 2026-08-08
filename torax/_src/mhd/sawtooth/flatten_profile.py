@@ -36,18 +36,19 @@ def flatten_density_profile(
 
   This function redistributes a profile due to a sawtooth crash by modifying
   the profile from the magnetic axis up to the mixing radius. The profile is
-  (roughly) flattened between the magnetic axis and the q=1 surface. Between
-  the q=1 surface to the mixing radius, the profile is linearly redistributed.
-  The original profile value is maintained at the mixing radius.
+  (roughly) flattened between the magnetic axis and the q=1 surface using a
+  smoothstep shape. Between the q=1 surface and the mixing radius, the profile
+  transitions via a cubic Hermite spline matching the original profile value
+  and gradient at the mixing radius.
 
   The unknown quantity is the value of the redistributed profile at the q=1
   surface. This is calculated by ensuring that volume integrals are conserved,
   e.g. for conservation of particles, energy, currents.
 
   Args:
-    rho_norm_q1: The normalised radius of the q=1 surface.
-    rho_norm_mixing: The normalised radius of the mixing surface.
-    redistribution_mask: boolean mask for the redistribution region inside the
+    rho_norm_q1: The normalized radius of the q=1 surface.
+    rho_norm_mixing: The normalized radius of the mixing surface.
+    redistribution_mask: boolean mask for the redistribution zone inside the
       mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_density_profile: The original density profile to be redistributed.
@@ -58,35 +59,17 @@ def flatten_density_profile(
   """
 
   original_density = original_density_profile.value
-  rho_norm = geo.rho_norm
+  ones = jnp.ones_like(original_density)
 
-  # Get a trial profile shape for the redistributed value and a boolean mask
-  # for the redistribution region.
-  trial_density = _get_trial_profile(
-      rho_norm_q1,
-      rho_norm_mixing,
-      flattening_factor,
-      original_density,  # pyrefly: ignore[bad-argument-type]
-      geo,
-  )
-
-  density_at_mixing_edge = jnp.interp(
-      rho_norm_mixing, rho_norm, original_density
-  )
-  scaling = _get_scaling_factor(
-      value_at_mixing_edge=density_at_mixing_edge,
-      original_profile=original_density,  # pyrefly: ignore[bad-argument-type]
-      trial_profile=trial_density,
+  new_profile = _redistribute_profile(
+      rho_norm_q1=rho_norm_q1,
+      rho_norm_mixing=rho_norm_mixing,
       redistribution_mask=redistribution_mask,
+      flattening_factor=flattening_factor,
+      original_profile=original_density,
       geo=geo,
-  )
-
-  # Build the new value using masks and the scaling factor
-  new_profile = jnp.where(
-      redistribution_mask,
-      (trial_density - density_at_mixing_edge) * scaling
-      + density_at_mixing_edge,
-      original_density,
+      pre_crash_weight=ones,
+      post_crash_weight=ones,
   )
 
   return dataclasses.replace(
@@ -111,18 +94,19 @@ def flatten_temperature_profile(
 
   This function redistributes a profile due to a sawtooth crash by modifying
   the profile from the magnetic axis up to the mixing radius. The profile is
-  (roughly) flattened between the magnetic axis and the q=1 surface. Between
-  the q=1 surface to the mixing radius, the profile is linearly redistributed.
-  The original profile value is maintained at the mixing radius.
+  (roughly) flattened between the magnetic axis and the q=1 surface using a
+  smoothstep shape. Between the q=1 surface and the mixing radius, the profile
+  transitions via a cubic Hermite spline matching the original profile value
+  and gradient at the mixing radius.
 
   The unknown quantity is the value of the redistributed profile at the q=1
   surface. This is calculated by ensuring that volume integrals are conserved,
   e.g. for conservation of particles, energy, currents.
 
   Args:
-    rho_norm_q1: The normalised radius of the q=1 surface.
-    rho_norm_mixing: The normalised radius of the mixing surface.
-    redistribution_mask: boolean mask for the redistribution region inside the
+    rho_norm_q1: The normalized radius of the q=1 surface.
+    rho_norm_mixing: The normalized radius of the mixing surface.
+    redistribution_mask: boolean mask for the redistribution zone inside the
       mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_temperature_profile: The original temperature profile to be
@@ -138,45 +122,17 @@ def flatten_temperature_profile(
   original_temperature = original_temperature_profile.value
   original_density = original_density_profile.value
   flattened_density = flattened_density_profile.value
-  rho_norm = geo.rho_norm
 
-  # Get a trial profile shape for the redistributed value and a boolean mask
-  # for the redistribution region.
-  trial_temperature = _get_trial_profile(
-      rho_norm_q1,
-      rho_norm_mixing,
-      flattening_factor,
-      original_temperature,  # pyrefly: ignore[bad-argument-type]
-      geo,
-  )
-
-  original_pressure = original_temperature * original_density
-
-  pressure_at_mixing_edge = jnp.interp(
-      rho_norm_mixing,
-      rho_norm,
-      original_pressure,
-  )
-
-  trial_pressure = trial_temperature * flattened_density
-
-  scaling = _get_scaling_factor(
-      value_at_mixing_edge=pressure_at_mixing_edge,
-      original_profile=original_pressure,  # pyrefly: ignore[bad-argument-type]
-      trial_profile=trial_pressure,
+  # Weight by densities for energy conservation.
+  new_temperature = _redistribute_profile(
+      rho_norm_q1=rho_norm_q1,
+      rho_norm_mixing=rho_norm_mixing,
       redistribution_mask=redistribution_mask,
+      flattening_factor=flattening_factor,
+      original_profile=original_temperature,
       geo=geo,
-  )
-
-  new_pressure = (
-      trial_pressure - pressure_at_mixing_edge
-  ) * scaling + pressure_at_mixing_edge
-
-  # Build the new value using masks and the scaling factor
-  new_temperature = jnp.where(
-      redistribution_mask,
-      new_pressure / flattened_density,
-      original_temperature,
+      pre_crash_weight=original_density,
+      post_crash_weight=flattened_density,
   )
 
   return dataclasses.replace(
@@ -200,18 +156,19 @@ def flatten_current_profile(
 
   This function redistributes a profile due to a sawtooth crash by modifying
   the profile from the magnetic axis up to the mixing radius. The profile is
-  (roughly) flattened between the magnetic axis and the q=1 surface. Between
-  the q=1 surface to the mixing radius, the profile is linearly redistributed.
-  The original profile value is maintained at the mixing radius.
+  (roughly) flattened between the magnetic axis and the q=1 surface using a
+  smoothstep shape. Between the q=1 surface and the mixing radius, the profile
+  transitions via a cubic Hermite spline matching the original profile value
+  and gradient at the mixing radius.
 
   The unknown quantity is the value of the redistributed profile at the q=1
   surface. This is calculated by ensuring that volume integrals are conserved,
   e.g. for conservation of particles, energy, currents.
 
   Args:
-    rho_norm_q1: The normalised radius of the q=1 surface.
-    rho_norm_mixing: The normalised radius of the mixing surface.
-    redistribution_mask: boolean mask for the redistribution region inside the
+    rho_norm_q1: The normalized radius of the q=1 surface.
+    rho_norm_mixing: The normalized radius of the mixing surface.
+    redistribution_mask: boolean mask for the redistribution zone inside the
       mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_psi_profile: The original poloidal flux profile.
@@ -221,44 +178,19 @@ def flatten_current_profile(
     geo: The geometry of the simulation at this time slice.
 
   Returns:
-    The redistributed temperature profile.
+    The redistributed poloidal flux profile.
   """
 
-  rho_norm = geo.rho_norm
-
-  # Get a trial profile shape for the redistributed value and a boolean mask
-  # for the redistribution region.
-  trial_j_total = _get_trial_profile(
-      rho_norm_q1,
-      rho_norm_mixing,
-      flattening_factor,
-      original_j_total_profile,
-      geo,
-  )
-
-  j_total_at_mixing_edge = jnp.interp(
-      rho_norm_mixing,
-      rho_norm,
-      original_j_total_profile,
-  )
-
-  scaling = _get_scaling_factor(
-      value_at_mixing_edge=j_total_at_mixing_edge,
-      original_profile=original_j_total_profile,
-      trial_profile=trial_j_total,
+  ones = jnp.ones_like(original_j_total_profile)
+  new_j_total = _redistribute_profile(
+      rho_norm_q1=rho_norm_q1,
+      rho_norm_mixing=rho_norm_mixing,
       redistribution_mask=redistribution_mask,
+      flattening_factor=flattening_factor,
+      original_profile=original_j_total_profile,
       geo=geo,
-  )
-
-  new_j_total = (
-      trial_j_total - j_total_at_mixing_edge
-  ) * scaling + j_total_at_mixing_edge
-
-  # Build the new value using masks and the scaling factor
-  new_j_total = jnp.where(
-      redistribution_mask,
-      new_j_total,
-      original_j_total_profile,
+      pre_crash_weight=ones,
+      post_crash_weight=ones,
   )
 
   # Construct a new psi profile using the new j_total profile.
@@ -285,57 +217,150 @@ def flatten_current_profile(
   )
 
 
-def _get_trial_profile(
+def _redistribute_profile(
     rho_norm_q1: array_typing.FloatScalar,
     rho_norm_mixing: array_typing.FloatScalar,
+    redistribution_mask: array_typing.BoolVector,
     flattening_factor: array_typing.FloatScalar,
     original_profile: array_typing.FloatVector,
     geo: geometry.Geometry,
+    pre_crash_weight: array_typing.FloatVector,
+    post_crash_weight: array_typing.FloatVector,
 ) -> array_typing.FloatVector:
-  """Returns a trial new value using two linear interpolations."""
+  """Redistributes a profile inside the mixing radius due to a sawtooth crash.
+
+  Example redistributed profiles are plasma current, density, or temperature.
+
+  The resulting redistributed profile looks as follows:
+  1. Between the magnetic axis and the q=1 radius (`rho_norm_q1`), the
+     profile is flattened with zero gradient on-axis and at the q=1 surface
+     using a smoothstep shape (when `flattening_factor > 1.0`), or flat (when
+     `flattening_factor == 1.0`).
+  2. Between the q=1 radius and the mixing radius (`rho_norm_mixing`), the
+     profile transitions via a cubic Hermite spline with zero gradient at the
+     q=1 surface, matching both the original profile value and gradient at the
+     mixing radius.
+  3. Outside the mixing radius, the profile is unchanged.
+
+  The overall value of the profile at the q=1 surface is scaled so that the
+  integrated quantity (e.g. total particle number, thermal energy, or enclosed
+  current) is conserved. The weighting profiles (`pre_crash_weight` and
+  `post_crash_weight`) can be used to conserve a weighted integral.
+  For example, for energy conservation when the temperature profile is
+  flattened, the density profile should be used as a weighting profile.
+
+  Derivation:
+    Let y_orig(rho) be the original profile before the crash,
+    y_mix = y_orig(rho_mix), and y'_mix = dy_orig/drho(rho_mix).
+    Let w_pre(rho) and w_post(rho) be pre- and post-crash weighting profiles.
+
+    The conserved original integrated quantity inside the mixing radius is:
+      I_orig = int_{rho <= rho_mix} y_orig(rho) * w_pre(rho) dV
+
+    Let C be the redistributed profile value at the q=1 surface (rho_norm_q1).
+    Inside q=1 (rho<=rho_q1), with normalized coordinate r(rho) = rho / rho_q1:
+      core_shape(rho) = 1 + (flattening_factor - 1) * (1 - 3*r^2 + 2*r^3)
+      y_new(rho) = C * core_shape(rho)
+
+    In the mixing zone (rho_q1 < rho <= rho_mix), with normalized coordinate
+    xi(rho) = (rho - rho_q1)/(rho_mix - rho_q1) and drho_mix = rho_mix - rho_q1:
+      h00(xi) = 1 - 3*xi^2 + 2*xi^3
+      h01(xi) = 3*xi^2 - 2*xi^3
+      h11(xi) = xi^3 - xi^2
+      y_new(rho) = C * h00(xi) + y_mix * h01(xi) + (drho_mix * y'_mix) * h11(xi)
+
+    Since y_new(rho) is affine in C, the redistributed integral decomposes as:
+      I_new = int_{rho <= rho_mix} y_new(rho) * w_post(rho) dV
+            = C * I_core + I_edge
+
+    where:
+      I_core = int_{rho <= rho_q1} core_shape * w_post dV
+             + int_{rho_q1 < rho <= rho_mix} h00 * w_post dV
+      I_edge = int_{rho_q1 < rho <= rho_mix}
+                 (y_mix * h01 + drho_mix * y'_mix * h11) * w_post dV
+
+    Setting I_new = I_orig gives the analytical solution for C:
+      C = (I_orig - I_edge) / I_core
+
+  Args:
+    rho_norm_q1: The normalized radius of the q=1 surface.
+    rho_norm_mixing: The normalized radius of the mixing surface.
+    redistribution_mask: boolean mask for cells inside rho_norm_mixing.
+    flattening_factor: Factor controlling core gradient (1.0 for flat core).
+    original_profile: The original 1D profile array to be redistributed.
+    geo: The geometry of the simulation at this time slice.
+    pre_crash_weight: Weighting profile for the original profile integral (e.g.
+      original density when flattening temperature).
+    post_crash_weight: Weighting profile for redistributed shape integrals (e.g.
+      redistributed density when flattening temperature).
+
+  Returns:
+    The redistributed 1D profile array.
+  """
 
   rho_norm = geo.rho_norm
-
-  # Construct a trial new value using two linear interpolations in
-  # the redistribution region.
-  value_at_q1 = jnp.interp(rho_norm_q1, rho_norm, original_profile)
-  value_at_axis = flattening_factor * value_at_q1
-  value_at_mixing_edge = jnp.interp(rho_norm_mixing, rho_norm, original_profile)
-
-  # Define the key points for interpolation for the trial new value
-  interp_rhos = jnp.array([0.0, rho_norm_q1, rho_norm_mixing])
-  interp_vals = jnp.array([value_at_axis, value_at_q1, value_at_mixing_edge])
-
-  # Create the trial value shape.
-  # This will do constant extrapolation for rho_norm > rho_norm_mixing , but
-  # it doesn't matter since the redistribution mask will be false for these
-  # points. It is important for trial_profile to have the same shape as
-  # original_profile to avoid unnecessary slicing operations.
-  trial_profile = jnp.interp(rho_norm, interp_rhos, interp_vals)
-
-  return trial_profile
-
-
-def _get_scaling_factor(
-    original_profile: array_typing.FloatVector,
-    trial_profile: array_typing.FloatVector,
-    value_at_mixing_edge: array_typing.FloatScalar,
-    redistribution_mask: array_typing.BoolVector,
-    geo: geometry.Geometry,
-) -> array_typing.FloatScalar:
-  """Returns a profile scaling factor based on integral conservation."""
-
-  # Use where mask for integration regions. Shift by mixing value to
-  # calculate correct scaling factor
-  shifted_original_integrand = jnp.where(
-      redistribution_mask, original_profile - value_at_mixing_edge, 0.0
+  value_at_mixing_radius = jnp.interp(
+      rho_norm_mixing, rho_norm, original_profile
   )
-  shifted_trial_integrand = jnp.where(
-      redistribution_mask, trial_profile - value_at_mixing_edge, 0.0
+  grad_at_mixing_radius = jnp.interp(
+      rho_norm_mixing, rho_norm, jnp.gradient(original_profile, rho_norm)
   )
-  original_integral = math_utils.volume_integration(
-      shifted_original_integrand, geo
-  )
-  trial_integral = math_utils.volume_integration(shifted_trial_integrand, geo)
 
-  return original_integral / trial_integral
+  # Normalized coordinates:
+  # r_core in [0, 1] from magnetic axis to q=1 surface.
+  # xi_mix in [0, 1] from q=1 surface to mixing radius.
+  drho_mix = rho_norm_mixing - rho_norm_q1
+  r_core = rho_norm / rho_norm_q1
+  xi_mix = (rho_norm - rho_norm_q1) / drho_mix
+
+  # Zone masks.
+  flat_zone_mask = rho_norm <= rho_norm_q1
+  mixing_zone_mask = redistribution_mask & ~flat_zone_mask
+
+  # 1. Core shape (rho <= rho_q1): smoothstep with zero gradient on-axis
+  # and at q=1.
+  core_shape = 1.0 + (flattening_factor - 1.0) * (
+      1.0 - 3.0 * r_core**2 + 2.0 * r_core**3
+  )
+
+  # 2. Mixing shape (rho_q1 < rho <= rho_mix): cubic Hermite spline matching
+  # (C, 0) at q=1 and (value, gradient) of original profile at mixing radius.
+  # y(xi) = C * h00(xi) + y_mix * h01(xi) + (drho * y'_mix) * h11(xi)
+  h00 = 1.0 - 3.0 * xi_mix**2 + 2.0 * xi_mix**3
+  h01 = 3.0 * xi_mix**2 - 2.0 * xi_mix**3
+  h11 = xi_mix**3 - xi_mix**2
+
+  # Decompose redistributed profile inside mixing zone into:
+  # y_new = C * core_scale_weight + edge_scale_weight
+  core_scale_weight = jnp.where(flat_zone_mask, core_shape, 0.0) + jnp.where(
+      mixing_zone_mask, h00, 0.0
+  )
+  edge_scale_weight = jnp.where(
+      mixing_zone_mask,
+      value_at_mixing_radius * h01
+      + drho_mix * grad_at_mixing_radius * h11,
+      0.0,
+  )
+
+  # Integrals for analytical solution of C (profile value at q=1).
+  core_shape_integral = math_utils.volume_integration(
+      core_scale_weight * post_crash_weight, geo
+  )
+  edge_shape_integral = math_utils.volume_integration(
+      edge_scale_weight * post_crash_weight, geo
+  )
+  original_integrated_quantity = math_utils.volume_integration(
+      jnp.where(redistribution_mask, original_profile * pre_crash_weight, 0.0),
+      geo,
+  )
+
+  # Analytical solution for C (profile value at q=1).
+  redistributed_value_q1 = (
+      original_integrated_quantity - edge_shape_integral
+  ) / core_shape_integral
+
+  # Reconstruct profile using the same shape functions.
+  new_profile = (
+      redistributed_value_q1 * core_scale_weight + edge_scale_weight
+  )
+  return jnp.where(redistribution_mask, new_profile, original_profile)
