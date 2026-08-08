@@ -90,10 +90,10 @@ class PelletSourceConfig(base.SourceModelBase):
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  pellet_width: torax_pydantic.TimeVaryingScalar = (
+  pellet_width: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
-  pellet_deposition_location: torax_pydantic.TimeVaryingScalar = (
+  pellet_deposition_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.85)
   )
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(

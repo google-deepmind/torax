@@ -130,16 +130,16 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  gaussian_width: torax_pydantic.TimeVaryingScalar = (
+  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.25)
   )
-  gaussian_location: torax_pydantic.TimeVaryingScalar = (
+  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
   P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       120e6
   )
-  electron_heat_fraction: torax_pydantic.TimeVaryingScalar = (
+  electron_heat_fraction: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.66666)
   )
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (

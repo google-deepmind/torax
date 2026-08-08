@@ -307,7 +307,7 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
   model_name: Annotated[Literal['CGM'], torax_pydantic.JAX_STATIC] = 'CGM'
   alpha: float = 2.0
   chi_stiff: float = 2.0
-  chi_e_i_ratio: torax_pydantic.TimeVaryingScalar = (
+  chi_e_i_ratio: torax_pydantic.NonNegativeTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(2.0)
   )
   chi_D_ratio: torax_pydantic.PositiveTimeVaryingScalar = (

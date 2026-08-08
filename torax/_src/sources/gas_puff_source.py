@@ -89,7 +89,7 @@ class GasPuffSourceConfig(base.SourceModelBase):
   model_name: Annotated[Literal['exponential'], torax_pydantic.JAX_STATIC] = (
       'exponential'
   )
-  puff_decay_length: torax_pydantic.TimeVaryingScalar = (
+  puff_decay_length: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.05)
   )
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
