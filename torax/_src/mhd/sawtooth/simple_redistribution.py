@@ -81,6 +81,16 @@ class SimpleRedistribution(
 
     mixing_radius = redistribution_params.mixing_radius_multiplier * rho_norm_q1
 
+    # Clamp mixing_radius so the mixing region [rho_norm_q1, mixing_radius]
+    # contains at least one cell center, and doesn't extend beyond the grid.
+    idx_first_mixing_cell = jnp.searchsorted(
+        geo.rho_norm, rho_norm_q1, side='right'
+    )
+    min_mixing_radius = geo.rho_norm[
+        jnp.minimum(idx_first_mixing_cell + 1, geo.rho_norm.shape[0] - 1)
+    ]
+    mixing_radius = jnp.clip(mixing_radius, min_mixing_radius, geo.rho_norm[-1])
+
     idx_mixing = jnp.searchsorted(geo.rho_norm, mixing_radius, side='left')
 
     # Construct masks for different profile domains.
@@ -204,7 +214,7 @@ class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):
   """Pydantic model for simple redistribution configuration."""
 
   model_name: Annotated[Literal['simple'], torax_pydantic.JAX_STATIC] = 'simple'
-  mixing_radius_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+  mixing_radius_multiplier: torax_pydantic.BoundedTimeVaryingScalar(gt=1.0) = (
       torax_pydantic.ValidatedDefault(1.1)
   )
 
