@@ -18,6 +18,7 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -91,6 +92,10 @@ class SawtoothSolver(solver.Solver):
         geo_t,
         core_profiles_t,
     )
+    # When no sawtooth is triggered, rho_norm_q1=0. Clamp to eps so that the
+    # redistribution branch (traced but not selected by jax.lax.cond) does not
+    # encounter division-by-zero.
+    rho_norm_q1 = jnp.maximum(rho_norm_q1, constants.CONSTANTS.eps)
 
     def _redistribute_state() -> tuple[
         tuple[cell_variable.CellVariable, ...],
