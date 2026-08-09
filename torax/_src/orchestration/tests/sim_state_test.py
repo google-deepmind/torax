@@ -106,7 +106,7 @@ class SimStateTest(parameterized.TestCase):
     geo = self._make_geometry()
     s = self._make_sim_state(geo)
     T_e = s.core_profiles.T_e
-    new_value = T_e.value.at[0].set(jnp.nan)  # pyrefly: ignore[missing-attribute]
+    new_value = T_e.value.at[0].set(jnp.nan)
     new_T_e = dataclasses.replace(T_e, value=new_value)
     new_core_profiles = dataclasses.replace(s.core_profiles, T_e=new_T_e)
     s = dataclasses.replace(s, core_profiles=new_core_profiles)

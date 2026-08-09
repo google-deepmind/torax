@@ -145,7 +145,7 @@ def _compute_source_profiles(
     # qei represents power to ions
     # Compute the qei source as done in torax._src.output_tools.output
     qei_val = core_source_state.qei.qei_coef * (
-        core_profile_state.T_e.value - core_profile_state.T_i.value  # pyrefly: ignore[unsupported-operation]
+        core_profile_state.T_e.value - core_profile_state.T_i.value
     )
     energy_ion = qei_val
     energy_el = -qei_val
@@ -154,7 +154,7 @@ def _compute_source_profiles(
     energy_ion = core_source_state.T_i.get(source_name, energy_ion)
     particles_el = core_source_state.n_e.get(source_name, particles_el)
     j_par = core_source_state.psi.get(source_name, j_par)
-  return energy_el, energy_ion, particles_el, j_par  # pyrefly: ignore[bad-return]
+  return energy_el, energy_ion, particles_el, j_par
 
 
 def _fill_profiles_1d(

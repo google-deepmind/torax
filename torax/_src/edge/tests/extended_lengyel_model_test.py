@@ -1161,7 +1161,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
     xr_outputs, state_history = run_simulation.run_simulation(torax_config)
 
     final_edge_output = state_history._edge_outputs[-1]
-    N_edge_conc = final_edge_output.seed_impurity_concentrations['N']  # pyrefly: ignore[missing-attribute]
+    N_edge_conc = final_edge_output.seed_impurity_concentrations['N']
 
     # Check that core impurity ratios were updated correctly. Only N is updated,
     # He3 is fixed. Impurity ratios are on the cell grid.

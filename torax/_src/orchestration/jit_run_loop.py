@@ -85,7 +85,7 @@ def run_loop_jit(
 
 
 def _unstack_array(x: jax.Array, i: int) -> tuple[np.ndarray, ...]:
-  x = np.asarray(x[:i], copy=False)  # pyrefly: ignore[bad-assignment]
+  x = np.asarray(x[:i], copy=False)
   unstacked = np.unstack(x)
   # If the array is 1D, then unstack returns a list of scalars. Convert these
   # to a tuple of scalar NumPy arrays.

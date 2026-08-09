@@ -64,7 +64,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
         neoclassical_models=neoclassical_models,
     )
 
-    initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+    initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)
 
     # Rebuild with specific requested value
     config['sources']['gas_puff']['model_name'] = 'feedback'

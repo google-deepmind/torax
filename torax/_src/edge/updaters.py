@@ -65,7 +65,7 @@ def update_runtime_params(
 
   # Conditionally update temperatures based on the update_temperatures flag.
   runtime_params = jax.lax.cond(
-      runtime_params.edge.update_temperatures,  # pyrefly: ignore[missing-attribute]
+      runtime_params.edge.update_temperatures,
       lambda runtime_params: _update_temperatures(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,

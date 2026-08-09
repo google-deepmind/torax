@@ -54,6 +54,6 @@ def jaxtyped(fn: T) -> T:
   """
   runtime_checking = jax_utils.env_bool(name="TORAX_JAXTYPING", default=False)
   if runtime_checking:
-    return jt.jaxtyped(fn, typechecker=typeguard.typechecked)  # pyrefly: ignore[no-matching-overload]
+    return jt.jaxtyped(fn, typechecker=typeguard.typechecked)
   else:
     return fn

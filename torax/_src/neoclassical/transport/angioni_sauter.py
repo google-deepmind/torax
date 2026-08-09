@@ -744,7 +744,7 @@ def _calculate_shaing_transport(
   # (currently we simply copy the value at i=1). This is ok as chi[0] is never
   # used.
   dpsi_drhon = core_profiles.psi.face_grad()
-  dpsi_drhon = dpsi_drhon.at[0].set(dpsi_drhon[1])  # pyrefly: ignore[bad-index, missing-attribute]
+  dpsi_drhon = dpsi_drhon.at[0].set(dpsi_drhon[1])  # pyrefly: ignore[bad-index]
   conversion_factor = 1 / (dpsi_drhon / (2 * jnp.pi * geometry.rho_b)) ** 2
 
   # Trapped particle fraction (Equation 46, Shaing March 1997)
