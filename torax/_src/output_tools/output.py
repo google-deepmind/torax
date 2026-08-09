@@ -420,7 +420,7 @@ class StateHistory:
     if self._stacked_edge_outputs is not None:
       children[output_keys.EDGE] = self._save_edge_outputs()
     data_tree = xr.DataTree(
-        children=children,
+        children=children,  # pyrefly: ignore[bad-argument-type]
         dataset=xr.Dataset(
             data_vars=None,
             coords=coords,

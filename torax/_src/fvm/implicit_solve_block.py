@@ -103,8 +103,8 @@ def implicit_solve_block(
     lhs_matrix, lhs_vec, rhs_matrix, rhs_vec = (
         residual_and_loss.apply_internal_boundary_conditions(
             lhs_matrix, lhs_vec, rhs_matrix, rhs_vec,
-            coeffs_new.internal_boundary_condition_mask,
-            coeffs_new.internal_boundary_condition_target_vec,
+            coeffs_new.internal_boundary_condition_mask,  # pyrefly: ignore[bad-argument-type]
+            coeffs_new.internal_boundary_condition_target_vec,  # pyrefly: ignore[bad-argument-type]
         )
     )
 

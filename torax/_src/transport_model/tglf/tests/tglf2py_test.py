@@ -75,10 +75,10 @@ def _parse_input_tglf(input_path: str) -> dict[str, Any]:
 def _calculate_precision_sum(pe, pi, qe, qi) -> float:
   """Calculates GACODE's exact lumped regression precision sum across all harvested fluxes."""
   ns = len(pi) + 1
-  qe_low = float(tglf2py.tglf_interface.tglf_elec_eflux_low_out)
-  qi_low = np.array(tglf2py.tglf_interface.tglf_ion_eflux_low_out)[: ns - 1]
-  me = float(tglf2py.tglf_interface.tglf_elec_mflux_out)
-  mi = np.array(tglf2py.tglf_interface.tglf_ion_mflux_out)[: ns - 1]
+  qe_low = float(tglf2py.tglf_interface.tglf_elec_eflux_low_out)  # pyrefly: ignore[missing-attribute]
+  qi_low = np.array(tglf2py.tglf_interface.tglf_ion_eflux_low_out)[: ns - 1]  # pyrefly: ignore[missing-attribute]
+  me = float(tglf2py.tglf_interface.tglf_elec_mflux_out)  # pyrefly: ignore[missing-attribute]
+  mi = np.array(tglf2py.tglf_interface.tglf_ion_mflux_out)[: ns - 1]  # pyrefly: ignore[missing-attribute]
 
   prec = (
       abs(pe)
@@ -131,20 +131,20 @@ class Tglf2pyTest(parameterized.TestCase):
     )
 
     # 2. Check that overrides were applied to the interface registers.
-    self.assertEqual(int(tglf2py.tglf_interface.tglf_use_bper_in), 1)
-    self.assertAlmostEqual(float(tglf2py.tglf_interface.tglf_zs_in[1]), 50.0)
+    self.assertEqual(int(tglf2py.tglf_interface.tglf_use_bper_in), 1)  # pyrefly: ignore[missing-attribute]
+    self.assertAlmostEqual(float(tglf2py.tglf_interface.tglf_zs_in[1]), 50.0)  # pyrefly: ignore[missing-attribute]
     self.assertAlmostEqual(
-        float(tglf2py.tglf_interface.tglf_etg_factor_in), 2.5
+        float(tglf2py.tglf_interface.tglf_etg_factor_in), 2.5  # pyrefly: ignore[missing-attribute]
     )
 
     # 3. Run second simulation with only base settings.
     tglf2py.run_tglf(**self.gacode_regression_settings)
 
     # 4. Ensure all registers were reset back to their default values.
-    self.assertEqual(int(tglf2py.tglf_interface.tglf_use_bper_in), 0)
-    self.assertAlmostEqual(float(tglf2py.tglf_interface.tglf_zs_in[1]), 1.0)
+    self.assertEqual(int(tglf2py.tglf_interface.tglf_use_bper_in), 0)  # pyrefly: ignore[missing-attribute]
+    self.assertAlmostEqual(float(tglf2py.tglf_interface.tglf_zs_in[1]), 1.0)  # pyrefly: ignore[missing-attribute]
     self.assertAlmostEqual(
-        float(tglf2py.tglf_interface.tglf_etg_factor_in), 1.25
+        float(tglf2py.tglf_interface.tglf_etg_factor_in), 1.25  # pyrefly: ignore[missing-attribute]
     )
 
   @parameterized.parameters(
