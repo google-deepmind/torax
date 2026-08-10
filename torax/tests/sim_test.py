@@ -19,6 +19,7 @@ previously executed TORAX reference:
 """
 
 import copy
+import functools
 import os
 from typing import Final, Sequence
 
@@ -482,7 +483,12 @@ class SimTest(sim_test_case.SimTestCase):
     output_xr, _ = run_simulation.run_simulation(
         torax_config, progress_bar=False
     )
-    xr.map_over_datasets(xr.testing.assert_allclose, output_xr, gt_output_xr)
+    # Allow for small numerical differences due to NetCDF round-trip / restart
+    # floating point precision.
+    assert_allclose_fn = functools.partial(
+        xr.testing.assert_allclose, atol=1e-8
+    )
+    xr.map_over_datasets(assert_allclose_fn, output_xr, gt_output_xr)
 
   def test_ip_bc_v_loop_bc_equivalence(self):
     """Tests the equivalence of the Ip BC and the VLoop BC.
