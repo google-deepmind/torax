@@ -18,6 +18,7 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
@@ -30,6 +31,15 @@ from torax._src.solver import solver
 from torax._src.sources import source_profiles as source_profiles_lib
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class SawtoothPreparedStepState(solver.PreparedStepState):
+  trigger_sawtooth: array_typing.BoolScalar
+  rho_norm_q1: array_typing.FloatScalar
+  runtime_params_t: runtime_params_lib.RuntimeParams
+  geo_t: geometry.Geometry
+
+
 # TODO(b/414537757). Sawtooth extensions.
 # a. Full and incomplete Kadomtsev redistribution model.
 # b. Porcelli model with free parameters and fast ion sensitivities.
@@ -38,51 +48,20 @@ from torax._src.sources import source_profiles as source_profiles_lib
 class SawtoothSolver(solver.Solver):
   """Sawtooth trigger and redistribution, and carries out sawtooth step."""
 
-  def _x_new(
+  @jax.jit(static_argnames=['self'])
+  def prepare_step(
       self,
-      dt: jax.Array,
+      t: jax.Array,
       runtime_params_t: runtime_params_lib.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
-      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-      evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
-  ) -> tuple[
-      tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
-  ]:
-    """Applies the sawtooth model and outputs new state attributes if triggered.
-
-    If the trigger model indicates a crash has been triggered, an
-    instantaneous redistribution model is applied. New state attributes
-    following a short (configurable) dt are returned. Beyond the sawtooth
-    redistribution, core_profiles are further updated by: the psidot assumed at
-    time t; the new boundary conditions; sources, transport, geo, and pedestal
-    outputs consistent with the new core_profiles at time t_plus_crash_dt.
-
-    Args:
-      dt: Sawtooth step duration.
-      runtime_params_t: Runtime parameters at time t.
-      runtime_params_t_plus_dt: Runtime parameters at time t + crash_dt.
-      geo_t: Geometry at time t.
-      geo_t_plus_dt: Geometry at time t + crash_dt.
-      core_profiles_t: Core profiles at time t.
-      core_profiles_t_plus_dt: Core profiles containing boundary conditions and
-        prescribed profiles at time t + crash_dt.
-      explicit_source_profiles: Explicit source profiles at time t.
-      evolving_names: Names of evolving variables.
-      pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions.
-
-    Returns:
-      Updated tuple of evolving CellVariables from CoreProfiles
-      SolverNumericOutputs indicating a sawtooth crash.
-    """
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+  ) -> SawtoothPreparedStepState:
+    evolving_names = runtime_params_t.numerics.evolving_names
+    x_old = convertors.core_profiles_to_solver_x_tuple(
+        core_profiles_t, evolving_names
+    )
     sawtooth_models = self.models.mhd_models.sawtooth_models
     if sawtooth_models is None:
       raise ValueError('Sawtooth model is None.')
@@ -97,16 +76,43 @@ class SawtoothSolver(solver.Solver):
     # encounter division-by-zero.
     rho_norm_q1 = jnp.maximum(rho_norm_q1, constants.CONSTANTS.eps)
 
+    return SawtoothPreparedStepState(
+        x_old=x_old,
+        core_profiles_t=core_profiles_t,
+        explicit_source_profiles=explicit_source_profiles,
+        pedestal_transition_state=pedestal_transition_state,
+        trigger_sawtooth=trigger_sawtooth,
+        rho_norm_q1=rho_norm_q1,
+        runtime_params_t=runtime_params_t,
+        geo_t=geo_t,
+    )
+
+  @jax.jit(static_argnames=['self'])
+  def solve_step(
+      self,
+      prepared_state: SawtoothPreparedStepState,
+      dt: jax.Array,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
+      geo_t_plus_dt: geometry.Geometry,
+      core_profiles_t_plus_dt: state.CoreProfiles,
+  ) -> tuple[
+      tuple[cell_variable.CellVariable, ...],
+      state.SolverNumericOutputs,
+  ]:
+    evolving_names = runtime_params_t_plus_dt.numerics.evolving_names
+    sawtooth_models = self.models.mhd_models.sawtooth_models
+    if sawtooth_models is None:
+      raise ValueError('Sawtooth model is None.')
+
     def _redistribute_state() -> tuple[
         tuple[cell_variable.CellVariable, ...],
         state.SolverNumericOutputs,
     ]:
-
       redistributed_core_profiles = sawtooth_models.redistribution_model(
-          rho_norm_q1,
-          runtime_params_t,
-          geo_t,
-          core_profiles_t,
+          prepared_state.rho_norm_q1,
+          prepared_state.runtime_params_t,
+          prepared_state.geo_t,
+          prepared_state.core_profiles_t,
       )
 
       # Evolve the psi profile over the sawtooth time.
@@ -119,7 +125,7 @@ class SawtoothSolver(solver.Solver):
       # using `updaters.update_all_core_profiles_after_step`.
       evolved_psi_redistributed_value = (
           redistributed_core_profiles.psi.value
-          + core_profiles_t.psidot.value * dt
+          + prepared_state.core_profiles_t.psidot.value * dt
       )
       evolved_core_profiles = dataclasses.replace(
           redistributed_core_profiles,
@@ -148,10 +154,13 @@ class SawtoothSolver(solver.Solver):
     # Return redistributed state attributes if triggered, otherwise return
     # unchanged state attributes.
     return jax.lax.cond(
-        trigger_sawtooth,
+        prepared_state.trigger_sawtooth,
         _redistribute_state,
         lambda: (
-            tuple([getattr(core_profiles_t, name) for name in evolving_names]),
+            tuple([
+                getattr(prepared_state.core_profiles_t, name)
+                for name in evolving_names
+            ]),
             state.SolverNumericOutputs(
                 sawtooth_crash=False,
                 solver_error_state=jnp.array(0, jax_utils.get_int_dtype()),
