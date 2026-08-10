@@ -28,7 +28,7 @@ class ExtendedLengyelMultistartTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    extended_lengyel_standalone.run_extended_lengyel_standalone.clear_cache()
+    extended_lengyel_standalone.run_extended_lengyel_standalone.clear_cache()  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
     # Basic valid inputs for the model
     self.inputs = {
         'power_crossing_separatrix': 5.5e6,
@@ -139,7 +139,7 @@ class ExtendedLengyelMultistartTest(parameterized.TestCase):
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
         )
 
-        status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(  # pytype: disable=wrong-arg-types
+        status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(  # pytype: disable=wrong-arg-types  # pylint: disable=g-blanket-type-suppression
             physics_outcome=phys_outcome,  # pyrefly: ignore[bad-argument-type]
             numerics_outcome=jax_root_finding.RootMetadata(
                 iterations=jnp.array(5),
