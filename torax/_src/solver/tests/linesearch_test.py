@@ -23,7 +23,11 @@ from torax._src.solver import linesearch
 
 class BacktrackingLinesearchTest(parameterized.TestCase):
 
-  def test_linesearch_success(self):
+  @parameterized.named_parameters(
+      ('sequential', linesearch.backtracking_linesearch),
+      ('vmapped', linesearch.vmapped_backtracking_linesearch),
+  )
+  def test_linesearch_success(self, linesearch_fn):
     def residual_fn(x):
       return x - 2.0
 
@@ -37,7 +41,7 @@ class BacktrackingLinesearchTest(parameterized.TestCase):
     def norm_fn(res):
       return jnp.abs(res)
 
-    final = linesearch.backtracking_linesearch(
+    final = linesearch_fn(
         residual_fn=residual_fn,
         x_init=x_init,
         direction=direction,
@@ -53,7 +57,11 @@ class BacktrackingLinesearchTest(parameterized.TestCase):
     self.assertLessEqual(int(final.iteration), 10)
     chex.assert_trees_all_close(final.x, jnp.array(2.0))
 
-  def test_linesearch_backtracking(self):
+  @parameterized.named_parameters(
+      ('sequential', linesearch.backtracking_linesearch),
+      ('vmapped', linesearch.vmapped_backtracking_linesearch),
+  )
+  def test_linesearch_backtracking(self, linesearch_fn):
     # A function that increases residual if step is too large
     def residual_fn(x):
       # If x > 1.0, return large residual, else return x - 2.0
@@ -69,7 +77,7 @@ class BacktrackingLinesearchTest(parameterized.TestCase):
     def norm_fn(res):
       return jnp.abs(res)
 
-    final = linesearch.backtracking_linesearch(
+    final = linesearch_fn(
         residual_fn=residual_fn,
         x_init=x_init,
         direction=direction,
@@ -85,7 +93,11 @@ class BacktrackingLinesearchTest(parameterized.TestCase):
     self.assertGreater(int(final.iteration), 1)  # Must have backtracked
     chex.assert_trees_all_close(final.x, jnp.array(1.0))
 
-  def test_linesearch_pytree(self):
+  @parameterized.named_parameters(
+      ('sequential', linesearch.backtracking_linesearch),
+      ('vmapped', linesearch.vmapped_backtracking_linesearch),
+  )
+  def test_linesearch_pytree(self, linesearch_fn):
     def residual_fn(x):
       return {'a': x['a'] - 2.0, 'b': x['b'] - 3.0}
 
@@ -102,7 +114,7 @@ class BacktrackingLinesearchTest(parameterized.TestCase):
     init_res = residual_fn(x_init)
     init_norm = norm_fn(init_res)
 
-    final = linesearch.backtracking_linesearch(
+    final = linesearch_fn(
         residual_fn=residual_fn,
         x_init=x_init,
         direction=direction,

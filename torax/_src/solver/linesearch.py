@@ -144,3 +144,98 @@ def backtracking_linesearch(
 
   # TODO(b/515250945): Use whilei_loop for autodiff compatibility.
   return jax.lax.while_loop(cond_fun, body_fun, init_state)
+
+
+def vmapped_backtracking_linesearch(
+    residual_fn: Callable[[jt.PyTree], jt.PyTree],
+    x_init: jt.PyTree,
+    direction: jt.PyTree,
+    accept_fn: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+    norm_fn: Callable[[jt.PyTree], jnp.ndarray],
+    initial_residual: jt.PyTree,
+    initial_residual_norm: jnp.ndarray,
+    delta_reduction_factor: float,
+    max_steps: int,
+    min_step_norm: float = 0.0,
+) -> LinesearchState:
+  """Performs vmapped backtracking line search by evaluating multiple step sizes in parallel.
+
+  Args:
+    residual_fn: Accepts the location x, and returns the residual R(x).
+    x_init: Starting location.
+    direction: Search direction, a PyTree with the same shape as x.
+    accept_fn: Accepts (step_size, trial_residual_norm) and returns True if the
+      trial point is acceptable, and false otherwise.
+    norm_fn: Function compute the norm of the residual.
+    initial_residual: Residual vector at input x_init.
+    initial_residual_norm: Norm of initial_residual.
+    delta_reduction_factor: Factor by which step_size is reduced each step.
+    max_steps: Number of backtracking steps to try in parallel.
+    min_step_norm: Minimum value of max(abs(step_size * direction)) allowed.
+
+  Returns:
+    LinesearchState with the accepted (or last tried) trial point.
+  """
+  del initial_residual
+  del initial_residual_norm
+  # Generate step sizes: [1.0, eta, eta^2, ..., eta^(max_steps-1)]
+  step_sizes = delta_reduction_factor ** jnp.arange(
+      max_steps,
+      dtype=x_init.dtype if hasattr(x_init, "dtype") else jnp.float32,
+  )
+
+  def single_attempt(step_size):
+    new_x = jax.tree.map(lambda a, b: a + step_size * b, x_init, direction)
+    new_res = residual_fn(new_x)
+    new_norm = norm_fn(new_res)
+    step_found = accept_fn(step_size, new_norm)
+
+    # Check if step is too small.
+    max_abs_dir = jnp.max(
+        jnp.array(
+            [jnp.max(jnp.abs(leaf)) for leaf in jax.tree.leaves(direction)]
+        )
+    )
+    step_too_small = (step_size * max_abs_dir) <= min_step_norm
+
+    return new_x, new_res, new_norm, step_found, step_too_small
+
+  # vmap over step_sizes
+  vmapped_fn = jax.vmap(single_attempt)
+  xs, residuals, norms, step_founds, step_too_smalls = vmapped_fn(step_sizes)
+
+  # Find the first index where step_found is True.
+  # We want the minimum index `i` such that `step_founds[i]` is True.
+  indices = jnp.arange(max_steps)
+  masked_indices = jnp.where(step_founds, indices, max_steps)
+  selected_index = jnp.min(masked_indices)
+
+  # If none are True, fall back to the last one (index max_steps - 1).
+  none_found = selected_index == max_steps
+  final_index = jnp.where(none_found, max_steps - 1, selected_index)
+
+  # Extract the selected state
+  selected_x = jax.tree.map(lambda arr: arr[final_index], xs)
+  selected_res = jax.tree.map(lambda arr: arr[final_index], residuals)
+  selected_norm = norms[final_index]
+  selected_step_size = step_sizes[final_index]
+  selected_step_found = step_founds[final_index]
+  selected_step_too_small = step_too_smalls[final_index]
+
+  selected_iteration = final_index + 1
+  selected_done = (
+      selected_step_found
+      | (final_index >= max_steps - 1)
+      | selected_step_too_small
+  )
+
+  return LinesearchState(
+      iteration=selected_iteration,
+      step_size=selected_step_size,
+      next_step_size=selected_step_size * delta_reduction_factor,
+      x=selected_x,
+      residual=selected_res,
+      residual_norm=selected_norm,
+      step_found=selected_step_found,
+      done=selected_done,
+  )
