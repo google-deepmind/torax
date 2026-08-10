@@ -33,6 +33,19 @@ from torax._src.pedestal_model import pedestal_transition_state as pedestal_tran
 from torax._src.sources import source_profiles
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class PreparedStepState:
+  """Base class for prepared solver state."""
+
+  x_old: tuple[cell_variable.CellVariable, ...]
+  core_profiles_t: state.CoreProfiles
+  explicit_source_profiles: source_profiles.SourceProfiles
+  pedestal_transition_state: (
+      pedestal_transition_state_lib.PedestalTransitionState
+  )
+
+
 @dataclasses.dataclass(frozen=True, eq=False)
 class Solver(static_dataclass.StaticDataclass, abc.ABC):
   """Solves for a single time step's update to State.
@@ -42,6 +55,37 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
   """
 
   models: models_lib.Models
+
+  @jax.jit(static_argnames=['self'])
+  def prepare_step(
+      self,
+      t: jax.Array,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      geo_t: geometry.Geometry,
+      core_profiles_t: state.CoreProfiles,
+      explicit_source_profiles: source_profiles.SourceProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+  ) -> PreparedStepState:
+    """Prepares the solver state for a time step.
+
+    This method computes quantities that are independent of `dt`.
+    """
+    raise NotImplementedError
+
+  @jax.jit(static_argnames=['self'])
+  def solve_step(
+      self,
+      prepared_state: PreparedStepState,
+      dt: jax.Array,
+      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
+      geo_t_plus_dt: geometry.Geometry,
+      core_profiles_t_plus_dt: state.CoreProfiles,
+  ) -> tuple[
+      tuple[cell_variable.CellVariable, ...],
+      state.SolverNumericOutputs,
+  ]:
+    """Performs the solve step for a given `dt`."""
+    raise NotImplementedError
 
   @jax.jit(
       static_argnames=[
@@ -96,25 +140,22 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       solver_numeric_output: Error and solver iteration info.
     """
 
-    # This base class method can be completely overridden by a subclass, but
-    # most can make use of the boilerplate here and just implement `_x_new`.
-
     # Don't call solver functions on an empty list
     if runtime_params_t.numerics.evolving_names:
-      (
-          x_new,
-          solver_numeric_output,
-      ) = self._x_new(
-          dt=dt,
+      prepared_state = self.prepare_step(
+          t=t,
           runtime_params_t=runtime_params_t,
-          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
           geo_t=geo_t,
-          geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
-          evolving_names=runtime_params_t.numerics.evolving_names,
           pedestal_transition_state=pedestal_transition_state,
+      )
+      return self.solve_step(
+          prepared_state=prepared_state,
+          dt=dt,
+          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+          geo_t_plus_dt=geo_t_plus_dt,
+          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       )
     else:
       x_new = tuple()
@@ -128,55 +169,4 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
     return (
         x_new,
         solver_numeric_output,
-    )
-
-  def _x_new(
-      self,
-      dt: jax.Array,
-      runtime_params_t: runtime_params_lib.RuntimeParams,
-      runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
-      geo_t: geometry.Geometry,
-      geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles.SourceProfiles,
-      evolving_names: tuple[str, ...],
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> tuple[
-      tuple[cell_variable.CellVariable, ...],
-      state.SolverNumericOutputs,
-  ]:
-    """Calculates new values of the changing variables.
-
-    Subclasses must either implement `_x_new` so that `Solver.__call__`
-    will work, or implement a different `__call__`.
-
-    Args:
-      dt: Time step duration.
-      runtime_params_t: Runtime parameters for time t (the start time of the
-        step). These runtime params can change from step to step without
-        triggering a recompilation.
-      runtime_params_t_plus_dt: Runtime parameters for time t + dt, used for
-        implicit calculations in the solver.
-      geo_t: Geometry of the torus for time t.
-      geo_t_plus_dt: Geometry of the torus for time t + dt.
-      core_profiles_t: Core plasma profiles at the beginning of the time step.
-      core_profiles_t_plus_dt: Core plasma profiles which contain all available
-        prescribed quantities at the end of the time step. This includes
-        evolving boundary conditions and prescribed time-dependent profiles that
-        are not being evolved by the PDE system.
-      explicit_source_profiles: see the docstring of __call__
-      evolving_names: The names of core_profiles variables that should evolve.
-      pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions.
-
-    Returns:
-      x_new: The values of the evolving variables at time t + dt.
-      solver_numeric_output: Error and solver iteration info.
-    """
-
-    raise NotImplementedError(
-        f'{type(self)} must implement `_x_new` or '
-        'implement a different `__call__` that does not'
-        ' need `_x_new`.'
     )

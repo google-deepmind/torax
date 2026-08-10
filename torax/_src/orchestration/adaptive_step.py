@@ -187,3 +187,49 @@ def cond_fun(
   )
 
   return take_another_step & ~is_nan_next_dt
+
+
+def single_solve_attempt(
+    i: chex.Numeric,
+    prepared_state: solver_lib.PreparedStepState,
+    initial_dt: chex.Numeric,
+    runtime_params_t: runtime_params_lib.RuntimeParams,
+    input_state: sim_state.SimState,
+    edge_outputs: edge_base.EdgeModelOutputs | None,
+    runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
+    solver: solver_lib.Solver,
+) -> AdaptiveStepState:
+  """Computes the state for attempt i of the adaptive step using solve_step."""
+  dt = initial_dt / runtime_params_t.numerics.dt_reduction_factor**i
+  runtime_params_t_plus_dt, geo_t_plus_dt = (
+      build_runtime_params.get_consistent_runtime_params_and_geometry(
+          t=input_state.t + dt,
+          runtime_params_provider=runtime_params_provider,
+          geometry_provider=geometry_provider,
+          edge_outputs=edge_outputs,
+          core_profiles=input_state.core_profiles,
+      )
+  )
+  core_profiles_t_plus_dt = updaters.provide_core_profiles_t_plus_dt(
+      dt=dt,  # pyrefly: ignore[bad-argument-type]
+      runtime_params_t=runtime_params_t,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+      geo_t_plus_dt=geo_t_plus_dt,
+      core_profiles_t=input_state.core_profiles,
+  )
+  x_new, solver_numeric_outputs = solver.solve_step(
+      prepared_state=prepared_state,
+      dt=dt,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+      geo_t_plus_dt=geo_t_plus_dt,
+      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+  )
+  return AdaptiveStepState(
+      x_new=x_new,
+      dt=dt,
+      solver_numeric_outputs=solver_numeric_outputs,
+      runtime_params=runtime_params_t_plus_dt,
+      geo=geo_t_plus_dt,
+      core_profiles=core_profiles_t_plus_dt,
+  )
