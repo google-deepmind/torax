@@ -49,9 +49,7 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 )
 def optimizer_solve_block(
     dt: jax.Array,
-    runtime_params_t: runtime_params_lib.RuntimeParams,
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
-    geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t: state.CoreProfiles,
@@ -64,6 +62,8 @@ def optimizer_solve_block(
     maxiter: int,
     tol: float,
     pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    coeffs_old: block_1d_coeffs.Block1DCoeffs,
+    coeffs_exp_linear: block_1d_coeffs.Block1DCoeffs | None = None,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state.SolverNumericOutputs,
@@ -80,11 +80,7 @@ def optimizer_solve_block(
 
   Args:
     dt: Discrete time step.
-    runtime_params_t: Runtime params for time t (the start time of the step).
-      These runtime params can change from step to step without triggering a
-      recompilation.
     runtime_params_t_plus_dt: Runtime params for time t + dt.
-    geo_t: Geometry object used to initialize auxiliary outputs at time t.
     geo_t_plus_dt: Geometry object used to initialize auxiliary outputs at time
       t + dt.
     x_old: Tuple containing CellVariables for each channel with their values at
@@ -113,6 +109,9 @@ def optimizer_solve_block(
     tol: See docstring of `jaxopt.LBFGS`.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    coeffs_old: PDE coefficients at beginning of timestep.
+    coeffs_exp_linear: PDE coefficients at beginning of timestep with additional
+      pereverzev terms.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
@@ -121,38 +120,14 @@ def optimizer_solve_block(
   """
   # pyformat: enable
 
-  coeffs_old = coeffs_callback(
-      runtime_params_t,
-      geo_t,
-      core_profiles_t,
-      prev_core_profiles=None,
-      dt=None,
-      x=x_old,
-      explicit_source_profiles=explicit_source_profiles,
-      explicit_call=True,
-      pedestal_transition_state=pedestal_transition_state,
-  )
-
   match initial_guess_mode:
     # LINEAR initial guess will provide the initial guess using the predictor-
     # corrector method if use_predictor_corrector=True in the solver runtime
     # params
     case enums.InitialGuessMode.LINEAR:
-      # returns transport coefficients with additional pereverzev terms
-      # if set by runtime_params, needed if stiff transport models (e.g. qlknn)
-      # are used.
-      coeffs_exp_linear = coeffs_callback(
-          runtime_params_t,
-          geo_t,
-          core_profiles_t,
-          prev_core_profiles=None,
-          dt=None,
-          x=x_old,
-          explicit_source_profiles=explicit_source_profiles,
-          allow_pereverzev=True,
-          explicit_call=True,
-          pedestal_transition_state=pedestal_transition_state,
-      )
+      assert (
+          coeffs_exp_linear is not None
+      ), 'coeffs_exp_linear must be provided for LINEAR guess mode'
       # See linear_theta_method.py for comments on the predictor_corrector API
       x_new_guess = convertors.core_profiles_to_solver_x_tuple(
           core_profiles_t_plus_dt, evolving_names
