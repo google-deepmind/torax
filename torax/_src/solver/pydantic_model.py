@@ -56,8 +56,6 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       point (predictor-corrector) method.
     fixed_point_termination_criterion: Termination criterion for the fixed point
       (predictor-corrector) method.
-    fixed_point_use_backtracking: Enables backtracking linesearch for the fixed
-      point (predictor-corrector) method.
   """
 
   theta_implicit: Annotated[
@@ -85,10 +83,6 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   fixed_point_termination_criterion: Annotated[
       Literal['tolerance', 'max_iterations'], torax_pydantic.JAX_STATIC
   ] = 'max_iterations'
-  fixed_point_sufficient_decrease: torax_pydantic.UnitInterval = 0.5
-  fixed_point_use_backtracking: Annotated[bool, torax_pydantic.JAX_STATIC] = (
-      False
-  )
   delta_reduction_factor: float = 0.5
 
   @property
@@ -139,8 +133,6 @@ class LinearThetaMethod(BaseSolver):
         fixed_point_atol=self.fixed_point_atol,
         fixed_point_rtol=self.fixed_point_rtol,
         fixed_point_termination_criterion=self.fixed_point_termination_criterion,
-        fixed_point_sufficient_decrease=self.fixed_point_sufficient_decrease,
-        fixed_point_use_backtracking=self.fixed_point_use_backtracking,
         delta_reduction_factor=self.delta_reduction_factor,
     )
 
@@ -205,8 +197,6 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         fixed_point_atol=self.fixed_point_atol,
         fixed_point_rtol=self.fixed_point_rtol,
         fixed_point_termination_criterion=self.fixed_point_termination_criterion,
-        fixed_point_sufficient_decrease=self.fixed_point_sufficient_decrease,
-        fixed_point_use_backtracking=self.fixed_point_use_backtracking,
     )
 
   def build_solver(
@@ -257,8 +247,6 @@ class OptimizerThetaMethod(BaseSolver):
         fixed_point_atol=self.fixed_point_atol,
         fixed_point_rtol=self.fixed_point_rtol,
         fixed_point_termination_criterion=self.fixed_point_termination_criterion,
-        fixed_point_sufficient_decrease=self.fixed_point_sufficient_decrease,
-        fixed_point_use_backtracking=self.fixed_point_use_backtracking,
         delta_reduction_factor=self.delta_reduction_factor,
     )
 
