@@ -32,7 +32,7 @@ def fixed_point(
     rtol: float = 1e-6,
     termination_criterion: str = 'tolerance',
     use_backtracking: bool = False,
-    sufficient_decrease: float = 0.5,
+    sufficient_decrease: float = 1e-4,
     step_size_reduction_factor: float = 0.5,
     max_backtrack_steps: int = 50,
 ) -> PyTree:
@@ -75,22 +75,19 @@ def fixed_point(
         ' "max_iterations" or "tolerance".'
     )
 
-  def residual_fn(f_x, x):
+  def residual_fn(x):
     """Computes the residual R(x) = f(x) - x."""
+    f_x = func(x, *args)
     return jax.tree.map(lambda a, b: a - b, f_x, x)
 
-  def sq_norm_fn(x):
-    """Computes the squared L2 norm of a PyTree."""
-    return sum(jnp.sum(leaf**2) for leaf in jax.tree.leaves(x))
+  def norm_fn(x):
+    """Computes the L2 norm of a PyTree."""
+    return jnp.sqrt(sum(jnp.sum(leaf**2) for leaf in jax.tree.leaves(x)))
 
   def body(carry):
-    x, _, count = carry
-    f_x = func(x, *args)
-    residual = residual_fn(f_x, x)
-    residual_sq_norm = sq_norm_fn(residual)
+    x, residual, residual_norm, count = carry
 
     if use_backtracking:
-      residual_norm = jnp.sqrt(residual_sq_norm)
 
       def armijo_condition(step_size, trial_norm):
         return (
@@ -101,55 +98,51 @@ def fixed_point(
       # alpha is the step size. We do linesearch to find an acceptable alpha.
       # Note: this will *fail* if f'(x_k) > 1.
       ls_state = linesearch.backtracking_linesearch(
-          residual_fn=lambda x: residual_fn(func(x, *args), x),
+          residual_fn=residual_fn,
           x_init=x,
           direction=residual,
           accept_fn=armijo_condition,
-          norm_fn=lambda residual: jnp.sqrt(sq_norm_fn(residual)),
+          norm_fn=norm_fn,
           initial_residual=residual,
           initial_residual_norm=residual_norm,
           delta_reduction_factor=step_size_reduction_factor,
           max_steps=max_backtrack_steps,
       )
-      x = ls_state.x
-      f_x = func(x, *args)
-      residual = residual_fn(f_x, x)
-      residual_sq_norm = sq_norm_fn(residual)
+      x_next = ls_state.x
+      residual_next = ls_state.residual
+    else:
+      # Standard Picard: x_{k+1} = f(x_k) = x_k + R(x_k)
+      x_next = jax.tree.map(lambda a, b: a + b, x, residual)
+      residual_next = residual_fn(x_next)
 
     count += 1
-    return f_x, residual_sq_norm, count
+    residual_norm_next = norm_fn(residual_next)
+    return x_next, residual_next, residual_norm_next, count
+
+  # Take a single full implicit step (undamped).
+  x1 = func(x0, *args)
+  residual = residual_fn(x1)
+  residual_norm = norm_fn(residual)
+  count = jnp.array(1, dtype=jax_utils.get_int_dtype())
+  carry = (x1, residual, residual_norm, count)
 
   # TODO(b/515250945): Ensure that automatic differentiation is supported.
   # Currently, the branch using fori_loop supports autodiff, but differentiates
   # through the entire loop. The branch using while_loop does not allow for
   # automatic differentiation. Consider switching to whilei_loop.
   if termination_criterion == 'max_iterations':
-    count = jnp.array(0, dtype=jax_utils.get_int_dtype())
-    initial_sq_norm = jnp.array(jnp.inf, dtype=jax_utils.get_dtype())
-    initial_carry = (x0, initial_sq_norm, count)
-    x_final, _, _ = jax.lax.fori_loop(
-        0, maxiter, lambda i, val: body(val), initial_carry
+    x_final, _, _, _ = jax.lax.fori_loop(
+        1, maxiter, lambda i, val: body(val), carry
     )
     return x_final
-
   else:
     # Precompute the tolerance for convergence.
-    # TODO(b/515255142): pass in the initial residual as an argument, and use it
-    # as the basis for the tolerance instead of calculating it here.
-    f_x0 = func(x0, *args)
-    initial_sq_norm = sq_norm_fn(residual_fn(f_x0, x0))
-    initial_residual_norm = jnp.sqrt(initial_sq_norm)
-    tol = atol + rtol * initial_residual_norm
-    sq_tol = tol**2
+    tol = atol + rtol * residual_norm
 
     def cond(carry):
-      _, sq_norm, count = carry
-      is_converged = sq_norm <= sq_tol
+      _, _, residual_norm, count = carry
+      is_converged = residual_norm <= tol
       return (count < maxiter) & jnp.logical_not(is_converged)
 
-    # Initial count starts at 1 since we do one evaluation of `func` in the
-    # initialization above.
-    initial_count = jnp.array(1, dtype=jax_utils.get_int_dtype())
-    initial_carry = (f_x0, initial_sq_norm, initial_count)
-    x_final, _, _ = jax.lax.while_loop(cond, body, initial_carry)
+    x_final, _, _, _ = jax.lax.while_loop(cond, body, carry)
     return x_final
