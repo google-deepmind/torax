@@ -23,6 +23,7 @@ from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.mhd.sawtooth import simple_redistribution
 from torax._src.physics import psi_calculations
+from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
 # Set jax_enable_x64 to True to ensure high precision for tests.
@@ -40,55 +41,45 @@ class SimpleRedistributionTest(parameterized.TestCase):
       self, evolve_ion_heat, evolve_electron_heat, evolve_density
   ):
     """Tests that SimpleRedistribution works with all evolving profiles."""
-    config_dict = {
-        'numerics': {
-            'evolve_ion_heat': evolve_ion_heat,
-            'evolve_electron_heat': evolve_electron_heat,
-            'evolve_density': evolve_density,
-            'evolve_current': True,
-        },
-        'profile_conditions': {  # Set up to ensure q[0] < 1
-            'Ip': 15e6,
-            'initial_j_is_total_current': True,
-            'initial_psi_from_j': True,
-            'current_profile_nu': 3,
-        },
-        'plasma_composition': {},
-        'geometry': {'geometry_type': 'circular', 'n_rho': 10},
-        'pedestal': {},
-        'sources': {},
-        'solver': {},
-        'transport': {},
-        'mhd': {
-            'sawtooth': {
-                'trigger_model': {'model_name': 'simple'},
-                'redistribution_model': {
-                    'model_name': 'simple',
-                    'flattening_factor': 1.01,
-                    'mixing_radius_multiplier': 1.5,
-                },
-            }
-        },
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['numerics'] = {
+        'evolve_ion_heat': evolve_ion_heat,
+        'evolve_electron_heat': evolve_electron_heat,
+        'evolve_density': evolve_density,
+        'evolve_current': True,
+    }
+    config_dict['profile_conditions'] = {
+        'Ip': 15e6,
+        'initial_j_is_total_current': True,
+        'initial_psi_from_j': True,
+        'current_profile_nu': 3,
+    }
+    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 10}
+    config_dict['mhd'] = {
+        'sawtooth': {
+            'trigger_model': {'model_name': 'simple'},
+            'redistribution_model': {
+                'model_name': 'simple',
+                'flattening_factor': 1.01,
+                'mixing_radius_multiplier': 1.5,
+            },
+        }
     }
 
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-
     assert torax_config.mhd is not None
     assert torax_config.mhd.sawtooth is not None
 
-    redistribution_model = (
-        torax_config.mhd.sawtooth.redistribution_model.build_redistribution_model()
-    )
+    redistribution_config = torax_config.mhd.sawtooth.redistribution_model
+    redistribution_model = redistribution_config.build_redistribution_model()
     self.assertIsInstance(
         redistribution_model, simple_redistribution.SimpleRedistribution
     )
     runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
-    geo_provider = torax_config.geometry.build_provider
-
     runtime_params_t = runtime_params_provider(t=0.0)
-    geo_t = geo_provider(t=0.0)
+    geo_t = torax_config.geometry.build_provider(t=0.0)
 
     core_profiles_t = initialization.initial_core_profiles(
         runtime_params=runtime_params_t,
@@ -133,6 +124,86 @@ class SimpleRedistributionTest(parameterized.TestCase):
         1.0,
         'On-axis q should be at least 1.0 after redistribution.',
     )
+
+
+class MixingRadiusClampingTest(parameterized.TestCase):
+  """Tests that mixing_radius is safely clamped to grid and cell bounds."""
+
+  def _build_and_run_redistribution(
+      self,
+      mixing_radius_multiplier: float,
+      n_rho: int = 10,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['numerics']['evolve_current'] = True
+    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': n_rho}
+    config_dict['profile_conditions'] = {
+        'Ip': 15e6,
+        'initial_j_is_total_current': True,
+        'initial_psi_from_j': True,
+        'current_profile_nu': 3,
+    }
+    config_dict['mhd'] = {
+        'sawtooth': {
+            'trigger_model': {'model_name': 'simple'},
+            'redistribution_model': {
+                'model_name': 'simple',
+                'flattening_factor': 1.01,
+                'mixing_radius_multiplier': mixing_radius_multiplier,
+            },
+        }
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    assert torax_config.mhd is not None
+    assert torax_config.mhd.sawtooth is not None
+    redistribution_config = torax_config.mhd.sawtooth.redistribution_model
+    redistribution_model = redistribution_config.build_redistribution_model()
+    runtime_params_provider = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
+    )
+    runtime_params_t = runtime_params_provider(t=0.0)
+    geo_t = torax_config.geometry.build_provider(t=0.0)
+    core_profiles_t = initialization.initial_core_profiles(
+        runtime_params=runtime_params_t,
+        geo=geo_t,
+        source_models=torax_config.sources.build_models(),
+        neoclassical_models=torax_config.neoclassical.build_models(),
+    )
+    rho_norm_q1 = np.interp(
+        1.0,
+        core_profiles_t.q_face,
+        geo_t.rho_face_norm,
+    )
+    redistributed = redistribution_model(
+        jnp.asarray(rho_norm_q1),
+        runtime_params_t,
+        geo_t,
+        core_profiles_t,
+    )
+    return redistributed, geo_t
+
+  @parameterized.named_parameters(
+      (
+          'clamped_to_grid_boundary',
+          5.0,
+          10,
+      ),
+      (
+          'clamped_to_contain_at_least_one_cell',
+          1.0001,
+          5,
+      ),
+  )
+  def test_mixing_radius_clamping(self, multiplier, n_rho):
+    redistributed, geo_t = self._build_and_run_redistribution(
+        mixing_radius_multiplier=multiplier, n_rho=n_rho
+    )
+    self.assertTrue(jnp.all(jnp.isfinite(redistributed.psi.value)))
+    self.assertTrue(jnp.all(jnp.isfinite(redistributed.T_i.value)))
+    self.assertTrue(jnp.all(jnp.isfinite(redistributed.T_e.value)))
+    self.assertTrue(jnp.all(jnp.isfinite(redistributed.n_e.value)))
+    q_face_after = psi_calculations.calc_q_face(geo_t, redistributed.psi)
+    self.assertGreaterEqual(q_face_after[0], 1.0)
 
 
 if __name__ == '__main__':
