@@ -226,37 +226,6 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
     )
 
 
-def _is_positive(time_varying_scalar: TimeVaryingScalar) -> TimeVaryingScalar:
-  if not np.all(time_varying_scalar.value > 0):
-    raise ValueError('All values must be positive.')
-  return time_varying_scalar
-
-
-def _is_non_negative(
-    time_varying_scalar: TimeVaryingScalar,
-) -> TimeVaryingScalar:
-  if not np.all(time_varying_scalar.value >= 0):
-    raise ValueError('All values must be non-negative.')
-  return time_varying_scalar
-
-
-def _interval(
-    time_varying_scalar: TimeVaryingScalar,
-    lower_bound: float,
-    upper_bound: float,
-) -> TimeVaryingScalar:
-  """Validates that values are in the interval [lower_bound, upper_bound]."""
-  if not np.all(
-      (time_varying_scalar.value >= lower_bound)
-      & (time_varying_scalar.value <= upper_bound)
-  ):
-    raise ValueError(
-        'All values must be less than %f and greater than %f.'
-        % (upper_bound, lower_bound)
-    )
-  return time_varying_scalar
-
-
 class TimeVaryingScalarStep(TimeVaryingScalar):
   """TimeVaryingScalar with STEP interpolation mode by default."""
   interpolation_mode: typing_extensions.Annotated[
@@ -264,18 +233,62 @@ class TimeVaryingScalarStep(TimeVaryingScalar):
   ] = interpolated_param.InterpolationMode.STEP
 
 
+def _validate_scalar_bounds(
+    time_varying_scalar: TimeVaryingScalar,
+    *,
+    gt: float | None = None,
+    ge: float | None = None,
+    lt: float | None = None,
+    le: float | None = None,
+) -> TimeVaryingScalar:
+  """Validates that values in a TimeVaryingScalar satisfy bound constraints."""
+  if gt is not None and ge is not None:
+    raise ValueError('At most one of `gt` and `ge` can be provided.')
+  if lt is not None and le is not None:
+    raise ValueError('At most one of `lt` and `le` can be provided.')
+  if gt is not None and not np.all(time_varying_scalar.value > gt):
+    raise ValueError(f'All values must be greater than {gt}.')
+  if ge is not None and not np.all(time_varying_scalar.value >= ge):
+    raise ValueError(f'All values must be greater than or equal to {ge}.')
+  if lt is not None and not np.all(time_varying_scalar.value < lt):
+    raise ValueError(f'All values must be less than {lt}.')
+  if le is not None and not np.all(time_varying_scalar.value <= le):
+    raise ValueError(f'All values must be less than or equal to {le}.')
+  return time_varying_scalar
+
+
+def scalar_bounds_validator(
+    *,
+    gt: float | None = None,
+    ge: float | None = None,
+    lt: float | None = None,
+    le: float | None = None,
+) -> pydantic.AfterValidator:
+  """Returns an AfterValidator that validates scalar bounds."""
+  if gt is not None and ge is not None:
+    raise ValueError('At most one of `gt` and `ge` can be provided.')
+  if lt is not None and le is not None:
+    raise ValueError('At most one of `lt` and `le` can be provided.')
+  return pydantic.AfterValidator(
+      functools.partial(
+          _validate_scalar_bounds,
+          gt=gt,
+          ge=ge,
+          lt=lt,
+          le=le,
+      )
+  )
+
+
 PositiveTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
-    TimeVaryingScalar, pydantic.AfterValidator(_is_positive)
+    TimeVaryingScalar, scalar_bounds_validator(gt=0.0)
 ]
 NonNegativeTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
-    TimeVaryingScalar, pydantic.AfterValidator(_is_non_negative)
+    TimeVaryingScalar, scalar_bounds_validator(ge=0.0)
 ]
 NonNegativeTimeVaryingScalarStep: TypeAlias = typing_extensions.Annotated[
-    TimeVaryingScalarStep, pydantic.AfterValidator(_is_non_negative)
+    TimeVaryingScalarStep, scalar_bounds_validator(ge=0.0)
 ]
 UnitIntervalTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
-    TimeVaryingScalar,
-    pydantic.AfterValidator(
-        functools.partial(_interval, lower_bound=0.0, upper_bound=1.0)
-    ),
+    TimeVaryingScalar, scalar_bounds_validator(ge=0.0, le=1.0)
 ]

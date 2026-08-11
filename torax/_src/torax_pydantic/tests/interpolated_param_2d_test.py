@@ -23,6 +23,7 @@ from torax._src import jax_utils
 from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
+import typing_extensions
 import xarray as xr
 
 RHO_NORM = 'rho_norm'
@@ -309,8 +310,107 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     class TestModel(model_base.BaseModelFrozen):
       a: interpolated_param_2d.PositiveTimeVaryingArray
 
-    with self.assertRaisesRegex(pydantic.ValidationError, 'be positive.'):
+    with self.assertRaisesRegex(pydantic.ValidationError, 'greater than 0'):
       TestModel.model_validate({'a': {0.0: {0.0: 1.0, 1: -1.0}}})
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='gt_valid',
+          field_type=typing_extensions.Annotated[
+              interpolated_param_2d.TimeVaryingArray,
+              interpolated_param_2d.array_bounds_validator(gt=1.0),
+          ],
+          value={0.0: {0.0: 1.5, 1.0: 2.0}},
+          should_fail=False,
+      ),
+      dict(
+          testcase_name='gt_equal_invalid',
+          field_type=typing_extensions.Annotated[
+              interpolated_param_2d.TimeVaryingArray,
+              interpolated_param_2d.array_bounds_validator(gt=1.0),
+          ],
+          value={0.0: {0.0: 1.0, 1.0: 2.0}},
+          should_fail=True,
+          error_regex='greater than 1.0',
+      ),
+      dict(
+          testcase_name='ge_equal_valid',
+          field_type=typing_extensions.Annotated[
+              interpolated_param_2d.TimeVaryingArray,
+              interpolated_param_2d.array_bounds_validator(ge=1.0),
+          ],
+          value={0.0: {0.0: 1.0, 1.0: 2.0}},
+          should_fail=False,
+      ),
+      dict(
+          testcase_name='interval_valid',
+          field_type=typing_extensions.Annotated[
+              interpolated_param_2d.TimeVaryingArray,
+              interpolated_param_2d.array_bounds_validator(
+                  gt=0.0, lt=5.0
+              ),
+          ],
+          value={0.0: {0.0: 0.5, 1.0: 4.5}},
+          should_fail=False,
+      ),
+      dict(
+          testcase_name='interval_above_invalid',
+          field_type=typing_extensions.Annotated[
+              interpolated_param_2d.TimeVaryingArray,
+              interpolated_param_2d.array_bounds_validator(
+                  gt=0.0, lt=5.0
+              ),
+          ],
+          value={0.0: {0.0: 0.5, 1.0: 5.5}},
+          should_fail=True,
+          error_regex='less than 5.0',
+      ),
+  )
+  def test_bounded_time_varying_array(
+      self, field_type, value, should_fail, error_regex=None
+  ):
+    test_model_cls = pydantic.create_model(
+        'TestModel',
+        a=(field_type, ...),
+        __base__=model_base.BaseModelFrozen,
+    )
+
+    if should_fail:
+      assert error_regex is not None
+      with self.assertRaisesRegex(pydantic.ValidationError, error_regex):
+        test_model_cls.model_validate({'a': value})
+    else:
+      m = test_model_cls.model_validate({'a': value})
+      self.assertIsNotNone(m)
+
+  def test_array_bounds_validator_mutually_exclusive_bounds(self):
+    with self.assertRaisesRegex(
+        ValueError, 'At most one of `gt` and `ge` can be provided.'
+    ):
+      interpolated_param_2d.array_bounds_validator(gt=0.0, ge=1.0)
+
+    with self.assertRaisesRegex(
+        ValueError, 'At most one of `lt` and `le` can be provided.'
+    ):
+      interpolated_param_2d.array_bounds_validator(lt=0.0, le=1.0)
+
+  def test_validate_array_bounds_mutually_exclusive_bounds(self):
+    arr = interpolated_param_2d.TimeVaryingArray.model_validate(
+        {0.0: (_RHO_NORM_ARRAY, _VALUES_ARRAY)}
+    )
+    with self.assertRaisesRegex(
+        ValueError, 'At most one of `gt` and `ge` can be provided.'
+    ):
+      interpolated_param_2d._validate_array_bounds(
+          arr, gt=0.0, ge=1.0
+      )
+
+    with self.assertRaisesRegex(
+        ValueError, 'At most one of `lt` and `le` can be provided.'
+    ):
+      interpolated_param_2d._validate_array_bounds(
+          arr, lt=0.0, le=1.0
+      )
 
   def test_set_grid(self):
 

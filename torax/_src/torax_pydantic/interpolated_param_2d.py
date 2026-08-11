@@ -707,15 +707,56 @@ class SparseTimeVaryingArray(model_base.BaseModelFrozen):
     )
 
 
-def _is_positive(array: TimeVaryingArray) -> TimeVaryingArray:
-  for _, value in array.value.values():
-    if not np.all(value > 0):
-      raise ValueError('All values must be positive.')
-  return array
+def _validate_array_bounds(
+    time_varying_array: TimeVaryingArray,
+    *,
+    gt: float | None = None,
+    ge: float | None = None,
+    lt: float | None = None,
+    le: float | None = None,
+) -> TimeVaryingArray:
+  """Validates that values in a TimeVaryingArray satisfy bound constraints."""
+  if gt is not None and ge is not None:
+    raise ValueError('At most one of `gt` and `ge` can be provided.')
+  if lt is not None and le is not None:
+    raise ValueError('At most one of `lt` and `le` can be provided.')
+  for _, value in time_varying_array.value.values():
+    if gt is not None and not np.all(value > gt):
+      raise ValueError(f'All values must be greater than {gt}.')
+    if ge is not None and not np.all(value >= ge):
+      raise ValueError(f'All values must be greater than or equal to {ge}.')
+    if lt is not None and not np.all(value < lt):
+      raise ValueError(f'All values must be less than {lt}.')
+    if le is not None and not np.all(value <= le):
+      raise ValueError(f'All values must be less than or equal to {le}.')
+  return time_varying_array
 
 
-PositiveTimeVaryingArray = typing_extensions.Annotated[
-    TimeVaryingArray, pydantic.AfterValidator(_is_positive)
+def array_bounds_validator(
+    *,
+    gt: float | None = None,
+    ge: float | None = None,
+    lt: float | None = None,
+    le: float | None = None,
+) -> pydantic.AfterValidator:
+  """Returns an AfterValidator that validates array bounds."""
+  if gt is not None and ge is not None:
+    raise ValueError('At most one of `gt` and `ge` can be provided.')
+  if lt is not None and le is not None:
+    raise ValueError('At most one of `lt` and `le` can be provided.')
+  return pydantic.AfterValidator(
+      functools.partial(
+          _validate_array_bounds,
+          gt=gt,
+          ge=ge,
+          lt=lt,
+          le=le,
+      )
+  )
+
+
+PositiveTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
+    TimeVaryingArray, array_bounds_validator(gt=0.0)
 ]
 
 
@@ -857,15 +898,6 @@ def set_grid(
       _update_rule(submodel)
 
 
-def _is_non_negative(
-    time_varying_array: TimeVaryingArray,
-) -> TimeVaryingArray:
-  for _, value in time_varying_array.value.values():
-    if not np.all(value >= 0.0):
-      raise ValueError('All values must be non-negative.')
-  return time_varying_array
-
-
 @functools.cache
 def get_face_centers(nx: int, dx: float | None = None) -> np.ndarray:
   if dx is None:
@@ -874,5 +906,5 @@ def get_face_centers(nx: int, dx: float | None = None) -> np.ndarray:
 
 
 NonNegativeTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
-    TimeVaryingArray, pydantic.AfterValidator(_is_non_negative)
+    TimeVaryingArray, array_bounds_validator(ge=0.0)
 ]
