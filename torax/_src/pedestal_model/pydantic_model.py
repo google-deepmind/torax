@@ -290,11 +290,11 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   )
   # TODO(b/491895183): Do a sweep across different cases to find good default
   # values for these parameters.
-  chi_max: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      1.0
+  chi_max: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
   )
-  D_e_max: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      1.0
+  D_e_max: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
   )
   V_e_max: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1.0
@@ -302,7 +302,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   V_e_min: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       -1.0
   )
-  pedestal_top_smoothing_width: torax_pydantic.TimeVaryingScalar = (
+  pedestal_top_smoothing_width: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.02)
   )
 
@@ -392,18 +392,20 @@ class SetPpedTpedRatioNped(BasePedestal):
   model_name: Annotated[
       Literal["set_P_ped_n_ped"], torax_pydantic.JAX_STATIC
   ] = "set_P_ped_n_ped"
-  P_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1e5)
-  P_ped_multiplier: torax_pydantic.TimeVaryingScalar = (
+  P_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1e5)
+  )
+  P_ped_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      0.7e20
+  n_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.7e20)
   )
   n_e_ped_is_fGW: bool = False
-  T_i_T_e_ratio: torax_pydantic.TimeVaryingScalar = (
+  T_i_T_e_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
+  rho_norm_ped_top: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.91)
   )
 
