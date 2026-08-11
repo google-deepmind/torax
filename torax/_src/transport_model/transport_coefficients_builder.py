@@ -123,9 +123,10 @@ def calculate_all_transport_coeffs(
     # coefficients in the pedestal region to zero.
     # TODO(b/485147781) Combine this masking with the turbulent transport
     # masking.
-    pedestal_active_mask_face = runtime_params.pedestal.set_pedestal & (
-        geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top
+    pedestal_active_mask_face = (
+        geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top
     )
+
     pereverzev_transport_coeffs = jax.tree_util.tree_map(
         lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
         pereverzev_transport_coeffs,
