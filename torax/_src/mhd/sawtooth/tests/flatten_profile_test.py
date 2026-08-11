@@ -49,19 +49,19 @@ class FlattenProfileTest(parameterized.TestCase):
 
   def _get_redistribution_mask(
       self, rho_norm_mixing: float
-  ) -> array_typing.Array:
+  ) -> array_typing.BoolVector:
     """Helper to create a redistribution mask for testing."""
     idx_mixing = np.searchsorted(
         self.geo.rho_norm, rho_norm_mixing, side='left'
     )
     indices = np.arange(self.geo.rho_norm.shape[0])
-    return indices < idx_mixing
+    return jnp.asarray(indices < idx_mixing)
 
   # pylint: disable=g-unreachable-test-method
   def _check_conservation_within_mixing_radius(
       self,
-      profile_before: array_typing.Array,
-      profile_after: array_typing.Array,
+      profile_before: array_typing.FloatVector,
+      profile_after: array_typing.FloatVector,
       rho_norm_mixing: float,
       rtol: float = 1e-6,
   ):
@@ -91,8 +91,8 @@ class FlattenProfileTest(parameterized.TestCase):
 
   def _check_total_conservation(
       self,
-      profile_before: array_typing.Array,
-      profile_after: array_typing.Array,
+      profile_before: array_typing.FloatVector,
+      profile_after: array_typing.FloatVector,
       rtol: float = 1e-6,
   ):
     """Checks total volume integral conservation."""
@@ -371,6 +371,82 @@ class FlattenProfileTest(parameterized.TestCase):
 
     with self.subTest('q[0] has gone up'):
       self.assertGreater(redistributed_q[0], original_q[0])
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='flatten_factor_1_0',
+          flatten_factor=1.0,
+      ),
+      dict(
+          testcase_name='flatten_factor_1_1',
+          flatten_factor=1.1,
+      ),
+  )
+  def test_positive_profile_redistribution_with_hollow_profile(
+      self,
+      flatten_factor: float,
+  ):
+    rho_norm_q1 = 0.4
+    rho_norm_mixing = 0.6
+    redistribution_mask = self._get_redistribution_mask(rho_norm_mixing)
+
+    rho_norm = self.geo.rho_norm
+    # Initial peaked density and temperature profiles
+    n0 = 1.0 - 0.2 * (rho_norm**2)
+    t0 = 5.0 - 4.0 * (rho_norm**2)
+    a_bump = 3.0
+    # Mimic a pellet injection density bump and corresponding temperature drop.
+    dn = a_bump * jnp.exp(-((rho_norm - 0.30) ** 2) / (2 * 0.10**2))
+    n_hollow = n0 + dn
+    t_hollow = t0 * n0 / n_hollow
+
+    cv_n_hol = self._create_profile(n_hollow)
+    cv_t_hol = self._create_profile(t_hollow)
+
+    flattened_density_profile = flatten_profile.flatten_density_profile(
+        rho_norm_q1=jnp.array(rho_norm_q1),
+        rho_norm_mixing=jnp.array(rho_norm_mixing),
+        redistribution_mask=jnp.array(redistribution_mask),
+        flattening_factor=jnp.array(flatten_factor),
+        original_density_profile=cv_n_hol,
+        geo=self.geo,
+    )
+
+    flattened_temperature_profile = flatten_profile.flatten_temperature_profile(
+        rho_norm_q1=jnp.array(rho_norm_q1),
+        rho_norm_mixing=jnp.array(rho_norm_mixing),
+        redistribution_mask=redistribution_mask,
+        flattening_factor=jnp.array(flatten_factor),
+        original_temperature_profile=cv_t_hol,
+        original_density_profile=cv_n_hol,
+        flattened_density_profile=flattened_density_profile,
+        geo=self.geo,
+    )
+
+    self.assertGreater(
+        float(jnp.min(flattened_temperature_profile.value)),
+        0.0,
+        msg=(
+            'Expected sawtooth redistribution to produce positive'
+            ' temperature on a hollow profile'
+        ),
+    )
+
+    initial_pressure = jnp.asarray(cv_t_hol.value * cv_n_hol.value)
+    new_pressure = jnp.asarray(
+        flattened_temperature_profile.value * flattened_density_profile.value
+    )
+    with self.subTest('conservation_within_mixing_radius'):
+      self._check_conservation_within_mixing_radius(
+          initial_pressure,
+          new_pressure,
+          rho_norm_mixing,
+      )
+    with self.subTest('total_conservation'):
+      self._check_total_conservation(
+          initial_pressure,
+          new_pressure,
+      )
 
 
 if __name__ == '__main__':
