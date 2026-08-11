@@ -438,7 +438,7 @@ class StateHistory:
   def _pack_into_data_array(
       self,
       name: str,
-      data: jax.Array | None,
+      data: array_typing.Array | None,
   ) -> xr.DataArray | None:
     """Packs the data into an xr.DataArray."""
     if data is None:
@@ -547,7 +547,7 @@ class StateHistory:
           face_value = getattr(stacked_core_profiles, "A_impurity_face")
           data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
         xr_dict[output_key] = self._pack_into_data_array(
-            output_key, data_to_save  # pyrefly: ignore[bad-argument-type]
+            output_key, data_to_save
         )
         continue
 
@@ -569,11 +569,13 @@ class StateHistory:
         else:  # cell array with no face counterpart, or a scalar value
           data_to_save = attr_value
 
-      xr_dict[output_key] = self._pack_into_data_array(output_key, data_to_save)  # pyrefly: ignore[bad-argument-type]
+      xr_dict[output_key] = self._pack_into_data_array(output_key, data_to_save)
 
     # Handle derived quantities
     Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]
-    xr_dict[output_keys.IP] = self._pack_into_data_array(output_keys.IP, Ip_data)  # pyrefly: ignore[bad-argument-type]
+    xr_dict[output_keys.IP] = self._pack_into_data_array(
+        output_keys.IP, Ip_data
+    )
 
     # Handle main_ion_fractions
     main_ions = sorted(list(stacked_core_profiles.main_ion_fractions.keys()))
@@ -603,12 +605,8 @@ class StateHistory:
       ])
       n_key = output_keys.n_fast_ion_key(source_key)
       T_key = output_keys.T_fast_ion_key(source_key)
-      xr_dict[n_key] = self._pack_into_data_array(
-          n_key, n_data  # pyrefly: ignore[bad-argument-type]
-      )
-      xr_dict[T_key] = self._pack_into_data_array(
-          T_key, T_data  # pyrefly: ignore[bad-argument-type]
-      )
+      xr_dict[n_key] = self._pack_into_data_array(n_key, n_data)
+      xr_dict[T_key] = self._pack_into_data_array(T_key, T_data)
 
     return xr_dict
 
@@ -745,7 +743,7 @@ class StateHistory:
         data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
       else:
         data_to_save = attr_value
-      xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)  # pyrefly: ignore[bad-argument-type]
+      xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
 
     if self._stacked_post_processed_outputs.impurity_species:
       radiation_outputs = (
