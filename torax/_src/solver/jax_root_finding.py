@@ -52,6 +52,8 @@ def root_newton_raphson(
     log_iterations: bool = False,
     use_jax_custom_root: bool = True,
     custom_jac: Callable[[jax.Array], jax.Array] | None = None,
+    vmapped_linesearch: bool = False,
+    max_linesearch_steps: int | None = None,
 ) -> tuple[jax.Array, RootMetadata]:
   """A differentiable Newton-Raphson root finder.
 
@@ -78,6 +80,9 @@ def root_newton_raphson(
       derivatives are requested.
     custom_jac: If provided, use this function to compute the Jacobian of `fun`
       instead of jax.jacfwd.
+    vmapped_linesearch: If True, use parallel vmapped linesearch instead of
+      sequential backtracking.
+    max_linesearch_steps: Maximum number of linesearch steps to try.
 
   Returns:
     A tuple `(x_root, RootMetadata(...))`.
@@ -112,6 +117,11 @@ def root_newton_raphson(
     cond_fun = functools.partial(
         _cond, tol=tol, tau_min=tau_min, maxiter=maxiter
     )
+    actual_max_linesearch_steps = (
+        max_linesearch_steps
+        if max_linesearch_steps is not None
+        else (10 if vmapped_linesearch else 100)
+    )
     body_fun = functools.partial(
         _body,
         jacobian_fun=jacobian_fun,
@@ -119,6 +129,8 @@ def root_newton_raphson(
         log_iterations=log_iterations,
         delta_reduction_factor=delta_reduction_factor,
         sufficient_decrease=sufficient_decrease,
+        vmapped_linesearch=vmapped_linesearch,
+        max_linesearch_steps=actual_max_linesearch_steps,
     )
     output_state = jax.lax.while_loop(cond_fun, body_fun, initial_state)
     x_out = output_state.pop('x')
@@ -208,6 +220,8 @@ def _body(
     log_iterations: bool,
     delta_reduction_factor: float,
     sufficient_decrease: float,
+    vmapped_linesearch: bool = False,
+    max_linesearch_steps: int = 100,
 ) -> dict[str, jax.Array]:
   """Calculates next guess in Newton-Raphson iteration."""
   dtype = input_state['x'].dtype
@@ -226,7 +240,12 @@ def _body(
         trial_norm <= (1.0 - sufficient_decrease * step_size) * init_norm
     ) & (~jnp.isnan(trial_norm))
 
-  ls_state = linesearch.backtracking_linesearch(
+  ls_fn = (
+      linesearch.vmapped_linesearch
+      if vmapped_linesearch
+      else linesearch.backtracking_linesearch
+  )
+  ls_state = ls_fn(
       residual_fn=residual_fun,
       x_init=input_state['x'],
       direction=direction,
@@ -235,7 +254,7 @@ def _body(
       initial_residual=input_state['residual'],
       initial_residual_norm=init_norm,
       delta_reduction_factor=delta_reduction_factor,
-      max_steps=100,
+      max_steps=max_linesearch_steps,
       min_step_norm=MIN_DELTA,
   )
 

@@ -28,6 +28,7 @@ from torax._src import models as models_lib
 from torax._src import state as state_module
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import enums
@@ -51,14 +52,13 @@ MIN_DELTA: Final[float] = 1e-7
         'models',
         'coeffs_callback',
         'initial_guess_mode',
+        'vmapped_linesearch',
         'log_iterations',
     ],
 )
 def newton_raphson_solve_block(
     dt: array_typing.FloatScalar,
-    runtime_params_t: runtime_params_lib.RuntimeParams,
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
-    geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t: state_module.CoreProfiles,
@@ -74,6 +74,10 @@ def newton_raphson_solve_block(
     delta_reduction_factor: float,
     tau_min: float,
     pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    coeffs_old: block_1d_coeffs.Block1DCoeffs,
+    coeffs_exp_linear: block_1d_coeffs.Block1DCoeffs | None = None,
+    sufficient_decrease: float = 1e-4,
+    vmapped_linesearch: bool = False,
     log_iterations: bool = False,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
@@ -108,9 +112,7 @@ def newton_raphson_solve_block(
 
   Args:
     dt: Discrete time step.
-    runtime_params_t: Runtime parameters for time t.
     runtime_params_t_plus_dt: Runtime parameters for time t + dt.
-    geo_t: Geometry at time t.
     geo_t_plus_dt: Geometry at time t + dt.
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
@@ -145,6 +147,9 @@ def newton_raphson_solve_block(
       routine resets at a lower timestep.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    coeffs_old: PDE coefficients at beginning of timestep.
+    coeffs_exp_linear: PDE coefficients at beginning of timestep with additional
+      pereverzev terms.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
 
@@ -157,38 +162,13 @@ def newton_raphson_solve_block(
   """
   # pyformat: enable
 
-  coeffs_old = coeffs_callback(
-      runtime_params_t,
-      geo_t,
-      core_profiles_t,
-      prev_core_profiles=None,
-      dt=None,
-      x=x_old,
-      explicit_source_profiles=explicit_source_profiles,
-      explicit_call=True,
-      pedestal_transition_state=pedestal_transition_state,
-  )
-
   match initial_guess_mode:
     # LINEAR initial guess will provide the initial guess using the predictor-
     # corrector method if predictor_corrector=True in the solver config
     case enums.InitialGuessMode.LINEAR:
-      # returns transport coefficients with additional pereverzev terms
-      # if set by runtime_params, needed if stiff transport models
-      # (e.g. qlknn) are used.
-      coeffs_exp_linear = coeffs_callback(
-          runtime_params_t,
-          geo_t,
-          core_profiles=core_profiles_t,
-          prev_core_profiles=None,
-          dt=None,
-          x=x_old,
-          explicit_source_profiles=explicit_source_profiles,
-          allow_pereverzev=True,
-          explicit_call=True,
-          pedestal_transition_state=pedestal_transition_state,
-      )
-
+      assert (
+          coeffs_exp_linear is not None
+      ), 'coeffs_exp_linear must be provided for LINEAR guess mode'
       # See linear_theta_method.py for comments on the predictor_corrector API
       x_new_guess = convertors.core_profiles_to_solver_x_tuple(
           core_profiles_t_plus_dt, evolving_names
@@ -240,6 +220,8 @@ def newton_raphson_solve_block(
       coarse_tol=coarse_tol,
       delta_reduction_factor=delta_reduction_factor,
       tau_min=tau_min,
+      sufficient_decrease=sufficient_decrease,
+      vmapped_linesearch=vmapped_linesearch,
       log_iterations=log_iterations,
   )
   root_finder = jax_utils.xla_metadata_call(
