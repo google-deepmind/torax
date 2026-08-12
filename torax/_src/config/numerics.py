@@ -52,6 +52,8 @@ class RuntimeParams:
   exact_t_final: bool = dataclasses.field(metadata={'static': True})
   adaptive_dt: bool = dataclasses.field(metadata={'static': True})
   enable_fast_ions: bool = dataclasses.field(metadata={'static': True})
+  vmapped_adaptive_dt: bool = dataclasses.field(metadata={'static': True})
+  max_backtrack_steps: int = dataclasses.field(metadata={'static': True})
 
   @functools.cached_property
   def evolving_names(self) -> tuple[str, ...]:
@@ -118,6 +120,10 @@ class Numerics(torax_pydantic.BaseModelFrozen):
       torax_pydantic.ValidatedDefault(1e-1)
   )
   adaptive_dt: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  vmapped_adaptive_dt: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  max_backtrack_steps: Annotated[
+      pydantic.PositiveInt, torax_pydantic.JAX_STATIC
+  ] = 4
   dt_reduction_factor: pydantic.PositiveFloat = 3.0
   evolve_ion_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   evolve_electron_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
@@ -181,4 +187,6 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         exact_t_final=self.exact_t_final,
         adaptive_dt=self.adaptive_dt,
         enable_fast_ions=self.enable_fast_ions,
+        vmapped_adaptive_dt=self.vmapped_adaptive_dt,
+        max_backtrack_steps=self.max_backtrack_steps,
     )

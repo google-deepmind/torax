@@ -253,9 +253,13 @@ class SimulationStepFn:
       # If adaptive dt is enabled, take the adaptive step if the max_dt is
       # greater than the min_dt, otherwise take the fixed step.
       if runtime_params_provider.numerics.adaptive_dt:
+        if runtime_params_provider.numerics.vmapped_adaptive_dt:
+          adaptive_fn = self._vmapped_adaptive_step
+        else:
+          adaptive_fn = self._adaptive_step
         return jax.lax.cond(
             max_dt > runtime_params_t.numerics.min_dt,
-            self._adaptive_step,
+            adaptive_fn,
             self._fixed_step,
             *step_args,
         )
@@ -516,6 +520,116 @@ class SimulationStepFn:
             geometry_t_plus_dt=result.state.geo,
             core_profiles_t=input_state.core_profiles,
             core_profiles_t_plus_dt=result.state.core_profiles,
+            explicit_source_profiles=explicit_source_profiles,
+            edge_outputs=edge_outputs,
+            models=self._solver.models,
+            evolving_names=evolving_names,
+            input_post_processed_outputs=previous_post_processed_outputs,
+            time_step_calculator_state_t=input_state.time_step_calculator_state,
+            pedestal_transition_state=pedestal_transition_state,
+        )
+    )
+    return output_state, post_processed_outputs
+
+  def _vmapped_adaptive_step(
+      self,
+      max_dt: chex.Numeric,
+      runtime_params_t: runtime_params_lib.RuntimeParams,
+      geo_t: geometry.Geometry,
+      explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      edge_outputs: edge_base.EdgeModelOutputs | None,
+      input_state: sim_state.SimState,
+      previous_post_processed_outputs: post_processing.PostProcessedOutputs,
+      runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
+  ) -> tuple[
+      sim_state.SimState,
+      post_processing.PostProcessedOutputs,
+  ]:
+    """Performs a vmapped adaptive simulation step."""
+    evolving_names = runtime_params_t.numerics.evolving_names
+    initial_dt = self.time_step_calculator.next_dt(
+        runtime_params_t,
+        input_state,
+    )
+    initial_dt = jnp.minimum(initial_dt, max_dt)
+
+    max_backtrack_steps = runtime_params_t.numerics.max_backtrack_steps
+    i_array = jnp.arange(max_backtrack_steps)
+
+    prepared_state = self.solver.prepare_step(
+        t=input_state.t,
+        runtime_params_t=runtime_params_t,
+        geo_t=geo_t,
+        core_profiles_t=input_state.core_profiles,
+        explicit_source_profiles=explicit_source_profiles,
+        pedestal_transition_state=pedestal_transition_state,
+    )
+
+    single_attempt_partial = functools.partial(
+        adaptive_step.single_solve_attempt,
+        prepared_state=prepared_state,
+        initial_dt=initial_dt,
+        runtime_params_t=runtime_params_t,
+        input_state=input_state,
+        edge_outputs=edge_outputs,
+        runtime_params_provider=runtime_params_provider,
+        geometry_provider=geometry_provider,
+        solver=self.solver,
+    )
+
+    vmapped_states = jax.vmap(single_attempt_partial)(i_array)
+
+    converged = vmapped_states.solver_numeric_outputs.solver_error_state != 1
+    dt_ok = vmapped_states.dt >= runtime_params_t.numerics.min_dt
+    valid = converged & dt_ok
+
+    any_valid = jnp.any(valid)
+
+    selected_idx = jnp.where(
+        any_valid, jnp.argmax(valid), max_backtrack_steps - 1
+    )
+
+    selected_state = jax.tree_util.tree_map(
+        lambda x: x[selected_idx], vmapped_states
+    )
+
+    # We report selected_idx + 1 as outer iterations if we found a valid step,
+    # otherwise we report max_backtrack_steps.
+    outer_iterations = jnp.where(
+        any_valid, selected_idx + 1, max_backtrack_steps
+    )
+
+    final_solver_numeric_outputs = state.SolverNumericOutputs(
+        solver_error_state=jnp.array(
+            selected_state.solver_numeric_outputs.solver_error_state,
+            jax_utils.get_int_dtype(),
+        ),
+        outer_solver_iterations=jnp.array(
+            outer_iterations, jax_utils.get_int_dtype()
+        ),
+        inner_solver_iterations=jnp.array(
+            jnp.sum(
+                vmapped_states.solver_numeric_outputs.inner_solver_iterations
+            ),
+            jax_utils.get_int_dtype(),
+        ),
+        sawtooth_crash=False,
+    )
+
+    output_state, post_processed_outputs = (
+        step_function_processing.finalize_outputs(
+            t=input_state.t,
+            dt=selected_state.dt,
+            x_new=selected_state.x_new,
+            solver_numeric_outputs=final_solver_numeric_outputs,
+            runtime_params_t_plus_dt=selected_state.runtime_params,
+            geometry_t_plus_dt=selected_state.geo,
+            core_profiles_t=input_state.core_profiles,
+            core_profiles_t_plus_dt=selected_state.core_profiles,
             explicit_source_profiles=explicit_source_profiles,
             edge_outputs=edge_outputs,
             models=self._solver.models,
