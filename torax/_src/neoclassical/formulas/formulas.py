@@ -17,6 +17,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import math_utils
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -26,6 +27,7 @@ from torax._src.physics import collisions
 # pylint: disable=invalid-name
 
 
+# TODO(b/545148156): Add finite-orbit-width effects.
 def calculate_f_trap(
     geo: geometry_lib.Geometry,
 ) -> array_typing.FloatVectorFace:
@@ -47,7 +49,9 @@ def calculate_f_trap(
   )
   aa = (1.0 - geo.epsilon_face) / (1.0 + geo.epsilon_face)
   return 1.0 - jnp.sqrt(aa) * (1.0 - epsilon_effective) / (
-      1.0 + 2.0 * jnp.sqrt(epsilon_effective)
+      # On the magnetic axis, epsilon_effective is 0, in order to avoid a NaN
+      # gradient we define the gradient at zero to be zero.
+      1.0 + 2.0 * math_utils.sqrt_with_zero_gradient_at_zero(epsilon_effective)
   )
 
 

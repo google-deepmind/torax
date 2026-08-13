@@ -330,6 +330,20 @@ def inverse_softplus(x: jax.Array) -> jax.Array:
   return jnp.where(x > 30.0, x, jnp.log(jnp.expm1(jnp.maximum(x, 1e-20))))
 
 
+def sqrt_with_zero_gradient_at_zero(x: jax.Array) -> jax.Array:
+  """Computes sqrt(x) with safe 1st, 2nd, and N-th order gradients at x=0."""
+  # Swap zeros for ones BEFORE the sqrt.
+  # If x=0, safe_x becomes 1.0.
+  safe_x = jnp.where(x == 0.0, jnp.ones_like(x), x)
+
+  # JAX's autodiff only ever sees positive numbers here.
+  # No division by zero in any derivative.
+  safe_sqrt_out = jnp.sqrt(safe_x)
+
+  # Mask the dummy 1.0s back to 0.0 for the final output.
+  return jnp.where(x == 0.0, jnp.zeros_like(x), safe_sqrt_out)
+
+
 def smooth_sqrt(
     x: jax.Array, epsilon: float = constants.CONSTANTS.eps  # pyrefly: ignore[bad-function-definition]
 ) -> jax.Array:
