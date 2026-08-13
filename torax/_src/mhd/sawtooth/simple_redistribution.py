@@ -50,10 +50,10 @@ class SimpleRedistribution(
     """Applies redistribution of profiles with a user-predefined mixing radius.
 
     Redistributes the profiles to a radius of
-    mixing_radius_multiplier * rho_norm_q1. Two linear profiles are created for
+    mixing_radius_multiplier * rho_norm_q1. Two smooth profiles are created for
     the density, temperature, and current profiles in the mixing zone:
-    1. A flattened profile up to the q=1 surface.
-    2. A linear profile up to the mixing radius.
+    1. A smoothstep flattened profile up to the q=1 surface.
+    2. A cubic Hermite spline profile up to the mixing radius.
 
     The value of the redistributed profile at q=1 is set by particle, energy
     and current conservation.
@@ -93,8 +93,7 @@ class SimpleRedistribution(
 
     idx_mixing = jnp.searchsorted(geo.rho_norm, mixing_radius, side='left')
 
-    # Construct masks for different profile domains.
-    # The redistribution mask is for all cells up to the mixing radius, since
+    # The redistribution mask covers all cells up to the mixing radius, since
     # those are the only locations where the modified values contribute to the
     # volume integrals.
     indices = jnp.arange(geo.rho_norm.shape[0])

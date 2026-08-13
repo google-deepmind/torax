@@ -448,6 +448,100 @@ class FlattenProfileTest(parameterized.TestCase):
           new_pressure,
       )
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='flat_core',
+          flatten_factor=1.0,
+      ),
+      dict(
+          testcase_name='peaked_core',
+          flatten_factor=1.1,
+      ),
+  )
+  def test_gradient_smoothness_at_boundaries(
+      self,
+      flatten_factor: float,
+  ):
+    """Tests gradient smoothness at q=1 and mixing radius boundaries.
+
+    Uses a high-resolution grid for accurate numerical gradient estimates.
+    The smoothstep core shape and cubic Hermite mixing spline guarantee:
+    - Zero gradient at the q=1 surface.
+    - Gradient matching the original profile at the mixing radius.
+    """
+    rho_norm_q1 = 0.3
+    rho_norm_mixing = 0.5
+    n_rho_hires = 500
+    geo_hires = circular_geometry.CircularConfig(
+        n_rho=n_rho_hires
+    ).build_geometry()
+    rho_norm = geo_hires.rho_norm
+    initial_values = 5.0 - 4.0 * rho_norm**2
+
+    profile = cell_variable.CellVariable(
+        value=jnp.array(initial_values),
+        face_centers=geo_hires.rho_face_norm,
+        left_face_grad_constraint=jnp.array(0.0),
+        left_face_constraint=None,
+        right_face_grad_constraint=None,
+        right_face_constraint=jnp.array(initial_values[-1]),
+    )
+    n_rho = rho_norm.shape[0]
+
+    # Clamp mixing_radius to ensure at least one cell in the mixing zone,
+    # mirroring simple_redistribution.py.
+    idx_first_mixing_cell = np.searchsorted(rho_norm, rho_norm_q1, side='right')
+    min_mixing_radius = float(
+        rho_norm[min(idx_first_mixing_cell + 1, n_rho - 1)]
+    )
+    rho_norm_mixing = max(rho_norm_mixing, min_mixing_radius)
+    idx_mixing = int(np.searchsorted(rho_norm, rho_norm_mixing, side='left'))
+    redistribution_mask = jnp.arange(n_rho) < idx_mixing
+    profile_val = jnp.asarray(profile.value)
+    ones = jnp.ones_like(profile_val)
+
+    new_profile = flatten_profile._redistribute_profile(
+        rho_norm_q1=jnp.array(rho_norm_q1),
+        rho_norm_mixing=jnp.array(rho_norm_mixing),
+        redistribution_mask=redistribution_mask,
+        flattening_factor=jnp.array(flatten_factor),
+        original_profile=profile_val,
+        geo=geo_hires,
+        pre_crash_weight=ones,
+        post_crash_weight=ones,
+    )
+
+    grad_new = jnp.gradient(new_profile, rho_norm)
+    grad_orig = jnp.gradient(profile_val, rho_norm)
+
+    # Find the cell centers closest to the continuous boundary locations.
+    idx_q1 = int(np.searchsorted(rho_norm, rho_norm_q1, side='left'))
+    idx_mix = min(idx_mixing, n_rho - 1)
+    grad_at_q1 = grad_new[idx_q1]
+    grad_at_mixing = grad_new[idx_mix]
+    grad_orig_at_mixing = grad_orig[idx_mix]
+
+    # Tolerances account for O(h) central-difference artifacts at zone
+    # boundaries where the second derivative is discontinuous.
+    with self.subTest('zero_gradient_at_q1'):
+      np.testing.assert_allclose(
+          grad_at_q1,
+          0.0,
+          atol=0.08,
+          err_msg='Gradient at q=1 surface should be approximately zero.',
+      )
+
+    with self.subTest('gradient_matching_at_mixing_radius'):
+      np.testing.assert_allclose(
+          grad_at_mixing,
+          grad_orig_at_mixing,
+          rtol=0.002,
+          err_msg=(
+              'Gradient at mixing radius should match original profile'
+              ' gradient.'
+          ),
+      )
+
 
 if __name__ == '__main__':
   absltest.main()
