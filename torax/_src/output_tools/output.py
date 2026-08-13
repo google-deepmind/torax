@@ -14,12 +14,11 @@
 
 """Module containing functions for saving and loading simulation output."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 import dataclasses
 import functools
 import inspect
 import itertools
-from typing import cast
 
 import os
 
@@ -30,14 +29,13 @@ import numpy as np
 from torax._src import array_typing
 from torax._src import state
 from torax._src.edge import base as edge_base
-from torax._src.edge import extended_lengyel_standalone
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
+from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.solver import jax_root_finding
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
@@ -235,6 +233,13 @@ class StateHistory:
     self._rho_face_norm = state_history[0].geometry.rho_face_norm
     self._rho_norm = np.concatenate([[0.0], self.rho_cell_norm, [1.0]])
 
+    self._output_grid_context = output_grid_context.OutputGridContext(
+        times=self.times,
+        rho_face_norm=self.rho_face_norm,
+        rho_cell_norm=self.rho_cell_norm,
+        rho_cell_plus_boundaries_norm=self.rho_norm,
+    )
+
   @property
   def torax_config(self) -> model_config.ToraxConfig:
     """Returns the ToraxConfig used to run the simulation."""
@@ -403,13 +408,13 @@ class StateHistory:
     profiles_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and any(d in spatial_coords for d in v.dims)  # pytype: disable=attribute-error
+        if v is not None and any(d in spatial_coords for d in v.dims)  # type: ignore[attr-defined]
     }
     profiles = xr.Dataset(profiles_dict)
     scalars_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and not any(d in spatial_coords for d in v.dims)  # pytype: disable=attribute-error
+        if v is not None and not any(d in spatial_coords for d in v.dims)  # type: ignore[attr-defined]
     }
     scalars = xr.Dataset(scalars_dict)
     children = {
@@ -474,7 +479,7 @@ class StateHistory:
         logging.warning(
             "Unsupported data shape for %s: %s. Skipping persisting.",
             name,
-            data.shape,  # pytype: disable=attribute-error
+            data.shape,  # type: ignore[attr-defined]
         )
         return None
 
@@ -847,173 +852,6 @@ class StateHistory:
 
   def _save_edge_outputs(self) -> xr.DataTree:
     """Saves the edge outputs to a DataTree."""
-    xr_dict = {}
-    children = {}
-    outputs = self._stacked_edge_outputs
-
-    # Fields from ExtendedLengyelOutputs
-    # TODO(b/446608829): generalize when additional edge models are added
-    if not isinstance(
-        outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
-    ):
-      # Return empty DataTree for non-extended-lengyel edge outputs.
-      return xr.DataTree(dataset=xr.Dataset(xr_dict))
-
-    standard_output_fields = [
-        output_keys.Q_PARALLEL,
-        output_keys.Q_PERPENDICULAR_TARGET,
-        output_keys.T_E_SEPARATRIX,
-        output_keys.T_E_TARGET,
-        output_keys.PRESSURE_NEUTRAL_DIVERTOR,
-        output_keys.ALPHA_T,
-        output_keys.Z_EFF_SEPARATRIX,
-        output_keys.MULTIPLE_ROOTS_FOUND,
-    ]
-
-    edge_output_fields = dataclasses.fields(outputs)
-    for field in edge_output_fields:
-      name = field.name
-      value = getattr(outputs, name)
-      if field.name in standard_output_fields:
-        packed = self._pack_into_data_array(name, value)
-        if packed is not None:
-          xr_dict[name] = packed
-        continue
-      # Special handling for seed_impurity_concentrations
-      if name == output_keys.SEED_IMPURITY_CONCENTRATIONS and value:
-        # This is a dict of {impurity: array(time,)}, where (time,) is the shape
-        # We want to convert it to an array of shape (n_impurities, time) with
-        # impurity coord.
-        impurities = sorted(list(value.keys()))
-        data_array = np.stack([value[i] for i in impurities], axis=0)
-        xr_dict[name] = xr.DataArray(
-            data_array,
-            dims=[output_keys.SEED_IMPURITY, output_keys.TIME],
-            coords={
-                output_keys.SEED_IMPURITY: impurities,
-                output_keys.TIME: self.times,
-            },
-            name=name,
-            attrs=output_keys.get_units(name),
-        )
-        continue
-
-      if name == output_keys.CALCULATED_ENRICHMENT and value:
-        # This is a dict of {impurity: array(time,)}, where (time,) is the shape
-        # We want to convert it to an array of shape (n_impurities, time) with
-        # impurity coord.
-        impurities = sorted(list(value.keys()))
-        data_array = np.stack([value[i] for i in impurities], axis=0)
-        xr_dict[name] = xr.DataArray(
-            data_array,
-            dims=[output_keys.IMPURITY, output_keys.TIME],
-            coords={
-                output_keys.IMPURITY: impurities,
-                output_keys.TIME: self.times,
-            },
-            name=name,
-        )
-        continue
-
-      if name == output_keys.ROOTS and value is not None:
-        roots_dict = self._process_roots_output(outputs)
-        if roots_dict:
-          children[output_keys.ROOTS] = xr.DataTree(
-              dataset=xr.Dataset(roots_dict)
-          )
-
-    # Fields from SolverStatus which depend on the solver type
-    xr_dict[output_keys.SOLVER_PHYSICS_OUTCOME] = self._pack_into_data_array(
-        output_keys.SOLVER_PHYSICS_OUTCOME, outputs.solver_status.physics_outcome  # pyrefly: ignore[bad-argument-type]
-    )
-    numerics = outputs.solver_status.numerics_outcome
-    # Check for RootMetadata structure (newton solver)
-    # TODO(b/446608829): make numerics itself parse its contents for outputs.
-    if isinstance(numerics, jax_root_finding.RootMetadata):
-      xr_dict[output_keys.SOLVER_ITERATIONS] = self._pack_into_data_array(
-          output_keys.SOLVER_ITERATIONS, numerics.iterations
-      )
-      # Handle solver_residual explicitly because it is a vector
-      # (time, n_unknowns). We want to output the scalar metric used for
-      # convergence checking (mean absolute error).
-      residual_scalar = np.mean(np.abs(numerics.residual), axis=-1)
-      xr_dict[output_keys.SOLVER_RESIDUAL] = self._pack_into_data_array(
-          output_keys.SOLVER_RESIDUAL, residual_scalar
-      )
-
-      xr_dict[output_keys.SOLVER_ERROR] = self._pack_into_data_array(
-          output_keys.SOLVER_ERROR, numerics.error
-      )
-    else:
-      # FixedPointOutcome (fixed point solver)
-      xr_dict[output_keys.FIXED_POINT_OUTCOME] = self._pack_into_data_array(
-          output_keys.FIXED_POINT_OUTCOME, numerics  # pyrefly: ignore[bad-argument-type]
-      )
-
-    return xr.DataTree(dataset=xr.Dataset(xr_dict), children=children)
-
-  def _process_roots_output(
-      self, roots: extended_lengyel_standalone.ExtendedLengyelOutputs
-  ) -> Mapping[str, xr.DataArray]:
-    """Processes roots output to identify unique valid roots."""
-    unique_roots_obj = roots.get_unique_roots()
-    if unique_roots_obj is None:
-      return {}
-
-    xr_dict = {}
-    default_dims = [output_keys.TIME, output_keys.N_ROOTS]
-
-    # Helper to add data to xr_dict with correct dims
-    def _add_to_xr(name: str, data: jax.Array):
-      if data.ndim == len(default_dims):
-        dims = default_dims
-      elif data.ndim > len(default_dims):
-        # Handle extra dimensions (e.g. vector residual)
-        extra_dims = [
-            f"{name}_dim_{i}" for i in range(data.ndim - len(default_dims))
-        ]
-        dims = default_dims + extra_dims
-      else:
-        dims = default_dims[: data.ndim]
-
-      xr_dict[name] = xr.DataArray(data, dims=dims, name=name)
-
-    # Iterate over fields of the returned object
-    # Cast to concrete type for Pytype
-    unique_roots_obj = cast(
-        extended_lengyel_standalone.ExtendedLengyelOutputs, unique_roots_obj
-    )
-    for field in dataclasses.fields(unique_roots_obj):
-      name = field.name
-      # Skip internal fields or recursion or solver_status (handled explicitly)
-      if name in (
-          output_keys.ROOTS,
-          output_keys.MULTIPLE_ROOTS_FOUND,
-          "solver_status",
-      ):
-        continue
-
-      value = getattr(unique_roots_obj, name)
-
-      if isinstance(value, (jax.Array, np.ndarray)):
-        _add_to_xr(name, value)  # pyrefly: ignore[bad-argument-type]
-      elif isinstance(value, Mapping):
-        for k, v in value.items():
-          # Flatten dict fields -> name_key
-          _add_to_xr(f"{name}_{k}", v)
-
-    # Handle solver_status explicitly to flatten metrics
-    status = unique_roots_obj.solver_status
-    if status.physics_outcome is not None:
-      _add_to_xr(
-          output_keys.SOLVER_PHYSICS_OUTCOME,
-          jax.numpy.asarray(status.physics_outcome),
-      )
-
-    numerics = status.numerics_outcome
-    if isinstance(numerics, jax_root_finding.RootMetadata):
-      _add_to_xr(output_keys.SOLVER_ITERATIONS, numerics.iterations)
-      _add_to_xr(output_keys.SOLVER_RESIDUAL, numerics.residual)
-      _add_to_xr(output_keys.SOLVER_ERROR, numerics.error)
-
-    return xr_dict
+    if self._stacked_edge_outputs is None:
+      return xr.DataTree(dataset=xr.Dataset({}))
+    return self._stacked_edge_outputs.to_xr_datatree(self._output_grid_context)
