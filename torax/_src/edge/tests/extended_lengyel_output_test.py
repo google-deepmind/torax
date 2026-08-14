@@ -151,10 +151,10 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
                 * 1e-4,  # residual is vector per root
                 error=jnp.zeros((num_roots,)),
                 last_tau=jnp.ones((num_roots,)),
-            ),  # pytype: disable=wrong-arg-types
-        ),  # pytype: disable=wrong-arg-types
+            ),  # type: ignore[arg-type]
+        ),  # type: ignore[arg-type]
         calculated_enrichment={'Ne': jnp.ones((num_roots,)) * 1.0},
-    )  # pytype: disable=wrong-arg-types
+    )  # type: ignore[arg-type]
 
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         q_parallel=jnp.array(1.0),
@@ -174,7 +174,7 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         calculated_enrichment={'Ne': jnp.array(1.0)},
         roots=roots_outputs,
         multiple_roots_found=jnp.array(True),
-    )  # pytype: disable=wrong-arg-types
+    )  # type: ignore[arg-type]
 
     sim_state_with_edge = dataclasses.replace(
         self.sim_state,
@@ -194,14 +194,16 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
     edge_node = output_xr.children[output_keys.EDGE]
 
     # Check if 'roots' child node exists
-    self.assertIn('roots', edge_node.children)
-    roots_dataset = edge_node.children['roots'].dataset
+    self.assertIn(extended_lengyel_standalone.ROOTS, edge_node.children)
+    roots_dataset = (
+        edge_node.children[extended_lengyel_standalone.ROOTS].dataset
+    )
 
     # Let's Assert that 'T_e_target' is in data_vars (without prefix)
-    self.assertIn('T_e_target', roots_dataset.data_vars)
+    self.assertIn(output_keys.T_E_TARGET, roots_dataset.data_vars)
 
-    roots_Te = roots_dataset['T_e_target']
-    self.assertIn('n_roots', roots_Te.dims)
+    roots_Te = roots_dataset[output_keys.T_E_TARGET]
+    self.assertIn(extended_lengyel_standalone.N_ROOTS, roots_Te.dims)
 
     # Verify values
     root_values = roots_Te.values
@@ -210,6 +212,17 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
 
     expected_roots = [10.0, 50.0, 100.0]
     np.testing.assert_allclose(root_values[0], expected_roots)
+
+    # Verify standalone edge dataset coordinates contain time but not spatial
+    # radial grids.
+    self.assertIsNotNone(history._stacked_edge_outputs)
+    standalone_edge = history._stacked_edge_outputs.to_xr_datatree(
+        history._output_grid_context
+    )
+    self.assertIn(output_keys.TIME, standalone_edge.dataset.coords)
+    self.assertNotIn(output_keys.RHO_CELL_NORM, standalone_edge.dataset.coords)
+    self.assertNotIn(output_keys.RHO_FACE_NORM, standalone_edge.dataset.coords)
+    self.assertNotIn(output_keys.RHO_NORM, standalone_edge.dataset.coords)
 
 
 if __name__ == '__main__':

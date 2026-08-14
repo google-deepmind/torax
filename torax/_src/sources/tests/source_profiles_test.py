@@ -19,6 +19,8 @@ import numpy as np
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources import source as source_lib
@@ -168,6 +170,131 @@ class SourceProfilesTest(parameterized.TestCase):
     self.assertIn('icrh', merged.fast_ions)
     self.assertEqual(merged.fast_ions['icrh'], (mock_fast_ion,))
 
+  def test_qei_info_zeros_and_p_ei(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    qei_zeros = source_profiles_lib.QeiInfo.zeros(geo)
+    np.testing.assert_allclose(qei_zeros.p_ei, jnp.zeros_like(geo.rho))
+
+    qei = source_profiles_lib.QeiInfo(
+        qei_coef=jnp.ones_like(geo.rho) * 2.0,
+        implicit_ii=jnp.zeros_like(geo.rho),
+        explicit_i=jnp.zeros_like(geo.rho),
+        implicit_ee=jnp.zeros_like(geo.rho),
+        explicit_e=jnp.zeros_like(geo.rho),
+        implicit_ie=jnp.zeros_like(geo.rho),
+        implicit_ei=jnp.zeros_like(geo.rho),
+        p_ei=jnp.ones_like(geo.rho) * 10.0,
+    )
+    np.testing.assert_allclose(qei.p_ei, jnp.ones_like(geo.rho) * 10.0)
+
+  def test_qei_info_to_output_dict(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], geo.rho_norm, [1.0]]
+        ),
+    )
+    p_ei = jnp.ones((2, geo.rho_norm.size)) * 5.0
+    qei = source_profiles_lib.QeiInfo(
+        qei_coef=jnp.ones((2, geo.rho_norm.size)) * 2.0,
+        implicit_ii=jnp.zeros((2, geo.rho_norm.size)),
+        explicit_i=jnp.zeros((2, geo.rho_norm.size)),
+        implicit_ee=jnp.zeros((2, geo.rho_norm.size)),
+        explicit_e=jnp.zeros((2, geo.rho_norm.size)),
+        implicit_ie=jnp.zeros((2, geo.rho_norm.size)),
+        implicit_ei=jnp.zeros((2, geo.rho_norm.size)),
+        p_ei=p_ei,
+    )
+    out_dict = qei.to_output_dict(context)
+    self.assertIn(str(output_keys.EI_EXCHANGE), out_dict)
+    dims, data, attrs = out_dict[str(output_keys.EI_EXCHANGE)]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_CELL_NORM))
+    np.testing.assert_allclose(data, p_ei)
+    self.assertEqual(
+        attrs, {'units': output_keys.Units.MW_PER_CUBIC_METER}
+    )
+
+  def test_bootstrap_current_to_output_dict(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    times = np.array([0.0, 1.0])
+    rho_norm = np.concatenate([[0.0], geo.rho_norm, [1.0]])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=rho_norm,
+    )
+    j_cell = jnp.ones((2, geo.rho_norm.size)) * 3.0
+    j_face = jnp.ones((2, geo.rho_face_norm.size)) * 4.0
+    bc = bootstrap_current_base.BootstrapCurrent(
+        j_parallel_bootstrap=j_cell,
+        j_parallel_bootstrap_face=j_face,
+    )
+    out_dict = bc.to_output_dict(context)
+    self.assertIn(str(output_keys.J_PARALLEL_BOOTSTRAP), out_dict)
+    dims, data, attrs = out_dict[str(output_keys.J_PARALLEL_BOOTSTRAP)]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_NORM))
+    self.assertEqual(data.shape, (2, rho_norm.size))
+    self.assertEqual(
+        attrs, {'units': output_keys.Units.AMPERE_PER_SQUARE_METER}
+    )
+
+  def test_source_profiles_to_output_dict(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    times = np.array([0.0, 1.0])
+    rho_norm = np.concatenate([[0.0], geo.rho_norm, [1.0]])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=rho_norm,
+    )
+    n_cell = geo.rho_norm.size
+    profiles = source_profiles_lib.SourceProfiles(
+        bootstrap_current=bootstrap_current_base.BootstrapCurrent(
+            j_parallel_bootstrap=jnp.ones((2, n_cell)),
+            j_parallel_bootstrap_face=jnp.ones((2, geo.rho_face_norm.size)),
+        ),
+        qei=source_profiles_lib.QeiInfo(
+            qei_coef=jnp.ones((2, n_cell)) * 2.0,
+            implicit_ii=jnp.zeros((2, n_cell)),
+            explicit_i=jnp.zeros((2, n_cell)),
+            implicit_ee=jnp.zeros((2, n_cell)),
+            explicit_e=jnp.zeros((2, n_cell)),
+            implicit_ie=jnp.zeros((2, n_cell)),
+            implicit_ei=jnp.zeros((2, n_cell)),
+            p_ei=jnp.ones((2, n_cell)) * 5.0,
+        ),
+        T_i={'fusion': jnp.ones((2, n_cell)) * 10.0},
+        T_e={'ecrh': jnp.ones((2, n_cell)) * 20.0},
+        psi={'eccd': jnp.ones((2, n_cell)) * 30.0},
+        n_e={'pellet': jnp.ones((2, n_cell)) * 40.0},
+    )
+
+    out_dict = profiles.to_output_dict(context)
+    self.assertIn(str(output_keys.J_PARALLEL_BOOTSTRAP), out_dict)
+    self.assertIn(str(output_keys.EI_EXCHANGE), out_dict)
+    self.assertIn('p_alpha_i', out_dict)
+    self.assertIn('p_ecrh_e', out_dict)
+    self.assertIn('j_parallel_eccd', out_dict)
+    self.assertIn('s_pellet', out_dict)
+
+    # Check dimensions and data
+    self.assertEqual(
+        out_dict['p_alpha_i'][0], (output_keys.TIME, output_keys.RHO_CELL_NORM)
+    )
+    np.testing.assert_allclose(
+        out_dict['p_alpha_i'][1], np.ones((2, n_cell)) * 10.0
+    )
+    self.assertEqual(
+        out_dict['p_alpha_i'][2],
+        {'units': output_keys.Units.MW_PER_CUBIC_METER},
+    )
+
 
 def _build_source_profiles_with_single_value(
     torax_mesh: torax_pydantic.Grid1D,
@@ -203,6 +330,7 @@ def _build_source_profiles_with_single_value(
           explicit_e=cell_1d_arr,
           implicit_ie=cell_1d_arr,
           implicit_ei=cell_1d_arr,
+          p_ei=cell_1d_arr,
       ),
   )
 

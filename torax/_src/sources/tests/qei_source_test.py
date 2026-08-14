@@ -55,6 +55,8 @@ class QeiSourceTest(test_lib.SourceTestCase):
         core_profiles,
     )
     self.assertIsNotNone(qei)
+    self.assertIsNotNone(qei.p_ei)
+    self.assertEqual(qei.p_ei.shape, geo.rho_norm.shape)
 
 
 if __name__ == "__main__":
