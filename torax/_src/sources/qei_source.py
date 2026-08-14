@@ -125,6 +125,9 @@ def _model_based_qei(
     explicit_e = zeros
     implicit_ie = qei_coef
     implicit_ei = qei_coef
+  p_ei = qei_coef * (
+      core_profiles.T_e.value - core_profiles.T_i.value  # pyrefly: ignore[unsupported-operation]
+  )
   return source_profiles.QeiInfo(
       qei_coef=qei_coef,
       implicit_ii=implicit_ii,
@@ -133,6 +136,7 @@ def _model_based_qei(
       explicit_e=explicit_e,
       implicit_ie=implicit_ie,
       implicit_ei=implicit_ei,
+      p_ei=p_ei,
   )
 
 

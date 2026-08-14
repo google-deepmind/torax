@@ -40,6 +40,7 @@ class QeiInfo:
   explicit_e: jax.Array
   implicit_ie: jax.Array
   implicit_ei: jax.Array
+  p_ei: jax.Array
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
@@ -51,6 +52,7 @@ class QeiInfo:
         explicit_e=jnp.zeros_like(geo.rho),
         implicit_ie=jnp.zeros_like(geo.rho),
         implicit_ei=jnp.zeros_like(geo.rho),
+        p_ei=jnp.zeros_like(geo.rho),
     )
 
 

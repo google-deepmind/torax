@@ -90,7 +90,6 @@ class PostProcessingTest(parameterized.TestCase):
     # pylint: disable=protected-access
     integrated_sources = post_processing._calculate_integrated_sources(
         self.geo,
-        self.core_profiles,
         self.source_profiles,
         self.runtime_params,
     )
