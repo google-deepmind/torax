@@ -19,6 +19,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
+from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -581,11 +582,11 @@ class CombinedTransportModelTest(absltest.TestCase):
     combined_params.transport_model_params = [mock_params]
     combined_params.pedestal_transport_model_params = []
 
-    geo = mock.Mock(spec=transport_model_lib.geometry.Geometry)
+    geo = mock.Mock(spec=geometry.Geometry)
     geo.rho_face_norm = jnp.linspace(0, 1, 10)
 
     pedestal_output = mock.Mock(
-        spec=transport_model_lib.pedestal_model_output_lib.PedestalModelOutput
+        spec=pedestal_model_output_lib.PedestalModelOutput
     )
     pedestal_output.rho_norm_ped_top = 1.0
 
