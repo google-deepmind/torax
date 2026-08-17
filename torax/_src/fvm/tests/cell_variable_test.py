@@ -153,6 +153,14 @@ class CellVariableTest(parameterized.TestCase):
           right_face_constraint=5.0,
           expected_value=[2.0, 1.5, 3.5, 4.0, 5.0],
       ),
+      dict(
+          testcase_name='_non_zero_grad_constraints',
+          value=[1.0, 2.0, 5.0, 3.0],
+          dr=0.1,
+          left_face_grad_constraint=1.0,
+          right_face_grad_constraint=2.0,
+          expected_value=[0.95, 1.5, 3.5, 4.0, 3.1],
+      ),
   )
   def test_face_value(
       self,
@@ -203,7 +211,7 @@ class CellVariableTest(parameterized.TestCase):
           right_face_constraint=None,
           left_face_grad_constraint=1.0,
           right_face_grad_constraint=2.0,
-          expected_grad=[5.0, 20.0, 5.0, -9.0],
+          expected_grad=[5.5, 20.0, 5.0, -9.0],
       ),
   )
   def test_grad(
@@ -259,6 +267,24 @@ class CellVariableTest(parameterized.TestCase):
         cell_plus_boundaries, np.array(expected_output)
     )
 
+  def test_cell_plus_boundaries_with_grad_constraints(self):
+    value = [1.0, 2.0, 5.0, 3.0]
+    dr = 0.1
+    var = cell_variable.CellVariable(
+        value=jnp.array(value),
+        left_face_constraint=None,
+        left_face_grad_constraint=jnp.array(1.0),
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(2.0),
+        face_centers=_make_face_centers(dr, len(value)),
+    )
+    # left = 1.0 - 1.0 * 0.1 / 2 = 0.95
+    # right = 3.0 + 2.0 * 0.1 / 2 = 3.1
+    expected_output = [0.95, 1.0, 2.0, 5.0, 3.0, 3.1]
+    np.testing.assert_allclose(
+        var.cell_plus_boundaries(), np.array(expected_output)
+    )
+
   def test_cell_plus_boundaries_batched(self):
     # Batched (time, cell) with shape (3, 4)
     value = jnp.array([
@@ -288,22 +314,24 @@ class CellVariableTest(parameterized.TestCase):
         var_dirichlet.cell_plus_boundaries(), expected_dirichlet
     )
 
-    # Neumann boundary test (right_face_grad_constraint)
+    # Neumann boundary test (left_face_grad_constraint or
+    # right_face_grad_constraint)
     var_neumann = cell_variable.CellVariable(
         value=value,
         left_face_constraint=None,
-        left_face_grad_constraint=jnp.array([0.0, 0.0, 0.0]),
+        left_face_grad_constraint=jnp.array([1.0, 2.0, 3.0]),
         right_face_constraint=None,
         right_face_grad_constraint=jnp.array([2.0, 4.0, 6.0]),
         face_centers=face_centers,
     )
-    # left value = value[..., 0] = [1.0, 2.0, 3.0]
-    # right value = value[..., -1] + grad * dr / 2 =
+    # left value = value[..., 0] - left_grad * dr / 2 =
+    # [1.0 - 1.0*0.1/2, 2.0 - 2.0*0.1/2, 3.0 - 3.0*0.1/2] = [0.95, 1.9, 2.85]
+    # right value = value[..., -1] + right_grad * dr / 2 =
     # [3.0 + 2*0.1/2, 4.0 + 4*0.1/2, 5.0 + 6*0.1/2] = [3.1, 4.2, 5.3]
     expected_neumann = np.array([
-        [1.0, 1.0, 2.0, 5.0, 3.0, 3.1],
-        [2.0, 2.0, 3.0, 6.0, 4.0, 4.2],
-        [3.0, 3.0, 4.0, 7.0, 5.0, 5.3],
+        [0.95, 1.0, 2.0, 5.0, 3.0, 3.1],
+        [1.9, 2.0, 3.0, 6.0, 4.0, 4.2],
+        [2.85, 3.0, 4.0, 7.0, 5.0, 5.3],
     ])
     np.testing.assert_allclose(
         var_neumann.cell_plus_boundaries(), expected_neumann
