@@ -21,7 +21,7 @@ turbulent heat and particle transport coefficients.
 
 import abc
 import dataclasses
-from typing import Final, Mapping, Sequence
+from typing import ClassVar, Mapping, Sequence
 
 import immutabledict
 import jax
@@ -35,40 +35,6 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 
 # pylint: disable=invalid-name
-
-# Map main channels to their sub-channels (if any) and disable flags
-# TODO(b/434175938): Upgrade TransportModel to encapsulate this structure.
-CHANNEL_CONFIG_STRUCT: Final[Mapping[str, dict[str, Sequence[str] | str]]] = (
-    immutabledict.immutabledict({
-        'chi_face_ion': {
-            'sub_channels': [
-                'chi_face_ion_bohm',
-                'chi_face_ion_gyrobohm',
-                'chi_face_ion_itg',
-                'chi_face_ion_tem',
-            ],
-            'disable_flag': 'disable_chi_i',
-        },
-        'chi_face_el': {
-            'sub_channels': [
-                'chi_face_el_bohm',
-                'chi_face_el_gyrobohm',
-                'chi_face_el_itg',
-                'chi_face_el_tem',
-                'chi_face_el_etg',
-            ],
-            'disable_flag': 'disable_chi_e',
-        },
-        'd_face_el': {
-            'sub_channels': ['d_face_el_itg', 'd_face_el_tem'],
-            'disable_flag': 'disable_D_e',
-        },
-        'v_face_el': {
-            'sub_channels': ['v_face_el_itg', 'v_face_el_tem'],
-            'disable_flag': 'disable_V_e',
-        },
-    })
-)
 
 
 @jax.tree_util.register_dataclass
@@ -122,6 +88,76 @@ class TurbulentTransport:
 class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
   """Calculates various coefficients related to heat and particle transport."""
 
+  # Map main channels to their sub-channels (if any) and disable flags
+  # TODO(b/434175938): Upgrade ComponentTransportModel to encapsulate this
+  # structure.
+  CHANNEL_CONFIG: ClassVar[
+      Mapping[str, dict[str, Sequence[str] | str]]
+  ] = (
+      immutabledict.immutabledict({
+          'chi_face_ion': {
+              'sub_channels': [
+                  'chi_face_ion_bohm',
+                  'chi_face_ion_gyrobohm',
+                  'chi_face_ion_itg',
+                  'chi_face_ion_tem',
+              ],
+              'disable_flag': 'disable_chi_i',
+          },
+          'chi_face_el': {
+              'sub_channels': [
+                  'chi_face_el_bohm',
+                  'chi_face_el_gyrobohm',
+                  'chi_face_el_itg',
+                  'chi_face_el_tem',
+                  'chi_face_el_etg',
+              ],
+              'disable_flag': 'disable_chi_e',
+          },
+          'd_face_el': {
+              'sub_channels': ['d_face_el_itg', 'd_face_el_tem'],
+              'disable_flag': 'disable_D_e',
+          },
+          'v_face_el': {
+              'sub_channels': ['v_face_el_itg', 'v_face_el_tem'],
+              'disable_flag': 'disable_V_e',
+          },
+      })
+  )
+
+  def __call__(
+      self,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+  ) -> TurbulentTransport:
+    """Computes transport coefficients and zeros out disabled channels.
+
+    Delegates to call_implementation to compute the raw transport coefficients,
+    then zeros out any channels that are disabled in the runtime params.
+
+    Args:
+      transport_runtime_params: Runtime parameters for the transport model.
+      runtime_params: Runtime parameters for the simulation.
+      geo: Geometry of the torus.
+      core_profiles: Core plasma profiles.
+      pedestal_model_output: Output of the pedestal model.
+
+    Returns:
+      Transport coefficients with disabled channels zeroed out.
+    """
+    coeffs = self.call_implementation(
+        transport_runtime_params,
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_model_output,
+    )
+    coeffs = self.zero_out_disabled_channels(transport_runtime_params, coeffs)
+    return coeffs
+
   @abc.abstractmethod
   def call_implementation(
       self,
@@ -141,7 +177,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
     """Sets coefficients to zero for channels that are disabled."""
     to_replace = {}
 
-    for channel_name, config in CHANNEL_CONFIG_STRUCT.items():
+    for channel_name, config in self.CHANNEL_CONFIG.items():
       disable_flag = getattr(transport_runtime_params, config['disable_flag'])  # pyrefly: ignore[bad-argument-type]
 
       # Handle main channel

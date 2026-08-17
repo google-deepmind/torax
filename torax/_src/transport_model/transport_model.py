@@ -22,8 +22,10 @@ Use `torax._src.transport_model.component` directly for the new API.
 
 from torax._src.transport_model import component
 
-CHANNEL_CONFIG_STRUCT = component.CHANNEL_CONFIG_STRUCT
 ComponentTransportModel = component.ComponentTransportModel
 TransportModel = component.ComponentTransportModel
 compute_core_domain_mask = component.compute_core_domain_mask
 TurbulentTransport = component.TurbulentTransport
+
+# Backwards compat for module-level constant.
+CHANNEL_CONFIG_STRUCT = ComponentTransportModel.CHANNEL_CONFIG
