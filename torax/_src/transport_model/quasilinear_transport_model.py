@@ -27,8 +27,8 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as runtime_params_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 import typing_extensions
 
 
@@ -401,7 +401,7 @@ def apply_fast_ion_stabilization(
   )
 
 
-class QuasilinearTransportModel(transport_model_lib.TransportModel):
+class QuasilinearTransportModel(component.ComponentTransportModel):
   """Base class for quasilinear models."""
 
   def _make_core_transport(
@@ -415,7 +415,7 @@ class QuasilinearTransportModel(transport_model_lib.TransportModel):
       core_profiles: state.CoreProfiles,
       gradient_reference_length: chex.Numeric,
       gyrobohm_flux_reference_length: chex.Numeric,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     """Converts model output to TurbulentTransport."""
     constants = constants_module.CONSTANTS
 
@@ -491,7 +491,7 @@ class QuasilinearTransportModel(transport_model_lib.TransportModel):
         DV_effective_approach,
         Dscaled_approach,
     )
-    return transport_model_lib.TurbulentTransport(
+    return component.TurbulentTransport(
         chi_face_ion=chi_face_ion,  # pyrefly: ignore[bad-argument-type]
         chi_face_el=chi_face_el,  # pyrefly: ignore[bad-argument-type]
         d_face_el=d_face_el,

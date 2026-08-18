@@ -24,9 +24,9 @@ from torax._src.pedestal_model import pedestal_model_output as pedestal_model_ou
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import combined
+from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
@@ -341,9 +341,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         'chi_min': 0.0,
     }
 
-    model_small, params_small, geo = self._build_model_and_params(
-        config_small
-    )
+    model_small, params_small, geo = self._build_model_and_params(config_small)
     model_large, params_large, _ = self._build_model_and_params(config_large)
 
     mock_pedestal_outputs = mock.create_autospec(
@@ -542,10 +540,10 @@ class CombinedTransportModelTest(absltest.TestCase):
     """Tests that None values are preserved as None if no model writes to them."""
     # We use a mock model to return None for clear isolation.
     mock_model = mock.create_autospec(
-        transport_model_lib.TransportModel, instance=True
+        component.ComponentTransportModel, instance=True
     )
     # Return a structure with some None fields
-    mock_coeffs = transport_model_lib.TurbulentTransport(
+    mock_coeffs = component.TurbulentTransport(
         chi_face_ion=jnp.array([1.0]),
         chi_face_el=jnp.array([1.0]),
         d_face_el=jnp.array([1.0]),

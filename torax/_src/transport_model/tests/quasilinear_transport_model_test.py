@@ -34,11 +34,11 @@ from torax._src.pedestal_model import pedestal_model_output as pedestal_model_ou
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
-from torax._src.transport_model import transport_model as transport_model_lib
 
 
 def setUpModule():
@@ -373,9 +373,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
       quasilinear_transport_model,
       '_get_default_fi_stabilization_model',
   )
-  def test_per_species_model_selection(
-      self, mock_get_default, mock_load_model
-  ):
+  def test_per_species_model_selection(self, mock_get_default, mock_load_model):
     """Tests that per-species model map routes correctly."""
     n_rho = 5
     smag = jnp.ones(n_rho)
@@ -531,7 +529,7 @@ class FakeQuasilinearTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
         chiGB=np.array(4.0),
         Rmin=np.array(0.5),

@@ -37,12 +37,11 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-from torax._src.transport_model import transport_model
 
 
 @jax.tree_util.register_dataclass
@@ -89,7 +88,7 @@ class QualikizTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -144,7 +143,7 @@ class QualikizTransportModel(
     face_array_shape_dtype = jax.ShapeDtypeStruct(
         shape=(geo.torax_mesh.nx + 1,), dtype=jax_utils.get_dtype()
     )
-    result_shape_dtypes = transport_model.TurbulentTransport(
+    result_shape_dtypes = component.TurbulentTransport(
         chi_face_ion=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
         chi_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
         d_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
@@ -228,7 +227,7 @@ class QualikizTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> transport_model.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     """Extracts QuaLiKiz run data from runpath."""
 
     # Extract QuaLiKiz outputs

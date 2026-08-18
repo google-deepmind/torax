@@ -40,10 +40,10 @@ from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
-from torax._src.transport_model import transport_model as transport_model_lib
 
 
 def setUpModule():
@@ -268,7 +268,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class FakeTransportModel(transport_model_lib.TransportModel):
+class FakeTransportModel(component.ComponentTransportModel):
   """Dummy transport model that always returns zeros."""
 
   def call_implementation(
@@ -278,8 +278,8 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
-    return transport_model_lib.TurbulentTransport(
+  ) -> component.TurbulentTransport:
+    return component.TurbulentTransport(
         chi_face_ion=jnp.zeros(geo.rho_face.shape),
         chi_face_el=jnp.zeros(geo.rho_face.shape),
         d_face_el=jnp.zeros(geo.rho_face.shape),

@@ -24,8 +24,8 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 
 # pylint: disable=invalid-name
 
@@ -49,7 +49,7 @@ class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
+class BohmGyroBohmTransportModel(component.ComponentTransportModel):
   """Calculates various coefficients related to particle transport according to the Bohm + gyro-Bohm Model."""
 
   def call_implementation(
@@ -59,7 +59,7 @@ class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     r"""Calculates transport coefficients using the BohmGyroBohm model.
 
     We use the implementation from Tholerus et al, Section 3.3.
@@ -171,7 +171,7 @@ class BohmGyroBohmTransportModel(transport_model_lib.TransportModel):
     # Electron convectivity set proportional to the electron diffusivity
     v_face_el = transport_runtime_params.V_face_coeff * d_face_el
 
-    return transport_model_lib.TurbulentTransport(
+    return component.TurbulentTransport(
         chi_face_ion=chi_i,  # pyrefly: ignore[bad-argument-type]
         chi_face_el=chi_e,  # pyrefly: ignore[bad-argument-type]
         d_face_el=d_face_el,

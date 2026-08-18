@@ -19,16 +19,20 @@ model.
 """
 
 # pylint: disable=g-importing-member
+from torax._src.transport_model.component import ComponentTransportModel
+from torax._src.transport_model.component import TurbulentTransport
 from torax._src.transport_model.pydantic_model_base import TransportBase
 from torax._src.transport_model.register_model import register_transport_model
 from torax._src.transport_model.runtime_params import RuntimeParams
-from torax._src.transport_model.transport_model import TransportModel
-from torax._src.transport_model.transport_model import TurbulentTransport
+
+# TODO(b/426132633): Remove backwards compatibility alias.
+TransportModel = ComponentTransportModel
 
 __all__ = [
-    'RuntimeParams',
-    'TransportBase',  # pydantic config
-    'TransportModel',  # model interface
-    'TurbulentTransport',
-    'register_transport_model',
+    'ComponentTransportModel',  # Base class for individual transport models
+    'RuntimeParams',  # Runtime parameters for transport models
+    'TransportBase',  # Base Pydantic configuration class
+    'TransportModel',  # Deprecated alias (b/426132633)
+    'TurbulentTransport',  # Dataclass containing calculated transport coeffs
+    'register_transport_model',  # Register custom transport model configs
 ]

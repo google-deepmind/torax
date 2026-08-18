@@ -32,10 +32,10 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import tglf_based_transport_model
-from torax._src.transport_model import transport_model as transport_model_lib
 from torax._src.transport_model.tglf import tglf2py
 
 
@@ -128,9 +128,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
     )
     runtime_params, geo, core_profiles, _ = model_inputs
     tglf_params = runtime_params.transport.transport_model_params[0]
-    assert isinstance(
-        tglf_params, tglf_based_transport_model.RuntimeParams
-    )
+    assert isinstance(tglf_params, tglf_based_transport_model.RuntimeParams)
     tglf_inputs = transport_model._prepare_tglf_inputs(
         transport=tglf_params,
         geo=geo,
@@ -172,12 +170,8 @@ class TGLFTransportModelTest(parameterized.TestCase):
     runtime_uncapped, geo, core_profiles, _ = uncapped_inputs
     runtime_capped, _, _, _ = capped_inputs
 
-    tglf_params_uncapped = (
-        runtime_uncapped.transport.transport_model_params[0]
-    )
-    tglf_params_capped = (
-        runtime_capped.transport.transport_model_params[0]
-    )
+    tglf_params_uncapped = runtime_uncapped.transport.transport_model_params[0]
+    tglf_params_capped = runtime_capped.transport.transport_model_params[0]
     assert isinstance(
         tglf_params_uncapped, tglf_based_transport_model.RuntimeParams
     )
@@ -241,7 +235,7 @@ class FakeTGLFBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     # Assert required for pytype.
     assert isinstance(
         transport_runtime_params,

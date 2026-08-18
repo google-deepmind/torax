@@ -31,14 +31,14 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class FixedTransportModel(transport_model_lib.TransportModel):
+class FixedTransportModel(component.ComponentTransportModel):
   """Fixed TransportModel for testing purposes."""
 
   def call_implementation(
@@ -48,7 +48,7 @@ class FixedTransportModel(transport_model_lib.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geo.rho_face_norm.shape[0])
@@ -57,7 +57,7 @@ class FixedTransportModel(transport_model_lib.TransportModel):
     chi_face_ion_bohm = chi_face_ion * 0.3
     chi_face_ion_gyrobohm = chi_face_ion * 0.7
 
-    return transport_model_lib.TurbulentTransport(
+    return component.TurbulentTransport(
         chi_face_ion=chi_face_ion,  # pyrefly: ignore[bad-argument-type]
         chi_face_el=chi_face_el,  # pyrefly: ignore[bad-argument-type]
         d_face_el=d_face_el,  # pyrefly: ignore[bad-argument-type]
@@ -234,16 +234,14 @@ class TransportMaskingTest(parameterized.TestCase):
         disable_V_e=False,
     )
 
-    coeffs = transport_model_lib.TurbulentTransport(
+    coeffs = component.TurbulentTransport(
         chi_face_ion=jnp.array([1.0]),
         chi_face_el=jnp.array([1.0]),
         d_face_el=jnp.array([1.0]),
         v_face_el=jnp.array([1.0]),
         chi_face_ion_bohm=None,
     )
-    new_coeffs = model.zero_out_disabled_channels(
-        runtime_params, coeffs
-    )
+    new_coeffs = model.zero_out_disabled_channels(runtime_params, coeffs)
     self.assertIsNone(new_coeffs.chi_face_ion_bohm)
 
   def test_preserves_none_channel_disabled(self):
@@ -256,7 +254,7 @@ class TransportMaskingTest(parameterized.TestCase):
         disable_V_e=False,
     )
 
-    coeffs = transport_model_lib.TurbulentTransport(
+    coeffs = component.TurbulentTransport(
         chi_face_ion=jnp.array([1.0]),
         chi_face_el=jnp.array([1.0]),
         d_face_el=jnp.array([1.0]),

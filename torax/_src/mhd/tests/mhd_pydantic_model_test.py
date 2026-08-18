@@ -28,14 +28,14 @@ from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import transport_model as transport_model_lib
+from torax._src.transport_model import component
 
 
 class MHDPydanticModelTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.transport_model = mock.Mock(spec=transport_model_lib.TransportModel)
+    self.transport_model = mock.Mock(spec=component.ComponentTransportModel)
     self.source_models = mock.Mock(spec=source_models_lib.SourceModels)
     self.pedestal_model = mock.Mock(spec=pedestal_model_lib.PedestalModel)
     self.neoclassical_models = mock.Mock(
@@ -48,10 +48,8 @@ class MHDPydanticModelTest(parameterized.TestCase):
     )
 
     self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
     runtime_params = provider(t=0.0)
     self.assertIsInstance(runtime_params.mhd, mhd_runtime_params.RuntimeParams)
@@ -67,10 +65,8 @@ class MHDPydanticModelTest(parameterized.TestCase):
     assert isinstance(torax_config.mhd, mhd_pydantic_model.MHD)
     mhd_models = torax_config.mhd.build_mhd_models()
     self.assertIs(mhd_models.sawtooth_models, None)
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
     runtime_params = provider(t=0.0)
     self.assertIsInstance(runtime_params.mhd, mhd_runtime_params.RuntimeParams)
@@ -96,10 +92,8 @@ class MHDPydanticModelTest(parameterized.TestCase):
         torax_config.mhd.sawtooth, sawtooth_pydantic_model.SawtoothConfig
     )
 
-    provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
     )
     runtime_params = provider(t=0.0)
     sawtooth_params = runtime_params.mhd.sawtooth

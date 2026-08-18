@@ -26,8 +26,8 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
+from torax._src.transport_model import component
 from torax._src.transport_model import quasilinear_transport_model
-from torax._src.transport_model import transport_model as transport_model_lib
 from typing_extensions import override
 
 
@@ -504,7 +504,7 @@ class TGLFBasedTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     # Denormalised TGLF output fluxes.
     Q_e = electron_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
     Q_i = ion_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
@@ -565,7 +565,7 @@ class TGLFBasedTransportModel(
     d_face_el = jnp.where(D_eff_mask, D_eff, 0.0)
     v_face_el = jnp.where(V_eff_mask, V_eff, 0.0)
 
-    return transport_model_lib.TurbulentTransport(
+    return component.TurbulentTransport(
         chi_face_ion=chi_i,  # pyrefly: ignore[bad-argument-type]
         chi_face_el=chi_e,  # pyrefly: ignore[bad-argument-type]
         d_face_el=d_face_el,

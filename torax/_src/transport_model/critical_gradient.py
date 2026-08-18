@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """The CriticalGradientModel class."""
+
 import dataclasses
 
 import jax
@@ -23,9 +24,8 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-
+from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-from torax._src.transport_model import transport_model
 
 
 # pylint: disable=invalid-name
@@ -42,7 +42,7 @@ class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class CriticalGradientTransportModel(transport_model.TransportModel):
+class CriticalGradientTransportModel(component.ComponentTransportModel):
   """Calculates various coefficients related to particle transport."""
 
   def call_implementation(
@@ -52,7 +52,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     r"""Calculates transport coefficients using the Critical Gradient Model.
 
     Uses critical normalized logarithmic ion temperature gradient
@@ -139,7 +139,7 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
         / geo.R_major_profile_face
     )
 
-    return transport_model.TurbulentTransport(
+    return component.TurbulentTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

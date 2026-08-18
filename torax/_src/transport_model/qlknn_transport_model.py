@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """A transport model that uses a QLKNN model."""
+
 import dataclasses
 import functools
 import logging
@@ -28,13 +29,12 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-
 from torax._src.transport_model import base_qlknn_model
+from torax._src.transport_model import component
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
@@ -42,6 +42,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   """Runtime parameters for QLKNN transport model."""
+
   include_ITG: bool
   include_TEM: bool
   include_ETG: bool
@@ -270,6 +271,7 @@ class QLKNNTransportModel(
     qualikiz_based_transport_model.QualikizBasedTransportModel
 ):
   """Calculates turbulent transport coefficients."""
+
   path: str
   name: str
 
@@ -280,15 +282,14 @@ class QLKNNTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     """Calculates several transport coefficients simultaneously.
 
     Args:
-      transport_runtime_params: Input runtime parameters for this
-        transport model. Can change without triggering a JAX recompilation.
-      runtime_params: Input runtime parameters for all components
-        of the simulation that can change without triggering a JAX
-        recompilation.
+      transport_runtime_params: Input runtime parameters for this transport
+        model.
+      runtime_params: Input runtime parameters for all components of the
+        simulation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
@@ -317,7 +318,7 @@ class QLKNNTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       poloidal_velocity_multiplier: array_typing.FloatScalar,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     """Actual implementation of `__call__`.
 
     `__call__` itself is just a cache dispatch wrapper.
@@ -414,7 +415,7 @@ class QLKNNTransportModel(
         gyrobohm_flux_reference_length=geo.a_minor,
     )
 
-    def add_mode_contributions() -> transport_model_lib.TurbulentTransport:
+    def add_mode_contributions() -> component.TurbulentTransport:
       """Decompose transport coefficients into mode contributions."""
       eps = constants.CONSTANTS.eps
 

@@ -21,6 +21,7 @@ from torax._src import jax_utils
 from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
+from torax._src.transport_model import component
 from torax._src.transport_model import constant
 from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import pydantic_model as transport_pydantic_model
@@ -28,7 +29,6 @@ from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
-from torax._src.transport_model import transport_model as transport_model_lib
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -61,7 +61,7 @@ class PydanticModelTest(parameterized.TestCase):
       expected_runtime_params: type[
           transport_model_runtime_params.RuntimeParams
       ],
-      expected_transport_model: type[transport_model_lib.TransportModel],
+      expected_transport_model: type[component.ComponentTransportModel],
   ):
     transport = pydantic_model()
 

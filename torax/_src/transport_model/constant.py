@@ -19,6 +19,7 @@ A simple model assuming prescribed transport.
 TODO(b/323504363): For the next major release (v2), the name of this model should be updated
 to PrescribedTransportModel.
 """
+
 import dataclasses
 
 import jax
@@ -27,9 +28,8 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-
+from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 
 
 # pylint: disable=invalid-name
@@ -48,7 +48,7 @@ class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class ConstantTransportModel(transport_model_lib.TransportModel):
+class ConstantTransportModel(component.ComponentTransportModel):
   """Calculates various coefficients related to particle transport."""
 
   def call_implementation(
@@ -58,12 +58,12 @@ class ConstantTransportModel(transport_model_lib.TransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     r"""Calculates transport coefficients using the Constant model.
 
     Args:
-      transport_runtime_params: Input runtime parameters for this
-        transport model.
+      transport_runtime_params: Input runtime parameters for this transport
+        model.
       runtime_params: Input runtime parameters at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
@@ -74,7 +74,7 @@ class ConstantTransportModel(transport_model_lib.TransportModel):
     """
     assert isinstance(transport_runtime_params, RuntimeParams)
 
-    return transport_model_lib.TurbulentTransport(
+    return component.TurbulentTransport(
         chi_face_ion=transport_runtime_params.chi_i,  # pyrefly: ignore[bad-argument-type]
         chi_face_el=transport_runtime_params.chi_e,  # pyrefly: ignore[bad-argument-type]
         d_face_el=transport_runtime_params.D_e,  # pyrefly: ignore[bad-argument-type]

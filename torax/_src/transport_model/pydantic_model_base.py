@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Base pydantic config for Transport models."""
+
 import abc
 from typing import Annotated
 
@@ -21,9 +22,9 @@ import numpy as np
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params
-from torax._src.transport_model import transport_model
 import typing_extensions
 
 
@@ -43,8 +44,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     fast_ion_stabilization_multiplier: Fast ion stabilization multiplier.
     merge_mode: Defines how transport coefficients are combined within a
       CombinedTransportModel. 'add' (default) adds to the accumulated value.
-      'overwrite' overwrites the previous value in this model's valid domain
-      and prevents subsequent 'add' models in the sequence from modifying this
+      'overwrite' overwrites the previous value in this model's valid domain and
+      prevents subsequent 'add' models in the sequence from modifying this
       region.
   """
 
@@ -105,9 +106,7 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     return runtime_params.RuntimeParams(
         fast_ion_stabilization=self.fast_ion_stabilization.get_value(t),
         fast_ion_stabilization_model=tuple(
-            sorted(
-                self.fast_ion_stabilization_model.items()
-            )
+            sorted(self.fast_ion_stabilization_model.items())
         ),
         fast_ion_stabilization_multiplier=self.fast_ion_stabilization_multiplier,
         rho_min=self.rho_min.get_value(t),
@@ -120,5 +119,5 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     )
 
   @abc.abstractmethod
-  def build_transport_model(self) -> transport_model.TransportModel:
+  def build_transport_model(self) -> component.ComponentTransportModel:
     """Builds a transport model from the config."""
