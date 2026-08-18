@@ -29,7 +29,7 @@ import typing_extensions
 
 
 # pylint: disable=invalid-name
-class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
+class ComponentTransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base model holding parameters common to all transport models.
 
   Attributes:
@@ -43,7 +43,7 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     fast_ion_stabilization_model: Fast ion stabilization model config.
     fast_ion_stabilization_multiplier: Fast ion stabilization multiplier.
     merge_mode: Defines how transport coefficients are combined within a
-      CombinedTransportModel. 'add' (default) adds to the accumulated value.
+      TransportModel. 'add' (default) adds to the accumulated value.
       'overwrite' overwrites the previous value in this model's valid domain and
       prevents subsequent 'add' models in the sequence from modifying this
       region.

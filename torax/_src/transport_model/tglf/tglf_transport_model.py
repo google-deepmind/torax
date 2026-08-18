@@ -254,7 +254,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
     return core_transport
 
 
-class TGLFTransportModelConfig(pydantic_model_base.TransportBase):
+class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   r"""Model for the TGLF transport model.
 
   TGLF settings used to be passed as kwargs to the constructor of this

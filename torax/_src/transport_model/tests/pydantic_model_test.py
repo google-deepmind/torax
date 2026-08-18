@@ -57,7 +57,7 @@ class PydanticModelTest(parameterized.TestCase):
   )
   def test_build_transport_model(
       self,
-      pydantic_model: type[pydantic_model_base.TransportBase],
+      pydantic_model: type[pydantic_model_base.ComponentTransportBase],
       expected_runtime_params: type[
           transport_model_runtime_params.RuntimeParams
       ],
@@ -244,7 +244,7 @@ class PydanticModelTest(parameterized.TestCase):
 
     @jax.jit
     def f(
-        transport_model: transport_pydantic_model.CombinedCompatibleTransportModel,
+        transport_model: pydantic_model_base.ComponentTransportBase,
     ):
       return transport_model.build_runtime_params(t=0.0)
 

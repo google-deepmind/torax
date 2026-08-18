@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""L-mode test config using CombinedTransportModel with OVERWRITE mode.
+"""L-mode test config using TransportModel with OVERWRITE mode.
 
 Uses QLKNN for core transport up to the LCFS. A constant transport model is
 used in OVERWRITE mode for rho_norm > 0.9 to set particle transport there.

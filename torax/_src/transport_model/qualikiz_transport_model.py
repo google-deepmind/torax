@@ -442,7 +442,7 @@ def _extract_qualikiz_plan(
 
 
 # pylint: disable=invalid-name
-class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
+class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   """Model for the Qualikiz transport model.
 
   Attributes:

@@ -68,7 +68,7 @@ def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
 
 
 # pylint: disable=invalid-name
-class QLKNNTransportModel(pydantic_model_base.TransportBase):
+class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
   """Model for the QLKNN transport model.
 
   To determine which model to load, TORAX uses the following logic:
@@ -204,7 +204,7 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
     )
 
 
-class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
+class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
   """Model for the TGLFNN-ukaea transport model.
 
   Attributes:
@@ -249,7 +249,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.TransportBase):
     )
 
 
-class ConstantTransportModel(pydantic_model_base.TransportBase):
+class ConstantTransportModel(pydantic_model_base.ComponentTransportBase):
   """Model for the Constant transport model.
 
   Attributes:
@@ -288,7 +288,9 @@ class ConstantTransportModel(pydantic_model_base.TransportBase):
     )
 
 
-class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
+class CriticalGradientTransportModel(
+    pydantic_model_base.ComponentTransportBase
+):
   """Model for the Critical Gradient transport model.
 
   Attributes:
@@ -335,7 +337,7 @@ class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
     )
 
 
-class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
+class BohmGyroBohmTransportModel(pydantic_model_base.ComponentTransportBase):
   """Model for the Bohm + Gyro-Bohm transport model.
 
   Attributes:
@@ -423,10 +425,10 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
 try:
   from torax._src.transport_model import qualikiz_transport_model  # pylint: disable=g-import-not-at-top
 
-  # Since CombinedCompatibleTransportModel is not constant, because of the
+  # Since ComponentTransportModelConfig is not constant, because of the
   # try/except block, unions using this type will cause invalid-annotation
   # errors in pytype.
-  CombinedCompatibleTransportModel = (
+  ComponentTransportModelConfig = (
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
       | ConstantTransportModel
@@ -437,7 +439,7 @@ try:
   )
 
 except ImportError:
-  CombinedCompatibleTransportModel = (
+  ComponentTransportModelConfig = (
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
       | ConstantTransportModel
@@ -486,12 +488,12 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
   V_e_max: torax_pydantic.MeterPerSecond = 50.0
   smoothing_width: pydantic.NonNegativeFloat = 0.0
   core_transport_models: dict[
-      str, CombinedCompatibleTransportModel
+      str, ComponentTransportModelConfig
   ] = pydantic.Field(
       default_factory=dict
   )  # pyrefly: ignore[invalid-annotation]
   pedestal_transport_models: dict[
-      str, CombinedCompatibleTransportModel
+      str, ComponentTransportModelConfig
   ] = pydantic.Field(
       default_factory=dict
   )  # pyrefly: ignore[invalid-annotation]
@@ -598,7 +600,8 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
 
 
 def _validate_unique_overwrites(
-    models: Mapping[str, pydantic_model_base.TransportBase], domain: str
+    models: Mapping[str, pydantic_model_base.ComponentTransportBase],
+    domain: str,
 ) -> None:
   """Validates that models overwriting the same channel do not overlap."""
 
@@ -632,8 +635,8 @@ def _validate_unique_overwrites(
 
 
 def _get_overlapping_channels(
-    model1: pydantic_model_base.TransportBase,
-    model2: pydantic_model_base.TransportBase,
+    model1: pydantic_model_base.ComponentTransportBase,
+    model2: pydantic_model_base.ComponentTransportBase,
 ) -> list[str]:
   """Returns list of channels enabled in both models."""
   channels = []
@@ -656,15 +659,15 @@ def _is_enabled(
 
 
 def _get_range_bounds(
-    model: pydantic_model_base.TransportBase,
+    model: pydantic_model_base.ComponentTransportBase,
 ) -> tuple[float, float]:
   """Returns global min/max for a model's active range."""
   return np.min(model.rho_min.value), np.max(model.rho_max.value)
 
 
 def _ranges_overlap(
-    model1: pydantic_model_base.TransportBase,
-    model2: pydantic_model_base.TransportBase,
+    model1: pydantic_model_base.ComponentTransportBase,
+    model2: pydantic_model_base.ComponentTransportBase,
 ) -> bool:
   """Checks if global extents of two models overlap."""
   r1_min, r1_max = _get_range_bounds(model1)
@@ -672,7 +675,3 @@ def _ranges_overlap(
 
   # Overlap condition: start1 < end2 AND start2 < end1
   return (r1_min < r2_max) and (r2_min < r1_max)
-
-
-# TODO(b/426132633): Remove backwards compatibility alias.
-CombinedTransportModel = TransportModel

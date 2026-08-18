@@ -305,7 +305,7 @@ class FakeQualikizBasedTransportModel(
 
 # pylint: disable=invalid-name
 class QualikizBasedTransportModelConfig(
-    transport_pydantic_model_base.TransportBase
+    transport_pydantic_model_base.ComponentTransportBase
 ):
   """Model for the Qualikiz-based transport model.
 

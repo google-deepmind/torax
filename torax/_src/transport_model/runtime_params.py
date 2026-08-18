@@ -71,7 +71,3 @@ class RuntimeParams:
   core_transport_model_params: Mapping[str, ComponentRuntimeParams]
   pedestal_transport_model_params: Mapping[str, ComponentRuntimeParams]
   smoothing_zones: tuple[SmoothingZoneParams, ...]
-
-
-# TODO(b/426132633): Remove backwards compatibility alias.
-CombinedRuntimeParams = RuntimeParams

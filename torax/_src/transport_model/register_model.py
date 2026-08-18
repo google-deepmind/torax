@@ -20,14 +20,14 @@ from torax._src.transport_model import pydantic_model_base
 
 
 def register_transport_model(
-    pydantic_model_class: type[pydantic_model_base.TransportBase],
+    pydantic_model_class: type[pydantic_model_base.ComponentTransportBase],
 ):
   """Registers a transport model with TORAX.
 
   This function adds the transport model to the config model such that it can
   be configured via pydantic. The pydantic model class should inherit from
-  TransportBase and should have a distinct model_name. It should also define a
-  build_transport_model method which returns a ComponentTransportModel.
+  ComponentTransportBase and should have a distinct model_name. It should also
+  define a build_transport_model method which returns a ComponentTransportModel.
 
   It can then be used in the `core_transport_models` or
   `pedestal_transport_models` mapping of the transport configuration.

@@ -288,7 +288,9 @@ class FakeTransportModel(component.ComponentTransportModel):
     )
 
 
-class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
+class FakeTransportConfig(
+    transport_pydantic_model_base.ComponentTransportBase
+):
   """Fake transport config for a model that always returns zeros."""
 
   model_name: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'

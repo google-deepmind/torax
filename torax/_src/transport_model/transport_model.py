@@ -397,7 +397,3 @@ def _build_smoothing_matrix(
   kernel = kernel / row_sums
 
   return kernel
-
-
-# TODO(b/426132633): Remove backwards compatibility alias.
-CombinedTransportModel = TransportModel

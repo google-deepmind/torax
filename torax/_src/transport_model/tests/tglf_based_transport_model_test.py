@@ -267,7 +267,7 @@ class FakeTGLFBasedTransportModel(
 
 # pylint: disable=invalid-name
 class TGLFBasedTransportModelConfig(
-    transport_pydantic_model_base.TransportBase
+    transport_pydantic_model_base.ComponentTransportBase
 ):
   """Model for testing the TGLF-based transport model."""
 

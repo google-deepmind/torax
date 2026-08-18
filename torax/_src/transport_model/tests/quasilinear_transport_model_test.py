@@ -553,7 +553,9 @@ class FakeQuasilinearTransportModel(
     )
 
 
-class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):
+class QuasilinearTransportConfig(
+    transport_pydantic_model_base.ComponentTransportBase
+):
   """QuasilinearTransportConfig for testing purposes."""
 
   # pylint: disable=invalid-name

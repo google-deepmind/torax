@@ -25,7 +25,7 @@ from torax._src.test_utils import default_configs
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class FakeTransportModel(transport.TransportModel):
+class FakeTransportModel(transport.ComponentTransportModel):
   """Fake transport model that always returns zeros."""
 
   def call_implementation(
@@ -44,7 +44,7 @@ class FakeTransportModel(transport.TransportModel):
     )
 
 
-class FakeTransportPydantic(transport.TransportBase):
+class FakeTransportPydantic(transport.ComponentTransportBase):
   """Fake transport model pydantic config."""
 
   model_name: Annotated[Literal['fake_api'], torax.JAX_STATIC] = 'fake_api'
@@ -67,8 +67,8 @@ class TransportTest(absltest.TestCase):
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)
 
-  def test_fake_transport_model_with_combined(self):
-    """Tests that the fake transport model returns zeros."""
+  def test_fake_transport_model_multiple_instances(self):
+    """Tests multiple fake transport models combined together."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'core_transport_models': {

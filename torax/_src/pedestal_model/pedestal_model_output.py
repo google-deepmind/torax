@@ -247,7 +247,7 @@ class PedestalModelOutput:
     # We are using the face grid here, since transport coefficients are
     # applied on the face grid.
 
-    # TODO(b/485147781):  In the case where we have a CombinedTransportModel
+    # TODO(b/485147781):  In the case where we have a TransportModel
     # with a pedestal transport model specified, we are currently scaling
     # all the coefficients in the pedestal region, whereas we should be only
     # scaling the turbulent coeffs and leaving the pedestal coeffs alone.
