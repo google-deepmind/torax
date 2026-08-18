@@ -64,6 +64,15 @@ class InternalBoundaryConditions:
         n_e=jnp.where(other.n_e != 0.0, other.n_e, self.n_e),
     )
 
+  def get_two_point_face_mask(
+      self, geo: geometry.Geometry
+  ) -> array_typing.BoolVectorFace:
+    """Returns boolean face mask for 2-point gradient fallback left of pinned cells."""
+
+    pinned_cell_mask = (self.T_i != 0.0) | (self.T_e != 0.0) | (self.n_e != 0.0)
+    mask = jnp.zeros_like(geo.rho_face_norm, dtype=bool)
+    return mask.at[:-1].set(pinned_cell_mask)
+
   @classmethod
   def empty(cls, geo: geometry.Geometry) -> 'InternalBoundaryConditions':
     """Return an empty InternalBoundaryConditions object."""
@@ -143,4 +152,3 @@ class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):
         T_e=self.T_e.get_value(t),
         n_e=self.n_e.get_value(t),
     )
-
