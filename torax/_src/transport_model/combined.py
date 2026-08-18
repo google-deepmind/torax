@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The CombinedTransportModel class.
+"""The TransportModel class.
 
-A class for combining transport models.
+A container class that combines transport model components for core and pedestal
+regions.
 """
 
 import dataclasses
@@ -37,7 +38,7 @@ MIN_SMOOTHING_WIDTH = 1e-5
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class CombinedTransportModel(static_dataclass.StaticDataclass):
+class TransportModel(static_dataclass.StaticDataclass):
   """Combines coefficients from a dict of named transport models."""
 
   core_transport_models: Mapping[str, component.ComponentTransportModel]
@@ -50,7 +51,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> component.TurbulentTransport:
-    r"""Calculates transport coefficients using the Combined model.
+    r"""Calculates transport coefficients using the TransportModel.
 
     Combines coefficients from core and pedestal transport models, applies
     min/max clipping, and smooths the result.
@@ -112,14 +113,16 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
   def _combine(
       self,
       models: Mapping[str, component.ComponentTransportModel],
-      params_map: Mapping[str, transport_runtime_params_lib.RuntimeParams],
+      params_map: Mapping[
+          str, transport_runtime_params_lib.ComponentRuntimeParams
+      ],
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       domain_mask_fn: Callable[
           [
-              transport_runtime_params_lib.RuntimeParams,
+              transport_runtime_params_lib.ComponentRuntimeParams,
               runtime_params_lib.RuntimeParams,
               geometry.Geometry,
               pedestal_model_output_lib.PedestalModelOutput,
@@ -212,7 +215,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
 
   def _apply_clipping(
       self,
-      transport_runtime_params: transport_runtime_params_lib.CombinedRuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
       transport_coeffs: component.TurbulentTransport,
   ) -> component.TurbulentTransport:
     """Applies min/max clipping to transport coefficients for PDE stability."""
@@ -284,7 +287,9 @@ def _add_optional(
 
 
 def _pedestal_domain_mask(
-    unused_transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    unused_transport_runtime_params: (
+        transport_runtime_params_lib.ComponentRuntimeParams
+    ),
     unused_runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_output: pedestal_model_output_lib.PedestalModelOutput,
@@ -294,14 +299,12 @@ def _pedestal_domain_mask(
 
 
 def _build_smoothing_matrix(
-    transport_runtime_params: (
-        transport_runtime_params_lib.CombinedRuntimeParams
-    ),
+    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
-  """Builds a smoothing matrix for the combined transport model."""
+  """Builds a smoothing matrix for the transport model."""
   # To reduce the range of the convolution, weights under lower_cutoff are
   # clipped to zero.
   lower_cutoff = 0.01
@@ -394,3 +397,7 @@ def _build_smoothing_matrix(
   kernel = kernel / row_sums
 
   return kernel
+
+
+# TODO(b/426132633): Remove backwards compatibility alias.
+CombinedTransportModel = TransportModel

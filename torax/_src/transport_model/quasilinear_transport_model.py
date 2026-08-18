@@ -195,7 +195,7 @@ def calculate_alpha(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(runtime_params_lib.ComponentRuntimeParams):
   """Shared parameters for Quasilinear models."""
 
   DV_effective: bool

@@ -109,7 +109,9 @@ class QLKNNRuntimeConfigInputs:
 
   @staticmethod
   def from_runtime_params_slice(
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> 'QLKNNRuntimeConfigInputs':

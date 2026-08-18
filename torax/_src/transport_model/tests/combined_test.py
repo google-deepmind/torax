@@ -557,8 +557,8 @@ class CombinedTransportModelTest(absltest.TestCase):
     )
     mock_model.return_value = mock_coeffs
 
-    # Manually instantiate CombinedTransportModel with our mock
-    combined_model = combined.CombinedTransportModel(
+    # Manually instantiate TransportModel with our mock
+    combined_model = combined.TransportModel(
         core_transport_models={'mock': mock_model},
         pedestal_transport_models={},
     )
@@ -575,7 +575,7 @@ class CombinedTransportModelTest(absltest.TestCase):
 
     # We need a RuntimeParams for combined model
     combined_params = mock.create_autospec(
-        transport_runtime_params_lib.CombinedRuntimeParams, instance=True
+        transport_runtime_params_lib.RuntimeParams, instance=True
     )
     combined_params.core_transport_model_params = {'mock': mock_params}
     combined_params.pedestal_transport_model_params = {}

@@ -85,7 +85,7 @@ class RuntimeParamsProvider:
   numerics: numerics_lib.Numerics
   profile_conditions: profile_conditions_lib.ProfileConditions
   plasma_composition: plasma_composition_lib.PlasmaComposition
-  transport_model: transport_pydantic_model.CombinedTransportModel
+  transport_model: transport_pydantic_model.TransportModel
   solver: solver_pydantic_model.SolverConfig
   pedestal: pedestal_pydantic_model.PedestalConfig
   mhd: mhd_pydantic_model.MHD

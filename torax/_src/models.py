@@ -36,7 +36,7 @@ class Models(static_dataclass.StaticDataclass):
   """
 
   source_models: source_models_lib.SourceModels
-  transport_model: combined_lib.CombinedTransportModel
+  transport_model: combined_lib.TransportModel
   pedestal_model: pedestal_model_lib.PedestalModel
   neoclassical_models: neoclassical_models_lib.NeoclassicalModels
   mhd_models: mhd_model_lib.MHDModels

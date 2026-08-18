@@ -29,8 +29,8 @@ from torax._src.transport_model import enums
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams:
-  """Input params for the transport model which can be used as compiled args."""
+class ComponentRuntimeParams:
+  """Input params for a component transport model."""
 
   rho_min: array_typing.FloatScalar
   rho_max: array_typing.FloatScalar
@@ -58,8 +58,8 @@ class SmoothingZoneParams:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class CombinedRuntimeParams:
-  """Runtime parameters for the CombinedTransportModel."""
+class RuntimeParams:
+  """Runtime parameters for the TransportModel."""
 
   chi_min: float
   chi_max: float
@@ -68,6 +68,10 @@ class CombinedRuntimeParams:
   V_e_min: float
   V_e_max: float
   smoothing_width: float
-  core_transport_model_params: Mapping[str, RuntimeParams]
-  pedestal_transport_model_params: Mapping[str, RuntimeParams]
+  core_transport_model_params: Mapping[str, ComponentRuntimeParams]
+  pedestal_transport_model_params: Mapping[str, ComponentRuntimeParams]
   smoothing_zones: tuple[SmoothingZoneParams, ...]
+
+
+# TODO(b/426132633): Remove backwards compatibility alias.
+CombinedRuntimeParams = RuntimeParams

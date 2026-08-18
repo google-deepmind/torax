@@ -149,7 +149,9 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
 
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,

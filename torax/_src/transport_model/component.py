@@ -127,7 +127,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
 
   def __call__(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -161,7 +161,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
   @abc.abstractmethod
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -171,7 +171,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
 
   def zero_out_disabled_channels(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
       transport_coeffs: TurbulentTransport,
   ) -> TurbulentTransport:
     """Sets coefficients to zero for channels that are disabled."""
@@ -195,7 +195,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
 
 
 def compute_core_domain_mask(
-    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,

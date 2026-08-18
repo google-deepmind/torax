@@ -349,7 +349,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
 
     multiplier = 3.0
     transport = mock.create_autospec(
-        transport_model_runtime_params.RuntimeParams,
+        transport_model_runtime_params.ComponentRuntimeParams,
         instance=True,
         fast_ion_stabilization=True,
         fast_ion_stabilization_model=(),
@@ -568,7 +568,7 @@ class QuasilinearTransportConfig(transport_pydantic_model_base.TransportBase):
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> transport_model_runtime_params.RuntimeParams:
+  ) -> transport_model_runtime_params.ComponentRuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return quasilinear_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,

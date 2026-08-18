@@ -102,8 +102,8 @@ class TransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.RuntimeParams:
-    return runtime_params.RuntimeParams(
+  ) -> runtime_params.ComponentRuntimeParams:
+    return runtime_params.ComponentRuntimeParams(
         fast_ion_stabilization=self.fast_ion_stabilization.get_value(t),
         fast_ion_stabilization_model=tuple(
             sorted(self.fast_ion_stabilization_model.items())

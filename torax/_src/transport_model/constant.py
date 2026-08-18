@@ -35,7 +35,7 @@ from torax._src.transport_model import runtime_params as transport_runtime_param
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(transport_runtime_params_lib.RuntimeParams):
+class RuntimeParams(transport_runtime_params_lib.ComponentRuntimeParams):
   """Extends the base runtime params with additional params for this model.
 
   See base class runtime_params_lib.RuntimeParams docstring for more info.
@@ -53,7 +53,7 @@ class ConstantTransportModel(component.ComponentTransportModel):
 
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,

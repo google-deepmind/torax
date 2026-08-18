@@ -43,7 +43,9 @@ class FixedTransportModel(component.ComponentTransportModel):
 
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -226,7 +228,7 @@ class TransportMaskingTest(parameterized.TestCase):
   def test_preserves_none_channel_enabled(self):
     model = FixedTransportModel()
     runtime_params = mock.create_autospec(
-        transport_runtime_params_lib.RuntimeParams,
+        transport_runtime_params_lib.ComponentRuntimeParams,
         disable_chi_i=False,
         disable_chi_e=False,
         disable_D_e=False,
@@ -246,7 +248,7 @@ class TransportMaskingTest(parameterized.TestCase):
   def test_preserves_none_channel_disabled(self):
     model = FixedTransportModel()
     runtime_params = mock.create_autospec(
-        runtime_params_lib.RuntimeParams,
+        transport_runtime_params_lib.ComponentRuntimeParams,
         disable_chi_i=True,
         disable_chi_e=False,
         disable_D_e=False,

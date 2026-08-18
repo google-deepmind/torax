@@ -264,10 +264,10 @@ class PydanticModelTest(parameterized.TestCase):
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
 
-class CombinedTransportModelValidationTest(parameterized.TestCase):
+class TransportModelValidationTest(parameterized.TestCase):
 
   def test_valid_no_overwrite(self):
-    config = transport_pydantic_model.CombinedTransportModel(
+    config = transport_pydantic_model.TransportModel(
         core_transport_models={
             'm1': transport_pydantic_model.ConstantTransportModel(
                 merge_mode='add'
@@ -278,11 +278,11 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         }
     )
     self.assertIsInstance(
-        config, transport_pydantic_model.CombinedTransportModel
+        config, transport_pydantic_model.TransportModel
     )
 
   def test_valid_single_overwrite(self):
-    config = transport_pydantic_model.CombinedTransportModel(
+    config = transport_pydantic_model.TransportModel(
         core_transport_models={
             'm1': transport_pydantic_model.ConstantTransportModel(
                 merge_mode='overwrite'
@@ -293,7 +293,7 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         }
     )
     self.assertIsInstance(
-        config, transport_pydantic_model.CombinedTransportModel
+        config, transport_pydantic_model.TransportModel
     )
 
   def test_valid_split_overwrites(self):
@@ -313,11 +313,11 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         disable_D_e=True,
         disable_V_e=True,
     )
-    config = transport_pydantic_model.CombinedTransportModel(
+    config = transport_pydantic_model.TransportModel(
         core_transport_models={'m1': m1, 'm2': m2}
     )
     self.assertIsInstance(
-        config, transport_pydantic_model.CombinedTransportModel
+        config, transport_pydantic_model.TransportModel
     )
 
   def test_invalid_duplicate_overwrite(self):
@@ -339,7 +339,7 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r'Multiple core transport models are configured to OVERWRITE the same'
         r" channels \['chi_i'\]",
     ):
-      transport_pydantic_model.CombinedTransportModel(
+      transport_pydantic_model.TransportModel(
           core_transport_models={'m1': m1, 'm2': m2}
       )
 
@@ -362,7 +362,7 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r'Multiple pedestal transport models are configured to OVERWRITE the'
         r" same channels \['chi_i'\]",
     ):
-      transport_pydantic_model.CombinedTransportModel(
+      transport_pydantic_model.TransportModel(
           pedestal_transport_models={'m1': m1, 'm2': m2}
       )
 
@@ -386,11 +386,11 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         rho_min=0.5,
         rho_max=1.0,
     )
-    config = transport_pydantic_model.CombinedTransportModel(
+    config = transport_pydantic_model.TransportModel(
         core_transport_models={'m1': m1, 'm2': m2}
     )
     self.assertIsInstance(
-        config, transport_pydantic_model.CombinedTransportModel
+        config, transport_pydantic_model.TransportModel
     )
 
   def test_invalid_overlapping_overwrite(self):
@@ -418,7 +418,7 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r'Multiple core transport models are configured to OVERWRITE the same'
         r" channels \['chi_i'\] in overlapping radial zones",
     ):
-      transport_pydantic_model.CombinedTransportModel(
+      transport_pydantic_model.TransportModel(
           core_transport_models={'m1': m1, 'm2': m2}
       )
 
@@ -447,7 +447,7 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r'Multiple core transport models are configured to OVERWRITE the same'
         r" channels \['chi_e'\] in overlapping radial zones",
     ):
-      transport_pydantic_model.CombinedTransportModel(
+      transport_pydantic_model.TransportModel(
           core_transport_models={'m1': m1, 'm2': m2}
       )
 

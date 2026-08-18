@@ -30,7 +30,7 @@ class FakeTransportModel(transport.TransportModel):
 
   def call_implementation(
       self,
-      transport_runtime_params: transport.RuntimeParams,
+      transport_runtime_params: transport.ComponentRuntimeParams,
       runtime_params: torax.RuntimeParams,
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,

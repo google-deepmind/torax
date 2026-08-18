@@ -36,7 +36,7 @@ def register_transport_model(
     pydantic_model_class: The pydantic model class to register.
   """
   combined_model = model_config.ToraxConfig.model_fields['transport'].annotation
-  assert combined_model is pydantic_model.CombinedTransportModel
+  assert combined_model is pydantic_model.TransportModel
 
   # The annotation for core_transport_models and pedestal_transport_models is
   # dict[str, UnionType]. We need to extract the value type and extend it.

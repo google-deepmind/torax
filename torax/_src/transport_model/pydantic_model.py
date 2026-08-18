@@ -455,8 +455,8 @@ class SmoothingZone(torax_pydantic.BaseModelFrozen):
   smoothing_width: pydantic.NonNegativeFloat
 
 
-class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
-  """Model for the Combined transport model.
+class TransportModel(torax_pydantic.BaseModelFrozen):
+  """Model for the TransportModel.
 
   Attributes:
     chi_min: Lower bound on heat conductivity.
@@ -499,7 +499,7 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
       default_factory=list
   )
 
-  def build_transport_model(self) -> combined.CombinedTransportModel:
+  def build_transport_model(self) -> combined.TransportModel:
     core_transport_models = {
         name: model.build_transport_model()
         for name, model in self.core_transport_models.items()
@@ -509,14 +509,14 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
         for name, model in self.pedestal_transport_models.items()
     }
 
-    return combined.CombinedTransportModel(
+    return combined.TransportModel(
         core_transport_models=core_transport_models,
         pedestal_transport_models=pedestal_transport_models,
     )
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.CombinedRuntimeParams:
+  ) -> runtime_params.RuntimeParams:
     core_transport_model_params = {
         name: model.build_runtime_params(t)
         for name, model in self.core_transport_models.items()
@@ -535,7 +535,7 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
               smoothing_width=zone.smoothing_width,
           )
       )
-    return runtime_params.CombinedRuntimeParams(
+    return runtime_params.RuntimeParams(
         chi_min=self.chi_min,
         chi_max=self.chi_max,
         D_e_min=self.D_e_min,
@@ -670,3 +670,7 @@ def _ranges_overlap(
 
   # Overlap condition: start1 < end2 AND start2 < end1
   return (r1_min < r2_max) and (r2_min < r1_max)
+
+
+# TODO(b/426132633): Remove backwards compatibility alias.
+CombinedTransportModel = TransportModel

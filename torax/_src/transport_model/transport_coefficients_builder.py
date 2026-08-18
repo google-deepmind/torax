@@ -37,7 +37,7 @@ from torax._src.transport_model import pereverzev as pereverzev_lib
     )
 )
 def calculate_all_transport_coeffs(
-    transport_model: combined.CombinedTransportModel,
+    transport_model: combined.TransportModel,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,

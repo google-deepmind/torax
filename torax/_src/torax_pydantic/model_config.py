@@ -80,7 +80,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   solver: solver_pydantic_model.SolverConfig = pydantic.Field(
       discriminator='solver_type'
   )
-  transport: transport_model_pydantic_model.CombinedTransportModel = (
+  transport: transport_model_pydantic_model.TransportModel = (
       pydantic.Field()
   )
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field(
