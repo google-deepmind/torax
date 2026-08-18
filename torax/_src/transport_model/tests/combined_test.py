@@ -32,7 +32,7 @@ from torax._src.transport_model import runtime_params as transport_runtime_param
 # pylint: disable=invalid-name
 class CombinedTransportModelTest(absltest.TestCase):
 
-  def test_call_implementation(self):
+  def test_combining(self):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'model_name': 'combined',
@@ -73,8 +73,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         rho_norm_ped_top=0.91,
     )
 
-    transport_coeffs = model.call_implementation(
-        runtime_params.transport,  # pyrefly: ignore[bad-argument-type]
+    transport_coeffs = model(
         runtime_params,
         geo,
         core_profiles,
@@ -288,8 +287,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.95,
     )
-    coeffs = model.call_implementation(
-        runtime_params.transport,
+    coeffs = model(
         runtime_params,
         geo,
         core_profiles,
@@ -350,15 +348,13 @@ class CombinedTransportModelTest(absltest.TestCase):
         rho_norm_ped_top=1.0,
     )
 
-    coeffs_small = model_small.call_implementation(
-        params_small.transport,
+    coeffs_small = model_small(
         params_small,
         geo,
         mock.ANY,
         mock_pedestal_outputs,
     )
-    coeffs_large = model_large.call_implementation(
-        params_large.transport,
+    coeffs_large = model_large(
         params_large,
         geo,
         mock.ANY,
@@ -442,8 +438,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         rho_norm_ped_top=1.0,  # No pedestal restriction for this test
     )
 
-    coeffs = model.call_implementation(
-        runtime_params.transport,
+    coeffs = model(
         runtime_params,
         geo,
         mock.ANY,
@@ -478,8 +473,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         rho_norm_ped_top=1.0,
     )
 
-    coeffs = model.call_implementation(
-        runtime_params.transport,
+    coeffs = model(
         runtime_params,
         geo,
         mock.ANY,
@@ -518,8 +512,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         rho_norm_ped_top=1.0,
     )
 
-    coeffs = model.call_implementation(
-        runtime_params.transport,
+    coeffs = model(
         runtime_params,
         geo,
         mock.ANY,
@@ -554,8 +547,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         chi_face_ion_bohm=None,
         chi_face_ion_gyrobohm=None,
     )
-    mock_model.call_implementation.return_value = mock_coeffs
-    mock_model.zero_out_disabled_channels.return_value = mock_coeffs
+    mock_model.return_value = mock_coeffs
 
     # Manually instantiate CombinedTransportModel with our mock
     combined_model = combined.CombinedTransportModel(
@@ -579,6 +571,15 @@ class CombinedTransportModelTest(absltest.TestCase):
     )
     combined_params.core_transport_model_params = [mock_params]
     combined_params.pedestal_transport_model_params = []
+    # Set clipping and smoothing params so __call__ doesn't crash on mocks.
+    combined_params.chi_min = 0.0
+    combined_params.chi_max = 100.0
+    combined_params.D_e_min = 0.0
+    combined_params.D_e_max = 100.0
+    combined_params.V_e_min = -100.0
+    combined_params.V_e_max = 100.0
+    combined_params.smoothing_width = 0.0
+    combined_params.smoothing_zones = ()
 
     geo = mock.Mock(spec=geometry.Geometry)
     geo.rho_face_norm = jnp.linspace(0, 1, 10)
@@ -589,10 +590,11 @@ class CombinedTransportModelTest(absltest.TestCase):
     pedestal_output.rho_norm_ped_top = 1.0
 
     runtime_params = mock.Mock()
+    runtime_params.transport = combined_params
     core_profiles = mock.Mock()
 
-    coeffs = combined_model.call_implementation(
-        combined_params, runtime_params, geo, core_profiles, pedestal_output
+    coeffs = combined_model(
+        runtime_params, geo, core_profiles, pedestal_output
     )
 
     # Check that output has None for optional fields

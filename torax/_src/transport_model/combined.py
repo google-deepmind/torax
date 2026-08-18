@@ -50,47 +50,12 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> transport_model_lib.TurbulentTransport:
-
-    transport_runtime_params = runtime_params.transport
-
-    # Calculate the transport coefficients - includes contribution from pedestal
-    # and core transport models.
-    transport_coeffs = self.call_implementation(
-        transport_runtime_params,
-        runtime_params,
-        geo,
-        core_profiles,
-        pedestal_model_output,
-    )
-    # Apply min/max clipping
-    transport_coeffs = self._apply_clipping(
-        transport_runtime_params,
-        transport_coeffs,
-    )
-
-    transport_coeffs = self._smooth_coeffs(
-        runtime_params,
-        geo,
-        transport_coeffs,
-        pedestal_model_output,
-    )
-
-    return transport_coeffs
-
-  def call_implementation(
-      self,
-      transport_runtime_params: transport_runtime_params_lib.CombinedRuntimeParams,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
     r"""Calculates transport coefficients using the Combined model.
 
+    Combines coefficients from core and pedestal transport models, applies
+    min/max clipping, and smooths the result.
+
     Args:
-      transport_runtime_params: Input runtime parameters for this transport
-        model (expected to be an instance of CombinedRuntimeParams at runtime).
-        Can change without triggering a JAX recompilation.
       runtime_params: Runtime parameters for the simulation at the current time.
       geo: Geometry of the torus at the current time.
       core_profiles: Core plasma profiles.
@@ -99,6 +64,9 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
     Returns:
       coeffs: The transport coefficients
     """
+    transport_runtime_params = runtime_params.transport
+
+    # Calculate transport coefficients from core models.
     core_coeffs = self._combine(
         self.transport_models,
         transport_runtime_params.core_transport_model_params,
@@ -109,6 +77,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
         transport_model_lib.compute_core_domain_mask,
     )
 
+    # Calculate transport coefficients from pedestal models.
     pedestal_coeffs = self._combine(
         self.pedestal_transport_models,
         transport_runtime_params.pedestal_transport_model_params,
@@ -120,11 +89,25 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
     )
 
     # Combine the transport coefficients from core and pedestal models.
-    combined_transport_coeffs = jax.tree.map(
+    transport_coeffs = jax.tree.map(
         _add_optional, core_coeffs, pedestal_coeffs
     )
 
-    return combined_transport_coeffs
+    # Apply min/max clipping.
+    transport_coeffs = self._apply_clipping(
+        transport_runtime_params,
+        transport_coeffs,
+    )
+
+    # Apply smoothing.
+    transport_coeffs = self._smooth_coeffs(
+        runtime_params,
+        geo,
+        transport_coeffs,
+        pedestal_model_output,
+    )
+
+    return transport_coeffs
 
   def _combine(
       self,
@@ -162,15 +145,12 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
 
     # TODO(b/344023668) explore batching or fori_loop for performance.
     for model, params in zip(models, params_list, strict=True):
-      # 1. Calculate raw coefficients
-      coeffs = model.call_implementation(
+      # 1. Calculate raw coefficients and zero out disabled channels.
+      coeffs = model(
           params, runtime_params, geo, core_profiles, pedestal_model_output
       )
 
-      # 2. Zero out disabled channels. Unused subchannels returned as None.
-      coeffs = model.zero_out_disabled_channels(params, coeffs)
-
-      # 3. Calculate active domain mask. Values outside this are set to 0.
+      # 2. Calculate active domain mask. Values outside this are set to 0.
       domain_mask = domain_mask_fn(
           params, runtime_params, geo, pedestal_model_output
       )
