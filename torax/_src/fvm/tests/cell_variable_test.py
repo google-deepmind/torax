@@ -69,9 +69,7 @@ class CellVariableTest(parameterized.TestCase):
     )
 
     grad = var.face_grad()
-    np.testing.assert_allclose(
-        grad, jnp.array([0.0, 10.0, 30.0, -20.0, 0.0])
-    )
+    np.testing.assert_allclose(grad, jnp.array([0.0, 10.0, 30.0, -20.0, 0.0]))
 
   def test_face_grad_unconstrained_with_input(self):
     var = cell_variable.CellVariable(
@@ -96,9 +94,7 @@ class CellVariableTest(parameterized.TestCase):
         right_face_grad_constraint=jnp.array(2.0),
     )
     grad = var.face_grad()
-    np.testing.assert_allclose(
-        grad, jnp.array([1.0, 10.0, 30.0, -20.0, 2.0])
-    )
+    np.testing.assert_allclose(grad, jnp.array([1.0, 10.0, 30.0, -20.0, 2.0]))
 
   def test_face_grad_value_constraint(self):
     dr = 0.1
@@ -153,6 +149,14 @@ class CellVariableTest(parameterized.TestCase):
           right_face_constraint=5.0,
           expected_value=[2.0, 1.5, 3.5, 4.0, 5.0],
       ),
+      dict(
+          testcase_name='_non_zero_grad_constraints',
+          value=[1.0, 2.0, 5.0, 3.0],
+          dr=0.1,
+          left_face_grad_constraint=1.0,
+          right_face_grad_constraint=2.0,
+          expected_value=[0.95, 1.5, 3.5, 4.0, 3.1],
+      ),
   )
   def test_face_value(
       self,
@@ -203,7 +207,7 @@ class CellVariableTest(parameterized.TestCase):
           right_face_constraint=None,
           left_face_grad_constraint=1.0,
           right_face_grad_constraint=2.0,
-          expected_grad=[5.0, 20.0, 5.0, -9.0],
+          expected_grad=[5.5, 20.0, 5.0, -9.0],
       ),
   )
   def test_grad(
@@ -259,6 +263,24 @@ class CellVariableTest(parameterized.TestCase):
         cell_plus_boundaries, np.array(expected_output)
     )
 
+  def test_cell_plus_boundaries_with_grad_constraints(self):
+    value = [1.0, 2.0, 5.0, 3.0]
+    dr = 0.1
+    var = cell_variable.CellVariable(
+        value=jnp.array(value),
+        left_face_constraint=None,
+        left_face_grad_constraint=jnp.array(1.0),
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(2.0),
+        face_centers=_make_face_centers(dr, len(value)),
+    )
+    # left = 1.0 - 1.0 * 0.1 / 2 = 0.95
+    # right = 3.0 + 2.0 * 0.1 / 2 = 3.1
+    expected_output = [0.95, 1.0, 2.0, 5.0, 3.0, 3.1]
+    np.testing.assert_allclose(
+        var.cell_plus_boundaries(), np.array(expected_output)
+    )
+
   def test_cell_plus_boundaries_batched(self):
     # Batched (time, cell) with shape (3, 4)
     value = jnp.array([
@@ -288,22 +310,24 @@ class CellVariableTest(parameterized.TestCase):
         var_dirichlet.cell_plus_boundaries(), expected_dirichlet
     )
 
-    # Neumann boundary test (right_face_grad_constraint)
+    # Neumann boundary test (left_face_grad_constraint or
+    # right_face_grad_constraint)
     var_neumann = cell_variable.CellVariable(
         value=value,
         left_face_constraint=None,
-        left_face_grad_constraint=jnp.array([0.0, 0.0, 0.0]),
+        left_face_grad_constraint=jnp.array([1.0, 2.0, 3.0]),
         right_face_constraint=None,
         right_face_grad_constraint=jnp.array([2.0, 4.0, 6.0]),
         face_centers=face_centers,
     )
-    # left value = value[..., 0] = [1.0, 2.0, 3.0]
-    # right value = value[..., -1] + grad * dr / 2 =
+    # left value = value[..., 0] - left_grad * dr / 2 =
+    # [1.0 - 1.0*0.1/2, 2.0 - 2.0*0.1/2, 3.0 - 3.0*0.1/2] = [0.95, 1.9, 2.85]
+    # right value = value[..., -1] + right_grad * dr / 2 =
     # [3.0 + 2*0.1/2, 4.0 + 4*0.1/2, 5.0 + 6*0.1/2] = [3.1, 4.2, 5.3]
     expected_neumann = np.array([
-        [1.0, 1.0, 2.0, 5.0, 3.0, 3.1],
-        [2.0, 2.0, 3.0, 6.0, 4.0, 4.2],
-        [3.0, 3.0, 4.0, 7.0, 5.0, 5.3],
+        [0.95, 1.0, 2.0, 5.0, 3.0, 3.1],
+        [1.9, 2.0, 3.0, 6.0, 4.0, 4.2],
+        [2.85, 3.0, 4.0, 7.0, 5.0, 5.3],
     ])
     np.testing.assert_allclose(
         var_neumann.cell_plus_boundaries(), expected_neumann
@@ -481,10 +505,13 @@ class CellVariableTest(parameterized.TestCase):
     x = (face_centers[:-1] + face_centers[1:]) / 2.0
     # We use a 2nd order polynomial so should get agreement with true gradient.
     cell_values = c2 * x**2 + c1 * x + c0
-    face_right = c2 * face_centers[-1]**2 + c1 * face_centers[-1] + c0
-    face_grad = 2*c2*face_centers[1:-1] + c1
+    face_right = c2 * face_centers[-1] ** 2 + c1 * face_centers[-1] + c0
+    face_grad = 2 * c2 * face_centers[1:-1] + c1
     inner_grad = cell_variable._compute_inner_grad(
-        cell_values, face_right, face_centers, x,
+        cell_values,
+        face_right,
+        face_centers,
+        x,
     )
     np.testing.assert_allclose(face_grad, inner_grad)
 
@@ -509,6 +536,55 @@ class CellVariableTest(parameterized.TestCase):
     np.testing.assert_array_less(
         accurate_method_error, forward_difference_error
     )
+
+  def test_face_grad_two_point_mask_single_point(self):
+    face_centers = np.array([0.0, 0.2, 0.45, 0.7, 1.0])
+    cell_centers = (face_centers[:-1] + face_centers[1:]) / 2.0
+    value = jnp.array([1.0, 3.0, 7.0, 15.0])
+    var = cell_variable.CellVariable(value=value, face_centers=face_centers)
+
+    grad_standard = np.asarray(var.face_grad())
+    # Target face 2 (at r = 0.45)
+    two_point_mask = jnp.array([False, False, True, False, False])
+    grad_2pt_at_target = np.asarray(
+        var.face_grad(two_point_mask=two_point_mask)
+    )
+
+    # Face 2 should be computed with 2-point difference:
+    # (value[2] - value[1]) / (cell_centers[2] - cell_centers[1])
+    expected_grad_face_2 = (value[2] - value[1]) / (
+        cell_centers[2] - cell_centers[1]
+    )
+    np.testing.assert_allclose(grad_2pt_at_target[2], expected_grad_face_2)
+
+    # Other inner faces (1 and 3) should match standard 3-point gradient
+    np.testing.assert_allclose(grad_2pt_at_target[1], grad_standard[1])
+    np.testing.assert_allclose(grad_2pt_at_target[3], grad_standard[3])
+
+  def test_face_grad_two_point_mask_multi_point(self):
+    face_centers = np.array([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    cell_centers = (face_centers[:-1] + face_centers[1:]) / 2.0
+    value = jnp.array([1.0, 2.0, 5.0, 10.0, 17.0])
+    var = cell_variable.CellVariable(value=value, face_centers=face_centers)
+
+    grad_standard = np.asarray(var.face_grad())
+    # Target face 1 (r = 0.2) and face 3 (r = 0.6)
+    two_point_mask = jnp.array([False, True, False, True, False, False])
+    grad_multi = np.asarray(var.face_grad(two_point_mask=two_point_mask))
+
+    # Faces 1 and 3 should be 2-point differences
+    expected_face_1 = (value[1] - value[0]) / (
+        cell_centers[1] - cell_centers[0]
+    )
+    expected_face_3 = (value[3] - value[2]) / (
+        cell_centers[3] - cell_centers[2]
+    )
+    np.testing.assert_allclose(grad_multi[1], expected_face_1)
+    np.testing.assert_allclose(grad_multi[3], expected_face_3)
+
+    # Face 2 and face 4 should match standard 3-point gradient
+    np.testing.assert_allclose(grad_multi[2], grad_standard[2])
+    np.testing.assert_allclose(grad_multi[4], grad_standard[4])
 
 
 if __name__ == '__main__':
