@@ -22,7 +22,27 @@ a way that works with the persistent cache. This process has many
 """
 
 import dataclasses
-from typing import Any
+from typing import Any, Mapping
+
+
+def _make_hashable(val: Any) -> Any:
+  """Recursively converts dicts, mappings, and lists into hashable tuples."""
+  if isinstance(val, (dict, Mapping)):
+    try:
+      return tuple(
+          sorted(
+              ((k, _make_hashable(v)) for k, v in val.items()),
+              key=lambda item: item[0],
+          )
+      )
+    except TypeError as e:
+      raise TypeError(
+          "Keys in mapping must be sortable to ensure consistent hashing:"
+          f" {list(val.keys())}"
+      ) from e
+  if isinstance(val, list):
+    return tuple(_make_hashable(v) for v in val)
+  return val
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -62,7 +82,8 @@ class StaticDataclass:
     """
 
     return tuple(
-        getattr(self, field.name) for field in dataclasses.fields(self)
+        _make_hashable(getattr(self, field.name))
+        for field in dataclasses.fields(self)
     )
 
   def _full_tuple(self) -> tuple[Any, ...]:

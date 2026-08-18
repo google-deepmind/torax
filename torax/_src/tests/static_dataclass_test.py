@@ -14,7 +14,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from absl.testing import absltest
 from torax._src import static_dataclass
@@ -129,6 +129,27 @@ class ChildInheritingMetadata(ParentWithMetadata):
   """Child class inheriting field with metadata."""
 
   pass
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class DataclassWithMapping(static_dataclass.StaticDataclass):
+  """Test class with Mapping field."""
+
+  mapping: Mapping[str, Any]
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class DataclassWithAnyMapping(static_dataclass.StaticDataclass):
+  """Test class with Any Mapping field."""
+
+  mapping: Mapping[Any, Any]
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class DataclassWithList(static_dataclass.StaticDataclass):
+  """Test class with list field."""
+
+  items: list[Any]
 
 
 class StaticDataclassTest(absltest.TestCase):
@@ -299,6 +320,43 @@ class StaticDataclassTest(absltest.TestCase):
       ChildInheritingMetadata(callback=lambda x: x)
     except TypeError:
       self.fail("TypeError raised, metadata not inherited as expected")
+
+  def test_mapping_field_eq_and_hash(self):
+    obj1 = DataclassWithMapping(mapping={"a": 1, "b": 2})
+    obj2 = DataclassWithMapping(mapping={"b": 2, "a": 1})  # Different order
+    obj3 = DataclassWithMapping(mapping={"a": 1, "b": 3})  # Different value
+    obj4 = DataclassWithMapping(mapping={"a": 1, "c": 2})  # Different key
+    self.assertEqual(obj1, obj2)
+    self.assertNotEqual(obj1, obj3)
+    self.assertNotEqual(obj1, obj4)
+    self.assertEqual(hash(obj1), hash(obj2))
+    self.assertNotEqual(hash(obj1), hash(obj3))
+    self.assertNotEqual(hash(obj1), hash(obj4))
+
+  def test_nested_mapping_field(self):
+    obj1 = DataclassWithMapping(mapping={"outer": {"inner": 42}})
+    obj2 = DataclassWithMapping(mapping={"outer": {"inner": 42}})
+    obj3 = DataclassWithMapping(mapping={"outer": {"inner": 43}})
+    self.assertEqual(obj1, obj2)
+    self.assertNotEqual(obj1, obj3)
+    self.assertEqual(hash(obj1), hash(obj2))
+    self.assertNotEqual(hash(obj1), hash(obj3))
+
+  def test_list_field_eq_and_hash(self):
+    obj1 = DataclassWithList(items=[1, 2, [3, 4]])
+    obj2 = DataclassWithList(items=[1, 2, [3, 4]])
+    obj3 = DataclassWithList(items=[1, 2, [3, 5]])
+    self.assertEqual(obj1, obj2)
+    self.assertNotEqual(obj1, obj3)
+    self.assertEqual(hash(obj1), hash(obj2))
+    self.assertNotEqual(hash(obj1), hash(obj3))
+
+  def test_unsortable_mapping_keys_raise_error(self):
+    with self.assertRaisesRegex(
+        TypeError,
+        "Keys in mapping must be sortable to ensure consistent hashing",
+    ):
+      DataclassWithAnyMapping(mapping={1: "a", "b": "c"})
 
 
 if __name__ == "__main__":
