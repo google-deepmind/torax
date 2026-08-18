@@ -127,7 +127,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
     runtime_params, geo, core_profiles, _ = model_inputs
-    tglf_params = runtime_params.transport.transport_model_params[0]
+    tglf_params = runtime_params.transport.core_transport_model_params[0]
     assert isinstance(tglf_params, tglf_based_transport_model.RuntimeParams)
     tglf_inputs = transport_model._prepare_tglf_inputs(
         transport=tglf_params,
@@ -170,8 +170,10 @@ class TGLFTransportModelTest(parameterized.TestCase):
     runtime_uncapped, geo, core_profiles, _ = uncapped_inputs
     runtime_capped, _, _, _ = capped_inputs
 
-    tglf_params_uncapped = runtime_uncapped.transport.transport_model_params[0]
-    tglf_params_capped = runtime_capped.transport.transport_model_params[0]
+    tglf_params_uncapped = (
+        runtime_uncapped.transport.core_transport_model_params[0]
+    )
+    tglf_params_capped = runtime_capped.transport.core_transport_model_params[0]
     assert isinstance(
         tglf_params_uncapped, tglf_based_transport_model.RuntimeParams
     )

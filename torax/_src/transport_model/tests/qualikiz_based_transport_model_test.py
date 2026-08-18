@@ -129,7 +129,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
     runtime_params, geo, core_profiles, _ = model_inputs
-    qualikiz_params = runtime_params.transport.transport_model_params[0]
+    qualikiz_params = runtime_params.transport.core_transport_model_params[0]
     assert isinstance(
         qualikiz_params, qualikiz_based_transport_model.RuntimeParams
     )
@@ -195,10 +195,10 @@ class QualikizTransportModelTest(parameterized.TestCase):
     runtime_params_capped, _, _, _ = capped_inputs
 
     qualikiz_params_uncapped = (
-        runtime_params_uncapped.transport.transport_model_params[0]
+        runtime_params_uncapped.transport.core_transport_model_params[0]
     )
     qualikiz_params_capped = (
-        runtime_params_capped.transport.transport_model_params[0]
+        runtime_params_capped.transport.core_transport_model_params[0]
     )
     assert isinstance(
         qualikiz_params_uncapped, qualikiz_based_transport_model.RuntimeParams

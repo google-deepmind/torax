@@ -577,7 +577,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     combined_params = mock.create_autospec(
         transport_runtime_params_lib.CombinedRuntimeParams, instance=True
     )
-    combined_params.transport_model_params = [mock_params]
+    combined_params.core_transport_model_params = [mock_params]
     combined_params.pedestal_transport_model_params = []
 
     geo = mock.Mock(spec=geometry.Geometry)

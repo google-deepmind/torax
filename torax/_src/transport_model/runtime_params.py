@@ -17,6 +17,7 @@
 This is the dataclass runtime config exposed to the user. The actual model gets
 a time-interpolated version of this config via the RuntimeParams.
 """
+
 import dataclasses
 
 import jax
@@ -37,8 +38,8 @@ class RuntimeParams:
   disable_D_e: array_typing.BoolScalar
   disable_V_e: array_typing.BoolScalar
   fast_ion_stabilization: array_typing.BoolScalar
-  fast_ion_stabilization_model: tuple[tuple[str, str], ...] = (
-      dataclasses.field(metadata={'static': True})
+  fast_ion_stabilization_model: tuple[tuple[str, str], ...] = dataclasses.field(
+      metadata={'static': True}
   )
   fast_ion_stabilization_multiplier: float
   merge_mode: enums.MergeMode = dataclasses.field(metadata={'static': True})
@@ -66,6 +67,6 @@ class CombinedRuntimeParams:
   V_e_min: float
   V_e_max: float
   smoothing_width: float
-  transport_model_params: tuple[RuntimeParams, ...]
+  core_transport_model_params: tuple[RuntimeParams, ...]
   pedestal_transport_model_params: tuple[RuntimeParams, ...]
   smoothing_zones: tuple[SmoothingZoneParams, ...]

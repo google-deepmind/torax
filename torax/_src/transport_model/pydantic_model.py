@@ -450,6 +450,7 @@ except ImportError:
 
 class SmoothingZone(torax_pydantic.BaseModelFrozen):
   """Defines a radial zone with a specific smoothing width."""
+
   rho_min: torax_pydantic.UnitInterval
   rho_max: torax_pydantic.UnitInterval
   smoothing_width: pydantic.NonNegativeFloat
@@ -473,9 +474,9 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
     pedestal_transport_models: A sequence of models that will be combined for
       pedestal transport coefficients.
     smoothing_zones: A sequence of radial zones with specific smoothing widths.
-      If empty, falls back to the legacy smoothing_width. Setting a value of
-      0.0 means that both no smoothing will be applied in that zone but also
-      means that zone will not be used for the smoothing of other zones.
+      If empty, falls back to the legacy smoothing_width. Setting a value of 0.0
+      means that both no smoothing will be applied in that zone but also means
+      that zone will not be used for the smoothing of other zones.
   """
 
   chi_min: torax_pydantic.MeterSquaredPerSecond = 0.05
@@ -518,7 +519,7 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.CombinedRuntimeParams:
-    transport_model_params = tuple(
+    core_transport_model_params = tuple(
         model.build_runtime_params(t) for model in self.transport_models
     )
     pedestal_transport_model_params = tuple(
@@ -543,16 +544,16 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
         V_e_min=self.V_e_min,
         V_e_max=self.V_e_max,
         smoothing_width=self.smoothing_width,
-        transport_model_params=transport_model_params,
+        core_transport_model_params=core_transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
         smoothing_zones=tuple(smoothing_zones),
     )
 
   @pydantic.model_validator(mode='after')
   def _check_smoothing_width_minimum(self) -> typing_extensions.Self:
-    smoothing_widths = [
-        z.smoothing_width for z in self.smoothing_zones
-    ] + [self.smoothing_width]
+    smoothing_widths = [z.smoothing_width for z in self.smoothing_zones] + [
+        self.smoothing_width
+    ]
     if any(w < 0.0 for w in smoothing_widths):
       raise ValueError(
           'Smoothing width must be positive in all smoothing zones.'
@@ -576,8 +577,9 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
     if self.smoothing_width == 0.0:
       has_quasilinear = any(
           isinstance(m, quasilinear_transport_model.QuasilinearTransportModel)
-          for m in list(self.transport_models)
-          + list(self.pedestal_transport_models)
+          for m in list(self.transport_models) + list(
+              self.pedestal_transport_models
+          )
       )
       if has_quasilinear:
         logging.warning(

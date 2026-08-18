@@ -101,7 +101,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
     """
     core_coeffs = self._combine(
         self.transport_models,
-        transport_runtime_params.transport_model_params,
+        transport_runtime_params.core_transport_model_params,
         runtime_params,
         geo,
         core_profiles,
@@ -357,8 +357,7 @@ def _build_smoothing_matrix(
 
     def apply_pedestal_mask(profile):
       return jnp.where(
-          geo.rho_face_norm
-          < pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm < pedestal_model_output.rho_norm_ped_top,
           profile,
           0.0,
       )
