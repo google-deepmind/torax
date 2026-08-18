@@ -29,9 +29,9 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
-from torax._src.transport_model import transport_model as transport_model_lib
 
 MIN_SMOOTHING_WIDTH = 1e-5
 
@@ -40,8 +40,8 @@ MIN_SMOOTHING_WIDTH = 1e-5
 class CombinedTransportModel(static_dataclass.StaticDataclass):
   """Combines coefficients from a tuple of transport models."""
 
-  transport_models: tuple[transport_model_lib.TransportModel, ...]
-  pedestal_transport_models: tuple[transport_model_lib.TransportModel, ...]
+  transport_models: tuple[component.ComponentTransportModel, ...]
+  pedestal_transport_models: tuple[component.ComponentTransportModel, ...]
 
   def __call__(
       self,
@@ -49,7 +49,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     r"""Calculates transport coefficients using the Combined model.
 
     Combines coefficients from core and pedestal transport models, applies
@@ -74,7 +74,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
         geo,
         core_profiles,
         pedestal_model_output,
-        transport_model_lib.compute_core_domain_mask,
+        component.compute_core_domain_mask,
     )
 
     # Calculate transport coefficients from pedestal models.
@@ -93,25 +93,19 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
         _add_optional, core_coeffs, pedestal_coeffs
     )
 
-    # Apply min/max clipping.
+    # Min/max clipping and smoothing.
     transport_coeffs = self._apply_clipping(
-        transport_runtime_params,
-        transport_coeffs,
+        transport_runtime_params, transport_coeffs
     )
-
-    # Apply smoothing.
     transport_coeffs = self._smooth_coeffs(
-        runtime_params,
-        geo,
-        transport_coeffs,
-        pedestal_model_output,
+        runtime_params, geo, transport_coeffs, pedestal_model_output
     )
 
     return transport_coeffs
 
   def _combine(
       self,
-      models: tuple[transport_model_lib.TransportModel, ...],
+      models: tuple[component.ComponentTransportModel, ...],
       params_list: Sequence[transport_runtime_params_lib.RuntimeParams],
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
@@ -126,7 +120,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
           ],
           jax.Array,
       ],
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     """Calculates and combines transport coefficients from a list of models."""
 
     # Initialize accumulators with zeros. Will be iteratively updated based on
@@ -137,7 +131,10 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
     accumulators = {}
     locks = {}
 
-    for channel, config in transport_model_lib.CHANNEL_CONFIG_STRUCT.items():
+    for (
+        channel,
+        config,
+    ) in component.ComponentTransportModel.CHANNEL_CONFIG.items():
       accumulators[channel] = zero_profile
       locks[channel] = jnp.zeros_like(geo.rho_face_norm, dtype=bool)
       for sub in config['sub_channels']:
@@ -161,7 +158,10 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
         if coeffs_dict[k] is not None:
           coeffs_dict[k] = jnp.where(domain_mask, coeffs_dict[k], 0.0)  # pyrefly: ignore[bad-argument-type]
 
-      for channel, config in transport_model_lib.CHANNEL_CONFIG_STRUCT.items():
+      for (
+          channel,
+          config,
+      ) in component.ComponentTransportModel.CHANNEL_CONFIG.items():
         disable_flag_name = config['disable_flag']
         is_disabled = getattr(params, disable_flag_name)  # pyrefly: ignore[bad-argument-type]
 
@@ -200,13 +200,13 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
               factor = jnp.where(locks[channel], 0.0, 1.0)
               accumulators[sub] = accumulators[sub] + sub_val * factor
 
-    return transport_model_lib.TurbulentTransport(**accumulators)
+    return component.TurbulentTransport(**accumulators)
 
   def _apply_clipping(
       self,
       transport_runtime_params: transport_runtime_params_lib.CombinedRuntimeParams,
-      transport_coeffs: transport_model_lib.TurbulentTransport,
-  ) -> transport_model_lib.TurbulentTransport:
+      transport_coeffs: component.TurbulentTransport,
+  ) -> component.TurbulentTransport:
     """Applies min/max clipping to transport coefficients for PDE stability."""
     chi_face_ion = jnp.clip(
         transport_coeffs.chi_face_ion,
@@ -241,9 +241,9 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      transport_coeffs: transport_model_lib.TurbulentTransport,
+      transport_coeffs: component.TurbulentTransport,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> transport_model_lib.TurbulentTransport:
+  ) -> component.TurbulentTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
     smoothing_matrix = _build_smoothing_matrix(
         runtime_params.transport,
