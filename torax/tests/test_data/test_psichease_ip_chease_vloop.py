@@ -51,10 +51,11 @@ CONFIG = {
     },
     'pedestal': {},
     'transport': {
-        'model_name': 'combined',
-        'transport_models': [{
-            'model_name': 'constant',
-        }],
+        'core_transport_models': {
+            'constant': {
+                'model_name': 'constant',
+            },
+        },
     },
     'solver': {
         'solver_type': 'linear',

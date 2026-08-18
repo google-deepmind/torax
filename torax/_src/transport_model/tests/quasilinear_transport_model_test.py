@@ -109,8 +109,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         core_profiles,
         pedestal_model_outputs,
     ) = _get_model_and_model_inputs({
-        'model_name': 'combined',
-        'transport_models': [{'model_name': 'quasilinear'}],
+        'core_transport_models': {'quasilinear': {'model_name': 'quasilinear'}},
     })
     core_transport = transport_model(
         runtime_params, geo, core_profiles, pedestal_model_outputs
@@ -154,15 +153,16 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
   ):
     """Tests that the DV_effective approach options behaves as expected."""
     model, model_inputs = _get_model_and_model_inputs({
-        'model_name': 'combined',
         'chi_min': 0.0,
         'D_e_min': 0.0,
         'V_e_min': 0.0,
-        'transport_models': [{
-            'model_name': 'quasilinear',
-            'DV_effective': DV_effective,
-            'An_min': An_min,
-        }],
+        'core_transport_models': {
+            'quasilinear': {
+                'model_name': 'quasilinear',
+                'DV_effective': DV_effective,
+                'An_min': An_min,
+            },
+        },
     })
     core_transport = model(*model_inputs)
     self.assertEqual(

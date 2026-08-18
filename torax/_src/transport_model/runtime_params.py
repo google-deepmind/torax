@@ -19,6 +19,7 @@ a time-interpolated version of this config via the RuntimeParams.
 """
 
 import dataclasses
+from typing import Mapping
 
 import jax
 from torax._src import array_typing
@@ -67,6 +68,6 @@ class CombinedRuntimeParams:
   V_e_min: float
   V_e_max: float
   smoothing_width: float
-  core_transport_model_params: tuple[RuntimeParams, ...]
-  pedestal_transport_model_params: tuple[RuntimeParams, ...]
+  core_transport_model_params: Mapping[str, RuntimeParams]
+  pedestal_transport_model_params: Mapping[str, RuntimeParams]
   smoothing_zones: tuple[SmoothingZoneParams, ...]

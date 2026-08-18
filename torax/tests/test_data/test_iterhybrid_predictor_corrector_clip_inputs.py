@@ -19,4 +19,4 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
-CONFIG['transport']['transport_models'][0]['clip_inputs'] = True
+CONFIG['transport']['core_transport_models']['qlknn']['clip_inputs'] = True

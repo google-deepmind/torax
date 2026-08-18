@@ -53,9 +53,8 @@ CONFIG['sources']['generic_heat']['P_total'] = {
 
 # Set transport
 CONFIG['transport'] = {
-    'model_name': 'combined',
-    'transport_models': [
-        {
+    'core_transport_models': {
+        'inner_patch': {
             'model_name': 'constant',
             'rho_max': 0.2,
             'chi_i': 1.0,
@@ -63,14 +62,14 @@ CONFIG['transport'] = {
             'D_e': 0.25,
             'V_e': 0.0,
         },
-        {
+        'qlknn': {
             'model_name': 'qlknn',
             'rho_min': 0.2,
             'rho_max': 0.8,
         },
         # Before the pedestal forms, we set the transport to a constant value
         # in the edge region for stable L-mode operation.
-        {
+        'edge_patch': {
             'model_name': 'constant',
             'rho_min': 0.8,
             'chi_i': 1.0,
@@ -78,8 +77,8 @@ CONFIG['transport'] = {
             'D_e': 1e-3,
             'V_e': 0.0,
         },
-    ],
-    'pedestal_transport_models': [
+    },
+    'pedestal_transport_models': {
         # TODO:
         # The final desired behavior is for the contributions from the core
         # transport models to be scaled according to the ADAPTIVE_TRANSPORT
@@ -95,14 +94,14 @@ CONFIG['transport'] = {
         #   [constant, qlknn, constant]
         # - If P_sol > P_LH, transport is
         #   [constant, qlknn, constant*ADAPTIVE_TRANSPORT_multiplier]
-        {
+        'constant': {
             'model_name': 'constant',
             'chi_i': 1.0,
             'chi_e': 1.0,
             'D_e': 1e-3,
             'V_e': 0.0,
         },
-    ],
+    },
 }
 
 # Set pedestal to adaptive transport mode

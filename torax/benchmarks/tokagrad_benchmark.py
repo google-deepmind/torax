@@ -237,7 +237,6 @@ CONFIG = {
         "pellet": {"S_total": 0.0},
     },
     "transport": {
-        "model_name": "combined",
         "chi_min": 0.05,
         "chi_max": 100.0,
         "D_e_min": 0.05,
@@ -245,8 +244,8 @@ CONFIG = {
         "V_e_min": -10.0,
         "V_e_max": 10.0,
         "smoothing_width": 0.05,
-        "transport_models": [
-            {
+        "core_transport_models": {
+            "bohm-gyrobohm": {
                 "model_name": "bohm-gyrobohm",
                 "chi_e_bohm_multiplier": 1.0,
                 "chi_i_bohm_multiplier": 1.0,
@@ -259,8 +258,8 @@ CONFIG = {
                 "D_face_c1": 1.0,
                 "D_face_c2": 0.3,
                 "V_face_coeff": 0.0,
-            }
-        ],
+            },
+        },
     },
     "solver": {
         "solver_type": "linear",

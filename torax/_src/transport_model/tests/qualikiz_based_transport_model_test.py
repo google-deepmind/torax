@@ -92,13 +92,14 @@ class QualikizTransportModelTest(parameterized.TestCase):
   def test_qualikiz_based_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
-        'model_name': 'combined',
-        'transport_models': [{
-            'model_name': 'qualikiz_based',
-            'collisionality_multiplier': 1.0,
-            'avoid_big_negative_s': True,
-            'q_sawtooth_proxy': True,
-        }],
+        'core_transport_models': {
+            'qualikiz_based': {
+                'model_name': 'qualikiz_based',
+                'collisionality_multiplier': 1.0,
+                'avoid_big_negative_s': True,
+                'q_sawtooth_proxy': True,
+            },
+        },
     })
     transport_model = torax_config.transport.build_transport_model()
 
@@ -112,24 +113,29 @@ class QualikizTransportModelTest(parameterized.TestCase):
   def test_qualikiz_based_transport_model_prepare_qualikiz_inputs_shapes(self):
     """Tests that the qualikiz inputs have the expected shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
-        'model_name': 'combined',
-        'transport_models': [{
-            'model_name': 'qualikiz_based',
-            'collisionality_multiplier': 1.0,
-            'avoid_big_negative_s': True,
-            'q_sawtooth_proxy': True,
-            'smag_alpha_correction': True,
-        }],
+        'core_transport_models': {
+            'qualikiz_based': {
+                'model_name': 'qualikiz_based',
+                'collisionality_multiplier': 1.0,
+                'avoid_big_negative_s': True,
+                'q_sawtooth_proxy': True,
+                'smag_alpha_correction': True,
+            },
+        },
     })
     transport_model = (
-        torax_config.transport.build_transport_model().transport_models[0]
+        torax_config.transport.build_transport_model().core_transport_models[
+            'qualikiz_based'
+        ]
     )
     assert isinstance(
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
     runtime_params, geo, core_profiles, _ = model_inputs
-    qualikiz_params = runtime_params.transport.core_transport_model_params[0]
+    qualikiz_params = (
+        runtime_params.transport.core_transport_model_params['qualikiz_based']
+    )
     assert isinstance(
         qualikiz_params, qualikiz_based_transport_model.RuntimeParams
     )
@@ -165,27 +171,31 @@ class QualikizTransportModelTest(parameterized.TestCase):
     for key in scalar_keys:
       self.assertEqual(getattr(qualikiz_inputs, key).shape, ())
 
-  def test_max_normalized_collisionality_caps_nu_star(self):
-    """Tests that max_normalized_collisionality clamps nu_star."""
-    max_normalized_collisionality = 0.5
+  @parameterized.parameters((0.001,), (0.1,))
+  def test_collisionality_max(self, max_normalized_collisionality):
+    """Checks that the max collisionality is capped."""
     log_cap = jnp.log10(max_normalized_collisionality)
     # Get uncapped inputs (max_normalized_collisionality=inf).
     torax_config, uncapped_inputs = _get_config_and_model_inputs({
-        'model_name': 'combined',
-        'transport_models': [{
-            'model_name': 'qualikiz_based',
-        }],
+        'core_transport_models': {
+            'qualikiz_based': {
+                'model_name': 'qualikiz_based',
+            },
+        },
     })
     # Get capped inputs.
     _, capped_inputs = _get_config_and_model_inputs({
-        'model_name': 'combined',
-        'transport_models': [{
-            'model_name': 'qualikiz_based',
-            'max_normalized_collisionality': max_normalized_collisionality,
-        }],
+        'core_transport_models': {
+            'qualikiz_based': {
+                'model_name': 'qualikiz_based',
+                'max_normalized_collisionality': max_normalized_collisionality,
+            },
+        },
     })
     transport_model = (
-        torax_config.transport.build_transport_model().transport_models[0]
+        torax_config.transport.build_transport_model().core_transport_models[
+            'qualikiz_based'
+        ]
     )
     assert isinstance(
         transport_model,
@@ -195,10 +205,14 @@ class QualikizTransportModelTest(parameterized.TestCase):
     runtime_params_capped, _, _, _ = capped_inputs
 
     qualikiz_params_uncapped = (
-        runtime_params_uncapped.transport.core_transport_model_params[0]
+        runtime_params_uncapped.transport.core_transport_model_params[
+            'qualikiz_based'
+        ]
     )
     qualikiz_params_capped = (
-        runtime_params_capped.transport.core_transport_model_params[0]
+        runtime_params_capped.transport.core_transport_model_params[
+            'qualikiz_based'
+        ]
     )
     assert isinstance(
         qualikiz_params_uncapped, qualikiz_based_transport_model.RuntimeParams

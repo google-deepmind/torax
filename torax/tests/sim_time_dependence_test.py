@@ -96,8 +96,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
             'geometry_type': 'circular',
         },
         'transport': {
-            'model_name': 'combined',
-            'transport_models': [{'model_name': 'fake'}],
+            'core_transport_models': {'fake': {'model_name': 'fake'}},
         },
         'solver': {
             'solver_type': 'fake',

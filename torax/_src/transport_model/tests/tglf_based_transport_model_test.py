@@ -98,10 +98,9 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def test_tglf_based_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
-        "model_name": "combined",
-        "transport_models": [{
+        "core_transport_models": {"tglf_based": {
             "model_name": "tglf_based",
-        }],
+        }},
     })
     transport_model = torax_config.transport.build_transport_model()
 
@@ -115,19 +114,22 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def test_tglf_based_transport_model_prepare_tglf_inputs_shapes(self):
     """Tests that the tglf inputs have the expected shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
-        "model_name": "combined",
-        "transport_models": [{
+        "core_transport_models": {"tglf_based": {
             "model_name": "tglf_based",
-        }],
+        }},
     })
     transport_model = (
-        torax_config.transport.build_transport_model().transport_models[0]
+        torax_config.transport.build_transport_model().core_transport_models[
+            "tglf_based"
+        ]
     )
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
     runtime_params, geo, core_profiles, _ = model_inputs
-    tglf_params = runtime_params.transport.core_transport_model_params[0]
+    tglf_params = (
+        runtime_params.transport.core_transport_model_params["tglf_based"]
+    )
     assert isinstance(tglf_params, tglf_based_transport_model.RuntimeParams)
     tglf_inputs = transport_model._prepare_tglf_inputs(
         transport=tglf_params,
@@ -148,21 +150,21 @@ class TGLFTransportModelTest(parameterized.TestCase):
     max_normalized_collisionality = 0.5
     # Get uncapped inputs (max_normalized_collisionality=inf).
     torax_config, uncapped_inputs = _get_config_and_model_inputs({
-        "model_name": "combined",
-        "transport_models": [{
+        "core_transport_models": {"tglf_based": {
             "model_name": "tglf_based",
-        }],
+        }},
     })
     # Get capped inputs.
     _, capped_inputs = _get_config_and_model_inputs({
-        "model_name": "combined",
-        "transport_models": [{
+        "core_transport_models": {"tglf_based": {
             "model_name": "tglf_based",
             "max_normalized_collisionality": max_normalized_collisionality,
-        }],
+        }},
     })
     transport_model = (
-        torax_config.transport.build_transport_model().transport_models[0]
+        torax_config.transport.build_transport_model().core_transport_models[
+            "tglf_based"
+        ]
     )
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
@@ -171,9 +173,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
     runtime_capped, _, _, _ = capped_inputs
 
     tglf_params_uncapped = (
-        runtime_uncapped.transport.core_transport_model_params[0]
+        runtime_uncapped.transport.core_transport_model_params["tglf_based"]
     )
-    tglf_params_capped = runtime_capped.transport.core_transport_model_params[0]
+    tglf_params_capped = (
+        runtime_capped.transport.core_transport_model_params["tglf_based"]
+    )
     assert isinstance(
         tglf_params_uncapped, tglf_based_transport_model.RuntimeParams
     )

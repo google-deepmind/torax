@@ -226,8 +226,9 @@ class FVMTest(parameterized.TestCase):
                 use_predictor_corrector=False, theta_implicit=theta_implicit
             ),
             transport=dict(
-                model_name='combined',
-                transport_models=[dict(model_name='constant', chi_i=1)],
+                core_transport_models=dict(
+                    constant=dict(model_name='constant', chi_i=1)
+                ),
                 chi_min=0,
             ),
             time_step_calculator=dict(),
@@ -338,8 +339,9 @@ class FVMTest(parameterized.TestCase):
             sources=source_config,
             solver=dict(use_predictor_corrector=False, theta_implicit=1.0),
             transport=dict(
-                model_name='combined',
-                transport_models=[dict(model_name='constant', chi_i=1)],
+                core_transport_models=dict(
+                    constant=dict(model_name='constant', chi_i=1)
+                ),
                 chi_min=0,
             ),
             time_step_calculator=dict(),
@@ -453,8 +455,9 @@ class FVMTest(parameterized.TestCase):
             sources=source_config,
             solver=dict(use_predictor_corrector=False, theta_implicit=0.0),
             transport=dict(
-                model_name='combined',
-                transport_models=[dict(model_name='constant', chi_i=1)],
+                core_transport_models=dict(
+                    constant=dict(model_name='constant', chi_i=1)
+                ),
                 chi_min=0,
             ),
             time_step_calculator=dict(),

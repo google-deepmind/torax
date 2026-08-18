@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Register a transport model with TORAX."""
-from typing import Sequence, get_args
+from typing import get_args
 
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model
@@ -24,14 +24,13 @@ def register_transport_model(
 ):
   """Registers a transport model with TORAX.
 
-  This functions adds the transport model to the config model such that it can
+  This function adds the transport model to the config model such that it can
   be configured via pydantic. The pydantic model class should inherit from
   TransportBase and should have a distinct model_name. It should also define a
-  build_transport_model method which returns a TransportModel.
+  build_transport_model method which returns a ComponentTransportModel.
 
-  It can then be used either directly in the transport config or as a transport
-  model in a combined transport model.
-
+  It can then be used in the `core_transport_models` or
+  `pedestal_transport_models` mapping of the transport configuration.
 
   Args:
     pydantic_model_class: The pydantic model class to register.
@@ -39,14 +38,16 @@ def register_transport_model(
   combined_model = model_config.ToraxConfig.model_fields['transport'].annotation
   assert combined_model is pydantic_model.CombinedTransportModel
 
-  combined_model_types = get_args(
-      combined_model.model_fields['transport_models'].annotation
-  )
-  assert isinstance(combined_model_types, tuple)
-  assert len(combined_model_types) == 1
-  combined_model.model_fields['transport_models'].annotation = Sequence[
-      combined_model_types[0] | pydantic_model_class
-  ]
+  # The annotation for core_transport_models and pedestal_transport_models is
+  # dict[str, UnionType]. We need to extract the value type and extend it.
+  for field_name in ('core_transport_models', 'pedestal_transport_models'):
+    field_annotation = combined_model.model_fields[field_name].annotation
+    dict_args = get_args(field_annotation)
+    assert len(dict_args) == 2
+    value_type = dict_args[1]
+    combined_model.model_fields[field_name].annotation = dict[
+        str, value_type | pydantic_model_class
+    ]
   combined_model.model_rebuild(force=True)
 
   model_config.ToraxConfig.model_rebuild(force=True)

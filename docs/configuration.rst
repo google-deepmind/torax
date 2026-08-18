@@ -1502,7 +1502,6 @@ Examples:
 
   ...
   'transport': {
-      'model_name': 'combined',
       'transport_models': [
           {
               'model_name': 'constant',
@@ -1554,7 +1553,6 @@ in that region. This is useful e.g. for L-mode modelling.
 .. code-block:: python
 
   'transport': {
-      'model_name': 'combined',
       'transport_models': [
           # Base model: QLKNN applied everywhere (default ADD)
           {

@@ -67,13 +67,12 @@ CONFIG = {
         'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
     'transport': {
-        'model_name': 'combined',
-        'transport_models': [
-            {
+        'core_transport_models': {
+            'qlknn': {
                 'model_name': 'qlknn',
                 'rho_min': 0.3,
             },
-            {
+            'inner_patch': {
                 'model_name': 'constant',
                 'chi_i': 2.0,
                 'chi_e': 2.0,
@@ -81,7 +80,7 @@ CONFIG = {
                 'V_e': 0.0,
                 'rho_max': 0.3,
             },
-        ],
+        },
         'smoothing_zones': [
             {
                 'rho_min': 0.3,

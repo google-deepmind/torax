@@ -16,7 +16,7 @@
 
 import copy
 import dataclasses
-from typing import Annotated, Any, Literal, Sequence
+from typing import Annotated, Any, Literal, Mapping, Sequence
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
@@ -33,7 +33,6 @@ from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import qualikiz_based_transport_model
-from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import runtime_params
 from torax._src.transport_model import tglfnn_ukaea_transport_model
 from torax._src.transport_model.tglf import tglf_transport_model
@@ -460,7 +459,6 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
   """Model for the Combined transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'combined'.
     chi_min: Lower bound on heat conductivity.
     chi_max: Upper bound on heat conductivity (can be helpful for stability).
     D_e_min: minimum electron density diffusivity.
@@ -469,10 +467,11 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
     V_e_max: maximum electron density convection.
     smoothing_width: Width of HWHM Gaussian smoothing kernel operating on
       transport model outputs.
-    transport_models: A sequence of transport models, whose outputs will be
-      summed to give the combined core transport coefficients.
-    pedestal_transport_models: A sequence of models that will be combined for
-      pedestal transport coefficients.
+    core_transport_models: A dict mapping user-given names to transport models,
+      whose outputs will be summed to give the combined core transport
+      coefficients.
+    pedestal_transport_models: A dict mapping user-given names to models that
+      will be combined for pedestal transport coefficients.
     smoothing_zones: A sequence of radial zones with specific smoothing widths.
       If empty, falls back to the legacy smoothing_width. Setting a value of 0.0
       means that both no smoothing will be applied in that zone but also means
@@ -486,46 +485,46 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
   V_e_min: torax_pydantic.MeterPerSecond = -50.0
   V_e_max: torax_pydantic.MeterPerSecond = 50.0
   smoothing_width: pydantic.NonNegativeFloat = 0.0
-  # TODO(b/434175938) V2: rename `transport_models` to `core_transport_models`
-  transport_models: Sequence[CombinedCompatibleTransportModel] = pydantic.Field(
-      default_factory=list
-  )  # pytype: disable=invalid-annotation
-  pedestal_transport_models: Sequence[
-      CombinedCompatibleTransportModel
+  core_transport_models: dict[
+      str, CombinedCompatibleTransportModel
   ] = pydantic.Field(
-      default_factory=list
-  )  # pytype: disable=invalid-annotation
+      default_factory=dict
+  )  # pyrefly: ignore[invalid-annotation]
+  pedestal_transport_models: dict[
+      str, CombinedCompatibleTransportModel
+  ] = pydantic.Field(
+      default_factory=dict
+  )  # pyrefly: ignore[invalid-annotation]
   smoothing_zones: Sequence[SmoothingZone] = pydantic.Field(
       default_factory=list
   )
-  model_name: Annotated[Literal['combined'], torax_pydantic.JAX_STATIC] = (
-      'combined'
-  )
 
   def build_transport_model(self) -> combined.CombinedTransportModel:
-    transport_models = tuple(
-        model.build_transport_model() for model in self.transport_models
-    )
-    pedestal_transport_models = tuple(
-        model.build_transport_model()
-        for model in self.pedestal_transport_models
-    )
+    core_transport_models = {
+        name: model.build_transport_model()
+        for name, model in self.core_transport_models.items()
+    }
+    pedestal_transport_models = {
+        name: model.build_transport_model()
+        for name, model in self.pedestal_transport_models.items()
+    }
 
     return combined.CombinedTransportModel(
-        transport_models=transport_models,
+        core_transport_models=core_transport_models,
         pedestal_transport_models=pedestal_transport_models,
     )
 
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.CombinedRuntimeParams:
-    core_transport_model_params = tuple(
-        model.build_runtime_params(t) for model in self.transport_models
-    )
-    pedestal_transport_model_params = tuple(
-        model.build_runtime_params(t)
-        for model in self.pedestal_transport_models
-    )
+    core_transport_model_params = {
+        name: model.build_runtime_params(t)
+        for name, model in self.core_transport_models.items()
+    }
+    pedestal_transport_model_params = {
+        name: model.build_runtime_params(t)
+        for name, model in self.pedestal_transport_models.items()
+    }
 
     smoothing_zones = []
     for zone in self.smoothing_zones:
@@ -574,22 +573,9 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
       raise ValueError('D_e_min must be less than D_e_max.')
     if not self.V_e_min < self.V_e_max:
       raise ValueError('V_e_min must be less than V_e_max.')
-    if self.smoothing_width == 0.0:
-      has_quasilinear = any(
-          isinstance(m, quasilinear_transport_model.QuasilinearTransportModel)
-          for m in list(self.transport_models) + list(
-              self.pedestal_transport_models
-          )
-      )
-      if has_quasilinear:
-        logging.warning(
-            'A quasilinear transport model is configured in being used with '
-            'a smoothing_width=0. Stiff QLKNN transport coefficients '
-            'without spatial smoothing may degrade solver convergence.'
-        )
     if any([
         np.any(model.rho_min.value != 0.0) or np.any(model.rho_max.value != 1.0)
-        for model in self.pedestal_transport_models
+        for model in self.pedestal_transport_models.values()
     ]):
       raise ValueError(
           'rho_min and rho_max not supported for pedestal_transport_models, as '
@@ -600,7 +586,7 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='after')
   def _check_unique_overwrites_core(self) -> typing_extensions.Self:
-    _validate_unique_overwrites(self.transport_models, 'core')
+    _validate_unique_overwrites(self.core_transport_models, 'core')
     return self
 
   @pydantic.model_validator(mode='after')
@@ -610,17 +596,18 @@ class CombinedTransportModel(torax_pydantic.BaseModelFrozen):
 
 
 def _validate_unique_overwrites(
-    models: Sequence[CombinedCompatibleTransportModel], domain: str
-) -> None:  # pytype: disable=invalid-annotation
+    models: Mapping[str, pydantic_model_base.TransportBase], domain: str
+) -> None:
   """Validates that models overwriting the same channel do not overlap."""
 
-  for i, model1 in enumerate(models):
+  model_items = list(models.items())
+  for i, (name1, model1) in enumerate(model_items):
     # Only check models that overwrite
     if model1.merge_mode != enums.MergeMode.OVERWRITE:
       continue
 
     # Avoid self-comparison and duplicated checks
-    for model2 in models[i + 1 :]:
+    for name2, model2 in model_items[i + 1 :]:
       # Only check models that overwrite
       if model2.merge_mode != enums.MergeMode.OVERWRITE:
         continue
@@ -632,17 +619,19 @@ def _validate_unique_overwrites(
 
       # Check for spatial overlap
       if _ranges_overlap(model1, model2):
+        m1_name = getattr(model1, 'model_name', type(model1).__name__)
+        m2_name = getattr(model2, 'model_name', type(model2).__name__)
         raise ValueError(
             f'Multiple {domain} transport models are configured to'
             f' OVERWRITE the same channels {overlapping_channels} in'
             f' overlapping radial zones: '
-            f"'{model1.model_name}' and '{model2.model_name}'"
+            f"'{name1}' ({m1_name}) and '{name2}' ({m2_name})"
         )
 
 
 def _get_overlapping_channels(
-    model1: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
-    model2: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
+    model1: pydantic_model_base.TransportBase,
+    model2: pydantic_model_base.TransportBase,
 ) -> list[str]:
   """Returns list of channels enabled in both models."""
   channels = []
@@ -665,15 +654,15 @@ def _is_enabled(
 
 
 def _get_range_bounds(
-    model: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
+    model: pydantic_model_base.TransportBase,
 ) -> tuple[float, float]:
   """Returns global min/max for a model's active range."""
   return np.min(model.rho_min.value), np.max(model.rho_max.value)
 
 
 def _ranges_overlap(
-    model1: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
-    model2: CombinedCompatibleTransportModel,  # pytype: disable=invalid-annotation
+    model1: pydantic_model_base.TransportBase,
+    model2: pydantic_model_base.TransportBase,
 ) -> bool:
   """Checks if global extents of two models overlap."""
   r1_min, r1_max = _get_range_bounds(model1)

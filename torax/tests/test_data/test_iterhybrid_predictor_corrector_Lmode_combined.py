@@ -25,9 +25,8 @@ CONFIG = copy.deepcopy(iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['pedestal'] = {}
 CONFIG['transport'] = {
-    'model_name': 'combined',
-    'transport_models': [
-        {
+    'core_transport_models': {
+        'qlknn': {
             'model_name': 'qlknn',
             'rho_max': 1.0,
             'DV_effective': True,
@@ -38,7 +37,7 @@ CONFIG['transport'] = {
             'An_min': 0.05,
             'ITG_flux_ratio_correction': 1.0,
         },
-        {
+        'edge_patch': {
             'model_name': 'constant',
             'rho_min': 0.9,
             'merge_mode': 'overwrite',
@@ -49,7 +48,7 @@ CONFIG['transport'] = {
             'disable_chi_i': True,
             'disable_chi_e': True,
         },
-    ],
+    },
 }
 CONFIG['sources']['gas_puff']['S_total'] = 3.0e22
 CONFIG['sources']['gas_puff']['puff_decay_length'] = 0.1

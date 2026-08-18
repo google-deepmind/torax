@@ -41,8 +41,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
     """Tests that the model can be called and executes real TGLF calculations."""
     config = default_configs.get_default_config_dict()
     config["transport"] = {
-        "model_name": "combined",
-        "transport_models": [{"model_name": "tglf"}],
+        "core_transport_models": {"tglf": {"model_name": "tglf"}},
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
@@ -82,14 +81,13 @@ class TGLFTransportModelTest(parameterized.TestCase):
     """Tests that deprecated config params raise warnings and the execution still runs."""
     config = default_configs.get_default_config_dict()
     config["transport"] = {
-        "model_name": "combined",
-        "transport_models": [{
+        "core_transport_models": {"tglf": {
             "model_name": "tglf",
             "tglf_exec_path": "/deprecated/path",
             "output_directory": "/deprecated/dir",
             "verbose": True,
             "sat_rule": 0,  # legacy config param format
-        }],
+        }},
     }
     with self.assertLogs(level="WARNING") as log_watcher:
       torax_config = model_config.ToraxConfig.from_dict(config)

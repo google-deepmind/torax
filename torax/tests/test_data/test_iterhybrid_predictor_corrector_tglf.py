@@ -23,9 +23,8 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['transport'] = {
-    'model_name': 'combined',
-    'transport_models': [
-        {
+    'core_transport_models': {
+        'tglf': {
             'model_name': 'tglf',
             # TGLF params
             'tglf_exec_path': '~/gacode/tglf/bin/tglf',
@@ -34,7 +33,7 @@ CONFIG['transport'] = {
             'rho_max': 0.95,
         },
         # set inner core transport coefficients (ad-hoc MHD/EM transport)
-        {
+        'inner_patch': {
             'model_name': 'constant',
             'chi_i': 1.0,
             'chi_e': 1.0,
@@ -43,7 +42,7 @@ CONFIG['transport'] = {
             'rho_max': 0.15,
         },
         # set outer core transport coefficients (L-mode near edge region)
-        {
+        'outer_patch': {
             'model_name': 'constant',
             'chi_i': 2.0,
             'chi_e': 2.0,
@@ -52,7 +51,7 @@ CONFIG['transport'] = {
             'rho_min': 0.95,
             'rho_max': 1.0,
         },
-    ],
+    },
     # allowed chi and diffusivity bounds
     'chi_min': 0.05,
     'chi_max': 100,

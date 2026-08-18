@@ -45,12 +45,13 @@ CONFIG = {
     },
     'pedestal': {'model_name': 'set_T_ped_n_ped', 'set_pedestal': True},
     'transport': {
-        'model_name': 'combined',
-        'transport_models': [{
-            'model_name': 'constant',
-            'D_e': 0.5,
-            'V_e': -0.2,
-        }],
+        'core_transport_models': {
+            'constant': {
+                'model_name': 'constant',
+                'D_e': 0.5,
+                'V_e': -0.2,
+            },
+        },
     },
     'solver': {
         'solver_type': 'linear',

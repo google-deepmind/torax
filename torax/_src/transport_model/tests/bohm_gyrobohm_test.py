@@ -29,20 +29,21 @@ class BohmGyroBohmTest(absltest.TestCase):
   def _build_model_and_params(self, **bgb_params):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'combined',
         # Set min clipping to 0.0 to avoid values being clipped and hiding
         # results.
         'chi_min': 0.0,
         'chi_max': 1e9,
         'D_e_min': 0.0,
         'V_e_min': 0.0,
-        'transport_models': [{
-            'model_name': 'bohm-gyrobohm',
-            'D_face_c1': 0.1,
-            'D_face_c2': 0.2,
-            'V_face_coeff': 0.3,
-            **bgb_params,
-        }],
+        'core_transport_models': {
+            'bohm_gyrobohm': {
+                'model_name': 'bohm-gyrobohm',
+                'D_face_c1': 0.1,
+                'D_face_c2': 0.2,
+                'V_face_coeff': 0.3,
+                **bgb_params,
+            },
+        },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()

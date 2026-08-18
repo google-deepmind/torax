@@ -43,10 +43,11 @@ CONFIG = {
         'set_pedestal': True,
     },
     'transport': {
-        'model_name': 'combined',
-        'transport_models': [{
-            'model_name': 'qlknn',
-        }],
+        'core_transport_models': {
+            'qlknn': {
+                'model_name': 'qlknn',
+            },
+        },
         'smoothing_width': 0.1,
     },
     'solver': {

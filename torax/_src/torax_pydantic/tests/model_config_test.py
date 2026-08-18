@@ -83,9 +83,8 @@ class ConfigTest(parameterized.TestCase):
           else "no_pedestal",
       )
     with self.subTest("transport_model_set"):
-      self.assertEqual(
-          config_pydantic.transport.model_name,
-          "combined",
+      self.assertNotEmpty(
+          config_pydantic.transport.core_transport_models,
       )
     # The full model should always be serializable.
     config_json = config_pydantic.model_dump_json()
@@ -215,11 +214,12 @@ class ConfigTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
 
     if transport_model == "combined":
-      config_dict["transport"] = {"model_name": "combined"}
+      config_dict["transport"] = {}
     else:
       config_dict["transport"] = {
-          "model_name": "combined",
-          "transport_models": [{"model_name": transport_model}],
+          "core_transport_models": {
+              transport_model: {"model_name": transport_model}
+          },
       }
     config_dict["solver"] = {
         "solver_type": solver_type,

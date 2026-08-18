@@ -18,7 +18,7 @@ A class for combining transport models.
 """
 
 import dataclasses
-from typing import Callable, Sequence
+from typing import Callable, Mapping
 import jax
 import jax.numpy as jnp
 from torax._src import constants
@@ -38,10 +38,10 @@ MIN_SMOOTHING_WIDTH = 1e-5
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class CombinedTransportModel(static_dataclass.StaticDataclass):
-  """Combines coefficients from a tuple of transport models."""
+  """Combines coefficients from a dict of named transport models."""
 
-  transport_models: tuple[component.ComponentTransportModel, ...]
-  pedestal_transport_models: tuple[component.ComponentTransportModel, ...]
+  core_transport_models: Mapping[str, component.ComponentTransportModel]
+  pedestal_transport_models: Mapping[str, component.ComponentTransportModel]
 
   def __call__(
       self,
@@ -68,7 +68,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
 
     # Calculate transport coefficients from core models.
     core_coeffs = self._combine(
-        self.transport_models,
+        self.core_transport_models,
         transport_runtime_params.core_transport_model_params,
         runtime_params,
         geo,
@@ -93,20 +93,26 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
         _add_optional, core_coeffs, pedestal_coeffs
     )
 
-    # Min/max clipping and smoothing.
+    # Apply min/max clipping.
     transport_coeffs = self._apply_clipping(
-        transport_runtime_params, transport_coeffs
+        transport_runtime_params,
+        transport_coeffs,
     )
+
+    # Apply smoothing.
     transport_coeffs = self._smooth_coeffs(
-        runtime_params, geo, transport_coeffs, pedestal_model_output
+        runtime_params,
+        geo,
+        transport_coeffs,
+        pedestal_model_output,
     )
 
     return transport_coeffs
 
   def _combine(
       self,
-      models: tuple[component.ComponentTransportModel, ...],
-      params_list: Sequence[transport_runtime_params_lib.RuntimeParams],
+      models: Mapping[str, component.ComponentTransportModel],
+      params_map: Mapping[str, transport_runtime_params_lib.RuntimeParams],
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -121,7 +127,7 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
           jax.Array,
       ],
   ) -> component.TurbulentTransport:
-    """Calculates and combines transport coefficients from a list of models."""
+    """Calculates and combines transport coefficients from a dict of models."""
 
     # Initialize accumulators with zeros. Will be iteratively updated based on
     # model outputs and merge modes.
@@ -141,7 +147,9 @@ class CombinedTransportModel(static_dataclass.StaticDataclass):
         accumulators[sub] = None
 
     # TODO(b/344023668) explore batching or fori_loop for performance.
-    for model, params in zip(models, params_list, strict=True):
+    for name in models:
+      model = models[name]
+      params = params_map[name]
       # 1. Calculate raw coefficients and zero out disabled channels.
       coeffs = model(
           params, runtime_params, geo, core_profiles, pedestal_model_output

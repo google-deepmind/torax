@@ -88,15 +88,16 @@ class TransportMaskingTest(parameterized.TestCase):
     """Tests that disabling a channel zeroes its output in a single model."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'combined',
         # Set the min values to 0.0 to avoid clipping overriding the masking.
         'chi_min': 0.0,
         'D_e_min': 0.0,
-        'transport_models': [{
-            'model_name': 'fixed',
-            'disable_chi_i': True,  # Should be zeroed
-            'disable_D_e': False,  # Should be present
-        }],
+        'core_transport_models': {
+            'fixed': {
+                'model_name': 'fixed',
+                'disable_chi_i': True,  # Should be zeroed
+                'disable_D_e': False,  # Should be present
+            },
+        },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
 
@@ -150,19 +151,18 @@ class TransportMaskingTest(parameterized.TestCase):
     """Tests that masking works correctly in a combined model."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'combined',
-        'transport_models': [
-            {
+        'core_transport_models': {
+            'base': {
                 'model_name': 'fixed',  # Base model
                 'disable_chi_i': False,
                 'disable_D_e': False,
             },
-            {
+            'additive': {
                 'model_name': 'fixed',  # Additive model with selective enable
                 'disable_chi_i': True,  # Should NOT add to chi_i
                 'disable_D_e': False,  # Should add to D_e
             },
-        ],
+        },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
 
@@ -200,8 +200,7 @@ class TransportMaskingTest(parameterized.TestCase):
     single_fixed_config = model_config.ToraxConfig.from_dict({
         **config,
         'transport': {
-            'model_name': 'combined',
-            'transport_models': [{'model_name': 'fixed'}],
+            'core_transport_models': {'fixed': {'model_name': 'fixed'}},
         },
     })
     single_model = single_fixed_config.transport.build_transport_model()
@@ -270,15 +269,16 @@ class TransportMaskingTest(parameterized.TestCase):
     """Tests that sub-channels are masked by domain restriction."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'model_name': 'combined',
         'chi_min': 0.0,
         'D_e_min': 0.0,
         'V_e_min': 0.0,
         'smoothing_width': 0.0,
-        'transport_models': [{
-            'model_name': 'fixed',
-            'rho_max': 0.8,
-        }],
+        'core_transport_models': {
+            'fixed': {
+                'model_name': 'fixed',
+                'rho_max': 0.8,
+            },
+        },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(

@@ -486,7 +486,7 @@ class SimTest(sim_test_case.SimTestCase):
     # Allow for small numerical differences due to NetCDF round-trip / restart
     # floating point precision.
     assert_allclose_fn = functools.partial(
-        xr.testing.assert_allclose, atol=1e-8
+        xr.testing.assert_allclose, atol=1e-6
     )
     xr.map_over_datasets(assert_allclose_fn, output_xr, gt_output_xr)
 

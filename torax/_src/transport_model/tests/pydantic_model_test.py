@@ -268,10 +268,14 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
 
   def test_valid_no_overwrite(self):
     config = transport_pydantic_model.CombinedTransportModel(
-        transport_models=[
-            transport_pydantic_model.ConstantTransportModel(merge_mode='add'),
-            transport_pydantic_model.ConstantTransportModel(merge_mode='add'),
-        ]
+        core_transport_models={
+            'm1': transport_pydantic_model.ConstantTransportModel(
+                merge_mode='add'
+            ),
+            'm2': transport_pydantic_model.ConstantTransportModel(
+                merge_mode='add'
+            ),
+        }
     )
     self.assertIsInstance(
         config, transport_pydantic_model.CombinedTransportModel
@@ -279,12 +283,14 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
 
   def test_valid_single_overwrite(self):
     config = transport_pydantic_model.CombinedTransportModel(
-        transport_models=[
-            transport_pydantic_model.ConstantTransportModel(
+        core_transport_models={
+            'm1': transport_pydantic_model.ConstantTransportModel(
                 merge_mode='overwrite'
             ),
-            transport_pydantic_model.ConstantTransportModel(merge_mode='add'),
-        ]
+            'm2': transport_pydantic_model.ConstantTransportModel(
+                merge_mode='add'
+            ),
+        }
     )
     self.assertIsInstance(
         config, transport_pydantic_model.CombinedTransportModel
@@ -308,7 +314,7 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         disable_V_e=True,
     )
     config = transport_pydantic_model.CombinedTransportModel(
-        transport_models=[m1, m2]
+        core_transport_models={'m1': m1, 'm2': m2}
     )
     self.assertIsInstance(
         config, transport_pydantic_model.CombinedTransportModel
@@ -333,7 +339,9 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r'Multiple core transport models are configured to OVERWRITE the same'
         r" channels \['chi_i'\]",
     ):
-      transport_pydantic_model.CombinedTransportModel(transport_models=[m1, m2])
+      transport_pydantic_model.CombinedTransportModel(
+          core_transport_models={'m1': m1, 'm2': m2}
+      )
 
   def test_invalid_duplicate_overwrite_pedestal(self):
     # Both models overwrite Chi_i in pedestal
@@ -355,7 +363,7 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r" same channels \['chi_i'\]",
     ):
       transport_pydantic_model.CombinedTransportModel(
-          pedestal_transport_models=[m1, m2]
+          pedestal_transport_models={'m1': m1, 'm2': m2}
       )
 
   def test_valid_disjoint_overwrite(self):
@@ -379,7 +387,7 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         rho_max=1.0,
     )
     config = transport_pydantic_model.CombinedTransportModel(
-        transport_models=[m1, m2]
+        core_transport_models={'m1': m1, 'm2': m2}
     )
     self.assertIsInstance(
         config, transport_pydantic_model.CombinedTransportModel
@@ -410,7 +418,9 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r'Multiple core transport models are configured to OVERWRITE the same'
         r" channels \['chi_i'\] in overlapping radial zones",
     ):
-      transport_pydantic_model.CombinedTransportModel(transport_models=[m1, m2])
+      transport_pydantic_model.CombinedTransportModel(
+          core_transport_models={'m1': m1, 'm2': m2}
+      )
 
   def test_invalid_overlapping_overwrite_part_time(self):
     # M1 and M2 overwrite Chi_i in overlapping domains
@@ -437,7 +447,9 @@ class CombinedTransportModelValidationTest(parameterized.TestCase):
         r'Multiple core transport models are configured to OVERWRITE the same'
         r" channels \['chi_e'\] in overlapping radial zones",
     ):
-      transport_pydantic_model.CombinedTransportModel(transport_models=[m1, m2])
+      transport_pydantic_model.CombinedTransportModel(
+          core_transport_models={'m1': m1, 'm2': m2}
+      )
 
 
 if __name__ == '__main__':

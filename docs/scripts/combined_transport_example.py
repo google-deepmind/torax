@@ -45,25 +45,24 @@ def main(argv: Sequence[str]) -> None:
       'sources': {},
       'solver': {},
       'transport': {
-          'model_name': 'combined',
-          'transport_models': [
-              {
+          'core_transport_models': {
+              'inner': {
                   'model_name': 'constant',
                   'chi_i': 1.0,
                   'rho_max': 0.3,
               },
-              {
+              'outer': {
                   'model_name': 'constant',
                   'chi_i': 2.0,
                   'rho_min': 0.2,
               },
-          ],
-          'pedestal_transport_models': [
-              {
+          },
+          'pedestal_transport_models': {
+              'constant': {
                   'model_name': 'constant',
                   'chi_i': 0.5,
               },
-          ],
+          },
       },
   }
   torax_config = model_config.ToraxConfig.from_dict(config)

@@ -134,9 +134,8 @@ CONFIG = {
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },
     'transport': {
-        'model_name': 'combined',
-        'transport_models': [
-            {
+        'core_transport_models': {
+            'qlknn': {
                 'model_name': 'qlknn',
                 # qlknn params.
                 'DV_effective': True,
@@ -155,7 +154,7 @@ CONFIG = {
                 'rho_max': 0.95,
             },
             # Inner patch
-            {
+            'inner_patch': {
                 'model_name': 'constant',
                 'chi_i': 1.0,
                 'chi_e': 1.0,
@@ -164,7 +163,7 @@ CONFIG = {
                 'rho_max': 0.15,
             },
             # Outer patch
-            {
+            'outer_patch': {
                 'model_name': 'constant',
                 'chi_i': 2.0,
                 'chi_e': 2.0,
@@ -173,7 +172,7 @@ CONFIG = {
                 'rho_min': 0.95,
                 'rho_max': 1.0,
             },
-        ],
+        },
         # allowed chi and diffusivity bounds
         'chi_min': 0.05,  # minimum chi
         'chi_max': 100,  # maximum chi (can be helpful for stability)

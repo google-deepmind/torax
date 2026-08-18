@@ -134,9 +134,8 @@ CONFIG = {
         'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },
     'transport': {
-        'model_name': 'combined',
-        'transport_models': [
-            {
+        'core_transport_models': {
+            'inner_patch': {
                 'model_name': 'constant',
                 'rho_max': 0.2,
                 'chi_i': 1.0,
@@ -144,7 +143,7 @@ CONFIG = {
                 'D_e': 0.25,
                 'V_e': 0.0,
             },
-            {
+            'qlknn': {
                 'model_name': 'qlknn',
                 'rho_min': 0.2,
                 'rho_max': 0.9,
@@ -156,7 +155,7 @@ CONFIG = {
                 'An_min': 0.05,
                 'ITG_flux_ratio_correction': 1,
             },
-            {
+            'outer_patch': {
                 'model_name': 'constant',
                 'rho_min': 0.9,
                 'chi_i': 2.0,
@@ -164,7 +163,7 @@ CONFIG = {
                 'D_e': 0.1,
                 'V_e': 0.0,
             },
-        ],
+        },
         'chi_min': 0.05,
         'chi_max': 100,
         'D_e_min': 0.05,
