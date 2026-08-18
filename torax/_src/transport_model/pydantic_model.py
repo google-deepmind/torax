@@ -25,7 +25,6 @@ import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
-from torax._src.transport_model import combined
 from torax._src.transport_model import constant
 from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import enums
@@ -35,6 +34,7 @@ from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params
 from torax._src.transport_model import tglfnn_ukaea_transport_model
+from torax._src.transport_model import transport_model
 from torax._src.transport_model.tglf import tglf_transport_model
 import typing_extensions
 
@@ -499,7 +499,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
       default_factory=list
   )
 
-  def build_transport_model(self) -> combined.TransportModel:
+  def build_transport_model(self) -> transport_model.TransportModel:
     core_transport_models = {
         name: model.build_transport_model()
         for name, model in self.core_transport_models.items()
@@ -509,7 +509,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
         for name, model in self.pedestal_transport_models.items()
     }
 
-    return combined.TransportModel(
+    return transport_model.TransportModel(
         core_transport_models=core_transport_models,
         pedestal_transport_models=pedestal_transport_models,
     )
@@ -557,11 +557,13 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
       raise ValueError(
           'Smoothing width must be positive in all smoothing zones.'
       )
-    if any(0.0 < w < combined.MIN_SMOOTHING_WIDTH for w in smoothing_widths):
+    if any(
+        0.0 < w < transport_model.MIN_SMOOTHING_WIDTH for w in smoothing_widths
+    ):
       logging.warning(
           'Smoothing width < %f will be treated as 0.0. Please consider'
           ' setting to 0.0 or increasing to a larger value.',
-          combined.MIN_SMOOTHING_WIDTH,
+          transport_model.MIN_SMOOTHING_WIDTH,
       )
     return self
 

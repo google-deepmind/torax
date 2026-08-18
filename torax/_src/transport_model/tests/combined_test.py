@@ -23,10 +23,10 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import combined
 from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_model
 
 
 # pylint: disable=invalid-name
@@ -157,7 +157,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
-    matrix = combined._build_smoothing_matrix(
+    matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
         geo,
@@ -181,7 +181,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
-    matrix = combined._build_smoothing_matrix(
+    matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
         geo,
@@ -210,7 +210,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.91,
     )
-    matrix = combined._build_smoothing_matrix(
+    matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
         geo,
@@ -249,7 +249,7 @@ class CombinedTransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.8,
     )
-    matrix = combined._build_smoothing_matrix(
+    matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
         geo,
@@ -558,7 +558,7 @@ class CombinedTransportModelTest(absltest.TestCase):
     mock_model.return_value = mock_coeffs
 
     # Manually instantiate TransportModel with our mock
-    combined_model = combined.TransportModel(
+    combined_model = transport_model.TransportModel(
         core_transport_models={'mock': mock_model},
         pedestal_transport_models={},
     )
