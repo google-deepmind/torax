@@ -22,7 +22,7 @@
 """
 
 import dataclasses
-from typing import Any, Callable, Mapping, Sequence, TypeAlias
+from typing import Any, Callable, Mapping, Sequence
 
 import chex
 import equinox as eqx
@@ -54,12 +54,12 @@ import typing_extensions
 # pylint: disable=invalid-name
 
 
-ReplaceablePytreeNodes: TypeAlias = (
+type ReplaceablePytreeNodes = (
     interpolated_param_1d.TimeVaryingScalar
     | interpolated_param_2d.TimeVaryingArray
     | chex.Numeric
 )
-ValidUpdates: TypeAlias = (
+type ValidUpdates = (
     interpolated_param_1d.TimeVaryingScalarUpdate
     | interpolated_param_2d.TimeVaryingArrayUpdate
     | chex.Numeric

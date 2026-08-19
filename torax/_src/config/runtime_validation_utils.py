@@ -16,7 +16,7 @@
 
 from collections.abc import Mapping
 import logging
-from typing import Annotated, Any, Final, TypeAlias
+from typing import Annotated, Any, Final
 
 import numpy as np
 import pydantic
@@ -35,7 +35,7 @@ def time_varying_array_defined_at_1(
   return time_varying_array
 
 
-TimeVaryingArrayDefinedAtRightBoundaryAndBounded: TypeAlias = Annotated[
+type TimeVaryingArrayDefinedAtRightBoundaryAndBounded = Annotated[
     torax_pydantic.TimeVaryingArray,
     torax_pydantic.array_bounds_validator(ge=1.0),
     pydantic.AfterValidator(time_varying_array_defined_at_1),
@@ -82,7 +82,7 @@ def _ion_mixture_after_validator(
   return value
 
 
-IonMapping: TypeAlias = Annotated[
+type IonMapping = Annotated[
     Mapping[str, torax_pydantic.TimeVaryingScalar],
     pydantic.BeforeValidator(_ion_mixture_before_validator),
     pydantic.AfterValidator(_ion_mixture_after_validator),

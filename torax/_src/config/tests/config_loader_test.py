@@ -28,7 +28,7 @@ class ConfigLoaderTest(parameterized.TestCase):
   def test_example_config_paths(self):
     self.assertLen(
         config_loader.example_config_paths(),
-        len(typing.get_args(config_loader.ExampleConfig)),
+        len(typing.get_args(config_loader.ExampleConfig.__value__)),
     )
 
   @parameterized.product(

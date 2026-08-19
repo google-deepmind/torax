@@ -14,22 +14,22 @@
 
 """Pydantic custom types."""
 
-from typing import Annotated, TypeAlias
+from typing import Annotated
 
 import numpy as np
 import pydantic
 
-DataTypes: TypeAlias = float | int | bool
-DtypeName: TypeAlias = str
+type DataTypes = float | int | bool
+type DtypeName = str
 
-NestedList: TypeAlias = (
+type NestedList = (
     DataTypes
     | list[DataTypes]
     | list[list[DataTypes]]
     | list[list[list[DataTypes]]]
 )
 
-NumpySerialized: TypeAlias = tuple[DtypeName, NestedList]
+type NumpySerialized = tuple[DtypeName, NestedList]
 
 
 def _numpy_array_before_validator(

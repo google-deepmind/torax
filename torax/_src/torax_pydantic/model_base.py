@@ -17,7 +17,7 @@
 from collections.abc import Set
 import functools
 import inspect
-from typing import Any, Final, Mapping, Sequence, TypeAlias
+from typing import Any, Final, Mapping, Sequence
 
 import jax
 import pydantic
@@ -27,8 +27,8 @@ from typing_extensions import Self
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
 JAX_STATIC: Final[str] = '_pydantic_jax_static_field'
 
-StaticKwargs: TypeAlias = dict[str, Any]
-DynamicArgs: TypeAlias = list[Any]
+type StaticKwargs = dict[str, Any]
+type DynamicArgs = list[Any]
 
 
 class BaseModelFrozen(pydantic.BaseModel):

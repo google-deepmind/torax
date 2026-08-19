@@ -21,7 +21,6 @@ while loss functions can be minimized using any optimization method.
 """
 
 import functools
-from typing import TypeAlias
 
 import chex
 import jax
@@ -42,7 +41,7 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles
 
-Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
+type Block1DCoeffs = block_1d_coeffs.Block1DCoeffs
 
 
 @jax.jit(

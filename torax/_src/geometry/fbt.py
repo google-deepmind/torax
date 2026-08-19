@@ -18,7 +18,7 @@ import enum
 import logging
 from typing import Annotated
 from typing import Any
-from typing import Literal, TypeAlias
+from typing import Literal
 
 import jax
 import numpy as np
@@ -34,7 +34,7 @@ from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
 # pylint: disable=invalid-name
-LY_OBJECT_TYPE: TypeAlias = (
+type LY_OBJECT_TYPE = (
     str | Mapping[str, torax_pydantic.NumpyArray | float]
 )
 

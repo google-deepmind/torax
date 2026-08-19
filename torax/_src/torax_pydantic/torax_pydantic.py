@@ -15,7 +15,6 @@
 """Pydantic utilities and base classes."""
 
 import functools
-from typing import TypeAlias
 
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
@@ -29,20 +28,20 @@ JAX_STATIC = model_base.JAX_STATIC
 
 # Physical units.
 # keep-sorted start
-CubicMeter: TypeAlias = pydantic.PositiveFloat
-GreenwaldFraction: TypeAlias = pydantic.PositiveFloat
-KiloElectronVolt: TypeAlias = pydantic.PositiveFloat
-Meter: TypeAlias = pydantic.PositiveFloat
-MeterPerSecond: TypeAlias = float
-MeterSquaredPerSecond: TypeAlias = float
-Pascal: TypeAlias = float
-Second: TypeAlias = float
-Tesla: TypeAlias = float
+type CubicMeter = pydantic.PositiveFloat
+type GreenwaldFraction = pydantic.PositiveFloat
+type KiloElectronVolt = pydantic.PositiveFloat
+type Meter = pydantic.PositiveFloat
+type MeterPerSecond = float
+type MeterSquaredPerSecond = float
+type Pascal = float
+type Second = float
+type Tesla = float
 # keep-sorted end
-Density: TypeAlias = CubicMeter | GreenwaldFraction
+type Density = CubicMeter | GreenwaldFraction
 
-UnitInterval: TypeAlias = Annotated[float, pydantic.Field(ge=0.0, le=1.0)]
-OpenUnitInterval: TypeAlias = Annotated[float, pydantic.Field(gt=0.0, lt=1.0)]
+type UnitInterval = Annotated[float, pydantic.Field(ge=0.0, le=1.0)]
+type OpenUnitInterval = Annotated[float, pydantic.Field(gt=0.0, lt=1.0)]
 
 NumpyArray = pydantic_types.NumpyArray
 NumpyArray1D = pydantic_types.NumpyArray1D

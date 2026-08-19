@@ -14,13 +14,12 @@
 """Base class for QLKNN Models."""
 
 import abc
-from typing import TypeAlias
 
 import jax
 from torax._src.transport_model import qualikiz_based_transport_model
 
-ModelOutput: TypeAlias = dict[str, jax.Array]
-InputsAndRanges: TypeAlias = dict[str, dict[str, float]]
+type ModelOutput = dict[str, jax.Array]
+type InputsAndRanges = dict[str, dict[str, float]]
 
 
 class BaseQLKNNModel(abc.ABC):
