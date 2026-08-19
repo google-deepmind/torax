@@ -21,6 +21,7 @@ from typing import Literal
 from fusion_surrogates.tglfnn_ukaea import tglfnn_ukaea_model
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -135,13 +136,15 @@ class TGLFNNukaeaTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
-    del pedestal_model_output  # unused
+    del pedestal_model_output
     tglf_inputs = self._prepare_tglf_inputs(
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
+        two_point_mask=two_point_mask,
     )
     tglfnn_inputs = self._prepare_tglfnn_inputs(tglf_inputs)
     predictions = self.model.predict(tglfnn_inputs)
@@ -156,4 +159,5 @@ class TGLFNNukaeaTransportModel(
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )

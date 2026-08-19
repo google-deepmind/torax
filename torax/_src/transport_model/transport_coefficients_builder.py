@@ -24,6 +24,7 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.transport_model import component
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
@@ -86,6 +87,12 @@ def calculate_all_transport_coeffs(
       core_profiles,
   )
 
+  two_point_mask = component.compute_two_point_face_mask(
+      geo=geo,
+      runtime_params=runtime_params,
+      pedestal_model_output=pedestal_model_output,
+  )
+
   # TODO(b/311653933) this pattern for Pereverzev-Corrigan terms forces us to
   # include value zero convection terms in the discrete system, slowing
   # compilation down by ~10%. See if can improve with a different pattern.
@@ -93,12 +100,13 @@ def calculate_all_transport_coeffs(
   pereverzev_transport_coeffs = jax.lax.cond(
       use_pereverzev,
       pereverzev_lib.calculate_pereverzev_transport,
-      lambda runtime_params, geo, core_profiles: pereverzev_lib.PereverzevTransport.zeros(
+      lambda runtime_params, geo, core_profiles, two_point_mask: pereverzev_lib.PereverzevTransport.zeros(
           geo
       ),
       runtime_params,
       geo,
       core_profiles,
+      two_point_mask,
   )
 
   core_transport = state.CoreTransport(

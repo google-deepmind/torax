@@ -54,11 +54,14 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
 
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     r"""Calculates transport coefficients using the BohmGyroBohm model.
 
@@ -75,14 +78,16 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       coeffs: The transport coefficients
     """
-    del pedestal_model_output
-    # pylint: disable=invalid-name
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
+    del pedestal_model_output
 
     # Bohm term of heat transport
     chi_e_B = (
@@ -94,9 +99,13 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
             * core_profiles.n_e.face_value()
         )
         * (
-            jnp.abs(core_profiles.n_e.face_grad())
+            jnp.abs(
+                core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
+            )
             * core_profiles.T_e.face_value()
-            + jnp.abs(core_profiles.T_e.face_grad())
+            + jnp.abs(
+                core_profiles.T_e.face_grad(two_point_mask=two_point_mask)
+            )
             * core_profiles.n_e.face_value()
         )
         * constants_module.CONSTANTS.keV_to_J
@@ -112,7 +121,9 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
         jnp.sqrt(runtime_params.plasma_composition.main_ion.A_avg / 2)
         * jnp.sqrt(core_profiles.T_e.face_value() * 1e3)
         / geo.B_0**2
-        * jnp.abs(core_profiles.T_e.face_grad() * 1e3)
+        * jnp.abs(
+            core_profiles.T_e.face_grad(two_point_mask=two_point_mask) * 1e3
+        )
         / geo.rho_b
     )
 

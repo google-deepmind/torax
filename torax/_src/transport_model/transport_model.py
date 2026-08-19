@@ -22,6 +22,7 @@ import dataclasses
 from typing import Callable, Mapping
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
@@ -65,6 +66,12 @@ class TransportModel(static_dataclass.StaticDataclass):
     Returns:
       coeffs: The transport coefficients
     """
+    two_point_mask = component.compute_two_point_face_mask(
+        geo=geo,
+        runtime_params=runtime_params,
+        pedestal_model_output=pedestal_model_output,
+    )
+
     transport_runtime_params = runtime_params.transport
 
     # Calculate transport coefficients from core models.
@@ -75,6 +82,7 @@ class TransportModel(static_dataclass.StaticDataclass):
         geo,
         core_profiles,
         pedestal_model_output,
+        two_point_mask,
         component.compute_core_domain_mask,
     )
 
@@ -86,6 +94,7 @@ class TransportModel(static_dataclass.StaticDataclass):
         geo,
         core_profiles,
         pedestal_model_output,
+        two_point_mask,
         _pedestal_domain_mask,
     )
 
@@ -120,6 +129,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
       domain_mask_fn: Callable[
           [
               transport_runtime_params_lib.ComponentRuntimeParams,
@@ -155,7 +165,12 @@ class TransportModel(static_dataclass.StaticDataclass):
       params = params_map[name]
       # 1. Calculate raw coefficients and zero out disabled channels.
       coeffs = model(
-          params, runtime_params, geo, core_profiles, pedestal_model_output
+          params,
+          runtime_params,
+          geo,
+          core_profiles,
+          pedestal_model_output,
+          two_point_mask=two_point_mask,
       )
 
       # 2. Calculate active domain mask. Values outside this are set to 0.

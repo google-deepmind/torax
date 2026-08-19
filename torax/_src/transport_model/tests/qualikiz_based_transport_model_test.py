@@ -277,6 +277,7 @@ class FakeQualikizBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     # Assert required for pytype.
     assert isinstance(

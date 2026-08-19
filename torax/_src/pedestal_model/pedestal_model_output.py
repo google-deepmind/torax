@@ -15,6 +15,7 @@
 """Output of the pedestal model."""
 
 import dataclasses
+import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -100,6 +101,16 @@ class PedestalModelOutput:
   transport_multipliers: TransportMultipliers = dataclasses.field(
       default_factory=TransportMultipliers.default
   )
+
+  def get_two_point_face_mask(
+      self,
+      geo: geometry.Geometry,
+      set_pedestal: chex.Numeric = True,
+  ) -> array_typing.BoolVectorFace:
+    """Returns boolean face mask with True at face immediately left of pedestal top."""
+    ped_cell_idx = jnp.argmin(jnp.abs(geo.rho_norm - self.rho_norm_ped_top))
+    mask = jnp.zeros(geo.rho_face_norm.shape, dtype=bool)
+    return mask.at[ped_cell_idx].set(set_pedestal)
 
   def to_internal_boundary_conditions(
       self,

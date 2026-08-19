@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from unittest import mock
-
 from absl.testing import absltest
 import numpy as np
 from torax._src.config import build_runtime_params
@@ -63,10 +61,11 @@ class BohmGyroBohmTest(absltest.TestCase):
         source_models,
         neoclassical_models,
     )
-    pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
+    pedestal_outputs = pedestal_model_output_lib.PedestalModelOutput(
         rho_norm_ped_top=1.0,
+        T_i_ped=0.0,
+        T_e_ped=0.0,
+        n_e_ped=0.0,
     )
     return model, runtime_params, geo, core_profiles, pedestal_outputs
 

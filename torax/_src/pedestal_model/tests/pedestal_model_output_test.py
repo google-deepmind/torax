@@ -307,6 +307,26 @@ class PedestalModelOutputTest(absltest.TestCase):
       np.testing.assert_allclose(ibc_tanh.T_e, expected_T_e, rtol=1e-5)
       np.testing.assert_allclose(ibc_tanh.n_e, expected_n_e, rtol=1e-5)
 
+  def test_get_two_point_face_mask(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    pmo = pedestal_model_output.PedestalModelOutput(
+        rho_norm_ped_top=0.91,
+        T_i_ped=5.0,
+        T_e_ped=5.0,
+        n_e_ped=1.0e20,
+    )
+    # rho_norm_ped_top is on the cell grid; nearest cell is found via argmin.
+    expected_cell_idx = int(jnp.argmin(jnp.abs(geo.rho_norm - 0.91)))
+    mask = pmo.get_two_point_face_mask(geo, set_pedestal=True)
+    expected_mask = np.zeros(len(geo.rho_face_norm), dtype=bool)
+    expected_mask[expected_cell_idx] = True
+    np.testing.assert_array_equal(mask, expected_mask)
+
+    mask_disabled = pmo.get_two_point_face_mask(geo, set_pedestal=False)
+    np.testing.assert_array_equal(
+        mask_disabled, np.zeros(len(geo.rho_face_norm), dtype=bool)
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

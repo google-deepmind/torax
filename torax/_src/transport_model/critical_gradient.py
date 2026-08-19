@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """The CriticalGradientModel class."""
-
 import dataclasses
 
 import jax
@@ -47,11 +46,14 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
 
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     r"""Calculates transport coefficients using the Critical Gradient Model.
 
@@ -69,6 +71,9 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       coeffs: The transport coefficients
@@ -80,6 +85,7 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
 
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
+    del pedestal_model_output
 
     s = core_profiles.s_face
     q = core_profiles.q_face
@@ -94,7 +100,10 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
 
     T_i_face = core_profiles.T_i.face_value()
     T_i_face_grad = core_profiles.T_i.face_grad(
-        x=rmid, x_left=geo.r_mid_face[0], x_right=geo.r_mid_face[-1]
+        x=rmid,
+        x_left=geo.r_mid_face[0],
+        x_right=geo.r_mid_face[-1],
+        two_point_mask=two_point_mask,
     )
     T_e_face = core_profiles.T_e.face_value()
 

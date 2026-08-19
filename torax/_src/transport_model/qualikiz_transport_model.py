@@ -32,6 +32,7 @@ import numpy as np
 import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -90,6 +91,7 @@ class QualikizTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     """Calculates several transport coefficients simultaneously.
 
@@ -101,29 +103,48 @@ class QualikizTransportModel(
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       coeffs: transport coefficients
     """
-    del pedestal_model_output  # Unused.
-
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
+    del pedestal_model_output
 
     qualikiz_inputs = self._prepare_qualikiz_inputs(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
+        two_point_mask=two_point_mask,
     )
 
-    def callback(qualikiz_inputs, transport_runtime_params, geo, core_profiles):
+    def callback(
+        qualikiz_inputs,
+        transport_runtime_params,
+        geo,
+        core_profiles,
+        two_point_mask,
+    ):
       # Qualikiz expects numpy arrays, but the callback passes jax.Array.
-      qualikiz_inputs, transport_runtime_params, geo, core_profiles = (
-          jax.tree.map(
-              np.asarray,
-              (qualikiz_inputs, transport_runtime_params, geo, core_profiles),
-          )
+      (
+          qualikiz_inputs,
+          transport_runtime_params,
+          geo,
+          core_profiles,
+          two_point_mask,
+      ) = jax.tree.map(
+          np.asarray,
+          (
+              qualikiz_inputs,
+              transport_runtime_params,
+              geo,
+              core_profiles,
+              two_point_mask,
+          ),
       )
       # Generate nested ordered dict that will correspond to the input
       # QuaLiKiz json file
@@ -139,6 +160,7 @@ class QualikizTransportModel(
           transport=transport_runtime_params,
           geo=geo,
           core_profiles=core_profiles,
+          two_point_mask=two_point_mask,
       )
       return core_transport
 
@@ -165,6 +187,7 @@ class QualikizTransportModel(
         transport_runtime_params,
         geo,
         core_profiles,
+        two_point_mask,
     )
 
     return core_transport
@@ -229,6 +252,7 @@ class QualikizTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> component.TurbulentTransport:
     """Extracts QuaLiKiz run data from runpath."""
 
@@ -247,6 +271,7 @@ class QualikizTransportModel(
         core_profiles=core_profiles,
         gradient_reference_length=geo.R_major,
         gyrobohm_flux_reference_length=geo.a_minor,
+        two_point_mask=two_point_mask,
     )
 
   def __hash__(self) -> int:

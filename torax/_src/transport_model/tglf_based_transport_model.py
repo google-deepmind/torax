@@ -141,6 +141,7 @@ class TGLFBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       poloidal_velocity_multiplier: array_typing.FloatScalar,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> TGLFInputs:
     """Construct a TGLFInputs object from the TORAX state.
 
@@ -180,6 +181,8 @@ class TGLFBasedTransportModel(
       geo: Geometric parameters of the tokamak.
       core_profiles: Core plasma profiles (e.g., temperatures, densities, q).
       poloidal_velocity_multiplier: Multiplier applied to the poloidal velocity.
+      two_point_mask: Boolean face mask indicating where face gradients are
+        calculated with 2-point central differences instead of 3-point.
 
     Returns:
       A `TGLFInputs` dataclass containing dimensionless inputs required by
@@ -269,6 +272,7 @@ class TGLFBasedTransportModel(
         radial_coordinate=geo.r_mid,  # On the cell grid  # pyrefly: ignore[bad-argument-type]
         radial_face_coordinate=geo.r_mid_face,  # pyrefly: ignore[bad-argument-type]
         reference_length=a,  # pyrefly: ignore[bad-argument-type]
+        two_point_mask=two_point_mask,
     )
 
     # Dimensionless electron-electron collision frequency = nu_ee / (c_s/a)
@@ -334,7 +338,10 @@ class TGLFBasedTransportModel(
     p_prime = math_utils.safe_divide(
         num=1.0e-7
         * core_profiles.pressure_thermal_total.face_grad(
-            x=geo.r_mid, x_left=r[0], x_right=r[-1]
+            x=geo.r_mid,
+            x_left=r[0],
+            x_right=r[-1],
+            two_point_mask=two_point_mask,
         )
         * core_profiles.q_face
         * a**2,
@@ -504,6 +511,7 @@ class TGLFBasedTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> component.TurbulentTransport:
     # Denormalised TGLF output fluxes.
     Q_e = electron_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
@@ -518,8 +526,14 @@ class TGLFBasedTransportModel(
 
     # Convert from power to chi.
     # Note: g1/vpr = ⟨(∇ρₙ)²⟩ ∂V/∂ρₙ, and has units [m].
-    dT_e_drhon = core_profiles.T_e.face_grad() * constants.CONSTANTS.keV_to_J
-    dT_i_drhon = core_profiles.T_i.face_grad() * constants.CONSTANTS.keV_to_J
+    dT_e_drhon = (
+        core_profiles.T_e.face_grad(two_point_mask=two_point_mask)
+        * constants.CONSTANTS.keV_to_J
+    )
+    dT_i_drhon = (
+        core_profiles.T_i.face_grad(two_point_mask=two_point_mask)
+        * constants.CONSTANTS.keV_to_J
+    )
     chi_e = math_utils.safe_divide(
         num=-P_e,
         denom=core_profiles.n_e.face_value()
@@ -541,7 +555,8 @@ class TGLFBasedTransportModel(
     # sets purely convective transport.
     D_eff = math_utils.safe_divide(
         num=-S_e,
-        denom=core_profiles.n_e.face_grad() * geo.g1_over_vpr_face,
+        denom=core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
+        * geo.g1_over_vpr_face,
         eps=1e-7,
     )
     V_eff = math_utils.safe_divide(

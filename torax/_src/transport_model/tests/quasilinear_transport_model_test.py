@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 import pydantic
+from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -529,6 +530,7 @@ class FakeQuasilinearTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
         chiGB=np.array(4.0),
@@ -570,7 +572,7 @@ class QuasilinearTransportConfig(
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> transport_model_runtime_params.ComponentRuntimeParams:
+  ) -> quasilinear_transport_model.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return quasilinear_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,

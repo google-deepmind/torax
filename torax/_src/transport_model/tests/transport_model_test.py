@@ -20,6 +20,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -27,6 +28,7 @@ from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -52,6 +54,7 @@ class FixedTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
@@ -850,12 +853,15 @@ class TransportModelTest(absltest.TestCase):
     mock_model = mock.create_autospec(
         component.ComponentTransportModel, instance=True
     )
+    geo = mock.Mock(spec=geometry.Geometry)
+    geo.rho_face_norm = jnp.linspace(0, 1, 10)
+
     # Return a structure with some None fields
     mock_coeffs = component.TurbulentTransport(
-        chi_face_ion=jnp.array([1.0]),
-        chi_face_el=jnp.array([1.0]),
-        d_face_el=jnp.array([1.0]),
-        v_face_el=jnp.array([1.0]),
+        chi_face_ion=jnp.ones_like(geo.rho_face_norm),
+        chi_face_el=jnp.ones_like(geo.rho_face_norm),
+        d_face_el=jnp.ones_like(geo.rho_face_norm),
+        v_face_el=jnp.ones_like(geo.rho_face_norm),
         # Optional fields as None
         chi_face_el_bohm=None,
         chi_face_el_gyrobohm=None,
@@ -896,16 +902,21 @@ class TransportModelTest(absltest.TestCase):
     combined_params.smoothing_width = 0.0
     combined_params.smoothing_zones = ()
 
-    geo = mock.Mock(spec=geometry.Geometry)
-    geo.rho_face_norm = jnp.linspace(0, 1, 10)
-
     pedestal_output = mock.Mock(
         spec=pedestal_model_output_lib.PedestalModelOutput
     )
     pedestal_output.rho_norm_ped_top = 1.0
+    pedestal_output.get_two_point_face_mask.return_value = jnp.zeros_like(
+        geo.rho_face_norm, dtype=jnp.bool_
+    )
 
     runtime_params = mock.Mock()
     runtime_params.transport = combined_params
+    runtime_params.pedestal.set_pedestal = False
+    runtime_params.pedestal.mode = (
+        pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+    )
+    runtime_params.profile_conditions.internal_boundary_conditions = None
     core_profiles = mock.Mock()
 
     coeffs = combined_model(
