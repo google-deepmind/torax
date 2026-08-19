@@ -1141,6 +1141,15 @@ geometry
     (IDS) or directly the equilibrium IDS on the fly. It handles IDSs in Data
     Dictionary version 4.0.0.
 
+* ``'tokamaker'``
+    Takes flux surface averages computed by
+    `TokaMaker <https://github.com/openfusiontoolkit/OpenFUSIONToolkit>`_.
+    TokaMaker traces flux surfaces on the finite element mesh used for the
+    equilibrium solve, then passes arrays of flux surface averaged quantities
+    to TORAX. TORAX does not depend on TokaMaker (or Open FUSION Toolkit),
+    the geometry information is passed as plain arrays, which can be done
+    without saving and loading files.
+
 Geometry dicts for all geometry types can contain the following additional keys.
 
 ``calcphibdot`` (bool [default = True])
@@ -1184,7 +1193,7 @@ Geometry dicts for all geometry types can contain the following additional keys.
   ``j`` to ``psi`` conversions.
 
 
-Geometry dicts for all non-circular geometry types can contain the following
+Geometry dicts for all geometry types, except ``circular`` and ``tokamaker``, can contain the following
 additional keys.
 
 ``geometry_file`` (str) See below for information on defaults
@@ -1270,6 +1279,48 @@ It is only recommended to change the default values if issues arise.
   Multiplication factor of the boundary poloidal flux, used for the contour
   defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
   divergent integrations in diverted geometries.
+
+Geometry dicts for TokaMaker geometry require the following key.
+
+``fsa_profiles`` (dict[str, np.ndarray | float])
+  Flux surface averaged profiles, as returned by ``TokaMaker_equilibrium.get_fsa()``.
+  Pass the dict straight through:
+
+  .. code-block:: python
+
+    'geometry': {
+        'geometry_type': 'tokamaker',
+        'n_rho': 25,
+        'fsa_profiles': my_equilibrium.get_fsa(npsi=100),
+    }
+
+  A time-dependent geometry is built by giving one equilibrium per time in
+  ``geometry_configs``:
+
+  .. code-block:: python
+
+    'geometry': {
+        'geometry_type': 'tokamaker',
+        'n_rho': 25,
+        'geometry_configs': {
+            t: {'fsa_profiles': eq.get_fsa(npsi=100)} for t, eq in equilibria.items()
+        },
+    }
+
+  The number of flux surfaces and the outermost surface sampled are set by the
+  ``get_fsa()`` call rather than by this config. The outermost sampled surface
+  becomes :math:`\hat{\rho} = 1` in TORAX, so ``get_fsa(psi_pad=0.01)`` plays
+  the same role as ``last_surface_factor = 0.99`` does for EQDSK geometry.
+
+  Note that a flux surface grid uniform in normalized poloidal flux is sparse
+  in :math:`\hat{\rho}` near the axis, since
+  :math:`\hat{\rho} \propto \sqrt{\hat{\psi}}` there. Sampling uniformly in
+  :math:`\sqrt{\hat{\psi}}` gives a well resolved TORAX grid:
+
+  .. code-block:: python
+
+    psi_norm = np.linspace(np.sqrt(1e-4), np.sqrt(0.99), 100) ** 2
+    fsa = my_equilibrium.get_fsa(psi=psi_norm)
 
 Geometry dicts for IMAS geometry require one and only one of the following
 additional keys.
