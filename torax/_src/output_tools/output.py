@@ -776,7 +776,7 @@ class StateHistory:
               and field_name.removesuffix("_face") in geometry_attributes
           )
           or field_name in _EXCLUDED_GEOMETRY_FIELDS
-          or not isinstance(data, array_typing.Array)
+          or not isinstance(data, (jax.Array, np.ndarray))
       ):
         continue
       if f"{field_name}_face" in geometry_attributes:

@@ -16,7 +16,7 @@
 
 from concurrent import futures
 import dataclasses
-from typing import Annotated, Any, Literal, TypeAlias
+from typing import Annotated, Any, Literal
 
 from absl import logging
 import chex
@@ -76,7 +76,7 @@ _OLD_CONFIG_MAPPING = {
     'n_basis_max': 'NBASIS_MAX',
 }
 
-TGLFSettingsValueTypes: TypeAlias = str | float | int | bool | None
+type TGLFSettingsValueTypes = str | float | int | bool | None
 
 
 @jax.tree_util.register_dataclass

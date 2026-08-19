@@ -16,7 +16,7 @@
 
 import abc
 import copy
-from typing import Annotated, Any, Literal, TypeAlias
+from typing import Annotated, Any, Literal
 import chex
 import pydantic
 from torax._src import array_typing
@@ -209,9 +209,9 @@ class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
     )
 
 
-# For new formation and saturation models, add to these TypeAliases via Union.
-FormationConfig: TypeAlias = DelabieScalingFormation | MartinScalingFormation
-SaturationConfig: TypeAlias = ProfileValueSaturation
+# For new formation and saturation models, add to these type aliases via Union.
+type FormationConfig = DelabieScalingFormation | MartinScalingFormation
+type SaturationConfig = ProfileValueSaturation
 
 
 class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):

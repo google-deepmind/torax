@@ -423,7 +423,7 @@ def stack_geometries(geometries: Sequence[GeometryT]) -> GeometryT:
     field_name = field.name
     field_value = getattr(first_geo, field_name)
     # Stack stackable fields. Save first geo's value for non-stackable fields.
-    if isinstance(field_value, (array_typing.Array, array_typing.FloatScalar)):  # pyrefly: ignore[invalid-argument]
+    if isinstance(field_value, (jax.Array, np.ndarray, float)):
       field_values = [getattr(geo, field_name) for geo in geometries]
       stacked_data[field_name] = np.stack(field_values)
     else:

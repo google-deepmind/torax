@@ -134,11 +134,11 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       if field.name in ['roots', 'multiple_roots_found', 'solver_status']:
         continue  # Skip recursive field and internal flags
       value = getattr(roots, field.name)
-      if isinstance(value, array_typing.Array):
+      if isinstance(value, jax.Array):
         fields_to_compress[field.name] = jnp.asarray(value)
       elif isinstance(value, Mapping):
         for k, v in value.items():
-          if isinstance(v, array_typing.Array):
+          if isinstance(v, jax.Array):
             fields_to_compress[f'{field.name}_{k}'] = jnp.asarray(v)
 
     ref_shape = jnp.asarray(roots.T_e_target).shape

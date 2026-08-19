@@ -47,7 +47,7 @@ class EqdskGeometryTest(parameterized.TestCase):
       name = field.name
       val1 = getattr(geo_cocos2, name)
       val2 = getattr(geo_cocos11, name)
-      if isinstance(val1, array_typing.Array):
+      if isinstance(val1, np.ndarray):
         np.testing.assert_allclose(
             val1, val2, err_msg=f'Field "{name}" mismatch.'
         )
@@ -75,7 +75,7 @@ class EqdskGeometryTest(parameterized.TestCase):
       name = field.name
       val1 = getattr(geo_file, name)
       val2 = getattr(geo_obj, name)
-      if isinstance(val1, array_typing.Array):
+      if isinstance(val1, np.ndarray):
         np.testing.assert_allclose(
             val1, val2, err_msg=f'Field "{name}" mismatch.'
         )
@@ -107,7 +107,7 @@ class EqdskGeometryTest(parameterized.TestCase):
       name = field.name
       val1 = getattr(geo_original, name)
       val2 = getattr(geo_restored, name)
-      if isinstance(val1, array_typing.Array):
+      if isinstance(val1, np.ndarray):
         np.testing.assert_allclose(
             val1, val2, err_msg=f'Field "{name}" mismatch (dict).'
         )

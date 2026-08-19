@@ -17,7 +17,7 @@
 from collections.abc import Mapping
 import dataclasses
 import functools
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 
 import chex
 import equinox as eqx
@@ -34,7 +34,7 @@ from torax._src.torax_pydantic import pydantic_types
 import typing_extensions
 import xarray as xr
 
-ValueType: TypeAlias = dict[
+type ValueType = dict[
     float,
     tuple[pydantic_types.NumpyArray1DUnitInterval, pydantic_types.NumpyArray1D],
 ]
@@ -497,7 +497,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     elif isinstance(data, tuple):
       values = []
       for v in data:
-        if isinstance(v, array_typing.Array):
+        if isinstance(v, (jax.Array, np.ndarray)):
           values.append(v)
         elif isinstance(v, list):
           values.append(np.asarray(v))
@@ -755,7 +755,7 @@ def array_bounds_validator(
   )
 
 
-PositiveTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
+type PositiveTimeVaryingArray = typing_extensions.Annotated[
     TimeVaryingArray, array_bounds_validator(gt=0.0)
 ]
 
@@ -905,6 +905,6 @@ def get_face_centers(nx: int, dx: float | None = None) -> np.ndarray:
   return np.linspace(0, nx * dx, nx + 1)
 
 
-NonNegativeTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
+type NonNegativeTimeVaryingArray = typing_extensions.Annotated[
     TimeVaryingArray, array_bounds_validator(ge=0.0)
 ]

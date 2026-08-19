@@ -17,7 +17,7 @@
 import contextlib
 import functools
 import os
-from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
+from typing import Any, Callable, Literal, ParamSpec, TypeVar
 import chex
 import jax
 from jax import numpy as jnp
@@ -27,9 +27,9 @@ import numpy as np
 from packaging import version
 
 T = TypeVar('T')
-BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
+type BooleanNumeric = Any  # A bool, or a Boolean array.
 _State = ParamSpec('_State')
-PyTree: TypeAlias = Any
+type PyTree = Any
 
 _WHILE_LOOP_COUNT_DTYPE = jnp.int32
 

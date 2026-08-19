@@ -14,13 +14,13 @@
 
 """JAX fixed point functions."""
 
-from typing import Any, Callable, TypeAlias
+from typing import Any, Callable
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
 from torax._src.solver import linesearch
 
-PyTree: TypeAlias = Any
+type PyTree = Any
 
 
 def fixed_point(

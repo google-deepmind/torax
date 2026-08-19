@@ -16,7 +16,7 @@
 
 import dataclasses
 import functools
-from typing import Any, TypeAlias
+from typing import Any
 
 import chex
 import equinox as eqx
@@ -280,15 +280,15 @@ def scalar_bounds_validator(
   )
 
 
-PositiveTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
+type PositiveTimeVaryingScalar = typing_extensions.Annotated[
     TimeVaryingScalar, scalar_bounds_validator(gt=0.0)
 ]
-NonNegativeTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
+type NonNegativeTimeVaryingScalar = typing_extensions.Annotated[
     TimeVaryingScalar, scalar_bounds_validator(ge=0.0)
 ]
-NonNegativeTimeVaryingScalarStep: TypeAlias = typing_extensions.Annotated[
+type NonNegativeTimeVaryingScalarStep = typing_extensions.Annotated[
     TimeVaryingScalarStep, scalar_bounds_validator(ge=0.0)
 ]
-UnitIntervalTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
+type UnitIntervalTimeVaryingScalar = typing_extensions.Annotated[
     TimeVaryingScalar, scalar_bounds_validator(ge=0.0, le=1.0)
 ]

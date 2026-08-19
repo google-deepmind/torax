@@ -17,7 +17,7 @@
 import abc
 from collections.abc import Mapping
 import enum
-from typing import Final, Literal, TypeAlias
+from typing import Final, Literal
 import chex
 import jax
 import jax.numpy as jnp
@@ -69,15 +69,15 @@ class InterpolationMode(enum.Enum):
   STEP = 'step'
 
 
-InterpolationModeLiteral: TypeAlias = Literal[
+type InterpolationModeLiteral = Literal[
     'step', 'STEP', 'piecewise_linear', 'PIECEWISE_LINEAR'
 ]
 
 
-_ArrayOrListOfFloats: TypeAlias = array_typing.Array | list[float]
+type _ArrayOrListOfFloats = array_typing.Array | list[float]
 
 # Config input types convertible to InterpolatedParam objects.
-InterpolatedVarSingleAxisInput: TypeAlias = (
+type InterpolatedVarSingleAxisInput = (
     float
     | dict[float, float]
     | bool
@@ -85,7 +85,7 @@ InterpolatedVarSingleAxisInput: TypeAlias = (
     | tuple[_ArrayOrListOfFloats, _ArrayOrListOfFloats]
     | xr.DataArray
 )
-InterpolatedVarTimeRhoInput: TypeAlias = (
+type InterpolatedVarTimeRhoInput = (
     # Mapping from time to rho, value interpolated in rho
     Mapping[float, InterpolatedVarSingleAxisInput]
     | float
@@ -98,12 +98,12 @@ InterpolatedVarTimeRhoInput: TypeAlias = (
 # Type-alias for a variable (in rho_norm) to be interpolated in time.
 # If a string is provided, it is assumed to be an InterpolationMode else, the
 # default piecewise linear interpolation is used.
-TimeInterpolatedInput: TypeAlias = (
+type TimeInterpolatedInput = (
     InterpolatedVarSingleAxisInput
     | tuple[InterpolatedVarSingleAxisInput, InterpolationModeLiteral]
 )
 # Type-alias for a variable to be interpolated in time and rho_norm.
-TimeRhoInterpolatedInput: TypeAlias = (
+type TimeRhoInterpolatedInput = (
     InterpolatedVarTimeRhoInput
     | tuple[
         InterpolatedVarTimeRhoInput,

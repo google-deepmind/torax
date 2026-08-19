@@ -21,7 +21,7 @@ calculations specific to plasma physics to provide these coefficients.
 """
 
 import dataclasses
-from typing import Any, TypeAlias
+from typing import Any
 
 import jax
 
@@ -32,11 +32,11 @@ import jax
 # ((a, b), (c, d)) where a, b, c, d are each jax.Array
 #
 # ((a, None), (None, d)) : represents a diagonal block matrix
-OptionalTupleMatrix: TypeAlias = tuple[tuple[jax.Array | None, ...], ...] | None
+type OptionalTupleMatrix = tuple[tuple[jax.Array | None, ...], ...] | None
 
 
 # Alias for better readability.
-AuxiliaryOutput: TypeAlias = Any
+type AuxiliaryOutput = Any
 
 
 @jax.tree_util.register_dataclass

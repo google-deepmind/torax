@@ -15,7 +15,7 @@
 """Ion mixture model and impurity fractions model for plasma composition."""
 from collections.abc import Mapping
 import dataclasses
-from typing import Annotated, Any, Literal, TypeAlias
+from typing import Annotated, Any, Literal
 
 import chex
 import jax
@@ -103,7 +103,7 @@ def _impurity_after_validator(
   return value
 
 
-ImpurityMapping: TypeAlias = Annotated[
+type ImpurityMapping = Annotated[
     Mapping[str, torax_pydantic.NonNegativeTimeVaryingArray],
     pydantic.BeforeValidator(_impurity_before_validator),
     pydantic.AfterValidator(_impurity_after_validator),

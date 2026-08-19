@@ -14,7 +14,7 @@
 # ============================================================================
 """Common types for using jaxtyping in TORAX."""
 
-from typing import TypeAlias, TypeVar
+from typing import TypeVar
 import jax
 import jaxtyping as jt
 import numpy as np
@@ -23,21 +23,21 @@ import typeguard
 
 T = TypeVar("T")
 
-Array: TypeAlias = jax.Array | np.ndarray
+type Array = jax.Array | np.ndarray
 
-FloatScalar: TypeAlias = jt.Float[Array | float, ""]
-BoolScalar: TypeAlias = jt.Bool[Array | bool, ""]
-IntScalar: TypeAlias = jt.Int[Array | int, ""]
+type FloatScalar = jt.Float[Array.__value__ | float, ""]
+type BoolScalar = jt.Bool[Array.__value__ | bool, ""]
+type IntScalar = jt.Int[Array.__value__ | int, ""]
 
-FloatVector: TypeAlias = jt.Float[Array, "_"]
-BoolVector: TypeAlias = jt.Bool[Array, "_"]
-IntVector: TypeAlias = jt.Int[Array, "_"]
-FloatVectorCell: TypeAlias = jt.Float[Array, "rhon"]
-FloatVectorCellPlusBoundaries: TypeAlias = jt.Float[Array, "rhon+2"]
-FloatMatrixCell: TypeAlias = jt.Float[Array, "rhon rhon"]
-FloatVectorFace: TypeAlias = jt.Float[Array, "rhon+1"]
-BoolVectorCell: TypeAlias = jt.Bool[Array, "rhon"]
-BoolVectorFace: TypeAlias = jt.Bool[Array, "rhon+1"]
+type FloatVector = jt.Float[Array.__value__, "_"]
+type BoolVector = jt.Bool[Array.__value__, "_"]
+type IntVector = jt.Int[Array.__value__, "_"]
+type FloatVectorCell = jt.Float[Array.__value__, "rhon"]
+type FloatVectorCellPlusBoundaries = jt.Float[Array.__value__, "rhon+2"]
+type FloatMatrixCell = jt.Float[Array.__value__, "rhon rhon"]
+type FloatVectorFace = jt.Float[Array.__value__, "rhon+1"]
+type BoolVectorCell = jt.Bool[Array.__value__, "rhon"]
+type BoolVectorFace = jt.Bool[Array.__value__, "rhon+1"]
 
 
 def jaxtyped(fn: T) -> T:

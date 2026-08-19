@@ -14,7 +14,7 @@
 
 """JITted run_loop for iterating over the simulation step function."""
 
-from typing import Any, TypeAlias
+from typing import Any
 import chex
 import jax
 import jax.numpy as jnp
@@ -27,7 +27,7 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 
-PyTree: TypeAlias = Any
+type PyTree = Any
 
 
 @jax.jit(static_argnames='max_steps')

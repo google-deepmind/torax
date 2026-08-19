@@ -16,8 +16,6 @@
 See function docstring for details.
 """
 
-from typing import TypeAlias
-
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
@@ -36,7 +34,7 @@ from torax._src.pedestal_model import pedestal_transition_state as pedestal_tran
 from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
 
-AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
+type AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
 
 
 @jax.jit(

@@ -20,20 +20,20 @@ import pathlib
 import sys
 import types
 import typing
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 
 from torax._src import path_utils
 from torax._src.plotting import plotruns_lib
 from torax._src.torax_pydantic import model_config
 
-ExampleConfig: TypeAlias = Literal[
+type ExampleConfig = Literal[
     'basic_config',
     'iterhybrid_predictor_corrector',
     'iterhybrid_rampup',
     'step_flattop_bgb',
 ]
 
-ExamplePlotConfig: TypeAlias = Literal[
+type ExamplePlotConfig = Literal[
     'default_plot_config',
     'global_params_plot_config',
     'simple_plot_config',
@@ -52,7 +52,7 @@ def example_config_paths() -> dict[ExampleConfig, pathlib.Path]:
     assert path.is_file(), f'Path {path} to the example config does not exist.'
     return path
 
-  return {path: _get_path(path) for path in typing.get_args(ExampleConfig)}
+  return {path: _get_path(path) for path in typing.get_args(ExampleConfig.__value__)}
 
 
 def example_plot_config_paths() -> dict[ExamplePlotConfig, pathlib.Path]:
@@ -66,7 +66,7 @@ def example_plot_config_paths() -> dict[ExamplePlotConfig, pathlib.Path]:
     assert path.is_file(), f'Path {path} to the example config does not exist.'
     return path
 
-  return {path: _get_path(path) for path in typing.get_args(ExamplePlotConfig)}
+  return {path: _get_path(path) for path in typing.get_args(ExamplePlotConfig.__value__)}
 
 
 # Taken from
