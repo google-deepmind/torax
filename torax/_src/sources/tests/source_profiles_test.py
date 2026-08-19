@@ -168,6 +168,23 @@ class SourceProfilesTest(parameterized.TestCase):
     self.assertIn('icrh', merged.fast_ions)
     self.assertEqual(merged.fast_ions['icrh'], (mock_fast_ion,))
 
+  def test_qei_info_zeros_and_p_ei(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    qei_zeros = source_profiles_lib.QeiInfo.zeros(geo)
+    np.testing.assert_allclose(qei_zeros.p_ei, jnp.zeros_like(geo.rho))
+
+    qei = source_profiles_lib.QeiInfo(
+        qei_coef=jnp.ones_like(geo.rho) * 2.0,
+        implicit_ii=jnp.zeros_like(geo.rho),
+        explicit_i=jnp.zeros_like(geo.rho),
+        implicit_ee=jnp.zeros_like(geo.rho),
+        explicit_e=jnp.zeros_like(geo.rho),
+        implicit_ie=jnp.zeros_like(geo.rho),
+        implicit_ei=jnp.zeros_like(geo.rho),
+        p_ei=jnp.ones_like(geo.rho) * 10.0,
+    )
+    np.testing.assert_allclose(qei.p_ei, jnp.ones_like(geo.rho) * 10.0)
+
 
 def _build_source_profiles_with_single_value(
     torax_mesh: torax_pydantic.Grid1D,
@@ -203,6 +220,7 @@ def _build_source_profiles_with_single_value(
           explicit_e=cell_1d_arr,
           implicit_ie=cell_1d_arr,
           implicit_ei=cell_1d_arr,
+          p_ei=cell_1d_arr,
       ),
   )
 
