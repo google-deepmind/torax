@@ -229,6 +229,32 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
+  def _check_pellet_aware_time_step_calculator_compatibility(
+      self,
+  ) -> typing_extensions.Self:
+    """Validates that the pellet_aware calculator has a compatible pellet source."""
+    pellet_aware = (
+        time_step_calculator_pydantic_model.TimeStepCalculatorType.PELLET_AWARE
+    )
+    if self.time_step_calculator.calculator_type != pellet_aware:
+      return self
+    if self.sources.pellet is None:
+      raise ValueError(
+          "time_step_calculator.calculator_type='pellet_aware' requires a"
+          " pellet source to be configured under sources.pellet."
+      )
+    has_trigger_times = hasattr(self.sources.pellet, 'trigger_times')
+    has_frequency = hasattr(self.sources.pellet, 'frequency')
+    has_ablation_time = hasattr(self.sources.pellet, 'ablation_time')
+    if not ((has_trigger_times or has_frequency) and has_ablation_time):
+      raise ValueError(
+          "time_step_calculator.calculator_type='pellet_aware' requires a"
+          " pellet source supporting discrete pellet injection ('trigger_times'"
+          " or 'frequency', and 'ablation_time')' "
+      )
+    return self
+
+  @pydantic.model_validator(mode='after')
   def _validate_extended_lengyel_and_impurity_mode(
       self,
   ) -> typing_extensions.Self:
