@@ -211,6 +211,17 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
     expected_roots = [10.0, 50.0, 100.0]
     np.testing.assert_allclose(root_values[0], expected_roots)
 
+    # Verify standalone edge dataset coordinates contain time but not spatial
+    # radial grids.
+    self.assertIsNotNone(history._stacked_edge_outputs)
+    standalone_edge = history._stacked_edge_outputs.to_xr_datatree(
+        history._output_grid_context
+    )
+    self.assertIn(output_keys.TIME, standalone_edge.dataset.coords)
+    self.assertNotIn(output_keys.RHO_CELL_NORM, standalone_edge.dataset.coords)
+    self.assertNotIn(output_keys.RHO_FACE_NORM, standalone_edge.dataset.coords)
+    self.assertNotIn(output_keys.RHO_NORM, standalone_edge.dataset.coords)
+
 
 if __name__ == '__main__':
   absltest.main()

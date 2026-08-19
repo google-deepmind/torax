@@ -23,8 +23,11 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import torax_pydantic
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -47,6 +50,41 @@ class EdgeModelOutputs:
   T_e_separatrix: jax.Array
   T_e_target: jax.Array
   pressure_neutral_divertor: jax.Array
+
+  def to_output_dict(
+      self, context: output_grid_context.OutputGridContext
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Returns a dictionary of standard edge output variable tuples."""
+    outputs = {
+        output_keys.Q_PARALLEL: context.pack(
+            output_keys.Q_PARALLEL, self.q_parallel
+        ),
+        output_keys.Q_PERPENDICULAR_TARGET: context.pack(
+            output_keys.Q_PERPENDICULAR_TARGET, self.q_perpendicular_target
+        ),
+        output_keys.T_E_SEPARATRIX: context.pack(
+            output_keys.T_E_SEPARATRIX, self.T_e_separatrix
+        ),
+        output_keys.T_E_TARGET: context.pack(
+            output_keys.T_E_TARGET, self.T_e_target
+        ),
+        output_keys.PRESSURE_NEUTRAL_DIVERTOR: context.pack(
+            output_keys.PRESSURE_NEUTRAL_DIVERTOR,
+            self.pressure_neutral_divertor,
+        ),
+    }
+    return {k: v for k, v in outputs.items() if v is not None}
+
+  def to_xr_datatree(
+      self, context: output_grid_context.OutputGridContext
+  ) -> xr.DataTree:
+    """Builds an xr.DataTree of the edge model outputs."""
+    return xr.DataTree(
+        dataset=context.build_dataset(
+            self.to_output_dict(context),
+            coords={output_keys.TIME: context.times},
+        )
+    )
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
