@@ -34,7 +34,7 @@ CONFIG['transport'] = {
         },
         # set inner core transport coefficients (ad-hoc MHD/EM transport)
         'inner_patch': {
-            'model_name': 'constant',
+            'model_name': 'prescribed',
             'chi_i': 1.0,
             'chi_e': 1.0,
             'D_e': 0.25,
@@ -43,7 +43,7 @@ CONFIG['transport'] = {
         },
         # set outer core transport coefficients (L-mode near edge region)
         'outer_patch': {
-            'model_name': 'constant',
+            'model_name': 'prescribed',
             'chi_i': 2.0,
             'chi_e': 2.0,
             'D_e': 0.1,

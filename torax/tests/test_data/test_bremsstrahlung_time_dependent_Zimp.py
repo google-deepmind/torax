@@ -60,8 +60,8 @@ CONFIG = {
     },
     'transport': {
         'core_transport_models': {
-            'constant': {
-                'model_name': 'constant',
+            'prescribed': {
+                'model_name': 'prescribed',
                 'chi_i': 0.5,
                 'chi_e': 0.5,
             },

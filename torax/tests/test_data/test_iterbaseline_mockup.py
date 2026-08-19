@@ -159,7 +159,7 @@ CONFIG = {
             },
             # Inner patch
             'inner_patch': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'chi_i': 0.5,
                 'chi_e': 0.25,
                 'D_e': 0.25,

@@ -194,7 +194,9 @@ class ImpurityFractionsTest(parameterized.TestCase):
         'geometry': {'geometry_type': 'circular'},
         'sources': {},
         'transport': {
-            'core_transport_models': {'constant': {'model_name': 'constant'}},
+            'core_transport_models': {
+                'prescribed': {'model_name': 'prescribed'}
+            },
         },
         'solver': {'solver_type': 'linear'},
         'time_step_calculator': {'calculator_type': 'fixed'},

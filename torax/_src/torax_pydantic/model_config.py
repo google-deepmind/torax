@@ -133,7 +133,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         and 'pedestal_transport_models' not in configurable_data['transport']
     ):
       configurable_data['transport']['core_transport_models'] = {
-          'constant': {'model_name': 'constant'}
+          'prescribed': {'model_name': 'prescribed'}
       }
     if (
         isinstance(configurable_data['solver'], dict)

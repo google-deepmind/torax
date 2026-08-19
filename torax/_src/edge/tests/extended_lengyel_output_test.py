@@ -56,7 +56,9 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
-            'core_transport_models': {'constant': {'model_name': 'constant'}},
+            'core_transport_models': {
+                'prescribed': {'model_name': 'prescribed'}
+            },
         },
         'pedestal': {},
     })
