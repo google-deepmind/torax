@@ -242,9 +242,7 @@ def newton_raphson_solve_block(
       tau_min=tau_min,
       log_iterations=log_iterations,
   )
-  root_finder = jax_utils.xla_metadata_call(
-      jax.jit(root_finder), compilation_unit='newton_raphson_root_finder'
-  )
+  root_finder = jax.jit(root_finder, inline=jax.Inline.XLA_LATE)
 
   x_root, metadata = root_finder(x0=init_x_new_vec)
 
