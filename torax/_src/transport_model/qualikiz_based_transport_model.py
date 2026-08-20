@@ -110,6 +110,7 @@ class QualikizBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       poloidal_velocity_multiplier: array_typing.FloatScalar,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> QualikizInputs:
     """Prepare Qualikiz inputs."""
     constants = constants_module.CONSTANTS
@@ -139,6 +140,7 @@ class QualikizBasedTransportModel(
         radial_coordinate=rmid,  # pyrefly: ignore[bad-argument-type]
         radial_face_coordinate=rmid_face,  # pyrefly: ignore[bad-argument-type]
         reference_length=geo.R_major,  # pyrefly: ignore[bad-argument-type]
+        two_point_mask=two_point_mask,
     )
 
     q = core_profiles.q_face

@@ -25,6 +25,7 @@ import dataclasses
 
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -60,6 +61,7 @@ def calculate_pereverzev_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    two_point_mask: array_typing.BoolVectorFace | None = None,
 ) -> PereverzevTransport:
   """Calculates Pereverzev-Corrigan transport coefficients.
 
@@ -70,6 +72,8 @@ def calculate_pereverzev_transport(
     runtime_params: Runtime configuration parameters.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles.
+    two_point_mask: Boolean face mask indicating where face gradients are
+      calculated with 2-point central differences instead of 3-point.
 
   Returns:
     Pereverzev-Corrigan transport coefficients.
@@ -91,7 +95,7 @@ def calculate_pereverzev_transport(
   # multiply by g0 to get the real convection coefficient. Hence, these are
   # labeled as "full" coefficients.
   full_v_heat_face_per_ion = (
-      core_profiles.T_i.face_grad()
+      core_profiles.T_i.face_grad(two_point_mask=two_point_mask)
       / core_profiles.T_i.face_value()
       * geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
@@ -99,7 +103,7 @@ def calculate_pereverzev_transport(
       * runtime_params.solver.chi_pereverzev
   )
   full_v_heat_face_per_el = (
-      core_profiles.T_e.face_grad()
+      core_profiles.T_e.face_grad(two_point_mask=two_point_mask)
       / core_profiles.T_e.face_value()
       * geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
@@ -120,7 +124,7 @@ def calculate_pereverzev_transport(
   # term
   v_face_per_el = (
       g1_over_vpr_g0
-      * core_profiles.n_e.face_grad()
+      * core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
       / core_profiles.n_e.face_value()
       * runtime_params.solver.D_pereverzev
   )

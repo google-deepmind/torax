@@ -25,9 +25,9 @@ T = TypeVar("T")
 
 Array: TypeAlias = jax.Array | np.ndarray
 
-FloatScalar: TypeAlias = jt.Float[Array | float, ""]
-BoolScalar: TypeAlias = jt.Bool[Array | bool, ""]
-IntScalar: TypeAlias = jt.Int[Array | int, ""]
+FloatScalar: TypeAlias = jt.Float[Array | float | np.floating, ""]
+BoolScalar: TypeAlias = jt.Bool[Array | bool | np.bool_, ""]
+IntScalar: TypeAlias = jt.Int[Array | int | np.integer, ""]
 
 FloatVector: TypeAlias = jt.Float[Array, "_"]
 BoolVector: TypeAlias = jt.Bool[Array, "_"]

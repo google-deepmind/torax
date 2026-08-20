@@ -23,6 +23,7 @@ import chex
 import jax
 import numpy as np
 import pydantic
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -156,6 +157,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     """Calculates several transport coefficients simultaneously.
 
@@ -167,20 +169,23 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       coeffs: transport coefficients
     """
-    del pedestal_model_output  # Unused.
-
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
+    del pedestal_model_output
 
     tglf_inputs = self._prepare_tglf_inputs(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
+        two_point_mask=two_point_mask,
     )
     n_faces = len(geo.rho_face_norm)
     # Discard fields that aren't needed for the TGLF calculation.
@@ -249,6 +254,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
 
     return core_transport

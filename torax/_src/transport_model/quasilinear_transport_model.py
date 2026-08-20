@@ -57,6 +57,7 @@ class NormalizedLogarithmicGradients:
       radial_coordinate: jnp.ndarray,
       radial_face_coordinate: jnp.ndarray,
       reference_length: jnp.ndarray,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> typing_extensions.Self:
     """Calculates the normalized logarithmic gradients."""
     gradients = {}
@@ -72,6 +73,7 @@ class NormalizedLogarithmicGradients:
           radial_coordinate=radial_coordinate,
           radial_face_coordinate=radial_face_coordinate,
           reference_length=reference_length,
+          two_point_mask=two_point_mask,
       )
     fi_grads = {}
     for fi in core_profiles.fast_ions:
@@ -81,12 +83,14 @@ class NormalizedLogarithmicGradients:
           radial_coordinate=radial_coordinate,
           radial_face_coordinate=radial_face_coordinate,
           reference_length=reference_length,
+          two_point_mask=two_point_mask,
       )
       lref_over_lt = calculate_normalized_logarithmic_gradient(
           var=fi.T,
           radial_coordinate=radial_coordinate,
           radial_face_coordinate=radial_face_coordinate,
           reference_length=reference_length,
+          two_point_mask=two_point_mask,
       )
       fi_grads[key] = {
           "lref_over_ln": lref_over_ln,
@@ -207,6 +211,7 @@ def calculate_normalized_logarithmic_gradient(
     radial_coordinate: jax.Array,
     radial_face_coordinate: jax.Array,
     reference_length: jax.Array,
+    two_point_mask: array_typing.BoolVectorFace | None = None,
 ) -> jax.Array:
   """Face-grid normalized logarithmic gradient of a CellVariable."""
 
@@ -220,6 +225,7 @@ def calculate_normalized_logarithmic_gradient(
           x=radial_coordinate,
           x_left=radial_face_coordinate[0],
           x_right=radial_face_coordinate[-1],
+          two_point_mask=two_point_mask,
       )
       / var.face_value(),
   )
@@ -415,6 +421,7 @@ class QuasilinearTransportModel(component.ComponentTransportModel):
       core_profiles: state.CoreProfiles,
       gradient_reference_length: chex.Numeric,
       gyrobohm_flux_reference_length: chex.Numeric,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> component.TurbulentTransport:
     """Converts model output to TurbulentTransport."""
     constants = constants_module.CONSTANTS
@@ -453,7 +460,9 @@ class QuasilinearTransportModel(component.ComponentTransportModel):
     def DV_effective_approach() -> tuple[jax.Array, jax.Array]:
       # The geo.rho_b is to unnormalize the face_grad.
       Deff = -pfe_SI / (
-          core_profiles.n_e.face_grad() * geo.g1_over_vpr2_face * geo.rho_b
+          core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
+          * geo.g1_over_vpr2_face
+          * geo.rho_b
           + constants.eps
       )
       Veff = pfe_SI / (

@@ -34,7 +34,8 @@ class FakeTransportModel(transport.ComponentTransportModel):
       runtime_params: torax.RuntimeParams,
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
-      pedestal_model_outputs: torax.PedestalModelOutput,
+      pedestal_model_output: torax.PedestalModelOutput,
+      two_point_mask: torax.array_typing.BoolVectorFace,
   ) -> transport.TurbulentTransport:
     return transport.TurbulentTransport(
         chi_face_ion=jnp.zeros_like(geo.rho_face_norm),
