@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The ConstantTransportModel class.
+"""The PrescribedTransportModel class.
 
 A simple model assuming prescribed transport.
-
-TODO(b/323504363): For the next major release (v2), the name of this model should be updated
-to PrescribedTransportModel.
 """
 
 import dataclasses
@@ -48,7 +45,7 @@ class RuntimeParams(transport_runtime_params_lib.ComponentRuntimeParams):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class ConstantTransportModel(component.ComponentTransportModel):
+class PrescribedTransportModel(component.ComponentTransportModel):
   """Calculates various coefficients related to particle transport."""
 
   def call_implementation(
@@ -59,7 +56,7 @@ class ConstantTransportModel(component.ComponentTransportModel):
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
   ) -> component.TurbulentTransport:
-    r"""Calculates transport coefficients using the Constant model.
+    r"""Calculates transport coefficients using the Prescribed model.
 
     Args:
       transport_runtime_params: Input runtime parameters for this transport

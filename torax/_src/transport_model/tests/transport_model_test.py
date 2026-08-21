@@ -343,17 +343,25 @@ class TransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'core_transport_models': {
-            'inner': {'model_name': 'constant', 'rho_max': 0.2, 'chi_i': 1.0},
+            'inner': {
+                'model_name': 'prescribed',
+                'rho_max': 0.2,
+                'chi_i': 1.0,
+            },
             'mid': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'rho_min': 0.2,
                 'rho_max': 0.8,
                 'chi_i': 2.0,
             },
-            'outer': {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 3.0},
+            'outer': {
+                'model_name': 'prescribed',
+                'rho_min': 0.5,
+                'chi_i': 3.0,
+            },
         },
         'pedestal_transport_models': {
-            'pedestal_constant': {'model_name': 'constant', 'chi_i': 0.1}
+            'pedestal_prescribed': {'model_name': 'prescribed', 'chi_i': 0.1}
         },
     }
     config['pedestal'] = {'set_pedestal': True}
@@ -403,8 +411,8 @@ class TransportModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'core_transport_models': {
-            'constant': {
-                'model_name': 'constant',
+            'prescribed': {
+                'model_name': 'prescribed',
                 'rho_min': 0.5,
                 'chi_i': 2.0,
             }
@@ -455,7 +463,7 @@ class TransportModelTest(absltest.TestCase):
     config = {
         'smoothing_width': 0.0,
         'core_transport_models': {
-            'constant': {'model_name': 'constant', 'chi_i': 1.0}
+            'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
         },
     }
     _, runtime_params, geo = self._build_model_and_params(config)
@@ -479,7 +487,7 @@ class TransportModelTest(absltest.TestCase):
     config = {
         'smoothing_width': 0.08,
         'core_transport_models': {
-            'constant': {'model_name': 'constant', 'chi_i': 1.0}
+            'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
         },
     }
     _, runtime_params, geo = self._build_model_and_params(config)
@@ -508,7 +516,7 @@ class TransportModelTest(absltest.TestCase):
             {'rho_min': 0.3, 'rho_max': 0.7, 'smoothing_width': 0.05},
         ],
         'core_transport_models': {
-            'constant': {'model_name': 'constant', 'chi_i': 1.0}
+            'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
         },
     }
     _, runtime_params, geo = self._build_model_and_params(config)
@@ -537,7 +545,7 @@ class TransportModelTest(absltest.TestCase):
     config['transport'] = {
         'smoothing_width': 0.08,
         'core_transport_models': {
-            'constant': {'model_name': 'constant', 'chi_i': 1.0}
+            'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
         },
     }
     config['pedestal'] = {
@@ -578,8 +586,16 @@ class TransportModelTest(absltest.TestCase):
             {'rho_min': 0.3, 'rho_max': 0.7, 'smoothing_width': 0.08},
         ],
         'core_transport_models': {
-            'inner': {'model_name': 'constant', 'rho_max': 0.5, 'chi_i': 1.0},
-            'outer': {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 5.0},
+            'inner': {
+                'model_name': 'prescribed',
+                'rho_max': 0.5,
+                'chi_i': 1.0,
+            },
+            'outer': {
+                'model_name': 'prescribed',
+                'rho_min': 0.5,
+                'chi_i': 5.0,
+            },
         },
         'chi_min': 0.0,
     }
@@ -637,16 +653,32 @@ class TransportModelTest(absltest.TestCase):
     config_small = {
         'smoothing_width': 0.02,
         'core_transport_models': {
-            'inner': {'model_name': 'constant', 'rho_max': 0.5, 'chi_i': 1.0},
-            'outer': {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 5.0},
+            'inner': {
+                'model_name': 'prescribed',
+                'rho_max': 0.5,
+                'chi_i': 1.0,
+            },
+            'outer': {
+                'model_name': 'prescribed',
+                'rho_min': 0.5,
+                'chi_i': 5.0,
+            },
         },
         'chi_min': 0.0,
     }
     config_large = {
         'smoothing_width': 0.12,
         'core_transport_models': {
-            'inner': {'model_name': 'constant', 'rho_max': 0.5, 'chi_i': 1.0},
-            'outer': {'model_name': 'constant', 'rho_min': 0.5, 'chi_i': 5.0},
+            'inner': {
+                'model_name': 'prescribed',
+                'rho_max': 0.5,
+                'chi_i': 1.0,
+            },
+            'outer': {
+                'model_name': 'prescribed',
+                'rho_min': 0.5,
+                'chi_i': 5.0,
+            },
         },
         'chi_min': 0.0,
     }
@@ -686,9 +718,12 @@ class TransportModelTest(absltest.TestCase):
   def test_error_if_pedestal_model_defines_rho_min(self):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'core_transport_models': {'constant': {'model_name': 'constant'}},
+        'core_transport_models': {'prescribed': {'model_name': 'prescribed'}},
         'pedestal_transport_models': {
-            'pedestal_constant': {'model_name': 'constant', 'rho_min': 0.1}
+            'pedestal_prescribed': {
+                'model_name': 'prescribed',
+                'rho_min': 0.1,
+            }
         },
     }
     with self.assertRaisesRegex(
@@ -699,9 +734,12 @@ class TransportModelTest(absltest.TestCase):
   def test_error_if_pedestal_model_defines_rho_max(self):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'core_transport_models': {'constant': {'model_name': 'constant'}},
+        'core_transport_models': {'prescribed': {'model_name': 'prescribed'}},
         'pedestal_transport_models': {
-            'pedestal_constant': {'model_name': 'constant', 'rho_max': 0.9}
+            'pedestal_prescribed': {
+                'model_name': 'prescribed',
+                'rho_max': 0.9,
+            }
         },
     }
     with self.assertRaisesRegex(
@@ -730,9 +768,9 @@ class TransportModelTest(absltest.TestCase):
     # Model 2: Value 2.0 in rho > 0.5. MergeMode = OVERWRITE.
     config = {
         'core_transport_models': {
-            'model_1': {'model_name': 'constant', 'chi_i': 1.0},
+            'model_1': {'model_name': 'prescribed', 'chi_i': 1.0},
             'model_2': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'rho_min': 0.5,
                 'chi_i': 2.0,
                 'merge_mode': 'overwrite',
@@ -765,13 +803,13 @@ class TransportModelTest(absltest.TestCase):
     config = {
         'core_transport_models': {
             'model_1': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'rho_min': 0.5,
                 'chi_i': 1.0,
                 'merge_mode': 'overwrite',
             },
             'model_2': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'chi_i': 2.0,
                 'merge_mode': 'add',
             },
@@ -805,12 +843,12 @@ class TransportModelTest(absltest.TestCase):
     config = {
         'core_transport_models': {
             'model_1': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'chi_i': 1.0,
                 'chi_e': 1.0,
             },
             'model_2': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'rho_min': 0.5,
                 'chi_i': 2.0,
                 'chi_e': 2.0,

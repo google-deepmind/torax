@@ -114,11 +114,12 @@ Turbulent transport determines the values of the transport coefficients
 (:math:`\chi_i`, :math:`\chi_e`, :math:`D_e`, :math:`V_e`) in the
 :ref:`equations`, and is a key ingredient in core transport simulations.
 Theory-based turbulent transport models provide the largest source of
-nonlinearity in the PDE system. TORAX currently offers five transport models:
+nonlinearity in the PDE system. TORAX offers several transport models:
 
-  - **Constant:** This simple model sets all transport coefficients to constant,
-    user-configurable values. While not physically realistic, it can be useful
-    for testing purposes.
+  - **Prescribed:** This model allows setting transport coefficients to
+    prescribed values (which can be constant or time/space-varying). While not
+    physically predictive, it is useful for testing, verification, and
+    prescribing fixed edge or core transport.
 
   - **CGM:** The critical gradient model (CGM) is a simple theory-based model,
     capturing the basic feature of tokamak turbulent transport, critical
@@ -291,20 +292,23 @@ nonlinearity in the PDE system. TORAX currently offers five transport models:
          use TORAX as the same framework for both ML-surrogate and high-fidelity
          simulations.
 
-In TORAX, individual transport models (such as QLKNN, Bohm-GyroBohm, Constant,
-and CGM) represent specific physical transport mechanisms and are implemented
-as component models (`TransportModel`). To simulate a full plasma discharge,
+In TORAX, individual transport models (such as QLKNN, Bohm-GyroBohm, Prescribed,
+TGLF, TGLFNN-ukaea, QuaLiKiz, and CGM) represent specific physical transport
+mechanisms and are implemented as component models (``ComponentTransportModel``,
+configured via ``ComponentTransportBase``). To simulate a full plasma discharge,
 TORAX combines one or more core and pedestal component models within a top-level
-`CombinedTransportModel`.
+``TransportModel``.
 
 Numerical conditioning and post-processing of transport coefficients—such as
-minimum/maximum clipping (`chi_min`, `chi_max`, `D_e_min/max`, `V_e_min/max`)
-and spatial Gaussian smoothing (`smoothing_width`, `smoothing_zones`)—are
-configured exclusively on the top-level combined transport model rather than on
-individual leaf models. Furthermore, to prescribe transport coefficients within
-specific radial zones (e.g. inner core or outer edge regions), users can compose
-multiple component models with explicit radial bounds (`rho_min`, `rho_max`) on
-the combined transport model configuration.
+minimum/maximum clipping (``chi_min``, ``chi_max``, ``D_e_min/max``,
+``V_e_min/max``) and spatial Gaussian smoothing (``smoothing_width``,
+``smoothing_zones``)—are configured on the top-level transport model rather than
+on individual component models. Furthermore, to combine transport models or
+prescribe transport coefficients within specific radial zones (e.g. inner core
+or outer edge regions), users can configure dictionaries of named component
+models (``core_transport_models`` and ``pedestal_transport_models``) with
+explicit radial bounds (``rho_min``, ``rho_max``) and merge modes
+(``merge_mode: 'add'`` or ``'overwrite'``).
 
 An edge-transport-barrier, or pedestal, is set up in TORAX through an adaptive
 source term which sets a desired value (pedestal height) of

@@ -55,7 +55,7 @@ CONFIG['sources']['generic_heat']['P_total'] = {
 CONFIG['transport'] = {
     'core_transport_models': {
         'inner_patch': {
-            'model_name': 'constant',
+            'model_name': 'prescribed',
             'rho_max': 0.2,
             'chi_i': 1.0,
             'chi_e': 1.0,
@@ -70,7 +70,7 @@ CONFIG['transport'] = {
         # Before the pedestal forms, we set the transport to a constant value
         # in the edge region for stable L-mode operation.
         'edge_patch': {
-            'model_name': 'constant',
+            'model_name': 'prescribed',
             'rho_min': 0.8,
             'chi_i': 1.0,
             'chi_e': 1.0,
@@ -94,8 +94,8 @@ CONFIG['transport'] = {
         #   [constant, qlknn, constant]
         # - If P_sol > P_LH, transport is
         #   [constant, qlknn, constant*ADAPTIVE_TRANSPORT_multiplier]
-        'constant': {
-            'model_name': 'constant',
+        'prescribed': {
+            'model_name': 'prescribed',
             'chi_i': 1.0,
             'chi_e': 1.0,
             'D_e': 1e-3,
