@@ -1400,38 +1400,41 @@ transport
 ---------
 
 In TORAX, turbulent transport models for the core and pedestal are combined
-under a single required top-level model container: the **combined** transport
-model (``model_name: 'combined'``, which is the default). Note that neoclassical
-transport is configured separately under the ``neoclassical`` section.
+under a single top-level model container: the ``TransportModel`` (configured
+under the ``transport`` key). Note that neoclassical transport is configured
+separately under the ``neoclassical`` section.
 
-The combined model calculates turbulent transport coefficients by
-sequentially applying a list of component models. Each component model is
-active only within its defined radial domain, which can be overlapping or
-non-overlapping. Top-level post-processing (min/max clipping and Gaussian
-smoothing) is performed on the summed coefficients from all component models
-across the core and pedestal. These combined coefficients are then added to the
-neoclassical transport coefficients to form the total transport coefficients
-used in the transport PDEs.
+The transport model calculates turbulent transport coefficients by
+evaluating a dictionary of named component models for the core
+(``core_transport_models``) and pedestal (``pedestal_transport_models``). Each
+component model has a user-chosen name as its key and is active within its
+defined radial domain, which can be overlapping or non-overlapping. Top-level
+post-processing (min/max clipping and Gaussian smoothing) is performed on the
+summed coefficients from all component models across the core and pedestal.
+These combined coefficients are then added to the neoclassical transport
+coefficients to form the total transport coefficients used in the transport
+PDEs.
 
-Top-level Combined Parameters
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Top-level Transport Parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``model_name`` (str [default = 'combined'])
-  Must be set to ``'combined'``.
-
-``transport_models`` (list[dict] [default = []])
-  A list containing config dicts for the component models for turbulent
-  transport in the core. For each component model, ``rho_min`` and ``rho_max``
-  are set to define its active radial domain. If a pedestal is active and
+``core_transport_models`` (dict[str, dict] [default = {}])
+  A dictionary mapping user-given names to config dictionaries for the component
+  models for turbulent transport in the core. Each entry must specify
+  ``'model_name'`` (e.g. ``'prescribed'``, ``'qlknn'``, ``'cgm'``,
+  ``'bohm-gyrobohm'``, ``'tglf'``, ``'tglfnn-ukaea'``, ``'qualikiz'``) along
+  with model-specific parameters. For each component model, ``rho_min`` and
+  ``rho_max`` define its active radial domain. If a pedestal is active and
   configured with an internal boundary condition, the core ``rho_max`` is
-  overridden by max(``rho_max``, ``rho_norm_ped_top``), where
-  ``rho_norm_ped_top`` is set in the ``pedestal`` config.
+  bounded by ``rho_norm_ped_top``, where ``rho_norm_ped_top`` is set in the
+  ``pedestal`` config.
 
-``pedestal_transport_models`` (list[dict] [default = []])
-  A list containing config dicts for the component models for turbulent
-  transport in the pedestal. The pedestal transport model is active only for
-  radii above ``rho_norm_ped_top``. ``rho_min`` and ``rho_max`` are ignored in
-  these models, and an error is raised if they are specified.
+``pedestal_transport_models`` (dict[str, dict] [default = {}])
+  A dictionary mapping user-given names to config dictionaries for the component
+  models for turbulent transport in the pedestal. The pedestal transport models
+  are active only for radii above ``rho_norm_ped_top``. Setting ``rho_min`` or
+  ``rho_max`` is not supported for pedestal transport models, and an error is
+  raised if they deviate from default values (0.0 and 1.0).
 
 ``chi_min`` (float [default = 0.05])
   Lower allowed bound for heat conductivities :math:`\chi` across all models,
@@ -1478,7 +1481,7 @@ Combining Logic and Merge Modes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The combination logic is controlled by the ``merge_mode`` of each component
-model inside ``transport_models`` and ``pedestal_transport_models``:
+model inside ``core_transport_models`` and ``pedestal_transport_models``:
 
 *   **ADD (default)**: The model's coefficients are added to the accumulated
     total in its active region. However, it does not contribute to regions
@@ -1486,7 +1489,7 @@ model inside ``transport_models`` and ``pedestal_transport_models``:
 *   **OVERWRITE**: The model is the sole contributor to the transport
     coefficients in its active region, for enabled transport channels. It
     **locks** this region for the specific transport channels it provides,
-    preventing other models in the list from modifying them.
+    preventing other models from modifying them.
 
 You can selectively enable or disable specific transport channels (e.g.,
 ``chi_i``, ``D_e``) for each model using flags like ``disable_chi_i``.
@@ -1502,39 +1505,39 @@ Examples:
 
   ...
   'transport': {
-      'transport_models': [
-          {
-              'model_name': 'constant',
+      'core_transport_models': {
+          'inner': {
+              'model_name': 'prescribed',
               'chi_i': 1.0,
               'rho_max': 0.3,
           },
-          {
-              'model_name': 'constant',
+          'outer': {
+              'model_name': 'prescribed',
               'chi_i': 2.0,
               'rho_min': 0.2,
           },
-      ],
-      'pedestal_transport_models': [
-          {
-              'model_name': 'constant',
+      },
+      'pedestal_transport_models': {
+          'pedestal': {
+              'model_name': 'prescribed',
               'chi_i': 0.5,
           },
-      ],
-    },
-    'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-        'rho_norm_ped_top': 0.9,
-        'n_e_ped': 0.8,
-        'n_e_ped_is_fGW': True,
-    },
-    ...
+      },
+  },
+  'pedestal': {
+      'model_name': 'set_T_ped_n_ped',
+      'set_pedestal': True,
+      'rho_norm_ped_top': 0.9,
+      'n_e_ped': 0.8,
+      'n_e_ped_is_fGW': True,
+  },
+  ...
 
 This would produce a ``chi_i`` profile that looks like the following.
 
 .. image:: images/combined_transport_example.png
   :width: 400
-  :alt: A stepwise constant chi_i profile
+  :alt: A stepwise prescribed chi_i profile
 
 Note that in the region :math:`[0, 0.2]`, only the first component is active,
 so ``chi_i = 1.0``. In :math:`(0.2, 0.3]` the first two components are both
@@ -1547,22 +1550,22 @@ docs/scripts/combined_transport_example.py.
 
 The next example shows how to apply a physics-based model (QLKNN) in the core,
 but enforcing specific transport coefficients in the edge region using a
-Constant model with ``OVERWRITE`` mode, effectively overriding the core model
+Prescribed model with ``OVERWRITE`` mode, effectively overriding the core model
 in that region. This is useful e.g. for L-mode modelling.
 
 .. code-block:: python
 
   'transport': {
-      'transport_models': [
+      'core_transport_models': {
           # Base model: QLKNN applied everywhere (default ADD)
-          {
+          'qlknn': {
               'model_name': 'qlknn',
               'rho_max': 1.0,
           },
           # Edge overwrite: Sets D_e and V_e in the edge, ignoring QLKNN there.
           # Keeps chi_i/chi_e from QLKNN (because they are disabled here).
-          {
-              'model_name': 'constant',
+          'edge_patch': {
+              'model_name': 'prescribed',
               'rho_min': 0.9,
               'D_e': 0.5,
               'V_e': -1.0,
@@ -1570,21 +1573,21 @@ in that region. This is useful e.g. for L-mode modelling.
               'disable_chi_i': True,
               'disable_chi_e': True,
           },
-      ],
-    },
+      },
+  },
 
 Component Transport Models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Component models are specified inside ``transport_models`` and
+Component models are specified inside ``core_transport_models`` and
 ``pedestal_transport_models``. The following runtime parameters are common to
 all component models:
 
 ``model_name`` (str)
   Select the component transport model according to the following options:
 
-* ``'constant'``
-  Constant transport coefficients.
+* ``'prescribed'`` (formerly ``'constant'``)
+  Prescribed (constant or space/time-varying) transport coefficients.
 * ``'CGM'``
   Critical Gradient Model.
 * ``'bohm-gyrobohm'``
@@ -1645,13 +1648,13 @@ all component models:
   ``'fast_ion_H_v1'``), it is loaded from the model registry. Otherwise treated
   as a file path to a ``.fistab`` model file.
 
-constant
-^^^^^^^^
+prescribed
+^^^^^^^^^^
 
-Runtime parameters for the constant transport model. This model can be used
-to implement constant coefficients (e.g. ``chi_i`` = 1.0 for all rho), as well
-as time-varying transport profiles of arbitrary form (such as an exponential
-decay) using the time-varying-array syntax.
+Runtime parameters for the prescribed (formerly constant) transport model. This
+model can be used to implement constant coefficients (e.g. ``chi_i`` = 1.0 for
+all rho), as well as time-varying transport profiles of arbitrary form (such as
+an exponential decay) using the time-varying-array syntax.
 
 ``chi_i`` (**time-varying-array** [default = 1.0])
   Ion heat conductivity. In units of :math:`m^2/s`.
@@ -2063,7 +2066,7 @@ can be set to anything convenient.
 ``is_explicit`` (bool [default = False])
   Defines whether the source is to be considered explicit or implicit. Explicit
   sources are calculated based on the simulation state at the beginning of a
-  time step, or do not have any dependance on state. Implicit sources depend on
+  time step, or do not have any dependence on state. Implicit sources depend on
   updated states as the iterative solvers evolve the state through the course of
   a time step. If a source model is complex but evolves over slow timescales
   compared to the state, it may be beneficial to set it as explicit.
@@ -2880,11 +2883,11 @@ Profiles in TORAX can be read from any IMAS core_profiles or plasma_profiles IDS
 saved in Data Dictionary version 4.0.0 or newer.
 If the IDS is stored in an IMAS db or in a netCDF file it can be loaded using
 the loader function ``load_imas_data`` from |imas_loader|.
-It can then be loaded programatically in the ``CONFIG`` by constructing a nested
+It can then be loaded programmatically in the ``CONFIG`` by constructing a nested
 dictionary with the ``profile_conditions_from_imas`` and
 ``plasma_composition_from_imas`` functions from |core_profiles_input_imas|. The
 functions returns a dictionary whose structure fits the schema of
-profile_conditions or plasma_composition and can be programatically loaded into
+profile_conditions or plasma_composition and can be programmatically loaded into
 a ``CONFIG`` with standard dictionary manipulation.
 
 An example on how to inject the IMAS conditions into the config can be found in

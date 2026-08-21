@@ -227,7 +227,7 @@ class FVMTest(parameterized.TestCase):
             ),
             transport=dict(
                 core_transport_models=dict(
-                    constant=dict(model_name='constant', chi_i=1)
+                    prescribed=dict(model_name='prescribed', chi_i=1)
                 ),
                 chi_min=0,
             ),
@@ -340,7 +340,7 @@ class FVMTest(parameterized.TestCase):
             solver=dict(use_predictor_corrector=False, theta_implicit=1.0),
             transport=dict(
                 core_transport_models=dict(
-                    constant=dict(model_name='constant', chi_i=1)
+                    prescribed=dict(model_name='prescribed', chi_i=1)
                 ),
                 chi_min=0,
             ),
@@ -456,7 +456,7 @@ class FVMTest(parameterized.TestCase):
             solver=dict(use_predictor_corrector=False, theta_implicit=0.0),
             transport=dict(
                 core_transport_models=dict(
-                    constant=dict(model_name='constant', chi_i=1)
+                    prescribed=dict(model_name='prescribed', chi_i=1)
                 ),
                 chi_min=0,
             ),

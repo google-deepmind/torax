@@ -58,7 +58,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             ),
             transport=dict(
                 core_transport_models=dict(
-                    constant=dict(model_name='constant', chi_i=1)
+                    prescribed=dict(model_name='prescribed', chi_i=1)
                 ),
                 chi_min=0,
             ),
@@ -232,7 +232,7 @@ class TransitionCalculationsTest(parameterized.TestCase):
         ),
     )
 
-    scaled_pedestal_model_output = calc_coeffs._apply_transition_ramp_scaling(  # pytype: disable=wrong-arg-types
+    scaled_pedestal_model_output = calc_coeffs._apply_transition_ramp_scaling(  # pyrefly: ignore[bad-argument-type]
         pedestal_transition_state=state,
         ramp_fraction=0.5,
     )

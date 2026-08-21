@@ -47,19 +47,19 @@ def main(argv: Sequence[str]) -> None:
       'transport': {
           'core_transport_models': {
               'inner': {
-                  'model_name': 'constant',
+                  'model_name': 'prescribed',
                   'chi_i': 1.0,
                   'rho_max': 0.3,
               },
               'outer': {
-                  'model_name': 'constant',
+                  'model_name': 'prescribed',
                   'chi_i': 2.0,
                   'rho_min': 0.2,
               },
           },
           'pedestal_transport_models': {
-              'constant': {
-                  'model_name': 'constant',
+              'pedestal': {
+                  'model_name': 'prescribed',
                   'chi_i': 0.5,
               },
           },

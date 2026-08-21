@@ -148,7 +148,7 @@ CONFIG = {
     'transport': {
         'core_transport_models': {
             'inner_patch': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'rho_max': 0.3,
                 'chi_i': 1.5,
                 'chi_e': 1.5,
@@ -168,7 +168,7 @@ CONFIG = {
                 'ITG_flux_ratio_correction': 1,
             },
             'outer_patch': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'rho_min': 0.9,
                 'chi_i': 2.0,
                 'chi_e': 2.0,
