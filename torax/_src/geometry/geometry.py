@@ -17,7 +17,6 @@
 from collections.abc import Sequence
 import dataclasses
 import enum
-from typing import TypeVar
 
 import chex
 import jax
@@ -391,10 +390,9 @@ class Geometry:
       raise ValueError('Geometry does not have a z magnetic axis.')
 
 
-GeometryT = TypeVar('GeometryT', bound='Geometry')
-
-
-def stack_geometries(geometries: Sequence[GeometryT]) -> GeometryT:
+def stack_geometries[GeometryT: Geometry](
+    geometries: Sequence[GeometryT],
+) -> GeometryT:
   """Batch together a sequence of geometries.
 
   Args:
