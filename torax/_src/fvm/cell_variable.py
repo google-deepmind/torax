@@ -220,56 +220,24 @@ class CellVariable:
       )
       # dval_dx = dval_dcell / dx_dcell
       inner_grad = inner_grad / dx_dcell
+      d_left = x[0] - x_left  # pyrefly: ignore[bad-index, unsupported-operation]
+      d_right = x_right - x[-1]  # pyrefly: ignore[bad-index, unsupported-operation]
+    else:
+      d_left = self.cell_widths[0] / 2.0  # pyrefly: ignore[bad-index]
+      d_right = self.cell_widths[-1] / 2.0  # pyrefly: ignore[bad-index]
 
-    def constrained_grad(
-        face: chex.Array | None,
-        grad: chex.Array | None,
-        cell: chex.Array,
-        right: bool,
-    ) -> chex.Array:
-      """Calculates the constrained gradient entry for an outer face."""
+    if self.left_face_constraint is not None:
+      left_grad = (self.value[0] - self.left_face_constraint) / d_left  # pyrefly: ignore[bad-index, unsupported-operation]
+    else:
+      left_grad = self.left_face_grad_constraint
 
-      if face is not None:
-        if grad is not None:
-          raise ValueError(
-              'Cannot constraint both the value and gradient of '
-              'a face variable.'
-          )
-        if x is None:
-          cell_width = self.cell_widths[-1] if right else self.cell_widths[0]  # pyrefly: ignore[bad-index]
-          d_cell = cell_width / 2.0
-          sign = -1 if right else 1
-          return sign * (cell - face) / d_cell  # pyrefly: ignore[unsupported-operation]
-        else:
-          if right:
-            dx = x_right - x[-1]  # pyrefly: ignore[bad-index, unsupported-operation]
-          else:
-            dx = x[0] - x_left  # pyrefly: ignore[bad-index, unsupported-operation]
-          sign = -1 if right else 1
-          return sign * (cell - face) / dx  # pyrefly: ignore[unsupported-operation]
-      else:
-        if grad is None:
-          raise ValueError('Must specify one of value or gradient.')
-        return grad
+    if self.right_face_constraint is not None:
+      right_grad = (self.right_face_constraint - self.value[-1]) / d_right  # pyrefly: ignore[bad-index, unsupported-operation]
+    else:
+      right_grad = self.right_face_grad_constraint
 
-    # If a gradient constraint is specified we use that, else
-    # for the left and right faces we compute a two stencil gradient as
-    # these are centered in the final cell point and respective ghost point.
-    left_grad = constrained_grad(
-        self.left_face_constraint,
-        self.left_face_grad_constraint,
-        self.value[0],  # pyrefly: ignore[bad-index]
-        right=False,
-    )
-    right_grad = constrained_grad(
-        self.right_face_constraint,
-        self.right_face_grad_constraint,
-        self.value[-1],  # pyrefly: ignore[bad-index]
-        right=True,
-    )
-
-    left = jnp.expand_dims(left_grad, axis=0)
-    right = jnp.expand_dims(right_grad, axis=0)
+    left = jnp.expand_dims(left_grad, axis=0)  # pyrefly: ignore[bad-argument-type]
+    right = jnp.expand_dims(right_grad, axis=0)  # pyrefly: ignore[bad-argument-type]
     return jnp.concatenate([left, inner_grad, right])
 
   @functools.cached_property
