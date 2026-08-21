@@ -17,7 +17,6 @@ from collections.abc import Mapping
 import dataclasses
 from typing import Annotated, Any, Literal, TypeAlias
 
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -147,7 +146,7 @@ class ImpurityFractions(torax_pydantic.BaseModelFrozen):
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> RuntimeParams:
     """Builds a RuntimeParams object at a given time."""
     fractions = {ion: value.get_value(t) for ion, value in self.species.items()}
     fractions_face = {

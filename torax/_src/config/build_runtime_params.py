@@ -57,12 +57,12 @@ import typing_extensions
 ReplaceablePytreeNodes: TypeAlias = (
     interpolated_param_1d.TimeVaryingScalar
     | interpolated_param_2d.TimeVaryingArray
-    | chex.Numeric
+    | jax.typing.ArrayLike
 )
 ValidUpdates: TypeAlias = (
     interpolated_param_1d.TimeVaryingScalarUpdate
     | interpolated_param_2d.TimeVaryingArrayUpdate
-    | chex.Numeric
+    | jax.typing.ArrayLike
 )
 
 
@@ -116,7 +116,7 @@ class RuntimeParamsProvider:
   # TODO(b/460347309): investigate effect of jit here on overall compile time.
   def __call__(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> runtime_params_lib.RuntimeParams:
     """Returns a runtime_params.RuntimeParams to use during time t."""
     return runtime_params_lib.RuntimeParams(
@@ -168,7 +168,7 @@ class RuntimeParamsProvider:
       get_nodes_to_replace: A function that takes a provider and returns a tuple
         of nodes to replace. See above for an example. The returned nodes must
         be one of the following types: `TimeVaryingScalar`, `TimeVaryingArray`,
-        `chex.Numeric`.
+        `jax.typing.ArrayLike`.
       replacement_values: A tuple of values to replace the nodes with.
 
     Returns:
@@ -231,7 +231,7 @@ class RuntimeParamsProvider:
         the form `'some.path.to.field_name'` and the `value` is the new value
         depending on the type of the node. The path can be dictionary keys or
         attribute names with field_name pointing to one of the following types:
-        {`TimeVaryingScalar`, `TimeVaryingArray`, `chex.Numeric`}.
+        {`TimeVaryingScalar`, `TimeVaryingArray`, `jax.typing.ArrayLike`}.
 
     Returns:
       A new provider with the updated values.
@@ -336,7 +336,7 @@ def _update_ne_density_fraction_boundary_condition(
 
 def get_consistent_runtime_params_and_geometry(
     *,
-    t: chex.Numeric,
+    t: jax.typing.ArrayLike,
     runtime_params_provider: RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     edge_outputs: edge_base.EdgeModelOutputs | None = None,

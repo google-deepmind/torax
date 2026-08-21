@@ -14,7 +14,6 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax
 import numpy as np
 import pydantic
@@ -471,7 +470,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     )
 
     @jax.jit
-    def f(x: torax_pydantic.TimeVaryingScalar, t: chex.Numeric):
+    def f(x: torax_pydantic.TimeVaryingScalar, t: jax.typing.ArrayLike):
       return x.get_value(t=t)
 
     self.assertEqual(f(scalar, 1.0), scalar.get_value(t=1.0))
@@ -542,7 +541,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     def f(
         scalar: torax_pydantic.TimeVaryingScalar,
         replacements: interpolated_param_1d.TimeVaryingScalarUpdate,
-        t: chex.Numeric,
+        t: jax.typing.ArrayLike,
     ):
       new_scalar = scalar.update(replacements)
       return new_scalar.get_value(t=t)

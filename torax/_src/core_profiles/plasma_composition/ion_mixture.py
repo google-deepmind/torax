@@ -15,7 +15,6 @@
 """Ion mixture model and impurity fractions model for plasma composition."""
 from collections.abc import Mapping
 import dataclasses
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -74,7 +73,7 @@ class IonMixture(torax_pydantic.BaseModelFrozen):
   Z_override: torax_pydantic.TimeVaryingScalar | None = None
   A_override: torax_pydantic.TimeVaryingScalar | None = None
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> RuntimeParams:
     """Builds a RuntimeParams object at a given time."""
     fractions = {ion: x.get_value(t) for ion, x in self.species.items()}
     Z_override = None if not self.Z_override else self.Z_override.get_value(t)

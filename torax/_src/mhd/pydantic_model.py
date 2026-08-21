@@ -14,7 +14,6 @@
 
 """Pydantic config for MHD models."""
 
-import chex
 import pydantic
 from torax._src.mhd import base
 from torax._src.mhd import runtime_params as mhd_runtime_params
@@ -41,7 +40,7 @@ class MHD(torax_pydantic.BaseModelFrozen):
     return base.MHDModels(sawtooth_models=sawtooth_model)
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> mhd_runtime_params.RuntimeParams:
     """Builds and returns a container with runtime params for MHD models."""
 

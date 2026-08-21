@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Pydantic model for sawtooth configuration."""
-import chex
 import pydantic
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.mhd.sawtooth import sawtooth_models
@@ -48,7 +47,7 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
     )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> sawtooth_runtime_params.RuntimeParams:
     return sawtooth_runtime_params.RuntimeParams(
         crash_step_duration=self.crash_step_duration,

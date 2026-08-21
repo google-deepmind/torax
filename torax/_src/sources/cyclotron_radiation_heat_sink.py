@@ -18,7 +18,6 @@
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 
-import chex
 import jax
 from jax import numpy as jnp
 import pydantic
@@ -401,7 +400,7 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> 'RuntimeParams':
     return RuntimeParams(
         prescribed_values=tuple(

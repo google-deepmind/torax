@@ -15,7 +15,6 @@
 import abc
 from typing import Annotated
 
-import chex
 from torax._src.sources import runtime_params
 from torax._src.sources import source as source_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -66,6 +65,6 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   @abc.abstractmethod
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> runtime_params.RuntimeParams:
     """Builds runtime parameters for the source."""

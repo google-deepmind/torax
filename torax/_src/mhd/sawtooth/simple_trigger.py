@@ -17,7 +17,6 @@
 import dataclasses
 from typing import Annotated, Literal
 
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -133,7 +132,7 @@ class SimpleTriggerConfig(trigger_base.TriggerConfig):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return RuntimeParams(

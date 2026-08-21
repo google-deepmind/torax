@@ -14,7 +14,6 @@
 """Functions for calculating adaptive step function with whilei_loop."""
 import dataclasses
 
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -38,7 +37,7 @@ from torax._src.sources import source_profiles as source_profiles_lib
 @dataclasses.dataclass(frozen=True)
 class AdaptiveStepState:
   x_new: tuple[cell_variable.CellVariable, ...]
-  dt: chex.Numeric
+  dt: jax.typing.ArrayLike
   solver_numeric_outputs: state.SolverNumericOutputs
   runtime_params: runtime_params_lib.RuntimeParams
   geo: geometry.Geometry
@@ -48,7 +47,7 @@ class AdaptiveStepState:
 def create_initial_state(
     input_state: sim_state.SimState,
     evolving_names: tuple[str, ...],
-    initial_dt: chex.Numeric,
+    initial_dt: jax.typing.ArrayLike,
     runtime_params_t: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
 ) -> AdaptiveStepState:
@@ -75,9 +74,9 @@ def create_initial_state(
 
 
 def compute_state(
-    i: chex.Numeric,
+    i: jax.typing.ArrayLike,
     loop_statistics: dict[str, array_typing.IntScalar],
-    initial_dt: chex.Numeric,
+    initial_dt: jax.typing.ArrayLike,
     runtime_params_t: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
     input_state: sim_state.SimState,
@@ -141,7 +140,7 @@ def compute_state(
 
 def cond_fun(
     inputs: AdaptiveStepState,
-    unused_initial_dt: chex.Numeric,
+    unused_initial_dt: jax.typing.ArrayLike,
     runtime_params_t: runtime_params_lib.RuntimeParams,
     unused_geo_t: geometry.Geometry,
     input_state: sim_state.SimState,

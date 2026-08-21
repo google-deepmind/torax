@@ -87,7 +87,7 @@ def calculate_generic_current(
 def _calculate_I_generic(
     runtime_params: runtime_params_lib.RuntimeParams,
     source_params: RuntimeParams,
-) -> chex.Numeric:
+) -> jax.typing.ArrayLike:
   """Calculates the total value of external current."""
   return jnp.where(
       source_params.use_absolute_current,
@@ -149,7 +149,7 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     return RuntimeParams(
         prescribed_values=tuple(

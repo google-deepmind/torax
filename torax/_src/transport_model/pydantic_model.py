@@ -18,7 +18,6 @@ import copy
 import dataclasses
 from typing import Annotated, Any, Literal, Mapping, Sequence
 from absl import logging
-import chex
 from fusion_surrogates.qlknn.models import registry
 import numpy as np
 import pydantic
@@ -178,7 +177,7 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
     )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> qlknn_transport_model.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return qlknn_transport_model.RuntimeParams(
@@ -234,7 +233,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
     )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> tglfnn_ukaea_transport_model.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return tglfnn_ukaea_transport_model.RuntimeParams(
@@ -277,7 +276,7 @@ class ConstantTransportModel(pydantic_model_base.ComponentTransportBase):
   def build_transport_model(self) -> constant.ConstantTransportModel:
     return constant.ConstantTransportModel()
 
-  def build_runtime_params(self, t: chex.Numeric) -> constant.RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> constant.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return constant.RuntimeParams(
         chi_i=self.chi_i.get_value(t, 'face'),
@@ -324,7 +323,7 @@ class CriticalGradientTransportModel(
     return critical_gradient.CriticalGradientTransportModel()
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> critical_gradient.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return critical_gradient.RuntimeParams(
@@ -403,7 +402,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.ComponentTransportBase):
     return bohm_gyrobohm.BohmGyroBohmTransportModel()
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> bohm_gyrobohm.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return bohm_gyrobohm.RuntimeParams(
@@ -517,7 +516,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
     )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> runtime_params.RuntimeParams:
     core_transport_model_params = {
         name: model.build_runtime_params(t)

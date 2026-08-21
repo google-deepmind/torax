@@ -15,7 +15,6 @@
 
 import dataclasses
 from typing import Annotated, ClassVar, Literal
-import chex
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
@@ -115,7 +114,7 @@ class OhmicHeatSourceConfig(base.SourceModelBase):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> sources_runtime_params_lib.RuntimeParams:
     return sources_runtime_params_lib.RuntimeParams(
         prescribed_values=tuple(

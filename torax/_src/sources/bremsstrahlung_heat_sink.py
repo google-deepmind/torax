@@ -17,7 +17,6 @@
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
 from typing import Annotated, ClassVar, Final, Literal
-import chex
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
@@ -168,7 +167,7 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> 'RuntimeParams':
     return RuntimeParams(
         prescribed_values=tuple(

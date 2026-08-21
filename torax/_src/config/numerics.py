@@ -18,7 +18,6 @@ import dataclasses
 import functools
 from typing import Annotated
 
-import chex
 import jax
 import pydantic
 from torax._src import array_typing
@@ -161,7 +160,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
       evolving_names.append('n_e')
     return tuple(evolving_names)
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> RuntimeParams:
     """Builds a RuntimeParams object for time t."""
     return RuntimeParams(
         t_initial=self.t_initial,

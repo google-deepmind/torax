@@ -16,7 +16,6 @@ import random
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -554,7 +553,7 @@ class InterpolatedParamTest(parameterized.TestCase):
     )
 
     @jax.jit
-    def f(x: interpolated_param.InterpolatedVarSingleAxis, t: chex.Numeric):
+    def f(x: interpolated_param.InterpolatedVarSingleAxis, t: jax.typing.ArrayLike):
       return x.get_value(x=t)
 
     interpolated_output_jit = jax.jit(f)(var, 0.5)
@@ -601,7 +600,7 @@ class InterpolatedParamTest(parameterized.TestCase):
     )
 
     @jax.jit
-    def f(v: interpolated_param.InterpolatedVarTimeRho, t: chex.Numeric):
+    def f(v: interpolated_param.InterpolatedVarTimeRho, t: jax.typing.ArrayLike):
       return v.get_value(x=t)
 
     t = 0.5

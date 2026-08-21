@@ -17,7 +17,6 @@ from typing import Annotated, Any, Literal
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
@@ -282,7 +281,7 @@ class TGLFBasedTransportModelConfig(
   ) -> FakeTGLFBasedTransportModel:
     return FakeTGLFBasedTransportModel()
 
-  def build_runtime_params(self, t: chex.Numeric):
+  def build_runtime_params(self, t: jax.typing.ArrayLike):
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return tglf_based_transport_model.RuntimeParams(
         # DV_effective and An_min are inherited from QuasilinearTransportModel

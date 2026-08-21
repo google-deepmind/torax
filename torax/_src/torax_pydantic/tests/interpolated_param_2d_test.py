@@ -494,7 +494,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     @jax.jit
     def f(
         time_varying_array: interpolated_param_2d.TimeVaryingArray,
-        t: chex.Numeric,
+        t: jax.typing.ArrayLike,
     ):
       return time_varying_array.get_value(t)
 
@@ -544,7 +544,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     @jax.jit
     def f(
         time_varying_array: interpolated_param_2d.TimeVaryingArray,
-        t: chex.Numeric,
+        t: jax.typing.ArrayLike,
     ):
       cell_values = time_varying_array.get_value(t, grid_type='cell')
       face_values = time_varying_array.get_value(t, grid_type='face')
@@ -680,7 +680,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     def f(
         base_tva: interpolated_param_2d.TimeVaryingArray,
         replacements: interpolated_param_2d.TimeVaryingArrayUpdate,
-        t: chex.Numeric,
+        t: jax.typing.ArrayLike,
     ):
       new_tva = base_tva.update(replacements)
       return (
@@ -777,7 +777,7 @@ class SparseTimeVaryingArrayTest(parameterized.TestCase):
     @jax.jit
     def f(
         stva_model: interpolated_param_2d.SparseTimeVaryingArray,
-        t: chex.Numeric,
+        t: jax.typing.ArrayLike,
     ):
       return stva_model.get_value(t)
 

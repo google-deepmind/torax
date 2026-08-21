@@ -16,7 +16,6 @@
 
 import dataclasses
 
-import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -136,7 +135,7 @@ class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):
       torax_pydantic.ValidatedDefault(0.0)
   )
 
-  def build_runtime_params(self, t: chex.Numeric) -> InternalBoundaryConditions:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> InternalBoundaryConditions:
     """Builds the runtime params for the internal boundary conditions."""
     return InternalBoundaryConditions(
         T_i=self.T_i.get_value(t),

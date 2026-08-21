@@ -332,7 +332,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
   def get_value(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
       grid_type: Literal['cell', 'face', 'face_right'] = 'cell',
   ) -> array_typing.Array:
     """Returns the value of this parameter interpolated at x=time.
@@ -656,7 +656,7 @@ class SparseTimeVaryingArray(model_base.BaseModelFrozen):
 
   def get_value(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
       grid_type: Literal['cell', 'face', 'face_right'] = 'cell',
   ) -> array_typing.Array:
     """Returns the evaluated profile on the grid at time t."""

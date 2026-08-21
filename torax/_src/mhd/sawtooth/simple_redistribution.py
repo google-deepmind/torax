@@ -220,7 +220,7 @@ class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return RuntimeParams(

@@ -99,9 +99,9 @@ class NormalizedLogarithmicGradients:
 # pylint: disable=invalid-name
 def calculate_chiGB(
     reference_temperature: array_typing.Array,
-    reference_magnetic_field: chex.Numeric,
-    reference_mass: chex.Numeric,
-    reference_length: chex.Numeric,
+    reference_magnetic_field: jax.typing.ArrayLike,
+    reference_mass: jax.typing.ArrayLike,
+    reference_length: jax.typing.ArrayLike,
 ) -> array_typing.Array:
   """Calculates the gyrobohm diffusivity.
 
@@ -129,7 +129,7 @@ def calculate_chiGB(
 def calculate_alpha(
     core_profiles: state.CoreProfiles,
     q: array_typing.FloatVectorFace,
-    reference_magnetic_field: chex.Numeric,
+    reference_magnetic_field: jax.typing.ArrayLike,
     normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
 ) -> array_typing.FloatVectorFace:
   """Calculates the alpha_MHD parameter.
@@ -413,8 +413,8 @@ class QuasilinearTransportModel(component.ComponentTransportModel):
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      gradient_reference_length: chex.Numeric,
-      gyrobohm_flux_reference_length: chex.Numeric,
+      gradient_reference_length: jax.typing.ArrayLike,
+      gyrobohm_flux_reference_length: jax.typing.ArrayLike,
   ) -> component.TurbulentTransport:
     """Converts model output to TurbulentTransport."""
     constants = constants_module.CONSTANTS

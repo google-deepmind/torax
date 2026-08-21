@@ -16,7 +16,6 @@
 
 import logging
 from typing import Annotated, Any, Literal, Mapping
-import chex
 import jax.numpy as jnp
 import pydantic
 from torax._src import array_typing
@@ -310,11 +309,11 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
     return self
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> extended_lengyel_model.RuntimeParams:
     def _get_optional_value(
         param: torax_pydantic.TimeVaryingScalar | None,
-        t: chex.Numeric,
+        t: jax.typing.ArrayLike,
     ):
       """Sets optional values to None if not provided."""
       return param.get_value(t) if param is not None else None

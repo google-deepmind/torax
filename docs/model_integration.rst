@@ -338,7 +338,7 @@ model name for the source you are registering against.
         )
 
       def build_runtime_params(
-          self, t: chex.Numeric,
+          self, t: jax.typing.ArrayLike,
       ) -> MyRuntimeParams:
         return MyRuntimeParams(
             scaling_factor=self.scaling_factor,

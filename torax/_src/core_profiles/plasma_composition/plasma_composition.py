@@ -18,7 +18,6 @@ import dataclasses
 import functools
 import logging
 from typing import Annotated, Any
-import chex
 import jax
 import numpy as np
 import pydantic
@@ -239,7 +238,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
     """Returns the impurity symbol strings from the input."""
     return tuple(self.impurity.species.keys())
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> RuntimeParams:
     return RuntimeParams(
         main_ion_names=self.get_main_ion_names(),
         impurity_names=self.get_impurity_names(),

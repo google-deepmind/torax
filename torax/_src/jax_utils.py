@@ -17,16 +17,14 @@
 import contextlib
 import functools
 import os
-from typing import Any, Callable, Literal, ParamSpec, TypeAlias, TypeVar
+from typing import Any, Callable, Literal, TypeAlias
 import chex
 import jax
 from jax import numpy as jnp
 from jax.experimental import hijax
 import numpy as np
 
-T = TypeVar('T')
 BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
-_State = ParamSpec('_State')
 PyTree: TypeAlias = Any
 
 _WHILE_LOOP_COUNT_DTYPE = jnp.int32
@@ -139,7 +137,7 @@ def error_if(
 
 
 def assert_rank(
-    inputs: chex.Numeric | jax.stages.ArgInfo,
+    inputs: jax.typing.ArrayLike | jax.stages.ArgInfo,
     rank: int,
 ) -> None:
   """Wrapper around chex.assert_rank that supports jax.stages.ArgInfo."""
@@ -242,13 +240,13 @@ def batched_cond(
 @jax.jit(
     static_argnames=['cond_fun', 'body_fun', 'max_steps', 'implementation'],
 )
-def while_loop_bounded(
-    cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
-    body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
-    init_val: _State,  # pyrefly: ignore[invalid-annotation]
+def while_loop_bounded[State](
+    cond_fun: Callable[[State], BooleanNumeric],
+    body_fun: Callable[[State], State],
+    init_val: State,
     max_steps: int,
     implementation: Literal['scan', 'while_loop'] = 'scan',
-) -> tuple[_State, chex.Numeric, _State]:  # pyrefly: ignore[invalid-annotation]
+) -> tuple[State, jax.typing.ArrayLike, State]:
   """A bounded reverse-mode differentiable while_loop.
 
   `jax.lax.while_loop` is not reverse-mode differentiable. If we make the
@@ -298,13 +296,13 @@ def while_loop_bounded(
 @jax.jit(
     static_argnames=['cond_fun', 'body_fun', 'max_steps', 'scan_unroll'],
 )
-def _while_loop_bounded_scan(
-    cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
-    body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
-    init_val: _State,  # pyrefly: ignore[invalid-annotation]
+def _while_loop_bounded_scan[State](
+    cond_fun: Callable[[State], BooleanNumeric],
+    body_fun: Callable[[State], State],
+    init_val: State,
     max_steps: int,
     scan_unroll: int = 1,
-) -> tuple[_State, chex.Numeric, _State]:  # pyrefly: ignore[invalid-annotation]
+) -> tuple[State, jax.typing.ArrayLike, State]:
   """A reverse-mode differentiable while_loop using jax.lax.scan."""
   # Initial carry for the scan: (current_state, counter,
   # while_loop_condition_met)
@@ -360,14 +358,14 @@ def _instantiate_zeros(g: PyTree) -> PyTree:
   )
 
 
-class WhileLoopBoundedWhileLoop(hijax.VJPHiPrimitive):
+class WhileLoopBoundedWhileLoop[State](hijax.VJPHiPrimitive):
   """A bounded differentiable while_loop using jax.lax.while_loop."""
 
   def __init__(
       self,
-      cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
-      body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
-      init_val: _State,  # pyrefly: ignore[invalid-annotation]
+      cond_fun: Callable[[State], BooleanNumeric],
+      body_fun: Callable[[State], State],
+      init_val: State,
       max_steps: int,
   ):
     self.in_avals = (init_val,)
@@ -415,12 +413,12 @@ class WhileLoopBoundedWhileLoop(hijax.VJPHiPrimitive):
     return jax.jvp(fun=self.expand, primals=primals, tangents=tangents)
 
 
-def while_loop_bounded_while_loop(
-    cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
-    body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
-    init_val: _State,  # pyrefly: ignore[invalid-annotation]
+def while_loop_bounded_while_loop[State](
+    cond_fun: Callable[[State], BooleanNumeric],
+    body_fun: Callable[[State], State],
+    init_val: State,
     max_steps: int,
-) -> tuple[_State, chex.Numeric, _State]:  # pyrefly: ignore[invalid-annotation]
+) -> tuple[State, jax.typing.ArrayLike, State]:
   return WhileLoopBoundedWhileLoop(
       cond_fun=cond_fun,
       body_fun=body_fun,
