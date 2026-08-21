@@ -359,8 +359,10 @@ def _instantiate_zeros(g: PyTree) -> PyTree:
       hijax.instantiate_zeros, g, is_leaf=lambda x: isinstance(x, hijax.Zero)
   )
 
+HiPrim = (hijax.VJPHiPrimitive if jax.__version_info__ <= (0, 11, 1) else
+          hijax.HiPrim)
 
-class WhileLoopBoundedWhileLoop(hijax.VJPHiPrimitive):
+class WhileLoopBoundedWhileLoop(HiPrim):
   """A bounded differentiable while_loop using jax.lax.while_loop."""
 
   def __init__(
