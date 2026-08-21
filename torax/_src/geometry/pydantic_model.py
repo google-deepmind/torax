@@ -15,7 +15,6 @@
 import functools
 from typing import Annotated
 from typing import Any
-from typing import TypeVar
 
 import numpy as np
 import pydantic
@@ -28,8 +27,6 @@ from torax._src.geometry import geometry_provider
 from torax._src.geometry import imas
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
-
-T = TypeVar('T')
 
 
 class GeometryConfig(torax_pydantic.BaseModelFrozen):
