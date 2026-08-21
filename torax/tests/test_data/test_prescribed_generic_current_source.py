@@ -82,8 +82,8 @@ CONFIG = {
     'pedestal': {},
     'transport': {
         'core_transport_models': {
-            'constant': {
-                'model_name': 'constant',
+            'prescribed': {
+                'model_name': 'prescribed',
                 'D_e': 0.5,
                 'V_e': -0.2,
             },

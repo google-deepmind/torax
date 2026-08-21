@@ -127,7 +127,7 @@ def get_sawtooth_test_config() -> Mapping[str, Any]:
       },
       'time_step_calculator': {'calculator_type': 'fixed'},
       'transport': {
-          'core_transport_models': {'constant': {'model_name': 'constant'}},
+          'core_transport_models': {'prescribed': {'model_name': 'prescribed'}},
       },
       'mhd': {
           'sawtooth': {

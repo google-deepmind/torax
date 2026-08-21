@@ -38,7 +38,7 @@ CONFIG['transport'] = {
             'ITG_flux_ratio_correction': 1.0,
         },
         'edge_patch': {
-            'model_name': 'constant',
+            'model_name': 'prescribed',
             'rho_min': 0.9,
             'merge_mode': 'overwrite',
             # Define specific edge particle transport properties
