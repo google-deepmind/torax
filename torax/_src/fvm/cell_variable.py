@@ -104,6 +104,17 @@ def _compute_inner_grad(
   return jnp.concat([inner_grads, jnp.atleast_1d(penultimate_grad)], axis=-1)
 
 
+def _format_boundary_for_concat(
+    val: array_typing.FloatScalar | array_typing.Array,
+    target_shape: tuple[int, ...],
+) -> array_typing.Array:
+  """Formats a boundary value to shape `(..., 1)` for concatenation with cell arrays."""
+  arr = jnp.asarray(val)
+  if arr.ndim < len(target_shape):
+    arr = jnp.expand_dims(arr, axis=-1)
+  return jnp.broadcast_to(arr, target_shape)
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class CellVariable:
@@ -128,7 +139,7 @@ class CellVariable:
     right_face_grad_constraint: Analogous to left_face_grad_constraint but for
       the right face, see left_face_grad_constraint.
   """
-  value: jt.Float[array_typing.Array, 'cell']
+  value: jt.Float[array_typing.Array, '... cell']
   face_centers: jt.Float[array_typing.Array, 'cell+1']
   left_face_constraint: array_typing.FloatScalar | None = None
   right_face_constraint: array_typing.FloatScalar | None = None
@@ -250,36 +261,35 @@ class CellVariable:
     return jnp.concatenate([left, inner_grad, right])
 
   @functools.cached_property
-  def left_face_value(self) -> jt.Float[array_typing.Array, '']:
+  def left_face_value(self) -> jt.Float[array_typing.Array, '... 1']:
     """Calculates the value of the leftmost face."""
+    target_shape = (*self.value.shape[:-1], 1)
     if self.left_face_constraint is not None:
-      value = self.left_face_constraint
-      # Boundary value has one fewer dim than cell value, expand to concat with.
-      value = jnp.expand_dims(value, axis=-1)
-    else:
-      # When there is no constraint, leftmost face equals
-      # leftmost cell
-      value = self.value[..., 0:1]
-    return value
+      return _format_boundary_for_concat(
+          self.left_face_constraint, target_shape
+      )
+    return _format_boundary_for_concat(self.value[..., 0], target_shape)
 
   @functools.cached_property
-  def right_face_value(self) -> jt.Float[array_typing.Array, '']:
+  def right_face_value(self) -> jt.Float[array_typing.Array, '... 1']:
     """Calculates the value of the rightmost face."""
+    target_shape = (*self.value.shape[:-1], 1)
     if self.right_face_constraint is not None:
-      value = self.right_face_constraint
-      # Boundary value has one fewer dim than cell value, expand to concat with.
-      value = jnp.expand_dims(value, axis=-1)
-    else:
-      # Maintain right_face consistent with right_face_grad_constraint
-      assert self.right_face_grad_constraint is not None
-      dr = self.cell_widths[-1]
-      value = (
-          self.value[..., -1:]
-          + jnp.expand_dims(self.right_face_grad_constraint, axis=-1)
-          * jnp.expand_dims(dr, axis=-1)
-          / 2
+      return _format_boundary_for_concat(
+          self.right_face_constraint, target_shape
       )
-    return value
+    assert self.right_face_grad_constraint is not None
+    dr = _format_boundary_for_concat(
+        self.cell_widths[..., -1],
+        target_shape,
+    )
+    grad = _format_boundary_for_concat(
+        self.right_face_grad_constraint, target_shape
+    )
+    return (
+        _format_boundary_for_concat(self.value[..., -1], target_shape)
+        + grad * dr / 2.0
+    )
 
   def face_value(self) -> jt.Float[array_typing.Array, 'face']:
     """Calculates values of this variable on the face grid."""
@@ -315,7 +325,7 @@ class CellVariable:
     output_string += ')'
     return output_string
 
-  def cell_plus_boundaries(self) -> jt.Float[array_typing.Array, 'cell+2']:
+  def cell_plus_boundaries(self) -> jt.Float[array_typing.Array, '... cell+2']:
     """Returns the value of this variable plus left and right boundaries."""
     right_value = self.right_face_value
     left_value = self.left_face_value

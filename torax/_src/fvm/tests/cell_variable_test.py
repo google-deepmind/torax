@@ -259,6 +259,56 @@ class CellVariableTest(parameterized.TestCase):
         cell_plus_boundaries, np.array(expected_output)
     )
 
+  def test_cell_plus_boundaries_batched(self):
+    # Batched (time, cell) with shape (3, 4)
+    value = jnp.array([
+        [1.0, 2.0, 5.0, 3.0],
+        [2.0, 3.0, 6.0, 4.0],
+        [3.0, 4.0, 7.0, 5.0],
+    ])
+    left_face_constraint = jnp.array([2.0, 2.5, 3.0])
+    right_face_constraint = jnp.array([5.0, 5.5, 6.0])
+    face_centers = jnp.stack([_make_face_centers(0.1, 4) for _ in range(3)])
+
+    # Dirichlet boundary test
+    var_dirichlet = cell_variable.CellVariable(
+        value=value,
+        left_face_constraint=left_face_constraint,
+        left_face_grad_constraint=None,
+        right_face_constraint=right_face_constraint,
+        right_face_grad_constraint=None,
+        face_centers=face_centers,
+    )
+    expected_dirichlet = np.array([
+        [2.0, 1.0, 2.0, 5.0, 3.0, 5.0],
+        [2.5, 2.0, 3.0, 6.0, 4.0, 5.5],
+        [3.0, 3.0, 4.0, 7.0, 5.0, 6.0],
+    ])
+    np.testing.assert_array_equal(
+        var_dirichlet.cell_plus_boundaries(), expected_dirichlet
+    )
+
+    # Neumann boundary test (right_face_grad_constraint)
+    var_neumann = cell_variable.CellVariable(
+        value=value,
+        left_face_constraint=None,
+        left_face_grad_constraint=jnp.array([0.0, 0.0, 0.0]),
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array([2.0, 4.0, 6.0]),
+        face_centers=face_centers,
+    )
+    # left value = value[..., 0] = [1.0, 2.0, 3.0]
+    # right value = value[..., -1] + grad * dr / 2 =
+    # [3.0 + 2*0.1/2, 4.0 + 4*0.1/2, 5.0 + 6*0.1/2] = [3.1, 4.2, 5.3]
+    expected_neumann = np.array([
+        [1.0, 1.0, 2.0, 5.0, 3.0, 3.1],
+        [2.0, 2.0, 3.0, 6.0, 4.0, 4.2],
+        [3.0, 3.0, 4.0, 7.0, 5.0, 5.3],
+    ])
+    np.testing.assert_allclose(
+        var_neumann.cell_plus_boundaries(), expected_neumann
+    )
+
   @parameterized.named_parameters(
       dict(
           testcase_name='near_identical_values',

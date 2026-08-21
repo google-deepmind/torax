@@ -553,13 +553,7 @@ class StateHistory:
 
       if isinstance(attr_value, cell_variable.CellVariable):
         # Handles stacked CellVariable-like objects.
-        data_to_save = []
-        for core_profile in self.core_profiles:
-          cell_var: cell_variable.CellVariable = getattr(
-              core_profile, attr_name
-          )
-          data_to_save.append(cell_var.cell_plus_boundaries())
-        data_to_save = np.stack(data_to_save)
+        data_to_save = attr_value.cell_plus_boundaries()
       else:
         face_attr_name = f"{attr_name}_face"
         if face_attr_name in core_profile_field_names:
@@ -569,7 +563,10 @@ class StateHistory:
         else:  # cell array with no face counterpart, or a scalar value
           data_to_save = attr_value
 
-      xr_dict[output_key] = self._pack_into_data_array(output_key, data_to_save)
+      xr_dict[output_key] = self._pack_into_data_array(
+          output_key,
+          data_to_save,
+      )
 
     # Handle derived quantities
     Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]
@@ -594,19 +591,20 @@ class StateHistory:
         attrs=output_keys.get_units(output_keys.MAIN_ION_FRACTIONS),
     )
     # Handle fast ions
-    first_fast_ions = self.core_profiles[0].fast_ions
-    for i, first_fi in enumerate(first_fast_ions):
-      source_key = f"{first_fi.source}_{first_fi.species}"
-      n_data = np.stack([
-          cp.fast_ions[i].n.cell_plus_boundaries() for cp in self.core_profiles
-      ])
-      T_data = np.stack([
-          cp.fast_ions[i].T.cell_plus_boundaries() for cp in self.core_profiles
-      ])
+    for fi in stacked_core_profiles.fast_ions:
+      source_key = f"{fi.source}_{fi.species}"
+      n_data = fi.n.cell_plus_boundaries()
+      T_data = fi.T.cell_plus_boundaries()
       n_key = output_keys.n_fast_ion_key(source_key)
       T_key = output_keys.T_fast_ion_key(source_key)
-      xr_dict[n_key] = self._pack_into_data_array(n_key, n_data)
-      xr_dict[T_key] = self._pack_into_data_array(T_key, T_data)
+      xr_dict[n_key] = self._pack_into_data_array(
+          n_key,
+          n_data,
+      )
+      xr_dict[T_key] = self._pack_into_data_array(
+          T_key,
+          T_data,
+      )
 
     return xr_dict
 
