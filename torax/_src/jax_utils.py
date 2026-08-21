@@ -22,9 +22,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from jax.experimental import hijax
-from jax.experimental import scheduling_groups
 import numpy as np
-from packaging import version
 
 T = TypeVar('T')
 BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
@@ -32,29 +30,6 @@ _State = ParamSpec('_State')
 PyTree: TypeAlias = Any
 
 _WHILE_LOOP_COUNT_DTYPE = jnp.int32
-
-
-def xla_metadata_call(
-    f: Callable[..., Any], *, compilation_unit: str
-) -> Callable[..., Any]:
-  """Gated call to scheduling_groups.xla_metadata_call based on JAX version.
-
-  This decorator will ensure that `f` is compiled independently, reducing
-  compilation times but potentially increasing execution time.
-
-  Args:
-    f: The function to be compiled independently.
-    compilation_unit: The compilation unit name to use for the function.
-
-  Returns:
-    The function `f` with the `xla_metadata_call` decorator applied.
-  """
-  if version.Version(jax.__version__) > version.Version('0.10.2'):
-    return scheduling_groups.xla_metadata_call(
-        f, compilation_unit=compilation_unit
-    )
-  del compilation_unit  # unused
-  return f
 
 
 @functools.cache
