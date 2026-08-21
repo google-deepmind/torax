@@ -66,7 +66,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
       interpolated_param.InterpolationMode, model_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
 
-  def get_value(self, t: chex.Numeric) -> array_typing.Array:
+  def get_value(self, t: jax.typing.ArrayLike) -> array_typing.Array:
     """Returns the value of this parameter interpolated at time t.
 
     Args:

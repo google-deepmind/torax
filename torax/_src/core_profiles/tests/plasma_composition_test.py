@@ -132,7 +132,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     @jax.jit
-    def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
+    def f(pc_model: plasma_composition.PlasmaComposition, t: jax.typing.ArrayLike):
       return pc_model.build_runtime_params(t=t)
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
@@ -444,7 +444,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     @jax.jit
-    def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
+    def f(pc_model: plasma_composition.PlasmaComposition, t: jax.typing.ArrayLike):
       return pc_model.build_runtime_params(t=t)
 
     # Just a smoke test to ensure it jits and runs.
@@ -470,7 +470,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     @jax.jit
-    def f(pc_model: plasma_composition.PlasmaComposition, t: chex.Numeric):
+    def f(pc_model: plasma_composition.PlasmaComposition, t: jax.typing.ArrayLike):
       return pc_model.build_runtime_params(t=t)
 
     # Just a smoke test to ensure it jits and runs.

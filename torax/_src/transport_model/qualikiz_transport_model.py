@@ -26,7 +26,6 @@ from typing import Annotated
 from typing import Literal
 import uuid
 
-import chex
 import jax
 import numpy as np
 import pydantic
@@ -484,7 +483,7 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   def build_transport_model(self) -> QualikizTransportModel:
     return QualikizTransportModel()
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return RuntimeParams(
         n_max_runs=self.n_max_runs,

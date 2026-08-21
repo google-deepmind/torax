@@ -34,7 +34,7 @@ interp_fn_vmap = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
 
 @jax.jit
 def _step_interpolation(
-    xs: array_typing.Array, x: chex.Numeric
+    xs: array_typing.Array, x: jax.typing.ArrayLike
 ) -> array_typing.Array:
   """Find the indices for step interpolation."""
   # For a given x, we want to find k such that self.xs[k] <= x < self.xs[k+1]
@@ -125,7 +125,7 @@ class InterpolatedParamBase(abc.ABC):
   """
 
   @abc.abstractmethod
-  def get_value(self, x: chex.Numeric) -> array_typing.Array:
+  def get_value(self, x: jax.typing.ArrayLike) -> array_typing.Array:
     """Returns a value for this parameter interpolated at the given input."""
 
   @property
@@ -184,7 +184,7 @@ class _PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
 
   def get_value(
       self,
-      x: chex.Numeric,
+      x: jax.typing.ArrayLike,
   ) -> array_typing.Array:
     x_shape = getattr(x, 'shape', ())
     is_jax = isinstance(x, jax.Array)
@@ -253,7 +253,7 @@ class _StepInterpolatedParam(InterpolatedParamBase):
   def ys(self) -> array_typing.Array:
     return self._ys
 
-  def get_value(self, x: chex.Numeric) -> array_typing.Array:
+  def get_value(self, x: jax.typing.ArrayLike) -> array_typing.Array:
     """Returns a single value for this range at the given coordinate."""
     indices = _step_interpolation(self.xs, x)
     return self.ys[indices]
@@ -460,7 +460,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
 
   def get_value(
       self,
-      x: chex.Numeric,
+      x: jax.typing.ArrayLike,
   ) -> array_typing.Array:
     """Returns a single value for this range at the given coordinate."""
     value = self._param.get_value(x)
@@ -565,6 +565,6 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     """Returns the rho interpolation mode used by this param."""
     return self._rho_interpolation_mode
 
-  def get_value(self, x: chex.Numeric) -> array_typing.Array:
+  def get_value(self, x: jax.typing.ArrayLike) -> array_typing.Array:
     """Returns the value of this parameter interpolated at x=time."""
     return self._time_interpolated_var.get_value(x)

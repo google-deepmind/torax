@@ -17,7 +17,6 @@
 import abc
 import copy
 from typing import Annotated, Any, Literal, TypeAlias
-import chex
 import pydantic
 from torax._src import array_typing
 from torax._src.pedestal_model import no_pedestal
@@ -80,7 +79,7 @@ class PowerScalingFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   @abc.abstractmethod
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
     """Builds the runtime params."""
 
@@ -105,7 +104,7 @@ class MartinScalingFormation(PowerScalingFormation):
     )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
     del t
     return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
@@ -141,7 +140,7 @@ class DelabieScalingFormation(PowerScalingFormation):
     )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
     del t
     return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
@@ -199,7 +198,7 @@ class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
     return profile_value_saturation_model.ProfileValueSaturationModel()
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> runtime_params.SaturationRuntimeParams:
     del t
     return runtime_params.SaturationRuntimeParams(
@@ -350,7 +349,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     """Builds the pedestal model."""
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> runtime_params.RuntimeParams:
     """Builds the runtime params."""
     return runtime_params.RuntimeParams(
@@ -420,7 +419,7 @@ class SetPpedTpedRatioNped(BasePedestal):
     )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> set_pped_tpedratio_nped.RuntimeParams:
     base_runtime_params = super().build_runtime_params(t)
     return set_pped_tpedratio_nped.RuntimeParams(
@@ -490,7 +489,7 @@ class SetTpedNped(BasePedestal):
     )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> set_tped_nped.RuntimeParams:
     base_runtime_params = super().build_runtime_params(t)
     return set_tped_nped.RuntimeParams(
@@ -539,7 +538,7 @@ class NoPedestal(BasePedestal):
     )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> runtime_params.RuntimeParams:
     base_runtime_params = super().build_runtime_params(t)
     return runtime_params.RuntimeParams(

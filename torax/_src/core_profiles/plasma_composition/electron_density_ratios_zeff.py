@@ -15,7 +15,6 @@
 """Impurity content defined by ratios, with one species constrained by Z_eff."""
 import dataclasses
 from typing import Annotated, Literal, Mapping
-import chex
 import jax
 import pydantic
 from torax._src import array_typing
@@ -49,7 +48,7 @@ class ElectronDensityRatiosZeff(torax_pydantic.BaseModelFrozen):
       Literal['n_e_ratios_Z_eff'], torax_pydantic.JAX_STATIC
   ] = 'n_e_ratios_Z_eff'
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> RuntimeParams:
     unknown_species = next(
         (symbol for symbol, ratio in self.species.items() if ratio is None),
         None,

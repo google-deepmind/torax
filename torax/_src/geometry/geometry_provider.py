@@ -70,7 +70,7 @@ class GeometryProvider(Protocol):
 
   def __call__(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> geometry.Geometry:
     """Returns the geometry to use during one time step of the simulation.
 
@@ -97,7 +97,7 @@ class ConstantGeometryProvider(GeometryProvider):
 
   geo: geometry.Geometry
 
-  def __call__(self, t: chex.Numeric) -> geometry.Geometry:
+  def __call__(self, t: jax.typing.ArrayLike) -> geometry.Geometry:
     # The API includes time as an arg even though it is unused in order
     # to match the API of a GeometryProvider.
     del t  # Ignored.
@@ -214,7 +214,7 @@ class TimeDependentGeometryProvider:
     return cls(**kwargs)  # pyrefly: ignore[missing-argument]
 
   def _get_geometry_base(
-      self, t: chex.Numeric, geometry_class: Type[geometry.Geometry]
+      self, t: jax.typing.ArrayLike, geometry_class: Type[geometry.Geometry]
   ):
     """Returns a Geometry instance of the given type at the given time."""
     kwargs = {
@@ -248,7 +248,7 @@ class TimeDependentGeometryProvider:
         kwargs[attr.name] = provider_attr
     return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
 
-  def __call__(self, t: chex.Numeric) -> geometry.Geometry:
+  def __call__(self, t: jax.typing.ArrayLike) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
     chex.assert_type(t, jnp.floating)
     return self._get_geometry_base(t, geometry.Geometry)
@@ -258,6 +258,6 @@ class TimeDependentGeometryProvider:
 @functools.partial(jax.grad, argnums=1)
 def _Phi_b_grad(
     Phi_face: interpolated_param.InterpolatedVarSingleAxis,
-    t: chex.Numeric,
-) -> chex.Numeric:
+    t: jax.typing.ArrayLike,
+) -> jax.typing.ArrayLike:
   return Phi_face.get_value(t)[..., -1]

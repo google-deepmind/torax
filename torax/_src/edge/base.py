@@ -16,7 +16,6 @@
 
 import abc
 import dataclasses
-import chex
 import jax
 from torax._src import state
 from torax._src import static_dataclass
@@ -70,7 +69,7 @@ class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   @abc.abstractmethod
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> edge_runtime_params.RuntimeParams:
     """Builds the runtime parameters for the edge model at time t."""
 

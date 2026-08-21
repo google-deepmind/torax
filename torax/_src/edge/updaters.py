@@ -15,7 +15,6 @@
 
 import dataclasses
 
-import chex
 import jax
 from torax._src import array_typing
 from torax._src import math_utils
@@ -132,7 +131,7 @@ def _calculate_impurity_scaling_factor(
     species: str,
     runtime_params: runtime_params_lib.RuntimeParams,
     impurity_params: electron_density_ratios.RuntimeParams,
-) -> chex.Numeric:
+) -> jax.typing.ArrayLike:
   """Calculates the scaling factor to rescale a core impurity profile.
 
   The extended Lengyel edge model determines impurity concentrations at the

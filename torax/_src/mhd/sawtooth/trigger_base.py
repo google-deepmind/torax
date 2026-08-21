@@ -17,7 +17,6 @@
 import abc
 import dataclasses
 
-import chex
 from torax._src import array_typing
 from torax._src import state
 from torax._src import static_dataclass
@@ -53,7 +52,7 @@ class TriggerConfig(torax_pydantic.BaseModelFrozen):
   )
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> sawtooth_runtime_params.TriggerRuntimeParams:
     return sawtooth_runtime_params.TriggerRuntimeParams(
         minimum_radius=self.minimum_radius.get_value(t),

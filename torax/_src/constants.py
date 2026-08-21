@@ -19,7 +19,6 @@ This module saves immutable constants used in various calculations.
 import dataclasses
 from typing import Final, Mapping
 
-import chex
 import immutabledict
 import jax
 from jax import numpy as jnp
@@ -64,15 +63,15 @@ class Constants:
     eps: A small epsilon value used for numerical stability.
   """
 
-  keV_to_J: chex.Numeric
-  eV_to_J: chex.Numeric
-  m_amu: chex.Numeric
-  q_e: chex.Numeric
-  m_e: chex.Numeric
-  epsilon_0: chex.Numeric
-  mu_0: chex.Numeric
-  k_B: chex.Numeric
-  eps: chex.Numeric
+  keV_to_J: jax.typing.ArrayLike
+  eV_to_J: jax.typing.ArrayLike
+  m_amu: jax.typing.ArrayLike
+  q_e: jax.typing.ArrayLike
+  m_e: jax.typing.ArrayLike
+  epsilon_0: jax.typing.ArrayLike
+  mu_0: jax.typing.ArrayLike
+  k_B: jax.typing.ArrayLike
+  eps: jax.typing.ArrayLike
 
 
 CONSTANTS: Final[Constants] = Constants(

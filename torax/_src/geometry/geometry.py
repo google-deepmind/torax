@@ -17,7 +17,6 @@
 from collections.abc import Sequence
 import dataclasses
 import enum
-from typing import TypeVar
 
 import chex
 import jax
@@ -239,7 +238,7 @@ class Geometry:
     return True
 
   @property
-  def q_correction_factor(self) -> chex.Numeric:
+  def q_correction_factor(self) -> jax.typing.ArrayLike:
     """Ad-hoc fix for non-physical circular geometry model.
 
     Set such that q(r=a) = 3 for standard ITER parameters.
@@ -382,7 +381,7 @@ class Geometry:
     """Local major radius on face grid [m]."""
     return (self.R_in_face + self.R_out_face) / 2  # pyrefly: ignore[bad-return]
 
-  def z_magnetic_axis(self) -> chex.Numeric:
+  def z_magnetic_axis(self) -> jax.typing.ArrayLike:
     """z position of magnetic axis [m]."""
     z_magnetic_axis = self._z_magnetic_axis
     if z_magnetic_axis is not None:
@@ -391,10 +390,9 @@ class Geometry:
       raise ValueError('Geometry does not have a z magnetic axis.')
 
 
-GeometryT = TypeVar('GeometryT', bound='Geometry')
-
-
-def stack_geometries(geometries: Sequence[GeometryT]) -> GeometryT:
+def stack_geometries[GeometryT: Geometry](
+    geometries: Sequence[GeometryT],
+) -> GeometryT:
   """Batch together a sequence of geometries.
 
   Args:
@@ -435,7 +433,7 @@ def stack_geometries(geometries: Sequence[GeometryT]) -> GeometryT:
 
 def update_geometries_with_Phibdot(
     *,
-    dt: chex.Numeric,
+    dt: jax.typing.ArrayLike,
     geo_t: Geometry,
     geo_t_plus_dt: Geometry,
 ) -> tuple[Geometry, Geometry]:

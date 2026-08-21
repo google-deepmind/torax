@@ -15,7 +15,6 @@
 """JITted run_loop for iterating over the simulation step function."""
 
 from typing import Any, TypeAlias
-import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -38,7 +37,7 @@ def run_loop_jit(
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
 ) -> tuple[
-    sim_state.SimState, post_processing.PostProcessedOutputs, chex.Numeric
+    sim_state.SimState, post_processing.PostProcessedOutputs, jax.typing.ArrayLike
 ]:
   """Runs the simulation loop under jax.jit."""
   initial_state, initial_post_processed_outputs = (

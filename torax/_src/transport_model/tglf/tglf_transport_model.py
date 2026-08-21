@@ -19,7 +19,6 @@ import dataclasses
 from typing import Annotated, Any, Literal, TypeAlias
 
 from absl import logging
-import chex
 import jax
 import numpy as np
 import pydantic
@@ -420,7 +419,7 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
         )
     )
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return RuntimeParams(
         n_processes=self.n_processes,

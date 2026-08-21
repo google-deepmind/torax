@@ -15,7 +15,6 @@
 """Routines for calculating impurity radiation based on a polynomial fit."""
 import dataclasses
 from typing import Annotated, Literal, Sequence
-import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -148,7 +147,7 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     return RuntimeParams(
         prescribed_values=tuple(

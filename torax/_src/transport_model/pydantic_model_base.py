@@ -17,7 +17,6 @@
 import abc
 from typing import Annotated
 
-import chex
 import numpy as np
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
@@ -101,7 +100,7 @@ class ComponentTransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
     return self
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> runtime_params.ComponentRuntimeParams:
     return runtime_params.ComponentRuntimeParams(
         fast_ion_stabilization=self.fast_ion_stabilization.get_value(t),

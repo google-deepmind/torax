@@ -173,7 +173,7 @@ class SimulationStepFn:
       self,
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
-      max_dt: chex.Numeric = jnp.inf,
+      max_dt: jax.typing.ArrayLike = jnp.inf,
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
@@ -376,7 +376,7 @@ class SimulationStepFn:
 
   def _sawtooth_step(
       self,
-      max_dt: chex.Numeric,
+      max_dt: jax.typing.ArrayLike,
       runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -434,7 +434,7 @@ class SimulationStepFn:
 
   def _adaptive_step(
       self,
-      max_dt: chex.Numeric,
+      max_dt: jax.typing.ArrayLike,
       runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -529,7 +529,7 @@ class SimulationStepFn:
 
   def _fixed_step(
       self,
-      max_dt: chex.Numeric,
+      max_dt: jax.typing.ArrayLike,
       runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,

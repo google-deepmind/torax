@@ -20,7 +20,6 @@ import logging
 import os  # pylint: disable=unused-import
 from typing import Annotated, Any, Final, Literal, Sequence
 
-import chex
 import flax.linen as nn
 import jax
 from jax import numpy as jnp
@@ -619,7 +618,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     return RuntimeParams(
         prescribed_values=tuple(

@@ -540,7 +540,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
 
     return self
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> RuntimeParams:
     """Builds a RuntimeParams object for time t."""
 
     runtime_params = {
@@ -615,7 +615,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
 
 def _build_prescribed_fast_ions(
     fast_ions: list[PrescribedFastIon] | None,
-    t: chex.Numeric,
+    t: jax.typing.ArrayLike,
 ) -> tuple[PrescribedFastIonData, ...]:
   """Evaluates prescribed fast ion configs at time t.
 

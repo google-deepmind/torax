@@ -137,7 +137,7 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   B_pol_OMP: interpolated_param.InterpolatedVarSingleAxis | None
   diverted: interpolated_param.InterpolatedVarSingleAxis | None
 
-  def __call__(self, t: chex.Numeric) -> geometry.Geometry:
+  def __call__(self, t: jax.typing.ArrayLike) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
     chex.assert_type(t, jnp.floating)
     return self._get_geometry_base(t, StandardGeometry)

@@ -16,7 +16,6 @@ import dataclasses
 from typing import Annotated, Any, Literal
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax.numpy as jnp
 import numpy as np
 import pydantic
@@ -344,7 +343,7 @@ class QualikizBasedTransportModelConfig(
   ) -> FakeQualikizBasedTransportModel:
     return FakeQualikizBasedTransportModel()
 
-  def build_runtime_params(self, t: chex.Numeric):
+  def build_runtime_params(self, t: jax.typing.ArrayLike):
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return qualikiz_based_transport_model.RuntimeParams(
         collisionality_multiplier=self.collisionality_multiplier,

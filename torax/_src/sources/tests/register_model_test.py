@@ -16,7 +16,6 @@ import dataclasses
 from typing import Literal
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax
 from torax._src import array_typing
 from torax._src import state
@@ -77,7 +76,7 @@ class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     return RuntimeParams(
         a=self.a.get_value(t),
@@ -107,7 +106,7 @@ class DuplicateGasPuffSourceModelConfig(
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     return RuntimeParams(
         a=self.a.get_value(t),

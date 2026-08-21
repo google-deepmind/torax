@@ -104,7 +104,7 @@ class ElectronDensityRatios(torax_pydantic.BaseModelFrozen):
       raise ValueError('The species dictionary cannot be empty.')
     return self
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(self, t: jax.typing.ArrayLike) -> RuntimeParams:
     """Creates a RuntimeParams object at a given time."""
     n_e_ratios = {
         ion_symbol: ratio.get_value(t)

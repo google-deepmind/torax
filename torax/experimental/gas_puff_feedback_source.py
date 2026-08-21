@@ -34,7 +34,6 @@ register_model.register_source_model_config(
 import dataclasses
 import enum
 from typing import Annotated, Literal
-import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -165,7 +164,7 @@ class GasPuffFeedbackSourceConfig(base.SourceModelBase):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     return RuntimeParams(
         prescribed_values=tuple(

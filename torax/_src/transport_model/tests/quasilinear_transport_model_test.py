@@ -18,7 +18,6 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -569,7 +568,7 @@ class QuasilinearTransportConfig(
     return FakeQuasilinearTransportModel()
 
   def build_runtime_params(
-      self, t: chex.Numeric
+      self, t: jax.typing.ArrayLike
   ) -> transport_model_runtime_params.ComponentRuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return quasilinear_transport_model.RuntimeParams(

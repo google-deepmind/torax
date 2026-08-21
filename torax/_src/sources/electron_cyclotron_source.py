@@ -17,7 +17,6 @@
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 
-import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -181,7 +180,7 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     return RuntimeParams(
         prescribed_values=tuple(

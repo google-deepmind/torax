@@ -16,7 +16,6 @@
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 
-import chex
 import jax
 from torax._src import array_typing
 from torax._src import state
@@ -105,7 +104,7 @@ class GasPuffSourceConfig(base.SourceModelBase):
 
   def build_runtime_params(
       self,
-      t: chex.Numeric,
+      t: jax.typing.ArrayLike,
   ) -> RuntimeParams:
     return RuntimeParams(
         prescribed_values=tuple(

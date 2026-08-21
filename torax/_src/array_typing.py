@@ -14,14 +14,12 @@
 # ============================================================================
 """Common types for using jaxtyping in TORAX."""
 
-from typing import TypeAlias, TypeVar
+from typing import TypeAlias
 import jax
 import jaxtyping as jt
 import numpy as np
 from torax._src import jax_utils
 import typeguard
-
-T = TypeVar("T")
 
 Array: TypeAlias = jax.Array | np.ndarray
 
@@ -40,7 +38,7 @@ BoolVectorCell: TypeAlias = jt.Bool[Array, "rhon"]
 BoolVectorFace: TypeAlias = jt.Bool[Array, "rhon+1"]
 
 
-def jaxtyped(fn: T) -> T:
+def jaxtyped[T](fn: T) -> T:
   """Function and dataclass decorator to perform runtime type-checking.
 
   This will perform jaxtyping runtime type checking if the environment variable
