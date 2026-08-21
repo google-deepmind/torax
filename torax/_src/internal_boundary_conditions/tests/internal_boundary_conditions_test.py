@@ -101,6 +101,19 @@ class InternalBoundaryConditionsTest(parameterized.TestCase):
     expected_T_e = np.array([10.0, 0.0, 20.0, 20.0])
     np.testing.assert_allclose(runtime_params.T_e, expected_T_e)
 
+  def test_get_two_point_face_mask(self):
+    geo = circular_geometry.CircularConfig(n_rho=5).build_geometry()
+    ibc = internal_boundary_conditions.InternalBoundaryConditions(
+        T_i=jnp.array([0.0, 5.0, 0.0, 0.0, 0.0]),
+        T_e=jnp.array([0.0, 0.0, 0.0, 10.0, 0.0]),
+        n_e=jnp.zeros(5),
+    )
+    mask = ibc.get_two_point_face_mask(geo)
+    # Pinned cells are cell 1 (T_i=5) and cell 3 (T_e=10).
+    # Face 1 sits to the left of cell 1; Face 3 sits to the left of cell 3.
+    expected = np.array([False, True, False, True, False, False])
+    np.testing.assert_array_equal(mask, expected)
+
 
 if __name__ == '__main__':
   absltest.main()
