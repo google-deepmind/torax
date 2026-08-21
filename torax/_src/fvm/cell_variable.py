@@ -18,6 +18,7 @@ A dataclass used to represent variables on meshes for the 1D fvm solver.
 Naming conventions and API are similar to those developed in the FiPy fvm solver
 [https://www.ctcms.nist.gov/fipy/]
 """
+
 import dataclasses
 import functools
 
@@ -40,12 +41,18 @@ def _compute_inner_grad(
     value_right_face: array_typing.FloatScalar,
     face_centers: array_typing.FloatVectorFace,
     cell_centers: array_typing.FloatVectorCell,
+    two_point_mask: array_typing.BoolVectorFace | None = None,
 ) -> jt.Float[array_typing.Array, 'rhon-1']:
   """Computes the gradient on inner faces.
 
   This gradient is computed using a 3-point stencil and is accurate to second
-  order differences. The gradient on the penultimate rightmost face is
-  determined by the value on the right face.
+  order differences on uniform grids. The 3-point stencil for the penultimate
+  rightmost face uses the two adjacent cell centers and the right boundary face
+  value.
+
+  For faces where `two_point_mask` is True, a compact 2-point central
+  difference is used instead; this is primarily used to avoid bleeding of
+  pedestal or internal boundary condition gradients across sharp interfaces.
 
   Note: This gradient can not be compared against FiPy as that is not correct
   to second order differences when the grid is not uniform.
@@ -56,8 +63,12 @@ def _compute_inner_grad(
       gradient on the second-to-last face.
     face_centers: The locations of the face centers.
     cell_centers: The locations of the cell centers.
-
+    two_point_mask: Optional boolean mask on the face grid indicating which
+      faces should use a 2-point central difference instead of the default
+      3-point stencil. Only internal points are considered, since edge gradients
+      are determined by boundary conditions.
   """
+
   @jax.jit
   def gradient(
       d: tuple[
@@ -101,7 +112,19 @@ def _compute_inner_grad(
       (d_left, d_right, d_right_right),
       (penultimate_left, penultimate_right, penultimate_right_right),
   )
-  return jnp.concat([inner_grads, jnp.atleast_1d(penultimate_grad)], axis=-1)
+  grad_3point = jnp.concat(
+      [inner_grads, jnp.atleast_1d(penultimate_grad)], axis=-1
+  )
+
+  if two_point_mask is None:
+    return grad_3point
+
+  # 2-point central difference: across face i between cell i-1 and cell i
+  grad_2point = (value[1:] - value[:-1]) / (
+      cell_centers[1:] - cell_centers[:-1]
+  )
+  is_2point_face = two_point_mask[1:-1]
+  return jnp.where(is_2point_face, grad_2point, grad_3point)
 
 
 def _format_boundary_for_concat(
@@ -139,6 +162,7 @@ class CellVariable:
     right_face_grad_constraint: Analogous to left_face_grad_constraint but for
       the right face, see left_face_grad_constraint.
   """
+
   value: jt.Float[array_typing.Array, '... cell']
   face_centers: jt.Float[array_typing.Array, 'cell+1']
   left_face_constraint: array_typing.FloatScalar | None = None
@@ -179,7 +203,8 @@ class CellVariable:
               f'Expected dtype {jax_dtype}, got {value.dtype} for `{name}`'
           )
     left_constraints = (
-        self.left_face_constraint, self.left_face_grad_constraint
+        self.left_face_constraint,
+        self.left_face_grad_constraint,
     )
     if sum(constraint is not None for constraint in left_constraints) != 1:
       raise ValueError(
@@ -187,7 +212,8 @@ class CellVariable:
           'left_face_grad_constraint must be set.'
       )
     right_constraints = (
-        self.right_face_constraint, self.right_face_grad_constraint,
+        self.right_face_constraint,
+        self.right_face_grad_constraint,
     )
     if sum(constraint is not None for constraint in right_constraints) != 1:
       raise ValueError(
@@ -201,6 +227,7 @@ class CellVariable:
       x: jt.Float[array_typing.Array, 'cell'] | None = None,
       x_left: array_typing.FloatScalar | None = None,
       x_right: array_typing.FloatScalar | None = None,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> jt.Float[array_typing.Array, 'face']:
     """Returns the gradient of this value with respect to the faces.
 
@@ -211,6 +238,10 @@ class CellVariable:
     In the special case of a uniformly spaced grid, this gradient is identical
     to the gradient computed by forward differencing.
 
+    For faces where `two_point_mask` is True, a compact 2-point central
+    difference is used instead; this is primarily used to avoid bleeding of
+    pedestal or internal boundary condition gradients across sharp interfaces.
+
     Args:
       x: (optional) coordinates over which differentiation is carried out. If
         specified we assume this is a function of the cell grid.
@@ -218,6 +249,8 @@ class CellVariable:
         `x` is specified.
       x_right: (optional) value of `x` at the rightmost face. Must be specified
         if `x` is specified.
+      two_point_mask: (optional) boolean mask on the face grid indicating which
+        faces should use a 2-point central difference.
 
     Returns:
       A jax.Array of shape (num_faces,) containing the gradient.
@@ -227,6 +260,7 @@ class CellVariable:
         self.right_face_value,
         self.face_centers,
         self.cell_centers,
+        two_point_mask=two_point_mask,
     )
     # If we are differentiating w.r.t another variable x, we apply the chain
     # rule and effectively weight the computed gradient by dx_dcell.
@@ -234,7 +268,11 @@ class CellVariable:
       if x_left is None or x_right is None:
         raise ValueError('Must specify both x_left and x_right with x.')
       dx_dcell = _compute_inner_grad(
-          x, jnp.atleast_1d(x_right), self.face_centers, self.cell_centers
+          x,
+          jnp.atleast_1d(x_right),
+          self.face_centers,
+          self.cell_centers,
+          two_point_mask=two_point_mask,
       )
       # dval_dx = dval_dcell / dx_dcell
       inner_grad = inner_grad / dx_dcell
@@ -268,7 +306,18 @@ class CellVariable:
       return _format_boundary_for_concat(
           self.left_face_constraint, target_shape
       )
-    return _format_boundary_for_concat(self.value[..., 0], target_shape)
+    assert self.left_face_grad_constraint is not None
+    dr = _format_boundary_for_concat(
+        self.cell_widths[..., 0],
+        target_shape,
+    )
+    grad = _format_boundary_for_concat(
+        self.left_face_grad_constraint, target_shape
+    )
+    return (
+        _format_boundary_for_concat(self.value[..., 0], target_shape)
+        - grad * dr / 2.0
+    )
 
   @functools.cached_property
   def right_face_value(self) -> jt.Float[array_typing.Array, '... 1']:
