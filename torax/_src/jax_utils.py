@@ -360,7 +360,7 @@ def _instantiate_zeros(g: PyTree) -> PyTree:
   )
 
 
-class WhileLoopBoundedWhileLoop(hijax.VJPHiPrimitive):
+class WhileLoopBoundedWhileLoop(hijax.HiPrim):
   """A bounded differentiable while_loop using jax.lax.while_loop."""
 
   def __init__(
