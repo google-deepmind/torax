@@ -268,7 +268,18 @@ class CellVariable:
       return _format_boundary_for_concat(
           self.left_face_constraint, target_shape
       )
-    return _format_boundary_for_concat(self.value[..., 0], target_shape)
+    assert self.left_face_grad_constraint is not None
+    dr = _format_boundary_for_concat(
+        self.cell_widths[..., 0],
+        target_shape,
+    )
+    grad = _format_boundary_for_concat(
+        self.left_face_grad_constraint, target_shape
+    )
+    return (
+        _format_boundary_for_concat(self.value[..., 0], target_shape)
+        - grad * dr / 2.0
+    )
 
   @functools.cached_property
   def right_face_value(self) -> jt.Float[array_typing.Array, '... 1']:
