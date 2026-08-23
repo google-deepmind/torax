@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2026 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Sauter conductivity model."""
+"""Redl conductivity model.
+
+Based on Redl et al., Physics of Plasmas 28, 022502 (2021).
+"A new set of analytical formulae for the computation of the bootstrap
+current and the neoclassical conductivity in tokamaks"
+https://doi.org/10.1063/5.0012664
+"""
 
 import dataclasses
 from typing import Annotated, Literal
@@ -30,15 +36,14 @@ from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
 
 
-# TODO(b/425750357): Add neoclassical correction flag (default to True)
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(conductivity_runtime_params.RuntimeParams):
-  """Runtime params for the Sauter model."""
+  """Runtime params for the Redl model."""
 
 
-class SauterModel(base.ConductivityModel):
-  """Sauter conductivity model.
+class RedlModel(base.ConductivityModel):
+  """Redl conductivity model.
 
   Spitzer conductivity, ``ν_e*``, and the neoclassical correction use
   ``Z_eff = Σ_s n_s Z_s² / n_e`` from per-species thermal ion/impurity
@@ -87,16 +92,16 @@ class SauterModel(base.ConductivityModel):
     return hash(self.__class__)
 
 
-class SauterModelConfig(base.ConductivityModelConfig):
-  """Sauter conductivity model config."""
+class RedlModelConfig(base.ConductivityModelConfig):
+  """Redl conductivity model config."""
 
-  model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
+  model_name: Annotated[Literal['redl'], torax_pydantic.JAX_STATIC] = 'redl'
 
   def build_runtime_params(self) -> RuntimeParams:
     return RuntimeParams()
 
-  def build_model(self) -> SauterModel:
-    return SauterModel()
+  def build_model(self) -> RedlModel:
+    return RedlModel()
 
 
 @jax.jit
@@ -109,18 +114,16 @@ def _calculate_conductivity(
     geo: geometry_lib.Geometry,
     f_trap: array_typing.FloatVectorFace,
 ) -> base.Conductivity:
-  """Calculates sigma and sigma_face using the Sauter model."""
+  """Calculates sigma and sigma_face using the Redl model."""
   # pylint: disable=invalid-name
 
-  # Formulas from Sauter PoP 1999.
-
-  # Spitzer conductivity
+  # Spitzer conductivity (same normalization as Sauter PoP 1999 / TORAX).
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
   log_lambda_ei = collisions.calculate_log_lambda_ei(
       T_e.face_value(), n_e.face_value()  # pyrefly: ignore[bad-argument-type]
   )
 
-  sigsptz = (
+  sigma_spitzer = (
       1.9012e04
       * (T_e.face_value() * 1e3) ** 1.5
       / Z_eff_face
@@ -137,22 +140,27 @@ def _calculate_conductivity(
       log_lambda_ei=log_lambda_ei,
   )
 
-  # Neoclassical correction to spitzer conductivity
-  ft33 = f_trap / (
+  # Neoclassical correction: Redl PoP 2021 conductivity fit (X33).
+  X33 = f_trap / (
       1.0
-      + (0.55 - 0.1 * f_trap) * jnp.sqrt(nu_e_star_face)
-      + 0.45 * (1.0 - f_trap) * nu_e_star_face / (Z_eff_face**1.5)
+      + 0.25
+      * (1.0 - 0.7 * f_trap)
+      * jnp.sqrt(nu_e_star_face)
+      * (1.0 + 0.45 * jnp.sqrt(Z_eff_face - 1.0))
+      + (1.0 - 0.41 * f_trap)
+      * 0.61
+      * nu_e_star_face
+      / jnp.sqrt(Z_eff_face)
   )
-  signeo_face = 1.0 - ft33 * (
+  signeo_face = (
       1.0
-      + 0.36 / Z_eff_face
-      - ft33 * (0.59 / Z_eff_face - 0.23 / Z_eff_face * ft33)
+      - (1.0 + 0.21 / Z_eff_face) * X33
+      + (0.54 / Z_eff_face) * X33**2
+      - (0.33 / Z_eff_face) * X33**3
   )
-  sigma_face = sigsptz * signeo_face
-
-  sigmaneo_cell = geometry_lib.face_to_cell(sigma_face)
+  sigma_face = sigma_spitzer * signeo_face
 
   return base.Conductivity(
-      sigma=sigmaneo_cell,
+      sigma=geometry_lib.face_to_cell(sigma_face),
       sigma_face=sigma_face,
   )

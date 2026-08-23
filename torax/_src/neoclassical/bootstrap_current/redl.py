@@ -23,6 +23,7 @@ at higher collisionalities typical of tokamak edge pedestals and in the
 presence of impurities.
 """
 
+from collections.abc import Sequence
 from typing import Annotated, Literal
 
 import jax
@@ -42,7 +43,13 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 class RedlModel(bootstrap_current_base.BootstrapCurrentModel):
-  """Redl model for bootstrap current."""
+  """Redl model for bootstrap current.
+
+  Multi-species treatment follows the same NEO drive assembly as Sauter
+  (per-species ``L31`` and ``L34*α`` using each species' ``T_s`` and
+  ``∇ln T_s``, ``ν_i*`` as ``nui_star_S ∝ Z_ion^4 * dens_sum`` with
+  ``Z_ion``), using Redl L-coefficient fits.
+  """
 
   def calculate_bootstrap_current(
       self,
@@ -55,19 +62,37 @@ class RedlModel(bootstrap_current_base.BootstrapCurrentModel):
     assert isinstance(
         bootstrap_params, bootstrap_current_runtime_params.RuntimeParams
     )
+    ion_species = formulas.build_ion_species_from_core_profiles(
+        core_profiles,
+        subtract_fast_ions=True,
+    )
+    Z_eff_face = formulas.calculate_Z_eff_from_ion_species(
+        core_profiles, ion_species
+    )
+    dens_sum_face = formulas.calculate_ion_density_sum_face(
+        ion_species, placeholder=core_profiles.n_e.face_value()
+    )
+    # Computed outside the JIT helper so f_trap_model can use Python control flow.
+    f_trap = formulas.calculate_f_trap(
+        geometry,
+        runtime_params.neoclassical.f_trap_model,
+        q_face=core_profiles.q_face,
+    )
     return _calculate_bootstrap_current(
         bootstrap_multiplier=bootstrap_params.bootstrap_multiplier,
-        Z_eff_face=core_profiles.Z_eff_face,
+        Z_eff_face=Z_eff_face,
         Z_i_face=core_profiles.Z_i_face,
         n_e=core_profiles.n_e,
         n_i=core_profiles.n_i,
+        dens_sum_face=dens_sum_face,
         T_e=core_profiles.T_e,
         T_i=core_profiles.T_i,
         p_e=core_profiles.pressure_thermal_e,
-        p_i=core_profiles.pressure_thermal_i,
+        ion_species=ion_species,
         psi=core_profiles.psi,
         q_face=core_profiles.q_face,
         geo=geometry,
+        f_trap=f_trap,
     )
 
   def __eq__(self, other) -> bool:
@@ -101,31 +126,28 @@ def _calculate_bootstrap_current(
     Z_i_face: array_typing.FloatVectorFace,
     n_e: cell_variable.CellVariable,
     n_i: cell_variable.CellVariable,
+    dens_sum_face: array_typing.FloatVectorFace,
     T_e: cell_variable.CellVariable,
     T_i: cell_variable.CellVariable,
     p_e: cell_variable.CellVariable,
-    p_i: cell_variable.CellVariable,
+    ion_species: Sequence[formulas.IonSpeciesProfiles],
     psi: cell_variable.CellVariable,
     q_face: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
+    f_trap: array_typing.FloatVectorFace,
 ) -> bootstrap_current_base.BootstrapCurrent:
   """Calculates j_parallel_bootstrap using the Redl model."""
 
-  # Redl et al., PoP 28, 022502 (2021).
-  # These formulae were derived by fitting the NEO code results using the same
-  # methodology as Sauter, but with improved accuracy particularly at high
-  # collisionality and for multi-species plasmas.
+  # Redl et al., PoP 28, 022502 (2021), with NEO multi-species drive assembly.
 
-  # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
-
-  # Collision frequencies
   log_lambda_ei = collisions.calculate_log_lambda_ei(
       T_e.face_value(), n_e.face_value()  # pyrefly: ignore[bad-argument-type]
   )
   log_lambda_ii = collisions.calculate_log_lambda_ii(
       T_i.face_value(), n_i.face_value(), Z_i_face  # pyrefly: ignore[bad-argument-type]
   )
+  # n_i above is bundled main-ion density for Sauter lnΛ_ii (18e);
+  # ν_i* density factor uses dens_sum (NEO), not n_i.
   nu_e_star = formulas.calculate_nu_e_star(
       q=q_face,
       geo=geo,
@@ -134,16 +156,18 @@ def _calculate_bootstrap_current(
       Z_eff=Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
+  # NEO: nui_star_S ∝ Z_ion^4 * dens_sum
+  # with Z = Z_ion in Sauter (18c) factor (not Z_eff).
+  # dens_sum is passed as Sauter's n_i in Eq. (18c).
   nu_i_star = formulas.calculate_nu_i_star(
       q=q_face,
       geo=geo,
-      n_i=n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_i=dens_sum_face,
       T_i=T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-      Z_eff=Z_eff_face,
+      Z_i=Z_i_face,
       log_lambda_ii=log_lambda_ii,
   )
 
-  # Calculate terms needed for bootstrap current using Redl formulae
   L31 = redl_formulas.calculate_L31(f_trap, nu_e_star, Z_eff_face)
   L32 = redl_formulas.calculate_L32(f_trap, nu_e_star, Z_eff_face)
   # In Redl model, L34 is set equal to L31 (Eq. 19)
@@ -153,11 +177,9 @@ def _calculate_bootstrap_current(
   return formulas.calculate_analytic_bootstrap_current(
       bootstrap_multiplier=bootstrap_multiplier,
       n_e=n_e,
-      n_i=n_i,
       T_e=T_e,
-      T_i=T_i,
       p_e=p_e,
-      p_i=p_i,
+      ion_species=ion_species,
       psi=psi,
       geo=geo,
       L31=L31,

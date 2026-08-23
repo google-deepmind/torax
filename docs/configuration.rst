@@ -2693,13 +2693,59 @@ time_step_calculator
 neoclassical
 ------------
 
+``f_trap_model`` (str [default = ``'sauter'``])
+  Analytic approximation for the effective trapped-particle fraction
+  :math:`f_t`, used by bootstrap current, conductivity, and Angioni-Sauter
+  neoclassical transport.
+
+  * ``'sauter'``: O. Sauter, Fusion Engineering and Design 112 (2016) 633-645,
+    Eqs. 33–34 (includes triangularity via an effective inverse aspect ratio).
+  * ``'simple'``: large-aspect-ratio circular approximation
+    :math:`f_t = 1.46\sqrt{\epsilon} - 0.46\epsilon`, using the midplane
+    inverse aspect ratio.
+  * ``'LinLiu'``: Lin-Liu & Miller weighted average of circular upper and
+    lower bounds (Phys. Plasmas 2, 1666, 1995),
+    :math:`f_t = 0.75 f_{tu} + 0.25 f_{tl}`, where
+    :math:`f_{tu} = 1 - (1 - \tfrac{3}{2}\sqrt{\epsilon} +
+    \tfrac{1}{2}\epsilon^{3/2}) / \sqrt{1-\epsilon^2}` and
+    :math:`f_{tl} = 1 - (1-\epsilon)^2 /
+    [\sqrt{1-\epsilon^2}\,(1 + 1.46\sqrt{\epsilon} + 0.2\epsilon)]`.
+  * ``'RABBIT'``: M. Weiland et al., Nucl. Fusion 58, 082032 (2018),
+    :math:`f_t = 1.4624256\sqrt{\epsilon_\mathrm{eff}} -
+    0.46\epsilon_\mathrm{eff}^{3/2}`, with
+    :math:`\epsilon_\mathrm{eff} = (R_\mathrm{max} - R_0) / R_0`, where
+    :math:`R_\mathrm{max}` is the maximum major radius on the flux surface
+    and :math:`R_0` is the magnetic-axis major radius.
+  * ``'numerical'``: numerical evaluation of the trapped-fraction integral
+    from O. Sauter et al., Phys. Plasmas 6, 2834 (1999), Eq. (12),
+    :math:`f_t = 1 - \tfrac{3}{4}\langle B^2\rangle
+    \int_0^{1/B_\mathrm{max}} \lambda\,d\lambda /
+    \langle\sqrt{1-\lambda B}\rangle`.
+
+    If the geometry stores flux-surface :math:`|B|(\theta)` and
+    flux-surface-average weights (currently EQDSK, from the 2-D
+    equilibrium contours), those are used directly. Otherwise a local
+    NEO/GACODE Miller surface is reconstructed from ``R_in``, ``R_out``,
+    elongation, triangularity, and :math:`q`, with
+    :math:`|B|=\sqrt{(F/R)^2+B_p^2}` and Jacobian weights (equivalent to
+    :math:`dl/B_p`). CHEASE, FBT, IMAS, and circular geometry fall back
+    to this Miller path. Stored EQDSK :math:`B(\theta)` is the
+    equilibrium field on those surfaces (not the evolving TORAX
+    :math:`q`).
+
 bootstrap_current
 ^^^^^^^^^^^^^^^^^
 ``model_name`` (str [default = 'sauter'])
   The name of the model to use. If not provided, the default is to use the
   Sauter model with default values. Options are ``'sauter'``, ``'redl'``, or ``'zeros'``.
   Note that the Redl model has been shown to have poor accuracy in some cases
-  for multi-species plasmas.
+  for multi-species plasmas. Both ``'sauter'`` and ``'redl'`` use NEO-style
+  multi-species drives: per-species ``L31`` terms and ``L34α`` from
+  ``Σ_s p_s ∇ln T_s`` (each ion/impurity uses its own ``T_s``), and ``ν_i*``
+  as ``nui_star_S ∝ Z_ion^4 * dens_sum`` (density ``Σ n_s``,
+  charge ``Z_ion``). When species are built from core profiles, each thermal
+  ion is currently assigned the evolved ``T_i``. Species densities subtract
+  fast ions.
 
 If the ``sauter`` or ``redl`` model is used, the following parameters can be set:
 
@@ -2708,9 +2754,13 @@ If the ``sauter`` or ``redl`` model is used, the following parameters can be set
 
 conductivity
 ^^^^^^^^^^^^
-``model_name`` (str [default = 'sauter'])
-  The name of the Sauter model to use. If not provided, the default is to use
-  the Sauter model with default values.
+``model_name`` (str [default = ``'sauter'``])
+  Neoclassical conductivity model. Options are ``'sauter'`` (O. Sauter et al.,
+  Phys. Plasmas 6, 2834 (1999)) or ``'redl'`` (A. Redl et al., Phys. Plasmas 28,
+  022502 (2021)). Spitzer conductivity, electron collisionality, and the
+  neoclassical correction use
+  :math:`Z_{\mathrm{eff}} = \sum_s n_s Z_s^2 / n_e` from per-species
+  thermal ion/impurity densities (fast ions are subtracted, as for bootstrap).
 
 transport
 ^^^^^^^^^
@@ -2724,8 +2774,10 @@ transport
   * ``'angioni_sauter'``
     The Angioni-Sauter neoclassical transport model from
     `C. Angioni and O. Sauter, Phys. Plasmas 7, 1224 (2000) <https://doi.org/10.1063/1.873918>`_.
-    This is the default model. This model does not have any additional
-    configurable parameters.
+    Uses species-summed
+    :math:`Z_{\mathrm{eff}} = \sum_s n_s Z_s^2 / n_e` from thermal
+    ion/impurity densities (fast ions subtracted), consistent with bootstrap
+    and conductivity. This is the default model.
 
 
 ``chi_min`` (float [default = 0.0])

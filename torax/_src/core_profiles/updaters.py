@@ -237,7 +237,7 @@ def update_core_and_source_profiles_after_step(
   )
 
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geo, intermediate_core_profiles
+      runtime_params_t_plus_dt, geo, intermediate_core_profiles
   )
 
   intermediate_core_profiles = dataclasses.replace(

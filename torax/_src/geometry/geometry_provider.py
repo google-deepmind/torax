@@ -158,6 +158,8 @@ class TimeDependentGeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis | None
+  B_surface_face: interpolated_param.InterpolatedVarSingleAxis | None
+  fsa_weight_face: interpolated_param.InterpolatedVarSingleAxis | None
   calcphibdot: bool = dataclasses.field(metadata={'static': True})
 
   @classmethod
@@ -200,15 +202,17 @@ class TimeDependentGeometryProvider:
         continue
 
       # Remaining attributes are set up for interpolation.
+      stacked = np.stack(
+          [getattr(g, attr.name) for g in geos],
+          axis=0,
+          dtype=jax_utils.get_np_dtype(),
+      )
+      # InterpolatedVarSingleAxis only accepts 1D or 2D ys. Surface |B|(θ)
+      # arrays are (n_face, n_theta); flatten the trailing axes.
+      if stacked.ndim > 2:
+        stacked = stacked.reshape(stacked.shape[0], -1)
       kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(  # pyrefly: ignore[unsupported-operation]
-          (
-              times,
-              np.stack(
-                  [getattr(g, attr.name) for g in geos],
-                  axis=0,
-                  dtype=jax_utils.get_np_dtype(),
-              ),
-          ),
+          (times, stacked),
           is_bool_param=isinstance(initial_val, bool),
       )
     return cls(**kwargs)  # pyrefly: ignore[missing-argument]
@@ -242,7 +246,11 @@ class TimeDependentGeometryProvider:
       if isinstance(
           provider_attr, interpolated_param.InterpolatedVarSingleAxis
       ):
-        kwargs[attr.name] = provider_attr.get_value(t)  # pyrefly: ignore[unsupported-operation]
+        value = provider_attr.get_value(t)  # pyrefly: ignore[unsupported-operation]
+        if attr.name in geometry._THETA_SURFACE_FIELDS and value is not None:
+          n_face = self.torax_mesh.face_centers.shape[0]
+          value = jnp.reshape(value, (n_face, -1))
+        kwargs[attr.name] = value  # pyrefly: ignore[unsupported-operation]
       else:
         # For None attributes.
         kwargs[attr.name] = provider_attr

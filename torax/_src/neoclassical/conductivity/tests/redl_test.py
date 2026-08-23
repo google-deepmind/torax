@@ -1,4 +1,4 @@
-# Copyright 2024 DeepMind Technologies Limited
+# Copyright 2026 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@ from absl.testing import absltest
 import jax.numpy as jnp
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.neoclassical.conductivity import sauter
+from torax._src.neoclassical.conductivity import redl
 from torax._src.torax_pydantic import model_config
 
 _N_RHO = 10
 
 
-class SauterTest(absltest.TestCase):
+class RedlTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -38,6 +38,9 @@ class SauterTest(absltest.TestCase):
         'solver': {},
         'pedestal': {},
         'sources': {},
+        'neoclassical': {
+            'conductivity': {'model_name': 'redl'},
+        },
     })
     params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -57,13 +60,14 @@ class SauterTest(absltest.TestCase):
         neoclassical_models=torax_config.neoclassical.build_models(),
     )
 
-  def test_sauter_conductivity_current_is_correct_shape(self):
-    model = sauter.SauterModel()
+  def test_redl_conductivity_is_correct_shape(self):
+    model = redl.RedlModel()
     result = model.calculate_conductivity(
         self.runtime_params, self.geo, self.core_profiles
     )
     self.assertEqual(result.sigma.shape, (_N_RHO,))
     self.assertEqual(result.sigma_face.shape, (_N_RHO + 1,))
+    self.assertTrue(jnp.all(jnp.isfinite(result.sigma)))
     self.assertTrue(jnp.all(jnp.isfinite(result.sigma_face)))
     self.assertTrue(jnp.all(result.sigma_face > 0.0))
 

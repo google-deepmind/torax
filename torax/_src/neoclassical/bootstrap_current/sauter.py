@@ -13,6 +13,7 @@
 # limitations under the License.
 """Sauter model for bootstrap current."""
 
+from collections.abc import Sequence
 from typing import Annotated, Literal
 
 import jax
@@ -30,7 +31,13 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 class SauterModel(bootstrap_current_base.BootstrapCurrentModel):
-  """Sauter model for bootstrap current."""
+  """Sauter model for bootstrap current.
+
+  Multi-species treatment follows NEO ``compute_Sauter``: per-species ``L31``
+  and ``L34*α`` drives using each species' ``T_s`` and ``∇ln T_s``, and
+  ``ν_i*`` as ``nui_star_S ∝ Z_ion^4 * dens_sum`` (density ``dens_sum``,
+  charge ``Z_ion``).
+  """
 
   def calculate_bootstrap_current(
       self,
@@ -43,19 +50,37 @@ class SauterModel(bootstrap_current_base.BootstrapCurrentModel):
     assert isinstance(
         bootstrap_params, bootstrap_current_runtime_params.RuntimeParams
     )
+    ion_species = formulas.build_ion_species_from_core_profiles(
+        core_profiles,
+        subtract_fast_ions=True,
+    )
+    Z_eff_face = formulas.calculate_Z_eff_from_ion_species(
+        core_profiles, ion_species
+    )
+    dens_sum_face = formulas.calculate_ion_density_sum_face(
+        ion_species, placeholder=core_profiles.n_e.face_value()
+    )
+    # Computed outside the JIT helper so f_trap_model can use Python control flow.
+    f_trap = formulas.calculate_f_trap(
+        geometry,
+        runtime_params.neoclassical.f_trap_model,
+        q_face=core_profiles.q_face,
+    )
     return _calculate_bootstrap_current(
         bootstrap_multiplier=bootstrap_params.bootstrap_multiplier,
-        Z_eff_face=core_profiles.Z_eff_face,
+        Z_eff_face=Z_eff_face,
         Z_i_face=core_profiles.Z_i_face,
         n_e=core_profiles.n_e,
         n_i=core_profiles.n_i,
+        dens_sum_face=dens_sum_face,
         T_e=core_profiles.T_e,
         T_i=core_profiles.T_i,
         p_e=core_profiles.pressure_thermal_e,
-        p_i=core_profiles.pressure_thermal_i,
+        ion_species=ion_species,
         psi=core_profiles.psi,
         q_face=core_profiles.q_face,
         geo=geometry,
+        f_trap=f_trap,
     )
 
   def __eq__(self, other) -> bool:
@@ -93,30 +118,29 @@ def _calculate_bootstrap_current(
     Z_i_face: array_typing.FloatVectorFace,
     n_e: cell_variable.CellVariable,
     n_i: cell_variable.CellVariable,
+    dens_sum_face: array_typing.FloatVectorFace,
     T_e: cell_variable.CellVariable,
     T_i: cell_variable.CellVariable,
     p_e: cell_variable.CellVariable,
-    p_i: cell_variable.CellVariable,
+    ion_species: Sequence[formulas.IonSpeciesProfiles],
     psi: cell_variable.CellVariable,
     q_face: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
+    f_trap: array_typing.FloatVectorFace,
 ) -> bootstrap_current_base.BootstrapCurrent:
   """Calculates j_parallel_bootstrap using the Sauter model."""
   # pylint: disable=invalid-name
 
-  # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
-  # corrections.
+  # Formulas from Sauter PoP 1999 with NEO multi-species drive assembly.
 
-  # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
-
-  # Spitzer conductivity
   log_lambda_ei = collisions.calculate_log_lambda_ei(
       T_e.face_value(), n_e.face_value()  # pyrefly: ignore[bad-argument-type]
   )
   log_lambda_ii = collisions.calculate_log_lambda_ii(
       T_i.face_value(), n_i.face_value(), Z_i_face  # pyrefly: ignore[bad-argument-type]
   )
+  # n_i above is bundled main-ion density for Sauter lnΛ_ii (18e);
+  # ν_i* density factor uses dens_sum (NEO), not n_i.
   nu_e_star = formulas.calculate_nu_e_star(
       q=q_face,
       geo=geo,
@@ -125,35 +149,29 @@ def _calculate_bootstrap_current(
       Z_eff=Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
+  # NEO: nui_star_S ∝ Z_ion^4 * dens_sum
+  # with Z = Z_ion in Sauter (18c) factor (not Z_eff).
+  # dens_sum is passed as Sauter's n_i in Eq. (18c).
   nu_i_star = formulas.calculate_nu_i_star(
       q=q_face,
       geo=geo,
-      n_i=n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_i=dens_sum_face,
       T_i=T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-      Z_eff=Z_eff_face,
+      Z_i=Z_i_face,
       log_lambda_ii=log_lambda_ii,
   )
 
-  # Terms for analytical fit
-  L31 = sauter_formulas.calculate_L31(
-      f_trap, nu_e_star, Z_eff_face
-  )
-  L32 = sauter_formulas.calculate_L32(
-      f_trap, nu_e_star, Z_eff_face
-  )
-  L34 = sauter_formulas.calculate_L34(
-      f_trap, nu_e_star, Z_eff_face
-  )
+  L31 = sauter_formulas.calculate_L31(f_trap, nu_e_star, Z_eff_face)
+  L32 = sauter_formulas.calculate_L32(f_trap, nu_e_star, Z_eff_face)
+  L34 = sauter_formulas.calculate_L34(f_trap, nu_e_star, Z_eff_face)
   alpha = sauter_formulas.calculate_alpha(f_trap, nu_i_star)
 
   return formulas.calculate_analytic_bootstrap_current(
       bootstrap_multiplier=bootstrap_multiplier,
       n_e=n_e,
-      n_i=n_i,
       T_e=T_e,
-      T_i=T_i,
       p_e=p_e,
-      p_i=p_i,
+      ion_species=ion_species,
       psi=psi,
       geo=geo,
       L31=L31,

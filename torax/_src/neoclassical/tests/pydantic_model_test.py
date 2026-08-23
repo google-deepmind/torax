@@ -36,6 +36,39 @@ class PydanticModelTest(parameterized.TestCase):
     model = pydantic_model.Neoclassical.from_dict({"bootstrap_current": {}})
     self.assertEqual(model.bootstrap_current.model_name, "sauter")
 
+  def test_f_trap_model_default_is_sauter(self):
+    model = pydantic_model.Neoclassical.from_dict({})
+    self.assertEqual(model.f_trap_model, "sauter")
+    self.assertEqual(model.build_runtime_params().f_trap_model, "sauter")
+
+  def test_f_trap_model_simple(self):
+    model = pydantic_model.Neoclassical.from_dict({"f_trap_model": "simple"})
+    self.assertEqual(model.f_trap_model, "simple")
+    self.assertEqual(model.build_runtime_params().f_trap_model, "simple")
+
+  def test_f_trap_model_LinLiu(self):
+    model = pydantic_model.Neoclassical.from_dict({"f_trap_model": "LinLiu"})
+    self.assertEqual(model.f_trap_model, "LinLiu")
+    self.assertEqual(model.build_runtime_params().f_trap_model, "LinLiu")
+
+  def test_f_trap_model_RABBIT(self):
+    model = pydantic_model.Neoclassical.from_dict(
+        {"f_trap_model": "RABBIT"}
+    )
+    self.assertEqual(model.f_trap_model, "RABBIT")
+    self.assertEqual(
+        model.build_runtime_params().f_trap_model, "RABBIT"
+    )
+
+  def test_f_trap_model_numerical(self):
+    model = pydantic_model.Neoclassical.from_dict(
+        {"f_trap_model": "numerical"}
+    )
+    self.assertEqual(model.f_trap_model, "numerical")
+    self.assertEqual(
+        model.build_runtime_params().f_trap_model, "numerical"
+    )
+
   @parameterized.parameters("zeros", "sauter")
   def test_bootstrap_current_model_name(self, model_name):
     model = pydantic_model.Neoclassical.from_dict(
@@ -48,6 +81,13 @@ class PydanticModelTest(parameterized.TestCase):
         {"conductivity": {"model_name": "sauter"}}
     )
     self.assertEqual(model.conductivity.model_name, "sauter")
+
+  def test_set_conductivity_model_name_redl(self):
+    model = pydantic_model.Neoclassical.from_dict(
+        {"conductivity": {"model_name": "redl"}}
+    )
+    self.assertEqual(model.conductivity.model_name, "redl")
+    self.assertEqual(model.build_runtime_params().f_trap_model, "sauter")
 
   def test_set_transport_default_model_name(self):
     model = pydantic_model.Neoclassical.from_dict({"transport": {}})

@@ -43,7 +43,9 @@ TORAX, at v1.0.0, has the following physics and numerics feature set:
     impurity line radiation, an ICRH ML-surrogate |toricnn| (as-yet covering
     limited regimes).
   * Bootstrap current and neoclassical conductivity with the analytical Sauter
-    model.
+    model |sauter99|; the Redl model |redl21| is also available for both.
+    The trapped-particle fraction used by these models (and by Angioni–Sauter
+    neoclassical transport) is selected via ``neoclassical.f_trap_model``.
   * Coupling to the |qlknn_7_11| and QLKNN10D |qlknn10d| QuaLiKiz-neural-network
     surrogates for physics-based turbulent transport. The semi-empirical
     Bohm-GyroBohm model is also available.

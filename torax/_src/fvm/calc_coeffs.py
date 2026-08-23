@@ -232,7 +232,7 @@ def _calc_coeffs_full(
   consts = constants.CONSTANTS
 
   conductivity = models.neoclassical_models.conductivity.calculate_conductivity(
-      geo, core_profiles
+      runtime_params, geo, core_profiles
   )
 
   # Calculate the implicit source profiles and combine them with the explicit

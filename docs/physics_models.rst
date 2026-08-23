@@ -327,7 +327,26 @@ TORAX employs the Sauter model |sauter99| to calculate the bootstrap current
 density, :math:`j_{bs}`, and the neoclassical conductivity, :math:`\sigma_{||}`,
 used in the current diffusion equation. The Sauter model is a widely-used
 analytical formulation that provides a relatively fast and differentiable
-approximation for these neoclassical quantities.
+approximation for these neoclassical quantities. The Redl model |redl21| is
+also available for both bootstrap current and neoclassical conductivity.
+
+Multi-species plasmas follow the NEO ``compute_Sauter`` assembly: bootstrap
+``L31`` drives are summed over electrons and each ion/impurity species using
+that species' :math:`n_s`, :math:`T_s`, and logarithmic gradients;
+``L34\alpha`` is :math:`\sum_s p_s \nabla\ln T_s`; ion collisionality follows NEO
+``nui_star_S ∝ Z_ion^4 * dens_sum``
+(density :math:`\sum_s n_s`, charge :math:`Z_{\mathrm{ion}}` as in Sauter
+Eq. (18c)); and conductivity / L-coefficient fits use
+:math:`Z_{\mathrm{eff}}=\sum_s n_s Z_s^2/n_e`. When species are built from
+``CoreProfiles``, each thermal ion is currently assigned the evolved
+:math:`T_i`. Bootstrap, conductivity, and Angioni–Sauter neoclassical
+transport all use thermal species densities with fast ions subtracted for this
+species-summed :math:`Z_{\mathrm{eff}}`. The trapped-particle fraction
+:math:`f_t` used by bootstrap, conductivity, and Angioni–Sauter transport
+is selected via ``neoclassical.f_trap_model``. The ``numerical`` option
+evaluates Sauter PoP 1999 Eq. (12) on stored flux-surface
+:math:`|B|(\theta)` when the geometry provides it (EQDSK), and otherwise
+on a NEO/GACODE Miller reconstruction.
 
 Future work can incorporate more recent neoclassical physics parameterizations,
 and also set neoclassical transport coefficients themselves. This can be of

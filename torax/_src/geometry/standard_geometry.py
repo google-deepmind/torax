@@ -221,6 +221,12 @@ class StandardGeometryIntermediates:
     R_OMP: Major radius of the outboard midplane [m].
     R_target: Major radius of the divertor target strike point [m].
     B_pol_OMP: Poloidal magnetic field at the outboard midplane [T].
+    B_surface: Magnetic field strength :math:`|B|` versus geometric poloidal
+      angle on the equilibrium rho grid. Shape ``(n_rho_eq, n_theta)``.
+      Populated for EQDSK; ``None`` otherwise.
+    fsa_weight: Flux-surface-average weights matching ``B_surface``
+      (equivalent to :math:`dl/B_p` per radian). ``None`` when
+      ``B_surface`` is ``None``.
   """
 
   geometry_type: geometry.GeometryType
@@ -257,6 +263,8 @@ class StandardGeometryIntermediates:
   R_OMP: array_typing.FloatScalar | None
   R_target: array_typing.FloatScalar | None
   B_pol_OMP: array_typing.FloatScalar | None
+  B_surface: array_typing.Array | None = None
+  fsa_weight: array_typing.Array | None = None
 
   def __post_init__(self):
     """Enforces sign conventions, extrapolates edge, and smooths near-axis.
@@ -553,6 +561,24 @@ def build_standard_geometry(
   area_face = rhon_interpolation_func(rho_face_norm, area_intermediate)
   area = rhon_interpolation_func(rho_norm, area_intermediate)
 
+  if (
+      intermediates.B_surface is not None
+      and intermediates.fsa_weight is not None
+  ):
+    B_surface_face = np.apply_along_axis(
+        lambda y: rhon_interpolation_func(rho_face_norm, y),
+        0,
+        intermediates.B_surface,
+    )
+    fsa_weight_face = np.apply_along_axis(
+        lambda y: rhon_interpolation_func(rho_face_norm, y),
+        0,
+        intermediates.fsa_weight,
+    )
+  else:
+    B_surface_face = None
+    fsa_weight_face = None
+
   return StandardGeometry(
       geometry_type=intermediates.geometry_type,
       torax_mesh=mesh,
@@ -618,6 +644,8 @@ def build_standard_geometry(
       R_OMP=intermediates.R_OMP,
       R_target=intermediates.R_target,
       B_pol_OMP=intermediates.B_pol_OMP,
+      B_surface_face=B_surface_face,
+      fsa_weight_face=fsa_weight_face,
   )
 
 

@@ -482,6 +482,7 @@ def _calculate_all_psi_dependent_profiles(
   )
   # Calculate conductivity once we have a consistent set of core profiles
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
+      runtime_params,
       geo,
       core_profiles,
   )

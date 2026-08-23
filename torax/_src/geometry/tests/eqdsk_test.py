@@ -19,7 +19,9 @@ import eqdsk as eqdsk_lib
 import numpy as np
 from torax._src import array_typing
 from torax._src.geometry import eqdsk
+from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
+from torax._src.neoclassical.formulas import formulas
 
 # pylint: disable=invalid-name
 
@@ -115,6 +117,26 @@ class EqdskGeometryTest(parameterized.TestCase):
         self.assertIsNone(val2, msg=f'Field "{name}" mismatch (dict).')
       else:
         self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch (dict).')
+
+  def test_eqdsk_stores_surface_B_for_numerical_f_trap(self):
+    """EQDSK keeps contour |B|(θ) so numerical f_t does not need Miller q."""
+    geo = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk', cocos=11
+    ).build_geometry()
+    self.assertIsNotNone(geo.B_surface_face)
+    self.assertIsNotNone(geo.fsa_weight_face)
+    n_face = geo.rho_face_norm.shape[0]
+    self.assertEqual(
+        geo.B_surface_face.shape, (n_face, geometry.N_THETA_SURFACE)
+    )
+    self.assertEqual(geo.fsa_weight_face.shape, geo.B_surface_face.shape)
+    self.assertTrue(np.all(geo.B_surface_face > 0.0))
+    self.assertTrue(np.all(geo.fsa_weight_face >= 0.0))
+    f_t = formulas.calculate_f_trap(geo, f_trap_model='numerical')
+    np.testing.assert_allclose(f_t[0], 0.0, atol=1e-5)
+    self.assertTrue(np.all(f_t >= 0.0))
+    self.assertTrue(np.all(f_t <= 1.0))
+    self.assertGreater(float(f_t[-1]), float(f_t[1]))
 
 
 if __name__ == '__main__':

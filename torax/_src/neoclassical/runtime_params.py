@@ -13,6 +13,7 @@
 # limitations under the License.
 """Runtime params for neoclassical models."""
 import dataclasses
+from typing import Literal
 
 import jax
 from torax._src import array_typing
@@ -29,3 +30,11 @@ class RuntimeParams:
   conductivity: conductivity_runtime_params.RuntimeParams
   transport: transport_runtime_params.RuntimeParams
   poloidal_velocity_multiplier: array_typing.FloatScalar
+  # Which trapped-particle fraction approximation to use in neoclassical
+  # formulas (bootstrap, conductivity, and Angioni-Sauter transport).
+  f_trap_model: Literal[
+      'sauter', 'simple', 'RABBIT', 'LinLiu', 'numerical'
+  ] = dataclasses.field(
+      default='sauter',
+      metadata={'static': True},
+  )

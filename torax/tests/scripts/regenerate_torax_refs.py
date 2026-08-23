@@ -183,6 +183,7 @@ def _calculate_new_references(
   s_face = psi_calculations.calc_s_face(geo, psi)
 
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
+      runtime_params=runtime_params,
       geometry=geo,
       core_profiles=initial_core_profiles,
   )

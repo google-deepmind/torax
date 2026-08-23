@@ -277,4 +277,6 @@ def _build_circular_geometry(
       # geo_t_plus_dt for each given time interval.
       Phi_b_dot=np.asarray(0.0),
       _z_magnetic_axis=np.asarray(0.0),
+      B_surface_face=None,
+      fsa_weight_face=None,
   )

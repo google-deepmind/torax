@@ -74,6 +74,29 @@ class GeometryProviderTest(absltest.TestCase):
     self.assertIsNone(provider(0.0)._z_magnetic_axis)
     self.assertIsNone(provider(10.0)._z_magnetic_axis)
 
+  def test_time_dependent_surface_B_interpolates(self):
+    geo_0 = circular_geometry.CircularConfig().build_geometry()
+    n_face = geo_0.rho_face_norm.shape[0]
+    n_theta = 4
+    weights = np.ones((n_face, n_theta))
+    geo_0 = dataclasses.replace(
+        geo_0,
+        B_surface_face=np.ones((n_face, n_theta)),
+        fsa_weight_face=weights,
+    )
+    geo_1 = dataclasses.replace(
+        geo_0,
+        B_surface_face=3.0 * np.ones((n_face, n_theta)),
+    )
+    provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
+        {0.0: geo_0, 10.0: geo_1},
+        calcphibdot=True,
+    )
+    geo = provider(5.0)
+    np.testing.assert_allclose(geo.B_surface_face, 2.0)
+    np.testing.assert_allclose(geo.fsa_weight_face, 1.0)
+    self.assertEqual(geo.B_surface_face.shape, (n_face, n_theta))
+
 
 if __name__ == "__main__":
   absltest.main()

@@ -133,7 +133,6 @@ def calculate_rotation(
     psi: cell_variable.CellVariable,
     n_i: cell_variable.CellVariable,
     q_face: array_typing.FloatVectorFace,
-    Z_eff_face: array_typing.FloatVectorFace,
     Z_i_face: array_typing.FloatVector,
     toroidal_angular_velocity: cell_variable.CellVariable,
     pressure_total_i: cell_variable.CellVariable,
@@ -147,7 +146,6 @@ def calculate_rotation(
     psi: Poloidal flux profile as a cell variable.
     n_i: Main ion density profile as a cell variable.
     q_face: Safety factor on the face grid.
-    Z_eff_face: Effective charge on the face grid.
     Z_i_face: Main ion charge on the face grid.
     toroidal_angular_velocity: Toroidal velocity profile as a cell variable.
     pressure_total_i: Total ion pressure (thermal + fast) as a cell variable.
@@ -175,7 +173,6 @@ def calculate_rotation(
       T_i=T_i,
       n_i=n_i.face_value(),
       q=q_face,
-      Z_eff=Z_eff_face,
       Z_i=Z_i_face,
       B_tor=B_tor_face,
       B_total_squared=B_total_squared_face,

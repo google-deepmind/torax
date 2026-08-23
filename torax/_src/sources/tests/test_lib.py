@@ -128,7 +128,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
           qei=source_profiles.QeiInfo.zeros(geo),
       )
       conductivity = neoclassical_models.conductivity.calculate_conductivity(
-          geo, core_profiles
+          runtime_params, geo, core_profiles
       )
     else:
       calculated_source_profiles = None

@@ -519,7 +519,7 @@ def _get_initial_state(
       neoclassical_models=neoclassical_models,
   )
   conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geo, core_profiles
+      runtime_params, geo, core_profiles
   )
   core_sources = source_profile_builders.get_all_source_profiles(
       runtime_params=runtime_params,

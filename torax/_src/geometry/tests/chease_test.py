@@ -28,6 +28,11 @@ class CheaseGeometryTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'does not have a z magnetic axis'):
       geo.z_magnetic_axis()
 
+  def test_chease_geometry_has_no_surface_B(self):
+    geo = chease.CheaseConfig().build_geometry()
+    self.assertIsNone(geo.B_surface_face)
+    self.assertIsNone(geo.fsa_weight_face)
+
 
 if __name__ == '__main__':
   absltest.main()

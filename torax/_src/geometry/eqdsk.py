@@ -45,6 +45,58 @@ _TORAX_EQDSK_COCOS = 11
 
 
 # pylint: disable=invalid-name
+
+
+def _resample_B_and_fsa_weight(
+    R: np.ndarray,
+    Z: np.ndarray,
+    B: np.ndarray,
+    dl_over_Bp: np.ndarray,
+    R_axis: float,
+    Z_axis: float,
+    n_theta: int,
+) -> tuple[np.ndarray, np.ndarray]:
+  """Resample |B| and FSA weights onto a uniform geometric poloidal angle.
+
+  The weight is the NEO-style density :math:`(dl/B_p)/d\\theta`, so a uniform
+  :math:`\\theta` grid can use it directly in flux-surface averages (same as
+  :math:`R|J|` on a Miller surface).
+  """
+  theta = np.arctan2(Z - Z_axis, R - R_axis)
+  # dl is along the contour parameterization, so dθ must use that same order.
+  dtheta = np.gradient(np.unwrap(theta))
+  weight_density = dl_over_Bp / np.maximum(np.abs(dtheta), 1e-30)
+  theta_mod = np.mod(theta, 2.0 * np.pi)
+  theta_grid = np.linspace(0.0, 2.0 * np.pi, n_theta, endpoint=False)
+  B_on_theta = _periodic_interp(theta_mod, B, theta_grid)
+  weight_on_theta = _periodic_interp(theta_mod, weight_density, theta_grid)
+  return B_on_theta, np.maximum(weight_on_theta, 0.0)
+
+
+def _periodic_interp(
+    theta_src: np.ndarray,
+    values: np.ndarray,
+    theta_grid: np.ndarray,
+) -> np.ndarray:
+  """Interpolate a closed-contour quantity onto a periodic θ grid in [0, 2π)."""
+  order = np.argsort(theta_src)
+  theta_sorted = theta_src[order]
+  values_sorted = np.asarray(values)[order]
+  _, unique_idx = np.unique(theta_sorted, return_index=True)
+  unique_idx = np.sort(unique_idx)
+  theta_sorted = theta_sorted[unique_idx]
+  values_sorted = values_sorted[unique_idx]
+  if theta_sorted.size < 4:
+    raise ValueError(
+        'Flux-surface contour has too few unique poloidal angles to resample.'
+    )
+  theta_ext = np.concatenate(
+      (theta_sorted - 2.0 * np.pi, theta_sorted, theta_sorted + 2.0 * np.pi)
+  )
+  values_ext = np.concatenate((values_sorted, values_sorted, values_sorted))
+  return np.interp(theta_grid, theta_ext, values_ext)
+
+
 class EQDSKConfig(base.BaseGeometryConfig):
   """Pydantic model for the EQDSK geometry.
 
@@ -326,6 +378,9 @@ def _construct_intermediates_from_eqdsk(
   delta_upper_face = np.empty(len(surfaces) + 1)  # Upper face delta
   delta_lower_face = np.empty(len(surfaces) + 1)  # Lower face delta
   elongation = np.empty(len(surfaces) + 1)  # Elongation
+  n_theta = geometry.N_THETA_SURFACE
+  B_surface = np.empty((len(surfaces) + 1, n_theta))
+  fsa_weight = np.empty((len(surfaces) + 1, n_theta))
 
   # Compute fsa for each surface
   # Note: surfaces is from psi[1:]
@@ -429,6 +484,17 @@ def _construct_intermediates_from_eqdsk(
     delta_upper_face[n + 1] = surface_delta_upper_face
     delta_lower_face[n + 1] = surface_delta_lower_face
     elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (2.0 * a_minor_local)
+    B_on_theta, weight_on_theta = _resample_B_and_fsa_weight(
+        x_surface,
+        z_surface,
+        np.sqrt(surface_B2),
+        surface_dl / surface_Bpol,
+        Raxis,
+        Zaxis,
+        n_theta,
+    )
+    B_surface[n + 1] = B_on_theta
+    fsa_weight[n + 1] = weight_on_theta
 
   # Set fsa_arrays[0] quantities
   # StandardGeometryIntermediate values at the magnetic axis are prescribed,
@@ -449,6 +515,8 @@ def _construct_intermediates_from_eqdsk(
   delta_upper_face[0] = delta_upper_face[1]
   delta_lower_face[0] = delta_lower_face[1]
   elongation[0] = elongation[1]
+  B_surface[0, :] = np.abs(Btor_axis)
+  fsa_weight[0, :] = 1.0
 
   # ------------------------------------- #
   # ---- 5. Compute derived profiles ---- #
@@ -510,6 +578,8 @@ def _construct_intermediates_from_eqdsk(
       R_target=None,
       B_pol_OMP=None,
       z_magnetic_axis=np.array(Zaxis),
+      B_surface=B_surface,
+      fsa_weight=fsa_weight,
   )
 
 

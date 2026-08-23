@@ -106,10 +106,30 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
     Returns:
       Neoclassical transport coefficients.
     """
+    # Computed outside the transport helper so f_trap_model can use Python
+    # control flow (same pattern as bootstrap / conductivity).
+    f_trap = formulas.calculate_f_trap(
+        geometry,
+        runtime_params.neoclassical.f_trap_model,
+        q_face=core_profiles.q_face,
+    )
+    ion_species = formulas.build_ion_species_from_core_profiles(
+        core_profiles,
+        subtract_fast_ions=True,
+    )
+    Z_eff_face = formulas.calculate_Z_eff_from_ion_species(
+        core_profiles, ion_species
+    )
+    dens_sum_face = formulas.calculate_ion_density_sum_face(
+        ion_species, placeholder=core_profiles.n_e.face_value()
+    )
     angioni_sauter = _calculate_angioni_sauter_transport(
         runtime_params=runtime_params,
         geometry=geometry,
         core_profiles=core_profiles,
+        f_trap=f_trap,
+        Z_eff_face=Z_eff_face,
+        dens_sum_face=dens_sum_face,
     )
     shaing = _calculate_shaing_transport(
         runtime_params=runtime_params,
@@ -155,6 +175,9 @@ def _calculate_angioni_sauter_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
+    f_trap: array_typing.FloatVectorFace,
+    Z_eff_face: array_typing.FloatVectorFace,
+    dens_sum_face: array_typing.FloatVectorFace,
 ) -> base.NeoclassicalTransport:
   """JIT-compatible implementation of the Angioni-Sauter transport model.
 
@@ -162,6 +185,12 @@ def _calculate_angioni_sauter_transport(
     runtime_params: Runtime parameters.
     geometry: Geometry object.
     core_profiles: Core profiles object.
+    f_trap: Effective trapped-particle fraction on the face grid.
+    Z_eff_face: Species-summed effective charge on the face grid
+      (:math:`Z_{\\mathrm{eff}}=\\sum_s n_s Z_s^2/n_e`), with fast ions
+      subtracted (same definition as bootstrap / conductivity).
+    dens_sum_face: NEO ``dens_sum`` (sum of thermal ion/impurity densities)
+      used in ``ν_i*``.
 
   Returns:
     Neoclassical transport coefficients.
@@ -170,22 +199,9 @@ def _calculate_angioni_sauter_transport(
   omitted for brevity.
   """
 
-  del runtime_params  # Unused.
-
-  # --- Step 1: Calculate intermediate physics quantities ---
-
   # Calculate trapped fractions ft and ftd from paper Eq. (17)
   B2_avg_Bm2_avg = geometry.gm5_face * geometry.gm4_face
-
-  # Use the Sauter model's effective trapped fraction logic
-  aa = (1.0 - geometry.epsilon_face) / (1.0 + geometry.epsilon_face)
-  epseff = (
-      0.67
-      * (1.0 - 1.4 * jnp.abs(geometry.delta_face) * geometry.delta_face)
-      * geometry.epsilon_face
-  )
-  ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
-
+  ftrap = f_trap
   # Equation (17)
   ftrap_d = 1.0 - (1.0 - ftrap) / B2_avg_Bm2_avg
 
@@ -198,7 +214,7 @@ def _calculate_angioni_sauter_transport(
       geo=geometry,
       n_e=core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
       T_e=core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      Z_eff=core_profiles.Z_eff_face,
+      Z_eff=Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
 
@@ -208,29 +224,26 @@ def _calculate_angioni_sauter_transport(
       core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
   )
 
-  # Equation 18c from Sauter PoP 1999
-  nu_i_star = (
-      4.9e-18
-      * core_profiles.q_face
-      * geometry.R_major_profile_face
-      * core_profiles.n_i.face_value()
-      * core_profiles.Z_i_face**4
-      * log_lambda_ii
-      / (
-          (core_profiles.T_i.face_value() * 1e3) ** 2
-          * (geometry.epsilon_face + constants.CONSTANTS.eps) ** 1.5
-      )
+  # NEO: nui_star_S ∝ Z_ion^4 * dens_sum (Z = Z_ion).
+  # dens_sum is passed as Sauter's n_i in Eq. (18c).
+  nu_i_star = formulas.calculate_nu_i_star(
+      q=core_profiles.q_face,
+      geo=geometry,
+      n_i=dens_sum_face,
+      T_i=core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      Z_i=core_profiles.Z_i_face,
+      log_lambda_ii=log_lambda_ii,
   )
 
   # Impurity strength parameter
   # Using single impurity definition: alpha_I = nimpZimp/niZi = Zeff - 1
-  alpha_I = core_profiles.Z_eff_face - 1.0
+  alpha_I = Z_eff_face - 1.0
 
   # --- Step 2: Calculate dimensionless transport matrix K_mn ---
   Kmn_e, Kmn_i = _calculate_Kmn(
       ftrap=ftrap,
       ftrap_d=ftrap_d,
-      Z_eff=core_profiles.Z_eff_face,
+      Z_eff=Z_eff_face,
       B2_avg_Bm2_avg=B2_avg_Bm2_avg,
       nu_e_star=nu_e_star,
       nu_i_star=nu_i_star,

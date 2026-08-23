@@ -233,7 +233,6 @@ class QualikizBasedTransportModel(
           psi=core_profiles.psi,
           n_i=core_profiles.n_i,
           q_face=core_profiles.q_face,
-          Z_eff_face=core_profiles.Z_eff_face,
           Z_i_face=core_profiles.Z_i_face,
           toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
           pressure_total_i=core_profiles.pressure_total_i,

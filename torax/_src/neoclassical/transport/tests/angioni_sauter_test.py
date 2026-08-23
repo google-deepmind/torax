@@ -21,6 +21,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
+from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.neoclassical.transport import base
 from torax._src.torax_pydantic import model_config
@@ -90,9 +91,28 @@ class AngioniSauterTest(absltest.TestCase):
         self._get_reference_runtime_params_geo_and_core_profiles()
     )
 
+    f_trap = formulas.calculate_f_trap(
+        geo,
+        runtime_params.neoclassical.f_trap_model,
+        q_face=core_profiles.q_face,
+    )
+    ion_species = formulas.build_ion_species_from_core_profiles(
+        core_profiles, subtract_fast_ions=True
+    )
+    Z_eff_face = formulas.calculate_Z_eff_from_ion_species(
+        core_profiles, ion_species
+    )
+    dens_sum_face = formulas.calculate_ion_density_sum_face(
+        ion_species, placeholder=core_profiles.n_e.face_value()
+    )
+    # Without fast ions, species-summed Z_eff matches bundled Z_eff_face.
+    np.testing.assert_allclose(
+        Z_eff_face, core_profiles.Z_eff_face, atol=_A_TOL, rtol=_R_TOL
+    )
+
     # Test raw Angioni-Sauter values
     result = angioni_sauter._calculate_angioni_sauter_transport(
-        runtime_params, geo, core_profiles
+        runtime_params, geo, core_profiles, f_trap, Z_eff_face, dens_sum_face
     )
     np.testing.assert_allclose(
         result.chi_neo_i,
@@ -188,86 +208,86 @@ class AngioniSauterTest(absltest.TestCase):
 # generation of the Kmn matrix.
 _ANGIONI_SAUTER_REFERENCE_VALUES = base.NeoclassicalTransport(
     chi_neo_i=np.array([
-        0.01220085,
-        0.01220085,
-        0.02223608,
-        0.03117304,
-        0.03891618,
-        0.04568965,
-        0.05179111,
-        0.0572006,
-        0.06147531,
-        0.06320731,
-        0.0591895,
+        0.012331097,
+        0.012331097,
+        0.022491648,
+        0.031540901,
+        0.039378489,
+        0.046231733,
+        0.052401891,
+        0.057866989,
+        0.062174428,
+        0.063889172,
+        0.059739414,
     ]),
     chi_neo_e=np.array([
-        -0.00210023,
-        -0.00210023,
-        -0.0030792,
-        -0.00388683,
-        -0.0045548,
-        -0.00511068,
-        -0.0056083,
-        -0.0060884,
-        -0.00658147,
-        -0.00717367,
-        -0.00750323,
+        -0.002100234,
+        -0.002100234,
+        -0.003079202,
+        -0.003886831,
+        -0.004554799,
+        -0.005110684,
+        -0.005608297,
+        -0.006088400,
+        -0.006581468,
+        -0.007173669,
+        -0.007503227,
     ]),
     D_neo_e=np.array([
-        0.00011698,
-        0.00011698,
-        0.00021105,
-        0.00028474,
-        0.00033721,
-        0.00037529,
-        0.00040377,
-        0.00042199,
-        0.00042404,
-        0.00039292,
-        0.0002924,
+        0.000116982,
+        0.000116982,
+        0.000211052,
+        0.000284744,
+        0.000337209,
+        0.000375292,
+        0.000403767,
+        0.000421994,
+        0.000424042,
+        0.000392922,
+        0.000292399,
     ]),
     V_neo_e=np.array([
-        1.07951440e-05,
-        1.07951440e-05,
-        1.11015003e-05,
-        1.54065751e-05,
-        2.65710672e-05,
-        4.42853751e-05,
-        7.06387381e-05,
-        1.12983269e-04,
-        1.92360065e-04,
-        3.86372126e-04,
-        1.18868626e-03,
+        1.079514416e-05,
+        1.079514416e-05,
+        1.110150038e-05,
+        1.540657517e-05,
+        2.657106723e-05,
+        4.428537522e-05,
+        7.063873825e-05,
+        1.129832698e-04,
+        1.923600656e-04,
+        3.863721278e-04,
+        1.188686269e-03,
     ]),
     V_neo_ware_e=np.array([
-        -0.00038114,
-        -0.00038114,
-        -0.00041759,
-        -0.00037123,
-        -0.00032066,
-        -0.00030646,
-        -0.0003312,
-        -0.00038565,
-        -0.00056229,
-        -0.00159816,
-        -0.00178913,
+        -0.000381139,
+        -0.000381139,
+        -0.000417593,
+        -0.000371229,
+        -0.000320656,
+        -0.000306465,
+        -0.000331205,
+        -0.000385647,
+        -0.000562293,
+        -0.001598163,
+        -0.001789132,
     ]),
 )
 
 # Shaing correction only affects ions, so we can reuse the other values
 _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES = base.NeoclassicalTransport(
     chi_neo_i=np.array([
-        0.20382857,
-        0.17130245,
-        0.03031974,
-        0.02593766,
-        0.03523606,
-        0.04391418,
-        0.05103481,
-        0.05690314,
-        0.06136931,
-        0.06317694,
-        0.05918355,
+        0.203844093,
+        0.171337483,
+        0.030447525,
+        0.026206587,
+        0.035643266,
+        0.044430553,
+        0.051634606,
+        0.057565066,
+        0.062066696,
+        0.063858183,
+        0.059733278,
     ]),
     chi_neo_e=_ANGIONI_SAUTER_REFERENCE_VALUES.chi_neo_e,
     D_neo_e=_ANGIONI_SAUTER_REFERENCE_VALUES.D_neo_e,

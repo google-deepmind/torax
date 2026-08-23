@@ -59,6 +59,15 @@ class GeometryType(enum.IntEnum):
   IMAS = 4
 
 
+# Poloidal samples for stored flux-surface |B|(θ) and FSA weights (EQDSK),
+# and for the Miller reconstruction used when those arrays are absent.
+N_THETA_SURFACE = 64
+
+# Geometry fields with trailing poloidal axis (n_face, n_theta). Flattened
+# for time interpolation (InterpolatedVarSingleAxis is 1D/2D only).
+_THETA_SURFACE_FIELDS = frozenset({'B_surface_face', 'fsa_weight_face'})
+
+
 # pylint: disable=invalid-name
 
 
@@ -183,6 +192,13 @@ class Geometry:
       ``torax.orchestration.step_function`` for more details.
     _z_magnetic_axis: Vertical position of the magnetic axis
       [:math:`\mathrm{m}`].
+    B_surface_face: Magnetic field strength :math:`|B|` on each flux surface
+      versus geometric poloidal angle, on the face grid. Shape
+      ``(n_face, n_theta)``. Populated from 2-D EQDSK contours; ``None`` for
+      CHEASE, FBT, IMAS, and circular geometry.
+    fsa_weight_face: Flux-surface-average weights matching ``B_surface_face``
+      (equivalent to :math:`dl/B_p` per radian of poloidal angle). ``None``
+      when ``B_surface_face`` is ``None``.
   """
 
   geometry_type: GeometryType
@@ -230,6 +246,8 @@ class Geometry:
   rho_hires: array_typing.Array
   Phi_b_dot: array_typing.FloatScalar
   _z_magnetic_axis: array_typing.FloatScalar | None
+  B_surface_face: array_typing.Array | None
+  fsa_weight_face: array_typing.Array | None
 
   def __eq__(self, other: 'Geometry') -> bool:  # pyrefly: ignore[bad-override]
     try:
