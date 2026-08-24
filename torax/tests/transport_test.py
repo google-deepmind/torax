@@ -35,7 +35,6 @@ class FakeTransportModel(transport.ComponentTransportModel):
       runtime_params: torax.RuntimeParams,
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
-      pedestal_model_output: torax.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport.TurbulentTransport:
     return transport.TurbulentTransport(

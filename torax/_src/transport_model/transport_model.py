@@ -167,7 +167,6 @@ class TransportModel(static_dataclass.StaticDataclass):
           runtime_params,
           geo,
           core_profiles,
-          pedestal_model_output,
           two_point_mask=two_point_mask,
       )
 

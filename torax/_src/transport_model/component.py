@@ -132,7 +132,6 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> TurbulentTransport:
     """Computes transport coefficients and zeros out disabled channels.
@@ -145,7 +144,6 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: Runtime parameters for the simulation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      pedestal_model_output: Output of the pedestal model.
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
@@ -158,7 +156,6 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
         runtime_params,
         geo,
         core_profiles,
-        pedestal_model_output,
         two_point_mask=two_point_mask,
     )
     coeffs = self.zero_out_disabled_channels(transport_runtime_params, coeffs)
@@ -171,7 +168,6 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> TurbulentTransport:
     pass

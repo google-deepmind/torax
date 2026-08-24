@@ -25,7 +25,6 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.transport_model import component
 from torax._src.transport_model import tglf_based_transport_model
 
@@ -135,10 +134,8 @@ class TGLFNNukaeaTransportModel(
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
-    del pedestal_model_output
     tglf_inputs = self._prepare_tglf_inputs(
         transport=transport,
         geo=geo,

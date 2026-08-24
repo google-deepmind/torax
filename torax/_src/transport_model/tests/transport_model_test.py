@@ -53,7 +53,6 @@ class FixedTransportModel(component.ComponentTransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])

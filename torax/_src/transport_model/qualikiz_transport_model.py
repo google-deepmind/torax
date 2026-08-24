@@ -37,7 +37,6 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base
@@ -90,7 +89,6 @@ class QualikizTransportModel(
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     """Calculates several transport coefficients simultaneously.
@@ -102,7 +100,6 @@ class QualikizTransportModel(
         simulation at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      pedestal_model_output: Output of the pedestal model.
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
@@ -112,7 +109,6 @@ class QualikizTransportModel(
     """
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
-    del pedestal_model_output
 
     qualikiz_inputs = self._prepare_qualikiz_inputs(
         transport=transport_runtime_params,
