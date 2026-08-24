@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 from jax.experimental import hijax
 import numpy as np
+from torax._src import while_loop_bounded as while_loop_bounded_lib
 
 T = TypeVar('T')
 BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
@@ -247,7 +248,7 @@ def while_loop_bounded(
     body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
     init_val: _State,  # pyrefly: ignore[invalid-annotation]
     max_steps: int,
-    implementation: Literal['scan', 'while_loop'] = 'scan',
+    implementation: Literal['scan', 'while_loop'] = 'while_loop',
 ) -> tuple[_State, chex.Numeric, _State]:  # pyrefly: ignore[invalid-annotation]
   """A bounded reverse-mode differentiable while_loop.
 
@@ -264,10 +265,7 @@ def while_loop_bounded(
       perform.
     implementation: The implementation to use. 'scan' uses `jax.lax.scan` along
       with a `jax.lax.cond`, 'while_loop' uses `jax.lax.while_loop` and a custom
-      VJP. These implementations are numerically equivalent, but can have
-      different performance characteristics: 'while_loop' should generally be
-      faster and composes better under `jax.vmap`, but is currently
-      experimental.
+      VJP. The 'scan' implementation should mainly be used for testing.
 
   Returns:
     A tuple of:
@@ -290,7 +288,7 @@ def while_loop_bounded(
           scan_unroll=1,
       )
     case 'while_loop':
-      return while_loop_bounded_while_loop(
+      return while_loop_bounded_lib.while_loop_bounded(
           cond_fun, body_fun, init_val, max_steps
       )
 
@@ -359,6 +357,7 @@ def _instantiate_zeros(g: PyTree) -> PyTree:
       hijax.instantiate_zeros, g, is_leaf=lambda x: isinstance(x, hijax.Zero)
   )
 
+
 HiPrim = (
     hijax.VJPHiPrimitive  # pyrefly: ignore[missing-attribute]
     if jax.__version_info__ <= (0, 11, 1)
@@ -398,6 +397,7 @@ class WhileLoopBoundedWhileLoop(HiPrim):  # pyrefly: ignore[invalid-inheritance]
 
   # Reverse-mode: forward pass returns (primal_out, residuals).
   def vjp_fwd(self, nzs_in, init_val):  # pyrefly: ignore[bad-override]
+    del nzs_in
     return _while_loop_bounded_while_loop_fwd(
         self.params['cond_fun'],
         self.params['body_fun'],
