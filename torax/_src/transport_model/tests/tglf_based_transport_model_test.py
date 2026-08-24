@@ -76,11 +76,13 @@ def _get_config_and_model_inputs(
       source_profiles,
       pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
   )
+  two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
       pedestal_model_outputs,
+      two_point_mask,
   )
 
 
@@ -98,9 +100,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def test_tglf_based_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
-        "core_transport_models": {"tglf_based": {
-            "model_name": "tglf_based",
-        }},
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+            },
+        },
     })
     transport_model = torax_config.transport.build_transport_model()
 
@@ -114,9 +118,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def test_tglf_based_transport_model_prepare_tglf_inputs_shapes(self):
     """Tests that the tglf inputs have the expected shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
-        "core_transport_models": {"tglf_based": {
-            "model_name": "tglf_based",
-        }},
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+            },
+        },
     })
     transport_model = (
         torax_config.transport.build_transport_model().core_transport_models[
@@ -126,11 +132,13 @@ class TGLFTransportModelTest(parameterized.TestCase):
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
-    runtime_params, geo, core_profiles, _ = model_inputs
+    runtime_params, geo, core_profiles, _, _ = model_inputs
     tglf_params = (
         runtime_params.transport.core_transport_model_params["tglf_based"]
     )
-    assert isinstance(tglf_params, tglf_based_transport_model.RuntimeParams)
+    assert isinstance(
+        tglf_params, tglf_based_transport_model.RuntimeParams
+    )
     tglf_inputs = transport_model._prepare_tglf_inputs(
         transport=tglf_params,
         geo=geo,
@@ -150,16 +158,20 @@ class TGLFTransportModelTest(parameterized.TestCase):
     max_normalized_collisionality = 0.5
     # Get uncapped inputs (max_normalized_collisionality=inf).
     torax_config, uncapped_inputs = _get_config_and_model_inputs({
-        "core_transport_models": {"tglf_based": {
-            "model_name": "tglf_based",
-        }},
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+            },
+        },
     })
     # Get capped inputs.
     _, capped_inputs = _get_config_and_model_inputs({
-        "core_transport_models": {"tglf_based": {
-            "model_name": "tglf_based",
-            "max_normalized_collisionality": max_normalized_collisionality,
-        }},
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+                "max_normalized_collisionality": max_normalized_collisionality,
+            },
+        },
     })
     transport_model = (
         torax_config.transport.build_transport_model().core_transport_models[
@@ -169,8 +181,8 @@ class TGLFTransportModelTest(parameterized.TestCase):
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
-    runtime_uncapped, geo, core_profiles, _ = uncapped_inputs
-    runtime_capped, _, _, _ = capped_inputs
+    runtime_uncapped, geo, core_profiles, _, _ = uncapped_inputs
+    runtime_capped, _, _, _, _ = capped_inputs
 
     tglf_params_uncapped = (
         runtime_uncapped.transport.core_transport_model_params["tglf_based"]
@@ -241,6 +253,7 @@ class FakeTGLFBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     # Assert required for pytype.
     assert isinstance(
@@ -253,6 +266,7 @@ class FakeTGLFBasedTransportModel(
         geo=geo,
         core_profiles=core_profiles,
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
+        two_point_mask=two_point_mask,
     )
     return self._make_core_transport(
         ion_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.4,
@@ -262,6 +276,7 @@ class FakeTGLFBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
 
 

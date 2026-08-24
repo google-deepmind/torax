@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from unittest import mock
-
 from absl.testing import absltest
 import numpy as np
 from torax._src.config import build_runtime_params
@@ -63,12 +61,21 @@ class BohmGyroBohmTest(absltest.TestCase):
         source_models,
         neoclassical_models,
     )
-    pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
+    pedestal_outputs = pedestal_model_output_lib.PedestalModelOutput(
         rho_norm_ped_top=1.0,
+        T_i_ped=0.0,
+        T_e_ped=0.0,
+        n_e_ped=0.0,
     )
-    return model, runtime_params, geo, core_profiles, pedestal_outputs
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    return (
+        model,
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_outputs,
+        two_point_mask,
+    )
 
   def test_coeff_multiplier_feature(self):
     """Test that modifying coefficients or multipliers equivalently affects outputs.
@@ -78,30 +85,40 @@ class BohmGyroBohmTest(absltest.TestCase):
     the coefficients at default (1) and scaling the multipliers—the computed
     transport coefficients (chi_face_ion and chi_face_el) remain identical.
     """
-    model_A, runtime_params_A, geo_A, core_profiles_A, pedestal_outputs_A = (
-        self._build_model_and_params(
-            chi_e_bohm_coeff=2.0,
-            chi_e_gyrobohm_coeff=3.0,
-            chi_i_bohm_coeff=4.0,
-            chi_i_gyrobohm_coeff=5.0,
-            chi_e_bohm_multiplier=1.0,
-            chi_e_gyrobohm_multiplier=1.0,
-            chi_i_bohm_multiplier=1.0,
-            chi_i_gyrobohm_multiplier=1.0,
-        )
+    (
+        model_A,
+        runtime_params_A,
+        geo_A,
+        core_profiles_A,
+        pedestal_outputs_A,
+        two_point_mask_A,
+    ) = self._build_model_and_params(
+        chi_e_bohm_coeff=2.0,
+        chi_e_gyrobohm_coeff=3.0,
+        chi_i_bohm_coeff=4.0,
+        chi_i_gyrobohm_coeff=5.0,
+        chi_e_bohm_multiplier=1.0,
+        chi_e_gyrobohm_multiplier=1.0,
+        chi_i_bohm_multiplier=1.0,
+        chi_i_gyrobohm_multiplier=1.0,
     )
 
-    model_B, runtime_params_B, geo_B, core_profiles_B, pedestal_outputs_B = (
-        self._build_model_and_params(
-            chi_e_bohm_coeff=1.0,
-            chi_e_gyrobohm_coeff=1.0,
-            chi_i_bohm_coeff=1.0,
-            chi_i_gyrobohm_coeff=1.0,
-            chi_e_bohm_multiplier=2.0,
-            chi_e_gyrobohm_multiplier=3.0,
-            chi_i_bohm_multiplier=4.0,
-            chi_i_gyrobohm_multiplier=5.0,
-        )
+    (
+        model_B,
+        runtime_params_B,
+        geo_B,
+        core_profiles_B,
+        pedestal_outputs_B,
+        two_point_mask_B,
+    ) = self._build_model_and_params(
+        chi_e_bohm_coeff=1.0,
+        chi_e_gyrobohm_coeff=1.0,
+        chi_i_bohm_coeff=1.0,
+        chi_i_gyrobohm_coeff=1.0,
+        chi_e_bohm_multiplier=2.0,
+        chi_e_gyrobohm_multiplier=3.0,
+        chi_i_bohm_multiplier=4.0,
+        chi_i_gyrobohm_multiplier=5.0,
     )
 
     output_A = model_A(
@@ -109,12 +126,14 @@ class BohmGyroBohmTest(absltest.TestCase):
         geo_A,
         core_profiles_A,
         pedestal_outputs_A,
+        two_point_mask_A,
     )
     output_B = model_B(
         runtime_params_B,
         geo_B,
         core_profiles_B,
         pedestal_outputs_B,
+        two_point_mask_B,
     )
 
     np.testing.assert_allclose(output_A.chi_face_ion, output_B.chi_face_ion)
@@ -122,30 +141,40 @@ class BohmGyroBohmTest(absltest.TestCase):
 
   def test_raw_bohm_and_gyrobohm_fields(self):
     """Test that the raw Bohm and gyro-Bohm fields are computed consistently."""
-    model_A, runtime_params_A, geo_A, core_profiles_A, pedestal_outputs_A = (
-        self._build_model_and_params(
-            chi_e_bohm_coeff=2.0,
-            chi_e_gyrobohm_coeff=3.0,
-            chi_i_bohm_coeff=4.0,
-            chi_i_gyrobohm_coeff=5.0,
-            chi_e_bohm_multiplier=1.0,
-            chi_e_gyrobohm_multiplier=1.0,
-            chi_i_bohm_multiplier=1.0,
-            chi_i_gyrobohm_multiplier=1.0,
-        )
+    (
+        model_A,
+        runtime_params_A,
+        geo_A,
+        core_profiles_A,
+        pedestal_outputs_A,
+        two_point_mask_A,
+    ) = self._build_model_and_params(
+        chi_e_bohm_coeff=2.0,
+        chi_e_gyrobohm_coeff=3.0,
+        chi_i_bohm_coeff=4.0,
+        chi_i_gyrobohm_coeff=5.0,
+        chi_e_bohm_multiplier=1.0,
+        chi_e_gyrobohm_multiplier=1.0,
+        chi_i_bohm_multiplier=1.0,
+        chi_i_gyrobohm_multiplier=1.0,
     )
 
-    model_B, runtime_params_B, geo_B, core_profiles_B, pedestal_outputs_B = (
-        self._build_model_and_params(
-            chi_e_bohm_coeff=1.0,
-            chi_e_gyrobohm_coeff=1.0,
-            chi_i_bohm_coeff=1.0,
-            chi_i_gyrobohm_coeff=1.0,
-            chi_e_bohm_multiplier=2.0,
-            chi_e_gyrobohm_multiplier=3.0,
-            chi_i_bohm_multiplier=4.0,
-            chi_i_gyrobohm_multiplier=5.0,
-        )
+    (
+        model_B,
+        runtime_params_B,
+        geo_B,
+        core_profiles_B,
+        pedestal_outputs_B,
+        two_point_mask_B,
+    ) = self._build_model_and_params(
+        chi_e_bohm_coeff=1.0,
+        chi_e_gyrobohm_coeff=1.0,
+        chi_i_bohm_coeff=1.0,
+        chi_i_gyrobohm_coeff=1.0,
+        chi_e_bohm_multiplier=2.0,
+        chi_e_gyrobohm_multiplier=3.0,
+        chi_i_bohm_multiplier=4.0,
+        chi_i_gyrobohm_multiplier=5.0,
     )
 
     output_A = model_A(
@@ -153,12 +182,14 @@ class BohmGyroBohmTest(absltest.TestCase):
         geo_A,
         core_profiles_A,
         pedestal_outputs_A,
+        two_point_mask_A,
     )
     output_B = model_B(
         runtime_params_B,
         geo_B,
         core_profiles_B,
         pedestal_outputs_B,
+        two_point_mask_B,
     )
 
     # Verify that the raw fields (which are computed before applying the

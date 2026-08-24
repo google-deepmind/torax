@@ -79,11 +79,13 @@ def _get_config_and_model_inputs(
       source_profiles,
       pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
   )
+  two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
       pedestal_model_outputs,
+      two_point_mask,
   )
 
 
@@ -132,7 +134,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params, geo, core_profiles, _ = model_inputs
+    runtime_params, geo, core_profiles, _, _ = model_inputs
     qualikiz_params = (
         runtime_params.transport.core_transport_model_params['qualikiz_based']
     )
@@ -201,8 +203,8 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params_uncapped, geo, core_profiles, _ = uncapped_inputs
-    runtime_params_capped, _, _, _ = capped_inputs
+    runtime_params_uncapped, geo, core_profiles, _, _ = uncapped_inputs
+    runtime_params_capped, _, _, _, _ = capped_inputs
 
     qualikiz_params_uncapped = (
         runtime_params_uncapped.transport.core_transport_model_params[
@@ -277,6 +279,7 @@ class FakeQualikizBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     # Assert required for pytype.
     assert isinstance(

@@ -21,6 +21,7 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import torax
 from torax import transport
+from torax._src import array_typing
 from torax._src.test_utils import default_configs
 
 
@@ -34,7 +35,8 @@ class FakeTransportModel(transport.ComponentTransportModel):
       runtime_params: torax.RuntimeParams,
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
-      pedestal_model_outputs: torax.PedestalModelOutput,
+      pedestal_model_output: torax.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> transport.TurbulentTransport:
     return transport.TurbulentTransport(
         chi_face_ion=jnp.zeros_like(geo.rho_face_norm),

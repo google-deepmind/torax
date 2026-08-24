@@ -20,6 +20,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -27,6 +28,7 @@ from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -52,6 +54,7 @@ class FixedTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
@@ -138,9 +141,14 @@ class TransportMaskingTest(parameterized.TestCase):
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     model = torax_config.transport.build_transport_model()
     coeffs = model(
-        runtime_params, geo, core_profiles, pedestal_model_outputs
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_model_outputs,
+        two_point_mask,
     )
 
     # Verify chi_i is zeroed out
@@ -198,9 +206,14 @@ class TransportMaskingTest(parameterized.TestCase):
         source_profiles,
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     model = torax_config.transport.build_transport_model()
     coeffs = model(
-        runtime_params, geo, core_profiles, pedestal_model_outputs
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_model_outputs,
+        two_point_mask,
     )
 
     single_fixed_config = model_config.ToraxConfig.from_dict({
@@ -214,7 +227,11 @@ class TransportMaskingTest(parameterized.TestCase):
         single_fixed_config
     )(t=0.0)
     ref_coeffs = single_model(
-        single_runtime, geo, core_profiles, pedestal_model_outputs
+        single_runtime,
+        geo,
+        core_profiles,
+        pedestal_model_outputs,
+        two_point_mask,
     )
 
     # chi_i should be approx equal to single model (1x contribution)
@@ -316,9 +333,14 @@ class TransportMaskingTest(parameterized.TestCase):
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     transport_model_instance = torax_config.transport.build_transport_model()
     coeffs = transport_model_instance(
-        runtime_params, geo, core_profiles, pedestal_outputs
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_outputs,
+        two_point_mask,
     )
 
     # Find index where rho > 0.8
@@ -381,11 +403,13 @@ class TransportModelTest(absltest.TestCase):
         rho_norm_ped_top=0.91,
     )
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     transport_coeffs = model(
         runtime_params,
         geo,
         core_profiles,
         mock_pedestal_outputs,
+        two_point_mask,
     )
     # Target:
     # - 0.1 for rho = [rho_ped_top, rho_max]
@@ -436,11 +460,13 @@ class TransportModelTest(absltest.TestCase):
         rho_norm_ped_top=0.91,
     )
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     transport_coeffs = model(
         runtime_params,
         geo,
         core_profiles,
         mock_pedestal_outputs,
+        two_point_mask,
     )
     # Target:
     # - 1.0 for rho = [rho_ped_top, rho_max], set by chi_min
@@ -601,11 +627,13 @@ class TransportModelTest(absltest.TestCase):
         instance=True,
         rho_norm_ped_top=0.95,
     )
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         core_profiles,
         mock_pedestal_outputs,
+        two_point_mask,
     )
     self.assertEqual(coeffs.chi_face_ion.shape, geo.rho_face_norm.shape)
 
@@ -660,17 +688,20 @@ class TransportModelTest(absltest.TestCase):
         rho_norm_ped_top=1.0,
     )
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs_small = model_small(
         params_small,
         geo,
         mock.ANY,
         mock_pedestal_outputs,
+        two_point_mask,
     )
     coeffs_large = model_large(
         params_large,
         geo,
         mock.ANY,
         mock_pedestal_outputs,
+        two_point_mask,
     )
 
     idx_left = np.where(
@@ -747,11 +778,13 @@ class TransportModelTest(absltest.TestCase):
         rho_norm_ped_top=1.0,  # No pedestal restriction for this test
     )
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         mock.ANY,
         mock_pedestal_outputs,
+        two_point_mask,
     )
 
     # Expected: 1.0 for rho <= 0.5, 2.0 for rho > 0.5
@@ -785,11 +818,13 @@ class TransportModelTest(absltest.TestCase):
         rho_norm_ped_top=1.0,
     )
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         mock.ANY,
         mock_pedestal_outputs,
+        two_point_mask,
     )
 
     expected = jnp.where(geo.rho_face_norm <= 0.5, 2.0, 1.0)
@@ -827,11 +862,13 @@ class TransportModelTest(absltest.TestCase):
         rho_norm_ped_top=1.0,
     )
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         mock.ANY,
         mock_pedestal_outputs,
+        two_point_mask,
     )
 
     # chi_i: Overwritten in outer half.
@@ -850,12 +887,15 @@ class TransportModelTest(absltest.TestCase):
     mock_model = mock.create_autospec(
         component.ComponentTransportModel, instance=True
     )
+    geo = mock.Mock(spec=geometry.Geometry)
+    geo.rho_face_norm = jnp.linspace(0, 1, 10)
+
     # Return a structure with some None fields
     mock_coeffs = component.TurbulentTransport(
-        chi_face_ion=jnp.array([1.0]),
-        chi_face_el=jnp.array([1.0]),
-        d_face_el=jnp.array([1.0]),
-        v_face_el=jnp.array([1.0]),
+        chi_face_ion=jnp.ones_like(geo.rho_face_norm),
+        chi_face_el=jnp.ones_like(geo.rho_face_norm),
+        d_face_el=jnp.ones_like(geo.rho_face_norm),
+        v_face_el=jnp.ones_like(geo.rho_face_norm),
         # Optional fields as None
         chi_face_el_bohm=None,
         chi_face_el_gyrobohm=None,
@@ -896,20 +936,26 @@ class TransportModelTest(absltest.TestCase):
     combined_params.smoothing_width = 0.0
     combined_params.smoothing_zones = ()
 
-    geo = mock.Mock(spec=geometry.Geometry)
-    geo.rho_face_norm = jnp.linspace(0, 1, 10)
-
     pedestal_output = mock.Mock(
         spec=pedestal_model_output_lib.PedestalModelOutput
     )
     pedestal_output.rho_norm_ped_top = 1.0
+    pedestal_output.get_two_point_face_mask.return_value = jnp.zeros_like(
+        geo.rho_face_norm, dtype=jnp.bool_
+    )
 
     runtime_params = mock.Mock()
     runtime_params.transport = combined_params
+    runtime_params.pedestal.set_pedestal = False
+    runtime_params.pedestal.mode = (
+        pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+    )
+    runtime_params.profile_conditions.internal_boundary_conditions = None
     core_profiles = mock.Mock()
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = combined_model(
-        runtime_params, geo, core_profiles, pedestal_output
+        runtime_params, geo, core_profiles, pedestal_output, two_point_mask
     )
 
     # Check that output has None for optional fields

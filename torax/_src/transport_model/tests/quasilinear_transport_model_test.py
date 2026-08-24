@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 import pydantic
+from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -88,12 +89,14 @@ def _get_model_and_model_inputs(
       T_e_ped=0.0,
       n_e_ped=0.0,
   )
+  two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
 
   return model, (
       runtime_params,
       geo,
       core_profiles,
       pedestal_model_outputs,
+      two_point_mask,
   )
 
 
@@ -103,18 +106,11 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
 
   def test_quasilinear_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
-    transport_model, (
-        runtime_params,
-        geo,
-        core_profiles,
-        pedestal_model_outputs,
-    ) = _get_model_and_model_inputs({
+    transport_model, model_inputs = _get_model_and_model_inputs({
         'core_transport_models': {'quasilinear': {'model_name': 'quasilinear'}},
     })
-    core_transport = transport_model(
-        runtime_params, geo, core_profiles, pedestal_model_outputs
-    )
-    expected_shape = geo.rho_face_norm.shape
+    core_transport = transport_model(*model_inputs)
+    expected_shape = model_inputs[1].rho_face_norm.shape
 
     self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
     self.assertEqual(core_transport.chi_face_el.shape, expected_shape)
@@ -529,6 +525,7 @@ class FakeQuasilinearTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
         chiGB=np.array(4.0),
@@ -570,7 +567,7 @@ class QuasilinearTransportConfig(
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> transport_model_runtime_params.ComponentRuntimeParams:
+  ) -> quasilinear_transport_model.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return quasilinear_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,

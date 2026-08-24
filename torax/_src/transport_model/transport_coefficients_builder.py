@@ -18,16 +18,50 @@ import dataclasses
 
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 # pylint: disable=invalid-name
+
+
+def _compute_two_point_face_mask(
+    geo: geometry.Geometry,
+    runtime_params: runtime_params_lib.RuntimeParams,
+    pedestal_model_output: (
+        pedestal_model_output_lib.PedestalModelOutput | None
+    ) = None,
+) -> array_typing.BoolVectorFace:
+  """Computes a boolean mask for faces that should use 2-point central differencing.
+
+  Combines 2-point face masks from both pedestal and internal boundary
+  conditions.
+
+  Args:
+    geo: Geometry of the torus.
+    runtime_params: Runtime parameters for the simulation.
+    pedestal_model_output: Output of the pedestal model.
+
+  Returns:
+    A boolean array on the face grid indicating which faces should use 2-point
+    central differencing.
+  """
+  mask = jnp.zeros_like(geo.rho_face_norm, dtype=bool)
+  if pedestal_model_output is not None:
+    mask = mask | pedestal_model_output.get_two_point_face_mask(
+        geo, set_pedestal=runtime_params.pedestal.set_pedestal
+    )
+  if runtime_params.profile_conditions.internal_boundary_conditions is not None:
+    ibc = runtime_params.profile_conditions.internal_boundary_conditions
+    mask = mask | ibc.get_two_point_face_mask(geo)
+  return mask
 
 
 @jax.jit(
@@ -74,11 +108,17 @@ def calculate_all_transport_coeffs(
     )
 
   pedestal_model_output = pedestal_transition_state.pedestal_model_output
+  two_point_mask = _compute_two_point_face_mask(
+      geo=geo,
+      runtime_params=runtime_params,
+      pedestal_model_output=pedestal_model_output,
+  )
   turbulent_transport_coeffs = transport_model(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       pedestal_model_output=pedestal_model_output,
+      two_point_mask=two_point_mask,
   )
   neoclassical_transport_coeffs = neoclassical_models.transport(
       runtime_params,
@@ -93,12 +133,13 @@ def calculate_all_transport_coeffs(
   pereverzev_transport_coeffs = jax.lax.cond(
       use_pereverzev,
       pereverzev_lib.calculate_pereverzev_transport,
-      lambda runtime_params, geo, core_profiles: pereverzev_lib.PereverzevTransport.zeros(
+      lambda runtime_params, geo, core_profiles, two_point_mask: pereverzev_lib.PereverzevTransport.zeros(
           geo
       ),
       runtime_params,
       geo,
       core_profiles,
+      two_point_mask,
   )
 
   core_transport = state.CoreTransport(

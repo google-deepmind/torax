@@ -26,6 +26,7 @@ from typing import ClassVar, Mapping, Sequence
 import immutabledict
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -132,6 +133,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> TurbulentTransport:
     """Computes transport coefficients and zeros out disabled channels.
 
@@ -144,6 +146,9 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       pedestal_model_output: Output of the pedestal model.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       Transport coefficients with disabled channels zeroed out.
@@ -154,6 +159,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
         geo,
         core_profiles,
         pedestal_model_output,
+        two_point_mask=two_point_mask,
     )
     coeffs = self.zero_out_disabled_channels(transport_runtime_params, coeffs)
     return coeffs
@@ -166,6 +172,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> TurbulentTransport:
     pass
 
@@ -232,3 +239,4 @@ def compute_core_domain_mask(
       jnp.asarray(active_mask).at[0].set(transport_runtime_params.rho_min == 0)
   )
   return active_mask
+

@@ -63,6 +63,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
     model_call = (
         jax.jit(transport_model.__call__) if jit else transport_model.__call__
     )
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     outputs = model_call(
         runtime_params,
         geo,
@@ -73,6 +74,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
             T_e_ped=0.0,
             n_e_ped=0.0,
         ),
+        two_point_mask,
     )
     self.assertIsNotNone(outputs.chi_face_ion)
     self.assertIsNotNone(outputs.chi_face_el)
@@ -116,6 +118,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         neoclassical_models=neoclassical_models,
     )
 
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     outputs = transport_model(
         runtime_params,
         geo,
@@ -126,6 +129,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
             T_e_ped=0.0,
             n_e_ped=0.0,
         ),
+        two_point_mask,
     )
     self.assertIsNotNone(outputs.chi_face_ion)
     self.assertIsNotNone(outputs.chi_face_el)

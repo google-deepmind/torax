@@ -85,6 +85,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         model_call = (
             jax.jit(test_model.__call__) if jit else test_model.__call__
         )
+        two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
         model_call(
             runtime_params,
             geo,
@@ -95,6 +96,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
                 T_e_ped=0.0,
                 n_e_ped=0.0,
             ),
+            two_point_mask,
         )
 
 
