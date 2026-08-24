@@ -25,9 +25,9 @@ import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
-from torax._src.transport_model import constant
 from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import enums
+from torax._src.transport_model import prescribed
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
@@ -249,19 +249,19 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
     )
 
 
-class ConstantTransportModel(pydantic_model_base.ComponentTransportBase):
-  """Model for the Constant transport model.
+class PrescribedTransportModel(pydantic_model_base.ComponentTransportBase):
+  """Model for the Prescribed transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'constant'.
+    model_name: The transport model to use. Hardcoded to 'prescribed'.
     chi_i: coefficient in ion heat equation diffusion term in m^2/s.
     chi_e: coefficient in electron heat equation diffusion term in m^2/s.
     D_e: diffusion coefficient in electron density equation in m^2/s.
     V_e: convection coefficient in electron density equation in m^2/s.
   """
 
-  model_name: Annotated[Literal['constant'], torax_pydantic.JAX_STATIC] = (
-      'constant'
+  model_name: Annotated[Literal['prescribed'], torax_pydantic.JAX_STATIC] = (
+      'prescribed'
   )
   chi_i: torax_pydantic.PositiveTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(1.0)
@@ -274,12 +274,12 @@ class ConstantTransportModel(pydantic_model_base.ComponentTransportBase):
   )
   V_e: torax_pydantic.TimeVaryingArray = torax_pydantic.ValidatedDefault(-0.33)
 
-  def build_transport_model(self) -> constant.ConstantTransportModel:
-    return constant.ConstantTransportModel()
+  def build_transport_model(self) -> prescribed.PrescribedTransportModel:
+    return prescribed.PrescribedTransportModel()
 
-  def build_runtime_params(self, t: chex.Numeric) -> constant.RuntimeParams:
+  def build_runtime_params(self, t: chex.Numeric) -> prescribed.RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
-    return constant.RuntimeParams(
+    return prescribed.RuntimeParams(
         chi_i=self.chi_i.get_value(t, 'face'),
         chi_e=self.chi_e.get_value(t, 'face'),
         D_e=self.D_e.get_value(t, 'face'),
@@ -431,7 +431,7 @@ try:
   ComponentTransportModelConfig = (
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
-      | ConstantTransportModel
+      | PrescribedTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
       | tglf_transport_model.TGLFTransportModelConfig
@@ -442,7 +442,7 @@ except ImportError:
   ComponentTransportModelConfig = (
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
-      | ConstantTransportModel
+      | PrescribedTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
       | tglf_transport_model.TGLFTransportModelConfig

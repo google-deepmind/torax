@@ -73,8 +73,8 @@ class StateHistoryTest(parameterized.TestCase):
         'solver': {},
         'transport': {
             'core_transport_models': {
-                'constant': {
-                    'model_name': 'constant',
+                'prescribed': {
+                    'model_name': 'prescribed',
                     'chi_i': 2.0,
                 },
             },
@@ -317,19 +317,19 @@ class StateHistoryTest(parameterized.TestCase):
     """Tests that the config is saved correctly."""
     output_xr = self.history.simulation_output_to_xr()
     config_dict = json.loads(output_xr.attrs[output_keys.CONFIG])
-    constant_config = config_dict['transport']['core_transport_models'][
-        'constant'
+    prescribed_config = config_dict['transport']['core_transport_models'][
+        'prescribed'
     ]
-    self.assertEqual(constant_config['model_name'], 'constant')
+    self.assertEqual(prescribed_config['model_name'], 'prescribed')
     # Indexing: ['0.0'][1][1][0] = at time 0, at second rho coordinate,
     # get the value list, and the first value
     self.assertEqual(
-        constant_config['chi_i']['value']['0.0'][1][1][0],
+        prescribed_config['chi_i']['value']['0.0'][1][1][0],
         2.0,
     )
     # Default values are expected to be set in the saved config
     self.assertEqual(
-        constant_config['chi_e']['value']['0.0'][1][1][0],
+        prescribed_config['chi_e']['value']['0.0'][1][1][0],
         1.0,
     )
 
@@ -775,7 +775,9 @@ class StateHistoryTest(parameterized.TestCase):
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
-            'core_transport_models': {'constant': {'model_name': 'constant'}},
+            'core_transport_models': {
+                'prescribed': {'model_name': 'prescribed'}
+            },
         },
         'pedestal': {},
     })
@@ -875,7 +877,9 @@ class StateHistoryTest(parameterized.TestCase):
         'sources': default_sources.get_default_source_config(),
         'solver': {},
         'transport': {
-            'core_transport_models': {'constant': {'model_name': 'constant'}},
+            'core_transport_models': {
+                'prescribed': {'model_name': 'prescribed'}
+            },
         },
         'pedestal': {},
     })

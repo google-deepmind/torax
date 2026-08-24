@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The ConstantTransportModel class.
+"""The PrescribedTransportModel class.
 
 A simple model assuming prescribed transport.
-
-TODO(b/323504363): For the next major release (v2), the name of this model should be updated
-to PrescribedTransportModel.
 """
+
 import dataclasses
 
 import jax
@@ -27,7 +25,6 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 
@@ -48,7 +45,7 @@ class RuntimeParams(transport_runtime_params_lib.ComponentRuntimeParams):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class ConstantTransportModel(component.ComponentTransportModel):
+class PrescribedTransportModel(component.ComponentTransportModel):
   """Calculates various coefficients related to particle transport."""
 
   def call_implementation(
@@ -62,7 +59,7 @@ class ConstantTransportModel(component.ComponentTransportModel):
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
-    r"""Calculates transport coefficients using the Constant model.
+    r"""Calculates transport coefficients using the Prescribed model.
 
     Args:
       transport_runtime_params: Input runtime parameters for this

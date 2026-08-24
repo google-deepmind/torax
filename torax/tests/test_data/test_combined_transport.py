@@ -27,7 +27,7 @@ CONFIG = copy.deepcopy(test_bohmgyrobohm_all.CONFIG)
 CONFIG['transport'] = {
     'core_transport_models': {
         'inner_patch': {
-            'model_name': 'constant',
+            'model_name': 'prescribed',
             # These values match the defaults from apply_inner_patch, but this
             # time using the Combined model rather than patch arguments. This
             # allows the CGM and BgB effects to be added on top of the patch,
@@ -46,8 +46,8 @@ CONFIG['transport'] = {
         'cgm': {'model_name': 'CGM', 'rho_min': 0.1, 'rho_max': 0.9},
     },
     'pedestal_transport_models': {
-        'constant': {
-            'model_name': 'constant',
+        'prescribed': {
+            'model_name': 'prescribed',
             # These values are set to something we made up for this test
             'chi_i': 0.5,
             'chi_e': 0.5,
