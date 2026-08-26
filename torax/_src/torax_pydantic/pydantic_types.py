@@ -61,6 +61,12 @@ def _numpy_array_is_rank_1(x: np.ndarray) -> np.ndarray:
   return x
 
 
+def _numpy_array_is_finite(x: np.ndarray) -> np.ndarray:
+  if not np.all(np.isfinite(x)):
+    raise ValueError(f'NumPy array is not finite: {x}')
+  return x
+
+
 def _numpy_array_is_sorted(x: np.ndarray) -> np.ndarray:
   if not np.all(x[:-1] <= x[1:]):
     raise ValueError(f'NumPy array is not sorted: {x}')
@@ -70,17 +76,20 @@ def _numpy_array_is_sorted(x: np.ndarray) -> np.ndarray:
 NumpyArray = Annotated[
     np.ndarray,
     pydantic.BeforeValidator(_numpy_array_before_validator),
+    pydantic.AfterValidator(_numpy_array_is_finite),
     pydantic.PlainSerializer(
         _numpy_array_serializer, return_type=NumpySerialized
     ),
 ]
 
 NumpyArray1D = Annotated[
-    NumpyArray, pydantic.AfterValidator(_numpy_array_is_rank_1)
+    NumpyArray,
+    pydantic.AfterValidator(_numpy_array_is_rank_1),
 ]
 
 NumpyArray1DSorted = Annotated[
-    NumpyArray1D, pydantic.AfterValidator(_numpy_array_is_sorted)
+    NumpyArray1D,
+    pydantic.AfterValidator(_numpy_array_is_sorted),
 ]
 
 
