@@ -495,7 +495,6 @@ def _get_integrated_source_value(
 
 def _calculate_integrated_sources(
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
     runtime_params: runtime_params_lib.RuntimeParams,
 ) -> dict[str, jax.Array]:
@@ -503,7 +502,6 @@ def _calculate_integrated_sources(
 
   Args:
     geo: Magnetic geometry
-    core_profiles: Kinetic profiles such as temperature and density
     core_sources: Internal and external sources
     runtime_params: Runtime parameters slice for the current time step
 
@@ -524,12 +522,9 @@ def _calculate_integrated_sources(
   # Initialize total particle sources to zero.
   integrated['S_total'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
-  # electron-ion heat exchange always exists, and is not in
-  # core_sources.profiles, so we calculate it here.
-  qei = core_sources.qei.qei_coef * (
-      core_profiles.T_e.value - core_profiles.T_i.value  # pyrefly: ignore[unsupported-operation]
+  integrated['P_ei_exchange_i'] = math_utils.volume_integration(
+      core_sources.qei.p_ei, geo
   )
-  integrated['P_ei_exchange_i'] = math_utils.volume_integration(qei, geo)
   integrated['P_ei_exchange_e'] = -integrated['P_ei_exchange_i']
 
   # Initialize total electron and ion auxiliary powers.
@@ -679,7 +674,6 @@ def make_post_processed_outputs(
   psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])  # pyrefly: ignore[bad-index]
   integrated_sources = _calculate_integrated_sources(
       sim_state.geometry,
-      sim_state.core_profiles,
       sim_state.core_sources,
       runtime_params,
   )

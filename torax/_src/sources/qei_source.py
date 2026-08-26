@@ -125,14 +125,17 @@ def _model_based_qei(
     explicit_e = zeros
     implicit_ie = qei_coef
     implicit_ei = qei_coef
+  p_ei = qei_coef * jnp.subtract(
+      core_profiles.T_e.value, core_profiles.T_i.value
+  )
   return source_profiles.QeiInfo(
-      qei_coef=qei_coef,
       implicit_ii=implicit_ii,
       explicit_i=explicit_i,
       implicit_ee=implicit_ee,
       explicit_e=explicit_e,
       implicit_ie=implicit_ie,
       implicit_ei=implicit_ei,
+      p_ei=p_ei,
   )
 
 

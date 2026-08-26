@@ -33,24 +33,24 @@ import typing_extensions
 class QeiInfo:
   """Represents the source values coming from a QeiSource."""
 
-  qei_coef: jax.Array
   implicit_ii: jax.Array
   explicit_i: jax.Array
   implicit_ee: jax.Array
   explicit_e: jax.Array
   implicit_ie: jax.Array
   implicit_ei: jax.Array
+  p_ei: jax.Array
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
     return QeiInfo(  # pyrefly: ignore[bad-return]
-        qei_coef=jnp.zeros_like(geo.rho),
         implicit_ii=jnp.zeros_like(geo.rho),
         explicit_i=jnp.zeros_like(geo.rho),
         implicit_ee=jnp.zeros_like(geo.rho),
         explicit_e=jnp.zeros_like(geo.rho),
         implicit_ie=jnp.zeros_like(geo.rho),
         implicit_ei=jnp.zeros_like(geo.rho),
+        p_ei=jnp.zeros_like(geo.rho),
     )
 
 

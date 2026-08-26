@@ -22,7 +22,6 @@ from imas import ids_toplevel
 import numpy as np
 from torax._src import array_typing
 from torax._src import math_utils
-from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.imas_tools import sources_mapping
 from torax._src.sources import qei_source
@@ -31,7 +30,6 @@ from torax._src.sources import source_profiles
 
 # pylint: disable=invalid-name
 def core_sources_to_IMAS(
-    core_profiles: Sequence[state.CoreProfiles],
     core_sources: Sequence[source_profiles.SourceProfiles],
     geometry: Sequence[geometry_lib.Geometry],
     times: array_typing.FloatVector,
@@ -66,7 +64,6 @@ def core_sources_to_IMAS(
       t = times[i]
       geo = geometry[i]
       core_source_state = core_sources[i]
-      core_profile_state = core_profiles[i]
 
       source_node.profiles_1d[i].time = t
       source_node.global_quantities[i].time = t
@@ -75,14 +72,12 @@ def core_sources_to_IMAS(
       _fill_profiles_1d(
           source_node.profiles_1d[i],
           core_source_state,
-          core_profile_state,
           geo,
           source_name,
       )
       _fill_global_quantities(
           source_node.global_quantities[i],
           core_source_state,
-          core_profile_state,
           geo,
           source_name,
       )
@@ -121,7 +116,6 @@ def _fill_grid_coordinates(
 
 def _compute_source_profiles(
     core_source_state: source_profiles.SourceProfiles,
-    core_profile_state: state.CoreProfiles,
     geo: geometry_lib.Geometry,
     source_name: str,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -129,7 +123,6 @@ def _compute_source_profiles(
 
   Args:
     core_source_state: TORAX source profiles.
-    core_profile_state: TORAX core profiles.
     geo: TORAX geometry.
     source_name: Name of the source to compute profiles for.
 
@@ -142,13 +135,9 @@ def _compute_source_profiles(
   j_par = np.zeros_like(geo.rho)
   # qei source stored differently so needs to be handled separately
   if source_name == qei_source.QeiSource.SOURCE_NAME:
-    # qei represents power to ions
-    # Compute the qei source as done in torax._src.output_tools.output
-    qei_val = core_source_state.qei.qei_coef * (
-        core_profile_state.T_e.value - core_profile_state.T_i.value  # pyrefly: ignore[unsupported-operation]
-    )
-    energy_ion = qei_val
-    energy_el = -qei_val
+    # qei represents power to ions.
+    energy_ion = core_source_state.qei.p_ei
+    energy_el = -core_source_state.qei.p_ei
   else:
     energy_el = core_source_state.T_e.get(source_name, energy_el)
     energy_ion = core_source_state.T_i.get(source_name, energy_ion)
@@ -160,13 +149,12 @@ def _compute_source_profiles(
 def _fill_profiles_1d(
     profiles_1d_slice: imas.ids_structure.IDSStructure,
     core_source_state: source_profiles.SourceProfiles,
-    core_profile_state: state.CoreProfiles,
     geo: geometry_lib.Geometry,
     source_name: str,
 ) -> None:
   """Fills 1D profiles for a source at a single time slice."""
   energy_el, energy_ion, particles_el, j_par = _compute_source_profiles(
-      core_source_state, core_profile_state, geo, source_name,
+      core_source_state, geo, source_name,
   )
 
   profiles_1d_slice.electrons.energy = energy_el
@@ -183,13 +171,12 @@ def _fill_profiles_1d(
 def _fill_global_quantities(
     global_quantities_slice: imas.ids_structure.IDSStructure,
     core_source_state: source_profiles.SourceProfiles,
-    core_profile_state: state.CoreProfiles,
     geo: geometry_lib.Geometry,
     source_name: str,
 ) -> None:
   """Fills global quantities for a source at a single time slice."""
   energy_el, energy_ion, particles_el, j_par = _compute_source_profiles(
-      core_source_state, core_profile_state, geo, source_name,
+      core_source_state, geo, source_name,
   )
 
   power_el = math_utils.volume_integration(energy_el, geo)

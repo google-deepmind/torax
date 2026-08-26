@@ -36,7 +36,6 @@ from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import model_config
@@ -670,13 +669,7 @@ class StateHistory:
     """Saves the core sources to a dict."""
     xr_dict = {}
 
-    xr_dict[qei_source_lib.QeiSource.SOURCE_NAME] = (
-        self._stacked_core_sources.qei.qei_coef
-        * (
-            self._stacked_core_profiles.T_e.value  # pyrefly: ignore[unsupported-operation]
-            - self._stacked_core_profiles.T_i.value
-        )
-    )
+    xr_dict[output_keys.EI_EXCHANGE] = self._stacked_core_sources.qei.p_ei
 
     xr_dict[output_keys.J_PARALLEL_BOOTSTRAP] = extend_cell_grid_to_boundaries(
         self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap,

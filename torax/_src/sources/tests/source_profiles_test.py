@@ -106,7 +106,7 @@ class SourceProfilesTest(parameterized.TestCase):
       np.testing.assert_allclose(profile, 3.0)
     for profile in merged_profiles.n_e.values():
       np.testing.assert_allclose(profile, 3.0)
-    np.testing.assert_allclose(merged_profiles.qei.qei_coef, 3.0)
+    np.testing.assert_allclose(merged_profiles.qei.p_ei, 3.0)
     # Make sure the combo ion-el heat sources are present.
     for name in ['generic_heat', 'fusion']:
       self.assertIn(name, merged_profiles.T_i)
@@ -196,13 +196,13 @@ def _build_source_profiles_with_single_value(
           j_parallel_bootstrap_face=face_1d_arr,
       ),
       qei=source_profiles_lib.QeiInfo(
-          qei_coef=cell_1d_arr,
           implicit_ii=cell_1d_arr,
           explicit_i=cell_1d_arr,
           implicit_ee=cell_1d_arr,
           explicit_e=cell_1d_arr,
           implicit_ie=cell_1d_arr,
           implicit_ei=cell_1d_arr,
+          p_ei=cell_1d_arr,
       ),
   )
 
