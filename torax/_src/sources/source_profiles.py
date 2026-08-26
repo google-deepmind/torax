@@ -19,6 +19,7 @@ from typing import Literal
 
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -33,17 +34,17 @@ import typing_extensions
 class QeiInfo:
   """Represents the source values coming from a QeiSource."""
 
-  implicit_ii: jax.Array
-  explicit_i: jax.Array
-  implicit_ee: jax.Array
-  explicit_e: jax.Array
-  implicit_ie: jax.Array
-  implicit_ei: jax.Array
-  p_ei: jax.Array
+  implicit_ii: array_typing.Array
+  explicit_i: array_typing.Array
+  implicit_ee: array_typing.Array
+  explicit_e: array_typing.Array
+  implicit_ie: array_typing.Array
+  implicit_ei: array_typing.Array
+  p_ei: array_typing.Array
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
-    return QeiInfo(  # pyrefly: ignore[bad-return]
+    return cls(
         implicit_ii=jnp.zeros_like(geo.rho),
         explicit_i=jnp.zeros_like(geo.rho),
         implicit_ee=jnp.zeros_like(geo.rho),
@@ -165,7 +166,9 @@ class SourceProfiles:
       self,
       source_type: Literal['n_e', 'T_i', 'T_e'],
       geo: geometry.Geometry,
-  ) -> jax.Array:
+  ) -> array_typing.Array:
     source: dict[str, jax.Array] = getattr(self, source_type)
+    if not source:
+      return jnp.zeros_like(geo.vpr)
     total = sum(source.values())
-    return total * geo.vpr  # pyrefly: ignore[bad-return]
+    return total * geo.vpr

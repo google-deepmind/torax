@@ -153,8 +153,10 @@ class QeiSourceConfig(base.SourceModelBase):
   ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
-  def model_func(self) -> None:  # pyrefly: ignore[bad-override]
-    return None
+  def model_func(self) -> source.SourceProfileFunction:
+    raise NotImplementedError(
+        'QeiSource does not use a 1D model_func; call get_qei() instead.'
+    )
 
   def build_runtime_params(
       self,
@@ -170,4 +172,4 @@ class QeiSourceConfig(base.SourceModelBase):
     )
 
   def build_source(self) -> QeiSource:
-    return QeiSource(model_func=self.model_func)
+    return QeiSource(model_func=None)
