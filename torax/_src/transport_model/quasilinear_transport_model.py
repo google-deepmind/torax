@@ -29,6 +29,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 import typing_extensions
 
 
@@ -422,8 +423,8 @@ class QuasilinearTransportModel(component.ComponentTransportModel):
       gradient_reference_length: chex.Numeric,
       gyrobohm_flux_reference_length: chex.Numeric,
       two_point_mask: array_typing.BoolVectorFace | None = None,
-  ) -> component.TurbulentTransport:
-    """Converts model output to TurbulentTransport."""
+  ) -> transport_coeffs.TransportCoeffs:
+    """Converts model output to TransportCoeffs."""
     constants = constants_module.CONSTANTS
 
     # conversion to SI units (note that n is normalized here)
@@ -500,9 +501,9 @@ class QuasilinearTransportModel(component.ComponentTransportModel):
         DV_effective_approach,
         Dscaled_approach,
     )
-    return component.TurbulentTransport(
-        chi_face_ion=chi_face_ion,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el=chi_face_el,  # pyrefly: ignore[bad-argument-type]
+    return transport_coeffs.TransportCoeffs(
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )

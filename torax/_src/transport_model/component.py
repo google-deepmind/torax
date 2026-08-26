@@ -21,9 +21,7 @@ turbulent heat and particle transport coefficients.
 
 import abc
 import dataclasses
-from typing import ClassVar, Mapping, Sequence
 
-import immutabledict
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -34,6 +32,7 @@ from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 # pylint: disable=invalid-name
 
@@ -41,30 +40,7 @@ from torax._src.transport_model import runtime_params as transport_runtime_param
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class TurbulentTransport:
-  """Turbulent transport coefficients calculated by a transport model.
-
-  Attributes:
-    chi_face_ion: Ion heat conductivity, on the face grid.
-    chi_face_el: Electron heat conductivity, on the face grid.
-    d_face_el: Diffusivity of electron density, on the face grid.
-    v_face_el: Convection strength of electron density, on the face grid.
-    chi_face_el_bohm: (Optional) Bohm contribution for electron heat
-      conductivity.
-    chi_face_el_gyrobohm: (Optional) GyroBohm contribution for electron heat
-      conductivity.
-    chi_face_ion_bohm: (Optional) Bohm contribution for ion heat conductivity.
-    chi_face_ion_gyrobohm: (Optional) GyroBohm contribution for ion heat
-      conductivity.
-    chi_face_ion_itg: (Optional) ITG contribution for ion heat conductivity.
-    chi_face_ion_tem: (Optional) TEM contribution for ion heat conductivity.
-    chi_face_el_itg: (Optional) ITG contribution for electron heat conductivity.
-    chi_face_el_tem: (Optional) TEM contribution for electron heat conductivity.
-    chi_face_el_etg: (Optional) ETG contribution for electron heat conductivity.
-    d_face_el_itg: (Optional) ITG contribution for electron diffusivity.
-    d_face_el_tem: (Optional) TEM contribution for electron diffusivity.
-    v_face_el_itg: (Optional) ITG contribution for electron convection.
-    v_face_el_tem: (Optional) TEM contribution for electron convection.
-  """
+  """Turbulent transport coefficients calculated by a transport model."""
 
   chi_face_ion: jax.Array
   chi_face_el: jax.Array
@@ -89,43 +65,6 @@ class TurbulentTransport:
 class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
   """Calculates various coefficients related to heat and particle transport."""
 
-  # Map main channels to their sub-channels (if any) and disable flags
-  # TODO(b/434175938): Upgrade ComponentTransportModel to encapsulate this
-  # structure.
-  CHANNEL_CONFIG: ClassVar[
-      Mapping[str, dict[str, Sequence[str] | str]]
-  ] = (
-      immutabledict.immutabledict({
-          'chi_face_ion': {
-              'sub_channels': [
-                  'chi_face_ion_bohm',
-                  'chi_face_ion_gyrobohm',
-                  'chi_face_ion_itg',
-                  'chi_face_ion_tem',
-              ],
-              'disable_flag': 'disable_chi_i',
-          },
-          'chi_face_el': {
-              'sub_channels': [
-                  'chi_face_el_bohm',
-                  'chi_face_el_gyrobohm',
-                  'chi_face_el_itg',
-                  'chi_face_el_tem',
-                  'chi_face_el_etg',
-              ],
-              'disable_flag': 'disable_chi_e',
-          },
-          'd_face_el': {
-              'sub_channels': ['d_face_el_itg', 'd_face_el_tem'],
-              'disable_flag': 'disable_D_e',
-          },
-          'v_face_el': {
-              'sub_channels': ['v_face_el_itg', 'v_face_el_tem'],
-              'disable_flag': 'disable_V_e',
-          },
-      })
-  )
-
   def __call__(
       self,
       transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
@@ -133,7 +72,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     """Computes transport coefficients and zeros out disabled channels.
 
     Delegates to call_implementation to compute the raw transport coefficients,
@@ -169,32 +108,40 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     pass
 
   def zero_out_disabled_channels(
       self,
-      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
-      transport_coeffs: TurbulentTransport,
-  ) -> TurbulentTransport:
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
+      coeffs: transport_coeffs.TransportCoeffs,
+  ) -> transport_coeffs.TransportCoeffs:
     """Sets coefficients to zero for channels that are disabled."""
-    to_replace = {}
-
-    for channel_name, config in self.CHANNEL_CONFIG.items():
-      disable_flag = getattr(transport_runtime_params, config['disable_flag'])  # pyrefly: ignore[bad-argument-type]
-
-      # Handle main channel
-      val = getattr(transport_coeffs, channel_name)
-      to_replace[channel_name] = jnp.where(disable_flag, 0.0, val)
-
-      # Handle sub-channels
-      for sub_channel in config['sub_channels']:
-        sub_value = getattr(transport_coeffs, sub_channel)
-        if sub_value is not None:
-          sub_value = jnp.where(disable_flag, 0.0, sub_value)
-        to_replace[sub_channel] = sub_value
-
-    return dataclasses.replace(transport_coeffs, **to_replace)
+    return dataclasses.replace(
+        coeffs,
+        chi_face_ion=jnp.where(
+            transport_runtime_params.disable_chi_i,
+            0.0,
+            coeffs.chi_face_ion,
+        ),
+        chi_face_el=jnp.where(
+            transport_runtime_params.disable_chi_e,
+            0.0,
+            coeffs.chi_face_el,
+        ),
+        d_face_el=jnp.where(
+            transport_runtime_params.disable_D_e,
+            0.0,
+            coeffs.d_face_el,
+        ),
+        v_face_el=jnp.where(
+            transport_runtime_params.disable_V_e,
+            0.0,
+            coeffs.v_face_el,
+        ),
+    )
 
 
 def compute_core_domain_mask(
