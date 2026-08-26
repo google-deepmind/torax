@@ -80,7 +80,7 @@ NumpyArray1D = Annotated[
 ]
 
 NumpyArray1DSorted = Annotated[
-    NumpyArray, pydantic.AfterValidator(_numpy_array_is_sorted)
+    NumpyArray1D, pydantic.AfterValidator(_numpy_array_is_sorted)
 ]
 
 
