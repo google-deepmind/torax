@@ -29,10 +29,10 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import tglf_based_transport_model
+from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model.tglf import defaults as tglf_defaults
 from torax._src.transport_model.tglf import tglf2py
 
@@ -156,7 +156,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     """Calculates several transport coefficients simultaneously.
 
     Args:
