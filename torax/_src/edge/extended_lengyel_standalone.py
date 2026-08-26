@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Mapping
+from typing import Any, Mapping
 
 import jax
 from jax import numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
@@ -30,7 +31,10 @@ from torax._src.edge import extended_lengyel_defaults
 from torax._src.edge import extended_lengyel_enums
 from torax._src.edge import extended_lengyel_formulas
 from torax._src.edge import extended_lengyel_solvers
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.solver import jax_root_finding
+import xarray as xr
 
 # pylint: disable=invalid-name
 
@@ -259,7 +263,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     else:
       new_numerics_outcome = roots.solver_status.numerics_outcome
     new_solver_status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-        physics_outcome=result_dict['solver_physics_outcome'],  # pytype: disable=wrong-arg-types
+        physics_outcome=result_dict['solver_physics_outcome'],  # type: ignore[arg-type]
         numerics_outcome=new_numerics_outcome,
     )
 
@@ -292,6 +296,160 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     output_args['multiple_roots_found'] = None
 
     return self.__class__(**output_args)
+
+  def to_output_dict(
+      self, context: output_grid_context.OutputGridContext
+  ) -> dict[str, Any]:
+    """Extends base edge output dictionary with Extended Lengyel variables."""
+    out_dict = super().to_output_dict(context)
+
+    # 1. Scalar variables
+    scalars: dict[str, output_grid_context.OutputVar] = {
+        output_keys.ALPHA_T: context.pack(output_keys.ALPHA_T, self.alpha_t),
+        output_keys.Z_EFF_SEPARATRIX: context.pack(
+            output_keys.Z_EFF_SEPARATRIX, self.Z_eff_separatrix
+        ),
+    }
+    if self.solver_status.physics_outcome is not None:
+      scalars[output_keys.SOLVER_PHYSICS_OUTCOME] = context.pack(
+          output_keys.SOLVER_PHYSICS_OUTCOME,
+          self.solver_status.physics_outcome,
+      )
+    if self.multiple_roots_found is not None:
+      scalars[output_keys.MULTIPLE_ROOTS_FOUND] = context.pack(
+          output_keys.MULTIPLE_ROOTS_FOUND, self.multiple_roots_found
+      )
+    out_dict.update(scalars)
+
+    # 2. Solver numerics
+    numerics = self.solver_status.numerics_outcome
+    if isinstance(numerics, jax_root_finding.RootMetadata):
+      solv_dict: dict[str, output_grid_context.OutputVar] = {
+          output_keys.SOLVER_ITERATIONS: context.pack(
+              output_keys.SOLVER_ITERATIONS, numerics.iterations
+          ),
+          output_keys.SOLVER_RESIDUAL: context.pack(
+              output_keys.SOLVER_RESIDUAL,
+              np.mean(np.abs(numerics.residual), axis=-1),
+          ),
+          output_keys.SOLVER_ERROR: context.pack(
+              output_keys.SOLVER_ERROR, numerics.error
+          ),
+      }
+      out_dict.update(solv_dict)
+    elif numerics is not None:
+      out_dict[output_keys.FIXED_POINT_OUTCOME] = context.pack(
+          output_keys.FIXED_POINT_OUTCOME, numerics
+      )
+
+    # 3. Impurity mappings
+    if self.seed_impurity_concentrations:
+      impurities = sorted(list(self.seed_impurity_concentrations.keys()))
+      data_array = np.stack(
+          [self.seed_impurity_concentrations[i] for i in impurities], axis=0
+      )
+      out_dict[output_keys.SEED_IMPURITY_CONCENTRATIONS] = (
+          (output_keys.SEED_IMPURITY, output_keys.TIME),
+          data_array,
+          output_keys.get_units(output_keys.SEED_IMPURITY_CONCENTRATIONS),
+      )
+
+    if self.calculated_enrichment:
+      impurities = sorted(list(self.calculated_enrichment.keys()))
+      data_array = np.stack(
+          [self.calculated_enrichment[i] for i in impurities], axis=0
+      )
+      out_dict[output_keys.CALCULATED_ENRICHMENT] = (
+          (output_keys.IMPURITY, output_keys.TIME),
+          data_array,
+          {},
+      )
+
+    return out_dict
+
+  def _process_roots_output(
+      self, context: output_grid_context.OutputGridContext
+  ) -> Mapping[str, Any]:
+    """Processes roots output to identify unique valid roots."""
+    del context  # Unused.
+    unique_roots_obj = self.get_unique_roots()
+    if unique_roots_obj is None:
+      return {}
+
+    xr_dict = {}
+    default_dims = (output_keys.TIME, output_keys.N_ROOTS)
+
+    def _add_to_dict(name: str, data: jax.Array | np.ndarray):
+      data_arr = np.asarray(data)
+      if data_arr.ndim == len(default_dims):
+        dims = default_dims
+      elif data_arr.ndim > len(default_dims):
+        extra_dims = tuple(
+            f'{name}_dim_{i}' for i in range(data_arr.ndim - len(default_dims))
+        )
+        dims = default_dims + extra_dims
+      else:
+        dims = default_dims[: data_arr.ndim]
+
+      xr_dict[name] = (dims, data_arr, output_keys.get_units(name))
+
+    for field in dataclasses.fields(unique_roots_obj):
+      name = field.name
+      if name in (
+          output_keys.ROOTS,
+          output_keys.MULTIPLE_ROOTS_FOUND,
+          'solver_status',
+      ):
+        continue
+
+      value = getattr(unique_roots_obj, name)
+      if isinstance(value, (jax.Array, np.ndarray)):
+        _add_to_dict(name, value)
+      elif isinstance(value, Mapping):
+        for k, v in value.items():
+          _add_to_dict(f'{name}_{k}', v)
+
+    status = unique_roots_obj.solver_status
+    if status.physics_outcome is not None:
+      _add_to_dict(
+          output_keys.SOLVER_PHYSICS_OUTCOME,
+          np.asarray(status.physics_outcome),
+      )
+
+    numerics = status.numerics_outcome
+    if isinstance(numerics, jax_root_finding.RootMetadata):
+      _add_to_dict(output_keys.SOLVER_ITERATIONS, numerics.iterations)
+      _add_to_dict(output_keys.SOLVER_RESIDUAL, numerics.residual)
+      _add_to_dict(output_keys.SOLVER_ERROR, numerics.error)
+
+    return xr_dict
+
+  def to_xr_datatree(
+      self, context: output_grid_context.OutputGridContext
+  ) -> xr.DataTree:
+    """Builds the xr.DataTree for the 'edge' node, with optional roots subtree."""
+    coords: dict[str, Any] = {output_keys.TIME: context.times}
+    if self.seed_impurity_concentrations:
+      coords[output_keys.SEED_IMPURITY] = sorted(
+          list(self.seed_impurity_concentrations.keys())
+      )
+    if self.calculated_enrichment:
+      coords[output_keys.IMPURITY] = sorted(
+          list(self.calculated_enrichment.keys())
+      )
+    edge_dataset = context.build_dataset(
+        self.to_output_dict(context), coords=coords
+    )
+    children = {}
+    if self.roots is not None:
+      roots_dict = self._process_roots_output(context)
+      if roots_dict:
+        children[output_keys.ROOTS] = xr.DataTree(
+            dataset=context.build_dataset(
+                roots_dict, coords={output_keys.TIME: context.times}
+            )
+        )
+    return xr.DataTree(dataset=edge_dataset, children=children)
 
 
 @jax.jit(
