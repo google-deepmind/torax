@@ -28,10 +28,11 @@ To integrate a custom transport model, you need to:
 Step 1: Implement the transport model
 --------------------------------------
 
-Create a frozen dataclass that inherits from ``torax.transport.TransportModel``
-and implements the ``call_implementation`` method. This method receives the
-current simulation state and must return a ``torax.transport.TurbulentTransport``
-object containing the computed transport coefficients on the face grid.
+Create a frozen dataclass that inherits from
+``torax.transport.ComponentTransportModel`` and implements the
+``call_implementation`` method. This method receives the current simulation
+state and must return a ``torax.transport.TurbulentTransport`` object
+containing the computed transport coefficients on the face grid.
 
 .. code-block:: python
 
@@ -41,16 +42,16 @@ object containing the computed transport coefficients on the face grid.
     from torax import transport
 
     @dataclasses.dataclass(frozen=True, eq=False)
-    class MyTransportModel(transport.TransportModel):
+    class MyTransportModel(transport.ComponentTransportModel):
       """Custom transport model."""
 
       def call_implementation(
           self,
-          transport_runtime_params: transport.RuntimeParams,
+          transport_runtime_params: transport.ComponentRuntimeParams,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-          pedestal_model_outputs: torax.PedestalModelOutput,
+          two_point_mask: array_typing.BoolVectorFace,
       ) -> transport.TurbulentTransport:
         # Implement your transport model here.
         # Must return a TurbulentTransport with at least the four required
@@ -72,15 +73,15 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.transport.TransportBase`` and implements the ``build_transport_model``
-method. The config class must have a ``model_name`` field with a unique
-``Literal`` type that identifies your model.
+``torax.transport.ComponentTransportBase`` and implements the
+``build_transport_model`` method. The config class must have a ``model_name``
+field with a unique ``Literal`` type that identifies your model.
 
 .. code-block:: python
 
     from typing import Annotated, Literal
 
-    class MyTransportConfig(transport.TransportBase):
+    class MyTransportConfig(transport.ComponentTransportBase):
       """Pydantic config for MyTransportModel."""
 
       model_name: Annotated[
@@ -105,15 +106,20 @@ class. This must be done at module level, before any TORAX config is built.
 Using the registered model
 ---------------------------
 
-Once registered, the model can be used in a TORAX config by setting the
-``transport.model_name`` field to the model name you defined:
+Once registered, the model can be used in a TORAX config under
+``core_transport_models`` or ``pedestal_transport_models`` within the
+``transport`` configuration:
 
 .. code-block:: python
 
     config = {
         ...
         'transport': {
-            'model_name': 'my_transport',
+            'core_transport_models': {
+                'my_custom_model': {
+                    'model_name': 'my_transport',
+                },
+            },
         },
         ...
     }
