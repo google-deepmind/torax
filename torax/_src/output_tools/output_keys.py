@@ -15,24 +15,25 @@
 """String keys and dimension names for the TORAX xarray output DataTree.
 
 Each key is an ``OutputKey`` instance — a ``str`` subclass that carries a
-``units`` attribute from the ``Units`` enum.  This means every constant
-(e.g. ``T_E``) can be used wherever a plain string is expected (dict keys,
-xarray names, ``==`` comparisons) while also carrying its physical unit
-metadata.
+``units`` attribute from the ``Units`` enum and a ``grid_type`` attribute
+from the ``GridType`` enum. This means every constant (e.g. ``T_E``) can be
+used wherever a plain string is expected (dict keys, xarray names, ``==``
+comparisons) while also carrying its physical unit and grid metadata.
 
 Physical dimensionless quantities (e.g. safety factor *q*) use
-``Units.DIMENSIONLESS``.  Non-physical keys (e.g. solver status, dataset
+``Units.DIMENSIONLESS``. Non-physical keys (e.g. solver status, dataset
 names) use ``Units.NOT_APPLICABLE`` (the empty string ``""``).
 
-For source profiles whose names are generated at runtime (e.g. ``p_ecrh_e``),
-``get_units`` falls back to prefix-based matching so that dynamically-
-constructed keys still receive the correct unit string.
+For source profiles whose names are generated at runtime (e.g.
+``p_ecrh_e``), ``get_units`` falls back to prefix-based matching so that
+dynamically-constructed keys still receive the correct unit string.
 """
 
 # pylint: disable=invalid-name
 
 import enum
 import sys
+from typing import Final
 
 
 class Units(enum.StrEnum):
@@ -88,104 +89,257 @@ class Units(enum.StrEnum):
   INVERSE_CUBIC_METER_PER_SECOND = "m^-3 s^-1"
 
 
+class GridType(enum.StrEnum):
+  """Spatial and temporal grid locations for TORAX output variables."""
+
+  NOT_APPLICABLE = ""
+  SCALAR = "scalar"  # 1D time-series: (time,)
+  FACE = "face"  # 2D profile: (time, rho_face_norm)
+  CELL = "cell"  # 2D profile: (time, rho_cell_norm)
+  CELL_PLUS_BOUNDARIES = "cell_plus_boundaries"  # 2D profile: (time, rho_norm)
+
+
 class OutputKey(str):
-  """A string key that carries unit metadata from the ``Units`` enum.
+  """A string key that carries unit and grid type metadata.
 
   ``OutputKey`` inherits from ``str`` so it can be used anywhere a regular
   string is expected.  The ``units`` attribute stores the physical unit as a
-  ``Units`` enum member and is required.
+  ``Units`` enum member and is required.  The ``grid_type`` attribute stores the
+  spatial/temporal grid as a ``GridType`` enum member and is required.
 
   Examples::
 
-      >>> T_E = OutputKey("T_e", units=Units.KEV)
+      >>> T_E = OutputKey("T_e", units=Units.KEV,
+      grid_type=GridType.CELL_PLUS_BOUNDARIES)
       >>> T_E == "T_e"
       True
       >>> T_E.units
       <Units.KEV: 'keV'>
+      >>> T_E.grid_type
+      <GridType.CELL_PLUS_BOUNDARIES: 'cell_plus_boundaries'>
   """
 
   units: Units
+  grid_type: GridType
 
-  def __new__(cls, value: str, *, units: Units) -> "OutputKey":
+  def __new__(
+      cls,
+      value: str,
+      *,
+      units: Units,
+      grid_type: GridType,
+  ) -> "OutputKey":
     obj = str.__new__(cls, value)
     obj.units = units
+    obj.grid_type = grid_type
     return obj
 
+  def __init__(
+      self,
+      value: str,
+      *,
+      units: Units,
+      grid_type: GridType,
+  ):
+    # Required for pytype to recognize keyword arguments on str subclass.
+    del value, units, grid_type
+    super().__init__()
+
   def __getnewargs_ex__(self):
-    # Required so that deepcopy/pickle can reconstruct the keyword-only arg.
-    return ((str(self),), {"units": self.units})
+    # Required so that deepcopy/pickle can reconstruct the keyword-only args.
+    return ((str(self),), {"units": self.units, "grid_type": self.grid_type})
 
 
 # ---------------------------------------------------------------------------
-# Dataset names (no physical units).
+# Dataset names (no physical units, no grid).
 # ---------------------------------------------------------------------------
-PROFILES = OutputKey("profiles", units=Units.NOT_APPLICABLE)
-SCALARS = OutputKey("scalars", units=Units.NOT_APPLICABLE)
-NUMERICS = OutputKey("numerics", units=Units.NOT_APPLICABLE)
-EDGE = OutputKey("edge", units=Units.NOT_APPLICABLE)
+PROFILES: Final[OutputKey] = OutputKey(
+    "profiles", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+SCALARS: Final[OutputKey] = OutputKey(
+    "scalars", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+NUMERICS: Final[OutputKey] = OutputKey(
+    "numerics", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+EDGE: Final[OutputKey] = OutputKey(
+    "edge", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
 
 # ---------------------------------------------------------------------------
 # Core profiles.
 # ---------------------------------------------------------------------------
-T_E = OutputKey("T_e", units=Units.KEV)
-T_I = OutputKey("T_i", units=Units.KEV)
-PSI = OutputKey("psi", units=Units.WEBER)
-V_LOOP = OutputKey("v_loop", units=Units.VOLT)
-N_E = OutputKey("n_e", units=Units.INVERSE_CUBIC_METER)
-N_I = OutputKey("n_i", units=Units.INVERSE_CUBIC_METER)
-Q = OutputKey("q", units=Units.DIMENSIONLESS)
-MAGNETIC_SHEAR = OutputKey("magnetic_shear", units=Units.DIMENSIONLESS)
-N_IMPURITY = OutputKey("n_impurity", units=Units.INVERSE_CUBIC_METER)
-Z_IMPURITY = OutputKey("Z_impurity", units=Units.DIMENSIONLESS)
-Z_EFF = OutputKey("Z_eff", units=Units.DIMENSIONLESS)
-SIGMA_PARALLEL = OutputKey("sigma_parallel", units=Units.SIEMENS_PER_METER)
-V_LOOP_LCFS = OutputKey("v_loop_lcfs", units=Units.VOLT)
-IP_PROFILE = OutputKey("Ip_profile", units=Units.AMPERE)
-IP = OutputKey("Ip", units=Units.AMPERE)
-TOROIDAL_ANGULAR_VELOCITY = OutputKey(
-    "toroidal_angular_velocity", units=Units.RAD_PER_SECOND
+T_E: Final[OutputKey] = OutputKey(
+    "T_e", units=Units.KEV, grid_type=GridType.CELL_PLUS_BOUNDARIES
 )
-A_I = OutputKey("A_i", units=Units.AMU)
-A_IMPURITY = OutputKey("A_impurity", units=Units.AMU)
-Z_I = OutputKey("Z_i", units=Units.DIMENSIONLESS)
-Z_IMPURITY_SPECIES = OutputKey("Z_impurity_species", units=Units.DIMENSIONLESS)
-N_IMPURITY_SPECIES = OutputKey(
-    "n_impurity_species", units=Units.INVERSE_CUBIC_METER
+T_I: Final[OutputKey] = OutputKey(
+    "T_i", units=Units.KEV, grid_type=GridType.CELL_PLUS_BOUNDARIES
 )
-MAIN_ION_FRACTIONS = OutputKey("main_ion_fractions", units=Units.DIMENSIONLESS)
-PRESSURE_THERMAL_E = OutputKey("pressure_thermal_e", units=Units.PASCAL)
-PRESSURE_THERMAL_I = OutputKey("pressure_thermal_i", units=Units.PASCAL)
-PRESSURE_THERMAL_TOTAL = OutputKey("pressure_thermal_total", units=Units.PASCAL)
-PRESSURE_FAST_I = OutputKey("pressure_fast_i", units=Units.PASCAL)
-PRESSURE_TOTAL_I = OutputKey("pressure_total_i", units=Units.PASCAL)
-PRESSURE_TOTAL = OutputKey("pressure_total", units=Units.PASCAL)
-EI_EXCHANGE = OutputKey("ei_exchange", units=Units.MW_PER_CUBIC_METER)
-PSI_FROM_IP = OutputKey("psi_from_Ip", units=Units.WEBER)
+PSI: Final[OutputKey] = OutputKey(
+    "psi", units=Units.WEBER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+V_LOOP: Final[OutputKey] = OutputKey(
+    "v_loop", units=Units.VOLT, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+N_E: Final[OutputKey] = OutputKey(
+    "n_e",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+N_I: Final[OutputKey] = OutputKey(
+    "n_i",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+Q: Final[OutputKey] = OutputKey(
+    "q", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
+)
+MAGNETIC_SHEAR: Final[OutputKey] = OutputKey(
+    "magnetic_shear", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
+)
+N_IMPURITY: Final[OutputKey] = OutputKey(
+    "n_impurity",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+Z_IMPURITY: Final[OutputKey] = OutputKey(
+    "Z_impurity",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+Z_EFF: Final[OutputKey] = OutputKey(
+    "Z_eff",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+SIGMA_PARALLEL: Final[OutputKey] = OutputKey(
+    "sigma_parallel",
+    units=Units.SIEMENS_PER_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+V_LOOP_LCFS: Final[OutputKey] = OutputKey(
+    "v_loop_lcfs", units=Units.VOLT, grid_type=GridType.SCALAR
+)
+IP_PROFILE: Final[OutputKey] = OutputKey(
+    "Ip_profile", units=Units.AMPERE, grid_type=GridType.FACE
+)
+IP: Final[OutputKey] = OutputKey(
+    "Ip", units=Units.AMPERE, grid_type=GridType.SCALAR
+)
+TOROIDAL_ANGULAR_VELOCITY: Final[OutputKey] = OutputKey(
+    "toroidal_angular_velocity",
+    units=Units.RAD_PER_SECOND,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+A_I: Final[OutputKey] = OutputKey(
+    "A_i", units=Units.AMU, grid_type=GridType.SCALAR
+)
+A_IMPURITY: Final[OutputKey] = OutputKey(
+    "A_impurity", units=Units.AMU, grid_type=GridType.SCALAR
+)
+Z_I: Final[OutputKey] = OutputKey(
+    "Z_i", units=Units.DIMENSIONLESS, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+Z_IMPURITY_SPECIES: Final[OutputKey] = OutputKey(
+    "Z_impurity_species",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.CELL,
+)
+N_IMPURITY_SPECIES: Final[OutputKey] = OutputKey(
+    "n_impurity_species",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.CELL,
+)
+MAIN_ION_FRACTIONS: Final[OutputKey] = OutputKey(
+    "main_ion_fractions",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
+PRESSURE_THERMAL_E: Final[OutputKey] = OutputKey(
+    "pressure_thermal_e",
+    units=Units.PASCAL,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+PRESSURE_THERMAL_I: Final[OutputKey] = OutputKey(
+    "pressure_thermal_i",
+    units=Units.PASCAL,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+PRESSURE_THERMAL_TOTAL: Final[OutputKey] = OutputKey(
+    "pressure_thermal_total",
+    units=Units.PASCAL,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+PRESSURE_FAST_I: Final[OutputKey] = OutputKey(
+    "pressure_fast_i",
+    units=Units.PASCAL,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+PRESSURE_TOTAL_I: Final[OutputKey] = OutputKey(
+    "pressure_total_i",
+    units=Units.PASCAL,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+PRESSURE_TOTAL: Final[OutputKey] = OutputKey(
+    "pressure_total",
+    units=Units.PASCAL,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+EI_EXCHANGE: Final[OutputKey] = OutputKey(
+    "ei_exchange",
+    units=Units.MW_PER_CUBIC_METER,
+    grid_type=GridType.CELL,
+)
+PSI_FROM_IP: Final[OutputKey] = OutputKey(
+    "psi_from_Ip", units=Units.WEBER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
 
 # ---------------------------------------------------------------------------
 # Calculated or derived current densities (excluding sources).
 # ---------------------------------------------------------------------------
-J_PARALLEL_TOTAL = OutputKey(
-    "j_parallel_total", units=Units.AMPERE_PER_SQUARE_METER
+J_PARALLEL_TOTAL: Final[OutputKey] = OutputKey(
+    "j_parallel_total",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
 )
-J_PARALLEL_OHMIC = OutputKey(
-    "j_parallel_ohmic", units=Units.AMPERE_PER_SQUARE_METER
+J_PARALLEL_OHMIC: Final[OutputKey] = OutputKey(
+    "j_parallel_ohmic",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
 )
-J_PARALLEL_EXTERNAL = OutputKey(
-    "j_parallel_external", units=Units.AMPERE_PER_SQUARE_METER
+J_PARALLEL_EXTERNAL: Final[OutputKey] = OutputKey(
+    "j_parallel_external",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
 )
-J_PARALLEL_BOOTSTRAP = OutputKey(
-    "j_parallel_bootstrap", units=Units.AMPERE_PER_SQUARE_METER
+J_PARALLEL_BOOTSTRAP: Final[OutputKey] = OutputKey(
+    "j_parallel_bootstrap",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
-J_TOROIDAL_TOTAL = OutputKey("j_total", units=Units.AMPERE_PER_SQUARE_METER)
-J_TOROIDAL_OHMIC = OutputKey("j_ohmic", units=Units.AMPERE_PER_SQUARE_METER)
-J_TOROIDAL_EXTERNAL = OutputKey(
-    "j_external", units=Units.AMPERE_PER_SQUARE_METER
+J_TOROIDAL_TOTAL: Final[OutputKey] = OutputKey(
+    "j_total",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
-J_TOROIDAL_BOOTSTRAP = OutputKey(
-    "j_bootstrap", units=Units.AMPERE_PER_SQUARE_METER
+J_TOROIDAL_OHMIC: Final[OutputKey] = OutputKey(
+    "j_ohmic",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
 )
-I_BOOTSTRAP = OutputKey("I_bootstrap", units=Units.AMPERE)
+J_TOROIDAL_EXTERNAL: Final[OutputKey] = OutputKey(
+    "j_external",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
+)
+J_TOROIDAL_BOOTSTRAP: Final[OutputKey] = OutputKey(
+    "j_bootstrap",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+I_BOOTSTRAP: Final[OutputKey] = OutputKey(
+    "I_bootstrap", units=Units.AMPERE, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Source profile key builders for dynamically generated keys.
@@ -228,318 +382,770 @@ def T_fast_ion_key(source_key: str) -> str:  # pylint: disable=invalid-name
 # ---------------------------------------------------------------------------
 # Core transport.
 # ---------------------------------------------------------------------------
-CHI_TURB_I = OutputKey("chi_turb_i", units=Units.SQUARE_METER_PER_SECOND)
-CHI_TURB_E = OutputKey("chi_turb_e", units=Units.SQUARE_METER_PER_SECOND)
-CHI_ITG_E = OutputKey("chi_itg_e", units=Units.SQUARE_METER_PER_SECOND)
-CHI_TEM_E = OutputKey("chi_tem_e", units=Units.SQUARE_METER_PER_SECOND)
-CHI_ETG_E = OutputKey("chi_etg_e", units=Units.SQUARE_METER_PER_SECOND)
-CHI_ITG_I = OutputKey("chi_itg_i", units=Units.SQUARE_METER_PER_SECOND)
-CHI_TEM_I = OutputKey("chi_tem_i", units=Units.SQUARE_METER_PER_SECOND)
-D_ITG_E = OutputKey("D_itg_e", units=Units.SQUARE_METER_PER_SECOND)
-D_TEM_E = OutputKey("D_tem_e", units=Units.SQUARE_METER_PER_SECOND)
-D_TURB_E = OutputKey("D_turb_e", units=Units.SQUARE_METER_PER_SECOND)
-V_ITG_E = OutputKey("V_itg_e", units=Units.METER_PER_SECOND)
-V_TEM_E = OutputKey("V_tem_e", units=Units.METER_PER_SECOND)
-V_TURB_E = OutputKey("V_turb_e", units=Units.METER_PER_SECOND)
-CHI_NEO_I = OutputKey("chi_neo_i", units=Units.SQUARE_METER_PER_SECOND)
-CHI_NEO_E = OutputKey("chi_neo_e", units=Units.SQUARE_METER_PER_SECOND)
-D_NEO_E = OutputKey("D_neo_e", units=Units.SQUARE_METER_PER_SECOND)
-V_NEO_E = OutputKey("V_neo_e", units=Units.METER_PER_SECOND)
-V_NEO_WARE_E = OutputKey("V_neo_ware_e", units=Units.METER_PER_SECOND)
-CHI_BOHM_E = OutputKey("chi_bohm_e", units=Units.SQUARE_METER_PER_SECOND)
-CHI_GYROBOHM_E = OutputKey(
-    "chi_gyrobohm_e", units=Units.SQUARE_METER_PER_SECOND
+CHI_TURB_I: Final[OutputKey] = OutputKey(
+    "chi_turb_i",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
 )
-CHI_BOHM_I = OutputKey("chi_bohm_i", units=Units.SQUARE_METER_PER_SECOND)
-CHI_GYROBOHM_I = OutputKey(
-    "chi_gyrobohm_i", units=Units.SQUARE_METER_PER_SECOND
+CHI_TURB_E: Final[OutputKey] = OutputKey(
+    "chi_turb_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+CHI_ITG_E: Final[OutputKey] = OutputKey(
+    "chi_itg_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+CHI_TEM_E: Final[OutputKey] = OutputKey(
+    "chi_tem_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+CHI_ETG_E: Final[OutputKey] = OutputKey(
+    "chi_etg_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+CHI_ITG_I: Final[OutputKey] = OutputKey(
+    "chi_itg_i",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+CHI_TEM_I: Final[OutputKey] = OutputKey(
+    "chi_tem_i",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+D_ITG_E: Final[OutputKey] = OutputKey(
+    "D_itg_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+D_TEM_E: Final[OutputKey] = OutputKey(
+    "D_tem_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+D_TURB_E: Final[OutputKey] = OutputKey(
+    "D_turb_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+V_ITG_E: Final[OutputKey] = OutputKey(
+    "V_itg_e", units=Units.METER_PER_SECOND, grid_type=GridType.FACE
+)
+V_TEM_E: Final[OutputKey] = OutputKey(
+    "V_tem_e", units=Units.METER_PER_SECOND, grid_type=GridType.FACE
+)
+V_TURB_E: Final[OutputKey] = OutputKey(
+    "V_turb_e", units=Units.METER_PER_SECOND, grid_type=GridType.FACE
+)
+CHI_NEO_I: Final[OutputKey] = OutputKey(
+    "chi_neo_i",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+CHI_NEO_E: Final[OutputKey] = OutputKey(
+    "chi_neo_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+D_NEO_E: Final[OutputKey] = OutputKey(
+    "D_neo_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+V_NEO_E: Final[OutputKey] = OutputKey(
+    "V_neo_e", units=Units.METER_PER_SECOND, grid_type=GridType.FACE
+)
+V_NEO_WARE_E: Final[OutputKey] = OutputKey(
+    "V_neo_ware_e", units=Units.METER_PER_SECOND, grid_type=GridType.FACE
+)
+CHI_BOHM_E: Final[OutputKey] = OutputKey(
+    "chi_bohm_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+CHI_GYROBOHM_E: Final[OutputKey] = OutputKey(
+    "chi_gyrobohm_e",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+CHI_BOHM_I: Final[OutputKey] = OutputKey(
+    "chi_bohm_i",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+CHI_GYROBOHM_I: Final[OutputKey] = OutputKey(
+    "chi_gyrobohm_i",
+    units=Units.SQUARE_METER_PER_SECOND,
+    grid_type=GridType.FACE,
 )
 
 # ---------------------------------------------------------------------------
 # Coordinates.
 # ---------------------------------------------------------------------------
-RHO_FACE_NORM = OutputKey("rho_face_norm", units=Units.DIMENSIONLESS)
-RHO_CELL_NORM = OutputKey("rho_cell_norm", units=Units.DIMENSIONLESS)
-RHO_NORM = OutputKey("rho_norm", units=Units.DIMENSIONLESS)
-RHO_FACE = OutputKey("rho_face", units=Units.METER)
-RHO_CELL = OutputKey("rho_cell", units=Units.METER)
-TIME = OutputKey("time", units=Units.SECOND)
+RHO_FACE_NORM: Final[OutputKey] = OutputKey(
+    "rho_face_norm", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
+)
+RHO_CELL_NORM: Final[OutputKey] = OutputKey(
+    "rho_cell_norm", units=Units.DIMENSIONLESS, grid_type=GridType.CELL
+)
+RHO_NORM: Final[OutputKey] = OutputKey(
+    "rho_norm",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+RHO_FACE: Final[OutputKey] = OutputKey(
+    "rho_face", units=Units.METER, grid_type=GridType.FACE
+)
+RHO_CELL: Final[OutputKey] = OutputKey(
+    "rho_cell", units=Units.METER, grid_type=GridType.CELL
+)
+TIME: Final[OutputKey] = OutputKey(
+    "time", units=Units.SECOND, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: profiles.
 # ---------------------------------------------------------------------------
-PPRIME = OutputKey("pprime", units=Units.PASCAL_PER_WEBER)
-FFPRIME = OutputKey("FFprime", units=Units.DIMENSIONLESS)
-PSI_NORM = OutputKey("psi_norm", units=Units.DIMENSIONLESS)
-J_GENERIC_CURRENT = OutputKey(
-    "j_generic_current", units=Units.AMPERE_PER_SQUARE_METER
+PPRIME: Final[OutputKey] = OutputKey(
+    "pprime", units=Units.PASCAL_PER_WEBER, grid_type=GridType.FACE
 )
-J_PARALLEL_GENERIC_CURRENT = OutputKey(
-    "j_parallel_generic_current", units=Units.AMPERE_PER_SQUARE_METER
+FFPRIME: Final[OutputKey] = OutputKey(
+    "FFprime", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
 )
-J_ECRH = OutputKey("j_ecrh", units=Units.AMPERE_PER_SQUARE_METER)
-J_PARALLEL_ECRH = OutputKey(
-    "j_parallel_ecrh", units=Units.AMPERE_PER_SQUARE_METER
+PSI_NORM: Final[OutputKey] = OutputKey(
+    "psi_norm", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
 )
-J_NON_INDUCTIVE = OutputKey(
-    "j_non_inductive", units=Units.AMPERE_PER_SQUARE_METER
+J_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
+    "j_generic_current",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
 )
-J_PARALLEL_NON_INDUCTIVE = OutputKey(
-    "j_parallel_non_inductive", units=Units.AMPERE_PER_SQUARE_METER
+J_PARALLEL_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
+    "j_parallel_generic_current",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
 )
-POLOIDAL_VELOCITY = OutputKey("poloidal_velocity", units=Units.METER_PER_SECOND)
-RADIAL_ELECTRIC_FIELD = OutputKey(
-    "radial_electric_field", units=Units.VOLT_PER_METER
+J_ECRH: Final[OutputKey] = OutputKey(
+    "j_ecrh",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
+)
+J_PARALLEL_ECRH: Final[OutputKey] = OutputKey(
+    "j_parallel_ecrh",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
+)
+J_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
+    "j_non_inductive",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
+)
+J_PARALLEL_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
+    "j_parallel_non_inductive",
+    units=Units.AMPERE_PER_SQUARE_METER,
+    grid_type=GridType.CELL,
+)
+POLOIDAL_VELOCITY: Final[OutputKey] = OutputKey(
+    "poloidal_velocity",
+    units=Units.METER_PER_SECOND,
+    grid_type=GridType.FACE,
+)
+RADIAL_ELECTRIC_FIELD: Final[OutputKey] = OutputKey(
+    "radial_electric_field",
+    units=Units.VOLT_PER_METER,
+    grid_type=GridType.FACE,
 )
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: integrated powers.
 # ---------------------------------------------------------------------------
-P_HEAT_I = OutputKey("P_heat_i", units=Units.WATT)
-P_HEAT_E = OutputKey("P_heat_e", units=Units.WATT)
-P_HEAT_TOTAL = OutputKey("P_heat_total", units=Units.WATT)
-P_SOL_I = OutputKey("P_SOL_i", units=Units.WATT)
-P_SOL_E = OutputKey("P_SOL_e", units=Units.WATT)
-P_SOL_TOTAL = OutputKey("P_SOL_total", units=Units.WATT)
-P_AUX_I = OutputKey("P_aux_i", units=Units.WATT)
-P_AUX_E = OutputKey("P_aux_e", units=Units.WATT)
-P_AUX_TOTAL = OutputKey("P_aux_total", units=Units.WATT)
-P_EXTERNAL_INJECTED = OutputKey("P_external_injected", units=Units.WATT)
-P_EXTERNAL_TOTAL = OutputKey("P_external_total", units=Units.WATT)
-P_EI_EXCHANGE_I = OutputKey("P_ei_exchange_i", units=Units.WATT)
-P_EI_EXCHANGE_E = OutputKey("P_ei_exchange_e", units=Units.WATT)
-P_AUX_GENERIC_I = OutputKey("P_aux_generic_i", units=Units.WATT)
-P_AUX_GENERIC_E = OutputKey("P_aux_generic_e", units=Units.WATT)
-P_AUX_GENERIC_TOTAL = OutputKey("P_aux_generic_total", units=Units.WATT)
-P_ALPHA_I = OutputKey("P_alpha_i", units=Units.WATT)
-P_ALPHA_E = OutputKey("P_alpha_e", units=Units.WATT)
-P_ALPHA_TOTAL = OutputKey("P_alpha_total", units=Units.WATT)
-P_OHMIC_E = OutputKey("P_ohmic_e", units=Units.WATT)
-P_BREMSSTRAHLUNG_E = OutputKey("P_bremsstrahlung_e", units=Units.WATT)
-P_CYCLOTRON_E = OutputKey("P_cyclotron_e", units=Units.WATT)
-P_ECRH_E = OutputKey("P_ecrh_e", units=Units.WATT)
-P_RADIATION_E = OutputKey("P_radiation_e", units=Units.WATT)
-P_FUSION = OutputKey("P_fusion", units=Units.WATT)
-P_ICRH_E = OutputKey("P_icrh_e", units=Units.WATT)
-P_ICRH_I = OutputKey("P_icrh_i", units=Units.WATT)
-P_ICRH_TOTAL = OutputKey("P_icrh_total", units=Units.WATT)
+P_HEAT_I: Final[OutputKey] = OutputKey(
+    "P_heat_i", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_HEAT_E: Final[OutputKey] = OutputKey(
+    "P_heat_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_HEAT_TOTAL: Final[OutputKey] = OutputKey(
+    "P_heat_total", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_SOL_I: Final[OutputKey] = OutputKey(
+    "P_SOL_i", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_SOL_E: Final[OutputKey] = OutputKey(
+    "P_SOL_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_SOL_TOTAL: Final[OutputKey] = OutputKey(
+    "P_SOL_total", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_AUX_I: Final[OutputKey] = OutputKey(
+    "P_aux_i", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_AUX_E: Final[OutputKey] = OutputKey(
+    "P_aux_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_AUX_TOTAL: Final[OutputKey] = OutputKey(
+    "P_aux_total", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_EXTERNAL_INJECTED: Final[OutputKey] = OutputKey(
+    "P_external_injected", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_EXTERNAL_TOTAL: Final[OutputKey] = OutputKey(
+    "P_external_total", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_EI_EXCHANGE_I: Final[OutputKey] = OutputKey(
+    "P_ei_exchange_i", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_EI_EXCHANGE_E: Final[OutputKey] = OutputKey(
+    "P_ei_exchange_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_AUX_GENERIC_I: Final[OutputKey] = OutputKey(
+    "P_aux_generic_i", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_AUX_GENERIC_E: Final[OutputKey] = OutputKey(
+    "P_aux_generic_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_AUX_GENERIC_TOTAL: Final[OutputKey] = OutputKey(
+    "P_aux_generic_total", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_ALPHA_I: Final[OutputKey] = OutputKey(
+    "P_alpha_i", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_ALPHA_E: Final[OutputKey] = OutputKey(
+    "P_alpha_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_ALPHA_TOTAL: Final[OutputKey] = OutputKey(
+    "P_alpha_total", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_OHMIC_E: Final[OutputKey] = OutputKey(
+    "P_ohmic_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_BREMSSTRAHLUNG_E: Final[OutputKey] = OutputKey(
+    "P_bremsstrahlung_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_CYCLOTRON_E: Final[OutputKey] = OutputKey(
+    "P_cyclotron_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_ECRH_E: Final[OutputKey] = OutputKey(
+    "P_ecrh_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_RADIATION_E: Final[OutputKey] = OutputKey(
+    "P_radiation_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_FUSION: Final[OutputKey] = OutputKey(
+    "P_fusion", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_ICRH_E: Final[OutputKey] = OutputKey(
+    "P_icrh_e", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_ICRH_I: Final[OutputKey] = OutputKey(
+    "P_icrh_i", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_ICRH_TOTAL: Final[OutputKey] = OutputKey(
+    "P_icrh_total", units=Units.WATT, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: L-H transition thresholds.
 # ---------------------------------------------------------------------------
-P_LH_HIGH_DENSITY = OutputKey("P_LH_high_density", units=Units.WATT)
-P_LH_MIN = OutputKey("P_LH_min", units=Units.WATT)
-P_LH_LOW_DENSITY = OutputKey("P_LH_low_density", units=Units.WATT)
-P_LH = OutputKey("P_LH", units=Units.WATT)
-N_E_MIN_P_LH = OutputKey("n_e_min_P_LH", units=Units.INVERSE_CUBIC_METER)
-P_LH_DELABIE_HIGH_DENSITY = OutputKey(
-    "P_LH_delabie_high_density", units=Units.WATT
+P_LH_HIGH_DENSITY: Final[OutputKey] = OutputKey(
+    "P_LH_high_density", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_LH_DELABIE_MIN = OutputKey("P_LH_delabie_min", units=Units.WATT)
-P_LH_DELABIE_LOW_DENSITY = OutputKey(
-    "P_LH_delabie_low_density", units=Units.WATT
+P_LH_MIN: Final[OutputKey] = OutputKey(
+    "P_LH_min", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_LH_DELABIE = OutputKey("P_LH_delabie", units=Units.WATT)
+P_LH_LOW_DENSITY: Final[OutputKey] = OutputKey(
+    "P_LH_low_density", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_LH: Final[OutputKey] = OutputKey(
+    "P_LH", units=Units.WATT, grid_type=GridType.SCALAR
+)
+N_E_MIN_P_LH: Final[OutputKey] = OutputKey(
+    "n_e_min_P_LH",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.SCALAR,
+)
+P_LH_DELABIE_HIGH_DENSITY: Final[OutputKey] = OutputKey(
+    "P_LH_delabie_high_density", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_LH_DELABIE_MIN: Final[OutputKey] = OutputKey(
+    "P_LH_delabie_min", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_LH_DELABIE_LOW_DENSITY: Final[OutputKey] = OutputKey(
+    "P_LH_delabie_low_density", units=Units.WATT, grid_type=GridType.SCALAR
+)
+P_LH_DELABIE: Final[OutputKey] = OutputKey(
+    "P_LH_delabie", units=Units.WATT, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: integrated energies.
 # ---------------------------------------------------------------------------
-E_FUSION = OutputKey("E_fusion", units=Units.JOULE)
-E_AUX_TOTAL = OutputKey("E_aux_total", units=Units.JOULE)
-E_OHMIC_E = OutputKey("E_ohmic_e", units=Units.JOULE)
-E_EXTERNAL_INJECTED = OutputKey("E_external_injected", units=Units.JOULE)
-E_EXTERNAL_TOTAL = OutputKey("E_external_total", units=Units.JOULE)
+E_FUSION: Final[OutputKey] = OutputKey(
+    "E_fusion", units=Units.JOULE, grid_type=GridType.SCALAR
+)
+E_AUX_TOTAL: Final[OutputKey] = OutputKey(
+    "E_aux_total", units=Units.JOULE, grid_type=GridType.SCALAR
+)
+E_OHMIC_E: Final[OutputKey] = OutputKey(
+    "E_ohmic_e", units=Units.JOULE, grid_type=GridType.SCALAR
+)
+E_EXTERNAL_INJECTED: Final[OutputKey] = OutputKey(
+    "E_external_injected", units=Units.JOULE, grid_type=GridType.SCALAR
+)
+E_EXTERNAL_TOTAL: Final[OutputKey] = OutputKey(
+    "E_external_total", units=Units.JOULE, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: stored energy and confinement.
 # ---------------------------------------------------------------------------
-W_THERMAL_I = OutputKey("W_thermal_i", units=Units.JOULE)
-W_THERMAL_E = OutputKey("W_thermal_e", units=Units.JOULE)
-W_THERMAL_TOTAL = OutputKey("W_thermal_total", units=Units.JOULE)
-TAU_E = OutputKey("tau_E", units=Units.SECOND)
-H89P = OutputKey("H89P", units=Units.DIMENSIONLESS)
-H98 = OutputKey("H98", units=Units.DIMENSIONLESS)
-H97L = OutputKey("H97L", units=Units.DIMENSIONLESS)
-H20 = OutputKey("H20", units=Units.DIMENSIONLESS)
-W_POL = OutputKey("W_pol", units=Units.JOULE)
-LI3 = OutputKey("li3", units=Units.DIMENSIONLESS)
-DW_THERMAL_DT = OutputKey("dW_thermal_dt", units=Units.WATT)
-DW_THERMAL_DT_SMOOTHED = OutputKey("dW_thermal_dt_smoothed", units=Units.WATT)
-DW_THERMAL_I_DT_SMOOTHED = OutputKey(
-    "dW_thermal_i_dt_smoothed", units=Units.WATT
+W_THERMAL_I: Final[OutputKey] = OutputKey(
+    "W_thermal_i", units=Units.JOULE, grid_type=GridType.SCALAR
 )
-DW_THERMAL_E_DT_SMOOTHED = OutputKey(
-    "dW_thermal_e_dt_smoothed", units=Units.WATT
+W_THERMAL_E: Final[OutputKey] = OutputKey(
+    "W_thermal_e", units=Units.JOULE, grid_type=GridType.SCALAR
+)
+W_THERMAL_TOTAL: Final[OutputKey] = OutputKey(
+    "W_thermal_total", units=Units.JOULE, grid_type=GridType.SCALAR
+)
+TAU_E: Final[OutputKey] = OutputKey(
+    "tau_E", units=Units.SECOND, grid_type=GridType.SCALAR
+)
+H89P: Final[OutputKey] = OutputKey(
+    "H89P", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+H98: Final[OutputKey] = OutputKey(
+    "H98", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+H97L: Final[OutputKey] = OutputKey(
+    "H97L", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+H20: Final[OutputKey] = OutputKey(
+    "H20", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+W_POL: Final[OutputKey] = OutputKey(
+    "W_pol", units=Units.JOULE, grid_type=GridType.SCALAR
+)
+LI3: Final[OutputKey] = OutputKey(
+    "li3", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+DW_THERMAL_DT: Final[OutputKey] = OutputKey(
+    "dW_thermal_dt", units=Units.WATT, grid_type=GridType.SCALAR
+)
+DW_THERMAL_DT_SMOOTHED: Final[OutputKey] = OutputKey(
+    "dW_thermal_dt_smoothed", units=Units.WATT, grid_type=GridType.SCALAR
+)
+DW_THERMAL_I_DT_SMOOTHED: Final[OutputKey] = OutputKey(
+    "dW_thermal_i_dt_smoothed", units=Units.WATT, grid_type=GridType.SCALAR
+)
+DW_THERMAL_E_DT_SMOOTHED: Final[OutputKey] = OutputKey(
+    "dW_thermal_e_dt_smoothed", units=Units.WATT, grid_type=GridType.SCALAR
 )
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: volume/line averages.
 # ---------------------------------------------------------------------------
-T_E_VOLUME_AVG = OutputKey("T_e_volume_avg", units=Units.KEV)
-T_I_VOLUME_AVG = OutputKey("T_i_volume_avg", units=Units.KEV)
-N_E_VOLUME_AVG = OutputKey("n_e_volume_avg", units=Units.INVERSE_CUBIC_METER)
-N_I_VOLUME_AVG = OutputKey("n_i_volume_avg", units=Units.INVERSE_CUBIC_METER)
-N_E_LINE_AVG = OutputKey("n_e_line_avg", units=Units.INVERSE_CUBIC_METER)
-N_I_LINE_AVG = OutputKey("n_i_line_avg", units=Units.INVERSE_CUBIC_METER)
-FGW_N_E_VOLUME_AVG = OutputKey("fgw_n_e_volume_avg", units=Units.DIMENSIONLESS)
-FGW_N_E_LINE_AVG = OutputKey("fgw_n_e_line_avg", units=Units.DIMENSIONLESS)
+T_E_VOLUME_AVG: Final[OutputKey] = OutputKey(
+    "T_e_volume_avg", units=Units.KEV, grid_type=GridType.SCALAR
+)
+T_I_VOLUME_AVG: Final[OutputKey] = OutputKey(
+    "T_i_volume_avg", units=Units.KEV, grid_type=GridType.SCALAR
+)
+N_E_VOLUME_AVG: Final[OutputKey] = OutputKey(
+    "n_e_volume_avg",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.SCALAR,
+)
+N_I_VOLUME_AVG: Final[OutputKey] = OutputKey(
+    "n_i_volume_avg",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.SCALAR,
+)
+N_E_LINE_AVG: Final[OutputKey] = OutputKey(
+    "n_e_line_avg",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.SCALAR,
+)
+N_I_LINE_AVG: Final[OutputKey] = OutputKey(
+    "n_i_line_avg",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.SCALAR,
+)
+FGW_N_E_VOLUME_AVG: Final[OutputKey] = OutputKey(
+    "fgw_n_e_volume_avg",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
+FGW_N_E_LINE_AVG: Final[OutputKey] = OutputKey(
+    "fgw_n_e_line_avg",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.SCALAR,
+)
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: q-profile derived scalars.
 # ---------------------------------------------------------------------------
-Q_FUSION = OutputKey("Q_fusion", units=Units.DIMENSIONLESS)
-Q95 = OutputKey("q95", units=Units.DIMENSIONLESS)
-Q_MIN = OutputKey("q_min", units=Units.DIMENSIONLESS)
-RHO_Q_MIN = OutputKey("rho_q_min", units=Units.DIMENSIONLESS)
-RHO_Q_3_2_FIRST = OutputKey("rho_q_3_2_first", units=Units.DIMENSIONLESS)
-RHO_Q_2_1_FIRST = OutputKey("rho_q_2_1_first", units=Units.DIMENSIONLESS)
-RHO_Q_3_1_FIRST = OutputKey("rho_q_3_1_first", units=Units.DIMENSIONLESS)
-RHO_Q_3_2_SECOND = OutputKey("rho_q_3_2_second", units=Units.DIMENSIONLESS)
-RHO_Q_2_1_SECOND = OutputKey("rho_q_2_1_second", units=Units.DIMENSIONLESS)
-RHO_Q_3_1_SECOND = OutputKey("rho_q_3_1_second", units=Units.DIMENSIONLESS)
+Q_FUSION: Final[OutputKey] = OutputKey(
+    "Q_fusion", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+Q95: Final[OutputKey] = OutputKey(
+    "q95", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+Q_MIN: Final[OutputKey] = OutputKey(
+    "q_min", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+RHO_Q_MIN: Final[OutputKey] = OutputKey(
+    "rho_q_min", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+RHO_Q_3_2_FIRST: Final[OutputKey] = OutputKey(
+    "rho_q_3_2_first", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+RHO_Q_2_1_FIRST: Final[OutputKey] = OutputKey(
+    "rho_q_2_1_first", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+RHO_Q_3_1_FIRST: Final[OutputKey] = OutputKey(
+    "rho_q_3_1_first", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+RHO_Q_3_2_SECOND: Final[OutputKey] = OutputKey(
+    "rho_q_3_2_second", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+RHO_Q_2_1_SECOND: Final[OutputKey] = OutputKey(
+    "rho_q_2_1_second", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+RHO_Q_3_1_SECOND: Final[OutputKey] = OutputKey(
+    "rho_q_3_1_second", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: integrated currents and fractions.
 # ---------------------------------------------------------------------------
-I_EXTERNAL = OutputKey("I_external", units=Units.AMPERE)
-I_ECRH = OutputKey("I_ecrh", units=Units.AMPERE)
-I_AUX_GENERIC = OutputKey("I_aux_generic", units=Units.AMPERE)
-I_NON_INDUCTIVE = OutputKey("I_non_inductive", units=Units.AMPERE)
-F_NON_INDUCTIVE = OutputKey("f_non_inductive", units=Units.DIMENSIONLESS)
-F_BOOTSTRAP = OutputKey("f_bootstrap", units=Units.DIMENSIONLESS)
+I_EXTERNAL: Final[OutputKey] = OutputKey(
+    "I_external", units=Units.AMPERE, grid_type=GridType.SCALAR
+)
+I_ECRH: Final[OutputKey] = OutputKey(
+    "I_ecrh", units=Units.AMPERE, grid_type=GridType.SCALAR
+)
+I_AUX_GENERIC: Final[OutputKey] = OutputKey(
+    "I_aux_generic", units=Units.AMPERE, grid_type=GridType.SCALAR
+)
+I_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
+    "I_non_inductive", units=Units.AMPERE, grid_type=GridType.SCALAR
+)
+F_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
+    "f_non_inductive", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+F_BOOTSTRAP: Final[OutputKey] = OutputKey(
+    "f_bootstrap", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: integrated particle sources.
 # ---------------------------------------------------------------------------
-S_GAS_PUFF = OutputKey("S_gas_puff", units=Units.INVERSE_SECOND)
-S_PELLET = OutputKey("S_pellet", units=Units.INVERSE_SECOND)
-S_GENERIC_PARTICLE = OutputKey("S_generic_particle", units=Units.INVERSE_SECOND)
-S_TOTAL = OutputKey("S_total", units=Units.INVERSE_SECOND)
+S_GAS_PUFF: Final[OutputKey] = OutputKey(
+    "S_gas_puff", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR
+)
+S_PELLET: Final[OutputKey] = OutputKey(
+    "S_pellet", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR
+)
+S_GENERIC_PARTICLE: Final[OutputKey] = OutputKey(
+    "S_generic_particle", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR
+)
+S_TOTAL: Final[OutputKey] = OutputKey(
+    "S_total", units=Units.INVERSE_SECOND, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Post-processed outputs: plasma beta.
 # ---------------------------------------------------------------------------
-BETA_TOR = OutputKey("beta_tor", units=Units.DIMENSIONLESS)
-BETA_POL = OutputKey("beta_pol", units=Units.DIMENSIONLESS)
-BETA_N = OutputKey("beta_N", units=Units.DIMENSIONLESS)
+BETA_TOR: Final[OutputKey] = OutputKey(
+    "beta_tor", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+BETA_POL: Final[OutputKey] = OutputKey(
+    "beta_pol", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+BETA_N: Final[OutputKey] = OutputKey(
+    "beta_N", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Edge model outputs.
 # ---------------------------------------------------------------------------
-SEED_IMPURITY_CONCENTRATIONS = OutputKey(
-    "seed_impurity_concentrations", units=Units.INVERSE_CUBIC_METER
+SEED_IMPURITY_CONCENTRATIONS: Final[OutputKey] = OutputKey(
+    "seed_impurity_concentrations",
+    units=Units.INVERSE_CUBIC_METER,
+    grid_type=GridType.NOT_APPLICABLE,
 )
-CALCULATED_ENRICHMENT = OutputKey(
-    "calculated_enrichment", units=Units.DIMENSIONLESS
+CALCULATED_ENRICHMENT: Final[OutputKey] = OutputKey(
+    "calculated_enrichment",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.NOT_APPLICABLE,
 )
-IMPURITY = OutputKey("impurity", units=Units.NOT_APPLICABLE)
-SEED_IMPURITY = OutputKey("seed_impurity", units=Units.NOT_APPLICABLE)
-MAIN_ION = OutputKey("main_ion", units=Units.NOT_APPLICABLE)
-RADIATION_IMPURITY_SPECIES = OutputKey(
-    "radiation_impurity_species", units=Units.WATT_PER_CUBIC_METER
+IMPURITY: Final[OutputKey] = OutputKey(
+    "impurity", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+SEED_IMPURITY: Final[OutputKey] = OutputKey(
+    "seed_impurity",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+MAIN_ION: Final[OutputKey] = OutputKey(
+    "main_ion", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+RADIATION_IMPURITY_SPECIES: Final[OutputKey] = OutputKey(
+    "radiation_impurity_species",
+    units=Units.WATT_PER_CUBIC_METER,
+    grid_type=GridType.CELL,
 )
 
 # ---------------------------------------------------------------------------
 # Edge model scalar outputs.
 # ---------------------------------------------------------------------------
-Q_PARALLEL = OutputKey("q_parallel", units=Units.WATT_PER_SQUARE_METER)
-Q_PERPENDICULAR_TARGET = OutputKey(
-    "q_perpendicular_target", units=Units.WATT_PER_SQUARE_METER
+Q_PARALLEL: Final[OutputKey] = OutputKey(
+    "q_parallel",
+    units=Units.WATT_PER_SQUARE_METER,
+    grid_type=GridType.SCALAR,
 )
-T_E_SEPARATRIX = OutputKey("T_e_separatrix", units=Units.KEV)
-T_E_TARGET = OutputKey("T_e_target", units=Units.EV)
-PRESSURE_NEUTRAL_DIVERTOR = OutputKey(
-    "pressure_neutral_divertor", units=Units.PASCAL
+Q_PERPENDICULAR_TARGET: Final[OutputKey] = OutputKey(
+    "q_perpendicular_target",
+    units=Units.WATT_PER_SQUARE_METER,
+    grid_type=GridType.SCALAR,
 )
-ALPHA_T = OutputKey("alpha_t", units=Units.DIMENSIONLESS)
-Z_EFF_SEPARATRIX = OutputKey("Z_eff_separatrix", units=Units.DIMENSIONLESS)
-MULTIPLE_ROOTS_FOUND = OutputKey(
-    "multiple_roots_found", units=Units.NOT_APPLICABLE
+T_E_SEPARATRIX: Final[OutputKey] = OutputKey(
+    "T_e_separatrix", units=Units.KEV, grid_type=GridType.SCALAR
+)
+T_E_TARGET: Final[OutputKey] = OutputKey(
+    "T_e_target", units=Units.EV, grid_type=GridType.SCALAR
+)
+PRESSURE_NEUTRAL_DIVERTOR: Final[OutputKey] = OutputKey(
+    "pressure_neutral_divertor",
+    units=Units.PASCAL,
+    grid_type=GridType.SCALAR,
+)
+ALPHA_T: Final[OutputKey] = OutputKey(
+    "alpha_t", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+Z_EFF_SEPARATRIX: Final[OutputKey] = OutputKey(
+    "Z_eff_separatrix", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
+MULTIPLE_ROOTS_FOUND: Final[OutputKey] = OutputKey(
+    "multiple_roots_found",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
 )
 
 # ---------------------------------------------------------------------------
 # Numerics.
 # ---------------------------------------------------------------------------
-SIM_STATUS = OutputKey("sim_status", units=Units.NOT_APPLICABLE)
-SIM_ERROR = OutputKey("sim_error", units=Units.NOT_APPLICABLE)
-OUTER_SOLVER_ITERATIONS = OutputKey(
-    "outer_solver_iterations", units=Units.NOT_APPLICABLE
+SIM_STATUS: Final[OutputKey] = OutputKey(
+    "sim_status", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )
-INNER_SOLVER_ITERATIONS = OutputKey(
-    "inner_solver_iterations", units=Units.NOT_APPLICABLE
+SIM_ERROR: Final[OutputKey] = OutputKey(
+    "sim_error", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+OUTER_SOLVER_ITERATIONS: Final[OutputKey] = OutputKey(
+    "outer_solver_iterations",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+INNER_SOLVER_ITERATIONS: Final[OutputKey] = OutputKey(
+    "inner_solver_iterations",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
 )
 # Boolean array indicating whether the state corresponds to a
 # post-sawtooth-crash state.
-SAWTOOTH_CRASH = OutputKey("sawtooth_crash", units=Units.NOT_APPLICABLE)
+SAWTOOTH_CRASH: Final[OutputKey] = OutputKey(
+    "sawtooth_crash",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
 
 # ---------------------------------------------------------------------------
 # ToraxConfig.
 # ---------------------------------------------------------------------------
-CONFIG = OutputKey("config", units=Units.NOT_APPLICABLE)
+CONFIG: Final[OutputKey] = OutputKey(
+    "config", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
 
 # ---------------------------------------------------------------------------
 # Geometry: scalar quantities.
 # ---------------------------------------------------------------------------
-B_0 = OutputKey("B_0", units=Units.TESLA)
-R_MAJOR = OutputKey("R_major", units=Units.METER)
-A_MINOR = OutputKey("a_minor", units=Units.METER)
-PHI_B = OutputKey("Phi_b", units=Units.WEBER)
-PHI_B_DOT = OutputKey("Phi_b_dot", units=Units.WEBER_PER_SECOND)
-RHO_B = OutputKey("rho_b", units=Units.METER)
-DRHO = OutputKey("drho", units=Units.METER)
-DRHO_NORM = OutputKey("drho_norm", units=Units.DIMENSIONLESS)
+B_0: Final[OutputKey] = OutputKey(
+    "B_0", units=Units.TESLA, grid_type=GridType.SCALAR
+)
+R_MAJOR: Final[OutputKey] = OutputKey(
+    "R_major", units=Units.METER, grid_type=GridType.SCALAR
+)
+A_MINOR: Final[OutputKey] = OutputKey(
+    "a_minor", units=Units.METER, grid_type=GridType.SCALAR
+)
+PHI_B: Final[OutputKey] = OutputKey(
+    "Phi_b", units=Units.WEBER, grid_type=GridType.SCALAR
+)
+PHI_B_DOT: Final[OutputKey] = OutputKey(
+    "Phi_b_dot", units=Units.WEBER_PER_SECOND, grid_type=GridType.SCALAR
+)
+RHO_B: Final[OutputKey] = OutputKey(
+    "rho_b", units=Units.METER, grid_type=GridType.SCALAR
+)
+DRHO: Final[OutputKey] = OutputKey(
+    "drho", units=Units.METER, grid_type=GridType.SCALAR
+)
+DRHO_NORM: Final[OutputKey] = OutputKey(
+    "drho_norm", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Geometry: profile quantities.
 # ---------------------------------------------------------------------------
-PHI = OutputKey("Phi", units=Units.WEBER)
-TFF = OutputKey("F", units=Units.TESLA_METER)
-R_IN = OutputKey("R_in", units=Units.METER)
-R_OUT = OutputKey("R_out", units=Units.METER)
-R_MAJOR_PROFILE = OutputKey("R_major_profile", units=Units.METER)
-R_MID = OutputKey("r_mid", units=Units.METER)
-AREA = OutputKey("area", units=Units.SQUARE_METER)
-VOLUME = OutputKey("volume", units=Units.CUBIC_METER)
-VPR = OutputKey("vpr", units=Units.CUBIC_METER)
-SPR = OutputKey("spr", units=Units.SQUARE_METER)
-DELTA = OutputKey("delta", units=Units.DIMENSIONLESS)
-DELTA_UPPER = OutputKey("delta_upper", units=Units.DIMENSIONLESS)
-DELTA_LOWER = OutputKey("delta_lower", units=Units.DIMENSIONLESS)
-ELONGATION = OutputKey("elongation", units=Units.DIMENSIONLESS)
-EPSILON = OutputKey("epsilon", units=Units.DIMENSIONLESS)
-G0 = OutputKey("g0", units=Units.SQUARE_METER)
-G0_OVER_VPR = OutputKey("g0_over_vpr", units=Units.INVERSE_METER)
-G1 = OutputKey("g1", units=Units.QUARTIC_METER)
-G1_OVER_VPR = OutputKey("g1_over_vpr", units=Units.METER)
-G1_OVER_VPR2 = OutputKey("g1_over_vpr2", units=Units.INVERSE_SQUARE_METER)
-G2 = OutputKey("g2", units=Units.SQUARE_METER)
-G2G3_OVER_RHON = OutputKey("g2g3_over_rhon", units=Units.DIMENSIONLESS)
-G3 = OutputKey("g3", units=Units.INVERSE_SQUARE_METER)
-GM4 = OutputKey("gm4", units=Units.INVERSE_SQUARE_TESLA)
-GM5 = OutputKey("gm5", units=Units.SQUARE_TESLA)
-GM9 = OutputKey("gm9", units=Units.INVERSE_METER)
+PHI: Final[OutputKey] = OutputKey(
+    "Phi", units=Units.WEBER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+TFF: Final[OutputKey] = OutputKey(
+    "F", units=Units.TESLA_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+R_IN: Final[OutputKey] = OutputKey(
+    "R_in", units=Units.METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+R_OUT: Final[OutputKey] = OutputKey(
+    "R_out", units=Units.METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+R_MAJOR_PROFILE: Final[OutputKey] = OutputKey(
+    "R_major_profile",
+    units=Units.METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+R_MID: Final[OutputKey] = OutputKey(
+    "r_mid", units=Units.METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+AREA: Final[OutputKey] = OutputKey(
+    "area", units=Units.SQUARE_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+VOLUME: Final[OutputKey] = OutputKey(
+    "volume", units=Units.CUBIC_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+VPR: Final[OutputKey] = OutputKey(
+    "vpr", units=Units.CUBIC_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+SPR: Final[OutputKey] = OutputKey(
+    "spr", units=Units.SQUARE_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+DELTA: Final[OutputKey] = OutputKey(
+    "delta", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
+)
+DELTA_UPPER: Final[OutputKey] = OutputKey(
+    "delta_upper",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.FACE,
+)
+DELTA_LOWER: Final[OutputKey] = OutputKey(
+    "delta_lower",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.FACE,
+)
+ELONGATION: Final[OutputKey] = OutputKey(
+    "elongation",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+EPSILON: Final[OutputKey] = OutputKey(
+    "epsilon",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+G0: Final[OutputKey] = OutputKey(
+    "g0", units=Units.SQUARE_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+G0_OVER_VPR: Final[OutputKey] = OutputKey(
+    "g0_over_vpr", units=Units.INVERSE_METER, grid_type=GridType.FACE
+)
+G1: Final[OutputKey] = OutputKey(
+    "g1", units=Units.QUARTIC_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+G1_OVER_VPR: Final[OutputKey] = OutputKey(
+    "g1_over_vpr", units=Units.METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+G1_OVER_VPR2: Final[OutputKey] = OutputKey(
+    "g1_over_vpr2",
+    units=Units.INVERSE_SQUARE_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+G2: Final[OutputKey] = OutputKey(
+    "g2", units=Units.SQUARE_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+G2G3_OVER_RHON: Final[OutputKey] = OutputKey(
+    "g2g3_over_rhon",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+G3: Final[OutputKey] = OutputKey(
+    "g3",
+    units=Units.INVERSE_SQUARE_METER,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+GM4: Final[OutputKey] = OutputKey(
+    "gm4",
+    units=Units.INVERSE_SQUARE_TESLA,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
+)
+GM5: Final[OutputKey] = OutputKey(
+    "gm5", units=Units.SQUARE_TESLA, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+GM9: Final[OutputKey] = OutputKey(
+    "gm9", units=Units.INVERSE_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
 
 # ---------------------------------------------------------------------------
 # Geometry output renames.
 # ---------------------------------------------------------------------------
-IP_PROFILE_FROM_GEO = OutputKey("Ip_profile_from_geo", units=Units.AMPERE)
-PSI_FROM_GEO = OutputKey("psi_from_geo", units=Units.WEBER)
-Z_MAGNETIC_AXIS = OutputKey("z_magnetic_axis", units=Units.METER)
+IP_PROFILE_FROM_GEO: Final[OutputKey] = OutputKey(
+    "Ip_profile_from_geo", units=Units.AMPERE, grid_type=GridType.FACE
+)
+PSI_FROM_GEO: Final[OutputKey] = OutputKey(
+    "psi_from_geo", units=Units.WEBER, grid_type=GridType.CELL
+)
+Z_MAGNETIC_AXIS: Final[OutputKey] = OutputKey(
+    "z_magnetic_axis", units=Units.METER, grid_type=GridType.SCALAR
+)
 
 # ---------------------------------------------------------------------------
 # Solver / edge numerics output keys.
 # ---------------------------------------------------------------------------
-SOLVER_PHYSICS_OUTCOME = OutputKey(
-    "solver_physics_outcome", units=Units.NOT_APPLICABLE
+SOLVER_PHYSICS_OUTCOME: Final[OutputKey] = OutputKey(
+    "solver_physics_outcome",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
 )
-SOLVER_ITERATIONS = OutputKey("solver_iterations", units=Units.NOT_APPLICABLE)
-SOLVER_RESIDUAL = OutputKey("solver_residual", units=Units.NOT_APPLICABLE)
-SOLVER_ERROR = OutputKey("solver_error", units=Units.NOT_APPLICABLE)
-FIXED_POINT_OUTCOME = OutputKey(
-    "fixed_point_outcome", units=Units.NOT_APPLICABLE
+SOLVER_ITERATIONS: Final[OutputKey] = OutputKey(
+    "solver_iterations",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
 )
-ROOTS = OutputKey("roots", units=Units.NOT_APPLICABLE)
-N_ROOTS = OutputKey("n_roots", units=Units.NOT_APPLICABLE)
+SOLVER_RESIDUAL: Final[OutputKey] = OutputKey(
+    "solver_residual",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
+SOLVER_ERROR: Final[OutputKey] = OutputKey(
+    "solver_error",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
+FIXED_POINT_OUTCOME: Final[OutputKey] = OutputKey(
+    "fixed_point_outcome",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
+ROOTS: Final[OutputKey] = OutputKey(
+    "roots", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+N_ROOTS: Final[OutputKey] = OutputKey(
+    "n_roots", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
 
 # ---------------------------------------------------------------------------
 # Prefix-based unit matching for dynamically-generated source profile names.
