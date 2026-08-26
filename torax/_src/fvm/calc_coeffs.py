@@ -340,22 +340,32 @@ def _calc_coeffs_full(
       geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
       * consts.keV_to_J
-      * transport_coefficients.chi_face_ion_total
+      * transport_coefficients.total.chi_face_ion
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
       * consts.keV_to_J
-      * transport_coefficients.chi_face_el_total
+      * transport_coefficients.total.chi_face_el
   )
   # PereverzevTransport convection terms are already "full" coefficients, and
   # no heat convection terms come from other models.
-  full_v_heat_face_ion = transport_coefficients.full_v_heat_face_ion_pereverzev
-  full_v_heat_face_el = transport_coefficients.full_v_heat_face_el_pereverzev
+  if transport_coefficients.pereverzev is not None:
+    full_v_heat_face_ion = (
+        transport_coefficients.pereverzev.full_v_heat_face_ion
+    )
+    full_v_heat_face_el = (
+        transport_coefficients.pereverzev.full_v_heat_face_el
+    )
+  else:
+    full_v_heat_face_ion = jnp.zeros_like(geo.rho_face)
+    full_v_heat_face_el = jnp.zeros_like(geo.rho_face)
 
   # Particle equations
-  full_d_face_el = geo.g1_over_vpr_face * transport_coefficients.d_face_el_total
-  full_v_face_el = geo.g0_face * transport_coefficients.v_face_el_total
+  full_d_face_el = (
+      geo.g1_over_vpr_face * transport_coefficients.total.d_face_el
+  )
+  full_v_face_el = geo.g0_face * transport_coefficients.total.v_face_el
 
   # 3. Add Phi_b_dot terms to convection equations.
   # Psi equation doesn't include Phi_b_dot term.

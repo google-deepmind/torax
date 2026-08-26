@@ -15,6 +15,7 @@
 """Transport coefficient data structures."""
 
 import dataclasses
+from typing import Mapping
 
 import jax
 from jax import numpy as jnp
@@ -96,3 +97,135 @@ class TransportCoeffs:
             output_keys.V_TURB_E, self.v_face_el
         ),
     }
+
+
+def sum_transport_coeffs(*coeffs: TransportCoeffs) -> TransportCoeffs:
+  """Sums the 4 standard channels across multiple transport objects."""
+  if not coeffs:
+    raise ValueError('At least one TransportCoeffs must be provided.')
+  # Use the first TransportCoeffs channel array as the initial `start` value
+  # for builtin `sum(iterable, start)` to preserve array typing and avoid
+  # adding an integer 0 to JAX/NumPy arrays.
+  return TransportCoeffs(
+      chi_face_ion=sum(
+          (c.chi_face_ion for c in coeffs[1:]), coeffs[0].chi_face_ion
+      ),
+      chi_face_el=sum(
+          (c.chi_face_el for c in coeffs[1:]), coeffs[0].chi_face_el
+      ),
+      d_face_el=sum((c.d_face_el for c in coeffs[1:]), coeffs[0].d_face_el),
+      v_face_el=sum((c.v_face_el for c in coeffs[1:]), coeffs[0].v_face_el),
+  )
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class TurbulentTransport:
+  """Combined turbulent transport output across all models.
+
+  Attributes:
+    total: Combined 4-channel turbulent transport coefficients (after merge,
+      clipping, and smoothing).
+    core_coefficients: Mapping from model name to the TransportCoeffs produced
+      by each active core transport model.
+    pedestal_coefficients: Mapping from model name to the TransportCoeffs
+      produced by each active pedestal transport model.
+  """
+
+  total: TransportCoeffs
+  core_coefficients: Mapping[str, TransportCoeffs] = dataclasses.field(
+      default_factory=dict
+  )
+  pedestal_coefficients: Mapping[str, TransportCoeffs] = dataclasses.field(
+      default_factory=dict
+  )
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+    return cls(
+        total=TransportCoeffs.zeros(geo),
+        core_coefficients={},
+        pedestal_coefficients={},
+    )
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts turbulent transport outputs to an OutputVar mapping."""
+    return self.total.to_output_dict(context)
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(kw_only=True, frozen=True)
+class NeoclassicalTransport(TransportCoeffs):
+  """Outputs of a neoclassical transport model on the face grid.
+
+  Attributes:
+    v_face_el_ware: Ware pinch velocity [m/s]. Provided for debugging and
+      diagnostics; note that this contribution is already included in v_face_el.
+  """
+
+  v_face_el_ware: array_typing.FloatVectorFace
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+    """Returns a NeoclassicalTransport with zero transport coefficients."""
+    zeros = jnp.zeros_like(geo.rho_face_norm)
+    return cls(
+        chi_face_ion=zeros,
+        chi_face_el=zeros,
+        d_face_el=zeros,
+        v_face_el=zeros,
+        v_face_el_ware=zeros,
+    )
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts neoclassical transport outputs to an OutputVar mapping."""
+    return {
+        output_keys.CHI_NEO_I: context.pack(
+            output_keys.CHI_NEO_I, self.chi_face_ion
+        ),
+        output_keys.CHI_NEO_E: context.pack(
+            output_keys.CHI_NEO_E, self.chi_face_el
+        ),
+        output_keys.D_NEO_E: context.pack(
+            output_keys.D_NEO_E, self.d_face_el
+        ),
+        output_keys.V_NEO_E: context.pack(
+            output_keys.V_NEO_E, self.v_face_el - self.v_face_el_ware
+        ),
+        output_keys.V_NEO_WARE_E: context.pack(
+            output_keys.V_NEO_WARE_E, self.v_face_el_ware
+        ),
+    }
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(kw_only=True, frozen=True)
+class PereverzevTransport(TransportCoeffs):
+  """Outputs of the Pereverzev transport model on the face grid.
+
+  Attributes:
+    full_v_heat_face_ion: Full ion heat convection velocity [m/s].
+    full_v_heat_face_el: Full electron heat convection velocity [m/s].
+  """
+
+  full_v_heat_face_ion: array_typing.FloatVectorFace
+  full_v_heat_face_el: array_typing.FloatVectorFace
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+    """Returns a PereverzevTransport with zero transport coefficients."""
+    zeros = jnp.zeros_like(geo.rho_face_norm)
+    return cls(
+        chi_face_ion=zeros,
+        chi_face_el=zeros,
+        d_face_el=zeros,
+        v_face_el=zeros,
+        full_v_heat_face_ion=zeros,
+        full_v_heat_face_el=zeros,
+    )
