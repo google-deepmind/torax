@@ -116,7 +116,6 @@ def profile_conditions_from_IMAS(
       "n_e_right_bc_is_fGW": False,
       "n_e_right_bc": None,
       "n_e_nbar_is_fGW": False,
-      "nbar": None,
       "n_e": n_e,
       "normalize_n_e_to_nbar": False,
       "v_loop_lcfs": v_loop_lcfs,
