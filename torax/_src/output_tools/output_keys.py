@@ -874,23 +874,8 @@ BETA_N: Final[OutputKey] = OutputKey(
 # ---------------------------------------------------------------------------
 # Edge model outputs.
 # ---------------------------------------------------------------------------
-SEED_IMPURITY_CONCENTRATIONS: Final[OutputKey] = OutputKey(
-    "seed_impurity_concentrations",
-    units=Units.INVERSE_CUBIC_METER,
-    grid_type=GridType.NOT_APPLICABLE,
-)
-CALCULATED_ENRICHMENT: Final[OutputKey] = OutputKey(
-    "calculated_enrichment",
-    units=Units.DIMENSIONLESS,
-    grid_type=GridType.NOT_APPLICABLE,
-)
 IMPURITY: Final[OutputKey] = OutputKey(
     "impurity", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
-)
-SEED_IMPURITY: Final[OutputKey] = OutputKey(
-    "seed_impurity",
-    units=Units.NOT_APPLICABLE,
-    grid_type=GridType.NOT_APPLICABLE,
 )
 MAIN_ION: Final[OutputKey] = OutputKey(
     "main_ion", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
@@ -923,17 +908,6 @@ T_E_TARGET: Final[OutputKey] = OutputKey(
 PRESSURE_NEUTRAL_DIVERTOR: Final[OutputKey] = OutputKey(
     "pressure_neutral_divertor",
     units=Units.PASCAL,
-    grid_type=GridType.SCALAR,
-)
-ALPHA_T: Final[OutputKey] = OutputKey(
-    "alpha_t", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
-)
-Z_EFF_SEPARATRIX: Final[OutputKey] = OutputKey(
-    "Z_eff_separatrix", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
-)
-MULTIPLE_ROOTS_FOUND: Final[OutputKey] = OutputKey(
-    "multiple_roots_found",
-    units=Units.NOT_APPLICABLE,
     grid_type=GridType.SCALAR,
 )
 
@@ -1112,40 +1086,6 @@ Z_MAGNETIC_AXIS: Final[OutputKey] = OutputKey(
     "z_magnetic_axis", units=Units.METER, grid_type=GridType.SCALAR
 )
 
-# ---------------------------------------------------------------------------
-# Solver / edge numerics output keys.
-# ---------------------------------------------------------------------------
-SOLVER_PHYSICS_OUTCOME: Final[OutputKey] = OutputKey(
-    "solver_physics_outcome",
-    units=Units.NOT_APPLICABLE,
-    grid_type=GridType.SCALAR,
-)
-SOLVER_ITERATIONS: Final[OutputKey] = OutputKey(
-    "solver_iterations",
-    units=Units.NOT_APPLICABLE,
-    grid_type=GridType.SCALAR,
-)
-SOLVER_RESIDUAL: Final[OutputKey] = OutputKey(
-    "solver_residual",
-    units=Units.NOT_APPLICABLE,
-    grid_type=GridType.SCALAR,
-)
-SOLVER_ERROR: Final[OutputKey] = OutputKey(
-    "solver_error",
-    units=Units.NOT_APPLICABLE,
-    grid_type=GridType.SCALAR,
-)
-FIXED_POINT_OUTCOME: Final[OutputKey] = OutputKey(
-    "fixed_point_outcome",
-    units=Units.NOT_APPLICABLE,
-    grid_type=GridType.SCALAR,
-)
-ROOTS: Final[OutputKey] = OutputKey(
-    "roots", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
-)
-N_ROOTS: Final[OutputKey] = OutputKey(
-    "n_roots", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
-)
 
 # ---------------------------------------------------------------------------
 # Prefix-based unit matching for dynamically-generated source profile names.

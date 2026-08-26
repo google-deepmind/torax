@@ -81,6 +81,95 @@ def _extract_solver_metrics(
   return iterations, residual, error
 
 
+# ---------------------------------------------------------------------------
+# Output keys specific to the Extended Lengyel model.
+# ---------------------------------------------------------------------------
+ALPHA_T = output_keys.OutputKey(
+    'alpha_t',
+    units=output_keys.Units.DIMENSIONLESS,
+    grid_type=output_keys.GridType.SCALAR,
+)
+Z_EFF_SEPARATRIX = output_keys.OutputKey(
+    'Z_eff_separatrix',
+    units=output_keys.Units.DIMENSIONLESS,
+    grid_type=output_keys.GridType.SCALAR,
+)
+MULTIPLE_ROOTS_FOUND = output_keys.OutputKey(
+    'multiple_roots_found',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.SCALAR,
+)
+SOLVER_PHYSICS_OUTCOME = output_keys.OutputKey(
+    'solver_physics_outcome',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.SCALAR,
+)
+SOLVER_ITERATIONS = output_keys.OutputKey(
+    'solver_iterations',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.SCALAR,
+)
+SOLVER_RESIDUAL = output_keys.OutputKey(
+    'solver_residual',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.SCALAR,
+)
+SOLVER_ERROR = output_keys.OutputKey(
+    'solver_error',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.SCALAR,
+)
+FIXED_POINT_OUTCOME = output_keys.OutputKey(
+    'fixed_point_outcome',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.SCALAR,
+)
+ROOTS = output_keys.OutputKey(
+    'roots',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.NOT_APPLICABLE,
+)
+N_ROOTS = output_keys.OutputKey(
+    'n_roots',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.NOT_APPLICABLE,
+)
+SEED_IMPURITY_CONCENTRATIONS = output_keys.OutputKey(
+    'seed_impurity_concentrations',
+    units=output_keys.Units.INVERSE_CUBIC_METER,
+    grid_type=output_keys.GridType.NOT_APPLICABLE,
+)
+CALCULATED_ENRICHMENT = output_keys.OutputKey(
+    'calculated_enrichment',
+    units=output_keys.Units.DIMENSIONLESS,
+    grid_type=output_keys.GridType.NOT_APPLICABLE,
+)
+SEED_IMPURITY = output_keys.OutputKey(
+    'seed_impurity',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.NOT_APPLICABLE,
+)
+
+_EXTENDED_LENGYEL_KEYS: dict[str, output_keys.OutputKey] = {
+    k: k
+    for k in (
+        ALPHA_T,
+        Z_EFF_SEPARATRIX,
+        MULTIPLE_ROOTS_FOUND,
+        SOLVER_PHYSICS_OUTCOME,
+        SOLVER_ITERATIONS,
+        SOLVER_RESIDUAL,
+        SOLVER_ERROR,
+        FIXED_POINT_OUTCOME,
+        ROOTS,
+        N_ROOTS,
+        SEED_IMPURITY_CONCENTRATIONS,
+        CALCULATED_ENRICHMENT,
+        SEED_IMPURITY,
+    )
+}
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class ExtendedLengyelOutputs(base.EdgeModelOutputs):
@@ -138,12 +227,13 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       if field.name in ['roots', 'multiple_roots_found', 'solver_status']:
         continue  # Skip recursive field and internal flags
       value = getattr(roots, field.name)
-      if isinstance(value, array_typing.Array):
-        fields_to_compress[field.name] = jnp.asarray(value)
+      if isinstance(value, (jax.Array, np.ndarray)):
+        fields_to_compress[field.name] = value
       elif isinstance(value, Mapping):
-        for k, v in value.items():
-          if isinstance(v, array_typing.Array):
-            fields_to_compress[f'{field.name}_{k}'] = jnp.asarray(v)
+        # Flatten dictionary fields with prefix
+        # (e.g., seed_impurity_concentrations_Ne)
+        for sub_key, sub_val in value.items():
+          fields_to_compress[f'{field.name}_{sub_key}'] = sub_val
 
     ref_shape = jnp.asarray(roots.T_e_target).shape
 
@@ -248,6 +338,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     trim_slice = tuple(trim_slice)
     result_dict = {k: v[trim_slice] for k, v in result_dict.items()}
 
+    # Reconstruct SolverStatus
     if 'solver_iterations' in result_dict:
       last_tau = result_dict.get('solver_last_tau')
       if last_tau is None:
@@ -305,19 +396,19 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
 
     # 1. Scalar variables
     scalars: dict[str, output_grid_context.OutputVar] = {
-        output_keys.ALPHA_T: context.pack(output_keys.ALPHA_T, self.alpha_t),
-        output_keys.Z_EFF_SEPARATRIX: context.pack(
-            output_keys.Z_EFF_SEPARATRIX, self.Z_eff_separatrix
+        ALPHA_T: context.pack(ALPHA_T, self.alpha_t),
+        Z_EFF_SEPARATRIX: context.pack(
+            Z_EFF_SEPARATRIX, self.Z_eff_separatrix
         ),
     }
     if self.solver_status.physics_outcome is not None:
-      scalars[output_keys.SOLVER_PHYSICS_OUTCOME] = context.pack(
-          output_keys.SOLVER_PHYSICS_OUTCOME,
+      scalars[SOLVER_PHYSICS_OUTCOME] = context.pack(
+          SOLVER_PHYSICS_OUTCOME,
           self.solver_status.physics_outcome,
       )
     if self.multiple_roots_found is not None:
-      scalars[output_keys.MULTIPLE_ROOTS_FOUND] = context.pack(
-          output_keys.MULTIPLE_ROOTS_FOUND, self.multiple_roots_found
+      scalars[MULTIPLE_ROOTS_FOUND] = context.pack(
+          MULTIPLE_ROOTS_FOUND, self.multiple_roots_found
       )
     out_dict.update(scalars)
 
@@ -325,21 +416,21 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     numerics = self.solver_status.numerics_outcome
     if isinstance(numerics, jax_root_finding.RootMetadata):
       solv_dict: dict[str, output_grid_context.OutputVar] = {
-          output_keys.SOLVER_ITERATIONS: context.pack(
-              output_keys.SOLVER_ITERATIONS, numerics.iterations
+          SOLVER_ITERATIONS: context.pack(
+              SOLVER_ITERATIONS, numerics.iterations
           ),
-          output_keys.SOLVER_RESIDUAL: context.pack(
-              output_keys.SOLVER_RESIDUAL,
+          SOLVER_RESIDUAL: context.pack(
+              SOLVER_RESIDUAL,
               np.mean(np.abs(numerics.residual), axis=-1),
           ),
-          output_keys.SOLVER_ERROR: context.pack(
-              output_keys.SOLVER_ERROR, numerics.error
+          SOLVER_ERROR: context.pack(
+              SOLVER_ERROR, numerics.error
           ),
       }
       out_dict.update(solv_dict)
     elif numerics is not None:
-      out_dict[output_keys.FIXED_POINT_OUTCOME] = context.pack(
-          output_keys.FIXED_POINT_OUTCOME, numerics
+      out_dict[FIXED_POINT_OUTCOME] = context.pack(
+          FIXED_POINT_OUTCOME, numerics
       )
 
     # 3. Impurity mappings
@@ -348,10 +439,10 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       data_array = np.stack(
           [self.seed_impurity_concentrations[i] for i in impurities], axis=0
       )
-      out_dict[output_keys.SEED_IMPURITY_CONCENTRATIONS] = (
-          (output_keys.SEED_IMPURITY, output_keys.TIME),
+      out_dict[SEED_IMPURITY_CONCENTRATIONS] = (
+          (SEED_IMPURITY, output_keys.TIME),
           data_array,
-          output_keys.get_units(output_keys.SEED_IMPURITY_CONCENTRATIONS),
+          {'units': SEED_IMPURITY_CONCENTRATIONS.units},
       )
 
     if self.calculated_enrichment:
@@ -359,7 +450,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       data_array = np.stack(
           [self.calculated_enrichment[i] for i in impurities], axis=0
       )
-      out_dict[output_keys.CALCULATED_ENRICHMENT] = (
+      out_dict[CALCULATED_ENRICHMENT] = (
           (output_keys.IMPURITY, output_keys.TIME),
           data_array,
           {},
@@ -377,7 +468,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       return {}
 
     xr_dict = {}
-    default_dims = (output_keys.TIME, output_keys.N_ROOTS)
+    default_dims = (output_keys.TIME, N_ROOTS)
 
     def _add_to_dict(name: str, data: jax.Array | np.ndarray):
       data_arr = np.asarray(data)
@@ -391,13 +482,14 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       else:
         dims = default_dims[: data_arr.ndim]
 
-      xr_dict[name] = (dims, data_arr, output_keys.get_units(name))
+      key_obj = _EXTENDED_LENGYEL_KEYS.get(name, name)
+      xr_dict[name] = (dims, data_arr, output_keys.get_units(key_obj))
 
     for field in dataclasses.fields(unique_roots_obj):
       name = field.name
       if name in (
-          output_keys.ROOTS,
-          output_keys.MULTIPLE_ROOTS_FOUND,
+          ROOTS,
+          MULTIPLE_ROOTS_FOUND,
           'solver_status',
       ):
         continue
@@ -412,15 +504,15 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     status = unique_roots_obj.solver_status
     if status.physics_outcome is not None:
       _add_to_dict(
-          output_keys.SOLVER_PHYSICS_OUTCOME,
+          SOLVER_PHYSICS_OUTCOME,
           np.asarray(status.physics_outcome),
       )
 
     numerics = status.numerics_outcome
     if isinstance(numerics, jax_root_finding.RootMetadata):
-      _add_to_dict(output_keys.SOLVER_ITERATIONS, numerics.iterations)
-      _add_to_dict(output_keys.SOLVER_RESIDUAL, numerics.residual)
-      _add_to_dict(output_keys.SOLVER_ERROR, numerics.error)
+      _add_to_dict(SOLVER_ITERATIONS, numerics.iterations)
+      _add_to_dict(SOLVER_RESIDUAL, numerics.residual)
+      _add_to_dict(SOLVER_ERROR, numerics.error)
 
     return xr_dict
 
@@ -430,7 +522,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     """Builds the xr.DataTree for the 'edge' node, with optional roots subtree."""
     coords: dict[str, Any] = {output_keys.TIME: context.times}
     if self.seed_impurity_concentrations:
-      coords[output_keys.SEED_IMPURITY] = sorted(
+      coords[SEED_IMPURITY] = sorted(
           list(self.seed_impurity_concentrations.keys())
       )
     if self.calculated_enrichment:
@@ -444,12 +536,12 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     if self.roots is not None:
       roots_dict = self._process_roots_output(context)
       if roots_dict:
-        children[output_keys.ROOTS] = xr.DataTree(
+        children[ROOTS] = xr.DataTree(
             dataset=context.build_dataset(
                 roots_dict, coords={output_keys.TIME: context.times}
             )
         )
-    return xr.DataTree(dataset=edge_dataset, children=children)
+    return xr.DataTree(children=children, dataset=edge_dataset)
 
 
 @jax.jit(

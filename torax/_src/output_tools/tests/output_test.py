@@ -553,21 +553,34 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn(output_keys.T_E_TARGET, edge_dataset.data_vars)
 
     # Check extended fields
-    self.assertIn(output_keys.ALPHA_T, edge_dataset.data_vars)
-    self.assertIn(output_keys.Z_EFF_SEPARATRIX, edge_dataset.data_vars)
+    self.assertIn(extended_lengyel_standalone.ALPHA_T, edge_dataset.data_vars)
     self.assertIn(
-        output_keys.SEED_IMPURITY_CONCENTRATIONS, edge_dataset.data_vars
+        extended_lengyel_standalone.Z_EFF_SEPARATRIX, edge_dataset.data_vars
     )
-    self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
-    self.assertIn(output_keys.CALCULATED_ENRICHMENT, edge_dataset.data_vars)
-    self.assertIn('fixed_point_outcome', edge_dataset.data_vars)
+    self.assertIn(
+        extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS,
+        edge_dataset.data_vars,
+    )
+    self.assertIn(
+        extended_lengyel_standalone.SOLVER_PHYSICS_OUTCOME,
+        edge_dataset.data_vars,
+    )
+    self.assertIn(
+        extended_lengyel_standalone.CALCULATED_ENRICHMENT,
+        edge_dataset.data_vars,
+    )
+    self.assertIn(
+        extended_lengyel_standalone.FIXED_POINT_OUTCOME,
+        edge_dataset.data_vars,
+    )
 
     # Verify values match
     np.testing.assert_allclose(
-        edge_dataset[output_keys.ALPHA_T].values, np.array([0.5])
+        edge_dataset[extended_lengyel_standalone.ALPHA_T].values,
+        np.array([0.5]),
     )
     np.testing.assert_allclose(
-        edge_dataset[output_keys.SEED_IMPURITY_CONCENTRATIONS]
+        edge_dataset[extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS]
         .sel(seed_impurity='Ar')
         .values,
         np.array([0.01]),
@@ -617,20 +630,28 @@ class StateHistoryTest(parameterized.TestCase):
     edge_dataset = output_xr.children[output_keys.EDGE].dataset
 
     # Verify seed_impurity_concentrations has dimension SEED_IMPURITY
-    self.assertIn(output_keys.SEED_IMPURITY, edge_dataset.dims)
+    self.assertIn(extended_lengyel_standalone.SEED_IMPURITY, edge_dataset.dims)
     self.assertIn(
-        output_keys.SEED_IMPURITY_CONCENTRATIONS, edge_dataset.data_vars
+        extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS,
+        edge_dataset.data_vars,
     )
 
-    seed_var = edge_dataset[output_keys.SEED_IMPURITY_CONCENTRATIONS]
-    self.assertIn(output_keys.SEED_IMPURITY, seed_var.dims)
+    seed_var = edge_dataset[
+        extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS
+    ]
+    self.assertIn(extended_lengyel_standalone.SEED_IMPURITY, seed_var.dims)
 
     # Verify it has ONLY 'Ar'
-    self.assertLen(seed_var.coords[output_keys.SEED_IMPURITY], 1)
-    self.assertEqual(seed_var.coords[output_keys.SEED_IMPURITY].values[0], 'Ar')
+    self.assertLen(
+        seed_var.coords[extended_lengyel_standalone.SEED_IMPURITY], 1
+    )
+    self.assertEqual(
+        seed_var.coords[extended_lengyel_standalone.SEED_IMPURITY].values[0],
+        'Ar',
+    )
 
     # Verify calculated_enrichment has both
-    enrich_var = edge_dataset[output_keys.CALCULATED_ENRICHMENT]
+    enrich_var = edge_dataset[extended_lengyel_standalone.CALCULATED_ENRICHMENT]
     self.assertIn(output_keys.IMPURITY, enrich_var.dims)
     self.assertLen(enrich_var.coords[output_keys.IMPURITY], 2)
     self.assertCountEqual(
@@ -692,35 +713,56 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn(output_keys.T_E_TARGET, edge_dataset.data_vars)
 
     # Check extended fields
-    self.assertIn(output_keys.ALPHA_T, edge_dataset.data_vars)
-    self.assertIn(output_keys.Z_EFF_SEPARATRIX, edge_dataset.data_vars)
+    self.assertIn(extended_lengyel_standalone.ALPHA_T, edge_dataset.data_vars)
     self.assertIn(
-        output_keys.SEED_IMPURITY_CONCENTRATIONS, edge_dataset.data_vars
+        extended_lengyel_standalone.Z_EFF_SEPARATRIX, edge_dataset.data_vars
     )
-    self.assertIn(output_keys.CALCULATED_ENRICHMENT, edge_dataset.data_vars)
-    self.assertIn('solver_physics_outcome', edge_dataset.data_vars)
-    self.assertIn('solver_iterations', edge_dataset.data_vars)
-    self.assertIn('solver_residual', edge_dataset.data_vars)
-    self.assertIn('solver_error', edge_dataset.data_vars)
+    self.assertIn(
+        extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS,
+        edge_dataset.data_vars,
+    )
+    self.assertIn(
+        extended_lengyel_standalone.CALCULATED_ENRICHMENT,
+        edge_dataset.data_vars,
+    )
+    self.assertIn(
+        extended_lengyel_standalone.SOLVER_PHYSICS_OUTCOME,
+        edge_dataset.data_vars,
+    )
+    self.assertIn(
+        extended_lengyel_standalone.SOLVER_ITERATIONS, edge_dataset.data_vars
+    )
+    self.assertIn(
+        extended_lengyel_standalone.SOLVER_RESIDUAL, edge_dataset.data_vars
+    )
+    self.assertIn(
+        extended_lengyel_standalone.SOLVER_ERROR, edge_dataset.data_vars
+    )
 
     # Verify values match
     np.testing.assert_allclose(
-        edge_dataset[output_keys.ALPHA_T].values, np.array([0.5])
+        edge_dataset[extended_lengyel_standalone.ALPHA_T].values,
+        np.array([0.5]),
     )
     np.testing.assert_allclose(
-        edge_dataset[output_keys.SEED_IMPURITY_CONCENTRATIONS]
+        edge_dataset[extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS]
         .sel(seed_impurity='Ar')
         .values,
         np.array([0.01]),
     )
     np.testing.assert_allclose(
-        edge_dataset['solver_iterations'].values, np.array([10])
+        edge_dataset[extended_lengyel_standalone.SOLVER_ITERATIONS].values,
+        np.array([10]),
     )
     # Check that solver_residual is reduced to a scalar per time step
-    self.assertEqual(edge_dataset['solver_residual'].dims, (output_keys.TIME,))
+    self.assertEqual(
+        edge_dataset[extended_lengyel_standalone.SOLVER_RESIDUAL].dims,
+        (output_keys.TIME,),
+    )
     # Mean of abs([1e-6, 3e-6]) is 2e-6
     np.testing.assert_allclose(
-        edge_dataset['solver_residual'].values, np.array([2e-6])
+        edge_dataset[extended_lengyel_standalone.SOLVER_RESIDUAL].values,
+        np.array([2e-6]),
     )
 
   def test_status_attribute_completed(self):
@@ -1007,15 +1049,15 @@ class StateHistoryTest(parameterized.TestCase):
         output_keys.OUTER_SOLVER_ITERATIONS,
         output_keys.INNER_SOLVER_ITERATIONS,
         output_keys.SAWTOOTH_CRASH,
-        output_keys.SOLVER_PHYSICS_OUTCOME,
-        output_keys.SOLVER_ITERATIONS,
-        output_keys.SOLVER_RESIDUAL,
-        output_keys.SOLVER_ERROR,
-        output_keys.FIXED_POINT_OUTCOME,
-        output_keys.ROOTS,
-        output_keys.N_ROOTS,
+        extended_lengyel_standalone.SOLVER_PHYSICS_OUTCOME,
+        extended_lengyel_standalone.SOLVER_ITERATIONS,
+        extended_lengyel_standalone.SOLVER_RESIDUAL,
+        extended_lengyel_standalone.SOLVER_ERROR,
+        extended_lengyel_standalone.FIXED_POINT_OUTCOME,
+        extended_lengyel_standalone.ROOTS,
+        extended_lengyel_standalone.N_ROOTS,
         # Edge model status.
-        output_keys.MULTIPLE_ROOTS_FOUND,
+        extended_lengyel_standalone.MULTIPLE_ROOTS_FOUND,
     })
 
     output_xr = self.history.simulation_output_to_xr()
@@ -1085,7 +1127,7 @@ class StateHistoryTest(parameterized.TestCase):
 
     # units kwarg is required (keyword-only).
     with self.assertRaises(TypeError):
-      output_keys.OutputKey('test_no_units')  # pytype: disable=missing-parameter
+      output_keys.OutputKey('test_no_units')  # type: ignore[call-arg]
 
 
 if __name__ == '__main__':
