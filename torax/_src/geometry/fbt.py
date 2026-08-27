@@ -98,9 +98,16 @@ class FBTConfig(base.BaseGeometryConfig):
   @classmethod
   def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
     # Remove unused fields from the data dict that come from file loading.
-    for obj in ('L_object', 'LY_object'):
+    for obj in ('L_object', 'LY_object', 'LY_bundle_object'):
       if obj in data and isinstance(data[obj], dict):
         for k in ('__header__', '__version__', '__globals__', 'shot'):
+          data[obj].pop(k, None)
+        empty_keys = [
+            k
+            for k, v in data[obj].items()
+            if isinstance(v, np.ndarray) and v.size == 0
+        ]
+        for k in empty_keys:
           data[obj].pop(k, None)
     return data
 

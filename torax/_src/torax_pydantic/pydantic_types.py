@@ -67,6 +67,12 @@ def _numpy_array_is_finite(x: np.ndarray) -> np.ndarray:
   return x
 
 
+def _numpy_array_is_not_empty(x: np.ndarray) -> np.ndarray:
+  if x.size == 0:
+    raise ValueError(f'NumPy array is empty: {x}')
+  return x
+
+
 def _numpy_array_is_sorted(x: np.ndarray) -> np.ndarray:
   if not np.all(x[:-1] <= x[1:]):
     raise ValueError(f'NumPy array is not sorted: {x}')
@@ -77,6 +83,7 @@ NumpyArray = Annotated[
     np.ndarray,
     pydantic.BeforeValidator(_numpy_array_before_validator),
     pydantic.AfterValidator(_numpy_array_is_finite),
+    pydantic.AfterValidator(_numpy_array_is_not_empty),
     pydantic.PlainSerializer(
         _numpy_array_serializer, return_type=NumpySerialized
     ),
