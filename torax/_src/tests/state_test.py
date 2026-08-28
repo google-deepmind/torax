@@ -586,5 +586,177 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     self.assertEqual(attrs['units'], 'amu')
 
 
+class CoreTransportTest(parameterized.TestCase):
+
+  def test_core_transport_to_output_dict(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], geo.rho_norm, [1.0]]
+        ),
+    )
+    n_face = geo.rho_face_norm.size
+    core_transport = state.CoreTransport(
+        chi_face_ion=jnp.ones((2, n_face)) * 1.5,
+        chi_face_el=jnp.ones((2, n_face)) * 2.0,
+        d_face_el=jnp.ones((2, n_face)) * 0.5,
+        v_face_el=jnp.ones((2, n_face)) * -0.2,
+        chi_neo_i=jnp.ones((2, n_face)) * 0.1,
+        chi_neo_e=jnp.ones((2, n_face)) * 0.05,
+        D_neo_e=jnp.ones((2, n_face)) * 0.01,
+        V_neo_e=jnp.ones((2, n_face)) * -0.02,
+        V_neo_ware_e=jnp.ones((2, n_face)) * -0.01,
+        chi_face_el_bohm=jnp.ones((2, n_face)) * 0.3,
+        chi_face_el_gyrobohm=jnp.ones((2, n_face)) * 1.7,
+    )
+    out_dict = core_transport.to_output_dict(context)
+
+    # Verify mandatory turbulent keys.
+    self.assertIn(output_keys.CHI_TURB_I, out_dict)
+    self.assertIn(output_keys.CHI_TURB_E, out_dict)
+    self.assertIn(output_keys.D_TURB_E, out_dict)
+    self.assertIn(output_keys.V_TURB_E, out_dict)
+
+    # Verify neoclassical keys.
+    self.assertIn(output_keys.CHI_NEO_I, out_dict)
+    self.assertIn(output_keys.CHI_NEO_E, out_dict)
+    self.assertIn(output_keys.D_NEO_E, out_dict)
+    self.assertIn(output_keys.V_NEO_E, out_dict)
+    self.assertIn(output_keys.V_NEO_WARE_E, out_dict)
+
+    # Verify optional Bohm/GyroBohm keys present.
+    self.assertIn(output_keys.CHI_BOHM_E, out_dict)
+    self.assertIn(output_keys.CHI_GYROBOHM_E, out_dict)
+
+    # Verify optional keys that are None are not present.
+    self.assertNotIn(output_keys.CHI_ITG_E, out_dict)
+    self.assertNotIn(output_keys.CHI_TEM_E, out_dict)
+
+    # Check dimensions and data for a sample channel.
+    dims, data, attrs = out_dict[output_keys.CHI_TURB_I]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+    np.testing.assert_allclose(data, np.ones((2, n_face)) * 1.5)
+    self.assertEqual(
+        attrs, {'units': output_keys.Units.SQUARE_METER_PER_SECOND}
+    )
+
+  def test_core_transport_to_output_dict_omits_none_keys(self):
+    """Tests that optional keys that are None are omitted from output dict."""
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    times = np.array([0.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], geo.rho_norm, [1.0]]
+        ),
+    )
+    n_face = geo.rho_face_norm.size
+    core_transport = state.CoreTransport(
+        chi_face_ion=jnp.ones((1, n_face)),
+        chi_face_el=jnp.ones((1, n_face)),
+        d_face_el=jnp.ones((1, n_face)),
+        v_face_el=jnp.ones((1, n_face)),
+        # All optional Bohm/GyroBohm and Quasilinear decompositions default
+        # to None.
+    )
+    out_dict = core_transport.to_output_dict(context)
+
+    optional_keys = [
+        output_keys.CHI_BOHM_E,
+        output_keys.CHI_GYROBOHM_E,
+        output_keys.CHI_BOHM_I,
+        output_keys.CHI_GYROBOHM_I,
+        output_keys.CHI_ITG_E,
+        output_keys.CHI_TEM_E,
+        output_keys.CHI_ETG_E,
+        output_keys.CHI_ITG_I,
+        output_keys.CHI_TEM_I,
+        output_keys.D_ITG_E,
+        output_keys.D_TEM_E,
+        output_keys.V_ITG_E,
+        output_keys.V_TEM_E,
+    ]
+    for key in optional_keys:
+      self.assertNotIn(key, out_dict)
+
+  def test_core_transport_to_output_dict_omits_stacked_nones(self):
+    """Tests that stacked None fields (object arrays) are omitted."""
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], geo.rho_norm, [1.0]]
+        ),
+    )
+    n_face = geo.rho_face_norm.size
+    t1 = state.CoreTransport(
+        chi_face_ion=jnp.ones(n_face) * 1.0,
+        chi_face_el=jnp.ones(n_face) * 2.0,
+        d_face_el=jnp.ones(n_face) * 0.5,
+        v_face_el=jnp.ones(n_face) * -0.1,
+        # optional fields are None
+    )
+    t2 = state.CoreTransport(
+        chi_face_ion=jnp.ones(n_face) * 1.2,
+        chi_face_el=jnp.ones(n_face) * 2.2,
+        d_face_el=jnp.ones(n_face) * 0.6,
+        v_face_el=jnp.ones(n_face) * -0.2,
+        # optional fields are None
+    )
+    # 1. Test when fields remain None after tree_map stacking.
+    stacked_transport: state.CoreTransport = jax.tree_util.tree_map(
+        lambda *ys: np.stack(ys), t1, t2
+    )
+    self.assertIsNone(stacked_transport.chi_face_el_bohm)
+    out_dict_none = stacked_transport.to_output_dict(context)
+
+    # Mandatory and neoclassical fields should be present and numeric
+    self.assertIn(output_keys.CHI_TURB_I, out_dict_none)
+    self.assertIn(output_keys.CHI_TURB_E, out_dict_none)
+    self.assertIn(output_keys.D_TURB_E, out_dict_none)
+    self.assertIn(output_keys.V_TURB_E, out_dict_none)
+    self.assertIn(output_keys.CHI_NEO_I, out_dict_none)
+
+    # 2. Test when fields are explicit object arrays of stacked Nones.
+    stacked_nones = np.array([None, None], dtype=object)
+    transport_with_object_nones = dataclasses.replace(
+        stacked_transport,
+        chi_face_el_bohm=stacked_nones,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el_gyrobohm=stacked_nones,  # pyrefly: ignore[bad-argument-type]
+        chi_face_el_itg=stacked_nones,  # pyrefly: ignore[bad-argument-type]
+    )
+    out_dict_object_nones = transport_with_object_nones.to_output_dict(context)
+
+    # Stacked None fields should be omitted in both cases.
+    optional_keys = [
+        output_keys.CHI_BOHM_E,
+        output_keys.CHI_GYROBOHM_E,
+        output_keys.CHI_BOHM_I,
+        output_keys.CHI_GYROBOHM_I,
+        output_keys.CHI_ITG_E,
+        output_keys.CHI_TEM_E,
+        output_keys.CHI_ETG_E,
+        output_keys.CHI_ITG_I,
+        output_keys.CHI_TEM_I,
+        output_keys.D_ITG_E,
+        output_keys.D_TEM_E,
+        output_keys.V_ITG_E,
+        output_keys.V_TEM_E,
+    ]
+    for key in optional_keys:
+      self.assertNotIn(key, out_dict_none)
+      self.assertNotIn(key, out_dict_object_nones)
+
+
 if __name__ == '__main__':
   absltest.main()
+

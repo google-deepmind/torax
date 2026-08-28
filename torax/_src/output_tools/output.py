@@ -389,7 +389,6 @@ class StateHistory:
         return var.dims
       # Otherwise var is an OutputVar 3-tuple: (dims, data, attrs).
       return var[0]
-
     profiles_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
@@ -487,54 +486,11 @@ class StateHistory:
 
   def _save_core_transport(
       self,
-  ) -> dict[str, xr.DataArray | None]:
+  ) -> dict[str, output_grid_context.OutputVar]:
     """Saves the core transport to a dict."""
-    xr_dict = {}
-    core_transport = self._stacked_core_transport
-
-    xr_dict[output_keys.CHI_TURB_I] = core_transport.chi_face_ion
-    xr_dict[output_keys.CHI_TURB_E] = core_transport.chi_face_el
-    xr_dict[output_keys.D_TURB_E] = core_transport.d_face_el
-    xr_dict[output_keys.V_TURB_E] = core_transport.v_face_el
-
-    xr_dict[output_keys.CHI_NEO_I] = core_transport.chi_neo_i
-    xr_dict[output_keys.CHI_NEO_E] = core_transport.chi_neo_e
-    xr_dict[output_keys.D_NEO_E] = core_transport.D_neo_e
-    xr_dict[output_keys.V_NEO_E] = core_transport.V_neo_e
-    xr_dict[output_keys.V_NEO_WARE_E] = core_transport.V_neo_ware_e
-
-    # Save optional BohmGyroBohm attributes if present.
-    core_transport = self._stacked_core_transport
-    optional_transport_map = {
-        output_keys.CHI_BOHM_E: core_transport.chi_face_el_bohm,
-        output_keys.CHI_GYROBOHM_E: core_transport.chi_face_el_gyrobohm,
-        output_keys.CHI_BOHM_I: core_transport.chi_face_ion_bohm,
-        output_keys.CHI_GYROBOHM_I: core_transport.chi_face_ion_gyrobohm,
-        output_keys.CHI_ITG_E: core_transport.chi_face_el_itg,
-        output_keys.CHI_TEM_E: core_transport.chi_face_el_tem,
-        output_keys.CHI_ETG_E: core_transport.chi_face_el_etg,
-        output_keys.CHI_ITG_I: core_transport.chi_face_ion_itg,
-        output_keys.CHI_TEM_I: core_transport.chi_face_ion_tem,
-        output_keys.D_ITG_E: core_transport.d_face_el_itg,
-        output_keys.D_TEM_E: core_transport.d_face_el_tem,
-        output_keys.V_ITG_E: core_transport.v_face_el_itg,
-        output_keys.V_TEM_E: core_transport.v_face_el_tem,
-    }
-
-    for name, data in optional_transport_map.items():
-      # Skip if None or an array of Nones from stack
-      if data is not None and data.dtype != object:
-        xr_dict[name] = data
-
-    xr_dict = {
-        name: self._pack_into_data_array(
-            name,
-            data,
-        )
-        for name, data in xr_dict.items()
-    }
-
-    return xr_dict
+    return self._stacked_core_transport.to_output_dict(
+        self._output_grid_context
+    )
 
   def _save_core_sources(
       self,

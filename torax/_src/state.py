@@ -604,6 +604,54 @@ class CoreTransport:
         v_face_el_pereverzev=jnp.zeros(shape),
     )
 
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts CoreTransport into an OutputVar mapping."""
+    out_dict: dict[str, output_grid_context.OutputVar] = {
+        output_keys.CHI_TURB_I: context.pack(
+            output_keys.CHI_TURB_I, self.chi_face_ion
+        ),
+        output_keys.CHI_TURB_E: context.pack(
+            output_keys.CHI_TURB_E, self.chi_face_el
+        ),
+        output_keys.D_TURB_E: context.pack(
+            output_keys.D_TURB_E, self.d_face_el
+        ),
+        output_keys.V_TURB_E: context.pack(
+            output_keys.V_TURB_E, self.v_face_el
+        ),
+    }
+
+    optional_transport_map = {
+        output_keys.CHI_NEO_I: self.chi_neo_i,
+        output_keys.CHI_NEO_E: self.chi_neo_e,
+        output_keys.D_NEO_E: self.D_neo_e,
+        output_keys.V_NEO_E: self.V_neo_e,
+        output_keys.V_NEO_WARE_E: self.V_neo_ware_e,
+        output_keys.CHI_BOHM_E: self.chi_face_el_bohm,
+        output_keys.CHI_GYROBOHM_E: self.chi_face_el_gyrobohm,
+        output_keys.CHI_BOHM_I: self.chi_face_ion_bohm,
+        output_keys.CHI_GYROBOHM_I: self.chi_face_ion_gyrobohm,
+        output_keys.CHI_ITG_E: self.chi_face_el_itg,
+        output_keys.CHI_TEM_E: self.chi_face_el_tem,
+        output_keys.CHI_ETG_E: self.chi_face_el_etg,
+        output_keys.CHI_ITG_I: self.chi_face_ion_itg,
+        output_keys.CHI_TEM_I: self.chi_face_ion_tem,
+        output_keys.D_ITG_E: self.d_face_el_itg,
+        output_keys.D_TEM_E: self.d_face_el_tem,
+        output_keys.V_ITG_E: self.v_face_el_itg,
+        output_keys.V_TEM_E: self.v_face_el_tem,
+    }
+
+    for key, data in optional_transport_map.items():
+      # Skip if None or an array of Nones from stack
+      if data is not None and getattr(data, "dtype", None) != object:
+        out_dict[key] = context.pack(key, data)
+
+    return out_dict
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
