@@ -16,9 +16,9 @@
 
 from collections.abc import Hashable, Sequence
 import dataclasses
-import functools
 import inspect
 import itertools
+from typing import Any
 
 import os
 
@@ -29,7 +29,6 @@ import numpy as np
 from torax._src import array_typing
 from torax._src import state
 from torax._src.edge import base as edge_base
-from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
@@ -44,20 +43,6 @@ import xarray as xr
 # Internal import.
 
 # pylint: disable=invalid-name
-
-# CoreProfiles field names excluded from direct output serialization.
-# These are either redundant, require special handling, or belong elsewhere.
-_EXCLUDED_CORE_PROFILE_FIELDS = frozenset({
-    "impurity_fractions",  # Redundant with n_impurity_species.
-    "charge_state_info",
-    "charge_state_info_face",
-    "impurity_density_scaling",
-    "fast_ions",  # Handled separately via fast ion loop.
-    "n_impurity_thermal",
-    "main_ion_fractions",  # Requires special handling (dict → DataArray).
-    # TODO(b/434175938): Remove once we move to V2.
-    "internal_plasma_energy",  # In post_processed_outputs.
-})
 
 # Geometry field names excluded from direct output serialization.
 _EXCLUDED_GEOMETRY_FIELDS = frozenset({
@@ -416,7 +401,12 @@ class StateHistory:
         for k, v in flattened_all_core_data.items()
         if v is not None and not any(d in spatial_coords for d in _get_dims(v))
     }
-    scalars = xr.Dataset(scalars_dict)
+    scalars_coords: dict[Hashable, Any] = {output_keys.TIME: time}
+    if self._stacked_core_profiles.main_ion_fractions:
+      scalars_coords[output_keys.MAIN_ION] = sorted(
+          self._stacked_core_profiles.main_ion_fractions
+      )
+    scalars = xr.Dataset(scalars_dict, coords=scalars_coords)
     children = {
         output_keys.NUMERICS: xr.DataTree(dataset=numerics),
         output_keys.PROFILES: xr.DataTree(dataset=profiles),
@@ -489,129 +479,11 @@ class StateHistory:
 
   def _save_core_profiles(
       self,
-  ) -> dict[str, xr.DataArray | None]:
-    """Saves the stacked core profiles to a dictionary of xr.DataArrays."""
-    xr_dict = {}
-    stacked_core_profiles = self._stacked_core_profiles
-
-    # Map from CoreProfiles attribute name to the desired output name.
-    # Needed for attributes that are not 1:1 with the output name.
-    # Other attributes will use the same name as in CoreProfiles
-    output_name_map = {
-        "psidot": output_keys.V_LOOP,
-        "sigma": output_keys.SIGMA_PARALLEL,
-        "Ip_profile_face": output_keys.IP_PROFILE,
-        "q_face": output_keys.Q,
-        "s_face": output_keys.MAGNETIC_SHEAR,
-    }
-
-    core_profile_field_names = {
-        f.name for f in dataclasses.fields(stacked_core_profiles)
-    }
-
-    # Add cached_properties to the list of fields to save.
-    core_profiles_cached_properties = inspect.getmembers(
-        type(stacked_core_profiles),
-        lambda member: isinstance(member, functools.cached_property),
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Saves the stacked core profiles to a dictionary."""
+    return self._stacked_core_profiles.to_output_dict(
+        self._output_grid_context
     )
-    core_profiles_cached_properties_names = set(
-        [name for name, _ in core_profiles_cached_properties]
-    )
-
-    core_profiles_names = (
-        core_profile_field_names | core_profiles_cached_properties_names
-    )
-
-    for attr_name in core_profiles_names:
-      if attr_name in _EXCLUDED_CORE_PROFILE_FIELDS:
-        continue
-
-      attr_value = getattr(stacked_core_profiles, attr_name)
-
-      output_key = output_name_map.get(attr_name, attr_name)
-
-      # Skip _face attributes if their cell counterpart exists;
-      # they are handled when the cell attribute is processed.
-      if attr_name.endswith("_face") and (
-          attr_name.removesuffix("_face") in core_profiles_names
-      ):
-        continue
-
-      # Special handling for A_impurity for backward compatibility with V1
-      # API for default 'fractions' impurity mode where A_impurity was a scalar.
-      # TODO(b/434175938): Remove this once we move to V2
-      if attr_name == "A_impurity":
-        # Check if A_impurity is constant across the radial dimension for all
-        # time steps. Need slicing (not indexing) to avoid a broadcasting error.
-        is_constant = np.all(attr_value == attr_value[..., 0:1], axis=-1)
-        if np.all(is_constant):
-          # Save as a scalar time-series. Take the value at the first point.
-          data_to_save = attr_value[..., 0]
-        else:
-          # Save as a profile.
-          face_value = getattr(stacked_core_profiles, "A_impurity_face")
-          data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
-        xr_dict[output_key] = self._pack_into_data_array(
-            output_key, data_to_save
-        )
-        continue
-
-      if isinstance(attr_value, cell_variable.CellVariable):
-        # Handles stacked CellVariable-like objects.
-        data_to_save = attr_value.cell_plus_boundaries()
-      else:
-        face_attr_name = f"{attr_name}_face"
-        if face_attr_name in core_profile_field_names:
-          # Combine cell and edge face values.
-          face_value = getattr(stacked_core_profiles, face_attr_name)
-          data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
-        else:  # cell array with no face counterpart, or a scalar value
-          data_to_save = attr_value
-
-      xr_dict[output_key] = self._pack_into_data_array(
-          output_key,
-          data_to_save,
-      )
-
-    # Handle derived quantities
-    Ip_data = stacked_core_profiles.Ip_profile_face[..., -1]
-    xr_dict[output_keys.IP] = self._pack_into_data_array(
-        output_keys.IP, Ip_data
-    )
-
-    # Handle main_ion_fractions
-    main_ions = sorted(list(stacked_core_profiles.main_ion_fractions.keys()))
-    data = np.stack(
-        [stacked_core_profiles.main_ion_fractions[ion] for ion in main_ions],
-        axis=0,
-    )
-    xr_dict[output_keys.MAIN_ION_FRACTIONS] = xr.DataArray(
-        data,
-        dims=[output_keys.MAIN_ION, output_keys.TIME],
-        coords={
-            output_keys.MAIN_ION: main_ions,
-            output_keys.TIME: self.times,
-        },
-        name=output_keys.MAIN_ION_FRACTIONS,
-        attrs=output_keys.get_units(output_keys.MAIN_ION_FRACTIONS),
-    )
-    # Handle fast ions
-    for fi in stacked_core_profiles.fast_ions:
-      source_key = f"{fi.source}_{fi.species}"
-      n_data = fi.n.cell_plus_boundaries()
-      T_data = fi.T.cell_plus_boundaries()
-      n_key = output_keys.n_fast_ion_key(source_key)
-      T_key = output_keys.T_fast_ion_key(source_key)
-      xr_dict[n_key] = self._pack_into_data_array(
-          n_key,
-          n_data,
-      )
-      xr_dict[T_key] = self._pack_into_data_array(
-          T_key,
-          T_data,
-      )
-
-    return xr_dict
 
   def _save_core_transport(
       self,

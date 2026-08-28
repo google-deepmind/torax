@@ -27,6 +27,8 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
 from torax._src.physics import fast_ion as fast_ion_lib
 import typing_extensions
@@ -326,6 +328,133 @@ class CoreProfiles:
 
     # Use .item() to return a concrete Python boolean
     return (is_low_te | is_low_ti).item()
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts core profiles into an OutputVar mapping."""
+    out_dict = {}
+
+    # 1. Standard CellVariable profiles (CELL_PLUS_BOUNDARIES)
+    cell_vars = {
+        output_keys.T_I: self.T_i.cell_plus_boundaries(),
+        output_keys.T_E: self.T_e.cell_plus_boundaries(),
+        output_keys.PSI: self.psi.cell_plus_boundaries(),
+        output_keys.V_LOOP: self.psidot.cell_plus_boundaries(),
+        output_keys.N_E: self.n_e.cell_plus_boundaries(),
+        output_keys.N_I: self.n_i.cell_plus_boundaries(),
+        output_keys.N_IMPURITY: self.n_impurity.cell_plus_boundaries(),
+        output_keys.TOROIDAL_ANGULAR_VELOCITY: (
+            self.toroidal_angular_velocity.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_THERMAL_E: (
+            self.pressure_thermal_e.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_THERMAL_I: (
+            self.pressure_thermal_i.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_THERMAL_TOTAL: (
+            self.pressure_thermal_total.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_FAST_I: (
+            self.pressure_fast_i.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_TOTAL_I: (
+            self.pressure_total_i.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_TOTAL: (
+            self.pressure_total.cell_plus_boundaries()
+        ),
+    }
+    for key, cell_val in cell_vars.items():
+      out_dict[key] = context.pack(key, cell_val)
+
+    # 2. Combined Cell + Face profiles (CELL_PLUS_BOUNDARIES)
+    cell_face_pairs = [
+        (output_keys.Z_I, self.Z_i, self.Z_i_face),
+        (output_keys.Z_IMPURITY, self.Z_impurity, self.Z_impurity_face),
+        (output_keys.Z_EFF, self.Z_eff, self.Z_eff_face),
+        (output_keys.SIGMA_PARALLEL, self.sigma, self.sigma_face),
+        (output_keys.J_TOROIDAL_TOTAL, self.j_total, self.j_total_face),
+    ]
+    for key, cell_val, face_val in cell_face_pairs:
+      extended_data = output_grid_context.extend_cell_grid_to_boundaries(
+          cell_val, face_val
+      )
+      out_dict[key] = context.pack(key, extended_data)
+
+    # TODO(b/434175938): Special handling for A_impurity for backward
+    # compatibility with V1 API for default 'fractions' impurity mode where
+    # A_impurity was a scalar.
+    # Check if A_impurity is constant across the radial dimension for all
+    # time steps. Slicing is required to avoid broadcasting errors.
+    is_constant = np.all(self.A_impurity == self.A_impurity[..., 0:1], axis=-1)
+    if np.all(is_constant):
+      out_dict[output_keys.A_IMPURITY] = context.pack(
+          output_keys.A_IMPURITY, self.A_impurity[..., 0]
+      )
+    else:
+      extended_a_impurity = (
+          output_grid_context.extend_cell_grid_to_boundaries(
+              self.A_impurity, self.A_impurity_face
+          )
+      )
+      a_imp_key = output_keys.OutputKey(
+          output_keys.A_IMPURITY,
+          units=output_keys.A_IMPURITY.units,
+          grid_type=output_keys.GridType.CELL_PLUS_BOUNDARIES,
+      )
+      out_dict[a_imp_key] = context.pack(a_imp_key, extended_a_impurity)
+
+    # 3. Face-only profiles (FACE)
+    face_vars = {
+        output_keys.Q: self.q_face,
+        output_keys.MAGNETIC_SHEAR: self.s_face,
+        output_keys.IP_PROFILE: self.Ip_profile_face,
+    }
+    for key, face_data in face_vars.items():
+      out_dict[key] = context.pack(key, face_data)
+
+    # 4. Scalars (SCALAR)
+    scalar_vars = {
+        output_keys.V_LOOP_LCFS: self.v_loop_lcfs,
+        output_keys.A_I: self.A_i,
+        output_keys.IP: self.Ip_profile_face[..., -1],
+    }
+    for key, scalar_data in scalar_vars.items():
+      out_dict[key] = context.pack(key, scalar_data)
+
+    # 5. Multi-dimensional collections: main_ion_fractions
+    if self.main_ion_fractions:
+      main_ions = sorted(self.main_ion_fractions)
+      data = np.stack(
+          [self.main_ion_fractions[ion] for ion in main_ions],
+          axis=0,
+      )
+      out_dict[output_keys.MAIN_ION_FRACTIONS] = (
+          (output_keys.MAIN_ION, output_keys.TIME),
+          data,
+          output_keys.get_units(output_keys.MAIN_ION_FRACTIONS),
+      )
+
+    # 6. Fast ions (CELL_PLUS_BOUNDARIES)
+    for fi in self.fast_ions:
+      source_key = f"{fi.source}_{fi.species}"
+      n_key = output_keys.OutputKey(
+          output_keys.n_fast_ion_key(source_key),
+          units=output_keys.Units.INVERSE_CUBIC_METER,
+          grid_type=output_keys.GridType.CELL_PLUS_BOUNDARIES,
+      )
+      t_key = output_keys.OutputKey(
+          output_keys.T_fast_ion_key(source_key),
+          units=output_keys.Units.KEV,
+          grid_type=output_keys.GridType.CELL_PLUS_BOUNDARIES,
+      )
+      out_dict[n_key] = context.pack(n_key, fi.n.cell_plus_boundaries())
+      out_dict[t_key] = context.pack(t_key, fi.T.cell_plus_boundaries())
+
+    return out_dict
 
   def __str__(self) -> str:
     return f"""
