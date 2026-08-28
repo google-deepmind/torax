@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Source/sink profiles for all the sources in TORAX."""
+
+from collections.abc import Iterator, Mapping
 import dataclasses
 import operator
 from typing import Literal
@@ -23,6 +24,8 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
 import typing_extensions
 
@@ -53,6 +56,17 @@ class QeiInfo:
         implicit_ei=jnp.zeros_like(geo.rho),
         p_ei=jnp.zeros_like(geo.rho),
     )
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts QeiInfo into an OutputVar mapping."""
+    return {
+        output_keys.EI_EXCHANGE: context.pack(
+            output_keys.EI_EXCHANGE, self.p_ei
+        )
+    }
 
 
 @jax.tree_util.register_dataclass
@@ -172,3 +186,70 @@ class SourceProfiles:
       return jnp.zeros_like(geo.vpr)
     total = sum(source.values())
     return total * geo.vpr
+
+  def _iterate_channels_for_output(
+      self,
+      *,
+      renames: Mapping[str, str],
+  ) -> Iterator[tuple[output_keys.OutputKey, array_typing.Array]]:
+    """Yields (OutputKey, data) across all active channels for output.
+
+    Args:
+      renames: Mapping from internal profile names to output naming convention.
+
+    Yields:
+      Tuples of (OutputKey, data) for all active source profiles.
+    """
+    for profile, data in self.T_i.items():
+      name = renames.get(profile, profile)
+      yield (
+          output_keys.OutputKey(
+              output_keys.p_source_i_key(name),
+              units=output_keys.Units.MW_PER_CUBIC_METER,
+              grid_type=output_keys.GridType.CELL,
+          ),
+          data,
+      )
+    for profile, data in self.T_e.items():
+      name = renames.get(profile, profile)
+      yield (
+          output_keys.OutputKey(
+              output_keys.p_source_e_key(name),
+              units=output_keys.Units.MW_PER_CUBIC_METER,
+              grid_type=output_keys.GridType.CELL,
+          ),
+          data,
+      )
+    for profile, data in self.psi.items():
+      name = renames.get(profile, profile)
+      yield (
+          output_keys.OutputKey(
+              output_keys.j_parallel_source_key(name),
+              units=output_keys.Units.AMPERE_PER_SQUARE_METER,
+              grid_type=output_keys.GridType.CELL,
+          ),
+          data,
+      )
+    for profile, data in self.n_e.items():
+      name = renames.get(profile, profile)
+      yield (
+          output_keys.OutputKey(
+              output_keys.s_source_key(name),
+              units=output_keys.Units.INVERSE_CUBIC_METER_PER_SECOND,
+              grid_type=output_keys.GridType.CELL,
+          ),
+          data,
+      )
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts source profiles into an OutputVar mapping."""
+    out_dict = self.bootstrap_current.to_output_dict(context)
+    out_dict.update(self.qei.to_output_dict(context))
+    for key, data in self._iterate_channels_for_output(
+        renames=output_keys.SOURCE_NAME_RENAMES
+    ):
+      out_dict[key] = context.pack(key, data)
+    return out_dict

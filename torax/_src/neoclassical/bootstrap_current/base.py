@@ -23,6 +23,8 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_runtime_params
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -62,6 +64,21 @@ class BootstrapCurrent:
         j_parallel_bootstrap=jnp.zeros_like(geometry.rho_norm),
         j_parallel_bootstrap_face=jnp.zeros_like(geometry.rho_face_norm),
     )
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts bootstrap current profiles into an OutputVar mapping."""
+    j_bootstrap = output_grid_context.extend_cell_grid_to_boundaries(
+        self.j_parallel_bootstrap,
+        self.j_parallel_bootstrap_face,
+    )
+    return {
+        output_keys.J_PARALLEL_BOOTSTRAP: context.pack(
+            output_keys.J_PARALLEL_BOOTSTRAP, j_bootstrap
+        ),
+    }
 
 
 class BootstrapCurrentModel(abc.ABC):

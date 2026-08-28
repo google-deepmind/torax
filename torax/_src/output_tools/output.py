@@ -14,7 +14,7 @@
 
 """Module containing functions for saving and loading simulation output."""
 
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 import dataclasses
 import functools
 import inspect
@@ -126,16 +126,9 @@ def concat_datatrees(
   return xr.map_over_datasets(_concat_datasets, tree1, tree2)
 
 
-def extend_cell_grid_to_boundaries(
-    cell_var: array_typing.FloatVectorCell,
-    face_var: array_typing.FloatVectorFace,
-) -> array_typing.FloatVectorCellPlusBoundaries:
-  """Merge face+cell grids into single [left_face, cells, right_face] grid."""
-
-  left_value = np.expand_dims(face_var[:, 0], axis=-1)
-  right_value = np.expand_dims(face_var[:, -1], axis=-1)
-
-  return np.concatenate([left_value, cell_var, right_value], axis=-1)
+extend_cell_grid_to_boundaries = (
+    output_grid_context.extend_cell_grid_to_boundaries
+)
 
 
 def stitch_state_files(
@@ -404,16 +397,24 @@ class StateHistory:
         output_keys.RHO_NORM,
     }
 
+    def _get_dims(
+        var: xr.DataArray | output_grid_context.OutputVar,
+    ) -> Sequence[Hashable]:
+      if isinstance(var, xr.DataArray):
+        return var.dims
+      # Otherwise var is an OutputVar 3-tuple: (dims, data, attrs).
+      return var[0]
+
     profiles_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and any(d in spatial_coords for d in v.dims)  # type: ignore[attr-defined]
+        if v is not None and any(d in spatial_coords for d in _get_dims(v))
     }
     profiles = xr.Dataset(profiles_dict)
     scalars_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and not any(d in spatial_coords for d in v.dims)  # type: ignore[attr-defined]
+        if v is not None and not any(d in spatial_coords for d in _get_dims(v))
     }
     scalars = xr.Dataset(scalars_dict)
     children = {
@@ -665,39 +666,11 @@ class StateHistory:
 
   def _save_core_sources(
       self,
-  ) -> dict[str, xr.DataArray | None]:
+  ) -> dict[str, output_grid_context.OutputVar]:
     """Saves the core sources to a dict."""
-    xr_dict = {}
-
-    xr_dict[output_keys.EI_EXCHANGE] = self._stacked_core_sources.qei.p_ei
-
-    xr_dict[output_keys.J_PARALLEL_BOOTSTRAP] = extend_cell_grid_to_boundaries(
-        self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap,
-        self._stacked_core_sources.bootstrap_current.j_parallel_bootstrap_face,
+    return self._stacked_core_sources.to_output_dict(
+        self._output_grid_context
     )
-
-    # Add source profiles with suffixes indicating which profile they affect.
-    for profile in self._stacked_core_sources.T_i:
-      name = output_keys.SOURCE_NAME_RENAMES.get(profile, profile)
-      key = output_keys.p_source_i_key(name)
-      xr_dict[key] = self._stacked_core_sources.T_i[profile]
-    for profile in self._stacked_core_sources.T_e:
-      name = output_keys.SOURCE_NAME_RENAMES.get(profile, profile)
-      key = output_keys.p_source_e_key(name)
-      xr_dict[key] = self._stacked_core_sources.T_e[profile]
-    for profile in self._stacked_core_sources.psi:
-      key = output_keys.j_parallel_source_key(profile)
-      xr_dict[key] = self._stacked_core_sources.psi[profile]
-    for profile in self._stacked_core_sources.n_e:
-      key = output_keys.s_source_key(profile)
-      xr_dict[key] = self._stacked_core_sources.n_e[profile]
-
-    xr_dict = {
-        name: self._pack_into_data_array(name, data)
-        for name, data in xr_dict.items()
-    }
-
-    return xr_dict
 
   def _save_post_processed_outputs(
       self,

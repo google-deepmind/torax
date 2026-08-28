@@ -209,6 +209,17 @@ class OutputGridContextTest(parameterized.TestCase):
     self.assertEqual(ds["test_impurity"].dims, ("impurity", output_keys.TIME))
     self.assertEqual(list(ds.coords["impurity"].values), ["Ar", "Ne"])
 
+  def test_extend_cell_grid_to_boundaries(self):
+    cell_var = np.array([[10.0, 20.0, 30.0], [10.0, 20.0, 30.0]])
+    face_var = np.array([[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]])
+    extended = output_grid_context.extend_cell_grid_to_boundaries(
+        cell_var, face_var
+    )
+    expected = np.array(
+        [[1.0, 10.0, 20.0, 30.0, 4.0], [1.0, 10.0, 20.0, 30.0, 4.0]]
+    )
+    np.testing.assert_array_equal(extended, expected)
+
 
 if __name__ == "__main__":
   absltest.main()

@@ -105,3 +105,11 @@ class OutputGridContext:
     if coords is None:
       coords = self.coords
     return xr.Dataset(data_vars=data_vars, coords=coords)
+
+
+def extend_cell_grid_to_boundaries(
+    cell_var: array_typing.Array, face_var: array_typing.Array
+) -> array_typing.Array:
+  left = face_var[..., :1]
+  right = face_var[..., -1:]
+  return np.concatenate([left, cell_var, right], axis=-1)
