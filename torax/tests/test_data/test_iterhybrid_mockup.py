@@ -18,7 +18,10 @@
 CONFIG = {
     'plasma_composition': {
         'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
-        'impurity': 'Ne',
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': 'Ne',
+        },
         'Z_eff': 1.6,  # sets impurity density
     },
     'profile_conditions': {

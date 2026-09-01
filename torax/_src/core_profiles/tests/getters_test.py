@@ -543,8 +543,11 @@ class GettersTest(parameterized.TestCase):
         'plasma_composition': {
             'main_ion': 'D',
             'impurity': {
-                'W': impurity_fraction_w,
-                'He3': impurity_fraction_he3,
+                'impurity_mode': 'fractions',
+                'species': {
+                    'W': impurity_fraction_w,
+                    'He3': impurity_fraction_he3,
+                },
             },
             'Z_eff': zeff,
         },

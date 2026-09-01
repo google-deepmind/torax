@@ -25,8 +25,11 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 assert isinstance(CONFIG['plasma_composition'], dict)
 CONFIG['plasma_composition']['impurity'] = {
-    'Ne': 1 - W_frac,
-    'W': W_frac,
+    'impurity_mode': 'fractions',
+    'species': {
+        'Ne': 1 - W_frac,
+        'W': W_frac,
+    },
 }
 CONFIG['plasma_composition']['Z_eff'] = 3.0
 CONFIG['sources']['impurity_radiation'] = {

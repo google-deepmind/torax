@@ -589,10 +589,7 @@ follows:
   Specifies the impurity species. The way impurities are defined is set by the
   ``impurity_mode`` field within this dictionary. Three modes are supported:
   ``'fractions'``, ``'n_e_ratios'``, and ``'n_e_ratios_Z_eff'``. See the
-  "Plasma Composition Examples" section below for details. For backward
-  compatibility, legacy formats (e.g., ``'impurity': 'Ne'`` or ``'impurity':
-  {'Ne': 0.8, 'Ar': 0.2}``) are automatically converted to the ``'fractions'``
-  mode.
+  "Plasma Composition Examples" section below for details.
 
 ``Z_eff`` ( **time-varying-array** [default = 1.0])
   Plasma effective charge, defined as :math:`Z_{eff}=\sum_i n_i Z_i^2 / n_e`.
@@ -610,20 +607,6 @@ follows:
   An optional override for the main ion's mass (A) in amu units or average mass
   of an ion mixture. If provided, this value will be used instead of the A
   calculated from the ``main_ion`` specification.
-
-``Z_impurity_override`` (**time-varying-scalar** | None [default = None])
-  (DEPRECATED) As ``Z_i_override``, but for the impurity ion. This is only used
-  for legacy ``impurity`` inputs (a string or a simple dictionary of fractions).
-  When using the new API (with ``impurity_mode``), this parameter is ignored
-  and a warning is issued. Use ``Z_override`` inside the ``impurity`` dictionary
-  instead.
-
-``A_impurity_override`` (**time-varying-scalar** | None [default = None])
-  (DEPRECATED) As ``A_i_override``, but for the impurity ion. This is only used
-  for legacy ``impurity`` inputs (a string or a simple dictionary of fractions).
-  When using the new API (with ``impurity_mode``), this parameter is ignored
-  and a warning is issued. Use ``A_override`` inside the ``impurity`` dictionary
-  instead.
 
 The average charge state of each ion in each mixture is determined by
 `Mavrin polynomials <https://doi.org/10.1080/10420150.2018.1462361>`_, which are
@@ -645,7 +628,10 @@ with a single impurity species set for each case.
 
     'plasma_composition': {
         'main_ion': 'D',
-        'impurity': 'Ne',  # Neon
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': 'Ne',  # Neon
+        },
         'Z_eff': 1.5,
     }
 
@@ -655,7 +641,10 @@ with a single impurity species set for each case.
 
     'plasma_composition': {
         'main_ion': {'D': 0.5, 'T': 0.5},
-        'impurity': 'Be',  # Beryllium
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': 'Be',  # Beryllium
+        },
         'Z_eff': 1.8,
     }
 
@@ -668,14 +657,17 @@ with a single impurity species set for each case.
         'D': {0.0: 0.1, 5.0: 0.9},  # D fraction from 0.1 to 0.9
         'T': {0.0: 0.9, 5.0: 0.1},  # T fraction from 0.9 to 0.1
       },
-      'impurity': 'W',  # Tungsten
+      'impurity': {
+          'impurity_mode': 'fractions',
+          'species': 'W',  # Tungsten
+      },
       'Z_eff': 1.1,
     }
 
 
 **2. Impurity Fractions Mode (`impurity_mode: 'fractions'`)**
 
-This is the default and backward-compatible mode. You provide fractional
+This is the default mode. You provide fractional
 abundances for a set of impurities, which are then treated as a single
 effective impurity species. ``Z_eff`` is a required input to constrain the
 total impurity density. Attributes in the ``impurity`` dict are as follows:
@@ -2911,7 +2903,10 @@ CHEASE geometry), is shown below. The configuration file is also available in
   CONFIG = {
       'plasma_composition': {
           'main_ion': {'D': 0.5, 'T': 0.5},
-          'impurity': 'Ne',
+          'impurity': {
+              'impurity_mode': 'fractions',
+              'species': 'Ne',
+          },
           'Z_eff': 1.6,
       },
       'profile_conditions': {

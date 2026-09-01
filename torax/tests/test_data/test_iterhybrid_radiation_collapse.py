@@ -35,8 +35,11 @@ CONFIG['profile_conditions']['nbar'] = {0: 0.8, 5.0: 1.2}
 # Increase W concentration
 W_frac = 0.01
 CONFIG['plasma_composition']['impurity'] = {
-    'Ne': 1 - W_frac,
-    'W': W_frac,
+    'impurity_mode': 'fractions',
+    'species': {
+        'Ne': 1 - W_frac,
+        'W': W_frac,
+    },
 }
 CONFIG['plasma_composition']['Z_eff'] = 3.0
 

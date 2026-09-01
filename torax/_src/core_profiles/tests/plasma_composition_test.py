@@ -110,7 +110,11 @@ class PlasmaCompositionTest(parameterized.TestCase):
   def test_get_ion_names(self):
     # Test the get_ion_names method
     pc = plasma_composition.PlasmaComposition(
-        main_ion={'D': 0.5, 'T': 0.5}, impurity='Ar'
+        main_ion={'D': 0.5, 'T': 0.5},
+        impurity={
+            'impurity_mode': plasma_composition._IMPURITY_MODE_FRACTIONS,
+            'species': 'Ar',
+        },
     )
     main_ion_names = pc.get_main_ion_names()
     impurity_names = pc.get_impurity_names()
@@ -162,39 +166,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_model_type=impurity_fractions.ImpurityFractions,
       ),
       dict(
-          testcase_name='legacy_impurity_string',
-          config={'impurity': 'Ar'},
-          expected_impurity_names=('Ar',),
-          expected_Z_override=None,
-          expected_A_override=None,
-          expected_impurity_model_type=impurity_fractions.ImpurityFractions,
-      ),
-      dict(
-          testcase_name='legacy_impurity_dict_single_species',
-          config={'impurity': {'Be': 1.0}},
-          expected_impurity_names=('Be',),
-          expected_Z_override=None,
-          expected_A_override=None,
-          expected_impurity_model_type=impurity_fractions.ImpurityFractions,
-      ),
-      dict(
-          testcase_name='legacy_impurity_dict_multiple_species',
-          config={'impurity': {'Ar': 0.6, 'Ne': 0.4}},
-          expected_impurity_names=('Ar', 'Ne'),
-          expected_Z_override=None,
-          expected_A_override=None,
-          expected_impurity_model_type=impurity_fractions.ImpurityFractions,
-      ),
-      dict(
-          testcase_name='legacy_with_overrides',
-          config={'impurity': 'Ar', 'Z_impurity_override': 8.0},
-          expected_impurity_names=('Ar',),
-          expected_Z_override=8.0,
-          expected_A_override=None,
-          expected_impurity_model_type=impurity_fractions.ImpurityFractions,
-      ),
-      dict(
-          testcase_name='new_api_explicit',
+          testcase_name='explicit_fractions',
           config={
               'impurity': {
                   'impurity_mode': plasma_composition._IMPURITY_MODE_FRACTIONS,
@@ -209,7 +181,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_model_type=impurity_fractions.ImpurityFractions,
       ),
       dict(
-          testcase_name='new_api_n_e_ratios',
+          testcase_name='n_e_ratios',
           config={
               'impurity': {
                   'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
@@ -224,7 +196,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
           expected_impurity_model_type=electron_density_ratios.ElectronDensityRatios,
       ),
       dict(
-          testcase_name='new_api_n_e_ratios_Z_eff',
+          testcase_name='n_e_ratios_Z_eff',
           config={
               'impurity': {
                   'impurity_mode': (
@@ -266,21 +238,6 @@ class PlasmaCompositionTest(parameterized.TestCase):
       )
     else:
       self.assertIsNone(expected_A_override)
-
-  def test_impurity_api_warning(self):
-    with self.assertLogs(level='WARNING') as log_output:
-      plasma_composition.PlasmaComposition(
-          impurity={
-              'impurity_mode': plasma_composition._IMPURITY_MODE_FRACTIONS,
-              'species': 'Ne',
-              'Z_override': 5.0,
-          },
-          Z_impurity_override=6.0,
-      )
-      self.assertIn(
-          'Z_impurity_override and/or A_impurity_override are set',
-          log_output[0][0].message,
-      )
 
   def test_zeff_usage_warning_with_ne_ratios(self):
     """Tests warning when Z_eff is provided with n_e_ratios impurity mode."""
@@ -483,11 +440,16 @@ class PlasmaCompositionTest(parameterized.TestCase):
     f(pc, 0.0)
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
-  def test_update_fields_with_legacy_impurity_input(self):
-    """Tests updating legacy impurity format via update_fields."""
+  def test_update_fields_with_impurity(self):
+    """Tests updating impurity format via update_fields."""
     config_dict = {
         'profile_conditions': {},
-        'plasma_composition': {'impurity': {'Ne': 0.99, 'W': 0.01}},
+        'plasma_composition': {
+            'impurity': {
+                'impurity_mode': 'fractions',
+                'species': {'Ne': 0.99, 'W': 0.01},
+            }
+        },
         'numerics': {},
         'geometry': {'geometry_type': 'circular', 'n_rho': 4},
         'sources': {},
@@ -496,7 +458,9 @@ class PlasmaCompositionTest(parameterized.TestCase):
         'pedestal': {},
     }
 
-    config_updates = {'plasma_composition.impurity': {'Ne': 0.98, 'W': 0.02}}
+    config_updates = {
+        'plasma_composition.impurity.species': {'Ne': 0.98, 'W': 0.02}
+    }
 
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     self.assertEqual(

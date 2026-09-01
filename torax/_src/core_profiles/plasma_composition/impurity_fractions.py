@@ -25,13 +25,9 @@ import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.torax_pydantic import torax_pydantic
-from typing_extensions import Final
 
 
 # pylint: disable=invalid-name
-_IMPURITY_MODE_FRACTIONS: Final[str] = 'fractions'
-
-
 def _impurity_before_validator(value: Any) -> Any:
   """Validates the input for the ImpurityMapping."""
   if isinstance(value, str):
@@ -185,38 +181,3 @@ class ImpurityFractions(torax_pydantic.BaseModelFrozen):
         A_avg_face=A_avg_face,
         Z_override=Z_override,
     )
-
-  @pydantic.model_validator(mode='before')
-  @classmethod
-  def _conform_impurity_data(cls, data: dict[str, Any]) -> dict[str, Any]:
-    """Ensures backward compatibility if infered that data in legacy format."""
-
-    # Maps legacy inputs to the new API format and convert what would have been
-    # TimeVaryingScalar inputs to an equivalent TimeVaryingArray.
-    # TODO(b/434175938): Remove this once V1 API is deprecated.
-    # This branch is hit when calling from the outer `PlasmaComposition`.
-    if 'legacy' in data:
-      del data['legacy']
-      if 'species' in data and isinstance(data['species'], dict):
-        new_species = {}
-        for species, value in data['species'].items():
-          new_species[species] = (
-              torax_pydantic.TimeVaryingScalar.model_validate(value)
-              .to_time_varying_array()
-          )
-        data['species'] = new_species
-
-    # This branch is typically hit on using `update_fields`.
-    if 'species' not in data and 'impurity_mode' not in data:
-      if isinstance(data, dict):
-        new_species = {}
-        for species, value in data.items():
-          new_species[species] = (
-              torax_pydantic.TimeVaryingScalar.model_validate(value)
-              .to_time_varying_array()
-          )
-      else:
-        new_species = data
-      return {'species': new_species, 'impurity_mode': _IMPURITY_MODE_FRACTIONS}
-
-    return data

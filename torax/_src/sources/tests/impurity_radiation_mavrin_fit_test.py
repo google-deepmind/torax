@@ -338,7 +338,10 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         },
         'plasma_composition': {
             'main_ion': 'D',
-            'impurity': impurity_mixture_fractions,
+            'impurity': {
+                'impurity_mode': 'fractions',
+                'species': impurity_mixture_fractions,
+            },
             'Z_eff': zeff_true.item(),  # pyrefly: ignore[missing-attribute]
         },
         'numerics': {},
