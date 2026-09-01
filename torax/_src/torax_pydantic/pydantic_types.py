@@ -32,11 +32,10 @@ NestedList: TypeAlias = (
 NumpySerialized: TypeAlias = tuple[DtypeName, NestedList]
 
 
-def _numpy_array_before_validator(
+def numpy_array_before_validator(
     x: np.ndarray | NumpySerialized,
 ) -> np.ndarray:
   """Validates and converts a serialized NumPy array."""
-
   if isinstance(x, np.ndarray):
     return x
   # This can be either a tuple or a list. The list case is if this is coming
@@ -51,29 +50,34 @@ def _numpy_array_before_validator(
     )
 
 
-def _numpy_array_serializer(x: np.ndarray) -> NumpySerialized:
+def numpy_array_serializer(x: np.ndarray) -> NumpySerialized:
+  """Serializes a NumPy array to a tuple of (dtype_name, nested_list)."""
   return (x.dtype.name, x.tolist())
 
 
-def _numpy_array_is_rank_1(x: np.ndarray) -> np.ndarray:
+def numpy_array_is_rank_1(x: np.ndarray) -> np.ndarray:
+  """Validates that a NumPy array is 1D."""
   if x.ndim != 1:
     raise ValueError(f'NumPy array is not 1D, rather of rank {x.ndim}')
   return x
 
 
-def _numpy_array_is_finite(x: np.ndarray) -> np.ndarray:
+def numpy_array_is_finite(x: np.ndarray) -> np.ndarray:
+  """Validates that all elements of a NumPy array are finite."""
   if not np.all(np.isfinite(x)):
     raise ValueError(f'NumPy array is not finite: {x}')
   return x
 
 
-def _numpy_array_is_not_empty(x: np.ndarray) -> np.ndarray:
+def numpy_array_is_not_empty(x: np.ndarray) -> np.ndarray:
+  """Validates that a NumPy array is not empty."""
   if x.size == 0:
     raise ValueError(f'NumPy array is empty: {x}')
   return x
 
 
-def _numpy_array_is_sorted(x: np.ndarray) -> np.ndarray:
+def numpy_array_is_sorted(x: np.ndarray) -> np.ndarray:
+  """Validates that a NumPy array is sorted in ascending order."""
   if not np.all(x[:-1] <= x[1:]):
     raise ValueError(f'NumPy array is not sorted: {x}')
   return x
@@ -81,26 +85,27 @@ def _numpy_array_is_sorted(x: np.ndarray) -> np.ndarray:
 
 NumpyArray = Annotated[
     np.ndarray,
-    pydantic.BeforeValidator(_numpy_array_before_validator),
-    pydantic.AfterValidator(_numpy_array_is_finite),
-    pydantic.AfterValidator(_numpy_array_is_not_empty),
+    pydantic.BeforeValidator(numpy_array_before_validator),
+    pydantic.AfterValidator(numpy_array_is_finite),
+    pydantic.AfterValidator(numpy_array_is_not_empty),
     pydantic.PlainSerializer(
-        _numpy_array_serializer, return_type=NumpySerialized
+        numpy_array_serializer, return_type=NumpySerialized
     ),
 ]
 
 NumpyArray1D = Annotated[
     NumpyArray,
-    pydantic.AfterValidator(_numpy_array_is_rank_1),
+    pydantic.AfterValidator(numpy_array_is_rank_1),
 ]
 
 NumpyArray1DSorted = Annotated[
     NumpyArray1D,
-    pydantic.AfterValidator(_numpy_array_is_sorted),
+    pydantic.AfterValidator(numpy_array_is_sorted),
 ]
 
 
-def _array_is_unit_interval(array: np.ndarray) -> np.ndarray:
+def array_is_unit_interval(array: np.ndarray) -> np.ndarray:
+  """Validates that all elements of a NumPy array are in [0.0, 1.0]."""
   if not np.all((array >= 0.0) & (array <= 1.0)):
     raise ValueError(
         f'Some array elements are not in the unit interval: {array}'
@@ -110,7 +115,7 @@ def _array_is_unit_interval(array: np.ndarray) -> np.ndarray:
 
 NumpyArray1DUnitInterval = Annotated[
     NumpyArray1D,
-    pydantic.AfterValidator(_array_is_unit_interval),
+    pydantic.AfterValidator(array_is_unit_interval),
 ]
 
 
