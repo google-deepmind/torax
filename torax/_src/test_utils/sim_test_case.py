@@ -200,6 +200,7 @@ class SimTestCase(parameterized.TestCase):
       rtol: float | None = None,
       atol: float | None = None,
       write_output: bool = True,
+      use_jitted_run_loop: bool = False,
   ):
     """Integration test comparing to TORAX reference output."""
     if rtol is None:
@@ -209,7 +210,9 @@ class SimTestCase(parameterized.TestCase):
 
     torax_config = self._get_torax_config(config_name)
     output_xr, state_history = run_simulation.run_simulation(
-        torax_config, progress_bar=False
+        torax_config,
+        progress_bar=False,
+        _use_jitted_run_loop=use_jitted_run_loop,
     )
     output_file = _FAILED_TEST_OUTPUT_DIR + config_name[:-3] + '.nc'
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
