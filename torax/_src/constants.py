@@ -109,7 +109,7 @@ ION_PROPERTIES: Final[tuple[IonProperties, ...]] = (
         symbol='He4', name='Helium-4', A=4.0026, Z=2.0, E_ionization=24.587
     ),
     IonProperties(
-        symbol='Li', name='Lithium', A=5.3917, Z=3.0, E_ionization=5.392
+        symbol='Li', name='Lithium', A=6.94, Z=3.0, E_ionization=5.392
     ),
     IonProperties(
         symbol='Be', name='Beryllium', A=9.0122, Z=4.0, E_ionization=9.323
