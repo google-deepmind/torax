@@ -27,6 +27,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import imas
 from torax._src.geometry import standard_geometry
+from torax._src.geometry import tokamaker
 from torax._src.torax_pydantic import torax_pydantic
 
 T = TypeVar('T')
@@ -41,6 +42,7 @@ class GeometryConfig(torax_pydantic.BaseModelFrozen):
       | fbt.FBTConfig
       | eqdsk.EQDSKConfig
       | imas.IMASConfig
+      | tokamaker.TokaMakerConfig
   ) = pydantic.Field(discriminator='geometry_type')
 
 
