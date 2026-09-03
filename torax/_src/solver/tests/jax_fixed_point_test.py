@@ -117,6 +117,23 @@ class FixedPointTest(parameterized.TestCase):
         out_with_backtracking, out_without_backtracking, atol=1e-5
     )
 
+  def test_fixed_point_backtracking_divergent_picard(self):
+    """Test that the fixed point solver works when the underlying function is Picard-unstable."""
+    def func(x):
+      return -5.0 * x
+
+    x0 = jnp.array([1.0])
+    out = jax_fixed_point.fixed_point(
+        func,
+        x0,
+        maxiter=20,
+        use_backtracking=True,
+        step_size_reduction_factor=0.5,
+        max_backtrack_steps=10,
+        atol=1e-5,
+    )
+    chex.assert_trees_all_close(out, jnp.array([0.0]), atol=1e-5)
+
 
 if __name__ == '__main__':
   absltest.main()
