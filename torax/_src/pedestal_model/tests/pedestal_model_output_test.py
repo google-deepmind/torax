@@ -144,18 +144,14 @@ class PedestalModelOutputTest(absltest.TestCase):
           field,
           jnp.where(pedestal_mask, 3.0, 1.0),
       )
-    for field_name in ['d_face_el']:
-      field = getattr(modified_core_transport, field_name)
-      np.testing.assert_allclose(
-          field,
-          jnp.where(pedestal_mask, 4.0, 1.0),
-      )
-    for field_name in ['v_face_el']:
-      field = getattr(modified_core_transport, field_name)
-      np.testing.assert_allclose(
-          field,
-          jnp.where(pedestal_mask, 5.0, 1.0),
-      )
+    np.testing.assert_allclose(
+        modified_core_transport.d_face_el,
+        jnp.where(pedestal_mask, 4.0, 1.0),
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.v_face_el,
+        jnp.where(pedestal_mask, 5.0, 1.0),
+    )
 
     # Check neoclassical transport is not affected.
     np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
