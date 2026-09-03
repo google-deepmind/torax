@@ -25,15 +25,8 @@ from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
-from torax._src.transport_model import pereverzev as pereverzev_lib
 
 # pylint: disable=invalid-name
-
-
-_PEREVERZEV_FIELDS = frozenset(
-    field.name
-    for field in dataclasses.fields(pereverzev_lib.PereverzevTransport)
-)
 
 
 @jax.tree_util.register_dataclass
@@ -282,15 +275,12 @@ class PedestalModelOutput:
     ) -> array_typing.FloatVectorFace:
       """Scale turbulent transport coefficients in the pedestal."""
       # Get the variable name of the leaf
-      path_key = path[-1]
-      if not isinstance(path_key, jax.tree_util.GetAttrKey):
-        raise TypeError(f"Expected a CoreTransport field, got {path_key!r}.")
-      key = path_key.name
+      key = str(path[-1])
 
       # Apply the correct multiplier based on the variable name
       # TODO(b/488314338): Improve robustness of applying multipliers to
       # transport coefficients, ideally avoiding string matching.
-      if key in _PEREVERZEV_FIELDS:
+      if "pereverzev" in key:
         # Pereverzev-Corrigan diffusion and counter-convection are paired to
         # have zero net flux. Modifying either would break that cancellation.
         return coeff

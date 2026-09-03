@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
 from unittest import mock
 from absl.testing import absltest
-import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import state
@@ -24,7 +22,6 @@ from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
-from torax._src.transport_model import pereverzev
 
 # pylint: disable=invalid-name
 
@@ -49,14 +46,6 @@ class PedestalModelOutputTest(absltest.TestCase):
             v_e_multiplier=jnp.array(5.0),
         ),
     )
-    self.pedestal_runtime_params = mock.create_autospec(
-        pedestal_runtime_params_lib.RuntimeParams, instance=True
-    )
-    self.pedestal_runtime_params.chi_max = jnp.array(1.0)
-    self.pedestal_runtime_params.D_e_max = jnp.array(1.0)
-    self.pedestal_runtime_params.V_e_max = jnp.array(1.0)
-    self.pedestal_runtime_params.V_e_min = jnp.array(-1.0)
-    self.pedestal_runtime_params.pedestal_top_smoothing_width = jnp.array(0.0)
 
   def test_to_internal_boundary_conditions(self):
     ibc = self.pedestal_model_output.to_internal_boundary_conditions(self.geo)
@@ -87,15 +76,6 @@ class PedestalModelOutputTest(absltest.TestCase):
 
   def test_modify_core_transport_applies_multipliers(self):
     n_face = self.geo.rho_face_norm.shape[0]
-    rho_face = self.geo.rho_face_norm
-    pereverzev_transport = pereverzev.PereverzevTransport(
-        chi_face_ion_pereverzev=30.0 + rho_face,
-        chi_face_el_pereverzev=31.0 + rho_face,
-        full_v_heat_face_ion_pereverzev=-40.0 - rho_face,
-        full_v_heat_face_el_pereverzev=-41.0 - rho_face,
-        d_face_el_pereverzev=15.0 + rho_face,
-        v_face_el_pereverzev=-20.0 + rho_face,
-    )
     core_transport = state.CoreTransport(
         chi_face_ion=jnp.ones(n_face),
         chi_face_el=jnp.ones(n_face),
@@ -119,15 +99,26 @@ class PedestalModelOutputTest(absltest.TestCase):
         D_neo_e=jnp.ones(n_face),
         V_neo_e=jnp.ones(n_face),
         V_neo_ware_e=jnp.ones(n_face),
-        **dataclasses.asdict(pereverzev_transport),
+        chi_face_ion_pereverzev=jnp.ones(n_face),
+        chi_face_el_pereverzev=jnp.ones(n_face),
+        full_v_heat_face_ion_pereverzev=jnp.ones(n_face),
+        full_v_heat_face_el_pereverzev=jnp.ones(n_face),
+        d_face_el_pereverzev=jnp.ones(n_face),
+        v_face_el_pereverzev=jnp.ones(n_face),
     )
 
-    modify_core_transport = jax.jit(
-        lambda transport: self.pedestal_model_output.modify_core_transport(
-            transport, self.geo, self.pedestal_runtime_params
-        )
+    pedestal_runtime_params = mock.create_autospec(
+        pedestal_runtime_params_lib.RuntimeParams, instance=True
     )
-    modified_core_transport = modify_core_transport(core_transport)
+    pedestal_runtime_params.chi_max = jnp.array(1.0)
+    pedestal_runtime_params.D_e_max = jnp.array(1.0)
+    pedestal_runtime_params.V_e_max = jnp.array(1.0)
+    pedestal_runtime_params.V_e_min = jnp.array(-1.0)
+    pedestal_runtime_params.pedestal_top_smoothing_width = jnp.array(0.0)
+
+    modified_core_transport = self.pedestal_model_output.modify_core_transport(
+        core_transport, self.geo, pedestal_runtime_params
+    )
     pedestal_mask = (
         self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_ped_top
     )
@@ -188,13 +179,19 @@ class PedestalModelOutputTest(absltest.TestCase):
         core_transport.V_neo_ware_e,
     )
 
-    # Numerical Pereverzev-Corrigan transport is not scaled or clipped.
-    for field in dataclasses.fields(pereverzev.PereverzevTransport):
-      with self.subTest(field=field.name):
-        np.testing.assert_array_equal(
-            getattr(modified_core_transport, field.name),
-            getattr(core_transport, field.name),
-        )
+    # Check numerical Pereverzev-Corrigan transport is not affected.
+    for field_name in [
+        'chi_face_ion_pereverzev',
+        'chi_face_el_pereverzev',
+        'full_v_heat_face_ion_pereverzev',
+        'full_v_heat_face_el_pereverzev',
+        'd_face_el_pereverzev',
+        'v_face_el_pereverzev',
+    ]:
+      np.testing.assert_allclose(
+          getattr(modified_core_transport, field_name),
+          getattr(core_transport, field_name),
+      )
 
   def test_to_internal_boundary_conditions_tanh_profiles(self):
     """Tests mtanh-shaped IBC when pedestal_profile_form=MTANH."""
