@@ -23,7 +23,7 @@ import jax
 from jax import numpy as jnp
 from jax.experimental import hijax
 import numpy as np
-from torax._src import while_loop_bounded as while_loop_bounded_lib
+from torax._src.jax_utils import while_loop_bounded as while_loop_bounded_lib
 
 BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
 PyTree: TypeAlias = Any
