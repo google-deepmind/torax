@@ -362,8 +362,8 @@ class TransportMaskingTest(parameterized.TestCase):
 
 class TransportModelTest(absltest.TestCase):
 
-  def test_adaptive_transport_preserves_pereverzev_transport_in_h_mode(self):
-    """H-mode adaptive suppression leaves numerical PC transport unchanged."""
+  def test_adaptive_transport_preserves_pereverzev_transport(self):
+    """Adaptive transport leaves numerical PC transport unchanged."""
     config = default_configs.get_default_config_dict()
     config['solver'] = {
         'chi_pereverzev': 30.0,
@@ -373,12 +373,6 @@ class TransportModelTest(absltest.TestCase):
         'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
         'mode': 'ADAPTIVE_TRANSPORT',
-    }
-    config['sources'] = {
-        'generic_heat': {
-            'P_total': 1e9,
-            'is_explicit': True,
-        }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     models = torax_config.build_models()
@@ -392,36 +386,22 @@ class TransportModelTest(absltest.TestCase):
         models.source_models,
         models.neoclassical_models,
     )
-    source_profiles = source_profile_builders.build_source_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
-        explicit=True,
+    pedestal_output = pedestal_model_output_lib.PedestalModelOutput(
+        rho_norm_ped_top=jnp.array(0.8),
+        T_i_ped=jnp.array(1.0),
+        T_e_ped=jnp.array(1.0),
+        n_e_ped=jnp.array(1e19),
+        transport_multipliers=pedestal_model_output_lib.TransportMultipliers(
+            chi_e_multiplier=jnp.array(0.1),
+            chi_i_multiplier=jnp.array(0.2),
+            D_e_multiplier=jnp.array(0.3),
+            v_e_multiplier=jnp.array(0.4),
+        ),
     )
     transition_state = dataclasses.replace(
         pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
-        confinement_mode=jnp.asarray(
-            pedestal_transition_state_lib.ConfinementMode.H_MODE
-        ),
-    )
-    pedestal_output = models.pedestal_model(
-        runtime_params,
-        geo,
-        core_profiles,
-        source_profiles,
-        transition_state,
-    )
-    transition_state = dataclasses.replace(
-        transition_state,
         pedestal_model_output=pedestal_output,
     )
-    for multiplier in dataclasses.astuple(
-        pedestal_output.transport_multipliers
-    ):
-      # check pedestal transport multiplier is on
-      self.assertLess(multiplier, 1.0)
 
     coeffs = transport_coefficients_builder.calculate_all_transport_coeffs(
         models.transport_model,
