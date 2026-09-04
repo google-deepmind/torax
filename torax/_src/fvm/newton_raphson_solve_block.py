@@ -232,6 +232,16 @@ def newton_raphson_solve_block(
       pedestal_transition_state=pedestal_transition_state,
   )
 
+  # Normalize each channel residual by its mean profile magnitude across the
+  # spatial grid at the start of the time step (x_old), with a 1e-4 floor to
+  # prevent division by zero for near-zero quantities.
+  scales = jnp.concatenate(
+      [jnp.full_like(x.value, jnp.mean(jnp.abs(x.value)) + 1e-4) for x in x_old]
+  )
+
+  def scaled_norm(res: jax.Array) -> jax.Array:
+    return jnp.sqrt(jnp.mean(jnp.square(res / scales)))
+
   root_finder = functools.partial(
       jax_root_finding.root_newton_raphson,
       fun=residual_fun,
@@ -241,6 +251,7 @@ def newton_raphson_solve_block(
       delta_reduction_factor=delta_reduction_factor,
       tau_min=tau_min,
       log_iterations=log_iterations,
+      norm_fn=scaled_norm,
   )
 
   x_root, metadata = root_finder(x0=init_x_new_vec)
