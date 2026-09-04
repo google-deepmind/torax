@@ -23,7 +23,7 @@ from torax._src.jax_utils.common import get_dtype
 from torax._src.jax_utils.common import get_int_dtype
 from torax._src.jax_utils.common import get_np_dtype
 from torax._src.jax_utils.common import get_number_of_compiles
-from torax._src.jax_utils.common import while_loop_bounded
+from torax._src.jax_utils.while_loop_bounded import while_loop_bounded
 
 # pylint: enable=g-importing-member
 
