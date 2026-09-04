@@ -51,6 +51,7 @@ MIN_DELTA: Final[float] = 1e-7
         'models',
         'coeffs_callback',
         'initial_guess_mode',
+        'vmap_linesearch',
         'log_iterations',
     ],
 )
@@ -74,6 +75,8 @@ def newton_raphson_solve_block(
     delta_reduction_factor: float,
     tau_min: float,
     pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    sufficient_decrease: float = 1e-4,
+    vmap_linesearch: bool = False,
     log_iterations: bool = False,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
@@ -240,6 +243,8 @@ def newton_raphson_solve_block(
       coarse_tol=coarse_tol,
       delta_reduction_factor=delta_reduction_factor,
       tau_min=tau_min,
+      sufficient_decrease=sufficient_decrease,
+      vmap_linesearch=vmap_linesearch,
       log_iterations=log_iterations,
   )
 
