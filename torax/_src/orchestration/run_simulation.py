@@ -84,11 +84,11 @@ def _maybe_precompute_geometry_provider(
       fixed_dt=float(fixed_dt.value[0]),
       exact_t_final=numerics.exact_t_final,
       tolerance=torax_config.time_step_calculator.tolerance,
+      max_num_times=_MAX_PRECOMPUTED_GEOMETRIES,
   )
-  if len(times) > _MAX_PRECOMPUTED_GEOMETRIES:
+  if times is None:
     logging.info(
-        'Not precomputing geometries: %d geometries exceeds the maximum of %d.',
-        len(times),
+        'Not precomputing geometries: the grid exceeds the maximum of %d.',
         _MAX_PRECOMPUTED_GEOMETRIES,
     )
     return geometry_provider

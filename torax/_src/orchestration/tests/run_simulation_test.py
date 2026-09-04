@@ -200,9 +200,9 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
   def test_geometry_is_not_precomputed_above_geometry_cap(self):
     config_dict = self._get_fixed_dt_time_dependent_geometry_config()
-    config_dict['numerics']['t_final'] = 1_000.0
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    step_fn = run_simulation.make_step_fn(torax_config)
+    with mock.patch.object(run_simulation, '_MAX_PRECOMPUTED_GEOMETRIES', 3):
+      step_fn = run_simulation.make_step_fn(torax_config)
     self.assertIsInstance(
         step_fn.geometry_provider,
         geometry_provider_lib.TimeDependentGeometryProvider,

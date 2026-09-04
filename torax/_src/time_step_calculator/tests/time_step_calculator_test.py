@@ -118,6 +118,17 @@ class TimeStepCalculatorTest(parameterized.TestCase):
     )
     np.testing.assert_array_equal(times, state_history.times)
 
+  def test_get_time_grid_stops_at_max_num_times(self):
+    times = fixed_time_step_calculator.get_time_grid(
+        t_initial=0.0,
+        t_final=1_000_000.0,
+        fixed_dt=0.1,
+        exact_t_final=True,
+        tolerance=1e-7,
+        max_num_times=3,
+    )
+    self.assertIsNone(times)
+
   def test_get_time_grid_rejects_non_positive_dt(self):
     with self.assertRaisesRegex(ValueError, 'must be positive'):
       fixed_time_step_calculator.get_time_grid(

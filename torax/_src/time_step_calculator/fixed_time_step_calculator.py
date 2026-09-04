@@ -32,7 +32,9 @@ def get_time_grid(
     fixed_dt: float,
     exact_t_final: bool,
     tolerance: float,
-) -> np.ndarray:
+    *,
+    max_num_times: int | None = None,
+) -> np.ndarray | None:
   """Returns all times visited by a simulation with a constant fixed dt.
 
   Mirrors `TimeStepCalculator.is_done` and `TimeStepCalculator.next_dt`,
@@ -45,9 +47,12 @@ def get_time_grid(
     fixed_dt: Constant time step [s]. Must be positive.
     exact_t_final: Whether the final step is shortened to land on `t_final`.
     tolerance: Tolerance within `t_final` at which the simulation is done.
+    max_num_times: Maximum number of times to return, including `t_initial`.
+      Returns None if the grid would exceed this limit.
 
   Returns:
-    1D array of times, starting with `t_initial`.
+    A 1D array of times, starting with `t_initial`, or None if the grid would
+    exceed `max_num_times`.
   """
   if fixed_dt <= 0.0:
     raise ValueError(f'fixed_dt must be positive, got {fixed_dt}.')
@@ -56,7 +61,11 @@ def get_time_grid(
   t_final = dtype(t_final)
   fixed_dt = dtype(fixed_dt)
   times = [t]
+  if max_num_times is not None and max_num_times < 1:
+    return None
   while t < t_final - tolerance:
+    if max_num_times is not None and len(times) >= max_num_times:
+      return None
     dt = fixed_dt
     if exact_t_final and t < t_final < t + dt:
       dt = t_final - t
