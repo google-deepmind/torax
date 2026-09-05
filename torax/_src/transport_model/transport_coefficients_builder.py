@@ -148,8 +148,9 @@ def calculate_all_transport_coeffs(
       **dataclasses.asdict(pereverzev_transport_coeffs),
   )
 
-  # Modify the turbulent + Pereverzev transport coefficients if the pedestal
-  # model is in ADAPTIVE_TRANSPORT mode.
+  # Modify the turbulent transport coefficients if the pedestal model is in
+  # ADAPTIVE_TRANSPORT mode. Pereverzev-Corrigan terms are numerical
+  # stabilization and are kept unchanged so their paired fluxes cancel.
   if (
       runtime_params.pedestal.mode
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT

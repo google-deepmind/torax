@@ -240,11 +240,11 @@ class PedestalModelOutput:
   ) -> state.CoreTransport:
     """Modify transport coefficients in the entire pedestal region.
 
-    Scales the turbulent and Pereverzev transport coefficients in the pedestal
-    region by the multipliers in the pedestal model output. This will also scale
-    any components of the transport coefficients that are inherited from the
-    turbulent model, such as ITG, ETG, TEM, Bohm, GyroBohm, etc. Transport
-    coefficients from neoclassical and pedestal transport models are not
+    Scales the turbulent transport coefficients in the pedestal region by the
+    multipliers in the pedestal model output. This will also scale any
+    components of the transport coefficients that are inherited from the
+    turbulent model, such as ITG, ETG, TEM, Bohm, GyroBohm, etc. Numerical
+    Pereverzev-Corrigan and neoclassical transport coefficients are not
     affected.
 
     Args:
@@ -273,14 +273,18 @@ class PedestalModelOutput:
     def multiply_coeff(
         path: jax.tree_util.KeyPath, coeff: array_typing.FloatVectorFace
     ) -> array_typing.FloatVectorFace:
-      """Scale turbulent+Pereverzev transport coefficients in the pedestal."""
+      """Scale turbulent transport coefficients in the pedestal."""
       # Get the variable name of the leaf
       key = str(path[-1])
 
       # Apply the correct multiplier based on the variable name
       # TODO(b/488314338): Improve robustness of applying multipliers to
       # transport coefficients, ideally avoiding string matching.
-      if "neo" in key:
+      if "pereverzev" in key:
+        # Pereverzev-Corrigan diffusion and counter-convection are paired to
+        # have zero net flux. Modifying either would break that cancellation.
+        return coeff
+      elif "neo" in key:
         # Neoclassical transport should not be affected by scaling from an
         # ADAPTIVE_TRANSPORT pedestal model.
         return coeff
