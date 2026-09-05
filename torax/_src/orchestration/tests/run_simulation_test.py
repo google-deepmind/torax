@@ -13,14 +13,21 @@
 # limitations under the License.
 import logging
 import os
+from typing import Any
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import numpy as np
 from torax._src import state
+from torax._src.geometry import geometry as geometry_lib
+from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
+from torax._src.test_utils import default_configs
 from torax._src.test_utils import sim_test_case
+from torax._src.torax_pydantic import model_config
 import xarray as xr
 
 _ALL_PROFILES = ('T_i', 'T_e', 'psi', 'q_face', 's_face', 'n_e')
@@ -59,7 +66,8 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
     # Stitch the restart state file to the beginning of the reference dataset.
     datatree_new = output.stitch_state_files(
-        torax_config.restart, data_tree_restart  # pyrefly: ignore[bad-argument-type]
+        torax_config.restart,
+        data_tree_restart,  # pyrefly: ignore[bad-argument-type]
     )
 
     # Check that time coordinates agree.
@@ -121,12 +129,120 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config('test_implicit.py')
 
     # Use max_steps=1 which is far too few to reach t_final=1.
-    _, state_history = run_simulation.run_simulation(
-        torax_config, max_steps=1
-    )
+    _, state_history = run_simulation.run_simulation(torax_config, max_steps=1)
 
     self.assertEqual(
         state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
+    )
+
+  def _get_fixed_dt_time_dependent_geometry_config(self) -> dict[str, Any]:
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {
+        'geometry_type': 'circular',
+        'n_rho': 4,
+        'geometry_configs': {
+            0.0: {'R_major': 6.2},
+            1.0: {'R_major': 6.5},
+        },
+    }
+    config_dict['numerics'] = {
+        'fixed_dt': 0.1,
+        't_final': 1.0,
+        'adaptive_dt': False,
+    }
+    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
+    return config_dict
+
+  def test_geometry_is_precomputed_for_fixed_time_steps(self):
+    config_dict = self._get_fixed_dt_time_dependent_geometry_config()
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    step_fn = run_simulation.make_step_fn(torax_config)
+    self.assertIsInstance(
+        step_fn.geometry_provider,
+        geometry_provider_lib.PrecomputedGeometryProvider,
+    )
+    # t_initial, 10 steps of 0.1 (t_final is reached exactly).
+    self.assertLen(step_fn.geometry_provider.times, 11)
+
+  @parameterized.named_parameters(
+      ('adaptive_dt', 'numerics', 'adaptive_dt', True),
+      ('chi_calculator', 'time_step_calculator', 'calculator_type', 'chi'),
+      ('time_varying_fixed_dt', 'numerics', 'fixed_dt', {0.0: 0.1, 0.5: 0.2}),
+      (
+          'sawtooth',
+          'mhd',
+          'sawtooth',
+          {
+              'trigger_model': {'model_name': 'simple'},
+              'redistribution_model': {'model_name': 'simple'},
+          },
+      ),
+  )
+  def test_geometry_is_not_precomputed_when_unsafe(self, section, key, value):
+    config_dict = self._get_fixed_dt_time_dependent_geometry_config()
+    config_dict.setdefault(section, {})[key] = value
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    step_fn = run_simulation.make_step_fn(torax_config)
+    self.assertIsInstance(
+        step_fn.geometry_provider,
+        geometry_provider_lib.TimeDependentGeometryProvider,
+    )
+
+  def test_constant_geometry_is_not_precomputed(self):
+    config_dict = self._get_fixed_dt_time_dependent_geometry_config()
+    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 4}
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    step_fn = run_simulation.make_step_fn(torax_config)
+    self.assertIsInstance(
+        step_fn.geometry_provider,
+        geometry_provider_lib.ConstantGeometryProvider,
+    )
+
+  def test_geometry_is_not_precomputed_above_geometry_cap(self):
+    config_dict = self._get_fixed_dt_time_dependent_geometry_config()
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    with mock.patch.object(run_simulation, '_MAX_PRECOMPUTED_GEOMETRIES', 3):
+      step_fn = run_simulation.make_step_fn(torax_config)
+    self.assertIsInstance(
+        step_fn.geometry_provider,
+        geometry_provider_lib.TimeDependentGeometryProvider,
+    )
+
+  def test_precomputed_geometry_matches_interpolated_geometry(self):
+    config_dict = self._get_fixed_dt_time_dependent_geometry_config()
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    _, precomputed_history = run_simulation.run_simulation(
+        torax_config, progress_bar=False
+    )
+    self.assertIsInstance(
+        precomputed_history.geometries[0],
+        geometry_lib.Geometry,
+    )
+    with mock.patch.object(
+        run_simulation,
+        '_maybe_precompute_geometry_provider',
+        lambda unused_config, provider: provider,
+    ):
+      _, interpolated_history = run_simulation.run_simulation(
+          torax_config, progress_bar=False
+      )
+    self.assertEqual(
+        precomputed_history.sim_error, interpolated_history.sim_error
+    )
+    np.testing.assert_array_equal(
+        precomputed_history.times, interpolated_history.times
+    )
+    chex.assert_trees_all_close(
+        precomputed_history.core_profiles,
+        interpolated_history.core_profiles,
+    )
+    chex.assert_trees_all_close(
+        precomputed_history.geometries,
+        interpolated_history.geometries,
+    )
+    chex.assert_trees_all_close(
+        precomputed_history.post_processed_outputs,
+        interpolated_history.post_processed_outputs,
     )
 
 

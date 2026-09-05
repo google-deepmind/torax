@@ -2662,6 +2662,12 @@ time_step_calculator
     ``numerics`` config dict, then in practice some steps may have lower ``dt``
     if the solver needed to backtrack.
 
+    When all time steps are known in advance (constant ``fixed_dt``,
+    ``adaptive_dt==False``, no sawtooth model and no restart), a time-dependent
+    geometry is interpolated once onto every time step before the simulation
+    starts, instead of on every step. This reduces both compile time and run
+    time, at the cost of storing one geometry per time step in memory.
+
 * ``'chi'``
     adaptive dt method, where ``dt`` is a multiple of a base dt inspired by the
     explicit stability limit for parabolic PDEs:

@@ -22,6 +22,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.config import config_loader
+from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.orchestration import step_function
@@ -381,7 +382,8 @@ class StepFunctionTest(parameterized.TestCase):
 
     # Run a step with overriden Ip.
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=params_provider.profile_conditions.Ip.value * 2.0  # pyrefly: ignore[bad-argument-type]
+        value=params_provider.profile_conditions.Ip.value
+        * 2.0  # pyrefly: ignore[bad-argument-type]
     )
     runtime_params_overrides = params_provider.update_provider(
         lambda x: (x.profile_conditions.Ip,),
@@ -436,6 +438,45 @@ class StepFunctionTest(parameterized.TestCase):
     chex.assert_trees_all_close(override_state, ref_state)
     chex.assert_trees_all_close(
         override_post_processed_outputs, ref_post_processed_outputs
+    )
+
+  def test_step_with_precomputed_geometry_matches_interpolated_geometry(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {
+        'geometry_type': 'circular',
+        'n_rho': 4,
+        'geometry_configs': {
+            0.0: {'R_major': 6.2},
+            1.0: {'R_major': 6.5},
+        },
+    }
+    config_dict['numerics'] = {'fixed_dt': 0.1, 'adaptive_dt': False}
+    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
+    cfg = model_config.ToraxConfig.from_dict(config_dict)
+    (
+        sim_state,
+        post_processed_outputs,
+        step_fn,
+    ) = run_simulation.prepare_simulation(cfg)
+    self.assertIsInstance(
+        step_fn.geometry_provider,
+        geometry_provider_lib.PrecomputedGeometryProvider,
+    )
+
+    precomputed_state, precomputed_post_processed_outputs = step_fn(
+        sim_state,
+        post_processed_outputs,
+    )
+    # Override with the original interpolating provider as a reference.
+    ref_state, ref_post_processed_outputs = step_fn(
+        sim_state,
+        post_processed_outputs,
+        geo_overrides=cfg.geometry.build_provider,
+    )
+
+    chex.assert_trees_all_close(precomputed_state, ref_state)
+    chex.assert_trees_all_close(
+        precomputed_post_processed_outputs, ref_post_processed_outputs
     )
 
 
