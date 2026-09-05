@@ -26,8 +26,8 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
-from torax._src.transport_model import component
 from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import transport_coeffs
 from typing_extensions import override
 
 
@@ -512,7 +512,7 @@ class TGLFBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace | None = None,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     # Denormalised TGLF output fluxes.
     Q_e = electron_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
     Q_i = ion_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
@@ -570,17 +570,16 @@ class TGLFBasedTransportModel(
         (S_e < 0) & (tglf_inputs.lref_over_lne < 0)
     )
     # For stability, we also set purely diffusive transport at some minimum
-    # threshold of the temperature gradient.
-    D_eff_mask &= abs(tglf_inputs.lref_over_lne) >= (
-        transport.An_min * geo.a_minor / geo.R_major
+    # threshold of the density gradient.
+    D_eff_mask &= (
+        abs(tglf_inputs.lref_over_lne)
+        >= transport.An_min * geo.a_minor / geo.R_major
     )
     V_eff_mask = jnp.logical_not(D_eff_mask)
-
-    # Apply the mask.
     d_face_el = jnp.where(D_eff_mask, D_eff, 0.0)
     v_face_el = jnp.where(V_eff_mask, V_eff, 0.0)
 
-    return component.TurbulentTransport(
+    return transport_coeffs.TransportCoeffs(
         chi_face_ion=chi_i,  # pyrefly: ignore[bad-argument-type]
         chi_face_el=chi_e,  # pyrefly: ignore[bad-argument-type]
         d_face_el=d_face_el,
