@@ -31,6 +31,7 @@ from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
 from torax._src.physics import fast_ion as fast_ion_lib
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 import typing_extensions
 
 
@@ -470,187 +471,44 @@ class CoreProfiles:
     """
 
 
-# TODO(b/426132633): restructure and rename attributes for V2. Choices were made
-# when refactoring to avoid breaking public API.
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class CoreTransport:
-  """Coefficients for the plasma transport.
+  """Composite coefficients for plasma transport.
 
-  See docstrings of `neoclassical/transport/base.py` and
-  `transport_model/transport_model.py` for more details.
+  Attributes:
+    total: Combined 4-channel net transport coefficients (turbulent +
+      neoclassical + pereverzev).
+    turbulent: Turbulent transport output containing total and per-model
+      outputs.
+    neoclassical: Neoclassical transport output.
+    pereverzev: Pereverzev-Corrigan transport output.
   """
 
-  chi_face_ion: jax.Array
-  chi_face_el: jax.Array
-  d_face_el: jax.Array
-  v_face_el: jax.Array
-  chi_face_el_bohm: jax.Array | None = None
-  chi_face_el_gyrobohm: jax.Array | None = None
-  chi_face_ion_bohm: jax.Array | None = None
-  chi_face_ion_gyrobohm: jax.Array | None = None
-  chi_face_el_itg: jax.Array | None = None
-  chi_face_el_tem: jax.Array | None = None
-  chi_face_el_etg: jax.Array | None = None
-  chi_face_ion_itg: jax.Array | None = None
-  chi_face_ion_tem: jax.Array | None = None
-  d_face_el_itg: jax.Array | None = None
-  d_face_el_tem: jax.Array | None = None
-  v_face_el_itg: jax.Array | None = None
-  v_face_el_tem: jax.Array | None = None
-  chi_neo_i: jax.Array | None = None
-  chi_neo_e: jax.Array | None = None
-  D_neo_e: jax.Array | None = None
-  V_neo_e: jax.Array | None = None
-  V_neo_ware_e: jax.Array | None = None
-  chi_face_ion_pereverzev: jax.Array | None = None
-  chi_face_el_pereverzev: jax.Array | None = None
-  full_v_heat_face_ion_pereverzev: jax.Array | None = None
-  full_v_heat_face_el_pereverzev: jax.Array | None = None
-  d_face_el_pereverzev: jax.Array | None = None
-  v_face_el_pereverzev: jax.Array | None = None
-
-  def __post_init__(self):
-    # Use the array size of chi_face_el as a template.
-    template = self.chi_face_el
-    if self.chi_neo_i is None:
-      self.chi_neo_i = jnp.zeros_like(template)
-    if self.chi_neo_e is None:
-      self.chi_neo_e = jnp.zeros_like(template)
-    if self.D_neo_e is None:
-      self.D_neo_e = jnp.zeros_like(template)
-    if self.V_neo_e is None:
-      self.V_neo_e = jnp.zeros_like(template)
-    if self.V_neo_ware_e is None:
-      self.V_neo_ware_e = jnp.zeros_like(template)
-    if self.chi_face_ion_pereverzev is None:
-      self.chi_face_ion_pereverzev = jnp.zeros_like(template)
-    if self.chi_face_el_pereverzev is None:
-      self.chi_face_el_pereverzev = jnp.zeros_like(template)
-    if self.full_v_heat_face_ion_pereverzev is None:
-      self.full_v_heat_face_ion_pereverzev = jnp.zeros_like(template)
-    if self.full_v_heat_face_el_pereverzev is None:
-      self.full_v_heat_face_el_pereverzev = jnp.zeros_like(template)
-    if self.d_face_el_pereverzev is None:
-      self.d_face_el_pereverzev = jnp.zeros_like(template)
-    if self.v_face_el_pereverzev is None:
-      self.v_face_el_pereverzev = jnp.zeros_like(template)
-
-  @property
-  def chi_face_ion_total(self) -> jax.Array:
-    """Calculates the total ion heat diffusion coefficient."""
-    return self.chi_face_ion + self.chi_face_ion_pereverzev + self.chi_neo_i  # pyrefly: ignore[unsupported-operation]
-
-  @property
-  def chi_face_el_total(self) -> jax.Array:
-    """Calculates the total electron heat diffusion coefficient."""
-    return self.chi_face_el + self.chi_face_el_pereverzev + self.chi_neo_e  # pyrefly: ignore[unsupported-operation]
-
-  @property
-  def d_face_el_total(self) -> jax.Array:
-    """Calculates the total particle diffusion coefficient."""
-    return self.d_face_el + self.d_face_el_pereverzev + self.D_neo_e  # pyrefly: ignore[unsupported-operation]
-
-  @property
-  def v_face_el_total(self) -> jax.Array:
-    """Calculates the total particle convection coefficient."""
-    return (
-        self.v_face_el  # pyrefly: ignore[unsupported-operation]
-        + self.v_face_el_pereverzev
-        + self.V_neo_e
-        + self.V_neo_ware_e
-    )
-
-  def chi_max(
-      self,
-      geo: geometry.Geometry,
-  ) -> jax.Array:
-    """Calculates the maximum value of chi.
-
-    Args:
-      geo: Geometry of the torus.
-
-    Returns:
-      chi_max: Maximum value of chi.
-    """
-    return jnp.maximum(
-        jnp.max((self.chi_face_ion + self.chi_neo_i) * geo.g1_over_vpr2_face),  # pyrefly: ignore[unsupported-operation]
-        jnp.max((self.chi_face_el + self.chi_neo_e) * geo.g1_over_vpr2_face),  # pyrefly: ignore[unsupported-operation]
-    )
+  total: transport_coeffs_lib.TransportCoeffs
+  turbulent: transport_coeffs_lib.TurbulentTransport
+  neoclassical: transport_coeffs_lib.NeoclassicalTransport
+  pereverzev: transport_coeffs_lib.PereverzevTransport | None = None
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
-    shape = geo.rho_face.shape
     return cls(
-        chi_face_ion=jnp.zeros(shape),
-        chi_face_el=jnp.zeros(shape),
-        d_face_el=jnp.zeros(shape),
-        v_face_el=jnp.zeros(shape),
-        chi_face_el_bohm=jnp.zeros(shape),
-        chi_face_el_gyrobohm=jnp.zeros(shape),
-        chi_face_ion_bohm=jnp.zeros(shape),
-        chi_face_ion_gyrobohm=jnp.zeros(shape),
-        chi_neo_i=jnp.zeros(shape),
-        chi_neo_e=jnp.zeros(shape),
-        D_neo_e=jnp.zeros(shape),
-        V_neo_e=jnp.zeros(shape),
-        V_neo_ware_e=jnp.zeros(shape),
-        chi_face_ion_pereverzev=jnp.zeros(shape),
-        chi_face_el_pereverzev=jnp.zeros(shape),
-        full_v_heat_face_ion_pereverzev=jnp.zeros(shape),
-        full_v_heat_face_el_pereverzev=jnp.zeros(shape),
-        d_face_el_pereverzev=jnp.zeros(shape),
-        v_face_el_pereverzev=jnp.zeros(shape),
+        total=transport_coeffs_lib.TransportCoeffs.zeros(geo),
+        turbulent=transport_coeffs_lib.TurbulentTransport.zeros(geo),
+        neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(geo),
+        pereverzev=transport_coeffs_lib.PereverzevTransport.zeros(geo),
     )
 
   def to_output_dict(
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts CoreTransport into an OutputVar mapping."""
-    out_dict: dict[str, output_grid_context.OutputVar] = {
-        output_keys.CHI_TURB_I: context.pack(
-            output_keys.CHI_TURB_I, self.chi_face_ion
-        ),
-        output_keys.CHI_TURB_E: context.pack(
-            output_keys.CHI_TURB_E, self.chi_face_el
-        ),
-        output_keys.D_TURB_E: context.pack(
-            output_keys.D_TURB_E, self.d_face_el
-        ),
-        output_keys.V_TURB_E: context.pack(
-            output_keys.V_TURB_E, self.v_face_el
-        ),
+    """Converts CoreTransport into an OutputVar mapping for the profiles node."""
+    return {
+        **self.turbulent.to_output_dict(context),
+        **self.neoclassical.to_output_dict(context),
     }
-
-    optional_transport_map = {
-        output_keys.CHI_NEO_I: self.chi_neo_i,
-        output_keys.CHI_NEO_E: self.chi_neo_e,
-        output_keys.D_NEO_E: self.D_neo_e,
-        output_keys.V_NEO_E: self.V_neo_e,
-        output_keys.V_NEO_WARE_E: self.V_neo_ware_e,
-        output_keys.CHI_BOHM_E: self.chi_face_el_bohm,
-        output_keys.CHI_GYROBOHM_E: self.chi_face_el_gyrobohm,
-        output_keys.CHI_BOHM_I: self.chi_face_ion_bohm,
-        output_keys.CHI_GYROBOHM_I: self.chi_face_ion_gyrobohm,
-        output_keys.CHI_ITG_E: self.chi_face_el_itg,
-        output_keys.CHI_TEM_E: self.chi_face_el_tem,
-        output_keys.CHI_ETG_E: self.chi_face_el_etg,
-        output_keys.CHI_ITG_I: self.chi_face_ion_itg,
-        output_keys.CHI_TEM_I: self.chi_face_ion_tem,
-        output_keys.D_ITG_E: self.d_face_el_itg,
-        output_keys.D_TEM_E: self.d_face_el_tem,
-        output_keys.V_ITG_E: self.v_face_el_itg,
-        output_keys.V_TEM_E: self.v_face_el_tem,
-    }
-
-    for key, data in optional_transport_map.items():
-      # Skip if None or an array of Nones from stack
-      if data is not None and getattr(data, "dtype", None) != object:
-        out_dict[key] = context.pack(key, data)
-
-    return out_dict
 
 
 @jax.tree_util.register_dataclass

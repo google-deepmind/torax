@@ -27,6 +27,7 @@ from torax._src.pedestal_model import pedestal_model_output as pedestal_model_ou
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import pereverzev as pereverzev_lib
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 from torax._src.transport_model import transport_model as transport_model_lib
 
 # pylint: disable=invalid-name
@@ -133,19 +134,40 @@ def calculate_all_transport_coeffs(
   pereverzev_transport_coeffs = jax.lax.cond(
       use_pereverzev,
       pereverzev_lib.calculate_pereverzev_transport,
-      lambda runtime_params, geo, core_profiles, two_point_mask: pereverzev_lib.PereverzevTransport.zeros(
-          geo
-      ),
+      lambda *_: transport_coeffs_lib.PereverzevTransport.zeros(geo),
       runtime_params,
       geo,
       core_profiles,
       two_point_mask,
   )
 
+  if (
+      runtime_params.pedestal.mode
+      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+  ):
+    # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
+    # coefficients in the pedestal region to zero.
+    # TODO(b/485147781) Combine this masking with the turbulent transport
+    # masking.
+    pedestal_active_mask_face = (
+        geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top
+    )
+    pereverzev_transport_coeffs = jax.tree_util.tree_map(
+        lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
+        pereverzev_transport_coeffs,
+    )
+
+  total = transport_coeffs_lib.sum_transport_coeffs(
+      turbulent_transport_coeffs.total,
+      neoclassical_transport_coeffs,
+      pereverzev_transport_coeffs,
+  )
+
   core_transport = state.CoreTransport(
-      **dataclasses.asdict(turbulent_transport_coeffs),
-      **dataclasses.asdict(neoclassical_transport_coeffs),  # pyrefly: ignore[bad-argument-type]
-      **dataclasses.asdict(pereverzev_transport_coeffs),
+      total=total,
+      turbulent=turbulent_transport_coeffs,
+      neoclassical=neoclassical_transport_coeffs,
+      pereverzev=pereverzev_transport_coeffs,
   )
 
   # Modify the turbulent + Pereverzev transport coefficients if the pedestal
@@ -158,23 +180,6 @@ def calculate_all_transport_coeffs(
         core_transport=core_transport,
         geo=geo,
         pedestal_runtime_params=runtime_params.pedestal,
-    )
-  else:
-    # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
-    # coefficients in the pedestal region to zero.
-    # TODO(b/485147781) Combine this masking with the turbulent transport
-    # masking.
-    pedestal_active_mask_face = (
-        geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top
-    )
-
-    pereverzev_transport_coeffs = jax.tree_util.tree_map(
-        lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
-        pereverzev_transport_coeffs,
-    )
-    core_transport = dataclasses.replace(
-        core_transport,
-        **dataclasses.asdict(pereverzev_transport_coeffs),
     )
 
   return core_transport

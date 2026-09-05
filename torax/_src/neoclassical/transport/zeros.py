@@ -14,12 +14,12 @@
 """Zeros model for neoclassical transport."""
 from typing import Annotated, Literal
 
-import jax.numpy as jnp
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.transport import base
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import transport_coeffs
 from typing_extensions import override
 
 
@@ -32,15 +32,9 @@ class ZerosModel(base.NeoclassicalTransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> base.NeoclassicalTransport:
+  ) -> transport_coeffs.NeoclassicalTransport:
     """Calculates neoclassical transport."""
-    return base.NeoclassicalTransport(
-        chi_neo_i=jnp.zeros_like(geometry.rho_face),
-        chi_neo_e=jnp.zeros_like(geometry.rho_face),
-        D_neo_e=jnp.zeros_like(geometry.rho_face),
-        V_neo_e=jnp.zeros_like(geometry.rho_face),
-        V_neo_ware_e=jnp.zeros_like(geometry.rho_face),
-    )
+    return transport_coeffs.NeoclassicalTransport.zeros(geometry)
 
   def __eq__(self, other) -> bool:
     return isinstance(other, self.__class__)

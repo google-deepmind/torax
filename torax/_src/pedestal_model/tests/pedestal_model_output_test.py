@@ -22,6 +22,7 @@ from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
 
@@ -47,11 +48,18 @@ class PedestalModelOutputTest(absltest.TestCase):
         ),
     )
 
-  def test_to_internal_boundary_conditions(self):
-    ibc = self.pedestal_model_output.to_internal_boundary_conditions(self.geo)
+  def test_to_internal_boundary_conditions_shapes_and_values(self):
     idx = jnp.argmin(
         jnp.abs(self.geo.rho_norm - self.pedestal_model_output.rho_norm_ped_top)
     )
+    ibc = self.pedestal_model_output.to_internal_boundary_conditions(
+        self.geo,
+        core_profiles=mock.create_autospec(state.CoreProfiles, instance=True),
+    )
+    self.assertEqual(ibc.T_i.shape, (self.geo.rho_norm.shape[0],))
+    self.assertEqual(ibc.T_e.shape, (self.geo.rho_norm.shape[0],))
+    self.assertEqual(ibc.n_e.shape, (self.geo.rho_norm.shape[0],))
+
     with self.subTest('T_i'):
       np.testing.assert_allclose(
           ibc.T_i[idx], self.pedestal_model_output.T_i_ped
@@ -76,35 +84,48 @@ class PedestalModelOutputTest(absltest.TestCase):
 
   def test_modify_core_transport_applies_multipliers(self):
     n_face = self.geo.rho_face_norm.shape[0]
-    core_transport = state.CoreTransport(
+    turbulent_total = transport_coeffs_lib.TransportCoeffs(
         chi_face_ion=jnp.ones(n_face),
         chi_face_el=jnp.ones(n_face),
         d_face_el=jnp.ones(n_face),
         v_face_el=jnp.ones(n_face),
-        chi_face_el_bohm=jnp.ones(n_face),
-        chi_face_el_gyrobohm=jnp.ones(n_face),
-        chi_face_ion_bohm=jnp.ones(n_face),
-        chi_face_ion_gyrobohm=jnp.ones(n_face),
-        chi_face_el_itg=jnp.ones(n_face),
-        chi_face_el_tem=jnp.ones(n_face),
-        chi_face_el_etg=jnp.ones(n_face),
-        chi_face_ion_itg=jnp.ones(n_face),
-        chi_face_ion_tem=jnp.ones(n_face),
-        d_face_el_itg=jnp.ones(n_face),
-        d_face_el_tem=jnp.ones(n_face),
-        v_face_el_itg=jnp.ones(n_face),
-        v_face_el_tem=jnp.ones(n_face),
-        chi_neo_i=jnp.ones(n_face),
-        chi_neo_e=jnp.ones(n_face),
-        D_neo_e=jnp.ones(n_face),
-        V_neo_e=jnp.ones(n_face),
-        V_neo_ware_e=jnp.ones(n_face),
-        chi_face_ion_pereverzev=jnp.ones(n_face),
-        chi_face_el_pereverzev=jnp.ones(n_face),
-        full_v_heat_face_ion_pereverzev=jnp.ones(n_face),
-        full_v_heat_face_el_pereverzev=jnp.ones(n_face),
-        d_face_el_pereverzev=jnp.ones(n_face),
-        v_face_el_pereverzev=jnp.ones(n_face),
+    )
+    bgb_output = transport_coeffs_lib.TransportCoeffs(
+        chi_face_ion=jnp.ones(n_face),
+        chi_face_el=jnp.ones(n_face),
+        d_face_el=jnp.ones(n_face),
+        v_face_el=jnp.ones(n_face),
+    )
+    turbulent = transport_coeffs_lib.TurbulentTransport(
+        total=turbulent_total,
+        core_coefficients={'bohm_gyrobohm': bgb_output},
+        pedestal_coefficients={},
+    )
+    neoclassical = transport_coeffs_lib.NeoclassicalTransport(
+        chi_face_ion=jnp.ones(n_face),
+        chi_face_el=jnp.ones(n_face),
+        d_face_el=jnp.ones(n_face),
+        v_face_el=jnp.ones(n_face) * 2.0,
+        v_face_el_ware=jnp.ones(n_face),
+    )
+    pereverzev = transport_coeffs_lib.PereverzevTransport(
+        chi_face_ion=jnp.ones(n_face),
+        chi_face_el=jnp.ones(n_face),
+        full_v_heat_face_ion=jnp.ones(n_face),
+        full_v_heat_face_el=jnp.ones(n_face),
+        d_face_el=jnp.ones(n_face),
+        v_face_el=jnp.ones(n_face),
+    )
+    total = transport_coeffs_lib.sum_transport_coeffs(
+        turbulent.total,
+        neoclassical,
+        pereverzev,
+    )
+    core_transport = state.CoreTransport(
+        total=total,
+        turbulent=turbulent,
+        neoclassical=neoclassical,
+        pereverzev=pereverzev,
     )
 
     pedestal_runtime_params = mock.create_autospec(
@@ -116,75 +137,89 @@ class PedestalModelOutputTest(absltest.TestCase):
     pedestal_runtime_params.V_e_min = jnp.array(-1.0)
     pedestal_runtime_params.pedestal_top_smoothing_width = jnp.array(0.0)
 
-    modified_core_transport = self.pedestal_model_output.modify_core_transport(
-        core_transport, self.geo, pedestal_runtime_params
+    modified_core_transport = (
+        self.pedestal_model_output.modify_core_transport(
+            core_transport=core_transport,
+            geo=self.geo,
+            pedestal_runtime_params=pedestal_runtime_params,
+        )
     )
     pedestal_mask = (
         self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_ped_top
     )
 
     # Check turbulent and Pereverzev transport is scaled correctly.
-    for field_name in [
-        'chi_face_el',
-        'chi_face_el_bohm',
-        'chi_face_el_gyrobohm',
-        'chi_face_el_pereverzev',
-    ]:
-      field = getattr(modified_core_transport, field_name)
-      np.testing.assert_allclose(
-          field,
-          jnp.where(pedestal_mask, 2.0, 1.0),
-      )
-    for field_name in [
-        'chi_face_ion',
-        'chi_face_ion_bohm',
-        'chi_face_ion_gyrobohm',
-        'chi_face_ion_pereverzev',
-    ]:
-      field = getattr(modified_core_transport, field_name)
-      np.testing.assert_allclose(
-          field,
-          jnp.where(pedestal_mask, 3.0, 1.0),
-      )
-    for field_name in [
-        'd_face_el',
-        'd_face_el_pereverzev',
-    ]:
-      field = getattr(modified_core_transport, field_name)
-      np.testing.assert_allclose(
-          field,
-          jnp.where(pedestal_mask, 4.0, 1.0),
-      )
-    for field_name in [
-        'v_face_el',
-        'v_face_el_pereverzev',
-    ]:
-      field = getattr(modified_core_transport, field_name)
-      np.testing.assert_allclose(
-          field,
-          jnp.where(pedestal_mask, 5.0, 1.0),
-      )
+    np.testing.assert_allclose(
+        modified_core_transport.turbulent.total.chi_face_el,
+        jnp.where(pedestal_mask, 2.0, 1.0),
+    )
+    bgb_mod = (
+        modified_core_transport.turbulent.core_coefficients['bohm_gyrobohm']
+    )
+    self.assertIsInstance(bgb_mod, transport_coeffs_lib.TransportCoeffs)
+    # Constituent core transport coefficients should NOT be scaled by the
+    # pedestal model.
+    np.testing.assert_allclose(
+        bgb_mod.chi_face_el,
+        bgb_output.chi_face_el,
+    )
+    assert modified_core_transport.pereverzev is not None
+    np.testing.assert_allclose(
+        modified_core_transport.pereverzev.chi_face_el,
+        jnp.where(pedestal_mask, 2.0, 1.0),
+    )
+
+    np.testing.assert_allclose(
+        modified_core_transport.turbulent.total.chi_face_ion,
+        jnp.where(pedestal_mask, 3.0, 1.0),
+    )
+    np.testing.assert_allclose(
+        bgb_mod.chi_face_ion,
+        bgb_output.chi_face_ion,
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.pereverzev.chi_face_ion,
+        jnp.where(pedestal_mask, 3.0, 1.0),
+    )
+
+    np.testing.assert_allclose(
+        modified_core_transport.turbulent.total.d_face_el,
+        jnp.where(pedestal_mask, 4.0, 1.0),
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.pereverzev.d_face_el,
+        jnp.where(pedestal_mask, 4.0, 1.0),
+    )
+
+    np.testing.assert_allclose(
+        modified_core_transport.turbulent.total.v_face_el,
+        jnp.where(pedestal_mask, 5.0, 1.0),
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.pereverzev.v_face_el,
+        jnp.where(pedestal_mask, 5.0, 1.0),
+    )
 
     # Check neoclassical transport is not affected.
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        modified_core_transport.chi_neo_i,
-        core_transport.chi_neo_i,
+    np.testing.assert_allclose(
+        modified_core_transport.neoclassical.chi_face_ion,
+        core_transport.neoclassical.chi_face_ion,
     )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        modified_core_transport.chi_neo_e,
-        core_transport.chi_neo_e,
+    np.testing.assert_allclose(
+        modified_core_transport.neoclassical.chi_face_el,
+        core_transport.neoclassical.chi_face_el,
     )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        modified_core_transport.D_neo_e,
-        core_transport.D_neo_e,
+    np.testing.assert_allclose(
+        modified_core_transport.neoclassical.d_face_el,
+        core_transport.neoclassical.d_face_el,
     )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        modified_core_transport.V_neo_e,
-        core_transport.V_neo_e,
+    np.testing.assert_allclose(
+        modified_core_transport.neoclassical.v_face_el,
+        core_transport.neoclassical.v_face_el,
     )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        modified_core_transport.V_neo_ware_e,
-        core_transport.V_neo_ware_e,
+    np.testing.assert_allclose(
+        modified_core_transport.neoclassical.v_face_el_ware,
+        core_transport.neoclassical.v_face_el_ware,
     )
 
   def test_to_internal_boundary_conditions_tanh_profiles(self):
