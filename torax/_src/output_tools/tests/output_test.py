@@ -26,8 +26,8 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.core_profiles import initialization
-from torax._src.edge import extended_lengyel_solvers
-from torax._src.edge import extended_lengyel_standalone
+from torax._src.edge.extended_lengyel import extended_lengyel_solvers
+from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.fvm import cell_variable
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation

@@ -22,9 +22,9 @@ import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base as edge_base
-from torax._src.edge import extended_lengyel_model
-from torax._src.edge import extended_lengyel_standalone
 from torax._src.edge import updaters
+from torax._src.edge.extended_lengyel import extended_lengyel_model
+from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 

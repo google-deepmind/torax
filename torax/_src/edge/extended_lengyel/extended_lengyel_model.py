@@ -28,12 +28,12 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base
-from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
-from torax._src.edge import extended_lengyel_defaults
-from torax._src.edge import extended_lengyel_enums
-from torax._src.edge import extended_lengyel_solvers
-from torax._src.edge import extended_lengyel_standalone
 from torax._src.edge import runtime_params as edge_runtime_params
+from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import extended_lengyel_enums
+from torax._src.edge.extended_lengyel import extended_lengyel_solvers
+from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.physics import psi_calculations

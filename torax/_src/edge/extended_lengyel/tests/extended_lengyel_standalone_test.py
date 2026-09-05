@@ -17,11 +17,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src.edge import divertor_sol_1d
-from torax._src.edge import extended_lengyel_defaults
-from torax._src.edge import extended_lengyel_enums
-from torax._src.edge import extended_lengyel_solvers
-from torax._src.edge import extended_lengyel_standalone
+from torax._src.edge.extended_lengyel import divertor_sol_1d
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import extended_lengyel_enums
+from torax._src.edge.extended_lengyel import extended_lengyel_solvers
+from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.solver import jax_root_finding
 
 # pylint: disable=invalid-name

@@ -2,7 +2,7 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may
+# You may obtain a copy of the License at
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -30,8 +30,8 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src.edge import collisional_radiative_models
-from torax._src.edge import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import collisional_radiative_models
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 
 # pylint: disable=invalid-name
 

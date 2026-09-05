@@ -14,12 +14,12 @@
 import dataclasses
 from absl.testing import absltest
 import numpy as np
-from torax._src.edge import extended_lengyel_defaults
-from torax._src.edge import extended_lengyel_enums
-from torax._src.edge import extended_lengyel_formulas
-from torax._src.edge import extended_lengyel_solvers
-from torax._src.edge import extended_lengyel_standalone
-from torax._src.edge import pydantic_model
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import extended_lengyel_enums
+from torax._src.edge.extended_lengyel import extended_lengyel_formulas
+from torax._src.edge.extended_lengyel import extended_lengyel_solvers
+from torax._src.edge.extended_lengyel import extended_lengyel_standalone
+from torax._src.edge.extended_lengyel import pydantic_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 

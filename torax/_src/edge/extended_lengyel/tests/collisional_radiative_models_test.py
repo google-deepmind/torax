@@ -17,8 +17,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src.edge import collisional_radiative_models
-from torax._src.edge import mavrin_2017_charge_states_data
+from torax._src.edge.extended_lengyel import collisional_radiative_models
+from torax._src.edge.extended_lengyel import mavrin_2017_charge_states_data
 from torax._src.physics import charge_states as charge_states_core
 
 # pylint: disable=invalid-name

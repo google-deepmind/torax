@@ -14,8 +14,8 @@
 
 from absl.testing import absltest
 import numpy as np
-from torax._src.edge import extended_lengyel_defaults
-from torax._src.edge import extended_lengyel_formulas
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 
 # pylint: disable=invalid-name
 

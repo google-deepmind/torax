@@ -24,7 +24,7 @@ from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src.edge import mavrin_2017_charge_states_data
+from torax._src.edge.extended_lengyel import mavrin_2017_charge_states_data
 from torax._src.physics.radiation import radiation
 
 # pylint: disable=invalid-name

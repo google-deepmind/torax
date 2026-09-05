@@ -15,8 +15,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src.edge import divertor_sol_1d
-from torax._src.edge import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import divertor_sol_1d
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 
 # pylint: disable=invalid-name
 

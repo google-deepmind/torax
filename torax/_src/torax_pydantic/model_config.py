@@ -26,9 +26,10 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
-from torax._src.edge import extended_lengyel_enums
-from torax._src.edge import extended_lengyel_model
 from torax._src.edge import pydantic_model as edge_pydantic_model
+from torax._src.edge.extended_lengyel import extended_lengyel_enums
+from torax._src.edge.extended_lengyel import extended_lengyel_model
+from torax._src.edge.extended_lengyel import pydantic_model as extended_lengyel_pydantic_model
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -234,7 +235,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   ) -> typing_extensions.Self:
     """Ensures Extended Lengyel uses n_e_ratios impurity mode."""
     if (
-        isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig)
+        isinstance(
+            self.edge,
+            extended_lengyel_pydantic_model.ExtendedLengyelConfig,
+        )
         and self.plasma_composition.impurity.impurity_mode != 'n_e_ratios'
     ):
       raise ValueError(
@@ -252,7 +256,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     - For FBT geometry: `diverted` must NOT be set (it's provided by FBT).
     - For non-FBT geometry: `diverted` MUST be set if edge model is used.
     """
-    if isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
+    if isinstance(
+        self.edge,
+        extended_lengyel_pydantic_model.ExtendedLengyelConfig,
+    ):
       is_fbt = self.geometry.geometry_type == geometry.GeometryType.FBT
       diverted = self.edge.diverted is not None
 
@@ -276,7 +283,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @pydantic.model_validator(mode='after')
   def _validate_edge_core_impurity_consistency(self) -> typing_extensions.Self:
     """Validates consistency between plasma composition and edge impurities."""
-    if isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
+    if isinstance(
+        self.edge,
+        extended_lengyel_pydantic_model.ExtendedLengyelConfig,
+    ):
       core_species = set(self.plasma_composition.impurity.species.keys())
       edge_fixed = set(self.edge.fixed_impurity_concentrations.keys())
 
@@ -325,7 +335,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     species, and raises an error if any time slice has a zero value at
     rho_norm=1.
     """
-    if not isinstance(self.edge, edge_pydantic_model.ExtendedLengyelConfig):
+    if not isinstance(
+        self.edge,
+        extended_lengyel_pydantic_model.ExtendedLengyelConfig,
+    ):
       return self
     impurity = self.plasma_composition.impurity
     if not isinstance(impurity, electron_density_ratios.ElectronDensityRatios):

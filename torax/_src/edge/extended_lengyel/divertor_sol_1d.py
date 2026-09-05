@@ -36,8 +36,8 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src.edge import extended_lengyel_defaults
-from torax._src.edge import extended_lengyel_formulas
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 
 # pylint: disable=invalid-name
 

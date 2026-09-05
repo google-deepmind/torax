@@ -20,9 +20,9 @@ import jax
 from jax import numpy as jnp
 from torax._src import constants
 from torax._src import math_utils
-from torax._src.edge import collisional_radiative_models
-from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
-from torax._src.edge import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import collisional_radiative_models
+from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.solver import jax_root_finding
 # pylint: disable=invalid-name
 
@@ -86,7 +86,7 @@ class ExtendedLengyelSolverStatus:
       `extended_lengyel_solvers.FixedPointOutcome` for the fixed-point solver.
   """
 
-  physics_outcome: PhysicsOutcome
+  physics_outcome: jax.Array | PhysicsOutcome
   numerics_outcome: jax_root_finding.RootMetadata | FixedPointOutcome
 
 
@@ -595,7 +595,7 @@ def _inverse_residual(
 
 def _solve_for_c_z_prefactor(
     sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-) -> tuple[jax.Array, PhysicsOutcome]:
+) -> tuple[jax.Array, jax.Array]:
   """Solves the extended Lengyel model for the required impurity concentration.
 
   This function implements the extended Lengyel model in inverse mode,
@@ -707,12 +707,12 @@ def _solve_for_c_z_prefactor(
       PhysicsOutcome.SUCCESS,
   )
 
-  return c_z_prefactor, status  # pytype: disable=bad-return-type
+  return jnp.asarray(c_z_prefactor), status
 
 
 def _solve_for_qcc(
     sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-) -> tuple[jax.Array, PhysicsOutcome]:
+) -> tuple[jax.Array, jax.Array]:
   """Calculates the parallel heat flux at the cc-interface for fixed impurities.
 
   This function is part of the extended Lengyel model in forward mode,
@@ -801,4 +801,4 @@ def _solve_for_qcc(
 
   qcc = qcc_norm * jnp.sqrt(qu**2)
 
-  return qcc, status  # pytype: disable=bad-return-type
+  return qcc, status

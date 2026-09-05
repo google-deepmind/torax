@@ -22,8 +22,8 @@ from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base as edge_base
-from torax._src.edge import extended_lengyel_model
-from torax._src.edge import extended_lengyel_standalone
+from torax._src.edge.extended_lengyel import extended_lengyel_model
+from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 
 # pylint: disable=invalid-name
 

@@ -26,11 +26,11 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src.edge import base
-from torax._src.edge import divertor_sol_1d as divertor_sol_1d_lib
-from torax._src.edge import extended_lengyel_defaults
-from torax._src.edge import extended_lengyel_enums
-from torax._src.edge import extended_lengyel_formulas
-from torax._src.edge import extended_lengyel_solvers
+from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
+from torax._src.edge.extended_lengyel import extended_lengyel_enums
+from torax._src.edge.extended_lengyel import extended_lengyel_formulas
+from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.solver import jax_root_finding
