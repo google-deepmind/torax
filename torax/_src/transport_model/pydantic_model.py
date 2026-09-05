@@ -428,25 +428,27 @@ try:
   # Since ComponentTransportModelConfig is not constant, because of the
   # try/except block, unions using this type will cause invalid-annotation
   # errors in pytype.
-  ComponentTransportModelConfig = (
+  ComponentTransportModelConfig = Annotated[
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
       | PrescribedTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
       | tglf_transport_model.TGLFTransportModelConfig
-      | qualikiz_transport_model.QualikizTransportModelConfig
-  )
+      | qualikiz_transport_model.QualikizTransportModelConfig,
+      pydantic.Discriminator('model_name'),
+  ]
 
 except ImportError:
-  ComponentTransportModelConfig = (
+  ComponentTransportModelConfig = Annotated[
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
       | PrescribedTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
-      | tglf_transport_model.TGLFTransportModelConfig
-  )
+      | tglf_transport_model.TGLFTransportModelConfig,
+      pydantic.Discriminator('model_name'),
+  ]
 
 
 class SmoothingZone(torax_pydantic.BaseModelFrozen):

@@ -19,6 +19,7 @@ from typing import Annotated, Literal
 
 from absl.testing import absltest
 import jax.numpy as jnp
+import pydantic
 import torax
 from torax import transport
 from torax._src import array_typing
@@ -79,6 +80,43 @@ class TransportTest(absltest.TestCase):
     }
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)
+
+  def test_registered_model_discriminator(self):
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'core_transport_models': {'test': {'model_name': 'invalid_name'}},
+    }
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Input tag 'invalid_name' found using 'model_name' does not match any"
+        r".*'fake_api'",
+    ):
+      torax.ToraxConfig.from_dict(config)
+
+  def test_dynamic_registration_updates_discriminator(self):
+
+    class DynamicTransportPydantic(transport.ComponentTransportBase):
+      model_name: Annotated[Literal['dynamic_fake'], torax.JAX_STATIC] = (
+          'dynamic_fake'
+      )
+
+      def build_transport_model(self) -> FakeTransportModel:
+        return FakeTransportModel()
+
+    transport.register_transport_model(DynamicTransportPydantic)
+
+    config = default_configs.get_default_config_dict()
+    # Verify that an invalid model name error now includes 'dynamic_fake'.
+    config['transport'] = {
+        'core_transport_models': {'dyn': {'model_name': 'unknown_model'}},
+    }
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Input tag 'unknown_model' found using 'model_name' does not match any"
+        r".*'dynamic_fake'",
+    ):
+      torax.ToraxConfig.from_dict(config)
+
 
 if __name__ == '__main__':
   absltest.main()
