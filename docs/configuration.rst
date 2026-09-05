@@ -389,46 +389,89 @@ time-dependence of temperature, density, and current.
   ``toroidal_angular_velocity`` at :math:`\hat{\rho}=1`. If ``toroidal_angular_velocity`` is
   also ``None``, then the boundary condition will be set to zero.
 
-``internal_boundary_conditions`` (dict [default = {}])
+``internal_boundary_conditions`` (dict [default = {'model_name': 'no_ibc'}])
   Internal boundary conditions for :math:`T_i`, :math:`T_e`, and :math:`n_e`.
-  These conditions are enforced via adaptive sources. The dictionary can contain
-  the keys ``T_i``, ``T_e``, and ``n_e``. Each of these keys accepts a
-  **sparse time-varying-array** type, allowing specification of time-varying
-  values at fixed spatial points.
+  These conditions are enforced via matrix row replacement in the PDE solver.
+  Models are selected via the ``'model_name'`` key:
 
-  Values are specified as ``{time: {rho_norm: value, ...}, ...}``. For example:
+  1. ``'model_name': 'no_ibc'`` (default):
+     No internal boundary conditions are active.
 
-  .. code-block:: python
+  2. ``'model_name': 'prescribed'``:
+     Explicitly prescribe time-varying values for any subset of ``T_i``, ``T_e``,
+     and ``n_e`` using **sparse time-varying-array** types.
+     Any values of 0.0 will be treated as no IBC in that location. It is therefore
+     possible to only have an IBC for a subset of the channels (e.g. only setting
+     ``T_e``). Not including a channel in the config means no IBC for that channel.
+     Values are specified as ``{time: {rho_norm: value, ...}, ...}``. For example:
 
-    'internal_boundary_conditions': {
-        'T_e': {
-            0.0: {0.85: 1.0},
-            1.0: {0.85: 1.5}
-        }
-    }
+     .. code-block:: python
 
-  This will set the electron temperature to 1.0 keV at :math:`\hat{\rho}=0.85`
-  at t=0, and 1.5 keV at :math:`\hat{\rho}=0.85` at t=1, with linear
-  interpolation in time in between.
+       'profile_conditions': {
+           'internal_boundary_conditions': {
+               'model_name': 'prescribed',
+               'T_e': {
+                   0.0: {0.85: 1.0},
+                   1.0: {0.85: 1.5}
+               }
+           }
+       }
 
-  In addition, time-varying values can be specified for a given **range** of
-  :math:`\hat{\rho}` values. For example:
+     This sets the electron temperature to 1.0 keV at :math:`\hat{\rho}=0.85`
+     at t=0, and 1.5 keV at :math:`\hat{\rho}=0.85` at t=1, with linear
+     interpolation in time in between.
 
-  .. code-block:: python
+     Time-varying values can also be specified for a **range** of :math:`\hat{\rho}`
+     values:
 
-    'T_i': {
-        0.0: {
-            (0.85, 1.0): {0.85: 1.5, 1.0: 1.0}
-        }
-    }
+     .. code-block:: python
 
-  This will set the ion temperature to 1.5keV at :math:`\hat{\rho}=0.85` with
-  linear interpolation to 1.0keV at :math:`\hat{\rho}=1.0` at t=0.
+       'profile_conditions': {
+           'internal_boundary_conditions': {
+               'model_name': 'prescribed',
+               'T_i': {
+                   0.0: {
+                       (0.85, 1.0): {0.85: 1.5, 1.0: 1.0}
+                   }
+               }
+           }
+       }
 
-  Note that the radial locations (:math:`\hat{\rho}` keys) of the internal
-  boundary conditions must be the same at all times - there is currently no way
-  to specify time-varying radial locations for the internal boundary
-  conditions.
+     Note that radial locations (:math:`\hat{\rho}` keys) must be the same at all
+     times.
+
+  3. ``'model_name': 'beta_poloidal_prime'``:
+     Dynamically computes L-mode edge kinetic profiles (:math:`T_i, T_e, n_e`)
+     in the edge region :math:`\hat{\rho} \ge \hat{\rho}_{\text{edge}}` from a
+     prescribed gradient of the local poloidal beta with respect to normalized
+     poloidal flux, :math:`\beta_{pol}' \equiv -\partial \beta_{pol,\text{local}} / \partial \psi_N`.
+     Requires:
+
+     - ``rho_norm_edge`` (float in (0, 1)): Edge normalized toroidal flux coordinate
+       :math:`\hat{\rho}_{\text{edge}}` bounding the constrained edge region.
+     - ``n_e_edge`` (**time-varying-scalar**): Prescribed electron density at the
+       edge boundary :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}` if
+       ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+     - ``n_e_is_fGW`` (bool [default = False]): If True, ``n_e_edge`` is interpreted
+       as a Greenwald fraction (dimensionless) instead of absolute density (:math:`\text{m}^{-3}`).
+     - ``beta_poloidal_prime`` (**time-varying-scalar**): Prescribed normalized
+       poloidal beta gradient :math:`\beta_{pol}' > 0` [dimensionless].
+     - ``Ti_Te_ratio`` (**time-varying-scalar**): Prescribed ratio :math:`T_i / T_e`
+       in the edge region [dimensionless].
+
+     Example configuration:
+
+     .. code-block:: python
+
+       'profile_conditions': {
+           'internal_boundary_conditions': {
+               'model_name': 'beta_poloidal_prime',
+               'rho_norm_edge': 0.8,
+               'n_e_edge': 0.2e20,
+               'beta_poloidal_prime': 1.5,
+               'Ti_Te_ratio': 1.0,
+           }
+       }
 
 ``fast_ions`` (list[dict] | None [default = None])
   Prescribed fast ion density and temperature profiles. Each entry prescribes
