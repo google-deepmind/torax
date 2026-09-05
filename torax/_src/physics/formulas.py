@@ -248,7 +248,7 @@ def calculate_betas(
 
   beta_pol = (
       4.0
-      * geo.volume[-1]
+      * geo.volume_face[-1]
       * p_total_volume_avg
       / (
           constants.CONSTANTS.mu_0
