@@ -30,7 +30,10 @@ CONFIG = {
         'normalize_n_e_to_nbar': True,
         'nbar': 0.33820425407e20,  # fGW=0.85 for Ip(t=0)
         'internal_boundary_conditions': {
-            'T_e': {0.0: {(0.0, 0.3): 7.0}, 5.0: {(0.0, 0.3): 15.0}},
+            'T_e': {
+                0.0: {(0.8, 1.0): {0.8: 2.0, 1.0: 1.0}},
+                4.0: {(0.8, 1.0): {0.8: 4.0, 1.0: 1.0}},
+            },
         },
     },
     'numerics': {
@@ -62,7 +65,7 @@ CONFIG = {
     },
     'pedestal': {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
+        'set_pedestal': ({0: False, 4: True}, 'STEP'),
         'T_i_ped': {0: 2, 4: 2, 6: 5, 8: 4},
         'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
