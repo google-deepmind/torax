@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Register a pedestal model with TORAX."""
+from typing import Annotated, get_args
 from torax._src.pedestal_model import pydantic_model
 from torax._src.torax_pydantic import model_config
 
@@ -20,7 +21,16 @@ def register_pedestal_model(
     pydantic_model_class: type[pydantic_model.BasePedestal],
 ):
   """Registers a pedestal model with TORAX."""
-  model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
-      'pedestal'
-  ].annotation |= pydantic_model_class
+  inner_union, discriminator = get_args(pydantic_model.PedestalConfig)
+  new_union = inner_union | pydantic_model_class
+  setattr(
+      pydantic_model,
+      'PedestalConfig',
+      Annotated[new_union, discriminator],
+  )
+  setattr(
+      model_config.ToraxConfig.model_fields['pedestal'],
+      'annotation',
+      new_union,
+  )
   model_config.ToraxConfig.model_rebuild(force=True)

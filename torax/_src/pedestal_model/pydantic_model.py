@@ -210,7 +210,10 @@ class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
 
 
 # For new formation and saturation models, add to these TypeAliases via Union.
-FormationConfig: TypeAlias = DelabieScalingFormation | MartinScalingFormation
+FormationConfig: TypeAlias = Annotated[
+    DelabieScalingFormation | MartinScalingFormation,
+    pydantic.Discriminator("model_name"),
+]
 SaturationConfig: TypeAlias = ProfileValueSaturation
 
 
@@ -563,4 +566,7 @@ class NoPedestal(BasePedestal):
     )
 
 
-PedestalConfig = SetPpedTpedRatioNped | SetTpedNped | NoPedestal
+PedestalConfig = Annotated[
+    SetPpedTpedRatioNped | SetTpedNped | NoPedestal,
+    pydantic.Discriminator("model_name"),
+]

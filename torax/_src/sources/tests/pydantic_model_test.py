@@ -18,13 +18,13 @@ from absl.testing import parameterized
 import chex
 import jax
 import numpy as np
+import pydantic
 from torax._src import jax_utils
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.sources import base
 from torax._src.sources import fusion_heat_source
 from torax._src.sources import gas_puff_source
-from torax._src.sources import generic_current_source
 from torax._src.sources import pydantic_model
 from torax._src.sources import qei_source
 from torax._src.sources import runtime_params as source_runtime_params_lib
@@ -79,12 +79,11 @@ class PydanticModelTest(parameterized.TestCase):
         sources_model.source_model_config[list(config.keys())[0]],
         expected_sources_model,
     )
-    # Check that the 3 default sources are always present.
-    for key in [
+    # Check that ei_exchange is always present by default.
+    self.assertIn(
         qei_source.QeiSource.SOURCE_NAME,
-        generic_current_source.GenericCurrentSource.SOURCE_NAME,
-    ]:
-      self.assertIn(key, sources_model.source_model_config.keys())
+        sources_model.source_model_config.keys(),
+    )
 
   def test_adding_standard_source_via_config(self):
     """Tests that a source can be added with overriding defaults."""
@@ -99,16 +98,13 @@ class PydanticModelTest(parameterized.TestCase):
     })
     source_models = sources.build_models()
     # The non-standard ones are still off.
-    self.assertEqual(
-        sources.generic_current.mode,
-        source_runtime_params_lib.Mode.ZERO,
-    )
+    self.assertIsNone(sources.generic_current)
     self.assertEqual(
         sources.ei_exchange.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     # But these new sources have been added.
-    self.assertLen(source_models.standard_sources, 3)
+    self.assertLen(source_models.standard_sources, 2)
     # With the overriding params.
     gas_puff_config = sources.gas_puff
     self.assertIsNotNone(gas_puff_config)
@@ -131,16 +127,13 @@ class PydanticModelTest(parameterized.TestCase):
   def test_empty_source_config_only_has_defaults_turned_off(self):
     """Tests that an empty source config has all sources turned off."""
     sources = pydantic_model.Sources.from_dict({})
-    self.assertEqual(
-        sources.generic_current.mode,
-        source_runtime_params_lib.Mode.ZERO,
-    )
+    self.assertIsNone(sources.generic_current)
     self.assertEqual(
         sources.ei_exchange.mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     source_models = sources.build_models()
-    self.assertLen(source_models.standard_sources, 1)
+    self.assertEmpty(source_models.standard_sources)
 
   def test_adding_a_source_with_prescribed_values(self):
     """Tests that a source can be added with overriding defaults."""
@@ -168,6 +161,7 @@ class PydanticModelTest(parameterized.TestCase):
     )
     torax_pydantic.set_grid(sources, mesh)
     source = sources.generic_current
+    self.assertIsNotNone(source)
     self.assertLen(source.prescribed_values, 1)
     self.assertIsInstance(
         source.prescribed_values[0], torax_pydantic.TimeVaryingArray
@@ -378,6 +372,16 @@ class PydanticModelTest(parameterized.TestCase):
       output_field = getattr(output, field_to_update)
       chex.assert_trees_all_close(output_field, updated_value)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+  def test_generic_current_invalid_model_name_error_message(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Input tag 'invalid_name' found using 'model_name' does not match any"
+        r' of the expected tags',
+    ):
+      pydantic_model.Sources.from_dict(
+          {'generic_current': {'model_name': 'invalid_name'}}
+      )
 
 
 if __name__ == '__main__':

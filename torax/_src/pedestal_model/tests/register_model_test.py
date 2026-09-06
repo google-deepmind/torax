@@ -19,6 +19,7 @@ from typing import Annotated, Literal
 
 from absl.testing import absltest
 import jax.numpy as jnp
+import pydantic
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -46,6 +47,18 @@ class RegisterPedestalModelTest(absltest.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     self.assertIsInstance(pedestal_model, FixedPedestalModel)
+
+  def test_dynamic_registration_updates_discriminator(self):
+    register_model.register_pedestal_model(FixedPedestalConfig)
+
+    config = default_configs.get_default_config_dict()
+    config['pedestal'] = {'model_name': 'invalid_name'}
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Input tag 'invalid_name' found using 'model_name' does not match any"
+        r".*'fixed_pedestal'",
+    ):
+      model_config.ToraxConfig.from_dict(config)
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
