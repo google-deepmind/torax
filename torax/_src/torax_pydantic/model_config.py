@@ -84,9 +84,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   transport: transport_model_pydantic_model.TransportModel = (
       pydantic.Field()
   )
-  pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field(
-      discriminator='model_name'
-  )
+  pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field()
   mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
   edge: edge_pydantic_model.EdgeConfig | None = None
   time_step_calculator: (

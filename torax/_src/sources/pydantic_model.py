@@ -79,8 +79,11 @@ class Sources(torax_pydantic.BaseModelFrozen):
       discriminator='model_name',
       default=None,
   )
-  generic_current: generic_current_source_lib.GenericCurrentSourceConfig = (
-      torax_pydantic.ValidatedDefault({'mode': 'ZERO'})
+  generic_current: (
+      generic_current_source_lib.GenericCurrentSourceConfig | None
+  ) = pydantic.Field(
+      discriminator='model_name',
+      default=None,
   )
   generic_heat: (
       generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig | None
@@ -171,6 +174,11 @@ class Sources(torax_pydantic.BaseModelFrozen):
             constructor_data[k][
                 'model_name'
             ] = generic_ion_el_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'generic_current':
+          if 'model_name' not in v:
+            constructor_data[k][
+                'model_name'
+            ] = generic_current_source_lib.DEFAULT_MODEL_FUNCTION_NAME
         case 'impurity_radiation':
           if 'model_name' not in v:
             constructor_data[k][
