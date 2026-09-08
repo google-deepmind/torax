@@ -11,12 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Conversion and scaling utilities between CoreProfiles and fvm objects."""
+"""Conversion, state scaling, and residual scaling utilities.
+
+Provides utilities to convert between CoreProfiles state variables and FVM
+solver objects, including state variable scaling and residual
+scaling.
+
+State variable scaling statically converts state variables from physical units
+to dimensionless O(1) solver units, equilibrating step sizes across Jacobian
+columns. Residual scaling dynamically weights residual equations by
+characteristic physical profile scales, normalizing error measurements across
+Jacobian rows for linesearch and convergence checks. These two scalings operate
+orthogonally on the domain (unknowns) and codomain (equations) respectively.
+"""
 
 import dataclasses
 from typing import Final, Mapping, Tuple
 
 import immutabledict
+import jax
+import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.fvm import cell_variable
 
@@ -141,3 +156,65 @@ def apply_state_scaling(
       right_face_constraint=scaled_right_face_constraint,
       right_face_grad_constraint=scaled_right_face_grad_constraint,
   )
+
+
+# Default physical floors for residual channel scaling (in solver units).
+# Used when channel magnitudes are small or zero (e.g. cold start, zero axis
+# flux).
+RESIDUAL_SCALE_FLOORS: Final[Mapping[str, float]] = (
+    immutabledict.immutabledict({
+        'T_i': 0.1,  # 100 eV
+        'T_e': 0.1,  # 100 eV
+        'n_e': 0.01,  # 1e18 m^-3
+        'psi': 0.01,  # 0.01 Wb
+    })
+)
+
+
+def _compute_channel_residual_scale(
+    name: str, x: array_typing.Array
+) -> jax.Array:
+  """Computes a dynamic characteristic physical scale for a channel.
+
+  Args:
+    name: The name of the physical channel (e.g., 'T_i', 'T_e', 'n_e', 'psi').
+    x: The channel's profile array at the start of the time step (in solver
+      units).
+
+  Returns:
+    A scalar jax.Array representing the characteristic physical scale.
+  """
+  floor = RESIDUAL_SCALE_FLOORS[name]
+  if name == 'psi':
+    return jnp.maximum(jnp.max(x) - jnp.min(x), floor)
+  else:
+    return jnp.maximum(jnp.mean(jnp.abs(x)), floor)
+
+
+def compute_residual_scaling_vector(
+    evolving_names: tuple[str, ...],
+    x_old: tuple[cell_variable.CellVariable, ...],
+) -> jax.Array:
+  """Computes the residual scaling vector across all evolving channels and cells.
+
+  Reference scales are adapted dynamically to the solution state rather than
+  using hardcoded constants.
+
+  For poloidal flux (psi), the scale is computed from the profile span
+  (max - min), which is gauge-invariant. For temperatures and densities,
+  the scale is computed from the mean profile magnitude. Physical floors
+  prevent division by zero during cold startup or at zero crossings.
+
+  Args:
+    evolving_names: The names of the evolving variables.
+    x_old: The tuple of CellVariable objects at the start of the time step (in
+      solver units).
+
+  Returns:
+    A 1D jax.Array of scales corresponding to the flattened residual vector.
+  """
+  channel_scales = [
+      jnp.full_like(cv.value, _compute_channel_residual_scale(name, cv.value))
+      for name, cv in zip(evolving_names, x_old)
+  ]
+  return jnp.concatenate(channel_scales)
