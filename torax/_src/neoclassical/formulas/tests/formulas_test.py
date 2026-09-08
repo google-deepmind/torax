@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -21,7 +20,6 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.geometry import geometry
 from torax._src.neoclassical.formulas import formulas
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import model_config
@@ -93,29 +91,49 @@ class FormulasTest(parameterized.TestCase):
         log_lambda_ei=log_lambda_ei,
     )
 
-    self.f_trap = formulas.calculate_f_trap(self.geo)
-
-  def test_calculate_f_trap_positive_triangularity(self):
-    geo = mock.create_autospec(
-        geometry.Geometry,
-        instance=True,
-        delta_face=np.array(0.2),
-        epsilon_face=np.array(0.1),
+  def test_calculate_sauter_trapped_fraction_positive_triangularity(self):
+    result = formulas.calculate_sauter_trapped_fraction(
+        epsilon=np.array(0.1), delta=np.array(0.2)
     )
-    result = formulas.calculate_f_trap(geo)
     expected = 0.4362384616678634
     np.testing.assert_allclose(result, expected)
 
-  def test_calculate_f_trap_negative_triangularity(self):
-    geo = mock.create_autospec(
-        geometry.Geometry,
-        instance=True,
-        delta_face=np.array(-0.2),
-        epsilon_face=np.array(0.1),
+  def test_calculate_sauter_trapped_fraction_negative_triangularity(self):
+    result = formulas.calculate_sauter_trapped_fraction(
+        epsilon=np.array(0.1), delta=np.array(-0.2)
     )
-    result = formulas.calculate_f_trap(geo)
     expected = 0.45134158459680895
     np.testing.assert_allclose(result, expected)
+
+  def test_calculate_bounce_averaged_trapped_fraction(self):
+    """Tests the bounce-averaged trapped fraction integration."""
+    theta = np.linspace(0, 2 * np.pi, 200, endpoint=False)
+    B_varying = 5.0 / (1.0 + 0.1 * np.cos(theta))
+    dl_over_Bp_varying = np.ones_like(theta)
+    flux_surf_avg_B2_varying = np.mean(B_varying**2)
+
+    f_trap_default = formulas.calculate_bounce_averaged_trapped_fraction(
+        B=B_varying,
+        dl_over_Bp=dl_over_Bp_varying,
+        flux_surf_avg_B2=flux_surf_avg_B2_varying,
+    )
+    self.assertGreater(float(f_trap_default), 0.0)
+    self.assertLess(float(f_trap_default), 1.0)
+    # Compare with Sauter analytic approximation for eps=0.1, delta=0.
+    f_trap_sauter = formulas.calculate_sauter_trapped_fraction(
+        epsilon=np.array(0.1), delta=np.array(0.0)
+    )
+    np.testing.assert_allclose(f_trap_default, f_trap_sauter, atol=0.01)
+
+    # Verify custom n_lambda matches default within reasonable resolution
+    # tolerance.
+    f_trap_custom = formulas.calculate_bounce_averaged_trapped_fraction(
+        B=B_varying,
+        dl_over_Bp=dl_over_Bp_varying,
+        flux_surf_avg_B2=flux_surf_avg_B2_varying,
+        n_lambda=201,
+    )
+    np.testing.assert_allclose(f_trap_default, f_trap_custom, rtol=1e-3)
 
   def test_calculate_poloidal_velocity_values_are_correct(self):
     poloidal_velocity = formulas.calculate_poloidal_velocity(
@@ -135,9 +153,13 @@ class FormulasTest(parameterized.TestCase):
         rtol=_R_TOL,
     )
 
-  def test_calculate_f_trap_gradient_on_axis(self):
+  def test_calculate_sauter_trapped_fraction_gradient_on_axis(self):
     grad_fn = jax.grad(
-        lambda geo: jnp.sum(formulas.calculate_f_trap(geo)),
+        lambda geo: jnp.sum(
+            formulas.calculate_sauter_trapped_fraction(
+                geo.epsilon_face, geo.delta_face
+            )
+        ),
         allow_int=True,
     )
     grad_geo = grad_fn(self.geo)
