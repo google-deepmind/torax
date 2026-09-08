@@ -13,46 +13,38 @@
 # limitations under the License.
 
 from absl.testing import absltest
+from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
+from torax._src.transport_model import bohm_gyrobohm
+from torax._src.transport_model import pydantic_model
 
 
 # pylint: disable=invalid-name
 class BohmGyroBohmTest(absltest.TestCase):
 
   def _build_model_and_params(self, **bgb_params):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
-        # Set min clipping to 0.0 to avoid values being clipped and hiding
-        # results.
-        'chi_min': 0.0,
-        'chi_max': 1e9,
-        'D_e_min': 0.0,
-        'V_e_min': 0.0,
-        'core_transport_models': {
-            'bohm_gyrobohm': {
-                'model_name': 'bohm-gyrobohm',
-                'D_face_c1': 0.1,
-                'D_face_c2': 0.2,
-                'V_face_coeff': 0.3,
-                **bgb_params,
-            },
-        },
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    model = torax_config.transport.build_transport_model()
-    geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial
+    bgb_config = pydantic_model.BohmGyroBohmTransportModel(
+        D_face_c1=0.1,
+        D_face_c2=0.2,
+        V_face_coeff=0.3,
+        **bgb_params,
     )
+    model = bgb_config.build_transport_model()
+    torax_config = model_config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict()
+    )
+    t = torax_config.numerics.t_initial
+    bgb_runtime_params = bgb_config.build_runtime_params(t)
+    geo = torax_config.geometry.build_provider(t=t)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
+    )(t=t)
     source_models = torax_config.sources.build_models()
     neoclassical_models = torax_config.neoclassical.build_models()
     core_profiles = initialization.initial_core_profiles(
@@ -61,19 +53,13 @@ class BohmGyroBohmTest(absltest.TestCase):
         source_models,
         neoclassical_models,
     )
-    pedestal_outputs = pedestal_model_output_lib.PedestalModelOutput(
-        rho_norm_ped_top=1.0,
-        T_i_ped=0.0,
-        T_e_ped=0.0,
-        n_e_ped=0.0,
-    )
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     return (
         model,
+        bgb_runtime_params,
         runtime_params,
         geo,
         core_profiles,
-        pedestal_outputs,
         two_point_mask,
     )
 
@@ -87,10 +73,10 @@ class BohmGyroBohmTest(absltest.TestCase):
     """
     (
         model_A,
+        bgb_params_A,
         runtime_params_A,
         geo_A,
         core_profiles_A,
-        pedestal_outputs_A,
         two_point_mask_A,
     ) = self._build_model_and_params(
         chi_e_bohm_coeff=2.0,
@@ -105,10 +91,10 @@ class BohmGyroBohmTest(absltest.TestCase):
 
     (
         model_B,
+        bgb_params_B,
         runtime_params_B,
         geo_B,
         core_profiles_B,
-        pedestal_outputs_B,
         two_point_mask_B,
     ) = self._build_model_and_params(
         chi_e_bohm_coeff=1.0,
@@ -122,17 +108,17 @@ class BohmGyroBohmTest(absltest.TestCase):
     )
 
     output_A = model_A(
+        bgb_params_A,
         runtime_params_A,
         geo_A,
         core_profiles_A,
-        pedestal_outputs_A,
         two_point_mask_A,
     )
     output_B = model_B(
+        bgb_params_B,
         runtime_params_B,
         geo_B,
         core_profiles_B,
-        pedestal_outputs_B,
         two_point_mask_B,
     )
 
@@ -143,10 +129,10 @@ class BohmGyroBohmTest(absltest.TestCase):
     """Test that the raw Bohm and gyro-Bohm fields are computed consistently."""
     (
         model_A,
+        bgb_params_A,
         runtime_params_A,
         geo_A,
         core_profiles_A,
-        pedestal_outputs_A,
         two_point_mask_A,
     ) = self._build_model_and_params(
         chi_e_bohm_coeff=2.0,
@@ -161,10 +147,10 @@ class BohmGyroBohmTest(absltest.TestCase):
 
     (
         model_B,
+        bgb_params_B,
         runtime_params_B,
         geo_B,
         core_profiles_B,
-        pedestal_outputs_B,
         two_point_mask_B,
     ) = self._build_model_and_params(
         chi_e_bohm_coeff=1.0,
@@ -178,17 +164,17 @@ class BohmGyroBohmTest(absltest.TestCase):
     )
 
     output_A = model_A(
+        bgb_params_A,
         runtime_params_A,
         geo_A,
         core_profiles_A,
-        pedestal_outputs_A,
         two_point_mask_A,
     )
     output_B = model_B(
+        bgb_params_B,
         runtime_params_B,
         geo_B,
         core_profiles_B,
-        pedestal_outputs_B,
         two_point_mask_B,
     )
 
@@ -224,6 +210,34 @@ class BohmGyroBohmTest(absltest.TestCase):
         output_B.chi_face_el_bohm + output_B.chi_face_el_gyrobohm,
         output_B.chi_face_el,
     )
+
+  def test_to_output_dict(self):
+    n_face = 10
+    bgb_output = bohm_gyrobohm.BohmGyroBohmTransportOutput(
+        chi_face_ion=jnp.ones((1, n_face)) * 1.0,
+        chi_face_el=jnp.ones((1, n_face)) * 2.0,
+        d_face_el=jnp.ones((1, n_face)) * 0.5,
+        v_face_el=jnp.ones((1, n_face)) * -0.1,
+        chi_face_el_bohm=jnp.ones((1, n_face)) * 0.2,
+        chi_face_el_gyrobohm=jnp.ones((1, n_face)) * 1.8,
+        chi_face_ion_bohm=jnp.ones((1, n_face)) * 0.1,
+        chi_face_ion_gyrobohm=jnp.ones((1, n_face)) * 0.9,
+    )
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=np.linspace(0, 1, n_face),
+        rho_cell_norm=np.linspace(0, 1, n_face - 1),
+        rho_cell_plus_boundaries_norm=np.linspace(0, 1, n_face + 1),
+    )
+    out_dict = bgb_output.to_output_dict(context)
+    self.assertIn(output_keys.CHI_TURB_I, out_dict)
+    self.assertIn(output_keys.CHI_TURB_E, out_dict)
+    self.assertIn(output_keys.D_TURB_E, out_dict)
+    self.assertIn(output_keys.V_TURB_E, out_dict)
+    self.assertIn(output_keys.CHI_BOHM_E, out_dict)
+    self.assertIn(output_keys.CHI_GYROBOHM_E, out_dict)
+    self.assertIn(output_keys.CHI_BOHM_I, out_dict)
+    self.assertIn(output_keys.CHI_GYROBOHM_I, out_dict)
 
 
 if __name__ == '__main__':

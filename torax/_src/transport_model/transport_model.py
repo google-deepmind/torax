@@ -34,6 +34,7 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 MIN_SMOOTHING_WIDTH = 1e-5
 
@@ -52,7 +53,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TurbulentTransport:
     r"""Calculates transport coefficients using the TransportModel.
 
     Combines coefficients from core and pedestal transport models, applies
@@ -61,61 +62,60 @@ class TransportModel(static_dataclass.StaticDataclass):
     Args:
       runtime_params: Runtime parameters for the simulation at the current time.
       geo: Geometry of the torus at the current time.
-      core_profiles: Core plasma profiles.
-      pedestal_model_output: Output of the pedestal model.
-      two_point_mask: Boolean mask on the face grid indicating where to use
-        2-point central differencing instead of 3-point polynomial
-        interpolation for gradients.
+      core_profiles: Core plasma profiles at the current time.
+      pedestal_model_output: Outputs from the pedestal model.
+      two_point_mask: Boolean mask indicating the two-point model region.
 
     Returns:
-      coeffs: The transport coefficients
+      TurbulentTransport containing the combined 4-channel coefficients and
+      individual model outputs.
     """
-    transport_runtime_params = runtime_params.transport
-
-    # Calculate transport coefficients from core models.
-    core_coeffs = self._combine(
+    # Combine core transport models.
+    core_combined, core_coefficients = self._combine(
         self.core_transport_models,
-        transport_runtime_params.core_transport_model_params,
+        runtime_params.transport.core_transport_model_params,
         runtime_params,
         geo,
         core_profiles,
         pedestal_model_output,
         two_point_mask,
-        component.compute_core_domain_mask,
+        domain_mask_fn=component.compute_core_domain_mask,
     )
 
-    # Calculate transport coefficients from pedestal models.
-    pedestal_coeffs = self._combine(
+    # Combine pedestal transport models.
+    pedestal_combined, pedestal_coefficients = self._combine(
         self.pedestal_transport_models,
-        transport_runtime_params.pedestal_transport_model_params,
+        runtime_params.transport.pedestal_transport_model_params,
         runtime_params,
         geo,
         core_profiles,
         pedestal_model_output,
         two_point_mask,
-        _pedestal_domain_mask,
+        domain_mask_fn=_pedestal_domain_mask,
     )
 
-    # Combine the transport coefficients from core and pedestal models.
-    transport_coeffs = jax.tree.map(
-        _add_optional, core_coeffs, pedestal_coeffs
-    )
+    # Merge core and pedestal transport coefficients.
+    raw_combined = core_combined + pedestal_combined
 
-    # Apply min/max clipping.
-    transport_coeffs = self._apply_clipping(
-        transport_runtime_params,
-        transport_coeffs,
+    # Apply clipping.
+    clipped_coeffs = self._apply_clipping(
+        runtime_params.transport,
+        raw_combined,
     )
 
     # Apply smoothing.
-    transport_coeffs = self._smooth_coeffs(
+    total_coeffs = self._smooth_coeffs(
         runtime_params,
         geo,
-        transport_coeffs,
+        clipped_coeffs,
         pedestal_model_output,
     )
 
-    return transport_coeffs
+    return transport_coeffs.TurbulentTransport(
+        total=total_coeffs,
+        core_coefficients=core_coefficients,
+        pedestal_coefficients=pedestal_coefficients,
+    )
 
   def _combine(
       self,
@@ -137,7 +137,10 @@ class TransportModel(static_dataclass.StaticDataclass):
           ],
           jax.Array,
       ],
-  ) -> component.TurbulentTransport:
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      dict[str, transport_coeffs.TransportCoeffs],
+  ]:
     """Calculates and combines transport coefficients from a dict of models."""
 
     # Initialize accumulators with zeros. Will be iteratively updated based on
@@ -145,23 +148,19 @@ class TransportModel(static_dataclass.StaticDataclass):
     zero_profile = jnp.zeros_like(
         geo.rho_face_norm, dtype=jax_utils.get_dtype()
     )
+    zero_bool = jnp.zeros_like(geo.rho_face_norm, dtype=bool)
     accumulators = {}
     locks = {}
 
-    for (
-        channel,
-        config,
-    ) in component.ComponentTransportModel.CHANNEL_CONFIG.items():
+    for channel in ('chi_face_ion', 'chi_face_el', 'd_face_el', 'v_face_el'):
       accumulators[channel] = zero_profile
-      locks[channel] = jnp.zeros_like(geo.rho_face_norm, dtype=bool)
-      for sub in config['sub_channels']:
-        accumulators[sub] = None
+      locks[channel] = zero_bool
+    model_outputs: dict[str, transport_coeffs.TransportCoeffs] = {}
 
-    # TODO(b/344023668) explore batching or fori_loop for performance.
     for name in models:
       model = models[name]
       params = params_map[name]
-      # 1. Calculate raw coefficients and zero out disabled channels.
+      # Calculate raw coefficients and zero out disabled channels.
       coeffs = model(
           params,
           runtime_params,
@@ -170,90 +169,69 @@ class TransportModel(static_dataclass.StaticDataclass):
           two_point_mask=two_point_mask,
       )
 
-      # 2. Calculate active domain mask. Values outside this are set to 0.
+      # Calculate active domain mask. Values outside this are set to 0.
       domain_mask = domain_mask_fn(
           params, runtime_params, geo, pedestal_model_output
       )
 
-      coeffs_dict = dataclasses.asdict(coeffs)
-      for k in coeffs_dict:
-        # Apply domain restriction to values.
-        if coeffs_dict[k] is not None:
-          coeffs_dict[k] = jnp.where(domain_mask, coeffs_dict[k], 0.0)  # pyrefly: ignore[bad-argument-type]
+      model_outputs[name] = coeffs
 
-      for (
-          channel,
-          config,
-      ) in component.ComponentTransportModel.CHANNEL_CONFIG.items():
-        disable_flag_name = config['disable_flag']
-        is_disabled = getattr(params, disable_flag_name)  # pyrefly: ignore[bad-argument-type]
+      channels_and_flags = (
+          ('chi_face_ion', params.disable_chi_i),
+          ('chi_face_el', params.disable_chi_e),
+          ('d_face_el', params.disable_D_e),
+          ('v_face_el', params.disable_V_e),
+      )
 
+      for channel, is_disabled in channels_and_flags:
         # A channel is active for this model if it's in the domain AND enabled.
-        # Note that this is a boolean array over the face grid.
         channel_active = jnp.logical_and(
             domain_mask, jnp.logical_not(is_disabled)
         )
 
-        val = coeffs_dict[channel]
+        val = getattr(coeffs, channel)
         if params.merge_mode == enums.MergeMode.OVERWRITE:
           # Wiping: Replace accumulator values where active.
           accumulators[channel] = jnp.where(
-              channel_active, val, accumulators[channel]  # pyrefly: ignore[bad-argument-type]
+              channel_active, val, accumulators[channel]
           )
           # Update lock.
           locks[channel] = jnp.logical_or(locks[channel], channel_active)
         else:  # ADD
-          # Add where not locked.
-          factor = jnp.where(locks[channel], 0.0, 1.0)
-          accumulators[channel] = accumulators[channel] + val * factor  # pyrefly: ignore[unsupported-operation]
+          # Add where active and not locked.
+          condition = channel_active & ~locks[channel]
+          accumulators[channel] = accumulators[channel] + val * condition
 
-        # Handle sub-channels.
-        for sub in config['sub_channels']:
-          sub_val = coeffs_dict[sub]
-          if sub_val is not None:
-            if accumulators[sub] is None:
-              accumulators[sub] = zero_profile
-
-            if params.merge_mode == enums.MergeMode.OVERWRITE:
-              accumulators[sub] = jnp.where(
-                  channel_active, sub_val, accumulators[sub]
-              )
-            else:  # ADD
-              # Add where not locked (using main channel lock).
-              factor = jnp.where(locks[channel], 0.0, 1.0)
-              accumulators[sub] = accumulators[sub] + sub_val * factor
-
-    return component.TurbulentTransport(**accumulators)
+    return transport_coeffs.TransportCoeffs(**accumulators), model_outputs
 
   def _apply_clipping(
       self,
       transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
-      transport_coeffs: component.TurbulentTransport,
-  ) -> component.TurbulentTransport:
+      input_coeffs: transport_coeffs.TransportCoeffs,
+  ) -> transport_coeffs.TransportCoeffs:
     """Applies min/max clipping to transport coefficients for PDE stability."""
     chi_face_ion = jnp.clip(
-        transport_coeffs.chi_face_ion,
+        input_coeffs.chi_face_ion,
         transport_runtime_params.chi_min,
         transport_runtime_params.chi_max,
     )
     chi_face_el = jnp.clip(
-        transport_coeffs.chi_face_el,
+        input_coeffs.chi_face_el,
         transport_runtime_params.chi_min,
         transport_runtime_params.chi_max,
     )
     d_face_el = jnp.clip(
-        transport_coeffs.d_face_el,
+        input_coeffs.d_face_el,
         transport_runtime_params.D_e_min,
         transport_runtime_params.D_e_max,
     )
     v_face_el = jnp.clip(
-        transport_coeffs.v_face_el,
+        input_coeffs.v_face_el,
         transport_runtime_params.V_e_min,
         transport_runtime_params.V_e_max,
     )
 
-    return dataclasses.replace(
-        transport_coeffs,
+    return transport_coeffs.TransportCoeffs(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,
@@ -264,9 +242,9 @@ class TransportModel(static_dataclass.StaticDataclass):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      transport_coeffs: component.TurbulentTransport,
+      input_coeffs: transport_coeffs.TransportCoeffs,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     """Gaussian smoothing of turbulent transport coefficients."""
     smoothing_matrix = _build_smoothing_matrix(
         runtime_params.transport,
@@ -284,18 +262,7 @@ class TransportModel(static_dataclass.StaticDataclass):
           lambda: jnp.dot(smoothing_matrix, coeff),
       )
 
-    return jax.tree.map(smooth_single_coeff, transport_coeffs)
-
-
-def _add_optional(
-    core_value: jax.Array | None, pedestal_value: jax.Array | None
-) -> jax.Array | None:
-  """Adds two values, treating None as zero. Returns None if both are None."""
-  if core_value is None:
-    return pedestal_value
-  if pedestal_value is None:
-    return core_value
-  return core_value + pedestal_value
+    return jax.tree.map(smooth_single_coeff, input_coeffs)
 
 
 def _pedestal_domain_mask(

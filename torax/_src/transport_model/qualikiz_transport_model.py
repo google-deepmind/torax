@@ -22,26 +22,25 @@ import datetime
 import os
 import subprocess
 import tempfile
-from typing import Annotated
-from typing import Literal
+from typing import Annotated, Literal
 import uuid
 
 import chex
 import jax
+from jax import numpy as jnp
 import numpy as np
 import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 
 @jax.tree_util.register_dataclass
@@ -90,7 +89,7 @@ class QualikizTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -160,15 +159,7 @@ class QualikizTransportModel(
       )
       return core_transport
 
-    face_array_shape_dtype = jax.ShapeDtypeStruct(
-        shape=(geo.torax_mesh.nx + 1,), dtype=jax_utils.get_dtype()
-    )
-    result_shape_dtypes = component.TurbulentTransport(
-        chi_face_ion=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
-        d_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
-        v_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
-    )
+    result_shape_dtypes = transport_coeffs.TransportCoeffs.zeros(geo)
     # Even though qualikiz has side-effects (writing and reading from disk) we
     # still use a pure_callback here as:
     # 1. Nothing outside of this method depends on the side-effect.
@@ -249,18 +240,18 @@ class QualikizTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace | None = None,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     """Extracts QuaLiKiz run data from runpath."""
 
     # Extract QuaLiKiz outputs
-    qi = np.loadtxt(self._runpath + '/output/efi_GB.dat')[:, 0]
-    qe = np.loadtxt(self._runpath + '/output/efe_GB.dat')
-    pfe = np.loadtxt(self._runpath + '/output/pfe_GB.dat')
+    qi = jnp.asarray(np.loadtxt(self._runpath + '/output/efi_GB.dat')[:, 0])
+    qe = jnp.asarray(np.loadtxt(self._runpath + '/output/efe_GB.dat'))
+    pfe = jnp.asarray(np.loadtxt(self._runpath + '/output/pfe_GB.dat'))
 
     return self._make_core_transport(
-        qi=qi,  # pyrefly: ignore[bad-argument-type]
-        qe=qe,  # pyrefly: ignore[bad-argument-type]
-        pfe=pfe,  # pyrefly: ignore[bad-argument-type]
+        qi=qi,
+        qe=qe,
+        pfe=pfe,
         quasilinear_inputs=qualikiz_inputs,
         transport=transport,
         geo=geo,

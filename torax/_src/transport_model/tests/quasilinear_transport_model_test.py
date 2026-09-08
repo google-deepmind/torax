@@ -35,11 +35,11 @@ from torax._src.pedestal_model import pedestal_model_output as pedestal_model_ou
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
+from torax._src.transport_model import transport_coeffs
 
 
 def setUpModule():
@@ -112,10 +112,10 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     core_transport = transport_model(*model_inputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
 
-    self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
-    self.assertEqual(core_transport.chi_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.d_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.v_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_ion.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.d_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.v_face_el.shape, expected_shape)
 
   @parameterized.named_parameters(
       dict(
@@ -162,11 +162,11 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     })
     core_transport = model(*model_inputs)
     self.assertEqual(
-        (np.sum(np.abs(core_transport.v_face_el)) == 0.0),
+        (np.sum(np.abs(core_transport.total.v_face_el)) == 0.0),
         expected_zero_v_face_el,
     )
     self.assertEqual(
-        (np.sum(np.abs(core_transport.d_face_el)) == 0.0),
+        (np.sum(np.abs(core_transport.total.d_face_el)) == 0.0),
         expected_zero_d_face_el,
     )
 
@@ -525,7 +525,7 @@ class FakeQuasilinearTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
         chiGB=np.array(4.0),
         Rmin=np.array(0.5),

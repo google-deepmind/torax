@@ -23,10 +23,76 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import collisions
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import transport_coeffs
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class QualikizTransportModelOutput(transport_coeffs.TransportCoeffs):
+  """QuaLiKiz transport coefficients with required sub-mode decompositions.
+
+  Attributes:
+    chi_face_ion_itg: ITG contribution for ion heat conductivity [m^2/s].
+    chi_face_ion_tem: TEM contribution for ion heat conductivity [m^2/s].
+    chi_face_el_itg: ITG contribution for electron heat conductivity [m^2/s].
+    chi_face_el_tem: TEM contribution for electron heat conductivity [m^2/s].
+    chi_face_el_etg: ETG contribution for electron heat conductivity [m^2/s].
+    d_face_el_itg: ITG contribution for electron diffusivity [m^2/s].
+    d_face_el_tem: TEM contribution for electron diffusivity [m^2/s].
+    v_face_el_itg: ITG contribution for electron convection [m/s].
+    v_face_el_tem: TEM contribution for electron convection [m/s].
+  """
+
+  chi_face_ion_itg: array_typing.FloatVectorFace
+  chi_face_ion_tem: array_typing.FloatVectorFace
+  chi_face_el_itg: array_typing.FloatVectorFace
+  chi_face_el_tem: array_typing.FloatVectorFace
+  chi_face_el_etg: array_typing.FloatVectorFace
+  d_face_el_itg: array_typing.FloatVectorFace
+  d_face_el_tem: array_typing.FloatVectorFace
+  v_face_el_itg: array_typing.FloatVectorFace
+  v_face_el_tem: array_typing.FloatVectorFace
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts QuaLiKiz decomposition channels to an OutputVar mapping."""
+    out_dict = super().to_output_dict(context)
+    out_dict[output_keys.CHI_ITG_I] = context.pack(
+        output_keys.CHI_ITG_I, self.chi_face_ion_itg
+    )
+    out_dict[output_keys.CHI_TEM_I] = context.pack(
+        output_keys.CHI_TEM_I, self.chi_face_ion_tem
+    )
+    out_dict[output_keys.CHI_ITG_E] = context.pack(
+        output_keys.CHI_ITG_E, self.chi_face_el_itg
+    )
+    out_dict[output_keys.CHI_TEM_E] = context.pack(
+        output_keys.CHI_TEM_E, self.chi_face_el_tem
+    )
+    out_dict[output_keys.CHI_ETG_E] = context.pack(
+        output_keys.CHI_ETG_E, self.chi_face_el_etg
+    )
+    out_dict[output_keys.D_ITG_E] = context.pack(
+        output_keys.D_ITG_E, self.d_face_el_itg
+    )
+    out_dict[output_keys.D_TEM_E] = context.pack(
+        output_keys.D_TEM_E, self.d_face_el_tem
+    )
+    out_dict[output_keys.V_ITG_E] = context.pack(
+        output_keys.V_ITG_E, self.v_face_el_itg
+    )
+    out_dict[output_keys.V_TEM_E] = context.pack(
+        output_keys.V_TEM_E, self.v_face_el_tem
+    )
+    return out_dict
 
 
 class RotationMode(enum.StrEnum):
