@@ -130,6 +130,7 @@ class TimeDependentGeometryProvider:
   spr: interpolated_param.InterpolatedVarSingleAxis
   spr_face: interpolated_param.InterpolatedVarSingleAxis
   delta_face: interpolated_param.InterpolatedVarSingleAxis
+  trapped_fraction_face: interpolated_param.InterpolatedVarSingleAxis
   elongation: interpolated_param.InterpolatedVarSingleAxis
   elongation_face: interpolated_param.InterpolatedVarSingleAxis
   g0: interpolated_param.InterpolatedVarSingleAxis

@@ -27,6 +27,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src import state
+from torax._src.geometry import base
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
@@ -451,6 +452,39 @@ class SimTest(sim_test_case.SimTestCase):
                 f'Diff: {profile_history[i] - first_profile}\n'
             )
             raise AssertionError(msg)
+
+  def test_trapped_fraction_sources_simulation(self):
+    """Tests simulations run with EXACT and FILE trapped fraction sources."""
+    cases = (
+        (
+            'imas_file',
+            'test_iterhybrid_predictor_corrector_imas.py',
+            base.TrappedFractionSource.FILE,
+        ),
+        (
+            'imas_exact',
+            'test_iterhybrid_predictor_corrector_imas.py',
+            base.TrappedFractionSource.EXACT,
+        ),
+        (
+            'eqdsk_exact',
+            'test_iterhybrid_predictor_corrector_eqdsk.py',
+            base.TrappedFractionSource.EXACT,
+        ),
+    )
+    for name, config_file, source in cases:
+      with self.subTest(name=name):
+        cfg_dict = self._get_config_dict(config_file)
+        cfg_dict['geometry']['trapped_fraction_source'] = source
+        cfg_dict['numerics']['t_final'] = 0.1
+        cfg_dict['numerics']['fixed_dt'] = 0.05
+        cfg_dict['numerics']['exact_t_final'] = False
+        torax_config = model_config.ToraxConfig.from_dict(cfg_dict)
+        _, state_history = run_simulation.run_simulation(
+            torax_config, progress_bar=False
+        )
+        self.assertGreater(len(state_history.times), 1)
+        self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
 
   @parameterized.parameters(
       'test_psi_heat_dens',
