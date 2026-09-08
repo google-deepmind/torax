@@ -23,6 +23,7 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
+from torax._src.orchestration import jit_progress
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
@@ -37,6 +38,7 @@ def run_loop_jit(
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
+    progress_params: jit_progress.JitProgressParams | None = None,
 ) -> tuple[
     sim_state.SimState, post_processing.PostProcessedOutputs, chex.Numeric
 ]:
@@ -60,6 +62,14 @@ def run_loop_jit(
         previous_post_processed_outputs,
         runtime_params_overrides=runtime_params_overrides,
     )
+    if progress_params is not None:
+      jit_progress.emit_progress(
+          bar_id=progress_params.bar_id,
+          t=current_state.t,
+          previous_t=previous_state.t,
+          t_initial=initial_state.t,
+          report_interval=progress_params.report_interval,
+      )
     return current_state, post_processed_outputs
 
   _, final_i, history = jax_utils.while_loop_bounded(
@@ -140,7 +150,7 @@ def run_loop(
 ]:
   """Version of torax._src.orchestration.run_loop that loops with jax.jit.
 
-  Unlike the `run_loop` function, This does not support logging or progress bar.
+  Unlike the `run_loop` function, This does not support logging.
 
   Args:
     step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
@@ -170,11 +180,6 @@ def run_loop(
         the last valid timestep.
       - The sim error state.
   """
-
-  if progress_bar:
-    raise NotImplementedError(
-        'Progress bar is not supported with the jitted run loop.'
-    )
   if log_timestep_info:
     raise NotImplementedError(
         'Log timestep info is not supported with the jitted run loop.'
@@ -185,11 +190,24 @@ def run_loop(
     max_steps = int(
         ((numerics.t_final - numerics.t_initial) / numerics.min_dt) / 1e5
     )
-  states_history, post_processed_outputs_history, final_i = run_loop_jit(
-      step_fn,
-      max_steps,
-      runtime_params_overrides=runtime_params_overrides,
-  )
+
+  if progress_bar:
+    with jit_progress.JitProgressBar(
+        numerics.t_initial, numerics.t_final
+    ) as pbar:
+      states_history, post_processed_outputs_history, final_i = run_loop_jit(
+          step_fn,
+          max_steps,
+          runtime_params_overrides=runtime_params_overrides,
+          progress_params=pbar.params,
+      )
+      pbar.finalize(final_time=float(states_history.t[final_i]))
+  else:
+    states_history, post_processed_outputs_history, final_i = run_loop_jit(
+        step_fn,
+        max_steps,
+        runtime_params_overrides=runtime_params_overrides,
+    )
 
   unstacked_states = _unstack_pytree_history(states_history, final_i)
   unstacked_post_processed_outputs = _unstack_pytree_history(
