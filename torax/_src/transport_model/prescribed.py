@@ -26,6 +26,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 
 # pylint: disable=invalid-name
@@ -56,7 +57,7 @@ class PrescribedTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     r"""Calculates transport coefficients using the Prescribed model.
 
     Args:
@@ -75,9 +76,9 @@ class PrescribedTransportModel(component.ComponentTransportModel):
     assert isinstance(transport_runtime_params, RuntimeParams)
     del two_point_mask
 
-    return component.TurbulentTransport(
-        chi_face_ion=transport_runtime_params.chi_i,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el=transport_runtime_params.chi_e,  # pyrefly: ignore[bad-argument-type]
-        d_face_el=transport_runtime_params.D_e,  # pyrefly: ignore[bad-argument-type]
-        v_face_el=transport_runtime_params.V_e,  # pyrefly: ignore[bad-argument-type]
+    return transport_coeffs.TransportCoeffs(
+        chi_face_ion=transport_runtime_params.chi_i,
+        chi_face_el=transport_runtime_params.chi_e,
+        d_face_el=transport_runtime_params.D_e,
+        v_face_el=transport_runtime_params.V_e,
     )

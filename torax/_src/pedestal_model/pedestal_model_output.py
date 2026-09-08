@@ -25,6 +25,7 @@ from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
 
@@ -240,12 +241,10 @@ class PedestalModelOutput:
   ) -> state.CoreTransport:
     """Modify transport coefficients in the entire pedestal region.
 
-    Scales the turbulent and Pereverzev transport coefficients in the pedestal
-    region by the multipliers in the pedestal model output. This will also scale
-    any components of the transport coefficients that are inherited from the
-    turbulent model, such as ITG, ETG, TEM, Bohm, GyroBohm, etc. Transport
-    coefficients from neoclassical and pedestal transport models are not
-    affected.
+    Scales the turbulent total and Pereverzev transport coefficients in the
+    pedestal region by the multipliers in the pedestal model output. Transport
+    coefficients from neoclassical, core, and pedestal transport
+    models are not affected.
 
     Args:
       core_transport: The core transport coefficients to modify.
@@ -270,67 +269,77 @@ class PedestalModelOutput:
         pedestal_runtime_params.pedestal_top_smoothing_width,
     )
 
-    def multiply_coeff(
-        path: jax.tree_util.KeyPath, coeff: array_typing.FloatVectorFace
+    def _scale_channel(
+        coeff: array_typing.FloatVectorFace,
+        multiplier: array_typing.FloatScalar,
+        clip_min: array_typing.FloatScalar | None = None,
+        clip_max: array_typing.FloatScalar | None = None,
     ) -> array_typing.FloatVectorFace:
-      """Scale turbulent+Pereverzev transport coefficients in the pedestal."""
-      # Get the variable name of the leaf
-      key = str(path[-1])
-
-      # Apply the correct multiplier based on the variable name
-      # TODO(b/488314338): Improve robustness of applying multipliers to
-      # transport coefficients, ideally avoiding string matching.
-      if "neo" in key:
-        # Neoclassical transport should not be affected by scaling from an
-        # ADAPTIVE_TRANSPORT pedestal model.
-        return coeff
-      elif "chi_face_ion" in key:
-        # If transport suppression is not in effect, perform no scaling
-        # (L-mode). If transport suppression is in effect (i.e. H-mode,
-        # chi_i_multiplier != 1.0), then we clip the chi before scaling, to
-        # avoid unrealistic values.
-        modified_coeff = jnp.where(
-            jnp.isclose(self.transport_multipliers.chi_i_multiplier, 1.0),
-            coeff,
-            jnp.clip(coeff, max=pedestal_runtime_params.chi_max)
-            * self.transport_multipliers.chi_i_multiplier,
-        )
-      elif "chi_face_el" in key:
-        modified_coeff = jnp.where(
-            jnp.isclose(self.transport_multipliers.chi_e_multiplier, 1.0),
-            coeff,
-            jnp.clip(coeff, max=pedestal_runtime_params.chi_max)
-            * self.transport_multipliers.chi_e_multiplier,
-        )
-      elif "d_face_el" in key:
-        modified_coeff = jnp.where(
-            jnp.isclose(self.transport_multipliers.D_e_multiplier, 1.0),
-            coeff,
-            jnp.clip(coeff, max=pedestal_runtime_params.D_e_max)
-            * self.transport_multipliers.D_e_multiplier,
-        )
-      elif "v_face_el" in key:
-        modified_coeff = jnp.where(
-            jnp.isclose(self.transport_multipliers.v_e_multiplier, 1.0),
-            coeff,
-            jnp.clip(
-                coeff,
-                min=pedestal_runtime_params.V_e_min,
-                max=pedestal_runtime_params.V_e_max,
-            )
-            * self.transport_multipliers.v_e_multiplier,
-        )
-      else:
-        return coeff
-
+      """Scales, clips, and smooths a single transport coefficient channel."""
+      # If transport suppression is not in effect, perform no scaling (L-mode).
+      # If transport suppression is in effect (i.e. H-mode, multiplier != 1.0),
+      # then clip before scaling to avoid unrealistic values.
+      modified = jnp.where(
+          jnp.isclose(multiplier, 1.0),
+          coeff,
+          jnp.clip(coeff, min=clip_min, max=clip_max) * multiplier,
+      )
       # Only modify the coefficients in the pedestal region.
-      modified_coeff = jnp.where(
-          pedestal_active_mask_face, modified_coeff, coeff
+      modified = jnp.where(pedestal_active_mask_face, modified, coeff)
+      # Apply smoothing to the pedestal top.
+      return jnp.dot(smoothing_matrix, modified)
+
+    def _scale_coeffs(coeffs):
+      """Scales standard transport channels using pedestal multipliers."""
+      return dataclasses.replace(
+          coeffs,
+          chi_face_ion=_scale_channel(
+              coeffs.chi_face_ion,
+              self.transport_multipliers.chi_i_multiplier,
+              clip_max=pedestal_runtime_params.chi_max,
+          ),
+          chi_face_el=_scale_channel(
+              coeffs.chi_face_el,
+              self.transport_multipliers.chi_e_multiplier,
+              clip_max=pedestal_runtime_params.chi_max,
+          ),
+          d_face_el=_scale_channel(
+              coeffs.d_face_el,
+              self.transport_multipliers.D_e_multiplier,
+              clip_max=pedestal_runtime_params.D_e_max,
+          ),
+          v_face_el=_scale_channel(
+              coeffs.v_face_el,
+              self.transport_multipliers.v_e_multiplier,
+              clip_min=pedestal_runtime_params.V_e_min,
+              clip_max=pedestal_runtime_params.V_e_max,
+          ),
       )
 
-      # Apply smoothing to the pedestal top
-      modified_coeff = jnp.dot(smoothing_matrix, modified_coeff)
+    # Scale turbulent total. Core and pedestal transport
+    # coefficients are preserved unscaled so raw model outputs remain
+    # accessible in output trees and diagnostics.
+    modified_turbulent = transport_coeffs_lib.TurbulentTransport(
+        total=_scale_coeffs(core_transport.turbulent.total),
+        core_coefficients=core_transport.turbulent.core_coefficients,
+        pedestal_coefficients=core_transport.turbulent.pedestal_coefficients,
+    )
 
-      return modified_coeff
+    # Scale Pereverzev transport if present.
+    if core_transport.pereverzev is not None:
+      modified_pereverzev = _scale_coeffs(core_transport.pereverzev)
+    else:
+      modified_pereverzev = None
 
-    return jax.tree_util.tree_map_with_path(multiply_coeff, core_transport)
+    # Neoclassical transport is not affected by scaling from an
+    # ADAPTIVE_TRANSPORT pedestal model.
+    coeffs_to_sum = [modified_turbulent.total, core_transport.neoclassical]
+    if modified_pereverzev is not None:
+      coeffs_to_sum.append(modified_pereverzev)
+    total = transport_coeffs_lib.sum_transport_coeffs(*coeffs_to_sum)
+    return state.CoreTransport(
+        total=total,
+        turbulent=modified_turbulent,
+        neoclassical=core_transport.neoclassical,
+        pereverzev=modified_pereverzev,
+    )
