@@ -13,7 +13,9 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax._src.geometry import base
 from torax._src.geometry import chease
+
 # pylint: disable=invalid-name
 
 
@@ -28,6 +30,21 @@ class CheaseGeometryTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'does not have a z magnetic axis'):
       geo.z_magnetic_axis()
 
+  def test_trapped_fraction_source_exact_not_supported(self):
+    """Tests that EXACT is rejected for CHEASE (no full 2D equilibrium)."""
+    with self.assertRaisesRegex(ValueError, 'not supported for CheaseConfig'):
+      chease.CheaseConfig(
+          trapped_fraction_source=base.TrappedFractionSource.EXACT,
+      )
+
+  def test_trapped_fraction_is_loaded_from_file(self):
+    """Tests that the exact trapped particle fraction is loaded from CHEASE."""
+    geo = chease.CheaseConfig(
+        geometry_file='iterhybrid.mat2cols',
+        trapped_fraction_source=base.TrappedFractionSource.FILE,
+    ).build_geometry()
+    trapped_fraction = geo.trapped_fraction_face
+    self.assertIsNotNone(trapped_fraction)
 
 if __name__ == '__main__':
   absltest.main()

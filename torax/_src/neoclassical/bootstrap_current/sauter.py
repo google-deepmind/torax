@@ -108,7 +108,7 @@ def _calculate_bootstrap_current(
   # corrections.
 
   # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
+  f_trap = geo.trapped_fraction_face
 
   # Spitzer conductivity
   log_lambda_ei = collisions.calculate_log_lambda_ei(
