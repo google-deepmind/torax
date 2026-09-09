@@ -18,6 +18,7 @@ from absl.testing import parameterized
 import numpy as np
 from torax._src import jax_utils
 from torax._src import math_utils
+from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.physics import formulas
 from torax._src.test_utils import core_profile_helpers
@@ -104,6 +105,54 @@ class FormulasTest(parameterized.TestCase):
     np.testing.assert_allclose(beta_tor, beta_tor_expected)
     np.testing.assert_allclose(beta_pol, beta_pol_expected)
     np.testing.assert_allclose(beta_N, beta_N_expected)
+
+  def test_calc_dvar_dpsi_against_analytical_solution(self):
+    geo = circular_geometry.CircularConfig(
+        n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
+    ).build_geometry()
+    psi_0 = 1.0
+    Delta_psi = 2.5
+    rho_norm_face = geo.rho_face / geo.rho_face[-1]
+    rho_norm_cell = geo.rho / geo.rho_face[-1]
+
+    psi_face = psi_0 + Delta_psi * (rho_norm_face**2)
+    psi_cell = psi_0 + Delta_psi * (rho_norm_cell**2)
+    psi_var = cell_variable.CellVariable(
+        value=psi_cell,
+        face_centers=geo.rho_face,
+        left_face_constraint=psi_face[0],
+        right_face_constraint=psi_face[-1],
+        left_face_grad_constraint=None,
+        right_face_grad_constraint=None,
+    )
+
+    c0, c1 = 3.0, -1.5
+    psi_N_face = rho_norm_face**2
+    psi_N_cell = rho_norm_cell**2
+    var_face = c0 + c1 * psi_N_face
+    var_cell = c0 + c1 * psi_N_cell
+
+    var = cell_variable.CellVariable(
+        value=var_cell,
+        face_centers=geo.rho_face,
+        left_face_constraint=var_face[0],
+        right_face_constraint=var_face[-1],
+        left_face_grad_constraint=None,
+        right_face_grad_constraint=None,
+    )
+
+    expected_dvar_dpsi_norm = c1 * np.ones_like(rho_norm_face)
+    expected_dvar_dpsi = expected_dvar_dpsi_norm / Delta_psi
+
+    with self.subTest('unnormalized'):
+      dvar_dpsi = formulas.calc_dvar_dpsi(var, psi_var, normalized=False)
+      np.testing.assert_allclose(dvar_dpsi, expected_dvar_dpsi, rtol=1e-6)
+
+    with self.subTest('normalized'):
+      dvar_dpsi_norm = formulas.calc_dvar_dpsi(var, psi_var, normalized=True)
+      np.testing.assert_allclose(
+          dvar_dpsi_norm, expected_dvar_dpsi_norm, rtol=1e-6
+      )
 
 
 if __name__ == '__main__':

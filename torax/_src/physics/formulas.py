@@ -18,6 +18,8 @@ Functions:
     - calculate_main_ion_dilution_factor: Calculates the main ion dilution
       factor based on average impurity charge and Z_eff.
     - calculate_pressure: Calculates pressure from density and temperatures.
+    - calc_dvar_dpsi: Calculates derivative of a CellVariable with respect to
+      poloidal flux.
     - calc_pprime: Calculates total pressure gradient with respect to poloidal
       flux.
     - calc_FFprime: Calculates FF', an output quantity used for equilibrium
@@ -51,67 +53,60 @@ def calculate_main_ion_dilution_factor(
   return (Z_impurity - Z_eff) / (Z_i * (Z_impurity - Z_i))
 
 
-def calc_pprime(
-    core_profiles: state.CoreProfiles,
-) -> array_typing.FloatVector:
-  r"""Calculates total pressure gradient with respect to poloidal flux.
+def calc_dvar_dpsi(
+    var: cell_variable.CellVariable,
+    psi: cell_variable.CellVariable,
+    normalized: bool = False,
+) -> array_typing.FloatVectorFace:
+  r"""Calculates d(var) / d(psi) on the face grid.
+
+  Away from the magnetic axis, computes:
+    d(var) / d(psi) = (d(var) / drhon) / (d(psi) / drhon)
+  using face gradients with respect to normalized radius rhon. On axis
+  (rho=0), uses L'Hôpital's rule with a 2nd order forward difference
+  approximation for the second derivative.
 
   Args:
-    core_profiles: CoreProfiles object containing information on temperatures
-      and densities.
+    var: CellVariable to differentiate.
+    psi: Poloidal flux CellVariable.
+    normalized: If True, differentiates with respect to normalized poloidal flux
+      psi_N in [0, 1].
 
   Returns:
-    pprime: Total pressure gradient :math:`\partial p / \partial \psi`
-      with respect to the normalized toroidal flux coordinate, on the face grid.
+    Face-grid array of the derivative.
   """
+  dvar_drhon = var.face_grad()
+  dpsi_drhon = psi.face_grad()
+  var_face = var.face_value()
+  psi_face = psi.face_value()
 
-  p_total_face = core_profiles.pressure_total.face_value()
-  psi = core_profiles.psi.face_value()
-  n_e = core_profiles.n_e.face_value()
-  n_i = core_profiles.n_i.face_value()
-  n_impurity_thermal = core_profiles.n_impurity_thermal.face_value()
-  T_i = core_profiles.T_i.face_value()
-  T_e = core_profiles.T_e.face_value()
-  dne_drhon = core_profiles.n_e.face_grad()
-  dni_drhon = core_profiles.n_i.face_grad()
-  dnimp_drhon = core_profiles.n_impurity_thermal.face_grad()
-  dti_drhon = core_profiles.T_i.face_grad()
-  dte_drhon = core_profiles.T_e.face_grad()
-  dpsi_drhon = core_profiles.psi.face_grad()
-
-  dptot_drhon = constants.CONSTANTS.keV_to_J * (
-      n_e * dte_drhon
-      + n_i * dti_drhon
-      + n_impurity_thermal * dti_drhon
-      + dne_drhon * T_e
-      + dni_drhon * T_i
-      + dnimp_drhon * T_i
-  )
-  for fi in core_profiles.fast_ions:
-    dptot_drhon += constants.CONSTANTS.keV_to_J * (
-        fi.n.face_value() * fi.T.face_grad()
-        + fi.n.face_grad() * fi.T.face_value()
-    )
-
-  # Calculate on-axis value with L'Hôpital's rule using 2nd order forward
-  # difference approximation for second derivative at edge.
-  pprime_face_axis = jnp.expand_dims(
-      (
-          2 * p_total_face[0]  # pyrefly: ignore[bad-index]
-          - 5 * p_total_face[1]  # pyrefly: ignore[bad-index]
-          + 4 * p_total_face[2]  # pyrefly: ignore[bad-index]
-          - p_total_face[3]  # pyrefly: ignore[bad-index]
-      )
-      / (2 * psi[0] - 5 * psi[1] + 4 * psi[2] - psi[3]),  # pyrefly: ignore[bad-index]
+  # 2nd order forward difference stencil coefficients [2, -5, 4, -1] for axis
+  # second derivative evaluation via L'Hopital's rule.
+  coeffs = jnp.array([2.0, -5.0, 4.0, -1.0])
+  axis_derivative = jnp.expand_dims(
+      jnp.dot(coeffs, var_face[:4]) / jnp.dot(coeffs, psi_face[:4]),
       axis=0,
   )
 
-  # Zero on-axis due to boundary conditions. Avoid division by zero.
-  pprime_face = jnp.concatenate(
-      [pprime_face_axis, dptot_drhon[1:] / dpsi_drhon[1:]]  # pyrefly: ignore[bad-index]
+  dvar_dpsi = jnp.concatenate(
+      [axis_derivative, dvar_drhon[1:] / dpsi_drhon[1:]]
   )
 
-  return pprime_face
+  if normalized:
+    psi_range = psi.right_face_value - psi.left_face_value
+    return dvar_dpsi * psi_range
+  return dvar_dpsi
+
+
+def calc_pprime(
+    core_profiles: state.CoreProfiles,
+) -> array_typing.FloatVectorFace:
+  """Calculates total pressure gradient with respect to poloidal flux."""
+  return calc_dvar_dpsi(
+      var=core_profiles.pressure_total,
+      psi=core_profiles.psi,
+      normalized=False,
+  )
 
 
 def calc_FFprime(
