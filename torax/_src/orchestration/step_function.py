@@ -343,11 +343,11 @@ class SimulationStepFn:
     # Set the dt to the original dt passed to the function, and the t to the
     # final time.
     # In case we exited early return the actual elapsed dt.
-    elapsed_dt = dt - remaining_dt
+    elapsed_dt = dt - remaining_dt  # pyrefly: ignore[unsupported-operation]
     output_state = dataclasses.replace(
         output_state,
         t=input_state.t + elapsed_dt,
-        dt=elapsed_dt,
+        dt=elapsed_dt,  # pyrefly: ignore[bad-argument-type]
     )
     return output_state, post_processed_outputs
 

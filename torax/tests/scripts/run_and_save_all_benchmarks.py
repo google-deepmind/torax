@@ -96,7 +96,7 @@ def main(argv: Sequence[str]) -> None:
     shutil.rmtree(output_dir)
   run_sim = functools.partial(
       _run_sim,
-      test_data_dir=test_data_dir,
+      test_data_dir=test_data_dir,  # pyrefly: ignore[bad-argument-type]
       output_dir=_OUTPUT_DIR.value,
   )
   # Important to use 'spawn' over 'forkserver' as JAX is not fork-safe.

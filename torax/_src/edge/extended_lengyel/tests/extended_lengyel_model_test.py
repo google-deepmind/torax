@@ -133,8 +133,8 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
             mock_geo
         ),
         qei=source_profiles.QeiInfo.zeros(mock_geo),
-        T_e={'generic_heat': el_heat},  # pyrefly: ignore[bad-argument-type]
-        T_i={'generic_heat': ion_heat},  # pyrefly: ignore[bad-argument-type]
+        T_e={'generic_heat': el_heat},  # pyrefly: ignore[bad-argument-type, bad-assignment]
+        T_i={'generic_heat': ion_heat},  # pyrefly: ignore[bad-argument-type, bad-assignment]
     )
 
     # Verify that the mock sources integrate to the target power.

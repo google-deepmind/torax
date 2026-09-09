@@ -58,23 +58,23 @@ class PostProcessingTest(parameterized.TestCase):
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
         T_i={  # pyrefly: ignore[bad-argument-type]
-            'fusion': ones,
-            'generic_heat': 2 * ones,
-            'icrh': 3 * ones,
+            'fusion': ones,  # pyrefly: ignore[bad-assignment]
+            'generic_heat': 2 * ones,  # pyrefly: ignore[bad-assignment]
+            'icrh': 3 * ones,  # pyrefly: ignore[bad-assignment]
         },
         T_e={  # pyrefly: ignore[bad-argument-type]
-            'bremsstrahlung': -ones,
-            'cyclotron_radiation': -2 * ones,
-            'impurity_radiation': -3 * ones,
-            'ohmic': 5 * ones,
-            'fusion': ones,
-            'generic_heat': 3 * ones,
-            'ecrh': 7 * ones,
-            'icrh': 1.5 * ones,
+            'bremsstrahlung': -ones,  # pyrefly: ignore[bad-assignment]
+            'cyclotron_radiation': -2 * ones,  # pyrefly: ignore[bad-assignment]
+            'impurity_radiation': -3 * ones,  # pyrefly: ignore[bad-assignment]
+            'ohmic': 5 * ones,  # pyrefly: ignore[bad-assignment]
+            'fusion': ones,  # pyrefly: ignore[bad-assignment]
+            'generic_heat': 3 * ones,  # pyrefly: ignore[bad-assignment]
+            'ecrh': 7 * ones,  # pyrefly: ignore[bad-assignment]
+            'icrh': 1.5 * ones,  # pyrefly: ignore[bad-assignment]
         },
         psi={  # pyrefly: ignore[bad-argument-type]
-            'generic_current': 2 * ones,
-            'ecrh': 2 * ones,
+            'generic_current': 2 * ones,  # pyrefly: ignore[bad-assignment]
+            'ecrh': 2 * ones,  # pyrefly: ignore[bad-assignment]
         },
         n_e={},
     )
