@@ -243,11 +243,15 @@ def _body(
   a_mat = jacobian_fun(input_state['x'])
 
   direction = jnp.linalg.solve(a_mat, rhs)
+  max_abs_dir = jnp.max(jnp.abs(direction))
 
   def accept_fn(step_size, trial_norm):
-    return (
+    sufficient_decrease_met = (
         trial_norm <= (1.0 - sufficient_decrease * step_size) * init_ls_norm
-    ) & (~jnp.isnan(trial_norm))
+    )
+    step_valid = ~jnp.isnan(trial_norm)
+    step_too_small = (step_size * max_abs_dir) <= MIN_DELTA
+    return (sufficient_decrease_met | step_too_small) & step_valid
 
   ls_state = linesearch.backtracking_linesearch(
       residual_fn=residual_fun,
@@ -259,7 +263,6 @@ def _body(
       initial_residual_norm=init_ls_norm,
       delta_reduction_factor=delta_reduction_factor,
       max_steps=100,
-      min_step_norm=MIN_DELTA,
   )
 
   output_state = {

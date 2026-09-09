@@ -61,7 +61,6 @@ def backtracking_linesearch(
     initial_residual_norm: jnp.ndarray,
     delta_reduction_factor: float,
     max_steps: int,
-    min_step_norm: float = 0.0,
 ) -> LinesearchState:
   """Performs backtracking line search.
 
@@ -82,7 +81,6 @@ def backtracking_linesearch(
     initial_residual_norm: Norm of initial_residual.
     delta_reduction_factor: Factor by which step_size is reduced each step.
     max_steps: Maximum number of backtracking steps.
-    min_step_norm: Minimum value of max(abs(step_size * direction)) allowed.
 
   Returns:
     LinesearchState with the accepted (or last tried) trial point.
@@ -120,15 +118,7 @@ def backtracking_linesearch(
     new_step_found = accept_fn(step_size, new_norm)
     is_max_iter = new_iter >= max_steps
 
-    # Check if step is too small.
-    max_abs_dir = jnp.max(
-        jnp.array(
-            [jnp.max(jnp.abs(leaf)) for leaf in jax.tree.leaves(direction)]
-        )
-    )
-    step_too_small = (step_size * max_abs_dir) <= min_step_norm
-
-    new_done = new_step_found | is_max_iter | step_too_small
+    new_done = new_step_found | is_max_iter
     next_step_size = step_size * delta_reduction_factor
 
     return LinesearchState(
