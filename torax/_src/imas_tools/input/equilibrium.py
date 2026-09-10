@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Input mapping functions for use of IMAS equilibrium IDSs with TORAX."""
+
 from collections.abc import Mapping
 import logging
 from typing import Any
@@ -21,7 +22,7 @@ from imas import ids_toplevel
 import numpy as np
 import scipy
 from torax._src.imas_tools.input import loader
-
+from torax._src.imas_tools.input import validation
 
 # TODO(b/379832500) - Modify for consistency when we have a fixed TORAX COCOS.
 # pylint: disable=invalid-name
@@ -59,11 +60,17 @@ def _load_equilibrium(
     equilibrium = equilibrium_object
   elif imas_uri is not None:
     equilibrium = loader.load_imas_data(
-        imas_uri, "equilibrium", geometry_directory, explicit_convert  # pyrefly: ignore[bad-argument-type]
+        imas_uri,
+        "equilibrium",
+        geometry_directory,
+        explicit_convert,  # pyrefly: ignore[bad-argument-type]
     )
   elif imas_filepath is not None:
     equilibrium = loader.load_imas_data(
-        imas_filepath, "equilibrium", geometry_directory, explicit_convert  # pyrefly: ignore[bad-argument-type]
+        imas_filepath,
+        "equilibrium",
+        geometry_directory,
+        explicit_convert,  # pyrefly: ignore[bad-argument-type]
     )
   else:
     raise ValueError(
@@ -98,6 +105,7 @@ def _geometry_from_single_slice(
   Returns:
     A dict of intermediate geometry values for building a StandardGeometry.
   """
+  validation.validate_equilibrium_geometry_from_IMAS(equilibrium, slice_index)
   IMAS_data = equilibrium.time_slice[slice_index]
   # IMAS python API returns custom primitive types (e.g. IDSFloat0D,
   # IDSNumericArray) instead of standard python floats or numpy arrays. We must
