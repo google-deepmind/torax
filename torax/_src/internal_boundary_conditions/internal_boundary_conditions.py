@@ -119,7 +119,7 @@ class InternalBoundaryConditions:
         # Only apply where the target is nonzero.
         mask_parts.append(target_original_units != 0.0)
         target_parts.append(
-            target_original_units / convertors.SCALING_FACTORS[var]
+            target_original_units / convertors.STATE_SCALING_FACTORS[var]
         )
       else:
         # Variables like psi have no internal boundary conditions.

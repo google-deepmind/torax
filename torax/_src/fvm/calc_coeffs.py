@@ -583,10 +583,10 @@ def _calc_coeffs_full(
   # var_to_source ends up as a vector in the constructed PDE. Therefore any
   # scalings from CoreProfiles state variables to x must be applied here too.
   var_to_source = {
-      'T_i': source_i / convertors.SCALING_FACTORS['T_i'],
-      'T_e': source_e / convertors.SCALING_FACTORS['T_e'],
-      'psi': source_psi / convertors.SCALING_FACTORS['psi'],
-      'n_e': source_n_e / convertors.SCALING_FACTORS['n_e'],
+      'T_i': source_i / convertors.STATE_SCALING_FACTORS['T_i'],
+      'T_e': source_e / convertors.STATE_SCALING_FACTORS['T_e'],
+      'psi': source_psi / convertors.STATE_SCALING_FACTORS['psi'],
+      'n_e': source_n_e / convertors.STATE_SCALING_FACTORS['n_e'],
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 

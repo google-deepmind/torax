@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Conversion utilities between CoreProfiles state variables and fvm objects."""
+"""Conversion and scaling utilities between CoreProfiles and fvm objects."""
 
 import dataclasses
 from typing import Final, Mapping, Tuple
@@ -20,12 +20,18 @@ import immutabledict
 from torax._src import state
 from torax._src.fvm import cell_variable
 
-SCALING_FACTORS: Final[Mapping[str, float]] = immutabledict.immutabledict({
-    'T_i': 1.0,
-    'T_e': 1.0,
-    'n_e': 1e20,
-    'psi': 1.0,
-})
+# Factors for state variable scaling.
+# Converts physical SI units -> dimensionless solver state units
+# (x_solver = x_phys / S).
+# Corresponds to column scaling of the Jacobian matrix.
+STATE_SCALING_FACTORS: Final[Mapping[str, float]] = (
+    immutabledict.immutabledict({
+        'T_i': 1.0,
+        'T_e': 1.0,
+        'n_e': 1e20,
+        'psi': 1.0,
+    })
+)
 
 
 def core_profiles_to_solver_x_tuple(
@@ -34,13 +40,10 @@ def core_profiles_to_solver_x_tuple(
 ) -> Tuple[cell_variable.CellVariable, ...]:
   """Converts evolving parts of CoreProfiles to the 'x' tuple for the solver.
 
-  State variables in the solver are scaled for solver numerical conditioning.
-  i.e., the solver methods find the zero of a residual, minimizes a loss, and/or
-  invert a linear system with respect to the state vector x, which is a
-  concetenated vector of the x_tuple values. It is important that the solution
-  state vector elements are of similar order of magnitude such that e.g. scalars
-  related to residual or loss minimizations have similar contributions from the
-  various state vector components.
+  Applies state variable scaling to the solution state vector elements
+  for numerical conditioning of the solver. This ensures that the state vector
+  components are of similar order of magnitude (O(1)), corresponding to column
+  equilibration of the Jacobian matrix.
 
   Args:
     core_profiles: The input CoreProfiles object.
@@ -49,16 +52,15 @@ def core_profiles_to_solver_x_tuple(
 
   Returns:
     A tuple of CellVariable objects, one for each name in evolving_names,
-    with density values appropriately scaled for the solver.
+    with values state-scaled for the solver.
   """
   x_tuple_for_solver_list = []
 
   for name in evolving_names:
     original_units_cv = getattr(core_profiles, name)
-    # Scale for solver (divide by scaling factor)
-    solver_x_tuple_cv = scale_cell_variable(
+    solver_x_tuple_cv = apply_state_scaling(
         cv=original_units_cv,
-        scaling_factor=1 / SCALING_FACTORS[name],
+        scaling_factor=1 / STATE_SCALING_FACTORS[name],
     )
     x_tuple_for_solver_list.append(solver_x_tuple_cv)
 
@@ -74,33 +76,33 @@ def solver_x_tuple_to_core_profiles(
 
   If a variable is in `evolving_names`, its new value is taken from `x_new`.
   Otherwise, the existing value from `core_profiles` is kept.
-  State variables in the solver may be scaled for solver numerical conditioning,
-  and must be scaled back to their original units before being written to
-  `core_profiles`.
+  State variables in the solver are state-scaled for solver numerical
+  conditioning, and must be unscaled back to their original physical units
+  before being written to `core_profiles`.
 
   Args:
-    x_new: The new values of the evolving variables.
+    x_new: The state-scaled values of the evolving variables from the solver.
     evolving_names: The names of the evolving variables.
     core_profiles: The current set of core plasma profiles.
 
   Returns:
-    An updated CoreProfiles object with the new values.
+    An updated CoreProfiles object with physical-unit values.
   """
   updated_vars = {}
 
   for i, var_name in enumerate(evolving_names):
     solver_x_tuple_cv = x_new[i]
-    # Unscale from solver (multiply by scaling factor)
-    original_units_cv = scale_cell_variable(
+    # Unscale state scaling from solver (multiply by state scaling factor)
+    original_units_cv = apply_state_scaling(
         cv=solver_x_tuple_cv,
-        scaling_factor=SCALING_FACTORS[var_name],
+        scaling_factor=STATE_SCALING_FACTORS[var_name],
     )
     updated_vars[var_name] = original_units_cv
 
   return dataclasses.replace(core_profiles, **updated_vars)
 
 
-def scale_cell_variable(
+def apply_state_scaling(
     cv: cell_variable.CellVariable,
     scaling_factor: float,
 ) -> cell_variable.CellVariable:

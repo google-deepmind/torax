@@ -108,13 +108,14 @@ class ConvertersTest(parameterized.TestCase):
     )
     np.testing.assert_array_almost_equal(
         solver_x_tuple[1].value,
-        self.base_core_profiles.n_e.value / convertors.SCALING_FACTORS['n_e'],
+        self.base_core_profiles.n_e.value
+        / convertors.STATE_SCALING_FACTORS['n_e'],
         decimal=10,
     )
     np.testing.assert_array_almost_equal(
         solver_x_tuple[1].right_face_constraint,  # pyrefly: ignore[bad-argument-type]
         self.base_core_profiles.n_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-        / convertors.SCALING_FACTORS['n_e'],
+        / convertors.STATE_SCALING_FACTORS['n_e'],
         decimal=10,
     )
     np.testing.assert_array_almost_equal(
@@ -160,7 +161,7 @@ class ConvertersTest(parameterized.TestCase):
     )
     np.testing.assert_array_almost_equal(
         updated_cp.n_e.value,
-        x_new_n_e_val * convertors.SCALING_FACTORS['n_e'],
+        x_new_n_e_val * convertors.STATE_SCALING_FACTORS['n_e'],
         decimal=10,
     )
     np.testing.assert_array_almost_equal(
