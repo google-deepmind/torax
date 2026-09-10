@@ -49,6 +49,7 @@ class NewtonRaphsonRuntimeParams(solver_runtime_params_lib.RuntimeParams):
   tau_min: float
   initial_guess_mode: int = dataclasses.field(metadata={'static': True})
   log_iterations: bool = dataclasses.field(metadata={'static': True})
+  max_linesearch_steps: int = dataclasses.field(metadata={'static': True})
 
 
 class NonlinearThetaMethod(solver.Solver):
@@ -260,6 +261,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         delta_reduction_factor=solver_params.delta_reduction_factor,
         tau_min=solver_params.tau_min,
         pedestal_transition_state=pedestal_transition_state,
+        max_linesearch_steps=solver_params.max_linesearch_steps,
     )
     return (
         x_new,

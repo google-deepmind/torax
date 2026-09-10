@@ -16,7 +16,7 @@
 
 import abc
 import functools
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 import pydantic
 from torax._src import models as models_lib
 from torax._src import tridiagonal
@@ -115,15 +115,6 @@ class LinearThetaMethod(BaseSolver):
       'linear'
   )
 
-  @pydantic.model_validator(mode='before')
-  @classmethod
-  def scrub_log_iterations(cls, x: dict[str, Any]) -> dict[str, Any]:
-    # Both of the other solver configs have a `log_iterations` field, to enable
-    # easier switching by users in configs we check for this field and scrub it.
-    if 'log_iterations' in x:
-      del x['log_iterations']
-    return x
-
   @functools.cached_property
   def build_runtime_params(self) -> runtime_params.RuntimeParams:
     return runtime_params.RuntimeParams(
@@ -167,6 +158,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     delta_reduction_factor: The delta reduction factor for the Newton-Raphson
       solver.
     tau_min: The minimum value of tau for the Newton-Raphson solver.
+    max_linesearch_steps: The maximum number of linesearch steps.
   """
 
   solver_type: Annotated[
@@ -180,6 +172,9 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   residual_tol: float = 1e-5
   residual_coarse_tol: float = 1e-2
   tau_min: float = 0.01
+  max_linesearch_steps: Annotated[
+      pydantic.PositiveInt, torax_pydantic.JAX_STATIC
+  ] = 100
 
   @functools.cached_property
   def build_runtime_params(
@@ -202,6 +197,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         tau_min=self.tau_min,
         initial_guess_mode=self.initial_guess_mode.value,  # pyrefly: ignore[bad-argument-type]
         log_iterations=self.log_iterations,
+        max_linesearch_steps=self.max_linesearch_steps,
         fixed_point_atol=self.fixed_point_atol,
         fixed_point_rtol=self.fixed_point_rtol,
         fixed_point_termination_criterion=self.fixed_point_termination_criterion,

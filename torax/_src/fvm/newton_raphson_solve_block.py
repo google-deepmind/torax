@@ -51,6 +51,7 @@ MIN_DELTA: Final[float] = 1e-7
         'models',
         'coeffs_callback',
         'initial_guess_mode',
+        'max_linesearch_steps',
         'log_iterations',
     ],
 )
@@ -74,6 +75,7 @@ def newton_raphson_solve_block(
     delta_reduction_factor: float,
     tau_min: float,
     pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    max_linesearch_steps: int,
     log_iterations: bool = False,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
@@ -145,6 +147,7 @@ def newton_raphson_solve_block(
       routine resets at a lower timestep.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    max_linesearch_steps: Maximum number of linesearch steps to try.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
 
@@ -240,6 +243,7 @@ def newton_raphson_solve_block(
       coarse_tol=coarse_tol,
       delta_reduction_factor=delta_reduction_factor,
       tau_min=tau_min,
+      max_linesearch_steps=max_linesearch_steps,
       log_iterations=log_iterations,
   )
 
