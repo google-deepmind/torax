@@ -47,6 +47,7 @@ from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
+from torax._src.internal_boundary_conditions import internal_boundary_conditions as ibc_lib
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.neoclassical import runtime_params as neoclassical_params
 from torax._src.pedestal_model import runtime_params as pedestal_model_params
@@ -84,6 +85,7 @@ class RuntimeParams:
   pedestal: pedestal_model_params.RuntimeParams
   plasma_composition: plasma_composition.RuntimeParams
   profile_conditions: profile_conditions.RuntimeParams
+  internal_boundary_conditions: ibc_lib.InternalBoundaryConditions
   solver: solver_params.RuntimeParams
   sources: Mapping[str, sources_params.RuntimeParams]
   transport: transport_model_params.RuntimeParams

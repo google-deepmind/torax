@@ -33,9 +33,11 @@ from torax._src.edge.extended_lengyel import pydantic_model as extended_lengyel_
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.internal_boundary_conditions import internal_boundary_conditions as ibc_lib
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources.ion_cyclotron_source import toric_nn
@@ -64,6 +66,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     transport: Config for the transport model. If an empty dictionary is passed
       in, the transport model will be set to `constant`.
     mhd: Optional config for mhd models. If None, no MHD models are used.
+    internal_boundary_conditions: Config for internal boundary conditions.
     time_step_calculator: Optional config for the time step calculator. If not
       provided the default chi time step calculator is used.
     restart: Optional config for file restart. If None, no file restart is
@@ -84,6 +87,11 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   )
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field()
   mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
+  internal_boundary_conditions: (
+      ibc_lib.InternalBoundaryConditionsConfig
+  ) = torax_pydantic.ValidatedDefault(
+      ibc_lib.InternalBoundaryConditionsConfig()
+  )
   edge: edge_pydantic_model.EdgeConfig | None = None
   time_step_calculator: (
       time_step_calculator_pydantic_model.TimeStepCalculator
@@ -211,6 +219,24 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
             top. This can be mitigated by using a uniform grid around the
             pedestal top.
             """)
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_pedestal_mode_and_internal_boundary_conditions(
+      self,
+  ) -> typing_extensions.Self:
+    """Validates that internal boundary conditions are not used with ADAPTIVE_TRANSPORT."""
+    ibc = self.internal_boundary_conditions
+    if (
+        self.pedestal.mode == pedestal_runtime_params.Mode.ADAPTIVE_TRANSPORT
+        and ibc.is_active()
+    ):
+      raise ValueError(
+          'Internal boundary conditions cannot be configured when pedestal'
+          ' mode is ADAPTIVE_TRANSPORT. In ADAPTIVE_TRANSPORT mode, transport'
+          ' suppression governs the edge continuously across the entire grid,'
+          ' which is incompatible with internal boundary conditions.'
+      )
     return self
 
   @pydantic.model_validator(mode='after')

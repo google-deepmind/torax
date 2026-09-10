@@ -987,7 +987,7 @@ class TransportModelTest(absltest.TestCase):
     runtime_params.pedestal.mode = (
         pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
     )
-    runtime_params.profile_conditions.internal_boundary_conditions = None
+    runtime_params.internal_boundary_conditions = None
     core_profiles = mock.Mock()
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)

@@ -39,6 +39,7 @@ from torax._src.edge import base as edge_base
 from torax._src.edge import updaters as edge_updaters
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.internal_boundary_conditions import internal_boundary_conditions as ibc_lib
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
@@ -89,6 +90,7 @@ class RuntimeParamsProvider:
   solver: solver_pydantic_model.SolverConfig
   pedestal: pedestal_pydantic_model.PedestalConfig
   mhd: mhd_pydantic_model.MHD
+  internal_boundary_conditions: ibc_lib.InternalBoundaryConditionsConfig
   edge: edge_base.EdgeModelConfig | None
   neoclassical: neoclassical_pydantic_model.Neoclassical
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
@@ -108,6 +110,7 @@ class RuntimeParamsProvider:
         solver=config.solver,
         pedestal=config.pedestal,
         mhd=config.mhd,
+        internal_boundary_conditions=config.internal_boundary_conditions,
         edge=config.edge,
         neoclassical=config.neoclassical,
         time_step_calculator=config.time_step_calculator,
@@ -130,6 +133,9 @@ class RuntimeParamsProvider:
         },
         plasma_composition=self.plasma_composition.build_runtime_params(t),
         profile_conditions=self.profile_conditions.build_runtime_params(t),
+        internal_boundary_conditions=(
+            self.internal_boundary_conditions.build_runtime_params(t)
+        ),
         numerics=self.numerics.build_runtime_params(t),
         neoclassical=self.neoclassical.build_runtime_params(),
         pedestal=self.pedestal.build_runtime_params(t),

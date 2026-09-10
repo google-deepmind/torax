@@ -800,6 +800,31 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     # Should not raise because no edge model is active.
     model_config.ToraxConfig.from_dict(self.config)
 
+  def test_adaptive_transport_with_internal_boundary_conditions_raises(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["pedestal"] = {
+        "model_name": "set_T_ped_n_ped",
+        "mode": "ADAPTIVE_TRANSPORT",
+    }
+    config_dict["internal_boundary_conditions"] = {
+        "T_e": {0.0: {(0.8, 1.0): 10.0}},
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "Internal boundary conditions cannot be configured when pedestal mode"
+        " is ADAPTIVE_TRANSPORT",
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  def test_adaptive_transport_without_internal_boundary_conditions_passes(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["pedestal"] = {
+        "model_name": "set_T_ped_n_ped",
+        "mode": "ADAPTIVE_TRANSPORT",
+    }
+    # Should not raise when internal_boundary_conditions is default/empty
+    model_config.ToraxConfig.from_dict(config_dict)
+
 
 if __name__ == "__main__":
   absltest.main()

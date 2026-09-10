@@ -25,7 +25,6 @@ import numpy as np
 import pydantic
 from torax._src import array_typing
 from torax._src.fvm import cell_variable
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
@@ -143,9 +142,6 @@ class RuntimeParams:
   )
   n_e_right_bc_reference_rho: array_typing.FloatScalar | None
   n_e_right_bc_multiplier: array_typing.FloatScalar | None
-  internal_boundary_conditions: (
-      internal_boundary_conditions_lib.InternalBoundaryConditions
-  )
   current_profile_nu: float
   initial_j_is_total_current: bool = dataclasses.field(
       metadata={'static': True}
@@ -218,8 +214,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       `n_e_right_bc` is not `None` then `n_e_right_bc_is_absolute` will be set
       to `True`.
     n_e_right_bc_is_fGW: Toggle units of n_e_right_bc.
-    internal_boundary_conditions: Config for internal boundary conditions. See
-      `InternalBoundaryConditionsConfig` for more details.
     current_profile_nu: Peaking factor of "Ohmic" current: j_ohmic = j0*(1 -
       r^2/a^2)^current_profile_nu
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
@@ -277,11 +271,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   ] = NeBoundaryConditionMode.PRESCRIBED
   n_e_right_bc_reference_rho: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_multiplier: torax_pydantic.TimeVaryingScalar | None = None
-  internal_boundary_conditions: (
-      internal_boundary_conditions_lib.InternalBoundaryConditionsConfig
-  ) = torax_pydantic.ValidatedDefault(
-      internal_boundary_conditions_lib.InternalBoundaryConditionsConfig()
-  )
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/434175938): Remove this before the V2 API release in place of
@@ -550,7 +539,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
         not in (
             'n_e_right_bc_is_absolute',
             'prescribed_fast_ions',
-            'internal_boundary_conditions',
         )
     }
 
@@ -590,12 +578,6 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     # Evaluate prescribed fast ions at time t.
     prescribed_fast_ions = _build_prescribed_fast_ions(self.fast_ions, t)
     runtime_params['prescribed_fast_ions'] = prescribed_fast_ions
-
-    # Evaluate internal boundary conditions at time t. Required as IBCs are a
-    # nested class within the config.
-    runtime_params['internal_boundary_conditions'] = (
-        self.internal_boundary_conditions.build_runtime_params(t)
-    )
 
     def _get_value(x):
       if isinstance(
