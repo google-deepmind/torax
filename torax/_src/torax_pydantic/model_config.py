@@ -36,6 +36,7 @@ from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import pydantic_model as sources_pydantic_model
 from torax._src.sources.ion_cyclotron_source import toric_nn
@@ -211,6 +212,24 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
             top. This can be mitigated by using a uniform grid around the
             pedestal top.
             """)
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_pedestal_mode_and_internal_boundary_conditions(
+      self,
+  ) -> typing_extensions.Self:
+    """Validates that internal boundary conditions are not used with ADAPTIVE_TRANSPORT."""
+    ibc = self.profile_conditions.internal_boundary_conditions
+    if (
+        self.pedestal.mode == pedestal_runtime_params.Mode.ADAPTIVE_TRANSPORT
+        and ibc.is_active()
+    ):
+      raise ValueError(
+          'Internal boundary conditions cannot be configured when pedestal'
+          ' mode is ADAPTIVE_TRANSPORT. In ADAPTIVE_TRANSPORT mode, transport'
+          ' suppression governs the edge continuously across the entire grid,'
+          ' which is incompatible with internal boundary conditions.'
+      )
     return self
 
   @pydantic.model_validator(mode='after')

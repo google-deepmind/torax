@@ -19,6 +19,7 @@ import dataclasses
 import chex
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src.core_profiles import convertors
@@ -144,6 +145,15 @@ class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):
   n_e: interpolated_param_2d.SparseTimeVaryingArray = (
       torax_pydantic.ValidatedDefault(0.0)
   )
+
+  def is_active(self) -> bool:
+    """Returns True if any IBC channel defines non-zero target values."""
+    for sparse_array in (self.T_i, self.T_e, self.n_e):
+      for _, time_varying_array in sparse_array.values:
+        for _, val in time_varying_array.value.values():
+          if np.any(val != 0.0):
+            return True
+    return False
 
   def build_runtime_params(self, t: chex.Numeric) -> InternalBoundaryConditions:
     """Builds the runtime params for the internal boundary conditions."""

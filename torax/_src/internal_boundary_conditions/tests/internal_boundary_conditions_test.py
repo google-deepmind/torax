@@ -114,6 +114,20 @@ class InternalBoundaryConditionsTest(parameterized.TestCase):
     expected = np.array([False, True, False, True, False, False])
     np.testing.assert_array_equal(mask, expected)
 
+  def test_is_active_returns_false_when_empty(self):
+    ibc_empty = (
+        internal_boundary_conditions.InternalBoundaryConditionsConfig()
+    )
+    self.assertFalse(ibc_empty.is_active())
+
+  def test_is_active_returns_true_when_configured(self):
+    ibc_configured = (
+        internal_boundary_conditions.InternalBoundaryConditionsConfig(
+            T_e={0.0: {(0.8, 1.0): 10.0}}
+        )
+    )
+    self.assertTrue(ibc_configured.is_active())
+
 
 if __name__ == '__main__':
   absltest.main()
