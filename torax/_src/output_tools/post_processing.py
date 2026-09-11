@@ -31,6 +31,7 @@ from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import safety_factor_fit
+from torax._src.physics import collisions
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
@@ -55,6 +56,7 @@ class PostProcessedOutputs:
     W_thermal_e: Electron thermal stored energy [J]
     W_thermal_total: Total thermal stored energy [J]
     tau_E: Thermal energy confinement time [s]
+    tau_ei: Electron-ion collision time on the cell grid [s]
     H89P: L-mode confinement quality factor with respect to the ITER89P scaling
       law derived from the ITER L-mode confinement database
     H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
@@ -218,6 +220,7 @@ class PostProcessedOutputs:
   W_thermal_e: array_typing.FloatScalar
   W_thermal_total: array_typing.FloatScalar
   tau_E: array_typing.FloatScalar
+  tau_ei: array_typing.FloatVector
   H89P: array_typing.FloatScalar
   H98: array_typing.FloatScalar
   H97L: array_typing.FloatScalar
@@ -338,6 +341,7 @@ class PostProcessedOutputs:
         W_thermal_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         W_thermal_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         tau_E=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        tau_ei=jnp.zeros(geo.rho.shape),
         H89P=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H98=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H97L=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -797,6 +801,11 @@ def make_post_processed_outputs(
   )
 
   tau_E = internal_plasma_energy.W_thermal_total / P_loss
+  tau_ei = collisions.calculate_tau_ei(
+      sim_state.core_profiles.T_e.value,
+      sim_state.core_profiles.n_e.value,
+      sim_state.core_profiles.Z_eff,
+  )
 
   tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
       sim_state.geometry, sim_state.core_profiles, P_loss, 'H89P'
@@ -962,6 +971,7 @@ def make_post_processed_outputs(
       W_thermal_e=internal_plasma_energy.W_thermal_e,
       W_thermal_total=internal_plasma_energy.W_thermal_total,
       tau_E=tau_E,
+      tau_ei=tau_ei,
       H89P=H89P,
       H98=H98,
       H97L=H97L,

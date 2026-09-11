@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
+from torax._src import constants
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.physics import collisions
@@ -65,6 +66,25 @@ class CollisionsTest(parameterized.TestCase):
     n_e = jnp.array(n_e)
     result = collisions.calculate_log_lambda_ee(T_e_kev, n_e)
     np.testing.assert_allclose(result, expected)
+
+  def test_calculate_tau_ei(self):
+    T_e = jnp.array([1.0, 2.0])
+    n_e = jnp.array([1.0e20, 2.0e20])
+    Z_eff = jnp.array([1.0, 2.0])
+
+    log_lambda_ei = collisions.calculate_log_lambda_ei(T_e, n_e)
+    expected = (
+        12.0
+        * np.pi**1.5
+        * constants.CONSTANTS.epsilon_0**2
+        * np.sqrt(constants.CONSTANTS.m_e / 2.0)
+        * (T_e * constants.CONSTANTS.keV_to_J) ** 1.5
+        / (n_e * Z_eff * constants.CONSTANTS.q_e**4 * log_lambda_ei)
+    )
+
+    np.testing.assert_allclose(
+        collisions.calculate_tau_ei(T_e, n_e, Z_eff), expected, rtol=1e-6
+    )
 
   @parameterized.parameters([
       dict(T_i_ev=1.0, n_i=1.0, Z_i=1.0, expected=30.0),
