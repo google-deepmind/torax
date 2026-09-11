@@ -59,6 +59,7 @@ def root_newton_raphson(
     custom_jac: Callable[[jax.Array], jax.Array] | None = None,
     linesearch_norm: Callable[[jax.Array], jax.Array] = _mean_abs_norm,
     convergence_norm: Callable[[jax.Array], jax.Array] = _mean_abs_norm,
+    vmap_linesearch: bool = False,
     max_linesearch_steps: int = 100,
 ) -> tuple[jax.Array, RootMetadata]:
   """A differentiable Newton-Raphson root finder.
@@ -87,8 +88,11 @@ def root_newton_raphson(
       instead of jax.jacfwd.
     linesearch_norm: Scalar norm function applied to residual vectors for line
       search acceptance. Defaults to L1 norm.
-    convergence_norm: Scalar norm function applied to residual vectors for outer
-      loop convergence checks and error classification. Defaults to L1 norm.
+    convergence_norm: Scalar norm function applied to residual vectors for
+      outer loop convergence checks and error classification. Defaults to L1
+      norm.
+    vmap_linesearch: If True, use parallel vmapped linesearch instead of
+      sequential backtracking.
     max_linesearch_steps: Maximum number of linesearch steps to try.
 
   Returns:
@@ -132,6 +136,7 @@ def root_newton_raphson(
         sufficient_decrease=sufficient_decrease,
         linesearch_norm=linesearch_norm,
         convergence_norm=convergence_norm,
+        vmap_linesearch=vmap_linesearch,
         max_linesearch_steps=max_linesearch_steps,
     )
     output_state = jax.lax.while_loop(cond_fun, body_fun, initial_state)
@@ -238,6 +243,7 @@ def _body(
     linesearch_norm: Callable[[jax.Array], jax.Array],
     convergence_norm: Callable[[jax.Array], jax.Array],
     max_linesearch_steps: int,
+    vmap_linesearch: bool = False,
 ) -> dict[str, jax.Array]:
   """Calculates next guess in Newton-Raphson iteration."""
   rhs = -input_state['residual']
@@ -266,6 +272,7 @@ def _body(
       initial_residual_norm=init_ls_norm,
       delta_reduction_factor=delta_reduction_factor,
       max_steps=max_linesearch_steps,
+      vmap=vmap_linesearch,
   )
 
   output_state = {

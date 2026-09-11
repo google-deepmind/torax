@@ -27,28 +27,21 @@ import jaxtyping as jt
 class LinesearchState:
   """State and result of the backtracking line search.
 
-  Attributes are the values at the accepted step size, or the last value
-  tried if the search failed.
-
   Attributes:
     iteration: Current iteration of the linesearch.
-    step_size: Current step size.
-    next_step_size: Next step size to try.
     x: Current location.
     residual: Current residual.
     residual_norm: Norm of current residual.
-    step_found: Whether a step has been found.
-    done: Whether the linesearch is done.
+    step_size: Current step size.
+    accepted: Whether the current step satisfies accept_fn.
   """
 
   iteration: jnp.ndarray
-  step_size: jnp.ndarray
-  next_step_size: jnp.ndarray
   x: jt.PyTree
   residual: jt.PyTree
   residual_norm: jnp.ndarray
-  step_found: jt.Bool[jax.Array, ""]
-  done: jt.Bool[jax.Array, ""]
+  step_size: jnp.ndarray
+  accepted: jt.Bool[jax.Array, ""]
 
 
 def backtracking_linesearch(
@@ -61,6 +54,7 @@ def backtracking_linesearch(
     initial_residual_norm: jnp.ndarray,
     delta_reduction_factor: float,
     max_steps: int,
+    vmap: bool = False,
 ) -> LinesearchState:
   """Performs backtracking line search.
 
@@ -81,56 +75,125 @@ def backtracking_linesearch(
     initial_residual_norm: Norm of initial_residual.
     delta_reduction_factor: Factor by which step_size is reduced each step.
     max_steps: Maximum number of backtracking steps.
+    vmap: If True, evaluates trial steps in parallel using jax.vmap instead of
+      sequentially with a while loop.
 
   Returns:
     LinesearchState with the accepted (or last tried) trial point.
   """
+  dtype = (
+      x_init.dtype
+      if hasattr(x_init, "dtype")
+      else jnp.float32
+  )
 
-  init_step_size = 1.0
+  def evaluate_step(step_size):
+    x = jax.tree.map(lambda a, b: a + step_size * b, x_init, direction)
+    res = residual_fn(x)
+    norm = norm_fn(res)
+    accepted = accept_fn(step_size, norm)
+
+    return x, res, norm, accepted
+
+  if vmap:
+    return _vmapped_backtracking_linesearch(
+        evaluate_step=evaluate_step,
+        delta_reduction_factor=delta_reduction_factor,
+        max_steps=max_steps,
+        dtype=dtype,
+    )
+
+  return _sequential_backtracking_linesearch(
+      evaluate_step=evaluate_step,
+      x_init=x_init,
+      initial_residual=initial_residual,
+      initial_residual_norm=initial_residual_norm,
+      delta_reduction_factor=delta_reduction_factor,
+      max_steps=max_steps,
+      dtype=dtype,
+  )
+
+
+def _vmapped_backtracking_linesearch(
+    evaluate_step: Callable[
+        [jnp.ndarray],
+        tuple[jt.PyTree, jt.PyTree, jnp.ndarray, jt.Bool[jax.Array, ""]],
+    ],
+    delta_reduction_factor: float,
+    max_steps: int,
+    dtype: jnp.dtype,
+) -> LinesearchState:
+  """Performs backtracking line search in parallel using jax.vmap."""
+  # Generate step sizes: [1.0, eta, eta^2, ..., eta^(max_steps-1)]
+  step_sizes = delta_reduction_factor ** jnp.arange(
+      max_steps,
+      dtype=dtype,
+  )
+
+  vmapped_trial_step = jax.vmap(evaluate_step)
+  xs, residuals, norms, accepteds = vmapped_trial_step(step_sizes)
+
+  # Extract the first state where accept is True.
+  # If no step was found, return the smallest trial step (last in the array).
+  i = jnp.where(jnp.any(accepteds), jnp.argmax(accepteds), -1)
+  x = jax.tree.map(lambda arr: arr[i], xs)
+  res = jax.tree.map(lambda arr: arr[i], residuals)
+  norm = norms[i]
+  step_size = step_sizes[i]
+  accepted = accepteds[i]
+  iteration = i + 1
+
+  return LinesearchState(
+      iteration=iteration,
+      step_size=step_size,
+      x=x,
+      residual=res,
+      residual_norm=norm,
+      accepted=accepted,
+  )
+
+
+def _sequential_backtracking_linesearch(
+    evaluate_step: Callable[
+        [jnp.ndarray],
+        tuple[jt.PyTree, jt.PyTree, jnp.ndarray, jt.Bool[jax.Array, ""]],
+    ],
+    x_init: jt.PyTree,
+    initial_residual: jt.PyTree,
+    initial_residual_norm: jnp.ndarray,
+    delta_reduction_factor: float,
+    max_steps: int,
+    dtype: jnp.dtype,
+) -> LinesearchState:
+  """Performs backtracking line search sequentially using jax.lax.while_loop."""
   init_state = LinesearchState(
       iteration=jnp.array(0, dtype=jnp.int32),
-      step_size=jnp.array(
-          init_step_size,
-          dtype=x_init.dtype if hasattr(x_init, "dtype") else jnp.float32,
-      ),
-      next_step_size=jnp.array(
-          init_step_size,
-          dtype=x_init.dtype if hasattr(x_init, "dtype") else jnp.float32,
-      ),
+      step_size=jnp.array(1.0, dtype=dtype),
       x=x_init,
       residual=initial_residual,
       residual_norm=initial_residual_norm,
-      step_found=jnp.array(False),
-      done=jnp.array(False),
+      accepted=jnp.array(False),
   )
 
   def cond_fun(state: LinesearchState) -> jt.Bool[jax.Array, ""]:
-    return jnp.logical_not(state.done)
+    return jnp.logical_and(
+        state.iteration < max_steps,
+        jnp.logical_not(state.accepted),
+    )
 
   def body_fun(state: LinesearchState) -> LinesearchState:
-    new_iter = state.iteration + 1
-    step_size = state.next_step_size
-
-    new_x = jax.tree.map(lambda a, b: a + step_size * b, x_init, direction)
-    new_res = residual_fn(new_x)
-    new_norm = norm_fn(new_res)
-
-    new_step_found = accept_fn(step_size, new_norm)
-    is_max_iter = new_iter >= max_steps
-
-    new_done = new_step_found | is_max_iter
-    next_step_size = step_size * delta_reduction_factor
+    step_size = (delta_reduction_factor ** state.iteration).astype(dtype)
+    x, res, norm, accepted = evaluate_step(step_size)
 
     return LinesearchState(
-        iteration=new_iter,
+        iteration=state.iteration + 1,
         step_size=step_size,
-        next_step_size=next_step_size,
-        x=new_x,
-        residual=new_res,
-        residual_norm=new_norm,
-        step_found=new_step_found,
-        done=new_done,
+        x=x,
+        residual=res,
+        residual_norm=norm,
+        accepted=accepted,
     )
 
   # TODO(b/515250945): Use whilei_loop for autodiff compatibility.
   return jax.lax.while_loop(cond_fun, body_fun, init_state)
+

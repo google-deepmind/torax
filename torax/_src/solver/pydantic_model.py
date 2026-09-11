@@ -158,6 +158,12 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     delta_reduction_factor: The delta reduction factor for the Newton-Raphson
       solver.
     tau_min: The minimum value of tau for the Newton-Raphson solver.
+    vmap_linesearch: If True, use parallel instead of sequential linesearch.
+      Parallel linesearch eagerly evaluates the residual at all linesearch step
+      sizes and returns the first one that is acceptable. This can be faster
+      than sequential linesearch, but uses more memory and increases compile
+      time. Consider setting to True if you are using GPU or have a case that
+      takes many linesearch steps.
     max_linesearch_steps: The maximum number of linesearch steps.
   """
 
@@ -172,6 +178,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   residual_tol: float = 1e-5
   residual_coarse_tol: float = 1e-2
   tau_min: float = 0.01
+  vmap_linesearch: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   max_linesearch_steps: Annotated[
       pydantic.PositiveInt, torax_pydantic.JAX_STATIC
   ] = 100
@@ -197,6 +204,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         tau_min=self.tau_min,
         initial_guess_mode=self.initial_guess_mode.value,  # pyrefly: ignore[bad-argument-type]
         log_iterations=self.log_iterations,
+        vmap_linesearch=self.vmap_linesearch,
         max_linesearch_steps=self.max_linesearch_steps,
         fixed_point_atol=self.fixed_point_atol,
         fixed_point_rtol=self.fixed_point_rtol,

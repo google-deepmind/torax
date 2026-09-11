@@ -2624,6 +2624,11 @@ newton_raphson
   will still be accepted if ``residual < coarse_tol``, otherwise dt backtracking
   will take place if enabled.
 
+``vmap_linesearch`` (bool [default = False])
+  If True, use a vmapped implementation of the linesearch. This can provide a
+  significant speedup when many linesearch steps are required, at the cost of
+  higher peak memory usage and compilation time.
+
 optimizer
 ^^^^^^^^^
 

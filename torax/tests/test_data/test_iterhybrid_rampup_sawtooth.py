@@ -30,7 +30,15 @@ CONFIG['transport']['core_transport_models']['inner_patch']['chi_i'] = 0.2
 CONFIG['transport']['core_transport_models']['inner_patch']['chi_e'] = 0.2
 CONFIG['transport']['core_transport_models']['inner_patch']['D_e'] = 0.02
 CONFIG['transport']['core_transport_models']['inner_patch']['rho_max'] = 0.15
-CONFIG['solver']['solver_type'] = 'linear'  # to simplify numerics.
+# Simplify numerics by switching to linear solver.
+CONFIG['solver'] = {
+    'solver_type': 'linear',
+    'use_predictor_corrector': True,
+    'n_corrector_steps': 10,
+    'use_pereverzev': True,
+    'chi_pereverzev': 30,
+    'D_pereverzev': 15,
+}
 CONFIG['mhd'] = {
     'sawtooth': {
         'trigger_model': {

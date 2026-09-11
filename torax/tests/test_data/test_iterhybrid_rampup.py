@@ -201,6 +201,7 @@ CONFIG = {
         'D_pereverzev': 15,
         # use_pereverzev is only used for the linear solver
         'use_pereverzev': True,
+        'vmap_linesearch': True,
     },
     'time_step_calculator': {
         'calculator_type': 'fixed',
