@@ -36,13 +36,14 @@ restrictions as the dynamic arguments both in terms of types and how they are
 used. They are marked as static in their definition and are marked as such when
 input to JAX.
 """
+
 from collections.abc import Mapping
 import dataclasses
 
 import jax
 from torax._src import array_typing
 from torax._src.config import numerics
-from torax._src.core_profiles import profile_conditions
+from torax._src.core_profiles import runtime_params as core_profiles_params
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.geometry import geometry
@@ -52,11 +53,9 @@ from torax._src.neoclassical import runtime_params as neoclassical_params
 from torax._src.pedestal_model import runtime_params as pedestal_model_params
 from torax._src.solver import runtime_params as solver_params
 from torax._src.sources import runtime_params as sources_params
-from torax._src.time_step_calculator import runtime_params as time_step_calculator_runtime_params
+from torax._src.time_step_calculator import runtime_params as time_step_calculator_params
 from torax._src.transport_model import runtime_params as transport_model_params
 
-# Many of the variables follow scientific or mathematical notation, so disable
-# pylint complaints.
 # pylint: disable=invalid-name
 
 
@@ -83,11 +82,11 @@ class RuntimeParams:
   numerics: numerics.RuntimeParams
   pedestal: pedestal_model_params.RuntimeParams
   plasma_composition: plasma_composition.RuntimeParams
-  profile_conditions: profile_conditions.RuntimeParams
+  profile_conditions: core_profiles_params.RuntimeParams
   solver: solver_params.RuntimeParams
   sources: Mapping[str, sources_params.RuntimeParams]
   transport: transport_model_params.RuntimeParams
-  time_step_calculator: time_step_calculator_runtime_params.RuntimeParams
+  time_step_calculator: time_step_calculator_params.RuntimeParams
 
 
 def make_ip_consistent(
