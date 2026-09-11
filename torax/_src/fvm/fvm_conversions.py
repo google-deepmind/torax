@@ -22,6 +22,7 @@ from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
 
 
+@jax.jit
 def cell_variable_tuple_to_vec(
     x_tuple: tuple[cell_variable.CellVariable, ...],
 ) -> jax.Array:
@@ -36,6 +37,7 @@ def cell_variable_tuple_to_vec(
   return jnp.concatenate([x.value for x in x_tuple])
 
 
+@jax.jit(static_argnames=['evolving_names'])
 def vec_to_cell_variable_tuple(
     x_vec: jax.Array,
     core_profiles: state.CoreProfiles,
@@ -78,6 +80,7 @@ def vec_to_cell_variable_tuple(
   return tuple(x_out)
 
 
+@jax.jit(static_argnames=['axis'])
 def cell_variable_tuple_to_array(
     x_tuple: tuple[cell_variable.CellVariable, ...],
     axis: int,

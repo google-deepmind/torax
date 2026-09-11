@@ -38,6 +38,9 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
 
+@jax.jit(
+    static_argnames=['convection_dirichlet_mode', 'convection_neumann_mode']
+)
 def calc_c(
     x: tuple[cell_variable.CellVariable, ...],
     coeffs: Block1DCoeffs,

@@ -44,6 +44,7 @@ from torax._src.geometry import geometry
 # pylint: disable=invalid-name
 
 
+@jax.jit
 def coll_exchange(
     core_profiles: state.CoreProfiles,
     Qei_multiplier: float,
@@ -83,6 +84,7 @@ def coll_exchange(
   return Qei_coef
 
 
+@jax.jit
 def calc_nu_star(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -144,6 +146,7 @@ def calc_nu_star(
   return nustar
 
 
+@jax.jit
 def fast_ion_fractional_heating_formula(
     birth_energy: float | array_typing.FloatVector,
     T_e: array_typing.FloatVector,
@@ -181,6 +184,7 @@ def fast_ion_fractional_heating_formula(
   return frac_i
 
 
+@jax.jit
 def calculate_log_lambda_ee(
     T_e: jax.Array,
     n_e: jax.Array,
@@ -203,6 +207,7 @@ def calculate_log_lambda_ee(
   return 31.0 - 0.5 * jnp.log(n_e) + jnp.log(T_e_ev)
 
 
+@jax.jit
 def calculate_log_lambda_ei(
     T_e: jax.Array,
     n_e: jax.Array,
@@ -223,6 +228,7 @@ def calculate_log_lambda_ei(
   return 31.3 - 0.5 * jnp.log(n_e) + jnp.log(T_e_ev)
 
 
+@jax.jit
 def calculate_log_lambda_ii(
     T_i: jax.Array,
     n_i: jax.Array,
@@ -245,6 +251,7 @@ def calculate_log_lambda_ii(
   return 30.0 - 0.5 * jnp.log(n_i) + 1.5 * jnp.log(T_i_ev) - 3.0 * jnp.log(Z_i)
 
 
+@jax.jit
 def calculate_tau_ii(
     A_i: jax.Array,
     Z_i: jax.Array,
@@ -293,6 +300,7 @@ def _calculate_weighted_Z_eff(
   ) / core_profiles.n_e.value
 
 
+@jax.jit
 def _calculate_log_tau_e_Z1(
     T_e: jax.Array,
     n_e: jax.Array,

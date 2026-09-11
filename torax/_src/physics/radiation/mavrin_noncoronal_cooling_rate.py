@@ -23,6 +23,7 @@ from typing import Final, Mapping
 
 import chex
 import immutabledict
+import jax
 import jax.numpy as jnp
 import jaxtyping as jt
 import numpy as np
@@ -176,6 +177,7 @@ MAX_TEMPERATURES: Final[Mapping[str, float]] = immutabledict.immutabledict({
 # pylint: disable=invalid-name
 
 
+@jax.jit
 def evaluate_polynomial_fit(
     T_e: array_typing.FloatVector,
     ne_tau_fraction: array_typing.FloatScalar,

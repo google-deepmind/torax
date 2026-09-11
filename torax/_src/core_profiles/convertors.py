@@ -17,6 +17,7 @@ import dataclasses
 from typing import Final, Mapping, Tuple
 
 import immutabledict
+import jax
 from torax._src import state
 from torax._src.fvm import cell_variable
 
@@ -102,6 +103,7 @@ def solver_x_tuple_to_core_profiles(
   return dataclasses.replace(core_profiles, **updated_vars)
 
 
+@jax.jit
 def apply_state_scaling(
     cv: cell_variable.CellVariable,
     scaling_factor: float,

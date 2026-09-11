@@ -233,6 +233,7 @@ class BlockTriDiagonal:
     return jnp.einsum('nij,nj->ni', self.diagonal, x) + y_upper + y_lower
 
 
+@jax.jit
 def dense_solve(
     block_tridiag: BlockTriDiagonal,
     rhs: jt.Float[array_typing.Array, 'num_blocks block_size'],
@@ -250,6 +251,7 @@ def dense_solve(
   return x_flat.reshape((block_tridiag.num_blocks, block_tridiag.block_size))
 
 
+@jax.jit
 def thomas_solve(
     block_tridiag: BlockTriDiagonal,
     rhs: jt.Float[array_typing.Array, 'num_blocks block_size'],

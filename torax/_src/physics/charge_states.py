@@ -120,6 +120,7 @@ class ChargeStateInfo:
 
 
 # pylint: disable=invalid-name
+@jax.jit(static_argnames=['ion_symbol'])
 def calculate_average_charge_state_single_species(
     T_e: array_typing.FloatVector,
     ion_symbol: str,
@@ -170,6 +171,7 @@ def calculate_average_charge_state_single_species(
   return Zavg
 
 
+@jax.jit
 def get_average_charge_state(
     T_e: array_typing.FloatVector,
     fractions: Mapping[str, array_typing.FloatVector],

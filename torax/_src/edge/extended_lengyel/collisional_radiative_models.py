@@ -35,6 +35,7 @@ _NE_TAU_CORONAL_LIMIT = 1e19
 # TODO(b/479521524): Similarly to radiation, create a new package for
 # charge_states and move this function, acommpanying data, and
 # physics/charge_states.py there.
+@jax.jit(static_argnames=['ion_symbol'])
 def calculate_mavrin_noncoronal_charge_state(
     T_e: array_typing.FloatVector,
     # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
@@ -112,6 +113,7 @@ def calculate_mavrin_noncoronal_charge_state(
   return 10**log10_variable
 
 
+@jax.jit(static_argnames=['ion_symbol', 'resolution'])
 def _calculate_L_INT(
     start_temp: array_typing.FloatScalar,
     stop_temp: array_typing.FloatScalar,
@@ -166,6 +168,7 @@ def _calculate_L_INT(
 
 # TODO(b/446608829). Modify intent of this function to only be used for
 # impurity weights, and modify calling routines to reflect this.
+@jax.jit(static_argnames=['resolution'])
 def calculate_weighted_L_INT(
     impurity_map: Mapping[str, array_typing.FloatScalar],
     start_temp: array_typing.FloatScalar,
