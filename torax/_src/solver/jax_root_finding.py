@@ -30,6 +30,7 @@ from torax._src.solver import linesearch
 MIN_DELTA: Final[float] = 1e-7
 
 
+@jax.jit
 def _mean_abs_norm(x: array_typing.Array) -> jax.Array:
   """Mean of the absolute values of the elements of x, used as the default norm function for the root finder."""
   return jnp.mean(jnp.abs(x))

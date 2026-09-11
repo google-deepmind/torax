@@ -49,6 +49,7 @@ class TransportMultipliers:
     )
 
 
+@jax.jit(static_argnames=['n_sigma'])
 def _build_smoothing_matrix(
     rho_face_norm: array_typing.FloatVectorFace,
     rho_norm_ped_top: array_typing.FloatScalar,

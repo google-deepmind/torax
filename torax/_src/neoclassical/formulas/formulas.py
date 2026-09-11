@@ -57,6 +57,7 @@ def calculate_f_trap(
 
 # TODO(b/428166775): currently we have two very similar implementations for
 # nu_e_star. We should refactor this to have a single one in physics/collisions
+@jax.jit
 def calculate_nu_e_star(
     q: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
@@ -95,6 +96,7 @@ def calculate_nu_e_star(
   )
 
 
+@jax.jit
 def calculate_nu_i_star(
     q: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
@@ -134,6 +136,7 @@ def calculate_nu_i_star(
 
 
 # Functions to calculate the neoclassical poloidal velocity.
+@jax.jit
 def _calculate_neoclassical_k_neo(
     nu_star: array_typing.FloatScalar, epsilon: array_typing.FloatScalar
 ):
@@ -265,6 +268,7 @@ def calculate_poloidal_velocity(
   )
 
 
+@jax.jit
 def calculate_analytic_bootstrap_current(
     *,
     bootstrap_multiplier: float,

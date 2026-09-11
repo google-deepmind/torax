@@ -148,6 +148,7 @@ def calculate_cooling_rate(
   )
 
 
+@jax.jit(static_argnames=['ion_symbol', 'model_type'])
 def calculate_mavrin_cooling_rate(
     T_e: array_typing.FloatVector,
     ion_symbol: str,

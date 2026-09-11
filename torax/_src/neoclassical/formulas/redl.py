@@ -23,12 +23,14 @@ at higher collisionalities typical of tokamak edge pedestals and in the
 presence of impurities.
 """
 
+import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 
 # pylint: disable=invalid-name
 
 
+@jax.jit
 def calculate_L31(
     f_trap: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
@@ -55,6 +57,7 @@ def calculate_L31(
   )
 
 
+@jax.jit
 def calculate_L32(
     f_trap: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
@@ -109,6 +112,7 @@ def calculate_L32(
   return F32_ee + F32_ei
 
 
+@jax.jit
 def calculate_alpha(
     f_trap: array_typing.FloatVectorFace,
     nu_i_star: array_typing.FloatVectorFace,

@@ -105,6 +105,7 @@ def _extrapolate_face_profile_to_axis(
   )
 
 
+@jax.jit
 def calc_q_face(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
@@ -124,6 +125,7 @@ def calc_q_face(
   return q_face * geo.q_correction_factor
 
 
+@jax.jit
 def calc_j_total(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
@@ -189,6 +191,7 @@ def calc_j_total(
   return j_total, j_total_face, Ip_profile_face
 
 
+@jax.jit
 def calc_s_face(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
@@ -215,6 +218,7 @@ def calc_s_face(
   return s_face  # pyrefly: ignore[bad-return]
 
 
+@jax.jit
 def calc_s_rmid(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
@@ -250,6 +254,7 @@ def calc_s_rmid(
   return s_face  # pyrefly: ignore[bad-return]
 
 
+@jax.jit
 def calc_bpol_squared(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
@@ -277,6 +282,7 @@ def calc_bpol_squared(
   return bpol2_face
 
 
+@jax.jit
 def calc_Wpol(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
@@ -288,6 +294,7 @@ def calc_Wpol(
   return Wpol
 
 
+@jax.jit
 def calc_li3(
     R_major: jax.Array,
     Wpol: jax.Array,
@@ -317,6 +324,7 @@ def calc_li3(
   return 4 * Wpol / (constants.CONSTANTS.mu_0 * Ip_total**2 * R_major)
 
 
+@jax.jit
 def calc_q95(
     psi_norm_face: array_typing.FloatVector,
     q_face: array_typing.FloatVector,
@@ -335,6 +343,7 @@ def calc_q95(
   return q95
 
 
+@jax.jit
 def calculate_psi_grad_constraint_from_Ip(
     Ip: array_typing.FloatScalar,
     geo: geometry.Geometry,
@@ -347,6 +356,7 @@ def calculate_psi_grad_constraint_from_Ip(
   )
 
 
+@jax.jit
 def calculate_psi_value_constraint_from_v_loop(
     dt: array_typing.FloatScalar,
     theta: array_typing.FloatScalar,
@@ -363,6 +373,7 @@ def calculate_psi_value_constraint_from_v_loop(
 
 # TODO(b/406173731): Find robust solution for underdetermination and solve this
 # for general theta_implicit values.
+@jax.jit
 def calculate_v_loop_lcfs_from_psi(
     psi_t: cell_variable.CellVariable,
     psi_t_plus_dt: cell_variable.CellVariable,
@@ -395,6 +406,7 @@ def calculate_v_loop_lcfs_from_psi(
   return v_loop_lcfs_t_plus_dt
 
 
+@jax.jit
 def calculate_psidot_from_psi_sources(
     *,
     psi_sources: array_typing.FloatVector,
@@ -448,6 +460,7 @@ def calculate_psidot_from_psi_sources(
   return (c_mat.matvec(psi.value) + c) / toc_psi  # pyrefly: ignore[bad-argument-type, bad-return]
 
 
+@jax.jit
 def j_toroidal_to_j_parallel(
     j_toroidal: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
@@ -502,6 +515,7 @@ def j_toroidal_to_j_parallel(
   return _extrapolate_cell_profile_to_axis(j_dot_B_over_B0, geo, min_rho_norm)
 
 
+@jax.jit
 def j_parallel_to_j_toroidal(
     j_parallel: array_typing.FloatVectorCell,
     geo: geometry.Geometry,

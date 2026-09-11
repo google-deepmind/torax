@@ -31,6 +31,7 @@ import typing_extensions
 # pylint: disable=invalid-name
 
 
+@jax.jit
 def calculate_fractions_from_ratios(
     ratios: Mapping[str, chex.Array],
 ) -> Mapping[str, chex.Array]:

@@ -1043,6 +1043,7 @@ def make_post_processed_outputs(
   )
 
 
+@jax.jit
 def _convert_j_parallel_face_to_j_toroidal_face(
     j_parallel_face: array_typing.FloatVectorFace,
     j_parallel_cell: array_typing.FloatVectorCell,
@@ -1071,6 +1072,7 @@ def _convert_j_parallel_face_to_j_toroidal_face(
   return j_parallel_to_j_toroidal_factor_face * j_parallel_face
 
 
+@jax.jit
 def _exponential_smoothing(new_raw, old_smoothed, alpha):
   """Exponential moving average (EMA)."""
   return (1.0 - alpha) * old_smoothed + alpha * new_raw

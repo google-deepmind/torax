@@ -35,6 +35,7 @@ Functions:
     - calc_beta_pol_prime: Calculates
       beta_pol_prime = -d(beta_pol) / d(psi_norm) on the face grid.
 """
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
@@ -49,6 +50,7 @@ from torax._src.physics import psi_calculations
 
 
 # TODO(b/377225415): generalize to arbitrary number of ions.
+@jax.jit
 def calculate_main_ion_dilution_factor(
     Z_i: array_typing.FloatScalar,
     Z_impurity: array_typing.FloatVector,
@@ -58,6 +60,7 @@ def calculate_main_ion_dilution_factor(
   return (Z_impurity - Z_eff) / (Z_i * (Z_impurity - Z_i))
 
 
+@jax.jit(static_argnames=['normalized'])
 def calc_dvar_dpsi(
     var: cell_variable.CellVariable,
     psi: cell_variable.CellVariable,
@@ -103,6 +106,7 @@ def calc_dvar_dpsi(
   return dvar_dpsi
 
 
+@jax.jit
 def calc_pprime(
     core_profiles: state.CoreProfiles,
 ) -> array_typing.FloatVectorFace:
@@ -114,6 +118,7 @@ def calc_pprime(
   )
 
 
+@jax.jit
 def calc_FFprime(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
@@ -150,6 +155,7 @@ def calc_FFprime(
   return FFprime_face
 
 
+@jax.jit
 def calculate_stored_thermal_energy(
     p_el: cell_variable.CellVariable,
     p_ion: cell_variable.CellVariable,
@@ -176,6 +182,7 @@ def calculate_stored_thermal_energy(
   return wth_el, wth_ion, wth_tot
 
 
+@jax.jit
 def calculate_greenwald_fraction(
     n_e_avg: array_typing.FloatScalar,
     core_profiles: state.CoreProfiles,
@@ -202,6 +209,7 @@ def calculate_greenwald_fraction(
   return fgw
 
 
+@jax.jit
 def calculate_betas(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
@@ -271,6 +279,7 @@ def calculate_betas(
   return beta_tor, beta_pol, beta_N  # pyrefly: ignore[bad-return]
 
 
+@jax.jit
 def calculate_beta_pol_profile(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
@@ -308,6 +317,7 @@ def calculate_beta_pol_profile(
   )
 
 
+@jax.jit
 def calculate_beta_pol_prime(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
