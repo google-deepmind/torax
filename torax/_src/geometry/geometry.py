@@ -26,6 +26,7 @@ from torax._src import array_typing
 from torax._src.torax_pydantic import torax_pydantic
 
 
+@jax.jit
 def face_to_cell(
     face: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorCell:
