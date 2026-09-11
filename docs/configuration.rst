@@ -2420,8 +2420,9 @@ Ohmic power.
 pellet
 ^^^^^^
 
-Time-dependent Gaussian pellet source. No first-principle-based model is yet
-implemented in TORAX.
+Time-dependent Gaussian pellet source by default. A model of pellet ablation
+and deposition can also be registered as an alternative ``pellet`` model (see
+below).
 
 ``mode`` (str [default = 'model'])
 
@@ -2433,6 +2434,12 @@ implemented in TORAX.
 
 ``S_total`` (**time-varying-scalar** [default = 2e22])
   Total particle source in units of particles/s
+
+An external machine-learning surrogate of pellet ablation and deposition,
+HPI2-NN, can be registered as an alternative ``pellet`` model
+(``model_name: 'hpi2_nn'``) via ``torax.sources.register_source_model_config``.
+See the `HPI2-NN repository <https://github.com/DIFFER-NL/hpi2nn>`_ for
+installation and configuration.
 
 mhd
 ---
@@ -2654,7 +2661,7 @@ time_step_calculator
 
 ``calculator_type`` (str [default = 'chi'])
   The name of the ``time_step_calculator``, a method which calculates ``dt`` at
-  every timestep. Three methods are currently available:
+  every timestep. Four methods are currently available:
 
 * ``'fixed'``
     ``dt`` is equal to ``fixed_dt`` defined in :ref:`numerics_dataclass`.
@@ -2681,9 +2688,47 @@ time_step_calculator
      also speed up simulations where a small dt is required for a short section,
      but then a larger dt is be appropriate for the remainder of the simulation.
 
+* ``'pellet_aware'``
+    Uses a configurable base calculator (see ``base_calculator`` below) and
+    additionally aligns time steps with pellet trigger times and ablation
+    windows, so that a step lands exactly on each pellet and the ablation window
+    is resolved as a single step. It is generic over pellet sources: it reads
+    ``trigger_times`` / ``frequency`` and ``ablation_time`` from the configured 
+    pellet source's runtime parameters and if the source exposes it, a model 
+    predicted ablation window. Intended for use with the HPI2-NN pellet model 
+    (see the ``pellet`` source above and the `HPI2-NN repository
+    <https://github.com/DIFFER-NL/hpi2nn>`_).
+
+    In the ``frequency`` mode the pellet source may toggle injection on and off
+    over time. Because floating point means a step never lands exactly on a
+    period boundary, such a toggle should switch on a small margin before the
+    intended pellet time, otherwise the pellet at that boundary may be skipped.
+
 ``tolerance`` (float [default = 1e-7])
   The tolerance within the final time for which the simulation will be
   considered done.
+
+The following attributes only apply to the ``'pellet_aware'`` calculator:
+
+``base_calculator`` (dict [default = None])
+  Configuration of the base time step calculator used away from pellet events,
+  for example ``{'calculator_type': 'chi'}`` or ``{'calculator_type':
+  'fixed'}``. It cannot itself be ``'pellet_aware'``. If None, the ``'chi'``
+  calculator is used.
+
+``trigger_tolerance`` (float [default = 1e-8])
+  Time tolerance for deciding whether the current time is at a pellet trigger.
+  The pellet source's own ``trigger_tolerance`` is used instead when it exposes
+  one, so that the step alignment and the source's deposition agree on when a
+  pellet fires.
+
+``window_after_pellet`` (float [default = 0.0])
+  Duration of the window after a pellet trigger during which ``dt_after_pellet``
+  is used. Not used by default.
+
+``dt_after_pellet`` (float [default = None])
+  Time step used during the window after a pellet trigger. If None, the base
+  calculator's step is used. Not used by default.
 
 neoclassical
 ------------
