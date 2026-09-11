@@ -715,6 +715,9 @@ W_THERMAL_TOTAL: Final[OutputKey] = OutputKey(
 TAU_E: Final[OutputKey] = OutputKey(
     "tau_E", units=Units.SECOND, grid_type=GridType.SCALAR
 )
+TAU_EI: Final[OutputKey] = OutputKey(
+    "tau_ei", units=Units.SECOND, grid_type=GridType.CELL
+)
 H89P: Final[OutputKey] = OutputKey(
     "H89P", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
 )
