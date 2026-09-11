@@ -30,9 +30,22 @@ from torax._src.solver import linesearch
 MIN_DELTA: Final[float] = 1e-7
 
 
-def _mean_abs_norm(x: array_typing.Array) -> jax.Array:
-  """Mean of the absolute values of the elements of x, used as the default norm function for the root finder."""
-  return jnp.mean(jnp.abs(x))
+def rms_norm(
+    x: array_typing.Array, scale: jax.Array | None = None
+) -> jax.Array:
+  """Root-mean-square norm (aka L2 norm)."""
+  if scale is not None:
+    x = x / scale
+  return jnp.sqrt(jnp.mean(jnp.square(x)))
+
+
+def max_abs_norm(
+    x: array_typing.Array, scale: jax.Array | None = None
+) -> jax.Array:
+  """Maximum absolute value norm (aka L-infinity norm)."""
+  if scale is not None:
+    x = x / scale
+  return jnp.max(jnp.abs(x))
 
 
 @jax.tree_util.register_dataclass
@@ -57,8 +70,8 @@ def root_newton_raphson(
     log_iterations: bool = False,
     use_jax_custom_root: bool = True,
     custom_jac: Callable[[jax.Array], jax.Array] | None = None,
-    linesearch_norm: Callable[[jax.Array], jax.Array] = _mean_abs_norm,
-    convergence_norm: Callable[[jax.Array], jax.Array] = _mean_abs_norm,
+    linesearch_norm: Callable[[jax.Array], jax.Array] = rms_norm,
+    convergence_norm: Callable[[jax.Array], jax.Array] = max_abs_norm,
     vmap_linesearch: bool = False,
     max_linesearch_steps: int = 100,
 ) -> tuple[jax.Array, RootMetadata]:
@@ -87,10 +100,10 @@ def root_newton_raphson(
     custom_jac: If provided, use this function to compute the Jacobian of `fun`
       instead of jax.jacfwd.
     linesearch_norm: Scalar norm function applied to residual vectors for line
-      search acceptance. Defaults to L1 norm.
-    convergence_norm: Scalar norm function applied to residual vectors for
-      outer loop convergence checks and error classification. Defaults to L1
-      norm.
+      search acceptance. Defaults to L2 norm (RMS).
+    convergence_norm: Scalar norm function applied to residual vectors for outer
+      loop convergence checks and error classification. Defaults to L-infinity
+      norm (maximum absolute deviation).
     vmap_linesearch: If True, use parallel vmapped linesearch instead of
       sequential backtracking.
     max_linesearch_steps: Maximum number of linesearch steps to try.

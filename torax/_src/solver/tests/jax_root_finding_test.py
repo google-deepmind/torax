@@ -49,7 +49,8 @@ class NewtonRaphsonSolveBlockTest(parameterized.TestCase):
       ('negative_search', 1.0, 1.0, (2.0, 1.0)),
   )
   def test_root_newton_raphson_basic(
-      self, a: float, b: float, x0: tuple[float, float]):
+      self, a: float, b: float, x0: tuple[float, float]
+  ):
     dtype = np.float64
     tol = 1e-9
     f_closed = functools.partial(function_to_find_root, a=a, b=b)
@@ -115,6 +116,39 @@ class NewtonRaphsonSolveBlockTest(parameterized.TestCase):
         maxiter=100,
         linesearch_norm=linesearch_norm,
         convergence_norm=convergence_norm,
+    )
+    chex.assert_trees_all_close(sol_np.x, sol_jax, atol=1e-9)
+    self.assertEqual(int(metadata.error), 0)
+
+  def test_make_scaled_norm_math(self):
+    res = jnp.array([2.0, -6.0])
+    scales = jnp.array([1.0, 2.0])
+
+    l2_norm_fn = lambda x: jax_root_finding.rms_norm(x, scales)
+    linf_norm_fn = lambda x: jax_root_finding.max_abs_norm(x, scales)
+
+    # scaled = [2.0, -3.0]
+    # L2: sqrt(mean([4.0, 9.0])) = sqrt(6.5)
+    np.testing.assert_allclose(l2_norm_fn(res), np.sqrt(6.5))
+    # Linf: max(|2.0|, |-3.0|) = 3.0
+    np.testing.assert_allclose(linf_norm_fn(res), 3.0)
+
+  def test_root_newton_raphson_scaled_norms(self):
+    f_closed = functools.partial(function_to_find_root, a=0.5, b=0.1)
+    x_init = np.array((0.0, 0.0), dtype=np.float64)
+    sol_np = optimize.root(f_closed, x_init, tol=1e-9)
+
+    scales = jnp.array([2.0, 5.0], dtype=np.float64)
+    l2_norm_fn = lambda x: jax_root_finding.rms_norm(x, scales)
+    linf_norm_fn = lambda x: jax_root_finding.max_abs_norm(x, scales)
+
+    sol_jax, metadata = jax_root_finding.root_newton_raphson(
+        f_closed,
+        x_init,
+        tol=1e-9,
+        maxiter=100,
+        linesearch_norm=l2_norm_fn,
+        convergence_norm=linf_norm_fn,
     )
     chex.assert_trees_all_close(sol_np.x, sol_jax, atol=1e-9)
     self.assertEqual(int(metadata.error), 0)

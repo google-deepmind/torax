@@ -239,6 +239,9 @@ def newton_raphson_solve_block(
       pedestal_transition_state=pedestal_transition_state,
   )
 
+  residual_scaling_vector = convertors.compute_residual_scaling_vector(
+      evolving_names, x_old
+  )
   root_finder = functools.partial(
       jax_root_finding.root_newton_raphson,
       fun=residual_fun,
@@ -250,6 +253,12 @@ def newton_raphson_solve_block(
       vmap_linesearch=vmap_linesearch,
       max_linesearch_steps=max_linesearch_steps,
       log_iterations=log_iterations,
+      convergence_norm=lambda x: jax_root_finding.max_abs_norm(
+          x, residual_scaling_vector
+      ),
+      linesearch_norm=lambda x: jax_root_finding.rms_norm(
+          x, residual_scaling_vector
+      ),
   )
 
   x_root, metadata = root_finder(x0=init_x_new_vec)
