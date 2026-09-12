@@ -35,9 +35,11 @@ from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
 from torax._src.transport_model import enums
+from torax._src.transport_model import pereverzev
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_model
 
 
@@ -359,6 +361,74 @@ class TransportMaskingTest(parameterized.TestCase):
 
 
 class TransportModelTest(absltest.TestCase):
+
+  def test_adaptive_transport_preserves_pereverzev_transport(self):
+    """Adaptive transport leaves numerical PC transport unchanged."""
+    config = default_configs.get_default_config_dict()
+    config['solver'] = {
+        'chi_pereverzev': 30.0,
+        'D_pereverzev': 15.0,
+    }
+    config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
+        'mode': 'ADAPTIVE_TRANSPORT',
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    models = torax_config.build_models()
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        models.source_models,
+        models.neoclassical_models,
+    )
+    pedestal_output = pedestal_model_output_lib.PedestalModelOutput(
+        rho_norm_ped_top=jnp.array(0.8),
+        T_i_ped=jnp.array(1.0),
+        T_e_ped=jnp.array(1.0),
+        n_e_ped=jnp.array(1e19),
+        transport_multipliers=pedestal_model_output_lib.TransportMultipliers(
+            chi_e_multiplier=jnp.array(0.1),
+            chi_i_multiplier=jnp.array(0.2),
+            D_e_multiplier=jnp.array(0.3),
+            v_e_multiplier=jnp.array(0.4),
+        ),
+    )
+    transition_state = dataclasses.replace(
+        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_model_output=pedestal_output,
+    )
+
+    coeffs = transport_coefficients_builder.calculate_all_transport_coeffs(
+        models.transport_model,
+        models.neoclassical_models,
+        runtime_params,
+        geo,
+        core_profiles,
+        transition_state,
+        use_pereverzev=True,
+    )
+
+    two_point_mask = pedestal_output.get_two_point_face_mask(
+        geo, set_pedestal=runtime_params.pedestal.set_pedestal
+    )
+    raw_pereverzev = pereverzev.calculate_pereverzev_transport(
+        runtime_params,
+        geo,
+        core_profiles,
+        two_point_mask,
+    )
+    for field in dataclasses.fields(pereverzev.PereverzevTransport):
+      with self.subTest(field=field.name):
+        np.testing.assert_allclose(
+            getattr(coeffs, field.name),
+            getattr(raw_pereverzev, field.name),
+            rtol=1e-12,
+        )
 
   def test_combining(self):
     config = default_configs.get_default_config_dict()

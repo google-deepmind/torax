@@ -123,12 +123,11 @@ class PedestalModelOutputTest(absltest.TestCase):
         self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_ped_top
     )
 
-    # Check turbulent and Pereverzev transport is scaled correctly.
+    # Check turbulent transport is scaled correctly.
     for field_name in [
         'chi_face_el',
         'chi_face_el_bohm',
         'chi_face_el_gyrobohm',
-        'chi_face_el_pereverzev',
     ]:
       field = getattr(modified_core_transport, field_name)
       np.testing.assert_allclose(
@@ -139,31 +138,20 @@ class PedestalModelOutputTest(absltest.TestCase):
         'chi_face_ion',
         'chi_face_ion_bohm',
         'chi_face_ion_gyrobohm',
-        'chi_face_ion_pereverzev',
     ]:
       field = getattr(modified_core_transport, field_name)
       np.testing.assert_allclose(
           field,
           jnp.where(pedestal_mask, 3.0, 1.0),
       )
-    for field_name in [
-        'd_face_el',
-        'd_face_el_pereverzev',
-    ]:
-      field = getattr(modified_core_transport, field_name)
-      np.testing.assert_allclose(
-          field,
-          jnp.where(pedestal_mask, 4.0, 1.0),
-      )
-    for field_name in [
-        'v_face_el',
-        'v_face_el_pereverzev',
-    ]:
-      field = getattr(modified_core_transport, field_name)
-      np.testing.assert_allclose(
-          field,
-          jnp.where(pedestal_mask, 5.0, 1.0),
-      )
+    np.testing.assert_allclose(
+        modified_core_transport.d_face_el,
+        jnp.where(pedestal_mask, 4.0, 1.0),
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.v_face_el,
+        jnp.where(pedestal_mask, 5.0, 1.0),
+    )
 
     # Check neoclassical transport is not affected.
     np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
@@ -186,6 +174,20 @@ class PedestalModelOutputTest(absltest.TestCase):
         modified_core_transport.V_neo_ware_e,
         core_transport.V_neo_ware_e,
     )
+
+    # Check numerical Pereverzev-Corrigan transport is not affected.
+    for field_name in [
+        'chi_face_ion_pereverzev',
+        'chi_face_el_pereverzev',
+        'full_v_heat_face_ion_pereverzev',
+        'full_v_heat_face_el_pereverzev',
+        'd_face_el_pereverzev',
+        'v_face_el_pereverzev',
+    ]:
+      np.testing.assert_allclose(
+          getattr(modified_core_transport, field_name),
+          getattr(core_transport, field_name),
+      )
 
   def test_to_internal_boundary_conditions_tanh_profiles(self):
     """Tests mtanh-shaped IBC when pedestal_profile_form=MTANH."""
