@@ -524,11 +524,14 @@ def finalize_outputs(
 
   final_total_transport = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          models.transport_model,
-          models.neoclassical_models,
-          runtime_params_t_plus_dt,
-          geometry_t_plus_dt,
-          final_core_profiles,
+          transport_model=models.transport_model,
+          neoclassical_models=models.neoclassical_models,
+          internal_boundary_condition_model=(
+              models.internal_boundary_condition_model
+          ),
+          runtime_params=runtime_params_t_plus_dt,
+          geo=geometry_t_plus_dt,
+          core_profiles=final_core_profiles,
           pedestal_transition_state=pedestal_transition_state,
       )
   )

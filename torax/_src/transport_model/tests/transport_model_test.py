@@ -977,9 +977,6 @@ class TransportModelTest(absltest.TestCase):
         spec=pedestal_model_output_lib.PedestalModelOutput
     )
     pedestal_output.rho_norm_ped_top = 1.0
-    pedestal_output.get_two_point_face_mask.return_value = jnp.zeros_like(
-        geo.rho_face_norm, dtype=jnp.bool_
-    )
 
     runtime_params = mock.Mock()
     runtime_params.transport = combined_params

@@ -311,12 +311,28 @@ models (``core_transport_models`` and ``pedestal_transport_models``) with
 explicit radial bounds (``rho_min``, ``rho_max``) and merge modes
 (``merge_mode: 'add'`` or ``'overwrite'``).
 
-An edge-transport-barrier, or pedestal, is set up in TORAX through an adaptive
-source term which sets a desired value (pedestal height) of
+An edge-transport-barrier, or pedestal, is set up in TORAX through internal
+boundary conditions which set a desired value (pedestal height) of
 :math:`T_e`, :math:`T_i` and :math:`n_e`, at a user-configurable location
 (pedestal width). Two different variants are available, one setting the pedestal
 pressure and temperature ratios, and the other setting the pedestal temperatures
 directly.
+
+In L-mode discharges, edge kinetic profiles (:math:`T_i, T_e, n_e`) in the edge
+region :math:`\hat{\rho} \ge \hat{\rho}_{\text{edge}}` can optionally be
+constrained via an internal boundary condition parameterized by a prescribed
+normalized poloidal beta gradient
+:math:`\beta_{pol}' \equiv -\partial \beta_{pol,\text{local}} / \partial \psi_N`:
+
+.. math::
+
+  \beta_{pol,\text{local}}(\psi) = \frac{P_{\text{total}}(\psi)}{\langle B_p^2 \rangle / (2\mu_0)}
+
+  P_{\text{total}}(\psi_N) = \frac{\langle B_p^2 \rangle}{2\mu_0} [\beta_{pol,\text{sep}} + \beta_{pol}' (1 - \psi_N)]
+
+Combined with a prescribed edge electron density :math:`n_{e,\text{edge}}` and
+temperature ratio :math:`T_i / T_e`, this model determines the edge temperature
+profiles at each solver iteration.
 
 In the TORAX roadmap, coupling to additional transport models is envisaged,
 including to additional semi-empirical models and H-mode confinement

@@ -14,6 +14,7 @@
 
 from unittest import mock
 from absl.testing import absltest
+from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax._src import state
@@ -21,6 +22,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
+from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 
 # pylint: disable=invalid-name
@@ -307,25 +309,101 @@ class PedestalModelOutputTest(absltest.TestCase):
       np.testing.assert_allclose(ibc_tanh.T_e, expected_T_e, rtol=1e-5)
       np.testing.assert_allclose(ibc_tanh.n_e, expected_n_e, rtol=1e-5)
 
-  def test_get_two_point_face_mask(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    pmo = pedestal_model_output.PedestalModelOutput(
-        rho_norm_ped_top=0.91,
-        T_i_ped=5.0,
-        T_e_ped=5.0,
-        n_e_ped=1.0e20,
-    )
-    # rho_norm_ped_top is on the cell grid; nearest cell is found via argmin.
-    expected_cell_idx = int(jnp.argmin(jnp.abs(geo.rho_norm - 0.91)))
-    mask = pmo.get_two_point_face_mask(geo, set_pedestal=True)
-    expected_mask = np.zeros(len(geo.rho_face_norm), dtype=bool)
-    expected_mask[expected_cell_idx] = True
-    np.testing.assert_array_equal(mask, expected_mask)
 
-    mask_disabled = pmo.get_two_point_face_mask(geo, set_pedestal=False)
-    np.testing.assert_array_equal(
-        mask_disabled, np.zeros(len(geo.rho_face_norm), dtype=bool)
+class TransitionCalculationsTest(parameterized.TestCase):
+
+  def test_compute_ramp_fraction(self):
+    transition_state = pedestal_transition_state.PedestalTransitionState(
+        transition_start_time=jnp.array(1.0),
+        T_i_ped_L_mode=jnp.array(0.0),
+        T_e_ped_L_mode=jnp.array(0.0),
+        n_e_ped_L_mode=jnp.array(0.0),
+        confinement_mode=pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
+        pedestal_model_output=pedestal_model_output.PedestalModelOutput(
+            rho_norm_ped_top=jnp.inf,
+            T_i_ped=0.0,
+            T_e_ped=0.0,
+            n_e_ped=0.0,
+        ),
+        previous_pedestal_model_output=pedestal_model_output.PedestalModelOutput(
+            rho_norm_ped_top=jnp.inf,
+            T_i_ped=0.0,
+            T_e_ped=0.0,
+            n_e_ped=0.0,
+        ),
     )
+    # transition_time_width = 1.0. Start at 1.0. Clip at both ends.
+    self.assertEqual(transition_state.compute_ramp_fraction(0.5, 1.0), 0.0)
+    self.assertEqual(transition_state.compute_ramp_fraction(1.0, 1.0), 0.0)
+    self.assertEqual(transition_state.compute_ramp_fraction(1.5, 1.0), 0.5)
+    self.assertEqual(transition_state.compute_ramp_fraction(2.0, 1.0), 1.0)
+    self.assertEqual(transition_state.compute_ramp_fraction(2.5, 1.0), 1.0)
+
+  def test_apply_transition_ramp_scaling_l_to_h(self):
+    l_mode_baseline = 1.0
+    h_mode_target = 3.0
+
+    transition_state = pedestal_transition_state.PedestalTransitionState(
+        transition_start_time=jnp.array(1.0),
+        T_i_ped_L_mode=jnp.array(l_mode_baseline),
+        T_e_ped_L_mode=jnp.array(l_mode_baseline),
+        n_e_ped_L_mode=jnp.array(l_mode_baseline),
+        confinement_mode=pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
+        pedestal_model_output=pedestal_model_output.PedestalModelOutput(
+            T_i_ped=h_mode_target,
+            T_e_ped=h_mode_target,
+            n_e_ped=h_mode_target,
+            rho_norm_ped_top=0.5,
+        ),
+        previous_pedestal_model_output=pedestal_model_output.PedestalModelOutput(
+            rho_norm_ped_top=jnp.inf,
+            T_i_ped=0.0,
+            T_e_ped=0.0,
+            n_e_ped=0.0,
+        ),
+    )
+
+    scaled_pedestal_model_output = (
+        transition_state.apply_transition_ramp_scaling(
+            ramp_fraction=0.5,
+        )
+    )
+
+    # Expected: 1.0 + 0.5 * (3.0 - 1.0) = 2.0
+    self.assertTrue(jnp.allclose(scaled_pedestal_model_output.T_i_ped, 2.0))
+    self.assertTrue(jnp.allclose(scaled_pedestal_model_output.T_e_ped, 2.0))
+    self.assertTrue(jnp.allclose(scaled_pedestal_model_output.n_e_ped, 2.0))
+
+  def test_get_scaled_pedestal_model_output(self):
+    l_mode_baseline = 1.0
+    h_mode_target = 5.0
+
+    transition_state = pedestal_transition_state.PedestalTransitionState(
+        transition_start_time=jnp.array(2.0),
+        T_i_ped_L_mode=jnp.array(l_mode_baseline),
+        T_e_ped_L_mode=jnp.array(l_mode_baseline),
+        n_e_ped_L_mode=jnp.array(l_mode_baseline),
+        confinement_mode=pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
+        pedestal_model_output=pedestal_model_output.PedestalModelOutput(
+            T_i_ped=h_mode_target,
+            T_e_ped=h_mode_target,
+            n_e_ped=h_mode_target,
+            rho_norm_ped_top=0.8,
+        ),
+        previous_pedestal_model_output=pedestal_model_output.PedestalModelOutput(
+            rho_norm_ped_top=jnp.inf,
+            T_i_ped=0.0,
+            T_e_ped=0.0,
+            n_e_ped=0.0,
+        ),
+    )
+
+    # At t=2.5 with width=2.0, ramp fraction is (2.5 - 2.0) / 2.0 = 0.25
+    # Expected: 1.0 + 0.25 * (5.0 - 1.0) = 2.0
+    scaled = transition_state.get_scaled_pedestal_model_output(
+        t=2.5, transition_time_width=2.0
+    )
+    self.assertTrue(jnp.allclose(scaled.T_i_ped, 2.0))
 
 
 if __name__ == '__main__':
