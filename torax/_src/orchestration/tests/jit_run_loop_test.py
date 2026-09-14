@@ -56,8 +56,9 @@ class JitRunLoopTest(absltest.TestCase):
           step_fn=step_fn,
           max_steps=200,
           runtime_params_overrides=runtime_overrides,
+          enable_gradients=True,
       )
-      return post_processed_outputs.Q_fusion[final_i]
+      return post_processed_outputs.Q_fusion[final_i]  # pyrefly: ignore[bad-index]
 
     original_values = runtime_params_provider.profile_conditions.Ip.value
     start_Ip = original_values[0]
@@ -79,6 +80,32 @@ class JitRunLoopTest(absltest.TestCase):
     ) / (2 * eps)
 
     chex.assert_trees_all_close(grad_diff, grad_vjp[index], atol=5e-9)
+
+  def test_enable_gradients(self):
+    torax_config = torax.build_torax_config_from_file(
+        'examples/iterhybrid_rampup.py'
+    )
+    step_fn = torax_experimental.make_step_fn(torax_config)
+
+    # By default, enable_gradients is False on the solver
+    self.assertFalse(step_fn.runtime_params_provider.solver.enable_gradients)
+
+    # Run loop with enable_gradients=False
+    states_no_grad, _, i_no_grad = jit_run_loop.run_loop_jit(
+        step_fn=step_fn,
+        max_steps=2,
+        enable_gradients=False,
+    )
+
+    # Run loop with enable_gradients=True
+    states_grad, _, i_grad = jit_run_loop.run_loop_jit(
+        step_fn=step_fn,
+        max_steps=2,
+        enable_gradients=True,
+    )
+
+    self.assertEqual(i_no_grad, i_grad)
+    chex.assert_trees_all_close(states_no_grad, states_grad)
 
 
 if __name__ == '__main__':

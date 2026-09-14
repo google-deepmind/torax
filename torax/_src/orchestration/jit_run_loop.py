@@ -14,6 +14,7 @@
 
 """JITted run_loop for iterating over the simulation step function."""
 
+import dataclasses
 from typing import Any, TypeAlias
 import chex
 import jax
@@ -30,17 +31,40 @@ from torax._src.output_tools import post_processing
 PyTree: TypeAlias = Any
 
 
-@jax.jit(static_argnames='max_steps')
+@jax.jit(static_argnames=('max_steps', 'enable_gradients'))
 def run_loop_jit(
     step_fn: step_function.SimulationStepFn,
     max_steps: int,
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
+    enable_gradients: bool = False,
 ) -> tuple[
     sim_state.SimState, post_processing.PostProcessedOutputs, chex.Numeric
 ]:
-  """Runs the simulation loop under jax.jit."""
+  """Runs the simulation loop under jax.jit.
+
+  Args:
+    step_fn: Simulation step function.
+    max_steps: Maximum number of steps to take.
+    runtime_params_overrides: Optional runtime parameters overrides.
+    enable_gradients: If True, enables gradient support in the solver. Defaults
+      to False.
+
+  Returns:
+    A tuple of (states_history, post_processed_outputs_history, final_i).
+  """
+  if runtime_params_overrides is None:
+    runtime_params_overrides = step_fn.runtime_params_provider
+  if hasattr(runtime_params_overrides.solver, 'enable_gradients'):
+    new_solver = runtime_params_overrides.solver.model_copy(
+        update={'enable_gradients': enable_gradients}
+    )
+    new_solver.clear_cached_properties()
+    runtime_params_overrides = dataclasses.replace(
+        runtime_params_overrides, solver=new_solver
+    )
+
   initial_state, initial_post_processed_outputs = (
       initial_state_lib.get_initial_state_and_post_processed_outputs(
           step_fn=step_fn,
@@ -133,6 +157,7 @@ def run_loop(
     log_timestep_info: bool = False,
     progress_bar: bool = False,
     max_steps: int | None = None,
+    enable_gradients: bool = False,
 ) -> tuple[
     list[sim_state.SimState],
     tuple[post_processing.PostProcessedOutputs, ...],
@@ -154,6 +179,8 @@ def run_loop(
     max_steps: Optional maximum number of steps to take. If not provided, then
       the maximum number of steps will be determined by the numerics.t_final and
       numerics.min_dt.
+    enable_gradients: If True, enables gradient support in the solver. Defaults
+      to False.
 
   Returns:
     A tuple of:
@@ -189,6 +216,7 @@ def run_loop(
       step_fn,
       max_steps,
       runtime_params_overrides=runtime_params_overrides,
+      enable_gradients=enable_gradients,
   )
 
   unstacked_states = _unstack_pytree_history(states_history, final_i)

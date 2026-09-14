@@ -58,6 +58,8 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       (predictor-corrector) method.
     fixed_point_use_backtracking: Enables backtracking linesearch for the fixed
       point (predictor-corrector) method.
+    enable_gradients: If True, enables gradient support for the solver, such as
+      using the implicit function theorem.
   """
 
   theta_implicit: Annotated[
@@ -90,6 +92,7 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       False
   )
   delta_reduction_factor: float = 0.5
+  enable_gradients: Annotated[bool, torax_pydantic.JAX_STATIC] = False
 
   @property
   @abc.abstractmethod
@@ -206,6 +209,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
         log_iterations=self.log_iterations,
         vmap_linesearch=self.vmap_linesearch,
         max_linesearch_steps=self.max_linesearch_steps,
+        gradient_support=self.enable_gradients,
         fixed_point_atol=self.fixed_point_atol,
         fixed_point_rtol=self.fixed_point_rtol,
         fixed_point_termination_criterion=self.fixed_point_termination_criterion,
