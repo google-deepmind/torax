@@ -30,7 +30,10 @@ from torax._src.output_tools import post_processing
 PyTree: TypeAlias = Any
 
 
-@jax.jit(static_argnames='max_steps')
+@jax.jit(
+    static_argnames='max_steps',
+    compiler_options={'xla_cpu_opt_preset': 'FAST_COMPILE'},
+)
 def run_loop_jit(
     step_fn: step_function.SimulationStepFn,
     max_steps: int,
