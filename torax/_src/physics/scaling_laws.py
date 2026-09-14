@@ -68,6 +68,7 @@ _P_LH_SCALING_PARAMS = {
 }
 
 
+@jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class PLHAuxiliaryData:
   """Auxiliary data for P_LH calculations."""
@@ -78,6 +79,7 @@ class PLHAuxiliaryData:
   line_average_n_e_at_P_LH_min: jax.Array
 
 
+@jax.jit(static_argnames=['scaling_law'])
 def _calculate_P_LH_high_density(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -122,6 +124,7 @@ def _calculate_P_LH_high_density(
   return P_LH_MW * 1e6  # pyrefly: ignore[bad-return]
 
 
+@jax.jit
 def _calculate_line_average_n_e_at_P_LH_min(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -138,6 +141,7 @@ def _calculate_line_average_n_e_at_P_LH_min(
   )
 
 
+@jax.jit(static_argnames=['scaling_law', 'divertor_configuration'])
 def calculate_P_LH(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -213,6 +217,7 @@ def calculate_P_LH(
   )
 
 
+@jax.jit(static_argnames=['scaling_law'])
 def calculate_scaling_law_confinement_time(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
