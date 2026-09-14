@@ -27,8 +27,7 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
@@ -316,7 +315,7 @@ def _calc_coeffs_full(
         ),
     )
 
-  # 2. Compute transport coefficients from all models.
+  # 2. Compute transport coefficients.
   transport_coefficients = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           models.transport_model,
@@ -463,74 +462,6 @@ def _calc_coeffs_full(
       * core_profiles.psi.grad()
   )
 
-  # 5. Add internal boundary condition source terms
-  if (
-      runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
-  ):
-    pedestal_model_output = pedestal_transition_state.pedestal_model_output
-    if (
-        runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
-    ):
-
-      # Scale the pedestal output by the ramp fraction during transitions.
-      # In H-mode, returns full H-mode values. In L-mode, returns L-mode
-      # values. During transitions, linearly interpolates between the two.
-      ramp_fraction = _compute_ramp_fraction(
-          pedestal_transition_state=pedestal_transition_state,
-          transition_time_width=runtime_params.pedestal.transition_time_width,
-          t=runtime_params.t,
-      )
-      scaled_pedestal_model_output = _apply_transition_ramp_scaling(
-          pedestal_transition_state=pedestal_transition_state,
-          ramp_fraction=ramp_fraction,
-      )
-
-      # internal boundary conditions should be applied if we're in H mode
-      # or still in the LH/HL ramp.
-      apply_pedestal_internal_boundary_conditions = (
-          pedestal_transition_state.confinement_mode
-          != pedestal_transition_state_lib.ConfinementMode.L_MODE
-      )
-      pedestal_internal_boundary_conditions = jax.lax.cond(
-          apply_pedestal_internal_boundary_conditions,
-          lambda: scaled_pedestal_model_output.to_internal_boundary_conditions(
-              geo,
-              core_profiles=core_profiles,
-              pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
-          ),
-          lambda: internal_boundary_conditions_lib.InternalBoundaryConditions.empty(
-              geo
-          ),
-      )
-    else:
-      # If not using the formation model, we always apply the adaptive source.
-      pedestal_internal_boundary_conditions = pedestal_model_output.to_internal_boundary_conditions(
-          geo,
-          core_profiles=core_profiles,
-          pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
-      )
-
-    # Combine the user-specified internal boundary conditions with the pedestal
-    # model output. The pedestal model output will overwrite the user-specified
-    # values if they conflict.
-    # Prioritizing the pedestal model output over the user-specified internal
-    # boundary conditions is a choice we make to get smooth, physically-
-    # realistic pedestal evolution (governed by a model) rather than getting
-    # potentially disjoint behaviour where the user-specified boundary condition
-    # collides with the predictions of the pedestal model.
-    combined_internal_boundary_conditions = (
-        runtime_params.profile_conditions.internal_boundary_conditions.merge(
-            pedestal_internal_boundary_conditions
-        )
-    )
-  else:
-    # No pedestal model, so just use the user-specified internal boundary
-    # conditions.
-    combined_internal_boundary_conditions = (
-        runtime_params.profile_conditions.internal_boundary_conditions
-    )
-
   # --- Build arguments to solver  --- #
   # Build arguments to solver based on which variables are evolving
   var_to_toc = {
@@ -590,8 +521,18 @@ def _calc_coeffs_full(
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
+  # 5. Add internal boundary condition source terms
+  internal_boundary_conditions = (
+      internal_boundary_conditions_builder.build_internal_boundary_conditions(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          pedestal_transition_state=pedestal_transition_state,
+      )
+  )
+
   internal_boundary_condition_mask, internal_boundary_condition_target_vec = (
-      combined_internal_boundary_conditions.to_solver_coeffs(
+      internal_boundary_conditions.to_solver_coeffs(
           evolving_names=evolving_names,
           nx=geo.torax_mesh.nx,
       )
@@ -644,98 +585,3 @@ def _calc_coeffs_reduced(
   )
   return coeffs
 
-
-def _compute_ramp_fraction(
-    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-    transition_time_width: array_typing.FloatScalar,
-    t: array_typing.FloatScalar,
-) -> array_typing.FloatScalar:
-  """Computes the ramp fraction for a pedestal transition.
-
-  Returns a value in [0, 1] representing the progress of the current
-  transition. 0 means the transition just started, 1 means it is complete.
-
-  Args:
-    pedestal_transition_state: Current transition state.
-    transition_time_width: Duration of the transition ramp.
-    t: Current simulation time (i.e. t + dt when called from the solver).
-
-  Returns:
-    Ramp fraction clipped to [0, 1].
-  """
-  elapsed = t - pedestal_transition_state.transition_start_time
-  fraction = elapsed / transition_time_width
-  return jnp.clip(fraction, 0.0, 1.0)
-
-
-def _apply_transition_ramp_scaling(
-    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-    ramp_fraction: array_typing.FloatScalar,
-) -> pedestal_model_output_lib.PedestalModelOutput:
-  """Applies ramp scaling to internal boundary conditions during transitions.
-
-  During an L-H transition, linearly ramps from L-mode values to the H-mode
-  targets. During an H-L transition, ramps from the H-mode targets back to
-  the L-mode values.
-
-  The L-mode values are stored in the pedestal_transition_state (captured
-  at the start of an L->H transition). The H-mode targets are the full
-  pedestal model output.
-
-  Args:
-    pedestal_transition_state: Current transition state containing L-mode
-      baseline values and the pedestal model output.
-    ramp_fraction: Progress of the current transition, in [0, 1].
-
-  Returns:
-    Scaled pedestal model output.
-  """
-
-  def _interpolate_transition(l_val, h_val):
-    """Interpolates between L-mode and H-mode values based on confinement mode.
-
-    Args:
-      l_val: L-mode baseline value.
-      h_val: H-mode target value from the pedestal model output.
-
-    Returns:
-      The interpolated value based on the current confinement mode.
-    """
-    l_to_h_ramp = l_val + ramp_fraction * (h_val - l_val)
-    h_to_l_ramp = h_val + ramp_fraction * (l_val - h_val)
-    confinement_mode = pedestal_transition_state.confinement_mode
-    return jnp.select(
-        [
-            confinement_mode
-            == pedestal_transition_state_lib.ConfinementMode.L_MODE,
-            confinement_mode
-            == pedestal_transition_state_lib.ConfinementMode.H_MODE,
-            confinement_mode
-            == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
-            confinement_mode
-            == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
-        ],
-        [l_val, h_val, l_to_h_ramp, h_to_l_ramp],
-    )
-
-  pedestal_model_output = pedestal_transition_state.pedestal_model_output
-
-  scaled_T_i = _interpolate_transition(
-      l_val=pedestal_transition_state.T_i_ped_L_mode,
-      h_val=pedestal_model_output.T_i_ped,
-  )
-  scaled_T_e = _interpolate_transition(
-      l_val=pedestal_transition_state.T_e_ped_L_mode,
-      h_val=pedestal_model_output.T_e_ped,
-  )
-  scaled_n_e = _interpolate_transition(
-      l_val=pedestal_transition_state.n_e_ped_L_mode,
-      h_val=pedestal_model_output.n_e_ped,
-  )
-
-  return dataclasses.replace(
-      pedestal_model_output,
-      T_i_ped=scaled_T_i,
-      T_e_ped=scaled_T_e,
-      n_e_ped=scaled_n_e,
-  )
