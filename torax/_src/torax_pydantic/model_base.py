@@ -17,12 +17,11 @@
 from collections.abc import Set
 import functools
 import inspect
-from typing import Any, Final, Mapping, Sequence, TypeAlias
+from typing import Any, Final, Mapping, Self, Sequence, TypeAlias, cast
 
 import jax
 import pydantic
 import treelib
-from typing_extensions import Self
 
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
 JAX_STATIC: Final[str] = '_pydantic_jax_static_field'
@@ -153,7 +152,10 @@ class BaseModelFrozen(pydantic.BaseModel):
     # Some Pydantic models are values of a dict. We flatten the tree to access
     # them.
     leaves = jax.tree.flatten(leaves, is_leaf=is_leaf)[0]
-    return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))  # pyrefly: ignore[bad-return]
+    return cast(
+        tuple[Self, ...],
+        tuple(i for i in leaves if isinstance(i, BaseModelFrozen)),
+    )
 
   @property
   def submodels(self) -> tuple[Self, ...]:
@@ -166,7 +168,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       A tuple of the model and all model submodels.
     """
 
-    all_submodels = [self]
+    all_submodels: list[Self] = [self]
     new_submodels = self._direct_submodels
     while new_submodels:
       new_submodels_temp = []
@@ -303,4 +305,4 @@ class BaseModelFrozen(pydantic.BaseModel):
         raise ValueError(f'Cannot look up path {path} in {value}')
     if not isinstance(value, BaseModelFrozen):
       raise ValueError(f'The value at path {paths} is not a Pydantic model.')
-    return value  # pyrefly: ignore[bad-return]
+    return cast(Self, value)

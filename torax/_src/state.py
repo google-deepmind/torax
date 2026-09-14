@@ -17,7 +17,7 @@
 import dataclasses
 import enum
 import functools
-from typing import Mapping
+from typing import Mapping, Self
 
 from absl import logging
 import jax
@@ -31,7 +31,6 @@ from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
 from torax._src.physics import fast_ion as fast_ion_lib
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -579,7 +578,7 @@ class CoreTransport:
     )
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
     shape = geo.rho_face.shape
     return cls(

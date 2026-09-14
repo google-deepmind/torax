@@ -14,8 +14,10 @@
 
 """Tridiagonal matrix representations and operations."""
 
+from collections.abc import Iterable
 import dataclasses
 import enum
+from typing import Self
 
 import jax
 from jax import numpy as jnp
@@ -23,7 +25,6 @@ import jax.scipy.linalg
 import jaxtyping as jt
 from torax._src import array_typing
 from torax._src import jax_utils
-import typing_extensions
 
 
 @enum.unique
@@ -54,8 +55,8 @@ class TriDiagonal:
         + jnp.diag(self.below, -1)
     )
 
-  def __add__(self, other: typing_extensions.Self) -> typing_extensions.Self:
-    return TriDiagonal(  # pyrefly: ignore[bad-return]
+  def __add__(self, other: Self) -> Self:
+    return type(self)(
         diagonal=self.diagonal + other.diagonal,
         above=self.above + other.above,
         below=self.below + other.below,
@@ -97,8 +98,8 @@ class BlockTriDiagonal:
     """Size of each block."""
     return self.diagonal.shape[1]
 
-  def __add__(self, other: typing_extensions.Self) -> typing_extensions.Self:
-    return BlockTriDiagonal(  # pyrefly: ignore[bad-return]
+  def __add__(self, other: Self) -> Self:
+    return type(self)(
         lower=self.lower + other.lower,
         diagonal=self.diagonal + other.diagonal,
         upper=self.upper + other.upper,
@@ -108,7 +109,7 @@ class BlockTriDiagonal:
   def from_block_diagonal(
       cls,
       vals: jt.Float[array_typing.Array, 'num_blocks block_size block_size'],
-  ) -> 'BlockTriDiagonal':
+  ) -> Self:
     """Creates a block-tridiagonal matrix from diagonal blocks."""
     num_blocks, block_size, _ = vals.shape
     off_diag = jnp.zeros(
@@ -126,7 +127,7 @@ class BlockTriDiagonal:
       num_blocks: int,
       block_size: int,
       dtype: jnp.dtype | None = None,
-  ) -> 'BlockTriDiagonal':
+  ) -> Self:
     """Creates a zero block-tridiagonal matrix."""
     dtype = dtype if dtype is not None else jax_utils.get_dtype()
     return cls.from_block_diagonal(
@@ -137,7 +138,7 @@ class BlockTriDiagonal:
   def from_diagonal(
       cls,
       vals: jt.Float[array_typing.Array, 'num_blocks block_size'],
-  ) -> 'BlockTriDiagonal':
+  ) -> Self:
     """Creates a block-tridiagonal matrix from diagonal blocks."""
     return cls.from_block_diagonal(
         vals=vals[..., None, :] * jnp.eye(vals.shape[-1], dtype=vals.dtype),
@@ -146,8 +147,8 @@ class BlockTriDiagonal:
   @classmethod
   def from_tridiagonals(
       cls,
-      tridiagonals: typing_extensions.Iterable[TriDiagonal],
-  ) -> 'BlockTriDiagonal':
+      tridiagonals: Iterable[TriDiagonal],
+  ) -> Self:
     """Creates a BlockTriDiagonal from an iterable of per-channel TriDiagonals.
 
     Each channel contributes a scalar tridiagonal system placed along the (i, i)
@@ -162,7 +163,7 @@ class BlockTriDiagonal:
     tridiagonals_seq = tuple(tridiagonals)
     stacked = jax.tree.map(
         lambda *args: jnp.stack(args, axis=1), *tridiagonals_seq
-        )
+    )
     return cls(
         lower=stacked.below[..., None, :]
         * jnp.eye(stacked.below.shape[-1], dtype=stacked.below.dtype),

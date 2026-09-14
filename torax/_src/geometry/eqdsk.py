@@ -15,7 +15,7 @@
 
 import json
 import logging
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
 import contourpy
 import eqdsk
@@ -31,7 +31,6 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # Inject `npt` into eqdsk.file's runtime namespace to prevent Pydantic from
 # raising `PydanticUndefinedAnnotation: name 'npt' is not defined.`
@@ -105,7 +104,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
     return json.loads(json_str)
 
   @pydantic.model_validator(mode='after')
-  def _validate_model(self) -> typing_extensions.Self:
+  def _validate_model(self) -> Self:
     if self.geometry_file is None and self.eqdsk_object is None:
       raise ValueError(
           "Either 'geometry_file' or 'eqdsk_object' must be provided."

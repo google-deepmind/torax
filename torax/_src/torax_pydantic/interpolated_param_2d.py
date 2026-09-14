@@ -17,7 +17,7 @@
 from collections.abc import Mapping
 import dataclasses
 import functools
-from typing import Any, Literal, TypeAlias
+from typing import Annotated, Any, Literal, Self, TypeAlias
 
 import chex
 import equinox as eqx
@@ -31,7 +31,6 @@ from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
-import typing_extensions
 import xarray as xr
 
 ValueType: TypeAlias = dict[
@@ -90,7 +89,7 @@ class Grid1D(model_base.BaseModelFrozen):
     """Widths of cells."""
     return jnp.diff(self.face_centers)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: Self) -> bool:  # pyrefly: ignore[bad-override]
     """Custom equality to handle numpy array comparison."""
     if not isinstance(other, Grid1D):
       return False
@@ -156,10 +155,10 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
   """
 
   value: ValueType
-  rho_interpolation_mode: typing_extensions.Annotated[
+  rho_interpolation_mode: Annotated[
       interpolated_param.InterpolationMode, model_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
-  time_interpolation_mode: typing_extensions.Annotated[
+  time_interpolation_mode: Annotated[
       interpolated_param.InterpolationMode, model_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   grid: Grid1D | None = None
@@ -360,7 +359,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
   def update(
       self, replace_value: TimeVaryingArrayUpdate
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """This method can be used under `jax.jit`."""
     assert self.grid is not None, 'grid must be set to update.'
 
@@ -394,7 +393,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     )
 
     def get_leaves(
-        x: typing_extensions.Self,
+        x: Self,
     ) -> tuple[
         chex.Array, chex.Array, chex.Array, chex.Array, chex.Array, chex.Array
     ]:
@@ -415,7 +414,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         (time, cell_value, time, face_value, time, face_right_value),
     )
 
-  def __eq__(self, other: typing_extensions.Self):  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: Self):  # pyrefly: ignore[bad-override]
     try:
       chex.assert_trees_all_equal(self.value, other.value)
       return (
@@ -755,7 +754,7 @@ def array_bounds_validator(
   )
 
 
-PositiveTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
+PositiveTimeVaryingArray: TypeAlias = Annotated[
     TimeVaryingArray, array_bounds_validator(gt=0.0)
 ]
 
@@ -905,6 +904,6 @@ def get_face_centers(nx: int, dx: float | None = None) -> np.ndarray:
   return np.linspace(0, nx * dx, nx + 1)
 
 
-NonNegativeTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
+NonNegativeTimeVaryingArray: TypeAlias = Annotated[
     TimeVaryingArray, array_bounds_validator(ge=0.0)
 ]
