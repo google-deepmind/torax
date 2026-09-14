@@ -20,6 +20,7 @@ import functools
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import state
@@ -292,7 +293,7 @@ class SimulationStepFn:
 
   def fixed_time_step(
       self,
-      dt: chex.Array,
+      dt: array_typing.Array,
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_overrides: (
@@ -354,7 +355,7 @@ class SimulationStepFn:
   @jax.jit
   def jitted_fixed_time_step(
       self,
-      dt: chex.Array,
+      dt: array_typing.Array,
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_overrides: (
