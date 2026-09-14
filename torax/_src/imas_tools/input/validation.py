@@ -15,10 +15,44 @@
 
 import functools
 import logging
+from collections.abc import Mapping, Sequence
 from typing import Any, Collection
+
+import numpy as np
 
 from imas import ids_toplevel
 from torax._src import constants
+
+
+def validate_finite_values(value: Any, *, context: str) -> None:
+  """Raises when nested numeric input data contains NaN or infinity.
+
+  Args:
+    value: Nested mappings/sequences/scalars to validate.
+    context: Human-readable description included in the error message.
+  """
+
+  def _walk(item: Any, path: str) -> None:
+    if item is None or isinstance(item, (str, bytes)):
+      return
+    if isinstance(item, Mapping):
+      for key, child in item.items():
+        _walk(child, f"{path}.{key}" if path else str(key))
+      return
+    if isinstance(item, Sequence) and not isinstance(item, np.ndarray):
+      for index, child in enumerate(item):
+        _walk(child, f"{path}[{index}]")
+      return
+
+    try:
+      array = np.asarray(item)
+    except (TypeError, ValueError):
+      return
+    if array.dtype.kind in "biufc" and not np.all(np.isfinite(array)):
+      location = path or "<root>"
+      raise ValueError(f"{context} contains non-finite values at {location}.")
+
+  _walk(value, "")
 
 
 # pylint: disable=invalid-name
