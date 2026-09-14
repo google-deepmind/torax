@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from unittest import mock
 
 from absl.testing import absltest
@@ -26,6 +25,23 @@ from torax._src.physics import scaling_laws
 
 # pylint: disable=invalid-name
 class ScalingLawsTest(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.enter_context(
+        mock.patch.object(
+            scaling_laws,
+            '_calculate_line_average_n_e_at_P_LH_min',
+            scaling_laws._calculate_line_average_n_e_at_P_LH_min.__wrapped__,  # pyrefly: ignore[missing-attribute]
+        )
+    )
+    self.enter_context(
+        mock.patch.object(
+            scaling_laws,
+            '_calculate_P_LH_high_density',
+            scaling_laws._calculate_P_LH_high_density.__wrapped__,  # pyrefly: ignore[missing-attribute]
+        )
+    )
 
   def _get_test_geo_and_profiles(self):
     geo = circular_geometry.CircularConfig(
@@ -112,7 +128,7 @@ class ScalingLawsTest(parameterized.TestCase):
       S_exponent,
   ):
     geo, core_profiles = self._get_test_geo_and_profiles()
-    P_LH, aux_data = scaling_laws.calculate_P_LH(
+    P_LH, aux_data = scaling_laws.calculate_P_LH.__wrapped__(  # pyrefly: ignore[missing-attribute]
         geo, core_profiles, scaling_law, divertor_configuration
     )
 
@@ -212,16 +228,19 @@ class ScalingLawsTest(parameterized.TestCase):
     )
     Ploss = jnp.array(50e6)
 
-    H89P = scaling_laws.calculate_scaling_law_confinement_time(
+    calculate_confinement_time = (
+        scaling_laws.calculate_scaling_law_confinement_time.__wrapped__  # pyrefly: ignore[missing-attribute]
+    )
+    H89P = calculate_confinement_time(
         geo, core_profiles, Ploss, 'H89P'
     )
-    H98 = scaling_laws.calculate_scaling_law_confinement_time(
+    H98 = calculate_confinement_time(
         geo, core_profiles, Ploss, 'H98'
     )
-    H97L = scaling_laws.calculate_scaling_law_confinement_time(
+    H97L = calculate_confinement_time(
         geo, core_profiles, Ploss, 'H97L'
     )
-    H20 = scaling_laws.calculate_scaling_law_confinement_time(
+    H20 = calculate_confinement_time(
         geo, core_profiles, Ploss, 'H20'
     )
 

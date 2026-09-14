@@ -28,6 +28,7 @@ import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state as state_lib
 from torax._src.config import numerics as numerics_lib
@@ -275,8 +276,10 @@ def _get_provider_value_from_replace_value(
             f" got {type(replace_value)} instead."
         )
       return leaf.update(replace_value)
-    case _ if isinstance(leaf, (chex.Array, float)):
-      if not isinstance(replace_value, (chex.Array, float, jax.core.Tracer)):
+    case _ if isinstance(leaf, (array_typing.Array, float)):
+      if not isinstance(
+          replace_value, (array_typing.Array, float, jax.core.Tracer)
+      ):
         raise ValueError(
             "To replace a scalar or `Array` pass a scalar or `Array`,"
             f" got {type(replace_value)} instead."

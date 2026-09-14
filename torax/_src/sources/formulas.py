@@ -21,6 +21,7 @@ from torax._src.geometry import geometry
 # pylint: disable=invalid-name
 
 
+@jax.jit
 def exponential_profile(
     geo: geometry.Geometry,
     *,
@@ -53,6 +54,7 @@ def exponential_profile(
   return C * S  # pyrefly: ignore[bad-return]
 
 
+@jax.jit
 def gaussian_profile(
     geo: geometry.Geometry,
     *,

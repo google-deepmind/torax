@@ -47,7 +47,7 @@ class TriDiagonal:
   above: jt.Float[array_typing.Array, 'size-1']
   below: jt.Float[array_typing.Array, 'size-1']
 
-  def to_dense(self) -> jt.Float[array_typing.Array, 'size size']:
+  def to_dense(self) -> jt.Float[jax.Array, 'size size']:
     return (
         jnp.diag(self.diagonal)
         + jnp.diag(self.above, 1)
@@ -64,7 +64,7 @@ class TriDiagonal:
   def matvec(
       self,
       x: jt.Float[array_typing.Array, 'size'],
-  ) -> jt.Float[array_typing.Array, 'size']:
+  ) -> jt.Float[jax.Array, 'size']:
     return (
         self.diagonal * x
         + jnp.pad(self.above * x[1:], (0, 1))
@@ -162,7 +162,7 @@ class BlockTriDiagonal:
     tridiagonals_seq = tuple(tridiagonals)
     stacked = jax.tree.map(
         lambda *args: jnp.stack(args, axis=1), *tridiagonals_seq
-        )
+    )
     return cls(
         lower=stacked.below[..., None, :]
         * jnp.eye(stacked.below.shape[-1], dtype=stacked.below.dtype),
@@ -172,7 +172,7 @@ class BlockTriDiagonal:
         * jnp.eye(stacked.above.shape[-1], dtype=stacked.above.dtype),
     )
 
-  def to_dense(self) -> jt.Float[array_typing.Array, 'total total']:
+  def to_dense(self) -> jt.Float[jax.Array, 'total total']:
     """Constructs the dense matrix representation.
 
     Returns:
@@ -197,7 +197,7 @@ class BlockTriDiagonal:
       self,
       rhs: jt.Float[array_typing.Array, 'num_blocks block_size'],
       solver_type: SolverType,
-  ) -> jt.Float[array_typing.Array, 'num_blocks block_size']:
+  ) -> jt.Float[jax.Array, 'num_blocks block_size']:
     """Solves A @ x = rhs.
 
     Args:
@@ -215,7 +215,7 @@ class BlockTriDiagonal:
 
   def matvec(
       self, x: jt.Float[array_typing.Array, 'num_blocks block_size']
-  ) -> jt.Float[array_typing.Array, 'num_blocks block_size']:
+  ) -> jt.Float[jax.Array, 'num_blocks block_size']:
     """Block-tridiagonal matrix-vector multiply: y = A @ x.
 
     Args:
@@ -233,10 +233,11 @@ class BlockTriDiagonal:
     return jnp.einsum('nij,nj->ni', self.diagonal, x) + y_upper + y_lower
 
 
+@jax.jit
 def dense_solve(
     block_tridiag: BlockTriDiagonal,
     rhs: jt.Float[array_typing.Array, 'num_blocks block_size'],
-) -> jt.Float[array_typing.Array, 'num_blocks block_size']:
+) -> jt.Float[jax.Array, 'num_blocks block_size']:
   """Solves A @ x = rhs using a dense matrix inversion.
 
   Args:
@@ -250,10 +251,11 @@ def dense_solve(
   return x_flat.reshape((block_tridiag.num_blocks, block_tridiag.block_size))
 
 
+@jax.jit
 def thomas_solve(
     block_tridiag: BlockTriDiagonal,
     rhs: jt.Float[array_typing.Array, 'num_blocks block_size'],
-) -> jt.Float[array_typing.Array, 'num_blocks block_size']:
+) -> jt.Float[jax.Array, 'num_blocks block_size']:
   """Solves A @ x = rhs using the Thomas algorithm.
 
   See (https://en.wikipedia.org/wiki/Tridiagonal_matrix_algorithm) for details

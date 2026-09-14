@@ -35,7 +35,7 @@ interp_fn_vmap = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
 @jax.jit
 def _step_interpolation(
     xs: array_typing.Array, x: chex.Numeric
-) -> array_typing.Array:
+) -> jax.Array:
   """Find the indices for step interpolation."""
   # For a given x, we want to find k such that self.xs[k] <= x < self.xs[k+1]
   # and return self.ys[k]. Subtracting 1 gives index k. Setting side='left'

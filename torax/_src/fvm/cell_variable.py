@@ -36,13 +36,30 @@ def _zero() -> array_typing.FloatScalar:
 
 
 @jax.jit
+def _three_point_stencil_gradient(
+    d: tuple[jax.Array, jax.Array, jax.Array],
+    v: tuple[jax.Array, jax.Array, jax.Array],
+) -> jax.Array:
+  """Computes the gradient using a 3-point stencil."""
+  d1, d2, d3 = d
+  v1, v2, v3 = v
+  c1 = (d2 + d3) / (-1 * d1**2 + d1 * d2 + d1 * d3 - d2 * d3)
+  # c2 = (-d1 - d3) / (-1*d1*d2 + d1*d3 + d2**2 - d2*d3)
+  c3 = (-d1 - d2) / (d1 * d2 - d1 * d3 - d2 * d3 + d3**2)
+  # We use c1*(v1-v2) + c3*(v3-v2) instead of c1*v1 + c2*v2 + c3*v3
+  # because c1+c2+c3 = 0 analytically, but not numerically.
+  # By using differences we ensure that if v1=v2=v3, the result is exactly 0.
+  return c1 * (v1 - v2) + c3 * (v3 - v2)
+
+
+@jax.jit
 def _compute_inner_grad(
     value: array_typing.FloatVectorCell,
     value_right_face: array_typing.FloatScalar,
     face_centers: array_typing.FloatVectorFace,
     cell_centers: array_typing.FloatVectorCell,
     two_point_mask: array_typing.BoolVectorFace | None = None,
-) -> jt.Float[array_typing.Array, 'rhon-1']:
+) -> jt.Float[jax.Array, 'rhon-1']:
   """Computes the gradient on inner faces.
 
   This gradient is computed using a 3-point stencil and is accurate to second
@@ -69,36 +86,13 @@ def _compute_inner_grad(
       are determined by boundary conditions.
   """
 
-  @jax.jit
-  def gradient(
-      d: tuple[
-          array_typing.Array,
-          array_typing.Array,
-          array_typing.Array,
-      ],
-      v: tuple[
-          array_typing.Array,
-          array_typing.Array,
-          array_typing.Array,
-      ],
-  ) -> array_typing.Array:
-    d1, d2, d3 = d
-    v1, v2, v3 = v
-    c1 = (d2 + d3) / (-1 * d1**2 + d1 * d2 + d1 * d3 - d2 * d3)
-    # c2 = (-d1 - d3) / (-1*d1*d2 + d1*d3 + d2**2 - d2*d3)
-    c3 = (-d1 - d2) / (d1 * d2 - d1 * d3 - d2 * d3 + d3**2)
-    # We use c1*(v1-v2) + c3*(v3-v2) instead of c1*v1 + c2*v2 + c3*v3
-    # because c1+c2+c3 = 0 analytically, but not numerically.
-    # By using differences we ensure that if v1=v2=v3, the result is exactly 0.
-    return c1 * (v1 - v2) + c3 * (v3 - v2)
-
   d_left = cell_centers[:-2] - face_centers[1:-2]
   d_right = cell_centers[1:-1] - face_centers[1:-2]
   d_right_right = cell_centers[2:] - face_centers[1:-2]
   left = value[:-2]
   right = value[1:-1]
   right_right = value[2:]
-  inner_grads = gradient(
+  inner_grads = _three_point_stencil_gradient(
       (d_left, d_right, d_right_right), (left, right, right_right)
   )
 
@@ -108,7 +102,7 @@ def _compute_inner_grad(
   d_left = cell_centers[-2] - face_centers[-2]
   d_right = cell_centers[-1] - face_centers[-2]
   d_right_right = face_centers[-1] - face_centers[-2]
-  penultimate_grad = gradient(
+  penultimate_grad = _three_point_stencil_gradient(
       (d_left, d_right, d_right_right),
       (penultimate_left, penultimate_right, penultimate_right_right),
   )
@@ -130,7 +124,7 @@ def _compute_inner_grad(
 def _format_boundary_for_concat(
     val: array_typing.FloatScalar | array_typing.Array,
     target_shape: tuple[int, ...],
-) -> array_typing.Array:
+) -> jax.Array:
   """Formats a boundary value to shape `(..., 1)` for concatenation with cell arrays."""
   arr = jnp.asarray(val)
   if arr.ndim < len(target_shape):
@@ -182,12 +176,12 @@ class CellVariable:
     return (self.face_centers[..., 1:] + self.face_centers[..., :-1]) / 2.0
 
   @property
-  def cell_widths(self) -> jt.Float[array_typing.Array, 'cell']:
+  def cell_widths(self) -> jt.Float[jax.Array, 'cell']:
     """Size of each cell."""
     return jnp.diff(self.face_centers)
 
   @property
-  def cell_spacings(self) -> jt.Float[array_typing.Array, 'cell-1']:
+  def cell_spacings(self) -> jt.Float[jax.Array, 'cell-1']:
     """Spacing between each cell."""
     return jnp.diff(self.cell_centers)
 
@@ -228,7 +222,7 @@ class CellVariable:
       x_left: array_typing.FloatScalar | None = None,
       x_right: array_typing.FloatScalar | None = None,
       two_point_mask: array_typing.BoolVectorFace | None = None,
-  ) -> jt.Float[array_typing.Array, 'face']:
+  ) -> jt.Float[jax.Array, 'face']:
     """Returns the gradient of this value with respect to the faces.
 
     Implemented using linear interpolation of 3-points accurate to second order
@@ -299,7 +293,7 @@ class CellVariable:
     return jnp.concatenate([left, inner_grad, right])
 
   @functools.cached_property
-  def left_face_value(self) -> jt.Float[array_typing.Array, '... 1']:
+  def left_face_value(self) -> jt.Float[jax.Array, '... 1']:
     """Calculates the value of the leftmost face."""
     target_shape = (*self.value.shape[:-1], 1)
     if self.left_face_constraint is not None:
@@ -320,7 +314,7 @@ class CellVariable:
     )
 
   @functools.cached_property
-  def right_face_value(self) -> jt.Float[array_typing.Array, '... 1']:
+  def right_face_value(self) -> jt.Float[jax.Array, '... 1']:
     """Calculates the value of the rightmost face."""
     target_shape = (*self.value.shape[:-1], 1)
     if self.right_face_constraint is not None:
@@ -340,7 +334,7 @@ class CellVariable:
         + grad * dr / 2.0
     )
 
-  def face_value(self) -> jt.Float[array_typing.Array, 'face']:
+  def face_value(self) -> jt.Float[jax.Array, 'face']:
     """Calculates values of this variable on the face grid."""
     inner = math_utils.inner_face_values_from_cell_values(
         cell_values=self.value,
@@ -352,7 +346,7 @@ class CellVariable:
         [self.left_face_value, inner, self.right_face_value], axis=-1
     )
 
-  def grad(self) -> jt.Float[array_typing.Array, 'cell']:
+  def grad(self) -> jt.Float[jax.Array, 'cell']:
     """Returns the gradient of this variable wrt cell centers."""
     face = self.face_value()
     return jnp.diff(face) / jnp.diff(self.face_centers)
@@ -374,7 +368,7 @@ class CellVariable:
     output_string += ')'
     return output_string
 
-  def cell_plus_boundaries(self) -> jt.Float[array_typing.Array, '... cell+2']:
+  def cell_plus_boundaries(self) -> jt.Float[jax.Array, '... cell+2']:
     """Returns the value of this variable plus left and right boundaries."""
     right_value = self.right_face_value
     left_value = self.left_face_value
