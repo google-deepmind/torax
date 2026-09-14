@@ -14,10 +14,12 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax._src.geometry import base
 from torax._src.geometry import chease
 from torax._src.geometry import eqdsk
 from torax._src.geometry import imas
 from torax._src.geometry import standard_geometry
+from torax._src.imas_tools.input import loader
 
 # pylint: disable=invalid-name
 
@@ -76,6 +78,28 @@ class IMASGeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(imas_geo.gm4, chease_geo.gm4, rtol=0.01)
     np.testing.assert_allclose(eqdsk_geo.gm5, chease_geo.gm5, rtol=0.02)
     np.testing.assert_allclose(imas_geo.gm5, chease_geo.gm5, rtol=0.01)
+
+  def test_trapped_fraction_is_loaded_from_file(self):
+    """Tests that the exact trapped particle fraction is loaded from IMAS."""
+    geo = imas.IMASConfig(
+        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
+        trapped_fraction_source=base.TrappedFractionSource.FILE,
+    ).build_geometry()
+    trapped_fraction = geo.trapped_fraction_face
+    self.assertIsNotNone(trapped_fraction)
+
+  def test_trapped_fraction_file_requires_provided_value(self):
+    """Tests that FILE raises when the equilibrium doesn't provide it."""
+    equilibrium_object = loader.load_imas_data(
+        'ITERhybrid_COCOS17_IDS_ddv4.nc', 'equilibrium'
+    )
+    equilibrium_object.time_slice[0].profiles_1d.trapped_fraction = []
+
+    with self.assertRaisesRegex(ValueError, 'trapped_fraction_source=FILE'):
+      imas.IMASConfig(
+          equilibrium_object=equilibrium_object,
+          trapped_fraction_source=base.TrappedFractionSource.FILE,
+      ).build_geometry()
 
 
 if __name__ == '__main__':

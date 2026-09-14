@@ -72,6 +72,7 @@ class GeometryTest(parameterized.TestCase):
         R_OMP=None,
         R_target=None,
         B_pol_OMP=None,
+        trapped_fraction=np.arange(0, 1.0, 0.01),
     )
     geo = standard_geometry.build_standard_geometry(intermediate)
     foo(geo)
@@ -185,6 +186,7 @@ class GeometryTest(parameterized.TestCase):
         R_OMP=None,
         R_target=None,
         B_pol_OMP=None,
+        trapped_fraction=np.linspace(0.0, 0.5, 100),
     )
     defaults.update(overrides)
     return standard_geometry.StandardGeometryIntermediates(**defaults)  # pyrefly: ignore[bad-argument-type]
