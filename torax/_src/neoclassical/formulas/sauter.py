@@ -13,12 +13,14 @@
 # limitations under the License.
 """Sauter model for bootstrap current."""
 
+import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 
 # pylint: disable=invalid-name
 
 
+@jax.jit
 def calculate_L31(
     f_trap: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
@@ -38,6 +40,7 @@ def calculate_L31(
   return term_0 + term_1 + term_2 + term_3
 
 
+@jax.jit
 def calculate_L32(
     f_trap: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
@@ -77,6 +80,7 @@ def calculate_L32(
   return F32ee + F32ei
 
 
+@jax.jit
 def calculate_L34(
     f_trap: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
@@ -96,6 +100,7 @@ def calculate_L34(
   )
 
 
+@jax.jit
 def calculate_alpha(
     f_trap: array_typing.FloatVectorFace,
     nu_i_star: array_typing.FloatVectorFace,

@@ -83,13 +83,18 @@ class PsiCalculationsTest(parameterized.TestCase):
         rho_face_norm=rho_face_norm,
     )
 
+    extrapolate_cell_profile_to_axis = (
+        psi_calculations._extrapolate_cell_profile_to_axis.__wrapped__  # pyrefly: ignore[missing-attribute]
+    )
+    extrapolate_face_profile_to_axis = (
+        psi_calculations._extrapolate_face_profile_to_axis.__wrapped__  # pyrefly: ignore[missing-attribute]
+    )
+
     # Check that the cell profile is extrapolated correctly
-    extrapolated_cell_profile = (
-        psi_calculations._extrapolate_cell_profile_to_axis(
-            cell_profile,
-            geo,
-            min_rho_norm=(rho_norm[0] + rho_face_norm[1]) / 2,
-        )
+    extrapolated_cell_profile = extrapolate_cell_profile_to_axis(
+        cell_profile,
+        geo,
+        min_rho_norm=(rho_norm[0] + rho_face_norm[1]) / 2,
     )
     np.testing.assert_equal(
         extrapolated_cell_profile,
@@ -99,13 +104,11 @@ class PsiCalculationsTest(parameterized.TestCase):
     # Check that the face profile is extrapolated correctly in multiple cases
     # 1. min_rho_norm has a cell point to the left and a face point to the right
     # In this case, the face point to the right is also clamped
-    extrapolated_face_profile = (
-        psi_calculations._extrapolate_face_profile_to_axis(
-            face_profile,
-            cell_profile,
-            geo,
-            min_rho_norm=(rho_norm[0] + rho_face_norm[1]) / 2,
-        )
+    extrapolated_face_profile = extrapolate_face_profile_to_axis(
+        face_profile,
+        cell_profile,
+        geo,
+        min_rho_norm=(rho_norm[0] + rho_face_norm[1]) / 2,
     )
     np.testing.assert_equal(
         extrapolated_face_profile,
@@ -114,13 +117,11 @@ class PsiCalculationsTest(parameterized.TestCase):
 
     # 2. min_rho_norm has a face point to the left and a cell point to the right
     # In this case, only the face points to the left are clamped
-    extrapolated_face_profile = (
-        psi_calculations._extrapolate_face_profile_to_axis(
-            face_profile,
-            cell_profile,
-            geo,
-            min_rho_norm=(rho_face_norm[1] + rho_norm[1]) / 2,
-        )
+    extrapolated_face_profile = extrapolate_face_profile_to_axis(
+        face_profile,
+        cell_profile,
+        geo,
+        min_rho_norm=(rho_face_norm[1] + rho_norm[1]) / 2,
     )
     np.testing.assert_equal(
         extrapolated_face_profile,
@@ -129,13 +130,11 @@ class PsiCalculationsTest(parameterized.TestCase):
 
     # 3. min_rho_norm has the axis to the left and a cell point to the right
     # In this case, only the axis value is changed
-    extrapolated_face_profile = (
-        psi_calculations._extrapolate_face_profile_to_axis(
-            face_profile,
-            cell_profile,
-            geo,
-            min_rho_norm=(rho_face_norm[0] + rho_norm[0]) / 2,
-        )
+    extrapolated_face_profile = extrapolate_face_profile_to_axis(
+        face_profile,
+        cell_profile,
+        geo,
+        min_rho_norm=(rho_face_norm[0] + rho_norm[0]) / 2,
     )
     np.testing.assert_equal(
         extrapolated_face_profile,

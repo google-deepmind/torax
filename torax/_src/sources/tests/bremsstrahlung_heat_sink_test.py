@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
+from torax._src import math_utils
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
@@ -135,14 +136,29 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     geo.vpr = jnp.ones(n_rho)
     geo.drho_norm = rho_face_norm[1] - rho_face_norm[0]
 
-    # Full bremsstrahlung (using Z_eff).
-    _, P_profile_full = bremsstrahlung_heat_sink.calc_bremsstrahlung(
-        core_profiles, geo,
-    )
-    # Main-ion-only bremsstrahlung (using Z_eff_main = n_i * Z_i^2 / n_e).
-    _, P_profile_main = bremsstrahlung_heat_sink.calc_bremsstrahlung(
-        core_profiles, geo, exclude_impurity_bremsstrahlung=True,
-    )
+    with (
+        mock.patch.object(
+            math_utils,
+            'volume_integration',
+            math_utils.volume_integration.__wrapped__,  # pyrefly: ignore[missing-attribute]
+        ),
+        mock.patch.object(
+            math_utils,
+            'cell_integration',
+            math_utils.cell_integration.__wrapped__,  # pyrefly: ignore[missing-attribute]
+        ),
+    ):
+      # Full bremsstrahlung (using Z_eff).
+      _, P_profile_full = bremsstrahlung_heat_sink.calc_bremsstrahlung(
+          core_profiles,
+          geo,
+      )
+      # Main-ion-only bremsstrahlung (using Z_eff_main = n_i * Z_i^2 / n_e).
+      _, P_profile_main = bremsstrahlung_heat_sink.calc_bremsstrahlung(
+          core_profiles,
+          geo,
+          exclude_impurity_bremsstrahlung=True,
+      )
 
     expected_ratio = n_i_over_n_e / 2.0
     np.testing.assert_allclose(

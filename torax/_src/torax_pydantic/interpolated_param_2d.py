@@ -658,7 +658,7 @@ class SparseTimeVaryingArray(model_base.BaseModelFrozen):
       self,
       t: chex.Numeric,
       grid_type: Literal['cell', 'face', 'face_right'] = 'cell',
-  ) -> array_typing.Array:
+  ) -> jax.Array:
     """Returns the evaluated profile on the grid at time t."""
     if self.grid is None:
       raise RuntimeError('grid must be set.')
