@@ -41,6 +41,7 @@ class IntegralPreservationQuantity(enum.Enum):
   VALUE = 'value'
 
 
+@jax.jit
 def inner_face_values_from_cell_values(
     *,
     cell_values: chex.Array,
@@ -131,6 +132,7 @@ def cell_to_face(
   return face_values
 
 
+@jax.jit(static_argnames=['axis', 'initial'])
 def cumulative_trapezoid(
     y: jax.Array,
     x: jax.Array | None = None,
@@ -300,6 +302,7 @@ def cumulative_volume_integration(
   return cumulative_cell_integration(value * geo.vpr, geo)
 
 
+@jax.jit
 def safe_divide(
     *, num: chex.Array, denom: chex.Array, eps: float
 ) -> chex.Array:
@@ -317,6 +320,7 @@ def safe_divide(
   return num / (denom + eps)
 
 
+@jax.jit
 def inverse_softplus(x: jax.Array) -> jax.Array:
   """Inverse of softplus function."""
   # Enforce minimum value to avoid log(0) or log(negative).
@@ -330,6 +334,7 @@ def inverse_softplus(x: jax.Array) -> jax.Array:
   return jnp.where(x > 30.0, x, jnp.log(jnp.expm1(jnp.maximum(x, 1e-20))))
 
 
+@jax.jit
 def sqrt_with_zero_gradient_at_zero(x: jax.Array) -> jax.Array:
   """Computes sqrt(x) with safe 1st, 2nd, and N-th order gradients at x=0."""
   # Swap zeros for ones BEFORE the sqrt.
@@ -344,6 +349,7 @@ def sqrt_with_zero_gradient_at_zero(x: jax.Array) -> jax.Array:
   return jnp.where(x == 0.0, jnp.zeros_like(x), safe_sqrt_out)
 
 
+@jax.jit
 def smooth_sqrt(
     x: jax.Array, epsilon: float = constants.CONSTANTS.eps  # pyrefly: ignore[bad-function-definition]
 ) -> jax.Array:
@@ -382,6 +388,7 @@ def smooth_sqrt(
   return jnp.where(x >= epsilon, safe_sqrt_x, rational_approx)
 
 
+@jax.jit(static_argnames=['log_scale'])
 def smoothstep_transition(
     x: jax.Array,
     smoothing_start: float,

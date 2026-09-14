@@ -101,6 +101,7 @@ class NormalizedLogarithmicGradients:
 
 
 # pylint: disable=invalid-name
+@jax.jit
 def calculate_chiGB(
     reference_temperature: array_typing.Array,
     reference_magnetic_field: chex.Numeric,
@@ -206,6 +207,7 @@ class RuntimeParams(runtime_params_lib.ComponentRuntimeParams):
   An_min: float
 
 
+@jax.jit
 def calculate_normalized_logarithmic_gradient(
     var: cell_variable.CellVariable,
     radial_coordinate: jax.Array,
