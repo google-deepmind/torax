@@ -34,7 +34,6 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -55,7 +54,9 @@ class CoeffsCallback:
         self.evolving_names,
     ))
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: object) -> bool:
+    if not isinstance(other, CoeffsCallback):
+      return False
     return (
         self.models == other.models
         and self.evolving_names == other.evolving_names
@@ -602,12 +603,12 @@ def _calc_coeffs_full(
       transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
       d_face=d_face,  # pyrefly: ignore[bad-argument-type]
       v_face=v_face,  # pyrefly: ignore[bad-argument-type]
-      source_mat_cell=source_mat_cell,  # pyrefly: ignore[bad-argument-type]
-      source_cell=source_cell,  # pyrefly: ignore[bad-argument-type]
-      internal_boundary_condition_mask=internal_boundary_condition_mask,  # pyrefly: ignore[bad-argument-type]
+      source_mat_cell=source_mat_cell,
+      source_cell=source_cell,
+      internal_boundary_condition_mask=internal_boundary_condition_mask,
       internal_boundary_condition_target_vec=(
           internal_boundary_condition_target_vec
-      ),  # pyrefly: ignore[bad-argument-type]
+      ),
   )
 
   return coeffs

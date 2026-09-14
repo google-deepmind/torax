@@ -286,7 +286,7 @@ def forward_mode_newton_solver(
   params = initial_sol_model.params
 
   residual_fun = functools.partial(
-      _forward_residual, params=params, fixed_cz=fixed_cz  # pyrefly: ignore[bad-argument-type]
+      _forward_residual, params=params, fixed_cz=fixed_cz
   )
 
   # 3. Run Newton-Raphson.
@@ -367,7 +367,7 @@ def inverse_mode_newton_solver(
   params = initial_sol_model.params
 
   residual_fun = functools.partial(
-      _inverse_residual, params=params, fixed_Tt=fixed_Tt  # pyrefly: ignore[bad-argument-type]
+      _inverse_residual, params=params, fixed_Tt=fixed_Tt
   )
 
   # 3. Run Newton-Raphson.

@@ -142,7 +142,7 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         Z_eff_separatrix=jnp.ones((num_roots,)) * 1.5,
         seed_impurity_concentrations={'Ne': jnp.ones((num_roots,)) * 0.01},
         solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-            physics_outcome=jnp.array([  # pyrefly: ignore[bad-argument-type]
+            physics_outcome=jnp.array([
                 extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
                 extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
                 extended_lengyel_solvers.PhysicsOutcome.SUCCESS,

@@ -230,7 +230,9 @@ class Geometry:
   Phi_b_dot: array_typing.FloatScalar
   _z_magnetic_axis: array_typing.FloatScalar | None
 
-  def __eq__(self, other: 'Geometry') -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: object) -> bool:
+    if not isinstance(other, Geometry):
+      return False
     try:
       chex.assert_trees_all_equal(self, other)
     except AssertionError:
@@ -358,12 +360,12 @@ class Geometry:
     )
 
   @property
-  def gm9(self) -> jax.Array:
+  def gm9(self) -> array_typing.Array:
     r"""<1/R> on cell grid [:math:`\mathrm{m}^{-1}`]."""
-    return 2 * jnp.pi * self.spr / self.vpr  # pyrefly: ignore[bad-return]
+    return 2 * jnp.pi * self.spr / self.vpr
 
   @property
-  def gm9_face(self) -> jax.Array:
+  def gm9_face(self) -> array_typing.Array:
     r"""<1/R> on face grid [:math:`\mathrm{m}^{-1}`]."""
     bulk = 2 * jnp.pi * self.spr_face[..., 1:] / self.vpr_face[..., 1:]
     first_element = 1 / self.R_major_profile_face[..., 0]
@@ -372,16 +374,16 @@ class Geometry:
     )
 
   @property
-  def R_major_profile(self) -> jax.Array:
+  def R_major_profile(self) -> array_typing.Array:
     """Local major radius on cell grid [m]."""
-    return (self.R_in + self.R_out) / 2  # pyrefly: ignore[bad-return]
+    return (self.R_in + self.R_out) / 2
 
   @property
-  def R_major_profile_face(self) -> jax.Array:
+  def R_major_profile_face(self) -> array_typing.Array:
     """Local major radius on face grid [m]."""
-    return (self.R_in_face + self.R_out_face) / 2  # pyrefly: ignore[bad-return]
+    return (self.R_in_face + self.R_out_face) / 2
 
-  def z_magnetic_axis(self) -> chex.Numeric:
+  def z_magnetic_axis(self) -> array_typing.FloatScalar:
     """z position of magnetic axis [m]."""
     z_magnetic_axis = self._z_magnetic_axis
     if z_magnetic_axis is not None:

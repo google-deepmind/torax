@@ -129,16 +129,16 @@ def _calculate_bootstrap_current(
   nu_e_star = formulas.calculate_nu_e_star(
       q=q_face,
       geo=geo,
-      n_e=n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      T_e=T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_e=n_e.face_value(),
+      T_e=T_e.face_value(),
       Z_eff=Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
   nu_i_star = formulas.calculate_nu_i_star(
       q=q_face,
       geo=geo,
-      n_i=n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-      T_i=T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_i=n_i.face_value(),
+      T_i=T_i.face_value(),
       Z_eff=Z_eff_face,
       log_lambda_ii=log_lambda_ii,
   )

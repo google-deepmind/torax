@@ -113,7 +113,7 @@ class GenericIonElectronHeatSource(source.Source):
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = default_formula  # pyrefly: ignore[bad-assignment]
+  model_func: source.SourceProfileFunction = default_formula
 
 
 class GenericIonElHeatSourceConfig(base.SourceModelBase):
@@ -151,7 +151,7 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return default_formula  # pyrefly: ignore[bad-return]
+    return default_formula
 
   def build_runtime_params(
       self,

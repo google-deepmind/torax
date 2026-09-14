@@ -169,9 +169,9 @@ def calculate_stored_thermal_energy(
     wth_ion: Ion thermal stored energy [J]
     wth_tot: Total thermal stored energy [J]
   """
-  wth_el = math_utils.volume_integration(1.5 * p_el.value, geo)  # pyrefly: ignore[bad-argument-type]
-  wth_ion = math_utils.volume_integration(1.5 * p_ion.value, geo)  # pyrefly: ignore[bad-argument-type]
-  wth_tot = math_utils.volume_integration(1.5 * p_tot.value, geo)  # pyrefly: ignore[bad-argument-type]
+  wth_el = math_utils.volume_integration(1.5 * p_el.value, geo)
+  wth_ion = math_utils.volume_integration(1.5 * p_ion.value, geo)
+  wth_tot = math_utils.volume_integration(1.5 * p_tot.value, geo)
 
   return wth_el, wth_ion, wth_tot
 
@@ -205,7 +205,9 @@ def calculate_greenwald_fraction(
 def calculate_betas(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
-) -> array_typing.FloatScalar:
+) -> tuple[
+    array_typing.FloatScalar, array_typing.FloatScalar, array_typing.FloatScalar
+]:
   """Calculates the beta_tor, beta_pol, and beta_N plasma beta quantities.
 
   beta_tor is defined as the ratio of volume-averaged plasma pressure to
@@ -237,13 +239,13 @@ def calculate_betas(
     Tuple of beta_tor, beta_pol, and beta_N
   """
   p_total_volume_avg = math_utils.volume_average(
-      core_profiles.pressure_total.value, geo  # pyrefly: ignore[bad-argument-type]
+      core_profiles.pressure_total.value, geo
   )
 
   magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu_0)
   # Add a division guard though B0 should typically be non-zero.
   beta_tor = math_utils.safe_divide(
-      num=p_total_volume_avg, denom=magnetic_pressure_on_axis, eps=1e-7  # pyrefly: ignore[bad-argument-type]
+      num=p_total_volume_avg, denom=magnetic_pressure_on_axis, eps=1e-7
   )
 
   beta_pol = (
@@ -268,7 +270,7 @@ def calculate_betas(
       )
   )
 
-  return beta_tor, beta_pol, beta_N  # pyrefly: ignore[bad-return]
+  return beta_tor, beta_pol, beta_N
 
 
 def calculate_beta_pol_profile(

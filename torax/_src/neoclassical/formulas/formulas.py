@@ -231,7 +231,7 @@ def calculate_poloidal_velocity(
       q=q,
       geo=geo,
       n_i=n_i,
-      T_i=T_i_face,  # pyrefly: ignore[bad-argument-type]
+      T_i=T_i_face,
       Z_eff=Z_eff,
       log_lambda_ii=log_lambda_ii,
   )
@@ -314,7 +314,7 @@ def calculate_analytic_bootstrap_current(
   dlnte_drnorm = T_e.face_grad() / T_e.face_value()
   dlnti_drnorm = T_i.face_grad() / T_i.face_value()
 
-  global_coeff = prefactor[1:] / dpsi_drnorm[1:]  # pyrefly: ignore[bad-index]
+  global_coeff = prefactor[1:] / dpsi_drnorm[1:]
   global_coeff = jnp.concatenate([jnp.zeros(1), global_coeff])
 
   necoeff = L31 * pe

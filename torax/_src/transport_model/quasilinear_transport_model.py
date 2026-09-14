@@ -16,6 +16,7 @@
 from collections.abc import Mapping
 import dataclasses
 import functools
+from typing import Self
 import chex
 from fusion_surrogates.fast_ion_stabilization import fast_ion_model
 from fusion_surrogates.fast_ion_stabilization.models import registry as fi_registry
@@ -29,7 +30,6 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as runtime_params_lib
-import typing_extensions
 
 
 @jax.tree_util.register_dataclass
@@ -58,7 +58,7 @@ class NormalizedLogarithmicGradients:
       radial_face_coordinate: jnp.ndarray,
       reference_length: jnp.ndarray,
       two_point_mask: array_typing.BoolVectorFace | None = None,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Calculates the normalized logarithmic gradients."""
     gradients = {}
     for name, profile in {
@@ -313,8 +313,8 @@ def _load_fi_stabilization_model(model: str):
 
 def _compute_fast_ion_stabilization_factor(
     core_profiles: state.CoreProfiles,
-    smag: jax.Array,
-    q: jax.Array,
+    smag: array_typing.Array,
+    q: array_typing.Array,
     normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
     model_map: dict[str, str] | None = None,
 ) -> jax.Array:
@@ -367,8 +367,8 @@ def _compute_fast_ion_stabilization_factor(
 
 def apply_fast_ion_stabilization(
     core_profiles: state.CoreProfiles,
-    smag: jax.Array,
-    q: jax.Array,
+    smag: array_typing.Array,
+    q: array_typing.Array,
     normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
     transport: RuntimeParams,
 ) -> jax.Array:
@@ -457,7 +457,9 @@ class QuasilinearTransportModel(component.ComponentTransportModel):
     # Effective D / Effective V approach.
     # For small density gradients or up-gradient transport, set pure effective
     # convection. Otherwise pure effective diffusion.
-    def DV_effective_approach() -> tuple[jax.Array, jax.Array]:
+    def DV_effective_approach() -> (
+        tuple[array_typing.FloatVectorFace, array_typing.FloatVectorFace]
+    ):
       # The geo.rho_b is to unnormalize the face_grad.
       Deff = -pfe_SI / (
           core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
@@ -482,7 +484,9 @@ class QuasilinearTransportModel(component.ComponentTransportModel):
     # Scaled D approach. Scale electron diffusivity to electron heat
     # conductivity (this has some physical motivations),
     # and set convection to then match total particle transport
-    def Dscaled_approach() -> tuple[jax.Array, jax.Array]:
+    def Dscaled_approach() -> (
+        tuple[array_typing.FloatVectorFace, array_typing.FloatVectorFace]
+    ):
       chex.assert_rank(pfe, 1)
       d_face_el = chi_face_el
       v_face_el = (
@@ -493,7 +497,7 @@ class QuasilinearTransportModel(component.ComponentTransportModel):
           * geo.g1_over_vpr2_face
           * geo.rho_b**2
       ) / (geo.g0_over_vpr_face * geo.rho_b)
-      return d_face_el, v_face_el  # pyrefly: ignore[bad-return]
+      return d_face_el, v_face_el
 
     d_face_el, v_face_el = jax.lax.cond(
         transport.DV_effective,
@@ -501,8 +505,8 @@ class QuasilinearTransportModel(component.ComponentTransportModel):
         Dscaled_approach,
     )
     return component.TurbulentTransport(
-        chi_face_ion=chi_face_ion,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el=chi_face_el,  # pyrefly: ignore[bad-argument-type]
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )

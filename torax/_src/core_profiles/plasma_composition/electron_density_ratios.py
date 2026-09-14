@@ -15,7 +15,7 @@
 """Impurity content defined by ratios of impurity to electron density."""
 
 import dataclasses
-from typing import Annotated, Literal, Mapping
+from typing import Annotated, Literal, Mapping, Self
 
 import chex
 import jax
@@ -25,15 +25,14 @@ import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 
 # pylint: disable=invalid-name
 
 
-def calculate_fractions_from_ratios(
-    ratios: Mapping[str, chex.Array],
-) -> Mapping[str, chex.Array]:
+def calculate_fractions_from_ratios[ArrayT: array_typing.Array](
+    ratios: Mapping[str, ArrayT],
+) -> Mapping[str, ArrayT]:
   """Calculates fractions from ratios, handling the all-zero case."""
   # Ratios can be 1D (n_species,) or 2D (n_species, n_grid).
   # Sum over the species axis.
@@ -72,12 +71,12 @@ class RuntimeParams:
   @property
   def fractions(self) -> Mapping[str, array_typing.FloatVector]:
     """Returns the impurity fractions calculated from the n_e_ratios."""
-    return calculate_fractions_from_ratios(self.n_e_ratios)  # pyrefly: ignore[bad-return]
+    return calculate_fractions_from_ratios(self.n_e_ratios)
 
   @property
   def fractions_face(self) -> Mapping[str, array_typing.FloatVectorFace]:
     """Returns the impurity fractions calculated from the n_e_ratios."""
-    return calculate_fractions_from_ratios(self.n_e_ratios_face)  # pyrefly: ignore[bad-return]
+    return calculate_fractions_from_ratios(self.n_e_ratios_face)
 
 
 class ElectronDensityRatios(torax_pydantic.BaseModelFrozen):
@@ -99,7 +98,7 @@ class ElectronDensityRatios(torax_pydantic.BaseModelFrozen):
   )
 
   @pydantic.model_validator(mode='after')
-  def _validate_species_not_empty(self) -> typing_extensions.Self:
+  def _validate_species_not_empty(self) -> Self:
     if not self.species:
       raise ValueError('The species dictionary cannot be empty.')
     return self

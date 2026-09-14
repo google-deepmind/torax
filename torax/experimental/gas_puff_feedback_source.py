@@ -83,9 +83,9 @@ def calc_puff_feedback_source(
 
   match source_params.average_type:
     case AverageType.LINE:
-      current_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+      current_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
     case AverageType.VOLUME:
-      current_avg_n_e = math_utils.volume_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+      current_avg_n_e = math_utils.volume_average(core_profiles.n_e.value, geo)
     case _ as unknown:
       raise ValueError(f'Unknown average type: {unknown}')
 
@@ -98,8 +98,8 @@ def calc_puff_feedback_source(
   return (
       formulas.exponential_profile(
           decay_start=1.0,
-          width=source_params.puff_decay_length,  # pyrefly: ignore[bad-argument-type]
-          total=S_total,  # pyrefly: ignore[bad-argument-type]
+          width=source_params.puff_decay_length,
+          total=S_total,
           geo=geo,
       ),
   )
@@ -161,7 +161,7 @@ class GasPuffFeedbackSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return calc_puff_feedback_source  # pyrefly: ignore[bad-return]
+    return calc_puff_feedback_source
 
   def build_runtime_params(
       self,

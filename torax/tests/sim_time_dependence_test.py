@@ -15,6 +15,7 @@
 """Tests torax.sim for handling time dependent input runtime params."""
 
 import dataclasses
+import functools
 from typing import Annotated, Literal
 from unittest import mock
 
@@ -160,13 +161,35 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     mock_run_loop.assert_called_once()
 
 
-class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
+class FakeSolverConfig(solver_pydantic_model.BaseSolver):
   """Fake solver config that allows us to hook into the error logic."""
 
-  solver_type: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'  # pyrefly: ignore[bad-override]
+  solver_type: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'
   param: Annotated[str, torax_pydantic.JAX_STATIC] = 'T_i_right_bc'
   max_value: float = 2.5
   inner_solver_iterations: list[int] | None = None
+
+  @functools.cached_property
+  def build_runtime_params(
+      self,
+  ) -> solver_pydantic_model.runtime_params.RuntimeParams:
+    return solver_pydantic_model.runtime_params.RuntimeParams(
+        theta_implicit=self.theta_implicit,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
+        implicit_solver_type=self.implicit_solver_type,
+        chi_pereverzev=self.chi_pereverzev,
+        D_pereverzev=self.D_pereverzev,
+        n_corrector_steps=self.n_corrector_steps,
+        fixed_point_atol=self.fixed_point_atol,
+        fixed_point_rtol=self.fixed_point_rtol,
+        fixed_point_termination_criterion=self.fixed_point_termination_criterion,
+        fixed_point_sufficient_decrease=self.fixed_point_sufficient_decrease,
+        fixed_point_use_backtracking=self.fixed_point_use_backtracking,
+        delta_reduction_factor=self.delta_reduction_factor,
+    )
 
   def build_solver(
       self,

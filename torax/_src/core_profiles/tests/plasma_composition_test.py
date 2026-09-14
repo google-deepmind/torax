@@ -37,10 +37,10 @@ class PlasmaCompositionTest(parameterized.TestCase):
       self, Z_eff: float
   ):
     with self.assertRaises(pydantic.ValidationError):
-      plasma_composition.PlasmaComposition(Z_eff=Z_eff)  # pyrefly: ignore[missing-argument]
+      plasma_composition.PlasmaComposition(Z_eff=Z_eff)
 
   def test_plasma_composition_build_runtime_params_smoke_test(self):
-    pc = plasma_composition.PlasmaComposition()  # pyrefly: ignore[missing-argument]
+    pc = plasma_composition.PlasmaComposition()
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     pc.build_runtime_params(t=0.0)
@@ -52,7 +52,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
   )
   def test_zeff_accepts_float_input(self, Z_eff: float):
     geo = circular_geometry.CircularConfig().build_geometry()
-    pc = plasma_composition.PlasmaComposition(Z_eff=Z_eff)  # pyrefly: ignore[missing-argument]
+    pc = plasma_composition.PlasmaComposition(Z_eff=Z_eff)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     runtime_params = pc.build_runtime_params(t=0.0)
     # Check that the values in both Z_eff and Z_eff_face are the same
@@ -74,7 +74,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     }
 
     geo = circular_geometry.CircularConfig().build_geometry()
-    pc = plasma_composition.PlasmaComposition(Z_eff=zeff_profile)  # pyrefly: ignore[missing-argument]
+    pc = plasma_composition.PlasmaComposition(Z_eff=zeff_profile)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     # Check values at t=0.0
@@ -129,7 +129,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     initial_zeff = 1.5
     updated_zeff = 2.5
     t = 0.0
-    pc = plasma_composition.PlasmaComposition(  # pyrefly: ignore[missing-argument]
+    pc = plasma_composition.PlasmaComposition(
         Z_eff=initial_zeff, A_i_override=A_override
     )
     geo = circular_geometry.CircularConfig().build_geometry()

@@ -518,14 +518,20 @@ class FakeQuasilinearTransportModel(
 ):
   """Fake QuasilinearTransportModel for testing purposes."""
 
-  def call_implementation(  # pyrefly: ignore[bad-override]
+  def call_implementation(
       self,
-      transport_runtime_params: quasilinear_transport_model.RuntimeParams,
+      transport_runtime_params: (
+          transport_model_runtime_params.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> component.TurbulentTransport:
+    assert isinstance(
+        transport_runtime_params,
+        quasilinear_transport_model.RuntimeParams,
+    )
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
         chiGB=np.array(4.0),
         Rmin=np.array(0.5),

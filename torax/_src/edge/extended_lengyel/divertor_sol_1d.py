@@ -142,7 +142,7 @@ class DivertorSOL1D:
   state: ExtendedLengyelState
 
   @property
-  def electron_temp_at_cc_interface(self) -> jax.Array:
+  def electron_temp_at_cc_interface(self) -> array_typing.FloatScalar:
     """Calculates electron temperature at the convection/conduction interface.
 
     This function determines the electron temperature at the boundary between
@@ -165,12 +165,12 @@ class DivertorSOL1D:
             self.state.T_e_target
         )
     )
-    return self.state.T_e_target / (  # pyrefly: ignore[bad-return]
+    return self.state.T_e_target / (
         (1.0 - momentum_loss) / (2.0 * density_ratio)
     )
 
   @property
-  def divertor_entrance_electron_temp(self) -> jax.Array:
+  def divertor_entrance_electron_temp(self) -> array_typing.FloatScalar:
     """Electron temperature at the divertor entrance [eV].
 
     This formula is derived from the heat conduction equation integrated
@@ -189,7 +189,7 @@ class DivertorSOL1D:
     ) ** (2.0 / 7.0)
 
   @property
-  def T_e_separatrix(self) -> jax.Array:
+  def T_e_separatrix(self) -> array_typing.FloatScalar:
     """Electron temperature at the separatrix [eV].
 
     This formula is derived from the heat conduction equation integrated
@@ -210,14 +210,14 @@ class DivertorSOL1D:
     ) ** (2.0 / 7.0)
 
   @property
-  def separatrix_total_pressure(self) -> jax.Array:
+  def separatrix_total_pressure(self) -> array_typing.FloatScalar:
     """Total pressure at the separatrix [Pa].
 
     This is the definition of total pressure (static + dynamic) at the
     separatrix, including both electron and ion contributions.
     """
     return (
-        (1.0 + self.params.mach_separatrix**2)  # pyrefly: ignore[bad-return]
+        (1.0 + self.params.mach_separatrix**2)
         * self.params.separatrix_electron_density
         * self.T_e_separatrix
         * constants.CONSTANTS.eV_to_J
@@ -229,7 +229,7 @@ class DivertorSOL1D:
     )
 
   @property
-  def required_power_loss(self) -> jax.Array:
+  def required_power_loss(self) -> array_typing.FloatScalar:
     """Required power loss fraction from the two-point model.
 
     Calculate momentum loss in the convection layer using an empirical fit.
@@ -274,12 +274,12 @@ class DivertorSOL1D:
     )
 
   @property
-  def parallel_heat_flux_at_target(self) -> jax.Array:
+  def parallel_heat_flux_at_target(self) -> array_typing.FloatScalar:
     """Parallel heat flux at the divertor target [W/m^2]."""
-    return self.state.q_parallel * (1.0 - self.required_power_loss)  # pyrefly: ignore[bad-return]
+    return self.state.q_parallel * (1.0 - self.required_power_loss)
 
   @property
-  def parallel_heat_flux_at_cc_interface(self) -> jax.Array:
+  def parallel_heat_flux_at_cc_interface(self) -> array_typing.FloatScalar:
     """Parallel heat flux at the convection-conduction interface [W/m^2].
 
     Eq 29, Body et al. 2025. https://doi.org/10.1088/1741-4326/ade4d9
@@ -292,7 +292,7 @@ class DivertorSOL1D:
     return self.parallel_heat_flux_at_target / (1.0 - power_loss_conv_layer)
 
   @property
-  def divertor_Z_eff(self) -> jax.Array:
+  def divertor_Z_eff(self) -> array_typing.FloatScalar:
     return extended_lengyel_formulas.calc_Z_eff(
         c_z=self.state.c_z_prefactor,
         T_e=self.divertor_entrance_electron_temp / 1e3,  # to keV
@@ -303,7 +303,7 @@ class DivertorSOL1D:
     )
 
   @property
-  def Z_eff_separatrix(self) -> jax.Array:
+  def Z_eff_separatrix(self) -> array_typing.FloatScalar:
     return extended_lengyel_formulas.calc_Z_eff(
         c_z=self.state.c_z_prefactor,
         T_e=self.T_e_separatrix / 1e3,  # to keV
@@ -328,7 +328,7 @@ def calc_q_parallel(
     params: ExtendedLengyelParameters,
     T_e_separatrix: array_typing.FloatScalar,
     alpha_t: array_typing.FloatScalar,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the parallel heat flux density.
 
   For the flux-tube assumed in the extended Lengyel model.
@@ -392,7 +392,7 @@ def calc_q_parallel(
       * params.fieldline_pitch_at_omp
   )
 
-  return q_parallel  # pyrefly: ignore[bad-return]
+  return q_parallel
 
 
 def calc_alpha_t(
@@ -475,7 +475,7 @@ def calc_alpha_t(
 def calc_T_e_target(
     sol_model: DivertorSOL1D,
     parallel_heat_flux_at_cc_interface: array_typing.FloatScalar,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculate the target electron temp from the two-point model.
 
   Args:
@@ -552,7 +552,9 @@ def calc_T_e_target(
   return T_e_target_basic * f_vol_loss * f_other_T_e_target
 
 
-def calc_kappa_e(Z_eff: array_typing.FloatScalar) -> jax.Array:
+def calc_kappa_e(
+    Z_eff: array_typing.FloatScalar,
+) -> array_typing.FloatScalar:
   """Corrected parallel electron heat conductivity prefactor.
 
   Eq 9, Body NF 2025.

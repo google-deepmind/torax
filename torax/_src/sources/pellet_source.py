@@ -48,9 +48,9 @@ def calc_pellet_source(
   assert isinstance(source_params, RuntimeParams)
   return (
       formulas.gaussian_profile(
-          center=source_params.pellet_deposition_location,  # pyrefly: ignore[bad-argument-type]
-          width=source_params.pellet_width,  # pyrefly: ignore[bad-argument-type]
-          total=source_params.S_total,  # pyrefly: ignore[bad-argument-type]
+          center=source_params.pellet_deposition_location,
+          width=source_params.pellet_width,
+          total=source_params.S_total,
           geo=geo,
       ),
   )
@@ -64,7 +64,7 @@ class PelletSource(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )
-  model_func: source.SourceProfileFunction = calc_pellet_source  # pyrefly: ignore[bad-assignment]
+  model_func: source.SourceProfileFunction = calc_pellet_source
 
 
 @jax.tree_util.register_dataclass
@@ -105,7 +105,7 @@ class PelletSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return calc_pellet_source  # pyrefly: ignore[bad-return]
+    return calc_pellet_source
 
   def build_runtime_params(
       self,

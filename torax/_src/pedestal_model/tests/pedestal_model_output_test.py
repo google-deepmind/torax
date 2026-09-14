@@ -281,7 +281,7 @@ class PedestalModelOutputTest(absltest.TestCase):
 
       # Compute psi_norm at cell centers using face_value() to match impl.
       psi_fv = core_profiles.psi.face_value()
-      psi_norm_cell = (psi_cell - psi_fv[0]) / (psi_fv[-1] - psi_fv[0])  # pyrefly: ignore[bad-index]
+      psi_norm_cell = (psi_cell - psi_fv[0]) / (psi_fv[-1] - psi_fv[0])
 
       # Derive delta from nearest cell to rho_ped_top (matching impl).
       ped_top_idx = jnp.argmin(jnp.abs(geo.rho_norm - rho_ped_top))

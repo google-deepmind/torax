@@ -15,7 +15,7 @@
 """Functions for adding post-processed outputs to the simulation state."""
 
 import dataclasses
-from typing import Callable
+from typing import Callable, Self
 
 from absl import logging
 import jax
@@ -36,7 +36,6 @@ from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -330,7 +329,7 @@ class PostProcessedOutputs:
   # pylint: enable=invalid-name
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
         pprime=jnp.zeros(geo.rho_face.shape),
@@ -680,7 +679,7 @@ def make_post_processed_outputs(
   )
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
-  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])  # pyrefly: ignore[bad-index]
+  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
   integrated_sources = _calculate_integrated_sources(
       sim_state.geometry,
       sim_state.core_sources,
@@ -821,24 +820,24 @@ def make_post_processed_outputs(
 
   # Calculate te and ti volume average [keV]
   te_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.T_e.value, sim_state.geometry
   )
   ti_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.T_i.value, sim_state.geometry
   )
 
   # Calculate n_e and n_i (main ion) volume and line averages in m^-3
   n_e_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   n_i_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   n_e_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   n_i_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
       n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
@@ -905,7 +904,7 @@ def make_post_processed_outputs(
       runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_external,  # pyrefly: ignore[bad-argument-type]
+      j_parallel_external,
       sim_state.geometry,
       runtime_params.numerics.min_rho_norm,
   )
@@ -1017,7 +1016,7 @@ def make_post_processed_outputs(
       j_ecrh=j_toroidal_sources['j_ecrh'],
       j_generic_current=j_toroidal_sources['j_generic_current'],
       j_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
-      j_parallel_external=j_parallel_external,  # pyrefly: ignore[bad-argument-type]
+      j_parallel_external=j_parallel_external,
       j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
       I_external=I_external,
       I_non_inductive=I_non_inductive,
@@ -1037,8 +1036,8 @@ def make_post_processed_outputs(
       beta_pol_profile=beta_pol_profile.face_value(),
       beta_pol_prime=beta_pol_prime,
       impurity_species=impurity_radiation_outputs,
-      poloidal_velocity=rotation_output.poloidal_velocity.face_value(),  # pyrefly: ignore[bad-argument-type]
-      radial_electric_field=rotation_output.Er.face_value(),  # pyrefly: ignore[bad-argument-type]
+      poloidal_velocity=rotation_output.poloidal_velocity.face_value(),
+      radial_electric_field=rotation_output.Er.face_value(),
       first_step=jnp.array(False),
   )
 

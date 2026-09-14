@@ -85,9 +85,9 @@ def calc_heating_and_current(
   ec_power_density = (
       source_params.extra_prescribed_power_density
       + formulas.gaussian_profile(
-          center=source_params.gaussian_location,  # pyrefly: ignore[bad-argument-type]
-          width=source_params.gaussian_width,  # pyrefly: ignore[bad-argument-type]
-          total=source_params.P_total,  # pyrefly: ignore[bad-argument-type]
+          center=source_params.gaussian_location,
+          width=source_params.gaussian_width,
+          total=source_params.P_total,
           geo=geo,
       )
   )
@@ -131,7 +131,7 @@ class ElectronCyclotronSource(source.Source):
       source.AffectedCoreProfile.TEMP_EL,
       source.AffectedCoreProfile.PSI,
   )
-  model_func: source.SourceProfileFunction = calc_heating_and_current  # pyrefly: ignore[bad-assignment]
+  model_func: source.SourceProfileFunction = calc_heating_and_current
 
 
 class ElectronCyclotronSourceConfig(base.SourceModelBase):
@@ -177,7 +177,7 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return calc_heating_and_current  # pyrefly: ignore[bad-return]
+    return calc_heating_and_current
 
   def build_runtime_params(
       self,

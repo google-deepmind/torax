@@ -21,7 +21,7 @@ turbulent heat and particle transport coefficients.
 
 import abc
 import dataclasses
-from typing import ClassVar, Mapping, Sequence
+from typing import ClassVar, Mapping, Sequence, cast
 
 import immutabledict
 import jax
@@ -66,23 +66,23 @@ class TurbulentTransport:
     v_face_el_tem: (Optional) TEM contribution for electron convection.
   """
 
-  chi_face_ion: jax.Array
-  chi_face_el: jax.Array
-  d_face_el: jax.Array
-  v_face_el: jax.Array
-  chi_face_el_bohm: jax.Array | None = None
-  chi_face_el_gyrobohm: jax.Array | None = None
-  chi_face_ion_bohm: jax.Array | None = None
-  chi_face_ion_gyrobohm: jax.Array | None = None
-  chi_face_ion_itg: jax.Array | None = None
-  chi_face_ion_tem: jax.Array | None = None
-  chi_face_el_itg: jax.Array | None = None
-  chi_face_el_tem: jax.Array | None = None
-  chi_face_el_etg: jax.Array | None = None
-  d_face_el_itg: jax.Array | None = None
-  d_face_el_tem: jax.Array | None = None
-  v_face_el_itg: jax.Array | None = None
-  v_face_el_tem: jax.Array | None = None
+  chi_face_ion: array_typing.FloatVectorFace
+  chi_face_el: array_typing.FloatVectorFace
+  d_face_el: array_typing.FloatVectorFace
+  v_face_el: array_typing.FloatVectorFace
+  chi_face_el_bohm: array_typing.FloatVectorFace | None = None
+  chi_face_el_gyrobohm: array_typing.FloatVectorFace | None = None
+  chi_face_ion_bohm: array_typing.FloatVectorFace | None = None
+  chi_face_ion_gyrobohm: array_typing.FloatVectorFace | None = None
+  chi_face_ion_itg: array_typing.FloatVectorFace | None = None
+  chi_face_ion_tem: array_typing.FloatVectorFace | None = None
+  chi_face_el_itg: array_typing.FloatVectorFace | None = None
+  chi_face_el_tem: array_typing.FloatVectorFace | None = None
+  chi_face_el_etg: array_typing.FloatVectorFace | None = None
+  d_face_el_itg: array_typing.FloatVectorFace | None = None
+  d_face_el_tem: array_typing.FloatVectorFace | None = None
+  v_face_el_itg: array_typing.FloatVectorFace | None = None
+  v_face_el_tem: array_typing.FloatVectorFace | None = None
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -181,7 +181,9 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
     to_replace = {}
 
     for channel_name, config in self.CHANNEL_CONFIG.items():
-      disable_flag = getattr(transport_runtime_params, config['disable_flag'])  # pyrefly: ignore[bad-argument-type]
+      disable_flag = getattr(
+          transport_runtime_params, cast(str, config['disable_flag'])
+      )
 
       # Handle main channel
       val = getattr(transport_coeffs, channel_name)

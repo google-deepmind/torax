@@ -207,8 +207,8 @@ def flatten_current_profile(
   # face boundary.
   new_psi = (
       new_psi.value
-      - new_psi.face_value()[-1]  # pyrefly: ignore[bad-index]
-      + original_psi_profile.face_value()[-1]  # pyrefly: ignore[bad-index]
+      - new_psi.face_value()[-1]
+      + original_psi_profile.face_value()[-1]
   )
 
   return dataclasses.replace(

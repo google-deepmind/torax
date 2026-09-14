@@ -14,7 +14,8 @@
 # ============================================================================
 """Common types for using jaxtyping in TORAX."""
 
-from typing import TypeAlias
+from collections.abc import Callable
+from typing import Any, TypeAlias
 import jax
 import jaxtyping as jt
 import numpy as np
@@ -38,7 +39,7 @@ BoolVectorCell: TypeAlias = jt.Bool[Array, "rhon"]
 BoolVectorFace: TypeAlias = jt.Bool[Array, "rhon+1"]
 
 
-def jaxtyped[T](fn: T) -> T:
+def jaxtyped[T: Callable[..., Any] | type](fn: T) -> T:
   """Function and dataclass decorator to perform runtime type-checking.
 
   This will perform jaxtyping runtime type checking if the environment variable
@@ -52,6 +53,6 @@ def jaxtyped[T](fn: T) -> T:
   """
   runtime_checking = jax_utils.env_bool(name="TORAX_JAXTYPING", default=False)
   if runtime_checking:
-    return jt.jaxtyped(fn, typechecker=typeguard.typechecked)  # pyrefly: ignore[no-matching-overload]
+    return jt.jaxtyped(typechecker=typeguard.typechecked)(fn)
   else:
     return fn

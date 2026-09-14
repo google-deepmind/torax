@@ -122,7 +122,7 @@ def calc_separatrix_average_poloidal_field(
     plasma_current: array_typing.FloatScalar,
     minor_radius: array_typing.FloatScalar,
     shaping_factor: array_typing.FloatScalar,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the average poloidal field at the separatrix.
 
   Used for calculations related to magnetic geometry at the separatrix.
@@ -142,7 +142,7 @@ def calc_separatrix_average_poloidal_field(
     The average poloidal field at the separatrix [T].
   """
   poloidal_circumference = 2.0 * jnp.pi * minor_radius * shaping_factor
-  return constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference  # pyrefly: ignore[bad-return]
+  return constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference
 
 
 def calc_cylindrical_safety_factor(
@@ -151,7 +151,7 @@ def calc_cylindrical_safety_factor(
     shaping_factor: array_typing.FloatScalar,
     minor_radius: array_typing.FloatScalar,
     major_radius: array_typing.FloatScalar,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the cylindrical safety factor.
 
   The cylindrical safety factor is a characteristic safety-factor value at the
@@ -239,7 +239,7 @@ def calc_Z_eff(
     ne_tau: array_typing.FloatScalar,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
     fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Helper function to calculate Z_eff in the extended Lengyel model.
 
   Z_eff is the effective ion charge, defined as sum(n_i * Z_i^2) / n_e.
@@ -291,14 +291,14 @@ def calc_Z_eff(
   # Contribution from main ions
   n_i = (1 - dilution_factor) / Z_i
   Z_eff += n_i * Z_i**2
-  return Z_eff[0]  # Return scalar for extended-lengyel.  # pyrefly: ignore[bad-index]
+  return jnp.squeeze(Z_eff)  # Return scalar for extended-lengyel.
 
 
 def calc_enrichment_kallenbach(
     pressure_neutral_divertor: array_typing.FloatScalar,
     ion_symbol: str,
     enrichment_multiplier: array_typing.FloatScalar = 1.0,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculate divertor enrichment according to regression from Kallenbach 2024.
 
   A. Kallenbach et al 2024 Nucl. Fusion 64 056003

@@ -529,7 +529,7 @@ def _calculate_all_psi_dependent_profiles(
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=psidot_value,
-      right_face_constraint=v_loop_lcfs,  # pyrefly: ignore[bad-argument-type]
+      right_face_constraint=v_loop_lcfs,
       right_face_grad_constraint=None,
   )
   core_profiles = dataclasses.replace(

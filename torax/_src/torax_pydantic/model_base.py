@@ -17,12 +17,11 @@
 from collections.abc import Set
 import functools
 import inspect
-from typing import Any, Final, Mapping, Sequence, TypeAlias
+from typing import Any, Final, Mapping, Self, Sequence, TypeAlias
 
 import jax
 import pydantic
 import treelib
-from typing_extensions import Self
 
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
 JAX_STATIC: Final[str] = '_pydantic_jax_static_field'
@@ -140,7 +139,7 @@ class BaseModelFrozen(pydantic.BaseModel):
     )
 
   @property
-  def _direct_submodels(self) -> tuple[Self, ...]:
+  def _direct_submodels(self) -> tuple['BaseModelFrozen', ...]:
     """Direct submodels in the model."""
 
     def is_leaf(x):
@@ -153,10 +152,10 @@ class BaseModelFrozen(pydantic.BaseModel):
     # Some Pydantic models are values of a dict. We flatten the tree to access
     # them.
     leaves = jax.tree.flatten(leaves, is_leaf=is_leaf)[0]
-    return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))  # pyrefly: ignore[bad-return]
+    return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))
 
   @property
-  def submodels(self) -> tuple[Self, ...]:
+  def submodels(self) -> tuple['BaseModelFrozen', ...]:
     """A tuple of the model and all submodels.
 
     This will return all Pydantic models directly inside model fields, and
@@ -166,7 +165,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       A tuple of the model and all model submodels.
     """
 
-    all_submodels = [self]
+    all_submodels: list[BaseModelFrozen] = [self]
     new_submodels = self._direct_submodels
     while new_submodels:
       new_submodels_temp = []
@@ -286,7 +285,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         # Re-validate all ancestral models.
         m.__class__.from_dict(m.to_dict())
 
-  def _lookup_path(self, paths: Sequence[str]) -> Self:
+  def _lookup_path(self, paths: Sequence[str]) -> 'BaseModelFrozen':
     """Returns the model at the given path."""
     value = self
     for path in paths:
@@ -303,4 +302,4 @@ class BaseModelFrozen(pydantic.BaseModel):
         raise ValueError(f'Cannot look up path {path} in {value}')
     if not isinstance(value, BaseModelFrozen):
       raise ValueError(f'The value at path {paths} is not a Pydantic model.')
-    return value  # pyrefly: ignore[bad-return]
+    return value
