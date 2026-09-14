@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing a CHEASE geometry."""
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 import numpy as np
 import pydantic
 from torax._src import constants
@@ -21,7 +21,6 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -52,7 +51,7 @@ class CheaseConfig(base.BaseGeometryConfig):
   B_0: torax_pydantic.Tesla = 5.3
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     if not self.R_major >= self.a_minor:
       raise ValueError('a_minor must be less than or equal to R_major.')
     return self
