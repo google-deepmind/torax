@@ -13,8 +13,10 @@
 # limitations under the License.
 
 """Ion mixture model and impurity fractions model for plasma composition."""
+
 from collections.abc import Mapping
 import dataclasses
+from typing import Final
 import chex
 import jax
 from jax import numpy as jnp
@@ -22,7 +24,6 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.config import runtime_validation_utils
 from torax._src.torax_pydantic import torax_pydantic
-from typing_extensions import Final
 
 # pylint: disable=invalid-name
 _IMPURITY_MODE_FRACTIONS: Final[str] = 'fractions'

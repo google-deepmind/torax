@@ -16,9 +16,7 @@
 from collections.abc import Mapping
 import enum
 import logging
-from typing import Annotated
-from typing import Any
-from typing import Literal, TypeAlias
+from typing import Annotated, Any, Literal, Self, TypeAlias
 
 import jax
 import numpy as np
@@ -31,7 +29,6 @@ from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # pylint: disable=invalid-name
 LY_OBJECT_TYPE: TypeAlias = (
@@ -112,7 +109,7 @@ class FBTConfig(base.BaseGeometryConfig):
     return data
 
   @pydantic.model_validator(mode='after')
-  def _validate_model(self) -> typing_extensions.Self:
+  def _validate_model(self) -> Self:
     if self.LY_bundle_object is not None and self.LY_object is not None:
       raise ValueError(
           "Cannot use 'LY_object' together with a bundled FBT file"

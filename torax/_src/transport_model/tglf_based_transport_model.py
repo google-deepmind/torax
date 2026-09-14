@@ -14,6 +14,7 @@
 """Base class and utils for TGLF-based models."""
 
 import dataclasses
+from typing import override
 
 import jax
 from jax import numpy as jnp
@@ -28,7 +29,6 @@ from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.transport_model import component
 from torax._src.transport_model import quasilinear_transport_model
-from typing_extensions import override
 
 
 @jax.tree_util.register_dataclass
