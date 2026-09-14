@@ -356,6 +356,7 @@ def provide_core_profiles_t_plus_dt(
   return core_profiles_t_plus_dt
 
 
+@jax.jit
 def _update_energy_state(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
@@ -403,6 +404,7 @@ def _update_energy_state(
   )
 
 
+@jax.jit
 def _exponential_smoothing(new_raw, old_smoothed, alpha):
   """Exponential moving average (EMA)."""
   return (1.0 - alpha) * old_smoothed + alpha * new_raw
