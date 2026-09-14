@@ -15,6 +15,7 @@
 """Base class for neoclassical transport models."""
 import abc
 import dataclasses
+from typing import Self
 
 import jax
 import jax.numpy as jnp
@@ -25,7 +26,6 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -157,7 +157,7 @@ class NeoclassicalTransportModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   V_e_max: torax_pydantic.MeterPerSecond = 50.0
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     if not self.chi_min < self.chi_max:
       raise ValueError('chi_min must be less than chi_max.')
     if not self.D_e_min < self.D_e_max:

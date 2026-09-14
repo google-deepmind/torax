@@ -18,7 +18,7 @@ import functools
 import json
 import logging
 import os  # pylint: disable=unused-import
-from typing import Annotated, Any, Final, Literal, Sequence
+from typing import Annotated, Any, Final, Literal, Self, Sequence
 
 import chex
 import flax.linen as nn
@@ -43,7 +43,6 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # Internal import.
 
@@ -264,7 +263,7 @@ class ToricNNWrapper:
   def __hash__(self) -> int:
     return hash(self._path)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: Self) -> bool:  # pyrefly: ignore[bad-override]
     return isinstance(other, ToricNNWrapper)
 
 
@@ -592,7 +591,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
     return base.IonCyclotronSource(model_func=None)
 
   @pydantic.model_validator(mode='after')
-  def _validate_minority_species(self) -> typing_extensions.Self:
+  def _validate_minority_species(self) -> Self:
     if self.minority_species is not None and self.minority_species != 'He3':
       raise ValueError(
           "Minority species must be 'He3' if specified. Got:"
@@ -604,7 +603,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
   @pydantic.model_validator(mode='after')
   def _log_warning_for_used_minority_concentration(
       self,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Logs a warning if minority_concentration is provided."""
     if self.minority_concentration is not None:
       logging.warning(
