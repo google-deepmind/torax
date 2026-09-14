@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from unittest import mock
 
 from absl.testing import absltest
@@ -147,7 +146,10 @@ class CollisionsTest(parameterized.TestCase):
         A_impurity=A_impurity,
     )
     np.testing.assert_allclose(
-        collisions._calculate_weighted_Z_eff(core_profiles), expected
+        collisions._calculate_weighted_Z_eff.__wrapped__(  # pyrefly: ignore[missing-attribute]
+            core_profiles
+        ),
+        expected,
     )
 
 

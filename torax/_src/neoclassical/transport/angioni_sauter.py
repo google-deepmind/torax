@@ -151,6 +151,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
     return isinstance(other, self.__class__)
 
 
+@jax.jit
 def _calculate_angioni_sauter_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
@@ -376,6 +377,7 @@ def _calculate_angioni_sauter_transport(
   )
 
 
+@jax.jit
 def _calculate_Kmn(
     ftrap: array_typing.FloatVectorFace,
     ftrap_d: array_typing.FloatVectorFace,
@@ -384,7 +386,7 @@ def _calculate_Kmn(
     nu_e_star: array_typing.FloatVectorFace,
     nu_i_star: array_typing.FloatVectorFace,
     alpha_I: array_typing.FloatVectorFace,
-) -> tuple[array_typing.Array, array_typing.Array]:
+) -> tuple[jax.Array, jax.Array]:
   """Calculates the dimensionless transport matrices Kmn."""
 
   # F_mn matrix, Eq. (24)
@@ -531,9 +533,10 @@ def _calculate_Kmn(
   return Kmn_e, Kmn_i
 
 
+@jax.jit
 def _Fmn_X(
     X: array_typing.FloatVectorFace, Z_eff: array_typing.FloatVectorFace
-) -> array_typing.Array:
+) -> jax.Array:
   """Calculates the F_mn matrix from Eq. (24) of Angioni & Sauter 2000."""
   F11 = X + X * (0.9 + X * (-1.9 + X * (1.6 - 0.6 * X))) / (Z_eff + 0.5)
   F12 = X + X * (0.6 + X * (-0.95 + X * (0.3 + 0.05 * X))) / (Z_eff + 0.5)
@@ -542,13 +545,14 @@ def _Fmn_X(
   return jnp.array([[F11, F12], [F12, F22]]).transpose(2, 0, 1)
 
 
+@jax.jit
 def _coeffs_appendix_B(
     Z_eff: array_typing.Array,
 ) -> tuple[
-    array_typing.Array,
-    array_typing.Array,
-    array_typing.Array,
-    array_typing.Array,
+    jax.Array,
+    jax.Array,
+    jax.Array,
+    jax.Array,
     float,
     float,
     float,
@@ -580,6 +584,7 @@ def _coeffs_appendix_B(
   return a_coeffs, b_coeffs, c_coeffs, d_coeffs, a2, b2, c2, d2
 
 
+@jax.jit
 def _calculate_Lmn(
     Kmn_e: array_typing.Array,
     Kmn_i: array_typing.Array,
@@ -588,7 +593,7 @@ def _calculate_Lmn(
     epsilon: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
     nu_i_star: array_typing.FloatVectorFace,
-) -> tuple[array_typing.Array, array_typing.Array]:
+) -> tuple[jax.Array, jax.Array]:
   """Calculates the dimensional transport matrices Lmn."""
   # Normalization factors from Eqs. 16, 20, 21
   consts = constants.CONSTANTS
@@ -683,6 +688,7 @@ def _calculate_Lmn(
   return Lmn_e, Lmn_i
 
 
+@jax.jit
 def _calculate_shaing_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
@@ -770,6 +776,7 @@ def _calculate_shaing_transport(
   )
 
 
+@jax.jit
 def _calculate_blend_alpha(
     rho_face_norm: array_typing.FloatVectorFace,
     start: array_typing.FloatScalar,

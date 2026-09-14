@@ -47,6 +47,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   absorption_fraction: array_typing.FloatScalar
 
 
+@jax.jit
 def calc_generic_heat_source(
     geo: geometry.Geometry,
     gaussian_location: float,
@@ -89,7 +90,7 @@ def default_formula(
     unused_core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.Array, ...]:
+) -> tuple[jax.Array, ...]:
   """Returns the default formula-based ion/electron heat source profile."""
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)

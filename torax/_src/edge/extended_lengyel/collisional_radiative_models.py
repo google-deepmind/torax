@@ -35,6 +35,7 @@ _NE_TAU_CORONAL_LIMIT = 1e19
 # TODO(b/479521524): Similarly to radiation, create a new package for
 # charge_states and move this function, acommpanying data, and
 # physics/charge_states.py there.
+@jax.jit(static_argnames=['ion_symbol'])
 def calculate_mavrin_noncoronal_charge_state(
     T_e: array_typing.FloatVector,
     # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
