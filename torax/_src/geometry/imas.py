@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for loading and representing an IMAS geometry."""
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from imas import ids_toplevel
 import pydantic
@@ -22,7 +22,6 @@ from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
 from torax._src.imas_tools.input import equilibrium as imas_geometry
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -107,7 +106,7 @@ class IMASConfig(base.BaseGeometryConfig):
   ] = False
 
   @pydantic.model_validator(mode='after')
-  def _validate_model(self) -> typing_extensions.Self:
+  def _validate_model(self) -> Self:
     specified_inputs = [
         field
         for field in [

@@ -16,6 +16,7 @@
 from collections.abc import Mapping
 import dataclasses
 import functools
+from typing import Self
 import chex
 from fusion_surrogates.fast_ion_stabilization import fast_ion_model
 from fusion_surrogates.fast_ion_stabilization.models import registry as fi_registry
@@ -29,7 +30,6 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as runtime_params_lib
-import typing_extensions
 
 
 @jax.tree_util.register_dataclass
@@ -58,7 +58,7 @@ class NormalizedLogarithmicGradients:
       radial_face_coordinate: jnp.ndarray,
       reference_length: jnp.ndarray,
       two_point_mask: array_typing.BoolVectorFace | None = None,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Calculates the normalized logarithmic gradients."""
     gradients = {}
     for name, profile in {

@@ -16,7 +16,7 @@
 from collections.abc import Mapping
 import json
 import os
-from typing import Any, Callable, Final
+from typing import Any, Callable, Final, Self
 
 import flax.linen as nn
 import immutabledict
@@ -26,7 +26,6 @@ import numpy as np
 from torax._src import jax_utils
 from torax._src.transport_model import base_qlknn_model
 from torax._src.transport_model import qualikiz_based_transport_model
-import typing_extensions
 
 # Internal import.
 # Internal import.
@@ -118,7 +117,7 @@ class QuaLiKizNDNN:
     return outputs
 
   @classmethod
-  def from_json(cls, json_file) -> typing_extensions.Self:
+  def from_json(cls, json_file) -> Self:
     with open(json_file) as file_:
       model_dict = json.load(file_)
     return cls(model_dict)

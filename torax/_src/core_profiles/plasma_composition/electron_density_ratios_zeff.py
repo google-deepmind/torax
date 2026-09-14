@@ -14,13 +14,12 @@
 
 """Impurity content defined by ratios, with one species constrained by Z_eff."""
 import dataclasses
-from typing import Annotated, Literal, Mapping
+from typing import Annotated, Literal, Mapping, Self
 import chex
 import jax
 import pydantic
 from torax._src import array_typing
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -75,7 +74,7 @@ class ElectronDensityRatiosZeff(torax_pydantic.BaseModelFrozen):
     )
 
   @pydantic.model_validator(mode='after')
-  def _validate_one_none(self) -> typing_extensions.Self:
+  def _validate_one_none(self) -> Self:
     if not self.species:
       raise ValueError('The species dictionary cannot be empty.')
     none_count = sum(v is None for v in self.species.values())

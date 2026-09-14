@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for geometry configuration."""
-from typing import Annotated, Any
+from typing import Annotated, Any, Self
 
 import numpy as np
 import pydantic
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 
 class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
@@ -52,7 +51,7 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
     return data
 
   @pydantic.model_validator(mode='after')
-  def _validate_n_rho_or_face_centers(self) -> typing_extensions.Self:
+  def _validate_n_rho_or_face_centers(self) -> Self:
     """Validates that there are at least 4 cells."""
     if self.n_rho is None and self.face_centers is None:
       raise ValueError('Either n_rho or face_centers must be set.')
@@ -82,7 +81,7 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
       return self.face_centers
     return interpolated_param_2d.get_face_centers(self.n_rho)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: Self) -> bool:  # pyrefly: ignore[bad-override]
     """Equality operator for BaseGeometryConfig."""
     if not isinstance(other, type(self)):
       return False

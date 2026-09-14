@@ -14,8 +14,10 @@
 
 """Tridiagonal matrix representations and operations."""
 
+from collections.abc import Iterable
 import dataclasses
 import enum
+from typing import Self
 
 import jax
 from jax import numpy as jnp
@@ -23,7 +25,6 @@ import jax.scipy.linalg
 import jaxtyping as jt
 from torax._src import array_typing
 from torax._src import jax_utils
-import typing_extensions
 
 
 @enum.unique
@@ -54,7 +55,7 @@ class TriDiagonal:
         + jnp.diag(self.below, -1)
     )
 
-  def __add__(self, other: typing_extensions.Self) -> typing_extensions.Self:
+  def __add__(self, other: Self) -> Self:
     return TriDiagonal(  # pyrefly: ignore[bad-return]
         diagonal=self.diagonal + other.diagonal,
         above=self.above + other.above,
@@ -97,7 +98,7 @@ class BlockTriDiagonal:
     """Size of each block."""
     return self.diagonal.shape[1]
 
-  def __add__(self, other: typing_extensions.Self) -> typing_extensions.Self:
+  def __add__(self, other: Self) -> Self:
     return BlockTriDiagonal(  # pyrefly: ignore[bad-return]
         lower=self.lower + other.lower,
         diagonal=self.diagonal + other.diagonal,
@@ -146,7 +147,7 @@ class BlockTriDiagonal:
   @classmethod
   def from_tridiagonals(
       cls,
-      tridiagonals: typing_extensions.Iterable[TriDiagonal],
+      tridiagonals: Iterable[TriDiagonal],
   ) -> 'BlockTriDiagonal':
     """Creates a BlockTriDiagonal from an iterable of per-channel TriDiagonals.
 

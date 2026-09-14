@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Classes for representing a circular geometry."""
-from typing import Annotated
-from typing import Literal
+from typing import Annotated, Literal, Self
 import numpy as np
 import pydantic
 from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -44,7 +42,7 @@ class CircularConfig(base.BaseGeometryConfig):
   elongation_LCFS: pydantic.PositiveFloat = 1.72
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     if not self.R_major >= self.a_minor:
       raise ValueError('a_minor must be less than or equal to R_major.')
     return self
