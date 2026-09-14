@@ -14,8 +14,10 @@
 
 """Fast ion utility functions."""
 
+import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import math_utils
 from torax._src.physics import collisions
@@ -25,14 +27,14 @@ from torax._src.physics import collisions
 
 
 def _nu_epsilon(
-    m_a_amu: float,
-    Z_a: float,
-    T_a_keV: jax.Array,
-    m_b_amu: float,
-    Z_b: float,
-    n_b_m3: jax.Array,
-    T_b_keV: jax.Array,
-    ln_lambda: jax.Array,
+    m_a_amu: chex.Numeric,
+    Z_a: chex.Numeric,
+    T_a_keV: array_typing.Array,
+    m_b_amu: chex.Numeric,
+    Z_b: chex.Numeric,
+    n_b_m3: array_typing.Array,
+    T_b_keV: array_typing.Array,
+    ln_lambda: array_typing.Array,
 ) -> jax.Array:
   """NRL Formulary energy exchange rate nu_epsilon [Hz].
 
@@ -73,13 +75,13 @@ def _nu_epsilon(
 
 
 def _compute_T_tail(
-    P_density_W: jax.Array,
-    T_e: jax.Array,
-    n_e: jax.Array,
-    n_total: jax.Array,
-    charge_number: float,
-    mass_number: float,
-) -> jax.Array:
+    P_density_W: array_typing.Array,
+    T_e: array_typing.Array,
+    n_e: array_typing.Array,
+    n_total: array_typing.Array,
+    charge_number: chex.Numeric,
+    mass_number: chex.Numeric,
+) -> array_typing.Array:
   """Computes the effective tail temperature via the Stix xi parameter.
 
   Uses the Spitzer slowing-down time on electrons (tau_s) and the Stix
@@ -124,20 +126,20 @@ def _compute_T_tail(
 
 
 def bimaxwellian_split(
-    power_deposition: jax.Array,
-    T_e: jax.Array,
-    n_e: jax.Array,
-    T_i: jax.Array,
-    n_i: jax.Array,
-    minority_concentration: jax.Array | float,
-    P_total_W: float,
-    charge_number: float,
-    mass_number: float,
-    bulk_ion_mass: float,
-    Z_i: float,
-    n_impurity: jax.Array,
-    Z_impurity: float,
-    A_impurity: float,
+    power_deposition: array_typing.Array,
+    T_e: array_typing.Array,
+    n_e: array_typing.Array,
+    T_i: array_typing.Array,
+    n_i: array_typing.Array,
+    minority_concentration: chex.Numeric,
+    P_total_W: chex.Numeric,
+    charge_number: chex.Numeric,
+    mass_number: chex.Numeric,
+    bulk_ion_mass: chex.Numeric,
+    Z_i: chex.Numeric,
+    n_impurity: array_typing.Array,
+    Z_impurity: chex.Numeric,
+    A_impurity: chex.Numeric,
 ) -> tuple[jax.Array, jax.Array]:
   """Returns (n_tail, T_tail) using the Power Balance Closure.
 
@@ -194,7 +196,7 @@ def bimaxwellian_split(
       mass_number,
       charge_number,
       T_tail,
-      me_amu,  # pyrefly: ignore[bad-argument-type]
+      me_amu,
       1.0,
       n_e,
       T_e,

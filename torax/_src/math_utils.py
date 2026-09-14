@@ -224,7 +224,7 @@ def cell_integration(
 
 @array_typing.jaxtyped
 def area_integration(
-    value: array_typing.FloatVector,
+    value: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
   """Calculates integral of value using an area metric."""
@@ -233,7 +233,7 @@ def area_integration(
 
 @array_typing.jaxtyped
 def volume_integration(
-    value: array_typing.FloatVector,
+    value: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
   """Calculates integral of value using a volume metric."""
@@ -242,7 +242,7 @@ def volume_integration(
 
 @array_typing.jaxtyped
 def line_average(
-    value: array_typing.FloatVector,
+    value: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
   """Calculates line-averaged value from input profile."""
@@ -251,7 +251,7 @@ def line_average(
 
 @array_typing.jaxtyped
 def volume_average(
-    value: array_typing.FloatVector,
+    value: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
   """Calculates volume-averaged value from input profile."""
@@ -300,9 +300,9 @@ def cumulative_volume_integration(
   return cumulative_cell_integration(value * geo.vpr, geo)
 
 
-def safe_divide(
-    *, num: chex.Array, denom: chex.Array, eps: float
-) -> chex.Array:
+def safe_divide[T: chex.Numeric](
+    *, num: T, denom: chex.Numeric, eps: chex.Numeric
+) -> T:
   """Divides y by x, adding eps to the denominator for numerical stability.
 
   Args:

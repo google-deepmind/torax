@@ -43,11 +43,11 @@ class PowerScalingFormationRuntimeParams(
 
 
 def calculate_P_SOL_total(
-    internal_plasma_energy: state.PlasmaInternalEnergy,
+    internal_plasma_energy: state.PlasmaInternalEnergy | None,
     core_sources: source_profiles_lib.SourceProfiles,
     geo: geometry.Geometry,
     include_dW_dt: bool = True,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the total power out of the separatrix.
 
   Args:
@@ -69,9 +69,9 @@ def calculate_P_SOL_total(
       for source in core_sources.T_i.values()
   )
   P_heat_total = P_heat_e + P_heat_i
-  if not include_dW_dt:
-    return P_heat_total  # pyrefly: ignore[bad-return]
-  return P_heat_total - internal_plasma_energy.dW_thermal_dt_smoothed  # pyrefly: ignore[bad-return]
+  if not include_dW_dt or internal_plasma_energy is None:
+    return P_heat_total
+  return P_heat_total - internal_plasma_energy.dW_thermal_dt_smoothed
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -103,7 +103,7 @@ class PowerScalingFormationModel(base.FormationModel):
     )
 
     P_SOL_total = calculate_P_SOL_total(
-        core_profiles.internal_plasma_energy,  # pyrefly: ignore[bad-argument-type]
+        core_profiles.internal_plasma_energy,
         core_sources,
         geo,
         include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,

@@ -54,6 +54,7 @@ class SourceProfileFunction(Protocol):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       unused_conductivity: conductivity_base.Conductivity | None,
+      /,
   ) -> tuple[SourceProfileElement, ...]:
     ...
 

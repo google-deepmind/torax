@@ -21,6 +21,7 @@ import chex
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
+from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -50,7 +51,7 @@ def calc_bremsstrahlung(
     geo: geometry.Geometry,
     use_relativistic_correction: bool = False,
     exclude_impurity_bremsstrahlung: bool = False,
-) -> tuple[jt.Float[jax.Array, ''], jt.Float[jax.Array, '']]:
+) -> tuple[array_typing.FloatScalar, array_typing.FloatVectorCell]:
   """Calculate the Bremsstrahlung radiation power profile.
 
   Uses the model from Wesson, John, and David J. Campbell. Tokamaks. Vol. 149.
@@ -85,18 +86,18 @@ def calc_bremsstrahlung(
       core_profiles.Z_eff_face,
   )
 
-  P_brem_profile_face: jax.Array = (
+  P_brem_profile_face: array_typing.FloatVectorFace = (
       5.35e-3 * Z_eff_face * n_e20**2 * jnp.sqrt(T_e_kev)
   )  # MW/m^3
 
-  def calc_relativistic_correction() -> jax.Array:
+  def calc_relativistic_correction() -> array_typing.FloatVectorFace:
     # Apply the Stott relativistic correction.
     Tm = 511.0  # m_e * c**2 in keV
     correction = (1.0 + 2.0 * T_e_kev / Tm) * (
         1.0
         + (2.0 / Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
     )
-    return correction  # pyrefly: ignore[bad-return]
+    return correction
 
   # In MW/m^3
   P_brem_profile_face = jnp.where(
@@ -110,7 +111,7 @@ def calc_bremsstrahlung(
 
   # In MW
   P_brem_total = math_utils.volume_integration(P_brem_profile_cell, geo)
-  return P_brem_total, P_brem_profile_cell  # pyrefly: ignore[bad-return]
+  return P_brem_total, P_brem_profile_cell
 
 
 def bremsstrahlung_model_func(
@@ -120,7 +121,7 @@ def bremsstrahlung_model_func(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[jt.Float[jax.Array, ''], ...]:
+) -> tuple[array_typing.Array, ...]:
   """Model function for the Bremsstrahlung heat sink."""
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)
@@ -142,7 +143,7 @@ class BremsstrahlungHeatSink(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = bremsstrahlung_model_func  # pyrefly: ignore[bad-assignment]
+  model_func: source.SourceProfileFunction = bremsstrahlung_model_func
 
 
 class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
@@ -164,7 +165,7 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
-    return bremsstrahlung_model_func  # pyrefly: ignore[bad-return]
+    return bremsstrahlung_model_func
 
   def build_runtime_params(
       self,

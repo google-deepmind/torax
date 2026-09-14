@@ -21,7 +21,8 @@ TORAX_VERSION: Final[str] = "1.4.3"
 
 
 def _version_as_tuple(version_str: str) -> tuple[int, int, int]:
-  return tuple(int(i) for i in version_str.split(".") if i.isdigit())  # pyrefly: ignore[bad-return]
+  major, minor, patch = (int(i) for i in version_str.split(".") if i.isdigit())
+  return (major, minor, patch)
 
 
 TORAX_VERSION_INFO: Final[tuple[int, int, int]] = _version_as_tuple(

@@ -288,7 +288,7 @@ def update_core_and_source_profiles_after_step(
   psidot = dataclasses.replace(
       core_profiles_t_plus_dt.psidot,
       value=psidot_value,
-      right_face_constraint=v_loop_lcfs,  # pyrefly: ignore[bad-argument-type]
+      right_face_constraint=v_loop_lcfs,
       right_face_grad_constraint=None,
   )
 

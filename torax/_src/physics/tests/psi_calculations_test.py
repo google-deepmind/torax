@@ -420,12 +420,12 @@ class PsiCalculationsTest(parameterized.TestCase):
     psi_t = cell_variable.CellVariable(
         value=np.ones_like(mesh.cell_centers) * 0.5,
         face_centers=mesh.face_centers,
-        right_face_grad_constraint=0.0,  # pyrefly: ignore[bad-argument-type]
+        right_face_grad_constraint=0.0,
     )
     psi_t_plus_dt = cell_variable.CellVariable(
         value=np.ones_like(mesh.cell_centers) * psi_lcfs_t_plus_dt,
         face_centers=mesh.face_centers,
-        right_face_grad_constraint=0.0,  # pyrefly: ignore[bad-argument-type]
+        right_face_grad_constraint=0.0,
     )
 
     v_loop_lcfs_t_plus_dt = psi_calculations.calculate_v_loop_lcfs_from_psi(

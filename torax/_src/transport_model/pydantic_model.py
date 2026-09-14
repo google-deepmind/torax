@@ -16,7 +16,7 @@
 
 import copy
 import dataclasses
-from typing import Annotated, Any, Literal, Mapping, Sequence
+from typing import Annotated, Any, Literal, Mapping, Self, Sequence
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
@@ -36,7 +36,6 @@ from torax._src.transport_model import runtime_params
 from torax._src.transport_model import tglfnn_ukaea_transport_model
 from torax._src.transport_model import transport_model
 from torax._src.transport_model.tglf import tglf_transport_model
-import typing_extensions
 
 
 def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
@@ -493,12 +492,12 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
       str, ComponentTransportModelConfig
   ] = pydantic.Field(
       default_factory=dict
-  )  # pyrefly: ignore[invalid-annotation]
+  )
   pedestal_transport_models: dict[
       str, ComponentTransportModelConfig
   ] = pydantic.Field(
       default_factory=dict
-  )  # pyrefly: ignore[invalid-annotation]
+  )
   smoothing_zones: Sequence[SmoothingZone] = pydantic.Field(
       default_factory=list
   )
@@ -553,7 +552,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
     )
 
   @pydantic.model_validator(mode='after')
-  def _check_smoothing_width_minimum(self) -> typing_extensions.Self:
+  def _check_smoothing_width_minimum(self) -> Self:
     smoothing_widths = [z.smoothing_width for z in self.smoothing_zones] + [
         self.smoothing_width
     ]
@@ -572,7 +571,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     if not self.chi_min < self.chi_max:
       raise ValueError('chi_min must be less than chi_max.')
     if not self.D_e_min < self.D_e_max:
@@ -591,12 +590,12 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_unique_overwrites_core(self) -> typing_extensions.Self:
+  def _check_unique_overwrites_core(self) -> Self:
     _validate_unique_overwrites(self.core_transport_models, 'core')
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_unique_overwrites_pedestal(self) -> typing_extensions.Self:
+  def _check_unique_overwrites_pedestal(self) -> Self:
     _validate_unique_overwrites(self.pedestal_transport_models, 'pedestal')
     return self
 

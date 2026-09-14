@@ -229,20 +229,16 @@ def _change_config(
   return torax_config, config_path
 
 
-def _get_yes_or_no() -> bool:  # pyrefly: ignore[bad-return]
+def _get_yes_or_no() -> bool:
   """Returns a boolean indicating yes depending on user input."""
-  input_text = None
-  while input_text is None:
-    input_text = input(Y_N_PROMPT)
-    input_text = input_text.lower().strip()
-    if input_text not in ('y', 'n'):
-      simulation_app.log_to_stdout(
-          'Unrecognized input. Try again.',
-          color=simulation_app.AnsiColors.YELLOW,
-      )
-      input_text = None
-    else:
+  while True:
+    input_text = input(Y_N_PROMPT).lower().strip()
+    if input_text in ('y', 'n'):
       return input_text == 'y'
+    simulation_app.log_to_stdout(
+        'Unrecognized input. Try again.',
+        color=simulation_app.AnsiColors.YELLOW,
+    )
 
 
 def _toggle_log_progress(log_sim_progress: bool) -> bool:

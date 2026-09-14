@@ -34,6 +34,7 @@ Functions:
       Z=1 plasma.
 """
 
+import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -47,7 +48,7 @@ from torax._src.geometry import geometry
 def coll_exchange(
     core_profiles: state.CoreProfiles,
     Qei_multiplier: float,
-) -> jax.Array:
+) -> array_typing.FloatVectorCell:
   """Computes collisional ion-electron heat exchange coefficient (equipartion).
 
   Args:
@@ -59,13 +60,13 @@ def coll_exchange(
   """
   # Calculate Coulomb logarithm
   log_lambda_ei = calculate_log_lambda_ei(
-      core_profiles.T_e.value, core_profiles.n_e.value  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.value, core_profiles.n_e.value
   )
   # ion-electron collisionality for Z_eff=1. Ion charge and multiple ion effects
   # are included in the Qei_coef calculation below.
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
-      core_profiles.n_e.value,  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.value,
+      core_profiles.n_e.value,
       log_lambda_ei,
   )
   # pylint: disable=invalid-name
@@ -87,7 +88,7 @@ def calc_nu_star(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     collisionality_multiplier: float,
-) -> jax.Array:
+) -> array_typing.FloatVectorFace:
   """Calculates nustar.
 
     Electron-ion collision frequency normalized by bounce frequency.
@@ -104,14 +105,14 @@ def calc_nu_star(
 
   # Calculate Coulomb logarithm
   log_lambda_ei_face = calculate_log_lambda_ei(
-      core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.face_value(),
+      core_profiles.n_e.face_value(),
   )
 
   # ion_electron collisionality
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.face_value(),
+      core_profiles.n_e.face_value(),
       log_lambda_ei_face,
   )
 
@@ -123,7 +124,7 @@ def calc_nu_star(
   )
 
   # calculate bounce time
-  tau_bounce = (
+  tau_bounce = jnp.asarray(
       core_profiles.q_face
       * geo.R_major_profile_face
       / (
@@ -136,7 +137,7 @@ def calc_nu_star(
       )
   )
   # due to pathological on-axis epsilon=0 term
-  tau_bounce = tau_bounce.at[0].set(tau_bounce[1])  # pyrefly: ignore[missing-attribute]
+  tau_bounce = tau_bounce.at[0].set(tau_bounce[1])
 
   # calculate normalized collisionality
   nustar = nu_e * tau_bounce
@@ -182,9 +183,9 @@ def fast_ion_fractional_heating_formula(
 
 
 def calculate_log_lambda_ee(
-    T_e: jax.Array,
-    n_e: jax.Array,
-) -> jax.Array:
+    T_e: chex.Numeric,
+    n_e: chex.Numeric,
+) -> array_typing.Array:
   """Calculates Coulomb logarithm for electron-electron collisions.
 
   Note: the difference with calculate_log_lambda_ei is minimal.
@@ -204,9 +205,9 @@ def calculate_log_lambda_ee(
 
 
 def calculate_log_lambda_ei(
-    T_e: jax.Array,
-    n_e: jax.Array,
-) -> jax.Array:
+    T_e: chex.Numeric,
+    n_e: chex.Numeric,
+) -> array_typing.Array:
   """Calculates Coulomb logarithm for electron-ion collisions.
 
   See Wesson 3rd edition p727.
@@ -224,10 +225,10 @@ def calculate_log_lambda_ei(
 
 
 def calculate_log_lambda_ii(
-    T_i: jax.Array,
-    n_i: jax.Array,
-    Z_i: jax.Array,
-) -> jax.Array:
+    T_i: chex.Numeric,
+    n_i: chex.Numeric,
+    Z_i: chex.Numeric,
+) -> array_typing.Array:
   """Calculates Coulomb logarithm for ion-ion collisions.
 
   Formula 18e in Sauter PoP 1999. See also NRL formulary 2013, page 34.
@@ -246,12 +247,12 @@ def calculate_log_lambda_ii(
 
 
 def calculate_tau_ii(
-    A_i: jax.Array,
-    Z_i: jax.Array,
-    T_i: jax.Array,
-    n_i: jax.Array,
-    ln_Lambda_ii: jax.Array,
-) -> jax.Array:
+    A_i: chex.Numeric,
+    Z_i: chex.Numeric,
+    T_i: chex.Numeric,
+    n_i: chex.Numeric,
+    ln_Lambda_ii: chex.Numeric,
+) -> array_typing.Array:
   """Calculates ion-ion (self) collision time for a single ion species.
 
   See Wesson 3rd edition p730.
@@ -283,9 +284,9 @@ def calculate_tau_ii(
 # TODO(b/377225415): generalize to arbitrary number of ions.
 def _calculate_weighted_Z_eff(
     core_profiles: state.CoreProfiles,
-) -> jax.Array:
+) -> array_typing.FloatVectorCell:
   """Calculates ion mass weighted Z_eff. Used for collisional heat exchange."""
-  return (  # pyrefly: ignore[bad-return]
+  return (
       core_profiles.n_i.value * core_profiles.Z_i**2 / core_profiles.A_i
       + core_profiles.n_impurity.value
       * core_profiles.Z_impurity**2
@@ -294,10 +295,10 @@ def _calculate_weighted_Z_eff(
 
 
 def _calculate_log_tau_e_Z1(
-    T_e: jax.Array,
-    n_e: jax.Array,
-    log_lambda_ei: jax.Array,
-) -> jax.Array:
+    T_e: chex.Numeric,
+    n_e: chex.Numeric,
+    log_lambda_ei: chex.Numeric,
+) -> array_typing.Array:
   """Calculates log of electron-ion collision time for Z=1 plasma.
 
   See Wesson 3rd edition p729. Extension to multiple ions is context dependent

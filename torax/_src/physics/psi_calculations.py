@@ -112,12 +112,12 @@ def calc_q_face(
   """Calculates the q-profile on the face grid given poloidal flux (psi)."""
   # iota is standard terminology for 1/q
   inv_iota = jnp.abs(
-      (2 * geo.Phi_b * geo.rho_face_norm[1:]) / psi.face_grad()[1:]  # pyrefly: ignore[bad-index]
+      (2 * geo.Phi_b * geo.rho_face_norm[1:]) / psi.face_grad()[1:]
   )
 
   # Use L'Hôpital's rule to calculate iota on-axis, with psi_face_grad()[0]=0.
   inv_iota0 = jnp.expand_dims(
-      jnp.abs((2 * geo.Phi_b * geo.drho_norm[0]) / psi.face_grad()[1]), 0  # pyrefly: ignore[bad-index]
+      jnp.abs((2 * geo.Phi_b * geo.drho_norm[0]) / psi.face_grad()[1]), 0
   )
 
   q_face = jnp.concatenate([inv_iota0, inv_iota])
@@ -191,33 +191,34 @@ def calc_j_total(
 
 def calc_s_face(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
-) -> jax.Array:
+) -> array_typing.FloatVectorFace:
   """Calculates magnetic shear on the face grid from poloidal flux (psi)."""
 
   # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
   # the s calculation.
-  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))  # pyrefly: ignore[bad-index]
+  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
 
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0  # pyrefly: ignore[bad-index]
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
 
+  grad_iota = jnp.asarray(jnp.gradient(iota_scaled, geo.rho_face_norm))
   s_face = (
-      -geo.rho_face_norm  # pyrefly: ignore[unsupported-operation]
-      * jnp.gradient(iota_scaled, geo.rho_face_norm)
+      -1 * geo.rho_face_norm
+      * grad_iota
       / iota_scaled
   )
 
-  return s_face  # pyrefly: ignore[bad-return]
+  return s_face
 
 
 def calc_s_rmid(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
-) -> jax.Array:
+) -> array_typing.FloatVectorFace:
   """Calculates magnetic shear (s) from poloidal flux (psi).
 
   Version taking the derivative of iota with respect to the midplane r,
@@ -233,21 +234,22 @@ def calc_s_rmid(
 
   # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
   # the s calculation.
-  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))  # pyrefly: ignore[bad-index]
+  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
 
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0  # pyrefly: ignore[bad-index]
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
 
   rmid_face = (geo.R_out_face - geo.R_in_face) * 0.5
 
-  s_face = -rmid_face * jnp.gradient(iota_scaled, rmid_face) / iota_scaled  # pyrefly: ignore[unsupported-operation]
+  grad_iota = jnp.asarray(jnp.gradient(iota_scaled, rmid_face))
+  s_face = -1 * rmid_face * grad_iota / iota_scaled
 
-  return s_face  # pyrefly: ignore[bad-return]
+  return s_face
 
 
 def calc_bpol_squared(
@@ -268,7 +270,7 @@ def calc_bpol_squared(
     bpol2_face: Square of poloidal magnetic field, on the face grid.
   """
   bpol2_bulk = (
-      (psi.face_grad()[1:] / (2 * jnp.pi)) ** 2  # pyrefly: ignore[bad-index]
+      (psi.face_grad()[1:] / (2 * jnp.pi)) ** 2
       * geo.g2_face[1:]
       / geo.vpr_face[1:] ** 2
   )
@@ -338,10 +340,10 @@ def calc_q95(
 def calculate_psi_grad_constraint_from_Ip(
     Ip: array_typing.FloatScalar,
     geo: geometry.Geometry,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
   return (
-      Ip  # pyrefly: ignore[bad-return]
+      Ip
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu_0 * geo.Phi_b)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )
@@ -353,12 +355,12 @@ def calculate_psi_value_constraint_from_v_loop(
     v_loop_lcfs_t: array_typing.FloatScalar,
     v_loop_lcfs_t_plus_dt: array_typing.FloatScalar,
     psi_lcfs_t: array_typing.FloatScalar,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the value constraint on the poloidal flux for the next time step from loop voltage."""
   theta_weighted_v_loop_lcfs = (
       1 - theta
   ) * v_loop_lcfs_t + theta * v_loop_lcfs_t_plus_dt
-  return psi_lcfs_t + theta_weighted_v_loop_lcfs * dt  # pyrefly: ignore[bad-return]
+  return psi_lcfs_t + theta_weighted_v_loop_lcfs * dt
 
 
 # TODO(b/406173731): Find robust solution for underdetermination and solve this
@@ -367,7 +369,7 @@ def calculate_v_loop_lcfs_from_psi(
     psi_t: cell_variable.CellVariable,
     psi_t_plus_dt: cell_variable.CellVariable,
     dt: array_typing.FloatScalar,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the v_loop_lcfs for the next timestep.
 
   For the Ip boundary condition case, the v_loop_lcfs formula is in principle
@@ -389,8 +391,8 @@ def calculate_v_loop_lcfs_from_psi(
   Returns:
     The updated v_loop_lcfs for the next timestep.
   """
-  psi_lcfs_t = psi_t.face_value()[-1]  # pyrefly: ignore[bad-index]
-  psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]  # pyrefly: ignore[bad-index]
+  psi_lcfs_t = psi_t.face_value()[-1]
+  psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]
   v_loop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt
   return v_loop_lcfs_t_plus_dt
 
@@ -399,10 +401,10 @@ def calculate_psidot_from_psi_sources(
     *,
     psi_sources: array_typing.FloatVector,
     sigma: array_typing.FloatVector,
-    resistivity_multiplier: float,
+    resistivity_multiplier: array_typing.FloatScalar,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,
-) -> jax.Array:
+) -> array_typing.FloatVectorCell:
   """Calculates psidot (loop voltage) from the sum of the psi sources."""
 
   # Calculate transient term
@@ -439,13 +441,13 @@ def calculate_psidot_from_psi_sources(
       d_face_psi, psi
   )
   conv_mat, conv_vec = convection_terms.make_convection_terms(
-      v_face_psi, d_face_psi, psi  # pyrefly: ignore[bad-argument-type]
+      v_face_psi, d_face_psi, psi
   )
 
   c_mat = diffusion_mat + conv_mat
   c = diffusion_vec + conv_vec + psi_sources
 
-  return (c_mat.matvec(psi.value) + c) / toc_psi  # pyrefly: ignore[bad-argument-type, bad-return]
+  return (c_mat.matvec(psi.value) + c) / toc_psi
 
 
 def j_toroidal_to_j_parallel(

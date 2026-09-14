@@ -17,7 +17,7 @@
 import dataclasses
 import enum
 import functools
-from typing import Mapping
+from typing import Mapping, Self
 
 from absl import logging
 import jax
@@ -31,7 +31,6 @@ from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
 from torax._src.physics import fast_ion as fast_ion_lib
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -193,12 +192,12 @@ class CoreProfiles:
     n_impurity_thermal_right = self.n_impurity.right_face_constraint
     for fast_ion in self.fast_ions:
       if fast_ion.species in self.impurity_fractions:
-        n_impurity_thermal_value -= fast_ion.n.value  # pyrefly: ignore[unsupported-operation]
+        n_impurity_thermal_value -= fast_ion.n.value
         if (
             n_impurity_thermal_right is not None
             and fast_ion.n.right_face_constraint is not None
         ):
-          n_impurity_thermal_right -= fast_ion.n.right_face_constraint  # pyrefly: ignore[unsupported-operation]
+          n_impurity_thermal_right -= fast_ion.n.right_face_constraint
     return cell_variable.CellVariable(
         value=n_impurity_thermal_value,
         face_centers=self.n_impurity.face_centers,
@@ -299,7 +298,7 @@ class CoreProfiles:
         self.n_e.value,
     ).item()
 
-  def negative_temperature_or_density(self) -> jax.Array:
+  def negative_temperature_or_density(self) -> bool:
     """Checks if any temperature or density is negative."""
     profiles_to_check = (
         self.T_i,
@@ -311,11 +310,10 @@ class CoreProfiles:
     )
     # Check if any profile is less than -eps
     # (allowing for numerical precision errors)
-    return np.any(  # pyrefly: ignore[bad-return]
-        np.array([
-            np.any(np.less(x, -constants.CONSTANTS.eps))  # pyrefly: ignore[unsupported-operation]
-            for x in jax.tree.leaves(profiles_to_check)
-        ])
+    eps = float(constants.CONSTANTS.eps)
+    return any(
+        bool(np.any(x < -eps))
+        for x in jax.tree.leaves(profiles_to_check)
     )
 
   def below_minimum_temperature(self, T_minimum_eV: float) -> bool:
@@ -481,34 +479,34 @@ class CoreTransport:
   `transport_model/transport_model.py` for more details.
   """
 
-  chi_face_ion: jax.Array
-  chi_face_el: jax.Array
-  d_face_el: jax.Array
-  v_face_el: jax.Array
-  chi_face_el_bohm: jax.Array | None = None
-  chi_face_el_gyrobohm: jax.Array | None = None
-  chi_face_ion_bohm: jax.Array | None = None
-  chi_face_ion_gyrobohm: jax.Array | None = None
-  chi_face_el_itg: jax.Array | None = None
-  chi_face_el_tem: jax.Array | None = None
-  chi_face_el_etg: jax.Array | None = None
-  chi_face_ion_itg: jax.Array | None = None
-  chi_face_ion_tem: jax.Array | None = None
-  d_face_el_itg: jax.Array | None = None
-  d_face_el_tem: jax.Array | None = None
-  v_face_el_itg: jax.Array | None = None
-  v_face_el_tem: jax.Array | None = None
-  chi_neo_i: jax.Array | None = None
-  chi_neo_e: jax.Array | None = None
-  D_neo_e: jax.Array | None = None
-  V_neo_e: jax.Array | None = None
-  V_neo_ware_e: jax.Array | None = None
-  chi_face_ion_pereverzev: jax.Array | None = None
-  chi_face_el_pereverzev: jax.Array | None = None
-  full_v_heat_face_ion_pereverzev: jax.Array | None = None
-  full_v_heat_face_el_pereverzev: jax.Array | None = None
-  d_face_el_pereverzev: jax.Array | None = None
-  v_face_el_pereverzev: jax.Array | None = None
+  chi_face_ion: array_typing.FloatVectorFace
+  chi_face_el: array_typing.FloatVectorFace
+  d_face_el: array_typing.FloatVectorFace
+  v_face_el: array_typing.FloatVectorFace
+  chi_face_el_bohm: array_typing.FloatVectorFace | None = None
+  chi_face_el_gyrobohm: array_typing.FloatVectorFace | None = None
+  chi_face_ion_bohm: array_typing.FloatVectorFace | None = None
+  chi_face_ion_gyrobohm: array_typing.FloatVectorFace | None = None
+  chi_face_el_itg: array_typing.FloatVectorFace | None = None
+  chi_face_el_tem: array_typing.FloatVectorFace | None = None
+  chi_face_el_etg: array_typing.FloatVectorFace | None = None
+  chi_face_ion_itg: array_typing.FloatVectorFace | None = None
+  chi_face_ion_tem: array_typing.FloatVectorFace | None = None
+  d_face_el_itg: array_typing.FloatVectorFace | None = None
+  d_face_el_tem: array_typing.FloatVectorFace | None = None
+  v_face_el_itg: array_typing.FloatVectorFace | None = None
+  v_face_el_tem: array_typing.FloatVectorFace | None = None
+  chi_neo_i: array_typing.FloatVectorFace | None = None
+  chi_neo_e: array_typing.FloatVectorFace | None = None
+  D_neo_e: array_typing.FloatVectorFace | None = None
+  V_neo_e: array_typing.FloatVectorFace | None = None
+  V_neo_ware_e: array_typing.FloatVectorFace | None = None
+  chi_face_ion_pereverzev: array_typing.FloatVectorFace | None = None
+  chi_face_el_pereverzev: array_typing.FloatVectorFace | None = None
+  full_v_heat_face_ion_pereverzev: array_typing.FloatVectorFace | None = None
+  full_v_heat_face_el_pereverzev: array_typing.FloatVectorFace | None = None
+  d_face_el_pereverzev: array_typing.FloatVectorFace | None = None
+  v_face_el_pereverzev: array_typing.FloatVectorFace | None = None
 
   def __post_init__(self):
     # Use the array size of chi_face_el as a template.
@@ -537,25 +535,34 @@ class CoreTransport:
       self.v_face_el_pereverzev = jnp.zeros_like(template)
 
   @property
-  def chi_face_ion_total(self) -> jax.Array:
+  def chi_face_ion_total(self) -> array_typing.FloatVectorFace:
     """Calculates the total ion heat diffusion coefficient."""
-    return self.chi_face_ion + self.chi_face_ion_pereverzev + self.chi_neo_i  # pyrefly: ignore[unsupported-operation]
+    assert self.chi_face_ion_pereverzev is not None
+    assert self.chi_neo_i is not None
+    return self.chi_face_ion + self.chi_face_ion_pereverzev + self.chi_neo_i
 
   @property
-  def chi_face_el_total(self) -> jax.Array:
+  def chi_face_el_total(self) -> array_typing.FloatVectorFace:
     """Calculates the total electron heat diffusion coefficient."""
-    return self.chi_face_el + self.chi_face_el_pereverzev + self.chi_neo_e  # pyrefly: ignore[unsupported-operation]
+    assert self.chi_face_el_pereverzev is not None
+    assert self.chi_neo_e is not None
+    return self.chi_face_el + self.chi_face_el_pereverzev + self.chi_neo_e
 
   @property
-  def d_face_el_total(self) -> jax.Array:
+  def d_face_el_total(self) -> array_typing.FloatVectorFace:
     """Calculates the total particle diffusion coefficient."""
-    return self.d_face_el + self.d_face_el_pereverzev + self.D_neo_e  # pyrefly: ignore[unsupported-operation]
+    assert self.d_face_el_pereverzev is not None
+    assert self.D_neo_e is not None
+    return self.d_face_el + self.d_face_el_pereverzev + self.D_neo_e
 
   @property
-  def v_face_el_total(self) -> jax.Array:
+  def v_face_el_total(self) -> array_typing.FloatVectorFace:
     """Calculates the total particle convection coefficient."""
+    assert self.v_face_el_pereverzev is not None
+    assert self.V_neo_e is not None
+    assert self.V_neo_ware_e is not None
     return (
-        self.v_face_el  # pyrefly: ignore[unsupported-operation]
+        self.v_face_el
         + self.v_face_el_pereverzev
         + self.V_neo_e
         + self.V_neo_ware_e
@@ -564,7 +571,7 @@ class CoreTransport:
   def chi_max(
       self,
       geo: geometry.Geometry,
-  ) -> jax.Array:
+  ) -> array_typing.FloatScalar:
     """Calculates the maximum value of chi.
 
     Args:
@@ -573,13 +580,15 @@ class CoreTransport:
     Returns:
       chi_max: Maximum value of chi.
     """
+    assert self.chi_neo_i is not None
+    assert self.chi_neo_e is not None
     return jnp.maximum(
-        jnp.max((self.chi_face_ion + self.chi_neo_i) * geo.g1_over_vpr2_face),  # pyrefly: ignore[unsupported-operation]
-        jnp.max((self.chi_face_el + self.chi_neo_e) * geo.g1_over_vpr2_face),  # pyrefly: ignore[unsupported-operation]
+        jnp.max((self.chi_face_ion + self.chi_neo_i) * geo.g1_over_vpr2_face),
+        jnp.max((self.chi_face_el + self.chi_neo_e) * geo.g1_over_vpr2_face),
     )
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
     shape = geo.rho_face.shape
     return cls(

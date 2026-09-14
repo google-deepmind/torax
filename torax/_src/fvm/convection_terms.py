@@ -20,6 +20,7 @@ Builds the convection terms of the discrete matrix equation.
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import tridiagonal
 from torax._src.fvm import cell_variable
@@ -27,8 +28,8 @@ from torax._src.fvm import cell_variable
 
 # TODO(b/469726859): Once non-uniform grid is supported add in testing.
 def make_convection_terms(
-    v_face: jax.Array,
-    d_face: jax.Array,
+    v_face: array_typing.Array,
+    d_face: array_typing.Array,
     var: cell_variable.CellVariable,
     dirichlet_mode: str = 'ghost',
     neumann_mode: str = 'ghost',
@@ -66,6 +67,9 @@ def make_convection_terms(
   # Alpha weighting calculated using power law scheme described in
   # https://www.ctcms.nist.gov/fipy/documentation/numerical/scheme.html
 
+  v_face = jnp.asarray(v_face)
+  d_face = jnp.asarray(d_face)
+
   # Avoid divide by zero
   eps = 1e-20
   is_neg = d_face < 0.0
@@ -77,8 +81,8 @@ def make_convection_terms(
   ones = jnp.ones_like(v_face[1:-1])
   scale = jnp.concatenate((half, ones, half))
 
-  distance_to_left_ghost_cell_center = var.cell_widths[0]  # pyrefly: ignore[bad-index]
-  distance_to_right_ghost_cell_center = var.cell_widths[-1]  # pyrefly: ignore[bad-index]
+  distance_to_left_ghost_cell_center = var.cell_widths[0]
+  distance_to_right_ghost_cell_center = var.cell_widths[-1]
   cell_spacings = jnp.concat([
       jnp.array([distance_to_left_ghost_cell_center]),
       var.cell_spacings,
@@ -163,6 +167,7 @@ def make_convection_terms(
         raise ValueError(dirichlet_mode)
   else:
     # Gradient boundary condition at leftmost face
+    assert var.left_face_grad_constraint is not None
     diag_left_face = (v_face[0] - right_alpha[0] * v_face[1]) / cell_spacings[0]
     vec_left_face = (
         -v_face[0] * (1.0 - left_alpha[0]) * var.left_face_grad_constraint
@@ -207,6 +212,7 @@ def make_convection_terms(
         raise ValueError(dirichlet_mode)
   else:
     # Gradient boundary condition at rightmost face
+    assert var.right_face_grad_constraint is not None
     diag_right_face = (
         -(v_face[-1] - v_face[-2] * left_alpha[-1]) / cell_spacings[-1]
     )

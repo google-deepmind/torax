@@ -232,7 +232,7 @@ class TransitionCalculationsTest(parameterized.TestCase):
         ),
     )
 
-    scaled_pedestal_model_output = calc_coeffs._apply_transition_ramp_scaling(  # pyrefly: ignore[bad-argument-type]
+    scaled_pedestal_model_output = calc_coeffs._apply_transition_ramp_scaling(
         pedestal_transition_state=state,
         ramp_fraction=0.5,
     )

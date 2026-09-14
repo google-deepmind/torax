@@ -15,7 +15,7 @@
 """Pydantic configs for all edge models, currently only extended_lengyel."""
 
 import logging
-from typing import Annotated, Any, Literal, Mapping
+from typing import Annotated, Any, Literal, Mapping, Self
 import chex
 import jax.numpy as jnp
 import pydantic
@@ -26,7 +26,6 @@ from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -223,7 +222,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   @pydantic.model_validator(mode='after')
   def _log_warning_for_unused_enrichment_factor(
       self,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Logs a warning if enrichment_factor is provided when use_enrichment_model is True."""
     if self.use_enrichment_model and self.enrichment_factor is not None:
       logging.warning(
@@ -236,7 +235,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   @pydantic.model_validator(mode='after')
   def _validate_enrichment_factor_keys(
       self,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Validates that enrichment_factor keys are the same as impurity keys."""
 
     if self.use_enrichment_model:
@@ -280,7 +279,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   @pydantic.model_validator(mode='after')
   def _validate_computation_mode_inputs(
       self,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Validates inputs based on the specified computation mode."""
     if self.computation_mode == extended_lengyel_enums.ComputationMode.FORWARD:
       if self.T_e_target is not None:

@@ -25,6 +25,7 @@ import dataclasses
 import enum
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
 from torax._src.geometry import geometry
@@ -72,20 +73,20 @@ _P_LH_SCALING_PARAMS = {
 class PLHAuxiliaryData:
   """Auxiliary data for P_LH calculations."""
 
-  P_LH_high_density: jax.Array
-  P_LH_low_density: jax.Array
-  P_LH_min: jax.Array
-  line_average_n_e_at_P_LH_min: jax.Array
+  P_LH_high_density: array_typing.FloatScalar
+  P_LH_low_density: array_typing.FloatScalar
+  P_LH_min: array_typing.FloatScalar
+  line_average_n_e_at_P_LH_min: array_typing.FloatScalar
 
 
 def _calculate_P_LH_high_density(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    line_average_n_e: jax.Array,
+    line_average_n_e: array_typing.FloatScalar,
     scaling_law: PLHScalingLaw,
     divertor_factor: float = 1.0,
     custom_prefactor: float = 1.0,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the H-mode transition power for the high density branch.
 
   See Eq. 3 in E. Delabie et al 2026 Nucl. Fusion 66 036016 for the general
@@ -119,17 +120,17 @@ def _calculate_P_LH_high_density(
       * S ** params['S_exponent']
   )
 
-  return P_LH_MW * 1e6  # pyrefly: ignore[bad-return]
+  return P_LH_MW * 1e6
 
 
 def _calculate_line_average_n_e_at_P_LH_min(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the density at P_LH_min from equation 3 in Ryter 2014."""
   Ip_total = core_profiles.Ip_profile_face[..., -1]
   return (
-      0.7  # pyrefly: ignore[bad-return]
+      0.7
       * (Ip_total / 1e6) ** 0.34
       * geo.a_minor**-0.95
       * geo.B_0**0.62
@@ -144,7 +145,7 @@ def calculate_P_LH(
     scaling_law: PLHScalingLaw,
     divertor_configuration: DivertorConfiguration = DivertorConfiguration.HT,
     prefactor: float = 1.0,
-) -> tuple[jax.Array, PLHAuxiliaryData]:
+) -> tuple[array_typing.FloatScalar, PLHAuxiliaryData]:
   """Calculates the H-mode transition power from a given scaling law.
 
   Args:
@@ -170,7 +171,7 @@ def calculate_P_LH(
   else:
     divertor_factor = 1.0
 
-  line_average_n_e = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+  line_average_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
   line_average_n_e_at_P_LH_min = _calculate_line_average_n_e_at_P_LH_min(
       geo, core_profiles
   )
@@ -179,7 +180,7 @@ def calculate_P_LH(
   P_LH_high_density = _calculate_P_LH_high_density(
       geo=geo,
       core_profiles=core_profiles,
-      line_average_n_e=line_average_n_e,  # pyrefly: ignore[bad-argument-type]
+      line_average_n_e=line_average_n_e,
       scaling_law=scaling_law,
       divertor_factor=divertor_factor,
       custom_prefactor=prefactor,
@@ -216,9 +217,9 @@ def calculate_P_LH(
 def calculate_scaling_law_confinement_time(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    P_loss: jax.Array,
+    P_loss: array_typing.FloatScalar,
     scaling_law: str,
-) -> jax.Array:
+) -> array_typing.FloatScalar:
   """Calculates the thermal energy confinement time for a given scaling law.
 
   Args:
@@ -306,7 +307,7 @@ def calculate_scaling_law_confinement_time(
   scaled_Ploss = P_loss / 1e6  # convert to MW
   B = geo.B_0
   line_avg_n_e = (  # convert to 10^19 m^-3
-      math_utils.line_average(core_profiles.n_e.value, geo) / 1e19  # pyrefly: ignore[bad-argument-type]
+      math_utils.line_average(core_profiles.n_e.value, geo) / 1e19
   )
   R = geo.R_major
   inverse_aspect_ratio = geo.a_minor / geo.R_major

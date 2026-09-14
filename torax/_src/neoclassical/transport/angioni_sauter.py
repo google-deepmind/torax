@@ -22,7 +22,7 @@ https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 """
 
 import dataclasses
-from typing import Annotated, Literal
+from typing import Annotated, Literal, override
 
 import jax
 from jax import numpy as jnp
@@ -39,7 +39,6 @@ from torax._src.neoclassical.transport import base
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
-from typing_extensions import override
 
 # pylint: disable=invalid-name
 
@@ -196,8 +195,8 @@ def _calculate_angioni_sauter_transport(
   nu_e_star = formulas.calculate_nu_e_star(
       q=core_profiles.q_face,
       geo=geometry,
-      n_e=core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      T_e=core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_e=core_profiles.n_e.face_value(),
+      T_e=core_profiles.T_e.face_value(),
       Z_eff=core_profiles.Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
@@ -311,17 +310,17 @@ def _calculate_angioni_sauter_transport(
   # to avoid division by near-zero and unphysical values.
 
   chi_neo_e_bulk = -Be2[1:] / (
-      core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
+      core_profiles.n_e.face_value()[1:]
       * dlnte_dpsi[1:]  # pyrefly: ignore[bad-index]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2  # pyrefly: ignore[bad-index]
+      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
       + constants.CONSTANTS.eps
   )
   chi_neo_e = jnp.concatenate([chi_neo_e_bulk[0:1], chi_neo_e_bulk])
 
   chi_neo_i_bulk = -Bi2[1:] / (
-      core_profiles.n_i.face_value()[1:]  # pyrefly: ignore[bad-index]
+      core_profiles.n_i.face_value()[1:]
       * dlnti_dpsi[1:]  # pyrefly: ignore[bad-index]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2  # pyrefly: ignore[bad-index]
+      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
       + constants.CONSTANTS.eps
   )
   chi_neo_i = jnp.concatenate([chi_neo_i_bulk[0:1], chi_neo_i_bulk])
@@ -331,8 +330,8 @@ def _calculate_angioni_sauter_transport(
   # Diffusive part of particle flux
   # D_e * dn_e/drho  = - L00 *dlog(n_e)/dpsi / dpsi/drho
   D_neo_e_bulk = -Lmn_e[1:, 0, 0] / (
-      core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2  # pyrefly: ignore[bad-index]
+      core_profiles.n_e.face_value()[1:]
+      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
       + constants.CONSTANTS.eps
   )
   D_neo_e = jnp.concatenate([D_neo_e_bulk[0:1], D_neo_e_bulk])
@@ -343,12 +342,12 @@ def _calculate_angioni_sauter_transport(
   V_neo_e_bulk = (
       (Lmn_e[1:, 0, 0] + Lmn_e[1:, 0, 1]) * dlnte_dpsi[1:]  # pyrefly: ignore[bad-index]
       + (1 - Rpe[1:]) / Rpe[1:] * Lmn_e[1:, 0, 0] * dlnni_dpsi[1:]  # pyrefly: ignore[bad-index]
-      + (1 - Rpe[1:])  # pyrefly: ignore[bad-index]
-      / Rpe[1:]  # pyrefly: ignore[bad-index]
+      + (1 - Rpe[1:])
+      / Rpe[1:]
       * (Lmn_e[1:, 0, 0] + alpha[1:] * Lmn_e[1:, 0, 3])
       * dlnti_dpsi[1:]  # pyrefly: ignore[bad-index]
   ) / (
-      dpsi_drhon[1:] / geometry.rho_b * core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
+      dpsi_drhon[1:] / geometry.rho_b * core_profiles.n_e.face_value()[1:]
       + constants.CONSTANTS.eps
   )
   V_neo_e = jnp.concatenate([V_neo_e_bulk[0:1], V_neo_e_bulk])
@@ -360,8 +359,8 @@ def _calculate_angioni_sauter_transport(
       * E_parallel[1:]
       / (
           geometry.B_0
-          * (dpsi_drhon[1:] / geometry.rho_b)  # pyrefly: ignore[bad-index]
-          * core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
+          * (dpsi_drhon[1:] / geometry.rho_b)
+          * core_profiles.n_e.face_value()[1:]
           + constants.CONSTANTS.eps
       )
   )
@@ -744,7 +743,7 @@ def _calculate_shaing_transport(
   # (currently we simply copy the value at i=1). This is ok as chi[0] is never
   # used.
   dpsi_drhon = core_profiles.psi.face_grad()
-  dpsi_drhon = dpsi_drhon.at[0].set(dpsi_drhon[1])  # pyrefly: ignore[bad-index, missing-attribute]
+  dpsi_drhon = dpsi_drhon.at[0].set(dpsi_drhon[1])  # pyrefly: ignore[missing-attribute]
   conversion_factor = 1 / (dpsi_drhon / (2 * jnp.pi * geometry.rho_b)) ** 2
 
   # Trapped particle fraction (Equation 46, Shaing March 1997)

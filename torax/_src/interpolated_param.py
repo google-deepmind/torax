@@ -473,7 +473,9 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
     """Returns the JAX-friendly interpolated param used under the hood."""
     return self._param
 
-  def __eq__(self, other: 'InterpolatedVarSingleAxis') -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: object) -> bool:
+    if not isinstance(other, InterpolatedVarSingleAxis):
+      return False
     try:
       chex.assert_trees_all_equal(self, other)
     except AssertionError:

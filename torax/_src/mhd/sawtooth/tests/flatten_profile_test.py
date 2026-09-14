@@ -197,12 +197,12 @@ class FlattenProfileTest(parameterized.TestCase):
 
     with self.subTest('conservation_within_mixing_radius'):
       self._check_conservation_within_mixing_radius(
-          initial_profile.value, flattened_profile.value, rho_norm_mixing  # pyrefly: ignore[bad-argument-type]
+          initial_profile.value, flattened_profile.value, rho_norm_mixing
       )
 
     with self.subTest('total_conservation'):
       self._check_total_conservation(
-          initial_profile.value, flattened_profile.value  # pyrefly: ignore[bad-argument-type]
+          initial_profile.value, flattened_profile.value
       )
 
     # Detailed checks on profile shape
@@ -213,8 +213,8 @@ class FlattenProfileTest(parameterized.TestCase):
     with self.subTest('outer_region_unchanged'):
       if idx_mixing < _NRHO:
         np.testing.assert_allclose(
-            val_after[idx_mixing:],  # pyrefly: ignore[bad-index]
-            initial_profile.value[idx_mixing:],  # pyrefly: ignore[bad-index]
+            val_after[idx_mixing:],
+            initial_profile.value[idx_mixing:],
             err_msg='Profile changed outside mixing radius',
         )
 
@@ -284,22 +284,22 @@ class FlattenProfileTest(parameterized.TestCase):
     )
 
     initial_pressure_profile = self._create_profile(
-        initial_temperature_profile.value * initial_density_profile.value  # pyrefly: ignore[bad-argument-type]
+        initial_temperature_profile.value * initial_density_profile.value
     )
     flattened_pressure_profile = self._create_profile(
-        flattened_temperature_profile.value * flattened_density_profile.value  # pyrefly: ignore[bad-argument-type]
+        flattened_temperature_profile.value * flattened_density_profile.value
     )
 
     with self.subTest('conservation_within_mixing_radius'):
       self._check_conservation_within_mixing_radius(
-          initial_pressure_profile.value,  # pyrefly: ignore[bad-argument-type]
-          flattened_pressure_profile.value,  # pyrefly: ignore[bad-argument-type]
+          initial_pressure_profile.value,
+          flattened_pressure_profile.value,
           rho_norm_mixing,
       )
 
     with self.subTest('total_conservation'):
       self._check_total_conservation(
-          initial_pressure_profile.value, flattened_pressure_profile.value  # pyrefly: ignore[bad-argument-type]
+          initial_pressure_profile.value, flattened_pressure_profile.value
       )
 
   # pylint: disable=invalid-name

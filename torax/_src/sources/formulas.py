@@ -13,8 +13,10 @@
 # limitations under the License.
 
 """Prescribed formulas for computing source profiles."""
+import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.geometry import geometry
 
@@ -24,10 +26,10 @@ from torax._src.geometry import geometry
 def exponential_profile(
     geo: geometry.Geometry,
     *,
-    decay_start: float,
-    width: float,
-    total: float,
-) -> jax.Array:
+    decay_start: chex.Numeric,
+    width: chex.Numeric,
+    total: chex.Numeric,
+) -> array_typing.FloatVectorCell:
   """Returns an exponential profile on the cell grid.
 
   The profile is parameterized by (decay_start, width, total) like so:
@@ -50,16 +52,16 @@ def exponential_profile(
   S = jnp.exp(-(decay_start - r) / width)
   # calculate constant prefactor
   C = total / math_utils.volume_integration(S, geo)
-  return C * S  # pyrefly: ignore[bad-return]
+  return C * S
 
 
 def gaussian_profile(
     geo: geometry.Geometry,
     *,
-    center: float,
-    width: float,
-    total: float,
-) -> jax.Array:
+    center: chex.Numeric,
+    width: chex.Numeric,
+    total: chex.Numeric,
+) -> array_typing.FloatVectorCell:
   """Returns a gaussian profile on the cell grid.
 
   The profile is parameterized by (center, width, total) like so:
@@ -82,4 +84,4 @@ def gaussian_profile(
   S = jnp.exp(-((r - center) ** 2) / (2 * width**2))
   # calculate constant prefactor
   C = total / math_utils.volume_integration(S, geo)
-  return C * S  # pyrefly: ignore[bad-return]
+  return C * S

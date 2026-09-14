@@ -22,7 +22,7 @@
 """
 
 import dataclasses
-from typing import Any, Callable, Mapping, Sequence, TypeAlias
+from typing import Any, Callable, Mapping, Self, Sequence, TypeAlias
 
 import chex
 import equinox as eqx
@@ -49,7 +49,6 @@ from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model as transport_pydantic_model
-import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -97,7 +96,7 @@ class RuntimeParamsProvider:
   def from_config(
       cls,
       config: model_config.ToraxConfig,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Constructs a RuntimeParamsProvider from a ToraxConfig."""
     return cls(
         sources=config.sources,
@@ -141,11 +140,11 @@ class RuntimeParamsProvider:
   def update_provider(
       self,
       get_nodes_to_replace: Callable[
-          [typing_extensions.Self],
+          [Self],
           Sequence[ReplaceablePytreeNodes],
       ],
       replacement_values: Sequence[ValidUpdates],
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Updates a provider with new values. Works under `jax.jit`.
 
     Example usage:
@@ -205,7 +204,7 @@ class RuntimeParamsProvider:
 
   def update_provider_from_mapping(
       self, replacements: Mapping[str, ValidUpdates]
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Update a provider from a mapping of replacements.
 
     Example usage:
@@ -238,7 +237,7 @@ class RuntimeParamsProvider:
     """
 
     def get_replacements(
-        provider: typing_extensions.Self,
+        provider: Self,
     ) -> list[ReplaceablePytreeNodes]:
       """Returns the nodes to replace."""
       nodes_to_replace: list[ReplaceablePytreeNodes] = []

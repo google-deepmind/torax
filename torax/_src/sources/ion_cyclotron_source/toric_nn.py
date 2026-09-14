@@ -18,7 +18,7 @@ import functools
 import json
 import logging
 import os  # pylint: disable=unused-import
-from typing import Annotated, Any, Final, Literal, Sequence
+from typing import Annotated, Any, Final, Literal, Self, Sequence, cast
 
 import chex
 import flax.linen as nn
@@ -43,7 +43,6 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # Internal import.
 
@@ -107,11 +106,11 @@ class ToricNNOutputs:
   """Outputs from the ToricNN model."""
 
   # Power deposition on helium-3 in MW/m^3/MW_{abs}.
-  power_deposition_He3: array_typing.FloatVector
+  power_deposition_He3: array_typing.Array
   # Power deposition on tritium (second harmonic) in MW/m^3/MW_{abs}.
-  power_deposition_2T: array_typing.FloatVector
+  power_deposition_2T: array_typing.Array
   # Power deposition on electrons in MW/m^3/MW_{abs}.
-  power_deposition_e: array_typing.FloatVector
+  power_deposition_e: array_typing.Array
 
 
 class _ToricNN(nn.Module):
@@ -264,7 +263,7 @@ class ToricNNWrapper:
   def __hash__(self) -> int:
     return hash(self._path)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: object) -> bool:
     return isinstance(other, ToricNNWrapper)
 
 
@@ -274,7 +273,7 @@ def _toric_nn_predict(
     inputs: ToricNNInputs,
 ) -> ToricNNOutputs:
   """Make a prediction given the inputs."""
-  inputs = jnp.array(  # pyrefly: ignore[bad-assignment]
+  inputs_array = jnp.array(
       [
           inputs.frequency,
           inputs.volume_average_temperature,
@@ -289,19 +288,28 @@ def _toric_nn_predict(
       ],
       dtype=jax_utils.get_dtype(),
   )
-  outputs_He3 = toric_nn.power_deposition_network.apply(
-      toric_nn.power_deposition_He3_params, inputs
+  outputs_He3 = cast(
+      array_typing.Array,
+      toric_nn.power_deposition_network.apply(
+          toric_nn.power_deposition_He3_params, inputs_array
+      ),
   )
-  outputs_2T = toric_nn.power_deposition_network.apply(
-      toric_nn.power_deposition_2T_params, inputs
+  outputs_2T = cast(
+      array_typing.Array,
+      toric_nn.power_deposition_network.apply(
+          toric_nn.power_deposition_2T_params, inputs_array
+      ),
   )
-  outputs_e = toric_nn.power_deposition_network.apply(
-      toric_nn.power_deposition_e_params, inputs
+  outputs_e = cast(
+      array_typing.Array,
+      toric_nn.power_deposition_network.apply(
+          toric_nn.power_deposition_e_params, inputs_array
+      ),
   )
   return ToricNNOutputs(
-      power_deposition_He3=outputs_He3,  # pyrefly: ignore[bad-argument-type]
-      power_deposition_2T=outputs_2T,  # pyrefly: ignore[bad-argument-type]
-      power_deposition_e=outputs_e,  # pyrefly: ignore[bad-argument-type]
+      power_deposition_He3=outputs_He3,
+      power_deposition_2T=outputs_2T,
+      power_deposition_e=outputs_e,
   )
 
 
@@ -323,7 +331,7 @@ def _get_minority_concentration_from_composition(
     plasma_composition: plasma_composition_lib.RuntimeParams,
     core_profiles: state.CoreProfiles,
     minority_species: str,
-) -> jax.Array:
+) -> array_typing.Array:
   """Extract minority species concentration from core profiles.
 
   Args:
@@ -342,7 +350,7 @@ def _get_minority_concentration_from_composition(
   if minority_species in plasma_composition.main_ion_names:
     # For main ions, concentration is fraction * n_i / n_e
     fraction = core_profiles.main_ion_fractions[minority_species]
-    return core_profiles.n_i.value * fraction / core_profiles.n_e.value  # pyrefly: ignore[bad-return]
+    return core_profiles.n_i.value * fraction / core_profiles.n_e.value
 
   if minority_species in plasma_composition.impurity_names:
     impurity_fractions = core_profiles.impurity_fractions
@@ -351,7 +359,7 @@ def _get_minority_concentration_from_composition(
     n_imp_species = (
         fraction * core_profiles.n_impurity.value * impurity_density_scaling
     )
-    return n_imp_species / core_profiles.n_e.value  # pyrefly: ignore[bad-return]
+    return n_imp_species / core_profiles.n_e.value
 
   raise ValueError(
       f'Minority species {minority_species} not found in plasma composition.'
@@ -393,23 +401,24 @@ def icrh_model_func(
   else:
     # Use legacy parameter (backward compatibility)
     # TODO(b/434175938): Remove backward compatibility in V2.
+    assert source_params.minority_concentration is not None
     minority_concentration_scalar = source_params.minority_concentration
     # For profile-dependent calculations, use constant value
     minority_concentration_profile = source_params.minority_concentration
 
   # Construct inputs for ToricNN.
   volume_average_temperature = math_utils.volume_average(
-      core_profiles.T_e.value, geo  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.value, geo
   )
   volume_average_density = math_utils.volume_average(
-      core_profiles.n_e.value, geo  # pyrefly: ignore[bad-argument-type]
+      core_profiles.n_e.value, geo
   )
 
   # Peaking factors are core w.r.t volume averages.
   temperature_peaking_factor = (
-      core_profiles.T_e.value[0] / volume_average_temperature  # pyrefly: ignore[bad-index]
+      core_profiles.T_e.value[0] / volume_average_temperature
   )
-  density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density  # pyrefly: ignore[bad-index]
+  density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
   Router = geo.R_out_face[-1]  # Use LCFS outboard radius
   Rinner = geo.R_in_face[-1]  # Use LCFS inboard radius
   # Assumption: inner and outer gaps are not functions of z0.
@@ -422,11 +431,11 @@ def icrh_model_func(
       volume_average_temperature=volume_average_temperature,
       volume_average_density=volume_average_density
       / 1e20,  # convert to 10^20 m^-3
-      minority_concentration=minority_concentration_scalar  # pyrefly: ignore[unsupported-operation]
+      minority_concentration=minority_concentration_scalar
       * 100,  # Convert to percentage.
       gap_inner=gap_inner,
       gap_outer=gap_outer,
-      z0=geo.z_magnetic_axis(),  # pyrefly: ignore[bad-argument-type]
+      z0=geo.z_magnetic_axis(),
       temperature_peaking_factor=temperature_peaking_factor,
       density_peaking_factor=density_peaking_factor,
       B_0=geo.B_0,
@@ -468,19 +477,19 @@ def icrh_model_func(
 
   n_tail, T_tail = fast_ion_utils.bimaxwellian_split(
       power_deposition=power_deposition_he3,
-      T_e=core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
-      n_e=core_profiles.n_e.value,  # pyrefly: ignore[bad-argument-type]
-      T_i=core_profiles.T_i.value,  # pyrefly: ignore[bad-argument-type]
-      n_i=core_profiles.n_i.value,  # pyrefly: ignore[bad-argument-type]
-      minority_concentration=minority_concentration_profile,  # pyrefly: ignore[bad-argument-type]
-      P_total_W=source_params.P_total,  # pyrefly: ignore[bad-argument-type]
+      T_e=core_profiles.T_e.value,
+      n_e=core_profiles.n_e.value,
+      T_i=core_profiles.T_i.value,
+      n_i=core_profiles.n_i.value,
+      minority_concentration=minority_concentration_profile,
+      P_total_W=source_params.P_total,
       charge_number=he3_charge_number,
       mass_number=he3_atomic_mass,
-      bulk_ion_mass=core_profiles.A_i,  # pyrefly: ignore[bad-argument-type]
-      Z_i=core_profiles.Z_i,  # pyrefly: ignore[bad-argument-type]
-      n_impurity=core_profiles.n_impurity.value,  # pyrefly: ignore[bad-argument-type]
-      Z_impurity=core_profiles.Z_impurity,  # pyrefly: ignore[bad-argument-type]
-      A_impurity=core_profiles.A_impurity,  # pyrefly: ignore[bad-argument-type]
+      bulk_ion_mass=core_profiles.A_i,
+      Z_i=core_profiles.Z_i,
+      n_impurity=core_profiles.n_impurity.value,
+      Z_impurity=core_profiles.Z_impurity,
+      A_impurity=core_profiles.A_impurity,
   )
 
   # Build fast ion output for all supported species.
@@ -509,7 +518,7 @@ def icrh_model_func(
 
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
       T_tail,
-      core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.value,
       he3_atomic_mass,
   )
   absorbed_power = source_params.P_total * source_params.absorption_fraction
@@ -592,7 +601,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
     return base.IonCyclotronSource(model_func=None)
 
   @pydantic.model_validator(mode='after')
-  def _validate_minority_species(self) -> typing_extensions.Self:
+  def _validate_minority_species(self) -> Self:
     if self.minority_species is not None and self.minority_species != 'He3':
       raise ValueError(
           "Minority species must be 'He3' if specified. Got:"
@@ -604,7 +613,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
   @pydantic.model_validator(mode='after')
   def _log_warning_for_used_minority_concentration(
       self,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Logs a warning if minority_concentration is provided."""
     if self.minority_concentration is not None:
       logging.warning(

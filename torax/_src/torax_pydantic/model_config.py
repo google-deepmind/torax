@@ -16,7 +16,7 @@
 
 import copy
 import logging
-from typing import Any, Mapping
+from typing import Any, Mapping, Self
 
 import numpy as np
 import pydantic
@@ -44,8 +44,6 @@ from torax._src.time_step_calculator import pydantic_model as time_step_calculat
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model as transport_model_pydantic_model
-import typing_extensions
-from typing_extensions import Self
 
 
 class ToraxConfig(torax_pydantic.BaseModelFrozen):
@@ -141,7 +139,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return configurable_data
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     core_transport_models = self.transport.core_transport_models.values()
     pedestal_transport_models = (
         self.transport.pedestal_transport_models.values()
@@ -155,12 +153,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         self.solver, solver_pydantic_model.LinearThetaMethod
     )
 
-    # pylint: disable=g-long-ternary
-    # pylint: disable=attribute-error
     initial_guess_mode_is_linear = (
-        False
-        if using_linear_solver
-        else self.solver.initial_guess_mode == enums.InitialGuessMode.LINEAR  # pyrefly: ignore[missing-attribute]
+        getattr(self.solver, 'initial_guess_mode', None)
+        == enums.InitialGuessMode.LINEAR
     )
 
     if (
@@ -182,7 +177,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_psidot_and_evolve_current(self) -> typing_extensions.Self:
+  def _check_psidot_and_evolve_current(self) -> Self:
     """Warns if psidot is provided but evolve_current is True."""
     if (
         self.profile_conditions.psidot is not None
@@ -197,7 +192,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_pedestal_with_non_uniform_grid(self) -> typing_extensions.Self:
+  def _check_pedestal_with_non_uniform_grid(self) -> Self:
     """Warns if a pedestal and non-uniform grid are used."""
     if self.pedestal.model_name != 'no_pedestal':
       face_centers = self.geometry.get_face_centers()
@@ -217,7 +212,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @pydantic.model_validator(mode='after')
   def _validate_pedestal_mode_and_internal_boundary_conditions(
       self,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Validates that internal boundary conditions are not used with ADAPTIVE_TRANSPORT."""
     ibc = self.profile_conditions.internal_boundary_conditions
     if (
@@ -233,7 +228,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_edge_with_circular_geometry(self) -> typing_extensions.Self:
+  def _check_edge_with_circular_geometry(self) -> Self:
     """Validates that edge models are not used with CircularGeometry."""
     if (
         self.edge is not None
@@ -247,7 +242,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @pydantic.model_validator(mode='after')
   def _validate_extended_lengyel_and_impurity_mode(
       self,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Ensures Extended Lengyel uses n_e_ratios impurity mode."""
     if (
         isinstance(
@@ -264,7 +259,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _validate_edge_diverted_status(self) -> typing_extensions.Self:
+  def _validate_edge_diverted_status(self) -> Self:
     """Validates diverted status configuration in edge model.
 
     Ensures that `diverted` is handled correctly based on geometry type:
@@ -296,7 +291,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _validate_edge_core_impurity_consistency(self) -> typing_extensions.Self:
+  def _validate_edge_core_impurity_consistency(self) -> Self:
     """Validates consistency between plasma composition and edge impurities."""
     if isinstance(
         self.edge,
@@ -338,7 +333,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _validate_nonzero_n_e_ratios_at_lcfs(self) -> typing_extensions.Self:
+  def _validate_nonzero_n_e_ratios_at_lcfs(self) -> Self:
     """Validates that n_e_ratio profiles are non-zero at the LCFS.
 
     When the extended Lengyel edge model is active, core impurity profiles
@@ -475,7 +470,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return version.TORAX_VERSION
 
   @pydantic.model_validator(mode='after')
-  def _validate_toric_nn_he3_presence(self) -> typing_extensions.Self:
+  def _validate_toric_nn_he3_presence(self) -> Self:
     """Validates that He3 is present in plasma composition if ToricNN is used.
 
     The ToricNN model currently only supports He3 minority heating, so He3 must

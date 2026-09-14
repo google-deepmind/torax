@@ -110,8 +110,8 @@ def _calculate_conductivity(
   nu_e_star_face = formulas.calculate_nu_e_star(
       q=q_face,
       geo=geo,
-      n_e=n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      T_e=T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_e=n_e.face_value(),
+      T_e=T_e.face_value(),
       Z_eff=Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
