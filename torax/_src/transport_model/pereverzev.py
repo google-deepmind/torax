@@ -57,6 +57,7 @@ class PereverzevTransport:
     )
 
 
+@jax.jit
 def calculate_pereverzev_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,

@@ -26,6 +26,7 @@ from torax._src import array_typing
 from torax._src.torax_pydantic import torax_pydantic
 
 
+@jax.jit
 def face_to_cell(
     face: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorCell:
@@ -265,12 +266,14 @@ class Geometry:
     return self.torax_mesh.cell_widths
 
   @property
-  def rho_face(self) -> array_typing.Array:
+  def rho_face(self) -> jax.Array:
     r"""Toroidal flux coordinate on face grid :math:`\mathrm{m}`."""
-    return self.rho_face_norm * jnp.expand_dims(self.rho_b, axis=-1)
+    return (
+        self.rho_face_norm * jnp.expand_dims(self.rho_b, axis=-1)  # pyrefly: ignore[bad-return]
+    )
 
   @property
-  def rho(self) -> array_typing.Array:
+  def rho(self) -> jax.Array:
     r"""Toroidal flux coordinate on cell grid :math:`\mathrm{m}`.
 
     The toroidal flux coordinate is defined as
@@ -278,7 +281,9 @@ class Geometry:
     toroidal flux enclosed by the flux surface, and :math:`B_0` is the vacuum
     toroidal magnetic field at the geometric center of the LCFS.
     """
-    return self.rho_norm * jnp.expand_dims(self.rho_b, axis=-1)
+    return (
+        self.rho_norm * jnp.expand_dims(self.rho_b, axis=-1)  # pyrefly: ignore[bad-return]
+    )
 
   @property
   def r_mid(self) -> array_typing.Array:
@@ -303,9 +308,11 @@ class Geometry:
     )
 
   @property
-  def drho(self) -> array_typing.Array:
+  def drho(self) -> jax.Array:
     """Cell widths [m]."""
-    return self.drho_norm * jnp.expand_dims(self.rho_b, axis=-1)
+    return (
+        self.drho_norm * jnp.expand_dims(self.rho_b, axis=-1)  # pyrefly: ignore[bad-return]
+    )
 
   @property
   def rho_b(self) -> array_typing.FloatScalar:
@@ -461,7 +468,9 @@ def update_geometries_with_Phibdot(
   return geo_t, geo_t_plus_dt
 
 
-def increase_grid_resolution(faces: chex.Array, factor: int) -> chex.Array:
+def increase_grid_resolution(
+    faces: array_typing.Array, factor: int
+) -> array_typing.Array:
   """Increase the grid resolution by a factor."""
   if factor <= 1:
     raise ValueError('factor must be >= 1.')
@@ -470,4 +479,6 @@ def increase_grid_resolution(faces: chex.Array, factor: int) -> chex.Array:
   grid_indices = np.arange(len(faces))  # pyrefly: ignore[bad-argument-type]
   new_num_faces = num_cells * factor + 1
   new_indices = np.linspace(0, num_cells, new_num_faces)
-  return np.interp(new_indices, grid_indices, faces)
+  return np.interp(  # pyrefly: ignore[bad-return]
+      new_indices, grid_indices, faces
+  )

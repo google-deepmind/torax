@@ -31,9 +31,10 @@ import typing_extensions
 # pylint: disable=invalid-name
 
 
+@jax.jit
 def calculate_fractions_from_ratios(
-    ratios: Mapping[str, chex.Array],
-) -> Mapping[str, chex.Array]:
+    ratios: Mapping[str, array_typing.Array],
+) -> Mapping[str, array_typing.Array]:
   """Calculates fractions from ratios, handling the all-zero case."""
   # Ratios can be 1D (n_species,) or 2D (n_species, n_grid).
   # Sum over the species axis.

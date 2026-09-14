@@ -396,7 +396,12 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     def get_leaves(
         x: typing_extensions.Self,
     ) -> tuple[
-        chex.Array, chex.Array, chex.Array, chex.Array, chex.Array, chex.Array
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
     ]:
       # We need to update the time (xs) and value (ys) arrays for all
       # cached interpolated params.
@@ -658,7 +663,7 @@ class SparseTimeVaryingArray(model_base.BaseModelFrozen):
       self,
       t: chex.Numeric,
       grid_type: Literal['cell', 'face', 'face_right'] = 'cell',
-  ) -> array_typing.Array:
+  ) -> jax.Array:
     """Returns the evaluated profile on the grid at time t."""
     if self.grid is None:
       raise RuntimeError('grid must be set.')
