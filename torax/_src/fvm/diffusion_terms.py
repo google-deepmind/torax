@@ -18,12 +18,14 @@ Builds the diffusion terms of the discrete matrix equation.
 """
 
 import chex
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import tridiagonal
 from torax._src.fvm import cell_variable
 
 
+@jax.jit
 def make_diffusion_terms(
     d_face: array_typing.FloatVectorFace, var: cell_variable.CellVariable
 ) -> tuple[tridiagonal.TriDiagonal, array_typing.FloatVectorCell]:

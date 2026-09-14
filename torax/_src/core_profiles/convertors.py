@@ -117,6 +117,7 @@ def solver_x_tuple_to_core_profiles(
   return dataclasses.replace(core_profiles, **updated_vars)
 
 
+@jax.jit
 def apply_state_scaling(
     cv: cell_variable.CellVariable,
     scaling_factor: float,
@@ -171,6 +172,7 @@ RESIDUAL_SCALE_FLOORS: Final[Mapping[str, float]] = (
 )
 
 
+@jax.jit(static_argnames=['name'])
 def _compute_channel_residual_scale(
     name: str, x: array_typing.Array
 ) -> jax.Array:
@@ -191,6 +193,7 @@ def _compute_channel_residual_scale(
     return jnp.maximum(jnp.mean(jnp.abs(x)), floor)
 
 
+@jax.jit(static_argnames=['evolving_names'])
 def compute_residual_scaling_vector(
     evolving_names: tuple[str, ...],
     x_old: tuple[cell_variable.CellVariable, ...],

@@ -47,6 +47,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   absorption_fraction: array_typing.FloatScalar
 
 
+@jax.jit
 def calc_generic_heat_source(
     geo: geometry.Geometry,
     gaussian_location: float,

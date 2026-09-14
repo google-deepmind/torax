@@ -26,6 +26,7 @@ from torax._src.fvm import cell_variable
 
 
 # TODO(b/469726859): Once non-uniform grid is supported add in testing.
+@jax.jit(static_argnames=['dirichlet_mode', 'neumann_mode'])
 def make_convection_terms(
     v_face: jax.Array,
     d_face: jax.Array,

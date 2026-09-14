@@ -645,6 +645,7 @@ def _calc_coeffs_reduced(
   return coeffs
 
 
+@jax.jit
 def _compute_ramp_fraction(
     pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
     transition_time_width: array_typing.FloatScalar,
@@ -668,6 +669,7 @@ def _compute_ramp_fraction(
   return jnp.clip(fraction, 0.0, 1.0)
 
 
+@jax.jit
 def _apply_transition_ramp_scaling(
     pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
     ramp_fraction: array_typing.FloatScalar,

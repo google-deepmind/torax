@@ -211,6 +211,7 @@ def theta_method_matrix_equation(
   return lhs_matrix, lhs_vec, rhs_matrix, rhs_vec
 
 
+@jax.jit
 def apply_internal_boundary_conditions(
     lhs: tridiagonal.BlockTriDiagonal,
     lhs_vec: jax.Array,

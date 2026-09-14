@@ -36,6 +36,7 @@ from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 # pylint: disable=invalid-name
 
 
+@jax.jit(static_argnames=['params'])
 def _temperature_fit_function(
     T_e_target: array_typing.FloatScalar,
     params: extended_lengyel_defaults._FitParams,
@@ -57,6 +58,7 @@ def _temperature_fit_function(
   )
 
 
+@jax.jit
 def calc_momentum_loss_in_convection_layer(
     T_e_target: array_typing.FloatScalar,
 ) -> jax.Array:
@@ -67,6 +69,7 @@ def calc_momentum_loss_in_convection_layer(
   )
 
 
+@jax.jit
 def calc_density_ratio_in_convection_layer(
     T_e_target: array_typing.FloatScalar,
 ) -> jax.Array:
@@ -77,6 +80,7 @@ def calc_density_ratio_in_convection_layer(
   )
 
 
+@jax.jit
 def calc_power_loss_in_convection_layer(
     T_e_target: array_typing.FloatScalar,
 ) -> jax.Array:
@@ -87,6 +91,7 @@ def calc_power_loss_in_convection_layer(
   )
 
 
+@jax.jit
 def calc_shaping_factor(
     elongation_psi95: array_typing.FloatScalar,
     triangularity_psi95: array_typing.FloatScalar,
@@ -118,6 +123,7 @@ def calc_shaping_factor(
   )
 
 
+@jax.jit
 def calc_separatrix_average_poloidal_field(
     plasma_current: array_typing.FloatScalar,
     minor_radius: array_typing.FloatScalar,
@@ -145,6 +151,7 @@ def calc_separatrix_average_poloidal_field(
   return constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference  # pyrefly: ignore[bad-return]
 
 
+@jax.jit
 def calc_cylindrical_safety_factor(
     magnetic_field_on_axis: array_typing.FloatScalar,
     separatrix_average_poloidal_field: array_typing.FloatScalar,
@@ -184,6 +191,7 @@ def calc_cylindrical_safety_factor(
   )
 
 
+@jax.jit
 def calc_fieldline_pitch_at_omp(
     magnetic_field_on_axis: array_typing.FloatScalar,
     plasma_current: array_typing.FloatScalar,
@@ -230,6 +238,7 @@ def calc_fieldline_pitch_at_omp(
   )
 
 
+@jax.jit
 def calc_Z_eff(
     *,
     c_z: array_typing.FloatScalar,
@@ -294,6 +303,7 @@ def calc_Z_eff(
   return Z_eff[0]  # Return scalar for extended-lengyel.  # pyrefly: ignore[bad-index]
 
 
+@jax.jit(static_argnames=['ion_symbol'])
 def calc_enrichment_kallenbach(
     pressure_neutral_divertor: array_typing.FloatScalar,
     ion_symbol: str,

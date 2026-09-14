@@ -35,6 +35,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
+from torax._src.physics import psi_calculations
 from torax._src.solver import jax_root_finding
 from torax._src.sources import generic_ion_el_heat_source
 from torax._src.sources import source_profiles
@@ -44,6 +45,30 @@ from torax._src.test_utils import sim_test_case
 
 
 class ExtendedLengyelModelTest(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.enter_context(
+        mock.patch.object(
+            math_utils,
+            'cell_integration',
+            math_utils.cell_integration.__wrapped__,  # pyrefly: ignore[missing-attribute]
+        )
+    )
+    self.enter_context(
+        mock.patch.object(
+            math_utils,
+            'volume_integration',
+            math_utils.volume_integration.__wrapped__,  # pyrefly: ignore[missing-attribute]
+        )
+    )
+    self.enter_context(
+        mock.patch.object(
+            generic_ion_el_heat_source.formulas,
+            'gaussian_profile',
+            generic_ion_el_heat_source.formulas.gaussian_profile.__wrapped__,  # pyrefly: ignore[missing-attribute]
+        )
+    )
 
   def test_call_inverse_mode(self):
     """Tests that ExtendedLengyelModel.__call__ works correctly in inverse mode.
@@ -119,13 +144,15 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     # Set up CoreSources to give P_SOL_total = 5.5e6 W.
     target_P_SOL = 5.5e6
 
-    ion_heat, el_heat = generic_ion_el_heat_source.calc_generic_heat_source(
-        geo=mock_geo,
-        gaussian_location=0.5,
-        gaussian_width=0.2,
-        P_total=target_P_SOL,
-        electron_heat_fraction=0.7,
-        absorption_fraction=1.0,
+    ion_heat, el_heat = (
+        generic_ion_el_heat_source.calc_generic_heat_source.__wrapped__(  # pyrefly: ignore[missing-attribute]
+            geo=mock_geo,
+            gaussian_location=0.5,
+            gaussian_width=0.2,
+            P_total=target_P_SOL,
+            electron_heat_fraction=0.7,
+            absorption_fraction=1.0,
+        )
     )
 
     mock_core_sources = source_profiles.SourceProfiles(
@@ -759,6 +786,13 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
 
     self.mock_runtime_params = mock.MagicMock(
         spec=runtime_params_lib.RuntimeParams
+    )
+    self.enter_context(
+        mock.patch.object(
+            psi_calculations,
+            'calc_bpol_squared',
+            psi_calculations.calc_bpol_squared.__wrapped__,  # pyrefly: ignore[missing-attribute]
+        )
     )
 
   def _create_edge_params(self, **kwargs):

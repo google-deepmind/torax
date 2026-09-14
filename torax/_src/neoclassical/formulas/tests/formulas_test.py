@@ -102,7 +102,7 @@ class FormulasTest(parameterized.TestCase):
         delta_face=np.array(0.2),
         epsilon_face=np.array(0.1),
     )
-    result = formulas.calculate_f_trap(geo)
+    result = formulas.calculate_f_trap.__wrapped__(geo)
     expected = 0.4362384616678634
     np.testing.assert_allclose(result, expected)
 
@@ -113,7 +113,7 @@ class FormulasTest(parameterized.TestCase):
         delta_face=np.array(-0.2),
         epsilon_face=np.array(0.1),
     )
-    result = formulas.calculate_f_trap(geo)
+    result = formulas.calculate_f_trap.__wrapped__(geo)
     expected = 0.45134158459680895
     np.testing.assert_allclose(result, expected)
 
