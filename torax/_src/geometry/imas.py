@@ -149,6 +149,7 @@ class IMASConfig(base.BaseGeometryConfig):
         explicit_convert=self.explicit_convert,
         slice_index=self.slice_index,
         slice_time=self.slice_time,
+        trapped_fraction_source=self.trapped_fraction_source,
     )
     intermediates = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.IMAS, **inputs
@@ -179,6 +180,7 @@ class IMASConfig(base.BaseGeometryConfig):
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         explicit_convert=self.explicit_convert,
+        trapped_fraction_source=self.trapped_fraction_source,
     )
     geometries = {}
     for t, inputs in all_inputs.items():

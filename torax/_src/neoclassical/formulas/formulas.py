@@ -23,36 +23,85 @@ from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.physics import collisions
 
-
 # pylint: disable=invalid-name
 
 
 # TODO(b/545148156): Add finite-orbit-width effects.
-def calculate_f_trap(
-    geo: geometry_lib.Geometry,
-) -> array_typing.FloatVectorFace:
-  """Calculates the effective trapped particle fraction.
+def calculate_sauter_trapped_fraction(
+    epsilon: array_typing.Array, delta: array_typing.Array
+) -> array_typing.Array:
+  """Analytic approximation for the effective trapped particle fraction.
 
-  From O. Sauter, Fusion Engineering and Design 112 (2016) 633-645. Eqs 33+34.
+  From O. Sauter, Fusion Engineering and Design 112 (2016) 633-645, Eqs 33+34.
 
   Args:
-    geo: The magnetic geometry.
+    epsilon: Local midplane inverse aspect ratio of each flux surface.
+    delta: Average triangularity of each flux surface.
 
   Returns:
-    The effective trapped particle fraction.
+    The effective trapped particle fraction of each flux surface.
   """
-
-  epsilon_effective = (
-      0.67
-      * (1.0 - 1.4 * jnp.abs(geo.delta_face) * geo.delta_face)
-      * geo.epsilon_face
-  )
-  aa = (1.0 - geo.epsilon_face) / (1.0 + geo.epsilon_face)
+  epsilon_effective = 0.67 * (1.0 - 1.4 * jnp.abs(delta) * delta) * epsilon
+  aa = (1.0 - epsilon) / (1.0 + epsilon)
   return 1.0 - jnp.sqrt(aa) * (1.0 - epsilon_effective) / (
       # On the magnetic axis, epsilon_effective is 0, in order to avoid a NaN
       # gradient we define the gradient at zero to be zero.
-      1.0 + 2.0 * math_utils.sqrt_with_zero_gradient_at_zero(epsilon_effective)
+      1.0
+      + 2.0 * math_utils.sqrt_with_zero_gradient_at_zero(epsilon_effective)
   )
+
+
+# Number of grid points for the bounce-averaged lambda integration.
+_LAMBDA_GRID_RESOLUTION: int = 101
+
+
+def calculate_bounce_averaged_trapped_fraction(
+    B: array_typing.Array,
+    dl_over_Bp: array_typing.Array,
+    flux_surf_avg_B2: array_typing.Array | float,
+) -> array_typing.Array:
+  r"""Effective trapped particle fraction of one flux surface.
+
+  Computed from the full bounce-averaged integral:
+
+  .. math::
+    f_t = 1 - \frac{3}{4} \langle B^2 \rangle
+      \int_0^{1/B_{max}} \frac{\lambda \, d\lambda}{\langle \sqrt{1 -
+      \lambda B} \rangle}
+
+  where :math:`\langle . \rangle` is the flux surface average, using the same
+  :math:`dl/B_p` weighting as other flux surface averages. This requires the
+  full poloidal variation of :math:`|B|` on the flux surface.
+
+  Reference:
+  Y. R. Lin‐Liu, R. L. Miller; Upper and lower bounds of the effective trapped
+  particle fraction in general tokamak equilibria. Phys. Plasmas 1 May 1995; 2
+  (5): 1666–1668. https://doi.org/10.1063/1.871315
+
+  Args:
+    B: :math:`|B|` at samples of a poloidal contour around one flux surface
+      [:math:`\mathrm{T}`].
+    dl_over_Bp: Poloidal line-element weights :math:`dl / B_p` at the same
+      contour samples [:math:`\mathrm{m/T}`].
+    flux_surf_avg_B2: Flux surface average of :math:`B^2` for this flux surface
+      [:math:`\mathrm{T}^2`].
+
+  Returns:
+    The effective trapped particle fraction of this flux surface.
+  """
+  B_max = B.max()
+  # Lambda is the normalized magnetic moment (aka orbit pitch parameter)
+  lambda_ = jnp.linspace(0.0, 1.0, _LAMBDA_GRID_RESOLUTION) / B_max
+  sqrt_term = jnp.sqrt(
+      jnp.clip(1.0 - lambda_[:, jnp.newaxis] * B[jnp.newaxis, :], 0.0, None)
+  )
+  h_lambda = jnp.sum(sqrt_term * dl_over_Bp[jnp.newaxis, :], axis=1) / jnp.sum(
+      dl_over_Bp
+  )
+  bounce_integral = jnp.trapezoid(
+      lambda_, jnp.maximum(h_lambda, 1e-10), lambda_
+  )
+  return 1.0 - 0.75 * flux_surf_avg_B2 * bounce_integral
 
 
 # TODO(b/428166775): currently we have two very similar implementations for
