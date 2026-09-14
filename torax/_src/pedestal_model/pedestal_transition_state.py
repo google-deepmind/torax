@@ -107,3 +107,95 @@ class PedestalTransitionState:
             )
         ),
     )
+
+  def compute_ramp_fraction(
+      self,
+      t: array_typing.FloatScalar,
+      transition_time_width: array_typing.FloatScalar,
+  ) -> array_typing.FloatScalar:
+    """Computes the ramp fraction for a pedestal transition.
+
+    Returns a value in [0, 1] representing the progress of the current
+    transition. 0 means the transition just started, 1 means it is complete.
+
+    Args:
+      t: Current simulation time (i.e. t + dt when called from the solver).
+      transition_time_width: Duration of the transition ramp.
+
+    Returns:
+      Ramp fraction clipped to [0, 1].
+    """
+    elapsed = t - self.transition_start_time
+    fraction = elapsed / transition_time_width
+    return jnp.clip(fraction, 0.0, 1.0)
+
+  def apply_transition_ramp_scaling(
+      self,
+      ramp_fraction: array_typing.FloatScalar,
+  ) -> pedestal_model_output_lib.PedestalModelOutput:
+    """Applies ramp scaling to pedestal model output during transitions.
+
+    During an L-H transition, linearly ramps from L-mode values to the H-mode
+    targets. During an H-L transition, ramps from the H-mode targets back to
+    the L-mode values.
+
+    The L-mode values are stored in the pedestal_transition_state (captured
+    at the start of an L->H transition). The H-mode targets are the full
+    pedestal model output.
+
+    Args:
+      ramp_fraction: Progress of the current transition, in [0, 1].
+
+    Returns:
+      Scaled pedestal model output.
+    """
+
+    def _interpolate_transition(l_val, h_val):
+      """Interpolates between L-mode and H-mode values based on confinement mode."""
+      l_to_h_ramp = l_val + ramp_fraction * (h_val - l_val)
+      h_to_l_ramp = h_val + ramp_fraction * (l_val - h_val)
+      confinement_mode = self.confinement_mode
+      return jnp.select(
+          [
+              confinement_mode == ConfinementMode.L_MODE,
+              confinement_mode == ConfinementMode.H_MODE,
+              confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE,
+              confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE,
+          ],
+          [l_val, h_val, l_to_h_ramp, h_to_l_ramp],
+      )
+
+    pedestal_model_output = self.pedestal_model_output
+
+    scaled_T_i = _interpolate_transition(
+        l_val=self.T_i_ped_L_mode,
+        h_val=pedestal_model_output.T_i_ped,
+    )
+    scaled_T_e = _interpolate_transition(
+        l_val=self.T_e_ped_L_mode,
+        h_val=pedestal_model_output.T_e_ped,
+    )
+    scaled_n_e = _interpolate_transition(
+        l_val=self.n_e_ped_L_mode,
+        h_val=pedestal_model_output.n_e_ped,
+    )
+
+    return dataclasses.replace(
+        pedestal_model_output,
+        T_i_ped=scaled_T_i,
+        T_e_ped=scaled_T_e,
+        n_e_ped=scaled_n_e,
+    )
+
+  def get_scaled_pedestal_model_output(
+      self,
+      t: array_typing.FloatScalar,
+      transition_time_width: array_typing.FloatScalar,
+  ) -> pedestal_model_output_lib.PedestalModelOutput:
+    """Returns the pedestal model output, scaled by the ramp fraction during transitions."""
+    ramp_fraction = self.compute_ramp_fraction(
+        t=t,
+        transition_time_width=transition_time_width,
+    )
+    return self.apply_transition_ramp_scaling(ramp_fraction=ramp_fraction)
+

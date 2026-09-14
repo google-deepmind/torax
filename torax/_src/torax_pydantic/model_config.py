@@ -80,9 +80,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       neoclassical_pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa  # pyrefly: ignore[missing-argument]
   )
   solver: solver_pydantic_model.SolverConfig = pydantic.Field()
-  transport: transport_model_pydantic_model.TransportModel = (
-      pydantic.Field()
-  )
+  transport: transport_model_pydantic_model.TransportModel = pydantic.Field()
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field()
   mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
   edge: edge_pydantic_model.EdgeConfig | None = None
@@ -103,6 +101,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         mhd_models=self.mhd.build_mhd_models(),
         edge_model=edge_model,
         time_step_calculator=self.time_step_calculator.build_time_step_calculator(),
+        internal_boundary_condition_model=(
+            self.profile_conditions.internal_boundary_conditions.build_model()
+        ),
     )
 
   # TODO(b/434175938): Remove this once V1 API is deprecated
@@ -138,6 +139,15 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         and 'solver_type' not in configurable_data['solver']
     ):
       configurable_data['solver']['solver_type'] = 'linear'
+    if (
+        'internal_boundary_conditions' in configurable_data
+        and isinstance(configurable_data['internal_boundary_conditions'], dict)
+        and 'model_name'
+        not in configurable_data['internal_boundary_conditions']
+    ):
+      configurable_data['internal_boundary_conditions'][
+          'model_name'
+      ] = 'prescribed'
     return configurable_data
 
   @pydantic.model_validator(mode='after')
@@ -148,8 +158,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     )
     using_nonlinear_transport_model = any(
         model.model_name in ['qualikiz', 'qlknn', 'CGM']
-        for model in list(core_transport_models)
-        + list(pedestal_transport_models)
+        for model in list(core_transport_models) + list(
+            pedestal_transport_models
+        )
     )
     using_linear_solver = isinstance(
         self.solver, solver_pydantic_model.LinearThetaMethod
@@ -401,9 +412,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
           # searchsorted(side='right') - 1 finds the index of the last
           # update_impurities time point <= t, i.e. the step value active
           # at time t.
-          idx = max(0, int(np.searchsorted(
-              update_impurities_time, t, side='right'
-          )) - 1)
+          idx = max(
+              0,
+              int(np.searchsorted(update_impurities_time, t, side='right')) - 1,
+          )
           if not update_impurities_value[idx]:
             continue
           raise ValueError(

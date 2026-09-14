@@ -12,20 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Profile condition parameters used throughout TORAX simulations."""
+"""Profile condition pydantic models and helper functions."""
 
+import copy
 import dataclasses
-import enum
 import logging
-from typing import Annotated, Callable, Final, Sequence
+from typing import Annotated, Any, Callable, Final, Sequence
 
 import chex
 import jax
 import numpy as np
 import pydantic
-from torax._src import array_typing
+from torax._src.core_profiles import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
+from torax._src.internal_boundary_conditions import pydantic_model as ibc_pydantic_model
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
@@ -66,100 +66,10 @@ class PrescribedFastIon(torax_pydantic.BaseModelFrozen):
   T_right_bc: torax_pydantic.TimeVaryingScalar
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class PrescribedFastIonData:
-  """Evaluated prescribed fast ion data for a single species at time t.
-
-  This is the JAX-compatible runtime counterpart of ``PrescribedFastIon``.
-  It holds concrete array values evaluated at a specific time ``t``, and is
-  stored on ``RuntimeParams`` for use inside JIT-compiled simulation steps.
-
-  Attributes:
-    source: Source name (e.g. 'icrh').
-    species: Species name (e.g. 'He3').
-    n: Prescribed density profile [m^-3].
-    n_right_bc: Right boundary condition for density [m^-3].
-    T: Prescribed temperature profile [keV].
-    T_right_bc: Right boundary condition for temperature [keV].
-  """
-
-  source: str = dataclasses.field(metadata={'static': True})
-  species: str = dataclasses.field(metadata={'static': True})
-  n: array_typing.FloatVector
-  n_right_bc: array_typing.FloatScalar
-  T: array_typing.FloatVector
-  T_right_bc: array_typing.FloatScalar
-
-
-class InitialPsiMode(enum.StrEnum):
-  """How to calculate the initial psi value."""
-
-  PROFILE_CONDITIONS = 'profile_conditions'
-  GEOMETRY = 'geometry'
-  J = 'j'
-
-
-class NeBoundaryConditionMode(enum.StrEnum):
-  """Mode for the electron density right boundary condition.
-
-  Attributes:
-    PRESCRIBED: The boundary condition is prescribed directly via `n_e_right_bc`
-      or taken from the `n_e` profile at rho_norm=1.
-    DENSITY_FRACTION: The boundary condition is computed as `n_e(reference_rho,
-      t) * multiplier`, where `reference_rho` and `multiplier` are
-      user-specified. t is the time at the beginning of each time step interval.
-  """
-
-  PRESCRIBED = 'prescribed'
-  DENSITY_FRACTION = 'density_fraction'
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass
-class RuntimeParams:
-  """Prescribed values and boundary conditions for the core profiles."""
-
-  Ip: array_typing.FloatScalar
-  v_loop_lcfs: array_typing.FloatScalar
-  T_i_right_bc: array_typing.FloatScalar
-  T_e_right_bc: array_typing.FloatScalar
-  # Temperature profiles defined on the cell grid.
-  T_e: array_typing.FloatVector
-  T_i: array_typing.FloatVector
-  # If provided as array, Psi profile defined on the cell grid.
-  psi: array_typing.FloatVector | None
-  psidot: array_typing.FloatVector | None
-  toroidal_angular_velocity: array_typing.FloatVector | None
-  toroidal_angular_velocity_right_bc: array_typing.FloatScalar | None
-  # Electron density profile on the cell grid.
-  n_e: array_typing.FloatVector
-  nbar: array_typing.FloatScalar
-  n_e_nbar_is_fGW: bool
-  n_e_right_bc: array_typing.FloatScalar
-  n_e_right_bc_is_fGW: bool
-  n_e_right_bc_mode: NeBoundaryConditionMode = dataclasses.field(
-      metadata={'static': True}
-  )
-  n_e_right_bc_reference_rho: array_typing.FloatScalar | None
-  n_e_right_bc_multiplier: array_typing.FloatScalar | None
-  internal_boundary_conditions: (
-      internal_boundary_conditions_lib.InternalBoundaryConditions
-  )
-  current_profile_nu: float
-  initial_j_is_total_current: bool = dataclasses.field(
-      metadata={'static': True}
-  )
-  initial_psi_from_j: bool = dataclasses.field(metadata={'static': True})
-  normalize_n_e_to_nbar: bool = dataclasses.field(metadata={'static': True})
-  use_v_loop_lcfs_boundary_condition: bool = dataclasses.field(
-      metadata={'static': True}
-  )
-  n_e_right_bc_is_absolute: bool = dataclasses.field(metadata={'static': True})
-  initial_psi_mode: InitialPsiMode = dataclasses.field(
-      metadata={'static': True}
-  )
-  prescribed_fast_ions: tuple[PrescribedFastIonData, ...] = ()
+InitialPsiMode = runtime_params_lib.InitialPsiMode
+NeBoundaryConditionMode = runtime_params_lib.NeBoundaryConditionMode
+PrescribedFastIonData = runtime_params_lib.PrescribedFastIonData
+RuntimeParams = runtime_params_lib.RuntimeParams
 
 
 class ProfileConditions(torax_pydantic.BaseModelFrozen):
@@ -278,10 +188,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   n_e_right_bc_reference_rho: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_multiplier: torax_pydantic.TimeVaryingScalar | None = None
   internal_boundary_conditions: (
-      internal_boundary_conditions_lib.InternalBoundaryConditionsConfig
-  ) = torax_pydantic.ValidatedDefault(
-      internal_boundary_conditions_lib.InternalBoundaryConditionsConfig()
-  )
+      ibc_pydantic_model.InternalBoundaryConditionsConfig
+  ) = torax_pydantic.ValidatedDefault(ibc_pydantic_model.NoIBC())
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/434175938): Remove this before the V2 API release in place of
@@ -304,6 +212,20 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
               f' species: {fast_ion_lib.FAST_ION_SPECIES}'
           )
     return self
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(data, dict):
+      return data
+    data_copy = copy.deepcopy(data)
+    if (
+        'internal_boundary_conditions' in data_copy
+        and isinstance(data_copy['internal_boundary_conditions'], dict)
+        and 'model_name' not in data_copy['internal_boundary_conditions']
+    ):
+      data_copy['internal_boundary_conditions']['model_name'] = 'prescribed'
+    return data_copy
 
   @pydantic.model_validator(mode='after')
   def after_validator(self) -> Self:
