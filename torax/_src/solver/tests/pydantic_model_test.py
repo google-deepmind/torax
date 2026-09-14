@@ -98,6 +98,25 @@ class PydanticModelTest(parameterized.TestCase):
         str(cm.exception),
     )
 
+  def test_newton_raphson_gradient_support(self):
+    solver_default = solver_pydantic_model.NewtonRaphsonThetaMethod()
+    self.assertFalse(solver_default.enable_gradients)
+    runtime_params_default = solver_default.build_runtime_params
+    self.assertFalse(runtime_params_default.gradient_support)
+
+    solver_with_grad = solver_pydantic_model.NewtonRaphsonThetaMethod(
+        enable_gradients=True
+    )
+    self.assertTrue(solver_with_grad.enable_gradients)
+    runtime_params_with_grad = solver_with_grad.build_runtime_params
+    self.assertTrue(runtime_params_with_grad.gradient_support)
+
+    # Test updating via model_copy after build_runtime_params was already
+    # cached.
+    solver_copied = solver_default.model_copy(update={'enable_gradients': True})
+    solver_copied.clear_cached_properties()
+    self.assertTrue(solver_copied.build_runtime_params.gradient_support)
+
 
 if __name__ == '__main__':
   absltest.main()

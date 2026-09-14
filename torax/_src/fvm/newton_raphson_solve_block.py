@@ -54,6 +54,7 @@ MIN_DELTA: Final[float] = 1e-7
         'vmap_linesearch',
         'max_linesearch_steps',
         'log_iterations',
+        'gradient_support',
     ],
 )
 def newton_raphson_solve_block(
@@ -79,6 +80,7 @@ def newton_raphson_solve_block(
     max_linesearch_steps: int,
     vmap_linesearch: bool = False,
     log_iterations: bool = False,
+    gradient_support: bool = False,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state_module.SolverNumericOutputs,
@@ -154,7 +156,9 @@ def newton_raphson_solve_block(
     max_linesearch_steps: Maximum number of linesearch steps to try.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
-
+    gradient_support: If True, uses jax.lax.custom_root to allow for
+      differentiable solving (gradients through the root finder). Defaults to
+      False.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
@@ -250,6 +254,7 @@ def newton_raphson_solve_block(
       vmap_linesearch=vmap_linesearch,
       max_linesearch_steps=max_linesearch_steps,
       log_iterations=log_iterations,
+      use_jax_custom_root=gradient_support,
   )
 
   x_root, metadata = root_finder(x0=init_x_new_vec)
