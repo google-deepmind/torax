@@ -358,7 +358,8 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         numerics_outcome=new_numerics_outcome,
     )
 
-    # Reconstruct seed_impurity_concentrations and calculated_enrichment
+    # Reconstruct seed_impurity_concentrations, calculated_enrichment, and
+    # impurity_right_bc
     new_seed_impurity_concentrations = {
         k: result_dict[f'seed_impurity_concentrations_{k}']
         for k in roots.seed_impurity_concentrations or {}
@@ -367,6 +368,11 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     new_calculated_enrichment = {
         k: result_dict[f'calculated_enrichment_{k}']
         for k in roots.calculated_enrichment or {}
+    }
+
+    new_impurity_right_bc = {
+        k: result_dict[f'impurity_right_bc_{k}']
+        for k in roots.impurity_right_bc or {}
     }
 
     # Create the new ExtendedLengyelOutputs instance
@@ -383,6 +389,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         new_seed_impurity_concentrations
     )
     output_args['calculated_enrichment'] = new_calculated_enrichment
+    output_args['impurity_right_bc'] = new_impurity_right_bc
     output_args['roots'] = None
     output_args['multiple_roots_found'] = None
 
@@ -549,6 +556,8 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         'computation_mode',
         'solver_mode',
         'multistart_num_guesses',
+        'use_enrichment_model',
+        'impurity_sot',
     ],
 )
 def run_extended_lengyel_standalone(
@@ -607,6 +616,11 @@ def run_extended_lengyel_standalone(
     multistart_num_guesses: int = extended_lengyel_defaults.MULTISTART_NUM_GUESSES,
     enrichment_model_multiplier: array_typing.FloatScalar = 1.0,
     diverted: bool = True,
+    use_enrichment_model: bool = True,
+    enrichment_factor: Mapping[str, array_typing.FloatScalar] | None = None,
+    impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+        extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
+    ),
     initial_guess: (
         divertor_sol_1d_lib.ExtendedLengyelInitialGuess | None
     ) = None,
@@ -684,6 +698,11 @@ def run_extended_lengyel_standalone(
       computation_mode, T_e_target, seed_impurity_weights  # pyrefly: ignore[bad-argument-type]
   )
 
+  if not use_enrichment_model and enrichment_factor is None:
+    raise ValueError(
+        'enrichment_factor must be provided when use_enrichment_model is False.'
+    )
+
   params = _construct_parameters(
       power_crossing_separatrix=power_crossing_separatrix,
       separatrix_electron_density=separatrix_electron_density,
@@ -746,6 +765,9 @@ def run_extended_lengyel_standalone(
         diverted=diverted,
         enrichment_model_multiplier=enrichment_model_multiplier,
         multistart_num_guesses=multistart_num_guesses,
+        use_enrichment_model=use_enrichment_model,
+        enrichment_factor=enrichment_factor,
+        impurity_sot=impurity_sot,
     )
   else:
     # Inverse mode always has a single solution so we use a single solver call.
@@ -758,6 +780,9 @@ def run_extended_lengyel_standalone(
         newton_raphson_tol=newton_raphson_tol,
         diverted=diverted,
         enrichment_model_multiplier=enrichment_model_multiplier,
+        use_enrichment_model=use_enrichment_model,
+        enrichment_factor=enrichment_factor,
+        impurity_sot=impurity_sot,
     )
 
 
@@ -1010,6 +1035,11 @@ def _run_forward_mode_multistart(
     diverted: bool,
     enrichment_model_multiplier: array_typing.FloatScalar,
     multistart_num_guesses: int,
+    use_enrichment_model: bool = True,
+    enrichment_factor: Mapping[str, array_typing.FloatScalar] | None = None,
+    impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+        extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
+    ),
 ) -> ExtendedLengyelOutputs:
   """Runs the forward mode solver with multi-start logic."""
 
@@ -1061,6 +1091,9 @@ def _run_forward_mode_multistart(
         diverted=diverted,
         enrichment_model_multiplier=enrichment_model_multiplier,
         multiple_roots_found=jnp.array(False),
+        use_enrichment_model=use_enrichment_model,
+        enrichment_factor=enrichment_factor,
+        impurity_sot=impurity_sot,
     )
     return output, is_valid
 
@@ -1110,6 +1143,11 @@ def _build_extended_lengyel_outputs(
     diverted: bool,
     enrichment_model_multiplier: array_typing.FloatScalar,
     multiple_roots_found: jax.Array | None,
+    use_enrichment_model: bool = True,
+    enrichment_factor: Mapping[str, array_typing.FloatScalar] | None = None,
+    impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+        extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
+    ),
 ) -> ExtendedLengyelOutputs:
   """Constructs ExtendedLengyelOutputs from a solved DivertorSOL1D model."""
   pressure_neutral_divertor, q_perpendicular_target = (
@@ -1132,6 +1170,29 @@ def _build_extended_lengyel_outputs(
         jnp.array(1.0, dtype=jax_utils.get_dtype()),
     )
 
+  if use_enrichment_model:
+    enrichment = calculated_enrichment
+  elif enrichment_factor is not None:
+    enrichment = enrichment_factor
+  else:
+    raise ValueError(
+        'enrichment_factor must be provided when use_enrichment_model is False.'
+    )
+  get_enrichment = lambda s: enrichment[s]
+
+  impurity_right_bc = {
+      species: jnp.asarray(
+          conc / get_enrichment(species), dtype=jax_utils.get_dtype()
+      )
+      for species, conc in sol_model.seed_impurity_concentrations.items()
+  }
+
+  if impurity_sot == extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE:
+    for species, conc in params.fixed_impurity_concentrations.items():
+      impurity_right_bc[species] = jnp.asarray(
+          conc / get_enrichment(species), dtype=jax_utils.get_dtype()
+      )
+
   T_e_separatrix_keV = sol_model.T_e_separatrix / 1e3
   T_e_right_bc = T_e_separatrix_keV
   T_i_right_bc = T_e_separatrix_keV * sol_model.params.T_i_T_e_ratio_target
@@ -1139,6 +1200,7 @@ def _build_extended_lengyel_outputs(
   return ExtendedLengyelOutputs(
       T_e_right_bc=T_e_right_bc,
       T_i_right_bc=T_i_right_bc,
+      impurity_right_bc=impurity_right_bc,
       T_e_target=sol_model.state.T_e_target,
       pressure_neutral_divertor=pressure_neutral_divertor,
       alpha_t=sol_model.state.alpha_t,
@@ -1165,6 +1227,11 @@ def _run_single_solver(
     newton_raphson_tol: float,
     diverted: bool,
     enrichment_model_multiplier: array_typing.FloatScalar,
+    use_enrichment_model: bool = True,
+    enrichment_factor: Mapping[str, array_typing.FloatScalar] | None = None,
+    impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+        extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
+    ),
 ) -> ExtendedLengyelOutputs:
   """Runs a single solver instance (e.g. for Inverse mode)."""
   output_sol_model, solver_status = _execute_solver(
@@ -1184,6 +1251,9 @@ def _run_single_solver(
       multiple_roots_found=jnp.array(False)
       if computation_mode == extended_lengyel_enums.ComputationMode.FORWARD
       else None,
+      use_enrichment_model=use_enrichment_model,
+      enrichment_factor=enrichment_factor,
+      impurity_sot=impurity_sot,
   )
 
 

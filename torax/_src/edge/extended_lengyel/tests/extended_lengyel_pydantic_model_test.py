@@ -16,7 +16,6 @@ from absl.testing import absltest
 import numpy as np
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
-from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.edge.extended_lengyel import pydantic_model
@@ -290,7 +289,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_build_runtime_params_with_enrichment_model(self):
     config = pydantic_model.ExtendedLengyelConfig(
         use_enrichment_model=True,
-        enrichment_factor=None,  # Should be calculated
+        enrichment_factor=None,
         enrichment_model_multiplier=2.0,
         # Other required fields
         computation_mode='inverse',
@@ -299,20 +298,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         fixed_impurity_concentrations={'He4': 0.01},
     )
     runtime_params = config.build_runtime_params(t=0.0)
-    expected_enrichment_N = (
-        extended_lengyel_formulas.calc_enrichment_kallenbach(1.0, 'N', 2.0)
-    )
-    expected_enrichment_He4 = (
-        extended_lengyel_formulas.calc_enrichment_kallenbach(1.0, 'He4', 2.0)
-    )
-    self.assertIn('N', runtime_params.enrichment_factor)
-    self.assertIn('He4', runtime_params.enrichment_factor)
-    np.testing.assert_allclose(
-        runtime_params.enrichment_factor['N'], expected_enrichment_N
-    )
-    np.testing.assert_allclose(
-        runtime_params.enrichment_factor['He4'], expected_enrichment_He4
-    )
+    self.assertIsNone(runtime_params.enrichment_factor)
 
   def test_build_runtime_params_without_enrichment_model(self):
     config = pydantic_model.ExtendedLengyelConfig(
@@ -325,6 +311,8 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         fixed_impurity_concentrations={'He4': 0.01},
     )
     runtime_params = config.build_runtime_params(t=0.0)
+    self.assertIsNotNone(runtime_params.enrichment_factor)
+    assert runtime_params.enrichment_factor is not None
     self.assertIn('N', runtime_params.enrichment_factor)
     self.assertIn('He4', runtime_params.enrichment_factor)
     np.testing.assert_allclose(runtime_params.enrichment_factor['N'], 2.5)
