@@ -717,6 +717,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     roots = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.array([100.0, 200.0, 200.0]),
         T_i_right_bc=jnp.array([100.0, 200.0, 200.0]),
+        impurity_right_bc={'N': jnp.array([0.01, 0.02, 0.02])},
         T_e_target=jnp.array([5.0, 10.0, 10.000001]),
         pressure_neutral_divertor=jnp.array([1.0, 2.0, 2.0]),
         alpha_t=jnp.array([0.1, 0.2, 0.2]),
@@ -738,6 +739,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
         # Dummy values for required fields
         T_e_right_bc=jnp.array([0.0]),
         T_i_right_bc=jnp.array([0.0]),
+        impurity_right_bc={},
         T_e_target=jnp.array([0.0]),
         pressure_neutral_divertor=jnp.array([0.0]),
         alpha_t=jnp.array([0.0]),
@@ -781,6 +783,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     roots = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.zeros((2, 3)),
         T_i_right_bc=jnp.zeros((2, 3)),
+        impurity_right_bc={'N': jnp.zeros((2, 3))},
         T_e_target=jnp.array(Te_data),
         pressure_neutral_divertor=jnp.array([[1.0, 2.0, 2.0], [3.0, 3.0, 3.0]]),
         alpha_t=jnp.zeros((2, 3)),
@@ -801,6 +804,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
         # Dummy values for required fields
         T_e_right_bc=jnp.zeros((2, 3)),
         T_i_right_bc=jnp.zeros((2, 3)),
+        impurity_right_bc={},
         T_e_target=jnp.zeros((2, 3)),
         pressure_neutral_divertor=jnp.zeros((2, 3)),
         alpha_t=jnp.zeros((2, 3)),
@@ -852,6 +856,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     roots = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.zeros(3),
         T_i_right_bc=jnp.zeros(3),
+        impurity_right_bc={},
         T_e_target=jnp.array([5.0, 15.0, 25.0]),
         pressure_neutral_divertor=jnp.array([1.0, 2.0, 3.0]),
         alpha_t=jnp.zeros(3),
@@ -870,6 +875,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
         roots=roots,
         T_e_right_bc=jnp.array([0.0]),
         T_i_right_bc=jnp.array([0.0]),
+        impurity_right_bc={},
         T_e_target=jnp.array([0.0]),
         pressure_neutral_divertor=jnp.array([0.0]),
         alpha_t=jnp.array([0.0]),
