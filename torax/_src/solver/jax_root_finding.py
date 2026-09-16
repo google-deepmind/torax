@@ -225,7 +225,7 @@ def _cond(
 ) -> bool:
   """Check if exit condition reached for Newton-Raphson iterations."""
   iteration = state['iterations'][...]
-  return jnp.bool_(
+  return jnp.bool_(  # pyrefly: ignore[bad-return]
       jnp.logical_and(
           jnp.logical_and(state['residual_norm'] > tol, iteration < maxiter),
           state['last_tau'] > tau_min,

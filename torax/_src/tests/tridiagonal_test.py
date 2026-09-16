@@ -120,7 +120,7 @@ class BlockTriDiagonalTest(parameterized.TestCase):
 
   def test_zeros(self):
     bt = tridiagonal.BlockTriDiagonal.zeros(
-        num_blocks=3, block_size=2, dtype=jnp.float64
+        num_blocks=3, block_size=2, dtype=jnp.float64  # pyrefly: ignore[bad-argument-type]
     )
     np.testing.assert_array_equal(bt.lower, jnp.zeros((2, 2, 2)))
     np.testing.assert_array_equal(bt.diagonal, jnp.zeros((3, 2, 2)))

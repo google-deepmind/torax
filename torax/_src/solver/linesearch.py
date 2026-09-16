@@ -100,7 +100,7 @@ def backtracking_linesearch(
         evaluate_step=evaluate_step,
         delta_reduction_factor=delta_reduction_factor,
         max_steps=max_steps,
-        dtype=dtype,
+        dtype=dtype,  # pyrefly: ignore[bad-argument-type]
     )
 
   return _sequential_backtracking_linesearch(
@@ -110,7 +110,7 @@ def backtracking_linesearch(
       initial_residual_norm=initial_residual_norm,
       delta_reduction_factor=delta_reduction_factor,
       max_steps=max_steps,
-      dtype=dtype,
+      dtype=dtype,  # pyrefly: ignore[bad-argument-type]
   )
 
 
