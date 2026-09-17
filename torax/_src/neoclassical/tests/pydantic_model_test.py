@@ -36,7 +36,7 @@ class PydanticModelTest(parameterized.TestCase):
     model = pydantic_model.Neoclassical.from_dict({"bootstrap_current": {}})
     self.assertEqual(model.bootstrap_current.model_name, "sauter")
 
-  @parameterized.parameters("zeros", "sauter")
+  @parameterized.parameters("zeros", "sauter", "neo_surrogate")
   def test_bootstrap_current_model_name(self, model_name):
     model = pydantic_model.Neoclassical.from_dict(
         {"bootstrap_current": {"model_name": model_name}}
@@ -53,7 +53,7 @@ class PydanticModelTest(parameterized.TestCase):
     model = pydantic_model.Neoclassical.from_dict({"transport": {}})
     self.assertEqual(model.transport.model_name, "angioni_sauter")
 
-  @parameterized.parameters("zeros", "angioni_sauter")
+  @parameterized.parameters("zeros", "angioni_sauter", "neo_surrogate")
   def test_set_transport_model_name(self, model_name):
     model = pydantic_model.Neoclassical.from_dict(
         {"transport": {"model_name": model_name}}
@@ -61,8 +61,8 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertEqual(model.transport.model_name, model_name)
 
   @parameterized.product(
-      bootstrap_current_model_name=["zeros", "sauter"],
-      transport_model_name=["zeros", "angioni_sauter"],
+      bootstrap_current_model_name=["zeros", "sauter", "neo_surrogate"],
+      transport_model_name=["zeros", "angioni_sauter", "neo_surrogate"],
   )
   def test_neoclassical_model_works_under_jit(
       self, bootstrap_current_model_name, transport_model_name
