@@ -24,7 +24,9 @@ new_sim_outputs = torax.run_simulation(torax_config)
 ```
 """
 
+from absl import logging
 from torax._src.config import build_runtime_params
+from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import jit_run_loop
 from torax._src.orchestration import run_loop
@@ -32,15 +34,78 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
+from torax._src.time_step_calculator import fixed_time_step_calculator
+from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import model_config
 import xarray as xr
+
+# Upper bound on the number of geometries to precompute, to bound memory usage
+# (each geometry is ~13 kB at n_rho=25, scaling linearly with n_rho).
+_MAX_PRECOMPUTED_GEOMETRIES: int = 10_000
+
+
+def _maybe_precompute_geometry_provider(
+    torax_config: model_config.ToraxConfig,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
+) -> geometry_provider_lib.GeometryProvider:
+  """Pre-interpolates a time-dependent geometry when all step times are known.
+
+  This is only possible when the fixed time step calculator is used with a
+  constant `fixed_dt` and nothing can alter the sequence of time steps
+  (adaptive dt, sawtooth crashes, or a restart from a different start time).
+
+  Args:
+    torax_config: The TORAX config.
+    geometry_provider: The geometry provider built from the config.
+
+  Returns:
+    A `PrecomputedGeometryProvider` if precomputation is possible, otherwise
+    `geometry_provider` unchanged.
+  """
+  numerics = torax_config.numerics
+  fixed_dt = numerics.fixed_dt
+  if (
+      isinstance(
+          geometry_provider, geometry_provider_lib.ConstantGeometryProvider
+      )
+      or torax_config.time_step_calculator.calculator_type
+      != time_step_calculator_pydantic_model.TimeStepCalculatorType.FIXED
+      or numerics.adaptive_dt
+      or torax_config.mhd.sawtooth is not None
+      or (torax_config.restart is not None and torax_config.restart.do_restart)
+      or len(fixed_dt.value) != 1
+      or fixed_dt.value[0] <= 0.0
+  ):
+    return geometry_provider
+
+  times = fixed_time_step_calculator.get_time_grid(
+      t_initial=numerics.t_initial,
+      t_final=numerics.t_final,
+      fixed_dt=float(fixed_dt.value[0]),
+      exact_t_final=numerics.exact_t_final,
+      tolerance=torax_config.time_step_calculator.tolerance,
+      max_num_times=_MAX_PRECOMPUTED_GEOMETRIES,
+  )
+  if times is None:
+    logging.info(
+        'Not precomputing geometries: the grid exceeds the maximum of %d.',
+        _MAX_PRECOMPUTED_GEOMETRIES,
+    )
+    return geometry_provider
+
+  logging.info('Precomputing geometries at %d fixed time steps.', len(times))
+  return geometry_provider_lib.PrecomputedGeometryProvider.from_provider(
+      geometry_provider, times
+  )
 
 
 def make_step_fn(
     torax_config: model_config.ToraxConfig,
 ) -> step_function.SimulationStepFn:
   """Prepare a TORAX step function from a config."""
-  geometry_provider = torax_config.geometry.build_provider
+  geometry_provider = _maybe_precompute_geometry_provider(
+      torax_config, torax_config.geometry.build_provider
+  )
   models = torax_config.build_models()
 
   solver = torax_config.solver.build_solver(
