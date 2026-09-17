@@ -22,9 +22,6 @@ from torax._src.imas_tools.input import loader
 from torax._src.imas_tools.input import validation
 
 
-# TODO(b/459479939): i/2213) Add NaN checking to input IDS. At the moment we
-# assume that all profiles are filled if the first time slice is filled but this
-# may not be the case, especially with experimental data.
 # pylint: disable=invalid-name
 def profile_conditions_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
@@ -106,7 +103,7 @@ def profile_conditions_from_IMAS(
   else:
     v_loop_lcfs = 0.0
 
-  return {
+  result = {
       "Ip": Ip,
       "psi": psi,
       "T_i": T_i,
@@ -120,6 +117,8 @@ def profile_conditions_from_IMAS(
       "normalize_n_e_to_nbar": False,
       "v_loop_lcfs": v_loop_lcfs,
   }
+  validation.validate_finite_values(result, context="core_profiles IDS")
+  return result
 
 
 # TODO(b/528212645): Add support for custom mappings of IMAS ion names to TORAX
@@ -230,7 +229,7 @@ def plasma_composition_from_IMAS(
   main_ion = {}
   for symbol, ratio in main_ion_density.items():
     main_ion[symbol] = (time_array, ratio / total_main_ion_density)
-  return {
+  result = {
       "main_ion": main_ion,
       "Z_eff": Z_eff,
       "impurity": {
@@ -238,3 +237,5 @@ def plasma_composition_from_IMAS(
           "species": impurity_species,
       },
   }
+  validation.validate_finite_values(result, context="core_profiles IDS")
+  return result
