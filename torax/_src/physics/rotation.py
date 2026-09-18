@@ -14,6 +14,7 @@
 """Calculations related to the rotation of the plasma."""
 import dataclasses
 
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
@@ -47,6 +48,7 @@ class RotationOutput:
   poloidal_velocity: cell_variable.CellVariable
 
 
+@jax.jit
 def _calculate_radial_electric_field(
     pressure_total_i: cell_variable.CellVariable,
     toroidal_angular_velocity: cell_variable.CellVariable,
@@ -119,6 +121,7 @@ def _calculate_radial_electric_field(
   return Er, Er_poloidal_and_pressure_face, Er_toroidal_face
 
 
+@jax.jit
 def _calculate_v_ExB(
     Er_face: array_typing.FloatVectorFace,
     B_total_face: array_typing.FloatVectorFace,
