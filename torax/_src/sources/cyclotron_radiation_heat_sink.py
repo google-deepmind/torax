@@ -16,7 +16,7 @@
 
 """Cyclotron radiation heat sink for electron heat equation.."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
@@ -34,7 +34,6 @@ from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # Default value for the model function to be used for the Cyclotron radiation
 # heat sink source. This is also used as an identifier for the model function in
@@ -390,7 +389,7 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
   )
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     if not self.beta_min < self.beta_max:
       raise ValueError('beta_min must be less than beta_max.')
     return self

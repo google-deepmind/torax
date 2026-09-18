@@ -15,6 +15,7 @@
 """Calculates Block1DCoeffs for a time step."""
 
 import dataclasses
+from typing import Self
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -34,7 +35,6 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -55,7 +55,7 @@ class CoeffsCallback:
         self.evolving_names,
     ))
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: Self) -> bool:  # pyrefly: ignore[bad-override]
     return (
         self.models == other.models
         and self.evolving_names == other.evolving_names

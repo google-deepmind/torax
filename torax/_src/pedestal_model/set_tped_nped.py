@@ -14,6 +14,7 @@
 """A basic version of the pedestal model that uses direct specification."""
 
 import dataclasses
+from typing import override
 
 import jax
 from jax import numpy as jnp
@@ -25,7 +26,6 @@ from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
-from typing_extensions import override
 
 
 # pylint: disable=invalid-name
