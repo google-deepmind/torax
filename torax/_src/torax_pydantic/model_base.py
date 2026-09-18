@@ -279,12 +279,17 @@ class BaseModelFrozen(pydantic.BaseModel):
       )
       model.__dict__[value_name] = value
 
+    seen_ancestors = set()
     for model in mutated_models:
       for model_ancestral in model_tree.rsearch(id(model)):
-        m = model_tree.get_node(model_ancestral).data
-        m.clear_cached_properties()
-        # Re-validate all ancestral models.
-        m.__class__.from_dict(m.to_dict())
+        if model_ancestral not in seen_ancestors:
+          seen_ancestors.add(model_ancestral)
+          m = model_tree.get_node(model_ancestral).data
+          m.clear_cached_properties()
+    if seen_ancestors:
+      # Re-validate the root model once, which recursively re-validates all
+      # mutated and ancestral submodels.
+      self.__class__.from_dict(self.to_dict())
 
   def _lookup_path(self, paths: Sequence[str]) -> Self:
     """Returns the model at the given path."""

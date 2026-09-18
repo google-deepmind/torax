@@ -16,6 +16,7 @@
 
 import functools
 from typing import Annotated, Any
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -396,6 +397,21 @@ class PydanticBaseTest(parameterized.TestCase):
       self.assertEqual(m.a.a, a_new)
       self.assertEqual(m.b, b_new)
       self.assertEqual(m.c, c_new)
+
+    with self.subTest('revalidates_root_once_for_multiple_field_updates'):
+      call_count = 0
+      orig_from_dict = Test2.from_dict
+
+      def counting_from_dict(cfg):
+        nonlocal call_count
+        call_count += 1
+        return orig_from_dict(cfg)
+
+      with mock.patch.object(
+          Test2, 'from_dict', side_effect=counting_from_dict
+      ):
+        m._update_fields({'a.a': 1.0, 'b': 2.0, 'c': 3.0})
+      self.assertEqual(call_count, 1)
 
 
 if __name__ == '__main__':
