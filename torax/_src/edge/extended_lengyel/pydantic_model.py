@@ -72,9 +72,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       extended_lengyel_enums.SolverMode, torax_pydantic.JAX_STATIC
   ] = extended_lengyel_enums.SolverMode.HYBRID
   impurity_sot: Annotated[
-      extended_lengyel_model.FixedImpuritySourceOfTruth,
+      extended_lengyel_enums.FixedImpuritySourceOfTruth,
       torax_pydantic.JAX_STATIC,
-  ] = extended_lengyel_model.FixedImpuritySourceOfTruth.CORE
+  ] = extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
   # Flags allowing user to test simulation sensitivity to boundary condition
   # updates, while still providing edge model outputs even if not used.
   update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
@@ -307,6 +307,15 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
             'seed_impurity_weights must be provided for inverse computation'
             ' mode.'
         )
+      if self.fixed_impurity_concentrations:
+        overlap = set(self.seed_impurity_weights.keys()) & set(
+            self.fixed_impurity_concentrations.keys()
+        )
+        if overlap:
+          raise ValueError(
+              'Edge fixed and seeded impurities must be disjoint. Overlap:'
+              f' {sorted(list(overlap))}'
+          )
     return self
 
   def build_runtime_params(

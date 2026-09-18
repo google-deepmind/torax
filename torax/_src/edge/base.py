@@ -15,6 +15,7 @@
 """Base classes for edge models."""
 
 import abc
+from collections.abc import Mapping
 import dataclasses
 import chex
 import jax
@@ -40,6 +41,8 @@ class EdgeModelOutputs:
   Attributes:
     T_e_right_bc: Electron temperature boundary condition at LCFS [keV].
     T_i_right_bc: Ion temperature boundary condition at LCFS [keV].
+    impurity_right_bc: Mapping from impurity symbol to its right boundary
+      condition (n_e_ratio at LCFS).
     q_parallel: Parallel heat flux upstream [W/m^2].
     q_perpendicular_target: Heat flux perpendicular to the target [W/m^2].
     T_e_separatrix: Electron temperature at the separatrix [keV].
@@ -49,6 +52,7 @@ class EdgeModelOutputs:
 
   T_e_right_bc: jax.Array
   T_i_right_bc: jax.Array
+  impurity_right_bc: Mapping[str, jax.Array]
   q_parallel: jax.Array
   q_perpendicular_target: jax.Array
   T_e_separatrix: jax.Array
