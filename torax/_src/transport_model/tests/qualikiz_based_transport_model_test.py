@@ -26,15 +26,18 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import register_model
+from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 
 def setUpModule():
@@ -249,6 +252,41 @@ class QualikizTransportModelTest(parameterized.TestCase):
         uncapped.log_nu_star_face[~above_cap],
     )
 
+  def test_qualikiz_output_to_output_dict(self):
+    n_face = 10
+    ql_coeffs = qualikiz_based_transport_model.QualikizTransportModelOutput(
+        chi_face_ion=jnp.ones((1, n_face)) * 1.0,
+        chi_face_el=jnp.ones((1, n_face)) * 2.0,
+        d_face_el=jnp.ones((1, n_face)) * 0.5,
+        v_face_el=jnp.ones((1, n_face)) * -0.1,
+        chi_face_ion_itg=jnp.ones((1, n_face)) * 0.8,
+        chi_face_ion_tem=jnp.ones((1, n_face)) * 0.2,
+        chi_face_el_itg=jnp.ones((1, n_face)) * 1.0,
+        chi_face_el_tem=jnp.ones((1, n_face)) * 0.5,
+        chi_face_el_etg=jnp.ones((1, n_face)) * 0.5,
+        d_face_el_itg=jnp.ones((1, n_face)) * 0.3,
+        d_face_el_tem=jnp.ones((1, n_face)) * 0.2,
+        v_face_el_itg=jnp.ones((1, n_face)) * -0.05,
+        v_face_el_tem=jnp.ones((1, n_face)) * -0.05,
+    )
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=np.linspace(0, 1, n_face),
+        rho_cell_norm=np.linspace(0, 1, n_face - 1),
+        rho_cell_plus_boundaries_norm=np.linspace(0, 1, n_face + 1),
+    )
+    out = ql_coeffs.to_output_dict(context)
+    self.assertIn(output_keys.CHI_TURB_I, out)
+    self.assertIn(output_keys.CHI_ITG_I, out)
+    self.assertIn(output_keys.CHI_TEM_I, out)
+    self.assertIn(output_keys.CHI_ITG_E, out)
+    self.assertIn(output_keys.CHI_TEM_E, out)
+    self.assertIn(output_keys.CHI_ETG_E, out)
+    self.assertIn(output_keys.D_ITG_E, out)
+    self.assertIn(output_keys.D_TEM_E, out)
+    self.assertIn(output_keys.V_ITG_E, out)
+    self.assertIn(output_keys.V_TEM_E, out)
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeQualikizBasedTransportModel(
@@ -271,14 +309,16 @@ class FakeQualikizBasedTransportModel(
 
   # pylint: enable=invalid-name
 
-  def call_implementation(  # pyrefly: ignore[bad-override]
+  def call_implementation(
       self,
-      transport_runtime_params: qualikiz_based_transport_model.RuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     # Assert required for pytype.
     assert isinstance(
         transport_runtime_params,

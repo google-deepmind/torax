@@ -21,6 +21,7 @@ from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -38,6 +39,7 @@ from torax._src.transport_model import enums
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_model
 
 
@@ -54,22 +56,25 @@ class FixedTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
-    chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
-    chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
-    d_face_el = np.linspace(2, 3, geo.rho_face_norm.shape[0])
-    v_face_el = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
-    # Add sub-components
-    chi_face_ion_bohm = chi_face_ion * 0.3
-    chi_face_ion_gyrobohm = chi_face_ion * 0.7
+  ) -> transport_coeffs.TransportCoeffs:
+    chi_face_ion = jnp.linspace(
+        0.5, 2, geo.rho_face_norm.shape[0], dtype=jax_utils.get_dtype()
+    )
+    chi_face_el = jnp.linspace(
+        0.25, 1, geo.rho_face_norm.shape[0], dtype=jax_utils.get_dtype()
+    )
+    d_face_el = jnp.linspace(
+        2, 3, geo.rho_face_norm.shape[0], dtype=jax_utils.get_dtype()
+    )
+    v_face_el = jnp.linspace(
+        -0.2, -2, geo.rho_face_norm.shape[0], dtype=jax_utils.get_dtype()
+    )
 
-    return component.TurbulentTransport(
-        chi_face_ion=chi_face_ion,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el=chi_face_el,  # pyrefly: ignore[bad-argument-type]
-        d_face_el=d_face_el,  # pyrefly: ignore[bad-argument-type]
-        v_face_el=v_face_el,  # pyrefly: ignore[bad-argument-type]
-        chi_face_ion_bohm=chi_face_ion_bohm,  # pyrefly: ignore[bad-argument-type]
-        chi_face_ion_gyrobohm=chi_face_ion_gyrobohm,  # pyrefly: ignore[bad-argument-type]
+    return transport_coeffs.TransportCoeffs(
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
     )
 
 
@@ -152,10 +157,6 @@ class TransportMaskingTest(parameterized.TestCase):
 
     # Verify chi_i is zeroed out
     np.testing.assert_allclose(coeffs.chi_face_ion, 0.0)
-    if coeffs.chi_face_ion_bohm is not None:
-      np.testing.assert_allclose(coeffs.chi_face_ion_bohm, 0.0)
-    if coeffs.chi_face_ion_gyrobohm is not None:
-      np.testing.assert_allclose(coeffs.chi_face_ion_gyrobohm, 0.0)
 
     # Verify D_e is non-zero (FixedTransportModel returns non-zero values)
     self.assertFalse(np.allclose(coeffs.d_face_el, 0.0))
@@ -245,7 +246,7 @@ class TransportMaskingTest(parameterized.TestCase):
         coeffs.d_face_el, 2 * ref_coeffs.d_face_el, rtol=1e-5
     )
 
-  def test_preserves_none_channel_enabled(self):
+  def test_zero_out_channel_enabled(self):
     model = FixedTransportModel()
     runtime_params = mock.create_autospec(
         transport_runtime_params_lib.ComponentRuntimeParams,
@@ -255,17 +256,17 @@ class TransportMaskingTest(parameterized.TestCase):
         disable_V_e=False,
     )
 
-    coeffs = component.TurbulentTransport(
+    coeffs = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.array([1.0]),
         chi_face_el=jnp.array([1.0]),
         d_face_el=jnp.array([1.0]),
         v_face_el=jnp.array([1.0]),
-        chi_face_ion_bohm=None,
     )
     new_coeffs = model.zero_out_disabled_channels(runtime_params, coeffs)
-    self.assertIsNone(new_coeffs.chi_face_ion_bohm)
+    self.assertEqual(new_coeffs.chi_face_ion[0], 1.0)
+    self.assertEqual(new_coeffs.d_face_el[0], 1.0)
 
-  def test_preserves_none_channel_disabled(self):
+  def test_zero_out_channel_disabled(self):
     model = FixedTransportModel()
     runtime_params = mock.create_autospec(
         transport_runtime_params_lib.ComponentRuntimeParams,
@@ -275,20 +276,20 @@ class TransportMaskingTest(parameterized.TestCase):
         disable_V_e=False,
     )
 
-    coeffs = component.TurbulentTransport(
+    coeffs = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.array([1.0]),
         chi_face_el=jnp.array([1.0]),
         d_face_el=jnp.array([1.0]),
         v_face_el=jnp.array([1.0]),
-        chi_face_ion_bohm=None,
     )
     new_coeffs_disabled = model.zero_out_disabled_channels(
         runtime_params, coeffs
     )
-    self.assertIsNone(new_coeffs_disabled.chi_face_ion_bohm)
+    self.assertEqual(new_coeffs_disabled.chi_face_ion[0], 0.0)
+    self.assertEqual(new_coeffs_disabled.d_face_el[0], 1.0)
 
-  def test_sub_channel_domain_restriction(self):
-    """Tests that sub-channels are masked by domain restriction."""
+  def test_domain_restriction(self):
+    """Tests that channels are masked by domain restriction."""
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'chi_min': 0.0,
@@ -348,15 +349,6 @@ class TransportMaskingTest(parameterized.TestCase):
     # Verify main channel is zeroed
     np.testing.assert_allclose(coeffs.chi_face_ion[cutoff_idx:], 0.0)
 
-    # Verify sub-channels are also zeroed
-    # FixedTransportModel sets chi_face_ion_bohm = chi_face_ion * 0.3
-    # If not masked, it would be non-zero because FixedTransportModel computes
-    # it everywhere
-    self.assertIsNotNone(coeffs.chi_face_ion_bohm)
-    np.testing.assert_allclose(coeffs.chi_face_ion_bohm[cutoff_idx:], 0.0)
-    self.assertIsNotNone(coeffs.chi_face_ion_gyrobohm)
-    np.testing.assert_allclose(coeffs.chi_face_ion_gyrobohm[cutoff_idx:], 0.0)
-
 
 class TransportModelTest(absltest.TestCase):
 
@@ -411,7 +403,7 @@ class TransportModelTest(absltest.TestCase):
     )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    transport_coeffs = model(
+    coeffs = model(
         runtime_params,
         geo,
         core_profiles,
@@ -428,7 +420,7 @@ class TransportModelTest(absltest.TestCase):
     target = jnp.where(geo.rho_face_norm <= 0.8, 5.0, target)
     target = jnp.where(geo.rho_face_norm <= 0.5, 2.0, target)
     target = jnp.where(geo.rho_face_norm <= 0.2, 1.0, target)
-    np.testing.assert_allclose(transport_coeffs.chi_face_ion, target)
+    np.testing.assert_allclose(coeffs.chi_face_ion, target)
 
   def test_chi_min(self):
     config = default_configs.get_default_config_dict()
@@ -468,7 +460,7 @@ class TransportModelTest(absltest.TestCase):
     )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    transport_coeffs = model(
+    coeffs = model(
         runtime_params,
         geo,
         core_profiles,
@@ -481,7 +473,7 @@ class TransportModelTest(absltest.TestCase):
     # - 1.0 for rho = [0.0, 0.5], set by chi_min
     target = jnp.where(geo.rho_face_norm <= 0.91, 2.0, 1.0)
     target = jnp.where(geo.rho_face_norm <= 0.5, 1.0, target)
-    np.testing.assert_allclose(transport_coeffs.chi_face_ion, target)
+    np.testing.assert_allclose(coeffs.chi_face_ion, target)
 
   def test_build_smoothing_matrix_zero_width_is_identity(self):
     """Tests that a zero smoothing width produces an identity matrix."""
@@ -918,26 +910,18 @@ class TransportModelTest(absltest.TestCase):
     target_e = jnp.ones_like(geo.rho_face_norm) * 1.0
     np.testing.assert_allclose(coeffs.chi_face_el, target_e)
 
-  def test_none_handling_in_combine(self):
-    """Tests that None values are preserved as None if no model writes to them."""
-    # We use a mock model to return None for clear isolation.
-    mock_model = mock.create_autospec(
-        component.ComponentTransportModel, instance=True
-    )
+  def test_call_invokes_constituent_models_and_combines(self):
+    """Tests that TransportModel.__call__ invokes component models with correct arguments."""
+    # We use a mock model to verify argument passing and output combining.
+    mock_model = mock.MagicMock(spec=component.ComponentTransportModel)
     geo = mock.Mock(spec=geometry.Geometry)
-    geo.rho_face_norm = jnp.linspace(0, 1, 10)
+    geo.rho_face_norm = jnp.linspace(0, 1, 10, dtype=jax_utils.get_dtype())
 
-    # Return a structure with some None fields
-    mock_coeffs = component.TurbulentTransport(
+    mock_coeffs = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.ones_like(geo.rho_face_norm),
         chi_face_el=jnp.ones_like(geo.rho_face_norm),
         d_face_el=jnp.ones_like(geo.rho_face_norm),
         v_face_el=jnp.ones_like(geo.rho_face_norm),
-        # Optional fields as None
-        chi_face_el_bohm=None,
-        chi_face_el_gyrobohm=None,
-        chi_face_ion_bohm=None,
-        chi_face_ion_gyrobohm=None,
     )
     mock_model.return_value = mock_coeffs
 
@@ -995,11 +979,21 @@ class TransportModelTest(absltest.TestCase):
         runtime_params, geo, core_profiles, pedestal_output, two_point_mask
     )
 
-    # Check that output has None for optional fields
-    self.assertIsNone(coeffs.chi_face_ion_bohm)
-    self.assertIsNone(coeffs.chi_face_el_bohm)
-    # Check that main fields are arrays
-    self.assertIsNotNone(coeffs.chi_face_ion)
+    self.assertEqual(mock_model.call_count, 1)
+    call_args = mock_model.call_args
+    self.assertEqual(call_args[0][0], mock_params)
+    self.assertEqual(call_args[0][1], runtime_params)
+    self.assertEqual(call_args[0][2], geo)
+    self.assertEqual(call_args[0][3], core_profiles)
+    np.testing.assert_array_equal(
+        call_args[1]['two_point_mask'], two_point_mask
+    )
+
+    # Check that main fields match combined output.
+    np.testing.assert_allclose(coeffs.chi_face_ion, mock_coeffs.chi_face_ion)
+    np.testing.assert_allclose(coeffs.chi_face_el, mock_coeffs.chi_face_el)
+    np.testing.assert_allclose(coeffs.d_face_el, mock_coeffs.d_face_el)
+    np.testing.assert_allclose(coeffs.v_face_el, mock_coeffs.v_face_el)
 
 
 if __name__ == '__main__':

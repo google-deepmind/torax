@@ -148,14 +148,10 @@ class TransportModel(static_dataclass.StaticDataclass):
     accumulators = {}
     locks = {}
 
-    for (
-        channel,
-        config,
-    ) in component.ComponentTransportModel.CHANNEL_CONFIG.items():
+    channels = ('chi_face_ion', 'chi_face_el', 'd_face_el', 'v_face_el')
+    for channel in channels:
       accumulators[channel] = zero_profile
       locks[channel] = jnp.zeros_like(geo.rho_face_norm, dtype=bool)
-      for sub in config['sub_channels']:
-        accumulators[sub] = None
 
     # TODO(b/344023668) explore batching or fori_loop for performance.
     for name in models:
@@ -175,53 +171,31 @@ class TransportModel(static_dataclass.StaticDataclass):
           params, runtime_params, geo, pedestal_model_output
       )
 
-      coeffs_dict = dataclasses.asdict(coeffs)
-      for k in coeffs_dict:
-        # Apply domain restriction to values.
-        if coeffs_dict[k] is not None:
-          coeffs_dict[k] = jnp.where(domain_mask, coeffs_dict[k], 0.0)  # pyrefly: ignore[bad-argument-type]
+      channels_and_flags = (
+          ('chi_face_ion', params.disable_chi_i),
+          ('chi_face_el', params.disable_chi_e),
+          ('d_face_el', params.disable_D_e),
+          ('v_face_el', params.disable_V_e),
+      )
 
-      for (
-          channel,
-          config,
-      ) in component.ComponentTransportModel.CHANNEL_CONFIG.items():
-        disable_flag_name = config['disable_flag']
-        is_disabled = getattr(params, disable_flag_name)  # pyrefly: ignore[bad-argument-type]
-
+      for channel, is_disabled in channels_and_flags:
         # A channel is active for this model if it's in the domain AND enabled.
-        # Note that this is a boolean array over the face grid.
         channel_active = jnp.logical_and(
             domain_mask, jnp.logical_not(is_disabled)
         )
 
-        val = coeffs_dict[channel]
+        val = getattr(coeffs, channel)
         if params.merge_mode == enums.MergeMode.OVERWRITE:
           # Wiping: Replace accumulator values where active.
           accumulators[channel] = jnp.where(
-              channel_active, val, accumulators[channel]  # pyrefly: ignore[bad-argument-type]
+              channel_active, val, accumulators[channel]
           )
           # Update lock.
           locks[channel] = jnp.logical_or(locks[channel], channel_active)
         else:  # ADD
-          # Add where not locked.
-          factor = jnp.where(locks[channel], 0.0, 1.0)
-          accumulators[channel] = accumulators[channel] + val * factor  # pyrefly: ignore[unsupported-operation]
-
-        # Handle sub-channels.
-        for sub in config['sub_channels']:
-          sub_val = coeffs_dict[sub]
-          if sub_val is not None:
-            if accumulators[sub] is None:
-              accumulators[sub] = zero_profile
-
-            if params.merge_mode == enums.MergeMode.OVERWRITE:
-              accumulators[sub] = jnp.where(
-                  channel_active, sub_val, accumulators[sub]
-              )
-            else:  # ADD
-              # Add where not locked (using main channel lock).
-              factor = jnp.where(locks[channel], 0.0, 1.0)
-              accumulators[sub] = accumulators[sub] + sub_val * factor
+          # Add where active and not locked.
+          condition = channel_active & ~locks[channel]
+          accumulators[channel] = accumulators[channel] + val * condition
 
     return component.TurbulentTransport(**accumulators)
 
