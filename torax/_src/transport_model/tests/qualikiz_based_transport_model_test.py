@@ -109,10 +109,10 @@ class QualikizTransportModelTest(parameterized.TestCase):
 
     core_transport = transport_model(*model_inputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
-    self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
-    self.assertEqual(core_transport.chi_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.d_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.v_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_ion.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.d_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.v_face_el.shape, expected_shape)
 
   def test_qualikiz_based_transport_model_prepare_qualikiz_inputs_shapes(self):
     """Tests that the qualikiz inputs have the expected shapes."""

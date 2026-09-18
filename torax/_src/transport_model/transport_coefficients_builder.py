@@ -133,17 +133,22 @@ def calculate_all_transport_coeffs(
   pereverzev_transport_coeffs = jax.lax.cond(
       use_pereverzev,
       pereverzev_lib.calculate_pereverzev_transport,
-      lambda runtime_params, geo, core_profiles, two_point_mask: pereverzev_lib.PereverzevTransport.zeros(
-          geo
-      ),
+      lambda *_: pereverzev_lib.PereverzevTransport.zeros(geo),
       runtime_params,
       geo,
       core_profiles,
       two_point_mask,
   )
 
+  turbulent_dict = {}
+  for model_coeffs in turbulent_transport_coeffs.core_coefficients.values():
+    turbulent_dict.update(dataclasses.asdict(model_coeffs))
+  for model_coeffs in turbulent_transport_coeffs.pedestal_coefficients.values():
+    turbulent_dict.update(dataclasses.asdict(model_coeffs))
+  turbulent_dict.update(dataclasses.asdict(turbulent_transport_coeffs.total))
+
   core_transport = state.CoreTransport(
-      **dataclasses.asdict(turbulent_transport_coeffs),
+      **turbulent_dict,  # pyrefly: ignore[bad-argument-type]
       **dataclasses.asdict(neoclassical_transport_coeffs),  # pyrefly: ignore[bad-argument-type]
       **dataclasses.asdict(pereverzev_transport_coeffs),
   )

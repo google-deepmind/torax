@@ -76,8 +76,8 @@ class TGLFTransportModelTest(parameterized.TestCase):
         ),
         two_point_mask,
     )
-    self.assertIsNotNone(outputs.chi_face_ion)
-    self.assertIsNotNone(outputs.chi_face_el)
+    self.assertIsNotNone(outputs.total.chi_face_ion)
+    self.assertIsNotNone(outputs.total.chi_face_el)
 
   def test_deprecated_params_warn_and_run(self):
     """Tests that deprecated config params raise warnings and the execution still runs."""
@@ -131,8 +131,8 @@ class TGLFTransportModelTest(parameterized.TestCase):
         ),
         two_point_mask,
     )
-    self.assertIsNotNone(outputs.chi_face_ion)
-    self.assertIsNotNone(outputs.chi_face_el)
+    self.assertIsNotNone(outputs.total.chi_face_ion)
+    self.assertIsNotNone(outputs.total.chi_face_el)
 
 
 if __name__ == "__main__":

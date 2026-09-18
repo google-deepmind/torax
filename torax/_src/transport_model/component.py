@@ -37,30 +37,6 @@ from torax._src.transport_model import transport_coeffs
 # pylint: disable=invalid-name
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass
-class TurbulentTransport:
-  """Turbulent transport coefficients calculated by a transport model."""
-
-  chi_face_ion: jax.Array
-  chi_face_el: jax.Array
-  d_face_el: jax.Array
-  v_face_el: jax.Array
-  chi_face_el_bohm: jax.Array | None = None
-  chi_face_el_gyrobohm: jax.Array | None = None
-  chi_face_ion_bohm: jax.Array | None = None
-  chi_face_ion_gyrobohm: jax.Array | None = None
-  chi_face_ion_itg: jax.Array | None = None
-  chi_face_ion_tem: jax.Array | None = None
-  chi_face_el_itg: jax.Array | None = None
-  chi_face_el_tem: jax.Array | None = None
-  chi_face_el_etg: jax.Array | None = None
-  d_face_el_itg: jax.Array | None = None
-  d_face_el_tem: jax.Array | None = None
-  v_face_el_itg: jax.Array | None = None
-  v_face_el_tem: jax.Array | None = None
-
-
 @dataclasses.dataclass(frozen=True, eq=False)
 class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
   """Calculates various coefficients related to heat and particle transport."""

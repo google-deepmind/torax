@@ -112,10 +112,10 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     core_transport = transport_model(*model_inputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
 
-    self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
-    self.assertEqual(core_transport.chi_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.d_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.v_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_ion.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.d_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.v_face_el.shape, expected_shape)
 
   @parameterized.named_parameters(
       dict(
@@ -162,11 +162,11 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     })
     core_transport = model(*model_inputs)
     self.assertEqual(
-        (np.sum(np.abs(core_transport.v_face_el)) == 0.0),
+        (np.sum(np.abs(core_transport.total.v_face_el)) == 0.0),
         expected_zero_v_face_el,
     )
     self.assertEqual(
-        (np.sum(np.abs(core_transport.d_face_el)) == 0.0),
+        (np.sum(np.abs(core_transport.total.d_face_el)) == 0.0),
         expected_zero_d_face_el,
     )
 

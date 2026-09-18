@@ -16,6 +16,8 @@
 
 import dataclasses
 
+from typing import Mapping
+
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -96,3 +98,34 @@ class TransportCoeffs:
             output_keys.V_TURB_E, self.v_face_el
         ),
     }
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class TurbulentTransport:
+  """Combined turbulent transport output across all models.
+
+  Attributes:
+    total: Combined 4-channel turbulent transport coefficients (after merge,
+      clipping, and smoothing).
+    core_coefficients: Mapping from model name to the TransportCoeffs produced
+      by each active core transport model.
+    pedestal_coefficients: Mapping from model name to the TransportCoeffs
+      produced by each active pedestal transport model.
+  """
+
+  total: TransportCoeffs
+  core_coefficients: Mapping[str, TransportCoeffs] = dataclasses.field(
+      default_factory=dict
+  )
+  pedestal_coefficients: Mapping[str, TransportCoeffs] = dataclasses.field(
+      default_factory=dict
+  )
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+    return cls(
+        total=TransportCoeffs.zeros(geo),
+        core_coefficients={},
+        pedestal_coefficients={},
+    )
