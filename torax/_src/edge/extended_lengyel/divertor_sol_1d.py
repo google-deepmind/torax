@@ -96,11 +96,11 @@ class ExtendedLengyelParameters:
 class ExtendedLengyelState:
   """Varying state variables (unknowns) evolved by the solvers."""
 
-  q_parallel: array_typing.FloatScalar  # [W/m^2]
-  alpha_t: array_typing.FloatScalar  # [dimensionless]
-  kappa_e: array_typing.FloatScalar  # [W/(m*eV^3.5)]
-  T_e_target: array_typing.FloatScalar  # [eV]
-  c_z_prefactor: array_typing.FloatScalar  # [m^-3]
+  q_parallel: jax.Array  # [W/m^2]
+  alpha_t: jax.Array  # [dimensionless]
+  kappa_e: jax.Array  # [W/(m*eV^3.5)]
+  T_e_target: jax.Array  # [eV]
+  c_z_prefactor: jax.Array  # [m^-3]
 
 
 @jax.tree_util.register_dataclass
@@ -165,7 +165,7 @@ class DivertorSOL1D:
             self.state.T_e_target
         )
     )
-    return self.state.T_e_target / (  # pyrefly: ignore[bad-return]
+    return self.state.T_e_target / (
         (1.0 - momentum_loss) / (2.0 * density_ratio)
     )
 
@@ -276,7 +276,7 @@ class DivertorSOL1D:
   @property
   def parallel_heat_flux_at_target(self) -> jax.Array:
     """Parallel heat flux at the divertor target [W/m^2]."""
-    return self.state.q_parallel * (1.0 - self.required_power_loss)  # pyrefly: ignore[bad-return]
+    return self.state.q_parallel * (1.0 - self.required_power_loss)
 
   @property
   def parallel_heat_flux_at_cc_interface(self) -> jax.Array:
@@ -316,9 +316,9 @@ class DivertorSOL1D:
   @property
   def seed_impurity_concentrations(
       self,
-  ) -> Mapping[str, array_typing.FloatScalar]:
+  ) -> Mapping[str, jax.Array]:
     return {
-        key: value * self.state.c_z_prefactor
+        key: jnp.asarray(value * self.state.c_z_prefactor)
         for key, value in self.params.seed_impurity_weights.items()
     }
 
@@ -399,7 +399,7 @@ def calc_alpha_t(
     params: ExtendedLengyelParameters,
     T_e_separatrix: array_typing.FloatScalar,
     Z_eff_separatrix: array_typing.FloatScalar,
-) -> array_typing.FloatScalar:
+) -> jax.Array:
   """Calculate the turbulence broadening parameter alpha_t.
 
   Equation 9 from T. Eich et al. Nuclear Fusion, 60(5), 056016. (2020),

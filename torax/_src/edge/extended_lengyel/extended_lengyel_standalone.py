@@ -915,10 +915,10 @@ def _get_initial_sol_model(
 
   initial_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=q_parallel_init,
-      alpha_t=alpha_t_init,
-      c_z_prefactor=c_z_prefactor_init,
-      kappa_e=kappa_e_init,
-      T_e_target=T_e_target_init,  # pyrefly: ignore[bad-argument-type]
+      alpha_t=jnp.asarray(alpha_t_init),
+      c_z_prefactor=jnp.asarray(c_z_prefactor_init),
+      kappa_e=jnp.asarray(kappa_e_init),
+      T_e_target=jnp.asarray(T_e_target_init),
   )
 
   return divertor_sol_1d_lib.DivertorSOL1D(
@@ -1036,13 +1036,11 @@ def _run_forward_mode_multistart(
   )
 
   def _process_single_guess(T_e_target, alpha_t):
-    # a. Make guess
     state_guess = dataclasses.replace(
         initial_state, T_e_target=T_e_target, alpha_t=alpha_t
     )
     model = dataclasses.replace(initial_sol_model, state=state_guess)
 
-    # b. Execute solver
     model_out, status = _execute_solver(
         model,
         extended_lengyel_enums.ComputationMode.FORWARD,
@@ -1052,46 +1050,16 @@ def _run_forward_mode_multistart(
         newton_raphson_tol,
     )
 
-    # c. Post-process output
-    pressure_neutral_divertor, q_perpendicular_target = (
-        _calc_post_processed_outputs(sol_model=model_out)
-    )
-    calculated_enrichment = {}
-    params = model_out.params
-    all_impurities = set(params.fixed_impurity_concentrations.keys()) | set(
-        params.seed_impurity_weights.keys()
-    )
-    for impurity in all_impurities:
-      calculated_enrichment[impurity] = jnp.where(
-          diverted,
-          extended_lengyel_formulas.calc_enrichment_kallenbach(
-              pressure_neutral_divertor=pressure_neutral_divertor,
-              ion_symbol=impurity,
-              enrichment_multiplier=enrichment_model_multiplier,
-          ),
-          jnp.array(1.0, dtype=jax_utils.get_dtype()),
-      )
-
     is_valid = (
         status.numerics_outcome.error != 1
         if isinstance(status.numerics_outcome, jax_root_finding.RootMetadata)
         else jnp.array(True)
     )
-
-    output = ExtendedLengyelOutputs(
-        T_e_target=model_out.state.T_e_target,  # pyrefly: ignore[bad-argument-type]
-        pressure_neutral_divertor=pressure_neutral_divertor,
-        alpha_t=model_out.state.alpha_t,  # pyrefly: ignore[bad-argument-type]
-        kappa_e=model_out.state.kappa_e,  # pyrefly: ignore[bad-argument-type]
-        c_z_prefactor=model_out.state.c_z_prefactor,  # pyrefly: ignore[bad-argument-type]
-        q_parallel=model_out.state.q_parallel,  # pyrefly: ignore[bad-argument-type]
-        q_perpendicular_target=q_perpendicular_target,
-        T_e_separatrix=model_out.T_e_separatrix / 1e3,
-        Z_eff_separatrix=model_out.Z_eff_separatrix,
-        seed_impurity_concentrations=model_out.seed_impurity_concentrations,  # pyrefly: ignore[bad-argument-type]
+    output = _build_extended_lengyel_outputs(
+        sol_model=model_out,
         solver_status=status,
-        calculated_enrichment=calculated_enrichment,
-        roots=None,
+        diverted=diverted,
+        enrichment_model_multiplier=enrichment_model_multiplier,
         multiple_roots_found=jnp.array(False),
     )
     return output, is_valid
@@ -1136,6 +1104,52 @@ def _run_forward_mode_multistart(
   )
 
 
+def _build_extended_lengyel_outputs(
+    sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    solver_status: extended_lengyel_solvers.ExtendedLengyelSolverStatus,
+    diverted: bool,
+    enrichment_model_multiplier: array_typing.FloatScalar,
+    multiple_roots_found: jax.Array | None,
+) -> ExtendedLengyelOutputs:
+  """Constructs ExtendedLengyelOutputs from a solved DivertorSOL1D model."""
+  pressure_neutral_divertor, q_perpendicular_target = (
+      _calc_post_processed_outputs(sol_model=sol_model)
+  )
+  calculated_enrichment = {}
+  params = sol_model.params
+  all_impurities = set(params.fixed_impurity_concentrations.keys()) | set(
+      params.seed_impurity_weights.keys()
+  )
+  for species in all_impurities:
+    # For limited geometry, enrichment factor is 1.0.
+    calculated_enrichment[species] = jnp.where(
+        diverted,
+        extended_lengyel_formulas.calc_enrichment_kallenbach(
+            pressure_neutral_divertor=pressure_neutral_divertor,
+            ion_symbol=species,
+            enrichment_multiplier=enrichment_model_multiplier,
+        ),
+        jnp.array(1.0, dtype=jax_utils.get_dtype()),
+    )
+
+  return ExtendedLengyelOutputs(
+      T_e_target=sol_model.state.T_e_target,
+      pressure_neutral_divertor=pressure_neutral_divertor,
+      alpha_t=sol_model.state.alpha_t,
+      kappa_e=sol_model.state.kappa_e,
+      c_z_prefactor=sol_model.state.c_z_prefactor,
+      q_parallel=sol_model.state.q_parallel,
+      q_perpendicular_target=q_perpendicular_target,
+      T_e_separatrix=sol_model.T_e_separatrix / 1e3,
+      Z_eff_separatrix=sol_model.Z_eff_separatrix,
+      seed_impurity_concentrations=sol_model.seed_impurity_concentrations,
+      solver_status=solver_status,
+      calculated_enrichment=calculated_enrichment,
+      roots=None,
+      multiple_roots_found=multiple_roots_found,
+  )
+
+
 def _run_single_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     computation_mode: extended_lengyel_enums.ComputationMode,
@@ -1156,40 +1170,11 @@ def _run_single_solver(
       newton_raphson_tol,
   )
 
-  pressure_neutral_divertor, q_perpendicular_target = (
-      _calc_post_processed_outputs(sol_model=output_sol_model)
-  )
-  calculated_enrichment = {}
-  params = output_sol_model.params
-  all_impurities = set(params.fixed_impurity_concentrations.keys()) | set(
-      params.seed_impurity_weights.keys()
-  )
-  for species in all_impurities:
-    # For limited geometry, enrichment factor is 1.0.
-    calculated_enrichment[species] = jnp.where(
-        diverted,
-        extended_lengyel_formulas.calc_enrichment_kallenbach(
-            pressure_neutral_divertor=pressure_neutral_divertor,
-            ion_symbol=species,
-            enrichment_multiplier=enrichment_model_multiplier,
-        ),
-        jnp.array(1.0, dtype=jax_utils.get_dtype()),
-    )
-
-  return ExtendedLengyelOutputs(
-      T_e_target=output_sol_model.state.T_e_target,  # pyrefly: ignore[bad-argument-type]
-      pressure_neutral_divertor=pressure_neutral_divertor,
-      alpha_t=output_sol_model.state.alpha_t,  # pyrefly: ignore[bad-argument-type]
-      kappa_e=output_sol_model.state.kappa_e,  # pyrefly: ignore[bad-argument-type]
-      c_z_prefactor=output_sol_model.state.c_z_prefactor,  # pyrefly: ignore[bad-argument-type]
-      q_parallel=output_sol_model.state.q_parallel,  # pyrefly: ignore[bad-argument-type]
-      q_perpendicular_target=q_perpendicular_target,
-      T_e_separatrix=output_sol_model.T_e_separatrix / 1e3,
-      Z_eff_separatrix=output_sol_model.Z_eff_separatrix,
-      seed_impurity_concentrations=output_sol_model.seed_impurity_concentrations,  # pyrefly: ignore[bad-argument-type]
+  return _build_extended_lengyel_outputs(
+      sol_model=output_sol_model,
       solver_status=solver_status,
-      calculated_enrichment=calculated_enrichment,
-      roots=None,
+      diverted=diverted,
+      enrichment_model_multiplier=enrichment_model_multiplier,
       multiple_roots_found=jnp.array(False)
       if computation_mode == extended_lengyel_enums.ComputationMode.FORWARD
       else None,

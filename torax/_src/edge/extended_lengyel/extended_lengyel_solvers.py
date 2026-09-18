@@ -276,9 +276,9 @@ def forward_mode_newton_solver(
 
   x0 = jnp.stack([
       jnp.log(initial_sol_model.state.q_parallel),
-      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),  # pyrefly: ignore[bad-argument-type]
-      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),  # pyrefly: ignore[bad-argument-type]
-      math_utils.inverse_softplus(initial_sol_model.state.T_e_target),  # pyrefly: ignore[bad-argument-type]
+      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),
+      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),
+      math_utils.inverse_softplus(initial_sol_model.state.T_e_target),
   ])
 
   # 2. Define residual function, closing over params and fixed c_z.
@@ -286,7 +286,7 @@ def forward_mode_newton_solver(
   params = initial_sol_model.params
 
   residual_fun = functools.partial(
-      _forward_residual, params=params, fixed_cz=fixed_cz  # pyrefly: ignore[bad-argument-type]
+      _forward_residual, params=params, fixed_cz=fixed_cz
   )
 
   # 3. Run Newton-Raphson.
@@ -357,8 +357,8 @@ def inverse_mode_newton_solver(
 
   x0 = jnp.stack([
       jnp.log(initial_sol_model.state.q_parallel),
-      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),  # pyrefly: ignore[bad-argument-type]
-      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),  # pyrefly: ignore[bad-argument-type]
+      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),
+      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),
       initial_sol_model.state.c_z_prefactor,
   ])
 
@@ -367,7 +367,7 @@ def inverse_mode_newton_solver(
   params = initial_sol_model.params
 
   residual_fun = functools.partial(
-      _inverse_residual, params=params, fixed_Tt=fixed_Tt  # pyrefly: ignore[bad-argument-type]
+      _inverse_residual, params=params, fixed_Tt=fixed_Tt
   )
 
   # 3. Run Newton-Raphson.
