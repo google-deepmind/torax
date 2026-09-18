@@ -21,16 +21,19 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import math_utils
 from torax._src import state
+from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
+from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.edge.extended_lengyel import pydantic_model
 from torax._src.fvm import cell_variable
+from torax._src.geometry import chease
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -157,7 +160,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         model_name='extended_lengyel',
         computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
         solver_mode=extended_lengyel_enums.SolverMode.FIXED_POINT,
-        impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
         T_e_target=2.34,
         connection_length_target=20.0,
         connection_length_divertor=5.0,
@@ -295,7 +298,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     edge_config = pydantic_model.ExtendedLengyelConfig(
         model_name='extended_lengyel',
         computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
         fixed_impurity_concentrations={
             'He': 0.05
         },  # Stale value, should be ignored
@@ -395,6 +398,8 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     previous_edge_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.array(previous_T_e_sep_keV),
         T_i_right_bc=jnp.array(previous_T_e_sep_keV),
+        impurity_right_bc={},
+        n_e_right_bc=jnp.array(jnp.nan),
         q_parallel=jnp.array(1e8),
         q_perpendicular_target=jnp.array(1e6),
         T_e_separatrix=jnp.array(previous_T_e_sep_keV),
@@ -416,7 +421,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     edge_config = pydantic_model.ExtendedLengyelConfig(
         model_name='extended_lengyel',
         computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
         fixed_impurity_concentrations={'He': 0.05},
         seed_impurity_weights={},
         connection_length_target=10.0,
@@ -550,6 +555,8 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     bad_previous_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.array(0.1),
         T_i_right_bc=jnp.array(0.1),
+        impurity_right_bc={},
+        n_e_right_bc=jnp.array(jnp.nan),
         q_parallel=jnp.array(1e8),
         q_perpendicular_target=jnp.array(1e6),
         T_e_separatrix=jnp.array(0.1),
@@ -570,7 +577,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     edge_config = pydantic_model.ExtendedLengyelConfig(
         model_name='extended_lengyel',
         computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
         fixed_impurity_concentrations={'He': 0.05},
         seed_impurity_weights={},
         connection_length_target=10.0,
@@ -625,6 +632,167 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         passed_initial_guess.kappa_e,
         extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT,
         err_msg='kappa_e should have fallen back to default, not bad previous.',
+    )
+
+  @parameterized.named_parameters(
+      (
+          'core_sot_model_on_with_previous_outputs',
+          extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+          True,
+          True,
+      ),
+      (
+          'core_sot_model_on_without_previous_outputs',
+          extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+          True,
+          False,
+      ),
+      (
+          'core_sot_model_off',
+          extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+          False,
+          True,
+      ),
+      (
+          'edge_sot_model_on',
+          extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE,
+          True,
+          True,
+      ),
+      (
+          'edge_sot_model_off',
+          extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE,
+          False,
+          True,
+      ),
+  )
+  @mock.patch.object(
+      extended_lengyel_standalone, 'run_extended_lengyel_standalone'
+  )
+  def test_fixed_impurity_concentrations_conditionals(
+      self,
+      impurity_sot,
+      use_enrichment_model,
+      provide_previous_outputs,
+      mock_run_standalone,
+  ):
+    n_rho = 10
+    geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
+
+    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    for attr in ['n_e', 'n_i', 'n_impurity']:
+      m = mock.MagicMock(spec=cell_variable.CellVariable)
+      m.face_value.return_value = np.ones(n_rho + 1) * 1e19
+      setattr(mock_core_profiles, attr, m)
+    mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_psi.face_value.return_value = np.linspace(0.0, 1.0, n_rho + 1)
+    mock_core_profiles.psi = mock_psi
+    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.A_i = np.array(2.0)
+    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
+    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+
+    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
+
+    core_lcfs_ratio = 0.02
+    impurity_params = mock.MagicMock(spec=electron_density_ratios.RuntimeParams)
+    impurity_params.n_e_ratios = {'Ne': np.array(core_lcfs_ratio)}
+    impurity_params.n_e_ratios_face = {
+        'Ne': np.ones(n_rho + 1) * core_lcfs_ratio
+    }
+
+    previous_enrichment = 3.5
+    if provide_previous_outputs:
+      previous_edge_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+          T_e_right_bc=jnp.array(0.1),
+          T_i_right_bc=jnp.array(0.1),
+          impurity_right_bc={},
+          n_e_right_bc=jnp.array(jnp.nan),
+          q_parallel=jnp.array(1e8),
+          q_perpendicular_target=jnp.array(1e6),
+          T_e_separatrix=jnp.array(0.1),
+          T_e_target=jnp.array(3.5),
+          pressure_neutral_divertor=jnp.array(1.0),
+          alpha_t=jnp.array(0.42),
+          kappa_e=jnp.array(2500.0),
+          c_z_prefactor=jnp.array(0.0),
+          Z_eff_separatrix=jnp.array(1.5),
+          seed_impurity_concentrations={},
+          calculated_enrichment={'Ne': jnp.array(previous_enrichment)},
+          solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+              physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+              numerics_outcome=(
+                  extended_lengyel_solvers.FixedPointOutcome.SUCCESS
+              ),
+          ),
+      )
+    else:
+      previous_edge_outputs = None
+
+    edge_config = pydantic_model.ExtendedLengyelConfig(
+        model_name='extended_lengyel',
+        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
+        impurity_sot=impurity_sot,
+        use_enrichment_model=use_enrichment_model,
+        enrichment_factor={'Ne': 2.0},
+        fixed_impurity_concentrations={'Ne': 0.05},
+        seed_impurity_weights={},
+        connection_length_target=10.0,
+        connection_length_divertor=2.0,
+        toroidal_flux_expansion=1.0,
+        angle_of_incidence_target=1.0,
+        ratio_bpol_omp_to_bpol_avg=1.0,
+        diverted=True,
+    )
+    runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
+    runtime_params.edge = edge_config.build_runtime_params(t=0.0)
+    mock_pc = mock.MagicMock(spec=plasma_composition_lib.RuntimeParams)
+    mock_pc.impurity = impurity_params
+    runtime_params.plasma_composition = mock_pc
+
+    model = extended_lengyel_model.ExtendedLengyelModel()
+    model(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=mock_core_profiles,
+        core_sources=mock_core_sources,
+        previous_edge_outputs=previous_edge_outputs,
+    )
+
+    _, kwargs = mock_run_standalone.call_args
+    if (
+        impurity_sot == extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
+        and use_enrichment_model
+        and provide_previous_outputs
+    ):
+      expected_concentration = core_lcfs_ratio * previous_enrichment
+      self.assertIsNone(runtime_params.edge.enrichment_factor)
+    elif (
+        impurity_sot == extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
+        and use_enrichment_model
+    ):
+      expected_enrichment = (
+          extended_lengyel_formulas.calc_enrichment_kallenbach(
+              1.0, 'Ne', runtime_params.edge.enrichment_model_multiplier
+          )
+      )
+      expected_concentration = core_lcfs_ratio * expected_enrichment
+      self.assertIsNone(runtime_params.edge.enrichment_factor)
+    elif impurity_sot == extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE:
+      assert runtime_params.edge.enrichment_factor is not None
+      expected_concentration = (
+          core_lcfs_ratio * runtime_params.edge.enrichment_factor['Ne']
+      )
+    else:
+      expected_concentration = (
+          runtime_params.edge.fixed_impurity_concentrations['Ne']
+      )
+
+    np.testing.assert_allclose(
+        kwargs['fixed_impurity_concentrations']['Ne'],
+        expected_concentration,
+        rtol=1e-5,
     )
 
   @parameterized.named_parameters(
@@ -698,7 +866,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     edge_config = pydantic_model.ExtendedLengyelConfig(
         model_name='extended_lengyel',
         computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
         fixed_impurity_concentrations={'He': 0.05},
         seed_impurity_weights={},
         connection_length_target=10.0,
@@ -770,8 +938,9 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
     defaults = {
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
-        'impurity_sot': extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+        'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
         'update_temperatures': True,
+        'update_density': False,
         'update_impurities': True,
         'fixed_point_iterations': 1,
         'newton_raphson_iterations': 1,
@@ -1073,11 +1242,14 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
     final_state = state_history.core_profiles[-1]
     final_edge_output = state_history._edge_outputs[-1]
     self.assertIsNotNone(final_edge_output)
+    self.assertIsInstance(
+        final_edge_output, extended_lengyel_standalone.ExtendedLengyelOutputs
+    )
 
     if update_temperatures:
       # BCs should match edge model output
-      expected_Te_bc = final_edge_output.T_e_separatrix
-      expected_Ti_bc = expected_Te_bc * ion_to_electron_ratio
+      expected_Te_bc = final_edge_output.T_e_right_bc
+      expected_Ti_bc = final_edge_output.T_i_right_bc
       np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           final_state.T_e.right_face_constraint, expected_Te_bc, rtol=1e-5
       )
@@ -1230,7 +1402,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         'edge': {
             'model_name': 'extended_lengyel',
             'impurity_sot': (
-                extended_lengyel_model.FixedImpuritySourceOfTruth.EDGE
+                extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
             ),
             'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
             'fixed_impurity_concentrations': {
@@ -1335,6 +1507,138 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
           self._EDGE_NE_VALUE / self._CONFIG_ENRICHMENT,
           rtol=1e-5,
       )
+
+  @parameterized.named_parameters(
+      ('edge_sot_with_model', 'edge', True),
+      ('edge_sot_without_model', 'edge', False),
+      ('core_sot_with_model', 'core', True),
+      ('core_sot_without_model', 'core', False),
+  )
+  def test_impurity_right_bc_forward_mode(
+      self, impurity_sot, use_enrichment_model
+  ):
+    """Verifies impurity_right_bc on outputs in forward mode for EDGE vs CORE SoT."""
+    self.torax_config.update_fields({
+        'edge.impurity_sot': impurity_sot,
+        'edge.use_enrichment_model': use_enrichment_model,
+        'edge.computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+    })
+
+    geo = self.torax_config.geometry.build_provider(t=0.0)
+    n_rho = geo.rho_norm.shape[0]
+
+    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
+      m = mock.MagicMock(spec=cell_variable.CellVariable)
+      m.face_value.return_value = np.ones(n_rho + 1) * 1e19
+      setattr(mock_core_profiles, attr, m)
+    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.A_i = np.array(2.0)
+    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
+    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+
+    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
+
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        self.torax_config
+    )(t=0.0)
+
+    assert self.torax_config.edge is not None
+    edge_model = self.torax_config.edge.build_edge_model()
+    edge_outputs = edge_model(
+        runtime_params, geo, mock_core_profiles, mock_core_sources
+    )
+    if impurity_sot == 'edge':
+      self.assertIn('Ne', edge_outputs.impurity_right_bc)
+      expected_enrichment = (
+          edge_outputs.calculated_enrichment['Ne']
+          if use_enrichment_model
+          else self._CONFIG_ENRICHMENT
+      )
+      np.testing.assert_allclose(
+          edge_outputs.impurity_right_bc['Ne'],
+          (self._EDGE_NE_VALUE / self._N_E_VALUE) / expected_enrichment,
+          rtol=1e-5,
+      )
+    else:
+      self.assertNotIn('Ne', edge_outputs.impurity_right_bc)
+
+  @parameterized.named_parameters(
+      ('edge_sot_with_model', 'edge', True),
+      ('edge_sot_without_model', 'edge', False),
+      ('core_sot_with_model', 'core', True),
+      ('core_sot_without_model', 'core', False),
+  )
+  def test_impurity_right_bc_inverse_mode(
+      self, impurity_sot, use_enrichment_model
+  ):
+    """Verifies impurity_right_bc on outputs in inverse mode for seeded and fixed impurities."""
+    self.torax_config.update_fields({
+        'edge.impurity_sot': impurity_sot,
+        'edge.use_enrichment_model': use_enrichment_model,
+        'edge.computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+        'plasma_composition.impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'Ne': 0.01, 'N': 0.01},
+        },
+        'edge.seed_impurity_weights': {'N': 1.0},
+        'edge.T_e_target': 5.0,
+        'edge.enrichment_factor': {'Ne': self._CONFIG_ENRICHMENT, 'N': 1.0},
+    })
+
+    geo = self.torax_config.geometry.build_provider(t=0.0)
+    n_rho = geo.rho_norm.shape[0]
+
+    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
+      m = mock.MagicMock(spec=cell_variable.CellVariable)
+      m.face_value.return_value = np.ones(n_rho + 1) * 1e19
+      setattr(mock_core_profiles, attr, m)
+    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.A_i = np.array(2.0)
+    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
+    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+
+    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
+
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        self.torax_config
+    )(t=0.0)
+
+    assert self.torax_config.edge is not None
+    edge_model = self.torax_config.edge.build_edge_model()
+    edge_outputs = edge_model(
+        runtime_params, geo, mock_core_profiles, mock_core_sources
+    )
+
+    # Seeded impurity 'N' is always updated from the edge in inverse mode.
+    self.assertIn('N', edge_outputs.impurity_right_bc)
+    expected_N_enrichment = (
+        edge_outputs.calculated_enrichment['N'] if use_enrichment_model else 1.0
+    )
+    np.testing.assert_allclose(
+        edge_outputs.impurity_right_bc['N'],
+        (edge_outputs.c_z_prefactor * 1.0) / expected_N_enrichment,
+        rtol=1e-5,
+    )
+
+    # Fixed impurity 'Ne' is updated only when EDGE is the source of truth.
+    if impurity_sot == 'edge':
+      self.assertIn('Ne', edge_outputs.impurity_right_bc)
+      expected_Ne_enrichment = (
+          edge_outputs.calculated_enrichment['Ne']
+          if use_enrichment_model
+          else self._CONFIG_ENRICHMENT
+      )
+      np.testing.assert_allclose(
+          edge_outputs.impurity_right_bc['Ne'],
+          (self._EDGE_NE_VALUE / self._N_E_VALUE) / expected_Ne_enrichment,
+          rtol=1e-5,
+      )
+    else:
+      self.assertNotIn('Ne', edge_outputs.impurity_right_bc)
 
 
 if __name__ == '__main__':
