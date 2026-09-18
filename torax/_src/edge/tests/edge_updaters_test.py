@@ -69,11 +69,14 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         torax_config
     )
     runtime_params = provider(t=0.0)
-    edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
+    edge_outputs = mock.MagicMock(
+        spec=extended_lengyel_standalone.ExtendedLengyelOutputs
+    )
     edge_outputs.seed_impurity_concentrations = {
         'N': jnp.array(_OUTPUT_CONCENTRATION)
     }
-    edge_outputs.T_e_separatrix = 1.0  # Dummy value for tracing.
+    edge_outputs.T_e_right_bc = 1.0
+    edge_outputs.T_i_right_bc = 1.0
 
     initial_impurity_params = runtime_params.plasma_composition.impurity
     assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
@@ -107,6 +110,51 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         updated_n_e_ratios_face,
         initial_n_e_ratios_face * scaling_factor,
         rtol=1e-5,
+    )
+
+  def test_update_temperatures(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['plasma_composition']['impurity'] = {
+        'impurity_mode': 'n_e_ratios',
+        'species': {'N': 0.01},
+    }
+    config_dict['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+    }
+    config_dict['edge'] = {
+        'model_name': 'extended_lengyel',
+        'update_impurities': False,
+        'update_temperatures': True,
+        'use_enrichment_model': False,
+        'fixed_impurity_concentrations': {'N': 0.01},
+        'enrichment_factor': {'N': 1.0},
+        'connection_length_target': 1.0,
+        'connection_length_divertor': 1.0,
+        'toroidal_flux_expansion': 1.0,
+        'angle_of_incidence_target': 1.0,
+        'diverted': True,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+
+    edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
+    edge_outputs.T_e_right_bc = jnp.array(0.123)
+    edge_outputs.T_i_right_bc = jnp.array(0.456)
+    edge_outputs.seed_impurity_concentrations = {}
+
+    updated_runtime_params = updaters.update_runtime_params(
+        runtime_params, edge_outputs
+    )
+
+    np.testing.assert_allclose(
+        updated_runtime_params.profile_conditions.T_e_right_bc, 0.123
+    )
+    np.testing.assert_allclose(
+        updated_runtime_params.profile_conditions.T_i_right_bc, 0.456
     )
 
 
@@ -164,7 +212,8 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
     )
     runtime_params = provider(t=0.0)
     edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
-    edge_outputs.T_e_separatrix = 1.0  # Dummy value
+    edge_outputs.T_e_right_bc = 1.0
+    edge_outputs.T_i_right_bc = 1.0
     edge_outputs.seed_impurity_concentrations = {}  # No seeded impurity update
     initial_impurity_params = runtime_params.plasma_composition.impurity
     assert isinstance(
@@ -200,7 +249,8 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
     )
     runtime_params = provider(t=0.0)
     edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
-    edge_outputs.T_e_separatrix = 1.0  # Dummy value
+    edge_outputs.T_e_right_bc = 1.0
+    edge_outputs.T_i_right_bc = 1.0
     edge_outputs.seed_impurity_concentrations = {}  # No seeded impurity update
     initial_impurity_params = runtime_params.plasma_composition.impurity
     assert isinstance(
@@ -238,7 +288,8 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
     runtime_params = provider(t=0.0)
     edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
     edge_outputs.seed_impurity_concentrations = {}
-    edge_outputs.T_e_separatrix = 1.0  # Dummy value for tracing.
+    edge_outputs.T_e_right_bc = 1.0
+    edge_outputs.T_i_right_bc = 1.0
     updated_runtime_params = updaters.update_runtime_params(
         runtime_params, edge_outputs
     )
@@ -264,7 +315,8 @@ class UpdateFixedImpuritiesTest(parameterized.TestCase):
     runtime_params = provider(t=0.0)
     edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
     edge_outputs.seed_impurity_concentrations = {}
-    edge_outputs.T_e_separatrix = 1.0  # Dummy value for tracing.
+    edge_outputs.T_e_right_bc = 1.0
+    edge_outputs.T_i_right_bc = 1.0
     updated_runtime_params = updaters.update_runtime_params(
         runtime_params, edge_outputs
     )
@@ -329,7 +381,8 @@ class UpdateImpuritiesWithEnrichmentModelTest(parameterized.TestCase):
     edge_outputs.calculated_enrichment = {
         'N': jnp.array(self._CALCULATED_ENRICHMENT)
     }
-    edge_outputs.T_e_separatrix = 1.0  # Dummy value for tracing.
+    edge_outputs.T_e_right_bc = 1.0
+    edge_outputs.T_i_right_bc = 1.0
 
     initial_impurity_params = runtime_params.plasma_composition.impurity
     assert isinstance(
@@ -380,7 +433,8 @@ class UpdateImpuritiesWithEnrichmentModelTest(parameterized.TestCase):
         'N': jnp.array(self._CALCULATED_ENRICHMENT)
     }
     edge_outputs.seed_impurity_concentrations = {}
-    edge_outputs.T_e_separatrix = 1.0
+    edge_outputs.T_e_right_bc = 1.0
+    edge_outputs.T_i_right_bc = 1.0
 
     updated_runtime_params = updaters.update_runtime_params(
         runtime_params, edge_outputs
@@ -431,7 +485,8 @@ class UpdateImpuritiesWithEnrichmentModelTest(parameterized.TestCase):
         'N': jnp.array(self._CALCULATED_ENRICHMENT)
     }
     edge_outputs.seed_impurity_concentrations = {}
-    edge_outputs.T_e_separatrix = 1.0
+    edge_outputs.T_e_right_bc = 1.0
+    edge_outputs.T_i_right_bc = 1.0
 
     updated_runtime_params = updaters.update_runtime_params(
         runtime_params, edge_outputs

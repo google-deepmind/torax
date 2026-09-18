@@ -38,6 +38,8 @@ class EdgeModelOutputs:
   """Base class for outputs from an edge model.
 
   Attributes:
+    T_e_right_bc: Electron temperature boundary condition at LCFS [keV].
+    T_i_right_bc: Ion temperature boundary condition at LCFS [keV].
     q_parallel: Parallel heat flux upstream [W/m^2].
     q_perpendicular_target: Heat flux perpendicular to the target [W/m^2].
     T_e_separatrix: Electron temperature at the separatrix [keV].
@@ -45,6 +47,8 @@ class EdgeModelOutputs:
     pressure_neutral_divertor: Neutral pressure in the divertor [Pa].
   """
 
+  T_e_right_bc: jax.Array
+  T_i_right_bc: jax.Array
   q_parallel: jax.Array
   q_perpendicular_target: jax.Array
   T_e_separatrix: jax.Array

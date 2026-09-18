@@ -393,6 +393,8 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     previous_T_e_sep_keV = 0.1  # Will be converted to 100 eV
     previous_T_e_target = 3.5
     previous_edge_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        T_e_right_bc=jnp.array(previous_T_e_sep_keV),
+        T_i_right_bc=jnp.array(previous_T_e_sep_keV),
         q_parallel=jnp.array(1e8),
         q_perpendicular_target=jnp.array(1e6),
         T_e_separatrix=jnp.array(previous_T_e_sep_keV),
@@ -546,6 +548,8 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     bad_previous_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        T_e_right_bc=jnp.array(0.1),
+        T_i_right_bc=jnp.array(0.1),
         q_parallel=jnp.array(1e8),
         q_perpendicular_target=jnp.array(1e6),
         T_e_separatrix=jnp.array(0.1),

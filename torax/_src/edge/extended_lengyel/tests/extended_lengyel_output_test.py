@@ -131,6 +131,8 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
     # Create batch outputs for roots
     # We populate some fields with batch dimension
     roots_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        T_e_right_bc=jnp.ones((num_roots,)) * 3.5,
+        T_i_right_bc=jnp.ones((num_roots,)) * 3.5,
         q_parallel=jnp.ones((num_roots,)) * 1.5,
         q_perpendicular_target=jnp.ones((num_roots,)) * 2.5,
         T_e_separatrix=jnp.ones((num_roots,)) * 3.5,
@@ -159,6 +161,8 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
     )  # type: ignore[arg-type]
 
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        T_e_right_bc=jnp.array(3.0),
+        T_i_right_bc=jnp.array(3.0),
         q_parallel=jnp.array(1.0),
         q_perpendicular_target=jnp.array(2.0),
         T_e_separatrix=jnp.array(3.0),

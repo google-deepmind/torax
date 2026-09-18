@@ -1132,7 +1132,13 @@ def _build_extended_lengyel_outputs(
         jnp.array(1.0, dtype=jax_utils.get_dtype()),
     )
 
+  T_e_separatrix_keV = sol_model.T_e_separatrix / 1e3
+  T_e_right_bc = T_e_separatrix_keV
+  T_i_right_bc = T_e_separatrix_keV * sol_model.params.T_i_T_e_ratio_target
+
   return ExtendedLengyelOutputs(
+      T_e_right_bc=T_e_right_bc,
+      T_i_right_bc=T_i_right_bc,
       T_e_target=sol_model.state.T_e_target,
       pressure_neutral_divertor=pressure_neutral_divertor,
       alpha_t=sol_model.state.alpha_t,
@@ -1140,7 +1146,7 @@ def _build_extended_lengyel_outputs(
       c_z_prefactor=sol_model.state.c_z_prefactor,
       q_parallel=sol_model.state.q_parallel,
       q_perpendicular_target=q_perpendicular_target,
-      T_e_separatrix=sol_model.T_e_separatrix / 1e3,
+      T_e_separatrix=T_e_separatrix_keV,
       Z_eff_separatrix=sol_model.Z_eff_separatrix,
       seed_impurity_concentrations=sol_model.seed_impurity_concentrations,
       solver_status=solver_status,

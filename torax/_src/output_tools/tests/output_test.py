@@ -509,6 +509,8 @@ class StateHistoryTest(parameterized.TestCase):
 
     # Create dummy ExtendedLengyelOutputs
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        T_e_right_bc=jnp.array(3.0),
+        T_i_right_bc=jnp.array(3.0),
         q_parallel=jnp.array(1.0),
         q_perpendicular_target=jnp.array(2.0),
         T_e_separatrix=jnp.array(3.0),
@@ -597,6 +599,8 @@ class StateHistoryTest(parameterized.TestCase):
     calculated_enrichment = {'Ar': jnp.array(1.0), 'W': jnp.array(0.5)}
 
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        T_e_right_bc=jnp.array(3.0),
+        T_i_right_bc=jnp.array(3.0),
         q_parallel=jnp.array(1.0),
         q_perpendicular_target=jnp.array(2.0),
         T_e_separatrix=jnp.array(3.0),
@@ -663,6 +667,8 @@ class StateHistoryTest(parameterized.TestCase):
 
     # Create dummy ExtendedLengyelOutputs
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        T_e_right_bc=jnp.array(3.0),
+        T_i_right_bc=jnp.array(3.0),
         q_parallel=jnp.array(1.0),
         q_perpendicular_target=jnp.array(2.0),
         T_e_separatrix=jnp.array(3.0),
