@@ -26,6 +26,7 @@ from torax._src.neoclassical.transport import base as neoclassical_transport_bas
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import transport_coeffs
 
 # pylint: disable=invalid-name
 
@@ -77,49 +78,49 @@ class NeoclassicalTransportTest(absltest.TestCase):
     )
 
     assert np.all(
-        neoclassical_transport_coeffs.chi_neo_i
+        neoclassical_transport_coeffs.chi_face_ion
         >= torax_config.neoclassical.transport.chi_min
-    ), 'chi_min clipping failed on chi_neo_i'
+    ), 'chi_min clipping failed on chi_face_ion'
     assert np.all(
-        neoclassical_transport_coeffs.chi_neo_i
+        neoclassical_transport_coeffs.chi_face_ion
         <= torax_config.neoclassical.transport.chi_max
-    ), 'chi_max clipping failed on chi_neo_i'
+    ), 'chi_max clipping failed on chi_face_ion'
 
     assert np.all(
-        neoclassical_transport_coeffs.chi_neo_e
+        neoclassical_transport_coeffs.chi_face_el
         >= torax_config.neoclassical.transport.chi_min
-    ), 'chi_min clipping failed on chi_neo_e'
+    ), 'chi_min clipping failed on chi_face_el'
     assert np.all(
-        neoclassical_transport_coeffs.chi_neo_e
+        neoclassical_transport_coeffs.chi_face_el
         <= torax_config.neoclassical.transport.chi_max
-    ), 'chi_max clipping failed on chi_neo_e'
+    ), 'chi_max clipping failed on chi_face_el'
 
     assert np.all(
-        neoclassical_transport_coeffs.D_neo_e
+        neoclassical_transport_coeffs.d_face_el
         >= torax_config.neoclassical.transport.D_e_min
     ), 'D_e_min clipping failed'
     assert np.all(
-        neoclassical_transport_coeffs.D_neo_e
+        neoclassical_transport_coeffs.d_face_el
         <= torax_config.neoclassical.transport.D_e_max
     ), 'D_e_max clipping failed'
 
     assert np.all(
-        neoclassical_transport_coeffs.V_neo_e
+        neoclassical_transport_coeffs.v_face_el
         >= torax_config.neoclassical.transport.V_e_min
-    ), 'V_e_min clipping failed on V_neo_e'
+    ), 'V_e_min clipping failed on v_face_el'
     assert np.all(
-        neoclassical_transport_coeffs.V_neo_e
+        neoclassical_transport_coeffs.v_face_el
         <= torax_config.neoclassical.transport.V_e_max
-    ), 'V_e_max clipping failed on V_neo_e'
+    ), 'V_e_max clipping failed on v_face_el'
 
-    assert np.all(
-        neoclassical_transport_coeffs.V_neo_ware_e
-        >= torax_config.neoclassical.transport.V_e_min
-    ), 'V_e_min clipping failed on V_neo_ware_e'
-    assert np.all(
-        neoclassical_transport_coeffs.V_neo_ware_e
-        <= torax_config.neoclassical.transport.V_e_max
-    ), 'V_e_max clipping failed on V_neo_ware_e'
+    # v_face_el_ware should remain unclipped.
+    raw_coeffs = neoclassical_transport_model._call_implementation(
+        runtime_params, geo, core_profiles
+    )
+    np.testing.assert_allclose(
+        neoclassical_transport_coeffs.v_face_el_ware,
+        raw_coeffs.v_face_el_ware,
+    )
 
 
 class FakeNeoclassicalTransportModel(
@@ -132,18 +133,18 @@ class FakeNeoclassicalTransportModel(
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> neoclassical_transport_base.NeoclassicalTransport:
-    chi_neo_i = np.linspace(0.5, 2, geometry.rho_face_norm.shape[0])
-    chi_neo_e = np.linspace(0.25, 1, geometry.rho_face_norm.shape[0])
-    D_neo_e = np.linspace(2, 3, geometry.rho_face_norm.shape[0])
-    V_neo_e = np.linspace(-0.2, -2, geometry.rho_face_norm.shape[0])
-    V_neo_ware_e = np.linspace(-0.1, -1, geometry.rho_face_norm.shape[0])
-    return neoclassical_transport_base.NeoclassicalTransport(
-        chi_neo_i=chi_neo_i,
-        chi_neo_e=chi_neo_e,
-        D_neo_e=D_neo_e,
-        V_neo_e=V_neo_e,
-        V_neo_ware_e=V_neo_ware_e,
+  ) -> transport_coeffs.NeoclassicalTransport:
+    chi_face_ion = np.linspace(0.5, 2, geometry.rho_face_norm.shape[0])
+    chi_face_el = np.linspace(0.25, 1, geometry.rho_face_norm.shape[0])
+    d_face_el = np.linspace(2, 3, geometry.rho_face_norm.shape[0])
+    v_conv = np.linspace(-0.2, -2, geometry.rho_face_norm.shape[0])
+    v_face_el_ware = np.linspace(-0.1, -1, geometry.rho_face_norm.shape[0])
+    return transport_coeffs.NeoclassicalTransport(
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_conv + v_face_el_ware,
+        v_face_el_ware=v_face_el_ware,
     )
 
   def __hash__(self) -> int:

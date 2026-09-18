@@ -21,40 +21,13 @@ diffusion equation with a stiff transport", Computer Physics Communications 179
 (2008) 579–585. https://doi.org/10.1016/j.cpc.2008.05.006
 """
 
-import dataclasses
-
-import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class PereverzevTransport:
-  """Pereverzev-Corrigan transport coefficients."""
-
-  chi_face_ion_pereverzev: jax.Array
-  chi_face_el_pereverzev: jax.Array
-  full_v_heat_face_ion_pereverzev: jax.Array
-  full_v_heat_face_el_pereverzev: jax.Array
-  d_face_el_pereverzev: jax.Array
-  v_face_el_pereverzev: jax.Array
-
-  @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> 'PereverzevTransport':
-    """Returns a PereverzevTransport with all zeros."""
-    return cls(
-        chi_face_ion_pereverzev=jnp.zeros_like(geo.rho_face),
-        chi_face_el_pereverzev=jnp.zeros_like(geo.rho_face),
-        full_v_heat_face_ion_pereverzev=jnp.zeros_like(geo.rho_face),
-        full_v_heat_face_el_pereverzev=jnp.zeros_like(geo.rho_face),
-        d_face_el_pereverzev=jnp.zeros_like(geo.rho_face),
-        v_face_el_pereverzev=jnp.zeros_like(geo.rho_face),
-    )
+from torax._src.transport_model import transport_coeffs
 
 
 def calculate_pereverzev_transport(
@@ -62,7 +35,7 @@ def calculate_pereverzev_transport(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     two_point_mask: array_typing.BoolVectorFace | None = None,
-) -> PereverzevTransport:
+) -> transport_coeffs.PereverzevTransport:
   """Calculates Pereverzev-Corrigan transport coefficients.
 
   Pereverzev-Corrigan adds additional transport to help deal with stiff
@@ -129,11 +102,11 @@ def calculate_pereverzev_transport(
       * runtime_params.solver.D_pereverzev
   )
 
-  return PereverzevTransport(
-      chi_face_ion_pereverzev=chi_face_per_ion,
-      chi_face_el_pereverzev=chi_face_per_el,
-      full_v_heat_face_ion_pereverzev=full_v_heat_face_per_ion,  # pyrefly: ignore[bad-argument-type]
-      full_v_heat_face_el_pereverzev=full_v_heat_face_per_el,  # pyrefly: ignore[bad-argument-type]
-      d_face_el_pereverzev=d_face_per_el,
-      v_face_el_pereverzev=v_face_per_el,
+  return transport_coeffs.PereverzevTransport(
+      chi_face_ion=chi_face_per_ion,
+      chi_face_el=chi_face_per_el,
+      d_face_el=d_face_per_el,
+      v_face_el=v_face_per_el,
+      full_v_heat_face_ion=full_v_heat_face_per_ion,
+      full_v_heat_face_el=full_v_heat_face_per_el,
   )

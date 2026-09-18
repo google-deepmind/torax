@@ -64,6 +64,64 @@ class TransportCoeffsTest(parameterized.TestCase):
     np.testing.assert_allclose(c_sum.d_face_el, np.ones(self.n_face) * 0.6)
     np.testing.assert_allclose(c_sum.v_face_el, np.ones(self.n_face) * -0.3)
 
+  def test_sum_transport_coeffs(self):
+    c1 = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 1.0,
+        chi_face_el=jnp.ones(self.n_face) * 2.0,
+        d_face_el=jnp.ones(self.n_face) * 0.5,
+        v_face_el=jnp.ones(self.n_face) * -0.1,
+    )
+    c2 = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 0.5,
+        chi_face_el=jnp.ones(self.n_face) * 0.3,
+        d_face_el=jnp.ones(self.n_face) * 0.1,
+        v_face_el=jnp.ones(self.n_face) * -0.2,
+    )
+    c3 = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 0.2,
+        chi_face_el=jnp.ones(self.n_face) * 0.1,
+        d_face_el=jnp.ones(self.n_face) * 0.05,
+        v_face_el=jnp.ones(self.n_face) * 0.05,
+    )
+    c_sum = transport_coeffs.sum_transport_coeffs(c1, c2, c3)
+    np.testing.assert_allclose(c_sum.chi_face_ion, np.ones(self.n_face) * 1.7)
+    np.testing.assert_allclose(c_sum.chi_face_el, np.ones(self.n_face) * 2.4)
+    np.testing.assert_allclose(c_sum.d_face_el, np.ones(self.n_face) * 0.65)
+    np.testing.assert_allclose(c_sum.v_face_el, np.ones(self.n_face) * -0.25)
+
+  def test_sum_transport_coeffs_empty_raises(self):
+    with self.assertRaises(ValueError):
+      transport_coeffs.sum_transport_coeffs()
+
+  def test_sum_transport_coeffs_different_types(self):
+    c_base = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 1.0,
+        chi_face_el=jnp.ones(self.n_face) * 2.0,
+        d_face_el=jnp.ones(self.n_face) * 0.5,
+        v_face_el=jnp.ones(self.n_face) * -0.1,
+    )
+    c_neo = transport_coeffs.NeoclassicalTransport(
+        chi_face_ion=jnp.ones(self.n_face) * 0.5,
+        chi_face_el=jnp.ones(self.n_face) * 0.3,
+        d_face_el=jnp.ones(self.n_face) * 0.1,
+        v_face_el=jnp.ones(self.n_face) * -0.2,
+        v_face_el_ware=jnp.ones(self.n_face) * -0.05,
+    )
+    c_per = transport_coeffs.PereverzevTransport(
+        chi_face_ion=jnp.ones(self.n_face) * 0.2,
+        chi_face_el=jnp.ones(self.n_face) * 0.1,
+        d_face_el=jnp.ones(self.n_face) * 0.05,
+        v_face_el=jnp.ones(self.n_face) * 0.05,
+        full_v_heat_face_ion=jnp.ones(self.n_face) * 0.15,
+        full_v_heat_face_el=jnp.ones(self.n_face) * 0.25,
+    )
+    c_sum = transport_coeffs.sum_transport_coeffs(c_base, c_neo, c_per)
+    self.assertIs(type(c_sum), transport_coeffs.TransportCoeffs)
+    np.testing.assert_allclose(c_sum.chi_face_ion, np.ones(self.n_face) * 1.7)
+    np.testing.assert_allclose(c_sum.chi_face_el, np.ones(self.n_face) * 2.4)
+    np.testing.assert_allclose(c_sum.d_face_el, np.ones(self.n_face) * 0.65)
+    np.testing.assert_allclose(c_sum.v_face_el, np.ones(self.n_face) * -0.25)
+
   def test_chi_max(self):
     coeffs = transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.ones(self.n_face) * 1.0,
