@@ -250,6 +250,49 @@ def dense_solve(
   return x_flat.reshape((block_tridiag.num_blocks, block_tridiag.block_size))
 
 
+def _inv_2x2(m: jax.Array) -> jax.Array:
+  """Computes the exact analytical inverse of a 2x2 matrix."""
+  a, b = m[0, 0], m[0, 1]
+  c, d = m[1, 0], m[1, 1]
+  inv_det = 1.0 / (a * d - b * c)
+  return jnp.array([[d, -b], [-c, a]], dtype=m.dtype) * inv_det
+
+
+def _inv_small_block(m: jax.Array) -> jax.Array:
+  """Closed-form matrix inverse for block sizes 1..4 without LAPACK calls.
+
+  In JAX/XLA on CPU, `jnp.linalg.inv` on small 3x3 or 4x4 matrices lowers to
+  external LAPACK `dgetrf`/`dtrsm` CustomCalls inside `jax.lax.scan`, preventing
+  XLA loop fusion and SIMD vectorization across radial cells. Using a 2x2
+  partitioned Schur complement `S = D - C @ A^{-1} @ B` keeps the entire
+  forward sweep of `thomas_solve` in fused register arithmetic.
+
+  Args:
+    m: Square block matrix of shape (block_size, block_size).
+
+  Returns:
+    Inverse matrix of shape (block_size, block_size).
+  """
+  n = m.shape[0]
+  if n == 1:
+    return 1.0 / m
+  if n == 2:
+    return _inv_2x2(m)
+  if n <= 4:
+    k = (n + 1) // 2
+    a_inv = _inv_small_block(m[:k, :k])
+    b, c, d = m[:k, k:], m[k:, :k], m[k:, k:]
+    ca_inv = c @ a_inv
+    s_inv = _inv_small_block(d - ca_inv @ b)
+    a_inv_b_s_inv = (a_inv @ b) @ s_inv
+    top = jnp.concatenate(
+        [a_inv + a_inv_b_s_inv @ ca_inv, -a_inv_b_s_inv], axis=1
+    )
+    bot = jnp.concatenate([-s_inv @ ca_inv, s_inv], axis=1)
+    return jnp.concatenate([top, bot], axis=0)
+  return jnp.linalg.inv(m)
+
+
 def thomas_solve(
     block_tridiag: BlockTriDiagonal,
     rhs: jt.Float[array_typing.Array, 'num_blocks block_size'],
@@ -279,13 +322,13 @@ def thomas_solve(
     factor = cur_lower @ prev_diag_inv
     new_diag = cur_diag - factor @ prev_upper
     new_rhs = cur_rhs - factor @ prev_rhs
-    new_diag_inv = jnp.linalg.inv(new_diag)
+    new_diag_inv = _inv_small_block(new_diag)
     # we output (new_diag_inv, new_rhs) for use in the backward pass
     return (new_diag_inv, new_rhs, cur_upper), (new_diag_inv, new_rhs)
 
   pad_upper = jnp.pad(block_tridiag.upper, ((0, 1), (0, 0), (0, 0)))
 
-  diag0_inv = jnp.linalg.inv(block_tridiag.diagonal[0])
+  diag0_inv = _inv_small_block(block_tridiag.diagonal[0])
   init_carry = (diag0_inv, rhs[0], block_tridiag.upper[0])
 
   _, (fwd_diag_invs, fwd_rhs) = jax.lax.scan(

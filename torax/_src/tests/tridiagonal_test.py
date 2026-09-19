@@ -355,7 +355,7 @@ class BlockTriDiagonalTest(parameterized.TestCase):
     np.testing.assert_allclose(dense, expected_full)
 
 
-class ThomasSolveTest(absltest.TestCase):
+class ThomasSolveTest(parameterized.TestCase):
   """Tests specifically targeting the Thomas algorithm for block-tridiagonal."""
 
   def _make_nonsingular_block_tridiag(
@@ -522,6 +522,34 @@ class ThomasSolveTest(absltest.TestCase):
     x = tridiagonal.thomas_solve(bt, rhs)
 
     np.testing.assert_allclose(bt.matvec(x), rhs, atol=1e-12)
+
+  def test_inv_2x2(self):
+    """_inv_2x2 should match jnp.linalg.inv and satisfy m @ inv(m) = I."""
+    rng = np.random.RandomState(101)
+    m = jnp.array(rng.randn(2, 2) + 3.0 * np.eye(2), dtype=jnp.float64)
+    m_inv = tridiagonal._inv_2x2(m)  # pylint: disable=protected-access
+    np.testing.assert_allclose(m_inv, jnp.linalg.inv(m), atol=1e-14)
+    np.testing.assert_allclose(m @ m_inv, np.eye(2), atol=1e-14)
+
+  @parameterized.parameters(1, 2, 3, 4, 5)
+  def test_inv_small_block_matches_linalg_inv(self, block_size: int):
+    """_inv_small_block should match jnp.linalg.inv for block sizes 1..5."""
+    rng = np.random.RandomState(200 + block_size)
+    eye = (block_size + 2.0) * np.eye(block_size)
+    m = jnp.array(rng.randn(block_size, block_size) + eye, dtype=jnp.float64)
+    m_inv = tridiagonal._inv_small_block(m)  # pylint: disable=protected-access
+    np.testing.assert_allclose(m_inv, jnp.linalg.inv(m), atol=1e-13)
+    np.testing.assert_allclose(m @ m_inv, np.eye(block_size), atol=1e-13)
+
+  @parameterized.parameters(1, 2, 3, 4, 5)
+  def test_inv_small_block_jacfwd_matches_linalg_inv(self, block_size: int):
+    """Forward-mode Jacobian of _inv_small_block should match jnp.linalg.inv."""
+    rng = np.random.RandomState(300 + block_size)
+    eye = (block_size + 2.0) * np.eye(block_size)
+    m = jnp.array(rng.randn(block_size, block_size) + eye, dtype=jnp.float64)
+    jac_small = jax.jacfwd(tridiagonal._inv_small_block)(m)  # pylint: disable=protected-access
+    jac_ref = jax.jacfwd(jnp.linalg.inv)(m)
+    np.testing.assert_allclose(jac_small, jac_ref, atol=1e-12)
 
 
 if __name__ == '__main__':
