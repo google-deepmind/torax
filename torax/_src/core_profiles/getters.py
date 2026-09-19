@@ -22,7 +22,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import profile_conditions
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
 from torax._src.core_profiles.plasma_composition import impurity_fractions
@@ -60,7 +60,7 @@ class Ions:
 
 
 def get_updated_ion_temperature(
-    profile_conditions_params: profile_conditions.RuntimeParams,
+    profile_conditions_params: core_profile_runtime_params.RuntimeParams,
     geo: geometry.Geometry,
     only_boundary_condition: bool = False,
     original_T_i_value: cell_variable.CellVariable | None = None,
@@ -86,7 +86,7 @@ def get_updated_ion_temperature(
 
 
 def get_updated_electron_temperature(
-    profile_conditions_params: profile_conditions.RuntimeParams,
+    profile_conditions_params: core_profile_runtime_params.RuntimeParams,
     geo: geometry.Geometry,
     only_boundary_condition: bool = False,
     original_T_e_value: cell_variable.CellVariable | None = None,
@@ -113,7 +113,7 @@ def get_updated_electron_temperature(
 
 
 def get_updated_electron_density(
-    profile_conditions_params: profile_conditions.RuntimeParams,
+    profile_conditions_params: core_profile_runtime_params.RuntimeParams,
     geo: geometry.Geometry,
     only_boundary_condition: bool = False,
     original_n_e_value: cell_variable.CellVariable | None = None,
@@ -208,7 +208,7 @@ def get_updated_electron_density(
 
 
 def get_updated_psi(
-    profile_conditions_params: profile_conditions.RuntimeParams,
+    profile_conditions_params: core_profile_runtime_params.RuntimeParams,
     geo: geometry.Geometry,
     dt: array_typing.FloatScalar,
     theta: array_typing.FloatScalar,
@@ -249,7 +249,7 @@ def get_updated_psi(
 
 
 def get_updated_toroidal_angular_velocity(
-    profile_conditions_params: profile_conditions.RuntimeParams,
+    profile_conditions_params: core_profile_runtime_params.RuntimeParams,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed toroidal velocity profiles."""

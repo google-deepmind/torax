@@ -26,6 +26,7 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
@@ -54,7 +55,7 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_i_right_bc=bound,
         T_i=value,
@@ -66,7 +67,7 @@ class GettersTest(parameterized.TestCase):
   def test_only_updating_boundary_condition(self):
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_i_right_bc=0.5,
         T_i=value,
@@ -91,7 +92,7 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_e_right_bc=bound,
         T_e=value,
@@ -106,7 +107,7 @@ class GettersTest(parameterized.TestCase):
   def test_only_updating_boundary_condition_electron_temperature(self):
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_e_right_bc=0.5,
         T_e=value,
@@ -157,7 +158,7 @@ class GettersTest(parameterized.TestCase):
     """Tests that only updating the boundary condition works."""
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         n_e_right_bc=0.5,
         n_e=value,

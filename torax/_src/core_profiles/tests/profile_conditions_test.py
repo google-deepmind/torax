@@ -24,6 +24,7 @@ from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import profile_conditions
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.physics import fast_ion as fast_ion_lib
@@ -526,7 +527,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions()
     self.assertEqual(
         pc.n_e_right_bc_mode,
-        profile_conditions.NeBoundaryConditionMode.PRESCRIBED,
+        core_profile_runtime_params.NeBoundaryConditionMode.PRESCRIBED,
     )
     self.assertIsNone(pc.n_e_right_bc_reference_rho)
     self.assertIsNone(pc.n_e_right_bc_multiplier)
@@ -688,7 +689,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         fast_ion_lib.FastIon(species='D', source='icrh', n=zero_n, T=zero_t),
     ]
     prescribed = (
-        profile_conditions.PrescribedFastIonData(
+        core_profile_runtime_params.PrescribedFastIonData(
             source='icrh',
             species='He3',
             n=np.full(4, 1e19),

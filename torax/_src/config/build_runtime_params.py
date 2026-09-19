@@ -34,6 +34,7 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters as getters_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
 from torax._src.edge import updaters as edge_updaters
@@ -307,7 +308,7 @@ def _update_ne_density_fraction_boundary_condition(
   """Updates n_e boundary condition for ``density_fraction`` mode."""
   if (
       runtime_params.profile_conditions.n_e_right_bc_mode
-      != profile_conditions_lib.NeBoundaryConditionMode.DENSITY_FRACTION
+      != core_profile_runtime_params.NeBoundaryConditionMode.DENSITY_FRACTION
   ):
     return runtime_params
 

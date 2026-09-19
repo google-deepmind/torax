@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Profile condition parameters used throughout TORAX simulations."""
+"""Profile condition pydantic models and helper functions."""
 
 import dataclasses
-import enum
 import logging
 from typing import Annotated, Callable, Final, Sequence
 
@@ -23,7 +22,7 @@ import chex
 import jax
 import numpy as np
 import pydantic
-from torax._src import array_typing
+from torax._src.core_profiles import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.physics import fast_ion as fast_ion_lib
@@ -64,102 +63,6 @@ class PrescribedFastIon(torax_pydantic.BaseModelFrozen):
   n_right_bc: torax_pydantic.TimeVaryingScalar
   T: torax_pydantic.TimeVaryingArray
   T_right_bc: torax_pydantic.TimeVaryingScalar
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class PrescribedFastIonData:
-  """Evaluated prescribed fast ion data for a single species at time t.
-
-  This is the JAX-compatible runtime counterpart of ``PrescribedFastIon``.
-  It holds concrete array values evaluated at a specific time ``t``, and is
-  stored on ``RuntimeParams`` for use inside JIT-compiled simulation steps.
-
-  Attributes:
-    source: Source name (e.g. 'icrh').
-    species: Species name (e.g. 'He3').
-    n: Prescribed density profile [m^-3].
-    n_right_bc: Right boundary condition for density [m^-3].
-    T: Prescribed temperature profile [keV].
-    T_right_bc: Right boundary condition for temperature [keV].
-  """
-
-  source: str = dataclasses.field(metadata={'static': True})
-  species: str = dataclasses.field(metadata={'static': True})
-  n: array_typing.FloatVector
-  n_right_bc: array_typing.FloatScalar
-  T: array_typing.FloatVector
-  T_right_bc: array_typing.FloatScalar
-
-
-class InitialPsiMode(enum.StrEnum):
-  """How to calculate the initial psi value."""
-
-  PROFILE_CONDITIONS = 'profile_conditions'
-  GEOMETRY = 'geometry'
-  J = 'j'
-
-
-class NeBoundaryConditionMode(enum.StrEnum):
-  """Mode for the electron density right boundary condition.
-
-  Attributes:
-    PRESCRIBED: The boundary condition is prescribed directly via `n_e_right_bc`
-      or taken from the `n_e` profile at rho_norm=1.
-    DENSITY_FRACTION: The boundary condition is computed as `n_e(reference_rho,
-      t) * multiplier`, where `reference_rho` and `multiplier` are
-      user-specified. t is the time at the beginning of each time step interval.
-  """
-
-  PRESCRIBED = 'prescribed'
-  DENSITY_FRACTION = 'density_fraction'
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass
-class RuntimeParams:
-  """Prescribed values and boundary conditions for the core profiles."""
-
-  Ip: array_typing.FloatScalar
-  v_loop_lcfs: array_typing.FloatScalar
-  T_i_right_bc: array_typing.FloatScalar
-  T_e_right_bc: array_typing.FloatScalar
-  # Temperature profiles defined on the cell grid.
-  T_e: array_typing.FloatVector
-  T_i: array_typing.FloatVector
-  # If provided as array, Psi profile defined on the cell grid.
-  psi: array_typing.FloatVector | None
-  psidot: array_typing.FloatVector | None
-  toroidal_angular_velocity: array_typing.FloatVector | None
-  toroidal_angular_velocity_right_bc: array_typing.FloatScalar | None
-  # Electron density profile on the cell grid.
-  n_e: array_typing.FloatVector
-  nbar: array_typing.FloatScalar
-  n_e_nbar_is_fGW: bool
-  n_e_right_bc: array_typing.FloatScalar
-  n_e_right_bc_is_fGW: bool
-  n_e_right_bc_mode: NeBoundaryConditionMode = dataclasses.field(
-      metadata={'static': True}
-  )
-  n_e_right_bc_reference_rho: array_typing.FloatScalar | None
-  n_e_right_bc_multiplier: array_typing.FloatScalar | None
-  internal_boundary_conditions: (
-      internal_boundary_conditions_lib.InternalBoundaryConditions
-  )
-  current_profile_nu: float
-  initial_j_is_total_current: bool = dataclasses.field(
-      metadata={'static': True}
-  )
-  initial_psi_from_j: bool = dataclasses.field(metadata={'static': True})
-  normalize_n_e_to_nbar: bool = dataclasses.field(metadata={'static': True})
-  use_v_loop_lcfs_boundary_condition: bool = dataclasses.field(
-      metadata={'static': True}
-  )
-  n_e_right_bc_is_absolute: bool = dataclasses.field(metadata={'static': True})
-  initial_psi_mode: InitialPsiMode = dataclasses.field(
-      metadata={'static': True}
-  )
-  prescribed_fast_ions: tuple[PrescribedFastIonData, ...] = ()
 
 
 class ProfileConditions(torax_pydantic.BaseModelFrozen):
@@ -273,8 +176,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   # dedicated nested object, and merge with attributes currently in edge model,
   # e.g. update_temperatures.
   n_e_right_bc_mode: Annotated[
-      NeBoundaryConditionMode, torax_pydantic.JAX_STATIC
-  ] = NeBoundaryConditionMode.PRESCRIBED
+      runtime_params_lib.NeBoundaryConditionMode, torax_pydantic.JAX_STATIC
+  ] = runtime_params_lib.NeBoundaryConditionMode.PRESCRIBED
   n_e_right_bc_reference_rho: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_multiplier: torax_pydantic.TimeVaryingScalar | None = None
   internal_boundary_conditions: (
@@ -287,9 +190,9 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   # TODO(b/434175938): Remove this before the V2 API release in place of
   # initial_psi_source.
   initial_psi_from_j: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  initial_psi_mode: Annotated[InitialPsiMode, torax_pydantic.JAX_STATIC] = (
-      InitialPsiMode.PROFILE_CONDITIONS
-  )
+  initial_psi_mode: Annotated[
+      runtime_params_lib.InitialPsiMode, torax_pydantic.JAX_STATIC
+  ] = runtime_params_lib.InitialPsiMode.PROFILE_CONDITIONS
   fast_ions: list[PrescribedFastIon] | None = None
 
   @pydantic.model_validator(mode='after')
@@ -329,12 +232,16 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
       _sanity_check_profile_boundary_conditions(self.T_e, 'T_e', error_messages)
     if (
         self.n_e_right_bc is None
-        and self.n_e_right_bc_mode == NeBoundaryConditionMode.PRESCRIBED
+        and self.n_e_right_bc_mode
+        == runtime_params_lib.NeBoundaryConditionMode.PRESCRIBED
     ):
       _sanity_check_profile_boundary_conditions(self.n_e, 'n_e', error_messages)
 
     # Validate density_fraction mode attributes.
-    if self.n_e_right_bc_mode == NeBoundaryConditionMode.DENSITY_FRACTION:
+    if (
+        self.n_e_right_bc_mode
+        == runtime_params_lib.NeBoundaryConditionMode.DENSITY_FRACTION
+    ):
       if self.n_e_right_bc_reference_rho is None:
         error_messages.append(
             'n_e_right_bc_reference_rho must be set when'
@@ -356,7 +263,10 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
             'n_e_right_bc is set but will be ignored because'
             ' n_e_right_bc_mode is "density_fraction".'
         )
-    elif self.n_e_right_bc_mode == NeBoundaryConditionMode.PRESCRIBED:
+    elif (
+        self.n_e_right_bc_mode
+        == runtime_params_lib.NeBoundaryConditionMode.PRESCRIBED
+    ):
       if self.n_e_right_bc_reference_rho is not None:
         logging.warning(
             'n_e_right_bc_reference_rho is set but will be ignored because'
@@ -540,12 +450,14 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
 
     return self
 
-  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params_lib.RuntimeParams:
     """Builds a RuntimeParams object for time t."""
 
     runtime_params = {
         x.name: getattr(self, x.name)
-        for x in dataclasses.fields(RuntimeParams)
+        for x in dataclasses.fields(runtime_params_lib.RuntimeParams)
         if x.name
         not in (
             'n_e_right_bc_is_absolute',
@@ -572,7 +484,10 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
             self.toroidal_angular_velocity.get_value(t, grid_type='face_right')
         )
 
-    if self.n_e_right_bc_mode == NeBoundaryConditionMode.DENSITY_FRACTION:
+    if (
+        self.n_e_right_bc_mode
+        == runtime_params_lib.NeBoundaryConditionMode.DENSITY_FRACTION
+    ):
       # In density_fraction mode, the actual n_e_right_bc value is computed
       # later in build_runtime_params.py. Set a placeholder here and mark
       # it as absolute (SI units, not Greenwald fraction).
@@ -610,13 +525,13 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
         return x
 
     runtime_params = {k: _get_value(v) for k, v in runtime_params.items()}
-    return RuntimeParams(**runtime_params)
+    return runtime_params_lib.RuntimeParams(**runtime_params)
 
 
 def _build_prescribed_fast_ions(
     fast_ions: list[PrescribedFastIon] | None,
     t: chex.Numeric,
-) -> tuple[PrescribedFastIonData, ...]:
+) -> tuple[runtime_params_lib.PrescribedFastIonData, ...]:
   """Evaluates prescribed fast ion configs at time t.
 
   Args:
@@ -629,7 +544,7 @@ def _build_prescribed_fast_ions(
   if fast_ions is None:
     return ()
   return tuple(
-      PrescribedFastIonData(
+      runtime_params_lib.PrescribedFastIonData(
           source=pfi.source,
           species=pfi.species,
           n=pfi.n.get_value(t),
@@ -643,7 +558,7 @@ def _build_prescribed_fast_ions(
 
 def apply_prescribed_fast_ions(
     fast_ions: Sequence[fast_ion_lib.FastIon],
-    prescribed: tuple[PrescribedFastIonData, ...],
+    prescribed: tuple[runtime_params_lib.PrescribedFastIonData, ...],
     face_centers: jax.Array,
 ) -> tuple[fast_ion_lib.FastIon, ...]:
   """Overrides matching fast ions with prescribed data.

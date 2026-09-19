@@ -27,6 +27,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
@@ -259,7 +260,7 @@ def update_psi_from_j(
 def _get_initial_psi_mode(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-) -> profile_conditions_lib.InitialPsiMode:
+) -> core_profile_runtime_params.InitialPsiMode:
   """Returns the initial psi mode based on the runtime parameters.
 
   This allows us to support the legacy behavior of initial_psi_from_j, which
@@ -275,7 +276,7 @@ def _get_initial_psi_mode(
     How to calculate the initial psi value.
   """
   psi_mode = runtime_params.profile_conditions.initial_psi_mode
-  if psi_mode == profile_conditions_lib.InitialPsiMode.PROFILE_CONDITIONS:
+  if psi_mode == core_profile_runtime_params.InitialPsiMode.PROFILE_CONDITIONS:
     if runtime_params.profile_conditions.psi is None:
       logging.warning(
           'Falling back to legacy behavior as `profile_conditions.psi` is '
@@ -288,9 +289,9 @@ def _get_initial_psi_mode(
           isinstance(geo, standard_geometry.StandardGeometry)
           and not runtime_params.profile_conditions.initial_psi_from_j
       ):
-        psi_mode = profile_conditions_lib.InitialPsiMode.GEOMETRY
+        psi_mode = core_profile_runtime_params.InitialPsiMode.GEOMETRY
       else:
-        psi_mode = profile_conditions_lib.InitialPsiMode.J
+        psi_mode = core_profile_runtime_params.InitialPsiMode.J
   return psi_mode
 
 
@@ -332,7 +333,7 @@ def _init_psi_and_psi_derived(
   match initial_psi_mode:
     # Case 1: retrieving psi from the profile conditions, using the prescribed
     # profile and Ip
-    case profile_conditions_lib.InitialPsiMode.PROFILE_CONDITIONS:
+    case core_profile_runtime_params.InitialPsiMode.PROFILE_CONDITIONS:
       if runtime_params.profile_conditions.psi is None:
         raise ValueError(
             'psi is None, but initial_psi_mode is PROFILE_CONDITIONS.'
@@ -368,7 +369,7 @@ def _init_psi_and_psi_derived(
       )
 
     # Case 2: retrieving psi from the standard geometry input.
-    case profile_conditions_lib.InitialPsiMode.GEOMETRY:
+    case core_profile_runtime_params.InitialPsiMode.GEOMETRY:
       if not isinstance(geo, standard_geometry.StandardGeometry):
         raise ValueError(
             'GEOMETRY initial_psi_source is only supported for standard'
@@ -397,7 +398,7 @@ def _init_psi_and_psi_derived(
       )
 
     # Case 3: calculating j according to nu formula and psi from j.
-    case profile_conditions_lib.InitialPsiMode.J:
+    case core_profile_runtime_params.InitialPsiMode.J:
       # calculate j and psi from the nu formula
       j_total_hires = _get_j_total_hires_with_no_external_sources(
           runtime_params, geo
