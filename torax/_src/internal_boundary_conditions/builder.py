@@ -18,6 +18,7 @@ import jax
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 
@@ -30,6 +31,9 @@ def build_internal_boundary_conditions(
     core_profiles: state.CoreProfiles,
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    internal_boundary_condition_model: (
+        base_model.InternalBoundaryConditionModel
     ),
 ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
   """Builds the active internal boundary conditions for this time step.
@@ -45,6 +49,8 @@ def build_internal_boundary_conditions(
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles.
     pedestal_transition_state: Current state of the pedestal transition.
+    internal_boundary_condition_model: Model used to evaluate profile-condition
+      internal boundary conditions.
 
   Returns:
     The active InternalBoundaryConditions object.
@@ -58,14 +64,11 @@ def build_internal_boundary_conditions(
       )
   )
 
-  if runtime_params.profile_conditions.internal_boundary_conditions is not None:
-    profile_conditions_ibc = (
-        runtime_params.profile_conditions.internal_boundary_conditions
-    )
-  else:
-    profile_conditions_ibc = (
-        internal_boundary_conditions_lib.InternalBoundaryConditions.empty(geo)
-    )
+  config_internal_boundary_conditions = internal_boundary_condition_model(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+  )
 
   is_pedestal_ibc_active = pedestal_transition_state.is_ibc_active(
       runtime_params.pedestal
@@ -73,5 +76,5 @@ def build_internal_boundary_conditions(
   return jax.tree.map(
       lambda p, u: jax.lax.select(is_pedestal_ibc_active, p, u),
       pedestal_internal_boundary_conditions,
-      profile_conditions_ibc,
+      config_internal_boundary_conditions,
   )

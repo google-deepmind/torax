@@ -750,6 +750,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
         'internal_boundary_conditions': {
+            'model_name': 'prescribed',
             'T_i': {
                 0.0: {0: 1.0, 1: 2.0},
                 1.0: {0: 3.0, 1: 4.0},

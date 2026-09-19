@@ -33,6 +33,7 @@ from torax._src.edge.extended_lengyel import pydantic_model as extended_lengyel_
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.internal_boundary_conditions import pydantic_model as ibc_pydantic_model
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
@@ -80,9 +81,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       neoclassical_pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa  # pyrefly: ignore[missing-argument]
   )
   solver: solver_pydantic_model.SolverConfig = pydantic.Field()
-  transport: transport_model_pydantic_model.TransportModel = (
-      pydantic.Field()
-  )
+  transport: transport_model_pydantic_model.TransportModel = pydantic.Field()
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field()
   mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
   edge: edge_pydantic_model.EdgeConfig | None = None
@@ -103,6 +102,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         mhd_models=self.mhd.build_mhd_models(),
         edge_model=edge_model,
         time_step_calculator=self.time_step_calculator.build_time_step_calculator(),
+        internal_boundary_condition_model=(
+            self.profile_conditions.internal_boundary_conditions.build_model()
+        ),
     )
 
   # TODO(b/434175938): Remove this once V1 API is deprecated
@@ -148,8 +150,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     )
     using_nonlinear_transport_model = any(
         model.model_name in ['qualikiz', 'qlknn', 'CGM']
-        for model in list(core_transport_models)
-        + list(pedestal_transport_models)
+        for model in list(core_transport_models) + list(
+            pedestal_transport_models
+        )
     )
     using_linear_solver = isinstance(
         self.solver, solver_pydantic_model.LinearThetaMethod
@@ -222,7 +225,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     ibc = self.profile_conditions.internal_boundary_conditions
     if (
         self.pedestal.mode == pedestal_runtime_params.Mode.ADAPTIVE_TRANSPORT
-        and ibc.is_active()
+        and not isinstance(ibc, ibc_pydantic_model.NoIBC)
     ):
       raise ValueError(
           'Internal boundary conditions cannot be configured when pedestal'
@@ -401,9 +404,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
           # searchsorted(side='right') - 1 finds the index of the last
           # update_impurities time point <= t, i.e. the step value active
           # at time t.
-          idx = max(0, int(np.searchsorted(
-              update_impurities_time, t, side='right'
-          )) - 1)
+          idx = max(
+              0,
+              int(np.searchsorted(update_impurities_time, t, side='right')) - 1,
+          )
           if not update_impurities_value[idx]:
             continue
           raise ValueError(

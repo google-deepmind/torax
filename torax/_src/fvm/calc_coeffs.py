@@ -318,13 +318,14 @@ def _calc_coeffs_full(
   # 2. Compute transport coefficients.
   transport_coefficients = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          models.transport_model,
-          models.neoclassical_models,
-          runtime_params,
-          geo,
-          core_profiles,
-          pedestal_transition_state,
-          use_pereverzev,
+          transport_model=models.transport_model,
+          neoclassical_models=models.neoclassical_models,
+          internal_boundary_condition_model=models.internal_boundary_condition_model,
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          pedestal_transition_state=pedestal_transition_state,
+          use_pereverzev=use_pereverzev,
       )
   )
 
@@ -538,6 +539,7 @@ def _calc_coeffs_full(
           geo=geo,
           core_profiles=core_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          internal_boundary_condition_model=models.internal_boundary_condition_model,
       )
   )
 
@@ -594,4 +596,5 @@ def _calc_coeffs_reduced(
       transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
   )
   return coeffs
+
 

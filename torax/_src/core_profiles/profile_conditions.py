@@ -24,7 +24,7 @@ import numpy as np
 import pydantic
 from torax._src.core_profiles import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
+from torax._src.internal_boundary_conditions import pydantic_model as ibc_pydantic_model
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
 from typing_extensions import Self
@@ -181,10 +181,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   n_e_right_bc_reference_rho: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_multiplier: torax_pydantic.TimeVaryingScalar | None = None
   internal_boundary_conditions: (
-      internal_boundary_conditions_lib.InternalBoundaryConditionsConfig
-  ) = torax_pydantic.ValidatedDefault(
-      internal_boundary_conditions_lib.InternalBoundaryConditionsConfig()
-  )
+      ibc_pydantic_model.InternalBoundaryConditionsConfig
+  ) = torax_pydantic.ValidatedDefault(ibc_pydantic_model.NoIBC())
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/434175938): Remove this before the V2 API release in place of
@@ -509,7 +507,9 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     # Evaluate internal boundary conditions at time t. Required as IBCs are a
     # nested class within the config.
     runtime_params['internal_boundary_conditions'] = (
-        self.internal_boundary_conditions.build_runtime_params(t)
+        self.internal_boundary_conditions.build_runtime_params(
+            t  # pyrefly: ignore[bad-argument-type]
+        )
     )
 
     def _get_value(x):

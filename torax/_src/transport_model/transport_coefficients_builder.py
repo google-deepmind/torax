@@ -21,6 +21,7 @@ import jax.numpy as jnp
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.internal_boundary_conditions import base_model as internal_boundary_conditions_base_model
 from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
 from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
@@ -36,11 +37,15 @@ from torax._src.transport_model import transport_model as transport_model_lib
     static_argnames=(
         'transport_model',
         'neoclassical_models',
+        'internal_boundary_condition_model',
     )
 )
 def calculate_all_transport_coeffs(
     transport_model: transport_model_lib.TransportModel,
     neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    internal_boundary_condition_model: (
+        internal_boundary_conditions_base_model.InternalBoundaryConditionModel
+    ),
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -82,6 +87,7 @@ def calculate_all_transport_coeffs(
           geo=geo,
           core_profiles=core_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          internal_boundary_condition_model=internal_boundary_condition_model,
       ).get_two_point_face_mask(geo)
   )
   turbulent_transport_coeffs = transport_model(

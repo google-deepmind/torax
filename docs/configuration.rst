@@ -389,18 +389,20 @@ time-dependence of temperature, density, and current.
   ``toroidal_angular_velocity`` at :math:`\hat{\rho}=1`. If ``toroidal_angular_velocity`` is
   also ``None``, then the boundary condition will be set to zero.
 
-``internal_boundary_conditions`` (dict [default = {}])
+``internal_boundary_conditions`` (dict [default = ``{'model_name': 'no_ibc'}``])
   Internal boundary conditions for :math:`T_i`, :math:`T_e`, and :math:`n_e`.
-  These conditions are enforced via adaptive sources. The dictionary can contain
-  the keys ``T_i``, ``T_e``, and ``n_e``. Each of these keys accepts a
-  **sparse time-varying-array** type, allowing specification of time-varying
-  values at fixed spatial points.
+  Defaults to ``'no_ibc'`` (no internal boundary conditions active). To enable
+  prescribed internal boundary conditions, set ``'model_name': 'prescribed'``,
+  in which case the dictionary can contain the keys ``T_i``, ``T_e``, and ``n_e``.
+  Each of these keys accepts a **sparse time-varying-array** type, allowing
+  specification of time-varying values at fixed spatial points.
 
   Values are specified as ``{time: {rho_norm: value, ...}, ...}``. For example:
 
   .. code-block:: python
 
     'internal_boundary_conditions': {
+        'model_name': 'prescribed',
         'T_e': {
             0.0: {0.85: 1.0},
             1.0: {0.85: 1.5}

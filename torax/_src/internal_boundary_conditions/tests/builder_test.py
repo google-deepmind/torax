@@ -18,14 +18,18 @@ from unittest import mock
 from absl.testing import absltest
 import jax.numpy as jnp
 from torax._src import state
+from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import initialization
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import circular_geometry
+from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import builder
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as ibc_lib
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
 
@@ -43,6 +47,10 @@ class BuilderTest(absltest.TestCase):
         T_e=jnp.where(self.inboard_mask, 10.0, 0.0),
         n_e=jnp.zeros_like(self.geo.rho_norm),
     )
+    self.ibc_model = mock.create_autospec(
+        base_model.InternalBoundaryConditionModel, instance=True
+    )
+    self.ibc_model.side_effect = lambda **kwargs: self.profile_conditions_ibc
 
   def _make_runtime_params(
       self,
@@ -58,7 +66,7 @@ class BuilderTest(absltest.TestCase):
         pedestal_profile_form=pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP,
     )
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.ProfileConditions,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         internal_boundary_conditions=profile_conditions_ibc,
     )
@@ -103,6 +111,7 @@ class BuilderTest(absltest.TestCase):
         geo=self.geo,
         core_profiles=self.core_profiles,
         pedestal_transition_state=l_mode_state,
+        internal_boundary_condition_model=self.ibc_model,
     )
     # Profile conditions IBC pins cell values in rho_norm <= 0.3 to 10.0 keV.
     self.assertTrue(jnp.any(built_ibc_l.T_e[self.inboard_mask] == 10.0))
@@ -122,6 +131,7 @@ class BuilderTest(absltest.TestCase):
         geo=self.geo,
         core_profiles=self.core_profiles,
         pedestal_transition_state=h_mode_state,
+        internal_boundary_condition_model=self.ibc_model,
     )
     # Profile conditions IBC region is turned off (0.0) in H-mode.
     self.assertTrue(jnp.all(built_ibc_h.T_e[self.inboard_mask] == 0.0))
@@ -135,15 +145,68 @@ class BuilderTest(absltest.TestCase):
     l_mode_state = self._make_transition_state(
         confinement_mode=pedestal_transition_state.ConfinementMode.L_MODE
     )
+    empty_ibc_model = mock.create_autospec(
+        base_model.InternalBoundaryConditionModel, instance=True
+    )
+    empty_ibc_model.side_effect = (
+        lambda **kwargs: ibc_lib.InternalBoundaryConditions.empty(self.geo)
+    )
     built_ibc = builder.build_internal_boundary_conditions(
         runtime_params=runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         pedestal_transition_state=l_mode_state,
+        internal_boundary_condition_model=empty_ibc_model,
     )
     self.assertTrue(jnp.all(built_ibc.T_e == 0.0))
     self.assertTrue(jnp.all(built_ibc.T_i == 0.0))
     self.assertTrue(jnp.all(built_ibc.n_e == 0.0))
+
+  def test_build_internal_boundary_conditions_with_model(self):
+    torax_config = model_config.ToraxConfig.from_dict(
+        dict(
+            numerics=dict(),
+            plasma_composition=dict(),
+            profile_conditions=dict(
+                internal_boundary_conditions=dict(
+                    model_name='prescribed',
+                    T_e={0.0: {(0.0, 0.3): 10.0}},
+                ),
+            ),
+            geometry=dict(geometry_type='circular', n_rho=20),
+            pedestal=dict(set_pedestal=False),
+            sources=dict(),
+            solver=dict(use_predictor_corrector=False),
+            transport=dict(),
+            time_step_calculator=dict(),
+        )
+    )
+    models = torax_config.build_models()
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(
+        t=torax_config.numerics.t_initial,
+    )
+    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        source_models=models.source_models,
+        neoclassical_models=models.neoclassical_models,
+    )
+    l_mode_state = (
+        pedestal_transition_state.PedestalTransitionState.empty_L_mode()
+    )
+
+    built_ibc = builder.build_internal_boundary_conditions(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        pedestal_transition_state=l_mode_state,
+        internal_boundary_condition_model=models.internal_boundary_condition_model,
+    )
+    inboard_mask = geo.rho_norm <= 0.3
+    self.assertTrue(jnp.any(built_ibc.T_e[inboard_mask] == 10.0))
 
 
 if __name__ == '__main__':

@@ -807,6 +807,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "mode": "ADAPTIVE_TRANSPORT",
     }
     config_dict["profile_conditions"]["internal_boundary_conditions"] = {
+        "model_name": "prescribed",
         "T_e": {0.0: {(0.8, 1.0): 10.0}},
     }
     with self.assertRaisesRegex(

@@ -30,6 +30,7 @@ CONFIG = {
         'normalize_n_e_to_nbar': True,
         'nbar': 0.33820425407e20,  # fGW=0.85 for Ip(t=0)
         'internal_boundary_conditions': {
+            'model_name': 'prescribed',
             'T_e': {
                 0.0: {(0.8, 1.0): {0.8: 2.0, 1.0: 1.0}},
                 4.0: {(0.8, 1.0): {0.8: 4.0, 1.0: 1.0}},
