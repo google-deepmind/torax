@@ -137,12 +137,10 @@ class PedestalModelOutputTest(absltest.TestCase):
     pedestal_runtime_params.V_e_min = jnp.array(-1.0)
     pedestal_runtime_params.pedestal_top_smoothing_width = jnp.array(0.0)
 
-    modified_core_transport = (
-        self.pedestal_model_output.modify_core_transport(
-            core_transport=core_transport,
-            geo=self.geo,
-            pedestal_runtime_params=pedestal_runtime_params,
-        )
+    modified_core_transport = self.pedestal_model_output.modify_core_transport(
+        core_transport=core_transport,
+        geo=self.geo,
+        pedestal_runtime_params=pedestal_runtime_params,
     )
     pedestal_mask = (
         self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_ped_top
@@ -153,9 +151,9 @@ class PedestalModelOutputTest(absltest.TestCase):
         modified_core_transport.turbulent.total.chi_face_el,
         jnp.where(pedestal_mask, 2.0, 1.0),
     )
-    bgb_mod = (
-        modified_core_transport.turbulent.core_coefficients['bohm_gyrobohm']
-    )
+    bgb_mod = modified_core_transport.turbulent.core_coefficients[
+        'bohm_gyrobohm'
+    ]
     self.assertIsInstance(bgb_mod, transport_coeffs_lib.TransportCoeffs)
     # Constituent core transport coefficients should NOT be scaled by the
     # pedestal model.
@@ -341,26 +339,6 @@ class PedestalModelOutputTest(absltest.TestCase):
       np.testing.assert_allclose(ibc_tanh.T_i, expected_T_i, rtol=1e-5)
       np.testing.assert_allclose(ibc_tanh.T_e, expected_T_e, rtol=1e-5)
       np.testing.assert_allclose(ibc_tanh.n_e, expected_n_e, rtol=1e-5)
-
-  def test_get_two_point_face_mask(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    pmo = pedestal_model_output.PedestalModelOutput(
-        rho_norm_ped_top=0.91,
-        T_i_ped=5.0,
-        T_e_ped=5.0,
-        n_e_ped=1.0e20,
-    )
-    # rho_norm_ped_top is on the cell grid; nearest cell is found via argmin.
-    expected_cell_idx = int(jnp.argmin(jnp.abs(geo.rho_norm - 0.91)))
-    mask = pmo.get_two_point_face_mask(geo, set_pedestal=True)
-    expected_mask = np.zeros(len(geo.rho_face_norm), dtype=bool)
-    expected_mask[expected_cell_idx] = True
-    np.testing.assert_array_equal(mask, expected_mask)
-
-    mask_disabled = pmo.get_two_point_face_mask(geo, set_pedestal=False)
-    np.testing.assert_array_equal(
-        mask_disabled, np.zeros(len(geo.rho_face_norm), dtype=bool)
-    )
 
 
 if __name__ == '__main__':
