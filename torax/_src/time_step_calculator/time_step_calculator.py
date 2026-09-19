@@ -65,6 +65,8 @@ class TimeStepCalculator(abc.ABC):
   def is_done(
       self, t: float | jax.Array, t_final: float, tolerance: float
   ) -> bool | jax.Array:
+    if not isinstance(t, jax.core.Tracer):
+      return float(t) >= (t_final - tolerance)
     return t >= (t_final - tolerance)
 
   @jax.jit(
