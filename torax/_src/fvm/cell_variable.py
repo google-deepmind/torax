@@ -36,6 +36,31 @@ def _zero() -> array_typing.FloatScalar:
 
 
 @jax.jit
+def _gradient_3point(
+    d: tuple[
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
+    ],
+    v: tuple[
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
+    ],
+) -> array_typing.Array:
+  """Computes 2nd-order 3-point Lagrange interpolation derivative weights."""
+  d1, d2, d3 = d
+  v1, v2, v3 = v
+  c1 = (d2 + d3) / (-1 * d1**2 + d1 * d2 + d1 * d3 - d2 * d3)
+  # c2 = (-d1 - d3) / (-1*d1*d2 + d1*d3 + d2**2 - d2*d3)
+  c3 = (-d1 - d2) / (d1 * d2 - d1 * d3 - d2 * d3 + d3**2)
+  # We use c1*(v1-v2) + c3*(v3-v2) instead of c1*v1 + c2*v2 + c3*v3
+  # because c1+c2+c3 = 0 analytically, but not numerically.
+  # By using differences we ensure that if v1=v2=v3, the result is exactly 0.
+  return c1 * (v1 - v2) + c3 * (v3 - v2)
+
+
+@jax.jit
 def _compute_inner_grad(
     value: array_typing.FloatVectorCell,
     value_right_face: array_typing.FloatScalar,
@@ -67,38 +92,17 @@ def _compute_inner_grad(
       faces should use a 2-point central difference instead of the default
       3-point stencil. Only internal points are considered, since edge gradients
       are determined by boundary conditions.
+
+  Returns:
+    Gradient array on inner faces.
   """
-
-  @jax.jit
-  def gradient(
-      d: tuple[
-          array_typing.Array,
-          array_typing.Array,
-          array_typing.Array,
-      ],
-      v: tuple[
-          array_typing.Array,
-          array_typing.Array,
-          array_typing.Array,
-      ],
-  ) -> array_typing.Array:
-    d1, d2, d3 = d
-    v1, v2, v3 = v
-    c1 = (d2 + d3) / (-1 * d1**2 + d1 * d2 + d1 * d3 - d2 * d3)
-    # c2 = (-d1 - d3) / (-1*d1*d2 + d1*d3 + d2**2 - d2*d3)
-    c3 = (-d1 - d2) / (d1 * d2 - d1 * d3 - d2 * d3 + d3**2)
-    # We use c1*(v1-v2) + c3*(v3-v2) instead of c1*v1 + c2*v2 + c3*v3
-    # because c1+c2+c3 = 0 analytically, but not numerically.
-    # By using differences we ensure that if v1=v2=v3, the result is exactly 0.
-    return c1 * (v1 - v2) + c3 * (v3 - v2)
-
   d_left = cell_centers[:-2] - face_centers[1:-2]
   d_right = cell_centers[1:-1] - face_centers[1:-2]
   d_right_right = cell_centers[2:] - face_centers[1:-2]
   left = value[:-2]
   right = value[1:-1]
   right_right = value[2:]
-  inner_grads = gradient(
+  inner_grads = _gradient_3point(
       (d_left, d_right, d_right_right), (left, right, right_right)
   )
 
@@ -108,7 +112,7 @@ def _compute_inner_grad(
   d_left = cell_centers[-2] - face_centers[-2]
   d_right = cell_centers[-1] - face_centers[-2]
   d_right_right = face_centers[-1] - face_centers[-2]
-  penultimate_grad = gradient(
+  penultimate_grad = _gradient_3point(
       (d_left, d_right, d_right_right),
       (penultimate_left, penultimate_right, penultimate_right_right),
   )
@@ -181,12 +185,12 @@ class CellVariable:
     """Locations of the cell centers."""
     return (self.face_centers[..., 1:] + self.face_centers[..., :-1]) / 2.0
 
-  @property
+  @functools.cached_property
   def cell_widths(self) -> jt.Float[array_typing.Array, 'cell']:
     """Size of each cell."""
     return jnp.diff(self.face_centers)
 
-  @property
+  @functools.cached_property
   def cell_spacings(self) -> jt.Float[array_typing.Array, 'cell-1']:
     """Spacing between each cell."""
     return jnp.diff(self.cell_centers)
@@ -220,6 +224,62 @@ class CellVariable:
           'Exactly one of right_face_constraint and '
           'right_face_grad_constraint must be set.'
       )
+
+  @functools.cached_property
+  def _cached_face_grad(self) -> jt.Float[array_typing.Array, 'face']:
+    """Cached default face gradient (when x and two_point_mask are None)."""
+    return self._compute_face_grad(
+        x=None, x_left=None, x_right=None, two_point_mask=None
+    )
+
+  def _compute_face_grad(
+      self,
+      *,
+      x: jt.Float[array_typing.Array, 'cell'] | None = None,
+      x_left: array_typing.FloatScalar | None = None,
+      x_right: array_typing.FloatScalar | None = None,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
+  ) -> jt.Float[array_typing.Array, 'face']:
+    """Computes face gradient for general or default coordinate grid."""
+    inner_grad = _compute_inner_grad(
+        self.value,
+        self.right_face_value,
+        self.face_centers,
+        self.cell_centers,
+        two_point_mask=two_point_mask,
+    )
+    if x is not None:
+      if x_left is None or x_right is None:
+        raise ValueError('Must specify both x_left and x_right with x.')
+      dx_dcell = _compute_inner_grad(
+          x,
+          jnp.atleast_1d(x_right),
+          self.face_centers,
+          self.cell_centers,
+          two_point_mask=two_point_mask,
+      )
+      inner_grad = inner_grad / dx_dcell
+      d_left = x[0] - x_left
+      d_right = x_right - x[-1]
+    else:
+      d_left = self.cell_widths[0] / 2.0
+      d_right = self.cell_widths[-1] / 2.0
+
+    if self.left_face_constraint is not None:
+      left_grad = (self.value[0] - self.left_face_constraint) / d_left
+    else:
+      assert self.left_face_grad_constraint is not None
+      left_grad = self.left_face_grad_constraint
+
+    if self.right_face_constraint is not None:
+      right_grad = (self.right_face_constraint - self.value[-1]) / d_right
+    else:
+      assert self.right_face_grad_constraint is not None
+      right_grad = self.right_face_grad_constraint
+
+    left = jnp.expand_dims(left_grad, axis=0)
+    right = jnp.expand_dims(right_grad, axis=0)
+    return jnp.concatenate([left, inner_grad, right])
 
   def face_grad(
       self,
@@ -255,48 +315,11 @@ class CellVariable:
     Returns:
       A jax.Array of shape (num_faces,) containing the gradient.
     """
-    inner_grad = _compute_inner_grad(
-        self.value,
-        self.right_face_value,
-        self.face_centers,
-        self.cell_centers,
-        two_point_mask=two_point_mask,
+    if x is None and two_point_mask is None:
+      return self._cached_face_grad
+    return self._compute_face_grad(
+        x=x, x_left=x_left, x_right=x_right, two_point_mask=two_point_mask
     )
-    # If we are differentiating w.r.t another variable x, we apply the chain
-    # rule and effectively weight the computed gradient by dx_dcell.
-    if x is not None:
-      if x_left is None or x_right is None:
-        raise ValueError('Must specify both x_left and x_right with x.')
-      dx_dcell = _compute_inner_grad(
-          x,
-          jnp.atleast_1d(x_right),
-          self.face_centers,
-          self.cell_centers,
-          two_point_mask=two_point_mask,
-      )
-      # dval_dx = dval_dcell / dx_dcell
-      inner_grad = inner_grad / dx_dcell
-      d_left = x[0] - x_left
-      d_right = x_right - x[-1]
-    else:
-      d_left = self.cell_widths[0] / 2.0
-      d_right = self.cell_widths[-1] / 2.0
-
-    if self.left_face_constraint is not None:
-      left_grad = (self.value[0] - self.left_face_constraint) / d_left
-    else:
-      assert self.left_face_grad_constraint is not None
-      left_grad = self.left_face_grad_constraint
-
-    if self.right_face_constraint is not None:
-      right_grad = (self.right_face_constraint - self.value[-1]) / d_right
-    else:
-      assert self.right_face_grad_constraint is not None
-      right_grad = self.right_face_grad_constraint
-
-    left = jnp.expand_dims(left_grad, axis=0)
-    right = jnp.expand_dims(right_grad, axis=0)
-    return jnp.concatenate([left, inner_grad, right])
 
   @functools.cached_property
   def left_face_value(self) -> jt.Float[array_typing.Array, '... 1']:
@@ -340,22 +363,30 @@ class CellVariable:
         + grad * dr / 2.0
     )
 
-  def face_value(self) -> jt.Float[array_typing.Array, 'face']:
-    """Calculates values of this variable on the face grid."""
+  @functools.cached_property
+  def _cached_face_value(self) -> jt.Float[array_typing.Array, 'face']:
+    """Cached values of this variable on the face grid."""
     inner = math_utils.inner_face_values_from_cell_values(
         cell_values=self.value,
         face_centers=self.face_centers,
         cell_centers=self.cell_centers,
     )
-
     return jnp.concatenate(
         [self.left_face_value, inner, self.right_face_value], axis=-1
     )
 
+  def face_value(self) -> jt.Float[array_typing.Array, 'face']:
+    """Calculates values of this variable on the face grid."""
+    return self._cached_face_value
+
+  @functools.cached_property
+  def _cached_grad(self) -> jt.Float[array_typing.Array, 'cell']:
+    """Cached gradient of this variable wrt cell centers."""
+    return jnp.diff(self.face_value()) / self.cell_widths
+
   def grad(self) -> jt.Float[array_typing.Array, 'cell']:
     """Returns the gradient of this variable wrt cell centers."""
-    face = self.face_value()
-    return jnp.diff(face) / jnp.diff(self.face_centers)
+    return self._cached_grad
 
   def __str__(self) -> str:
     output_string = f'CellVariable(value={self.value}'
