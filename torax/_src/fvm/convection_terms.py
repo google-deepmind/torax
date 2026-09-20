@@ -63,16 +63,11 @@ def make_convection_terms(
     c: Vector of terms not dependent on u
   """
 
-  # Alpha weighting calculated using power law scheme described in
-  # https://www.ctcms.nist.gov/fipy/documentation/numerical/scheme.html
-
-  # Avoid divide by zero
   eps = 1e-20
   is_neg = d_face < 0.0
   nonzero_sign = jnp.ones_like(is_neg) - 2 * is_neg
   d_face = nonzero_sign * jnp.maximum(eps, jnp.abs(d_face))
 
-  # FiPy uses half mesh width at the boundaries
   half = jnp.array([0.5], dtype=jax_utils.get_dtype())
   ones = jnp.ones_like(v_face[1:-1])
   scale = jnp.concatenate((half, ones, half))
@@ -91,26 +86,18 @@ def make_convection_terms(
   right_peclet = ratio[1:]
 
   def peclet_to_alpha(p):
+    # Patankar's power-law formulation using a single evaluation of
+    # A(|p|) = max(0, 1 - 0.1 * |p|)^5 across all four Péclet regimes
+    # (p > 10, 0 < p <= 10, -10 <= p < 0, and p < -10).
+    # Reference: S. V. Patankar, "Numerical Heat Transfer and Fluid Flow",
+    # (1980), Section 5.2-6 ("The Power-Law Scheme"),
+
     eps = 1e-3
-    p = jnp.where(jnp.abs(p) < eps, eps, p)
-
-    alpha_pg10 = (p - 1) / p
-    alpha_p0to10 = ((p - 1) + (1 - p / 10) ** 5) / p
-    # FiPy doc has a typo on the next line, where we use a + the doc has a
-    # -, which is clearly a mistake since it makes the function
-    # discontinuous and negative
-    alpha_pneg10to0 = ((1 + p / 10) ** 5 - 1) / p
-    alpha_plneg10 = -1 / p
-
-    alpha = 0.5 * jnp.ones_like(p)
-    alpha = jnp.where(p > 10.0, alpha_pg10, alpha)
-    alpha = jnp.where(jnp.logical_and(10.0 >= p, p > eps), alpha_p0to10, alpha)
-    alpha = jnp.where(
-        jnp.logical_and(-eps > p, p >= -10), alpha_pneg10to0, alpha
-    )
-    alpha = jnp.where(p < -10.0, alpha_plneg10, alpha)
-
-    return alpha
+    abs_p = jnp.abs(p)
+    safe_p = jnp.where(abs_p < eps, eps, p)
+    power_term = jnp.maximum(0.0, 1.0 - 0.1 * abs_p) ** 5
+    num = jnp.where(p > 0.0, (safe_p - 1.0) + power_term, power_term - 1.0)
+    return jnp.where(abs_p <= eps, 0.5, num / safe_p)
 
   left_alpha = peclet_to_alpha(left_peclet)
   right_alpha = peclet_to_alpha(right_peclet)

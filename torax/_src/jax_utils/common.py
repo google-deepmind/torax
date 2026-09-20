@@ -108,14 +108,15 @@ def enable_errors(value: bool):
 
 def error_if(
     var: jax.Array,
-    cond: jax.Array,
+    cond: jax.Array | Callable[[], jax.Array],
     msg: str,
 ) -> jax.Array:
   """Raises error if cond is true, and `errors_enabled` is True.
 
   Args:
     var: The variable to pass through.
-    cond: Boolean array, error if cond is true.
+    cond: Boolean array or zero-arg callable returning boolean array, error if
+      cond is true.
     msg: Message to print on error.
 
   Returns:
@@ -123,6 +124,8 @@ def error_if(
   """
   if not _ERRORS_ENABLED:
     return var
+  if callable(cond):
+    cond = cond()
 
   def _check(cond_val):
     if cond_val:
