@@ -141,6 +141,7 @@ def theta_method_matrix_equation(
   eps = 1e-7
   # adding sanity checks for values in denominators
   # TODO(b/326577625) remove abs in checks once x_new range is restricted
+  tc_prod_new = tc_out_new * tc_in_new
   tc_in_new = jax_utils.error_if(
       tc_in_new,
       jnp.any(jnp.abs(tc_in_new) < eps),
@@ -148,11 +149,11 @@ def theta_method_matrix_equation(
   )
   tc_in_new = jax_utils.error_if(
       tc_in_new,
-      jnp.any(jnp.abs(tc_out_new * tc_in_new) < eps),
+      jnp.any(jnp.abs(tc_prod_new) < eps),
       msg='|tc_out_new*tc_in_new| unexpectedly < eps',
   )
 
-  scale_new = dt * theta_implicit / (tc_out_new * tc_in_new)
+  scale_new = dt * theta_implicit / tc_prod_new
 
   c_new_matrix, c_new_forcing = discrete_system.calc_c(
       x_new_guess,
@@ -164,9 +165,8 @@ def theta_method_matrix_equation(
   # Compute LHS = I - scale_new * C_new directly, avoiding intermediate
   # BlockTriDiagonal objects. The transient part (I) only contributes to the
   # diagonal, so off-diagonal blocks are just -scale * C_new.
-  ch_idx = jnp.arange(len(x_old))
-  lhs_diag = -scale_new[:, :, None] * c_new_matrix.diagonal
-  lhs_diag = lhs_diag.at[:, ch_idx, ch_idx].add(1.0)
+  eye = jnp.eye(len(x_old), dtype=scale_new.dtype)
+  lhs_diag = eye - scale_new[:, :, None] * c_new_matrix.diagonal
   lhs_matrix = tridiagonal.BlockTriDiagonal(
       lower=-scale_new[1:, :, None] * c_new_matrix.lower,
       diagonal=lhs_diag,
@@ -192,8 +192,10 @@ def theta_method_matrix_equation(
 
     # Compute RHS = diag(tc_in_old/tc_in_new) + scale_old * C_old directly.
     # The transient part only contributes to the diagonal.
-    rhs_diag = scale_old[:, :, None] * c_old_matrix.diagonal
-    rhs_diag = rhs_diag.at[:, ch_idx, ch_idx].add((tc_in_old / tc_in_new))
+    rhs_diag = (
+        scale_old[:, :, None] * c_old_matrix.diagonal
+        + (tc_in_old / tc_in_new)[..., None, :] * eye
+    )
     rhs_matrix = tridiagonal.BlockTriDiagonal(
         lower=scale_old[1:, :, None] * c_old_matrix.lower,
         diagonal=rhs_diag,
