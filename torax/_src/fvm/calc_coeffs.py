@@ -212,6 +212,7 @@ def calc_coeffs(
     static_argnames=[
         'models',
         'evolving_names',
+        'use_pereverzev',
     ],
 )
 def _calc_coeffs_full(
