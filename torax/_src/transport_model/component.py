@@ -29,8 +29,6 @@ from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
 
@@ -120,42 +118,25 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
     )
 
 
-def compute_core_domain_mask(
+def compute_radial_range_mask(
     transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
-    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
-  """Calculates the active domain mask for core transport models.
+  """Calculates the active radial domain mask [rho_min, rho_max] for a model.
 
   Args:
     transport_runtime_params: Runtime parameters for the transport model.
-    runtime_params: Runtime parameters for the simulation.
     geo: Geometry of the torus.
-    pedestal_model_output: Output of the pedestal model.
 
   Returns:
-    active_mask: A boolean array indicating the active domain.
+    active_mask: A boolean array indicating the active radial range.
   """
-  # Active range is rho_min < rho <= rho_max
-  # (AND rho <= rho_norm_ped_top, if pedestal is in INTERNAL_BOUNDARY_CONDITION
-  # mode)
+  # Active range is rho_min < rho <= rho_max.
   active_mask = (geo.rho_face_norm > transport_runtime_params.rho_min) & (
       geo.rho_face_norm <= transport_runtime_params.rho_max
   )
-  if (
-      runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
-  ):
-    active_mask = active_mask & (
-        jnp.logical_not(runtime_params.pedestal.set_pedestal)
-        | (geo.rho_face_norm < pedestal_model_output.rho_norm_ped_top)
-    )
-
   # Special case: if rho_min is 0, lower bound of active range is the first
   # grid point.
-  active_mask = (
-      jnp.asarray(active_mask).at[0].set(transport_runtime_params.rho_min == 0)
+  return jnp.asarray(active_mask).at[0].set(
+      transport_runtime_params.rho_min == 0
   )
-  return active_mask
-
