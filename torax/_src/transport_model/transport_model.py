@@ -19,7 +19,7 @@ regions.
 """
 
 import dataclasses
-from typing import Callable, Mapping
+from typing import Mapping
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -29,7 +29,7 @@ from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import component
 from torax._src.transport_model import enums
@@ -51,7 +51,9 @@ class TransportModel(static_dataclass.StaticDataclass):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TurbulentTransport:
     r"""Calculates transport coefficients using the TransportModel.
@@ -63,59 +65,100 @@ class TransportModel(static_dataclass.StaticDataclass):
       runtime_params: Runtime parameters for the simulation at the current time.
       geo: Geometry of the torus at the current time.
       core_profiles: Core plasma profiles at the current time.
-      pedestal_model_output: Outputs from the pedestal model.
+      pedestal_transition_state: State of pedestal L-H transitions.
       two_point_mask: Boolean mask indicating the two-point model region.
 
     Returns:
       TurbulentTransport containing the combined 4-channel coefficients and
       individual model outputs.
     """
-    # Combine core transport models.
-    core_combined, core_coefficients = self._combine(
+    pedestal_active = _is_pedestal_active(
+        runtime_params, pedestal_transition_state
+    )
+    pedestal_mask = jnp.asarray(
+        pedestal_active
+        & (
+            geo.rho_face_norm
+            >= pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
+        )
+    )
+    is_ibc = (
+        runtime_params.pedestal.mode
+        == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+    )
+    core_domain_mask = (
+        ~pedestal_mask
+        if is_ibc
+        else jnp.ones_like(geo.rho_face_norm, dtype=bool)
+    )
+
+    core_coeffs, core_coefficients = self._compute_domain_coeffs(
         self.core_transport_models,
         runtime_params.transport.core_transport_model_params,
         runtime_params,
         geo,
         core_profiles,
-        pedestal_model_output,
+        pedestal_transition_state,
         two_point_mask,
-        domain_mask_fn=component.compute_core_domain_mask,
+        domain_mask=core_domain_mask,
     )
-
-    # Combine pedestal transport models.
-    pedestal_combined, pedestal_coefficients = self._combine(
+    pedestal_coeffs, pedestal_coefficients = self._compute_domain_coeffs(
         self.pedestal_transport_models,
         runtime_params.transport.pedestal_transport_model_params,
         runtime_params,
         geo,
         core_profiles,
-        pedestal_model_output,
+        pedestal_transition_state,
         two_point_mask,
-        domain_mask_fn=_pedestal_domain_mask,
-    )
-
-    # Merge core and pedestal transport coefficients.
-    raw_combined = core_combined + pedestal_combined
-
-    # Apply clipping.
-    clipped_coeffs = self._apply_clipping(
-        runtime_params.transport,
-        raw_combined,
-    )
-
-    # Apply smoothing.
-    total_coeffs = self._smooth_coeffs(
-        runtime_params,
-        geo,
-        clipped_coeffs,
-        pedestal_model_output,
+        domain_mask=pedestal_mask,
     )
 
     return transport_coeffs.TurbulentTransport(
-        total=total_coeffs,
+        core=core_coeffs,
+        pedestal=pedestal_coeffs,
         core_coefficients=core_coefficients,
         pedestal_coefficients=pedestal_coefficients,
     )
+
+  def _compute_domain_coeffs(
+      self,
+      models: Mapping[str, component.ComponentTransportModel],
+      params_map: Mapping[
+          str, transport_runtime_params_lib.ComponentRuntimeParams
+      ],
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
+      two_point_mask: array_typing.BoolVectorFace,
+      domain_mask: jax.Array,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      dict[str, transport_coeffs.TransportCoeffs],
+  ]:
+    """Combines, clips, masks, and smooths transport models for a domain."""
+    combined, model_outputs = self._combine(
+        models,
+        params_map,
+        runtime_params,
+        geo,
+        core_profiles,
+        two_point_mask,
+    )
+    clipped = self._apply_clipping(runtime_params.transport, combined)
+    masked = jax.tree.map(
+        lambda x: jnp.where(domain_mask, x, 0.0),
+        clipped,
+    )
+    smoothed = self._smooth_coeffs(
+        runtime_params,
+        geo,
+        masked,
+        pedestal_transition_state,
+    )
+    return smoothed, model_outputs
 
   def _combine(
       self,
@@ -126,17 +169,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
-      domain_mask_fn: Callable[
-          [
-              transport_runtime_params_lib.ComponentRuntimeParams,
-              runtime_params_lib.RuntimeParams,
-              geometry.Geometry,
-              pedestal_model_output_lib.PedestalModelOutput,
-          ],
-          jax.Array,
-      ],
   ) -> tuple[
       transport_coeffs.TransportCoeffs,
       dict[str, transport_coeffs.TransportCoeffs],
@@ -169,10 +202,7 @@ class TransportModel(static_dataclass.StaticDataclass):
           two_point_mask=two_point_mask,
       )
 
-      # Calculate active domain mask. Values outside this are set to 0.
-      domain_mask = domain_mask_fn(
-          params, runtime_params, geo, pedestal_model_output
-      )
+      radial_range_mask = component.compute_radial_range_mask(params, geo)
 
       model_outputs[name] = coeffs
 
@@ -186,7 +216,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       for channel, is_disabled in channels_and_flags:
         # A channel is active for this model if it's in the domain AND enabled.
         channel_active = jnp.logical_and(
-            domain_mask, jnp.logical_not(is_disabled)
+            radial_range_mask, jnp.logical_not(is_disabled)
         )
 
         val = getattr(coeffs, channel)
@@ -243,14 +273,16 @@ class TransportModel(static_dataclass.StaticDataclass):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       input_coeffs: transport_coeffs.TransportCoeffs,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
   ) -> transport_coeffs.TransportCoeffs:
     """Gaussian smoothing of turbulent transport coefficients."""
     smoothing_matrix = _build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
         geo,
-        pedestal_model_output,
+        pedestal_transition_state,
     )
 
     # Iterate over fields of the CoreTransport dataclass.
@@ -265,23 +297,33 @@ class TransportModel(static_dataclass.StaticDataclass):
     return jax.tree.map(smooth_single_coeff, input_coeffs)
 
 
-def _pedestal_domain_mask(
-    unused_transport_runtime_params: (
-        transport_runtime_params_lib.ComponentRuntimeParams
+def _is_pedestal_active(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
     ),
-    unused_runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    pedestal_output: pedestal_model_output_lib.PedestalModelOutput,
-) -> jax.Array:
-  """Calculates the active domain mask for pedestal transport models."""
-  return jnp.asarray(geo.rho_face_norm >= pedestal_output.rho_norm_ped_top)
+) -> array_typing.BoolScalar:
+  """Returns whether the pedestal model is active for transport masking."""
+  if (
+      runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
+  ):
+    return jnp.asarray(
+        runtime_params.pedestal.set_pedestal
+        & (
+            pedestal_transition_state.confinement_mode
+            != pedestal_transition_state_lib.ConfinementMode.L_MODE
+        )
+    )
+  return jnp.asarray(runtime_params.pedestal.set_pedestal)
 
 
 def _build_smoothing_matrix(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
 ) -> jax.Array:
   """Builds a smoothing matrix for the transport model."""
   # To reduce the range of the convolution, weights under lower_cutoff are
@@ -324,16 +366,22 @@ def _build_smoothing_matrix(
       == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
   )
   if is_internal_boundary_condition:
+    rho_norm_ped_top = (
+        pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
+    )
 
     def apply_pedestal_mask(profile):
       return jnp.where(
-          geo.rho_face_norm < pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm < rho_norm_ped_top,
           profile,
           0.0,
       )
 
+    pedestal_active = _is_pedestal_active(
+        runtime_params, pedestal_transition_state
+    )
     smoothing_width_profile = jax.lax.cond(
-        runtime_params.pedestal.set_pedestal,
+        pedestal_active,
         apply_pedestal_mask,
         lambda p: p,
         smoothing_width_profile,

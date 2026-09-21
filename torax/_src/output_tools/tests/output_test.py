@@ -36,6 +36,7 @@ from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import jax_root_finding
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
@@ -117,7 +118,8 @@ class StateHistoryTest(parameterized.TestCase):
     self.core_transport = state.CoreTransport(
         total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
         turbulent=transport_coeffs_lib.TurbulentTransport(
-            total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+            core=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+            pedestal=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
             core_coefficients={
                 'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
                     self.geo
@@ -153,6 +155,7 @@ class StateHistoryTest(parameterized.TestCase):
         time_step_calculator_state=(
             models.time_step_calculator.initial_state(runtime_params)
         ),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     sim_error = state.SimError.NO_ERROR
     previous_post_processed_outputs = (
