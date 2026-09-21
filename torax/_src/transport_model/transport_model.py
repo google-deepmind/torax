@@ -256,10 +256,10 @@ class TransportModel(static_dataclass.StaticDataclass):
     # Iterate over fields of the CoreTransport dataclass.
     # Ignore optional fields that are made all zero in post_init.
     def smooth_single_coeff(coeff):
-      return jax.lax.cond(
+      return jnp.where(
           jnp.all(coeff == 0.0),
-          lambda: coeff,
-          lambda: jnp.dot(smoothing_matrix, coeff),
+          coeff,
+          jnp.dot(smoothing_matrix, coeff),
       )
 
     return jax.tree.map(smooth_single_coeff, input_coeffs)
@@ -349,14 +349,8 @@ def _build_smoothing_matrix(
   # Derives a binary active mask vector directly from smoothing_width_profile.
   mask = jnp.where(smoothing_width_profile > MIN_SMOOTHING_WIDTH, 1.0, 0.0)
 
-  # Zero out rows (destinations) that should not be smoothed
-  diag_mask = jnp.diag(mask)
-  kernel = jnp.dot(diag_mask, kernel)
-
-  # Zero out columns (sources) that should not contribute to smoothing
-  num_rows = len(mask)
-  mask_mat = jnp.tile(mask, (num_rows, 1))
-  kernel *= mask_mat
+  # Zero out rows (destinations) and columns (sources) outside active mask
+  kernel = kernel * mask[:, jnp.newaxis] * mask[jnp.newaxis, :]
 
   # Restore identity to the zero rows (so smoothing is a no-op there)
   zero_row_mask = jnp.all(kernel == 0, axis=1)

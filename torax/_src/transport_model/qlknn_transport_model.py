@@ -106,14 +106,14 @@ def _filter_model_output(
       'qe_etg': include_ETG,
   }
 
-  def filter_flux(flux_name: str, value: jax.Array) -> jax.Array:
-    return jax.lax.cond(
-        filter_map.get(flux_name, True),
-        lambda: value,
-        lambda: jnp.zeros_like(value),
-    )
-
-  return {k: filter_flux(k, v) for k, v in model_output.items()}
+  return {
+      k: (
+          jnp.where(filter_map[k], v, jnp.zeros_like(v))
+          if k in filter_map
+          else v
+      )
+      for k, v in model_output.items()
+  }
 
 
 def clip_inputs(
