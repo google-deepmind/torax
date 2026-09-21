@@ -208,19 +208,17 @@ def _calculate_angioni_sauter_transport(
       core_profiles.n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
       core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
   )
-
-  # Equation 18c from Sauter PoP 1999
-  nu_i_star = (
-      4.9e-18
-      * core_profiles.q_face
-      * geometry.R_major_profile_face
-      * core_profiles.n_i.face_value()
-      * core_profiles.Z_i_face**4
-      * log_lambda_ii
-      / (
-          (core_profiles.T_i.face_value() * 1e3) ** 2
-          * (geometry.epsilon_face + constants.CONSTANTS.eps) ** 1.5
-      )
+  dens_sum_face = formulas.calculate_ion_density_sum_face(
+      core_profiles.n_i,
+      core_profiles.n_impurity_thermal,
+  )
+  nu_i_star = formulas.calculate_nu_i_star(
+      q=core_profiles.q_face,
+      geo=geometry,
+      n_i=dens_sum_face,
+      T_i=core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      Z_i=core_profiles.Z_i_face,
+      log_lambda_ii=log_lambda_ii,
   )
 
   # Impurity strength parameter

@@ -40,7 +40,6 @@ class RotationTest(absltest.TestCase):
         ),
         n_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
         q_face=np.ones_like(self.geo.rho_face_norm),
-        Z_eff_face=np.ones_like(self.geo.rho_face_norm),
         Z_i_face=np.ones_like(self.geo.rho_face_norm),
         toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.0

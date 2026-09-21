@@ -100,21 +100,22 @@ def calculate_nu_i_star(
     geo: geometry_lib.Geometry,
     n_i: array_typing.FloatVectorFace,
     T_i: array_typing.FloatVectorFace,
-    Z_eff: array_typing.FloatVectorFace,
+    Z_i: array_typing.FloatVectorFace,
     log_lambda_ii: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorFace:
   """Calculates the ion collisionality, nu_i_star.
 
-  This is the ion collisionality, defined as the ratio of the ion
-  collision frequency to the bounce frequency. From Sauter PoP 1999 Eq. (18c).
+  Sauter PoP 1999 Eq. (18c), with Z = Z_i (main-ion charge), not Z_eff.
 
   Args:
     q: Safety factor.
     geo: The geometry of the torus.
-    n_i: Ion density.
-    T_i: Ion temperature.
-    Z_eff: Effective charge.
-    log_lambda_ii: Ion-ion Coulomb logarithm.
+    n_i: Density in Sauter Eq. (18c) [m^-3]. Use
+      ``calculate_ion_density_sum_face`` for bootstrap and Angioni-Sauter;
+      main-ion density for single-fluid uses (e.g. poloidal velocity).
+    T_i: Ion temperature [keV].
+    Z_i: Main ion charge.
+    log_lambda_ii: Ion-ion Coulomb logarithm (Sauter Eq. 18e, also uses Z_i).
 
   Returns:
     The ion collisionality.
@@ -124,13 +125,31 @@ def calculate_nu_i_star(
       * q
       * geo.R_major_profile_face
       * n_i
-      * Z_eff**4
+      * Z_i**4
       * log_lambda_ii
       / (
           ((T_i * 1e3) ** 2)
           * (geo.epsilon_face + constants.CONSTANTS.eps) ** 1.5
       )
   )
+
+
+def calculate_ion_density_sum_face(
+    n_i: cell_variable.CellVariable,
+    n_impurity_thermal: cell_variable.CellVariable,
+) -> array_typing.FloatVectorFace:
+  """Face dens_sum: thermal main-ion plus impurity density [m^-3].
+
+  Fast ions are excluded via ``n_impurity_thermal``.
+
+  Args:
+    n_i: Bundled main-ion density.
+    n_impurity_thermal: Thermal impurity density (fast ions subtracted).
+
+  Returns:
+    Sum of thermal ion and impurity densities on the face grid.
+  """
+  return n_i.face_value() + n_impurity_thermal.face_value()
 
 
 # Functions to calculate the neoclassical poloidal velocity.
@@ -182,7 +201,6 @@ def calculate_poloidal_velocity(
     T_i: cell_variable.CellVariable,
     n_i: array_typing.FloatVectorFace,
     q: array_typing.FloatVectorFace,
-    Z_eff: array_typing.FloatVectorFace,
     Z_i: array_typing.FloatVectorFace,
     B_tor: array_typing.FloatVectorFace,
     B_total_squared: array_typing.FloatVectorFace,
@@ -204,7 +222,6 @@ def calculate_poloidal_velocity(
     T_i: Ion temperature as a cell variable [keV].
     n_i: Ion density on the face grid [m^-3].
     q: Safety factor on the face grid.
-    Z_eff: Effective charge on the face grid.
     Z_i: Main ion charge on the face grid.
     B_tor: Toroidal magnetic field on the face grid [T].
     B_total_squared: Total magnetic field (toroidal + poloidal) on the face grid
@@ -225,14 +242,14 @@ def calculate_poloidal_velocity(
   log_lambda_ii = collisions.calculate_log_lambda_ii(
       T_i_face,  # pyrefly: ignore[bad-argument-type]
       n_i,  # pyrefly: ignore[bad-argument-type]
-      Z_eff,  # pyrefly: ignore[bad-argument-type]
+      Z_i,  # pyrefly: ignore[bad-argument-type]
   )
   nu_i_star = calculate_nu_i_star(
       q=q,
       geo=geo,
       n_i=n_i,
       T_i=T_i_face,  # pyrefly: ignore[bad-argument-type]
-      Z_eff=Z_eff,
+      Z_i=Z_i,
       log_lambda_ii=log_lambda_ii,
   )
   k_neo = _calculate_neoclassical_k_neo(nu_i_star, epsilon)

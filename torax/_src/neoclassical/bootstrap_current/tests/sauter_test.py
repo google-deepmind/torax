@@ -58,6 +58,9 @@ class SauterTest(absltest.TestCase):
         n_i=cell_variable.CellVariable(
             value=np.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
         ),
+        n_impurity_thermal=cell_variable.CellVariable(
+            value=np.linspace(10, 20, n_rho), face_centers=geo.rho_face_norm
+        ),
         Z_i_face=np.linspace(1000, 2000, n_rho + 1),
         Z_eff_face=np.linspace(1.0, 1.0, n_rho + 1),
         q_face=np.linspace(1, 5, n_rho + 1),
