@@ -137,19 +137,24 @@ def calculate_nu_i_star(
 def calculate_ion_density_sum_face(
     n_i: cell_variable.CellVariable,
     n_impurity_thermal: cell_variable.CellVariable,
+    impurity_density_scaling_face: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorFace:
-  """Face dens_sum: thermal main-ion plus impurity density [m^-3].
-
-  Fast ions are excluded via ``n_impurity_thermal``.
+  """Face dens_sum: thermal main-ion plus impurity particle density [m^-3].
 
   Args:
     n_i: Bundled main-ion density.
-    n_impurity_thermal: Thermal impurity density (fast ions subtracted).
+    n_impurity_thermal: Effective thermal impurity density (fast ions
+      subtracted), as bundled with ``Z_impurity``.
+    impurity_density_scaling_face: ``n_imp_true / n_imp_eff`` on the face grid,
+      needed since Sauter Eq. (18c) sums particle densities.
 
   Returns:
     Sum of thermal ion and impurity densities on the face grid.
   """
-  return n_i.face_value() + n_impurity_thermal.face_value()
+  return (
+      n_i.face_value()
+      + n_impurity_thermal.face_value() * impurity_density_scaling_face
+  )
 
 
 # Functions to calculate the neoclassical poloidal velocity.

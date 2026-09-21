@@ -211,6 +211,7 @@ def _calculate_angioni_sauter_transport(
   dens_sum_face = formulas.calculate_ion_density_sum_face(
       core_profiles.n_i,
       core_profiles.n_impurity_thermal,
+      core_profiles.impurity_density_scaling_face,
   )
   nu_i_star = formulas.calculate_nu_i_star(
       q=core_profiles.q_face,
