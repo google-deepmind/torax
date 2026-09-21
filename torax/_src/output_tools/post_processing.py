@@ -444,8 +444,15 @@ class PostProcessedOutputs:
         first_step=jnp.array(True),
     )
 
+  @jax.jit
+  def has_nan(self) -> jax.Array:
+    """Returns a boolean JAX scalar indicating whether any leaf has NaNs."""
+    return jnp.any(
+        jnp.stack([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)])
+    )
+
   def check_for_errors(self):
-    if any([np.any(np.isnan(x)) for x in jax.tree.leaves(self)]):
+    if self.has_nan():
       path_vals, _ = jax.tree.flatten_with_path(self)
       for path, value in path_vals:
         if np.any(np.isnan(value)):

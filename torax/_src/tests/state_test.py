@@ -162,7 +162,8 @@ class CoreProfilesTemperatureCheckTest(parameterized.TestCase):
 
     result = core_profiles.below_minimum_temperature(threshold_ev)
 
-    self.assertIsInstance(result, bool)
+    self.assertIsInstance(result, jax.Array)
+    self.assertEqual(result.dtype, jnp.bool_)
     self.assertEqual(result, expected)
 
   def test_below_minimum_temperature_mixed_profile(self):
