@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "torax",
+  "project_id": "436bb148-9730-4982-b246-959fd6ea5c6d"
+}
