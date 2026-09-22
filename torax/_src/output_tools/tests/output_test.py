@@ -477,7 +477,8 @@ class StateHistoryTest(parameterized.TestCase):
         )
     )
 
-    output_xr, _ = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
+    output_xr = state_history.simulation_output_to_xr()
 
     self.assertIn(
         impurity_radiation.RADIATION_OUTPUT_NAME, output_xr.profiles.data_vars

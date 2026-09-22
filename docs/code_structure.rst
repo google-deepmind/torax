@@ -82,10 +82,10 @@ orchestration
 ^^^^^^^^^^^^^
 
 |torax.run_simulation| is the main entrypoint for running a TORAX simulation.
-It takes a |torax.ToraxConfig| and returns the ``xarray.DataTree`` of the
-simulation as described in :ref:`output`, as well as a |torax.StateHistory|
-object containing a sequence of simulation states per timestep in the form of
-internal TORAX data containers, which can be used for debugging.
+It takes a |torax.ToraxConfig| and returns a |torax.StateHistory| object
+containing a sequence of simulation states per timestep in the form of internal
+TORAX data containers. An ``xarray.DataTree`` can be obtained via
+``state_history.simulation_output_to_xr()`` as described in :ref:`output`.
 |torax.run_simulation| creates the various models, providers and initial state
 needed for the simulation and creates a ``StepFunction`` which steps the
 simulation over time.

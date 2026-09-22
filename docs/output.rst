@@ -9,9 +9,9 @@ TORAX file output can be written to a NetCDF file. If running with the
 flag (defaulting to ``/tmp/torax_results/``).
 
 When running TORAX programmatically via ``torax.run_simulation()``, outputs
-are returned directly in memory as an ``xarray.DataTree`` rather than written to
-disk automatically. To save them to disk at a specific path, use the
-``to_netcdf()`` method:
+are returned as a ``torax.StateHistory`` object. An ``xarray.DataTree`` can be
+obtained using ``state_history.simulation_output_to_xr()``. To save it to
+disk at a specific path, use the ``to_netcdf()`` method:
 
 .. code-block:: python
 
@@ -1011,6 +1011,6 @@ purposes or to rerun the simulation.
   # Check which transport model was used.
   print(config_dict['transport']['model_name'])
   # We can also use ToraxConfig to run the simulation again.
-  torax_config = torax.ToraxConfig.from_dict(config_dict)
-  new_output = torax.run_simulation(torax_config)
+  state_history = torax.run_simulation(torax_config)
+  new_output = state_history.simulation_output_to_xr()
 

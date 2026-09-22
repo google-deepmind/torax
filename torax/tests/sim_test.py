@@ -413,7 +413,7 @@ class SimTest(sim_test_case.SimTestCase):
         },
     })
 
-    _, history = run_simulation.run_simulation(torax_config, progress_bar=False)
+    history = run_simulation.run_simulation(torax_config, progress_bar=False)
 
     history_length = history._stacked_core_profiles.T_i.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
@@ -480,9 +480,10 @@ class SimTest(sim_test_case.SimTestCase):
     )
     torax_config.update_fields({'restart': file_restart})
 
-    output_xr, _ = run_simulation.run_simulation(
+    state_history = run_simulation.run_simulation(
         torax_config, progress_bar=False
     )
+    output_xr = state_history.simulation_output_to_xr()
     # Allow for small numerical differences due to NetCDF round-trip / restart
     # floating point precision.
     assert_allclose_fn = functools.partial(
@@ -506,7 +507,7 @@ class SimTest(sim_test_case.SimTestCase):
     # Run the first sim
     config_ip_bc = self._get_config_dict(test_config + '.py')
     torax_config = model_config.ToraxConfig.from_dict(config_ip_bc)
-    _, sim_outputs_ip_bc = run_simulation.run_simulation(torax_config)
+    sim_outputs_ip_bc = run_simulation.run_simulation(torax_config)
     middle_index = len(sim_outputs_ip_bc.times) // 2
     times = sim_outputs_ip_bc.times
 
@@ -520,7 +521,7 @@ class SimTest(sim_test_case.SimTestCase):
         sim_outputs_ip_bc._stacked_core_profiles.v_loop_lcfs,
     )
     torax_config = model_config.ToraxConfig.from_dict(config_v_loop_bc)
-    _, sim_outputs_v_loop_bc = run_simulation.run_simulation(torax_config)
+    sim_outputs_v_loop_bc = run_simulation.run_simulation(torax_config)
 
     profiles_to_check = (
         sim_outputs_v_loop_bc._stacked_core_profiles.T_i,
@@ -572,9 +573,10 @@ class SimTest(sim_test_case.SimTestCase):
     ref_config_dict = copy.deepcopy(base_config_dict)
     ref_config_dict['numerics']['evolve_current'] = True
     ref_torax_config = model_config.ToraxConfig.from_dict(ref_config_dict)
-    ref_output_xr, _ = run_simulation.run_simulation(
+    ref_state_history = run_simulation.run_simulation(
         ref_torax_config, progress_bar=False
     )
+    ref_output_xr = ref_state_history.simulation_output_to_xr()
     # Extract the psidot profile and time array
     ref_psidot = ref_output_xr.profiles.v_loop.values
     ref_time = ref_output_xr.time.values
@@ -585,8 +587,11 @@ class SimTest(sim_test_case.SimTestCase):
     test_config_dict = copy.deepcopy(base_config_dict)
     test_config_dict['numerics']['evolve_current'] = False
     test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
-    test_output_xr_different, _ = run_simulation.run_simulation(
+    test_state_history_different = run_simulation.run_simulation(
         test_torax_config, progress_bar=False
+    )
+    test_output_xr_different = (
+        test_state_history_different.simulation_output_to_xr()
     )
 
     # --- Run 3: Test run without current evolution, using prescribed psidot ---
@@ -600,9 +605,10 @@ class SimTest(sim_test_case.SimTestCase):
         ref_psidot,
     )
     test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
-    test_output_xr_same, _ = run_simulation.run_simulation(
+    test_state_history_same = run_simulation.run_simulation(
         test_torax_config, progress_bar=False
     )
+    test_output_xr_same = test_state_history_same.simulation_output_to_xr()
 
     # Compare Runs 1 and 3 - v_loop (cell grid) should be identical
     # We ignore the v_loop_lcfs since it does not impact cell-grid Ohmic power,
@@ -624,7 +630,7 @@ class SimTest(sim_test_case.SimTestCase):
 
   def test_nans_trigger_error(self):
     torax_config = self._get_torax_config('test_iterhybrid_makenans.py')
-    _, state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
     self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
@@ -639,7 +645,7 @@ class SimTest(sim_test_case.SimTestCase):
     # Increase T_min so that we are sure to hit the error
     torax_config.update_fields({'numerics.T_minimum_eV': 20})
 
-    _, state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
 
     # Check that the simulation stopped due to low temperature collapse
     self.assertEqual(
@@ -649,7 +655,7 @@ class SimTest(sim_test_case.SimTestCase):
 
   def test_full_output_matches_reference(self):
     torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
-    _, state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
     sim_data_tree = state_history.simulation_output_to_xr()
     expected_results_path = self._expected_results_path(
         'test_iterhybrid_rampup.nc'
