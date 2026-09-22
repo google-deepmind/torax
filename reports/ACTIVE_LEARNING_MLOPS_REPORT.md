@@ -12,17 +12,17 @@ The proposed design establishes a closed-loop active learning cycle that connect
 flowchart TD
     subgraph TORAX_Simulation ["TORAX Simulation Runtime (JAX)"]
         State["Plasma State (CoreProfiles, Geo)"] --> FeatureMap["Canonical Physics Registry"]
-        FeatureMap --> AL_Model["Adaptive Transport Model"]
+        FeatureMap --> AL_Module["AdaptivePhysicsModule (Domain-Agnostic)"]
         
-        AL_Model --> EvalNN["Surrogate (e.g. TGLFNN)"]
+        AL_Module --> EvalNN["Surrogate Evaluator (e.g. TGLFNN)"]
         EvalNN --> CheckUnc{"Uncertainty > Threshold?"}
         
-        CheckUnc -- No --> ReturnFlux["Use Surrogate Fluxes"]
-        CheckUnc -- Yes --> CallTGLF["Fallback to TGLF Solver"]
+        CheckUnc -- No --> ReturnFlux["Use Surrogate Predictions"]
+        CheckUnc -- Yes --> CallHiFi["Fallback to High-Fidelity (e.g. TGLF)"]
         
-        CallTGLF --> Harvest["Per-Run Local Staging File (.parquet)"]
-        CallTGLF --> ReturnFlux
-        ReturnFlux --> Solver["TORAX PDE Solver Step"]
+        CallHiFi --> Harvest["Per-Run Local Staging File (.parquet)"]
+        CallHiFi --> ReturnFlux
+        ReturnFlux --> Solver["TORAX Core Solver Step"]
     end
 
     subgraph Simulation_Completion ["Post-Simulation Hook"]
@@ -41,7 +41,7 @@ flowchart TD
         LocalCron --> RetrainJob["Model Retraining (PyTorch or JAX)"]
         VertexPipeline --> RetrainJob
         
-        RetrainJob --> EvalReport["Validation & Model Drift Report"]
+        RetrainJob --> EvalReport["Multi-Domain Benchmark & Coverage Report"]
         EvalReport --> ModelReg["Model Registry (MLflow / Vertex)"]
         ModelReg --> Notify["User Notification (Email / Webhook)"]
         ModelReg -. "Auto-download new weights" .-> EvalNN
@@ -53,7 +53,7 @@ flowchart TD
 ## 2. In-Situ Data Harvesting in TORAX
 
 ### 2.1 What Data Needs to be Harvested?
-Every high-fidelity TGLF evaluation produces a self-contained record consisting of three layers:
+Every high-fidelity physics evaluation (e.g. TGLF) produces a self-contained record consisting of three layers:
 
 1. **Model Inputs (Features $x$)**:
    - Standard dimensionless parameters: `RLNS_1`, `RLTS_1`, `RLTS_2`, `TAUS_2`, `RMIN_LOC`, `RMAJ_LOC`, `DRMAJDX_LOC`, `Q_LOC`, `Q_PRIME_LOC`, `XNUE`, `DEBYE`, `KAPPA_LOC`, `S_KAPPA_LOC`, `DELTA_LOC`, `S_DELTA_LOC`, `BETAE`, `P_PRIME_LOC`, `ZEFF`, `VEXB_SHEAR`.
@@ -61,7 +61,7 @@ Every high-fidelity TGLF evaluation produces a self-contained record consisting 
 2. **Model Outputs (Labels $y$)**:
    - Gyro-Bohm normalized fluxes: `electron_heat_flux_GB` ($Q_e$), `ion_heat_flux_GB` ($Q_i$), `electron_particle_flux_GB` ($\Gamma_e$).
 3. **Numerical Configuration Metadata (Fingerprint)**:
-   - TGLF physics settings: `sat_rule`, `kygrid_model`, `xnu_model`, `n_modes`, `geometry_flag`, `n_basis_max`, `use_bpar`, `use_bper`, `sign_bt`, `sign_it`.
+   - Physics solver settings: `sat_rule`, `kygrid_model`, `xnu_model`, `n_modes`, `geometry_flag`, `n_basis_max`, `use_bpar`, `use_bper`, `sign_bt`, `sign_it`.
    - Plasma composition: number of species, mass ratios ($m_i / m_D$), charge states.
 
 ### 2.2 Storage Mechanism: Per-Run Local Staging
@@ -72,7 +72,7 @@ To guarantee zero thread lock contention during multi-process cluster sweeps and
   ```
   /tmp/torax_harvest_<run_uuid>.parquet
   ```
-  Parquet is columnar, compressed (Snappy/ZSTD), and natively supports embedded dictionary metadata for the numerical settings.
+  Parquet is columnar, compressed (Snappy/ZSTD), and natively supports embedded dictionary metadata for numerical settings.
 - **Post-Simulation Hook**:
   When `run_simulation()` finishes, TORAX calls a clean-up hook:
   1. Closes the local run Parquet file.
@@ -83,7 +83,7 @@ To guarantee zero thread lock contention during multi-process cluster sweeps and
 Only runs with identical numerical parameter choices may be merged for surrogate retraining. To prevent corrupted datasets:
 
 - A canonical SHA-256 hash is computed over the sorted dictionary of numerical settings and species definitions:
-  $$\text{fingerprint} = \text{SHA256}(\text{canonical\_json}(\text{tglf\_settings}, \text{species\_config}))$$
+  $$\text{fingerprint} = \text{SHA256}(\text{canonical\_json}(\text{solver\_settings}, \text{species\_config}))$$
 - Harvested files are partitioned by this fingerprint:
   ```
   harvested_data/
@@ -113,14 +113,14 @@ efi_var  = predictions["efi_gb"][..., 1]
 The standard deviation is $\sigma = \sqrt{\text{var}}$, and the relative uncertainty is $\delta = \frac{\sigma}{|\mu| + \epsilon}$.
 
 ### 3.2 Adaptive Switching Strategies
-The adaptive transport model (`AdaptiveTGLFTransportModel`) supports two configurable fallback modes:
+The adaptive transport model supports two configurable fallback modes:
 
 #### Mode A: Full-Profile Fallback (Default & Recommended for PDE Stability)
 - If the relative uncertainty $\delta_i$ on *any* radial face $i$ exceeds a user-configured threshold ($\delta_{\text{max}}$, e.g. $0.25$), TGLF is executed for the entire radial profile:
   ```python
   trigger_high_fidelity = jnp.any(relative_uncertainty > threshold)
   ```
-- **Rationale**: Transport coefficients drive parabolic PDEs. Mixing surrogate outputs at $\rho=0.4$ with numerical solver outputs at $\rho=0.5$ can introduce artificial spatial jumps in $\chi(r)$, causing solver convergence issues unless heavily smoothed. Full-profile fallback preserves physical smoothness.
+- **Rationale**: Transport coefficients drive parabolic PDEs. Splicing surrogate outputs at $\rho=0.4$ with numerical solver outputs at $\rho=0.5$ can introduce artificial spatial jumps in $\chi(r)$, causing solver convergence issues unless heavily smoothed. Full-profile fallback preserves physical smoothness.
 
 #### Mode B: Radial Face-Level Switching with Smoothing
 - TGLFNN is evaluated across all faces.
@@ -154,7 +154,7 @@ In `tglfnn_ukaea_transport_model.py`, methods `_make_input_tensor_step()` and `_
 To enable zero-code deployment of newly retrained models:
 
 1. **Canonical Physics Registry**:
-   TORAX defines a function mapping `TGLFInputs` and geometric state to a named dictionary of all computable physical quantities:
+   TORAX defines a function mapping physical inputs and geometric state to a named dictionary of all computable physical quantities:
    ```python
    def get_canonical_physics_dict(tglf_inputs: TGLFInputs) -> dict[str, jax.Array]:
      return {
@@ -166,10 +166,10 @@ To enable zero-code deployment of newly retrained models:
    ```
 
 2. **Self-Describing Model Artifact**:
-   Every trained surrogate model package (`model_spec.json` or model class attribute) declares its input requirements:
+   Every trained surrogate model package declares its input requirements in its metadata:
    ```json
    {
-     "model_version": "v2.1",
+     "model_id": "tglf-sat1_3sp_d09a-2026w38_142k-ens5_m6x512",
      "input_labels": ["RLNS_1", "RLTS_1", "RLTS_2", "TAUS_2", "RMIN_LOC", "s_hat", "XNUE", ...],
      "output_labels": ["efi_gb", "efe_gb", "pfi_gb"]
    }
@@ -189,37 +189,157 @@ To enable zero-code deployment of newly retrained models:
 
 ---
 
-## 5. Broadening the Pattern: Generalized Surrogate Architecture
+## 5. Broadening the Pattern: Generalizing Beyond Transport
 
-This active learning and surrogate replacement pattern is not specific to TGLF. It is generalized into a reusable base class:
+Active learning and surrogate replacement is not specific to core transport. It is generalized into a domain-agnostic architecture:
 
-```python
-class AdaptiveSurrogateTransportModel(component.ComponentTransportModel):
-  """Abstract base for uncertainty-driven surrogate transport models."""
-  surrogate: SurrogateProtocol
-  high_fidelity_solver: HighFidelitySolverProtocol
-  uncertainty_threshold: float
-  fallback_mode: Literal['full_profile', 'per_face']
-  
-  def call_implementation(self, ...):
-    # 1. Prepare inputs via dynamic feature map
-    # 2. Evaluate surrogate mean & uncertainty
-    # 3. If uncertainty > threshold, run high_fidelity_solver & stage training data
-    # 4. Return blended or fallback fluxes
+```mermaid
+classDiagram
+    class AdaptivePhysicsModule~Inputs, Outputs~ {
+        <<Protocol / Base>>
+        +surrogate: Callable
+        +high_fidelity_solver: Callable
+        +uncertainty_threshold: float
+        +harvest_sink: DataHarvestSink
+        +evaluate(inputs, metadata) Outputs
+    }
+
+    class ComponentTransportModel {
+        <<TORAX Core>>
+    }
+
+    class AdaptiveTransportModel {
+        <<TORAX Transport Layer>>
+        -adaptive_engine: AdaptivePhysicsModule
+        +call_implementation() TransportCoeffs
+    }
+
+    class BaseSource {
+        <<TORAX Source Layer>>
+    }
+
+    class AdaptiveSourceModel {
+        <<TORAX Source Layer>>
+        -adaptive_engine: AdaptivePhysicsModule
+        +compute_source() SourceProfiles
+    }
+
+    ComponentTransportModel <|-- AdaptiveTransportModel
+    BaseSource <|-- AdaptiveSourceModel
+    AdaptiveTransportModel *-- AdaptivePhysicsModule
+    AdaptiveSourceModel *-- AdaptivePhysicsModule
 ```
 
-This base class works identically for:
-- **QuaLiKiz vs. QLKNN**: Fallback to QuaLiKiz when QLKNN encounters input space boundaries or high uncertainty.
-- **Impurity Transport Models**: High-fidelity neoclassical/drift codes (e.g. NEO / STRAHL) paired with fast neural surrogates.
-- **Pedestal / Edge Models**: EPED or neural EPED surrogates.
+### 5.1 The Domain-Agnostic Core (`AdaptivePhysicsModule`)
+`AdaptivePhysicsModule` is completely decoupled from transport physics:
+1. Receives an arbitrary JAX PyTree of `inputs`.
+2. Computes the surrogate mean and uncertainty.
+3. Evaluates if $\text{uncertainty} > \text{threshold}$.
+4. If exceeded: dispatches to the registered `high_fidelity_solver`, stages input-output pairs to the `DataHarvestSink`, and returns high-fidelity ground truth.
+5. If confident: returns surrogate predictions.
+
+### 5.2 Physics Domain Adapters in TORAX
+Thin domain-specific adapters connect `AdaptivePhysicsModule` to TORAX interfaces:
+- **Core Transport (`AdaptiveTransportModel`)**: Wraps `ComponentTransportModel`, mapping inputs from `CoreProfiles` and returning `TransportCoeffs`. Works for TGLF/TGLFNN and QuaLiKiz/QLKNN.
+- **Heating & Current Drive (`AdaptiveSourceModel`)**: Wraps high-fidelity Fokker-Planck / ray-tracing codes (e.g. NUBEAM, TORIC) and fast neural surrogates, returning `SourceProfiles`.
+- **Pedestal / Edge (`AdaptivePedestalModel`)**: Wraps high-fidelity EPED / MHD stability solvers and fast neural pedestal surrogates.
+- **Impurities**: Wraps atomic physics / ADAS collisional-radiative models and neural radiation surrogates.
 
 ---
 
-## 6. Interchangeable Backends via a Single Config
+## 6. Model Versioning & Naming Conventions
+
+Scientific surrogate models require naming conventions that encode physical assumptions, numerical configuration, data lineage, and network architecture.
+
+### 6.1 Structured Semantic Naming Schema
+Surrogate model IDs follow a 4-part descriptor:
+
+$$\mathbf{\{PhysicsCode\}}-\mathbf{\{PhysicsFlavor\_SettingsHash\}}-\mathbf{\{DatasetLineage\}}-\mathbf{\{Architecture\}}$$
+
+**Example**:
+```
+tglf-sat1_3sp_d09a-2026w38_142k-ens5_m6x512
+```
+
+- **`tglf-sat1_3sp`**: Physics solver and configuration (TGLF SAT1 with 3 species: electrons, main ions, impurities).
+- **`d09a`**: 4-character hex prefix of the SHA-256 fingerprint of the numerical settings (guaranteeing exact solver reproducibility).
+- **`2026w38_142k`**: Dataset lineage snapshot: Year 2026, calendar week 38, trained on a cumulative total of $142{,}000$ validated points.
+- **`ens5_m6x512`**: Architecture metadata: 5-estimator Gaussian MLP ensemble, 6 hidden layers $\times$ 512 units.
+
+### 6.2 Model Card & Coverage Manifest (`model_spec.json`)
+Every model artifact is accompanied by a manifest defining its valid physical domain:
+```json
+{
+  "model_id": "tglf-sat1_3sp_d09a-2026w38_142k-ens5_m6x512",
+  "base_physics": "TGLF",
+  "numerical_settings_hash": "d09a47b8e1...",
+  "dataset_version": "dset_sat1_3sp_2026w38",
+  "sample_count": 142000,
+  "input_labels": ["RLNS_1", "RLTS_1", "RLTS_2", "TAUS_2", "RMIN_LOC", "s_hat", "XNUE", ...],
+  "output_labels": ["efi_gb", "efe_gb", "pfi_gb"],
+  "domain_coverage": {
+    "RLTS_1": {"min": 0.0, "max": 25.0},
+    "Q_LOC": {"min": 0.8, "max": 6.5},
+    "KAPPA_LOC": {"min": 1.0, "max": 2.2},
+    "BETAE": {"min": 0.0001, "max": 0.05}
+  },
+  "benchmark_scores": {
+    "iter_baseline_rmse": 0.038,
+    "spherical_tokamak_rmse": 0.051
+  }
+}
+```
+
+---
+
+## 7. The Multi-Domain Evaluation Suite & Scientific Retraining
+
+### 7.1 The "Golden Test Set" Fallacy in Physical Systems
+In consumer machine learning, data drift is often non-stationary (user preferences drift). In tokamak physics, **the underlying physical laws do not drift**—gyrokinetics and Euler-Maxwell equations are stationary.
+
+What changes over time is **parameter space exploration**:
+- Lab A runs conventional aspect-ratio tokamaks ($A \approx 3$, ITER baseline).
+- Lab B runs low-aspect spherical tokamaks ($A \approx 1.5$, MAST-U / STEP) with high ExB shear.
+- The harvested data from Lab B does not invalidate Lab A; it expands the convex hull of explored physics space.
+
+A single "golden test set" creates severe failure modes:
+1. Evaluating solely on Lab A's test set will not reflect whether the surrogate learned Lab B's spherical tokamak regime.
+2. If network capacity trade-offs slightly decrease accuracy on Lab A ($2.0\% \to 2.2\%$) while drastically improving Lab B ($300\% \to 3.5\%$), a naive rule like *"only deploy if it beats the previous model on the golden set"* would incorrectly reject the improved model.
+3. Users focusing exclusively on ITER baseline scenarios legitimately want a model optimized specifically for that subspace.
+
+### 7.2 Multi-Domain Benchmark Suite
+Instead of a single scalar test loss, the retraining pipeline validates models against a **benchmark suite of canonical plasma regimes**:
+
+```mermaid
+graph LR
+    Model[New Surrogate Candidate] --> Bench1["Benchmark: Conventional Aspect (ITER / DIII-D)"]
+    Model --> Bench2["Benchmark: Spherical Tokamak (MAST-U / STEP)"]
+    Model --> Bench3["Benchmark: High Beta / Negative Triangularity"]
+    Model --> Bench4["Benchmark: Holdout of Newly Harvested Points"]
+    
+    Bench1 --> Report["Multi-Domain Model Card"]
+    Bench2 --> Report
+    Bench3 --> Report
+    Bench4 --> Report
+```
+
+### 7.3 Model Registry Tagging by Specialization
+Rather than a single global `production` tag overwriting prior checkpoints:
+- **`general_multimachine_latest`**: Trained on all cumulative data across all devices.
+- **`iter_baseline_specialized`**: Pinned model prioritizing precision in conventional tokamak regimes.
+- **`spherical_tokamak_specialized`**: Pinned model focused on tight aspect-ratio geometries.
+- **Permanent Version Pinning**: Every historical release remains accessible by its semantic ID (e.g. `tglf-sat1_3sp_d09a-2026w38_142k-ens5_m6x512`), guaranteeing reproducibility for scientific publications.
+
+### 7.4 Self-Guarding via Runtime Uncertainty
+Because surrogate models predict their own ensemble uncertainty $\sigma$, the model automatically guards itself at runtime: if a simulation enters an unexplored region outside the model's domain, the uncertainty spike triggers high-fidelity fallback and harvests the new point for the next training cycle.
+
+---
+
+## 8. Interchangeable Backends via a Single Config
 
 Users must be able to run simulations and contribute data either locally (workstation/cluster) or to Google Cloud without complex configuration files.
 
-### 6.1 Pydantic Configuration
+### 8.1 Pydantic Configuration
 A clean discriminated union under `data_harvesting`:
 
 ```python
@@ -239,7 +359,7 @@ class DataHarvestingConfig(torax_pydantic.BaseModelFrozen):
   )
 ```
 
-### 6.2 User Experience
+### 8.2 User Experience
 To switch between local clustering and cloud sharing, the user changes a single string in their simulation config:
 ```python
 # Option A: Save to local workstation / cluster directory
@@ -249,26 +369,26 @@ config.harvesting.backend = LocalHarvestingConfig(output_directory="/shared/fusi
 config.harvesting.backend = CloudHarvestingConfig()
 ```
 
-### 6.3 Decoupled Execution on Local Systems
+### 8.3 Decoupled Execution on Local Systems
 TORAX only writes harvested files to the designated directory. Retraining is decoupled:
 - **Workstation**: A local cron job or systemd timer runs a training script weekly.
 - **SLURM Cluster**: A standing cron job checks if new `.parquet` files exist and submits an `sbatch train_surrogate.sh` job to the cluster partition.
 
 ---
 
-## 7. MLOps in Plain Words & Tooling Guide
+## 9. MLOps in Plain Words & Tooling Guide
 
 For scientists and developers without prior MLOps experience, here is an explanation of core concepts and recommended tools.
 
-### 7.1 Plain-English MLOps Concepts
-- **Data Versioning**: Like Git, but for large datasets. You don't commit gigabytes of Parquet files to Git. Instead, data versioning tools create a tiny cryptographic hash tracking the exact state of the dataset used to train Model v2.3, ensuring complete reproducibility.
-- **Model Registry**: A catalog of trained models. Instead of saving `.pt` or `.pkl` files with names like `model_final_v2_really_final.pt`, a registry tracks model artifacts, training parameters, evaluation loss, version tags (`staging`, `production`), and deployment dates.
+### 9.1 Plain-English MLOps Concepts
+- **Data Versioning**: Like Git, but for large datasets. You don't commit gigabytes of Parquet files to Git. Instead, data versioning tools create a tiny cryptographic hash tracking the exact state of the dataset used to train a model, ensuring complete reproducibility.
+- **Model Registry**: A catalog of trained models. Instead of saving `.pt` or `.pkl` files with names like `model_final_v2_really_final.pt`, a registry tracks model artifacts, training parameters, evaluation loss, version tags, and deployment dates.
 - **Automated Pipeline**: A scripted workflow that runs on a schedule (e.g. weekly). It pulls new data, validates it, trains the model, runs validation checks, generates a performance report, and updates the registry.
-- **Data Drift**: Over time, TORAX users explore different plasma regimes (higher temperature, different shaping). The surrogate might perform poorly in regions it was never trained on. A drift report compares the training dataset's input space against the new harvested points.
+- **Input Space Coverage**: A visual comparison of the parameter hypercube or convex hull showing new territory explored by harvested points relative to the original training domain.
 
 ---
 
-### 7.2 Tooling Comparison: Open Source vs. Google Cloud Native
+### 9.2 Tooling Comparison: Open Source vs. Google Cloud Native
 
 | Feature | Open-Source Stack (Vendor-Neutral) | Google Cloud Native Stack |
 | :--- | :--- | :--- |
@@ -286,36 +406,7 @@ For scientists and developers without prior MLOps experience, here is an explana
 
 ---
 
-## 8. Weekly Retraining, Validation & Reporting Pipeline
-
-The decoupled MLOps pipeline runs every Sunday night (or on user trigger).
-
-### 8.1 Workflow Steps
-1. **Ingest & Validate**:
-   - Collect all new `.parquet` batches under each metadata hash.
-   - Run physics sanity checks (e.g. discard non-physical negative fluxes or NaN inputs).
-   - Append valid points to the cumulative dataset.
-2. **Data Versioning Snapshot**:
-   - Create a version tag (e.g., `tglf_sat1_dataset_v2026_w38`).
-3. **Training Execution**:
-   - Train the ensemble surrogate (PyTorch or JAX).
-   - Loss function: Negative log-likelihood of Gaussian ensemble or combined MSE + variance calibration loss.
-4. **Automated Evaluation & Drift Reporting**:
-   - Evaluate against a frozen golden benchmark dataset.
-   - Compute test set metrics: $R^2$, RMSE, Maximum Absolute Error, Calibration error of predicted uncertainty.
-   - Generate input-space coverage visualizations: PCA/t-SNE projection of the input domain showing new territory covered by the harvested data.
-5. **Model Registration & Tagging**:
-   - If the new model beats the previous version on the golden test set, register it with the tag `production`.
-6. **User Notification**:
-   - Send an automated summary report via Slack/Discord webhook, email, or GitHub Release containing:
-     - New dataset sample count (+12,400 points).
-     - Performance delta ($R^2$ improved from 0.962 to 0.978).
-     - Input space expansion plot.
-     - Direct download link / version ID.
-
----
-
-## 9. Community Cloud: Fair Usage & Tiered Access Models
+## 10. Community Cloud: Fair Usage & Tiered Access Models
 
 To prevent users from "just taking" trained surrogates without contributing harvested data, the Google Cloud solution can implement one of three community access policies.
 
@@ -329,10 +420,10 @@ To prevent users from "just taking" trained surrogates without contributing harv
 
 ---
 
-## 10. Concrete Implementation Roadmap
+## 11. Concrete Implementation Roadmap
 
 ### Phase 1: TORAX Core (Weeks 1–2)
-1. Implement `AdaptiveTGLFTransportModel` in `torax/_src/transport_model/`.
+1. Implement `AdaptivePhysicsModule` base and `AdaptiveTransportModel` in `torax/_src/transport_model/`.
 2. Implement `get_canonical_physics_dict()` in `tglf_based_transport_model.py` and dynamic stacking in `tglfnn_ukaea_transport_model.py`.
 3. Add local staging file writer (`.parquet`) to `tglf_transport_model.py` callback.
 4. Update Pydantic transport configs to expose active learning parameters.
@@ -340,10 +431,10 @@ To prevent users from "just taking" trained surrogates without contributing harv
 ### Phase 2: Decoupled Local Pipeline (Weeks 3–4)
 1. Write a standalone Python retraining script (`train_surrogate.py`) that loads Parquet batches, trains the ensemble, and logs to MLflow.
 2. Provide a sample SLURM submission script and local cron configuration.
-3. Validate that retrained weights load automatically into TORAX with zero code modifications.
+3. Validate that retrained weights load automatically into TORAX with zero code modifications using semantic IDs.
 
 ### Phase 3: Google Cloud Solution (Weeks 5–6)
 1. Deploy a lightweight FastAPI ingestion endpoint on Google Cloud Run to receive completed Parquet files and write to GCS.
 2. Configure a Vertex AI Pipeline for weekly scheduled retraining.
-3. Add automated notification generation (summary markdown report + drift plots dispatched via webhook/email).
+3. Implement the multi-domain benchmark evaluation suite and automated model card generation.
 4. Implement the early-access embargo token validation in the Cloud Run gateway.
