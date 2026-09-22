@@ -130,6 +130,32 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   GAMMA_GB: array_typing.FloatVectorFace
 
 
+def get_canonical_physics_dict(
+    tglf_inputs: TGLFInputs,
+) -> dict[str, jax.Array]:
+  """Constructs a canonical dictionary of physics quantities from TGLFInputs.
+
+  Exposes all raw dimensionless fields as well as standard derived quantities
+  (e.g., magnetic shear 's_hat'/'SHAT', inverse aspect ratio) so that surrogate
+  neural networks can dynamically bind and stack inputs without hardcoded methods.
+  """
+  s_hat = (
+      tglf_inputs.RMIN_LOC / tglf_inputs.Q_LOC
+  ) ** 2 * tglf_inputs.Q_PRIME_LOC
+  inv_aspect_ratio = tglf_inputs.RMIN_LOC / jnp.maximum(
+      tglf_inputs.RMAJ_LOC, 1e-12
+  )
+
+  physics_dict = {
+      **dataclasses.asdict(tglf_inputs),
+      's_hat': s_hat,
+      'SHAT': s_hat,
+      'shat': s_hat,
+      'inv_aspect_ratio': inv_aspect_ratio,
+  }
+  return physics_dict
+
+
 class TGLFBasedTransportModel(
     quasilinear_transport_model.QuasilinearTransportModel
 ):

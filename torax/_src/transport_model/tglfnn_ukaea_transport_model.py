@@ -120,6 +120,28 @@ class TGLFNNukaeaTransportModel(
       self,
       tglf_inputs: tglf_based_transport_model.TGLFInputs,
   ) -> jax.Array:
+    """Prepares the input tensor for the surrogate model.
+
+    If the model exposes `input_labels`, dynamically stacks features from the
+    canonical physics dictionary. Otherwise, falls back to legacy machine-specific
+    dispatch.
+    """
+    if hasattr(self.model, "input_labels") and self.model.input_labels:
+      feature_dict = tglf_based_transport_model.get_canonical_physics_dict(
+          tglf_inputs
+      )
+      missing_labels = [
+          col for col in self.model.input_labels if col not in feature_dict
+      ]
+      if missing_labels:
+        raise ValueError(
+            f"Surrogate model requested features not found in canonical physics dictionary: {missing_labels}"
+        )
+      return jnp.stack(
+          [feature_dict[col] for col in self.model.input_labels],
+          axis=-1,
+      )
+
     match self.machine:
       case "step":
         return self._make_input_tensor_step(tglf_inputs)
@@ -127,6 +149,43 @@ class TGLFNNukaeaTransportModel(
         return self._make_input_tensor_multimachine(tglf_inputs)
       case _:
         raise ValueError(f"Unsupported machine: {self.machine}")
+
+  def predict_with_uncertainty(
+      self,
+      tglf_inputs: tglf_based_transport_model.TGLFInputs,
+  ) -> tuple[dict[str, jax.Array], dict[str, jax.Array]]:
+    """Evaluates the surrogate model and returns predictive (means, variances).
+
+    Returns:
+      means: Dict of {channel: mean_profile} across faces.
+      variances: Dict of {channel: variance_profile} across faces.
+    """
+    tglfnn_inputs = self._prepare_tglfnn_inputs(tglf_inputs)
+    predictions = self.model.predict(tglfnn_inputs)
+    means = {k: predictions[k][..., 0] for k in predictions}
+    variances = {k: predictions[k][..., 1] for k in predictions}
+    return means, variances
+
+  def compute_relative_uncertainty(
+      self,
+      tglf_inputs: tglf_based_transport_model.TGLFInputs,
+      eps: float = 1e-4,
+  ) -> jax.Array:
+    """Computes max relative uncertainty across all predicted flux channels.
+
+    Returns:
+      Array of shape (n_faces,) with the maximum relative standard deviation.
+    """
+    means, variances = self.predict_with_uncertainty(tglf_inputs)
+    rel_uncs = []
+    for k in ["efi_gb", "efe_gb", "pfi_gb"]:
+      if k in means:
+        sigma = jnp.sqrt(jnp.maximum(variances[k], 0.0))
+        rel_unc = sigma / (jnp.abs(means[k]) + eps)
+        rel_uncs.append(rel_unc)
+    if not rel_uncs:
+      return jnp.zeros_like(tglf_inputs.RLTS_1)
+    return jnp.max(jnp.stack(rel_uncs, axis=0), axis=0)
 
   def call_implementation(
       self,
@@ -143,15 +202,13 @@ class TGLFNNukaeaTransportModel(
         poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
-    tglfnn_inputs = self._prepare_tglfnn_inputs(tglf_inputs)
-    predictions = self.model.predict(tglfnn_inputs)
+    means, _ = self.predict_with_uncertainty(tglf_inputs)
 
-    # TODO(b/323504363): expose variance outputs
     return self._make_core_transport(
-        ion_heat_flux_GB=predictions["efi_gb"][..., 0],
-        electron_heat_flux_GB=predictions["efe_gb"][..., 0],
+        ion_heat_flux_GB=means["efi_gb"],
+        electron_heat_flux_GB=means["efe_gb"],
         # TODO(b/323504363): Convert pfi to pfe for multi-ion plasmas
-        electron_particle_flux_GB=predictions["pfi_gb"][..., 0],
+        electron_particle_flux_GB=means["pfi_gb"],
         tglf_inputs=tglf_inputs,
         transport=transport,
         geo=geo,

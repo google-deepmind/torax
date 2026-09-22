@@ -14,16 +14,20 @@
 
 """Pydantic config for Transport models."""
 
+from concurrent import futures
 import copy
 import dataclasses
+import multiprocessing
 from typing import Annotated, Any, Literal, Mapping, Sequence
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
 import numpy as np
 import pydantic
+from torax._src.data_harvesting import StagingSink
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import adaptive_tglf_transport_model
 from torax._src.transport_model import bohm_gyrobohm
 from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import enums
@@ -249,6 +253,79 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
     )
 
 
+class AdaptiveTGLFModelConfig(pydantic_model_base.ComponentTransportBase):
+  """Model for the Adaptive TGLF (surrogate with TGLF fallback) transport model."""
+
+  model_name: Annotated[Literal['adaptive_tglf'], torax_pydantic.JAX_STATIC] = (
+      'adaptive_tglf'
+  )
+  machine: Annotated[
+      Literal['step', 'multimachine'], torax_pydantic.JAX_STATIC
+  ] = 'multimachine'
+  uncertainty_threshold: pydantic.NonNegativeFloat = 0.20
+  fallback_mode: Annotated[
+      Literal['full_profile', 'per_face'], torax_pydantic.JAX_STATIC
+  ] = 'full_profile'
+  smoothing_sigma: pydantic.NonNegativeFloat = 0.05
+  enable_data_harvesting: bool = True
+  harvest_output_dir: str = '/tmp/torax_harvest'
+
+  # High fidelity solver & physics execution options
+  n_processes: pydantic.PositiveInt = 4
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
+  use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  An_min: pydantic.PositiveFloat = 0.05
+  collisionality_multiplier: float = 1.0
+  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
+  tglf_settings: Annotated[
+      dict[str, Any], torax_pydantic.JAX_STATIC
+  ] = pydantic.Field(default_factory=dict)
+
+  def build_transport_model(
+      self,
+  ) -> adaptive_tglf_transport_model.AdaptiveTGLFTransportModel:
+    surrogate = tglfnn_ukaea_transport_model.TGLFNNukaeaTransportModel(
+        machine=self.machine
+    )
+    mp_context = multiprocessing.get_context('spawn')
+    executor = futures.ProcessPoolExecutor(
+        max_workers=self.n_processes,
+        mp_context=mp_context,
+    )
+    sink = (
+        StagingSink(output_dir=self.harvest_output_dir)
+        if self.enable_data_harvesting
+        else None
+    )
+    return adaptive_tglf_transport_model.AdaptiveTGLFTransportModel(
+        surrogate_model=surrogate,
+        executor=executor,
+        sink=sink,
+    )
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> adaptive_tglf_transport_model.RuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    settings_tuple = tuple(sorted(self.tglf_settings.items()))
+    return adaptive_tglf_transport_model.RuntimeParams(
+        uncertainty_threshold=self.uncertainty_threshold,
+        fallback_mode=self.fallback_mode,
+        smoothing_sigma=self.smoothing_sigma,
+        enable_data_harvesting=self.enable_data_harvesting,
+        harvest_output_dir=self.harvest_output_dir,
+        use_rotation=self.use_rotation,
+        rotation_multiplier=self.rotation_multiplier,
+        DV_effective=self.DV_effective,
+        An_min=self.An_min,
+        collisionality_multiplier=self.collisionality_multiplier,
+        max_normalized_collisionality=self.max_normalized_collisionality,
+        tglf_settings=settings_tuple,
+        **base_kwargs,
+    )
+
+
 class PrescribedTransportModel(pydantic_model_base.ComponentTransportBase):
   """Model for the Prescribed transport model.
 
@@ -431,6 +508,7 @@ try:
   ComponentTransportModelConfig = Annotated[
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
+      | AdaptiveTGLFModelConfig
       | PrescribedTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
@@ -443,6 +521,7 @@ except ImportError:
   ComponentTransportModelConfig = Annotated[
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
+      | AdaptiveTGLFModelConfig
       | PrescribedTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
