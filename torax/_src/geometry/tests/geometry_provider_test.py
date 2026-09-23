@@ -154,27 +154,113 @@ class GeometryProviderTest(parameterized.TestCase):
     precomputed = geometry_provider.PrecomputedGeometryProvider.from_provider(
         provider, np.array([0.0, 10.0])
     )
-    geo_precomputed = precomputed(0.0)
-    self.assertIsNone(geo_precomputed._z_magnetic_axis)
-    np.testing.assert_array_equal(geo_precomputed.Phi_b_dot, 0.0)
+    for t in (0.0, 4.0):
+      geo_precomputed = precomputed(t)
+      self.assertIsNone(geo_precomputed._z_magnetic_axis)
+      np.testing.assert_array_equal(geo_precomputed.Phi_b_dot, 0.0)
 
-  def test_precomputed_returns_nearest_time_off_grid(self):
+  @parameterized.product(
+      build_provider=(
+          _build_time_dependent_circular_provider,
+          _build_time_dependent_chease_provider,
+      ),
+      errors_enabled=(False, True),
+      execution=('eager', 'jit', 'vmap'),
+  )
+  def test_precomputed_falls_back_to_original_provider(
+      self, build_provider, errors_enabled, execution
+  ):
+    provider = build_provider()
+    # The cache deliberately covers only part of the provider's time interval.
+    precomputed = geometry_provider.PrecomputedGeometryProvider.from_provider(
+        provider, np.array([2.0, 5.0, 8.0])
+    )
+    times = jnp.asarray([-1.0, 0.0, 2.0, 3.5, 5.0, 6.0, 8.0, 9.0, 11.0])
+
+    def evaluate(p, t):
+      return p(t)
+
+    with jax_utils.enable_errors(errors_enabled):
+      if execution == 'vmap':
+        evaluate = jax.jit(jax.vmap(evaluate, in_axes=(None, 0)))
+        chex.assert_trees_all_close(
+            evaluate(precomputed, times), evaluate(provider, times)
+        )
+      else:
+        if execution == 'jit':
+          evaluate = jax.jit(evaluate)
+        for t in times:
+          expected = provider(t)
+          actual = evaluate(precomputed, t)
+          self.assertIs(type(actual), type(expected))
+          chex.assert_trees_all_close(actual, expected)
+
+  @parameterized.named_parameters(
+      ('singleton', [0.0]), ('multiple', [0.0, 5.0, 10.0])
+  )
+  def test_precomputed_uses_cache_only_for_exact_hits(self, times):
     provider = _build_time_dependent_circular_provider()
     precomputed = geometry_provider.PrecomputedGeometryProvider.from_provider(
-        provider, np.array([0.0, 10.0])
+        provider, np.asarray(times)
     )
-    chex.assert_trees_all_close(precomputed(4.0), provider(0.0))
-    chex.assert_trees_all_close(precomputed(6.0), provider(10.0))
+    # Distinguish the cache from the fallback to verify which branch runs.
+    precomputed = dataclasses.replace(
+        precomputed,
+        geometries=dataclasses.replace(
+            precomputed.geometries,
+            R_major=precomputed.geometries.R_major + 1.0,
+        ),
+    )
+    evaluate = jax.jit(lambda p, t: p(t))
+    for t in times:
+      np.testing.assert_allclose(
+          evaluate(precomputed, t).R_major, provider(t).R_major + 1.0
+      )
+    chex.assert_trees_all_close(evaluate(precomputed, 4.0), provider(4.0))
 
-  def test_precomputed_raises_off_grid_when_errors_enabled(self):
-    provider = _build_time_dependent_circular_provider()
-    precomputed = geometry_provider.PrecomputedGeometryProvider.from_provider(
-        provider, np.array([0.0, 10.0])
+  def test_precomputed_does_not_snap_nearby_times(self):
+    original = _build_time_dependent_circular_provider()
+    provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
+        {0.0: original(0.0), 1e-9: original(10.0), 2e-9: original(0.0)},
+        calcphibdot=True,
     )
-    with jax_utils.enable_errors(True):
-      precomputed(0.0)  # On grid, no error.
-      with self.assertRaisesRegex(RuntimeError, 'not on the precomputed'):
-        precomputed(4.0)
+    precomputed = geometry_provider.PrecomputedGeometryProvider.from_provider(
+        provider, np.array([0.0, 1e-9, 2e-9])
+    )
+    dtype = jax_utils.get_np_dtype()
+    # Include both sides of a derivative discontinuity and sub-tolerance steps.
+    times = jnp.asarray([
+        4e-10,
+        np.nextafter(dtype(1e-9), dtype(0.0)),
+        np.nextafter(dtype(1e-9), dtype(2e-9)),
+        1.6e-9,
+    ])
+    evaluate = jax.jit(jax.vmap(lambda p, t: p(t), in_axes=(None, 0)))
+    chex.assert_trees_all_close(
+        evaluate(precomputed, times), evaluate(provider, times)
+    )
+
+  @parameterized.named_parameters(
+      ('empty', []),
+      ('scalar', 1.0),
+      ('rank_two', [[0.0, 1.0]]),
+      ('duplicate', [0.0, 0.0]),
+      ('unsorted', [1.0, 0.0]),
+      ('nan', [0.0, np.nan]),
+      ('infinite', [0.0, np.inf]),
+  )
+  def test_precomputed_rejects_invalid_times(self, times):
+    with self.assertRaisesRegex(ValueError, 'nonempty 1D array'):
+      geometry_provider.PrecomputedGeometryProvider.from_provider(
+          _build_time_dependent_circular_provider(), np.asarray(times)
+      )
+
+  def test_precomputed_rejects_times_that_collapse_in_simulation_dtype(self):
+    with self.assertRaisesRegex(ValueError, 'simulation dtype'):
+      geometry_provider.PrecomputedGeometryProvider.from_provider(
+          _build_time_dependent_circular_provider(),
+          np.array([1.0, 1.0 + np.finfo(jax_utils.get_np_dtype()).eps / 4]),
+      )
 
 
 if __name__ == '__main__':

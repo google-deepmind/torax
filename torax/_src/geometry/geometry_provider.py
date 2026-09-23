@@ -38,12 +38,6 @@ import typing_extensions
 # external physics implementations
 # pylint: disable=invalid-name
 
-# Maximum distance [s] between a requested time and the nearest precomputed
-# time for the request to be considered on the precomputed grid. Precomputed
-# times are generated with the same floating point accumulation as the
-# simulation loop, so on-grid requests should match to rounding precision.
-_PRECOMPUTED_TIME_TOLERANCE: float = 1e-9
-
 # Geometry fields that are not stacked along the time axis.
 _NON_STACKED_GEOMETRY_FIELDS: frozenset[str] = frozenset(
     {'geometry_type', 'torax_mesh'}
@@ -130,21 +124,20 @@ class PrecomputedGeometryProvider(GeometryProvider):
   using the fixed time step calculator), the time interpolation performed by
   `TimeDependentGeometryProvider` on every step can be done once up front. This
   provider stores the resulting geometries stacked along a leading time axis
-  and serves them by nearest-time lookup, which is much cheaper to compile and
-  run than interpolating every geometry attribute on every call.
-
-  Requests must lie on the precomputed time grid. Off-grid requests return the
-  geometry at the nearest precomputed time, and raise an error if
-  `TORAX_ERRORS_ENABLED` is set.
+  and serves exact grid matches by lookup. Requests at any other time use the
+  original provider, including when callers shorten a step or override the
+  configured time step. Both branches are compiled under JIT.
 
   Attributes:
     times: Sorted times [s] at which geometries were precomputed, shape (N,).
     geometries: Geometry with all array attributes stacked along a leading time
       axis of size N, in the same order as `times`.
+    fallback_provider: Original provider used for off-grid requests.
   """
 
   times: array_typing.FloatVector
   geometries: geometry.Geometry
+  fallback_provider: GeometryProvider
 
   @classmethod
   def from_provider(
@@ -156,13 +149,27 @@ class PrecomputedGeometryProvider(GeometryProvider):
 
     Args:
       provider: The geometry provider to evaluate.
-      times: 1D array of times [s] at which to evaluate the provider.
+      times: Nonempty 1D array of finite, strictly increasing times [s] at which
+        to evaluate the provider.
 
     Returns:
       A `PrecomputedGeometryProvider` holding the stacked geometries.
+
+    Raises:
+      ValueError: If `times` is invalid in the simulation dtype.
     """
-    times = jnp.asarray(times, dtype=jax_utils.get_dtype())
-    jax_utils.assert_rank(times, 1)
+    times = np.asarray(times, dtype=jax_utils.get_np_dtype())
+    if (
+        times.ndim != 1
+        or times.size == 0
+        or not np.all(np.isfinite(times))
+        or not np.all(times[1:] > times[:-1])
+    ):
+      raise ValueError(
+          'times must be a nonempty 1D array of finite, strictly increasing'
+          ' values in the simulation dtype.'
+      )
+    times = jnp.asarray(times)
     stacked = jax.jit(jax.vmap(lambda p, t: p(t), in_axes=(None, 0)))(
         provider, times
     )
@@ -173,17 +180,21 @@ class PrecomputedGeometryProvider(GeometryProvider):
         geometry_type=geometry.GeometryType(int(stacked.geometry_type[0])),
         torax_mesh=provider.torax_mesh,
     )
-    return cls(times=times, geometries=stacked)
+    return cls(times=times, geometries=stacked, fallback_provider=provider)
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
-    """Returns the precomputed geometry at the time nearest to `t`."""
+    """Returns cached geometry on-grid and evaluates the provider off-grid."""
     chex.assert_type(t, jnp.floating)
     index = jnp.argmin(jnp.abs(self.times - t))
-    index = jax_utils.error_if(
-        index,
-        jnp.abs(self.times[index] - t) > _PRECOMPUTED_TIME_TOLERANCE,
-        'Requested geometry at a time not on the precomputed time grid.',
+    # Even a small time difference can matter near an interpolation knot (for
+    # example for Phi_b_dot), so only exact matches may use the cache.
+    return jax.lax.cond(
+        self.times[index] == t,
+        lambda: self._get_precomputed_geometry(index),
+        lambda: self.fallback_provider(t),
     )
+
+  def _get_precomputed_geometry(self, index: jax.Array) -> geometry.Geometry:
     kwargs = {}
     for field in dataclasses.fields(self.geometries):
       value = getattr(self.geometries, field.name)

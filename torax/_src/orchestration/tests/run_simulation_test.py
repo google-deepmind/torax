@@ -198,14 +198,25 @@ class RunSimulationTest(sim_test_case.SimTestCase):
         geometry_provider_lib.ConstantGeometryProvider,
     )
 
-  def test_geometry_is_not_precomputed_above_geometry_cap(self):
+  @parameterized.named_parameters(
+      ('above_cap', {}),
+      ('tiny_dt', {'fixed_dt': 1e-12, 't_final': 1e6}),
+      ('stalled_time', {'t_initial': 1e16, 't_final': 2e16}),
+  )
+  def test_geometry_is_not_precomputed_when_grid_is_unsafe(self, numerics):
     config_dict = self._get_fixed_dt_time_dependent_geometry_config()
+    config_dict['numerics'].update(numerics)
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    with mock.patch.object(run_simulation, '_MAX_PRECOMPUTED_GEOMETRIES', 3):
+    with (
+        mock.patch.object(run_simulation, '_MAX_PRECOMPUTED_GEOMETRIES', 3),
+        mock.patch.object(
+            geometry_provider_lib.PrecomputedGeometryProvider, 'from_provider'
+        ) as precompute,
+    ):
       step_fn = run_simulation.make_step_fn(torax_config)
-    self.assertIsInstance(
-        step_fn.geometry_provider,
-        geometry_provider_lib.TimeDependentGeometryProvider,
+    precompute.assert_not_called()
+    self.assertIs(
+        step_fn.geometry_provider, torax_config.geometry.build_provider
     )
 
   def test_precomputed_geometry_matches_interpolated_geometry(self):

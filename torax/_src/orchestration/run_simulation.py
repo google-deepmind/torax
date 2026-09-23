@@ -48,11 +48,11 @@ def _maybe_precompute_geometry_provider(
     torax_config: model_config.ToraxConfig,
     geometry_provider: geometry_provider_lib.GeometryProvider,
 ) -> geometry_provider_lib.GeometryProvider:
-  """Pre-interpolates a time-dependent geometry when all step times are known.
+  """Pre-interpolates geometry at the expected fixed-step times.
 
-  This is only possible when the fixed time step calculator is used with a
-  constant `fixed_dt` and nothing can alter the sequence of time steps
-  (adaptive dt, sawtooth crashes, or a restart from a different start time).
+  Precomputation is attempted for a constant `fixed_dt` without adaptive dt,
+  sawtooth crashes, or a restart from a different start time.
+  Off-grid requests, such as caller-shortened steps, use the original provider.
 
   Args:
     torax_config: The TORAX config.
@@ -88,7 +88,8 @@ def _maybe_precompute_geometry_provider(
   )
   if times is None:
     logging.info(
-        'Not precomputing geometries: the grid exceeds the maximum of %d.',
+        'Not precomputing geometries: the grid cannot be generated safely'
+        ' within the maximum of %d times.',
         _MAX_PRECOMPUTED_GEOMETRIES,
     )
     return geometry_provider

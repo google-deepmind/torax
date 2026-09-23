@@ -21,6 +21,7 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 from torax._src import state
+from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import run_simulation
@@ -440,7 +441,19 @@ class StepFunctionTest(parameterized.TestCase):
         override_post_processed_outputs, ref_post_processed_outputs
     )
 
-  def test_step_with_precomputed_geometry_matches_interpolated_geometry(self):
+  @parameterized.named_parameters(
+      ('on_grid', '__call__', None, None),
+      ('max_dt', '__call__', 0.03, None),
+      ('fixed_short', 'fixed_time_step', 0.03, None),
+      ('fixed_remainder', 'fixed_time_step', 0.23, None),
+      ('jitted_short', 'jitted_fixed_time_step', 0.03, None),
+      ('jitted_remainder', 'jitted_fixed_time_step', 0.23, None),
+      ('beyond_cache', 'jitted_fixed_time_step', 0.43, None),
+      ('runtime_override', '__call__', None, 0.07),
+  )
+  def test_step_with_precomputed_geometry_matches_interpolated_geometry(
+      self, method, duration, overridden_dt
+  ):
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry'] = {
         'geometry_type': 'circular',
@@ -450,7 +463,11 @@ class StepFunctionTest(parameterized.TestCase):
             1.0: {'R_major': 6.5},
         },
     }
-    config_dict['numerics'] = {'fixed_dt': 0.1, 'adaptive_dt': False}
+    config_dict['numerics'] = {
+        'fixed_dt': 0.1,
+        'adaptive_dt': False,
+        't_final': 0.3,
+    }
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
     cfg = model_config.ToraxConfig.from_dict(config_dict)
     (
@@ -463,21 +480,37 @@ class StepFunctionTest(parameterized.TestCase):
         geometry_provider_lib.PrecomputedGeometryProvider,
     )
 
-    precomputed_state, precomputed_post_processed_outputs = step_fn(
-        sim_state,
-        post_processed_outputs,
-    )
-    # Override with the original interpolating provider as a reference.
-    ref_state, ref_post_processed_outputs = step_fn(
-        sim_state,
-        post_processed_outputs,
-        geo_overrides=cfg.geometry.build_provider,
-    )
+    kwargs = {}
+    if duration is not None:
+      kwargs['max_dt' if method == '__call__' else 'dt'] = jnp.asarray(duration)
+    if overridden_dt is not None:
+      cfg.update_fields({'numerics.fixed_dt': overridden_dt})
+      kwargs['runtime_params_overrides'] = (
+          build_runtime_params.RuntimeParamsProvider.from_config(cfg)
+      )
 
-    chex.assert_trees_all_close(precomputed_state, ref_state)
-    chex.assert_trees_all_close(
-        precomputed_post_processed_outputs, ref_post_processed_outputs
-    )
+    actual_state = ref_state = sim_state
+    actual_outputs = ref_outputs = post_processed_outputs
+    # Repeat from the resulting state, then resume ordinary configured stepping.
+    # A shortened step changes the starting time of subsequent calls too.
+    for advance, options in (
+        (getattr(step_fn, method), kwargs),
+        (getattr(step_fn, method), kwargs),
+        (step_fn, {}),
+    ):
+      actual_state, actual_outputs = advance(
+          input_state=actual_state,
+          previous_post_processed_outputs=actual_outputs,
+          **options,
+      )
+      ref_state, ref_outputs = advance(
+          input_state=ref_state,
+          previous_post_processed_outputs=ref_outputs,
+          geo_overrides=cfg.geometry.build_provider,
+          **options,
+      )
+      chex.assert_trees_all_close(actual_state, ref_state)
+      chex.assert_trees_all_close(actual_outputs, ref_outputs)
 
 
 if __name__ == '__main__':

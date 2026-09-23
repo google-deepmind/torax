@@ -52,24 +52,34 @@ def get_time_grid(
 
   Returns:
     A 1D array of times, starting with `t_initial`, or None if the grid would
-    exceed `max_num_times`.
+    exceed `max_num_times`, inputs are nonfinite, or time cannot advance to
+    completion in the simulation dtype.
   """
   if fixed_dt <= 0.0:
     raise ValueError(f'fixed_dt must be positive, got {fixed_dt}.')
   dtype = jax_utils.get_np_dtype()
-  t = dtype(t_initial)
-  t_final = dtype(t_final)
-  fixed_dt = dtype(fixed_dt)
+  with np.errstate(over='ignore', invalid='ignore'):
+    t = dtype(t_initial)
+    t_final = dtype(t_final)
+    fixed_dt = dtype(fixed_dt)
+    tolerance = dtype(tolerance)
+    stop_time = t_final - tolerance
+  if not np.all(np.isfinite([t, t_final, fixed_dt, tolerance, stop_time])):
+    return None
   times = [t]
   if max_num_times is not None and max_num_times < 1:
     return None
-  while t < t_final - tolerance:
+  while t < stop_time:
     if max_num_times is not None and len(times) >= max_num_times:
       return None
-    dt = fixed_dt
-    if exact_t_final and t < t_final < t + dt:
-      dt = t_final - t
-    t = t + dt
+    with np.errstate(over='ignore', invalid='ignore'):
+      dt = fixed_dt
+      if exact_t_final and t < t_final < t + dt:
+        dt = t_final - t
+      next_t = t + dt
+    if not np.isfinite(next_t) or next_t <= t:
+      return None
+    t = next_t
     times.append(t)
   return np.asarray(times, dtype=dtype)
 
