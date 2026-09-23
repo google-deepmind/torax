@@ -16,7 +16,7 @@
 
 import dataclasses
 import logging
-from typing import Annotated, Callable, Final, Sequence
+from typing import Annotated, Callable, Final, Self, Sequence
 
 import chex
 import jax
@@ -27,7 +27,6 @@ from torax._src.fvm import cell_variable
 from torax._src.internal_boundary_conditions import pydantic_model as ibc_pydantic_model
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
-from typing_extensions import Self
 
 # pylint: disable=invalid-name
 

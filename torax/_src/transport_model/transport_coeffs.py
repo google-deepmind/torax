@@ -15,7 +15,7 @@
 """Transport coefficient data structures."""
 
 import dataclasses
-from typing import Mapping
+from typing import Mapping, Self
 
 import jax
 from jax import numpy as jnp
@@ -23,7 +23,6 @@ from torax._src import array_typing
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -45,7 +44,7 @@ class TransportCoeffs:
   v_face_el: array_typing.FloatVectorFace
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a TransportCoeffs with all zeros."""
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(
@@ -55,7 +54,7 @@ class TransportCoeffs:
         v_face_el=zeros,
     )
 
-  def __add__(self, other: typing_extensions.Self) -> typing_extensions.Self:
+  def __add__(self, other: Self) -> Self:
     """Adds two TransportCoeffs channel-by-channel."""
     return self.__class__(
         chi_face_ion=self.chi_face_ion + other.chi_face_ion,
@@ -141,7 +140,7 @@ class TurbulentTransport:
   )
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     return cls(
         total=TransportCoeffs.zeros(geo),
         core_coefficients={},
@@ -169,7 +168,7 @@ class NeoclassicalTransport(TransportCoeffs):
   v_face_el_ware: array_typing.FloatVectorFace
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a NeoclassicalTransport with zero transport coefficients."""
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(
@@ -218,7 +217,7 @@ class PereverzevTransport(TransportCoeffs):
   full_v_heat_face_el: array_typing.FloatVectorFace
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a PereverzevTransport with zero transport coefficients."""
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(

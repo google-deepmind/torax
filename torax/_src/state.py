@@ -17,7 +17,7 @@
 import dataclasses
 import enum
 import functools
-from typing import Mapping
+from typing import Mapping, Self
 
 from absl import logging
 import jax
@@ -32,7 +32,6 @@ from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -491,7 +490,7 @@ class CoreTransport:
   pereverzev: transport_coeffs_lib.PereverzevTransport | None = None
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
     return cls(
         total=transport_coeffs_lib.TransportCoeffs.zeros(geo),

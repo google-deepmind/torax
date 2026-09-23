@@ -15,7 +15,7 @@
 """Functions for adding post-processed outputs to the simulation state."""
 
 import dataclasses
-from typing import Callable
+from typing import Callable, Self
 
 from absl import logging
 import jax
@@ -36,7 +36,6 @@ from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -330,7 +329,7 @@ class PostProcessedOutputs:
   # pylint: enable=invalid-name
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
         pprime=jnp.zeros(geo.rho_face.shape),

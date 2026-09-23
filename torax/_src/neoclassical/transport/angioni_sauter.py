@@ -22,7 +22,7 @@ https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 """
 
 import dataclasses
-from typing import Annotated, Literal
+from typing import Annotated, Literal, override
 
 import jax
 from jax import numpy as jnp
@@ -40,7 +40,7 @@ from torax._src.neoclassical.transport import runtime_params as transport_runtim
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import transport_coeffs
-from typing_extensions import override
+
 
 # pylint: disable=invalid-name
 
