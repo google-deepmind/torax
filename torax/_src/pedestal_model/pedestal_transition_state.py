@@ -16,6 +16,7 @@
 
 import dataclasses
 import enum
+from typing import Self
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -68,8 +69,9 @@ class PedestalTransitionState:
 
   confinement_mode: array_typing.IntScalar
   transition_start_time: array_typing.FloatScalar
-  # TODO(b/496703290) provide a way for these to be initialized in config, to
-  # avoid edge case where we start in H-mode and have no good L-mode values.
+  # TODO(b/496703290): Allow configuring explicit L-mode baseline values in
+  # PedestalConfig to override the LCFS boundary fallback when starting in
+  # H-mode.
   T_i_ped_L_mode: array_typing.FloatScalar
   T_e_ped_L_mode: array_typing.FloatScalar
   n_e_ped_L_mode: array_typing.FloatScalar
@@ -77,38 +79,24 @@ class PedestalTransitionState:
   previous_pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput
 
   @classmethod
-  def empty_L_mode(cls):
-    """An L-mode transition state with no stored values.
-
-    These will be overwritten when the first L-mode to H-mode transition begins.
-    """
+  def empty(
+      cls,
+      confinement_mode: array_typing.IntScalar = ConfinementMode.L_MODE,
+  ) -> Self:
+    """Returns a transition state with empty pedestal outputs and L-mode baselines."""
     return cls(
-        confinement_mode=jnp.array(
-            ConfinementMode.L_MODE, dtype=jax_utils.get_int_dtype()
+        confinement_mode=jnp.asarray(
+            confinement_mode, dtype=jax_utils.get_int_dtype()
         ),
         transition_start_time=jnp.array(-jnp.inf, dtype=jax_utils.get_dtype()),
         T_i_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         T_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         pedestal_model_output=(
-            pedestal_model_output_lib.PedestalModelOutput(
-                rho_norm_ped_top=jnp.array(
-                    jnp.inf, dtype=jax_utils.get_dtype()
-                ),
-                T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-                T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-                n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-            )
+            pedestal_model_output_lib.PedestalModelOutput.no_pedestal()
         ),
         previous_pedestal_model_output=(
-            pedestal_model_output_lib.PedestalModelOutput(
-                rho_norm_ped_top=jnp.array(
-                    jnp.inf, dtype=jax_utils.get_dtype()
-                ),
-                T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-                T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-                n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-            )
+            pedestal_model_output_lib.PedestalModelOutput.no_pedestal()
         ),
     )
 
@@ -130,7 +118,14 @@ class PedestalTransitionState:
       Ramp fraction clipped to [0, 1].
     """
     elapsed = t - self.transition_start_time
-    fraction = elapsed / transition_time_width
+    safe_width = jnp.where(
+        transition_time_width == 0.0, 1.0, transition_time_width
+    )
+    fraction = jnp.where(
+        transition_time_width == 0.0,
+        1.0,
+        elapsed / safe_width,
+    )
     return jnp.clip(fraction, 0.0, 1.0)
 
   def _apply_transition_ramp_scaling(
@@ -208,24 +203,13 @@ class PedestalTransitionState:
       pedestal_runtime_params: runtime_params_lib.RuntimeParams,
   ) -> array_typing.BoolScalar:
     """Returns whether the pedestal IBC is actively controlling the edge."""
-    # 1. Static check: must be in IBC mode
     if (
         pedestal_runtime_params.mode
         != runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
     ):
       return False
 
-    # 2. Dynamic check: pedestal setting must be enabled
-    is_active = pedestal_runtime_params.set_pedestal
-
-    # 3. If using formation model, dynamic check that we are not in L-mode
-    if (
-        pedestal_runtime_params.use_formation_model_with_internal_boundary_condition
-    ):
-      not_l_mode = self.confinement_mode != ConfinementMode.L_MODE
-      is_active = is_active & not_l_mode
-
-    return is_active
+    return self.confinement_mode != ConfinementMode.L_MODE
 
   def to_internal_boundary_conditions(
       self,
@@ -239,14 +223,10 @@ class PedestalTransitionState:
         pedestal_runtime_params.mode
         == runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
     ):
-      pedestal_model_output = self.pedestal_model_output
-      if (
-          pedestal_runtime_params.use_formation_model_with_internal_boundary_condition
-      ):
-        pedestal_model_output = self._get_scaled_pedestal_model_output(
-            t=t,
-            transition_time_width=pedestal_runtime_params.transition_time_width,
-        )
+      pedestal_model_output = self._get_scaled_pedestal_model_output(
+          t=t,
+          transition_time_width=pedestal_runtime_params.transition_time_width,
+      )
       return pedestal_model_output.to_internal_boundary_conditions(
           geo,
           core_profiles=core_profiles,
