@@ -273,7 +273,7 @@ class JitSimTest(sim_test_case.SimTestCase):
     torax_config = config_loader.build_torax_config_from_file(config_path)
 
     # Use max_steps=1 which is far too few to reach t_final=1.
-    _, state_history = run_simulation.run_simulation(
+    state_history = run_simulation.run_simulation(
         torax_config, max_steps=1, progress_bar=False, _use_jitted_run_loop=True
     )
 

@@ -146,7 +146,8 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     }
     new_config = model_config.ToraxConfig.from_dict(config)
     # Running simulation again with the new config
-    imas_xr, imas_results = torax.run_simulation(new_config, progress_bar=False)
+    imas_results = torax.run_simulation(new_config, progress_bar=False)
+    imas_xr = imas_results.simulation_output_to_xr()
 
     self.assertEqual(imas_results.sim_error, state.SimError.NO_ERROR)
 

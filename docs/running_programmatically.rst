@@ -22,8 +22,9 @@ We can then run the simulation:
 
 .. code-block:: python
 
-  # returns the output XArray DataTree and a torax.StateHistory object.
-  data_tree, state_history = torax.run_simulation(torax_config)
+  # returns a torax.StateHistory object.
+  state_history = torax.run_simulation(torax_config)
+  data_tree = state_history.simulation_output_to_xr()
 
   # Check that the simulation completed successfully.
   if state_history.sim_error != torax.SimError.NO_ERROR:
@@ -38,11 +39,12 @@ Saving simulation output to disk
 ################################
 
 When running TORAX programmatically with ``torax.run_simulation``, simulation
-outputs are returned in memory as an ``xarray.DataTree`` and are not
+outputs are returned in memory as a ``torax.StateHistory`` object (and the
+corresponding ``xarray.DataTree`` via ``simulation_output_to_xr()``) and are not
 automatically written to disk.
 
 To save the simulation output to a NetCDF file (e.g., ``state_history.nc``) at
-any desired location, use the ``to_netcdf()`` method on the returned
+any desired location, use the ``to_netcdf()`` method on the
 ``data_tree``:
 
 .. code-block:: python
@@ -61,7 +63,7 @@ plot it directly without saving to a file first using
 
   plot_config = torax.import_module('plotting/configs/default_plot_config.py')['PLOT_CONFIG']
 
-  # Plot directly from the in-memory data_tree returned by run_simulation.
+  # Plot directly from the in-memory data_tree obtained from simulation_output_to_xr().
   fig = torax.plot_run_from_data_tree(plot_config, {"TORAX": data_tree})
 
 To compare multiple in-memory runs, pass a dictionary mapping labels to

@@ -33,7 +33,6 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
 from torax._src.torax_pydantic import model_config
-import xarray as xr
 
 
 def make_step_fn(
@@ -106,7 +105,7 @@ def run_simulation(
     progress_bar: bool = True,
     max_steps: int | None = None,
     _use_jitted_run_loop: bool = False,  # pylint: disable=invalid-name
-) -> tuple[xr.DataTree, output.StateHistory]:
+) -> output.StateHistory:
   """Runs a TORAX simulation using the config and returns the outputs.
 
   Args:
@@ -119,10 +118,10 @@ def run_simulation(
       temporary private argument used for testing.
 
   Returns:
-    A tuple of the simulation outputs in the form of a DataTree and the state
-    history which is intended for helpful use with debugging as it contains
-    the `CoreProfiles`, `CoreTransport`, `CoreSources`, `Geometry`, and
-    `PostProcessedOutputs` dataclasses for each step of the simulation.
+    The state history which contains the `CoreProfiles`, `CoreTransport`,
+    `CoreSources`, `Geometry`, and `PostProcessedOutputs` dataclasses for each
+    step of the simulation. A DataTree can be obtained via
+    `state_history.simulation_output_to_xr()`.
   """
 
   (
@@ -159,7 +158,4 @@ def run_simulation(
       torax_config=torax_config,
   )
 
-  return (
-      state_history.simulation_output_to_xr(),
-      state_history,
-  )
+  return state_history
