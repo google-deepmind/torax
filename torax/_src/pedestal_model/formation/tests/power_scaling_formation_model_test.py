@@ -20,7 +20,6 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
-from torax._src.orchestration import step_function_processing
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
@@ -38,7 +37,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     # Switch to use the PowerScaling formation model.
     config['pedestal'] = {
-        'set_pedestal': True,
+        'model_name': 'set_T_ped_n_ped',
         'mode': 'ADAPTIVE_TRANSPORT',
         # Individual tests will override the model name.
         'formation_model': {'model_name': 'martin_scaling'},
@@ -135,7 +134,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         self.initial_state.geometry,
         self.initial_state.core_profiles,
         high_power_profiles,
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     for k, multiplier in dataclasses.asdict(transport_multipliers).items():
       np.testing.assert_allclose(
@@ -198,35 +197,26 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i_ped_L_mode=jnp.array(0.5),
         T_e_ped_L_mode=jnp.array(0.5),
         n_e_ped_L_mode=jnp.array(0.5e19),
-        pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
-            rho_norm_ped_top=jnp.inf,
-            T_i_ped=0.0,
-            T_e_ped=0.0,
-            n_e_ped=0.0,
-        ),
-        previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
-            rho_norm_ped_top=jnp.inf,
-            T_i_ped=0.0,
-            T_e_ped=0.0,
-            n_e_ped=0.0,
-        ),
+        pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput.no_pedestal(),
+        previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput.no_pedestal(),
     )
 
     target_P_SOL = P_LH * p_sol_factor
 
     with mock.patch.object(
-        step_function_processing.power_scaling_formation_model_lib,
+        power_scaling_formation_model,
         'calculate_P_SOL_total',
     ) as mock_calc:
       mock_calc.return_value = target_P_SOL
 
-      new_state = step_function_processing._update_pedestal_transition_state(
-          pedestal_transition_state=initial_transition_state,
-          runtime_params=runtime_params,
-          geo=self.initial_state.geometry,
-          core_profiles=self.initial_state.core_profiles,
-          core_sources=self.initial_state.core_sources,
-          models=self.step_fn._solver.models,
+      new_state = (
+          self.step_fn._solver.models.pedestal_model.update_transition_state(
+              runtime_params=runtime_params,
+              geo=self.initial_state.geometry,
+              core_profiles=self.initial_state.core_profiles,
+              source_profiles=self.initial_state.core_sources,
+              pedestal_transition_state=initial_transition_state,
+          )
       )
 
       self.assertEqual(new_state.confinement_mode, expected_mode)
@@ -247,33 +237,9 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         ),
     )
 
-    _dummy_pedestal_output = pedestal_model_output_lib.PedestalModelOutput(
-        rho_norm_ped_top=jnp.inf,
-        T_i_ped=0.0,
-        T_e_ped=0.0,
-        n_e_ped=0.0,
-    )
-    l_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
-        confinement_mode=jnp.array(
-            pedestal_transition_state_lib.ConfinementMode.L_MODE
-        ),
-        transition_start_time=jnp.inf,
-        T_i_ped_L_mode=jnp.array(0.0),
-        T_e_ped_L_mode=jnp.array(0.0),
-        n_e_ped_L_mode=jnp.array(0.0),
-        pedestal_model_output=_dummy_pedestal_output,
-        previous_pedestal_model_output=_dummy_pedestal_output,
-    )
-    h_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
-        confinement_mode=jnp.array(
-            pedestal_transition_state_lib.ConfinementMode.H_MODE
-        ),
-        transition_start_time=jnp.array(0.0),
-        T_i_ped_L_mode=jnp.array(0.0),
-        T_e_ped_L_mode=jnp.array(0.0),
-        n_e_ped_L_mode=jnp.array(0.0),
-        pedestal_model_output=_dummy_pedestal_output,
-        previous_pedestal_model_output=_dummy_pedestal_output,
+    l_mode_state = pedestal_transition_state_lib.PedestalTransitionState.empty()
+    h_mode_state = pedestal_transition_state_lib.PedestalTransitionState.empty(
+        confinement_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE
     )
 
     # Mock calculate_P_SOL_total and calculate_P_LH to avoid depending on
@@ -311,6 +277,68 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         multiplier_h_mode.chi_e_multiplier,
         multiplier_l_mode.chi_e_multiplier,
     )
+
+  def test_calculate_P_SOL_total_raises_when_energy_is_none(self):
+    with self.assertRaises(ValueError):
+      power_scaling_formation_model.calculate_P_SOL_total(
+          None,
+          self.initial_state.core_sources,
+          self.initial_state.geometry,
+          include_dW_dt=True,
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='above_P_LH',
+          p_sol=120.0e6,
+          expected_trigger_l_to_h=True,
+          expected_trigger_h_to_l=False,
+      ),
+      dict(
+          testcase_name='in_hysteresis_band',
+          p_sol=90.0e6,
+          expected_trigger_l_to_h=False,
+          expected_trigger_h_to_l=False,
+      ),
+      dict(
+          testcase_name='below_hysteresis_threshold',
+          p_sol=70.0e6,
+          expected_trigger_l_to_h=False,
+          expected_trigger_h_to_l=True,
+      ),
+  )
+  def test_evaluate_transition_conditions(
+      self, p_sol, expected_trigger_l_to_h, expected_trigger_h_to_l
+  ):
+    formation_model = power_scaling_formation_model.PowerScalingFormationModel(
+        scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
+    )
+    runtime_params = dataclasses.replace(
+        self.runtime_params,
+        pedestal=dataclasses.replace(
+            self.runtime_params.pedestal,
+            P_LH_hysteresis_factor=0.8,
+        ),
+    )
+    with mock.patch.object(
+        power_scaling_formation_model,
+        'calculate_P_SOL_total',
+        return_value=jnp.array(p_sol),
+    ), mock.patch.object(
+        scaling_laws,
+        'calculate_P_LH',
+        return_value=(jnp.array(100.0e6), None),
+    ):
+      trigger_l_to_h, trigger_h_to_l = (
+          formation_model.evaluate_transition_conditions(
+              runtime_params=runtime_params,
+              geo=self.initial_state.geometry,
+              core_profiles=self.initial_state.core_profiles,
+              source_profiles=self.initial_state.core_sources,
+          )
+      )
+    self.assertEqual(bool(trigger_l_to_h), expected_trigger_l_to_h)
+    self.assertEqual(bool(trigger_h_to_l), expected_trigger_h_to_l)
 
 
 if __name__ == '__main__':
