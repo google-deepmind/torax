@@ -38,8 +38,8 @@ class MHDPydanticModelTest(parameterized.TestCase):
     self.transport_model = mock.Mock(spec=component.ComponentTransportModel)
     self.source_models = mock.Mock(spec=source_models_lib.SourceModels)
     self.pedestal_model = mock.Mock(spec=pedestal_model_lib.PedestalModel)
-    self.neoclassical_models = mock.Mock(
-        spec=neoclassical_models_lib.NeoclassicalModels
+    self.neoclassical_model = mock.Mock(
+        spec=neoclassical_models_lib.NeoclassicalModel
     )
 
   def test_no_mhd_config_makes_empty_runtime_params(self):

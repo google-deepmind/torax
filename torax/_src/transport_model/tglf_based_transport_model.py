@@ -140,7 +140,6 @@ class TGLFBasedTransportModel(
       transport: RuntimeParams,  # pylint: disable=unused-argument
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
       two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> TGLFInputs:
     """Construct a TGLFInputs object from the TORAX state.
@@ -180,7 +179,6 @@ class TGLFBasedTransportModel(
       transport: Runtime parameters for the transport model.
       geo: Geometric parameters of the tokamak.
       core_profiles: Core plasma profiles (e.g., temperatures, densities, q).
-      poloidal_velocity_multiplier: Multiplier applied to the poloidal velocity.
       two_point_mask: Boolean face mask indicating where face gradients are
         calculated with 2-point central differences instead of 3-point.
 
@@ -389,19 +387,15 @@ class TGLFBasedTransportModel(
     def _get_v_ExB_shear(
         core_profiles: state.CoreProfiles,
         geo: geometry.Geometry,
-        poloidal_velocity_multiplier: array_typing.FloatScalar,
     ):
       rotation_output = rotation.calculate_rotation(
-          T_i=core_profiles.T_i,
           psi=core_profiles.psi,
           n_i=core_profiles.n_i,
-          q_face=core_profiles.q_face,
-          Z_eff_face=core_profiles.Z_eff_face,
           Z_i_face=core_profiles.Z_i_face,
           toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
+          poloidal_velocity=core_profiles.poloidal_velocity,
           pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
-          poloidal_velocity_multiplier=poloidal_velocity_multiplier,
       )
       v_ExB = rotation_output.v_ExB
       value_face = v_ExB / geo.R_major_profile_face
@@ -428,7 +422,6 @@ class TGLFBasedTransportModel(
       v_ExB_shear = _get_v_ExB_shear(
           core_profiles,
           geo,
-          poloidal_velocity_multiplier,
       )
     else:
       v_ExB_shear = jnp.zeros_like(core_profiles.q_face)

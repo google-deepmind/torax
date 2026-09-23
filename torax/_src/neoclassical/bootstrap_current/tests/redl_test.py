@@ -36,7 +36,7 @@ class RedlTest(absltest.TestCase):
         runtime_params_lib.RuntimeParams,
         instance=True,
         neoclassical=mock.create_autospec(
-            neoclassical_runtime_params.RuntimeParams,
+            neoclassical_runtime_params.AnalyticalRuntimeParams,
             instance=True,
             bootstrap_current=bootstrap_params,
         ),

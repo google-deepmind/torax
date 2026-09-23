@@ -22,6 +22,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import base as neoclassical_transport_base
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -36,10 +37,10 @@ class NeoclassicalTransportTest(absltest.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    neoclassical_pydantic_model.Neoclassical.model_fields[  # pyrefly: ignore[bad-assignment]
+    neoclassical_pydantic_model.AnalyticalNeoclassical.model_fields[  # pyrefly: ignore[bad-assignment]
         'transport'
     ].annotation |= FakeNeoclassicalTransportModelConfig
-    neoclassical_pydantic_model.Neoclassical.model_rebuild(force=True)
+    neoclassical_pydantic_model.AnalyticalNeoclassical.model_rebuild(force=True)
     model_config.ToraxConfig.model_rebuild(force=True)
 
   def test_clipping(self):
@@ -63,12 +64,12 @@ class NeoclassicalTransportTest(absltest.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     neoclassical_transport_model = (
         torax_config.neoclassical.transport.build_model()
@@ -133,7 +134,9 @@ class FakeNeoclassicalTransportModel(
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      analytical_cache: formulas.AnalyticalCache | None = None,
   ) -> transport_coeffs.NeoclassicalTransport:
+    del analytical_cache
     chi_face_ion = np.linspace(0.5, 2, geometry.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geometry.rho_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geometry.rho_face_norm.shape[0])
