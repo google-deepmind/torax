@@ -22,6 +22,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import base as neoclassical_transport_base
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -133,7 +134,9 @@ class FakeNeoclassicalTransportModel(
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      analytical_cache: formulas.AnalyticalCache | None = None,
   ) -> transport_coeffs.NeoclassicalTransport:
+    del analytical_cache
     chi_face_ion = np.linspace(0.5, 2, geometry.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geometry.rho_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geometry.rho_face_norm.shape[0])

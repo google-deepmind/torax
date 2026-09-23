@@ -82,7 +82,6 @@ class CalcCoeffsTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        neoclassical_models=models.neoclassical_models,
         explicit=True,
     )
     calc_coeffs.calc_coeffs(

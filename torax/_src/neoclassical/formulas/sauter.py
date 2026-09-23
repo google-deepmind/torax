@@ -77,6 +77,22 @@ def calculate_L32(
   return F32ee + F32ei
 
 
+def calculate_L33(
+    f_trap: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
+  """Calculates L33 (F33) conductivity factor: Sauter PoP 1999 Eqs. 13a+b."""
+  ft33 = f_trap / (
+      1.0
+      + (0.55 - 0.1 * f_trap) * jnp.sqrt(nu_e_star)
+      + 0.45 * (1.0 - f_trap) * nu_e_star / (Z_eff**1.5)
+  )
+  return 1.0 - ft33 * (
+      1.0 + 0.36 / Z_eff - ft33 * (0.59 / Z_eff - 0.23 / Z_eff * ft33)
+  )
+
+
 def calculate_L34(
     f_trap: array_typing.FloatVectorFace,
     nu_e_star: array_typing.FloatVectorFace,
