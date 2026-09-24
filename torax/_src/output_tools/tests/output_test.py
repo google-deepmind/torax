@@ -117,7 +117,8 @@ class StateHistoryTest(parameterized.TestCase):
     self.core_transport = state.CoreTransport(
         total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
         turbulent=transport_coeffs_lib.TurbulentTransport(
-            total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+            core=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+            pedestal=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
             core_coefficients={
                 'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
                     self.geo

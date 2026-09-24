@@ -124,15 +124,17 @@ class TurbulentTransport:
   """Combined turbulent transport output across all models.
 
   Attributes:
-    total: Combined 4-channel turbulent transport coefficients (after merge,
+    core: Combined 4-channel core turbulent transport coefficients (after merge,
       clipping, and smoothing).
+    pedestal: Combined 4-channel pedestal turbulent transport coefficients.
     core_coefficients: Mapping from model name to the TransportCoeffs produced
       by each active core transport model.
     pedestal_coefficients: Mapping from model name to the TransportCoeffs
       produced by each active pedestal transport model.
   """
 
-  total: TransportCoeffs
+  core: TransportCoeffs
+  pedestal: TransportCoeffs
   core_coefficients: Mapping[str, TransportCoeffs] = dataclasses.field(
       default_factory=dict
   )
@@ -140,10 +142,16 @@ class TurbulentTransport:
       default_factory=dict
   )
 
+  @property
+  def total(self) -> TransportCoeffs:
+    """Combined 4-channel turbulent transport coefficients (core + pedestal)."""
+    return self.core + self.pedestal
+
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
     return cls(
-        total=TransportCoeffs.zeros(geo),
+        core=TransportCoeffs.zeros(geo),
+        pedestal=TransportCoeffs.zeros(geo),
         core_coefficients={},
         pedestal_coefficients={},
     )

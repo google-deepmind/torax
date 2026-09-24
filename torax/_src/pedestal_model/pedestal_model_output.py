@@ -231,10 +231,10 @@ class PedestalModelOutput:
   ) -> state.CoreTransport:
     """Modify transport coefficients in the entire pedestal region.
 
-    Scales the turbulent total and Pereverzev transport coefficients in the
+    Scales the turbulent core and Pereverzev transport coefficients in the
     pedestal region by the multipliers in the pedestal model output. Transport
-    coefficients from neoclassical, core, and pedestal transport
-    models are not affected.
+    coefficients from neoclassical and pedestal transport models, as well as
+    individual per-model diagnostic outputs, are not affected.
 
     Args:
       core_transport: The core transport coefficients to modify.
@@ -246,11 +246,6 @@ class PedestalModelOutput:
     """
     # We are using the face grid here, since transport coefficients are
     # applied on the face grid.
-
-    # TODO(b/485147781):  In the case where we have a TransportModel
-    # with a pedestal transport model specified, we are currently scaling
-    # all the coefficients in the pedestal region, whereas we should be only
-    # scaling the turbulent coeffs and leaving the pedestal coeffs alone.
     pedestal_active_mask_face = geo.rho_face_norm > self.rho_norm_ped_top
 
     smoothing_matrix = _build_smoothing_matrix(
@@ -306,13 +301,12 @@ class PedestalModelOutput:
           ),
       )
 
-    # Scale turbulent total. Core and pedestal transport
-    # coefficients are preserved unscaled so raw model outputs remain
-    # accessible in output trees and diagnostics.
-    modified_turbulent = transport_coeffs_lib.TurbulentTransport(
-        total=_scale_coeffs(core_transport.turbulent.total),
-        core_coefficients=core_transport.turbulent.core_coefficients,
-        pedestal_coefficients=core_transport.turbulent.pedestal_coefficients,
+    # Scale only turbulent core transport. Pedestal transport
+    # (turbulent.pedestal) and individual per-model diagnostic outputs
+    # (core_coefficients and pedestal_coefficients) are preserved unscaled.
+    modified_turbulent = dataclasses.replace(
+        core_transport.turbulent,
+        core=_scale_coeffs(core_transport.turbulent.core),
     )
 
     # Scale Pereverzev transport if present.
