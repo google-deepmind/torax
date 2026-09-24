@@ -133,6 +133,8 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
     roots_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.ones((num_roots,)) * 3.5,
         T_i_right_bc=jnp.ones((num_roots,)) * 3.5,
+        impurity_right_bc={'Ne': jnp.ones((num_roots,)) * 0.01},
+        n_e_right_bc=jnp.full((num_roots,), jnp.nan),
         q_parallel=jnp.ones((num_roots,)) * 1.5,
         q_perpendicular_target=jnp.ones((num_roots,)) * 2.5,
         T_e_separatrix=jnp.ones((num_roots,)) * 3.5,
@@ -163,6 +165,8 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.array(3.0),
         T_i_right_bc=jnp.array(3.0),
+        impurity_right_bc={'Ne': jnp.array(0.01)},
+        n_e_right_bc=jnp.array(jnp.nan),
         q_parallel=jnp.array(1.0),
         q_perpendicular_target=jnp.array(2.0),
         T_e_separatrix=jnp.array(3.0),
@@ -206,9 +210,11 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
     )
 
     # Let's Assert that 'T_e_target' is in data_vars (without prefix)
-    self.assertIn(output_keys.T_E_TARGET, roots_dataset.data_vars)
+    self.assertIn(
+        extended_lengyel_standalone.T_E_TARGET, roots_dataset.data_vars
+    )
 
-    roots_Te = roots_dataset[output_keys.T_E_TARGET]
+    roots_Te = roots_dataset[extended_lengyel_standalone.T_E_TARGET]
     self.assertIn(extended_lengyel_standalone.N_ROOTS, roots_Te.dims)
 
     # Verify values
