@@ -94,6 +94,20 @@ def setUpModule():
   register_model.register_transport_model(FixedTransportConfig)
 
 
+def _make_transition_state(
+    rho_norm_ped_top: float = 1.0,
+) -> pedestal_transition_state_lib.PedestalTransitionState:
+  output = mock.create_autospec(
+      pedestal_model_output_lib.PedestalModelOutput,
+      instance=True,
+      rho_norm_ped_top=rho_norm_ped_top,
+  )
+  return dataclasses.replace(
+      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+      pedestal_model_output=output,
+  )
+
+
 class TransportMaskingTest(parameterized.TestCase):
   """Tests for output masking in transport models."""
 
@@ -137,12 +151,18 @@ class TransportMaskingTest(parameterized.TestCase):
     )
     # We need a pedestal model even if unused by the fixed transport
     pedestal_model = torax_config.pedestal.build_pedestal_model()
+    transition_state = (
+        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+    )
     pedestal_model_outputs = pedestal_model(
         runtime_params,
         geo,
         core_profiles,
         source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=transition_state,
+    )
+    transition_state = dataclasses.replace(
+        transition_state, pedestal_model_output=pedestal_model_outputs
     )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
@@ -151,7 +171,7 @@ class TransportMaskingTest(parameterized.TestCase):
         runtime_params,
         geo,
         core_profiles,
-        pedestal_model_outputs,
+        transition_state,
         two_point_mask,
     )
 
@@ -198,18 +218,14 @@ class TransportMaskingTest(parameterized.TestCase):
         source_models,
         neoclassical_models,
     )
-    pedestal_model_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=1.0,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         core_profiles,
-        pedestal_model_outputs,
+        transition_state,
         two_point_mask,
     )
 
@@ -235,7 +251,7 @@ class TransportMaskingTest(parameterized.TestCase):
         single_runtime,
         geo,
         core_profiles,
-        pedestal_model_outputs,
+        transition_state,
         two_point_mask,
     )
 
@@ -330,12 +346,18 @@ class TransportMaskingTest(parameterized.TestCase):
         neoclassical_models=torax_config.neoclassical.build_models(),
         explicit=True,
     )
+    transition_state = (
+        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+    )
     pedestal_outputs = pedestal_model(
         runtime_params,
         geo,
         core_profiles,
         source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=transition_state,
+    )
+    transition_state = dataclasses.replace(
+        transition_state, pedestal_model_output=pedestal_outputs
     )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
@@ -344,7 +366,7 @@ class TransportMaskingTest(parameterized.TestCase):
         runtime_params,
         geo,
         core_profiles,
-        pedestal_outputs,
+        transition_state,
         two_point_mask,
     )
 
@@ -409,18 +431,14 @@ class TransportModelTest(absltest.TestCase):
         source_models,
         neoclassical_models,
     )
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=0.91,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=0.91)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         core_profiles,
-        mock_pedestal_outputs,
+        transition_state,
         two_point_mask,
     )
     # Target:
@@ -434,6 +452,10 @@ class TransportModelTest(absltest.TestCase):
     target = jnp.where(geo.rho_face_norm <= 0.5, 2.0, target)
     target = jnp.where(geo.rho_face_norm <= 0.2, 1.0, target)
     np.testing.assert_allclose(coeffs.total.chi_face_ion, target)
+    expected_core = jnp.where(geo.rho_face_norm <= 0.91, target, 0.0)
+    expected_pedestal = jnp.where(geo.rho_face_norm > 0.91, 0.1, 0.0)
+    np.testing.assert_allclose(coeffs.core.chi_face_ion, expected_core)
+    np.testing.assert_allclose(coeffs.pedestal.chi_face_ion, expected_pedestal)
 
   def test_chi_min(self):
     config = default_configs.get_default_config_dict()
@@ -466,18 +488,14 @@ class TransportModelTest(absltest.TestCase):
         source_models,
         neoclassical_models,
     )
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=0.91,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=0.91)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         core_profiles,
-        mock_pedestal_outputs,
+        transition_state,
         two_point_mask,
     )
     # Target:
@@ -497,16 +515,12 @@ class TransportModelTest(absltest.TestCase):
         },
     }
     _, runtime_params, geo = self._build_model_and_params(config)
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=0.91,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=0.91)
     matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
         geo,
-        mock_pedestal_outputs,
+        transition_state,
     )
     np.testing.assert_allclose(
         matrix, np.eye(len(geo.rho_face_norm)), atol=1e-7
@@ -521,16 +535,12 @@ class TransportModelTest(absltest.TestCase):
         },
     }
     _, runtime_params, geo = self._build_model_and_params(config)
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=0.91,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=0.91)
     matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
         geo,
-        mock_pedestal_outputs,
+        transition_state,
     )
     row_sums = np.sum(matrix, axis=1)
     np.testing.assert_allclose(row_sums, np.ones_like(row_sums), atol=1e-6)
@@ -550,16 +560,12 @@ class TransportModelTest(absltest.TestCase):
         },
     }
     _, runtime_params, geo = self._build_model_and_params(config)
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=0.91,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=0.91)
     matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
         geo,
-        mock_pedestal_outputs,
+        transition_state,
     )
 
     outside_mask = (geo.rho_face_norm < 0.3) | (geo.rho_face_norm > 0.7)
@@ -589,16 +595,12 @@ class TransportModelTest(absltest.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
     )
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=0.8,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=0.8)
     matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
         geo,
-        mock_pedestal_outputs,
+        transition_state,
     )
 
     pedestal_mask = geo.rho_face_norm >= 0.8
@@ -642,17 +644,13 @@ class TransportModelTest(absltest.TestCase):
     core_profiles = initialization.initial_core_profiles(
         runtime_params, geo, source_models, neoclassical_models
     )
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=0.95,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=0.95)
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         core_profiles,
-        mock_pedestal_outputs,
+        transition_state,
         two_point_mask,
     )
     self.assertEqual(coeffs.total.chi_face_ion.shape, geo.rho_face_norm.shape)
@@ -718,25 +716,21 @@ class TransportModelTest(absltest.TestCase):
     model_small, params_small, geo = self._build_model_and_params(config_small)
     model_large, params_large, _ = self._build_model_and_params(config_large)
 
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=1.0,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs_small = model_small(
         params_small,
         geo,
         mock.ANY,
-        mock_pedestal_outputs,
+        transition_state,
         two_point_mask,
     )
     coeffs_large = model_large(
         params_large,
         geo,
         mock.ANY,
-        mock_pedestal_outputs,
+        transition_state,
         two_point_mask,
     )
 
@@ -814,18 +808,16 @@ class TransportModelTest(absltest.TestCase):
         'chi_min': 0.0,
     }
     model, runtime_params, geo = self._build_model_and_params(config)
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=1.0,  # No pedestal restriction for this test
-    )
+    transition_state = _make_transition_state(
+        rho_norm_ped_top=1.0
+    )  # No pedestal restriction for this test
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         mock.ANY,
-        mock_pedestal_outputs,
+        transition_state,
         two_point_mask,
     )
 
@@ -854,18 +846,14 @@ class TransportModelTest(absltest.TestCase):
         'chi_min': 0.0,
     }
     model, runtime_params, geo = self._build_model_and_params(config)
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=1.0,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         mock.ANY,
-        mock_pedestal_outputs,
+        transition_state,
         two_point_mask,
     )
 
@@ -898,18 +886,14 @@ class TransportModelTest(absltest.TestCase):
         'chi_min': 0.0,
     }
     model, runtime_params, geo = self._build_model_and_params(config)
-    mock_pedestal_outputs = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput,
-        instance=True,
-        rho_norm_ped_top=1.0,
-    )
+    transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
         runtime_params,
         geo,
         mock.ANY,
-        mock_pedestal_outputs,
+        transition_state,
         two_point_mask,
     )
 
@@ -966,14 +950,14 @@ class TransportModelTest(absltest.TestCase):
     combined_params.smoothing_width = 0.0
     combined_params.smoothing_zones = ()
 
-    pedestal_output = mock.Mock(
-        spec=pedestal_model_output_lib.PedestalModelOutput
-    )
-    pedestal_output.rho_norm_ped_top = 1.0
+    transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
     runtime_params = mock.Mock()
     runtime_params.transport = combined_params
     runtime_params.pedestal.set_pedestal = False
+    runtime_params.pedestal.use_formation_model_with_internal_boundary_condition = (
+        False
+    )
     runtime_params.pedestal.mode = (
         pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
     )
@@ -982,7 +966,7 @@ class TransportModelTest(absltest.TestCase):
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = combined_model(
-        runtime_params, geo, core_profiles, pedestal_output, two_point_mask
+        runtime_params, geo, core_profiles, transition_state, two_point_mask
     )
 
     self.assertEqual(mock_model.call_count, 1)
@@ -1022,6 +1006,114 @@ class TransportModelTest(absltest.TestCase):
     )
     np.testing.assert_allclose(
         coeffs.total.v_face_el, mock_coeffs.v_face_el
+    )
+
+  def test_pedestal_transition_state_internal_boundary_condition_masking(self):
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {
+        'core_transport_models': {
+            'prescribed': {
+                'model_name': 'prescribed',
+                'chi_i': 2.0,
+                'chi_e': 2.0,
+                'D_e': 2.0,
+                'V_e': 2.0,
+            }
+        },
+        'pedestal_transport_models': {
+            'prescribed': {
+                'model_name': 'prescribed',
+                'chi_i': 0.5,
+                'chi_e': 0.5,
+                'D_e': 0.5,
+                'V_e': 0.5,
+            }
+        },
+    }
+    config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
+        'mode': 'INTERNAL_BOUNDARY_CONDITION',
+        'use_formation_model_with_internal_boundary_condition': True,
+        'rho_norm_ped_top': 0.8,
+        'T_i_ped': 4.0,
+        'T_e_ped': 4.0,
+        'n_e_ped': 0.6e20,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=torax_config.numerics.t_initial,
+            runtime_params_provider=(
+                build_runtime_params.RuntimeParamsProvider.from_config(
+                    torax_config
+                )
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
+        )
+    )
+    source_models = torax_config.sources.build_models()
+    neoclassical_models = torax_config.neoclassical.build_models()
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params=runtime_params,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_models=neoclassical_models,
+    )
+    pedestal_output = pedestal_model_output_lib.PedestalModelOutput(
+        rho_norm_ped_top=jnp.asarray(0.8),
+        T_i_ped=jnp.asarray(4.0),
+        T_e_ped=jnp.asarray(4.0),
+        n_e_ped=jnp.asarray(0.6e20),
+    )
+    combined_model = torax_config.transport.build_transport_model()
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    ped_mask = geo.rho_face_norm >= pedestal_output.rho_norm_ped_top
+
+    l_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
+        confinement_mode=pedestal_transition_state_lib.ConfinementMode.L_MODE,
+        transition_start_time=jnp.asarray(0.0),
+        T_i_ped_L_mode=jnp.asarray(1.0),
+        T_e_ped_L_mode=jnp.asarray(1.0),
+        n_e_ped_L_mode=jnp.asarray(1e19),
+        pedestal_model_output=pedestal_output,
+        previous_pedestal_model_output=pedestal_output,
+    )
+    l_mode_coeffs = combined_model(
+        runtime_params,
+        geo,
+        core_profiles,
+        l_mode_state,
+        two_point_mask,
+    )
+    np.testing.assert_allclose(
+        l_mode_coeffs.core.chi_face_ion,
+        np.full_like(geo.rho_face_norm, 2.0),
+    )
+    np.testing.assert_allclose(
+        l_mode_coeffs.pedestal.chi_face_ion,
+        np.zeros_like(geo.rho_face_norm),
+    )
+
+    h_mode_state = dataclasses.replace(
+        l_mode_state,
+        confinement_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE,
+    )
+    h_mode_coeffs = combined_model(
+        runtime_params,
+        geo,
+        core_profiles,
+        h_mode_state,
+        two_point_mask,
+    )
+    np.testing.assert_allclose(
+        h_mode_coeffs.core.chi_face_ion,
+        np.where(ped_mask, 0.0, 2.0),
+    )
+    np.testing.assert_allclose(
+        h_mode_coeffs.pedestal.chi_face_ion,
+        np.where(ped_mask, 0.5, 0.0),
     )
 
 

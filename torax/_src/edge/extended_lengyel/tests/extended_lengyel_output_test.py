@@ -25,6 +25,7 @@ from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import output
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.solver import jax_root_finding
@@ -113,6 +114,7 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         time_step_calculator_state=(
             models.time_step_calculator.initial_state(runtime_params)
         ),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
     previous_post_processed_outputs = (

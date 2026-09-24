@@ -31,7 +31,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -83,11 +83,8 @@ def _get_model_and_model_inputs(
       neoclassical_models=neoclassical_models,
   )
 
-  pedestal_model_outputs = pedestal_model_output_lib.PedestalModelOutput(
-      rho_norm_ped_top=np.inf,
-      T_i_ped=0.0,
-      T_e_ped=0.0,
-      n_e_ped=0.0,
+  transition_state = (
+      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
 
@@ -95,7 +92,7 @@ def _get_model_and_model_inputs(
       runtime_params,
       geo,
       core_profiles,
-      pedestal_model_outputs,
+      transition_state,
       two_point_mask,
   )
 
