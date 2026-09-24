@@ -911,26 +911,19 @@ RADIATION_IMPURITY_SPECIES: Final[OutputKey] = OutputKey(
 # ---------------------------------------------------------------------------
 # Edge model scalar outputs.
 # ---------------------------------------------------------------------------
-Q_PARALLEL: Final[OutputKey] = OutputKey(
-    "q_parallel",
-    units=Units.WATT_PER_SQUARE_METER,
-    grid_type=GridType.SCALAR,
+T_E_RIGHT_BC: Final[OutputKey] = OutputKey(
+    "T_e_right_bc", units=Units.KEV, grid_type=GridType.SCALAR
 )
-Q_PERPENDICULAR_TARGET: Final[OutputKey] = OutputKey(
-    "q_perpendicular_target",
-    units=Units.WATT_PER_SQUARE_METER,
-    grid_type=GridType.SCALAR,
+T_I_RIGHT_BC: Final[OutputKey] = OutputKey(
+    "T_i_right_bc", units=Units.KEV, grid_type=GridType.SCALAR
 )
-T_E_SEPARATRIX: Final[OutputKey] = OutputKey(
-    "T_e_separatrix", units=Units.KEV, grid_type=GridType.SCALAR
+N_E_RIGHT_BC: Final[OutputKey] = OutputKey(
+    "n_e_right_bc", units=Units.INVERSE_CUBIC_METER, grid_type=GridType.SCALAR
 )
-T_E_TARGET: Final[OutputKey] = OutputKey(
-    "T_e_target", units=Units.EV, grid_type=GridType.SCALAR
-)
-PRESSURE_NEUTRAL_DIVERTOR: Final[OutputKey] = OutputKey(
-    "pressure_neutral_divertor",
-    units=Units.PASCAL,
-    grid_type=GridType.SCALAR,
+IMPURITY_RIGHT_BC: Final[OutputKey] = OutputKey(
+    "impurity_right_bc",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.NOT_APPLICABLE,
 )
 
 # ---------------------------------------------------------------------------
