@@ -46,12 +46,12 @@ class BohmGyroBohmTest(absltest.TestCase):
         torax_config
     )(t=t)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     return (

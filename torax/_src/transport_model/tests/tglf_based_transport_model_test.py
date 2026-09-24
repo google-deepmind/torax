@@ -46,7 +46,7 @@ def _get_config_and_model_inputs(
   config["transport"] = transport
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = torax_config.sources.build_models()
-  neoclassical_models = torax_config.neoclassical.build_models()
+  neoclassical_model = torax_config.neoclassical.build_model()
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
       torax_config
   )(
@@ -57,14 +57,13 @@ def _get_config_and_model_inputs(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      neoclassical_model=neoclassical_model,
   )
   source_profiles = source_profile_builders.build_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
@@ -142,7 +141,6 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=tglf_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
     expected_length = geo.rho_face_norm.shape[0]
     scalar_keys = ["Rmin", "Rmaj"]  # Inherited from QuasilinearInputs
@@ -200,13 +198,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=tglf_params_uncapped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_uncapped.neoclassical.poloidal_velocity_multiplier,
     )
     capped = transport_model._prepare_tglf_inputs(
         transport=tglf_params_capped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_capped.neoclassical.poloidal_velocity_multiplier,
     )
 
     # Precondition: some uncapped values must exceed the cap.
@@ -236,11 +232,10 @@ class FakeTGLFBasedTransportModel(
       transport: tglf_based_transport_model.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> tglf_based_transport_model.TGLFInputs:
     """Exposing prepare_tglf_inputs for testing."""
     return self._prepare_tglf_inputs(
-        transport, geo, core_profiles, poloidal_velocity_multiplier
+        transport, geo, core_profiles
     )
 
   # pylint: enable=invalid-name
@@ -263,7 +258,6 @@ class FakeTGLFBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     return self._make_core_transport(

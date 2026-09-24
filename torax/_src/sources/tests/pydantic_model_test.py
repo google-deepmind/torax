@@ -38,7 +38,9 @@ class PydanticModelTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.neoclassical = neoclassical_pydantic_model.Neoclassical.from_dict({})
+    self.neoclassical = (
+        neoclassical_pydantic_model.AnalyticalNeoclassical.from_dict({})
+    )
 
   @parameterized.parameters(
       dict(

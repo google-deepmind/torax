@@ -377,7 +377,6 @@ def pre_step(
       geo=geo_t,
       core_profiles=input_state.core_profiles,
       source_models=models.source_models,
-      neoclassical_models=models.neoclassical_models,
       explicit=True,
   )
 
@@ -502,7 +501,7 @@ def finalize_outputs(
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
           source_models=models.source_models,
-          neoclassical_models=models.neoclassical_models,
+          neoclassical_model=models.neoclassical_model,
           evolving_names=evolving_names,
       )
   )
@@ -521,11 +520,12 @@ def finalize_outputs(
       pedestal_model_output=final_pedestal_model_output,
       previous_pedestal_model_output=final_pedestal_model_output,
   )
-
+  final_neoclassical_outputs = models.neoclassical_model(
+      runtime_params_t_plus_dt, geometry_t_plus_dt, final_core_profiles
+  )
   final_total_transport = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=models.transport_model,
-          neoclassical_models=models.neoclassical_models,
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
@@ -533,6 +533,7 @@ def finalize_outputs(
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          neoclassical_transport=final_neoclassical_outputs.transport,
       )
   )
   output_state = sim_state.SimState(

@@ -17,7 +17,6 @@ import dataclasses
 from typing import Annotated, Literal
 
 import jax
-import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
 from torax._src.fvm import cell_variable
@@ -25,7 +24,7 @@ from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.conductivity import base
 from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
 from torax._src.neoclassical.formulas import formulas
-from torax._src.physics import collisions
+from torax._src.neoclassical.formulas import sauter as sauter_formulas
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -43,14 +42,19 @@ class SauterModel(base.ConductivityModel):
       self,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      analytical_cache: formulas.AnalyticalCache | None = None,
   ) -> base.Conductivity:
     """Calculates conductivity."""
+    if analytical_cache is None:
+      analytical_cache = formulas.compute_analytical_cache(
+          geometry, core_profiles
+      )
     result = _calculate_conductivity(
         Z_eff_face=core_profiles.Z_eff_face,
-        n_e=core_profiles.n_e,
         T_e=core_profiles.T_e,
-        q_face=core_profiles.q_face,
-        geo=geometry,
+        f_trap=analytical_cache.f_trap,
+        log_lambda_ei=analytical_cache.log_lambda_ei,
+        nu_e_star=analytical_cache.nu_e_star,
     )
     return base.Conductivity(
         sigma=result.sigma,
@@ -80,25 +84,18 @@ class SauterModelConfig(base.ConductivityModelConfig):
 def _calculate_conductivity(
     *,
     Z_eff_face: array_typing.FloatVectorFace,
-    n_e: cell_variable.CellVariable,
     T_e: cell_variable.CellVariable,
-    q_face: array_typing.FloatVectorFace,
-    geo: geometry_lib.Geometry,
+    f_trap: array_typing.FloatVectorFace,
+    log_lambda_ei: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
 ) -> base.Conductivity:
   """Calculates sigma and sigma_face using the Sauter model."""
   # pylint: disable=invalid-name
 
   # Formulas from Sauter PoP 1999.
 
-  # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
-
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
-  log_lambda_ei = collisions.calculate_log_lambda_ei(
-      T_e.face_value(), n_e.face_value()  # pyrefly: ignore[bad-argument-type]
-  )
-
   sigsptz = (
       1.9012e04
       * (T_e.face_value() * 1e3) ** 1.5
@@ -107,25 +104,11 @@ def _calculate_conductivity(
       / log_lambda_ei
   )
 
-  nu_e_star_face = formulas.calculate_nu_e_star(
-      q=q_face,
-      geo=geo,
-      n_e=n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      T_e=T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      Z_eff=Z_eff_face,
-      log_lambda_ei=log_lambda_ei,
-  )
-
   # Neoclassical correction to spitzer conductivity
-  ft33 = f_trap / (
-      1.0
-      + (0.55 - 0.1 * f_trap) * jnp.sqrt(nu_e_star_face)
-      + 0.45 * (1.0 - f_trap) * nu_e_star_face / (Z_eff_face**1.5)
-  )
-  signeo_face = 1.0 - ft33 * (
-      1.0
-      + 0.36 / Z_eff_face
-      - ft33 * (0.59 / Z_eff_face - 0.23 / Z_eff_face * ft33)
+  signeo_face = sauter_formulas.calculate_L33(
+      f_trap=f_trap,
+      nu_e_star=nu_e_star,
+      Z_eff=Z_eff_face,
   )
   sigma_face = sigsptz * signeo_face
 

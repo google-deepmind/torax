@@ -71,12 +71,12 @@ class SauterFormulasTest(parameterized.TestCase):
         )
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     self.core_profiles = initialization.initial_core_profiles(
         runtime_params,
         self.geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     log_lambda_ei = collisions.calculate_log_lambda_ei(
