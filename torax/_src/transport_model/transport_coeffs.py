@@ -15,7 +15,7 @@
 """Transport coefficient data structures."""
 
 import dataclasses
-from typing import Mapping, Self
+from typing import Any, Mapping, Self
 
 import jax
 from jax import numpy as jnp
@@ -23,6 +23,7 @@ from torax._src import array_typing
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
+import xarray as xr
 
 
 # pylint: disable=invalid-name
@@ -153,6 +154,38 @@ class TurbulentTransport:
   ) -> dict[str, output_grid_context.OutputVar]:
     """Converts turbulent transport outputs to an OutputVar mapping."""
     return self.total.to_output_dict(context)
+
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree:
+    """Builds an xr.DataTree of the per-model turbulent transport outputs."""
+    face_coords: Mapping[str, Any] = {
+        output_keys.TIME: context.times,
+        output_keys.RHO_FACE_NORM: context.coords[output_keys.RHO_FACE_NORM],
+    }
+    children = {}
+    if self.core_coefficients:
+      core_children = {
+          model_name: xr.DataTree(
+              dataset=context.build_dataset(
+                  model_output.to_output_dict(context), coords=face_coords
+              )
+          )
+          for model_name, model_output in self.core_coefficients.items()
+      }
+      children[output_keys.CORE] = xr.DataTree(children=core_children)
+    if self.pedestal_coefficients:
+      pedestal_children = {
+          model_name: xr.DataTree(
+              dataset=context.build_dataset(
+                  model_output.to_output_dict(context), coords=face_coords
+              )
+          )
+          for model_name, model_output in self.pedestal_coefficients.items()
+      }
+      children[output_keys.PEDESTAL] = xr.DataTree(children=pedestal_children)
+    return xr.DataTree(children=children)
 
 
 @jax.tree_util.register_dataclass

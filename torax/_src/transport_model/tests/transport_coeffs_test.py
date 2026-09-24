@@ -146,6 +146,47 @@ class TransportCoeffsTest(parameterized.TestCase):
     self.assertIn(output_keys.D_TURB_E, out)
     self.assertIn(output_keys.V_TURB_E, out)
 
+  def test_to_xr_datatree_empty(self):
+    turb = transport_coeffs.TurbulentTransport.zeros(self.geo)
+    tree = turb.to_xr_datatree(self.context)
+    self.assertEmpty(tree.children)
+
+  def test_to_xr_datatree_core_and_pedestal_overlapping_keys(self):
+    core_prescribed = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones((1, self.n_face)) * 1.0,
+        chi_face_el=jnp.ones((1, self.n_face)) * 2.0,
+        d_face_el=jnp.ones((1, self.n_face)) * 0.5,
+        v_face_el=jnp.ones((1, self.n_face)) * -0.1,
+    )
+    pedestal_prescribed = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones((1, self.n_face)) * 0.25,
+        chi_face_el=jnp.ones((1, self.n_face)) * 0.5,
+        d_face_el=jnp.ones((1, self.n_face)) * 0.1,
+        v_face_el=jnp.ones((1, self.n_face)) * -0.05,
+    )
+    turb = transport_coeffs.TurbulentTransport(
+        total=core_prescribed + pedestal_prescribed,
+        core_coefficients={'prescribed': core_prescribed},
+        pedestal_coefficients={'prescribed': pedestal_prescribed},
+    )
+    tree = turb.to_xr_datatree(self.context)
+    self.assertIn(output_keys.CORE, tree.children)
+    self.assertIn(output_keys.PEDESTAL, tree.children)
+    self.assertIn('prescribed', tree.children[output_keys.CORE].children)
+    self.assertIn('prescribed', tree.children[output_keys.PEDESTAL].children)
+    core_ds = tree.children[output_keys.CORE].children['prescribed'].dataset
+    ped_ds = tree.children[output_keys.PEDESTAL].children['prescribed'].dataset
+    np.testing.assert_allclose(
+        core_ds[output_keys.CHI_TURB_I].values, np.ones((1, self.n_face)) * 1.0
+    )
+    np.testing.assert_allclose(
+        ped_ds[output_keys.CHI_TURB_I].values, np.ones((1, self.n_face)) * 0.25
+    )
+    self.assertCountEqual(
+        list(core_ds.coords.keys()),
+        [output_keys.TIME, output_keys.RHO_FACE_NORM],
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

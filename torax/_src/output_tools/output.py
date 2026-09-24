@@ -407,12 +407,22 @@ class StateHistory:
       )
     scalars = xr.Dataset(scalars_dict, coords=scalars_coords)
     children = {
-        output_keys.NUMERICS: xr.DataTree(dataset=numerics),
         output_keys.PROFILES: xr.DataTree(dataset=profiles),
+        output_keys.NUMERICS: xr.DataTree(dataset=numerics),
         output_keys.SCALARS: xr.DataTree(dataset=scalars),
     }
     if self._stacked_edge_outputs is not None:
       children[output_keys.EDGE] = self._save_edge_outputs()
+    turbulent_transport_tree = self._save_turbulent_transport()
+    auxiliary_children = {}
+    if turbulent_transport_tree.children:
+      auxiliary_children[output_keys.TURBULENT_TRANSPORT] = (
+          turbulent_transport_tree
+      )
+    if auxiliary_children:
+      children[output_keys.AUXILIARY] = xr.DataTree(
+          children=auxiliary_children
+      )
     data_tree = xr.DataTree(
         children=children,  # pyrefly: ignore[bad-argument-type]
         dataset=xr.Dataset(
@@ -647,3 +657,9 @@ class StateHistory:
     if self._stacked_edge_outputs is None:
       return xr.DataTree(dataset=xr.Dataset({}))
     return self._stacked_edge_outputs.to_xr_datatree(self._output_grid_context)
+
+  def _save_turbulent_transport(self) -> xr.DataTree:
+    """Saves turbulent transport per-model outputs to a DataTree."""
+    return self._stacked_core_transport.turbulent.to_xr_datatree(
+        self._output_grid_context
+    )

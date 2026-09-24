@@ -42,6 +42,7 @@ from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 import xarray as xr
 
 # pylint: disable=invalid-name
@@ -113,7 +114,24 @@ class StateHistoryTest(parameterized.TestCase):
         source_models=models.source_models,
         neoclassical_models=models.neoclassical_models,
     )
-    self.core_transport = state.CoreTransport.zeros(self.geo)
+    self.core_transport = state.CoreTransport(
+        total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+        turbulent=transport_coeffs_lib.TurbulentTransport(
+            total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+            core_coefficients={
+                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
+                    self.geo
+                )
+            },
+            pedestal_coefficients={
+                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
+                    self.geo
+                )
+            },
+        ),
+        neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(self.geo),
+        pereverzev=transport_coeffs_lib.PereverzevTransport.zeros(self.geo),
+    )
     self.source_models = models.source_models
     # Setup a state history object.
     t = jnp.array(0.0)
@@ -161,6 +179,24 @@ class StateHistoryTest(parameterized.TestCase):
         core_transport_dataset[output_keys.CHI_TURB_I].values.shape,
         (1, len(self.geo.rho_face_norm)),
     )
+
+  def test_turbulent_transport_is_saved(self):
+    """Tests that the turbulent transport per-model child node is saved under auxiliary."""
+    output_xr = self.history.simulation_output_to_xr()
+    self.assertIn(output_keys.AUXILIARY, output_xr.children)
+    auxiliary_tree = output_xr.children[output_keys.AUXILIARY]
+    self.assertIn(output_keys.TURBULENT_TRANSPORT, auxiliary_tree.children)
+    turbulent_tree = auxiliary_tree.children[output_keys.TURBULENT_TRANSPORT]
+    self.assertIn(output_keys.CORE, turbulent_tree.children)
+    self.assertIn(output_keys.PEDESTAL, turbulent_tree.children)
+    for region in (output_keys.CORE, output_keys.PEDESTAL):
+      region_tree = turbulent_tree.children[region]
+      self.assertIn('prescribed', region_tree.children)
+      prescribed_ds = region_tree.children['prescribed'].dataset
+      self.assertIn(output_keys.CHI_TURB_I, prescribed_ds.data_vars)
+      self.assertIn(output_keys.CHI_TURB_E, prescribed_ds.data_vars)
+      self.assertIn(output_keys.D_TURB_E, prescribed_ds.data_vars)
+      self.assertIn(output_keys.V_TURB_E, prescribed_ds.data_vars)
 
   def test_geometry_is_saved(self):
     """Tests that the geometry is saved correctly."""

@@ -165,6 +165,20 @@ NUMERICS: Final[OutputKey] = OutputKey(
 EDGE: Final[OutputKey] = OutputKey(
     "edge", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )
+AUXILIARY: Final[OutputKey] = OutputKey(
+    "auxiliary", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+TURBULENT_TRANSPORT: Final[OutputKey] = OutputKey(
+    "turbulent_transport",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+CORE: Final[OutputKey] = OutputKey(
+    "core", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+PEDESTAL: Final[OutputKey] = OutputKey(
+    "pedestal", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
 
 # ---------------------------------------------------------------------------
 # Core profiles.

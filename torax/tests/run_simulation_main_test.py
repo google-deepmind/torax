@@ -28,6 +28,7 @@ import numpy as np
 from torax import run_simulation_main
 from torax._src import simulation_app
 from torax._src.output_tools import output as output_lib
+from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 import xarray as xr
 
@@ -91,7 +92,15 @@ class RunSimulationMainTest(parameterized.TestCase):
         os.path.join(paths.test_data_dir(), "test_implicit.nc")
     )
 
-    xr.map_over_datasets(xr.testing.assert_allclose, output, reference)
+    for node in (
+        output_keys.PROFILES,
+        output_keys.SCALARS,
+        output_keys.NUMERICS,
+    ):
+      xr.testing.assert_allclose(
+          output.children[node].dataset,
+          reference.children[node].dataset,
+      )
 
   def test_main_app_cc(self):
     """Test that the main app successfully changes the config."""
@@ -225,7 +234,15 @@ class RunSimulationMainTest(parameterized.TestCase):
                   f"Max diff: {max_diff}"
               )
 
-        xr.map_over_datasets(check_equality, output, ground_truth)
+        for node in (
+            output_keys.PROFILES,
+            output_keys.SCALARS,
+            output_keys.NUMERICS,
+        ):
+          check_equality(
+              output.children[node].dataset,
+              ground_truth.children[node].dataset,
+          )
 
       check(filepaths[0], ground_truth_before)
       check(filepaths[1], ground_truth_after)
