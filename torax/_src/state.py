@@ -496,7 +496,7 @@ class CoreTransport:
         total=transport_coeffs_lib.TransportCoeffs.zeros(geo),
         turbulent=transport_coeffs_lib.TurbulentTransport.zeros(geo),
         neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(geo),
-        pereverzev=transport_coeffs_lib.PereverzevTransport.zeros(geo),
+        pereverzev=None,
     )
 
   def to_output_dict(

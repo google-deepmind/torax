@@ -38,6 +38,7 @@ from torax._src.transport_model import transport_model as transport_model_lib
         'transport_model',
         'neoclassical_models',
         'internal_boundary_condition_model',
+        'use_pereverzev',
     )
 )
 def calculate_all_transport_coeffs(
@@ -103,41 +104,40 @@ def calculate_all_transport_coeffs(
       core_profiles,
   )
 
-  # TODO(b/311653933) this pattern for Pereverzev-Corrigan terms forces us to
-  # include value zero convection terms in the discrete system, slowing
-  # compilation down by ~10%. See if can improve with a different pattern.
-  # TODO(b/485528848) Replace cond with if.
-  pereverzev_transport_coeffs = jax.lax.cond(
-      use_pereverzev,
-      pereverzev_lib.calculate_pereverzev_transport,
-      lambda *_: transport_coeffs_lib.PereverzevTransport.zeros(geo),
-      runtime_params,
-      geo,
-      core_profiles,
-      two_point_mask,
-  )
-
-  if (
-      runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
-  ):
-    # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
-    # coefficients in the pedestal region to zero.
-    # TODO(b/485147781) Combine this masking with the turbulent transport
-    # masking.
-    pedestal_active_mask_face = (
-        geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top
+  if use_pereverzev:
+    pereverzev_transport_coeffs = (
+        pereverzev_lib.calculate_pereverzev_transport(
+            runtime_params,
+            geo,
+            core_profiles,
+            two_point_mask,
+        )
     )
-    pereverzev_transport_coeffs = jax.tree_util.tree_map(
-        lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
-        pereverzev_transport_coeffs,
-    )
+    if (
+        runtime_params.pedestal.mode
+        == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+    ):
+      # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
+      # coefficients in the pedestal region to zero.
+      # TODO(b/485147781) Combine this masking with the turbulent transport
+      # masking.
+      pedestal_active_mask_face = (
+          geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top
+      )
+      pereverzev_transport_coeffs = jax.tree_util.tree_map(
+          lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
+          pereverzev_transport_coeffs,
+      )
+  else:
+    pereverzev_transport_coeffs = None
 
-  total = transport_coeffs_lib.sum_transport_coeffs(
+  coeffs_to_sum = [
       turbulent_transport_coeffs.total,
       neoclassical_transport_coeffs,
-      pereverzev_transport_coeffs,
-  )
+  ]
+  if pereverzev_transport_coeffs is not None:
+    coeffs_to_sum.append(pereverzev_transport_coeffs)
+  total = transport_coeffs_lib.sum_transport_coeffs(*coeffs_to_sum)
 
   core_transport = state.CoreTransport(
       total=total,
