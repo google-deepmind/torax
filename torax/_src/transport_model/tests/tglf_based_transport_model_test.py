@@ -142,7 +142,6 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=tglf_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
     expected_length = geo.rho_face_norm.shape[0]
     scalar_keys = ["Rmin", "Rmaj"]  # Inherited from QuasilinearInputs
@@ -200,13 +199,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=tglf_params_uncapped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_uncapped.neoclassical.poloidal_velocity_multiplier,
     )
     capped = transport_model._prepare_tglf_inputs(
         transport=tglf_params_capped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_capped.neoclassical.poloidal_velocity_multiplier,
     )
 
     # Precondition: some uncapped values must exceed the cap.
@@ -236,11 +233,10 @@ class FakeTGLFBasedTransportModel(
       transport: tglf_based_transport_model.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> tglf_based_transport_model.TGLFInputs:
     """Exposing prepare_tglf_inputs for testing."""
     return self._prepare_tglf_inputs(
-        transport, geo, core_profiles, poloidal_velocity_multiplier
+        transport, geo, core_profiles
     )
 
   # pylint: enable=invalid-name
@@ -263,7 +259,6 @@ class FakeTGLFBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     return self._make_core_transport(
