@@ -141,6 +141,12 @@ def initial_core_profiles(
       j_total_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       toroidal_angular_velocity=toroidal_angular_velocity,
+      poloidal_velocity=cell_variable.CellVariable(
+          value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
+          face_centers=geo.rho_face_norm,
+          right_face_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
+          right_face_grad_constraint=None,
+      ),
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
   )
@@ -533,11 +539,17 @@ def _calculate_all_psi_dependent_profiles(
       right_face_constraint=v_loop_lcfs,  # pyrefly: ignore[bad-argument-type]
       right_face_grad_constraint=None,
   )
+  poloidal_velocity = (
+      neoclassical_models.poloidal_velocity.calculate_poloidal_velocity(
+          runtime_params, geo, core_profiles
+      )
+  )
   core_profiles = dataclasses.replace(
       core_profiles,
       psidot=psidot,
       sigma=conductivity.sigma,
       sigma_face=conductivity.sigma_face,
+      poloidal_velocity=poloidal_velocity.v_pol,
   )
   return core_profiles
 
