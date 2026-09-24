@@ -92,6 +92,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      analytical_cache: formulas.AnalyticalCache | None = None,
   ) -> transport_coeffs.NeoclassicalTransport:
     """Calculates neoclassical transport coefficients.
 
@@ -103,19 +104,26 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
       runtime_params: Runtime parameters.
       geometry: Geometry object.
       core_profiles: Core profiles object.
+      analytical_cache: Optional precomputed analytical quantities.
 
     Returns:
       Neoclassical transport coefficients.
     """
+    if analytical_cache is None:
+      analytical_cache = formulas.compute_analytical_cache(
+          geometry, core_profiles
+      )
     angioni_sauter = _calculate_angioni_sauter_transport(
         runtime_params=runtime_params,
         geometry=geometry,
         core_profiles=core_profiles,
+        analytical_cache=analytical_cache,
     )
     shaing = _calculate_shaing_transport(
         runtime_params=runtime_params,
         geometry=geometry,
         core_profiles=core_profiles,
+        analytical_cache=analytical_cache,
     )
 
     # Needed for pytype.
@@ -156,6 +164,7 @@ def _calculate_angioni_sauter_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
+    analytical_cache: formulas.AnalyticalCache | None = None,
 ) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Angioni-Sauter transport model.
 
@@ -163,6 +172,7 @@ def _calculate_angioni_sauter_transport(
     runtime_params: Runtime parameters.
     geometry: Geometry object.
     core_profiles: Core profiles object.
+    analytical_cache: Optional precomputed analytical quantities.
 
   Returns:
     Neoclassical transport coefficients.
@@ -172,6 +182,11 @@ def _calculate_angioni_sauter_transport(
   """
 
   del runtime_params  # Unused.
+
+  if analytical_cache is None:
+    analytical_cache = formulas.compute_analytical_cache(
+        geometry, core_profiles
+    )
 
   # --- Step 1: Calculate intermediate physics quantities ---
 
@@ -191,23 +206,8 @@ def _calculate_angioni_sauter_transport(
   ftrap_d = 1.0 - (1.0 - ftrap) / B2_avg_Bm2_avg
 
   # Collisionalities
-  log_lambda_ei = collisions.calculate_log_lambda_ei(
-      core_profiles.T_e.face_value(), core_profiles.n_e.face_value()  # pyrefly: ignore[bad-argument-type]
-  )
-  nu_e_star = formulas.calculate_nu_e_star(
-      q=core_profiles.q_face,
-      geo=geometry,
-      n_e=core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      T_e=core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      Z_eff=core_profiles.Z_eff_face,
-      log_lambda_ei=log_lambda_ei,
-  )
-
-  log_lambda_ii = collisions.calculate_log_lambda_ii(
-      core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-      core_profiles.n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-      core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
-  )
+  nu_e_star = analytical_cache.nu_e_star
+  log_lambda_ii = analytical_cache.log_lambda_ii
 
   # Equation 18c from Sauter PoP 1999
   nu_i_star = (
@@ -688,6 +688,7 @@ def _calculate_shaing_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
+    analytical_cache: formulas.AnalyticalCache | None = None,
 ) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Shaing transport model.
 
@@ -702,6 +703,7 @@ def _calculate_shaing_transport(
     runtime_params: Runtime parameters.
     geometry: Geometry object.
     core_profiles: Core profiles object.
+    analytical_cache: Optional precomputed analytical quantities.
 
   Returns:
     Neoclassical transport coefficients.
@@ -715,16 +717,19 @@ def _calculate_shaing_transport(
   T_i_J = core_profiles.T_i.face_value() * constants.CONSTANTS.keV_to_J
 
   # Collisionality
-  ln_Lambda_ii = collisions.calculate_log_lambda_ii(
-      core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-      core_profiles.n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-      core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
-  )
+  if analytical_cache is None:
+    ln_Lambda_ii = collisions.calculate_log_lambda_ii(
+        core_profiles.T_i.face_value(),
+        core_profiles.n_i.face_value(),
+        core_profiles.Z_i_face,
+    )
+  else:
+    ln_Lambda_ii = analytical_cache.log_lambda_ii
   tau_ii = collisions.calculate_tau_ii(
-      A_i=core_profiles.A_i,  # pyrefly: ignore[bad-argument-type]
-      Z_i=core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
-      T_i=core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-      n_i=core_profiles.n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      A_i=core_profiles.A_i,
+      Z_i=core_profiles.Z_i_face,
+      T_i=core_profiles.T_i.face_value(),
+      n_i=core_profiles.n_i.face_value(),
       ln_Lambda_ii=ln_Lambda_ii,
   )
   nu_ii = 1 / tau_ii  # Ion-ion collision frequency
