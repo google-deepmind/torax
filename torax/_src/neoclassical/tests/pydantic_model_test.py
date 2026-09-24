@@ -25,12 +25,21 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertEqual(model.bootstrap_current.model_name, "zeros")
     self.assertEqual(model.conductivity.model_name, "sauter")
     self.assertEqual(model.transport.model_name, "zeros")
+    self.assertEqual(model.poloidal_velocity.model_name, "kim")
 
   def test_default_model_from_dict(self):
     model = pydantic_model.Neoclassical.from_dict({})
     self.assertEqual(model.bootstrap_current.model_name, "zeros")
     self.assertEqual(model.conductivity.model_name, "sauter")
     self.assertEqual(model.transport.model_name, "zeros")
+    self.assertEqual(model.poloidal_velocity.model_name, "kim")
+
+  @parameterized.parameters("zeros", "kim")
+  def test_set_poloidal_velocity_model_name(self, model_name):
+    model = pydantic_model.Neoclassical.from_dict(
+        {"poloidal_velocity": {"model_name": model_name}}
+    )
+    self.assertEqual(model.poloidal_velocity.model_name, model_name)
 
   def test_bootstrap_current_exists_is_sauter(self):
     model = pydantic_model.Neoclassical.from_dict({"bootstrap_current": {}})
