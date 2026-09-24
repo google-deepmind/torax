@@ -49,6 +49,11 @@ class SauterModel(bootstrap_current_base.BootstrapCurrentModel):
         Z_i_face=core_profiles.Z_i_face,
         n_e=core_profiles.n_e,
         n_i=core_profiles.n_i,
+        dens_sum_face=formulas.calculate_ion_density_sum_face(
+            core_profiles.n_i,
+            core_profiles.n_impurity_thermal,
+            core_profiles.impurity_density_scaling_face,
+        ),
         T_e=core_profiles.T_e,
         T_i=core_profiles.T_i,
         p_e=core_profiles.pressure_thermal_e,
@@ -93,6 +98,7 @@ def _calculate_bootstrap_current(
     Z_i_face: array_typing.FloatVectorFace,
     n_e: cell_variable.CellVariable,
     n_i: cell_variable.CellVariable,
+    dens_sum_face: array_typing.FloatVectorFace,
     T_e: cell_variable.CellVariable,
     T_i: cell_variable.CellVariable,
     p_e: cell_variable.CellVariable,
@@ -128,9 +134,9 @@ def _calculate_bootstrap_current(
   nu_i_star = formulas.calculate_nu_i_star(
       q=q_face,
       geo=geo,
-      n_i=n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+      n_i=dens_sum_face,
       T_i=T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-      Z_eff=Z_eff_face,
+      Z_i=Z_i_face,
       log_lambda_ii=log_lambda_ii,
   )
 

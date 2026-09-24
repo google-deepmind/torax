@@ -122,7 +122,6 @@ class FormulasTest(parameterized.TestCase):
         T_i=self.core_profiles.T_i,
         n_i=self.core_profiles.n_i.face_value(),
         q=self.core_profiles.q_face,
-        Z_eff=self.core_profiles.Z_eff_face,
         Z_i=self.core_profiles.Z_i_face,
         B_tor=np.ones_like(self.geo.rho_face_norm),
         B_total_squared=np.ones_like(self.geo.rho_face_norm),
@@ -155,17 +154,17 @@ class FormulasTest(parameterized.TestCase):
 # If a change is expected to theese reference values, the new values can b
 # copied/pasted from the logs of a failing test.
 _POLOIDAL_VELOCITY_EXPECTED = np.array([
-    -1485.871716,
-    -2507.496827,
-    -3933.755809,
-    -4537.621566,
-    -4854.858931,
-    -5031.592012,
-    -5073.608117,
-    -4858.248803,
-    -3559.941551,
-    3265.428187,
-    18579.094079,
+    -2803.870157,
+    -4312.356520,
+    -5962.209636,
+    -6210.168369,
+    -6481.880862,
+    -6841.083405,
+    -7254.744224,
+    -7716.079882,
+    -8119.067019,
+    -7507.588264,
+    -5112.832874,
 ])
 
 if __name__ == '__main__':

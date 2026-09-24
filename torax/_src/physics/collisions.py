@@ -233,8 +233,8 @@ def calculate_log_lambda_ii(
   Formula 18e in Sauter PoP 1999. See also NRL formulary 2013, page 34.
 
   Args:
-    T_i: Electron temperature [keV].
-    n_i: Electron density [m^-3].
+    T_i: Ion temperature [keV].
+    n_i: Ion density [m^-3].
     Z_i: Ion charge [dimensionless].
 
   Returns:
