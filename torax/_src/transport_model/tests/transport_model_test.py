@@ -434,6 +434,10 @@ class TransportModelTest(absltest.TestCase):
     target = jnp.where(geo.rho_face_norm <= 0.5, 2.0, target)
     target = jnp.where(geo.rho_face_norm <= 0.2, 1.0, target)
     np.testing.assert_allclose(coeffs.total.chi_face_ion, target)
+    expected_core = jnp.where(geo.rho_face_norm <= 0.91, target, 0.0)
+    expected_pedestal = jnp.where(geo.rho_face_norm > 0.91, 0.1, 0.0)
+    np.testing.assert_allclose(coeffs.core.chi_face_ion, expected_core)
+    np.testing.assert_allclose(coeffs.pedestal.chi_face_ion, expected_pedestal)
 
   def test_chi_min(self):
     config = default_configs.get_default_config_dict()

@@ -19,7 +19,7 @@ regions.
 """
 
 import dataclasses
-from typing import Callable, Mapping
+from typing import Mapping
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -70,8 +70,21 @@ class TransportModel(static_dataclass.StaticDataclass):
       TurbulentTransport containing the combined 4-channel coefficients and
       individual model outputs.
     """
-    # Combine core transport models.
-    core_combined, core_coefficients = self._combine(
+    pedestal_mask = jnp.asarray(
+        runtime_params.pedestal.set_pedestal
+        & (geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top)
+    )
+    is_ibc = (
+        runtime_params.pedestal.mode
+        == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+    )
+    core_domain_mask = (
+        ~pedestal_mask
+        if is_ibc
+        else jnp.ones_like(geo.rho_face_norm, dtype=bool)
+    )
+
+    core_coeffs, core_coefficients = self._compute_domain_coeffs(
         self.core_transport_models,
         runtime_params.transport.core_transport_model_params,
         runtime_params,
@@ -79,11 +92,9 @@ class TransportModel(static_dataclass.StaticDataclass):
         core_profiles,
         pedestal_model_output,
         two_point_mask,
-        domain_mask_fn=component.compute_core_domain_mask,
+        domain_mask=core_domain_mask,
     )
-
-    # Combine pedestal transport models.
-    pedestal_combined, pedestal_coefficients = self._combine(
+    pedestal_coeffs, pedestal_coefficients = self._compute_domain_coeffs(
         self.pedestal_transport_models,
         runtime_params.transport.pedestal_transport_model_params,
         runtime_params,
@@ -91,33 +102,17 @@ class TransportModel(static_dataclass.StaticDataclass):
         core_profiles,
         pedestal_model_output,
         two_point_mask,
-        domain_mask_fn=_pedestal_domain_mask,
-    )
-
-    # Merge core and pedestal transport coefficients.
-    raw_combined = core_combined + pedestal_combined
-
-    # Apply clipping.
-    clipped_coeffs = self._apply_clipping(
-        runtime_params.transport,
-        raw_combined,
-    )
-
-    # Apply smoothing.
-    total_coeffs = self._smooth_coeffs(
-        runtime_params,
-        geo,
-        clipped_coeffs,
-        pedestal_model_output,
+        domain_mask=pedestal_mask,
     )
 
     return transport_coeffs.TurbulentTransport(
-        total=total_coeffs,
+        core=core_coeffs,
+        pedestal=pedestal_coeffs,
         core_coefficients=core_coefficients,
         pedestal_coefficients=pedestal_coefficients,
     )
 
-  def _combine(
+  def _compute_domain_coeffs(
       self,
       models: Mapping[str, component.ComponentTransportModel],
       params_map: Mapping[
@@ -128,15 +123,43 @@ class TransportModel(static_dataclass.StaticDataclass):
       core_profiles: state.CoreProfiles,
       pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
-      domain_mask_fn: Callable[
-          [
-              transport_runtime_params_lib.ComponentRuntimeParams,
-              runtime_params_lib.RuntimeParams,
-              geometry.Geometry,
-              pedestal_model_output_lib.PedestalModelOutput,
-          ],
-          jax.Array,
+      domain_mask: jax.Array,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      dict[str, transport_coeffs.TransportCoeffs],
+  ]:
+    """Combines, clips, masks, and smooths transport models for a domain."""
+    combined, model_outputs = self._combine(
+        models,
+        params_map,
+        runtime_params,
+        geo,
+        core_profiles,
+        two_point_mask,
+    )
+    clipped = self._apply_clipping(runtime_params.transport, combined)
+    masked = jax.tree.map(
+        lambda x: jnp.where(domain_mask, x, 0.0),
+        clipped,
+    )
+    smoothed = self._smooth_coeffs(
+        runtime_params,
+        geo,
+        masked,
+        pedestal_model_output,
+    )
+    return smoothed, model_outputs
+
+  def _combine(
+      self,
+      models: Mapping[str, component.ComponentTransportModel],
+      params_map: Mapping[
+          str, transport_runtime_params_lib.ComponentRuntimeParams
       ],
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> tuple[
       transport_coeffs.TransportCoeffs,
       dict[str, transport_coeffs.TransportCoeffs],
@@ -169,10 +192,7 @@ class TransportModel(static_dataclass.StaticDataclass):
           two_point_mask=two_point_mask,
       )
 
-      # Calculate active domain mask. Values outside this are set to 0.
-      domain_mask = domain_mask_fn(
-          params, runtime_params, geo, pedestal_model_output
-      )
+      radial_range_mask = component.compute_radial_range_mask(params, geo)
 
       model_outputs[name] = coeffs
 
@@ -186,7 +206,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       for channel, is_disabled in channels_and_flags:
         # A channel is active for this model if it's in the domain AND enabled.
         channel_active = jnp.logical_and(
-            domain_mask, jnp.logical_not(is_disabled)
+            radial_range_mask, jnp.logical_not(is_disabled)
         )
 
         val = getattr(coeffs, channel)
@@ -263,18 +283,6 @@ class TransportModel(static_dataclass.StaticDataclass):
       )
 
     return jax.tree.map(smooth_single_coeff, input_coeffs)
-
-
-def _pedestal_domain_mask(
-    unused_transport_runtime_params: (
-        transport_runtime_params_lib.ComponentRuntimeParams
-    ),
-    unused_runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    pedestal_output: pedestal_model_output_lib.PedestalModelOutput,
-) -> jax.Array:
-  """Calculates the active domain mask for pedestal transport models."""
-  return jnp.asarray(geo.rho_face_norm >= pedestal_output.rho_norm_ped_top)
 
 
 def _build_smoothing_matrix(
