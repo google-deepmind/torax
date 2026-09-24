@@ -175,7 +175,6 @@ class QualikizBasedTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
       two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> QualikizInputs:
     """Prepare Qualikiz inputs."""
@@ -297,16 +296,13 @@ class QualikizBasedTransportModel(
       v_ExB_toroidal = jnp.zeros_like(core_profiles.q_face)
     else:
       rotation_output = rotation.calculate_rotation(
-          T_i=core_profiles.T_i,
           psi=core_profiles.psi,
           n_i=core_profiles.n_i,
-          q_face=core_profiles.q_face,
-          Z_eff_face=core_profiles.Z_eff_face,
           Z_i_face=core_profiles.Z_i_face,
           toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
+          poloidal_velocity=core_profiles.poloidal_velocity,
           pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
-          poloidal_velocity_multiplier=poloidal_velocity_multiplier,
       )
       v_ExB = rotation_output.v_ExB
       v_ExB_poloidal_and_pressure = rotation_output.v_ExB_poloidal_and_pressure
