@@ -601,14 +601,21 @@ class CoreTransportTest(parameterized.TestCase):
         ),
     )
     n_face = geo.rho_face_norm.size
-    turbulent_total = transport_coeffs_lib.TransportCoeffs(
+    turbulent_core = transport_coeffs_lib.TransportCoeffs(
         chi_face_ion=jnp.ones((2, n_face)) * 1.5,
         chi_face_el=jnp.ones((2, n_face)) * 2.0,
         d_face_el=jnp.ones((2, n_face)) * 0.5,
         v_face_el=jnp.ones((2, n_face)) * -0.2,
     )
+    turbulent_pedestal = transport_coeffs_lib.TransportCoeffs(
+        chi_face_ion=jnp.zeros((2, n_face)),
+        chi_face_el=jnp.zeros((2, n_face)),
+        d_face_el=jnp.zeros((2, n_face)),
+        v_face_el=jnp.zeros((2, n_face)),
+    )
     turbulent = transport_coeffs_lib.TurbulentTransport(
-        total=turbulent_total,
+        core=turbulent_core,
+        pedestal=turbulent_pedestal,
         core_coefficients={},
         pedestal_coefficients={},
     )
@@ -668,4 +675,3 @@ class CoreTransportTest(parameterized.TestCase):
 
 if __name__ == '__main__':
   absltest.main()
-
