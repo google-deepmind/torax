@@ -52,17 +52,6 @@ def update_runtime_params(
 
   assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
 
-  if (
-      runtime_params.edge.use_enrichment_model
-      and runtime_params.edge.impurity_sot
-      == extended_lengyel_model.FixedImpuritySourceOfTruth.CORE
-  ):
-    # If the enrichment model is used and the core is the source of truth for
-    # fixed impurities, then we need to update the enrichment factors in the
-    # runtime_params for use in the edge model, consistent with last
-    # edge model outputs.
-    runtime_params = _update_enrichment_factor(runtime_params, edge_outputs)
-
   # Conditionally update temperatures based on the update_temperatures flag.
   runtime_params = jax.lax.cond(
       runtime_params.edge.update_temperatures,  # pyrefly: ignore[missing-attribute]
@@ -80,32 +69,6 @@ def update_runtime_params(
   )
 
   return runtime_params
-
-
-def _update_enrichment_factor(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    edge_outputs: edge_base.EdgeModelOutputs,
-) -> runtime_params_lib.RuntimeParams:
-  """Updates enrichment factors based on edge model outputs."""
-  if not isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams):
-    raise ValueError(
-        'Enrichment factor updates from the edge model are only supported for'
-        ' the extended Lengyel model.'
-    )
-  if not isinstance(
-      edge_outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
-  ):
-    raise ValueError(
-        'Enrichment factor updates from the edge model are only supported for'
-        ' the extended Lengyel model.'
-    )
-  enrichment_factor = edge_outputs.calculated_enrichment
-  return dataclasses.replace(
-      runtime_params,
-      edge=dataclasses.replace(
-          runtime_params.edge, enrichment_factor=enrichment_factor
-      ),
-  )
 
 
 def _update_temperatures(

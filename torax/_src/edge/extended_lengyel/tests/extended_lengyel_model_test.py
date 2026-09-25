@@ -31,6 +31,7 @@ from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.edge.extended_lengyel import pydantic_model
 from torax._src.fvm import cell_variable
+from torax._src.geometry import chease
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -625,6 +626,155 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         passed_initial_guess.kappa_e,
         extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT,
         err_msg='kappa_e should have fallen back to default, not bad previous.',
+    )
+
+  @parameterized.named_parameters(
+      (
+          'core_sot_model_on_with_previous_outputs',
+          extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+          True,
+          True,
+      ),
+      (
+          'core_sot_model_on_without_previous_outputs',
+          extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+          True,
+          False,
+      ),
+      (
+          'core_sot_model_off',
+          extended_lengyel_model.FixedImpuritySourceOfTruth.CORE,
+          False,
+          True,
+      ),
+      (
+          'edge_sot_model_on',
+          extended_lengyel_model.FixedImpuritySourceOfTruth.EDGE,
+          True,
+          True,
+      ),
+      (
+          'edge_sot_model_off',
+          extended_lengyel_model.FixedImpuritySourceOfTruth.EDGE,
+          False,
+          True,
+      ),
+  )
+  @mock.patch.object(
+      extended_lengyel_standalone, 'run_extended_lengyel_standalone'
+  )
+  def test_fixed_impurity_concentrations_conditionals(
+      self,
+      impurity_sot,
+      use_enrichment_model,
+      provide_previous_outputs,
+      mock_run_standalone,
+  ):
+    n_rho = 10
+    geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
+
+    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    for attr in ['n_e', 'n_i', 'n_impurity']:
+      m = mock.MagicMock(spec=cell_variable.CellVariable)
+      m.face_value.return_value = np.ones(n_rho + 1) * 1e19
+      setattr(mock_core_profiles, attr, m)
+    mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_psi.face_value.return_value = np.linspace(0.0, 1.0, n_rho + 1)
+    mock_core_profiles.psi = mock_psi
+    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.A_i = np.array(2.0)
+    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
+    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+
+    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
+
+    core_lcfs_ratio = 0.02
+    impurity_params = mock.MagicMock(spec=electron_density_ratios.RuntimeParams)
+    impurity_params.n_e_ratios = {'Ne': np.array(core_lcfs_ratio)}
+    impurity_params.n_e_ratios_face = {
+        'Ne': np.ones(n_rho + 1) * core_lcfs_ratio
+    }
+
+    previous_enrichment = 3.5
+    if provide_previous_outputs:
+      previous_edge_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+          T_e_right_bc=jnp.array(0.1),
+          T_i_right_bc=jnp.array(0.1),
+          q_parallel=jnp.array(1e8),
+          q_perpendicular_target=jnp.array(1e6),
+          T_e_separatrix=jnp.array(0.1),
+          T_e_target=jnp.array(3.5),
+          pressure_neutral_divertor=jnp.array(1.0),
+          alpha_t=jnp.array(0.42),
+          kappa_e=jnp.array(2500.0),
+          c_z_prefactor=jnp.array(0.0),
+          Z_eff_separatrix=jnp.array(1.5),
+          seed_impurity_concentrations={},
+          calculated_enrichment={'Ne': jnp.array(previous_enrichment)},
+          solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+              physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+              numerics_outcome=(
+                  extended_lengyel_solvers.FixedPointOutcome.SUCCESS
+              ),
+          ),
+      )
+    else:
+      previous_edge_outputs = None
+
+    edge_config = pydantic_model.ExtendedLengyelConfig(
+        model_name='extended_lengyel',
+        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
+        impurity_sot=impurity_sot,
+        use_enrichment_model=use_enrichment_model,
+        enrichment_factor={'Ne': 2.0},
+        fixed_impurity_concentrations={'Ne': 0.05},
+        seed_impurity_weights={},
+        connection_length_target=10.0,
+        connection_length_divertor=2.0,
+        toroidal_flux_expansion=1.0,
+        angle_of_incidence_target=1.0,
+        ratio_bpol_omp_to_bpol_avg=1.0,
+        diverted=True,
+    )
+    runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
+    runtime_params.edge = edge_config.build_runtime_params(t=0.0)
+    mock_pc = mock.MagicMock(spec=plasma_composition_lib.RuntimeParams)
+    mock_pc.impurity = impurity_params
+    runtime_params.plasma_composition = mock_pc
+
+    model = extended_lengyel_model.ExtendedLengyelModel()
+    model(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=mock_core_profiles,
+        core_sources=mock_core_sources,
+        previous_edge_outputs=previous_edge_outputs,
+    )
+
+    _, kwargs = mock_run_standalone.call_args
+    if (
+        impurity_sot == extended_lengyel_model.FixedImpuritySourceOfTruth.CORE
+        and use_enrichment_model
+        and provide_previous_outputs
+    ):
+      expected_concentration = core_lcfs_ratio * previous_enrichment
+      self.assertNotEqual(
+          previous_enrichment, runtime_params.edge.enrichment_factor['Ne']
+      )
+    elif impurity_sot == extended_lengyel_model.FixedImpuritySourceOfTruth.CORE:
+      expected_concentration = (
+          core_lcfs_ratio * runtime_params.edge.enrichment_factor['Ne']
+      )
+    else:
+      expected_concentration = (
+          runtime_params.edge.fixed_impurity_concentrations['Ne']
+      )
+
+    np.testing.assert_allclose(
+        kwargs['fixed_impurity_concentrations']['Ne'],
+        expected_concentration,
+        rtol=1e-5,
     )
 
   @parameterized.named_parameters(
