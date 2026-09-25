@@ -2742,71 +2742,108 @@ time_step_calculator
 neoclassical
 ------------
 
+Configures the neoclassical physics model.
+
+``model_name`` (str [default = ``'analytical'``])
+  Selects the top-level neoclassical model. The built-in ``'analytical'`` model
+  combines four modular analytical sub-models configured under
+  ``bootstrap_current``, ``conductivity``, ``transport``, and
+  ``poloidal_velocity``. Custom top-level neoclassical models can also be
+  registered via ``torax.neoclassical.register_neoclassical_model`` (see
+  :ref:`model-integration`).
+
+When ``model_name = 'analytical'`` (the default), the following four sub-model
+sections are available:
+
 bootstrap_current
 ^^^^^^^^^^^^^^^^^
-``model_name`` (str [default = 'sauter'])
-  The name of the model to use. If not provided, the default is to use the
-  Sauter model with default values. Options are ``'sauter'``, ``'redl'``, or ``'zeros'``.
-  Note that the Redl model has been shown to have poor accuracy in some cases
-  for multi-species plasmas.
+``model_name`` (str [default = ``'sauter'``])
+  The name of the bootstrap current model to use. If the ``bootstrap_current``
+  section is omitted, ``'zeros'`` is used. If the section is present without a
+  ``model_name``, ``'sauter'`` is used. Options are:
 
-If the ``sauter`` or ``redl`` model is used, the following parameters can be set:
+  * ``'sauter'``: Analytical model from |sauter99|.
+  * ``'redl'``: Analytical model from |redl2021|.
+  * ``'zeros'``: Sets bootstrap current to zero.
+
+If the ``'sauter'`` or ``'redl'`` model is used, the following parameter can be
+set:
 
 ``bootstrap_multiplier`` (float [default = 1.0])
   Multiplier for the bootstrap current.
 
 conductivity
 ^^^^^^^^^^^^
-``model_name`` (str [default = 'sauter'])
-  The name of the Sauter model to use. If not provided, the default is to use
-  the Sauter model with default values.
+``model_name`` (str [default = ``'sauter'``])
+  The name of the neoclassical parallel conductivity model to use. Options are:
+
+  * ``'sauter'`` (default): Analytical conductivity model from |sauter99|.
+  * ``'redl'``: Analytical conductivity model from |redl2021|.
 
 transport
 ^^^^^^^^^
-``model_name`` (str [default = 'zeros'])
-  The name of the neoclassical transport model. The following models are
+``model_name`` (str [default = ``'angioni_sauter'``])
+  The name of the neoclassical transport model. If the ``transport`` section is
+  omitted, ``'zeros'`` is used. If the section is present without a
+  ``model_name``, ``'angioni_sauter'`` is used. The following models are
   supported:
 
   * ``'zeros'``
     Sets all neoclassical transport coefficients to zero.
 
   * ``'angioni_sauter'``
-    The Angioni-Sauter neoclassical transport model from
-    `C. Angioni and O. Sauter, Phys. Plasmas 7, 1224 (2000) <https://doi.org/10.1063/1.873918>`_.
-    This is the default model. This model does not have any additional
-    configurable parameters.
+    The Angioni-Sauter neoclassical transport model from |angioni2000|, with an
+    optional near-axis ion thermal conductivity correction from |shaing1997|.
+    Supports the following additional parameters:
 
+    - ``use_shaing_ion_correction`` (bool [default = False]): If ``True``,
+      smoothly blends the near-axis Shaing ion thermal conductivity into the
+      Angioni-Sauter ion thermal conductivity.
+    - ``shaing_ion_multiplier`` (float [default = 1.8]): Multiplier applied to
+      the Shaing ion thermal conductivity term.
+    - ``shaing_blend_start`` (float in [0, 1] [default = 0.2]): Normalized
+      toroidal flux coordinate :math:`\hat{\rho}` where the sigmoid transition
+      between Shaing and Angioni-Sauter is centered.
+    - ``shaing_blend_rate`` (float [default = 5.0]): Steepness of the sigmoid
+      transition between the Shaing and Angioni-Sauter models.
+
+All neoclassical transport models share the following clipping bounds:
 
 ``chi_min`` (float [default = 0.0])
-  Lower allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Lower allowed bound for neoclassical heat conductivities
+  :math:`\chi_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``chi_max`` (float [default = 100.0])
-  Upper allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Upper allowed bound for neoclassical heat conductivities
+  :math:`\chi_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``D_e_min`` (float [default = 0.0])
-  Lower allowed bound for neoclassical particle diffusivity :math:`D_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Lower allowed bound for neoclassical particle diffusivity
+  :math:`D_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``D_e_max`` (float [default = 100.0])
-  Upper allowed bound for neoclassical particle conductivity :math:`D_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Upper allowed bound for neoclassical particle diffusivity
+  :math:`D_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``V_e_min`` (float [default = -50.0])
-  Lower allowed bound for neoclassical particle convection terms
-  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
-  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
-  and :math:`V_\mathrm{neo, ware}` separately.
+  Lower allowed bound for neoclassical particle convection
+  :math:`V_\mathrm{neo}` in units of :math:`m/s`.
 
 ``V_e_max`` (float [default = 50.0])
-  Upper allowed bound for neoclassical particle convection terms
-  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
-  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
-  and :math:`V_\mathrm{neo, ware}` separately.
+  Upper allowed bound for neoclassical particle convection
+  :math:`V_\mathrm{neo}` in units of :math:`m/s`.
+
+poloidal_velocity
+^^^^^^^^^^^^^^^^^
+``model_name`` (str [default = ``'kim'``])
+  The name of the neoclassical ion poloidal velocity model. The following
+  models are supported:
+
+  * ``'kim'`` (default): Analytical poloidal velocity model from |kim1991|.
+  * ``'zeros'``: Sets the neoclassical poloidal velocity to zero.
 
 ``poloidal_velocity_multiplier`` (float [default = 1.0])
-  Multiplier for the poloidal velocity.
+  Multiplier applied to the neoclassical poloidal velocity.
 
 restart
 -------

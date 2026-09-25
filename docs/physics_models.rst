@@ -346,17 +346,25 @@ to an adaptive local source/sink term.
 
 Neoclassical physics
 ====================
-TORAX employs the Sauter model |sauter99| to calculate the bootstrap current
-density, :math:`j_{bs}`, and the neoclassical conductivity, :math:`\sigma_{||}`,
-used in the current diffusion equation. The Sauter model is a widely-used
-analytical formulation that provides a relatively fast and differentiable
-approximation for these neoclassical quantities.
+TORAX computes the bootstrap current density :math:`j_{\parallel,\mathrm{bs}}`,
+the parallel conductivity :math:`\sigma_\parallel`, neoclassical heat and
+particle transport coefficients, and the neoclassical ion poloidal velocity
+:math:`v_\theta`. By default, each is provided by a separately configurable
+analytical sub-model (see :ref:`configuration` for options and defaults):
 
-Future work can incorporate more recent neoclassical physics parameterizations,
-and also set neoclassical transport coefficients themselves. This can be of
-importance for ion heat transport in the inner core. When extending TORAX to
-include impurity transport, incorporating fast analytical neoclassical models
-for heavy impurity transport will be of great importance.
+* **Bootstrap current** (``bootstrap_current``): Sauter |sauter99|, Redl
+  |redl2021|, or zero.
+* **Conductivity** (``conductivity``): Sauter |sauter99| or Redl |redl2021|.
+* **Transport** (``transport``): Angioni-Sauter |angioni2000|, providing
+  :math:`\chi_{i,\mathrm{neo}}`, :math:`\chi_{e,\mathrm{neo}}`,
+  :math:`D_{e,\mathrm{neo}}`, and :math:`V_{e,\mathrm{neo}}` (including the
+  Ware pinch), with an optional near-axis ion heat conductivity correction from
+  |shaing1997|; or zero.
+* **Poloidal velocity** (``poloidal_velocity``): Kim |kim1991|, or zero. See
+  Rotation Physics below.
+
+Custom neoclassical models, for example an integrated solver computing all of
+the above together, can be registered instead. See :ref:`model-integration`.
 
 Rotation Physics
 ================
@@ -377,9 +385,9 @@ is the poloidal rotation velocity, :math:`B_{\theta}` is the poloidal magnetic
 field, and :math:`B_{\phi}` is the toroidal magnetic field. The derivatives
 are with respect to a midplane-averaged radial coordinate.
 
-The poloidal velocity :math:`v_{\theta}` is calculated using neoclassical
-formulas. Specifically, it implements Equation 33 from |kim1991|. The formula
-used is:
+The poloidal velocity :math:`v_{\theta}` is provided by the neoclassical
+``poloidal_velocity`` sub-model. By default (``'kim'``), it implements
+Equation 33 from |kim1991|:
 
 .. math::
   v_{\theta} = k_{neo} \frac{1}{Z_i e} \frac{dT_i}{dr} \frac{B_{tor}}{B_{total}^2}
@@ -458,8 +466,9 @@ default to 1.0:
 
 *   ``rotation_multiplier``: Located in the transport model configs, this
     parameter scales the :math:`E \times B` shear term.
-*   ``poloidal_velocity_multiplier``: Found under the ``neoclassical``
-    configuration, this parameter directly scales the poloidal velocity term.
+*   ``poloidal_velocity_multiplier``: Found under the
+    ``neoclassical.poloidal_velocity`` configuration, this parameter directly
+    scales the poloidal velocity term.
 
 Edge models
 ===========

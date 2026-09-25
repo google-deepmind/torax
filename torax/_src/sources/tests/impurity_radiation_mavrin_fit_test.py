@@ -48,12 +48,12 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     return impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
         runtime_params=runtime_params,

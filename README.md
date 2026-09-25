@@ -21,7 +21,7 @@ models
 
 For more comprehensive documentation, see our [readthedocs page](https://torax.readthedocs.io/).
 
-TORAX, at v1.0.0, has the following physics and numerics feature set:
+TORAX has the following physics and numerics feature set:
 
 - Coupled PDEs of ion and electron heat transport, electron particle transport,
 and current diffusion

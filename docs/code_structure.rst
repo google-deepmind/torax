@@ -187,9 +187,10 @@ and redistribution in the future.
 neoclassical
 ^^^^^^^^^^^^
 
-The |neoclassical| module contains the neoclassical conductivity and bootstrap
-current models. It currently uses the Sauter model but can be extended with more
-models in future. Near term work is also planned to add neoclassical transport.
+The |neoclassical| module contains the neoclassical models for bootstrap
+current, conductivity, neoclassical transport, and poloidal velocity. By
+default these are computed by modular analytical sub-models. Custom
+neoclassical models can be registered via ``torax.neoclassical``.
 
 time_step_calculator
 ^^^^^^^^^^^^^^^^^^^^
