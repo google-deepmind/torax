@@ -33,7 +33,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     config["sources"] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.qei_source
     runtime_params = (
         build_runtime_params.RuntimeParamsProvider.from_config(
@@ -47,7 +47,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     qei = source.get_qei(
         runtime_params,

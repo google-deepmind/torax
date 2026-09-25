@@ -504,7 +504,7 @@ def _get_initial_state(
 ]:
   """Returns initial core profiles, sources, geometry and currents for a config."""
   source_models = torax_config.sources.build_models()
-  neoclassical_models = torax_config.neoclassical.build_models()
+  neoclassical_model = torax_config.neoclassical.build_model()
   runtime_params, geo = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=torax_config.numerics.t_initial,
@@ -519,18 +519,16 @@ def _get_initial_state(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      neoclassical_model=neoclassical_model,
   )
-  conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geo, core_profiles
-  )
+  neoclassical_outputs = neoclassical_model(runtime_params, geo, core_profiles)
   core_sources = source_profile_builders.get_all_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
-      conductivity=conductivity,
+      conductivity=neoclassical_outputs.conductivity,
+      bootstrap_current=neoclassical_outputs.bootstrap_current,
   )
   j_toroidal_total = core_profiles.j_total
   j_toroidal_total_face = core_profiles.j_total_face

@@ -68,12 +68,12 @@ class RedlFormulasTest(parameterized.TestCase):
         )
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     self.core_profiles = initialization.initial_core_profiles(
         runtime_params,
         self.geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     log_lambda_ei = collisions.calculate_log_lambda_ei(
@@ -101,6 +101,14 @@ class RedlFormulasTest(parameterized.TestCase):
         self.f_trap, self.nu_e_star, self.core_profiles.Z_eff_face
     )
     np.testing.assert_allclose(L32, _L32_EXPECTED, atol=_A_TOL, rtol=_R_TOL)
+
+  def test_L33_values_are_correct(self):
+    L33 = redl_formulas.calculate_L33(
+        self.f_trap, self.nu_e_star, self.core_profiles.Z_eff_face
+    )
+    self.assertEqual(L33.shape, self.f_trap.shape)
+    self.assertAlmostEqual(float(L33[0]), 1.0, places=6)
+    self.assertTrue(np.all((L33 > 0.0) & (L33 <= 1.0)))
 
 
 _L31_EXPECTED = np.array([

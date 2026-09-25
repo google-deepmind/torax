@@ -55,7 +55,7 @@ class InitialStatesTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     dynamic_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -71,7 +71,7 @@ class InitialStatesTest(parameterized.TestCase):
         runtime_params=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     np.testing.assert_allclose(core_profiles.T_i.right_face_constraint, 27.7)  # pyrefly: ignore[no-matching-overload]
     np.testing.assert_allclose(core_profiles.T_e.right_face_constraint, 42.0)  # pyrefly: ignore[no-matching-overload]
@@ -83,7 +83,7 @@ class InitialStatesTest(parameterized.TestCase):
         default_configs.get_default_config_dict()
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     dynamic_runtime_params_slice_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
@@ -99,7 +99,7 @@ class InitialStatesTest(parameterized.TestCase):
         runtime_params=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     assert core_profiles.quasineutrality_satisfied()
     core_profiles = dataclasses.replace(

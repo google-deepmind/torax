@@ -61,7 +61,7 @@ class AngioniSauterTest(absltest.TestCase):
         'sources': {},
     })
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -79,7 +79,7 @@ class AngioniSauterTest(absltest.TestCase):
         runtime_params,
         geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     return runtime_params, geo, core_profiles

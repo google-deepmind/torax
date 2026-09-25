@@ -73,14 +73,14 @@ def _get_model_and_model_inputs(
   )(t=0.0)
 
   source_models = torax_config.sources.build_models()
-  neoclassical_models = torax_config.neoclassical.build_models()
+  neoclassical_model = torax_config.neoclassical.build_model()
   geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
 
   core_profiles = initialization.initial_core_profiles(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      neoclassical_model=neoclassical_model,
   )
 
   pedestal_model_outputs = pedestal_model_output_lib.PedestalModelOutput(

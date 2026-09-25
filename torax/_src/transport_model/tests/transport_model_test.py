@@ -120,19 +120,18 @@ class TransportMaskingTest(parameterized.TestCase):
     )(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     source_profiles = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
         explicit=True,
     )
     # We need a pedestal model even if unused by the fixed transport
@@ -191,12 +190,12 @@ class TransportMaskingTest(parameterized.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     pedestal_model_outputs = mock.create_autospec(
         pedestal_model_output_lib.PedestalModelOutput,
@@ -320,14 +319,13 @@ class TransportMaskingTest(parameterized.TestCase):
         runtime_params,
         geo,
         torax_config.sources.build_models(),
-        torax_config.neoclassical.build_models(),
+        torax_config.neoclassical.build_model(),
     )
     source_profiles = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=torax_config.sources.build_models(),
-        neoclassical_models=torax_config.neoclassical.build_models(),
         explicit=True,
     )
     pedestal_outputs = pedestal_model(
@@ -402,12 +400,12 @@ class TransportModelTest(absltest.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     mock_pedestal_outputs = mock.create_autospec(
         pedestal_model_output_lib.PedestalModelOutput,
@@ -459,12 +457,12 @@ class TransportModelTest(absltest.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     mock_pedestal_outputs = mock.create_autospec(
         pedestal_model_output_lib.PedestalModelOutput,
@@ -638,9 +636,9 @@ class TransportModelTest(absltest.TestCase):
         torax_config
     )(t=torax_config.numerics.t_initial)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
-        runtime_params, geo, source_models, neoclassical_models
+        runtime_params, geo, source_models, neoclassical_model
     )
     mock_pedestal_outputs = mock.create_autospec(
         pedestal_model_output_lib.PedestalModelOutput,

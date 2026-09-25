@@ -90,7 +90,7 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=self.geo,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
+        neoclassical_model=models.neoclassical_model,
     )
     self.core_transport = state.CoreTransport.zeros(self.geo)
 
