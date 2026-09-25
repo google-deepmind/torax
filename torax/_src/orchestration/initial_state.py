@@ -25,7 +25,6 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
@@ -105,18 +104,18 @@ def _get_initial_state(
       runtime_params,
       geo,
       source_models=models.source_models,
-      neoclassical_models=models.neoclassical_models,
+      neoclassical_model=models.neoclassical_model,
+  )
+  neoclassical_outputs = models.neoclassical_model(
+      runtime_params, geo, initial_core_profiles
   )
   initial_core_sources = source_profile_builders.get_all_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=initial_core_profiles,
       source_models=models.source_models,
-      neoclassical_models=models.neoclassical_models,
-      conductivity=conductivity_base.Conductivity(
-          sigma=initial_core_profiles.sigma,
-          sigma_face=initial_core_profiles.sigma_face,
-      ),
+      conductivity=neoclassical_outputs.conductivity,
+      bootstrap_current=neoclassical_outputs.bootstrap_current,
   )
 
   if models.edge_model is not None:
@@ -160,7 +159,6 @@ def _get_initial_state(
   transport_coeffs = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=models.transport_model,
-          neoclassical_models=models.neoclassical_models,
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
@@ -168,6 +166,7 @@ def _get_initial_state(
           geo=geo,
           core_profiles=initial_core_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          neoclassical_transport=neoclassical_outputs.transport,
       )
   )
 

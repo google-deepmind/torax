@@ -90,7 +90,7 @@ class RuntimeParamsProvider:
   pedestal: pedestal_pydantic_model.PedestalConfig
   mhd: mhd_pydantic_model.MHD
   edge: edge_base.EdgeModelConfig | None
-  neoclassical: neoclassical_pydantic_model.Neoclassical
+  neoclassical: neoclassical_pydantic_model.BaseNeoclassical
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
 
   @classmethod

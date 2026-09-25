@@ -48,7 +48,7 @@ def initial_core_profiles(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    neoclassical_model: neoclassical_models_lib.NeoclassicalModel,
 ) -> state.CoreProfiles:
   """Calculates the initial core profiles.
 
@@ -56,7 +56,7 @@ def initial_core_profiles(
     runtime_params: Runtime parameters at t=t_initial.
     geo: Torus geometry at t=t_initial.
     source_models: All models for TORAX sources/sinks.
-    neoclassical_models: All models for neoclassical calculations.
+    neoclassical_model: The neoclassical model.
 
   Returns:
     Initial core profiles.
@@ -141,6 +141,12 @@ def initial_core_profiles(
       j_total_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       toroidal_angular_velocity=toroidal_angular_velocity,
+      poloidal_velocity=cell_variable.CellVariable(
+          value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
+          face_centers=geo.rho_face_norm,
+          right_face_constraint=jnp.zeros((), dtype=jax_utils.get_dtype()),
+          right_face_grad_constraint=None,
+      ),
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
   )
@@ -157,7 +163,7 @@ def initial_core_profiles(
       geo,
       core_profiles,
       source_models,
-      neoclassical_models,
+      neoclassical_model,
   )
 
 
@@ -300,7 +306,7 @@ def _init_psi_and_psi_derived(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    neoclassical_model: neoclassical_models_lib.NeoclassicalModel,
 ) -> state.CoreProfiles:
   """Initialises psi and currents in core profiles.
 
@@ -316,7 +322,7 @@ def _init_psi_and_psi_derived(
     geo: Torus geometry.
     core_profiles: Core profiles.
     source_models: All TORAX source/sink functions.
-    neoclassical_models: All models for neoclassical calculations.
+    neoclassical_model: The neoclassical model.
 
   Returns:
     Refined core profiles.
@@ -433,7 +439,7 @@ def _init_psi_and_psi_derived(
             runtime_params=runtime_params,
             geo=geo,
             core_profiles=core_profiles_initial,
-            neoclassical_models=neoclassical_models,
+            neoclassical_model=neoclassical_model,
             source_models=source_models,
             source_profiles=source_profiles,
             iterations=2,
@@ -450,7 +456,7 @@ def _init_psi_and_psi_derived(
       core_profiles=core_profiles,
       source_profiles=source_profiles,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      neoclassical_model=neoclassical_model,
       sources_are_calculated=sources_are_calculated,
   )
 
@@ -464,7 +470,7 @@ def _calculate_all_psi_dependent_profiles(
     core_profiles: state.CoreProfiles,
     source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    neoclassical_model: neoclassical_models_lib.NeoclassicalModel,
     sources_are_calculated: bool,
 ) -> state.CoreProfiles:
   """Supplements core profiles with all other profiles that depend on psi."""
@@ -481,10 +487,8 @@ def _calculate_all_psi_dependent_profiles(
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
   )
-  # Calculate conductivity once we have a consistent set of core profiles
-  conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geo,
-      core_profiles,
+  neoclassical_outputs = neoclassical_model(
+      runtime_params, geo, core_profiles
   )
 
   # Calculate sources if they have not already been calculated.
@@ -493,7 +497,7 @@ def _calculate_all_psi_dependent_profiles(
         runtime_params,
         geo,
         core_profiles,
-        neoclassical_models,
+        neoclassical_outputs.bootstrap_current,
         source_models,
         source_profiles,
     )
@@ -513,7 +517,7 @@ def _calculate_all_psi_dependent_profiles(
     psi_sources = source_profiles.total_psi_sources(geo)
     psidot_value = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=psi_sources,
-        sigma=conductivity.sigma,
+        sigma=neoclassical_outputs.conductivity.sigma,
         resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
         psi=psi,
         geo=geo,
@@ -536,8 +540,9 @@ def _calculate_all_psi_dependent_profiles(
   core_profiles = dataclasses.replace(
       core_profiles,
       psidot=psidot,
-      sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
+      sigma=neoclassical_outputs.conductivity.sigma,
+      sigma_face=neoclassical_outputs.conductivity.sigma_face,
+      poloidal_velocity=neoclassical_outputs.poloidal_velocity.v_pol,
   )
   return core_profiles
 
@@ -546,11 +551,11 @@ def _get_bootstrap_and_standard_source_profiles(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    bootstrap_current: bootstrap_current_base.BootstrapCurrent,
     source_models: source_models_lib.SourceModels,
     source_profiles: source_profiles_lib.SourceProfiles,
 ) -> source_profiles_lib.SourceProfiles:
-  """Calculates bootstrap current and updates source profiles."""
+  """Updates source profiles with standard psi sources and bootstrap current."""
   source_profile_builders.build_standard_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
@@ -560,13 +565,9 @@ def _get_bootstrap_and_standard_source_profiles(
       calculate_anyway=True,
       calculated_source_profiles=source_profiles,
   )
-  bootstrap_current = (
-      neoclassical_models.bootstrap_current.calculate_bootstrap_current(
-          runtime_params, geo, core_profiles
-      )
-  )
   source_profiles = dataclasses.replace(
-      source_profiles, bootstrap_current=bootstrap_current
+      source_profiles,
+      bootstrap_current=bootstrap_current,
   )
   return source_profiles
 
@@ -575,7 +576,7 @@ def _iterate_psi_and_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    neoclassical_model: neoclassical_models_lib.NeoclassicalModel,
     source_models: source_models_lib.SourceModels,
     source_profiles: source_profiles_lib.SourceProfiles,
     iterations: int,
@@ -587,7 +588,9 @@ def _iterate_psi_and_sources(
         runtime_params,
         geo,
         core_profiles,
-        neoclassical_models,
+        neoclassical_model(
+            runtime_params, geo, core_profiles
+        ).bootstrap_current,
         source_models,
         source_profiles,
     )
