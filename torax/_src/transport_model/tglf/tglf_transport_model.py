@@ -180,7 +180,6 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     n_faces = len(geo.rho_face_norm)

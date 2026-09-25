@@ -82,7 +82,7 @@ class PostProcessingTest(parameterized.TestCase):
         runtime_params=self.runtime_params,
         geo=self.geo,
         source_models=self.models.source_models,
-        neoclassical_models=self.models.neoclassical_models,
+        neoclassical_model=self.models.neoclassical_model,
     )
 
   def test_calculate_integrated_sources(self):

@@ -96,7 +96,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         pedestal_model=self.pedestal.build_pedestal_model(),
         source_models=self.sources.build_models(),
         transport_model=self.transport.build_transport_model(),
-        neoclassical_models=self.neoclassical.build_models(),
+        neoclassical_model=self.neoclassical.build_model(),
         mhd_models=self.mhd.build_mhd_models(),
         edge_model=edge_model,
         time_step_calculator=self.time_step_calculator.build_time_step_calculator(),

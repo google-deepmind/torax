@@ -13,6 +13,8 @@
 # limitations under the License.
 
 """Base class for neoclassical transport models."""
+from __future__ import annotations
+
 import abc
 from typing import Self
 
@@ -21,6 +23,7 @@ import pydantic
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
@@ -36,12 +39,14 @@ class NeoclassicalTransportModel(abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      analytical_cache: formulas.AnalyticalCache | None = None,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     """Calculates neoclassical transport and applies clipping."""
     neoclassical_transport = self._call_implementation(
         runtime_params,
         geometry,
         core_profiles,
+        analytical_cache=analytical_cache,
     )
     neoclassical_transport = self._apply_clipping(
         runtime_params,
@@ -89,6 +94,7 @@ class NeoclassicalTransportModel(abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      analytical_cache: formulas.AnalyticalCache | None = None,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     """Computes raw neoclassical transport coefficients.
 
