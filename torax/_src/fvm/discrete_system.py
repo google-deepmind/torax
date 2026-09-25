@@ -24,6 +24,7 @@ newton_raphson_solve_block can capture nonlinear dynamics even when
 each step is expressed using a matrix multiply.
 """
 
+import dataclasses
 from typing import TypeAlias
 
 import jax
@@ -79,63 +80,77 @@ def calc_c(
           f'but got {x_i.value.shape}.'
       )
 
-  # Add diffusion terms
-  if d_face is None:
-    c_matrix = tridiagonal.BlockTriDiagonal.zeros(num_cells, num_channels)
-    c_forcing = jnp.zeros((num_cells, num_channels))
-  else:
-    d_terms = [
-        diffusion_terms.make_diffusion_terms(d_face_i, x_i)
-        for d_face_i, x_i in zip(d_face, x)
-    ]
-    # stack the forcing terms along the channel axis (axis=1)
-    c_forcing = jnp.stack([c_forcing for _, c_forcing in d_terms], axis=1)
-    c_matrix = tridiagonal.BlockTriDiagonal.from_tridiagonals(
-        [d_mat for d_mat, _ in d_terms]
-    )
-
-  # Add convection terms
-  if v_face is not None:
-    conv_terms = []
-    for i in range(num_channels):
-      # Resolve diffusion to zeros if it is not specified
-      d_face_i = d_face[i] if d_face is not None else None
-      d_face_i = jnp.zeros_like(v_face[i]) if d_face_i is None else d_face_i
-      conv_mat, conv_forcing = convection_terms.make_convection_terms(
+  channel_mats: list[tridiagonal.TriDiagonal] = []
+  channel_forcings = []
+  for i in range(num_channels):
+    forcing_i = jnp.zeros(num_cells, dtype=x[i].value.dtype)
+    if d_face is not None and v_face is not None:
+      diff_mat_i, diff_forcing_i = diffusion_terms.make_diffusion_terms(
+          d_face[i], x[i]
+      )
+      d_face_i = (
+          jnp.zeros_like(v_face[i]) if d_face[i] is None else d_face[i]
+      )
+      conv_mat_i, conv_forcing_i = convection_terms.make_convection_terms(
           v_face[i],
           d_face_i,
           x[i],
           dirichlet_mode=convection_dirichlet_mode,
           neumann_mode=convection_neumann_mode,
       )
-      conv_terms.append((conv_mat, conv_forcing))
-    # stack the forcing terms along the channel axis (axis=1)
-    conv_forcing = jnp.stack(
-        [conv_forcing for _, conv_forcing in conv_terms], axis=1
-    )
-    c_matrix += tridiagonal.BlockTriDiagonal.from_tridiagonals(
-        [conv_mat for conv_mat, _ in conv_terms]
-    )
-    c_forcing += conv_forcing
+      channel_mats.append(diff_mat_i + conv_mat_i)
+      forcing_i = diff_forcing_i + conv_forcing_i
+    elif d_face is not None:
+      diff_mat_i, diff_forcing_i = diffusion_terms.make_diffusion_terms(
+          d_face[i], x[i]
+      )
+      channel_mats.append(diff_mat_i)
+      forcing_i = diff_forcing_i
+    elif v_face is not None:
+      conv_mat_i, conv_forcing_i = convection_terms.make_convection_terms(
+          v_face[i],
+          jnp.zeros_like(v_face[i]),
+          x[i],
+          dirichlet_mode=convection_dirichlet_mode,
+          neumann_mode=convection_neumann_mode,
+      )
+      channel_mats.append(conv_mat_i)
+      forcing_i = conv_forcing_i
+
+    # Add explicit source terms
+    if source_cell is not None:
+      src_i = source_cell[i]
+      if src_i is not None:
+        forcing_i = forcing_i + src_i
+
+    channel_forcings.append(forcing_i)
+
+  c_forcing = jnp.stack(channel_forcings, axis=1)
+  if not channel_mats:
+    c_matrix = tridiagonal.BlockTriDiagonal.zeros(num_cells, num_channels)
+  else:
+    c_matrix = tridiagonal.BlockTriDiagonal.from_tridiagonals(channel_mats)
 
   # Add implicit source terms
   if source_mat_cell is not None:
-    diag = c_matrix.diagonal
-    for i in range(num_channels):
-      for j in range(num_channels):
-        source = source_mat_cell[i][j]
-        if source is not None:
-          diag = diag.at[:, i, j].add(source)  # pyrefly: ignore[missing-attribute]
-    c_matrix = tridiagonal.BlockTriDiagonal(
-        lower=c_matrix.lower,
-        diagonal=diag,
-        upper=c_matrix.upper,
+    zero_cell = jnp.zeros(num_cells, dtype=c_forcing.dtype)
+    source_diag = jnp.stack(
+        [
+            jnp.stack(
+                [
+                    src
+                    if (src := source_mat_cell[i][j]) is not None
+                    else zero_cell
+                    for j in range(num_channels)
+                ],
+                axis=-1,
+            )
+            for i in range(num_channels)
+        ],
+        axis=-2,
     )
-
-  # Add explicit source terms
-  if source_cell is not None:
-    for i in range(num_channels):
-      if source_cell[i] is not None:
-        c_forcing = c_forcing.at[:, i].add(source_cell[i])
+    c_matrix = dataclasses.replace(
+        c_matrix, diagonal=c_matrix.diagonal + source_diag
+    )
 
   return c_matrix, c_forcing
