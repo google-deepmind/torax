@@ -15,11 +15,27 @@
 
 """Base classes for Neoclassical models."""
 import dataclasses
-
+import jax
+from torax._src import state
 from torax._src import static_dataclass
+from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.neoclassical.poloidal_velocity import base as poloidal_velocity_base
 from torax._src.neoclassical.transport import base as transport_base
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class NeoclassicalOutputs:
+  """Consolidated outputs from all neoclassical models."""
+
+  conductivity: conductivity_base.Conductivity
+  bootstrap_current: bootstrap_current_base.BootstrapCurrent
+  transport: transport_coeffs_lib.NeoclassicalTransport
+  poloidal_velocity: poloidal_velocity_base.PoloidalVelocity
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -35,3 +51,26 @@ class NeoclassicalModels(static_dataclass.StaticDataclass):
   conductivity: conductivity_base.ConductivityModel
   bootstrap_current: bootstrap_current_base.BootstrapCurrentModel
   transport: transport_base.NeoclassicalTransportModel
+  poloidal_velocity: poloidal_velocity_base.PoloidalVelocityModel
+
+  def __call__(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry_lib.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> NeoclassicalOutputs:
+    """Evaluates all neoclassical sub-models in a single pass."""
+    conductivity = self.conductivity.calculate_conductivity(geo, core_profiles)
+    bootstrap_current = self.bootstrap_current.calculate_bootstrap_current(
+        runtime_params, geo, core_profiles
+    )
+    transport = self.transport(runtime_params, geo, core_profiles)
+    poloidal_velocity = self.poloidal_velocity.calculate_poloidal_velocity(
+        runtime_params, geo, core_profiles
+    )
+    return NeoclassicalOutputs(
+        conductivity=conductivity,
+        bootstrap_current=bootstrap_current,
+        transport=transport,
+        poloidal_velocity=poloidal_velocity,
+    )

@@ -13,7 +13,6 @@
 # limitations under the License.
 """Common formulas used in neoclassical models."""
 
-import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
@@ -21,7 +20,6 @@ from torax._src import math_utils
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
-from torax._src.physics import collisions
 
 
 # pylint: disable=invalid-name
@@ -133,8 +131,7 @@ def calculate_nu_i_star(
   )
 
 
-# Functions to calculate the neoclassical poloidal velocity.
-def _calculate_neoclassical_k_neo(
+def calculate_neoclassical_k_neo(
     nu_star: array_typing.FloatScalar, epsilon: array_typing.FloatScalar
 ):
   """Calculates the neoclassical coefficient k_neo.
@@ -175,94 +172,6 @@ def _calculate_neoclassical_k_neo(
 
 # TODO(b/381199010): Implement alternative Sauter-based k_neo calculation.
 # See Sauter (1999) Eq. 17a-17b
-
-
-@jax.jit
-def calculate_poloidal_velocity(
-    T_i: cell_variable.CellVariable,
-    n_i: array_typing.FloatVectorFace,
-    q: array_typing.FloatVectorFace,
-    Z_eff: array_typing.FloatVectorFace,
-    Z_i: array_typing.FloatVectorFace,
-    B_tor: array_typing.FloatVectorFace,
-    B_total_squared: array_typing.FloatVectorFace,
-    geo: geometry_lib.Geometry,
-    poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0,
-) -> cell_variable.CellVariable:
-  """Computes the neoclassical ion poloidal velocity profile.
-
-  Implementing eq.33 from
-  Y. B. Kim , P. H. Diamond , R. J. Groebner.
-  "Neoclassical poloidal and toroidal rotation in tokamaks"
-  Phys. Fluids B 3, 2050–2060 (1991)
-  https://doi.org/10.1063/1.859671
-
-  Eq. 33 can be simplified to the following form in SI units:
-  v_pol = k_neo * (dT/dr) * (B_tor / <B^2>) / (Z * e)
-
-  Args:
-    T_i: Ion temperature as a cell variable [keV].
-    n_i: Ion density on the face grid [m^-3].
-    q: Safety factor on the face grid.
-    Z_eff: Effective charge on the face grid.
-    Z_i: Main ion charge on the face grid.
-    B_tor: Toroidal magnetic field on the face grid [T].
-    B_total_squared: Total magnetic field (toroidal + poloidal) on the face grid
-      [T].
-    geo: Geometry
-    poloidal_velocity_multiplier: A multiplier to apply to the poloidal
-      velocity.
-
-  Returns:
-    v_pol : Poloidal velocity profile [m/s].
-  """
-  # Note: all computations are performed on the face grid.
-
-  T_i_face = T_i.face_value()
-  epsilon = geo.epsilon_face
-
-  # Calculate Neoclassical Coefficient k_i
-  log_lambda_ii = collisions.calculate_log_lambda_ii(
-      T_i_face,  # pyrefly: ignore[bad-argument-type]
-      n_i,  # pyrefly: ignore[bad-argument-type]
-      Z_eff,  # pyrefly: ignore[bad-argument-type]
-  )
-  nu_i_star = calculate_nu_i_star(
-      q=q,
-      geo=geo,
-      n_i=n_i,
-      T_i=T_i_face,  # pyrefly: ignore[bad-argument-type]
-      Z_eff=Z_eff,
-      log_lambda_ii=log_lambda_ii,
-  )
-  k_neo = _calculate_neoclassical_k_neo(nu_i_star, epsilon)
-
-  # Calculate Radial Temperature Gradient (dT/dr)
-  grad_Ti = (
-      T_i.face_grad(
-          x=geo.r_mid, x_left=geo.r_mid_face[0], x_right=geo.r_mid_face[-1]
-      )
-      * constants.CONSTANTS.keV_to_J
-  )  # [J/m]
-
-  # Calculate Poloidal Velocity
-  # v_pol = k_i * (dT/dr) * (B_tor / <B^2>) / (Z * e)
-  B_total_squared_safe = jnp.maximum(B_total_squared, constants.CONSTANTS.eps)
-  v_pol = (
-      k_neo
-      * grad_Ti
-      * (B_tor / B_total_squared_safe)
-      / (constants.CONSTANTS.q_e * Z_i)
-  )
-
-  v_pol = poloidal_velocity_multiplier * v_pol
-
-  return cell_variable.CellVariable(
-      value=geometry_lib.face_to_cell(v_pol),
-      face_centers=geo.rho_face_norm,
-      right_face_constraint=v_pol[-1],
-      right_face_grad_constraint=None,
-  )
 
 
 def calculate_analytic_bootstrap_current(

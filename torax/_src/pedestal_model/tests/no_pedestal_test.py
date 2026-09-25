@@ -50,7 +50,6 @@ class NoPedestalTest(absltest.TestCase):
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
         explicit=True,
     )
     pedestal_model_output = pedestal_model(
