@@ -112,7 +112,7 @@ class StateHistoryTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=self.geo,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
+        neoclassical_model=models.neoclassical_model,
     )
     self.core_transport = state.CoreTransport(
         total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
@@ -876,20 +876,20 @@ class StateHistoryTest(parameterized.TestCase):
     runtime_params_t1 = runtime_params_provider(t=1.0)
 
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     core_profiles_t0 = initialization.initial_core_profiles(
         runtime_params=runtime_params_t0,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     core_profiles_t1 = initialization.initial_core_profiles(
         runtime_params=runtime_params_t1,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     # Verify the fractions in core_profiles match the config at t=0
@@ -978,20 +978,20 @@ class StateHistoryTest(parameterized.TestCase):
     runtime_params_t1 = runtime_params_provider(t=1.0)
 
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     core_profiles_t0 = initialization.initial_core_profiles(
         runtime_params=runtime_params_t0,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     core_profiles_t1 = initialization.initial_core_profiles(
         runtime_params=runtime_params_t1,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     sim_state_t0 = dataclasses.replace(

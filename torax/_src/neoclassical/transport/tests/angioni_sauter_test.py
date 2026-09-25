@@ -21,6 +21,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
+from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
@@ -61,7 +62,7 @@ class AngioniSauterTest(absltest.TestCase):
         'sources': {},
     })
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -79,7 +80,7 @@ class AngioniSauterTest(absltest.TestCase):
         runtime_params,
         geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     return runtime_params, geo, core_profiles
@@ -132,6 +133,10 @@ class AngioniSauterTest(absltest.TestCase):
     )
 
     # Enable Shaing ion correction
+    assert isinstance(
+        runtime_params.neoclassical,
+        neoclassical_runtime_params.AnalyticalRuntimeParams,
+    )
     modified_runtime_params = dataclasses.replace(
         runtime_params,
         neoclassical=dataclasses.replace(

@@ -119,13 +119,13 @@ def _calculate_new_references(
   reference = config_generator_func()
   torax_config = reference.config
   source_models = torax_config.sources.build_models()
-  neoclassical_models = torax_config.neoclassical.build_models()
+  neoclassical_model = torax_config.neoclassical.build_model()
   runtime_params, geo = reference.get_runtime_params_and_geo()
   initial_core_profiles = initialization.initial_core_profiles(
       runtime_params,
       geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      neoclassical_model=neoclassical_model,
   )
   source_profiles = source_profile_builders.build_all_zero_profiles(geo)
   source_profile_builders.build_standard_source_profiles(
@@ -182,10 +182,11 @@ def _calculate_new_references(
 
   s_face = psi_calculations.calc_s_face(geo, psi)
 
-  conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geometry=geo,
-      core_profiles=initial_core_profiles,
-  )
+  conductivity = neoclassical_model(
+      runtime_params,
+      geo,
+      initial_core_profiles,
+  ).conductivity
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
       psi_sources=external_current,  # pyrefly: ignore[bad-argument-type]
       sigma=conductivity.sigma,

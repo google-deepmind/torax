@@ -74,7 +74,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         runtime_params,
         geo,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
+        neoclassical_model=models.neoclassical_model,
     )
     evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
@@ -82,7 +82,6 @@ class CalcCoeffsTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        neoclassical_models=models.neoclassical_models,
         explicit=True,
     )
     calc_coeffs.calc_coeffs(
