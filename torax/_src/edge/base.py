@@ -20,6 +20,7 @@ import dataclasses
 from typing import Annotated, Any
 import chex
 import jax
+from jax import numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src import static_dataclass
@@ -69,12 +70,18 @@ class EdgeModelOutputs:
     n_e_right_bc: Electron density boundary condition at LCFS [m^-3].
     impurity_right_bc: Mapping from impurity symbol to its right boundary
       condition (n_e_ratio at LCFS).
+    valid_for_core_update: Whether the edge outputs are valid for updating core
+      boundary conditions.
   """
 
   T_e_right_bc: jax.Array
   T_i_right_bc: jax.Array
   n_e_right_bc: jax.Array
   impurity_right_bc: Mapping[str, jax.Array]
+  valid_for_core_update: jax.Array = dataclasses.field(
+      default_factory=lambda: jnp.array(True, dtype=jnp.bool_),
+      kw_only=True,
+  )
 
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext

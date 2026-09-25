@@ -16,6 +16,7 @@
 import dataclasses
 
 import jax
+from jax import numpy as jnp
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
@@ -47,10 +48,11 @@ def update_runtime_params(
     return runtime_params
 
   edge = runtime_params.edge
+  valid = edge_outputs.valid_for_core_update
 
   # Conditionally update temperatures based on the update_temperatures flag.
   runtime_params = jax.lax.cond(
-      edge.update_temperatures,
+      jnp.logical_and(edge.update_temperatures, valid),
       lambda runtime_params: _update_temperatures(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
@@ -58,7 +60,7 @@ def update_runtime_params(
 
   # Conditionally update density based on the update_electron_density flag.
   runtime_params = jax.lax.cond(
-      edge.update_electron_density,
+      jnp.logical_and(edge.update_electron_density, valid),
       lambda runtime_params: _update_density(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
@@ -66,7 +68,7 @@ def update_runtime_params(
 
   # Conditionally update impurities based on the update_impurities flag.
   runtime_params = jax.lax.cond(
-      edge.update_impurities,
+      jnp.logical_and(edge.update_impurities, valid),
       lambda runtime_params: _update_impurities(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
