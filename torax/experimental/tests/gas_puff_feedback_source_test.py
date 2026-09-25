@@ -56,12 +56,12 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     runtime_params = runtime_params_provider(t=torax_config.numerics.t_initial)
 
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]

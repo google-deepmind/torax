@@ -91,13 +91,13 @@ class UpdatersTest(parameterized.TestCase):
     runtime_params_t0 = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     core_profiles_t0 = initialization.initial_core_profiles(
         runtime_params_t0,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
 
     dt = 1.0
@@ -137,13 +137,13 @@ class UpdatersTest(parameterized.TestCase):
     runtime_params_t0 = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     core_profiles_t0 = initialization.initial_core_profiles(
         runtime_params_t0,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
 
     # Create runtime_params at t=1.0, but force psi to None
@@ -187,13 +187,13 @@ class UpdatersTest(parameterized.TestCase):
     runtime_params_t0 = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     core_profiles_t0 = initialization.initial_core_profiles(
         runtime_params_t0,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
 
     # Initial should be 10.0

@@ -27,7 +27,7 @@ class SourceModelsTest(parameterized.TestCase):
         default_sources.get_default_source_config()
     )
     self.default_neoclassical_config = (
-        neoclassical_pydantic_model.Neoclassical.from_dict({})
+        neoclassical_pydantic_model.AnalyticalNeoclassical.from_dict({})
     )
     self.default_source_model = self.default_sources_config.build_models()
 
