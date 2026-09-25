@@ -13,14 +13,23 @@
 # limitations under the License.
 
 """Base runtime_params for edge models."""
-
 import dataclasses
 import jax
+from torax._src import array_typing
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class RuntimeParams:
-  """Base for edge model runtime parameters."""
+  """Base for edge model runtime parameters.
 
-  pass
+  Attributes:
+    update_temperatures: Whether to update temperature boundary conditions.
+    update_density: Whether to update electron density boundary condition.
+    update_impurities: Whether to update impurity concentrations in the core.
+  """
+
+  # Not static to allow rapid sensitivity checking of edge-model impact.
+  update_temperatures: array_typing.BoolScalar
+  update_density: array_typing.BoolScalar
+  update_impurities: array_typing.BoolScalar

@@ -216,8 +216,8 @@ class DivertorSOL1D:
     This is the definition of total pressure (static + dynamic) at the
     separatrix, including both electron and ion contributions.
     """
-    return (
-        (1.0 + self.params.mach_separatrix**2)  # pyrefly: ignore[bad-return]
+    return jnp.asarray(
+        (1.0 + self.params.mach_separatrix**2)
         * self.params.separatrix_electron_density
         * self.T_e_separatrix
         * constants.CONSTANTS.eV_to_J
@@ -392,7 +392,7 @@ def calc_q_parallel(
       * params.fieldline_pitch_at_omp
   )
 
-  return q_parallel  # pyrefly: ignore[bad-return]
+  return jnp.asarray(q_parallel)
 
 
 def calc_alpha_t(

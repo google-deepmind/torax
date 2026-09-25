@@ -14,6 +14,7 @@
 
 """Pydantic configs for all edge models, currently only extended_lengyel."""
 
+import dataclasses
 import logging
 from typing import Annotated, Any, Literal, Mapping, Self
 import chex
@@ -23,7 +24,6 @@ from torax._src import array_typing
 from torax._src.edge import base
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
-from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -71,13 +71,16 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       extended_lengyel_enums.SolverMode, torax_pydantic.JAX_STATIC
   ] = extended_lengyel_enums.SolverMode.HYBRID
   impurity_sot: Annotated[
-      extended_lengyel_model.FixedImpuritySourceOfTruth,
+      extended_lengyel_enums.FixedImpuritySourceOfTruth,
       torax_pydantic.JAX_STATIC,
-  ] = extended_lengyel_model.FixedImpuritySourceOfTruth.CORE
+  ] = extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
   # Flags allowing user to test simulation sensitivity to boundary condition
   # updates, while still providing edge model outputs even if not used.
   update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(True)
+  )
+  update_density: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(False)
   )
   update_impurities: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(True)
@@ -90,7 +93,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       extended_lengyel_defaults.NEWTON_RAPHSON_TOL
   )
   multistart_num_guesses: Annotated[
-      pydantic.conint(ge=2), torax_pydantic.JAX_STATIC  # pyrefly: ignore[invalid-annotation]
+      int, pydantic.Field(ge=2), torax_pydantic.JAX_STATIC
   ] = extended_lengyel_defaults.MULTISTART_NUM_GUESSES
 
   # Optional boolean to specify if the geometry is diverted.
@@ -306,6 +309,15 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
             'seed_impurity_weights must be provided for inverse computation'
             ' mode.'
         )
+      if self.fixed_impurity_concentrations:
+        overlap = set(self.seed_impurity_weights.keys()) & set(
+            self.fixed_impurity_concentrations.keys()
+        )
+        if overlap:
+          raise ValueError(
+              'Edge fixed and seeded impurities must be disjoint. Overlap:'
+              f' {sorted(list(overlap))}'
+          )
     return self
 
   def build_runtime_params(
@@ -331,27 +343,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
     enrichment_model_multiplier = self.enrichment_model_multiplier.get_value(t)
 
     if self.use_enrichment_model:
-      # * if True, the user does not need to provide enrichment_factor in config
-      # * However, a `runtime_params.edge.enrichment_factor`` still needs to be
-      #   present if `PlasmaComposition.impurity_source_of_truth == CORE`.
-      #   It will be used to set the edge fixed impurity concentrations.
-      # * Therefore we populate runtime_params.edge.enrichment_factor with
-      #   calculated enrichment factors for this case.
-      # * For the first timestep, when an EdgeOutputs is not available, we make
-      #   an assumption p0=1.0 [Pa] for the divertor neutral pressure.
-      enrichment_factor = {}
-      if self.seed_impurity_weights is None:
-        all_impurities = set(self.fixed_impurity_concentrations.keys())
-      else:
-        all_impurities = set(self.seed_impurity_weights.keys()) | set(
-            self.fixed_impurity_concentrations.keys()
-        )
-      for species in all_impurities:
-        enrichment_factor[species] = (
-            extended_lengyel_formulas.calc_enrichment_kallenbach(
-                1.0, species, enrichment_model_multiplier
-            )
-        )
+      enrichment_factor = None
     else:
       if self.enrichment_factor is None:
         raise ValueError(
@@ -400,13 +392,14 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         use_previous_step_as_guess=self.initial_guess.use_previous_step_as_guess,
     )
 
+    base_params = super().build_runtime_params(t)
+
     return extended_lengyel_model.RuntimeParams(
+        **dataclasses.asdict(base_params),
         computation_mode=self.computation_mode,
         solver_mode=self.solver_mode,
         impurity_sot=self.impurity_sot,
         diverted=_get_optional_value(self.diverted, t),
-        update_temperatures=self.update_temperatures.get_value(t),
-        update_impurities=self.update_impurities.get_value(t),
         fixed_point_iterations=self.fixed_point_iterations,  # pyrefly: ignore[bad-argument-type]
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,

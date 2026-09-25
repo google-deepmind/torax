@@ -793,11 +793,15 @@ def _solve_for_qcc(
   # We scale inputs to smooth_sqrt by qu^2 + epsilon so that the dimensionless
   # argument is order 1 (or 0), allowing a fixed dimensionless epsilon to be
   # effective. This prevents vanishing gradients for deep negative excursions.
+  # TODO(b/512078510): Pick a reasonable eps value for safe_divide here.
   qcc_norm = math_utils.smooth_sqrt(
       math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
-          # TODO(b/512078510): Pick a reasonable eps value for safe_divide here.
-          num=qcc_squared, denom=qu**2, eps=1e-7), epsilon=1e-3  # pyrefly: ignore[bad-argument-type]
-      )
+          num=qcc_squared,
+          denom=qu**2,
+          eps=1e-7,
+      ),
+      epsilon=1e-3,
+  )
 
   qcc = qcc_norm * jnp.sqrt(qu**2)
 

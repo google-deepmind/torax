@@ -510,7 +510,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
     # Test valid FORWARD mode
     extended_lengyel_standalone._validate_inputs_for_computation_mode(
         computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        T_e_target=None,  # pyrefly: ignore[bad-argument-type]
+        T_e_target=None,
         seed_impurity_weights={},
     )
     # Test invalid FORWARD mode
@@ -530,7 +530,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
     ):
       extended_lengyel_standalone._validate_inputs_for_computation_mode(
           computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-          T_e_target=None,  # pyrefly: ignore[bad-argument-type]
+          T_e_target=None,
           seed_impurity_weights={'N': 1.0},
       )
     # Test valid INVERSE mode
@@ -546,7 +546,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
     ):
       extended_lengyel_standalone._validate_inputs_for_computation_mode(
           computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
-          T_e_target=None,  # pyrefly: ignore[bad-argument-type]
+          T_e_target=None,
           seed_impurity_weights={'N': 1.0},
       )
     with self.assertRaisesRegex(
@@ -717,6 +717,8 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     roots = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.array([100.0, 200.0, 200.0]),
         T_i_right_bc=jnp.array([100.0, 200.0, 200.0]),
+        impurity_right_bc={'N': jnp.array([0.01, 0.02, 0.02])},
+        n_e_right_bc=jnp.full(3, jnp.nan),
         T_e_target=jnp.array([5.0, 10.0, 10.000001]),
         pressure_neutral_divertor=jnp.array([1.0, 2.0, 2.0]),
         alpha_t=jnp.array([0.1, 0.2, 0.2]),
@@ -738,6 +740,8 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
         # Dummy values for required fields
         T_e_right_bc=jnp.array([0.0]),
         T_i_right_bc=jnp.array([0.0]),
+        impurity_right_bc={},
+        n_e_right_bc=jnp.array([0.0]),
         T_e_target=jnp.array([0.0]),
         pressure_neutral_divertor=jnp.array([0.0]),
         alpha_t=jnp.array([0.0]),
@@ -781,6 +785,8 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     roots = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.zeros((2, 3)),
         T_i_right_bc=jnp.zeros((2, 3)),
+        impurity_right_bc={'N': jnp.zeros((2, 3))},
+        n_e_right_bc=jnp.zeros((2, 3)),
         T_e_target=jnp.array(Te_data),
         pressure_neutral_divertor=jnp.array([[1.0, 2.0, 2.0], [3.0, 3.0, 3.0]]),
         alpha_t=jnp.zeros((2, 3)),
@@ -801,6 +807,8 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
         # Dummy values for required fields
         T_e_right_bc=jnp.zeros((2, 3)),
         T_i_right_bc=jnp.zeros((2, 3)),
+        impurity_right_bc={},
+        n_e_right_bc=jnp.zeros((2, 3)),
         T_e_target=jnp.zeros((2, 3)),
         pressure_neutral_divertor=jnp.zeros((2, 3)),
         alpha_t=jnp.zeros((2, 3)),
@@ -852,6 +860,8 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     roots = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.zeros(3),
         T_i_right_bc=jnp.zeros(3),
+        impurity_right_bc={},
+        n_e_right_bc=jnp.zeros(3),
         T_e_target=jnp.array([5.0, 15.0, 25.0]),
         pressure_neutral_divertor=jnp.array([1.0, 2.0, 3.0]),
         alpha_t=jnp.zeros(3),
@@ -870,6 +880,8 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
         roots=roots,
         T_e_right_bc=jnp.array([0.0]),
         T_i_right_bc=jnp.array([0.0]),
+        impurity_right_bc={},
+        n_e_right_bc=jnp.array([0.0]),
         T_e_target=jnp.array([0.0]),
         pressure_neutral_divertor=jnp.array([0.0]),
         alpha_t=jnp.array([0.0]),
@@ -890,6 +902,36 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     np.testing.assert_allclose(unique.T_e_target, [5.0, 15.0, 25.0], atol=1e-4)
     numerics = unique.solver_status.numerics_outcome
     np.testing.assert_array_equal(numerics.error, [0, 1, 0])  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
+
+  def test_run_extended_lengyel_raises_when_no_enrichment_factor_and_no_model(
+      self,
+  ):
+    with self.assertRaisesRegex(
+        ValueError,
+        'enrichment_factor must be provided when use_enrichment_model is False',
+    ):
+      extended_lengyel_standalone.run_extended_lengyel_standalone(
+          use_enrichment_model=False,
+          enrichment_factor=None,
+          T_e_target=2.34,
+          power_crossing_separatrix=5.5e6,
+          separatrix_electron_density=3.3e19,
+          main_ion_charge=1.0,
+          mean_ion_charge_state=1.0,
+          seed_impurity_weights={'N': 1.0},
+          fixed_impurity_concentrations={},
+          magnetic_field_on_axis=2.5,
+          plasma_current=1.0e6,
+          connection_length_target=20.0,
+          connection_length_divertor=5.0,
+          major_radius=1.65,
+          minor_radius=0.5,
+          elongation_psi95=1.6,
+          triangularity_psi95=0.3,
+          average_ion_mass=2.0,
+          computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
+          solver_mode=extended_lengyel_enums.SolverMode.FIXED_POINT,
+      )
 
 
 if __name__ == '__main__':

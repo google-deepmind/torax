@@ -15,7 +15,6 @@
 """Implementation of extended_lengyel instance of EdgeModel."""
 
 import dataclasses
-import enum
 import logging
 from typing import Mapping
 import jax
@@ -32,6 +31,7 @@ from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
+from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.geometry import geometry
@@ -42,28 +42,6 @@ from torax._src.sources import source_profiles as source_profiles_lib
 
 
 # pylint: disable=invalid-name
-class FixedImpuritySourceOfTruth(enum.StrEnum):
-  """Source of truth for fixed impurity concentrations when using an edge model.
-
-  Determines how impurity concentrations are handled between the core plasma
-  simulation and the edge model.
-
-  Attributes:
-    CORE: * The core impurity profiles are the source of truth. * The edge
-      model's impurity concentrations are derived from the core values at the
-      last closed flux surface: `c_edge = c_core_face[-1] * enrichment_factor`.
-    EDGE: * The edge model's `fixed_impurity_concentrations` are the source of
-      truth. * The core impurity profiles (n_e_ratios) are scaled to match the
-      values determined by the edge model. runtime_params still sets the profile
-        shape: `c_core = c_core / c_core_face[-1] * c_edge / enrichment_factor`.
-
-  Note: For seeded impurities in the extended Lengyel edge model, the source of
-  truth is always the edge model, regardless of this setting. This enum only
-  controls the behavior for fixed impurities in that case.
-  """
-
-  CORE = 'core'
-  EDGE = 'edge'
 
 
 @jax.tree_util.register_dataclass
@@ -87,7 +65,7 @@ class InitialGuessRuntimeParams:
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class RuntimeParams(edge_runtime_params.RuntimeParams):
   """Runtime parameters for the extended Lengyel edge model."""
 
@@ -100,12 +78,9 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   solver_mode: extended_lengyel_enums.SolverMode = dataclasses.field(
       metadata={'static': True}
   )
-  impurity_sot: FixedImpuritySourceOfTruth = dataclasses.field(
-      metadata={'static': True}
+  impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+      dataclasses.field(metadata={'static': True})
   )
-  # Not static to allow rapid sensitivity checking of edge-model impact.
-  update_temperatures: array_typing.BoolScalar
-  update_impurities: array_typing.BoolScalar
   fixed_point_iterations: int
   newton_raphson_iterations: int
   newton_raphson_tol: float
@@ -139,7 +114,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   # --- Impurity parameters ---
   seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None
   fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar]
-  enrichment_factor: Mapping[str, array_typing.FloatScalar]
+  enrichment_factor: Mapping[str, array_typing.FloatScalar] | None
   use_enrichment_model: bool = dataclasses.field(metadata={'static': True})
   enrichment_model_multiplier: array_typing.FloatScalar
 
@@ -199,19 +174,21 @@ class ExtendedLengyelModel(base.EdgeModel):
 
     # Calculate normalized poloidal flux (psi_norm) on the face grid.
     # Used to interpolate geometry quantities at psi_norm = 0.95.
-    psi_face = core_profiles.psi.face_value()
-    psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])  # pyrefly: ignore[bad-index]
+    psi_face = jnp.asarray(core_profiles.psi.face_value())
+    psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
 
     # Interpolate elongation and triangularity at psi_norm = 0.95
     elongation_psi95 = jnp.interp(0.95, psi_norm_face, geo.elongation_face)
     triangularity_psi95 = jnp.interp(0.95, psi_norm_face, geo.delta_face)
 
     # Extract plasma state parameters from CoreProfiles at the LCFS
-    separatrix_electron_density = core_profiles.n_e.face_value()[-1]  # pyrefly: ignore[bad-index]
+    separatrix_electron_density = jnp.asarray(core_profiles.n_e.face_value())[
+        -1
+    ]
 
     # Calculate ion properties
-    n_i_sep = core_profiles.n_i.face_value()[-1]  # pyrefly: ignore[bad-index]
-    n_imp_sep = core_profiles.n_impurity.face_value()[-1]  # pyrefly: ignore[bad-index]
+    n_i_sep = jnp.asarray(core_profiles.n_i.face_value())[-1]
+    n_imp_sep = jnp.asarray(core_profiles.n_impurity.face_value())[-1]
     A_i_sep = core_profiles.A_i
     A_imp_sep = core_profiles.A_impurity_face[-1]
     mean_ion_charge_state = separatrix_electron_density / (n_i_sep + n_imp_sep)
@@ -238,7 +215,10 @@ class ExtendedLengyelModel(base.EdgeModel):
     fixed_impurity_concentrations = edge_params.fixed_impurity_concentrations
     # If the source of truth for fixed impurities is the core, calculate the
     # edge concentrations from the core ratios.
-    if edge_params.impurity_sot == FixedImpuritySourceOfTruth.CORE:
+    if (
+        edge_params.impurity_sot
+        == extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
+    ):
       # Initialization
       fixed_impurity_concentrations = {}
       impurity_params = runtime_params.plasma_composition.impurity
@@ -255,10 +235,26 @@ class ExtendedLengyelModel(base.EdgeModel):
           continue
 
         # Calculate edge concentration: c_edge = c_core_lcfs * enrichment_factor
-        # Enrichment factor exists for all species (validated in config)
-        fixed_impurity_concentrations[species] = (
-            ratio_face[-1] * edge_params.enrichment_factor[species]
-        )
+        if edge_params.use_enrichment_model:
+          if previous_edge_outputs is not None:
+            assert isinstance(
+                previous_edge_outputs,
+                extended_lengyel_standalone.ExtendedLengyelOutputs,
+            )
+            enrichment = previous_edge_outputs.calculated_enrichment[species]
+          else:
+            # For initial timestep when previous_edge_outputs is None
+            enrichment = extended_lengyel_formulas.calc_enrichment_kallenbach(
+                1.0, species, edge_params.enrichment_model_multiplier
+            )
+        elif edge_params.enrichment_factor is not None:
+          enrichment = edge_params.enrichment_factor[species]
+        else:
+          raise ValueError(
+              'enrichment_factor must be provided when use_enrichment_model is'
+              ' False.'
+          )
+        fixed_impurity_concentrations[species] = ratio_face[-1] * enrichment
 
     # Determine initial guesses
     initial_guess = _get_initial_guess(edge_params, previous_edge_outputs)
@@ -308,6 +304,9 @@ class ExtendedLengyelModel(base.EdgeModel):
         multistart_num_guesses=edge_params.multistart_num_guesses,
         enrichment_model_multiplier=edge_params.enrichment_model_multiplier,
         diverted=diverted,
+        use_enrichment_model=edge_params.use_enrichment_model,
+        enrichment_factor=edge_params.enrichment_factor,
+        impurity_sot=edge_params.impurity_sot,
         initial_guess=initial_guess,
     )
 
@@ -380,7 +379,7 @@ def _resolve_param(
     name: str,
     geo_val: array_typing.FloatScalar | None,
     config_val: array_typing.FloatScalar | None,
-) -> array_typing.FloatScalar:  # pyrefly: ignore[bad-return]
+) -> array_typing.FloatScalar:
   """Helper to resolve a single parameter with logging.
 
   This function determines the definitive value for a geometric parameter that
@@ -421,7 +420,7 @@ def _resolve_param(
         # This will raise a RuntimeError at runtime if is_valid is False and
         # TORAX errors are enabled.
         return jax_utils.error_if(
-            g_val,  # pyrefly: ignore[bad-argument-type]
+            jnp.asarray(g_val),
             jnp.logical_not(is_valid),
             f"ExtendedLengyelModel: Geometry parameter '{name}' is invalid"
             ' (0 or NaN) and no fallback value provided in'
@@ -440,6 +439,11 @@ def _resolve_param(
       raise ValueError(
           f"ExtendedLengyelModel: Parameter '{name}' must be provided either"
           ' via the Geometry or the ExtendedLengyelConfig.'
+      )
+    case _:
+      raise ValueError(
+          'ExtendedLengyelModel: Unexpected state resolving parameter'
+          f" '{name}'."
       )
 
 
