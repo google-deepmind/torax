@@ -24,6 +24,7 @@ from imas import ids_toplevel
 import numpy as np
 from torax._src.imas_tools import sources_mapping
 from torax._src.imas_tools.input import loader
+from torax._src.imas_tools.input import validation
 from torax._src.sources import source as source_module
 
 
@@ -104,9 +105,6 @@ class _SourceCollection:
     return output
 
 
-# TODO(b/459479939): i/2213) Add NaN checking to input IDS. At the moment we
-# assume that all profiles are filled if the first time slice is filled but this
-# may not be the case, especially with experimental data.
 # pylint: disable=invalid-name
 def sources_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
@@ -156,7 +154,9 @@ def sources_from_IMAS(
           imas_source_name,
       )
 
-  return accumulator.to_dict()
+  result = accumulator.to_dict()
+  validation.validate_finite_values(result, context="core_sources IDS")
+  return result
 
 
 def _extract_source_profiles(
