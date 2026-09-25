@@ -245,12 +245,11 @@ class FVMTest(parameterized.TestCase):
         runtime_params,
         geo,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
+        neoclassical_model=models.neoclassical_model,
     )
     evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -358,14 +357,13 @@ class FVMTest(parameterized.TestCase):
         runtime_params,
         geo,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
+        neoclassical_model=models.neoclassical_model,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
         explicit=True,
     )
 
@@ -481,14 +479,13 @@ class FVMTest(parameterized.TestCase):
         runtime_params_theta0,
         geo,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
+        neoclassical_model=models.neoclassical_model,
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params_theta0,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
         explicit=True,
     )
 
@@ -517,7 +514,7 @@ class FVMTest(parameterized.TestCase):
         runtime_params=runtime_params_theta05,
         geo=geo,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
+        neoclassical_model=models.neoclassical_model,
     )
     core_profiles_t_plus_dt = dataclasses.replace(
         core_profiles_t_plus_dt,

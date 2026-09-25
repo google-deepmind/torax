@@ -32,6 +32,9 @@
 .. _disiena2021_link: https://doi.org/10.1103/PhysRevLett.127.025002
 .. _labombard2005_link: https://doi.org/10.1088/0029-5515/45/12/021
 .. _labombard2008_link: https://doi.org/10.1063/1.2837050
+.. _redl2021_link: https://doi.org/10.1063/5.0012664
+.. _angioni2000_link: https://doi.org/10.1063/1.873933
+.. _shaing1997_link: https://doi.org/10.1063/1.872171
 
 .. Define substitutions using link targets
 .. |qlknn10d| replace:: `[van de Plassche et al, Phys. Plasmas 2020] <qlknn10d_link_>`_
@@ -66,3 +69,6 @@
 .. |stix1975| replace:: `[Stix, Nucl. Fusion 1975] <stix1975_link_>`_
 .. |disiena2021| replace:: `[Di Siena et al, PRL 2021] <disiena2021_link_>`_
 .. |labombard2008| replace:: `[LaBombard et al, Phys. Plasmas 2008] <labombard2008_link_>`_
+.. |redl2021| replace:: `[Redl et al, Phys. Plasmas 2021] <redl2021_link_>`_
+.. |angioni2000| replace:: `[Angioni & Sauter, Phys. Plasmas 2000] <angioni2000_link_>`_
+.. |shaing1997| replace:: `[Shaing et al, Phys. Plasmas 1997] <shaing1997_link_>`_

@@ -4,10 +4,10 @@ How to integrate new models
 ###########################
 
 TORAX has a modular design which supports easy coupling of new physics models
-such as sources, transport models, pedestal models, etc.
+such as sources, transport models, pedestal models, and neoclassical models.
 
-TORAX provides a public API for registering custom transport, pedestal, and
-source models.
+TORAX provides a public API for registering custom transport, pedestal,
+neoclassical, and source models.
 Once registered, custom models can be configured via TORAX config files or
 dictionaries just like the built-in models.
 
@@ -396,6 +396,90 @@ Once registered, the model can be used in a TORAX config by setting the
     }
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)
+
+
+Registering a custom neoclassical model
+=======================================
+
+Use ``torax.neoclassical.register_neoclassical_model`` to couple a custom
+neoclassical model, for example a single solver that computes all neoclassical
+quantities (bootstrap current, parallel conductivity, neoclassical transport,
+and poloidal velocity) together in one evaluation.
+
+Create a ``NeoclassicalModel`` subclass implementing ``__call__`` (returning
+``NeoclassicalOutputs``), an optional ``RuntimeParams`` subclass for dynamic
+parameters, and a ``BaseNeoclassical`` config subclass with a unique
+``model_name`` ``Literal``:
+
+.. code-block:: python
+
+    import dataclasses
+    from typing import Annotated, Literal
+    import jax
+    import jax.numpy as jnp
+    import torax
+    from torax import neoclassical
+
+    @jax.tree_util.register_dataclass
+    @dataclasses.dataclass(frozen=True)
+    class MyNeoclassicalRuntimeParams(neoclassical.RuntimeParams):
+      """Custom runtime params for an integrated neoclassical model."""
+
+      sigma_scale: float
+
+    @dataclasses.dataclass(frozen=True, eq=False)
+    class MyNeoclassicalModel(neoclassical.NeoclassicalModel):
+      """Custom integrated neoclassical model."""
+
+      def __call__(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geometry: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+      ) -> neoclassical.NeoclassicalOutputs:
+        assert isinstance(
+            runtime_params.neoclassical, MyNeoclassicalRuntimeParams
+        )
+        scale = runtime_params.neoclassical.sigma_scale
+        return neoclassical.NeoclassicalOutputs(
+            bootstrap_current=neoclassical.BootstrapCurrent.zeros(geometry),
+            conductivity=neoclassical.Conductivity(
+                sigma=jnp.ones_like(geometry.rho_norm) * scale,
+                sigma_face=jnp.ones_like(geometry.rho_face_norm) * scale,
+            ),
+            transport=neoclassical.NeoclassicalTransport.zeros(geometry),
+            poloidal_velocity=neoclassical.PoloidalVelocity.zeros(geometry),
+        )
+
+    class MyNeoclassicalConfig(neoclassical.BaseNeoclassical):
+      """Pydantic config for MyNeoclassicalModel."""
+
+      model_name: Annotated[
+          Literal['my_neoclassical'], torax.JAX_STATIC
+      ] = 'my_neoclassical'
+      sigma_scale: float = 1.0e6
+
+      def build_runtime_params(self) -> MyNeoclassicalRuntimeParams:
+        return MyNeoclassicalRuntimeParams(sigma_scale=self.sigma_scale)
+
+      def build_model(self) -> MyNeoclassicalModel:
+        return MyNeoclassicalModel()
+
+    neoclassical.register_neoclassical_model(MyNeoclassicalConfig)
+
+Once registered, select your top-level model in the ``neoclassical`` config
+dictionary:
+
+.. code-block:: python
+
+    config = {
+        ...
+        'neoclassical': {
+            'model_name': 'my_neoclassical',
+            'sigma_scale': 2.0e6,
+        },
+        ...
+    }
 
 
 Configuring time-varying parameters and physical bounds
