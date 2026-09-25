@@ -17,6 +17,7 @@
 NOTE: Time dependent providers currently live in `geometry.py` and match the
 protocol defined here.
 """
+
 from collections.abc import Mapping
 import dataclasses
 import functools
@@ -26,6 +27,7 @@ import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.geometry import geometry
@@ -34,6 +36,11 @@ from torax._src.torax_pydantic import torax_pydantic
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations
 # pylint: disable=invalid-name
+
+# Geometry fields that are not stacked along the time axis.
+_NON_STACKED_GEOMETRY_FIELDS: frozenset[str] = frozenset(
+    {'geometry_type', 'torax_mesh'}
+)
 
 
 class GeometryProvider(Protocol):
@@ -105,6 +112,104 @@ class ConstantGeometryProvider(GeometryProvider):
   @property
   def torax_mesh(self) -> torax_pydantic.Grid1D:
     return self.geo.torax_mesh
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class PrecomputedGeometryProvider(GeometryProvider):
+  """Returns geometries precomputed at a known set of times.
+
+  When all the times a simulation will visit are known in advance (e.g. when
+  using the fixed time step calculator), the time interpolation performed by
+  `TimeDependentGeometryProvider` on every step can be done once up front. This
+  provider stores the resulting geometries stacked along a leading time axis
+  and serves exact grid matches by lookup. Requests at any other time use the
+  original provider, including when callers shorten a step or override the
+  configured time step. Both branches are compiled under JIT.
+
+  Attributes:
+    times: Sorted times [s] at which geometries were precomputed, shape (N,).
+    geometries: Geometry with all array attributes stacked along a leading time
+      axis of size N, in the same order as `times`.
+    fallback_provider: Original provider used for off-grid requests.
+  """
+
+  times: array_typing.FloatVector
+  geometries: geometry.Geometry
+  fallback_provider: GeometryProvider
+
+  @classmethod
+  def from_provider(
+      cls,
+      provider: GeometryProvider,
+      times: array_typing.Array,
+  ) -> typing_extensions.Self:
+    """Precomputes geometries from `provider` at each time in `times`.
+
+    Args:
+      provider: The geometry provider to evaluate.
+      times: Nonempty 1D array of finite, strictly increasing times [s] at which
+        to evaluate the provider.
+
+    Returns:
+      A `PrecomputedGeometryProvider` holding the stacked geometries.
+
+    Raises:
+      ValueError: If `times` is invalid in the simulation dtype.
+    """
+    times = np.asarray(times, dtype=jax_utils.get_np_dtype())
+    if (
+        times.ndim != 1
+        or times.size == 0
+        or not np.all(np.isfinite(times))
+        or not np.all(times[1:] > times[:-1])
+    ):
+      raise ValueError(
+          'times must be a nonempty 1D array of finite, strictly increasing'
+          ' values in the simulation dtype.'
+      )
+    times = jnp.asarray(times)
+    stacked = jax.jit(jax.vmap(lambda p, t: p(t), in_axes=(None, 0)))(
+        provider, times
+    )
+    # Non-array attributes are traced and broadcast by jit/vmap; restore their
+    # Python values.
+    stacked = dataclasses.replace(
+        stacked,
+        geometry_type=geometry.GeometryType(int(stacked.geometry_type[0])),
+        torax_mesh=provider.torax_mesh,
+    )
+    return cls(times=times, geometries=stacked, fallback_provider=provider)
+
+  def __call__(self, t: chex.Numeric) -> geometry.Geometry:
+    """Returns cached geometry on-grid and evaluates the provider off-grid."""
+    chex.assert_type(t, jnp.floating)
+    index = jnp.argmin(jnp.abs(self.times - t))
+    # Even a small time difference can matter near an interpolation knot (for
+    # example for Phi_b_dot), so only exact matches may use the cache.
+    return jax.lax.cond(
+        self.times[index] == t,
+        lambda: self._get_precomputed_geometry(index),
+        lambda: self.fallback_provider(t),
+    )
+
+  def _get_precomputed_geometry(self, index: jax.Array) -> geometry.Geometry:
+    kwargs = {}
+    for field in dataclasses.fields(self.geometries):
+      value = getattr(self.geometries, field.name)
+      if (
+          field.name in _NON_STACKED_GEOMETRY_FIELDS
+          or field.metadata.get('static', False)
+          or value is None
+      ):
+        kwargs[field.name] = value
+      else:
+        kwargs[field.name] = value[index]
+    return self.geometries.__class__(**kwargs)
+
+  @property
+  def torax_mesh(self) -> torax_pydantic.Grid1D:
+    return self.geometries.torax_mesh
 
 
 @jax.tree_util.register_dataclass
@@ -199,16 +304,18 @@ class TimeDependentGeometryProvider:
         continue
 
       # Remaining attributes are set up for interpolation.
-      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(  # pyrefly: ignore[unsupported-operation]
-          (
-              times,
-              np.stack(
-                  [getattr(g, attr.name) for g in geos],
-                  axis=0,
-                  dtype=jax_utils.get_np_dtype(),
+      kwargs[attr.name] = (
+          interpolated_param.InterpolatedVarSingleAxis(  # pyrefly: ignore[unsupported-operation]
+              (
+                  times,
+                  np.stack(
+                      [getattr(g, attr.name) for g in geos],
+                      axis=0,
+                      dtype=jax_utils.get_np_dtype(),
+                  ),
               ),
-          ),
-          is_bool_param=isinstance(initial_val, bool),
+              is_bool_param=isinstance(initial_val, bool),
+          )
       )
     return cls(**kwargs)  # pyrefly: ignore[missing-argument]
 
@@ -235,13 +342,17 @@ class TimeDependentGeometryProvider:
               _Phi_b_grad(self.Phi_face, t), dtype=jax_utils.get_dtype()
           )
         else:
-          kwargs[attr.name] = jnp.zeros((), dtype=jax_utils.get_dtype())  # pyrefly: ignore[bad-assignment]
+          kwargs[attr.name] = jnp.zeros(
+              (), dtype=jax_utils.get_dtype()
+          )  # pyrefly: ignore[bad-assignment]
         continue
       provider_attr = getattr(self, attr.name)
       if isinstance(
           provider_attr, interpolated_param.InterpolatedVarSingleAxis
       ):
-        kwargs[attr.name] = provider_attr.get_value(t)  # pyrefly: ignore[unsupported-operation]
+        kwargs[attr.name] = provider_attr.get_value(
+            t
+        )  # pyrefly: ignore[unsupported-operation]
       else:
         # For None attributes.
         kwargs[attr.name] = provider_attr
