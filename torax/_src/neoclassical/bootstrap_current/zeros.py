@@ -16,10 +16,10 @@ from typing import Annotated, Literal
 
 import jax.numpy as jnp
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import base
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_runtime_params
+from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -28,11 +28,13 @@ class ZerosModel(base.BootstrapCurrentModel):
 
   def calculate_bootstrap_current(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: bootstrap_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      analytical_cache: formulas.AnalyticalCache | None = None,
   ) -> base.BootstrapCurrent:
     """Calculates bootstrap current."""
+    del runtime_params, core_profiles, analytical_cache
     return base.BootstrapCurrent(
         j_parallel_bootstrap=jnp.zeros_like(geometry.rho),
         j_parallel_bootstrap_face=jnp.zeros_like(geometry.rho_face),

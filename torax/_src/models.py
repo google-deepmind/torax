@@ -39,7 +39,7 @@ class Models(static_dataclass.StaticDataclass):
   source_models: source_models_lib.SourceModels
   transport_model: transport_model_lib.TransportModel
   pedestal_model: pedestal_model_lib.PedestalModel
-  neoclassical_models: neoclassical_models_lib.NeoclassicalModels
+  neoclassical_model: neoclassical_models_lib.NeoclassicalModel
   mhd_models: mhd_model_lib.MHDModels
   edge_model: edge_model_lib.EdgeModel | None
   time_step_calculator: TimeStepCalculator
