@@ -26,6 +26,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.core_profiles import initialization
+from torax._src.edge import base as edge_base
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.fvm import cell_variable
@@ -547,6 +548,8 @@ class StateHistoryTest(parameterized.TestCase):
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.array(3.0),
         T_i_right_bc=jnp.array(3.0),
+        impurity_right_bc={'Ar': jnp.array(0.01)},
+        n_e_right_bc=jnp.array(jnp.nan),
         q_parallel=jnp.array(1.0),
         q_perpendicular_target=jnp.array(2.0),
         T_e_separatrix=jnp.array(3.0),
@@ -587,10 +590,18 @@ class StateHistoryTest(parameterized.TestCase):
     edge_dataset = output_xr.children[output_keys.EDGE].dataset
 
     # Check standard fields
-    self.assertIn(output_keys.Q_PARALLEL, edge_dataset.data_vars)
-    self.assertIn(output_keys.T_E_TARGET, edge_dataset.data_vars)
+    self.assertIn(output_keys.T_E_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.T_I_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.N_E_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.IMPURITY_RIGHT_BC, edge_dataset.data_vars)
 
     # Check extended fields
+    self.assertIn(
+        extended_lengyel_standalone.Q_PARALLEL, edge_dataset.data_vars
+    )
+    self.assertIn(
+        extended_lengyel_standalone.T_E_TARGET, edge_dataset.data_vars
+    )
     self.assertIn(extended_lengyel_standalone.ALPHA_T, edge_dataset.data_vars)
     self.assertIn(
         extended_lengyel_standalone.Z_EFF_SEPARATRIX, edge_dataset.data_vars
@@ -623,6 +634,19 @@ class StateHistoryTest(parameterized.TestCase):
         .values,
         np.array([0.01]),
     )
+    np.testing.assert_allclose(
+        edge_dataset[output_keys.T_E_RIGHT_BC].values,
+        np.array([3.0]),
+    )
+    np.testing.assert_allclose(
+        edge_dataset[output_keys.T_I_RIGHT_BC].values,
+        np.array([3.0]),
+    )
+    self.assertTrue(np.isnan(edge_dataset[output_keys.N_E_RIGHT_BC].values[0]))
+    np.testing.assert_allclose(
+        edge_dataset[output_keys.IMPURITY_RIGHT_BC].sel(impurity='Ar').values,
+        np.array([0.01]),
+    )
 
   def test_seed_impurity_concentrations_does_not_align_with_enrichment(self):
     # Create dummy ExtendedLengyelOutputs with mixed impurities
@@ -637,6 +661,8 @@ class StateHistoryTest(parameterized.TestCase):
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.array(3.0),
         T_i_right_bc=jnp.array(3.0),
+        impurity_right_bc={'Ar': jnp.array(0.01), 'W': jnp.array(0.02)},
+        n_e_right_bc=jnp.array(jnp.nan),
         q_parallel=jnp.array(1.0),
         q_perpendicular_target=jnp.array(2.0),
         T_e_separatrix=jnp.array(3.0),
@@ -698,6 +724,41 @@ class StateHistoryTest(parameterized.TestCase):
         enrich_var.coords[output_keys.IMPURITY].values, ['Ar', 'W']
     )
 
+  def test_base_edge_model_outputs(self):
+    """Verifies base EdgeModelOutputs serialization in isolation."""
+    outputs = edge_base.EdgeModelOutputs(
+        T_e_right_bc=jnp.array([2.5]),
+        T_i_right_bc=jnp.array([3.5]),
+        n_e_right_bc=jnp.array([4.5e19]),
+        impurity_right_bc={'Ar': jnp.array([0.01]), 'Ne': jnp.array([0.02])},
+    )
+    out_dict = outputs.to_output_dict(self.history._output_grid_context)
+    self.assertIn(str(output_keys.T_E_RIGHT_BC), out_dict)
+    self.assertIn(str(output_keys.T_I_RIGHT_BC), out_dict)
+    self.assertIn(str(output_keys.N_E_RIGHT_BC), out_dict)
+    self.assertIn(str(output_keys.IMPURITY_RIGHT_BC), out_dict)
+
+    # Test to_xr_datatree directly on base.EdgeModelOutputs
+    dt = outputs.to_xr_datatree(self.history._output_grid_context)
+    self.assertIn(output_keys.TIME, dt.dataset.coords)
+    self.assertIn(output_keys.IMPURITY, dt.dataset.coords)
+    self.assertCountEqual(
+        dt.dataset.coords[output_keys.IMPURITY].values, ['Ar', 'Ne']
+    )
+    np.testing.assert_allclose(
+        dt.dataset[output_keys.T_E_RIGHT_BC].values, [2.5]
+    )
+    np.testing.assert_allclose(
+        dt.dataset[output_keys.T_I_RIGHT_BC].values, [3.5]
+    )
+    np.testing.assert_allclose(
+        dt.dataset[output_keys.N_E_RIGHT_BC].values, [4.5e19]
+    )
+    np.testing.assert_allclose(
+        dt.dataset[output_keys.IMPURITY_RIGHT_BC].sel(impurity='Ar').values,
+        [0.01],
+    )
+
   def test_state_history_with_extended_lengyel_outputs_newton(self):
     """Tests that extended Lengyel edge outputs are saved correctly."""
 
@@ -705,6 +766,8 @@ class StateHistoryTest(parameterized.TestCase):
     extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
         T_e_right_bc=jnp.array(3.0),
         T_i_right_bc=jnp.array(3.0),
+        impurity_right_bc={'Ar': jnp.array(0.01)},
+        n_e_right_bc=jnp.array(jnp.nan),
         q_parallel=jnp.array(1.0),
         q_perpendicular_target=jnp.array(2.0),
         T_e_separatrix=jnp.array(3.0),
@@ -751,10 +814,18 @@ class StateHistoryTest(parameterized.TestCase):
     edge_dataset = output_xr.children[output_keys.EDGE].dataset
 
     # Check standard fields
-    self.assertIn(output_keys.Q_PARALLEL, edge_dataset.data_vars)
-    self.assertIn(output_keys.T_E_TARGET, edge_dataset.data_vars)
+    self.assertIn(output_keys.T_E_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.T_I_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.N_E_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.IMPURITY_RIGHT_BC, edge_dataset.data_vars)
 
     # Check extended fields
+    self.assertIn(
+        extended_lengyel_standalone.Q_PARALLEL, edge_dataset.data_vars
+    )
+    self.assertIn(
+        extended_lengyel_standalone.T_E_TARGET, edge_dataset.data_vars
+    )
     self.assertIn(extended_lengyel_standalone.ALPHA_T, edge_dataset.data_vars)
     self.assertIn(
         extended_lengyel_standalone.Z_EFF_SEPARATRIX, edge_dataset.data_vars
@@ -805,6 +876,19 @@ class StateHistoryTest(parameterized.TestCase):
     np.testing.assert_allclose(
         edge_dataset[extended_lengyel_standalone.SOLVER_RESIDUAL].values,
         np.array([2e-6]),
+    )
+    np.testing.assert_allclose(
+        edge_dataset[output_keys.T_E_RIGHT_BC].values,
+        np.array([3.0]),
+    )
+    np.testing.assert_allclose(
+        edge_dataset[output_keys.T_I_RIGHT_BC].values,
+        np.array([3.0]),
+    )
+    self.assertTrue(np.isnan(edge_dataset[output_keys.N_E_RIGHT_BC].values[0]))
+    np.testing.assert_allclose(
+        edge_dataset[output_keys.IMPURITY_RIGHT_BC].sel(impurity='Ar').values,
+        np.array([0.01]),
     )
 
   def test_status_attribute_completed(self):
