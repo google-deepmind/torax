@@ -15,7 +15,6 @@
 """Implementation of extended_lengyel instance of EdgeModel."""
 
 import dataclasses
-import enum
 import logging
 from typing import Mapping
 import jax
@@ -32,6 +31,7 @@ from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
+from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.geometry import geometry
@@ -42,28 +42,6 @@ from torax._src.sources import source_profiles as source_profiles_lib
 
 
 # pylint: disable=invalid-name
-class FixedImpuritySourceOfTruth(enum.StrEnum):
-  """Source of truth for fixed impurity concentrations when using an edge model.
-
-  Determines how impurity concentrations are handled between the core plasma
-  simulation and the edge model.
-
-  Attributes:
-    CORE: * The core impurity profiles are the source of truth. * The edge
-      model's impurity concentrations are derived from the core values at the
-      last closed flux surface: `c_edge = c_core_face[-1] * enrichment_factor`.
-    EDGE: * The edge model's `fixed_impurity_concentrations` are the source of
-      truth. * The core impurity profiles (n_e_ratios) are scaled to match the
-      values determined by the edge model. runtime_params still sets the profile
-        shape: `c_core = c_core / c_core_face[-1] * c_edge / enrichment_factor`.
-
-  Note: For seeded impurities in the extended Lengyel edge model, the source of
-  truth is always the edge model, regardless of this setting. This enum only
-  controls the behavior for fixed impurities in that case.
-  """
-
-  CORE = 'core'
-  EDGE = 'edge'
 
 
 @jax.tree_util.register_dataclass
@@ -87,7 +65,7 @@ class InitialGuessRuntimeParams:
 
 
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class RuntimeParams(edge_runtime_params.RuntimeParams):
   """Runtime parameters for the extended Lengyel edge model."""
 
@@ -100,8 +78,8 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   solver_mode: extended_lengyel_enums.SolverMode = dataclasses.field(
       metadata={'static': True}
   )
-  impurity_sot: FixedImpuritySourceOfTruth = dataclasses.field(
-      metadata={'static': True}
+  impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+      dataclasses.field(metadata={'static': True})
   )
   # Not static to allow rapid sensitivity checking of edge-model impact.
   update_temperatures: array_typing.BoolScalar
@@ -139,7 +117,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   # --- Impurity parameters ---
   seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None
   fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar]
-  enrichment_factor: Mapping[str, array_typing.FloatScalar]
+  enrichment_factor: Mapping[str, array_typing.FloatScalar] | None
   use_enrichment_model: bool = dataclasses.field(metadata={'static': True})
   enrichment_model_multiplier: array_typing.FloatScalar
 
@@ -238,7 +216,10 @@ class ExtendedLengyelModel(base.EdgeModel):
     fixed_impurity_concentrations = edge_params.fixed_impurity_concentrations
     # If the source of truth for fixed impurities is the core, calculate the
     # edge concentrations from the core ratios.
-    if edge_params.impurity_sot == FixedImpuritySourceOfTruth.CORE:
+    if (
+        edge_params.impurity_sot
+        == extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
+    ):
       # Initialization
       fixed_impurity_concentrations = {}
       impurity_params = runtime_params.plasma_composition.impurity
@@ -255,10 +236,26 @@ class ExtendedLengyelModel(base.EdgeModel):
           continue
 
         # Calculate edge concentration: c_edge = c_core_lcfs * enrichment_factor
-        # Enrichment factor exists for all species (validated in config)
-        fixed_impurity_concentrations[species] = (
-            ratio_face[-1] * edge_params.enrichment_factor[species]
-        )
+        if edge_params.use_enrichment_model:
+          if previous_edge_outputs is not None:
+            assert isinstance(
+                previous_edge_outputs,
+                extended_lengyel_standalone.ExtendedLengyelOutputs,
+            )
+            enrichment = previous_edge_outputs.calculated_enrichment[species]
+          else:
+            # For initial timestep when previous_edge_outputs is None
+            enrichment = extended_lengyel_formulas.calc_enrichment_kallenbach(
+                1.0, species, edge_params.enrichment_model_multiplier
+            )
+        elif edge_params.enrichment_factor is not None:
+          enrichment = edge_params.enrichment_factor[species]
+        else:
+          raise ValueError(
+              'enrichment_factor must be provided when use_enrichment_model is'
+              ' False.'
+          )
+        fixed_impurity_concentrations[species] = ratio_face[-1] * enrichment
 
     # Determine initial guesses
     initial_guess = _get_initial_guess(edge_params, previous_edge_outputs)
@@ -308,6 +305,9 @@ class ExtendedLengyelModel(base.EdgeModel):
         multistart_num_guesses=edge_params.multistart_num_guesses,
         enrichment_model_multiplier=edge_params.enrichment_model_multiplier,
         diverted=diverted,
+        use_enrichment_model=edge_params.use_enrichment_model,
+        enrichment_factor=edge_params.enrichment_factor,
+        impurity_sot=edge_params.impurity_sot,
         initial_guess=initial_guess,
     )
 
