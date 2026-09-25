@@ -80,7 +80,6 @@ class AdaptiveStepTest(parameterized.TestCase):
         geo=self.geo,
         core_profiles=self.sim_state.core_profiles,
         source_models=self.step_fn.solver.models.source_models,
-        neoclassical_models=self.step_fn.solver.models.neoclassical_models,
         explicit=True,
     )
     adaptive_step_state, _ = adaptive_step.compute_state(

@@ -224,6 +224,9 @@ def update_core_and_source_profiles_after_step(
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
       toroidal_angular_velocity=updated_core_profiles_t_plus_dt.toroidal_angular_velocity,
+      poloidal_velocity=(
+          core_profiles_t_plus_dt.poloidal_velocity
+      ),  # Not yet updated
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
       fast_ions=core_profiles_t_plus_dt.fast_ions,
@@ -236,14 +239,15 @@ def update_core_and_source_profiles_after_step(
       dt,
   )
 
-  conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geo, intermediate_core_profiles
+  neoclassical_outputs = neoclassical_models(
+      runtime_params_t_plus_dt, geo, intermediate_core_profiles
   )
 
   intermediate_core_profiles = dataclasses.replace(
       intermediate_core_profiles,
-      sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
+      sigma=neoclassical_outputs.conductivity.sigma,
+      sigma_face=neoclassical_outputs.conductivity.sigma_face,
+      poloidal_velocity=neoclassical_outputs.poloidal_velocity.v_pol,
       internal_plasma_energy=energy_state,
   )
 
@@ -252,11 +256,11 @@ def update_core_and_source_profiles_after_step(
       runtime_params=runtime_params_t_plus_dt,
       geo=geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
       core_profiles=intermediate_core_profiles,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
-      conductivity=conductivity,
+      conductivity=neoclassical_outputs.conductivity,
+      bootstrap_current=neoclassical_outputs.bootstrap_current,
   )
 
   intermediate_core_profiles = dataclasses.replace(
