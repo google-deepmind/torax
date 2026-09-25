@@ -13,6 +13,8 @@
 # limitations under the License.
 
 """Base class for conductivity models."""
+from __future__ import annotations
+
 import abc
 import dataclasses
 
@@ -20,6 +22,7 @@ import jax
 from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -40,6 +43,7 @@ class ConductivityModel(abc.ABC):
       self,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      analytical_cache: formulas.AnalyticalCache | None = None,
   ) -> Conductivity:
     """Calculates conductivity."""
 
