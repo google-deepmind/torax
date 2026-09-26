@@ -39,6 +39,16 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     t_out = np.array(list(core_profiles_conditions["Ip"][0]))
     np.testing.assert_equal(t_out, t_in + 100.0)
 
+  def test_profile_conditions_rejects_nan_in_later_time_slice(self):
+    ids_in = loader.load_imas_data(
+        "core_profiles_ddv4_iterhybrid_rampup_conditions.nc",
+        "core_profiles",
+    )
+    ids_in.profiles_1d[1].electrons.temperature[0] = np.nan
+
+    with self.assertRaisesRegex(ValueError, "core_profiles IDS.*T_e"):
+      core_profiles.profile_conditions_from_IMAS(ids_in)
+
   def test_init_profiles_from_IMAS(self):
     """Test to compare initialized profiles for consistency.
 

@@ -21,7 +21,7 @@ from imas import ids_toplevel
 import numpy as np
 import scipy
 from torax._src.imas_tools.input import loader
-
+from torax._src.imas_tools.input import validation
 
 # TODO(b/379832500) - Modify for consistency when we have a fixed TORAX COCOS.
 # pylint: disable=invalid-name
@@ -243,9 +243,20 @@ def _geometry_from_single_slice(
   }
 
 
-# TODO(b/459479939): i/2213) Add NaN checking to input IDS. At the moment we
-# assume that all profiles are filled if the first time slice is filled but this
-# may not be the case, especially with experimental data.
+def _required_geometry_values(geometry: Mapping[str, Any]) -> dict[str, Any]:
+  """Returns geometry fields that must be finite for TORAX input."""
+  optional_fields = {
+      "z_magnetic_axis",
+      "connection_length_target",
+      "connection_length_divertor",
+      "angle_of_incidence_target",
+      "R_OMP",
+      "R_target",
+      "B_pol_OMP",
+  }
+  return {k: v for k, v in geometry.items() if k not in optional_fields}
+
+
 def geometry_from_IMAS(
     face_centers: np.ndarray,
     geometry_directory: str | None = None,
@@ -295,13 +306,18 @@ def geometry_from_IMAS(
   intermediates = {}
   for idx in range(n_slices):
     t = float(times[idx])
-    intermediates[t] = _geometry_from_single_slice(
+    geometry = _geometry_from_single_slice(
         equilibrium=equilibrium,
         slice_index=idx,
         face_centers=face_centers,
         Ip_from_parameters=Ip_from_parameters,
         hires_factor=hires_factor,
     )
+    validation.validate_finite_values(
+        _required_geometry_values(geometry),
+        context=f"equilibrium IDS time slice {idx}",
+    )
+    intermediates[t] = geometry
 
   return intermediates
 
@@ -385,10 +401,15 @@ def geometry_from_single_IMAS_slice(
         f"{n_slices} time slice(s)."
     )
 
-  return _geometry_from_single_slice(
+  geometry = _geometry_from_single_slice(
       equilibrium=equilibrium,
       slice_index=slice_index,
       face_centers=face_centers,
       Ip_from_parameters=Ip_from_parameters,
       hires_factor=hires_factor,
   )
+  validation.validate_finite_values(
+      _required_geometry_values(geometry),
+      context=f"equilibrium IDS time slice {slice_index}",
+  )
+  return geometry
