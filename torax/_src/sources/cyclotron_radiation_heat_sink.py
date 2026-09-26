@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 import pydantic
 from torax._src import array_typing
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
@@ -92,16 +93,22 @@ def _alpha_closed_form(
       temperature and density fits.
 
   Returns:
-    The alpha parameter being fit for either the density or temperature fits.
+    The non-negative alpha parameter being fit for either the density or
+    temperature fits.
   """
   # To avoid dealing with slicing of non-concrete values, we do a masking trick
   # where we replace the values of n_e_data and rhonorm above 0.9 with values
   # that will not contribute to the sums in the numerator and denominator.
-
+  # Clamp differences from profile_edge_value to eps and clamp alpha >= 0.0
+  # because the Albajar parameterization (F. Albajar et al., Nucl. Fusion 41,
+  # 665, 2001, Eqs. 11-13) is only defined for peaked or flat profiles
+  # (alpha >= 0). Without clamping, flat, hollow, or inverted profiles can
+  # yield non-positive arguments to log or negative alpha values that drive the
+  # fractional-power bases in the profile factor K negative, producing NaNs.
   mask = rho_norm < 0.9
-  profile_data_norm = (profile_data - profile_edge_value) / (
-      profile_data[0] - profile_edge_value
-  )
+  profile_data_norm = jnp.maximum(
+      profile_data - profile_edge_value, constants.CONSTANTS.eps
+  ) / jnp.maximum(profile_data[0] - profile_edge_value, constants.CONSTANTS.eps)
   sliced_profile_data_norm = jnp.where(mask, profile_data_norm, 1.0)
   sliced_rhonorm = jnp.where(mask, rho_norm, 0.0)
 
@@ -110,8 +117,8 @@ def _alpha_closed_form(
   )
   den = jnp.sum(jnp.log(1 - sliced_rhonorm**beta) ** 2)
 
-  alpha_n = num / den
-  return alpha_n
+  alpha = jnp.maximum(num / den, 0.0)
+  return alpha
 
 
 def _loss_for_beta_t(
