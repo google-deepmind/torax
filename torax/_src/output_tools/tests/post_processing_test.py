@@ -27,6 +27,7 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
+from torax._src.physics import collisions
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
@@ -238,6 +239,40 @@ class PostProcessingTest(parameterized.TestCase):
     self.assertEqual(
         post_processed_outputs.check_for_errors(), state.SimError.NO_ERROR
     )
+
+  def test_electron_ion_collision_time_output(self):
+    input_state = sim_state.SimState(
+        t=jnp.array(0.0),
+        dt=jnp.array(1e-3),
+        core_profiles=self.core_profiles,
+        core_transport=state.CoreTransport.zeros(self.geo),
+        core_sources=self.source_profiles,
+        geometry=self.geo,
+        solver_numeric_outputs=state.SolverNumericOutputs(
+            solver_error_state=np.array(0, jax_utils.get_int_dtype()),
+            outer_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            inner_solver_iterations=np.array(0, jax_utils.get_int_dtype()),
+            sawtooth_crash=False,
+        ),
+        edge_outputs=None,
+        time_step_calculator_state=(
+            self.models.time_step_calculator.initial_state(self.runtime_params)
+        ),
+    )
+
+    previous_outputs = post_processing.PostProcessedOutputs.zeros(self.geo)
+    outputs = post_processing.make_post_processed_outputs(
+        sim_state=input_state,
+        runtime_params=self.runtime_params,
+        previous_post_processed_outputs=previous_outputs,
+    )
+    expected = collisions.calculate_tau_ei(
+        self.core_profiles.T_e.value,
+        self.core_profiles.n_e.value,
+        self.core_profiles.Z_eff,
+    )
+
+    np.testing.assert_allclose(outputs.tau_ei, expected)
 
   def test_current_outputs(self):
     """Checks calculation of current-related outputs."""
