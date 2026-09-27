@@ -126,7 +126,8 @@ def stitch_state_files(
     datatree: The xr.DataTree to stitch to the end of the previous state file.
 
   Returns:
-    A xr.DataTree containing the stitched dataset.
+    A xr.DataTree containing the stitched dataset, with the current config and
+    the previous file's config (if present) saved as root attributes.
   """
   previous_datatree = load_state_file(file_restart.filename)  # pyrefly: ignore[bad-argument-type]
   np.testing.assert_array_equal(
@@ -142,7 +143,17 @@ def stitch_state_files(
   # we are uncertain if file_restart.time is the exact time of the
   # first time step in this sim output (it takes the nearest time).
   previous_datatree = previous_datatree.sel(time=slice(None, datatree.time[0]))
-  return concat_datatrees(previous_datatree, datatree)
+  stitched = concat_datatrees(previous_datatree, datatree)
+  # Concatenation keeps the first dataset's attrs. Save the resumed config and
+  # retain the immediately preceding config separately.
+  stitched.attrs[output_keys.CONFIG] = datatree.attrs[output_keys.CONFIG]
+  if output_keys.CONFIG in previous_datatree.attrs:
+    stitched.attrs[output_keys.PREVIOUS_CONFIG] = previous_datatree.attrs[
+        output_keys.CONFIG
+    ]
+  else:
+    stitched.attrs.pop(output_keys.PREVIOUS_CONFIG, None)
+  return stitched
 
 
 class StateHistory:
@@ -291,6 +302,8 @@ class StateHistory:
         - rho_face_norm: The normalized toroidal coordinate on the face grid.
         - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
         - config: The ToraxConfig used to run the simulation serialized to JSON.
+        - previous_config: For stitched restarts, the config saved in the
+            previous file, if available, serialized to JSON.
       The child datasets contain the following variables:
         - numerics: Contains data variables for numeric quantities to do with
             the simulation.

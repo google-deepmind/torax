@@ -99,6 +99,13 @@ only has references to the child datasets.
   as a dictionary. We use this field to store the input config as a json string
   under the ``config`` key.
 
+For a stitched restart, ``config`` contains the configuration of the resumed
+run. The ``previous_config`` attribute contains the configuration saved in the
+file from which it was restarted, also as a JSON string. On repeated restarts,
+this is the immediately preceding configuration, not the full configuration
+history. If the previous file has no ``config`` attribute, ``previous_config``
+is omitted. Unstitched outputs contain only the current ``config``.
+
 To retrieve the input config, see :ref:`output_examples` below.
 
 Child datatrees
