@@ -23,7 +23,6 @@ from torax._src import array_typing
 from torax._src.edge import base
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
-from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -71,9 +70,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       extended_lengyel_enums.SolverMode, torax_pydantic.JAX_STATIC
   ] = extended_lengyel_enums.SolverMode.HYBRID
   impurity_sot: Annotated[
-      extended_lengyel_model.FixedImpuritySourceOfTruth,
+      extended_lengyel_enums.FixedImpuritySourceOfTruth,
       torax_pydantic.JAX_STATIC,
-  ] = extended_lengyel_model.FixedImpuritySourceOfTruth.CORE
+  ] = extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
   # Flags allowing user to test simulation sensitivity to boundary condition
   # updates, while still providing edge model outputs even if not used.
   update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
@@ -306,6 +305,15 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
             'seed_impurity_weights must be provided for inverse computation'
             ' mode.'
         )
+      if self.fixed_impurity_concentrations:
+        overlap = set(self.seed_impurity_weights.keys()) & set(
+            self.fixed_impurity_concentrations.keys()
+        )
+        if overlap:
+          raise ValueError(
+              'Edge fixed and seeded impurities must be disjoint. Overlap:'
+              f' {sorted(list(overlap))}'
+          )
     return self
 
   def build_runtime_params(
@@ -331,27 +339,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
     enrichment_model_multiplier = self.enrichment_model_multiplier.get_value(t)
 
     if self.use_enrichment_model:
-      # * if True, the user does not need to provide enrichment_factor in config
-      # * However, a `runtime_params.edge.enrichment_factor`` still needs to be
-      #   present if `PlasmaComposition.impurity_source_of_truth == CORE`.
-      #   It will be used to set the edge fixed impurity concentrations.
-      # * Therefore we populate runtime_params.edge.enrichment_factor with
-      #   calculated enrichment factors for this case.
-      # * For the first timestep, when an EdgeOutputs is not available, we make
-      #   an assumption p0=1.0 [Pa] for the divertor neutral pressure.
-      enrichment_factor = {}
-      if self.seed_impurity_weights is None:
-        all_impurities = set(self.fixed_impurity_concentrations.keys())
-      else:
-        all_impurities = set(self.seed_impurity_weights.keys()) | set(
-            self.fixed_impurity_concentrations.keys()
-        )
-      for species in all_impurities:
-        enrichment_factor[species] = (
-            extended_lengyel_formulas.calc_enrichment_kallenbach(
-                1.0, species, enrichment_model_multiplier
-            )
-        )
+      enrichment_factor = None
     else:
       if self.enrichment_factor is None:
         raise ValueError(

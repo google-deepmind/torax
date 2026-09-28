@@ -28,7 +28,6 @@ from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import pydantic_model as edge_pydantic_model
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
-from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.edge.extended_lengyel import pydantic_model as extended_lengyel_pydantic_model
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
@@ -375,7 +374,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     # Fixed impurities with EDGE as source of truth.
     if (
         self.edge.impurity_sot
-        == extended_lengyel_model.FixedImpuritySourceOfTruth.EDGE
+        == extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
     ):
       fixed_edge_species = set(self.edge.fixed_impurity_concentrations.keys())
     else:
