@@ -103,6 +103,7 @@ def run_simulation(
     torax_config: model_config.ToraxConfig,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
+    log_n_steps: int = 20,
     max_steps: int | None = None,
     _use_jitted_run_loop: bool = False,  # pylint: disable=invalid-name
 ) -> output.StateHistory:
@@ -112,6 +113,9 @@ def run_simulation(
     torax_config: The TORAX config to use for the simulation.
     log_timestep_info: Whether to log the timestep information.
     progress_bar: Whether to show a progress bar.
+    log_n_steps: The number of steps between logging events. This affects both
+      the `log_timestep_info` and `progress_bar` arguments when using the
+      jitted run loop.
     max_steps: The maximum number of steps to take, if not provided, then the
       simulation will run until the maximum time is reached.
     _use_jitted_run_loop: If True, then a jitted run loop will be used. A
@@ -123,7 +127,6 @@ def run_simulation(
     step of the simulation. A DataTree can be obtained via
     `state_history.simulation_output_to_xr()`.
   """
-
   (
       initial_state,
       post_processed_outputs,
@@ -137,6 +140,7 @@ def run_simulation(
             max_steps=max_steps,
             log_timestep_info=log_timestep_info,
             progress_bar=progress_bar,
+            log_n_steps=log_n_steps,
         )
     )
   else:
