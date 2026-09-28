@@ -20,7 +20,6 @@ from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base as edge_base
-from torax._src.edge.extended_lengyel import extended_lengyel_model
 
 # pylint: disable=invalid-name
 
@@ -44,22 +43,22 @@ def update_runtime_params(
     Updated runtime parameters.
   """
   # If there is no edge model, there is nothing to update.
-  if edge_outputs is None:
+  if edge_outputs is None or runtime_params.edge is None:
     return runtime_params
 
-  assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+  edge = runtime_params.edge
 
   # Conditionally update temperatures based on the update_temperatures flag.
   runtime_params = jax.lax.cond(
-      runtime_params.edge.update_temperatures,  # pyrefly: ignore[missing-attribute]
+      edge.update_temperatures,
       lambda runtime_params: _update_temperatures(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
   )
 
-  # Conditionally update density based on the update_density flag.
+  # Conditionally update density based on the update_electron_density flag.
   runtime_params = jax.lax.cond(
-      runtime_params.edge.update_density,
+      edge.update_electron_density,
       lambda runtime_params: _update_density(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
@@ -67,7 +66,7 @@ def update_runtime_params(
 
   # Conditionally update impurities based on the update_impurities flag.
   runtime_params = jax.lax.cond(
-      runtime_params.edge.update_impurities,
+      edge.update_impurities,
       lambda runtime_params: _update_impurities(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
@@ -130,6 +129,9 @@ def _update_impurities(
   Returns:
     Updated runtime parameters with rescaled core impurity profiles.
   """
+  if not edge_outputs.impurity_right_bc:
+    return runtime_params
+
   impurity_params = runtime_params.plasma_composition.impurity
 
   if not isinstance(impurity_params, electron_density_ratios.RuntimeParams):

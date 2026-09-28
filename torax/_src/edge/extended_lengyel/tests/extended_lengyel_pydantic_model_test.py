@@ -434,7 +434,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     runtime_params_dict = dataclasses.asdict(runtime_params)
     runtime_params_dict.pop('enrichment_factor')
     runtime_params_dict.pop('update_temperatures')
-    runtime_params_dict.pop('update_density')
+    runtime_params_dict.pop('update_electron_density')
     runtime_params_dict.pop('update_impurities')
     runtime_params_dict.pop('use_enrichment_model')
     runtime_params_dict.pop('impurity_sot')

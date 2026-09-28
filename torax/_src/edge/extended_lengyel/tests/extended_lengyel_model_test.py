@@ -940,7 +940,7 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
         'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
         'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
         'update_temperatures': True,
-        'update_density': False,
+        'update_electron_density': False,
         'update_impurities': True,
         'fixed_point_iterations': 1,
         'newton_raphson_iterations': 1,
