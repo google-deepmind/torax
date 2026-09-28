@@ -17,8 +17,10 @@
 import abc
 from collections.abc import Mapping
 import dataclasses
+from typing import Any
 import chex
 import jax
+import numpy as np
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -31,6 +33,29 @@ from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
 
 # pylint: disable=invalid-name
+
+
+def pack_impurity_mapping(
+    key: output_keys.OutputKey | str,
+    mapping: Mapping[str, chex.Numeric] | None,
+    *,
+    dim_name: str,
+) -> dict[str, output_grid_context.OutputVar]:
+  """Packs an impurity mapping into a dictionary for to_output_dict."""
+  if not mapping:
+    return {}
+  impurities = sorted(list(mapping.keys()))
+  data_array = np.stack(
+      [np.asarray(mapping[i]) for i in impurities],
+      axis=0,
+  )
+  return {
+      key: (
+          (dim_name, output_keys.TIME),
+          data_array,
+          output_keys.get_units(key),
+      )
+  }
 
 
 @jax.tree_util.register_dataclass
@@ -55,17 +80,37 @@ class EdgeModelOutputs:
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
     """Returns a dictionary of standard edge output variable tuples."""
-    del context
-    return {}
+    out_dict: dict[str, output_grid_context.OutputVar] = {
+        output_keys.T_E_RIGHT_BC: context.pack(
+            output_keys.T_E_RIGHT_BC, self.T_e_right_bc
+        ),
+        output_keys.T_I_RIGHT_BC: context.pack(
+            output_keys.T_I_RIGHT_BC, self.T_i_right_bc
+        ),
+        output_keys.N_E_RIGHT_BC: context.pack(
+            output_keys.N_E_RIGHT_BC, self.n_e_right_bc
+        ),
+    }
+    out_dict.update(
+        pack_impurity_mapping(
+            output_keys.IMPURITY_RIGHT_BC,
+            self.impurity_right_bc,
+            dim_name=output_keys.IMPURITY,
+        )
+    )
+    return out_dict
 
   def to_xr_datatree(
       self, context: output_grid_context.OutputGridContext
   ) -> xr.DataTree:
     """Builds an xr.DataTree of the edge model outputs."""
+    coords: dict[str, Any] = {output_keys.TIME: context.times}
+    if self.impurity_right_bc:
+      coords[output_keys.IMPURITY] = sorted(list(self.impurity_right_bc.keys()))
     return xr.DataTree(
         dataset=context.build_dataset(
             self.to_output_dict(context),
-            coords={output_keys.TIME: context.times},
+            coords=coords,
         )
     )
 

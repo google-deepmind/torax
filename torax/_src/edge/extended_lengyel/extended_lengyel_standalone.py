@@ -84,6 +84,31 @@ def _extract_solver_metrics(
 # ---------------------------------------------------------------------------
 # Output keys specific to the Extended Lengyel model.
 # ---------------------------------------------------------------------------
+Q_PARALLEL = output_keys.OutputKey(
+    'q_parallel',
+    units=output_keys.Units.WATT_PER_SQUARE_METER,
+    grid_type=output_keys.GridType.SCALAR,
+)
+Q_PERPENDICULAR_TARGET = output_keys.OutputKey(
+    'q_perpendicular_target',
+    units=output_keys.Units.WATT_PER_SQUARE_METER,
+    grid_type=output_keys.GridType.SCALAR,
+)
+T_E_SEPARATRIX = output_keys.OutputKey(
+    'T_e_separatrix',
+    units=output_keys.Units.KEV,
+    grid_type=output_keys.GridType.SCALAR,
+)
+T_E_TARGET = output_keys.OutputKey(
+    'T_e_target',
+    units=output_keys.Units.EV,
+    grid_type=output_keys.GridType.SCALAR,
+)
+PRESSURE_NEUTRAL_DIVERTOR = output_keys.OutputKey(
+    'pressure_neutral_divertor',
+    units=output_keys.Units.PASCAL,
+    grid_type=output_keys.GridType.SCALAR,
+)
 ALPHA_T = output_keys.OutputKey(
     'alpha_t',
     units=output_keys.Units.DIMENSIONLESS,
@@ -149,10 +174,20 @@ SEED_IMPURITY = output_keys.OutputKey(
     units=output_keys.Units.NOT_APPLICABLE,
     grid_type=output_keys.GridType.NOT_APPLICABLE,
 )
+ENRICHMENT_IMPURITY = output_keys.OutputKey(
+    'enrichment_impurity',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.NOT_APPLICABLE,
+)
 
 _EXTENDED_LENGYEL_KEYS: dict[str, output_keys.OutputKey] = {
     k: k
     for k in (
+        Q_PARALLEL,
+        Q_PERPENDICULAR_TARGET,
+        T_E_SEPARATRIX,
+        T_E_TARGET,
+        PRESSURE_NEUTRAL_DIVERTOR,
         ALPHA_T,
         Z_EFF_SEPARATRIX,
         MULTIPLE_ROOTS_FOUND,
@@ -166,6 +201,7 @@ _EXTENDED_LENGYEL_KEYS: dict[str, output_keys.OutputKey] = {
         SEED_IMPURITY_CONCENTRATIONS,
         CALCULATED_ENRICHMENT,
         SEED_IMPURITY,
+        ENRICHMENT_IMPURITY,
     )
 }
 
@@ -451,44 +487,31 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       )
 
     # 3. Impurity mappings
-    if self.seed_impurity_concentrations:
-      impurities = sorted(list(self.seed_impurity_concentrations.keys()))
-      data_array = np.stack(
-          [self.seed_impurity_concentrations[i] for i in impurities], axis=0
-      )
-      out_dict[SEED_IMPURITY_CONCENTRATIONS] = (
-          (SEED_IMPURITY, output_keys.TIME),
-          data_array,
-          {'units': SEED_IMPURITY_CONCENTRATIONS.units},
-      )
-
-    if self.calculated_enrichment:
-      impurities = sorted(list(self.calculated_enrichment.keys()))
-      data_array = np.stack(
-          [self.calculated_enrichment[i] for i in impurities], axis=0
-      )
-      out_dict[CALCULATED_ENRICHMENT] = (
-          (output_keys.IMPURITY, output_keys.TIME),
-          data_array,
-          {},
-      )
+    out_dict.update(
+        base.pack_impurity_mapping(
+            SEED_IMPURITY_CONCENTRATIONS,
+            self.seed_impurity_concentrations,
+            dim_name=SEED_IMPURITY,
+        )
+    )
+    out_dict.update(
+        base.pack_impurity_mapping(
+            CALCULATED_ENRICHMENT,
+            self.calculated_enrichment,
+            dim_name=ENRICHMENT_IMPURITY,
+        )
+    )
 
     # 4. Divertor / SOL quantities
     divertor_quantities: dict[str, output_grid_context.OutputVar] = {
-        str(output_keys.Q_PARALLEL): context.pack(
-            output_keys.Q_PARALLEL, self.q_parallel
+        Q_PARALLEL: context.pack(Q_PARALLEL, self.q_parallel),
+        Q_PERPENDICULAR_TARGET: context.pack(
+            Q_PERPENDICULAR_TARGET, self.q_perpendicular_target
         ),
-        str(output_keys.Q_PERPENDICULAR_TARGET): context.pack(
-            output_keys.Q_PERPENDICULAR_TARGET, self.q_perpendicular_target
-        ),
-        str(output_keys.T_E_SEPARATRIX): context.pack(
-            output_keys.T_E_SEPARATRIX, self.T_e_separatrix
-        ),
-        str(output_keys.T_E_TARGET): context.pack(
-            output_keys.T_E_TARGET, self.T_e_target
-        ),
-        str(output_keys.PRESSURE_NEUTRAL_DIVERTOR): context.pack(
-            output_keys.PRESSURE_NEUTRAL_DIVERTOR,
+        T_E_SEPARATRIX: context.pack(T_E_SEPARATRIX, self.T_e_separatrix),
+        T_E_TARGET: context.pack(T_E_TARGET, self.T_e_target),
+        PRESSURE_NEUTRAL_DIVERTOR: context.pack(
+            PRESSURE_NEUTRAL_DIVERTOR,
             self.pressure_neutral_divertor,
         ),
     }
@@ -566,9 +589,11 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
           list(self.seed_impurity_concentrations.keys())
       )
     if self.calculated_enrichment:
-      coords[output_keys.IMPURITY] = sorted(
+      coords[ENRICHMENT_IMPURITY] = sorted(
           list(self.calculated_enrichment.keys())
       )
+    if self.impurity_right_bc:
+      coords[output_keys.IMPURITY] = sorted(list(self.impurity_right_bc.keys()))
     edge_dataset = context.build_dataset(
         self.to_output_dict(context), coords=coords
     )

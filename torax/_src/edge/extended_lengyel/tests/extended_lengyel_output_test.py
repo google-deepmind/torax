@@ -209,10 +209,12 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         edge_node.children[extended_lengyel_standalone.ROOTS].dataset
     )
 
-    # Let's Assert that 'T_e_target' is in data_vars (without prefix)
-    self.assertIn(output_keys.T_E_TARGET, roots_dataset.data_vars)
+    # Assert T_e_target is in data_vars without prefix.
+    self.assertIn(
+        extended_lengyel_standalone.T_E_TARGET, roots_dataset.data_vars
+    )
 
-    roots_Te = roots_dataset[output_keys.T_E_TARGET]
+    roots_Te = roots_dataset[extended_lengyel_standalone.T_E_TARGET]
     self.assertIn(extended_lengyel_standalone.N_ROOTS, roots_Te.dims)
 
     # Verify values

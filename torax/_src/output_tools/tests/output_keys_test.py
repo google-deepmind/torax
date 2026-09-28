@@ -97,7 +97,7 @@ class OutputKeysTest(parameterized.TestCase):
     )
     self.assertEqual(output_keys.DELTA.grid_type, output_keys.GridType.FACE)
     self.assertEqual(
-        output_keys.Q_PARALLEL.grid_type, output_keys.GridType.SCALAR
+        output_keys.T_E_RIGHT_BC.grid_type, output_keys.GridType.SCALAR
     )
 
   def test_validate_grid_types_against_nc_benchmark(self):
