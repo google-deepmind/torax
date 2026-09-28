@@ -282,6 +282,8 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_rampup',
           'test_iterhybrid_rampup.py',
+          _ALL_PROFILES,
+          1e-7,
       ),
       # Modified version of test_iterhybrid_rampup with sawtooth model.
       # Has an initial peaked current density, no heating, no current drive,

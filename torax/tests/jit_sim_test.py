@@ -15,6 +15,7 @@
 """Tests for JIT run loop and run_simulation_jitted."""
 
 import os
+from typing import Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -206,9 +207,14 @@ class JitSimTest(sim_test_case.SimTestCase):
       # Tests current and density rampup for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
       # timesteps (with negligible impact on results compared to full tol).
+      # Uses rtol=1e-7 to account for minor floating point reordering
+      # differences between jitted and non-jitted execution during coarse_tol
+      # timesteps.
       (
           'test_iterhybrid_rampup',
           'test_iterhybrid_rampup.py',
+          _ALL_PROFILES,
+          1e-7,
       ),
       # Modified version of test_iterhybrid_rampup with sawtooth model.
       # Has an initial peaked current density, no heating, no current drive,
@@ -260,10 +266,15 @@ class JitSimTest(sim_test_case.SimTestCase):
   def test_run_simulation_jitted(
       self,
       config_name: str,
+      profiles: Sequence[str] = _ALL_PROFILES,
+      rtol: float | None = None,
+      atol: float | None = None,
   ):
     self._test_run_simulation(
         config_name,
-        profiles=_ALL_PROFILES,
+        profiles=profiles,
+        rtol=rtol,
+        atol=atol,
         use_jitted_run_loop=True,
     )
 

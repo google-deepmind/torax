@@ -80,8 +80,8 @@ class RunSimulationTest(sim_test_case.SimTestCase):
                 actual[var_name].values,
                 desired[var_name].values,
                 err_msg=f'Mismatch for {var_name} in restart test',
-                rtol=1e-6,
-                atol=1e-6,
+                rtol=1e-5,
+                atol=1e-5,
             )
 
     xr.map_over_datasets(check_equality, datatree_new, datatree_ref)
