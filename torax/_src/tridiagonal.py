@@ -280,13 +280,13 @@ def thomas_solve(
     factor = cur_lower @ prev_diag_inv
     new_diag = cur_diag - factor @ prev_upper
     new_rhs = cur_rhs - factor @ prev_rhs
-    new_diag_inv = jnp.linalg.inv(new_diag)
+    new_diag_inv = jax_utils.fast_matrix_inverse(new_diag)
     # we output (new_diag_inv, new_rhs) for use in the backward pass
     return (new_diag_inv, new_rhs, cur_upper), (new_diag_inv, new_rhs)
 
   pad_upper = jnp.pad(block_tridiag.upper, ((0, 1), (0, 0), (0, 0)))
 
-  diag0_inv = jnp.linalg.inv(block_tridiag.diagonal[0])
+  diag0_inv = jax_utils.fast_matrix_inverse(block_tridiag.diagonal[0])
   init_carry = (diag0_inv, rhs[0], block_tridiag.upper[0])
 
   _, (fwd_diag_invs, fwd_rhs) = jax.lax.scan(
