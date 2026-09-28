@@ -1295,7 +1295,7 @@ class GettersTest(parameterized.TestCase):
     np.testing.assert_allclose(ions.Z_eff, 1.0)
     np.testing.assert_allclose(ions.n_i.value, initial_core_profiles.n_e.value)
 
-    _, state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
     np.testing.assert_equal(
         state_history.sim_error,
         state.SimError.NO_ERROR,

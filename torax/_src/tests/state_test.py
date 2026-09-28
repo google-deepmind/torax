@@ -221,7 +221,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
         'Z_eff': 2.0,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    _, state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
 
@@ -269,7 +269,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
         },
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    _, state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
 
@@ -317,7 +317,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
 
-    _, state_history = run_simulation.run_simulation(
+    state_history = run_simulation.run_simulation(
         torax_config, progress_bar=False
     )
 

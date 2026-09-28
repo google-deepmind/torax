@@ -66,7 +66,7 @@ def main(argv: Sequence[str]) -> None:
       },
   }
   torax_config = model_config.ToraxConfig.from_dict(config)
-  data_tree, _ = torax.run_simulation(torax_config)
+  data_tree = torax.run_simulation(torax_config).simulation_output_to_xr()
   plt.figure(figsize=(8, 2))
   plt.plot(
       data_tree.rho_face_norm,

@@ -72,9 +72,9 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
         ' or a CONFIG dictionary.'
     )
   try:
-    simulation_xr, _ = run_simulation.run_simulation(
+    simulation_xr = run_simulation.run_simulation(
         torax_config, progress_bar=False
-    )
+    ).simulation_output_to_xr()
     output_file = os.path.join(output_dir, f'{config_name}.nc')
     simulation_app.write_output_to_file(output_file, simulation_xr)
     print(f'Finished running {config_name}, output saved to {output_file}')
