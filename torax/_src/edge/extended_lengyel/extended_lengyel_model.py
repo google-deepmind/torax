@@ -174,19 +174,21 @@ class ExtendedLengyelModel(base.EdgeModel):
 
     # Calculate normalized poloidal flux (psi_norm) on the face grid.
     # Used to interpolate geometry quantities at psi_norm = 0.95.
-    psi_face = core_profiles.psi.face_value()
-    psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])  # pyrefly: ignore[bad-index]
+    psi_face = jnp.asarray(core_profiles.psi.face_value())
+    psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
 
     # Interpolate elongation and triangularity at psi_norm = 0.95
     elongation_psi95 = jnp.interp(0.95, psi_norm_face, geo.elongation_face)
     triangularity_psi95 = jnp.interp(0.95, psi_norm_face, geo.delta_face)
 
     # Extract plasma state parameters from CoreProfiles at the LCFS
-    separatrix_electron_density = core_profiles.n_e.face_value()[-1]  # pyrefly: ignore[bad-index]
+    separatrix_electron_density = jnp.asarray(core_profiles.n_e.face_value())[
+        -1
+    ]
 
     # Calculate ion properties
-    n_i_sep = core_profiles.n_i.face_value()[-1]  # pyrefly: ignore[bad-index]
-    n_imp_sep = core_profiles.n_impurity.face_value()[-1]  # pyrefly: ignore[bad-index]
+    n_i_sep = jnp.asarray(core_profiles.n_i.face_value())[-1]
+    n_imp_sep = jnp.asarray(core_profiles.n_impurity.face_value())[-1]
     A_i_sep = core_profiles.A_i
     A_imp_sep = core_profiles.A_impurity_face[-1]
     mean_ion_charge_state = separatrix_electron_density / (n_i_sep + n_imp_sep)
@@ -377,7 +379,7 @@ def _resolve_param(
     name: str,
     geo_val: array_typing.FloatScalar | None,
     config_val: array_typing.FloatScalar | None,
-) -> array_typing.FloatScalar:  # pyrefly: ignore[bad-return]
+) -> array_typing.FloatScalar:
   """Helper to resolve a single parameter with logging.
 
   This function determines the definitive value for a geometric parameter that
@@ -418,7 +420,7 @@ def _resolve_param(
         # This will raise a RuntimeError at runtime if is_valid is False and
         # TORAX errors are enabled.
         return jax_utils.error_if(
-            g_val,  # pyrefly: ignore[bad-argument-type]
+            jnp.asarray(g_val),
             jnp.logical_not(is_valid),
             f"ExtendedLengyelModel: Geometry parameter '{name}' is invalid"
             ' (0 or NaN) and no fallback value provided in'
@@ -437,6 +439,11 @@ def _resolve_param(
       raise ValueError(
           f"ExtendedLengyelModel: Parameter '{name}' must be provided either"
           ' via the Geometry or the ExtendedLengyelConfig.'
+      )
+    case _:
+      raise ValueError(
+          'ExtendedLengyelModel: Unexpected state resolving parameter'
+          f" '{name}'."
       )
 
 

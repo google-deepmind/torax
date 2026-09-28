@@ -144,7 +144,9 @@ def calc_separatrix_average_poloidal_field(
     The average poloidal field at the separatrix [T].
   """
   poloidal_circumference = 2.0 * jnp.pi * minor_radius * shaping_factor
-  return constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference  # pyrefly: ignore[bad-return]
+  return jnp.asarray(
+      constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference
+  )
 
 
 @jax.jit
@@ -295,7 +297,7 @@ def calc_Z_eff(
   # Contribution from main ions
   n_i = (1 - dilution_factor) / Z_i
   Z_eff += n_i * Z_i**2
-  return Z_eff[0]  # Return scalar for extended-lengyel.  # pyrefly: ignore[bad-index]
+  return jnp.squeeze(Z_eff)
 
 
 @jax.jit(static_argnames=['ion_symbol'])
