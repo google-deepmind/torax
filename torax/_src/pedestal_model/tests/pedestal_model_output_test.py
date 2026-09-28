@@ -111,12 +111,12 @@ class PedestalModelOutputTest(absltest.TestCase):
         v_face_el_ware=jnp.ones(n_face),
     )
     pereverzev = transport_coeffs_lib.PereverzevTransport(
-        chi_face_ion=jnp.ones(n_face),
-        chi_face_el=jnp.ones(n_face),
-        full_v_heat_face_ion=jnp.ones(n_face),
-        full_v_heat_face_el=jnp.ones(n_face),
-        d_face_el=jnp.ones(n_face),
-        v_face_el=jnp.ones(n_face),
+        chi_face_ion=jnp.ones(n_face) * 30.0,
+        chi_face_el=jnp.ones(n_face) * 30.0,
+        full_v_heat_face_ion=jnp.ones(n_face) * 15.0,
+        full_v_heat_face_el=jnp.ones(n_face) * 12.0,
+        d_face_el=jnp.ones(n_face) * 5.0,
+        v_face_el=jnp.ones(n_face) * -3.0,
     )
     total = transport_coeffs_lib.sum_transport_coeffs(
         turbulent.total,
@@ -148,7 +148,7 @@ class PedestalModelOutputTest(absltest.TestCase):
         self.geo.rho_face_norm > self.pedestal_model_output.rho_norm_ped_top
     )
 
-    # Check turbulent and Pereverzev transport is scaled correctly.
+    # Check turbulent transport is scaled correctly.
     np.testing.assert_allclose(
         modified_core_transport.turbulent.total.chi_face_el,
         jnp.where(pedestal_mask, 2.0, 1.0),
@@ -163,11 +163,6 @@ class PedestalModelOutputTest(absltest.TestCase):
         bgb_mod.chi_face_el,
         bgb_output.chi_face_el,
     )
-    assert modified_core_transport.pereverzev is not None
-    np.testing.assert_allclose(
-        modified_core_transport.pereverzev.chi_face_el,
-        jnp.where(pedestal_mask, 2.0, 1.0),
-    )
 
     np.testing.assert_allclose(
         modified_core_transport.turbulent.total.chi_face_ion,
@@ -177,27 +172,61 @@ class PedestalModelOutputTest(absltest.TestCase):
         bgb_mod.chi_face_ion,
         bgb_output.chi_face_ion,
     )
-    np.testing.assert_allclose(
-        modified_core_transport.pereverzev.chi_face_ion,
-        jnp.where(pedestal_mask, 3.0, 1.0),
-    )
 
     np.testing.assert_allclose(
         modified_core_transport.turbulent.total.d_face_el,
         jnp.where(pedestal_mask, 4.0, 1.0),
     )
     np.testing.assert_allclose(
-        modified_core_transport.pereverzev.d_face_el,
-        jnp.where(pedestal_mask, 4.0, 1.0),
-    )
-
-    np.testing.assert_allclose(
         modified_core_transport.turbulent.total.v_face_el,
         jnp.where(pedestal_mask, 5.0, 1.0),
     )
+
+    # Check Pereverzev transport is left unscaled and unclipped across all 6
+    # channels so that diffusion and counter-convection remain balanced.
+    assert modified_core_transport.pereverzev is not None
+    np.testing.assert_allclose(
+        modified_core_transport.pereverzev.chi_face_ion,
+        pereverzev.chi_face_ion,
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.pereverzev.chi_face_el,
+        pereverzev.chi_face_el,
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.pereverzev.d_face_el,
+        pereverzev.d_face_el,
+    )
     np.testing.assert_allclose(
         modified_core_transport.pereverzev.v_face_el,
-        jnp.where(pedestal_mask, 5.0, 1.0),
+        pereverzev.v_face_el,
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.pereverzev.full_v_heat_face_ion,
+        pereverzev.full_v_heat_face_ion,
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.pereverzev.full_v_heat_face_el,
+        pereverzev.full_v_heat_face_el,
+    )
+
+    # Check total transport sums scaled turbulent + unscaled neoclassical +
+    # unscaled pereverzev.
+    np.testing.assert_allclose(
+        modified_core_transport.total.chi_face_ion,
+        jnp.where(pedestal_mask, 3.0, 1.0) + 1.0 + 30.0,
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.total.chi_face_el,
+        jnp.where(pedestal_mask, 2.0, 1.0) + 1.0 + 30.0,
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.total.d_face_el,
+        jnp.where(pedestal_mask, 4.0, 1.0) + 1.0 + 5.0,
+    )
+    np.testing.assert_allclose(
+        modified_core_transport.total.v_face_el,
+        jnp.where(pedestal_mask, 5.0, 1.0) + 2.0 + (-3.0),
     )
 
     # Check neoclassical transport is not affected.
@@ -264,6 +293,7 @@ class PedestalModelOutputTest(absltest.TestCase):
         geo=self.geo,
         pedestal_runtime_params=pedestal_runtime_params,
     )
+    self.assertIsNone(modified.pereverzev)
     # Pedestal component should be untouched.
     np.testing.assert_allclose(
         modified.turbulent.pedestal.chi_face_ion,

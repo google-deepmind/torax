@@ -309,21 +309,18 @@ class PedestalModelOutput:
         core=_scale_coeffs(core_transport.turbulent.core),
     )
 
-    # Scale Pereverzev transport if present.
-    if core_transport.pereverzev is not None:
-      modified_pereverzev = _scale_coeffs(core_transport.pereverzev)
-    else:
-      modified_pereverzev = None
-
-    # Neoclassical transport is not affected by scaling from an
-    # ADAPTIVE_TRANSPORT pedestal model.
+    # Neoclassical and Pereverzev-Corrigan stabilization transport are not
+    # affected by scaling from an ADAPTIVE_TRANSPORT pedestal model.
+    # Pereverzev diffusivity (chi_face, d_face) and counter-convection
+    # (full_v_heat_face, v_face) must remain exactly balanced so their net flux
+    # vanishes at convergence.
     coeffs_to_sum = [modified_turbulent.total, core_transport.neoclassical]
-    if modified_pereverzev is not None:
-      coeffs_to_sum.append(modified_pereverzev)
+    if core_transport.pereverzev is not None:
+      coeffs_to_sum.append(core_transport.pereverzev)
     total = transport_coeffs_lib.sum_transport_coeffs(*coeffs_to_sum)
     return state.CoreTransport(
         total=total,
         turbulent=modified_turbulent,
         neoclassical=core_transport.neoclassical,
-        pereverzev=modified_pereverzev,
+        pereverzev=core_transport.pereverzev,
     )
