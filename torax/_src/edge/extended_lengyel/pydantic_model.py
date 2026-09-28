@@ -14,6 +14,7 @@
 
 """Pydantic configs for all edge models, currently only extended_lengyel."""
 
+import dataclasses
 import logging
 from typing import Annotated, Any, Literal, Mapping, Self
 import chex
@@ -391,14 +392,14 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         use_previous_step_as_guess=self.initial_guess.use_previous_step_as_guess,
     )
 
+    base_params = super().build_runtime_params(t)
+
     return extended_lengyel_model.RuntimeParams(
+        **dataclasses.asdict(base_params),
         computation_mode=self.computation_mode,
         solver_mode=self.solver_mode,
         impurity_sot=self.impurity_sot,
         diverted=_get_optional_value(self.diverted, t),
-        update_temperatures=self.update_temperatures.get_value(t),
-        update_electron_density=self.update_electron_density.get_value(t),
-        update_impurities=self.update_impurities.get_value(t),
         fixed_point_iterations=self.fixed_point_iterations,  # pyrefly: ignore[bad-argument-type]
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,

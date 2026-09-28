@@ -17,7 +17,7 @@
 import abc
 from collections.abc import Mapping
 import dataclasses
-from typing import Any
+from typing import Annotated, Any
 import chex
 import jax
 import numpy as np
@@ -132,13 +132,40 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
 
 
 class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
-  """Base pydantic configuration for all edge models."""
+  """Base pydantic configuration for all edge models.
 
-  @abc.abstractmethod
+  Subclasses implement the specific model logic, and must override `model_name`
+  with a `Literal` to serve as a discriminator in polymorphic unions.
+
+  Attributes:
+    model_name: Discriminator field for Pydantic. Subclasses must override with
+      a `Literal` value.
+    update_temperatures: Whether to update temperature boundary conditions.
+    update_electron_density: Whether to update electron density boundary
+      condition.
+    update_impurities: Whether to update impurity concentrations in the core.
+  """
+
+  model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ""
+  update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+  update_electron_density: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+  update_impurities: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> edge_runtime_params.RuntimeParams:
     """Builds the runtime parameters for the edge model at time t."""
+    return edge_runtime_params.RuntimeParams(
+        update_temperatures=self.update_temperatures.get_value(t),
+        update_electron_density=self.update_electron_density.get_value(t),
+        update_impurities=self.update_impurities.get_value(t),
+    )
 
   @abc.abstractmethod
   def build_edge_model(self) -> EdgeModel:
