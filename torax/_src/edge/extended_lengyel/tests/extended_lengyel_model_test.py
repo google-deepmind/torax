@@ -1517,6 +1517,21 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
           rtol=1e-5,
       )
 
+  def _make_mock_core_profiles_and_sources(self, n_rho: int):
+    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
+      m = mock.MagicMock(spec=cell_variable.CellVariable)
+      m.face_value.return_value = np.ones(n_rho + 1) * 1e19
+      setattr(mock_core_profiles, attr, m)
+    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.A_i = np.array(2.0)
+    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
+    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+
+    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
+    return mock_core_profiles, mock_core_sources
+
   @parameterized.named_parameters(
       ('edge_sot_with_model', 'edge', True),
       ('edge_sot_without_model', 'edge', False),
@@ -1534,21 +1549,9 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     })
 
     geo = self.torax_config.geometry.build_provider(t=0.0)
-    n_rho = geo.rho_norm.shape[0]
-
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
-    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
-      m = mock.MagicMock(spec=cell_variable.CellVariable)
-      m.face_value.return_value = np.ones(n_rho + 1) * 1e19
-      setattr(mock_core_profiles, attr, m)
-    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
-    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
-
-    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
-    mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
-
+    mock_core_profiles, mock_core_sources = (
+        self._make_mock_core_profiles_and_sources(geo.rho_norm.shape[0])
+    )
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         self.torax_config
     )(t=0.0)
@@ -1597,21 +1600,9 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     })
 
     geo = self.torax_config.geometry.build_provider(t=0.0)
-    n_rho = geo.rho_norm.shape[0]
-
-    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
-    for attr in ['psi', 'n_e', 'n_i', 'n_impurity']:
-      m = mock.MagicMock(spec=cell_variable.CellVariable)
-      m.face_value.return_value = np.ones(n_rho + 1) * 1e19
-      setattr(mock_core_profiles, attr, m)
-    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
-    mock_core_profiles.A_i = np.array(2.0)
-    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
-    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
-
-    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
-    mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
-
+    mock_core_profiles, mock_core_sources = (
+        self._make_mock_core_profiles_and_sources(geo.rho_norm.shape[0])
+    )
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         self.torax_config
     )(t=0.0)

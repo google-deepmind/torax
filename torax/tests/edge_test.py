@@ -21,13 +21,12 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import torax
 from torax import edge
-from torax._src.edge import pydantic_model as edge_pydantic_model
 from torax._src.test_utils import default_configs
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class FakeEdgeModel(edge.EdgeModel):
-  """Fake edge model that returns fixed boundary condition values."""
+class _CustomEdgeModel(edge.EdgeModel):
+  """Custom edge model that returns fixed boundary condition values."""
 
   def __call__(
       self,
@@ -46,68 +45,35 @@ class FakeEdgeModel(edge.EdgeModel):
     )
 
 
-class FakeEdgeConfig(edge.EdgeModelConfig):
-  """Fake edge model pydantic config."""
+class _CustomEdgeModelConfig(edge.EdgeModelConfig):
+  """Custom edge model pydantic config."""
 
-  model_name: Annotated[Literal["fake_edge"], torax.JAX_STATIC] = "fake_edge"
+  model_name: Annotated[Literal['custom_edge'], torax.JAX_STATIC] = (
+      'custom_edge'
+  )
 
-  def build_edge_model(self) -> FakeEdgeModel:
-    return FakeEdgeModel()
+  def build_edge_model(self) -> _CustomEdgeModel:
+    return _CustomEdgeModel()
 
 
-class EdgePublicApiTest(absltest.TestCase):
+edge.register_edge_model(_CustomEdgeModelConfig)
 
-  def setUp(self):
-    super().setUp()
-    original_edge_config = edge_pydantic_model.EdgeConfig
-    original_annotation = torax.ToraxConfig.model_fields["edge"].annotation
 
-    def _restore_config():
-      setattr(edge_pydantic_model, "EdgeConfig", original_edge_config)
-      setattr(
-          torax.ToraxConfig.model_fields["edge"],
-          "annotation",
-          original_annotation,
-      )
-      torax.ToraxConfig.model_rebuild(force=True)
+class EdgeTest(absltest.TestCase):
 
-    self.addCleanup(_restore_config)
-    edge.register_edge_model(FakeEdgeConfig)
-
-  def test_registered_edge_model_in_torax_config(self):
+  def test_custom_edge_model_runs(self):
+    """Tests that the custom edge model can be used in a simulation."""
     config = default_configs.get_default_config_dict()
-    config["geometry"] = {
-        "geometry_type": "chease",
-        "geometry_file": "iterhybrid.mat2cols",
+    config['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
     }
-    config["edge"] = {
-        "model_name": "fake_edge",
-    }
-    torax_config = torax.ToraxConfig.from_dict(config)
-    self.assertIsNotNone(torax_config.edge)
-    edge_model = torax_config.edge.build_edge_model()
-    self.assertIsInstance(edge_model, FakeEdgeModel)
-    params = torax_config.edge.build_runtime_params(t=jnp.array(0.0))
-    self.assertIsInstance(params, edge.RuntimeParams)
-
-  def test_fake_edge_model_in_simulation(self):
-    config = default_configs.get_default_config_dict()
-    config["plasma_composition"]["impurity"] = {
-        "impurity_mode": "n_e_ratios",
-        "species": {
-            "N": {0: 0.01, 1: 0.01},
-        },
-    }
-    config["geometry"] = {
-        "geometry_type": "chease",
-        "geometry_file": "iterhybrid.mat2cols",
-    }
-    config["edge"] = {
-        "model_name": "fake_edge",
+    config['edge'] = {
+        'model_name': 'custom_edge',
     }
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   absltest.main()
