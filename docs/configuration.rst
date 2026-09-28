@@ -2142,8 +2142,11 @@ effects from Stott PPCF 2005.
 cyclotron_radiation
 ^^^^^^^^^^^^^^^^^^^
 
-Cyclotron radiation model from Albajar NF 2001 with a deposition profile from
-Artaud NF 2018.
+Cyclotron radiation model from |albajar2001| with a deposition profile from
+|artaud2018|. Because the Albajar profile parameterization is only defined
+for peaked or flat profiles (:math:`\alpha \ge 0`), hollow or inverted density
+and temperature profiles are clamped to the flat-profile limit
+(:math:`\alpha = 0`) in the fit.
 
 ``mode`` (str [default = 'model'])
 
