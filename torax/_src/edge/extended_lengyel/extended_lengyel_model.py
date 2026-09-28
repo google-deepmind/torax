@@ -255,10 +255,18 @@ class ExtendedLengyelModel(base.EdgeModel):
           continue
 
         # Calculate edge concentration: c_edge = c_core_lcfs * enrichment_factor
-        # Enrichment factor exists for all species (validated in config)
-        fixed_impurity_concentrations[species] = (
-            ratio_face[-1] * edge_params.enrichment_factor[species]
-        )
+        if (
+            edge_params.use_enrichment_model
+            and previous_edge_outputs is not None
+        ):
+          assert isinstance(
+              previous_edge_outputs,
+              extended_lengyel_standalone.ExtendedLengyelOutputs,
+          )
+          enrichment = previous_edge_outputs.calculated_enrichment[species]
+        else:
+          enrichment = edge_params.enrichment_factor[species]
+        fixed_impurity_concentrations[species] = ratio_face[-1] * enrichment
 
     # Determine initial guesses
     initial_guess = _get_initial_guess(edge_params, previous_edge_outputs)
