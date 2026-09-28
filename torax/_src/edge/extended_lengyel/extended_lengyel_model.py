@@ -83,6 +83,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   )
   # Not static to allow rapid sensitivity checking of edge-model impact.
   update_temperatures: array_typing.BoolScalar
+  update_density: array_typing.BoolScalar
   update_impurities: array_typing.BoolScalar
   fixed_point_iterations: int
   newton_raphson_iterations: int

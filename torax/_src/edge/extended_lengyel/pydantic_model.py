@@ -78,6 +78,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(True)
   )
+  update_density: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(False)
+  )
   update_impurities: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(True)
   )
@@ -394,6 +397,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         impurity_sot=self.impurity_sot,
         diverted=_get_optional_value(self.diverted, t),
         update_temperatures=self.update_temperatures.get_value(t),
+        update_density=self.update_density.get_value(t),
         update_impurities=self.update_impurities.get_value(t),
         fixed_point_iterations=self.fixed_point_iterations,  # pyrefly: ignore[bad-argument-type]
         newton_raphson_iterations=self.newton_raphson_iterations,

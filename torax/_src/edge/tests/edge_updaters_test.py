@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from unittest import mock
+import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
@@ -22,6 +22,7 @@ from torax._src.config import build_runtime_params
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base as edge_base
 from torax._src.edge import updaters
+from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -49,6 +50,8 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
     }
+    # TODO(b/557540194): Change this to not use extended_lengyel once a
+    # base/mock edge model is available.
     config_dict['edge'] = {
         'model_name': 'extended_lengyel',
         'computation_mode': 'inverse',
@@ -69,10 +72,12 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         torax_config
     )
     runtime_params = provider(t=0.0)
-    edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
-    edge_outputs.impurity_right_bc = {'N': jnp.array(_TARGET_EDGE_RATIO)}
-    edge_outputs.T_e_right_bc = 1.0
-    edge_outputs.T_i_right_bc = 1.0
+    edge_outputs = edge_base.EdgeModelOutputs(
+        T_e_right_bc=jnp.array(1.0),
+        T_i_right_bc=jnp.array(1.0),
+        impurity_right_bc={'N': jnp.array(_TARGET_EDGE_RATIO)},
+        n_e_right_bc=jnp.array(jnp.nan),
+    )
 
     initial_impurity_params = runtime_params.plasma_composition.impurity
     assert isinstance(
@@ -145,11 +150,21 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         torax_config
     )
     runtime_params = provider(t=0.0)
+    runtime_params = dataclasses.replace(
+        runtime_params,
+        profile_conditions=dataclasses.replace(
+            runtime_params.profile_conditions,
+            n_e_right_bc=jnp.array(1e19),
+            n_e_right_bc_is_fGW=True,
+        ),
+    )
 
-    edge_outputs = mock.MagicMock(spec=edge_base.EdgeModelOutputs)
-    edge_outputs.T_e_right_bc = jnp.array(0.123)
-    edge_outputs.T_i_right_bc = jnp.array(0.456)
-    edge_outputs.impurity_right_bc = {}
+    edge_outputs = edge_base.EdgeModelOutputs(
+        T_e_right_bc=jnp.array(0.123),
+        T_i_right_bc=jnp.array(0.456),
+        impurity_right_bc={},
+        n_e_right_bc=jnp.array(3.45e19),
+    )
 
     updated_runtime_params = updaters.update_runtime_params(
         runtime_params, edge_outputs
@@ -160,6 +175,78 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         updated_runtime_params.profile_conditions.T_i_right_bc, 0.456
+    )
+    # Check that density boundary conditions haven't changed.
+    np.testing.assert_allclose(
+        updated_runtime_params.profile_conditions.n_e_right_bc, 1e19
+    )
+    self.assertTrue(
+        updated_runtime_params.profile_conditions.n_e_right_bc_is_fGW
+    )
+
+  def test_update_density(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['plasma_composition']['impurity'] = {
+        'impurity_mode': 'n_e_ratios',
+        'species': {'N': 0.01},
+    }
+    config_dict['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+    }
+    # TODO(b/557540194): Change this to not use extended_lengyel once a
+    # base/mock edge model is available.
+    config_dict['edge'] = {
+        'model_name': 'extended_lengyel',
+        'update_temperatures': False,
+        'update_impurities': False,
+        'use_enrichment_model': False,
+        'fixed_impurity_concentrations': {'N': 0.01},
+        'enrichment_factor': {'N': 1.0},
+        'connection_length_target': 1.0,
+        'connection_length_divertor': 1.0,
+        'toroidal_flux_expansion': 1.0,
+        'angle_of_incidence_target': 1.0,
+        'diverted': True,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    runtime_params = dataclasses.replace(
+        runtime_params,
+        profile_conditions=dataclasses.replace(
+            runtime_params.profile_conditions,
+            n_e_right_bc=jnp.array(1e19),
+            n_e_right_bc_is_fGW=True,
+        ),
+    )
+    self.assertTrue(runtime_params.profile_conditions.n_e_right_bc_is_fGW)
+
+    edge_outputs = edge_base.EdgeModelOutputs(
+        T_e_right_bc=jnp.array(0.0),
+        T_i_right_bc=jnp.array(0.0),
+        n_e_right_bc=jnp.array(3.45e19),
+        impurity_right_bc={},
+    )
+
+    # When update_density is True, update_runtime_params updates n_e_right_bc
+    # and resets n_e_right_bc_is_fGW to False.
+    assert isinstance(runtime_params.edge, extended_lengyel_model.RuntimeParams)
+    enabled_params = dataclasses.replace(
+        runtime_params,
+        edge=dataclasses.replace(runtime_params.edge, update_density=True),
+    )
+    updated_runtime_params = updaters.update_runtime_params(
+        enabled_params, edge_outputs
+    )
+
+    np.testing.assert_allclose(
+        updated_runtime_params.profile_conditions.n_e_right_bc, 3.45e19
+    )
+    self.assertFalse(
+        updated_runtime_params.profile_conditions.n_e_right_bc_is_fGW
     )
 
 

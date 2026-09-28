@@ -57,6 +57,14 @@ def update_runtime_params(
       runtime_params,
   )
 
+  # Conditionally update density based on the update_density flag.
+  runtime_params = jax.lax.cond(
+      runtime_params.edge.update_density,
+      lambda runtime_params: _update_density(runtime_params, edge_outputs),
+      lambda runtime_params: runtime_params,
+      runtime_params,
+  )
+
   # Conditionally update impurities based on the update_impurities flag.
   runtime_params = jax.lax.cond(
       runtime_params.edge.update_impurities,
@@ -79,6 +87,21 @@ def _update_temperatures(
           runtime_params.profile_conditions,
           T_e_right_bc=edge_outputs.T_e_right_bc,
           T_i_right_bc=edge_outputs.T_i_right_bc,
+      ),
+  )
+
+
+def _update_density(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    edge_outputs: edge_base.EdgeModelOutputs,
+) -> runtime_params_lib.RuntimeParams:
+  """Updates electron density boundary condition based on edge model outputs."""
+  return dataclasses.replace(
+      runtime_params,
+      profile_conditions=dataclasses.replace(
+          runtime_params.profile_conditions,
+          n_e_right_bc=edge_outputs.n_e_right_bc,
+          n_e_right_bc_is_fGW=False,
       ),
   )
 

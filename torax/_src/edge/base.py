@@ -41,12 +41,14 @@ class EdgeModelOutputs:
   Attributes:
     T_e_right_bc: Electron temperature boundary condition at LCFS [keV].
     T_i_right_bc: Ion temperature boundary condition at LCFS [keV].
+    n_e_right_bc: Electron density boundary condition at LCFS [m^-3].
     impurity_right_bc: Mapping from impurity symbol to its right boundary
       condition (n_e_ratio at LCFS).
   """
 
   T_e_right_bc: jax.Array
   T_i_right_bc: jax.Array
+  n_e_right_bc: jax.Array
   impurity_right_bc: Mapping[str, jax.Array]
 
   def to_output_dict(
