@@ -116,9 +116,6 @@ def _calculate_bootstrap_current(
   # methodology as Sauter, but with improved accuracy particularly at high
   # collisionality and for multi-species plasmas.
 
-  # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
-
   # Collision frequencies
   log_lambda_ei = collisions.calculate_log_lambda_ei(
       T_e.face_value(), n_e.face_value()  # pyrefly: ignore[bad-argument-type]
@@ -144,6 +141,7 @@ def _calculate_bootstrap_current(
   )
 
   # Calculate terms needed for bootstrap current using Redl formulae
+  f_trap = geo.trapped_fraction_face
   L31 = redl_formulas.calculate_L31(f_trap, nu_e_star, Z_eff_face)
   L32 = redl_formulas.calculate_L32(f_trap, nu_e_star, Z_eff_face)
   # In Redl model, L34 is set equal to L31 (Eq. 19)

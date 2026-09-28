@@ -90,9 +90,6 @@ def _calculate_conductivity(
 
   # Formulas from Sauter PoP 1999.
 
-  # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
-
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
   log_lambda_ei = collisions.calculate_log_lambda_ei(
@@ -117,6 +114,7 @@ def _calculate_conductivity(
   )
 
   # Neoclassical correction to spitzer conductivity
+  f_trap = geo.trapped_fraction_face
   ft33 = f_trap / (
       1.0
       + (0.55 - 0.1 * f_trap) * jnp.sqrt(nu_e_star_face)

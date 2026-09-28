@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Input mapping functions for use of IMAS equilibrium IDSs with TORAX."""
+
 from collections.abc import Mapping
 import logging
 from typing import Any
@@ -20,8 +21,8 @@ from typing import Any
 from imas import ids_toplevel
 import numpy as np
 import scipy
+from torax._src.geometry import trapped_fraction as trapped_fraction_lib
 from torax._src.imas_tools.input import loader
-
 
 # TODO(b/379832500) - Modify for consistency when we have a fixed TORAX COCOS.
 # pylint: disable=invalid-name
@@ -83,6 +84,9 @@ def _geometry_from_single_slice(
     Ip_from_parameters: bool = False,
     hires_factor: int = 4,
     slice_index: int = 0,
+    trapped_fraction_source: trapped_fraction_lib.TrappedFractionSource = (
+        trapped_fraction_lib.TrappedFractionSource.SAUTER
+    ),
 ) -> dict[str, Any]:
   """Extracts geometry data from a single time slice of an equilibrium IDS.
 
@@ -94,6 +98,8 @@ def _geometry_from_single_slice(
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     slice_index: Index of the time slice to process.
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed; see `trapped_fraction.TrappedFractionSource`.
 
   Returns:
     A dict of intermediate geometry values for building a StandardGeometry.
@@ -205,6 +211,23 @@ def _geometry_from_single_slice(
 
   z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
+  match trapped_fraction_source:
+    case trapped_fraction_lib.TrappedFractionSource.SAUTER:
+      epsilon = (R_out - R_in) / (R_out + R_in)
+      delta = (
+          IMAS_data.profiles_1d.triangularity_upper
+          + IMAS_data.profiles_1d.triangularity_lower
+      ) / 2.0
+      trapped_fraction = trapped_fraction_lib.calculate_sauter_trapped_fraction(
+          epsilon=epsilon, delta=delta
+      )
+    case _:
+      raise ValueError(
+          f"Unsupported trapped_fraction_source: {trapped_fraction_source}."
+          "Supported options: "
+          f"{trapped_fraction_lib.TrappedFractionSource.SAUTER.value}."
+      )
+
   # TODO(b/446608829): Add support for edge geometries from IMAS.
 
   return {
@@ -226,6 +249,7 @@ def _geometry_from_single_slice(
       "flux_surf_avg_grad_psi2_over_R2": flux_surf_avg_grad_psi2_over_R2,
       "flux_surf_avg_B2": IMAS_data.profiles_1d.gm5,
       "flux_surf_avg_1_over_B2": IMAS_data.profiles_1d.gm4,
+      "trapped_fraction": trapped_fraction,
       "delta_upper_face": IMAS_data.profiles_1d.triangularity_upper,
       "delta_lower_face": IMAS_data.profiles_1d.triangularity_lower,
       "elongation": IMAS_data.profiles_1d.elongation,
@@ -255,6 +279,9 @@ def geometry_from_IMAS(
     imas_uri: str | None = None,
     imas_filepath: str | None = None,
     explicit_convert: bool = False,
+    trapped_fraction_source: trapped_fraction_lib.TrappedFractionSource = (
+        trapped_fraction_lib.TrappedFractionSource.SAUTER
+    ),
 ) -> Mapping[float, dict[str, Any]]:
   """Constructs geometry intermediates for all time slices in an IMAS IDS.
 
@@ -276,6 +303,8 @@ def geometry_from_IMAS(
       version. If True, an explicit conversion will be attempted. Explicit
       conversion is recommended when converting between major DD versions.
       https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed; see `trapped_fraction.TrappedFractionSource`.
 
   Returns:
     A mapping from times to dicts of intermediate geometry values, one per
@@ -301,6 +330,7 @@ def geometry_from_IMAS(
         face_centers=face_centers,
         Ip_from_parameters=Ip_from_parameters,
         hires_factor=hires_factor,
+        trapped_fraction_source=trapped_fraction_source,
     )
 
   return intermediates
@@ -317,6 +347,9 @@ def geometry_from_single_IMAS_slice(
     explicit_convert: bool = False,
     slice_index: int = 0,
     slice_time: float | None = None,
+    trapped_fraction_source: trapped_fraction_lib.TrappedFractionSource = (
+        trapped_fraction_lib.TrappedFractionSource.SAUTER
+    ),
 ) -> dict[str, Any]:
   """Constructs geometry intermediates for a single time slice in an IMAS IDS.
 
@@ -356,6 +389,8 @@ def geometry_from_single_IMAS_slice(
     slice_time: Time (in seconds) of the IDS time slice to load. The slice whose
       time is closest to this value is selected. When provided, takes precedence
       over ``slice_index``.
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed; see `base.TrappedFractionSource`.
 
   Returns:
     A dict of intermediate geometry values for building a StandardGeometry,
@@ -391,4 +426,5 @@ def geometry_from_single_IMAS_slice(
       face_centers=face_centers,
       Ip_from_parameters=Ip_from_parameters,
       hires_factor=hires_factor,
+      trapped_fraction_source=trapped_fraction_source,
   )

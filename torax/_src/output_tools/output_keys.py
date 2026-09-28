@@ -1087,6 +1087,11 @@ GM5: Final[OutputKey] = OutputKey(
 GM9: Final[OutputKey] = OutputKey(
     "gm9", units=Units.INVERSE_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
 )
+TRAPPED_FRACTION: Final[OutputKey] = OutputKey(
+    "trapped_fraction",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.FACE,
+)
 
 # ---------------------------------------------------------------------------
 # Geometry output renames.

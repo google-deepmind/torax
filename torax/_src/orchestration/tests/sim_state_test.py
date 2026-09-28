@@ -54,6 +54,7 @@ class SimStateTest(parameterized.TestCase):
         flux_surf_avg_1_over_B2=np.linspace(0.03, 0.04, 10),
         delta_upper_face=np.linspace(0.0, 0.3, 10),
         delta_lower_face=np.linspace(0.0, 0.3, 10),
+        trapped_fraction=np.linspace(0.0, 1.0, 10),
         elongation=np.linspace(1.0, 1.7, 10),
         vpr=np.linspace(0.01, 1.0, 10),
         face_centers=np.linspace(0, 1.0, 5),

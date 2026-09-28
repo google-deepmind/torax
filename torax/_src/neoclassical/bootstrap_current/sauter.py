@@ -107,9 +107,6 @@ def _calculate_bootstrap_current(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  # Effective trapped particle fraction
-  f_trap = formulas.calculate_f_trap(geo)
-
   # Spitzer conductivity
   log_lambda_ei = collisions.calculate_log_lambda_ei(
       T_e.face_value(), n_e.face_value()  # pyrefly: ignore[bad-argument-type]
@@ -135,6 +132,7 @@ def _calculate_bootstrap_current(
   )
 
   # Terms for analytical fit
+  f_trap = geo.trapped_fraction_face
   L31 = sauter_formulas.calculate_L31(
       f_trap, nu_e_star, Z_eff_face
   )
