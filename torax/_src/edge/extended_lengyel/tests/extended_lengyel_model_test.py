@@ -1238,11 +1238,14 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
     final_state = state_history.core_profiles[-1]
     final_edge_output = state_history._edge_outputs[-1]
     self.assertIsNotNone(final_edge_output)
+    self.assertIsInstance(
+        final_edge_output, extended_lengyel_standalone.ExtendedLengyelOutputs
+    )
 
     if update_temperatures:
       # BCs should match edge model output
-      expected_Te_bc = final_edge_output.T_e_separatrix
-      expected_Ti_bc = expected_Te_bc * ion_to_electron_ratio
+      expected_Te_bc = final_edge_output.T_e_right_bc
+      expected_Ti_bc = final_edge_output.T_i_right_bc
       np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           final_state.T_e.right_face_constraint, expected_Te_bc, rtol=1e-5
       )

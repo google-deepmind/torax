@@ -176,6 +176,11 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
   """Outputs from the extended Lengyel model on top of the base class outputs.
 
   Attributes:
+    q_parallel: Parallel heat flux upstream [W/m^2].
+    q_perpendicular_target: Heat flux perpendicular to the target [W/m^2].
+    T_e_separatrix: Electron temperature at the separatrix [keV].
+    T_e_target: Electron temperature at sheath entrance [eV].
+    pressure_neutral_divertor: Neutral pressure in the divertor [Pa].
     alpha_t: Turbulence broadening factor alpha_t.
     kappa_e: Electron heat conductivity prefactor [W/(m*eV^3.5)].
     c_z_prefactor: Impurity concentration prefactor [dimensionless].
@@ -194,6 +199,11 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       which only has a single solution.
   """
 
+  q_parallel: jax.Array
+  q_perpendicular_target: jax.Array
+  T_e_separatrix: jax.Array
+  T_e_target: jax.Array
+  pressure_neutral_divertor: jax.Array
   alpha_t: jax.Array
   kappa_e: jax.Array
   c_z_prefactor: jax.Array
@@ -462,6 +472,29 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
           data_array,
           {},
       )
+
+    # 4. Divertor / SOL quantities
+    divertor_quantities: dict[str, output_grid_context.OutputVar] = {
+        str(output_keys.Q_PARALLEL): context.pack(
+            output_keys.Q_PARALLEL, self.q_parallel
+        ),
+        str(output_keys.Q_PERPENDICULAR_TARGET): context.pack(
+            output_keys.Q_PERPENDICULAR_TARGET, self.q_perpendicular_target
+        ),
+        str(output_keys.T_E_SEPARATRIX): context.pack(
+            output_keys.T_E_SEPARATRIX, self.T_e_separatrix
+        ),
+        str(output_keys.T_E_TARGET): context.pack(
+            output_keys.T_E_TARGET, self.T_e_target
+        ),
+        str(output_keys.PRESSURE_NEUTRAL_DIVERTOR): context.pack(
+            output_keys.PRESSURE_NEUTRAL_DIVERTOR,
+            self.pressure_neutral_divertor,
+        ),
+    }
+    out_dict.update(
+        {k: v for k, v in divertor_quantities.items() if v is not None}
+    )
 
     return out_dict
 
