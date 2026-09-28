@@ -40,14 +40,7 @@ class KimModel(base.PoloidalVelocityModel):
     )
     B_total_squared_face = B_pol_squared_face + B_tor_face**2
 
-    poloidal_velocity_params = getattr(
-        runtime_params.neoclassical, 'poloidal_velocity', None
-    )
-    multiplier = (
-        poloidal_velocity_params.poloidal_velocity_multiplier
-        if poloidal_velocity_params is not None
-        else 1.0
-    )
+    poloidal_velocity_params = runtime_params.neoclassical.poloidal_velocity
     v_pol = formulas.calculate_poloidal_velocity(
         T_i=core_profiles.T_i,
         n_i=core_profiles.n_i.face_value(),
@@ -57,7 +50,7 @@ class KimModel(base.PoloidalVelocityModel):
         B_tor=B_tor_face,
         B_total_squared=B_total_squared_face,
         geo=geometry,
-        poloidal_velocity_multiplier=multiplier,
+        poloidal_velocity_multiplier=poloidal_velocity_params.poloidal_velocity_multiplier,
     )
     return base.PoloidalVelocity(v_pol=v_pol)
 

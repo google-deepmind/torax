@@ -24,13 +24,28 @@ from torax._src.neoclassical.bootstrap_current import redl as redl_current
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
 from torax._src.neoclassical.bootstrap_current import zeros as bootstrap_current_zeros
 from torax._src.neoclassical.conductivity import sauter as sauter_conductivity
+from torax._src.neoclassical.poloidal_velocity import kim as kim_poloidal_velocity
+from torax._src.neoclassical.poloidal_velocity import zeros as poloidal_velocity_zeros
 from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.neoclassical.transport import zeros as transport_zeros
 from torax._src.torax_pydantic import torax_pydantic
 
 
 class Neoclassical(torax_pydantic.BaseModelFrozen):
-  """Config for neoclassical models."""
+  """Config for neoclassical models.
+
+  Attributes:
+    bootstrap_current: Config for the bootstrap current model. Defaults to
+      `"zeros"` if omitted, or `"sauter"` if a dict is provided without
+      `model_name`.
+    conductivity: Config for the parallel conductivity model. Defaults to
+      `"sauter"`.
+    transport: Config for the neoclassical transport model. Defaults to
+      `"zeros"` if omitted, or `"angioni_sauter"` if a dict is provided without
+      `model_name`.
+    poloidal_velocity: Config for the neoclassical poloidal velocity model.
+      Defaults to `"kim"` if omitted or if `model_name` is not provided.
+  """
 
   bootstrap_current: (
       bootstrap_current_zeros.ZerosModelConfig
@@ -44,21 +59,31 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
       transport_zeros.ZerosModelConfig | angioni_sauter.AngioniSauterModelConfig
   ) = pydantic.Field(discriminator="model_name")
   poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0
+  poloidal_velocity: (
+      poloidal_velocity_zeros.ZerosModelConfig
+      | kim_poloidal_velocity.KimModelConfig
+  ) = pydantic.Field(discriminator="model_name")
 
   @pydantic.model_validator(mode="before")
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
-    # Set zero models if model not in config dict.
+    # Set default model dicts if not in config dict.
+    # bootstrap_current and transport default to "zeros" (off) when omitted,
+    # whereas poloidal_velocity defaults to "kim".
     if "bootstrap_current" not in configurable_data:
       configurable_data["bootstrap_current"] = {"model_name": "zeros"}
     if "transport" not in configurable_data:
       configurable_data["transport"] = {"model_name": "zeros"}
-    # Set default model names.
+    if "poloidal_velocity" not in configurable_data:
+      configurable_data["poloidal_velocity"] = {"model_name": "kim"}
+    # Set default model names when a sub-dict is provided without model_name.
     if "model_name" not in configurable_data["bootstrap_current"]:
       configurable_data["bootstrap_current"]["model_name"] = "sauter"
     if "model_name" not in configurable_data["transport"]:
       configurable_data["transport"]["model_name"] = "angioni_sauter"
+    if "model_name" not in configurable_data["poloidal_velocity"]:
+      configurable_data["poloidal_velocity"]["model_name"] = "kim"
 
     return configurable_data
 
@@ -68,6 +93,7 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
         conductivity=self.conductivity.build_runtime_params(),
         transport=self.transport.build_runtime_params(),
         poloidal_velocity_multiplier=self.poloidal_velocity_multiplier,
+        poloidal_velocity=self.poloidal_velocity.build_runtime_params(),
     )
 
   def build_models(self) -> neoclassical_models.NeoclassicalModels:
@@ -75,4 +101,5 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
         conductivity=self.conductivity.build_model(),
         bootstrap_current=self.bootstrap_current.build_model(),
         transport=self.transport.build_model(),
+        poloidal_velocity=self.poloidal_velocity.build_model(),
     )
