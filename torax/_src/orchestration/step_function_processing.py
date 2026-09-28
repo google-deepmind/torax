@@ -357,7 +357,7 @@ def pre_step(
     geometry.Geometry,
     source_profiles_lib.SourceProfiles,
     edge_base.EdgeModelOutputs | None,
-    pedestal_transition_state_lib.PedestalTransitionState | None,
+    pedestal_transition_state_lib.PedestalTransitionState,
 ]:
   """Performs the pre-step operations for the step function."""
   runtime_params_t, geo_t = (
@@ -433,7 +433,7 @@ def pre_step(
         psi=input_state.core_sources.psi | explicit_source_profiles.psi,
     )
     pedestal_transition_state = _update_pedestal_transition_state(
-        pedestal_transition_state=pedestal_transition_state,  # pyrefly: ignore[bad-argument-type]
+        pedestal_transition_state=pedestal_transition_state,
         runtime_params=runtime_params_t,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
@@ -450,9 +450,9 @@ def pre_step(
         geo_t,
         input_state.core_profiles,
         explicit_source_profiles,
-        pedestal_transition_state,  # pyrefly: ignore[bad-argument-type]
+        pedestal_transition_state,
     )
-    pedestal_transition_state = dataclasses.replace(  # pyrefly: ignore[bad-specialization]
+    pedestal_transition_state = dataclasses.replace(
         pedestal_transition_state,
         pedestal_model_output=pedestal_model_output,
     )

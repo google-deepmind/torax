@@ -14,8 +14,6 @@
 
 """Code to build the combined transport coefficients for a simulation."""
 
-import dataclasses
-
 import jax
 import jax.numpy as jnp
 from torax._src import state
@@ -56,32 +54,6 @@ def calculate_all_transport_coeffs(
     use_pereverzev: bool = False,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients from all models."""
-
-  # Toggle the pedestal model on/off based on the pedestal transition state.
-  # TODO(b/434175938): Find an alternative method for propagating pedestal
-  # transition state to the core transport masking. Currently, we're overriding
-  # the runtime params which is a bit hacky. Options include passing the
-  # transition state to the pedestal model or to the transport model, both of
-  # which are breaking API changes.
-  if (
-      runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
-  ):
-    # Pedestal model is active if we are in H-mode or in a transition.
-    set_pedestal = (
-        pedestal_transition_state.confinement_mode
-        != pedestal_transition_state_lib.ConfinementMode.L_MODE
-    )
-
-    pedestal_params = dataclasses.replace(
-        runtime_params.pedestal,
-        set_pedestal=set_pedestal,
-    )
-    runtime_params = dataclasses.replace(
-        runtime_params,
-        pedestal=pedestal_params,
-    )
-
-  pedestal_model_output = pedestal_transition_state.pedestal_model_output
   two_point_mask = (
       internal_boundary_conditions_builder.build_internal_boundary_conditions(
           runtime_params=runtime_params,
@@ -95,7 +67,7 @@ def calculate_all_transport_coeffs(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
-      pedestal_model_output=pedestal_model_output,
+      pedestal_transition_state=pedestal_transition_state,
       two_point_mask=two_point_mask,
   )
   neoclassical_transport_coeffs = neoclassical_models.transport(
@@ -121,6 +93,7 @@ def calculate_all_transport_coeffs(
       # coefficients in the pedestal region to zero.
       # TODO(b/485147781) Combine this masking with the turbulent transport
       # masking.
+      pedestal_model_output = pedestal_transition_state.pedestal_model_output
       pedestal_active_mask_face = (
           geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top
       )
@@ -152,6 +125,7 @@ def calculate_all_transport_coeffs(
       runtime_params.pedestal.mode
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
   ):
+    pedestal_model_output = pedestal_transition_state.pedestal_model_output
     core_transport = pedestal_model_output.modify_core_transport(
         core_transport=core_transport,
         geo=geo,

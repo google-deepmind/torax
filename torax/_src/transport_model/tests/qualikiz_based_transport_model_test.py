@@ -74,19 +74,25 @@ def _get_config_and_model_inputs(
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
+  transition_state = (
+      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+  )
   pedestal_model_outputs = pedestal_model(
       runtime_params,
       geo,
       core_profiles,
       source_profiles,
-      pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+      pedestal_transition_state=transition_state,
+  )
+  transition_state = dataclasses.replace(
+      transition_state, pedestal_model_output=pedestal_model_outputs
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
-      pedestal_model_outputs,
+      transition_state,
       two_point_mask,
   )
 

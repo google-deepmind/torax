@@ -94,8 +94,8 @@ class SimState:
   # PDE system.
   time_step_calculator_state: time_step_calculator_state.TimeStepCalculatorState
   pedestal_transition_state: (
-      pedestal_transition_state_lib.PedestalTransitionState | None
-  ) = None
+      pedestal_transition_state_lib.PedestalTransitionState
+  )
 
   def check_for_errors(self) -> state.SimError:
     """Checks for errors in the simulation state."""
