@@ -354,8 +354,8 @@ class TransportMaskingTest(parameterized.TestCase):
     # Verify main channel is zeroed
     np.testing.assert_allclose(coeffs.total.chi_face_ion[cutoff_idx:], 0.0)
 
-    # Verify individual model output in core_coefficients remains raw/unmasked.
-    model_output = coeffs.core_coefficients['fixed']
+    # Verify individual model output in core_components remains raw/unmasked.
+    model_output = coeffs.core_components['fixed']
     self.assertIsInstance(model_output, transport_coeffs.TransportCoeffs)
     expected_raw_chi_i = jnp.linspace(
         0.5, 2, geo.rho_face_norm.shape[0], dtype=jax_utils.get_dtype()
@@ -434,6 +434,10 @@ class TransportModelTest(absltest.TestCase):
     target = jnp.where(geo.rho_face_norm <= 0.5, 2.0, target)
     target = jnp.where(geo.rho_face_norm <= 0.2, 1.0, target)
     np.testing.assert_allclose(coeffs.total.chi_face_ion, target)
+    expected_core = jnp.where(geo.rho_face_norm <= 0.91, target, 0.0)
+    expected_pedestal = jnp.where(geo.rho_face_norm > 0.91, 0.1, 0.0)
+    np.testing.assert_allclose(coeffs.core.chi_face_ion, expected_core)
+    np.testing.assert_allclose(coeffs.pedestal.chi_face_ion, expected_pedestal)
 
   def test_chi_min(self):
     config = default_configs.get_default_config_dict()
@@ -481,12 +485,17 @@ class TransportModelTest(absltest.TestCase):
         two_point_mask,
     )
     # Target:
-    # - 1.0 for rho = [rho_ped_top, rho_max], set by chi_min
-    # - 2.0 for rho = (0.5, rho_ped_top), set by the model
-    # - 1.0 for rho = [0.0, 0.5], set by chi_min
+    # - 1.0 for rho > rho_ped_top, set by pedestal chi_min
+    # - 2.0 for rho = (0.5, rho_ped_top), set by the core model
+    # - 1.0 for rho = [0.0, 0.5], set by core chi_min
     target = jnp.where(geo.rho_face_norm <= 0.91, 2.0, 1.0)
     target = jnp.where(geo.rho_face_norm <= 0.5, 1.0, target)
+    expected_core = jnp.where(geo.rho_face_norm <= 0.5, 1.0, 2.0)
+    expected_core = jnp.where(geo.rho_face_norm <= 0.91, expected_core, 0.0)
+    expected_pedestal = jnp.where(geo.rho_face_norm > 0.91, 1.0, 0.0)
     np.testing.assert_allclose(coeffs.total.chi_face_ion, target)
+    np.testing.assert_allclose(coeffs.core.chi_face_ion, expected_core)
+    np.testing.assert_allclose(coeffs.pedestal.chi_face_ion, expected_pedestal)
 
   def test_build_smoothing_matrix_zero_width_is_identity(self):
     """Tests that a zero smoothing width produces an identity matrix."""
@@ -996,18 +1005,18 @@ class TransportModelTest(absltest.TestCase):
     )
 
     # Check individual model outputs are preserved.
-    self.assertIn('mock', coeffs.core_coefficients)
+    self.assertIn('mock', coeffs.core_components)
     np.testing.assert_allclose(
-        coeffs.core_coefficients['mock'].chi_face_ion, mock_coeffs.chi_face_ion
+        coeffs.core_components['mock'].chi_face_ion, mock_coeffs.chi_face_ion
     )
     np.testing.assert_allclose(
-        coeffs.core_coefficients['mock'].chi_face_el, mock_coeffs.chi_face_el
+        coeffs.core_components['mock'].chi_face_el, mock_coeffs.chi_face_el
     )
     np.testing.assert_allclose(
-        coeffs.core_coefficients['mock'].d_face_el, mock_coeffs.d_face_el
+        coeffs.core_components['mock'].d_face_el, mock_coeffs.d_face_el
     )
     np.testing.assert_allclose(
-        coeffs.core_coefficients['mock'].v_face_el, mock_coeffs.v_face_el
+        coeffs.core_components['mock'].v_face_el, mock_coeffs.v_face_el
     )
 
     # Check that total matches combined output.
