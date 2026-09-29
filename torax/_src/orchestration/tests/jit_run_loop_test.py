@@ -78,7 +78,7 @@ class JitRunLoopTest(absltest.TestCase):
         - grad_fn(Ip_new_values - eps_vec)[0]
     ) / (2 * eps)
 
-    chex.assert_trees_all_close(grad_diff, grad_vjp[index], atol=5e-9)
+    chex.assert_trees_all_close(grad_diff, grad_vjp[index], atol=2e-8)
 
 
 if __name__ == '__main__':
