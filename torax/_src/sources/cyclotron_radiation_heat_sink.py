@@ -16,6 +16,7 @@
 
 """Cyclotron radiation heat sink for electron heat equation.."""
 import dataclasses
+import functools
 from typing import Annotated, ClassVar, Literal, Self
 
 import chex
@@ -25,7 +26,6 @@ import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
-from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -121,88 +121,13 @@ def _alpha_closed_form(
   return jnp.maximum(num / den, 0.0)
 
 
-def _loss_for_beta_t(
-    beta_t: array_typing.FloatScalar,
-    rho_norm: array_typing.FloatVector,
-    te_data: array_typing.FloatVector,
-) -> array_typing.FloatScalar:
-  """Returns the loss function for the temperature fit for a given beta_t.
-
-  The fit is from the magnetic axis to rhonorm=0.9, to avoid pedestal effects.
-  alpha_t is calculated with an analytical closed form solution.
-
-  Args:
-    beta_t: The beta parameter to use in the parameterized functions.
-    rho_norm: Normalized toroidal flux coordinate.
-    te_data: The temperature data to be fit, assumed to be on the face grid.
-
-  Returns:
-    The loss function for the temperature fit for a given beta_t.
-  """
-  alpha_t = _alpha_closed_form(
-      profile_data=te_data,
-      profile_edge_value=te_data[-1],
-      rho_norm=rho_norm,
-      beta=beta_t,
-  )
-  return _te_loss_fn(
-      alpha_t=alpha_t,
-      beta_t=beta_t,
-      rho_norm=rho_norm,
-      te_data=te_data,
-  )
-
-
-def _te_pred_fn(
-    *,
-    alpha_t: array_typing.FloatScalar,
-    beta_t: array_typing.FloatScalar,
-    rho_norm: array_typing.FloatVector,
-    te_data: array_typing.FloatVector,
-) -> array_typing.FloatVector:
-  return (te_data[0] - te_data[-1]) * (
-      (1 - rho_norm**beta_t)
-  ) ** alpha_t + te_data[-1]
-
-
-def _te_loss_fn(
-    *,
-    alpha_t: array_typing.FloatScalar,
-    beta_t: array_typing.FloatScalar,
-    rho_norm: array_typing.FloatVector,
-    te_data: array_typing.FloatVector,
-) -> array_typing.FloatScalar:
-  """Returns the loss function for the temperature fit.
-
-  The fit is from the magnetic axis to rhonorm=0.9, to avoid pedestal effects.
-  The pedestal will not extend to rhonorm=0.9. The choice of this value is from
-  the Artaud paper.
-
-  Args:
-    alpha_t: The alpha parameter to use in the parameterized functions.
-    beta_t: The beta parameter to use in the parameterized functions.
-    rho_norm: Normalized toroidal flux coordinate.
-    te_data: The temperature data to be fit, assumed to be on the face grid.
-
-  Returns:
-    The loss function for the temperature fit.
-  """
-  te_pred = _te_pred_fn(
-      alpha_t=alpha_t,
-      beta_t=beta_t,
-      rho_norm=rho_norm,
-      te_data=te_data,
-  )
-  mask = rho_norm < 0.9
-  sliced_diff = jnp.where(mask, te_pred - te_data, 0.0)
-  return jnp.sum(sliced_diff**2) / 2
-
-
 def _solve_alpha_t_beta_t_grid_search(
     *,
     rho_norm: array_typing.FloatVector,
     te_data: array_typing.FloatVector,
-    beta_scan_parameters: tuple[float, float, int],
+    beta_scan_parameters: tuple[
+        array_typing.FloatScalar, array_typing.FloatScalar, int
+    ],
 ) -> tuple[array_typing.FloatScalar, array_typing.FloatScalar]:
   """Returns the alpha and beta parameters that minimize the temperature loss function.
 
@@ -223,20 +148,122 @@ def _solve_alpha_t_beta_t_grid_search(
       beta_scan_parameters[2],
   )
 
-  losses = jax.vmap(_loss_for_beta_t, in_axes=(0, None, None))(
-      beta_t_trials,
-      rho_norm,
-      te_data,
-  )
+  eps = constants.CONSTANTS.eps
+  te_edge = te_data[-1]
+  te_span = te_data[0] - te_edge
+  te_norm = jnp.maximum(te_data - te_edge, eps) / jnp.maximum(te_span, eps)
+  mask = rho_norm < 0.9
+  sliced_te_norm = jnp.where(mask, te_norm, 1.0)
+  sliced_rhonorm = jnp.where(mask, rho_norm, 0.0)
+
+  log_te_norm = jnp.log(sliced_te_norm)
+  one_minus_rho_beta = 1.0 - sliced_rhonorm[None, :] ** beta_t_trials[:, None]
+  log_one_minus_rho_beta = jnp.log(one_minus_rho_beta)
+
+  num = jnp.sum(log_te_norm[None, :] * log_one_minus_rho_beta, axis=-1)
+  den = jnp.sum(log_one_minus_rho_beta**2, axis=-1)
+  alpha_t_trials = jnp.maximum(num / den, 0.0)
+
+  te_pred = te_span * (one_minus_rho_beta ** alpha_t_trials[:, None]) + te_edge
+  sliced_diff = jnp.where(mask[None, :], te_pred - te_data[None, :], 0.0)
+  losses = jnp.sum(sliced_diff**2, axis=-1) / 2
+
   min_index = jnp.argmin(jnp.array(losses, dtype=jax_utils.get_dtype()))
   best_beta_t = beta_t_trials[min_index]
-  best_alpha_t = _alpha_closed_form(
-      beta=best_beta_t,
-      rho_norm=rho_norm,
-      profile_data=te_data,
-      profile_edge_value=te_data[-1],
-  )
+  best_alpha_t = alpha_t_trials[min_index]
   return best_alpha_t, best_beta_t
+
+
+@functools.partial(jax.jit, static_argnames=['beta_grid_size'])
+def _cyclotron_radiation_albajar_impl(
+    *,
+    n_e_face: array_typing.FloatVector,
+    n_e_cell: array_typing.FloatVector,
+    T_e_face: array_typing.FloatVector,
+    T_e_cell: array_typing.FloatVector,
+    wall_reflection_coeff: array_typing.FloatScalar,
+    beta_min: array_typing.FloatScalar,
+    beta_max: array_typing.FloatScalar,
+    beta_grid_size: int,
+    a_minor: array_typing.FloatScalar,
+    B_0: array_typing.FloatScalar,
+    R_major_profile: array_typing.FloatVector,
+    rho_face_norm: array_typing.FloatVector,
+    elongation_face_lcfs: array_typing.FloatScalar,
+    elongation: array_typing.FloatVector,
+    F: array_typing.FloatVector,
+    vpr: array_typing.FloatVector,
+    drho_norm: array_typing.FloatVector,
+) -> array_typing.FloatVector:
+  """JITted core computation of cyclotron radiation heat sink."""
+  n_e20_face = n_e_face / 1e20
+  n_e20_cell = n_e_cell / 1e20
+
+  # Dimensionless optical thickness parameter, on-axis:
+  # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
+  # plasma frequency and omega_ce is the cyclotron frequency.
+  p_a_0 = 6.04e3 * a_minor * n_e20_face[0] / B_0
+
+  # Dimensionless correction term for aspect ratio (equation 15 in Albajar)
+  G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * R_major_profile / a_minor))
+
+  # Calculate profile fit parameters
+  alpha_n = _alpha_closed_form(
+      beta=2.0,
+      rho_norm=rho_face_norm,
+      profile_data=n_e20_face,
+      profile_edge_value=0.0,
+  )
+  beta_scan_parameters = (
+      beta_min,
+      beta_max,
+      beta_grid_size,
+  )
+  alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
+      rho_norm=rho_face_norm,
+      te_data=T_e_face,
+      beta_scan_parameters=beta_scan_parameters,
+  )
+
+  # The "profile factor" (equation 13 in Albajar)
+  K = (
+      (alpha_n + 3.87 * alpha_t + 1.46) ** -0.79
+      * (1.98 + alpha_t) ** 1.36
+      * beta_t**2.14
+      * (beta_t**1.53 + 1.87 * alpha_t - 0.16) ** -1.33
+  )
+
+  # Calculate power loss in [W]
+  T_e_face_0 = T_e_face[0]
+  P_cycl_total = (
+      3.84e-2
+      * jnp.sqrt(1 - wall_reflection_coeff)
+      * R_major_profile
+      * a_minor**1.38
+      * elongation_face_lcfs**0.79
+      * B_0**2.62
+      * n_e20_face[0] ** 0.38
+      * T_e_face_0
+      * (16 + T_e_face_0) ** 2.61
+      * (1 + 0.12 * T_e_face_0 / p_a_0**0.41) ** -1.51
+      * K
+      * G
+  )
+
+  # Calculate the radial profile on the cell grid,
+  # according to the Artaud formula (A.45)
+  Q_cycl_shape = (
+      R_major_profile
+      * elongation**0.79
+      * (F / R_major_profile) ** 2.62
+      * n_e20_cell**0.38
+      * T_e_cell**3.61
+  )
+
+  # Scale the profile shape to match the total integrated power loss
+  denom = jnp.sum(Q_cycl_shape * vpr * drho_norm)
+  rescaling_factor = P_cycl_total / denom
+  return -(Q_cycl_shape * rescaling_factor)
 
 
 def cyclotron_radiation_albajar(
@@ -273,6 +300,7 @@ def cyclotron_radiation_albajar(
     source_name: The name of the source.
     core_profiles: The core profiles object.
     unused_calculated_source_profiles: Unused.
+    unused_conductivity: Unused.
 
   Returns:
     The cyclotron radiation heat sink contribution to the electron heat
@@ -281,78 +309,26 @@ def cyclotron_radiation_albajar(
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)
 
-  # Notation conventions based on the Albajar and Artaud papers
-  # pylint: disable=invalid-name
-
-  n_e20_face = core_profiles.n_e.face_value() / 1e20
-  n_e20_cell = core_profiles.n_e.value / 1e20
-
-  # Dimensionless optical thickness parameter, on-axis:
-  # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
-  # plasma frequency and omega_ce is the cyclotron frequency.
-  p_a_0 = 6.04e3 * geo.a_minor * n_e20_face[0] / geo.B_0  # pyrefly: ignore[bad-index]
-
-  # Dimensionless correction term for aspect ratio (equation 15 in Albajar)
-  G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.R_major_profile / geo.a_minor))
-
-  # Calculate profile fit parameters
-  alpha_n = _alpha_closed_form(
-      beta=2.0,
-      rho_norm=geo.rho_face_norm,
-      profile_data=n_e20_face,  # pyrefly: ignore[bad-argument-type]
-      profile_edge_value=0.0,
+  q_cycl = _cyclotron_radiation_albajar_impl(
+      n_e_face=core_profiles.n_e.face_value(),
+      n_e_cell=core_profiles.n_e.value,
+      T_e_face=core_profiles.T_e.face_value(),
+      T_e_cell=core_profiles.T_e.value,
+      wall_reflection_coeff=source_params.wall_reflection_coeff,
+      beta_min=source_params.beta_min,
+      beta_max=source_params.beta_max,
+      beta_grid_size=source_params.beta_grid_size,
+      a_minor=geo.a_minor,
+      B_0=geo.B_0,
+      R_major_profile=geo.R_major_profile,
+      rho_face_norm=geo.rho_face_norm,
+      elongation_face_lcfs=geo.elongation_face[-1],
+      elongation=geo.elongation,
+      F=geo.F,
+      vpr=geo.vpr,
+      drho_norm=geo.drho_norm,
   )
-  beta_scan_parameters = (
-      source_params.beta_min,
-      source_params.beta_max,
-      source_params.beta_grid_size,
-  )
-  alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
-      rho_norm=geo.rho_face_norm,
-      te_data=core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      beta_scan_parameters=beta_scan_parameters,  # pyrefly: ignore[bad-argument-type]
-  )
-
-  # The "profile factor" (equation 13 in Albajar)
-  K = (
-      (alpha_n + 3.87 * alpha_t + 1.46) ** -0.79
-      * (1.98 + alpha_t) ** 1.36
-      * beta_t**2.14
-      * (beta_t**1.53 + 1.87 * alpha_t - 0.16) ** -1.33
-  )
-
-  # Calculate power loss in [W]
-  P_cycl_total = (
-      3.84e-2
-      * jnp.sqrt(1 - source_params.wall_reflection_coeff)
-      * geo.R_major_profile
-      * geo.a_minor**1.38
-      * geo.elongation_face[-1] ** 0.79
-      * geo.B_0**2.62
-      * n_e20_face[0] ** 0.38  # pyrefly: ignore[bad-index]
-      * core_profiles.T_e.face_value()[0]  # pyrefly: ignore[bad-index]
-      * (16 + core_profiles.T_e.face_value()[0]) ** 2.61  # pyrefly: ignore[bad-index]
-      * (1 + 0.12 * core_profiles.T_e.face_value()[0] / p_a_0**0.41) ** -1.51  # pyrefly: ignore[bad-index]
-      * K
-      * G
-  )
-
-  # Calculate the radial profile on the cell grid,
-  # according to the Artaud formula (A.45)
-  Q_cycl_shape = (
-      geo.R_major_profile
-      * geo.elongation**0.79
-      * (geo.F / geo.R_major_profile) ** 2.62
-      * n_e20_cell**0.38
-      * core_profiles.T_e.value**3.61
-  )
-
-  # Scale the profile shape to match the total integrated power loss
-  denom = math_utils.volume_integration(Q_cycl_shape, geo)
-  rescaling_factor = P_cycl_total / denom
-  Q_cycl = Q_cycl_shape * rescaling_factor
-
-  return (-Q_cycl,)
+  return (q_cycl,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
