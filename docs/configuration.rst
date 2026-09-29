@@ -449,10 +449,20 @@ time-dependence of temperature, density, and current.
      poloidal flux, :math:`\beta_{pol}' \equiv -\partial
      \beta_{pol,\text{local}} / \partial \psi_N`, motivated by empirical
      observations of critical edge pressure gradients in L-mode plasmas (see
-     e.g. |labombard2008|). Requires:
+     e.g. |labombard2008|). Parameters:
 
-     - ``rho_norm_edge`` (float in (0, 1)): Edge normalized toroidal flux
-       coordinate :math:`\hat{\rho}_{\text{edge}}` bounding the constrained
+     - ``mode`` (str [default = ``'constant'``]): Controls how the effective
+       edge poloidal beta gradient is determined:
+
+       - ``'constant'``: Uses ``beta_poloidal_prime`` directly.
+       - ``'power_dependent'``: Scales the effective poloidal beta gradient
+         smoothly with the net heating power crossing the separatrix
+         :math:`P_{\text{SOL}}` according to
+         :math:`\beta_{pol,\text{eff}}' = \beta_{pol,\text{min}}' +
+         (\beta_{pol}' - \beta_{pol,\text{min}}') \tanh(\max(P_{\text{SOL}}, 0)
+         / P_{\text{SOL,scaling}})`.
+     - ``rho_norm_edge`` (**time-varying-scalar**): Edge normalized toroidal
+       flux coordinate :math:`\hat{\rho}_{\text{edge}}` bounding the constrained
        edge region.
      - ``n_e_edge`` (**time-varying-scalar**): Prescribed electron density at
        the edge boundary :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}`
@@ -461,7 +471,16 @@ time-dependence of temperature, density, and current.
        interpreted as a Greenwald fraction (dimensionless) instead of absolute
        density (:math:`\text{m}^{-3}`).
      - ``beta_poloidal_prime`` (**time-varying-scalar**): Prescribed normalized
-       poloidal beta gradient :math:`\beta_{pol}' > 0` [dimensionless].
+       poloidal beta gradient :math:`\beta_{pol}' > 0` [dimensionless] (serves
+       as the high-power asymptotic value when ``mode = 'power_dependent'``).
+     - ``beta_poloidal_prime_min`` (**time-varying-scalar** [default = 0.1]):
+       Minimum normalized poloidal beta gradient :math:`\beta_{pol,\text{min}}'
+       \ge 0` at :math:`P_{\text{SOL}} \le 0` when
+       ``mode = 'power_dependent'`` [dimensionless].
+     - ``P_SOL_scaling`` (**time-varying-scalar** | None [default = None]):
+       Characteristic power crossing the separatrix :math:`P_{\text{SOL,scaling}}
+       > 0` [W] for the ``tanh`` transition when ``mode = 'power_dependent'``
+       (required when ``mode = 'power_dependent'``).
      - ``Ti_Te_ratio`` (**time-varying-scalar**): Prescribed ratio
        :math:`T_i / T_e` in the edge region [dimensionless].
 

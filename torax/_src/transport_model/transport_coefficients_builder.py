@@ -16,11 +16,10 @@
 
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import base_model as internal_boundary_conditions_base_model
-from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import pereverzev as pereverzev_lib
@@ -33,15 +32,11 @@ from torax._src.transport_model import transport_model as transport_model_lib
 @jax.jit(
     static_argnames=(
         'transport_model',
-        'internal_boundary_condition_model',
         'use_pereverzev',
     )
 )
 def calculate_all_transport_coeffs(
     transport_model: transport_model_lib.TransportModel,
-    internal_boundary_condition_model: (
-        internal_boundary_conditions_base_model.InternalBoundaryConditionModel
-    ),
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -49,18 +44,10 @@ def calculate_all_transport_coeffs(
         pedestal_transition_state_lib.PedestalTransitionState
     ),
     neoclassical_transport: transport_coeffs_lib.NeoclassicalTransport,
+    two_point_mask: array_typing.BoolVectorFace,
     use_pereverzev: bool = False,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients from all models."""
-  two_point_mask = (
-      internal_boundary_conditions_builder.build_internal_boundary_conditions(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
-          internal_boundary_condition_model=internal_boundary_condition_model,
-      ).get_two_point_face_mask(geo)
-  )
   turbulent_transport_coeffs = transport_model(
       runtime_params=runtime_params,
       geo=geo,

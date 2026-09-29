@@ -25,6 +25,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
@@ -156,17 +157,29 @@ def _get_initial_state(
       pedestal_model_output=pedestal_model_output,
   )
 
-  transport_coeffs = (
-      transport_coefficients_builder.calculate_all_transport_coeffs(
-          transport_model=models.transport_model,
+  internal_boundary_conditions = (
+      internal_boundary_conditions_builder.build_internal_boundary_conditions(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=initial_core_profiles,
+          pedestal_transition_state=pedestal_transition_state,
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
+          source_profiles=initial_core_sources,
+      )
+  )
+  transport_coeffs = (
+      transport_coefficients_builder.calculate_all_transport_coeffs(
+          transport_model=models.transport_model,
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=initial_core_profiles,
           pedestal_transition_state=pedestal_transition_state,
           neoclassical_transport=neoclassical_outputs.transport,
+          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
+              geo
+          ),
       )
   )
 

@@ -15,11 +15,13 @@
 """L-mode edge kinetic profile model parameterized by beta_poloidal_prime."""
 
 import dataclasses
+import enum
 
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -27,8 +29,25 @@ from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.internal_boundary_conditions import runtime_params as ibc_runtime_params
 from torax._src.physics import psi_calculations
+from torax._src.sources import source_profiles as source_profiles_lib
 
 # pylint: disable=invalid-name
+
+
+@enum.unique
+class Mode(enum.StrEnum):
+  """Controls how beta_poloidal_prime is determined in the edge region.
+
+  Attributes:
+    CONSTANT: Uses the prescribed beta_poloidal_prime directly.
+    POWER_DEPENDENT: Scales beta_poloidal_prime smoothly with the power
+      crossing the separatrix (P_SOL) from beta_poloidal_prime_min at zero
+      power to beta_poloidal_prime at high power, mocking the behaviour of
+      L-mode non-stiff edge profiles.
+  """
+
+  CONSTANT = 'constant'
+  POWER_DEPENDENT = 'power_dependent'
 
 
 @jax.tree_util.register_dataclass
@@ -43,8 +62,16 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
       n_e_is_fGW is False, or in Greenwald fraction if n_e_is_fGW is True.
     beta_poloidal_prime: Critical poloidal beta gradient with respect to
       normalized poloidal flux, -d(beta_pol) / d(psi_norm), in the edge region.
+      In POWER_DEPENDENT mode, this serves as the asymptotic upper value at
+      high P_SOL.
     Ti_Te_ratio: Ratio of ion to electron temperature (T_i / T_e) in the edge.
     n_e_is_fGW: Whether n_e_edge is provided in units of Greenwald fraction.
+    mode: Mode for determining the effective beta_poloidal_prime.
+    beta_poloidal_prime_min: Minimum poloidal beta gradient at P_SOL <= 0 when
+      mode is POWER_DEPENDENT.
+    P_SOL_scaling: Characteristic power crossing the separatrix [W] for the
+      tanh transition from beta_poloidal_prime_min to beta_poloidal_prime when
+      mode is POWER_DEPENDENT.
   """
 
   rho_norm_edge: array_typing.FloatScalar
@@ -52,6 +79,11 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
   beta_poloidal_prime: array_typing.FloatScalar
   Ti_Te_ratio: array_typing.FloatScalar
   n_e_is_fGW: bool = dataclasses.field(metadata={'static': True})
+  mode: Mode = dataclasses.field(
+      default=Mode.CONSTANT, metadata={'static': True}
+  )
+  beta_poloidal_prime_min: array_typing.FloatScalar = 0.1
+  P_SOL_scaling: array_typing.FloatScalar | None = None
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -80,6 +112,7 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      source_profiles: source_profiles_lib.SourceProfiles,
   ) -> internal_boundary_conditions.InternalBoundaryConditions:
     """Evaluates edge kinetic profiles (T_e, T_i, n_e) from beta_poloidal_prime.
 
@@ -88,6 +121,8 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
         configuration.
       geo: Magnetic geometry of the torus.
       core_profiles: Core plasma state profiles.
+      source_profiles: Core source profiles, used when mode is POWER_DEPENDENT
+        to compute P_SOL.
 
     Returns:
       Active InternalBoundaryConditions with T_e, T_i, and n_e profiles masked
@@ -141,7 +176,21 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
         bpol2_sep / (2.0 * constants.CONSTANTS.mu_0) + constants.CONSTANTS.eps
     )
 
-    beta_pol_local_cell = beta_pol_sep + params.beta_poloidal_prime * (
+    match params.mode:
+      case Mode.CONSTANT:
+        beta_poloidal_prime = params.beta_poloidal_prime
+      case Mode.POWER_DEPENDENT:
+        assert params.P_SOL_scaling is not None
+        total_power_density = sum(
+            (*source_profiles.T_e.values(), *source_profiles.T_i.values()),
+            jnp.zeros_like(geo.rho_norm),
+        )
+        P_SOL = math_utils.volume_integration(total_power_density, geo)
+        beta_poloidal_prime = params.beta_poloidal_prime_min + (
+            params.beta_poloidal_prime - params.beta_poloidal_prime_min
+        ) * jnp.tanh(jnp.maximum(P_SOL, 0.0) / params.P_SOL_scaling)
+
+    beta_pol_local_cell = beta_pol_sep + beta_poloidal_prime * (
         1.0 - psi_norm_cell
     )
     p_total_cell = beta_pol_local_cell * (

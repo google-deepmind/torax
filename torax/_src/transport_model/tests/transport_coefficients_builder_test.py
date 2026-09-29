@@ -20,9 +20,6 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.geometry import circular_geometry
-from torax._src.internal_boundary_conditions import base_model as ibc_base_model
-from torax._src.internal_boundary_conditions import builder as ibc_builder
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as ibc_lib
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
@@ -68,24 +65,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         v_face_el_ware=jnp.zeros(self.n_face),
     )
 
-    # Mock IBC model and builder output.
-    self.ibc_model = mock.create_autospec(
-        ibc_base_model.InternalBoundaryConditionModel, instance=True
-    )
-    self.mock_ibc = mock.create_autospec(
-        ibc_lib.InternalBoundaryConditions, instance=True
-    )
     self.mock_two_point_mask = jnp.zeros(self.n_face, dtype=bool)
-    self.mock_ibc.get_two_point_face_mask.return_value = (
-        self.mock_two_point_mask
-    )
-    self.enterContext(
-        mock.patch.object(
-            ibc_builder,
-            'build_internal_boundary_conditions',
-            return_value=self.mock_ibc,
-        )
-    )
 
     # Mock runtime params.
     self.runtime_params = mock.Mock()
@@ -118,7 +98,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     result = transport_coefficients_builder.calculate_all_transport_coeffs(
         transport_model=self.transport_model,
         neoclassical_transport=self.neoclassical_transport,
-        internal_boundary_condition_model=self.ibc_model,
+        two_point_mask=self.mock_two_point_mask,
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
@@ -150,7 +130,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
       result = transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=self.transport_model,
           neoclassical_transport=self.neoclassical_transport,
-          internal_boundary_condition_model=self.ibc_model,
+          two_point_mask=self.mock_two_point_mask,
           runtime_params=self.runtime_params,
           geo=self.geo,
           core_profiles=self.core_profiles,
@@ -192,7 +172,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
       result = transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=self.transport_model,
           neoclassical_transport=self.neoclassical_transport,
-          internal_boundary_condition_model=self.ibc_model,
+          two_point_mask=self.mock_two_point_mask,
           runtime_params=self.runtime_params,
           geo=self.geo,
           core_profiles=self.core_profiles,
@@ -230,7 +210,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
       result = transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=self.transport_model,
           neoclassical_transport=self.neoclassical_transport,
-          internal_boundary_condition_model=self.ibc_model,
+          two_point_mask=self.mock_two_point_mask,
           runtime_params=self.runtime_params,
           geo=self.geo,
           core_profiles=self.core_profiles,
@@ -259,7 +239,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     result = transport_coefficients_builder.calculate_all_transport_coeffs(
         transport_model=self.transport_model,
         neoclassical_transport=self.neoclassical_transport,
-        internal_boundary_condition_model=self.ibc_model,
+        two_point_mask=self.mock_two_point_mask,
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
@@ -282,7 +262,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     transport_coefficients_builder.calculate_all_transport_coeffs(
         transport_model=self.transport_model,
         neoclassical_transport=self.neoclassical_transport,
-        internal_boundary_condition_model=self.ibc_model,
+        two_point_mask=self.mock_two_point_mask,
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,

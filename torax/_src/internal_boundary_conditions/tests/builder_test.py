@@ -29,6 +29,7 @@ from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
@@ -40,6 +41,9 @@ class BuilderTest(absltest.TestCase):
     super().setUp()
     self.geo = circular_geometry.CircularConfig(n_rho=20).build_geometry()
     self.core_profiles = mock.create_autospec(state.CoreProfiles, instance=True)
+    self.source_profiles = mock.create_autospec(
+        source_profiles_lib.SourceProfiles, instance=True
+    )
     self.inboard_mask = self.geo.rho_norm <= 0.3
     self.ped_cell = int(jnp.argmin(jnp.abs(self.geo.rho_norm - 0.9)))
     self.profile_conditions_ibc = ibc_lib.InternalBoundaryConditions(
@@ -112,6 +116,7 @@ class BuilderTest(absltest.TestCase):
         core_profiles=self.core_profiles,
         pedestal_transition_state=l_mode_state,
         internal_boundary_condition_model=self.ibc_model,
+        source_profiles=self.source_profiles,
     )
     # Profile conditions IBC pins cell values in rho_norm <= 0.3 to 10.0 keV.
     self.assertTrue(jnp.any(built_ibc_l.T_e[self.inboard_mask] == 10.0))
@@ -132,6 +137,7 @@ class BuilderTest(absltest.TestCase):
         core_profiles=self.core_profiles,
         pedestal_transition_state=h_mode_state,
         internal_boundary_condition_model=self.ibc_model,
+        source_profiles=self.source_profiles,
     )
     # Profile conditions IBC region is turned off (0.0) in H-mode.
     self.assertTrue(jnp.all(built_ibc_h.T_e[self.inboard_mask] == 0.0))
@@ -157,6 +163,7 @@ class BuilderTest(absltest.TestCase):
         core_profiles=self.core_profiles,
         pedestal_transition_state=l_mode_state,
         internal_boundary_condition_model=empty_ibc_model,
+        source_profiles=self.source_profiles,
     )
     self.assertTrue(jnp.all(built_ibc.T_e == 0.0))
     self.assertTrue(jnp.all(built_ibc.T_i == 0.0))
@@ -204,6 +211,7 @@ class BuilderTest(absltest.TestCase):
         core_profiles=core_profiles,
         pedestal_transition_state=l_mode_state,
         internal_boundary_condition_model=models.internal_boundary_condition_model,
+        source_profiles=self.source_profiles,
     )
     inboard_mask = geo.rho_norm <= 0.3
     self.assertTrue(jnp.any(built_ibc.T_e[inboard_mask] == 10.0))

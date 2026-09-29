@@ -26,6 +26,7 @@ from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
@@ -523,17 +524,29 @@ def finalize_outputs(
   final_neoclassical_outputs = models.neoclassical_models(
       runtime_params_t_plus_dt, geometry_t_plus_dt, final_core_profiles
   )
-  final_total_transport = (
-      transport_coefficients_builder.calculate_all_transport_coeffs(
-          transport_model=models.transport_model,
+  internal_boundary_conditions = (
+      internal_boundary_conditions_builder.build_internal_boundary_conditions(
+          runtime_params=runtime_params_t_plus_dt,
+          geo=geometry_t_plus_dt,
+          core_profiles=final_core_profiles,
+          pedestal_transition_state=pedestal_transition_state,
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
+          source_profiles=final_source_profiles,
+      )
+  )
+  final_total_transport = (
+      transport_coefficients_builder.calculate_all_transport_coeffs(
+          transport_model=models.transport_model,
           runtime_params=runtime_params_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
           pedestal_transition_state=pedestal_transition_state,
           neoclassical_transport=final_neoclassical_outputs.transport,
+          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
+              geometry_t_plus_dt
+          ),
       )
   )
   output_state = sim_state.SimState(
