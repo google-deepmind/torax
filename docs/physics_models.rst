@@ -352,39 +352,6 @@ used in the current diffusion equation. The Sauter model is a widely-used
 analytical formulation that provides a relatively fast and differentiable
 approximation for these neoclassical quantities.
 
-These formulations, as well as the Redl bootstrap current model, all depend
-on the effective trapped particle fraction, :math:`f_t`. By default this is
-calculated with the analytical approximation of |sauter16| (Eqs. 33-34),
-which only requires the local inverse aspect ratio and triangularity of each
-flux surface.
-
-Where available, TORAX can instead use the full bounce-averaged trapped
-particle fraction integral |lin-liu-miller1995|,
-
-.. math::
-
-  f_t = 1 - \frac{3}{4} \langle B^2 \rangle
-  \int_0^{1/B_\mathrm{max}} \frac{\lambda \, d\lambda}{\langle \sqrt{1 -
-  \lambda B} \rangle},
-
-evaluated directly from the poloidal variation of :math:`B` on each flux
-surface, where :math:`\langle \cdot \rangle` denotes a flux surface average.
-To eliminate the logarithmic derivative singularity of
-:math:`\langle \sqrt{1 - \lambda B} \rangle` at the trapping boundary
-:math:`\lambda = 1 / B_\mathrm{max}`, TORAX evaluates the integral using the
-coordinate transformation :math:`y = \sqrt{1 - \lambda B_\mathrm{max}}` from
-|lin-liu-miller1995|:
-
-.. math::
-
-  \int_0^{1/B_\mathrm{max}} \frac{\lambda \, d\lambda}{\langle \sqrt{1 -
-  \lambda B} \rangle}
-  = \frac{2}{B_\mathrm{max}^2} \int_0^1 \frac{y (1 - y^2)}{\left\langle
-  \sqrt{1 - (1 - y^2) \frac{B}{B_\mathrm{max}}} \right\rangle} \, dy.
-
-This is most impactful at low aspect ratio (e.g. spherical tokamaks), where
-the analytical approximation is least accurate.
-
 Future work can incorporate more recent neoclassical physics parameterizations,
 and also set neoclassical transport coefficients themselves. This can be of
 importance for ion heat transport in the inner core. When extending TORAX to
