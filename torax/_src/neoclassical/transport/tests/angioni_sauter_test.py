@@ -29,6 +29,8 @@ _N_RHO = 10
 _A_TOL = 1e-6
 _R_TOL = 1e-6
 
+# pylint: disable=invalid-name
+
 
 class AngioniSauterTest(absltest.TestCase):
 
@@ -83,6 +85,73 @@ class AngioniSauterTest(absltest.TestCase):
     )
 
     return runtime_params, geo, core_profiles
+
+  def test_calculate_Lmn_ion_symmetry(self):
+    _, geo, core_profiles = (
+        self._get_reference_runtime_params_geo_and_core_profiles()
+    )
+    n_faces = geo.F_face.shape[0]
+    Kmn_e = np.ones((n_faces, 4, 4))
+    Kmn_i = np.ones((n_faces, 2, 2))
+    nu_e_star = np.ones(n_faces)
+    nu_i_star = np.ones(n_faces)
+
+    _, Lmn_i = angioni_sauter._calculate_Lmn(
+        Kmn_e=Kmn_e,
+        Kmn_i=Kmn_i,
+        geo=geo,
+        core_profiles=core_profiles,
+        epsilon=geo.epsilon_face,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+    )
+
+    np.testing.assert_allclose(Lmn_i[:, 1, 0], -Lmn_i[:, 0, 1])
+    self.assertTrue(np.all(Lmn_i[:, 1, 0] != 0.0))
+
+  def test_calculate_Lmn_poloidal_gyroradius(self):
+    _, geo, core_profiles = (
+        self._get_reference_runtime_params_geo_and_core_profiles()
+    )
+    n_faces = geo.F_face.shape[0]
+    Kmn_e = np.ones((n_faces, 4, 4))
+    Kmn_i = np.ones((n_faces, 2, 2))
+    nu_e_star = np.ones(n_faces)
+    nu_i_star = np.ones(n_faces)
+
+    Lmn_e, Lmn_i = angioni_sauter._calculate_Lmn(
+        Kmn_e=Kmn_e,
+        Kmn_i=Kmn_i,
+        geo=geo,
+        core_profiles=core_profiles,
+        epsilon=geo.epsilon_face,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+    )
+
+    scale = 2.5
+    scaled_geo = dataclasses.replace(geo, F_face=geo.F_face * scale)
+    Lmn_e_scaled, Lmn_i_scaled = angioni_sauter._calculate_Lmn(
+        Kmn_e=Kmn_e,
+        Kmn_i=Kmn_i,
+        geo=scaled_geo,
+        core_profiles=core_profiles,
+        epsilon=scaled_geo.epsilon_face,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+    )
+    np.testing.assert_allclose(
+        Lmn_e_scaled[:, 0, 0],
+        Lmn_e[:, 0, 0] * scale**2,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+    np.testing.assert_allclose(
+        Lmn_i_scaled[:, 1, 1],
+        Lmn_i[:, 1, 1] * scale**2,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
 
   def test_angioni_sauter_against_reference_values(self):
     """Reference values generated from running Angioni-Sauter."""
@@ -185,17 +254,17 @@ class AngioniSauterTest(absltest.TestCase):
 # The implementation was independently tested against NEOS up to the
 # generation of the Kmn matrix.
 _V_CONV = np.array([
-    1.07951440e-05,
-    1.07951440e-05,
-    1.11015003e-05,
-    1.54065751e-05,
-    2.65710672e-05,
-    4.42853751e-05,
-    7.06387381e-05,
-    1.12983269e-04,
-    1.92360065e-04,
-    3.86372126e-04,
-    1.18868626e-03,
+    1.27789572e-05,
+    1.27789572e-05,
+    2.32136163e-06,
+    1.02919692e-06,
+    1.18089670e-06,
+    1.88711530e-06,
+    3.28784919e-06,
+    6.29332764e-06,
+    1.39875044e-05,
+    3.90497578e-05,
+    1.35636673e-04,
 ])
 _V_WARE = np.array([
     -0.00038114,
@@ -213,43 +282,43 @@ _V_WARE = np.array([
 
 _ANGIONI_SAUTER_REFERENCE_VALUES = transport_coeffs_lib.NeoclassicalTransport(
     chi_face_ion=np.array([
-        0.01219968,
-        0.01219968,
-        0.02223608,
-        0.03117304,
-        0.03891618,
-        0.04568965,
-        0.05179111,
-        0.0572006,
-        0.06147531,
-        0.06320731,
-        0.0591895,
+        0.01444160,
+        0.01444160,
+        0.00464964,
+        0.00208244,
+        0.00172955,
+        0.00194696,
+        0.00241059,
+        0.00318615,
+        0.00447019,
+        0.00638822,
+        0.0067539,
     ]),
     chi_face_el=np.array([
-        -0.00210023,
-        -0.00210023,
-        -0.0030792,
-        -0.00388683,
-        -0.0045548,
-        -0.00511068,
-        -0.0056083,
-        -0.0060884,
-        -0.00658147,
-        -0.00717367,
-        -0.00750323,
+        -0.00251142,
+        -0.00251142,
+        -0.0004925,
+        -0.00011799,
+        -0.00010579,
+        -0.00015279,
+        -0.00021793,
+        -0.00031786,
+        -0.00048644,
+        -0.00084076,
+        -0.00100663,
     ]),
     d_face_el=np.array([
-        0.00011698,
-        0.00011698,
-        0.00021105,
-        0.00028474,
-        0.00033721,
-        0.00037529,
-        0.00040377,
-        0.00042199,
-        0.00042404,
-        0.00039292,
-        0.0002924,
+        1.38479855e-04,
+        1.38479855e-04,
+        4.41316722e-05,
+        1.90215951e-05,
+        1.49865456e-05,
+        1.59921797e-05,
+        1.87931533e-05,
+        2.35056709e-05,
+        3.08343312e-05,
+        3.97117350e-05,
+        3.33645589e-05,
     ]),
     v_face_el=_V_CONV + _V_WARE,
     v_face_el_ware=_V_WARE,
@@ -259,17 +328,17 @@ _ANGIONI_SAUTER_REFERENCE_VALUES = transport_coeffs_lib.NeoclassicalTransport(
 _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES = (
     transport_coeffs_lib.NeoclassicalTransport(
         chi_face_ion=np.array([
-            0.20382857,
-            0.17130245,
-            0.03031974,
-            0.02593766,
-            0.03523606,
-            0.04391418,
-            0.05103481,
-            0.05690314,
-            0.06136931,
-            0.06317694,
-            0.05918355,
+            0.20409584,
+            0.17190546,
+            0.02152652,
+            0.00467072,
+            0.00248219,
+            0.00224602,
+            0.00254246,
+            0.0032502,
+            0.00450514,
+            0.00640962,
+            0.00676553,
         ]),
         chi_face_el=_ANGIONI_SAUTER_REFERENCE_VALUES.chi_face_el,
         d_face_el=_ANGIONI_SAUTER_REFERENCE_VALUES.d_face_el,
