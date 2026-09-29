@@ -213,8 +213,8 @@ _V_WARE = np.array([
 
 _ANGIONI_SAUTER_REFERENCE_VALUES = transport_coeffs_lib.NeoclassicalTransport(
     chi_face_ion=np.array([
-        0.01220085,
-        0.01220085,
+        0.01219968,
+        0.01219968,
         0.02223608,
         0.03117304,
         0.03891618,

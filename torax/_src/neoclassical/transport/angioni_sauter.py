@@ -177,15 +177,7 @@ def _calculate_angioni_sauter_transport(
 
   # Calculate trapped fractions ft and ftd from paper Eq. (17)
   B2_avg_Bm2_avg = geometry.gm5_face * geometry.gm4_face
-
-  # Use the Sauter model's effective trapped fraction logic
-  aa = (1.0 - geometry.epsilon_face) / (1.0 + geometry.epsilon_face)
-  epseff = (
-      0.67
-      * (1.0 - 1.4 * jnp.abs(geometry.delta_face) * geometry.delta_face)
-      * geometry.epsilon_face
-  )
-  ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
+  ftrap = geometry.trapped_fraction_face
 
   # Equation (17)
   ftrap_d = 1.0 - (1.0 - ftrap) / B2_avg_Bm2_avg
