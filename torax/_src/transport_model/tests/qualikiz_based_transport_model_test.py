@@ -374,8 +374,9 @@ class QualikizBasedTransportModelConfig(
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
@@ -397,6 +398,7 @@ class QualikizBasedTransportModelConfig(
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
         **base_kwargs,

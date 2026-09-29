@@ -226,6 +226,43 @@ class TGLFTransportModelTest(parameterized.TestCase):
         uncapped.XNUE[~above_cap],
     )
 
+  def test_tglf_based_transport_model_dv_effective(self):
+    """Tests that DV_effective switches between effective D/V and scaled D."""
+    torax_config_false, model_inputs_false = _get_config_and_model_inputs({
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+                "DV_effective": False,
+            },
+        },
+    })
+    transport_model_false = torax_config_false.transport.build_transport_model()
+    core_transport_false = transport_model_false(*model_inputs_false)
+
+    torax_config_true, model_inputs_true = _get_config_and_model_inputs({
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+                "DV_effective": True,
+            },
+        },
+    })
+    transport_model_true = torax_config_true.transport.build_transport_model()
+    core_transport_true = transport_model_true(*model_inputs_true)
+
+    # With DV_effective=False (scaled D), d_face_el is set equal to chi_face_el.
+    np.testing.assert_allclose(
+        core_transport_false.total.d_face_el,
+        core_transport_false.total.chi_face_el,
+    )
+    # With DV_effective=True, effective D/V differs from scaled D.
+    self.assertFalse(
+        np.allclose(
+            core_transport_true.total.d_face_el,
+            core_transport_false.total.d_face_el,
+        )
+    )
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeTGLFBasedTransportModel(
@@ -288,6 +325,7 @@ class TGLFBasedTransportModelConfig(
   model_name: Annotated[Literal["tglf_based"], torax_pydantic.JAX_STATIC] = (
       "tglf_based"
   )
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   max_normalized_collisionality: float = float("inf")
 
   # pylint: disable=undefined-variable
@@ -300,8 +338,9 @@ class TGLFBasedTransportModelConfig(
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return tglf_based_transport_model.RuntimeParams(
         # DV_effective and An_min are inherited from QuasilinearTransportModel
-        DV_effective=False,
+        DV_effective=self.DV_effective,
         An_min=0.05,
+        DV_effective_smooth_width=0.01,
         use_rotation=True,
         rotation_multiplier=1.0,
         collisionality_multiplier=1.0,

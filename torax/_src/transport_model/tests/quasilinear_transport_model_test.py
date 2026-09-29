@@ -158,14 +158,79 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         },
     })
     core_transport = model(*model_inputs)
+    # On the magnetic axis, the density gradient is zero by symmetry, so
+    # effective D/V mode always assigns pure convection there regardless of the
+    # minimum gradient threshold. Check the axis and the bulk separately.
+    self.assertNotEqual(core_transport.total.v_face_el[0], 0.0)
+    self.assertEqual(core_transport.total.d_face_el[0] == 0.0, DV_effective)
     self.assertEqual(
-        (np.sum(np.abs(core_transport.total.v_face_el)) == 0.0),
+        (np.sum(np.abs(core_transport.total.v_face_el[1:])) == 0.0),
         expected_zero_v_face_el,
     )
     self.assertEqual(
-        (np.sum(np.abs(core_transport.total.d_face_el)) == 0.0),
+        (np.sum(np.abs(core_transport.total.d_face_el[1:])) == 0.0),
         expected_zero_d_face_el,
     )
+
+  @parameterized.product(
+      A_n_and_pfe=[
+          # Zero density gradient (singular point for 1/A_n; purely convective).
+          (0.0, 0.5),
+          # Down-gradient within both |A_n| < An_min and pfe < smooth_width
+          # transition zones (blended D and V in smooth mode).
+          (0.02, 0.01),
+          # Up-gradient transport (A_n * pfe < 0; purely convective).
+          (0.5, -0.5),
+          # Down-gradient above both thresholds (purely diffusive).
+          (0.5, 0.5),
+      ],
+      DV_effective_smooth_width=[0.0, 0.02],
+  )
+  def test_dv_effective_conserves_flux_and_non_negative_d(
+      self, A_n_and_pfe, DV_effective_smooth_width
+  ):
+    A_n_target, pfe_val = A_n_and_pfe
+    _, model_inputs = _get_model_and_model_inputs({
+        'core_transport_models': {'quasilinear': {'model_name': 'quasilinear'}},
+    })
+    _, geo, _, _, two_point_mask = model_inputs
+    L_ref = 3.0
+    An_min = 0.05
+    n_e_0 = 1.0e20
+    slope = -A_n_target * n_e_0 * geo.rho_b / L_ref
+    n_e = cell_variable.CellVariable(
+        value=n_e_0 + slope * geo.rho_norm,
+        face_centers=geo.rho_face_norm,
+        left_face_grad_constraint=jnp.asarray(slope),
+        right_face_constraint=n_e_0 + slope,
+        right_face_grad_constraint=None,
+    )
+    pfe = jnp.full_like(geo.rho_face_norm, pfe_val)
+    pfe_SI = pfe * (n_e.face_value() / geo.a_minor) * 4.0
+
+    d_face_el, v_face_el = quasilinear_transport_model.calculate_dv_effective(
+        particle_flux_SI=pfe_SI,
+        normalized_particle_flux=pfe,
+        n_e=n_e,
+        geo=geo,
+        gradient_reference_length=L_ref,
+        An_min=An_min,
+        DV_effective_smooth_width=DV_effective_smooth_width,
+        two_point_mask=two_point_mask,
+    )
+    reconstructed_flux = (
+        -d_face_el
+        * n_e.face_grad(two_point_mask=two_point_mask)
+        * geo.g1_over_vpr2_face
+        * geo.rho_b
+        + v_face_el * n_e.face_value() * geo.g0_over_vpr_face * geo.rho_b
+    )
+    np.testing.assert_allclose(
+        reconstructed_flux, pfe_SI, rtol=1e-12, atol=1e-8
+    )
+    self.assertTrue(np.all(d_face_el >= 0.0))
+    if A_n_target * pfe_val <= 0.0:
+      np.testing.assert_allclose(d_face_el, 0.0, atol=1e-15)
 
   def test_calculate_chiGB(self):
     """Tests that chiGB is calculated correctly."""
@@ -555,8 +620,9 @@ class QuasilinearTransportConfig(
   model_name: Annotated[Literal['quasilinear'], torax_pydantic.JAX_STATIC] = (
       'quasilinear'
   )
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.0
 
   def build_transport_model(self) -> FakeQuasilinearTransportModel:
     return FakeQuasilinearTransportModel()
@@ -568,6 +634,7 @@ class QuasilinearTransportConfig(
     return quasilinear_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         **base_kwargs,
     )
 

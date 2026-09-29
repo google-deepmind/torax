@@ -109,6 +109,12 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
     DV_effective: Effective D / effective V approach for particle transport.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
+    DV_effective_smooth_width: Particle flux width in dimensionless
+      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
+      transport transitions smoothly from effective V to effective D. If 0.0,
+      uses a sharp step transition. Note that QuaLiKiz normalizes with major
+      radius R_major rather than minor radius a, so the default (0.01) is chosen
+      to be consistent in SI units with TGLF (0.001).
     rotation_multiplier: Multiplier for rotation.
     rotation_mode: Mode for rotation, either HALF_RADIUS, FULL_RADIUS or OFF.
     shear_suppression_alpha: Alpha parameter for Waltz rule applied to
@@ -131,8 +137,9 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
@@ -195,6 +202,7 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
         shear_suppression_alpha=self.shear_suppression_alpha,
@@ -209,6 +217,20 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
   Attributes:
     model_name: The transport model to use. Hardcoded to 'tglfnn-ukaea'.
     machine: The machine type to use. Either 'step' or 'multimachine'.
+    rotation_multiplier: Multiplier for rotation.
+    use_rotation: Whether to use rotation shear in the model.
+    DV_effective: Effective D / effective V approach for particle transport.
+    An_min: Minimum |R/Lne| below which effective V is used instead of effective
+      D.
+    DV_effective_smooth_width: Particle flux width in dimensionless
+      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
+      transport transitions smoothly from effective V to effective D. If 0.0,
+      uses a sharp step transition. Note that TGLF normalizes with minor radius
+      a rather than R_major, so the default (0.001) is chosen to be consistent
+      in SI units with QuaLiKiz (0.01).
+    collisionality_multiplier: Collisionality multiplier.
+    max_normalized_collisionality: Maximum normalized collisionality passed to
+      the model.
   """
 
   model_name: Annotated[Literal['tglfnn-ukaea'], torax_pydantic.JAX_STATIC] = (
@@ -220,8 +242,9 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # Quasilinear transport options
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.001
   collisionality_multiplier: float = 1.0
   max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
 
@@ -239,6 +262,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
     return tglfnn_ukaea_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         use_rotation=self.use_rotation,
         collisionality_multiplier=self.collisionality_multiplier,

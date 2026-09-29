@@ -1868,6 +1868,15 @@ It is recommended to not set ``qlknn_model_name``,  or
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``DV_effective_smooth_width`` (float [default = 0.01])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that QuaLiKiz normalizes using major
+  radius :math:`R_{major}` rather than minor radius :math:`a`, so the default
+  (:math:`0.01`) corresponds roughly to the TGLF default (:math:`0.001`) in SI
+  units.
+
 ``rotation_multiplier`` (float [default = 1.0])
   Multiplier for :math:`v_{E\times B}` in the rotation correction factor.
 
@@ -1910,6 +1919,15 @@ Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cit
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
+
+``DV_effective_smooth_width`` (float [default = 0.001])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that TGLF normalizes using minor
+  radius :math:`a` rather than :math:`R_{major}`, so the default
+  (:math:`0.001`) corresponds roughly to the QuaLiKiz default (:math:`0.01`) in
+  SI units.
 
 ``rotation_multiplier`` (float [default = 1.0])
   Multiplier for :math:`v_{E\times B}^{\text{shear}}`.
@@ -1978,6 +1996,15 @@ Runtime parameters for the QuaLiKiz model.
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``DV_effective_smooth_width`` (float [default = 0.01])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that QuaLiKiz normalizes using major
+  radius :math:`R_{major}` rather than minor radius :math:`a`, so the default
+  (:math:`0.01`) corresponds roughly to the TGLF default (:math:`0.001`) in SI
+  units.
+
 
 tglf
 ^^^^
@@ -2014,6 +2041,15 @@ Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
+
+``DV_effective_smooth_width`` (float [default = 0.001])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that TGLF normalizes using minor
+  radius :math:`a` rather than :math:`R_{major}`, so the default
+  (:math:`0.001`) corresponds roughly to the QuaLiKiz default (:math:`0.01`) in
+  SI units.
 
 ``collisionality_multiplier`` (float [default = 1.0])
   Collisionality multiplier.

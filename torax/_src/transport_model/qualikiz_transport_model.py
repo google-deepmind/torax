@@ -473,6 +473,12 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     DV_effective: Effective D / effective V approach for particle transport.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
+    DV_effective_smooth_width: Particle flux width in dimensionless
+      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
+      transport transitions smoothly from effective V to effective D. If 0.0,
+      uses a sharp step transition. Note that QuaLiKiz normalizes with major
+      radius R_major rather than minor radius a, so the default (0.01) is chosen
+      to be consistent in SI units with TGLF (0.001).
   """
 
   model_name: Annotated[Literal['qualikiz'], torax_pydantic.JAX_STATIC] = (
@@ -485,8 +491,9 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
@@ -507,6 +514,7 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
         **base_kwargs,
