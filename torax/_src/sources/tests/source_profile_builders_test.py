@@ -57,12 +57,14 @@ class SourceModelsTest(parameterized.TestCase):
         source_models=source_models,
         neoclassical_models=neoclassical_models,
     )
+    neoclassical_outputs = neoclassical_models(
+        runtime_params, geo, core_profiles
+    )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         runtime_params,
         geo,
         core_profiles,
         source_models,
-        neoclassical_models,
         explicit=True,
     )
     source_profile_builders.build_source_profiles(
@@ -70,9 +72,10 @@ class SourceModelsTest(parameterized.TestCase):
         geo,
         core_profiles,
         source_models,
-        neoclassical_models,
         explicit=False,
         explicit_source_profiles=explicit_source_profiles,
+        conductivity=neoclassical_outputs.conductivity,
+        bootstrap_current=neoclassical_outputs.bootstrap_current,
     )
 
   def test_computing_standard_source_profiles_for_single_affected_core_profile(

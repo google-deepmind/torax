@@ -84,7 +84,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
         explicit=True,
     )
     pedestal_model_output = jitted_pedestal_model(
@@ -161,7 +160,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
         explicit=True,
     )
     output_1 = pedestal_model(

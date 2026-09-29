@@ -239,20 +239,15 @@ def update_core_and_source_profiles_after_step(
       dt,
   )
 
-  conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geo, intermediate_core_profiles
-  )
-  poloidal_velocity = (
-      neoclassical_models.poloidal_velocity.calculate_poloidal_velocity(
-          runtime_params_t_plus_dt, geo, intermediate_core_profiles
-      )
+  neoclassical_outputs = neoclassical_models(
+      runtime_params_t_plus_dt, geo, intermediate_core_profiles
   )
 
   intermediate_core_profiles = dataclasses.replace(
       intermediate_core_profiles,
-      sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
-      poloidal_velocity=poloidal_velocity.v_pol,
+      sigma=neoclassical_outputs.conductivity.sigma,
+      sigma_face=neoclassical_outputs.conductivity.sigma_face,
+      poloidal_velocity=neoclassical_outputs.poloidal_velocity.v_pol,
       internal_plasma_energy=energy_state,
   )
 
@@ -261,11 +256,11 @@ def update_core_and_source_profiles_after_step(
       runtime_params=runtime_params_t_plus_dt,
       geo=geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
       core_profiles=intermediate_core_profiles,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
-      conductivity=conductivity,
+      conductivity=neoclassical_outputs.conductivity,
+      bootstrap_current=neoclassical_outputs.bootstrap_current,
   )
 
   intermediate_core_profiles = dataclasses.replace(

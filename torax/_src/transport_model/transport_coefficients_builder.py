@@ -21,7 +21,6 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import base_model as internal_boundary_conditions_base_model
 from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import pereverzev as pereverzev_lib
@@ -34,14 +33,12 @@ from torax._src.transport_model import transport_model as transport_model_lib
 @jax.jit(
     static_argnames=(
         'transport_model',
-        'neoclassical_models',
         'internal_boundary_condition_model',
         'use_pereverzev',
     )
 )
 def calculate_all_transport_coeffs(
     transport_model: transport_model_lib.TransportModel,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
     internal_boundary_condition_model: (
         internal_boundary_conditions_base_model.InternalBoundaryConditionModel
     ),
@@ -51,6 +48,7 @@ def calculate_all_transport_coeffs(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
+    neoclassical_transport: transport_coeffs_lib.NeoclassicalTransport,
     use_pereverzev: bool = False,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients from all models."""
@@ -69,11 +67,6 @@ def calculate_all_transport_coeffs(
       core_profiles=core_profiles,
       pedestal_transition_state=pedestal_transition_state,
       two_point_mask=two_point_mask,
-  )
-  neoclassical_transport_coeffs = neoclassical_models.transport(
-      runtime_params,
-      geo,
-      core_profiles,
   )
 
   if use_pereverzev:
@@ -102,7 +95,7 @@ def calculate_all_transport_coeffs(
 
   coeffs_to_sum = [
       turbulent_transport_coeffs.total,
-      neoclassical_transport_coeffs,
+      neoclassical_transport,
   ]
   if pereverzev_transport_coeffs is not None:
     coeffs_to_sum.append(pereverzev_transport_coeffs)
@@ -111,7 +104,7 @@ def calculate_all_transport_coeffs(
   core_transport = state.CoreTransport(
       total=total,
       turbulent=turbulent_transport_coeffs,
-      neoclassical=neoclassical_transport_coeffs,
+      neoclassical=neoclassical_transport,
       pereverzev=pereverzev_transport_coeffs,
   )
 

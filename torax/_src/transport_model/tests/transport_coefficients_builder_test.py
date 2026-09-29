@@ -60,15 +60,12 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     self.transport_model.return_value = self.turbulent_transport
 
     # Dummy neoclassical transport output.
-    self.neoclassical_transport = transport_coeffs_lib.TransportCoeffs(
+    self.neoclassical_transport = transport_coeffs_lib.NeoclassicalTransport(
         chi_face_ion=jnp.ones(self.n_face) * 0.1,
         chi_face_el=jnp.ones(self.n_face) * 0.05,
         d_face_el=jnp.ones(self.n_face) * 0.02,
         v_face_el=jnp.zeros(self.n_face),
-    )
-    self.neoclassical_models = mock.MagicMock()
-    self.neoclassical_models.transport.return_value = (
-        self.neoclassical_transport
+        v_face_el_ware=jnp.zeros(self.n_face),
     )
 
     # Mock IBC model and builder output.
@@ -120,7 +117,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
   def test_combines_turbulent_and_neoclassical_without_pereverzev(self):
     result = transport_coefficients_builder.calculate_all_transport_coeffs(
         transport_model=self.transport_model,
-        neoclassical_models=self.neoclassical_models,
+        neoclassical_transport=self.neoclassical_transport,
         internal_boundary_condition_model=self.ibc_model,
         runtime_params=self.runtime_params,
         geo=self.geo,
@@ -152,7 +149,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     ) as mock_calc_pereverzev:
       result = transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=self.transport_model,
-          neoclassical_models=self.neoclassical_models,
+          neoclassical_transport=self.neoclassical_transport,
           internal_boundary_condition_model=self.ibc_model,
           runtime_params=self.runtime_params,
           geo=self.geo,
@@ -194,7 +191,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     ):
       result = transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=self.transport_model,
-          neoclassical_models=self.neoclassical_models,
+          neoclassical_transport=self.neoclassical_transport,
           internal_boundary_condition_model=self.ibc_model,
           runtime_params=self.runtime_params,
           geo=self.geo,
@@ -232,7 +229,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     ):
       result = transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=self.transport_model,
-          neoclassical_models=self.neoclassical_models,
+          neoclassical_transport=self.neoclassical_transport,
           internal_boundary_condition_model=self.ibc_model,
           runtime_params=self.runtime_params,
           geo=self.geo,
@@ -261,7 +258,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
 
     result = transport_coefficients_builder.calculate_all_transport_coeffs(
         transport_model=self.transport_model,
-        neoclassical_models=self.neoclassical_models,
+        neoclassical_transport=self.neoclassical_transport,
         internal_boundary_condition_model=self.ibc_model,
         runtime_params=self.runtime_params,
         geo=self.geo,
@@ -284,7 +281,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
 
     transport_coefficients_builder.calculate_all_transport_coeffs(
         transport_model=self.transport_model,
-        neoclassical_models=self.neoclassical_models,
+        neoclassical_transport=self.neoclassical_transport,
         internal_boundary_condition_model=self.ibc_model,
         runtime_params=self.runtime_params,
         geo=self.geo,
