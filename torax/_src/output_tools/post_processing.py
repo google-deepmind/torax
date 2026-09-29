@@ -943,16 +943,13 @@ def make_post_processed_outputs(
   )
 
   rotation_output = rotation.calculate_rotation(
-      T_i=sim_state.core_profiles.T_i,
       psi=sim_state.core_profiles.psi,
       n_i=sim_state.core_profiles.n_i,
-      q_face=sim_state.core_profiles.q_face,
-      Z_eff_face=sim_state.core_profiles.Z_eff_face,
       Z_i_face=sim_state.core_profiles.Z_i_face,
       toroidal_angular_velocity=sim_state.core_profiles.toroidal_angular_velocity,
+      poloidal_velocity=sim_state.core_profiles.poloidal_velocity,
       pressure_total_i=sim_state.core_profiles.pressure_total_i,
       geo=sim_state.geometry,
-      poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
   )
 
   return PostProcessedOutputs(

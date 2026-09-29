@@ -274,7 +274,6 @@ class QLKNNTransportModel(
         transport_runtime_params,
         geo,
         core_profiles,
-        runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask,
     )
 
@@ -283,7 +282,6 @@ class QLKNNTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     """Actual implementation of `__call__`.
@@ -292,7 +290,6 @@ class QLKNNTransportModel(
       transport: Input runtime parameters for this transport model.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      poloidal_velocity_multiplier: Poloidal velocity multiplier.
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
@@ -307,7 +304,6 @@ class QLKNNTransportModel(
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     model = get_model(self.path, self.name)

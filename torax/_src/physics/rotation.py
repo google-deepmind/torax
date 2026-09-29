@@ -21,14 +21,13 @@ from torax._src import constants
 from torax._src import math_utils
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical.formulas import formulas
 from torax._src.physics import psi_calculations
 
 
 # pylint: disable=invalid-name
 @dataclasses.dataclass(frozen=True)
-class RotationOutput:
-  """Structured output from rotation calculations.
+class ExBRotationOutput:
+  """Structured output from ExB rotation calculations.
 
   Attributes:
     v_ExB: Total ExB velocity profile on the face grid [m/s].
@@ -38,14 +37,12 @@ class RotationOutput:
     v_ExB_toroidal: v_ExB from toroidal velocity contribution:
       -v_phi * B_theta / B_total.
     Er: Total radial electric field as a cell variable [V/m].
-    poloidal_velocity: Poloidal velocity as a cell variable [m/s].
   """
 
   v_ExB: array_typing.FloatVectorFace
   v_ExB_poloidal_and_pressure: array_typing.FloatVectorFace
   v_ExB_toroidal: array_typing.FloatVectorFace
   Er: cell_variable.CellVariable
-  poloidal_velocity: cell_variable.CellVariable
 
 
 @jax.jit
@@ -132,35 +129,28 @@ def _calculate_v_ExB(
 
 
 def calculate_rotation(
-    T_i: cell_variable.CellVariable,
     psi: cell_variable.CellVariable,
     n_i: cell_variable.CellVariable,
-    q_face: array_typing.FloatVectorFace,
-    Z_eff_face: array_typing.FloatVectorFace,
     Z_i_face: array_typing.FloatVector,
     toroidal_angular_velocity: cell_variable.CellVariable,
+    poloidal_velocity: cell_variable.CellVariable,
     pressure_total_i: cell_variable.CellVariable,
     geo: geometry.Geometry,
-    poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0,
-) -> RotationOutput:
+) -> ExBRotationOutput:
   """Calculates quantities related to the rotation of the plasma.
 
   Args:
-    T_i: Ion temperature profile as a cell variable.
     psi: Poloidal flux profile as a cell variable.
     n_i: Main ion density profile as a cell variable.
-    q_face: Safety factor on the face grid.
-    Z_eff_face: Effective charge on the face grid.
     Z_i_face: Main ion charge on the face grid.
     toroidal_angular_velocity: Toroidal velocity profile as a cell variable.
+    poloidal_velocity: Poloidal velocity profile as a cell variable.
     pressure_total_i: Total ion pressure (thermal + fast) as a cell variable.
     geo: Geometry object.
-    poloidal_velocity_multiplier: A multiplier to apply to the poloidal
-      velocity.
 
   Returns:
-    RotationOutput with v_ExB, separated v_ExB components, Er, and
-    poloidal_velocity.
+    ExBRotationOutput with v_ExB, separated v_ExB components, and the radial
+    electric field Er.
   """
 
   # Flux surface average of `B_phi = F/R`.
@@ -173,18 +163,6 @@ def calculate_rotation(
   B_pol_face = jnp.sqrt(B_pol_squared_face)  # Tesla
   B_total_squared_face = B_pol_squared_face + B_tor_face**2
   B_total_face = jnp.sqrt(B_total_squared_face)
-
-  poloidal_velocity = formulas.calculate_poloidal_velocity(
-      T_i=T_i,
-      n_i=n_i.face_value(),
-      q=q_face,
-      Z_eff=Z_eff_face,
-      Z_i=Z_i_face,
-      B_tor=B_tor_face,
-      B_total_squared=B_total_squared_face,
-      geo=geo,
-      poloidal_velocity_multiplier=poloidal_velocity_multiplier,
-  )
 
   Er, Er_poloidal_and_pressure_face, Er_toroidal_face = (
       _calculate_radial_electric_field(
@@ -205,10 +183,9 @@ def calculate_rotation(
   )
   v_ExB_toroidal = _calculate_v_ExB(Er_toroidal_face, B_total_face)
 
-  return RotationOutput(
+  return ExBRotationOutput(
       v_ExB=v_ExB,
       v_ExB_poloidal_and_pressure=v_ExB_poloidal_and_pressure,
       v_ExB_toroidal=v_ExB_toroidal,
       Er=Er,
-      poloidal_velocity=poloidal_velocity,
   )

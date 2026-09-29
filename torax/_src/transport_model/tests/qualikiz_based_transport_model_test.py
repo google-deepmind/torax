@@ -153,7 +153,6 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=qualikiz_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
 
     # 1D array qualikiz_inputs
@@ -235,13 +234,11 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=qualikiz_params_uncapped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params_uncapped.neoclassical.poloidal_velocity_multiplier,
     )
     capped = transport_model._prepare_qualikiz_inputs(
         transport=qualikiz_params_capped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params_capped.neoclassical.poloidal_velocity_multiplier,
     )
 
     # Precondition: some uncapped values must exceed the cap.
@@ -306,11 +303,10 @@ class FakeQualikizBasedTransportModel(
       transport: qualikiz_based_transport_model.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> qualikiz_based_transport_model.QualikizInputs:
     """Exposing prepare_qualikiz_inputs for testing."""
     return self._prepare_qualikiz_inputs(
-        transport, geo, core_profiles, poloidal_velocity_multiplier
+        transport, geo, core_profiles
     )
 
   # pylint: enable=invalid-name
@@ -335,7 +331,6 @@ class FakeQualikizBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     return self._make_core_transport(
