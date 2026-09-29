@@ -303,7 +303,7 @@ TORAX combines one or more core and pedestal component models within a top-level
 Numerical conditioning and post-processing of transport coefficients—such as
 minimum/maximum clipping (``chi_min``, ``chi_max``, ``D_e_min/max``,
 ``V_e_min/max``) and spatial Gaussian smoothing (``smoothing_width``,
-``smoothing_zones``)—are configured on the top-level transport model rather than
+``pedestal_smoothing_width``, ``smoothing_zones``)—are configured on the top-level transport model rather than
 on individual component models. Furthermore, to combine transport models or
 prescribe transport coefficients within specific radial zones (e.g. inner core
 or outer edge regions), users can configure dictionaries of named component

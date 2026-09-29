@@ -470,6 +470,9 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
     V_e_max: maximum electron density convection.
     smoothing_width: Width of HWHM Gaussian smoothing kernel operating on
       transport model outputs.
+    pedestal_smoothing_width: Width of HWHM Gaussian smoothing kernel operating
+      on pedestal transport model outputs. If 0.0, no smoothing is applied to
+      pedestal models.
     core_transport_models: A dict mapping user-given names to transport models,
       whose outputs will be summed to give the combined core transport
       coefficients.
@@ -488,6 +491,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
   V_e_min: torax_pydantic.MeterPerSecond = -50.0
   V_e_max: torax_pydantic.MeterPerSecond = 50.0
   smoothing_width: pydantic.NonNegativeFloat = 0.0
+  pedestal_smoothing_width: pydantic.NonNegativeFloat = 0.0
   core_transport_models: dict[
       str, ComponentTransportModelConfig
   ] = pydantic.Field(
@@ -546,6 +550,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
         V_e_min=self.V_e_min,
         V_e_max=self.V_e_max,
         smoothing_width=self.smoothing_width,
+        pedestal_smoothing_width=self.pedestal_smoothing_width,
         core_transport_model_params=core_transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
         smoothing_zones=tuple(smoothing_zones),
@@ -554,7 +559,8 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
   @pydantic.model_validator(mode='after')
   def _check_smoothing_width_minimum(self) -> Self:
     smoothing_widths = [z.smoothing_width for z in self.smoothing_zones] + [
-        self.smoothing_width
+        self.smoothing_width,
+        self.pedestal_smoothing_width,
     ]
     if any(w < 0.0 for w in smoothing_widths):
       raise ValueError(

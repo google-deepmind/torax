@@ -1507,6 +1507,10 @@ Top-level Transport Parameters
   is used and ``smoothing_width`` is set to ``0.0``, a warning is logged
   recommending non-zero smoothing to avoid sharp numerical artifacts.
 
+``pedestal_smoothing_width`` (float [default = 0.0])
+  Width of HWHM Gaussian smoothing kernel operating on pedestal transport model
+  outputs. If set to ``0.0``, no smoothing is applied to pedestal models.
+
 ``smoothing_zones`` (list[dict] [default = []])
   Optional list of configuration dictionaries specifying radial zones with
   distinct Gaussian smoothing widths. Each zone dictionary specifies

@@ -87,15 +87,27 @@ class TransportModel(static_dataclass.StaticDataclass):
         True,
     )
 
+    core_smoothing_matrix = _build_smoothing_matrix(
+        runtime_params.transport,
+        runtime_params,
+        geo,
+        pedestal_transition_state,
+    )
+    pedestal_smoothing_matrix = _build_pedestal_smoothing_matrix(
+        runtime_params.transport,
+        geo,
+        pedestal_transition_state,
+    )
+
     core, core_components = self._compute_domain_coeffs(
         self.core_transport_models,
         runtime_params.transport.core_transport_model_params,
         runtime_params,
         geo,
         core_profiles,
-        pedestal_transition_state,
         two_point_mask,
         domain_mask=core_domain_mask,
+        smoothing_matrix=core_smoothing_matrix,
     )
     pedestal, pedestal_components = self._compute_domain_coeffs(
         self.pedestal_transport_models,
@@ -103,9 +115,9 @@ class TransportModel(static_dataclass.StaticDataclass):
         runtime_params,
         geo,
         core_profiles,
-        pedestal_transition_state,
         two_point_mask,
         domain_mask=pedestal_mask,
+        smoothing_matrix=pedestal_smoothing_matrix,
     )
 
     return transport_coeffs.TurbulentTransport(
@@ -124,11 +136,9 @@ class TransportModel(static_dataclass.StaticDataclass):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       two_point_mask: array_typing.BoolVectorFace,
       domain_mask: jax.Array,
+      smoothing_matrix: jax.Array,
   ) -> tuple[
       transport_coeffs.TransportCoeffs,
       dict[str, transport_coeffs.TransportCoeffs],
@@ -152,10 +162,8 @@ class TransportModel(static_dataclass.StaticDataclass):
         clipped,
     )
     smoothed = self._smooth_coeffs(
-        runtime_params,
-        geo,
         masked,
-        pedestal_transition_state,
+        smoothing_matrix,
     )
     return smoothed, model_outputs
 
@@ -269,21 +277,10 @@ class TransportModel(static_dataclass.StaticDataclass):
 
   def _smooth_coeffs(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
       input_coeffs: transport_coeffs.TransportCoeffs,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
+      smoothing_matrix: jax.Array,
   ) -> transport_coeffs.TransportCoeffs:
     """Gaussian smoothing of turbulent transport coefficients."""
-    smoothing_matrix = _build_smoothing_matrix(
-        runtime_params.transport,
-        runtime_params,
-        geo,
-        pedestal_transition_state,
-    )
-
     # Iterate over fields of the CoreTransport dataclass.
     # Ignore optional fields that are made all zero in post_init.
     def smooth_single_coeff(coeff):
@@ -325,12 +322,6 @@ def _build_smoothing_matrix(
     ),
 ) -> jax.Array:
   """Builds a smoothing matrix for the transport model."""
-  # To reduce the range of the convolution, weights under lower_cutoff are
-  # clipped to zero.
-  lower_cutoff = 0.01
-  # used for eps, small number to avoid divisions by zero for sigma = 0
-  consts = constants.CONSTANTS
-
   # 1. Build smoothing width profile
   # Spatially-varying sigma(rho) is constructed across radial grid points.
   # This supports multiple smoothing_zones with distinct widths.
@@ -371,6 +362,39 @@ def _build_smoothing_matrix(
       0.0,
       smoothing_width_profile,
   )
+
+  return _build_smoothing_matrix_from_profile(geo, smoothing_width_profile)
+
+
+def _build_pedestal_smoothing_matrix(
+    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+) -> jax.Array:
+  """Builds a smoothing matrix localized to the pedestal region."""
+  rho_norm_ped_top = (
+      pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
+  )
+  smoothing_width_profile = jnp.where(
+      geo.rho_face_norm >= rho_norm_ped_top,
+      transport_runtime_params.pedestal_smoothing_width,
+      0.0,
+  )
+  return _build_smoothing_matrix_from_profile(geo, smoothing_width_profile)
+
+
+def _build_smoothing_matrix_from_profile(
+    geo: geometry.Geometry,
+    smoothing_width_profile: jax.Array,
+) -> jax.Array:
+  """Builds a Gaussian convolution smoothing matrix from a width profile."""
+  # To reduce the range of the convolution, weights under lower_cutoff are
+  # clipped to zero.
+  lower_cutoff = 0.01
+  # used for eps, small number to avoid divisions by zero for sigma = 0
+  consts = constants.CONSTANTS
 
   # 2. Kernel matrix with variable width (sigma_i for each destination row i)
   r_diff = geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm

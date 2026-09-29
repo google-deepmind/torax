@@ -615,6 +615,54 @@ class TransportModelTest(absltest.TestCase):
       expected_row[idx] = 1.0
       np.testing.assert_allclose(matrix[idx], expected_row, atol=1e-7)
 
+  def test_build_pedestal_smoothing_matrix_zero_width_is_identity(self):
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {'pedestal_smoothing_width': 0.0}
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=torax_config.numerics.t_initial)
+    geo = torax_config.geometry.build_provider(
+        t=torax_config.numerics.t_initial
+    )
+    transition_state = _make_transition_state(rho_norm_ped_top=0.8)
+    matrix = transport_model._build_pedestal_smoothing_matrix(
+        runtime_params.transport,
+        geo,
+        transition_state,
+    )
+    np.testing.assert_allclose(matrix, np.eye(len(geo.rho_face_norm)))
+
+  def test_build_pedestal_smoothing_matrix_isolation_and_row_sums(self):
+    config = default_configs.get_default_config_dict()
+    config['transport'] = {'pedestal_smoothing_width': 0.05}
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=torax_config.numerics.t_initial)
+    geo = torax_config.geometry.build_provider(
+        t=torax_config.numerics.t_initial
+    )
+    transition_state = _make_transition_state(rho_norm_ped_top=0.8)
+    matrix = transport_model._build_pedestal_smoothing_matrix(
+        runtime_params.transport,
+        geo,
+        transition_state,
+    )
+
+    core_mask = geo.rho_face_norm < 0.8
+    ped_mask = geo.rho_face_norm >= 0.8
+    # Core rows should be identity.
+    for idx in np.where(core_mask)[0]:
+      expected_row = np.zeros(len(geo.rho_face_norm))
+      expected_row[idx] = 1.0
+      np.testing.assert_allclose(matrix[idx], expected_row, atol=1e-7)
+
+    # Pedestal rows should have zero weights in the core.
+    np.testing.assert_allclose(matrix[ped_mask][:, core_mask], 0.0)
+    # Row sums in the pedestal region should normalize to 1.
+    np.testing.assert_allclose(np.sum(matrix[ped_mask], axis=1), 1.0, atol=1e-6)
+
   def test_smoothing_zones(self):
     """Tests that smoothing_zones smoothes transport coefficients in the specified region."""
     config = default_configs.get_default_config_dict()
@@ -953,6 +1001,7 @@ class TransportModelTest(absltest.TestCase):
     combined_params.V_e_min = -100.0
     combined_params.V_e_max = 100.0
     combined_params.smoothing_width = 0.0
+    combined_params.pedestal_smoothing_width = 0.0
     combined_params.smoothing_zones = ()
 
     transition_state = _make_transition_state(rho_norm_ped_top=1.0)
