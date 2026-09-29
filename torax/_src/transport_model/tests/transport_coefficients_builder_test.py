@@ -182,10 +182,8 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     np.testing.assert_allclose(result.total.d_face_el, expected_total.d_face_el)
     np.testing.assert_allclose(result.total.v_face_el, expected_total.v_face_el)
 
-  def test_masks_pereverzev_in_pedestal_when_ibc_mode(self):
-    self.runtime_params.pedestal.mode = (
-        pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
-    )
+  def test_masks_pereverzev_in_pedestal_when_ibc_is_active(self):
+    self.pedestal_state.is_ibc_active.return_value = True
     ped_mask = self.geo.rho_face_norm >= 0.7
     core_mask = ~ped_mask
 
@@ -223,8 +221,8 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         self.pereverzev_transport.chi_face_ion[core_mask],
     )
 
-  def test_does_not_mask_pereverzev_when_not_ibc_mode(self):
-    self.runtime_params.pedestal.mode = None
+  def test_does_not_mask_pereverzev_when_ibc_is_inactive(self):
+    self.pedestal_state.is_ibc_active.return_value = False
     ped_mask = self.geo.rho_face_norm >= 0.7
 
     with mock.patch.object(

@@ -85,22 +85,18 @@ def calculate_all_transport_coeffs(
             two_point_mask,
         )
     )
-    if (
-        runtime_params.pedestal.mode
-        == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
-    ):
-      # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
-      # coefficients in the pedestal region to zero.
-      # TODO(b/485147781) Combine this masking with the turbulent transport
-      # masking.
-      pedestal_model_output = pedestal_transition_state.pedestal_model_output
-      pedestal_active_mask_face = (
-          geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top
-      )
-      pereverzev_transport_coeffs = jax.tree_util.tree_map(
-          lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
-          pereverzev_transport_coeffs,
-      )
+    # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
+    # coefficients in the pedestal region to zero.
+    pedestal_model_output = pedestal_transition_state.pedestal_model_output
+    pedestal_active_mask_face = jnp.where(
+        pedestal_transition_state.is_ibc_active(runtime_params.pedestal),
+        geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top,
+        False,
+    )
+    pereverzev_transport_coeffs = jax.tree_util.tree_map(
+        lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
+        pereverzev_transport_coeffs,
+    )
   else:
     pereverzev_transport_coeffs = None
 
