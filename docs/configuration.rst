@@ -1312,6 +1312,15 @@ It is only recommended to change the default values if issues arise.
   defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
   divergent integrations in diverted geometries.
 
+``psi_grid_refinement_factor`` (int [default = 1])
+  Factor by which the (R, Z) grid is refined, using bicubic spline
+  interpolation of psi, before generating the flux surface contours. Contours
+  are linear between grid points, so for coarse EQDSK grids the flux surfaces
+  near the separatrix can be inaccurate (e.g. underestimating the plasma
+  current) or fail to close. Increasing this factor allows
+  ``last_surface_factor`` to be closer to 1. Must be >= 1; the default of 1
+  means no refinement.
+
 Geometry dicts for IMAS geometry require one and only one of the following
 additional keys.
 

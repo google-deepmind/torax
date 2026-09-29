@@ -192,6 +192,77 @@ class EqdskGeometryTest(parameterized.TestCase):
       else:
         self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch (dict).')
 
+  def _coarsened_iterhybrid_eqdsk(
+      self, stride: int
+  ) -> eqdsk_lib.EQDSKInterface:
+    """Returns the ITER hybrid EQDSK with every `stride`-th grid point kept."""
+    geo_dir = geometry_loader.get_geometry_dir()
+    eqdsk_obj = eqdsk_lib.EQDSKInterface.from_file(
+        f'{geo_dir}/iterhybrid_cocos11.eqdsk', from_cocos=11
+    )
+    eqdsk_obj.psi = eqdsk_obj.psi[::stride, ::stride]
+    eqdsk_obj.nx, eqdsk_obj.nz = eqdsk_obj.psi.shape
+    # 1D profiles are on nx evenly spaced psi_norm points.
+    for name in ['fpol', 'pressure', 'pprime', 'ffprime', 'qpsi', 'psinorm']:
+      setattr(eqdsk_obj, name, getattr(eqdsk_obj, name)[::stride])
+    return eqdsk_obj
+
+  def test_psi_grid_refinement_improves_coarse_grid_accuracy(self):
+    """Tests that grid refinement recovers the fine-grid plasma current."""
+    reference_Ip = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk', cocos=11
+    ).build_geometry().Ip_profile_face[-1]
+    coarse_Ip = {}
+    for factor in (1, 2):
+      coarse_Ip[factor] = (
+          eqdsk.EQDSKConfig(
+              eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
+              cocos=11,
+              psi_grid_refinement_factor=factor,
+          )
+          .build_geometry()
+          .Ip_profile_face[-1]
+      )
+    error_unrefined = abs(coarse_Ip[1] / reference_Ip - 1)
+    error_refined = abs(coarse_Ip[2] / reference_Ip - 1)
+    self.assertLess(error_refined, 5e-3)
+    self.assertLess(error_refined, error_unrefined)
+
+  def test_psi_grid_refinement_enables_contouring_on_coarse_grid(self):
+    """Tests that grid refinement fixes contouring failures on coarse grids."""
+    with self.subTest('unrefined_fails'):
+      with self.assertRaisesRegex(ValueError, 'monotonically increasing'):
+        eqdsk.EQDSKConfig(
+            eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=4),
+            cocos=11,
+            psi_grid_refinement_factor=1,
+        ).build_geometry()
+    with self.subTest('refined_succeeds'):
+      eqdsk.EQDSKConfig(
+          eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=4),
+          cocos=11,
+          psi_grid_refinement_factor=4,
+      ).build_geometry()
+
+  def test_psi_grid_refinement_preserves_well_resolved_geometry(self):
+    """Tests that refining an already well-resolved grid changes little."""
+    geo = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk', cocos=11
+    ).build_geometry()
+    geo_refined = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk',
+        cocos=11,
+        psi_grid_refinement_factor=2,
+    ).build_geometry()
+    for name in ['Phi_face', 'volume_face', 'area_face', 'F_face']:
+      np.testing.assert_allclose(
+          getattr(geo, name),
+          getattr(geo_refined, name),
+          rtol=5e-3,
+          atol=1e-8,
+          err_msg=f'Field "{name}" mismatch.',
+      )
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -70,6 +70,9 @@ class EQDSKConfig(base.BaseGeometryConfig):
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
+    psi_grid_refinement_factor: Factor by which the (R, Z) grid is refined
+      before generating flux surface contours. Increasing this factor allows
+      `last_surface_factor` to be closer to 1.
   """
 
   @property
@@ -93,6 +96,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
   Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
+  psi_grid_refinement_factor: Annotated[int, pydantic.Field(ge=1)] = 1
 
   @pydantic.field_validator('eqdsk_object', mode='before')
   @classmethod
@@ -145,6 +149,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
         n_surfaces=self.n_surfaces,
         last_surface_factor=self.last_surface_factor,
         trapped_fraction_source=self.trapped_fraction_source,
+        psi_grid_refinement_factor=self.psi_grid_refinement_factor,
     )
     return standard_geometry.build_standard_geometry(intermediates)
 
@@ -162,6 +167,7 @@ def _construct_intermediates_from_eqdsk(
     trapped_fraction_source: (
         trapped_fraction_lib.TrappedFractionSource
     ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
+    psi_grid_refinement_factor: int = 1,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -190,6 +196,9 @@ def _construct_intermediates_from_eqdsk(
       1-8 or 11-18 inclusive.
     trapped_fraction_source: Selects how the effective trapped particle fraction
       is computed; see `trapped_fraction.TrappedFractionSource`.
+    psi_grid_refinement_factor: Factor by which the (R, Z) grid is refined
+      (using bicubic spline interpolation of psi) before generating flux surface
+      contours. 1 means no refinement.
 
   Returns:
     A StandardGeometryIntermediates instance based on the input file or object.
@@ -262,11 +271,27 @@ def _construct_intermediates_from_eqdsk(
       eq_dict['zmid'] + eq_dict['zdim'] / 2,
       eq_dict['nz'],
   )
-  X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
   Xlcfs, Zlcfs = eq_dict['xbdry'], eq_dict['zbdry']
 
   # 2D psi grid, with psi(axis) = 0
   psi_2dgrid = eq_dict['psi'] - eq_dict['psimag']
+
+  # Spline interpolator of 2D psi field defined on X-Z grid
+  psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
+      X_1D, Z_1D, psi_2dgrid, kx=3, ky=3, s=0
+  )
+
+  # Optionally refine psi
+  if psi_grid_refinement_factor > 1:
+    X_1D = np.linspace(
+        X_1D[0], X_1D[-1], (len(X_1D) - 1) * psi_grid_refinement_factor + 1
+    )
+    Z_1D = np.linspace(
+        Z_1D[0], Z_1D[-1], (len(Z_1D) - 1) * psi_grid_refinement_factor + 1
+    )
+    psi_2dgrid = psi_2dgrid_interpolator(X_1D, Z_1D)
+
+  X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
 
   # Mask for the region inside the LCFS
   # i.e. Xlcfs.min() < X < Xlcfs.max() and Zlcfs.min() < Z < Zlcfs.max()
@@ -306,12 +331,6 @@ def _construct_intermediates_from_eqdsk(
   # ------------------------------------------------------------------ #
   # ---- 3. Interpolate everything onto the new flux surface grid ---- #
   # ------------------------------------------------------------------ #
-  # Spline interpolator of 2D psi field defined on X-Z grid
-  # This will later be evaluated on each flux surface
-  psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
-      X_1D, Z_1D, psi_2dgrid, kx=3, ky=3, s=0
-  )
-
   # Interpolate safety factor onto new flux-surface grid
   q_interpolator = scipy.interpolate.interp1d(
       psi_1dgrid, eq_dict['qpsi'], kind='cubic'
