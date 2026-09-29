@@ -92,7 +92,10 @@ class IMASConfig(base.BaseGeometryConfig):
   def _supported_trapped_fraction_sources(
       self,
   ) -> frozenset[trapped_fraction.TrappedFractionSource]:
-    return frozenset({trapped_fraction.TrappedFractionSource.SAUTER})
+    return frozenset({
+        trapped_fraction.TrappedFractionSource.SAUTER,
+        trapped_fraction.TrappedFractionSource.FILE,
+    })
 
   geometry_type: Annotated[Literal['imas'], torax_pydantic.TIME_INVARIANT] = (
       'imas'

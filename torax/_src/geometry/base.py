@@ -21,6 +21,8 @@ from torax._src.geometry import trapped_fraction
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
+TrappedFractionSource = trapped_fraction.TrappedFractionSource
+
 
 class BaseGeometryConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for all geometry configuration classes.

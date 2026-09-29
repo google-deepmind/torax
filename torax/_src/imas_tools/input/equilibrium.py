@@ -221,11 +221,23 @@ def _geometry_from_single_slice(
       trapped_fraction = trapped_fraction_lib.calculate_sauter_trapped_fraction(
           epsilon=epsilon, delta=delta
       )
+    case trapped_fraction_lib.TrappedFractionSource.FILE:
+      if not IMAS_data.profiles_1d.trapped_fraction:
+        raise ValueError(
+            "trapped_fraction_source=FILE requires the equilibrium IDS to"
+            " populate profiles_1d.trapped_fraction, but this IDS does"
+            " not. Use trapped_fraction_source=EXACT to compute it directly"
+            " from the 2D equilibrium instead, or SAUTER for the analytic"
+            " approximation."
+        )
+      trapped_fraction = np.asarray(IMAS_data.profiles_1d.trapped_fraction)
+
     case _:
       raise ValueError(
           f"Unsupported trapped_fraction_source: {trapped_fraction_source}."
           "Supported options: "
-          f"{trapped_fraction_lib.TrappedFractionSource.SAUTER.value}."
+          f"{trapped_fraction_lib.TrappedFractionSource.SAUTER.value}, "
+          f"{trapped_fraction_lib.TrappedFractionSource.FILE.value}."
       )
 
   # TODO(b/446608829): Add support for edge geometries from IMAS.
