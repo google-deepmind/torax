@@ -101,6 +101,101 @@ class IMASGeometryTest(parameterized.TestCase):
           trapped_fraction_source=base.TrappedFractionSource.FILE,
       ).build_geometry()
 
+  @parameterized.named_parameters(
+      dict(testcase_name='not_provided_by_equilibrium_code', strip=True),
+      dict(testcase_name='provided_by_equilibrium_code', strip=False),
+  )
+  def test_trapped_fraction_exact_is_computed(self, strip: bool):
+    """Tests the exact bounce-averaged integral, computed from the 2D grid.
+
+    `EXACT` always computes the integral directly from the full 2D
+    equilibrium, regardless of whether the equilibrium code separately
+    provides `profiles_1d.trapped_fraction` (use `FILE` for that instead).
+    """
+    equilibrium_object = loader.load_imas_data(
+        'ITERhybrid_COCOS17_IDS_ddv4.nc', 'equilibrium'
+    )
+    if strip:
+      equilibrium_object.time_slice[0].profiles_1d.trapped_fraction = []
+
+    geo = imas.IMASConfig(
+        equilibrium_object=equilibrium_object,
+        trapped_fraction_source=base.TrappedFractionSource.EXACT,
+    ).build_geometry()
+    trapped_fraction = geo.trapped_fraction_face
+    with self.subTest('range_zero_to_one'):
+      self.assertTrue(np.all(trapped_fraction >= 0.0))
+      self.assertTrue(np.all(trapped_fraction <= 1.0))
+    with self.subTest('monotonicity'):
+      self.assertGreater(
+          np.mean(np.diff(trapped_fraction) >= -1e-6),
+          0.8,
+      )
+
+  def test_trapped_fraction_file_and_exact_agree(self):
+    """Tests that the FILE and EXACT calculations agree for an IDS with both."""
+    geo_file = imas.IMASConfig(
+        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
+        trapped_fraction_source=base.TrappedFractionSource.FILE,
+    ).build_geometry()
+    geo_exact = imas.IMASConfig(
+        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
+        trapped_fraction_source=base.TrappedFractionSource.EXACT,
+    ).build_geometry()
+
+    self.assertIsNotNone(geo_file.trapped_fraction_face)
+    self.assertIsNotNone(geo_exact.trapped_fraction_face)
+    np.testing.assert_allclose(
+        geo_exact.trapped_fraction_face,
+        geo_file.trapped_fraction_face,
+        atol=0.05,
+        rtol=0.1,
+    )
+
+  def test_exact_trapped_fraction_warns_for_bad_values(self):
+    """Tests that EXACT trapped fraction warns when bad values are overwritten."""
+    with self.assertLogs(level='WARNING') as cm:
+      imas.IMASConfig(
+          imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
+          trapped_fraction_source=base.TrappedFractionSource.EXACT,
+      ).build_geometry()
+    self.assertTrue(
+        any('Overwriting' in msg and 'EXACT' in msg for msg in cm.output)
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='file',
+          trapped_fraction_source=base.TrappedFractionSource.FILE,
+      ),
+      dict(
+          testcase_name='exact',
+          trapped_fraction_source=base.TrappedFractionSource.EXACT,
+      ),
+  )
+  def test_trapped_fraction_geometry_consistent_with_sauter(
+      self, trapped_fraction_source: base.TrappedFractionSource
+  ):
+    """Tests that the exact and Sauter trapped fractions roughly agree."""
+    geo_sauter = imas.IMASConfig(
+        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
+        trapped_fraction_source=base.TrappedFractionSource.SAUTER,
+    ).build_geometry()
+    geo_geometry = imas.IMASConfig(
+        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
+        trapped_fraction_source=trapped_fraction_source,
+    ).build_geometry()
+
+    # Moderately coarse tolerance: Sauter is only an analytic approximation,
+    # so it need not match the exact integral closely, but a large deviation
+    # would indicate a bug rather than the expected model discrepancy.
+    np.testing.assert_allclose(
+        geo_geometry.trapped_fraction_face,
+        geo_sauter.trapped_fraction_face,
+        atol=0.05,
+        rtol=0.15,
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

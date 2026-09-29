@@ -17,7 +17,9 @@
 from collections.abc import Mapping
 import logging
 from typing import Any
+from typing import Final
 
+import contourpy
 from imas import ids_toplevel
 import numpy as np
 import scipy
@@ -76,6 +78,111 @@ def _load_equilibrium(
         f"Expected equilibrium IDS, got {equilibrium.metadata.name} IDS."
     )
   return equilibrium
+
+
+# Below this many contour vertices, the poloidal (R, Z) equilibrium grid does
+# not resolve the flux surface well enough for an accurate line integral
+# (e.g. flux surfaces very close to the magnetic axis, which can be much
+# smaller than a single grid cell). Surfaces below this threshold are marked
+# unreliable (NaN) so the caller can smoothly extrapolate to the axis.
+_MIN_CONTOUR_POINTS_FOR_EXACT_INTEGRAL: Final[int] = 20
+
+# IMAS DD `equilibrium_profiles_2d_grid_type` identifier index for a
+# rectangular (R, Z) grid, the only grid type currently supported for the
+# exact bounce-averaged trapped fraction calculation below.
+_IMAS_RECTANGULAR_GRID_TYPE: Final[int] = 1
+
+
+def _calculate_exact_trapped_fraction(IMAS_data: Any) -> np.ndarray:
+  """Computes the trapped fraction from the full 2D equilibrium, if possible.
+
+  Used to implement `TrappedFractionSource.EXACT`. Builds flux surface
+  contours from `profiles_2d` (mirroring the approach used for EQDSK
+  geometries) at each of the `profiles_1d.psi` grid points, and applies
+  `trapped_fraction_lib.calculate_bounce_averaged_trapped_fraction` to each.
+
+  Args:
+    IMAS_data: A single equilibrium IDS time slice.
+
+  Returns:
+    The trapped fraction on the `profiles_1d.psi` grid, with NaN at any
+    surface too close to the magnetic axis for the 2D grid to resolve
+    reliably.
+  """
+  if (
+      not IMAS_data.profiles_2d
+      or not IMAS_data.profiles_2d[0].psi
+      or IMAS_data.profiles_2d[0].grid_type.index != _IMAS_RECTANGULAR_GRID_TYPE
+  ):
+    raise ValueError(
+        "trapped_fraction_source=EXACT requires a rectangular"
+        " profiles_2d psi grid to compute the bounce-averaged integral,"
+        " but this equilibrium IDS does not provide one. Use"
+        " trapped_fraction_source=FILE to read a value precomputed by"
+        " the equilibrium code instead (if available), or SAUTER for"
+        " the analytic approximation."
+    )
+
+  psi_1d = np.asarray(IMAS_data.profiles_1d.psi)
+  F_1d = np.asarray(IMAS_data.profiles_1d.f)
+  R = np.asarray(IMAS_data.profiles_2d[0].r)
+  Z = np.asarray(IMAS_data.profiles_2d[0].z)
+  psi_2d = np.asarray(IMAS_data.profiles_2d[0].psi)
+  R_1D = R[:, 0]
+  Z_1D = Z[0, :]
+
+  boundary_r = np.asarray(IMAS_data.boundary.outline.r)
+  boundary_z = np.asarray(IMAS_data.boundary.outline.z)
+  offset = 0.01
+  mask = (
+      (R > boundary_r.min() - offset)
+      & (R < boundary_r.max() + offset)
+      & (Z > boundary_z.min() - offset)
+      & (Z < boundary_z.max() + offset)
+  )
+  masked_psi_2d = np.ma.masked_where(~mask, psi_2d)
+
+  psi_2d_interpolator = scipy.interpolate.RectBivariateSpline(
+      R_1D, Z_1D, psi_2d, kx=3, ky=3, s=0
+  )
+  psi_contour_generator = contourpy.contour_generator(R, Z, masked_psi_2d)
+
+  # No trapped particles on the magnetic axis (n=0), where B is uniform; no
+  # contour is defined there either way.
+  trapped_fraction = np.full_like(psi_1d, np.nan)
+  trapped_fraction[0] = 0.0
+  for n in range(1, len(psi_1d)):
+    vertices = psi_contour_generator.create_contour(psi_1d[n])
+    if not vertices:
+      continue
+    contour = vertices[0]
+    if len(contour) > 1 and np.allclose(contour[0], contour[-1]):
+      contour = contour[:-1]
+    # If the flux surface is too small for the grid to resolve well (typically
+    # only an issue very close to the magnetic axis), leave as NaN so the
+    # caller can smoothly extrapolate to the axis.
+    if len(contour) < _MIN_CONTOUR_POINTS_FOR_EXACT_INTEGRAL:
+      continue
+    x_surface, z_surface = contour[:, 0], contour[:, 1]
+    segment_lengths = np.hypot(
+        np.roll(x_surface, -1) - x_surface,
+        np.roll(z_surface, -1) - z_surface,
+    )
+    surface_dl = 0.5 * (segment_lengths + np.roll(segment_lengths, 1))
+    surface_dpsi_x = psi_2d_interpolator.ev(x_surface, z_surface, dx=1)
+    surface_dpsi_z = psi_2d_interpolator.ev(x_surface, z_surface, dy=1)
+    surface_Bpol = np.sqrt(surface_dpsi_x**2 + surface_dpsi_z**2) / (
+        2 * np.pi * x_surface
+    )
+    surface_Btor = F_1d[n] / x_surface
+    surface_B = np.sqrt(surface_Bpol**2 + surface_Btor**2)
+    trapped_fraction[n] = (
+        trapped_fraction_lib.calculate_bounce_averaged_trapped_fraction(
+            B=surface_B,
+            dl_over_Bp=surface_dl / surface_Bpol,
+        )
+    )
+  return trapped_fraction
 
 
 def _geometry_from_single_slice(
@@ -211,16 +318,20 @@ def _geometry_from_single_slice(
 
   z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
-  match trapped_fraction_source:
-    case trapped_fraction_lib.TrappedFractionSource.SAUTER:
-      epsilon = (R_out - R_in) / (R_out + R_in)
-      delta = (
-          IMAS_data.profiles_1d.triangularity_upper
-          + IMAS_data.profiles_1d.triangularity_lower
-      ) / 2.0
-      trapped_fraction = trapped_fraction_lib.calculate_sauter_trapped_fraction(
+  epsilon = (R_out - R_in) / (R_out + R_in)
+  delta = (
+      IMAS_data.profiles_1d.triangularity_upper
+      + IMAS_data.profiles_1d.triangularity_lower
+  ) / 2.0
+  sauter_trapped_fraction = (
+      trapped_fraction_lib.calculate_sauter_trapped_fraction(
           epsilon=epsilon, delta=delta
       )
+  )
+
+  match trapped_fraction_source:
+    case trapped_fraction_lib.TrappedFractionSource.SAUTER:
+      trapped_fraction = sauter_trapped_fraction
     case trapped_fraction_lib.TrappedFractionSource.FILE:
       if not IMAS_data.profiles_1d.trapped_fraction:
         raise ValueError(
@@ -231,13 +342,36 @@ def _geometry_from_single_slice(
             " approximation."
         )
       trapped_fraction = np.asarray(IMAS_data.profiles_1d.trapped_fraction)
-
+    case trapped_fraction_lib.TrappedFractionSource.EXACT:
+      exact_trapped_fraction = _calculate_exact_trapped_fraction(IMAS_data)
+      # Fill any unreliable values (NaN, or outside the physically valid
+      # [0, 1] range, e.g. surfaces too close to the magnetic axis for the
+      # grid to resolve well) via smooth extrapolation to the axis.
+      exact_is_unreliable = (
+          np.isnan(exact_trapped_fraction)
+          | (exact_trapped_fraction < 0.0)
+          | (exact_trapped_fraction > 1.0)
+      )
+      if np.any(exact_is_unreliable):
+        logging.warning(
+            "Overwriting %d bad/unphysical EXACT trapped fraction values via"
+            " smooth extrapolation to the axis.",
+            int(np.sum(exact_is_unreliable)),
+        )
+      trapped_fraction = (
+          trapped_fraction_lib.extrapolate_exact_trapped_fraction_to_axis(
+              trapped_fraction=exact_trapped_fraction,
+              rhon=np.asarray(rhon),
+              sauter_trapped_fraction=sauter_trapped_fraction,
+          )
+      )
     case _:
       raise ValueError(
           f"Unsupported trapped_fraction_source: {trapped_fraction_source}."
           "Supported options: "
           f"{trapped_fraction_lib.TrappedFractionSource.SAUTER.value}, "
-          f"{trapped_fraction_lib.TrappedFractionSource.FILE.value}."
+          f"{trapped_fraction_lib.TrappedFractionSource.FILE.value}, "
+          f"{trapped_fraction_lib.TrappedFractionSource.EXACT.value}."
       )
 
   # TODO(b/446608829): Add support for edge geometries from IMAS.
