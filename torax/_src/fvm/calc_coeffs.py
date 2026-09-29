@@ -234,6 +234,18 @@ def _calc_coeffs_full(
   conductivity = models.neoclassical_models.conductivity.calculate_conductivity(
       geo, core_profiles
   )
+  # Update poloidal_velocity on core_profiles for the current solver iterate;
+  # used by turbulent transport models (for ExB shear) in
+  # calculate_all_transport_coeffs below.
+  poloidal_velocity = (
+      models.neoclassical_models.poloidal_velocity.calculate_poloidal_velocity(
+          runtime_params, geo, core_profiles
+      )
+  )
+  core_profiles = dataclasses.replace(
+      core_profiles,
+      poloidal_velocity=poloidal_velocity.v_pol,
+  )
 
   # Calculate the implicit source profiles and combine them with the explicit
   # source profiles. These are needed for the pedestal model, so are computed
