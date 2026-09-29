@@ -70,7 +70,6 @@ def _get_config_and_model_inputs(
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()

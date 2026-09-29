@@ -250,7 +250,6 @@ class FVMTest(parameterized.TestCase):
     evolving_names = tuple(['T_i'])
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -365,7 +364,6 @@ class FVMTest(parameterized.TestCase):
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
         explicit=True,
     )
 
@@ -488,7 +486,6 @@ class FVMTest(parameterized.TestCase):
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
         explicit=True,
     )
 
