@@ -56,7 +56,7 @@ def _roots_are_distinct(
       extended_lengyel_defaults.MULTISTART_ROOT_ATOL
       + extended_lengyel_defaults.MULTISTART_ROOT_RTOL * jnp.abs(ref_values)
   )
-  return diffs > threshold  # pyrefly: ignore[bad-return]
+  return jnp.asarray(diffs > threshold)
 
 
 def _extract_solver_metrics(
@@ -84,6 +84,31 @@ def _extract_solver_metrics(
 # ---------------------------------------------------------------------------
 # Output keys specific to the Extended Lengyel model.
 # ---------------------------------------------------------------------------
+Q_PARALLEL = output_keys.OutputKey(
+    'q_parallel',
+    units=output_keys.Units.WATT_PER_SQUARE_METER,
+    grid_type=output_keys.GridType.SCALAR,
+)
+Q_PERPENDICULAR_TARGET = output_keys.OutputKey(
+    'q_perpendicular_target',
+    units=output_keys.Units.WATT_PER_SQUARE_METER,
+    grid_type=output_keys.GridType.SCALAR,
+)
+T_E_SEPARATRIX = output_keys.OutputKey(
+    'T_e_separatrix',
+    units=output_keys.Units.KEV,
+    grid_type=output_keys.GridType.SCALAR,
+)
+T_E_TARGET = output_keys.OutputKey(
+    'T_e_target',
+    units=output_keys.Units.EV,
+    grid_type=output_keys.GridType.SCALAR,
+)
+PRESSURE_NEUTRAL_DIVERTOR = output_keys.OutputKey(
+    'pressure_neutral_divertor',
+    units=output_keys.Units.PASCAL,
+    grid_type=output_keys.GridType.SCALAR,
+)
 ALPHA_T = output_keys.OutputKey(
     'alpha_t',
     units=output_keys.Units.DIMENSIONLESS,
@@ -149,10 +174,20 @@ SEED_IMPURITY = output_keys.OutputKey(
     units=output_keys.Units.NOT_APPLICABLE,
     grid_type=output_keys.GridType.NOT_APPLICABLE,
 )
+ENRICHMENT_IMPURITY = output_keys.OutputKey(
+    'enrichment_impurity',
+    units=output_keys.Units.NOT_APPLICABLE,
+    grid_type=output_keys.GridType.NOT_APPLICABLE,
+)
 
 _EXTENDED_LENGYEL_KEYS: dict[str, output_keys.OutputKey] = {
     k: k
     for k in (
+        Q_PARALLEL,
+        Q_PERPENDICULAR_TARGET,
+        T_E_SEPARATRIX,
+        T_E_TARGET,
+        PRESSURE_NEUTRAL_DIVERTOR,
         ALPHA_T,
         Z_EFF_SEPARATRIX,
         MULTIPLE_ROOTS_FOUND,
@@ -166,6 +201,7 @@ _EXTENDED_LENGYEL_KEYS: dict[str, output_keys.OutputKey] = {
         SEED_IMPURITY_CONCENTRATIONS,
         CALCULATED_ENRICHMENT,
         SEED_IMPURITY,
+        ENRICHMENT_IMPURITY,
     )
 }
 
@@ -176,6 +212,11 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
   """Outputs from the extended Lengyel model on top of the base class outputs.
 
   Attributes:
+    q_parallel: Parallel heat flux upstream [W/m^2].
+    q_perpendicular_target: Heat flux perpendicular to the target [W/m^2].
+    T_e_separatrix: Electron temperature at the separatrix [keV].
+    T_e_target: Electron temperature at sheath entrance [eV].
+    pressure_neutral_divertor: Neutral pressure in the divertor [Pa].
     alpha_t: Turbulence broadening factor alpha_t.
     kappa_e: Electron heat conductivity prefactor [W/(m*eV^3.5)].
     c_z_prefactor: Impurity concentration prefactor [dimensionless].
@@ -194,6 +235,11 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       which only has a single solution.
   """
 
+  q_parallel: jax.Array
+  q_perpendicular_target: jax.Array
+  T_e_separatrix: jax.Array
+  T_e_target: jax.Array
+  pressure_neutral_divertor: jax.Array
   alpha_t: jax.Array
   kappa_e: jax.Array
   c_z_prefactor: jax.Array
@@ -358,7 +404,8 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         numerics_outcome=new_numerics_outcome,
     )
 
-    # Reconstruct seed_impurity_concentrations and calculated_enrichment
+    # Reconstruct seed_impurity_concentrations, calculated_enrichment, and
+    # impurity_right_bc
     new_seed_impurity_concentrations = {
         k: result_dict[f'seed_impurity_concentrations_{k}']
         for k in roots.seed_impurity_concentrations or {}
@@ -367,6 +414,11 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     new_calculated_enrichment = {
         k: result_dict[f'calculated_enrichment_{k}']
         for k in roots.calculated_enrichment or {}
+    }
+
+    new_impurity_right_bc = {
+        k: result_dict[f'impurity_right_bc_{k}']
+        for k in roots.impurity_right_bc or {}
     }
 
     # Create the new ExtendedLengyelOutputs instance
@@ -383,6 +435,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         new_seed_impurity_concentrations
     )
     output_args['calculated_enrichment'] = new_calculated_enrichment
+    output_args['impurity_right_bc'] = new_impurity_right_bc
     output_args['roots'] = None
     output_args['multiple_roots_found'] = None
 
@@ -434,27 +487,37 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       )
 
     # 3. Impurity mappings
-    if self.seed_impurity_concentrations:
-      impurities = sorted(list(self.seed_impurity_concentrations.keys()))
-      data_array = np.stack(
-          [self.seed_impurity_concentrations[i] for i in impurities], axis=0
-      )
-      out_dict[SEED_IMPURITY_CONCENTRATIONS] = (
-          (SEED_IMPURITY, output_keys.TIME),
-          data_array,
-          {'units': SEED_IMPURITY_CONCENTRATIONS.units},
-      )
+    out_dict.update(
+        base.pack_impurity_mapping(
+            SEED_IMPURITY_CONCENTRATIONS,
+            self.seed_impurity_concentrations,
+            dim_name=SEED_IMPURITY,
+        )
+    )
+    out_dict.update(
+        base.pack_impurity_mapping(
+            CALCULATED_ENRICHMENT,
+            self.calculated_enrichment,
+            dim_name=ENRICHMENT_IMPURITY,
+        )
+    )
 
-    if self.calculated_enrichment:
-      impurities = sorted(list(self.calculated_enrichment.keys()))
-      data_array = np.stack(
-          [self.calculated_enrichment[i] for i in impurities], axis=0
-      )
-      out_dict[CALCULATED_ENRICHMENT] = (
-          (output_keys.IMPURITY, output_keys.TIME),
-          data_array,
-          {},
-      )
+    # 4. Divertor / SOL quantities
+    divertor_quantities: dict[str, output_grid_context.OutputVar] = {
+        Q_PARALLEL: context.pack(Q_PARALLEL, self.q_parallel),
+        Q_PERPENDICULAR_TARGET: context.pack(
+            Q_PERPENDICULAR_TARGET, self.q_perpendicular_target
+        ),
+        T_E_SEPARATRIX: context.pack(T_E_SEPARATRIX, self.T_e_separatrix),
+        T_E_TARGET: context.pack(T_E_TARGET, self.T_e_target),
+        PRESSURE_NEUTRAL_DIVERTOR: context.pack(
+            PRESSURE_NEUTRAL_DIVERTOR,
+            self.pressure_neutral_divertor,
+        ),
+    }
+    out_dict.update(
+        {k: v for k, v in divertor_quantities.items() if v is not None}
+    )
 
     return out_dict
 
@@ -526,9 +589,11 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
           list(self.seed_impurity_concentrations.keys())
       )
     if self.calculated_enrichment:
-      coords[output_keys.IMPURITY] = sorted(
+      coords[ENRICHMENT_IMPURITY] = sorted(
           list(self.calculated_enrichment.keys())
       )
+    if self.impurity_right_bc:
+      coords[output_keys.IMPURITY] = sorted(list(self.impurity_right_bc.keys()))
     edge_dataset = context.build_dataset(
         self.to_output_dict(context), coords=coords
     )
@@ -549,6 +614,8 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         'computation_mode',
         'solver_mode',
         'multistart_num_guesses',
+        'use_enrichment_model',
+        'impurity_sot',
     ],
 )
 def run_extended_lengyel_standalone(
@@ -607,6 +674,11 @@ def run_extended_lengyel_standalone(
     multistart_num_guesses: int = extended_lengyel_defaults.MULTISTART_NUM_GUESSES,
     enrichment_model_multiplier: array_typing.FloatScalar = 1.0,
     diverted: bool = True,
+    use_enrichment_model: bool = True,
+    enrichment_factor: Mapping[str, array_typing.FloatScalar] | None = None,
+    impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+        extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
+    ),
     initial_guess: (
         divertor_sol_1d_lib.ExtendedLengyelInitialGuess | None
     ) = None,
@@ -681,8 +753,13 @@ def run_extended_lengyel_standalone(
     seed_impurity_weights = {}
 
   _validate_inputs_for_computation_mode(
-      computation_mode, T_e_target, seed_impurity_weights  # pyrefly: ignore[bad-argument-type]
+      computation_mode, T_e_target, seed_impurity_weights
   )
+
+  if not use_enrichment_model and enrichment_factor is None:
+    raise ValueError(
+        'enrichment_factor must be provided when use_enrichment_model is False.'
+    )
 
   params = _construct_parameters(
       power_crossing_separatrix=power_crossing_separatrix,
@@ -746,6 +823,9 @@ def run_extended_lengyel_standalone(
         diverted=diverted,
         enrichment_model_multiplier=enrichment_model_multiplier,
         multistart_num_guesses=multistart_num_guesses,
+        use_enrichment_model=use_enrichment_model,
+        enrichment_factor=enrichment_factor,
+        impurity_sot=impurity_sot,
     )
   else:
     # Inverse mode always has a single solution so we use a single solver call.
@@ -758,6 +838,9 @@ def run_extended_lengyel_standalone(
         newton_raphson_tol=newton_raphson_tol,
         diverted=diverted,
         enrichment_model_multiplier=enrichment_model_multiplier,
+        use_enrichment_model=use_enrichment_model,
+        enrichment_factor=enrichment_factor,
+        impurity_sot=impurity_sot,
     )
 
 
@@ -915,10 +998,10 @@ def _get_initial_sol_model(
 
   initial_state = divertor_sol_1d_lib.ExtendedLengyelState(
       q_parallel=q_parallel_init,
-      alpha_t=alpha_t_init,
-      c_z_prefactor=c_z_prefactor_init,
-      kappa_e=kappa_e_init,
-      T_e_target=T_e_target_init,  # pyrefly: ignore[bad-argument-type]
+      alpha_t=jnp.asarray(alpha_t_init),
+      c_z_prefactor=jnp.asarray(c_z_prefactor_init),
+      kappa_e=jnp.asarray(kappa_e_init),
+      T_e_target=jnp.asarray(T_e_target_init),
   )
 
   return divertor_sol_1d_lib.DivertorSOL1D(
@@ -1010,6 +1093,11 @@ def _run_forward_mode_multistart(
     diverted: bool,
     enrichment_model_multiplier: array_typing.FloatScalar,
     multistart_num_guesses: int,
+    use_enrichment_model: bool = True,
+    enrichment_factor: Mapping[str, array_typing.FloatScalar] | None = None,
+    impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+        extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
+    ),
 ) -> ExtendedLengyelOutputs:
   """Runs the forward mode solver with multi-start logic."""
 
@@ -1036,13 +1124,11 @@ def _run_forward_mode_multistart(
   )
 
   def _process_single_guess(T_e_target, alpha_t):
-    # a. Make guess
     state_guess = dataclasses.replace(
         initial_state, T_e_target=T_e_target, alpha_t=alpha_t
     )
     model = dataclasses.replace(initial_sol_model, state=state_guess)
 
-    # b. Execute solver
     model_out, status = _execute_solver(
         model,
         extended_lengyel_enums.ComputationMode.FORWARD,
@@ -1052,47 +1138,20 @@ def _run_forward_mode_multistart(
         newton_raphson_tol,
     )
 
-    # c. Post-process output
-    pressure_neutral_divertor, q_perpendicular_target = (
-        _calc_post_processed_outputs(sol_model=model_out)
-    )
-    calculated_enrichment = {}
-    params = model_out.params
-    all_impurities = set(params.fixed_impurity_concentrations.keys()) | set(
-        params.seed_impurity_weights.keys()
-    )
-    for impurity in all_impurities:
-      calculated_enrichment[impurity] = jnp.where(
-          diverted,
-          extended_lengyel_formulas.calc_enrichment_kallenbach(
-              pressure_neutral_divertor=pressure_neutral_divertor,
-              ion_symbol=impurity,
-              enrichment_multiplier=enrichment_model_multiplier,
-          ),
-          jnp.array(1.0, dtype=jax_utils.get_dtype()),
-      )
-
     is_valid = (
         status.numerics_outcome.error != 1
         if isinstance(status.numerics_outcome, jax_root_finding.RootMetadata)
         else jnp.array(True)
     )
-
-    output = ExtendedLengyelOutputs(
-        T_e_target=model_out.state.T_e_target,  # pyrefly: ignore[bad-argument-type]
-        pressure_neutral_divertor=pressure_neutral_divertor,
-        alpha_t=model_out.state.alpha_t,  # pyrefly: ignore[bad-argument-type]
-        kappa_e=model_out.state.kappa_e,  # pyrefly: ignore[bad-argument-type]
-        c_z_prefactor=model_out.state.c_z_prefactor,  # pyrefly: ignore[bad-argument-type]
-        q_parallel=model_out.state.q_parallel,  # pyrefly: ignore[bad-argument-type]
-        q_perpendicular_target=q_perpendicular_target,
-        T_e_separatrix=model_out.T_e_separatrix / 1e3,
-        Z_eff_separatrix=model_out.Z_eff_separatrix,
-        seed_impurity_concentrations=model_out.seed_impurity_concentrations,  # pyrefly: ignore[bad-argument-type]
+    output = _build_extended_lengyel_outputs(
+        sol_model=model_out,
         solver_status=status,
-        calculated_enrichment=calculated_enrichment,
-        roots=None,
+        diverted=diverted,
+        enrichment_model_multiplier=enrichment_model_multiplier,
         multiple_roots_found=jnp.array(False),
+        use_enrichment_model=use_enrichment_model,
+        enrichment_factor=enrichment_factor,
+        impurity_sot=impurity_sot,
     )
     return output, is_valid
 
@@ -1136,31 +1195,24 @@ def _run_forward_mode_multistart(
   )
 
 
-def _run_single_solver(
-    initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
-    computation_mode: extended_lengyel_enums.ComputationMode,
-    solver_mode: extended_lengyel_enums.SolverMode,
-    fixed_point_iterations: int,
-    newton_raphson_iterations: int,
-    newton_raphson_tol: float,
+def _build_extended_lengyel_outputs(
+    sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    solver_status: extended_lengyel_solvers.ExtendedLengyelSolverStatus,
     diverted: bool,
     enrichment_model_multiplier: array_typing.FloatScalar,
+    multiple_roots_found: jax.Array | None,
+    use_enrichment_model: bool = True,
+    enrichment_factor: Mapping[str, array_typing.FloatScalar] | None = None,
+    impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+        extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
+    ),
 ) -> ExtendedLengyelOutputs:
-  """Runs a single solver instance (e.g. for Inverse mode)."""
-  output_sol_model, solver_status = _execute_solver(
-      initial_sol_model,
-      computation_mode,
-      solver_mode,
-      fixed_point_iterations,
-      newton_raphson_iterations,
-      newton_raphson_tol,
-  )
-
+  """Constructs ExtendedLengyelOutputs from a solved DivertorSOL1D model."""
   pressure_neutral_divertor, q_perpendicular_target = (
-      _calc_post_processed_outputs(sol_model=output_sol_model)
+      _calc_post_processed_outputs(sol_model=sol_model)
   )
   calculated_enrichment = {}
-  params = output_sol_model.params
+  params = sol_model.params
   all_impurities = set(params.fixed_impurity_concentrations.keys()) | set(
       params.seed_impurity_weights.keys()
   )
@@ -1176,29 +1228,100 @@ def _run_single_solver(
         jnp.array(1.0, dtype=jax_utils.get_dtype()),
     )
 
+  if use_enrichment_model:
+    enrichment = calculated_enrichment
+  elif enrichment_factor is not None:
+    enrichment = enrichment_factor
+  else:
+    raise ValueError(
+        'enrichment_factor must be provided when use_enrichment_model is False.'
+    )
+  get_enrichment = lambda s: enrichment[s]
+
+  impurity_right_bc = {
+      species: jnp.asarray(
+          conc / get_enrichment(species), dtype=jax_utils.get_dtype()
+      )
+      for species, conc in sol_model.seed_impurity_concentrations.items()
+  }
+
+  if impurity_sot == extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE:
+    for species, conc in params.fixed_impurity_concentrations.items():
+      impurity_right_bc[species] = jnp.asarray(
+          conc / get_enrichment(species), dtype=jax_utils.get_dtype()
+      )
+
+  T_e_separatrix_keV = sol_model.T_e_separatrix / 1e3
+  T_e_right_bc = T_e_separatrix_keV
+  T_i_right_bc = T_e_separatrix_keV * sol_model.params.T_i_T_e_ratio_target
+
   return ExtendedLengyelOutputs(
-      T_e_target=output_sol_model.state.T_e_target,  # pyrefly: ignore[bad-argument-type]
+      T_e_right_bc=T_e_right_bc,
+      T_i_right_bc=T_i_right_bc,
+      impurity_right_bc=impurity_right_bc,
+      # Extended Lengyel does not predict boundary density; set NaN so if the
+      # value is used to update the density boundary condition a NaN error is
+      # raised.
+      n_e_right_bc=jnp.array(jnp.nan, dtype=jax_utils.get_dtype()),
+      T_e_target=sol_model.state.T_e_target,
       pressure_neutral_divertor=pressure_neutral_divertor,
-      alpha_t=output_sol_model.state.alpha_t,  # pyrefly: ignore[bad-argument-type]
-      kappa_e=output_sol_model.state.kappa_e,  # pyrefly: ignore[bad-argument-type]
-      c_z_prefactor=output_sol_model.state.c_z_prefactor,  # pyrefly: ignore[bad-argument-type]
-      q_parallel=output_sol_model.state.q_parallel,  # pyrefly: ignore[bad-argument-type]
+      alpha_t=sol_model.state.alpha_t,
+      kappa_e=sol_model.state.kappa_e,
+      c_z_prefactor=sol_model.state.c_z_prefactor,
+      q_parallel=sol_model.state.q_parallel,
       q_perpendicular_target=q_perpendicular_target,
-      T_e_separatrix=output_sol_model.T_e_separatrix / 1e3,
-      Z_eff_separatrix=output_sol_model.Z_eff_separatrix,
-      seed_impurity_concentrations=output_sol_model.seed_impurity_concentrations,  # pyrefly: ignore[bad-argument-type]
+      T_e_separatrix=T_e_separatrix_keV,
+      Z_eff_separatrix=sol_model.Z_eff_separatrix,
+      seed_impurity_concentrations=sol_model.seed_impurity_concentrations,
       solver_status=solver_status,
       calculated_enrichment=calculated_enrichment,
       roots=None,
+      multiple_roots_found=multiple_roots_found,
+  )
+
+
+def _run_single_solver(
+    initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
+    computation_mode: extended_lengyel_enums.ComputationMode,
+    solver_mode: extended_lengyel_enums.SolverMode,
+    fixed_point_iterations: int,
+    newton_raphson_iterations: int,
+    newton_raphson_tol: float,
+    diverted: bool,
+    enrichment_model_multiplier: array_typing.FloatScalar,
+    use_enrichment_model: bool = True,
+    enrichment_factor: Mapping[str, array_typing.FloatScalar] | None = None,
+    impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
+        extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
+    ),
+) -> ExtendedLengyelOutputs:
+  """Runs a single solver instance (e.g. for Inverse mode)."""
+  output_sol_model, solver_status = _execute_solver(
+      initial_sol_model,
+      computation_mode,
+      solver_mode,
+      fixed_point_iterations,
+      newton_raphson_iterations,
+      newton_raphson_tol,
+  )
+
+  return _build_extended_lengyel_outputs(
+      sol_model=output_sol_model,
+      solver_status=solver_status,
+      diverted=diverted,
+      enrichment_model_multiplier=enrichment_model_multiplier,
       multiple_roots_found=jnp.array(False)
       if computation_mode == extended_lengyel_enums.ComputationMode.FORWARD
       else None,
+      use_enrichment_model=use_enrichment_model,
+      enrichment_factor=enrichment_factor,
+      impurity_sot=impurity_sot,
   )
 
 
 def _validate_inputs_for_computation_mode(
     computation_mode: extended_lengyel_enums.ComputationMode,
-    T_e_target: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar | None,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
 ):
   """Validates inputs based on the specified computation mode."""

@@ -24,7 +24,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -74,13 +74,11 @@ class InitializationTest(parameterized.TestCase):
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
         j_parallel_external, geo, runtime_params.numerics.min_rho_norm
     )
-    j_total_hires = (
-        initialization.get_j_toroidal_total_hires_with_external_sources(
-            bootstrap_current=bootstrap,
-            runtime_params=runtime_params,
-            geo=geo,
-            j_toroidal_external=j_toroidal_external,  # pyrefly: ignore[bad-argument-type]
-        )
+    j_total_hires = initialization.get_j_toroidal_total_hires_with_external_sources(
+        bootstrap_current=bootstrap,
+        runtime_params=runtime_params,
+        geo=geo,
+        j_toroidal_external=j_toroidal_external,  # pyrefly: ignore[bad-argument-type]
     )
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.Ip,
@@ -401,7 +399,9 @@ class InitializationTest(parameterized.TestCase):
         runtime_params,
         mock.ANY,
     )
-    self.assertEqual(psi_source, profile_conditions_lib.InitialPsiMode.GEOMETRY)
+    self.assertEqual(
+        psi_source, core_profile_runtime_params.InitialPsiMode.GEOMETRY
+    )
 
   def test_get_initial_psi_mode_j(self):
     config = default_configs.get_default_config_dict()
@@ -417,7 +417,7 @@ class InitializationTest(parameterized.TestCase):
         runtime_params,
         mock.ANY,
     )
-    self.assertEqual(psi_source, profile_conditions_lib.InitialPsiMode.J)
+    self.assertEqual(psi_source, core_profile_runtime_params.InitialPsiMode.J)
 
   def test_get_initial_psi_mode_profile_conditions(self):
     config = default_configs.get_default_config_dict()
@@ -435,7 +435,8 @@ class InitializationTest(parameterized.TestCase):
         mock.ANY,
     )
     self.assertEqual(
-        psi_source, profile_conditions_lib.InitialPsiMode.PROFILE_CONDITIONS
+        psi_source,
+        core_profile_runtime_params.InitialPsiMode.PROFILE_CONDITIONS,
     )
 
   def test_get_initial_psi_mode_legacy_initial_psi_from_j(self):
@@ -453,7 +454,7 @@ class InitializationTest(parameterized.TestCase):
         runtime_params,
         torax_config.geometry.build_provider(t=0.0),
     )
-    self.assertEqual(psi_source, profile_conditions_lib.InitialPsiMode.J)
+    self.assertEqual(psi_source, core_profile_runtime_params.InitialPsiMode.J)
 
   def test_get_initial_psi_mode_legacy_initial_psi_from_j_circular_geo(self):
     config = default_configs.get_default_config_dict()
@@ -471,7 +472,7 @@ class InitializationTest(parameterized.TestCase):
         runtime_params,
         torax_config.geometry.build_provider(t=0.0),
     )
-    self.assertEqual(psi_source, profile_conditions_lib.InitialPsiMode.J)
+    self.assertEqual(psi_source, core_profile_runtime_params.InitialPsiMode.J)
 
   def test_get_initial_psi_mode_legacy_init_from_geo(self):
     config = default_configs.get_default_config_dict()
@@ -489,7 +490,9 @@ class InitializationTest(parameterized.TestCase):
         runtime_params,
         torax_config.geometry.build_provider(t=0.0),
     )
-    self.assertEqual(psi_source, profile_conditions_lib.InitialPsiMode.GEOMETRY)
+    self.assertEqual(
+        psi_source, core_profile_runtime_params.InitialPsiMode.GEOMETRY
+    )
 
 
 def _get_initial_state(

@@ -30,6 +30,10 @@ Functions:
       averaged electron density (can be line-averaged or volume-averaged).
     - calculate_beta_volume_avg: Calculates the volume-averaged plasma beta
       based on thermal pressure.
+    - calculate_beta_pol_profile: Calculates local poloidal beta profile as a
+      CellVariable.
+    - calc_beta_pol_prime: Calculates
+      beta_pol_prime = -d(beta_pol) / d(psi_norm) on the face grid.
 """
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -38,6 +42,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.physics import psi_calculations
 
 
 # pylint: disable=invalid-name
@@ -264,3 +269,70 @@ def calculate_betas(
   )
 
   return beta_tor, beta_pol, beta_N  # pyrefly: ignore[bad-return]
+
+
+def calculate_beta_pol_profile(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> cell_variable.CellVariable:
+  """Calculates the local poloidal beta profile on the cell grid.
+
+  beta_pol_local(psi) = P_total(psi) / (<Bp^2(psi)> / (2 * mu0))
+
+  Args:
+    core_profiles: CoreProfiles object.
+    geo: Geometry object.
+
+  Returns:
+    beta_pol_profile: CellVariable of local poloidal beta profile.
+  """
+  bpol2_face = psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+  bpol2_cell = geometry.face_to_cell(bpol2_face)
+  denom_cell = (
+      bpol2_cell / (2.0 * constants.CONSTANTS.mu_0) + constants.CONSTANTS.eps
+  )
+  denom_right = (
+      bpol2_face[-1] / (2.0 * constants.CONSTANTS.mu_0)
+      + constants.CONSTANTS.eps
+  )
+  right_face_constraint = (
+      core_profiles.pressure_total.right_face_constraint / denom_right
+      if core_profiles.pressure_total.right_face_constraint is not None
+      else None
+  )
+  return cell_variable.CellVariable(
+      value=core_profiles.pressure_total.value / denom_cell,
+      face_centers=core_profiles.pressure_total.face_centers,
+      right_face_constraint=right_face_constraint,
+      right_face_grad_constraint=None,
+  )
+
+
+def calculate_beta_pol_prime(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> array_typing.FloatVectorFace:
+  r"""Calculates beta_pol_prime on the face grid.
+
+  Defined as:
+    beta_pol_prime = -d(beta_pol_local) / d(psi_norm)
+  where beta_pol_local is the local poloidal beta CellVariable and psi_norm is
+  the normalized poloidal flux in [0, 1]. In normal confinement, pressure
+  decreases toward the edge, making d(beta_pol)/d(psi_norm) negative, so
+  beta_pol_prime represents the positive gradient magnitude.
+
+  Args:
+    core_profiles: CoreProfiles object.
+    geo: Geometry object.
+
+  Returns:
+    beta_pol_prime: Face-grid array of the derivative magnitude [dimensionless].
+  """
+  beta_pol = calculate_beta_pol_profile(core_profiles, geo)
+  return -calc_dvar_dpsi(
+      var=beta_pol,
+      psi=core_profiles.psi,
+      normalized=True,
+  )
+
+

@@ -16,7 +16,7 @@
 from collections.abc import Iterator, Mapping
 import dataclasses
 import operator
-from typing import Literal
+from typing import Any, Literal, Self
 
 import jax
 import jax.numpy as jnp
@@ -27,7 +27,6 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
-import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -46,7 +45,7 @@ class QeiInfo:
   p_ei: array_typing.Array
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     return cls(
         implicit_ii=jnp.zeros_like(geo.rho),
         explicit_i=jnp.zeros_like(geo.rho),
@@ -111,9 +110,9 @@ class SourceProfiles:
   @classmethod
   def merge(
       cls,
-      explicit_source_profiles: typing_extensions.Self,
-      implicit_source_profiles: typing_extensions.Self,
-  ) -> typing_extensions.Self:
+      explicit_source_profiles: Self,
+      implicit_source_profiles: Self,
+  ) -> Self:
     """Returns a SourceProfiles that merges the input profiles.
 
     Sources can either be explicit or implicit. The explicit_source_profiles
@@ -139,14 +138,14 @@ class SourceProfiles:
       implicit (assuming the source model outputted a non-zero profile).
 
     """
-    def _is_fast_ions_dict(x: typing_extensions.Any) -> bool:
+    def _is_fast_ions_dict(x: Any) -> bool:
       return isinstance(x, dict) and all(
           isinstance(v, tuple)
           and all(isinstance(el, fast_ion_lib.FastIon) for el in v)
           for v in x.values()
       )
 
-    def _merge(a: typing_extensions.Any, b: typing_extensions.Any):
+    def _merge(a: Any, b: Any):
       if _is_fast_ions_dict(a):
         return {**a, **b}
       return operator.add(a, b)

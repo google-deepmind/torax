@@ -19,6 +19,7 @@ import dataclasses
 from torax._src import static_dataclass
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.neoclassical.poloidal_velocity import base as poloidal_velocity_base
 from torax._src.neoclassical.transport import base as transport_base
 
 
@@ -35,3 +36,4 @@ class NeoclassicalModels(static_dataclass.StaticDataclass):
   conductivity: conductivity_base.ConductivityModel
   bootstrap_current: bootstrap_current_base.BootstrapCurrentModel
   transport: transport_base.NeoclassicalTransportModel
+  poloidal_velocity: poloidal_velocity_base.PoloidalVelocityModel

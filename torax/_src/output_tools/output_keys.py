@@ -165,6 +165,20 @@ NUMERICS: Final[OutputKey] = OutputKey(
 EDGE: Final[OutputKey] = OutputKey(
     "edge", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )
+AUXILIARY: Final[OutputKey] = OutputKey(
+    "auxiliary", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+TURBULENT_TRANSPORT: Final[OutputKey] = OutputKey(
+    "turbulent_transport",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
+CORE: Final[OutputKey] = OutputKey(
+    "core", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
+PEDESTAL: Final[OutputKey] = OutputKey(
+    "pedestal", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
+)
 
 # ---------------------------------------------------------------------------
 # Core profiles.
@@ -870,6 +884,14 @@ BETA_POL: Final[OutputKey] = OutputKey(
 BETA_N: Final[OutputKey] = OutputKey(
     "beta_N", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
 )
+BETA_POL_PROFILE: Final[OutputKey] = OutputKey(
+    "beta_pol_profile",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.FACE,
+)
+BETA_POL_PRIME: Final[OutputKey] = OutputKey(
+    "beta_pol_prime", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
+)
 
 # ---------------------------------------------------------------------------
 # Edge model outputs.
@@ -889,26 +911,19 @@ RADIATION_IMPURITY_SPECIES: Final[OutputKey] = OutputKey(
 # ---------------------------------------------------------------------------
 # Edge model scalar outputs.
 # ---------------------------------------------------------------------------
-Q_PARALLEL: Final[OutputKey] = OutputKey(
-    "q_parallel",
-    units=Units.WATT_PER_SQUARE_METER,
-    grid_type=GridType.SCALAR,
+T_E_RIGHT_BC: Final[OutputKey] = OutputKey(
+    "T_e_right_bc", units=Units.KEV, grid_type=GridType.SCALAR
 )
-Q_PERPENDICULAR_TARGET: Final[OutputKey] = OutputKey(
-    "q_perpendicular_target",
-    units=Units.WATT_PER_SQUARE_METER,
-    grid_type=GridType.SCALAR,
+T_I_RIGHT_BC: Final[OutputKey] = OutputKey(
+    "T_i_right_bc", units=Units.KEV, grid_type=GridType.SCALAR
 )
-T_E_SEPARATRIX: Final[OutputKey] = OutputKey(
-    "T_e_separatrix", units=Units.KEV, grid_type=GridType.SCALAR
+N_E_RIGHT_BC: Final[OutputKey] = OutputKey(
+    "n_e_right_bc", units=Units.INVERSE_CUBIC_METER, grid_type=GridType.SCALAR
 )
-T_E_TARGET: Final[OutputKey] = OutputKey(
-    "T_e_target", units=Units.EV, grid_type=GridType.SCALAR
-)
-PRESSURE_NEUTRAL_DIVERTOR: Final[OutputKey] = OutputKey(
-    "pressure_neutral_divertor",
-    units=Units.PASCAL,
-    grid_type=GridType.SCALAR,
+IMPURITY_RIGHT_BC: Final[OutputKey] = OutputKey(
+    "impurity_right_bc",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.NOT_APPLICABLE,
 )
 
 # ---------------------------------------------------------------------------
@@ -1071,6 +1086,11 @@ GM5: Final[OutputKey] = OutputKey(
 )
 GM9: Final[OutputKey] = OutputKey(
     "gm9", units=Units.INVERSE_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+TRAPPED_FRACTION: Final[OutputKey] = OutputKey(
+    "trapped_fraction",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.FACE,
 )
 
 # ---------------------------------------------------------------------------

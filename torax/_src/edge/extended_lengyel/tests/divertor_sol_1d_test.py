@@ -14,6 +14,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from jax import numpy as jnp
 import numpy as np
 from torax._src.edge.extended_lengyel import divertor_sol_1d
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
@@ -66,11 +67,11 @@ class DivertorSOL1DInverseModeTest(parameterized.TestCase):
         toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
     )
     state = divertor_sol_1d.ExtendedLengyelState(
-        q_parallel=3.39611623e8,
-        c_z_prefactor=0.059314229517142096,
-        kappa_e=1751.6010938527386,
-        alpha_t=0.0,
-        T_e_target=2.34,
+        q_parallel=jnp.array(3.39611623e8),
+        c_z_prefactor=jnp.array(0.059314229517142096),
+        kappa_e=jnp.array(1751.6010938527386),
+        alpha_t=jnp.array(0.0),
+        T_e_target=jnp.array(2.34),
     )
     self.divertor_sol_1d = divertor_sol_1d.DivertorSOL1D(
         params=params,
@@ -166,11 +167,11 @@ class DivertorSOL1DForwardModeTest(parameterized.TestCase):
         toroidal_flux_expansion=extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
     )
     state = divertor_sol_1d.ExtendedLengyelState(
-        q_parallel=5.061935771095335e8,
-        c_z_prefactor=0.0,
-        kappa_e=1931.8277173925928,
-        alpha_t=0.0,
-        T_e_target=2.0,
+        q_parallel=jnp.array(5.061935771095335e8),
+        c_z_prefactor=jnp.array(0.0),
+        kappa_e=jnp.array(1931.8277173925928),
+        alpha_t=jnp.array(0.0),
+        T_e_target=jnp.array(2.0),
     )
     self.divertor_sol_1d = divertor_sol_1d.DivertorSOL1D(
         params=params,

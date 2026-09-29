@@ -91,7 +91,7 @@ class SauterFormulasTest(parameterized.TestCase):
         log_lambda_ei=log_lambda_ei,
     )
 
-    self.f_trap = formulas.calculate_f_trap(self.geo)
+    self.f_trap = self.geo.trapped_fraction_face
 
   def test_L31_values_are_correct(self):
     L31 = sauter_formulas.calculate_L31(
@@ -107,15 +107,15 @@ class SauterFormulasTest(parameterized.TestCase):
 
 _L31_EXPECTED = np.array([
     0.0,
-    0.25942749,
+    0.2594107633186986,
     0.39198664,
-    0.48032915,
+    0.48032755509905906,
     0.53634519,
     0.57082292,
     0.5894148,
     0.59111759,
-    0.56839259,
-    0.5001917,
+    0.5683909023668218,
+    0.5001868536054601,
     0.33682819,
 ])
 _L32_EXPECTED = np.array([
@@ -128,7 +128,7 @@ _L32_EXPECTED = np.array([
     -0.06213122,
     -0.03385067,
     0.01149523,
-    0.08557197,
+    0.08556965525319629,
     0.16296924,
 ])
 

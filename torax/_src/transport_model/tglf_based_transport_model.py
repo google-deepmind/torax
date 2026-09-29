@@ -14,6 +14,7 @@
 """Base class and utils for TGLF-based models."""
 
 import dataclasses
+from typing import override
 
 import jax
 from jax import numpy as jnp
@@ -26,9 +27,8 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
-from torax._src.transport_model import component
 from torax._src.transport_model import quasilinear_transport_model
-from typing_extensions import override
+from torax._src.transport_model import transport_coeffs
 
 
 @jax.tree_util.register_dataclass
@@ -140,7 +140,6 @@ class TGLFBasedTransportModel(
       transport: RuntimeParams,  # pylint: disable=unused-argument
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
       two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> TGLFInputs:
     """Construct a TGLFInputs object from the TORAX state.
@@ -180,7 +179,6 @@ class TGLFBasedTransportModel(
       transport: Runtime parameters for the transport model.
       geo: Geometric parameters of the tokamak.
       core_profiles: Core plasma profiles (e.g., temperatures, densities, q).
-      poloidal_velocity_multiplier: Multiplier applied to the poloidal velocity.
       two_point_mask: Boolean face mask indicating where face gradients are
         calculated with 2-point central differences instead of 3-point.
 
@@ -389,19 +387,15 @@ class TGLFBasedTransportModel(
     def _get_v_ExB_shear(
         core_profiles: state.CoreProfiles,
         geo: geometry.Geometry,
-        poloidal_velocity_multiplier: array_typing.FloatScalar,
     ):
       rotation_output = rotation.calculate_rotation(
-          T_i=core_profiles.T_i,
           psi=core_profiles.psi,
           n_i=core_profiles.n_i,
-          q_face=core_profiles.q_face,
-          Z_eff_face=core_profiles.Z_eff_face,
           Z_i_face=core_profiles.Z_i_face,
           toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
+          poloidal_velocity=core_profiles.poloidal_velocity,
           pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
-          poloidal_velocity_multiplier=poloidal_velocity_multiplier,
       )
       v_ExB = rotation_output.v_ExB
       value_face = v_ExB / geo.R_major_profile_face
@@ -428,7 +422,6 @@ class TGLFBasedTransportModel(
       v_ExB_shear = _get_v_ExB_shear(
           core_profiles,
           geo,
-          poloidal_velocity_multiplier,
       )
     else:
       v_ExB_shear = jnp.zeros_like(core_profiles.q_face)
@@ -512,17 +505,16 @@ class TGLFBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace | None = None,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     # Denormalised TGLF output fluxes.
     Q_e = electron_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
     Q_i = ion_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
     Gamma_e = electron_particle_flux_GB * tglf_inputs.GAMMA_GB  # [s^-1/m^2]
 
-    # Total thermal power and particle rate.
+    # Total thermal power.
     dV_drho = geo.vpr_face / geo.rho_b
     P_e = Q_e * dV_drho  # [W]
     P_i = Q_i * dV_drho  # [W]
-    S_e = Gamma_e * dV_drho  # [s^-1]
 
     # Convert from power to chi.
     # Note: g1/vpr = ⟨(∇ρₙ)²⟩ ∂V/∂ρₙ, and has units [m].
@@ -549,40 +541,31 @@ class TGLFBasedTransportModel(
         eps=1e-7,
     )
 
-    # Convert from particle rate to D, V using effective
-    # diffusivity/convectivity method. This sets purely diffusive transport in
-    # regions where the flux is with the temperature gradient, otherwise it
-    # sets purely convective transport.
-    D_eff = math_utils.safe_divide(
-        num=-S_e,
-        denom=core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
-        * geo.g1_over_vpr_face,
-        eps=1e-7,
-    )
-    V_eff = math_utils.safe_divide(
-        num=S_e,
-        denom=core_profiles.n_e.face_value() * geo.g0_face,
-        eps=1e-7,
-    )
-    D_eff = jnp.where(jnp.isfinite(D_eff), D_eff, 0.0)
-    V_eff = jnp.where(jnp.isfinite(V_eff), V_eff, 0.0)
-    D_eff_mask = ((S_e >= 0) & (tglf_inputs.lref_over_lne >= 0)) | (
-        (S_e < 0) & (tglf_inputs.lref_over_lne < 0)
-    )
-    # For stability, we also set purely diffusive transport at some minimum
-    # threshold of the temperature gradient.
-    D_eff_mask &= abs(tglf_inputs.lref_over_lne) >= (
-        transport.An_min * geo.a_minor / geo.R_major
-    )
-    V_eff_mask = jnp.logical_not(D_eff_mask)
+    if transport.DV_effective:
+      d_face_el, v_face_el = quasilinear_transport_model.calculate_dv_effective(
+          particle_flux_SI=Gamma_e,
+          normalized_particle_flux=electron_particle_flux_GB,
+          n_e=core_profiles.n_e,
+          geo=geo,
+          gradient_reference_length=geo.R_major,
+          An_min=transport.An_min,
+          DV_effective_smooth_width=transport.DV_effective_smooth_width,
+          two_point_mask=two_point_mask,
+      )
+    else:
+      # Scaled D approach. Scale electron diffusivity to electron heat
+      # conductivity (this has some physical motivations),
+      # and set convection to then match total particle transport.
+      # TODO(b/567403838): Create a helper function, calculate_d_scaled.
+      dn_e_drhon = core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
+      d_face_el = chi_e
+      v_face_el = (
+          Gamma_e + d_face_el * dn_e_drhon * geo.g1_over_vpr2_face * geo.rho_b
+      ) / (core_profiles.n_e.face_value() * geo.g0_over_vpr_face * geo.rho_b)
 
-    # Apply the mask.
-    d_face_el = jnp.where(D_eff_mask, D_eff, 0.0)
-    v_face_el = jnp.where(V_eff_mask, V_eff, 0.0)
-
-    return component.TurbulentTransport(
-        chi_face_ion=chi_i,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el=chi_e,  # pyrefly: ignore[bad-argument-type]
+    return transport_coeffs.TransportCoeffs(
+        chi_face_ion=chi_i,
+        chi_face_el=chi_e,
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )

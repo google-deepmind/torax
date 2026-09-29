@@ -16,7 +16,7 @@
 
 import dataclasses
 import functools
-from typing import Any, TypeAlias
+from typing import Annotated, Any, Self, TypeAlias
 
 import chex
 import equinox as eqx
@@ -29,7 +29,6 @@ from torax._src import interpolated_param
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
-import typing_extensions
 
 
 @jax.tree_util.register_dataclass
@@ -59,10 +58,10 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 
   time: pydantic_types.NumpyArray1DSorted
   value: pydantic_types.NumpyArray
-  is_bool_param: typing_extensions.Annotated[bool, model_base.JAX_STATIC] = (
+  is_bool_param: Annotated[bool, model_base.JAX_STATIC] = (
       False
   )
-  interpolation_mode: typing_extensions.Annotated[
+  interpolation_mode: Annotated[
       interpolated_param.InterpolationMode, model_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
 
@@ -95,7 +94,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 
   def update(
       self, replacements: TimeVaryingScalarUpdate
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """This method can be used under `jax.jit`."""
     value = replacements.value if replacements.value is not None else self.value
     time = replacements.time if replacements.time is not None else self.time
@@ -105,7 +104,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
           f' be the same length. Got value: {value.shape}, time: {time.shape}.'
       )
 
-    def get_leaves(x: typing_extensions.Self) -> tuple[chex.Array, chex.Array]:
+    def get_leaves(x: Self) -> tuple[chex.Array, chex.Array]:
       return (x.time, x.value)
 
     return eqx.tree_at(get_leaves, self, (time, value),)
@@ -167,7 +166,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
     )
 
   @pydantic.model_validator(mode='after')
-  def _ensure_consistent_arrays(self) -> typing_extensions.Self:
+  def _ensure_consistent_arrays(self) -> Self:
 
     if not np.issubdtype(self.time.dtype, np.floating):
       raise ValueError('The time array must be a float array.')
@@ -228,7 +227,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 
 class TimeVaryingScalarStep(TimeVaryingScalar):
   """TimeVaryingScalar with STEP interpolation mode by default."""
-  interpolation_mode: typing_extensions.Annotated[
+  interpolation_mode: Annotated[
       interpolated_param.InterpolationMode, model_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.STEP
 
@@ -280,15 +279,15 @@ def scalar_bounds_validator(
   )
 
 
-PositiveTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
+PositiveTimeVaryingScalar: TypeAlias = Annotated[
     TimeVaryingScalar, scalar_bounds_validator(gt=0.0)
 ]
-NonNegativeTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
+NonNegativeTimeVaryingScalar: TypeAlias = Annotated[
     TimeVaryingScalar, scalar_bounds_validator(ge=0.0)
 ]
-NonNegativeTimeVaryingScalarStep: TypeAlias = typing_extensions.Annotated[
+NonNegativeTimeVaryingScalarStep: TypeAlias = Annotated[
     TimeVaryingScalarStep, scalar_bounds_validator(ge=0.0)
 ]
-UnitIntervalTimeVaryingScalar: TypeAlias = typing_extensions.Annotated[
+UnitIntervalTimeVaryingScalar: TypeAlias = Annotated[
     TimeVaryingScalar, scalar_bounds_validator(ge=0.0, le=1.0)
 ]

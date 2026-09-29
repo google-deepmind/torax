@@ -29,11 +29,11 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.transport_model import base_qlknn_model
-from torax._src.transport_model import component
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 
 # pylint: disable=invalid-name
@@ -250,7 +250,7 @@ class QLKNNTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -274,7 +274,6 @@ class QLKNNTransportModel(
         transport_runtime_params,
         geo,
         core_profiles,
-        runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask,
     )
 
@@ -283,16 +282,14 @@ class QLKNNTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     """Actual implementation of `__call__`.
 
     Args:
       transport: Input runtime parameters for this transport model.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      poloidal_velocity_multiplier: Poloidal velocity multiplier.
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
@@ -307,7 +304,6 @@ class QLKNNTransportModel(
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     model = get_model(self.path, self.name)
@@ -384,7 +380,9 @@ class QLKNNTransportModel(
         two_point_mask=two_point_mask,
     )
 
-    def add_mode_contributions() -> component.TurbulentTransport:
+    def add_mode_contributions() -> (
+        qualikiz_based_transport_model.QualikizTransportModelOutput
+    ):
       """Decompose transport coefficients into mode contributions."""
       eps = constants.CONSTANTS.eps
 
@@ -403,8 +401,11 @@ class QLKNNTransportModel(
       v_el_itg = base_transport.v_face_el * pfe_itg / (pfe_total + eps)
       v_el_tem = base_transport.v_face_el * pfe_tem / (pfe_total + eps)
 
-      return dataclasses.replace(
-          base_transport,
+      return qualikiz_based_transport_model.QualikizTransportModelOutput(
+          chi_face_ion=base_transport.chi_face_ion,
+          chi_face_el=base_transport.chi_face_el,
+          d_face_el=base_transport.d_face_el,
+          v_face_el=base_transport.v_face_el,
           chi_face_ion_itg=chi_ion_itg,
           chi_face_ion_tem=chi_ion_tem,
           chi_face_el_itg=chi_el_itg,

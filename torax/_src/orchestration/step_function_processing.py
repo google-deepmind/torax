@@ -357,7 +357,7 @@ def pre_step(
     geometry.Geometry,
     source_profiles_lib.SourceProfiles,
     edge_base.EdgeModelOutputs | None,
-    pedestal_transition_state_lib.PedestalTransitionState | None,
+    pedestal_transition_state_lib.PedestalTransitionState,
 ]:
   """Performs the pre-step operations for the step function."""
   runtime_params_t, geo_t = (
@@ -433,7 +433,7 @@ def pre_step(
         psi=input_state.core_sources.psi | explicit_source_profiles.psi,
     )
     pedestal_transition_state = _update_pedestal_transition_state(
-        pedestal_transition_state=pedestal_transition_state,  # pyrefly: ignore[bad-argument-type]
+        pedestal_transition_state=pedestal_transition_state,
         runtime_params=runtime_params_t,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
@@ -450,9 +450,9 @@ def pre_step(
         geo_t,
         input_state.core_profiles,
         explicit_source_profiles,
-        pedestal_transition_state,  # pyrefly: ignore[bad-argument-type]
+        pedestal_transition_state,
     )
-    pedestal_transition_state = dataclasses.replace(  # pyrefly: ignore[bad-specialization]
+    pedestal_transition_state = dataclasses.replace(
         pedestal_transition_state,
         pedestal_model_output=pedestal_model_output,
     )
@@ -524,11 +524,14 @@ def finalize_outputs(
 
   final_total_transport = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          models.transport_model,
-          models.neoclassical_models,
-          runtime_params_t_plus_dt,
-          geometry_t_plus_dt,
-          final_core_profiles,
+          transport_model=models.transport_model,
+          neoclassical_models=models.neoclassical_models,
+          internal_boundary_condition_model=(
+              models.internal_boundary_condition_model
+          ),
+          runtime_params=runtime_params_t_plus_dt,
+          geo=geometry_t_plus_dt,
+          core_profiles=final_core_profiles,
           pedestal_transition_state=pedestal_transition_state,
       )
   )

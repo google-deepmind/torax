@@ -42,6 +42,7 @@ class PowerScalingFormationRuntimeParams(
   P_LH_prefactor: array_typing.FloatScalar = 1.0
 
 
+@jax.jit(static_argnames=['include_dW_dt'])
 def calculate_P_SOL_total(
     internal_plasma_energy: state.PlasmaInternalEnergy,
     core_sources: source_profiles_lib.SourceProfiles,

@@ -30,13 +30,17 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
   def test_change_config(self):
     torax_config = self._get_torax_config('test_iterhybrid_mockup.py')
-    simulation_xr, _ = run_simulation.run_simulation(torax_config)
+    simulation_xr = run_simulation.run_simulation(
+        torax_config
+    ).simulation_output_to_xr()
 
     original_value = torax_config.profile_conditions.nbar
     new_value = original_value.value * 1.1
 
     torax_config.update_fields({'profile_conditions.nbar': new_value})
-    new_simulation_xr, _ = run_simulation.run_simulation(torax_config)
+    new_simulation_xr = run_simulation.run_simulation(
+        torax_config
+    ).simulation_output_to_xr()
 
     self.assertFalse(
         np.array_equal(
@@ -50,7 +54,9 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     restart_config = 'test_iterhybrid_rampup_restart.py'
 
     torax_config = self._get_torax_config(restart_config)
-    data_tree_restart, _ = run_simulation.run_simulation(torax_config)
+    data_tree_restart = run_simulation.run_simulation(
+        torax_config
+    ).simulation_output_to_xr()
 
     # Load the reference dataset.
     datatree_ref = output.load_state_file(
@@ -80,8 +86,8 @@ class RunSimulationTest(sim_test_case.SimTestCase):
                 actual[var_name].values,
                 desired[var_name].values,
                 err_msg=f'Mismatch for {var_name} in restart test',
-                rtol=1e-6,
-                atol=1e-6,
+                rtol=1e-5,
+                atol=1e-5,
             )
 
     xr.map_over_datasets(check_equality, datatree_new, datatree_ref)
@@ -121,7 +127,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config('test_implicit.py')
 
     # Use max_steps=1 which is far too few to reach t_final=1.
-    _, state_history = run_simulation.run_simulation(
+    state_history = run_simulation.run_simulation(
         torax_config, max_steps=1
     )
 

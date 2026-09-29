@@ -276,9 +276,9 @@ def forward_mode_newton_solver(
 
   x0 = jnp.stack([
       jnp.log(initial_sol_model.state.q_parallel),
-      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),  # pyrefly: ignore[bad-argument-type]
-      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),  # pyrefly: ignore[bad-argument-type]
-      math_utils.inverse_softplus(initial_sol_model.state.T_e_target),  # pyrefly: ignore[bad-argument-type]
+      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),
+      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),
+      math_utils.inverse_softplus(initial_sol_model.state.T_e_target),
   ])
 
   # 2. Define residual function, closing over params and fixed c_z.
@@ -286,7 +286,7 @@ def forward_mode_newton_solver(
   params = initial_sol_model.params
 
   residual_fun = functools.partial(
-      _forward_residual, params=params, fixed_cz=fixed_cz  # pyrefly: ignore[bad-argument-type]
+      _forward_residual, params=params, fixed_cz=fixed_cz
   )
 
   # 3. Run Newton-Raphson.
@@ -357,8 +357,8 @@ def inverse_mode_newton_solver(
 
   x0 = jnp.stack([
       jnp.log(initial_sol_model.state.q_parallel),
-      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),  # pyrefly: ignore[bad-argument-type]
-      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),  # pyrefly: ignore[bad-argument-type]
+      math_utils.inverse_softplus(initial_sol_model.state.alpha_t),
+      math_utils.inverse_softplus(initial_sol_model.state.kappa_e),
       initial_sol_model.state.c_z_prefactor,
   ])
 
@@ -367,7 +367,7 @@ def inverse_mode_newton_solver(
   params = initial_sol_model.params
 
   residual_fun = functools.partial(
-      _inverse_residual, params=params, fixed_Tt=fixed_Tt  # pyrefly: ignore[bad-argument-type]
+      _inverse_residual, params=params, fixed_Tt=fixed_Tt
   )
 
   # 3. Run Newton-Raphson.
@@ -793,11 +793,15 @@ def _solve_for_qcc(
   # We scale inputs to smooth_sqrt by qu^2 + epsilon so that the dimensionless
   # argument is order 1 (or 0), allowing a fixed dimensionless epsilon to be
   # effective. This prevents vanishing gradients for deep negative excursions.
+  # TODO(b/512078510): Pick a reasonable eps value for safe_divide here.
   qcc_norm = math_utils.smooth_sqrt(
       math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
-          # TODO(b/512078510): Pick a reasonable eps value for safe_divide here.
-          num=qcc_squared, denom=qu**2, eps=1e-7), epsilon=1e-3  # pyrefly: ignore[bad-argument-type]
-      )
+          num=qcc_squared,
+          denom=qu**2,
+          eps=1e-7,
+      ),
+      epsilon=1e-3,
+  )
 
   qcc = qcc_norm * jnp.sqrt(qu**2)
 

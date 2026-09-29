@@ -22,7 +22,7 @@ https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 """
 
 import dataclasses
-from typing import Annotated, Literal
+from typing import Annotated, Literal, override
 
 import jax
 from jax import numpy as jnp
@@ -39,7 +39,8 @@ from torax._src.neoclassical.transport import base
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.physics import collisions
 from torax._src.torax_pydantic import torax_pydantic
-from typing_extensions import override
+from torax._src.transport_model import transport_coeffs
+
 
 # pylint: disable=invalid-name
 
@@ -91,7 +92,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> base.NeoclassicalTransport:
+  ) -> transport_coeffs.NeoclassicalTransport:
     """Calculates neoclassical transport coefficients.
 
     When use_shaing_ion_correction is enabled, chi_ion is smoothly blended
@@ -133,15 +134,15 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
         1.0,  # Pure Angioni-Sauter when correction disabled
     )
 
-    return base.NeoclassicalTransport(
+    return transport_coeffs.NeoclassicalTransport(
         # Ion transport blend: (1-alpha)*Shaing + alpha*Angioni-Sauter
-        chi_neo_i=(1.0 - alpha) * shaing.chi_neo_i
-        + alpha * angioni_sauter.chi_neo_i,
+        chi_face_ion=(1.0 - alpha) * shaing.chi_face_ion
+        + alpha * angioni_sauter.chi_face_ion,
         # Electron transport: pure Angioni-Sauter
-        chi_neo_e=angioni_sauter.chi_neo_e,
-        D_neo_e=angioni_sauter.D_neo_e,
-        V_neo_e=angioni_sauter.V_neo_e,
-        V_neo_ware_e=angioni_sauter.V_neo_ware_e,
+        chi_face_el=angioni_sauter.chi_face_el,
+        d_face_el=angioni_sauter.d_face_el,
+        v_face_el=angioni_sauter.v_face_el,
+        v_face_el_ware=angioni_sauter.v_face_el_ware,
     )
 
   def __hash__(self) -> int:
@@ -155,7 +156,7 @@ def _calculate_angioni_sauter_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
-) -> base.NeoclassicalTransport:
+) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Angioni-Sauter transport model.
 
   Args:
@@ -176,15 +177,7 @@ def _calculate_angioni_sauter_transport(
 
   # Calculate trapped fractions ft and ftd from paper Eq. (17)
   B2_avg_Bm2_avg = geometry.gm5_face * geometry.gm4_face
-
-  # Use the Sauter model's effective trapped fraction logic
-  aa = (1.0 - geometry.epsilon_face) / (1.0 + geometry.epsilon_face)
-  epseff = (
-      0.67
-      * (1.0 - 1.4 * jnp.abs(geometry.delta_face) * geometry.delta_face)
-      * geometry.epsilon_face
-  )
-  ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
+  ftrap = geometry.trapped_fraction_face
 
   # Equation (17)
   ftrap_d = 1.0 - (1.0 - ftrap) / B2_avg_Bm2_avg
@@ -367,12 +360,12 @@ def _calculate_angioni_sauter_transport(
   )
   V_neo_ware_e = jnp.concatenate([V_neo_ware_e_bulk[0:1], V_neo_ware_e_bulk])
 
-  return base.NeoclassicalTransport(
-      chi_neo_i=chi_neo_i,
-      chi_neo_e=chi_neo_e,
-      D_neo_e=D_neo_e,
-      V_neo_e=V_neo_e,
-      V_neo_ware_e=V_neo_ware_e,
+  return transport_coeffs.NeoclassicalTransport(
+      chi_face_ion=chi_neo_i,
+      chi_face_el=chi_neo_e,
+      d_face_el=D_neo_e,
+      v_face_el=V_neo_e + V_neo_ware_e,
+      v_face_el_ware=V_neo_ware_e,
   )
 
 
@@ -687,7 +680,7 @@ def _calculate_shaing_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
-) -> base.NeoclassicalTransport:
+) -> transport_coeffs.NeoclassicalTransport:
   """JIT-compatible implementation of the Shaing transport model.
 
   Currently only implements near-axis ion thermal transport. Other contributions
@@ -760,13 +753,13 @@ def _calculate_shaing_transport(
   # Needed for pytype.
   assert isinstance(runtime_params.neoclassical.transport, RuntimeParams)
 
-  return base.NeoclassicalTransport(
-      chi_neo_i=runtime_params.neoclassical.transport.shaing_ion_multiplier
+  return transport_coeffs.NeoclassicalTransport(
+      chi_face_ion=runtime_params.neoclassical.transport.shaing_ion_multiplier
       * chi_i,
-      chi_neo_e=jnp.zeros_like(geometry.rho_face),
-      D_neo_e=jnp.zeros_like(geometry.rho_face),
-      V_neo_e=jnp.zeros_like(geometry.rho_face),
-      V_neo_ware_e=jnp.zeros_like(geometry.rho_face),
+      chi_face_el=jnp.zeros_like(geometry.rho_face),
+      d_face_el=jnp.zeros_like(geometry.rho_face),
+      v_face_el=jnp.zeros_like(geometry.rho_face),
+      v_face_el_ware=jnp.zeros_like(geometry.rho_face),
   )
 
 

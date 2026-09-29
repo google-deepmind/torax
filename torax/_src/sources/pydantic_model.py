@@ -15,7 +15,7 @@
 """Pydantic config for source models."""
 
 import copy
-from typing import Any
+from typing import Any, Self
 
 import immutabledict
 import pydantic
@@ -39,7 +39,6 @@ from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.ion_cyclotron_source import scaled_profile
 from torax._src.sources.ion_cyclotron_source import toric_nn
 from torax._src.torax_pydantic import torax_pydantic
-from typing_extensions import Self
 
 
 class Sources(torax_pydantic.BaseModelFrozen):

@@ -22,26 +22,25 @@ import datetime
 import os
 import subprocess
 import tempfile
-from typing import Annotated
-from typing import Literal
+from typing import Annotated, Literal
 import uuid
 
 import chex
 import jax
+from jax import numpy as jnp
 import numpy as np
 import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 
 @jax.tree_util.register_dataclass
@@ -90,7 +89,7 @@ class QualikizTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -114,7 +113,6 @@ class QualikizTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
 
@@ -160,15 +158,7 @@ class QualikizTransportModel(
       )
       return core_transport
 
-    face_array_shape_dtype = jax.ShapeDtypeStruct(
-        shape=(geo.torax_mesh.nx + 1,), dtype=jax_utils.get_dtype()
-    )
-    result_shape_dtypes = component.TurbulentTransport(
-        chi_face_ion=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
-        d_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
-        v_face_el=face_array_shape_dtype,  # pyrefly: ignore[bad-argument-type]
-    )
+    result_shape_dtypes = transport_coeffs.TransportCoeffs.zeros(geo)
     # Even though qualikiz has side-effects (writing and reading from disk) we
     # still use a pure_callback here as:
     # 1. Nothing outside of this method depends on the side-effect.
@@ -249,18 +239,18 @@ class QualikizTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace | None = None,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     """Extracts QuaLiKiz run data from runpath."""
 
     # Extract QuaLiKiz outputs
-    qi = np.loadtxt(self._runpath + '/output/efi_GB.dat')[:, 0]
-    qe = np.loadtxt(self._runpath + '/output/efe_GB.dat')
-    pfe = np.loadtxt(self._runpath + '/output/pfe_GB.dat')
+    qi = jnp.asarray(np.loadtxt(self._runpath + '/output/efi_GB.dat')[:, 0])
+    qe = jnp.asarray(np.loadtxt(self._runpath + '/output/efe_GB.dat'))
+    pfe = jnp.asarray(np.loadtxt(self._runpath + '/output/pfe_GB.dat'))
 
     return self._make_core_transport(
-        qi=qi,  # pyrefly: ignore[bad-argument-type]
-        qe=qe,  # pyrefly: ignore[bad-argument-type]
-        pfe=pfe,  # pyrefly: ignore[bad-argument-type]
+        qi=qi,
+        qe=qe,
+        pfe=pfe,
         quasilinear_inputs=qualikiz_inputs,
         transport=transport,
         geo=geo,
@@ -483,6 +473,12 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     DV_effective: Effective D / effective V approach for particle transport.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
+    DV_effective_smooth_width: Particle flux width in dimensionless
+      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
+      transport transitions smoothly from effective V to effective D. If 0.0,
+      uses a sharp step transition. Note that QuaLiKiz normalizes with major
+      radius R_major rather than minor radius a, so the default (0.01) is chosen
+      to be consistent in SI units with TGLF (0.001).
   """
 
   model_name: Annotated[Literal['qualikiz'], torax_pydantic.JAX_STATIC] = (
@@ -495,8 +491,9 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
@@ -517,6 +514,7 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
         **base_kwargs,

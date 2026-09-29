@@ -24,6 +24,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 
 # pylint: disable=invalid-name
@@ -52,7 +53,7 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     r"""Calculates transport coefficients using the Critical Gradient Model.
 
     Uses critical normalized logarithmic ion temperature gradient
@@ -144,7 +145,7 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
         / geo.R_major_profile_face
     )
 
-    return component.TurbulentTransport(
+    return transport_coeffs.TransportCoeffs(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

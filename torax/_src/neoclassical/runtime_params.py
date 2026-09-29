@@ -15,9 +15,9 @@
 import dataclasses
 
 import jax
-from torax._src import array_typing
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_current_runtime_params
 from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
+from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 
 
@@ -28,4 +28,4 @@ class RuntimeParams:
   bootstrap_current: bootstrap_current_runtime_params.RuntimeParams
   conductivity: conductivity_runtime_params.RuntimeParams
   transport: transport_runtime_params.RuntimeParams
-  poloidal_velocity_multiplier: array_typing.FloatScalar
+  poloidal_velocity: poloidal_velocity_runtime_params.RuntimeParams

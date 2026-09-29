@@ -87,6 +87,7 @@ def calc_power_loss_in_convection_layer(
   )
 
 
+@jax.jit
 def calc_shaping_factor(
     elongation_psi95: array_typing.FloatScalar,
     triangularity_psi95: array_typing.FloatScalar,
@@ -118,6 +119,7 @@ def calc_shaping_factor(
   )
 
 
+@jax.jit
 def calc_separatrix_average_poloidal_field(
     plasma_current: array_typing.FloatScalar,
     minor_radius: array_typing.FloatScalar,
@@ -142,9 +144,12 @@ def calc_separatrix_average_poloidal_field(
     The average poloidal field at the separatrix [T].
   """
   poloidal_circumference = 2.0 * jnp.pi * minor_radius * shaping_factor
-  return constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference  # pyrefly: ignore[bad-return]
+  return jnp.asarray(
+      constants.CONSTANTS.mu_0 * plasma_current / poloidal_circumference
+  )
 
 
+@jax.jit
 def calc_cylindrical_safety_factor(
     magnetic_field_on_axis: array_typing.FloatScalar,
     separatrix_average_poloidal_field: array_typing.FloatScalar,
@@ -184,6 +189,7 @@ def calc_cylindrical_safety_factor(
   )
 
 
+@jax.jit
 def calc_fieldline_pitch_at_omp(
     magnetic_field_on_axis: array_typing.FloatScalar,
     plasma_current: array_typing.FloatScalar,
@@ -291,9 +297,10 @@ def calc_Z_eff(
   # Contribution from main ions
   n_i = (1 - dilution_factor) / Z_i
   Z_eff += n_i * Z_i**2
-  return Z_eff[0]  # Return scalar for extended-lengyel.  # pyrefly: ignore[bad-index]
+  return jnp.squeeze(Z_eff)
 
 
+@jax.jit(static_argnames=['ion_symbol'])
 def calc_enrichment_kallenbach(
     pressure_neutral_divertor: array_typing.FloatScalar,
     ion_symbol: str,

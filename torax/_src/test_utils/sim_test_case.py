@@ -209,11 +209,12 @@ class SimTestCase(parameterized.TestCase):
       atol = _ATOL
 
     torax_config = self._get_torax_config(config_name)
-    output_xr, state_history = run_simulation.run_simulation(
+    state_history = run_simulation.run_simulation(
         torax_config,
         progress_bar=False,
         _use_jitted_run_loop=use_jitted_run_loop,
     )
+    output_xr = state_history.simulation_output_to_xr()
     output_file = _FAILED_TEST_OUTPUT_DIR + config_name[:-3] + '.nc'
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
 

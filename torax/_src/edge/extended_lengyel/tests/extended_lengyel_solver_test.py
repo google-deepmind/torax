@@ -14,6 +14,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from jax import numpy as jnp
 import numpy as np
 from torax._src.edge.extended_lengyel import divertor_sol_1d
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
@@ -110,11 +111,11 @@ class ExtendedLengyelSolverInverseTest(parameterized.TestCase):
 
   def test_successful_solve_for_c_z(self):
     state = divertor_sol_1d.ExtendedLengyelState(
-        q_parallel=3.39611622588553e8,
-        c_z_prefactor=0.059314229517142096,
-        kappa_e=1751.6010938527386,
-        alpha_t=0.0,
-        T_e_target=2.34,
+        q_parallel=jnp.array(3.39611622588553e8),
+        c_z_prefactor=jnp.array(0.059314229517142096),
+        kappa_e=jnp.array(1751.6010938527386),
+        alpha_t=jnp.array(0.0),
+        T_e_target=jnp.array(2.34),
     )
     sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -140,11 +141,11 @@ class ExtendedLengyelSolverInverseTest(parameterized.TestCase):
     # which is unphysical.
 
     state = divertor_sol_1d.ExtendedLengyelState(
-        q_parallel=1e3,
-        c_z_prefactor=0.059314229517142096,
-        kappa_e=1751.6010938527386,
-        alpha_t=0.0,
-        T_e_target=2.34,
+        q_parallel=jnp.array(1e3),
+        c_z_prefactor=jnp.array(0.059314229517142096),
+        kappa_e=jnp.array(1751.6010938527386),
+        alpha_t=jnp.array(0.0),
+        T_e_target=jnp.array(2.34),
     )
     sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -165,11 +166,11 @@ class ExtendedLengyelSolverInverseTest(parameterized.TestCase):
     # having too low a q_parallel. But the hybrid solver should still converge
     # to the solution while Newton-Raphson fails.
     state = divertor_sol_1d.ExtendedLengyelState(
-        q_parallel=1e3,
-        c_z_prefactor=0.0,
-        kappa_e=1751.6010938527386,
-        alpha_t=0.1,
-        T_e_target=2.34,
+        q_parallel=jnp.array(1e3),
+        c_z_prefactor=jnp.array(0.0),
+        kappa_e=jnp.array(1751.6010938527386),
+        alpha_t=jnp.array(0.1),
+        T_e_target=jnp.array(2.34),
     )
     initial_sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -292,11 +293,11 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
 
   def test_successful_solve_for_qcc(self):
     state = divertor_sol_1d.ExtendedLengyelState(
-        q_parallel=5.061935771095335e8,
-        c_z_prefactor=0.0,
-        kappa_e=1931.8277173925928,
-        alpha_t=0.0,
-        T_e_target=2.34,
+        q_parallel=jnp.array(5.061935771095335e8),
+        c_z_prefactor=jnp.array(0.0),
+        kappa_e=jnp.array(1931.8277173925928),
+        alpha_t=jnp.array(0.0),
+        T_e_target=jnp.array(2.34),
     )
     sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -318,11 +319,11 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
     # in the divertor.
 
     state = divertor_sol_1d.ExtendedLengyelState(
-        q_parallel=1e3,
-        c_z_prefactor=0.0,
-        kappa_e=1931.8277173925928,
-        alpha_t=0.0,
-        T_e_target=2.34,
+        q_parallel=jnp.array(1e3),
+        c_z_prefactor=jnp.array(0.0),
+        kappa_e=jnp.array(1931.8277173925928),
+        alpha_t=jnp.array(0.0),
+        T_e_target=jnp.array(2.34),
     )
     sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,
@@ -345,11 +346,11 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
     # having too low a q_parallel. But the hybrid solver should still converge
     # to the solution while Newton-Raphson fails.
     state = divertor_sol_1d.ExtendedLengyelState(
-        q_parallel=1e5,
-        c_z_prefactor=0.0,
-        kappa_e=1751.6010938527386,
-        alpha_t=0.1,
-        T_e_target=2.0,
+        q_parallel=jnp.array(1e5),
+        c_z_prefactor=jnp.array(0.0),
+        kappa_e=jnp.array(1751.6010938527386),
+        alpha_t=jnp.array(0.1),
+        T_e_target=jnp.array(2.0),
     )
     initial_sol_model = divertor_sol_1d.DivertorSOL1D(
         params=self.params,

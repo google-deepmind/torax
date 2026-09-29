@@ -85,6 +85,7 @@ class ConvertersTest(parameterized.TestCase):
         j_total_face=mock.ANY,
         Ip_profile_face=mock.ANY,
         toroidal_angular_velocity=mock.ANY,
+        poloidal_velocity=mock.ANY,
         charge_state_info=mock.ANY,
         charge_state_info_face=mock.ANY,
         fast_ions=mock.ANY,
@@ -108,13 +109,14 @@ class ConvertersTest(parameterized.TestCase):
     )
     np.testing.assert_array_almost_equal(
         solver_x_tuple[1].value,
-        self.base_core_profiles.n_e.value / convertors.SCALING_FACTORS['n_e'],
+        self.base_core_profiles.n_e.value
+        / convertors.STATE_SCALING_FACTORS['n_e'],
         decimal=10,
     )
     np.testing.assert_array_almost_equal(
         solver_x_tuple[1].right_face_constraint,  # pyrefly: ignore[bad-argument-type]
         self.base_core_profiles.n_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-        / convertors.SCALING_FACTORS['n_e'],
+        / convertors.STATE_SCALING_FACTORS['n_e'],
         decimal=10,
     )
     np.testing.assert_array_almost_equal(
@@ -160,7 +162,7 @@ class ConvertersTest(parameterized.TestCase):
     )
     np.testing.assert_array_almost_equal(
         updated_cp.n_e.value,
-        x_new_n_e_val * convertors.SCALING_FACTORS['n_e'],
+        x_new_n_e_val * convertors.STATE_SCALING_FACTORS['n_e'],
         decimal=10,
     )
     np.testing.assert_array_almost_equal(
@@ -189,6 +191,54 @@ class ConvertersTest(parameterized.TestCase):
           getattr(updated_cp, name),
           getattr(self.base_core_profiles, name),
       )
+
+  @parameterized.parameters('T_i', 'T_e', 'n_e', 'psi')
+  def test_compute_channel_residual_scale(self, channel: str):
+    with self.subTest('scale_high'):
+      x_high = jnp.array([2.0, 4.0])
+      scale_high = convertors._compute_channel_residual_scale(channel, x_high)
+      # psi uses span (max - min = 2.0); temperatures and density use mean (3.0)
+      expected_high = 2.0 if channel == 'psi' else 3.0
+      np.testing.assert_allclose(scale_high, expected_high)
+
+    with self.subTest('scale_low'):
+      x_low = jnp.array([0.001, 0.002])
+      scale_low = convertors._compute_channel_residual_scale(channel, x_low)
+      np.testing.assert_allclose(
+          scale_low, convertors.RESIDUAL_SCALE_FLOORS[channel]
+      )
+
+  def test_compute_channel_residual_scale_unknown_channel(self):
+    x_unknown = jnp.array([0.05, 0.05])
+    with self.assertRaises(KeyError):
+      convertors._compute_channel_residual_scale('unknown', x_unknown)
+
+  def test_compute_residual_scaling_vector(self):
+    evolving_names = ('T_e', 'n_e', 'psi')
+    n_cells = len(self.base_core_profiles.T_e.value)
+    psi = dataclasses.replace(
+        self.base_core_profiles.psi,
+        value=jnp.linspace(0.0, 5.0, n_cells),
+    )
+    x_old = (
+        self.base_core_profiles.T_e,
+        self.base_core_profiles.n_e,
+        psi,
+    )
+    scales = convertors.compute_residual_scaling_vector(evolving_names, x_old)
+
+    self.assertEqual(scales.shape, (len(evolving_names) * n_cells,))
+
+    # Precomputed expected scales:
+    # T_e: mean(ones * 2.0) = 2.0
+    # n_e: mean(ones * 4.0) = 4.0
+    # psi: max(linspace(0, 5)) - min(linspace(0, 5)) = 5.0
+    expected = jnp.concatenate([
+        jnp.full(n_cells, 2.0),
+        jnp.full(n_cells, 4.0),
+        jnp.full(n_cells, 5.0),
+    ])
+    np.testing.assert_allclose(scales, expected)
 
 
 if __name__ == '__main__':

@@ -16,7 +16,7 @@
 import dataclasses
 import functools
 import logging
-from typing import Annotated
+from typing import Annotated, Final, Self
 import chex
 import jax
 import numpy as np
@@ -28,8 +28,6 @@ from torax._src.core_profiles.plasma_composition import electron_density_ratios_
 from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
-from typing_extensions import Final
 
 # pylint: disable=invalid-name
 
@@ -110,7 +108,7 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   A_i_override: torax_pydantic.TimeVaryingScalar | None = None
 
   @pydantic.model_validator(mode='after')
-  def _check_zeff_usage(self) -> typing_extensions.Self:
+  def _check_zeff_usage(self) -> Self:
     """Warns user if Z_eff is provided but will be ignored."""
     is_default_zeff = all(
         np.allclose(val, 1.0) for _, (_, val) in self.Z_eff.value.items()

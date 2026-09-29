@@ -30,9 +30,22 @@ from torax._src.solver import linesearch
 MIN_DELTA: Final[float] = 1e-7
 
 
-def _mean_abs_norm(x: array_typing.Array) -> jax.Array:
-  """Mean of the absolute values of the elements of x, used as the default norm function for the root finder."""
-  return jnp.mean(jnp.abs(x))
+def rms_norm(
+    x: array_typing.Array, scale: jax.Array | None = None
+) -> jax.Array:
+  """Root-mean-square (RMS) norm."""
+  if scale is not None:
+    x = x / scale
+  return jnp.linalg.norm(x) / jnp.sqrt(x.size)
+
+
+def max_abs_norm(
+    x: array_typing.Array, scale: jax.Array | None = None
+) -> jax.Array:
+  """Maximum absolute value norm (aka L-infinity norm)."""
+  if scale is not None:
+    x = x / scale
+  return jnp.linalg.norm(x, ord=jnp.inf)
 
 
 @jax.tree_util.register_dataclass
@@ -57,8 +70,9 @@ def root_newton_raphson(
     log_iterations: bool = False,
     use_jax_custom_root: bool = True,
     custom_jac: Callable[[jax.Array], jax.Array] | None = None,
-    linesearch_norm: Callable[[jax.Array], jax.Array] = _mean_abs_norm,
-    convergence_norm: Callable[[jax.Array], jax.Array] = _mean_abs_norm,
+    linesearch_norm: Callable[[jax.Array], jax.Array] = rms_norm,
+    convergence_norm: Callable[[jax.Array], jax.Array] = max_abs_norm,
+    vmap_linesearch: bool = False,
     max_linesearch_steps: int = 100,
 ) -> tuple[jax.Array, RootMetadata]:
   """A differentiable Newton-Raphson root finder.
@@ -86,9 +100,12 @@ def root_newton_raphson(
     custom_jac: If provided, use this function to compute the Jacobian of `fun`
       instead of jax.jacfwd.
     linesearch_norm: Scalar norm function applied to residual vectors for line
-      search acceptance. Defaults to L1 norm.
+      search acceptance. Defaults to RMS norm.
     convergence_norm: Scalar norm function applied to residual vectors for outer
-      loop convergence checks and error classification. Defaults to L1 norm.
+      loop convergence checks and error classification. Defaults to L-infinity
+      norm (maximum absolute deviation).
+    vmap_linesearch: If True, use parallel vmapped linesearch instead of
+      sequential backtracking.
     max_linesearch_steps: Maximum number of linesearch steps to try.
 
   Returns:
@@ -132,6 +149,7 @@ def root_newton_raphson(
         sufficient_decrease=sufficient_decrease,
         linesearch_norm=linesearch_norm,
         convergence_norm=convergence_norm,
+        vmap_linesearch=vmap_linesearch,
         max_linesearch_steps=max_linesearch_steps,
     )
     output_state = jax.lax.while_loop(cond_fun, body_fun, initial_state)
@@ -217,14 +235,12 @@ def _cond(
     tau_min: float,
     maxiter: int,
     tol: float,
-) -> bool:
+) -> jax.Array:
   """Check if exit condition reached for Newton-Raphson iterations."""
   iteration = state['iterations'][...]
-  return jnp.bool_(
-      jnp.logical_and(
-          jnp.logical_and(state['residual_norm'] > tol, iteration < maxiter),
-          state['last_tau'] > tau_min,
-      )
+  return jnp.logical_and(
+      jnp.logical_and(state['residual_norm'] > tol, iteration < maxiter),
+      state['last_tau'] > tau_min,
   )
 
 
@@ -238,6 +254,7 @@ def _body(
     linesearch_norm: Callable[[jax.Array], jax.Array],
     convergence_norm: Callable[[jax.Array], jax.Array],
     max_linesearch_steps: int,
+    vmap_linesearch: bool = False,
 ) -> dict[str, jax.Array]:
   """Calculates next guess in Newton-Raphson iteration."""
   rhs = -input_state['residual']
@@ -266,6 +283,7 @@ def _body(
       initial_residual_norm=init_ls_norm,
       delta_reduction_factor=delta_reduction_factor,
       max_steps=max_linesearch_steps,
+      vmap=vmap_linesearch,
   )
 
   output_state = {

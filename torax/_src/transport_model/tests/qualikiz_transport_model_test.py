@@ -20,7 +20,7 @@ import jax
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -90,12 +90,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
             runtime_params,
             geo,
             core_profiles,
-            pedestal_model_output_lib.PedestalModelOutput(
-                rho_norm_ped_top=np.inf,
-                T_i_ped=0.0,
-                T_e_ped=0.0,
-                n_e_ped=0.0,
-            ),
+            pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
             two_point_mask,
         )
 
