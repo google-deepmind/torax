@@ -201,18 +201,17 @@ def _calculate_angioni_sauter_transport(
       core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
   )
 
-  # Equation 18c from Sauter PoP 1999
-  nu_i_star = (
-      4.9e-18
-      * core_profiles.q_face
-      * geometry.R_major_profile_face
-      * core_profiles.n_i.face_value()
-      * core_profiles.Z_i_face**4
-      * log_lambda_ii
-      / (
-          (core_profiles.T_i.face_value() * 1e3) ** 2
-          * (geometry.epsilon_face + constants.CONSTANTS.eps) ** 1.5
-      )
+  # Equation (18c) from Sauter PoP 1999 / Eq. (B2b) from Angioni & Sauter 2000.
+  # Note: Angioni & Sauter Eq. (B2b) defines nu_i_star as the pure main-ion
+  # collisionality (using Z_i^4), since impurity collisions enter separately
+  # via alpha_I in Eq. (30h).
+  nu_i_star = formulas.calculate_nu_i_star(
+      q=core_profiles.q_face,
+      geo=geometry,
+      n_i=core_profiles.n_i.face_value(),
+      T_i=core_profiles.T_i.face_value(),
+      Z_eff=core_profiles.Z_i_face,
+      log_lambda_ii=log_lambda_ii,
   )
 
   # Impurity strength parameter
@@ -242,7 +241,9 @@ def _calculate_angioni_sauter_transport(
   )
 
   # --- Step 4: Calculate thermodynamic forces ---
-  dpsi_drhon = core_profiles.psi.face_grad()
+  # Convert from total poloidal flux Psi [Wb] in TORAX to poloidal flux per
+  # radian psi = Psi / (2 * pi) [Wb/rad] (Angioni & Sauter, 2000, Eq. 1).
+  dpsi_drhon = core_profiles.psi.face_grad() / (2 * jnp.pi)
   dlnne_dpsi = math_utils.safe_divide(
       num=core_profiles.n_e.face_grad() / core_profiles.n_e.face_value(),
       denom=dpsi_drhon,
@@ -476,6 +477,7 @@ def _calculate_Kmn(
   Kmn_e = Kmn_e.at[:, 3, 0].set(Kmn_e[:, 0, 3])
   Kmn_e = Kmn_e.at[:, 1, 3].set(H42 - 2.5 * H41)
   Kmn_e = Kmn_e.at[:, 3, 1].set(Kmn_e[:, 1, 3])
+  Kmn_e = Kmn_e.at[:, 3, 3].set(H41)
 
   # Supplement K matrix with "bootstrap terms" needed for Ware pinch from the
   # Sauter model (PoP 1999)
@@ -487,14 +489,25 @@ def _calculate_Kmn(
       -sauter_formulas.calculate_L32(ftrap, nu_e_star, Z_eff)
   )
   Kmn_e = Kmn_e.at[:, 2, 1].set(Kmn_e[:, 1, 2])
+  Kmn_e = Kmn_e.at[:, 2, 3].set(
+      -sauter_formulas.calculate_L34(ftrap, nu_e_star, Z_eff)
+  )
+  Kmn_e = Kmn_e.at[:, 3, 2].set(Kmn_e[:, 2, 3])
 
-  # Ion Kmn matrix
-  # alpha coefficient, Eq. (25)
-  alpha = (
+  # Ion Kmn matrix:
+  # Compute the banana-regime alpha_0 coefficient (Angioni & Sauter Eq. 25)
+  # and interpolate across collisionality regimes to obtain alpha(nu_i_star)
+  # following Section V and Sauter (1999) Eq. (17b).
+  alpha_0 = (
       -(0.62 + 1.5 * alpha_I)
       / (0.53 + alpha_I)
       * ((1.0 - ftrap) / (1.0 - 0.22 * ftrap - 0.19 * ftrap**2))
   )
+  alpha = (
+      (alpha_0 + 0.25 * (1.0 - ftrap**2) * jnp.sqrt(nu_i_star))
+      / (1.0 + 0.5 * jnp.sqrt(nu_i_star))
+      + 0.315 * nu_i_star**2 * ftrap**6
+  ) / (1.0 + 0.15 * nu_i_star**2 * ftrap**6)
 
   # Eq. 24d
   F22_i_ftrapd = (1.0 - 0.55) * (
@@ -601,27 +614,30 @@ def _calculate_Lmn(
       nu_i_star * epsilon**1.5 * thermal_velocity_i + consts.eps
   )
 
-  r_larmor_e = consts.m_e * thermal_velocity_e / consts.q_e
+  r_larmor_e = consts.m_e * thermal_velocity_e / (consts.q_e * geo.B_0)
   r_larmor_i = (
       consts.m_amu
       * core_profiles.A_i
       * thermal_velocity_i
-      / (consts.q_e * core_profiles.Z_i_face)
+      / (consts.q_e * core_profiles.Z_i_face * geo.B_0)
   )
 
-  dpsi_dr = core_profiles.psi.face_grad() / geo.rho_b
-
+  # In Angioni & Sauter (2000) Eqs. (17) and (22), the dimensional factor Ld
+  # uses the electron poloidal gyroradius
+  # rho_ep = rho_e0 * I(psi) / (dpsi/drho). The (dpsi/drho)^2 factor in Ld
+  # cancels with (dpsi/drho)^-2 from rho_ep^2, leaving rho_e0^2 * F_face^2
+  # where F_face = I(psi) = R * B_phi.
   Ld = (
       core_profiles.n_e.face_value()
       * r_larmor_e**2
       / collision_time_e
-      * dpsi_dr**2
+      * geo.F_face**2
   )
   Ldi = (
       core_profiles.n_i.face_value()
       * r_larmor_i**2
       / collision_time_i
-      * dpsi_dr**2
+      * geo.F_face**2
   )
   Lb = geo.F_face * core_profiles.n_e.face_value()
   Lbi = geo.F_face * core_profiles.n_i.face_value()
@@ -668,7 +684,7 @@ def _calculate_Lmn(
       Kmn_i[:, 0, 0] * Lsi * geo.gm5_face / geo.B_0**2
   )
   Lmn_i = Lmn_i.at[:, 0, 1].set(Kmn_i[:, 0, 1] * Lbi)
-  Lmn_i = Lmn_i.at[:, 1, 0].set(-Lmn_i[:, 1, 0])
+  Lmn_i = Lmn_i.at[:, 1, 0].set(-Lmn_i[:, 0, 1])
   Lmn_i = Lmn_i.at[:, 1, 1].set(
       Kmn_i[:, 1, 1] * Ldi * geo.gm4_face * geo.B_0**2
   )
