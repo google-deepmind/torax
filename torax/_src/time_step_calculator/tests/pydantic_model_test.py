@@ -18,6 +18,7 @@ import pydantic
 from torax._src import jax_utils
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
+from torax._src.time_step_calculator import pellet_aware_time_step_calculator
 from torax._src.time_step_calculator import pydantic_model as time_step_pydantic_model
 
 
@@ -49,6 +50,54 @@ class PydanticModelTest(parameterized.TestCase):
         {'calculator_type': calculator_type}
     ).build_time_step_calculator()
     self.assertIsInstance(time_stepper, expected_type)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='default_base_is_chi',
+          config={'calculator_type': 'pellet_aware'},
+          expected_base=chi_time_step_calculator.ChiTimeStepCalculator,
+      ),
+      dict(
+          testcase_name='explicit_fixed_base',
+          config={
+              'calculator_type': 'pellet_aware',
+              'base_calculator': {'calculator_type': 'fixed'},
+          },
+          expected_base=fixed_time_step_calculator.FixedTimeStepCalculator,
+      ),
+  )
+  def test_build_pellet_aware_calculator(self, config, expected_base):
+    """Builds the pellet_aware calculator and its base calculator."""
+    calculator = time_step_pydantic_model.TimeStepCalculator.from_dict(
+        config
+    ).build_time_step_calculator()
+    self.assertIsInstance(
+        calculator,
+        pellet_aware_time_step_calculator.PelletAwareTimeStepCalculator,
+    )
+    self.assertIsInstance(calculator._base_calculator, expected_base)
+
+  @parameterized.named_parameters(
+      # A base_calculator is only meaningful for the pellet_aware calculator.
+      dict(
+          testcase_name='base_on_non_pellet_aware',
+          config={
+              'calculator_type': 'fixed',
+              'base_calculator': {'calculator_type': 'fixed'},
+          },
+      ),
+      # A pellet_aware calculator cannot wrap another pellet_aware calculator.
+      dict(
+          testcase_name='pellet_aware_base',
+          config={
+              'calculator_type': 'pellet_aware',
+              'base_calculator': {'calculator_type': 'pellet_aware'},
+          },
+      ),
+  )
+  def test_invalid_base_calculator_raises_error(self, config):
+    with self.assertRaises(pydantic.ValidationError):
+      time_step_pydantic_model.TimeStepCalculator.from_dict(config)
 
   @parameterized.named_parameters(
       dict(
