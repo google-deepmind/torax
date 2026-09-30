@@ -45,18 +45,19 @@ class PydanticModelTest(parameterized.TestCase):
     model = pydantic_model.Neoclassical.from_dict({"bootstrap_current": {}})
     self.assertEqual(model.bootstrap_current.model_name, "sauter")
 
-  @parameterized.parameters("zeros", "sauter")
+  @parameterized.parameters("zeros", "sauter", "redl")
   def test_bootstrap_current_model_name(self, model_name):
     model = pydantic_model.Neoclassical.from_dict(
         {"bootstrap_current": {"model_name": model_name}}
     )
     self.assertEqual(model.bootstrap_current.model_name, model_name)
 
-  def test_set_conductivity_model_name(self):
+  @parameterized.parameters("sauter", "redl")
+  def test_set_conductivity_model_name(self, model_name):
     model = pydantic_model.Neoclassical.from_dict(
-        {"conductivity": {"model_name": "sauter"}}
+        {"conductivity": {"model_name": model_name}}
     )
-    self.assertEqual(model.conductivity.model_name, "sauter")
+    self.assertEqual(model.conductivity.model_name, model_name)
 
   def test_set_transport_default_model_name(self):
     model = pydantic_model.Neoclassical.from_dict({"transport": {}})

@@ -22,6 +22,7 @@ from torax._src.neoclassical import runtime_params as runtime_params_lib
 from torax._src.neoclassical.bootstrap_current import redl as redl_current
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
 from torax._src.neoclassical.bootstrap_current import zeros as bootstrap_current_zeros
+from torax._src.neoclassical.conductivity import redl as redl_conductivity
 from torax._src.neoclassical.conductivity import sauter as sauter_conductivity
 from torax._src.neoclassical.poloidal_velocity import kim as kim_poloidal_velocity
 from torax._src.neoclassical.poloidal_velocity import zeros as poloidal_velocity_zeros
@@ -38,7 +39,7 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
       `"zeros"` if omitted, or `"sauter"` if a dict is provided without
       `model_name`.
     conductivity: Config for the parallel conductivity model. Defaults to
-      `"sauter"`.
+      `"sauter"` if omitted or if `model_name` is not provided.
     transport: Config for the neoclassical transport model. Defaults to
       `"zeros"` if omitted, or `"angioni_sauter"` if a dict is provided without
       `model_name`.
@@ -51,9 +52,10 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
       | sauter_current.SauterModelConfig
       | redl_current.RedlModelConfig
   ) = pydantic.Field(discriminator="model_name")
-  conductivity: sauter_conductivity.SauterModelConfig = (
-      torax_pydantic.ValidatedDefault(sauter_conductivity.SauterModelConfig())
-  )
+  conductivity: (
+      sauter_conductivity.SauterModelConfig
+      | redl_conductivity.RedlModelConfig
+  ) = pydantic.Field(discriminator="model_name")
   transport: (
       transport_zeros.ZerosModelConfig | angioni_sauter.AngioniSauterModelConfig
   ) = pydantic.Field(discriminator="model_name")
@@ -68,9 +70,11 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
     configurable_data = copy.deepcopy(data)
     # Set default model dicts if not in config dict.
     # bootstrap_current and transport default to "zeros" (off) when omitted,
-    # whereas poloidal_velocity defaults to "kim".
+    # whereas conductivity and poloidal_velocity default to "sauter" and "kim".
     if "bootstrap_current" not in configurable_data:
       configurable_data["bootstrap_current"] = {"model_name": "zeros"}
+    if "conductivity" not in configurable_data:
+      configurable_data["conductivity"] = {"model_name": "sauter"}
     if "transport" not in configurable_data:
       configurable_data["transport"] = {"model_name": "zeros"}
     if "poloidal_velocity" not in configurable_data:
@@ -78,6 +82,8 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
     # Set default model names when a sub-dict is provided without model_name.
     if "model_name" not in configurable_data["bootstrap_current"]:
       configurable_data["bootstrap_current"]["model_name"] = "sauter"
+    if "model_name" not in configurable_data["conductivity"]:
+      configurable_data["conductivity"]["model_name"] = "sauter"
     if "model_name" not in configurable_data["transport"]:
       configurable_data["transport"]["model_name"] = "angioni_sauter"
     if "model_name" not in configurable_data["poloidal_velocity"]:
