@@ -1243,6 +1243,26 @@ Geometry dicts for all geometry types can contain the following additional keys.
   higher resolution mesh with ``nrho_hires = nrho * hi_res_fac``, used for
   ``j`` to ``psi`` conversions.
 
+``trapped_fraction_source`` (str [default = 'SAUTER'])
+  Selects how the effective trapped particle fraction, used by the
+  neoclassical ``bootstrap_current``, ``conductivity``, and ``transport``
+  models, is computed. Computed once at geometry construction time. Options are:
+
+  * ``'SAUTER'`` (default)
+    Uses the analytical approximation from
+    `O. Sauter, Fusion Eng. Des. 112, 633 (2016) <https://doi.org/10.1016/j.fusengdes.2016.04.033>`_.
+    Supported by every geometry source.
+
+  * ``'FILE'``
+    Reads the value precomputed by the input equilibrium code directly from
+    the geometry file. Only supported for CHEASE and IMAS geometries.
+
+  * ``'EXACT'``
+    Computes the exact bounce-averaged integral directly from the traced 2D
+    equilibrium, using the formulation of
+    `Y. R. Lin-Liu and R. L. Miller, Phys. Plasmas 2, 1666 (1995) <https://doi.org/10.1063/1.871315>`_.
+    Only supported for EQDSK and IMAS geometries.
+
 
 Geometry dicts for all non-circular geometry types can contain the following
 additional keys.

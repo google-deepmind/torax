@@ -16,8 +16,10 @@
 .. _flax_link: https://github.com/google/flax
 .. _qualikiz-pythontools_link: https://gitlab.com/qualikiz-group/QuaLiKiz-pythontools
 .. _sauter_link: https://doi.org/10.1063/1.873240
+.. _sauter2016_link: https://doi.org/10.1016/j.fusengdes.2016.04.033
 .. _bosch-hale_link: https://doi.org/10.1088/0029-5515/32/4/I07
 .. _lin-liu_link: https://doi.org/10.1063/1.1610472
+.. _lin-liu-miller1995_link: https://doi.org/10.1063/1.871315
 .. _albajar2001_link: https://doi.org/10.1088/0029-5515/41/6/301
 .. _artaud2018_link: https://doi.org/10.1088/1741-4326/aad5b1
 .. _wallace2024_link: https://meetings.aps.org/Meeting/DPP24/Session/NP12.106
@@ -51,8 +53,10 @@
 .. |flax| replace:: `Flax <flax_link_>`_
 .. |qualikiz-pythontools| replace:: `QuaLiKiz Pythontools <qualikiz-pythontools_link_>`_
 .. |sauter99| replace:: `[Sauter PoP 1999] <sauter_link_>`_
+.. |sauter16| replace:: `[Sauter, Fusion Eng. Des. 2016] <sauter2016_link_>`_
 .. |bosch-hale| replace:: `[H.-S. Bosch and G.M. Hale NF 1992] <bosch-hale_link_>`_
 .. |lin-liu| replace:: `[Lin-Liu, Chan, Prater, PoP 2003] <lin-liu_link_>`_
+.. |lin-liu-miller1995| replace:: `[Lin-Liu & Miller, Phys. Plasmas 1995] <lin-liu-miller1995_link_>`_
 .. |albajar2001| replace:: `Albajar NF 2001 <albajar2001_link_>`_
 .. |artaud2018| replace:: `Artaud NF 2018 <artaud2018_link_>`_
 .. |wallace2024| replace:: `[Wallace et al, APS 2024] <wallace2024_link_>`_
