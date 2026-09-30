@@ -13,20 +13,76 @@
 # limitations under the License.
 """Common formulas used in neoclassical models."""
 
+import dataclasses
+import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src.fvm import cell_variable
+from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.physics import collisions
 
 
 # pylint: disable=invalid-name
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class NeoclassicalIntermediates:
+  """Precomputed intermediate quantities for analytical neoclassical models."""
+
+  f_trap: array_typing.FloatVectorFace
+  log_lambda_ei: array_typing.FloatVectorFace
+  log_lambda_ii: array_typing.FloatVectorFace
+  nu_e_star: array_typing.FloatVectorFace
+  nu_i_star: array_typing.FloatVectorFace
+  k_neo: array_typing.FloatVectorFace
+
+
+def compute_neoclassical_intermediates(
+    geo: geometry_lib.Geometry,
+    core_profiles: state.CoreProfiles,
+) -> NeoclassicalIntermediates:
+  """Computes shared quantities for analytical neoclassical models."""
+  f_trap = geo.trapped_fraction_face
+  log_lambda_ei = collisions.calculate_log_lambda_ei(
+      core_profiles.T_e.face_value(), core_profiles.n_e.face_value()
+  )
+  log_lambda_ii = collisions.calculate_log_lambda_ii(
+      core_profiles.T_i.face_value(),
+      core_profiles.n_i.face_value(),
+      core_profiles.Z_i_face,
+  )
+  nu_e_star = _calculate_nu_e_star(
+      q=core_profiles.q_face,
+      geo=geo,
+      n_e=core_profiles.n_e.face_value(),
+      T_e=core_profiles.T_e.face_value(),
+      Z_eff=core_profiles.Z_eff_face,
+      log_lambda_ei=log_lambda_ei,
+  )
+  nu_i_star = _calculate_nu_i_star(
+      q=core_profiles.q_face,
+      geo=geo,
+      n_i=core_profiles.n_i.face_value(),
+      T_i=core_profiles.T_i.face_value(),
+      Z_eff=core_profiles.Z_eff_face,
+      log_lambda_ii=log_lambda_ii,
+  )
+  k_neo = _calculate_neoclassical_k_neo(nu_i_star, geo.epsilon_face)
+  return NeoclassicalIntermediates(
+      f_trap=f_trap,
+      log_lambda_ei=log_lambda_ei,
+      log_lambda_ii=log_lambda_ii,
+      nu_e_star=nu_e_star,
+      nu_i_star=nu_i_star,
+      k_neo=k_neo,
+  )
+
+
 # TODO(b/428166775): currently we have two very similar implementations for
 # nu_e_star. We should refactor this to have a single one in physics/collisions
-def calculate_nu_e_star(
+def _calculate_nu_e_star(
     q: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
     n_e: array_typing.FloatVectorFace,
@@ -64,7 +120,7 @@ def calculate_nu_e_star(
   )
 
 
-def calculate_nu_i_star(
+def _calculate_nu_i_star(
     q: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
     n_i: array_typing.FloatVectorFace,
@@ -102,7 +158,7 @@ def calculate_nu_i_star(
   )
 
 
-def calculate_neoclassical_k_neo(
+def _calculate_neoclassical_k_neo(
     nu_star: array_typing.FloatScalar, epsilon: array_typing.FloatScalar
 ):
   """Calculates the neoclassical coefficient k_neo.
@@ -144,73 +200,3 @@ def calculate_neoclassical_k_neo(
 # TODO(b/381199010): Implement alternative Sauter-based k_neo calculation.
 # See Sauter (1999) Eq. 17a-17b
 
-
-def calculate_analytic_bootstrap_current(
-    *,
-    bootstrap_multiplier: float,
-    n_e: cell_variable.CellVariable,
-    n_i: cell_variable.CellVariable,
-    T_e: cell_variable.CellVariable,
-    T_i: cell_variable.CellVariable,
-    p_e: cell_variable.CellVariable,
-    p_i: cell_variable.CellVariable,
-    psi: cell_variable.CellVariable,
-    geo: geometry_lib.Geometry,
-    L31: array_typing.FloatVectorFace,
-    L32: array_typing.FloatVectorFace,
-    L34: array_typing.FloatVectorFace,
-    alpha: array_typing.FloatVectorFace,
-) -> bootstrap_current_base.BootstrapCurrent:
-  """Shared function for computing bootstrap current from analytic fits.
-
-  Used by Sauter and Redl models.
-
-  Args:
-    bootstrap_multiplier: A multiplier for the bootstrap current.
-    n_e: Electron density profile.
-    n_i: Ion density profile.
-    T_e: Electron temperature profile.
-    T_i: Ion temperature profile.
-    p_e: Electron pressure profile.
-    p_i: Ion pressure profile.
-    psi: Poloidal flux profile.
-    geo: The magnetic geometry.
-    L31: Neoclassical transport coefficient.
-    L32: Neoclassical transport coefficient.
-    L34: Neoclassical transport coefficient.
-    alpha: Neoclassical coefficient related to ion-ion collisions.
-
-  Returns:
-    The bootstrap current profile.
-  """
-  prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B_0
-
-  pe = p_e.face_value()
-  pi = p_i.face_value()
-
-  dpsi_drnorm = psi.face_grad()
-  dlnne_drnorm = n_e.face_grad() / n_e.face_value()
-  dlnni_drnorm = n_i.face_grad() / n_i.face_value()
-  dlnte_drnorm = T_e.face_grad() / T_e.face_value()
-  dlnti_drnorm = T_i.face_grad() / T_i.face_value()
-
-  global_coeff = prefactor[1:] / dpsi_drnorm[1:]  # pyrefly: ignore[bad-index]
-  global_coeff = jnp.concatenate([jnp.zeros(1), global_coeff])
-
-  necoeff = L31 * pe
-  nicoeff = L31 * pi
-  tecoeff = (L31 + L32) * pe
-  ticoeff = (L31 + alpha * L34) * pi
-
-  j_parallel_bootstrap_face = global_coeff * (
-      necoeff * dlnne_drnorm
-      + nicoeff * dlnni_drnorm
-      + tecoeff * dlnte_drnorm
-      + ticoeff * dlnti_drnorm
-  )
-  j_parallel_bootstrap = geometry_lib.face_to_cell(j_parallel_bootstrap_face)
-
-  return bootstrap_current_base.BootstrapCurrent(
-      j_parallel_bootstrap=j_parallel_bootstrap,  # pyrefly: ignore[bad-argument-type]
-      j_parallel_bootstrap_face=j_parallel_bootstrap_face,
-  )

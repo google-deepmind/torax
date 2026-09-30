@@ -20,6 +20,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import base
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_runtime_params
+from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -31,8 +32,10 @@ class ZerosModel(base.BootstrapCurrentModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
   ) -> base.BootstrapCurrent:
     """Calculates bootstrap current."""
+    del runtime_params, core_profiles, neoclassical_intermediates
     return base.BootstrapCurrent(
         j_parallel_bootstrap=jnp.zeros_like(geometry.rho),
         j_parallel_bootstrap_face=jnp.zeros_like(geometry.rho_face),

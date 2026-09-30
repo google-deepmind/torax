@@ -237,10 +237,11 @@ class PsiCalculationsTest(parameterized.TestCase):
         calculate_anyway=True,
         calculated_source_profiles=source_profiles,
     )
-    conductivity = neoclassical_models.conductivity.calculate_conductivity(
+    conductivity = neoclassical_models(
+        dynamic_runtime_params_slice,
         geo,
         initial_core_profiles,
-    )
+    ).conductivity
 
     psidot_calculated = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]

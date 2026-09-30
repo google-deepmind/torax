@@ -23,7 +23,6 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import base
-from torax._src.physics import collisions
 from torax._src.physics import psi_calculations
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -33,15 +32,12 @@ from torax._src.torax_pydantic import torax_pydantic
 @jax.jit
 def _calculate_poloidal_velocity(
     T_i: cell_variable.CellVariable,
-    n_i: array_typing.FloatVectorFace,
-    q: array_typing.FloatVectorFace,
-    Z_eff: array_typing.FloatVectorFace,
+    k_neo: array_typing.FloatVectorFace,
     Z_i: array_typing.FloatVectorFace,
     B_tor: array_typing.FloatVectorFace,
     B_total_squared: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
     poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0,
-    nu_i_star: array_typing.FloatVectorFace | None = None,
 ) -> cell_variable.CellVariable:
   """Computes the neoclassical ion poloidal velocity profile.
 
@@ -56,9 +52,7 @@ def _calculate_poloidal_velocity(
 
   Args:
     T_i: Ion temperature as a cell variable [keV].
-    n_i: Ion density on the face grid [m^-3].
-    q: Safety factor on the face grid.
-    Z_eff: Effective charge on the face grid.
+    k_neo: Neoclassical coefficient on the face grid.
     Z_i: Main ion charge on the face grid.
     B_tor: Toroidal magnetic field on the face grid [T].
     B_total_squared: Total magnetic field (toroidal + poloidal) on the face grid
@@ -66,32 +60,11 @@ def _calculate_poloidal_velocity(
     geo: Geometry.
     poloidal_velocity_multiplier: A multiplier to apply to the poloidal
       velocity.
-    nu_i_star: Optional precomputed normalized ion collisionality on the face
-      grid.
 
   Returns:
     v_pol : Poloidal velocity profile [m/s].
   """
   # Note: all computations are performed on the face grid.
-  T_i_face = T_i.face_value()
-  epsilon = geo.epsilon_face
-
-  if nu_i_star is None:
-    log_lambda_ii = collisions.calculate_log_lambda_ii(
-        T_i_face,
-        n_i,
-        Z_eff,
-    )
-    nu_i_star = formulas.calculate_nu_i_star(
-        q=q,
-        geo=geo,
-        n_i=n_i,
-        T_i=T_i_face,
-        Z_eff=Z_eff,
-        log_lambda_ii=log_lambda_ii,
-    )
-  k_neo = formulas.calculate_neoclassical_k_neo(nu_i_star, epsilon)
-
   # Calculate Radial Temperature Gradient (dT/dr)
   grad_Ti = (
       T_i.face_grad(
@@ -128,6 +101,7 @@ class KimModel(base.PoloidalVelocityModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
   ) -> base.PoloidalVelocity:
     """Calculates poloidal velocity according to the Kim (1991) model."""
     B_tor_face = geometry.F_face / geometry.R_major_profile_face
@@ -139,9 +113,7 @@ class KimModel(base.PoloidalVelocityModel):
     poloidal_velocity_params = runtime_params.neoclassical.poloidal_velocity
     v_pol = _calculate_poloidal_velocity(
         T_i=core_profiles.T_i,
-        n_i=core_profiles.n_i.face_value(),
-        q=core_profiles.q_face,
-        Z_eff=core_profiles.Z_eff_face,
+        k_neo=neoclassical_intermediates.k_neo,
         Z_i=core_profiles.Z_i_face,
         B_tor=B_tor_face,
         B_total_squared=B_total_squared_face,

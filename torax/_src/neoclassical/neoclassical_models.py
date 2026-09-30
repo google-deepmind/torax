@@ -22,6 +22,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import base as poloidal_velocity_base
 from torax._src.neoclassical.transport import base as transport_base
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
@@ -60,13 +61,31 @@ class NeoclassicalModels(static_dataclass.StaticDataclass):
       core_profiles: state.CoreProfiles,
   ) -> NeoclassicalOutputs:
     """Evaluates all neoclassical sub-models in a single pass."""
-    conductivity = self.conductivity.calculate_conductivity(geo, core_profiles)
-    bootstrap_current = self.bootstrap_current.calculate_bootstrap_current(
-        runtime_params, geo, core_profiles
+    neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
+        geo, core_profiles
     )
-    transport = self.transport(runtime_params, geo, core_profiles)
+    conductivity = self.conductivity.calculate_conductivity(
+        geo,
+        core_profiles,
+        neoclassical_intermediates=neoclassical_intermediates,
+    )
+    bootstrap_current = self.bootstrap_current.calculate_bootstrap_current(
+        runtime_params,
+        geo,
+        core_profiles,
+        neoclassical_intermediates=neoclassical_intermediates,
+    )
+    transport = self.transport(
+        runtime_params,
+        geo,
+        core_profiles,
+        neoclassical_intermediates=neoclassical_intermediates,
+    )
     poloidal_velocity = self.poloidal_velocity.calculate_poloidal_velocity(
-        runtime_params, geo, core_profiles
+        runtime_params,
+        geo,
+        core_profiles,
+        neoclassical_intermediates=neoclassical_intermediates,
     )
     return NeoclassicalOutputs(
         conductivity=conductivity,

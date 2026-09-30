@@ -21,6 +21,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
+from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
@@ -89,10 +90,13 @@ class AngioniSauterTest(absltest.TestCase):
     runtime_params, geo, core_profiles = (
         self._get_reference_runtime_params_geo_and_core_profiles()
     )
+    neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
+        geo, core_profiles
+    )
 
     # Test raw Angioni-Sauter values
     result = angioni_sauter._calculate_angioni_sauter_transport(
-        runtime_params, geo, core_profiles
+        runtime_params, geo, core_profiles, neoclassical_intermediates
     )
     np.testing.assert_allclose(
         result.chi_face_ion,
@@ -130,6 +134,9 @@ class AngioniSauterTest(absltest.TestCase):
     runtime_params, geo, core_profiles = (
         self._get_reference_runtime_params_geo_and_core_profiles()
     )
+    neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
+        geo, core_profiles
+    )
 
     # Enable Shaing ion correction
     modified_runtime_params = dataclasses.replace(
@@ -144,7 +151,7 @@ class AngioniSauterTest(absltest.TestCase):
 
     # Test blended Angioni-Sauter + Shaing values
     result = angioni_sauter.AngioniSauterModel()._call_implementation(
-        modified_runtime_params, geo, core_profiles
+        modified_runtime_params, geo, core_profiles, neoclassical_intermediates
     )
     np.testing.assert_allclose(
         result.chi_face_ion,

@@ -182,10 +182,11 @@ def _calculate_new_references(
 
   s_face = psi_calculations.calc_s_face(geo, psi)
 
-  conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geometry=geo,
-      core_profiles=initial_core_profiles,
-  )
+  conductivity = neoclassical_models(
+      runtime_params,
+      geo,
+      initial_core_profiles,
+  ).conductivity
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
       psi_sources=external_current,  # pyrefly: ignore[bad-argument-type]
       sigma=conductivity.sigma,

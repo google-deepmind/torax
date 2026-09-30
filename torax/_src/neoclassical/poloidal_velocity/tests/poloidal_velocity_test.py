@@ -16,6 +16,7 @@ from absl.testing import absltest
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
+from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import kim
 from torax._src.neoclassical.poloidal_velocity import zeros
 from torax._src.torax_pydantic import model_config
@@ -25,17 +26,17 @@ _R_TOL = 1e-6
 
 # Reference values from running test code in a notebook.
 _POLOIDAL_VELOCITY_EXPECTED = np.array([
-    -1485.871716,
-    -2507.496827,
-    -3933.755809,
-    -4537.621566,
-    -4854.858931,
-    -5031.592012,
-    -5073.608117,
-    -4858.248803,
-    -3559.941551,
-    3265.428187,
-    18579.094079,
+    -1421.733825,
+    -2416.310831,
+    -3824.149187,
+    -4439.831505,
+    -4756.802744,
+    -4921.795697,
+    -4940.634034,
+    -4675.437296,
+    -3174.355174,
+    3963.140325,
+    19424.630032,
 ])
 
 
@@ -84,13 +85,16 @@ class PoloidalVelocityTest(absltest.TestCase):
         source_models=models.source_models,
         neoclassical_models=models.neoclassical_models,
     )
+    self.neoclassical_intermediates = (
+        formulas.compute_neoclassical_intermediates(
+            self.geo, self.core_profiles
+        )
+    )
 
   def test_calculate_poloidal_velocity_values_are_correct(self):
     poloidal_velocity = kim._calculate_poloidal_velocity(
         T_i=self.core_profiles.T_i,
-        n_i=self.core_profiles.n_i.face_value(),
-        q=self.core_profiles.q_face,
-        Z_eff=self.core_profiles.Z_eff_face,
+        k_neo=self.neoclassical_intermediates.k_neo,
         Z_i=self.core_profiles.Z_i_face,
         B_tor=np.ones_like(self.geo.rho_face_norm),
         B_total_squared=np.ones_like(self.geo.rho_face_norm),
@@ -106,7 +110,10 @@ class PoloidalVelocityTest(absltest.TestCase):
   def test_kim_model_produces_expected_shapes_and_non_zero_velocity(self):
     model = kim.KimModel()
     output = model.calculate_poloidal_velocity(
-        self.runtime_params, self.geo, self.core_profiles
+        self.runtime_params,
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
     )
     self.assertEqual(output.v_pol.value.shape, self.geo.rho_norm.shape)
     self.assertEqual(
@@ -117,7 +124,10 @@ class PoloidalVelocityTest(absltest.TestCase):
   def test_zeros_model_returns_zero_poloidal_velocity(self):
     model = zeros.ZerosModel()
     output = model.calculate_poloidal_velocity(
-        self.runtime_params, self.geo, self.core_profiles
+        self.runtime_params,
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
     )
     np.testing.assert_allclose(
         output.v_pol.value, np.zeros_like(self.geo.rho_norm)
