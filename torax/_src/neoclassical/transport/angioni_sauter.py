@@ -22,7 +22,7 @@ https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 """
 
 import dataclasses
-from typing import Annotated, Literal, override
+from typing import Annotated, Final, Literal, override
 
 import jax
 from jax import numpy as jnp
@@ -43,6 +43,20 @@ from torax._src.transport_model import transport_coeffs
 
 
 # pylint: disable=invalid-name
+
+
+# Numerical regularizers for safe division in neoclassical transport.
+# Denominators in transport coefficient extractions scale with physical
+# plasma densities (n_e, n_i ~ 1e19 - 1e20 m^-3) and poloidal flux gradients
+# (dpsi/dr ~ 1 Wb/m), giving typical denominator magnitudes of order
+# ~1e20 in SI units. Using an unscaled dimensionless epsilon (e.g. 1e-7) is
+# ~1e-27 relative to this scale, being completely lost to floating-point
+# roundoff and failing to regularize if a denominator approaches zero.
+# Choosing eps ~ 1e12 ensures a relative error < 1e-7 in the physical plasma
+# region while providing a finite numerical ceiling if a denominator vanishes.
+_SAFE_DIVIDE_EPS_CHI: Final[float] = 1e12  # [Wb / m^5]
+_SAFE_DIVIDE_EPS_D: Final[float] = 1e12  # [Wb^2 / m^5]
+_SAFE_DIVIDE_EPS_V: Final[float] = 1e12  # [Wb / m^4]
 
 
 @jax.tree_util.register_dataclass
@@ -201,18 +215,17 @@ def _calculate_angioni_sauter_transport(
       core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
   )
 
-  # Equation 18c from Sauter PoP 1999
-  nu_i_star = (
-      4.9e-18
-      * core_profiles.q_face
-      * geometry.R_major_profile_face
-      * core_profiles.n_i.face_value()
-      * core_profiles.Z_i_face**4
-      * log_lambda_ii
-      / (
-          (core_profiles.T_i.face_value() * 1e3) ** 2
-          * (geometry.epsilon_face + constants.CONSTANTS.eps) ** 1.5
-      )
+  # Equation (18c) from Sauter PoP 1999 / Eq. (B2b) from Angioni & Sauter 2000.
+  # Note: Angioni & Sauter Eq. (B2b) defines nu_i_star as the pure main-ion
+  # collisionality (using Z_i^4), since impurity collisions enter separately
+  # via alpha_I in Eq. (30h).
+  nu_i_star = formulas.calculate_nu_i_star(
+      q=core_profiles.q_face,
+      geo=geometry,
+      n_i=core_profiles.n_i.face_value(),
+      T_i=core_profiles.T_i.face_value(),
+      Z_eff=core_profiles.Z_i_face,
+      log_lambda_ii=log_lambda_ii,
   )
 
   # Impurity strength parameter
@@ -242,7 +255,9 @@ def _calculate_angioni_sauter_transport(
   )
 
   # --- Step 4: Calculate thermodynamic forces ---
-  dpsi_drhon = core_profiles.psi.face_grad()
+  # Convert from total poloidal flux Psi [Wb] in TORAX to poloidal flux per
+  # radian psi = Psi / (2 * pi) [Wb/rad] (Angioni & Sauter, 2000, Eq. 1).
+  dpsi_drhon = core_profiles.psi.face_grad() / (2 * jnp.pi)
   dlnne_dpsi = math_utils.safe_divide(
       num=core_profiles.n_e.face_grad() / core_profiles.n_e.face_value(),
       denom=dpsi_drhon,
@@ -269,8 +284,13 @@ def _calculate_angioni_sauter_transport(
   pi = core_profiles.pressure_thermal_i.face_value()
   Rpe = pe / (pe + pi)
   alpha = -Kmn_i[:, 0, 1]
-  E_parallel = core_profiles.psidot.face_value() / (
-      2 * jnp.pi * geometry.R_major_profile_face
+  # <E_parallel * B> / <B^2> = I(psi) * psidot * <R^-2> / (2 * pi * <B^2>)
+  # (Eq. 4c and Section V of Angioni & Sauter, 2000).
+  E_parallel_B_over_B2 = (
+      geometry.F_face
+      * core_profiles.psidot.face_value()
+      * geometry.g3_face
+      / (2 * jnp.pi * geometry.gm5_face)
   )
 
   # Total electron heat flux Q_e = B_e2 * T_e / (dpsi/drho) (see Angioni Sec 5)
@@ -279,15 +299,15 @@ def _calculate_angioni_sauter_transport(
       + (Lmn_e[:, 1, 0] + Lmn_e[:, 1, 1]) * dlnte_dpsi
       + (1 - Rpe) / Rpe * Lmn_e[:, 1, 0] * dlnni_dpsi
       + (1 - Rpe) / Rpe * (Lmn_e[:, 1, 0] + alpha * Lmn_e[:, 1, 3]) * dlnti_dpsi
-      + Lmn_e[:, 1, 2] * E_parallel / geometry.B_0
+      + Lmn_e[:, 1, 2] * E_parallel_B_over_B2
   )
 
-  # Total ion heat flux Q_i = B_i2 / T_i * (dpsi/drho) (see Angioni Sec 5)
+  # Total ion heat flux Q_i = B_i2 * T_i / (dpsi/drho) (see Angioni Sec 5)
   Bi2 = (
       alpha * Lmn_e[:, 3, 0] * dlnne_dpsi
       + alpha * (Lmn_e[:, 3, 0] + Lmn_e[:, 3, 1]) * dlnte_dpsi
       + alpha * (1 - Rpe) / Rpe * Lmn_e[:, 3, 0] * dlnni_dpsi
-      + alpha * Lmn_e[:, 3, 2] * E_parallel / geometry.B_0
+      + alpha * Lmn_e[:, 3, 2] * E_parallel_B_over_B2
       + (
           Lmn_i[:, 1, 1]
           + (1 - Rpe) / Rpe * alpha**2 / core_profiles.Z_i_face * Lmn_e[:, 3, 3]
@@ -303,60 +323,81 @@ def _calculate_angioni_sauter_transport(
   # All transport quantities have constant extrapolation to the magnetic axis
   # to avoid division by near-zero and unphysical values.
 
-  chi_neo_e_bulk = -Be2[1:] / (
-      core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
-      * dlnte_dpsi[1:]  # pyrefly: ignore[bad-index]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2  # pyrefly: ignore[bad-index]
-      + constants.CONSTANTS.eps
+  grad_rho_sq = geometry.rho_b**2 * geometry.g1_over_vpr2_face
+  grad_rho = geometry.rho_b * geometry.g0_over_vpr_face
+
+  chi_neo_e_bulk = math_utils.safe_divide(
+      num=-Be2[1:],
+      denom=(
+          core_profiles.n_e.face_value()[1:]
+          * dlnte_dpsi[1:]
+          * (dpsi_drhon[1:] / geometry.rho_b) ** 2
+          * grad_rho_sq[1:]
+      ),
+      eps=_SAFE_DIVIDE_EPS_CHI,
   )
   chi_neo_e = jnp.concatenate([chi_neo_e_bulk[0:1], chi_neo_e_bulk])
 
-  chi_neo_i_bulk = -Bi2[1:] / (
-      core_profiles.n_i.face_value()[1:]  # pyrefly: ignore[bad-index]
-      * dlnti_dpsi[1:]  # pyrefly: ignore[bad-index]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2  # pyrefly: ignore[bad-index]
-      + constants.CONSTANTS.eps
+  chi_neo_i_bulk = math_utils.safe_divide(
+      num=-Bi2[1:],
+      denom=(
+          core_profiles.n_i.face_value()[1:]
+          * dlnti_dpsi[1:]
+          * (dpsi_drhon[1:] / geometry.rho_b) ** 2
+          * grad_rho_sq[1:]
+      ),
+      eps=_SAFE_DIVIDE_EPS_CHI,
   )
   chi_neo_i = jnp.concatenate([chi_neo_i_bulk[0:1], chi_neo_i_bulk])
 
-  # Decomposition of particle flux Be1 = Gamma * dpsi_drho. Page 1232+1233.
+  # Decomposition of particle flux Be1 = Gamma * dpsi_drho.
+  # Reference: Angioni & Sauter (2000), Section V (pp. 1232–1233),
+  # Eqs. (4a) and (32).
 
-  # Diffusive part of particle flux
-  # D_e * dn_e/drho  = - L00 *dlog(n_e)/dpsi / dpsi/drho
-  D_neo_e_bulk = -Lmn_e[1:, 0, 0] / (
-      core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2  # pyrefly: ignore[bad-index]
-      + constants.CONSTANTS.eps
+  # Diffusive part of particle flux:
+  # D_e * <|grad rho|^2> * dn_e/drho = - L00 * dlog(n_e)/dpsi / (dpsi/drho)
+  D_neo_e_bulk = math_utils.safe_divide(
+      num=-Lmn_e[1:, 0, 0],
+      denom=(
+          core_profiles.n_e.face_value()[1:]
+          * (dpsi_drhon[1:] / geometry.rho_b) ** 2
+          * grad_rho_sq[1:]
+      ),
+      eps=_SAFE_DIVIDE_EPS_D,
   )
   D_neo_e = jnp.concatenate([D_neo_e_bulk[0:1], D_neo_e_bulk])
 
-  # Convective part of particle flux, apart from the Ware Pinch term
-  # V*n*dpsi/rho = (L00+L01)*dlog(Te)/dpsi + (1-Rpe)/Rpe*L00*dlog(ni)/dpsi +
-  # (1-Rpe)/Rpe * (L00+alpha*L03) *dlog(Ti)/dpsi
-  V_neo_e_bulk = (
-      (Lmn_e[1:, 0, 0] + Lmn_e[1:, 0, 1]) * dlnte_dpsi[1:]  # pyrefly: ignore[bad-index]
-      + (1 - Rpe[1:]) / Rpe[1:] * Lmn_e[1:, 0, 0] * dlnni_dpsi[1:]  # pyrefly: ignore[bad-index]
-      + (1 - Rpe[1:])  # pyrefly: ignore[bad-index]
-      / Rpe[1:]  # pyrefly: ignore[bad-index]
-      * (Lmn_e[1:, 0, 0] + alpha[1:] * Lmn_e[1:, 0, 3])
-      * dlnti_dpsi[1:]  # pyrefly: ignore[bad-index]
-  ) / (
-      dpsi_drhon[1:] / geometry.rho_b * core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
-      + constants.CONSTANTS.eps
+  # Convective part of particle flux, apart from the Ware pinch term:
+  # V * <|grad rho|> * n * dpsi/drho = (L00+L01)*dlog(Te)/dpsi +
+  # (1-Rpe)/Rpe*L00*dlog(ni)/dpsi + (1-Rpe)/Rpe * (L00+alpha*L03) *dlog(Ti)/dpsi
+  V_neo_e_bulk = math_utils.safe_divide(
+      num=(
+          (Lmn_e[1:, 0, 0] + Lmn_e[1:, 0, 1]) * dlnte_dpsi[1:]
+          + (1 - Rpe[1:]) / Rpe[1:] * Lmn_e[1:, 0, 0] * dlnni_dpsi[1:]
+          + (1 - Rpe[1:])
+          / Rpe[1:]
+          * (Lmn_e[1:, 0, 0] + alpha[1:] * Lmn_e[1:, 0, 3])
+          * dlnti_dpsi[1:]
+      ),
+      denom=(
+          (dpsi_drhon[1:] / geometry.rho_b)
+          * grad_rho[1:]
+          * core_profiles.n_e.face_value()[1:]
+      ),
+      eps=_SAFE_DIVIDE_EPS_V,
   )
   V_neo_e = jnp.concatenate([V_neo_e_bulk[0:1], V_neo_e_bulk])
 
-  # Ware pinch term component of particle convection
-  # V_ware*n*dpsi/rho = L02*<E_parallel * B>/<B^2>
-  V_neo_ware_e_bulk = (
-      Lmn_e[1:, 0, 2]
-      * E_parallel[1:]
-      / (
-          geometry.B_0
-          * (dpsi_drhon[1:] / geometry.rho_b)  # pyrefly: ignore[bad-index]
-          * core_profiles.n_e.face_value()[1:]  # pyrefly: ignore[bad-index]
-          + constants.CONSTANTS.eps
-      )
+  # Ware pinch term component of particle convection:
+  # V_ware * <|grad rho|> * n * dpsi/drho = L02 * <E_parallel * B>/<B^2>
+  V_neo_ware_e_bulk = math_utils.safe_divide(
+      num=Lmn_e[1:, 0, 2] * E_parallel_B_over_B2[1:],
+      denom=(
+          (dpsi_drhon[1:] / geometry.rho_b)
+          * grad_rho[1:]
+          * core_profiles.n_e.face_value()[1:]
+      ),
+      eps=_SAFE_DIVIDE_EPS_V,
   )
   V_neo_ware_e = jnp.concatenate([V_neo_ware_e_bulk[0:1], V_neo_ware_e_bulk])
 
@@ -406,10 +447,21 @@ def _calculate_Kmn(
   K14e_0 = -0.5 * F_ftrap[:, 0, 0]
   K24e_0 = 0.75 * F_ftrap[:, 0, 1]
 
-  # Eq. 30c
+  # Eq. 30c (note: Angioni & Sauter 2000 Eq. 30c contains a sign erratum:
+  # published as `- 6.25 * K11e_0`, but mathematically must be
+  # `+ 6.25 * K11e_0`.
+  # Proof: Eq. 30a defines K22e = H22 - 5*H12 + 6.25*H11. In the banana limit
+  # (nu_e_star -> 0), Hmn -> Hmn_0. Substituting H11_0 = K11e_0 and
+  # H12_0 = K12e_0 + 2.5*K11e_0 into Eq. 30a gives:
+  #   K22e -> H22_0 - 5*(K12e_0 + 2.5*K11e_0) + 6.25*K11e_0
+  #         = H22_0 - 5*K12e_0 - 6.25*K11e_0.
+  # For K22e to reduce to K22e_0 in this limit, we must invert this as:
+  #   H22_0 = K22e_0 + 5.0*K12e_0 + 6.25*K11e_0.
+  # The published minus sign would leave an uncancelled -12.5*K11e_0.
+  # Sauter's reference code `neos/src/neoclassic.f90` also uses + 6.25).
   H11_0 = K11e_0
   H12_0 = K12e_0 + 2.5 * K11e_0
-  H22_0 = K22e_0 + 5.0 * K12e_0 - 6.25 * K11e_0
+  H22_0 = K22e_0 + 5.0 * K12e_0 + 6.25 * K11e_0
 
   # Eq. 30f
   H41_0 = K14e_0
@@ -476,6 +528,7 @@ def _calculate_Kmn(
   Kmn_e = Kmn_e.at[:, 3, 0].set(Kmn_e[:, 0, 3])
   Kmn_e = Kmn_e.at[:, 1, 3].set(H42 - 2.5 * H41)
   Kmn_e = Kmn_e.at[:, 3, 1].set(Kmn_e[:, 1, 3])
+  Kmn_e = Kmn_e.at[:, 3, 3].set(H41)
 
   # Supplement K matrix with "bootstrap terms" needed for Ware pinch from the
   # Sauter model (PoP 1999)
@@ -487,14 +540,25 @@ def _calculate_Kmn(
       -sauter_formulas.calculate_L32(ftrap, nu_e_star, Z_eff)
   )
   Kmn_e = Kmn_e.at[:, 2, 1].set(Kmn_e[:, 1, 2])
+  Kmn_e = Kmn_e.at[:, 2, 3].set(
+      -sauter_formulas.calculate_L34(ftrap, nu_e_star, Z_eff)
+  )
+  Kmn_e = Kmn_e.at[:, 3, 2].set(Kmn_e[:, 2, 3])
 
-  # Ion Kmn matrix
-  # alpha coefficient, Eq. (25)
-  alpha = (
+  # Ion Kmn matrix:
+  # Compute the banana-regime alpha_0 coefficient (Angioni & Sauter Eq. 25)
+  # and interpolate across collisionality regimes to obtain alpha(nu_i_star)
+  # following Section V and Sauter (1999) Eq. (17b).
+  alpha_0 = (
       -(0.62 + 1.5 * alpha_I)
       / (0.53 + alpha_I)
       * ((1.0 - ftrap) / (1.0 - 0.22 * ftrap - 0.19 * ftrap**2))
   )
+  alpha = (
+      (alpha_0 + 0.25 * (1.0 - ftrap**2) * jnp.sqrt(nu_i_star))
+      / (1.0 + 0.5 * jnp.sqrt(nu_i_star))
+      + 0.315 * nu_i_star**2 * ftrap**6
+  ) / (1.0 + 0.15 * nu_i_star**2 * ftrap**6)
 
   # Eq. 24d
   F22_i_ftrapd = (1.0 - 0.55) * (
@@ -601,27 +665,36 @@ def _calculate_Lmn(
       nu_i_star * epsilon**1.5 * thermal_velocity_i + consts.eps
   )
 
-  r_larmor_e = consts.m_e * thermal_velocity_e / consts.q_e
-  r_larmor_i = (
+  # Larmor radii in Eqs. (17) and (22) use rho^2 = m * T / (q * B_0)^2
+  # (without the factor of 2 from thermal_velocity^2 = 2 * T / m), consistent
+  # with Lsi = n_i * tau_i / rho_i^2 below.
+  r_larmor_e = (
+      jnp.sqrt(consts.m_e * core_profiles.T_e.face_value() * consts.keV_to_J)
+      / (consts.q_e * geo.B_0)
+  )
+  r_larmor_i = jnp.sqrt(
       consts.m_amu
       * core_profiles.A_i
-      * thermal_velocity_i
-      / (consts.q_e * core_profiles.Z_i_face)
-  )
+      * core_profiles.T_i.face_value()
+      * consts.keV_to_J
+  ) / (consts.q_e * core_profiles.Z_i_face * geo.B_0)
 
-  dpsi_dr = core_profiles.psi.face_grad() / geo.rho_b
-
+  # In Angioni & Sauter (2000) Eqs. (17) and (22), the dimensional factor Ld
+  # uses the electron poloidal gyroradius
+  # rho_ep = rho_e0 * I(psi) / (dpsi/drho). The (dpsi/drho)^2 factor in Ld
+  # cancels with (dpsi/drho)^-2 from rho_ep^2, leaving rho_e0^2 * F_face^2
+  # where F_face = I(psi) = R * B_phi.
   Ld = (
       core_profiles.n_e.face_value()
       * r_larmor_e**2
       / collision_time_e
-      * dpsi_dr**2
+      * geo.F_face**2
   )
   Ldi = (
       core_profiles.n_i.face_value()
       * r_larmor_i**2
       / collision_time_i
-      * dpsi_dr**2
+      * geo.F_face**2
   )
   Lb = geo.F_face * core_profiles.n_e.face_value()
   Lbi = geo.F_face * core_profiles.n_i.face_value()
@@ -668,7 +741,7 @@ def _calculate_Lmn(
       Kmn_i[:, 0, 0] * Lsi * geo.gm5_face / geo.B_0**2
   )
   Lmn_i = Lmn_i.at[:, 0, 1].set(Kmn_i[:, 0, 1] * Lbi)
-  Lmn_i = Lmn_i.at[:, 1, 0].set(-Lmn_i[:, 1, 0])
+  Lmn_i = Lmn_i.at[:, 1, 0].set(-Lmn_i[:, 0, 1])
   Lmn_i = Lmn_i.at[:, 1, 1].set(
       Kmn_i[:, 1, 1] * Ldi * geo.gm4_face * geo.B_0**2
   )
