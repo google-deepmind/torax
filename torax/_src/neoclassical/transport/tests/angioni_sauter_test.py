@@ -29,6 +29,8 @@ _N_RHO = 10
 _A_TOL = 1e-6
 _R_TOL = 1e-6
 
+# pylint: disable=invalid-name
+
 
 class AngioniSauterTest(absltest.TestCase):
 
@@ -83,6 +85,73 @@ class AngioniSauterTest(absltest.TestCase):
     )
 
     return runtime_params, geo, core_profiles
+
+  def test_calculate_Lmn_ion_symmetry(self):
+    _, geo, core_profiles = (
+        self._get_reference_runtime_params_geo_and_core_profiles()
+    )
+    n_faces = geo.F_face.shape[0]
+    Kmn_e = np.ones((n_faces, 4, 4))
+    Kmn_i = np.ones((n_faces, 2, 2))
+    nu_e_star = np.ones(n_faces)
+    nu_i_star = np.ones(n_faces)
+
+    _, Lmn_i = angioni_sauter._calculate_Lmn(
+        Kmn_e=Kmn_e,
+        Kmn_i=Kmn_i,
+        geo=geo,
+        core_profiles=core_profiles,
+        epsilon=geo.epsilon_face,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+    )
+
+    np.testing.assert_allclose(Lmn_i[:, 1, 0], -Lmn_i[:, 0, 1])
+    self.assertTrue(np.all(Lmn_i[:, 1, 0] != 0.0))
+
+  def test_calculate_Lmn_poloidal_gyroradius(self):
+    _, geo, core_profiles = (
+        self._get_reference_runtime_params_geo_and_core_profiles()
+    )
+    n_faces = geo.F_face.shape[0]
+    Kmn_e = np.ones((n_faces, 4, 4))
+    Kmn_i = np.ones((n_faces, 2, 2))
+    nu_e_star = np.ones(n_faces)
+    nu_i_star = np.ones(n_faces)
+
+    Lmn_e, Lmn_i = angioni_sauter._calculate_Lmn(
+        Kmn_e=Kmn_e,
+        Kmn_i=Kmn_i,
+        geo=geo,
+        core_profiles=core_profiles,
+        epsilon=geo.epsilon_face,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+    )
+
+    scale = 2.5
+    scaled_geo = dataclasses.replace(geo, F_face=geo.F_face * scale)
+    Lmn_e_scaled, Lmn_i_scaled = angioni_sauter._calculate_Lmn(
+        Kmn_e=Kmn_e,
+        Kmn_i=Kmn_i,
+        geo=scaled_geo,
+        core_profiles=core_profiles,
+        epsilon=scaled_geo.epsilon_face,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+    )
+    np.testing.assert_allclose(
+        Lmn_e_scaled[:, 0, 0],
+        Lmn_e[:, 0, 0] * scale**2,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+    np.testing.assert_allclose(
+        Lmn_i_scaled[:, 1, 1],
+        Lmn_i[:, 1, 1] * scale**2,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
 
   def test_angioni_sauter_against_reference_values(self):
     """Reference values generated from running Angioni-Sauter."""
@@ -177,6 +246,72 @@ class AngioniSauterTest(absltest.TestCase):
         rtol=_R_TOL,
     )
 
+  def test_calculate_Kmn_populates_all_electron_elements(self):
+    ftrap = np.array([0.0, 0.2, 0.5])
+    ftrap_d = np.array([0.0, 0.18, 0.45])
+    Z_eff = np.full_like(ftrap, 2.0)
+    B2_avg_Bm2_avg = np.full_like(ftrap, 1.05)
+    nu_e_star = np.array([0.01, 0.1, 1.0])
+    nu_i_star = np.array([0.01, 0.1, 1.0])
+    alpha_I = Z_eff - 1.0
+
+    Kmn_e, _ = angioni_sauter._calculate_Kmn(
+        ftrap=ftrap,
+        ftrap_d=ftrap_d,
+        Z_eff=Z_eff,
+        B2_avg_Bm2_avg=B2_avg_Bm2_avg,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+        alpha_I=alpha_I,
+    )
+
+    np.testing.assert_allclose(Kmn_e[:, 3, 3], Kmn_e[:, 0, 3])
+    self.assertTrue(np.all(np.abs(Kmn_e[1:, 3, 3]) > 0.0))
+
+    sauter_formulas = angioni_sauter.sauter_formulas
+    expected_K23 = -sauter_formulas.calculate_L34(ftrap, nu_e_star, Z_eff)
+    np.testing.assert_allclose(Kmn_e[:, 2, 3], expected_K23)
+    np.testing.assert_allclose(Kmn_e[:, 3, 2], expected_K23)
+    self.assertTrue(np.all(np.abs(Kmn_e[1:, 2, 3]) > 0.0))
+    self.assertTrue(np.all(np.abs(Kmn_e[1:, 3, 2]) > 0.0))
+
+  def test_calculate_Kmn_alpha_collisionality_dependence(self):
+    ftrap = np.full(5, 0.5)
+    ftrap_d = np.full(5, 0.4)
+    Z_eff = np.full(5, 2.0)
+    B2_avg_Bm2_avg = np.full(5, 1.1)
+    nu_e_star = np.full(5, 0.1)
+    nu_i_star = np.array([0.0, 0.01, 0.1, 1.0, 10.0])
+    alpha_I = Z_eff - 1.0
+
+    _, Kmn_i = angioni_sauter._calculate_Kmn(
+        ftrap=ftrap,
+        ftrap_d=ftrap_d,
+        Z_eff=Z_eff,
+        B2_avg_Bm2_avg=B2_avg_Bm2_avg,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+        alpha_I=alpha_I,
+    )
+
+    alpha_0 = (
+        -(0.62 + 1.5 * alpha_I)
+        / (0.53 + alpha_I)
+        * ((1.0 - ftrap) / (1.0 - 0.22 * ftrap - 0.19 * ftrap**2))
+    )
+    expected_alpha = (
+        (alpha_0 + 0.25 * (1.0 - ftrap**2) * np.sqrt(nu_i_star))
+        / (1.0 + 0.5 * np.sqrt(nu_i_star))
+        + 0.315 * nu_i_star**2 * ftrap**6
+    ) / (1.0 + 0.15 * nu_i_star**2 * ftrap**6)
+
+    np.testing.assert_allclose(
+        -Kmn_i[:, 0, 1], expected_alpha, atol=_A_TOL, rtol=_R_TOL
+    )
+    np.testing.assert_allclose(
+        Kmn_i[:, 1, 0], expected_alpha, atol=_A_TOL, rtol=_R_TOL
+    )
+
 
 # Reference values from running test code in a standalone manner.
 # The test thus does not directly test the implementation, but rather
@@ -185,71 +320,71 @@ class AngioniSauterTest(absltest.TestCase):
 # The implementation was independently tested against NEOS up to the
 # generation of the Kmn matrix.
 _V_CONV = np.array([
-    1.07951440e-05,
-    1.07951440e-05,
-    1.11015003e-05,
-    1.54065751e-05,
-    2.65710672e-05,
-    4.42853751e-05,
-    7.06387381e-05,
-    1.12983269e-04,
-    1.92360065e-04,
-    3.86372126e-04,
-    1.18868626e-03,
+    8.12487624e-04,
+    8.12487624e-04,
+    1.52311168e-04,
+    6.04049750e-05,
+    6.07982420e-05,
+    8.92173399e-05,
+    1.46361460e-04,
+    2.66734324e-04,
+    5.66525965e-04,
+    1.50377518e-03,
+    4.87797441e-03,
 ])
 _V_WARE = np.array([
-    -0.00038114,
-    -0.00038114,
-    -0.00041759,
-    -0.00037123,
-    -0.00032066,
-    -0.00030646,
-    -0.0003312,
-    -0.00038565,
-    -0.00056229,
-    -0.00159816,
-    -0.00178913,
+    -0.00237107,
+    -0.00237107,
+    -0.00260053,
+    -0.00230196,
+    -0.00195967,
+    -0.00182954,
+    -0.00191628,
+    -0.00214489,
+    -0.00297652,
+    -0.00792481,
+    -0.00801591,
 ])
 
 _ANGIONI_SAUTER_REFERENCE_VALUES = transport_coeffs_lib.NeoclassicalTransport(
     chi_face_ion=np.array([
-        0.01219968,
-        0.01219968,
-        0.02223608,
-        0.03117304,
-        0.03891618,
-        0.04568965,
-        0.05179111,
-        0.0572006,
-        0.06147531,
-        0.06320731,
-        0.0591895,
+        0.5442650558424593,
+        0.5442650558424593,
+        0.18032915,
+        0.08241574,
+        0.06569636,
+        0.06845025,
+        0.07693944,
+        0.09001002,
+        0.10795760,
+        0.12556257855725886,
+        0.10507996,
     ]),
     chi_face_el=np.array([
-        -0.00210023,
-        -0.00210023,
-        -0.0030792,
-        -0.00388683,
-        -0.0045548,
-        -0.00511068,
-        -0.0056083,
-        -0.0060884,
-        -0.00658147,
-        -0.00717367,
-        -0.00750323,
+        -0.09779473060905419,
+        -0.09779473060905419,
+        -2.45040927e-02,
+        -9.21265659e-03,
+        -6.93771199e-03,
+        -7.17346536e-03,
+        -8.02795557e-03,
+        -9.42512444e-03,
+        -1.15220350e-02,
+        -1.43311914e-02,
+        -1.34627330e-02,
     ]),
     d_face_el=np.array([
-        0.00011698,
-        0.00011698,
-        0.00021105,
-        0.00028474,
-        0.00033721,
-        0.00037529,
-        0.00040377,
-        0.00042199,
-        0.00042404,
-        0.00039292,
-        0.0002924,
+        5.11371876e-03,
+        5.11371876e-03,
+        1.64419017e-03,
+        7.09800793e-04,
+        5.42215812e-04,
+        5.44016816e-04,
+        5.86608760e-04,
+        6.54437829e-04,
+        7.37116441e-04,
+        7.72355264e-04,
+        5.17286534e-04,
     ]),
     v_face_el=_V_CONV + _V_WARE,
     v_face_el_ware=_V_WARE,
@@ -259,17 +394,17 @@ _ANGIONI_SAUTER_REFERENCE_VALUES = transport_coeffs_lib.NeoclassicalTransport(
 _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES = (
     transport_coeffs_lib.NeoclassicalTransport(
         chi_face_ion=np.array([
-            0.20382857,
-            0.17130245,
-            0.03031974,
-            0.02593766,
-            0.03523606,
-            0.04391418,
-            0.05103481,
-            0.05690314,
-            0.06136931,
-            0.06317694,
-            0.05918355,
+            0.26725217564749176,
+            0.31439655758643875,
+            0.10936628,
+            0.06339907,
+            0.05882397,
+            0.06559534,
+            0.07573081,
+            0.08949297,
+            0.10773667,
+            0.1254754018560309,
+            0.10505861,
         ]),
         chi_face_el=_ANGIONI_SAUTER_REFERENCE_VALUES.chi_face_el,
         d_face_el=_ANGIONI_SAUTER_REFERENCE_VALUES.d_face_el,
