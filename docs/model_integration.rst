@@ -473,8 +473,9 @@ Create a pydantic config class that inherits from
 ``torax.edge.EdgeModelConfig`` and implements ``build_edge_model``.
 The config class must declare a ``model_name`` field with a unique
 ``Literal`` type identifying the model. Standard boundary condition update
-flags (``update_temperatures``, ``update_electron_density``,
-``update_impurities``) and their default runtime parameters are inherited
+flags (``update_electron_temperature``, ``update_ion_temperature``,
+``update_electron_density``, ``update_impurities``) and their default runtime
+parameters are inherited
 automatically, or you can optionally override ``build_runtime_params`` if your
 model requires custom parameter handling. On the model Pydantic config class,
 a validator can be used if the model only supports ``update_... = True`` for a

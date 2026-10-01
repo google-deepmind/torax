@@ -433,7 +433,8 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     # Combine dynamic inputs and runtime params to call standalone function
     runtime_params_dict = dataclasses.asdict(runtime_params)
     runtime_params_dict.pop('enrichment_factor')
-    runtime_params_dict.pop('update_temperatures')
+    runtime_params_dict.pop('update_electron_temperature')
+    runtime_params_dict.pop('update_ion_temperature')
     runtime_params_dict.pop('update_electron_density')
     runtime_params_dict.pop('update_impurities')
     runtime_params_dict.pop('use_enrichment_model')
@@ -487,21 +488,25 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         T_e_target=10.0,
         seed_impurity_weights={'N': 1.0},
         enrichment_factor={'N': 1.0},
-        update_temperatures={0.0: False, 1.0: True},
+        update_electron_temperature={0.0: False, 1.0: True},
+        update_ion_temperature={0.0: False, 1.0: True},
     )
-    # Check that before the step the value is False.
+    # Check that before the step the values match t=0.0.
     runtime_params_before = config.build_runtime_params(t=0.9)
-    self.assertFalse(runtime_params_before.update_temperatures)
+    self.assertFalse(runtime_params_before.update_electron_temperature)
+    self.assertFalse(runtime_params_before.update_ion_temperature)
 
     # STEP interpolation uses left-open intervals: for x in (x_k, x_k+1],
     # the output is y_k+1. At t=1.0 we are still in the first interval so
     # the value has not yet switched. See b/454891040.
     runtime_params_at = config.build_runtime_params(t=1.0)
-    self.assertFalse(runtime_params_at.update_temperatures)
+    self.assertFalse(runtime_params_at.update_electron_temperature)
+    self.assertFalse(runtime_params_at.update_ion_temperature)
 
-    # Just past the breakpoint the value switches to True.
+    # Just past the breakpoint the values switch.
     runtime_params_after = config.build_runtime_params(t=1.01)
-    self.assertTrue(runtime_params_after.update_temperatures)
+    self.assertTrue(runtime_params_after.update_electron_temperature)
+    self.assertTrue(runtime_params_after.update_ion_temperature)
 
 
 if __name__ == '__main__':
