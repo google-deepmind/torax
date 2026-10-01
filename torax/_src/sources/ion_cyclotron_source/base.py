@@ -13,6 +13,7 @@
 # limitations under the License.
 """Base infrastructure for ion-cyclotron resonance heating (ICRH) sources."""
 
+import abc
 from collections.abc import Sequence
 import dataclasses
 from typing import Annotated, ClassVar
@@ -28,10 +29,10 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
-# Default value for the model function to be used for the ion cyclotron
-# source. This is also used as an identifier for the model function in
+# Default value for the model to be used for the ion cyclotron source.
+# This is also used as an identifier for the model in
 # the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'toric_nn'
+DEFAULT_MODEL_NAME: str = 'toric_nn'
 
 
 def build_fast_ions(
@@ -135,5 +136,6 @@ class IonCyclotronSourceConfig(source_base.SourceModelBase):
   # TODO(b/434175938): Make minority_species a required field in V2.
   minority_species: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
 
+  @abc.abstractmethod
   def build_source(self) -> IonCyclotronSource:
-    return IonCyclotronSource(model_func=self.model_func)
+    """Builds an IonCyclotronSource instance."""

@@ -40,6 +40,7 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.orchestration import run_simulation
 from torax._src.solver import jax_root_finding
 from torax._src.sources import generic_ion_el_heat_source
+from torax._src.sources import runtime_params as sources_runtime_params
 from torax._src.sources import source_profiles
 from torax._src.test_utils import sim_test_case
 
@@ -122,13 +123,25 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     # Set up CoreSources to give P_SOL_total = 5.5e6 W.
     target_P_SOL = 5.5e6
 
-    ion_heat, el_heat = generic_ion_el_heat_source.calc_generic_heat_source(
-        geo=mock_geo,
+    heat_source = (
+        generic_ion_el_heat_source.GenericIonElectronHeatSource()
+    )
+    heat_source_params = generic_ion_el_heat_source.RuntimeParams(
+        prescribed_values=(),
+        mode=sources_runtime_params.Mode.MODEL_BASED,
+        is_explicit=False,
         gaussian_location=0.5,
         gaussian_width=0.2,
         P_total=target_P_SOL,
         electron_heat_fraction=0.7,
         absorption_fraction=1.0,
+    )
+    mock_runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
+    mock_runtime_params.sources = {heat_source.source_name: heat_source_params}
+    ion_heat, el_heat = heat_source.get_value(
+        runtime_params=mock_runtime_params,
+        geo=mock_geo,
+        core_profiles=mock_core_profiles,
     )
 
     mock_core_sources = source_profiles.SourceProfiles(

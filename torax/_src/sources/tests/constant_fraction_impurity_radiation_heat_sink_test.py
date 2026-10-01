@@ -75,9 +75,7 @@ class ImpurityRadiationConstantFractionTest(
         },
     )
 
-    heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource(
-        model_func=generic_ion_el_heat_source.default_formula,  # pyrefly: ignore[bad-argument-type]
-    )
+    heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource()
 
     geo = circular_geometry.CircularConfig().build_geometry()
     el, ion = heat_source.get_value(
@@ -88,8 +86,8 @@ class ImpurityRadiationConstantFractionTest(
         None,
     )
 
-    impurity_radiation_sink = impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink(
-        model_func=impurity_radiation_constant_fraction.radially_constant_fraction_of_Pin  # pyrefly: ignore[bad-argument-type]
+    impurity_radiation_sink = (
+        impurity_radiation_constant_fraction.ConstantFractionImpurityRadiationHeatSink()
     )
 
     impurity_radiation_heat_sink_power_density = (

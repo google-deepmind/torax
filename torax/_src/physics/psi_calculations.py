@@ -399,7 +399,7 @@ def calculate_psidot_from_psi_sources(
     *,
     psi_sources: array_typing.FloatVector,
     sigma: array_typing.FloatVector,
-    resistivity_multiplier: float,
+    resistivity_multiplier: array_typing.FloatScalar,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,
 ) -> jax.Array:
