@@ -18,6 +18,7 @@ import dataclasses
 
 from absl import logging
 import jax
+from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import state
@@ -112,17 +113,21 @@ class SimState:
     else:
       return state.SimError.NO_ERROR
 
-  def has_nan(self) -> bool:
+  @jax.jit
+  def has_nan(self) -> jax.Array:
+    """Returns a boolean JAX scalar indicating whether any checked leaf has NaNs."""
     # Exclude edge outputs from NaN checks. This is acceptable as the edge model
     # can be run in a decoupled mode for diagnostic purposes, in which case NaNs
     # are not propagated to the TORAX core profiles and can be ignored. If NaNs
     # are produced in coupled mode, these will be propagated to the
     # TORAX core profiles and thus will be caught by the NaN check there.
-    return any([
-        np.any(np.isnan(value))
-        for path, value in jax.tree.leaves_with_path(self)
-        if not _should_exclude_path(path)
-    ])
+    return jnp.any(
+        jnp.stack([
+            jnp.any(jnp.isnan(value))
+            for path, value in jax.tree.leaves_with_path(self)
+            if not _should_exclude_path(path)
+        ])
+    )
 
 
 def _log_nans(

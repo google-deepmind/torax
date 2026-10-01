@@ -45,6 +45,27 @@ from torax._src.time_step_calculator import time_step_calculator as ts
 # pylint: disable=invalid-name
 
 
+@jax.jit(static_argnames=['adaptive_dt'])
+def _has_any_step_error(
+    output_state: sim_state.SimState,
+    post_processed_outputs: post_processing.PostProcessedOutputs,
+    T_minimum_eV: float,
+    adaptive_dt: bool,
+) -> jax.Array:
+  """Single fused XLA check returning True if any error condition is met."""
+  return (
+      output_state.core_profiles.below_minimum_temperature(T_minimum_eV)
+      | output_state.core_profiles.negative_temperature_or_density()
+      | output_state.has_nan()
+      | ~output_state.core_profiles.quasineutrality_satisfied()
+      | post_processed_outputs.has_nan()
+      | (
+          adaptive_dt
+          & (output_state.solver_numeric_outputs.solver_error_state == 1)
+      )
+  )
+
+
 @jax.tree_util.register_pytree_node_class
 class SimulationStepFn:
   """Advances the TORAX simulation one time step.
@@ -143,6 +164,15 @@ class SimulationStepFn:
       post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> state.SimError:
     """Checks for errors in the simulation state."""
+    if not bool(
+        _has_any_step_error(
+            output_state,
+            post_processed_outputs,
+            self._runtime_params_provider.numerics.T_minimum_eV,
+            bool(self._runtime_params_provider.numerics.adaptive_dt),
+        )
+    ):
+      return state.SimError.NO_ERROR
 
     # Low-temperature collapse check
     if output_state.core_profiles.below_minimum_temperature(
