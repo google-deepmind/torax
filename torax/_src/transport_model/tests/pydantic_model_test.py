@@ -277,9 +277,7 @@ class TransportModelValidationTest(parameterized.TestCase):
             ),
         }
     )
-    self.assertIsInstance(
-        config, transport_pydantic_model.TransportModel
-    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
 
   def test_valid_single_overwrite(self):
     config = transport_pydantic_model.TransportModel(
@@ -292,9 +290,7 @@ class TransportModelValidationTest(parameterized.TestCase):
             ),
         }
     )
-    self.assertIsInstance(
-        config, transport_pydantic_model.TransportModel
-    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
 
   def test_valid_split_overwrites(self):
     # Model 1 overwrites Chi_i only
@@ -316,9 +312,7 @@ class TransportModelValidationTest(parameterized.TestCase):
     config = transport_pydantic_model.TransportModel(
         core_transport_models={'m1': m1, 'm2': m2}
     )
-    self.assertIsInstance(
-        config, transport_pydantic_model.TransportModel
-    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
 
   def test_invalid_duplicate_overwrite(self):
     # Both models overwrite Chi_i
@@ -389,9 +383,7 @@ class TransportModelValidationTest(parameterized.TestCase):
     config = transport_pydantic_model.TransportModel(
         core_transport_models={'m1': m1, 'm2': m2}
     )
-    self.assertIsInstance(
-        config, transport_pydantic_model.TransportModel
-    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
 
   def test_invalid_overlapping_overwrite(self):
     # M1 and M2 overwrite Chi_i in overlapping domains
@@ -449,6 +441,27 @@ class TransportModelValidationTest(parameterized.TestCase):
     ):
       transport_pydantic_model.TransportModel(
           core_transport_models={'m1': m1, 'm2': m2}
+      )
+
+  def test_invalid_model_name_error_message(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Input tag 'constant' found using 'model_name' does not match any"
+        r' of the'
+        r' expected tags',
+    ):
+      transport_pydantic_model.TransportModel(
+          core_transport_models={'inner': {'model_name': 'constant'}}
+      )
+
+  def test_missing_model_name_error_message(self):
+    """Tests that a clear error message is raised when model_name is omitted."""
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Unable to extract tag using discriminator 'model_name'",
+    ):
+      transport_pydantic_model.TransportModel(
+          core_transport_models={'inner': {'chi_i': 1.0}}
       )
 
 

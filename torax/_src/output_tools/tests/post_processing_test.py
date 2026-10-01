@@ -27,6 +27,7 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
@@ -58,23 +59,23 @@ class PostProcessingTest(parameterized.TestCase):
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
         T_i={  # pyrefly: ignore[bad-argument-type]
-            'fusion': ones,
-            'generic_heat': 2 * ones,
-            'icrh': 3 * ones,
+            'fusion': ones,  # pyrefly: ignore[bad-assignment]
+            'generic_heat': 2 * ones,  # pyrefly: ignore[bad-assignment]
+            'icrh': 3 * ones,  # pyrefly: ignore[bad-assignment]
         },
         T_e={  # pyrefly: ignore[bad-argument-type]
-            'bremsstrahlung': -ones,
-            'cyclotron_radiation': -2 * ones,
-            'impurity_radiation': -3 * ones,
-            'ohmic': 5 * ones,
-            'fusion': ones,
-            'generic_heat': 3 * ones,
-            'ecrh': 7 * ones,
-            'icrh': 1.5 * ones,
+            'bremsstrahlung': -ones,  # pyrefly: ignore[bad-assignment]
+            'cyclotron_radiation': -2 * ones,  # pyrefly: ignore[bad-assignment]
+            'impurity_radiation': -3 * ones,  # pyrefly: ignore[bad-assignment]
+            'ohmic': 5 * ones,  # pyrefly: ignore[bad-assignment]
+            'fusion': ones,  # pyrefly: ignore[bad-assignment]
+            'generic_heat': 3 * ones,  # pyrefly: ignore[bad-assignment]
+            'ecrh': 7 * ones,  # pyrefly: ignore[bad-assignment]
+            'icrh': 1.5 * ones,  # pyrefly: ignore[bad-assignment]
         },
         psi={  # pyrefly: ignore[bad-argument-type]
-            'generic_current': 2 * ones,
-            'ecrh': 2 * ones,
+            'generic_current': 2 * ones,  # pyrefly: ignore[bad-assignment]
+            'ecrh': 2 * ones,  # pyrefly: ignore[bad-assignment]
         },
         n_e={},
     )
@@ -82,7 +83,7 @@ class PostProcessingTest(parameterized.TestCase):
         runtime_params=self.runtime_params,
         geo=self.geo,
         source_models=self.models.source_models,
-        neoclassical_models=self.models.neoclassical_models,
+        neoclassical_model=self.models.neoclassical_model,
     )
 
   def test_calculate_integrated_sources(self):
@@ -227,6 +228,7 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
@@ -274,6 +276,7 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
     outputs = post_processing.make_post_processed_outputs(
@@ -336,7 +339,7 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     config_name = 'test_all_transport_fusion_qlknn.py'
     torax_config = self._get_torax_config(config_name)
 
-    _, state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
     p_fusion = state_history._stacked_post_processed_outputs.P_alpha_total
     p_aux_total = state_history._stacked_post_processed_outputs.P_aux_total
     p_ohmic_e = state_history._stacked_post_processed_outputs.P_ohmic_e

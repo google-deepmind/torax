@@ -20,7 +20,7 @@ import jax
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model.tglf import tglf2py
@@ -45,7 +45,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     transport_model = torax_config.transport.build_transport_model()
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -57,7 +57,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     model_call = (
@@ -68,16 +68,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
         runtime_params,
         geo,
         core_profiles,
-        pedestal_model_output_lib.PedestalModelOutput(
-            rho_norm_ped_top=np.inf,
-            T_i_ped=0.0,
-            T_e_ped=0.0,
-            n_e_ped=0.0,
-        ),
+        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
         two_point_mask,
     )
-    self.assertIsNotNone(outputs.chi_face_ion)
-    self.assertIsNotNone(outputs.chi_face_el)
+    self.assertIsNotNone(outputs.total.chi_face_ion)
+    self.assertIsNotNone(outputs.total.chi_face_el)
 
   def test_deprecated_params_warn_and_run(self):
     """Tests that deprecated config params raise warnings and the execution still runs."""
@@ -103,7 +98,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
     )
 
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     transport_model = torax_config.transport.build_transport_model()
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -115,7 +110,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
@@ -123,16 +118,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
         runtime_params,
         geo,
         core_profiles,
-        pedestal_model_output_lib.PedestalModelOutput(
-            rho_norm_ped_top=np.inf,
-            T_i_ped=0.0,
-            T_e_ped=0.0,
-            n_e_ped=0.0,
-        ),
+        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
         two_point_mask,
     )
-    self.assertIsNotNone(outputs.chi_face_ion)
-    self.assertIsNotNone(outputs.chi_face_el)
+    self.assertIsNotNone(outputs.total.chi_face_ion)
+    self.assertIsNotNone(outputs.total.chi_face_el)
 
 
 if __name__ == "__main__":

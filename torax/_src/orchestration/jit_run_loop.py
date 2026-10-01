@@ -15,7 +15,6 @@
 """JITted run_loop for iterating over the simulation step function."""
 
 from typing import Any, TypeAlias
-import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -30,6 +29,9 @@ from torax._src.output_tools import post_processing
 PyTree: TypeAlias = Any
 
 
+type Counter = jax.Array  # An integer scalar JAX array.
+
+
 @jax.jit(static_argnames='max_steps')
 def run_loop_jit(
     step_fn: step_function.SimulationStepFn,
@@ -37,9 +39,7 @@ def run_loop_jit(
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
-) -> tuple[
-    sim_state.SimState, post_processing.PostProcessedOutputs, chex.Numeric
-]:
+) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs, Counter]:
   """Runs the simulation loop under jax.jit."""
   initial_state, initial_post_processed_outputs = (
       initial_state_lib.get_initial_state_and_post_processed_outputs(

@@ -16,7 +16,7 @@
 
 import copy
 import dataclasses
-from typing import Annotated, Any, Literal, Mapping, Sequence
+from typing import Annotated, Any, Literal, Mapping, Self, Sequence
 from absl import logging
 import chex
 from fusion_surrogates.qlknn.models import registry
@@ -36,7 +36,6 @@ from torax._src.transport_model import runtime_params
 from torax._src.transport_model import tglfnn_ukaea_transport_model
 from torax._src.transport_model import transport_model
 from torax._src.transport_model.tglf import tglf_transport_model
-import typing_extensions
 
 
 def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
@@ -110,6 +109,12 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
     DV_effective: Effective D / effective V approach for particle transport.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
+    DV_effective_smooth_width: Particle flux width in dimensionless
+      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
+      transport transitions smoothly from effective V to effective D. If 0.0,
+      uses a sharp step transition. Note that QuaLiKiz normalizes with major
+      radius R_major rather than minor radius a, so the default (0.01) is chosen
+      to be consistent in SI units with TGLF (0.001).
     rotation_multiplier: Multiplier for rotation.
     rotation_mode: Mode for rotation, either HALF_RADIUS, FULL_RADIUS or OFF.
     shear_suppression_alpha: Alpha parameter for Waltz rule applied to
@@ -132,8 +137,9 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
@@ -196,6 +202,7 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
         shear_suppression_alpha=self.shear_suppression_alpha,
@@ -210,6 +217,20 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
   Attributes:
     model_name: The transport model to use. Hardcoded to 'tglfnn-ukaea'.
     machine: The machine type to use. Either 'step' or 'multimachine'.
+    rotation_multiplier: Multiplier for rotation.
+    use_rotation: Whether to use rotation shear in the model.
+    DV_effective: Effective D / effective V approach for particle transport.
+    An_min: Minimum |R/Lne| below which effective V is used instead of effective
+      D.
+    DV_effective_smooth_width: Particle flux width in dimensionless
+      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
+      transport transitions smoothly from effective V to effective D. If 0.0,
+      uses a sharp step transition. Note that TGLF normalizes with minor radius
+      a rather than R_major, so the default (0.001) is chosen to be consistent
+      in SI units with QuaLiKiz (0.01).
+    collisionality_multiplier: Collisionality multiplier.
+    max_normalized_collisionality: Maximum normalized collisionality passed to
+      the model.
   """
 
   model_name: Annotated[Literal['tglfnn-ukaea'], torax_pydantic.JAX_STATIC] = (
@@ -221,8 +242,9 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # Quasilinear transport options
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.001
   collisionality_multiplier: float = 1.0
   max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
 
@@ -240,6 +262,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
     return tglfnn_ukaea_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         use_rotation=self.use_rotation,
         collisionality_multiplier=self.collisionality_multiplier,
@@ -428,25 +451,27 @@ try:
   # Since ComponentTransportModelConfig is not constant, because of the
   # try/except block, unions using this type will cause invalid-annotation
   # errors in pytype.
-  ComponentTransportModelConfig = (
+  ComponentTransportModelConfig = Annotated[
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
       | PrescribedTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
       | tglf_transport_model.TGLFTransportModelConfig
-      | qualikiz_transport_model.QualikizTransportModelConfig
-  )
+      | qualikiz_transport_model.QualikizTransportModelConfig,
+      pydantic.Discriminator('model_name'),
+  ]
 
 except ImportError:
-  ComponentTransportModelConfig = (
+  ComponentTransportModelConfig = Annotated[
       QLKNNTransportModel
       | TGLFNNukaeaTransportModel
       | PrescribedTransportModel
       | CriticalGradientTransportModel
       | BohmGyroBohmTransportModel
-      | tglf_transport_model.TGLFTransportModelConfig
-  )
+      | tglf_transport_model.TGLFTransportModelConfig,
+      pydantic.Discriminator('model_name'),
+  ]
 
 
 class SmoothingZone(torax_pydantic.BaseModelFrozen):
@@ -469,6 +494,9 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
     V_e_max: maximum electron density convection.
     smoothing_width: Width of HWHM Gaussian smoothing kernel operating on
       transport model outputs.
+    pedestal_smoothing_width: Width of HWHM Gaussian smoothing kernel operating
+      on pedestal transport model outputs. If 0.0, no smoothing is applied to
+      pedestal models.
     core_transport_models: A dict mapping user-given names to transport models,
       whose outputs will be summed to give the combined core transport
       coefficients.
@@ -487,6 +515,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
   V_e_min: torax_pydantic.MeterPerSecond = -50.0
   V_e_max: torax_pydantic.MeterPerSecond = 50.0
   smoothing_width: pydantic.NonNegativeFloat = 0.0
+  pedestal_smoothing_width: pydantic.NonNegativeFloat = 0.0
   core_transport_models: dict[
       str, ComponentTransportModelConfig
   ] = pydantic.Field(
@@ -545,15 +574,17 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
         V_e_min=self.V_e_min,
         V_e_max=self.V_e_max,
         smoothing_width=self.smoothing_width,
+        pedestal_smoothing_width=self.pedestal_smoothing_width,
         core_transport_model_params=core_transport_model_params,
         pedestal_transport_model_params=pedestal_transport_model_params,
         smoothing_zones=tuple(smoothing_zones),
     )
 
   @pydantic.model_validator(mode='after')
-  def _check_smoothing_width_minimum(self) -> typing_extensions.Self:
+  def _check_smoothing_width_minimum(self) -> Self:
     smoothing_widths = [z.smoothing_width for z in self.smoothing_zones] + [
-        self.smoothing_width
+        self.smoothing_width,
+        self.pedestal_smoothing_width,
     ]
     if any(w < 0.0 for w in smoothing_widths):
       raise ValueError(
@@ -570,7 +601,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     if not self.chi_min < self.chi_max:
       raise ValueError('chi_min must be less than chi_max.')
     if not self.D_e_min < self.D_e_max:
@@ -589,12 +620,12 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_unique_overwrites_core(self) -> typing_extensions.Self:
+  def _check_unique_overwrites_core(self) -> Self:
     _validate_unique_overwrites(self.core_transport_models, 'core')
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_unique_overwrites_pedestal(self) -> typing_extensions.Self:
+  def _check_unique_overwrites_pedestal(self) -> Self:
     _validate_unique_overwrites(self.pedestal_transport_models, 'pedestal')
     return self
 

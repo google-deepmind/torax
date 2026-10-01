@@ -15,7 +15,7 @@
 """Functions for adding post-processed outputs to the simulation state."""
 
 import dataclasses
-from typing import Callable
+from typing import Callable, Self
 
 from absl import logging
 import jax
@@ -36,7 +36,6 @@ from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -200,6 +199,14 @@ class PostProcessedOutputs:
     beta_tor: Volume-averaged toroidal plasma beta (thermal) [dimensionless]
     beta_pol: Volume-averaged poloidal plasma beta (thermal) [dimensionless]
     beta_N: Normalized toroidal plasma beta (thermal) [dimensionless].
+    beta_pol_profile: Local poloidal beta profile on the face grid
+      [dimensionless]
+    beta_pol_prime: Derivative of local poloidal beta with respect to normalized
+      poloidal flux on the face grid: -d(beta_pol_local) / d(psi_norm)
+      [dimensionless]
+    alpha_mhd: MHD ballooning parameter on the face grid:
+      -(2 * mu_0 * R_major * q^2 / B_0^2) * d(p_total) / d(r_mid)
+      [dimensionless]
     impurity_species: Dictionary of outputs for each impurity species.
     poloidal_velocity: Poloidal velocity [m/s]
     radial_electric_field: Radial electric field [V/m]
@@ -315,6 +322,9 @@ class PostProcessedOutputs:
   beta_tor: array_typing.FloatScalar
   beta_pol: array_typing.FloatScalar
   beta_N: array_typing.FloatScalar
+  beta_pol_profile: array_typing.FloatVector
+  beta_pol_prime: array_typing.FloatVector
+  alpha_mhd: array_typing.FloatVector
   S_total: array_typing.FloatScalar
   impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
   poloidal_velocity: array_typing.FloatVector
@@ -323,7 +333,7 @@ class PostProcessedOutputs:
   # pylint: enable=invalid-name
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
         pprime=jnp.zeros(geo.rho_face.shape),
@@ -416,7 +426,7 @@ class PostProcessedOutputs:
         j_generic_current=jnp.zeros(geo.rho_face.shape),
         j_ecrh=jnp.zeros(geo.rho_face.shape),
         j_non_inductive=jnp.zeros(geo.rho_face.shape),
-        j_parallel_external=jnp.zeros(geo.rho_face.shape),
+        j_parallel_external=jnp.zeros(geo.rho.shape),
         j_parallel_non_inductive=jnp.zeros(geo.rho_face.shape),
         I_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_non_inductive=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -428,6 +438,9 @@ class PostProcessedOutputs:
         beta_tor=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        beta_pol_profile=jnp.zeros(geo.rho_face.shape),
+        beta_pol_prime=jnp.zeros(geo.rho_face.shape),
+        alpha_mhd=jnp.zeros(geo.rho_face.shape),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         impurity_species={},
         poloidal_velocity=jnp.zeros(geo.rho_face.shape),
@@ -435,8 +448,15 @@ class PostProcessedOutputs:
         first_step=jnp.array(True),
     )
 
+  @jax.jit
+  def has_nan(self) -> jax.Array:
+    """Returns a boolean JAX scalar indicating whether any leaf has NaNs."""
+    return jnp.any(
+        jnp.stack([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)])
+    )
+
   def check_for_errors(self):
-    if any([np.any(np.isnan(x)) for x in jax.tree.leaves(self)]):
+    if self.has_nan():
       path_vals, _ = jax.tree.flatten_with_path(self)
       for path, value in path_vals:
         if np.any(np.isnan(value)):
@@ -864,7 +884,10 @@ def make_post_processed_outputs(
   j_parallel_bootstrap = (
       sim_state.core_sources.bootstrap_current.j_parallel_bootstrap
   )
-  j_parallel_external = sum(sim_state.core_sources.psi.values())
+  j_parallel_external = sum(
+      sim_state.core_sources.psi.values(),
+      jnp.zeros(sim_state.geometry.rho.shape),
+  )
   j_parallel_ohmic = (
       j_parallel_total - j_parallel_external - j_parallel_bootstrap
   )
@@ -924,18 +947,24 @@ def make_post_processed_outputs(
   beta_tor, beta_pol, beta_N = formulas.calculate_betas(  # pyrefly: ignore[not-iterable]
       sim_state.core_profiles, sim_state.geometry
   )
+  beta_pol_profile = formulas.calculate_beta_pol_profile(
+      sim_state.core_profiles, sim_state.geometry
+  )
+  beta_pol_prime = formulas.calculate_beta_pol_prime(
+      sim_state.core_profiles, sim_state.geometry
+  )
+  alpha_mhd = formulas.calculate_alpha_mhd(
+      sim_state.core_profiles, sim_state.geometry
+  )
 
   rotation_output = rotation.calculate_rotation(
-      T_i=sim_state.core_profiles.T_i,
       psi=sim_state.core_profiles.psi,
       n_i=sim_state.core_profiles.n_i,
-      q_face=sim_state.core_profiles.q_face,
-      Z_eff_face=sim_state.core_profiles.Z_eff_face,
       Z_i_face=sim_state.core_profiles.Z_i_face,
       toroidal_angular_velocity=sim_state.core_profiles.toroidal_angular_velocity,
+      poloidal_velocity=sim_state.core_profiles.poloidal_velocity,
       pressure_total_i=sim_state.core_profiles.pressure_total_i,
       geo=sim_state.geometry,
-      poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
   )
 
   return PostProcessedOutputs(
@@ -1016,13 +1045,17 @@ def make_post_processed_outputs(
       beta_tor=beta_tor,
       beta_pol=beta_pol,
       beta_N=beta_N,
+      beta_pol_profile=beta_pol_profile.face_value(),
+      beta_pol_prime=beta_pol_prime,
+      alpha_mhd=alpha_mhd,
       impurity_species=impurity_radiation_outputs,
-      poloidal_velocity=rotation_output.poloidal_velocity.face_value(),  # pyrefly: ignore[bad-argument-type]
+      poloidal_velocity=sim_state.core_profiles.poloidal_velocity.face_value(),  # pyrefly: ignore[bad-argument-type]
       radial_electric_field=rotation_output.Er.face_value(),  # pyrefly: ignore[bad-argument-type]
       first_step=jnp.array(False),
   )
 
 
+@jax.jit
 def _convert_j_parallel_face_to_j_toroidal_face(
     j_parallel_face: array_typing.FloatVectorFace,
     j_parallel_cell: array_typing.FloatVectorCell,
@@ -1051,6 +1084,7 @@ def _convert_j_parallel_face_to_j_toroidal_face(
   return j_parallel_to_j_toroidal_factor_face * j_parallel_face
 
 
+@jax.jit
 def _exponential_smoothing(new_raw, old_smoothed, alpha):
   """Exponential moving average (EMA)."""
   return (1.0 - alpha) * old_smoothed + alpha * new_raw

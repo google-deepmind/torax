@@ -82,10 +82,10 @@ orchestration
 ^^^^^^^^^^^^^
 
 |torax.run_simulation| is the main entrypoint for running a TORAX simulation.
-It takes a |torax.ToraxConfig| and returns the ``xarray.DataTree`` of the
-simulation as described in :ref:`output`, as well as a |torax.StateHistory|
-object containing a sequence of simulation states per timestep in the form of
-internal TORAX data containers, which can be used for debugging.
+It takes a |torax.ToraxConfig| and returns a |torax.StateHistory| object
+containing a sequence of simulation states per timestep in the form of internal
+TORAX data containers. An ``xarray.DataTree`` can be obtained via
+``state_history.simulation_output_to_xr()`` as described in :ref:`output`.
 |torax.run_simulation| creates the various models, providers and initial state
 needed for the simulation and creates a ``StepFunction`` which steps the
 simulation over time.
@@ -187,9 +187,25 @@ and redistribution in the future.
 neoclassical
 ^^^^^^^^^^^^
 
-The |neoclassical| module contains the neoclassical conductivity and bootstrap
-current models. It currently uses the Sauter model but can be extended with more
-models in future. Near term work is also planned to add neoclassical transport.
+The |neoclassical| module contains the models for neoclassical physics:
+bootstrap current, parallel conductivity, neoclassical transport coefficients,
+and poloidal velocity. A ``NeoclassicalModel`` evaluates these quantities at a
+given plasma state and returns them in a ``NeoclassicalOutputs`` container.
+
+Neoclassical quantities can be computed either separately via modular
+sub-models or all together in a single evaluation:
+
+* **Modular sub-models (default):** ``AnalyticalNeoclassicalModel`` delegates
+  to independent analytical sub-models in ``bootstrap_current/``,
+  ``conductivity/``, ``transport/``, and ``poloidal_velocity/``, sharing
+  precomputed collisionalities and trapped-particle fractions across sub-models
+  via ``NeoclassicalIntermediates``.
+* **Integrated models:** A single ``NeoclassicalModel`` subclass can compute
+  all four neoclassical outputs together in one pass.
+
+Custom implementations—either a top-level integrated ``NeoclassicalModel`` or
+individual analytical sub-models—can be registered via ``torax.neoclassical``
+(see :ref:`model-integration`).
 
 time_step_calculator
 ^^^^^^^^^^^^^^^^^^^^

@@ -26,6 +26,7 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
@@ -54,7 +55,7 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_i_right_bc=bound,
         T_i=value,
@@ -66,7 +67,7 @@ class GettersTest(parameterized.TestCase):
   def test_only_updating_boundary_condition(self):
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_i_right_bc=0.5,
         T_i=value,
@@ -91,7 +92,7 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_e_right_bc=bound,
         T_e=value,
@@ -106,7 +107,7 @@ class GettersTest(parameterized.TestCase):
   def test_only_updating_boundary_condition_electron_temperature(self):
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_e_right_bc=0.5,
         T_e=value,
@@ -157,7 +158,7 @@ class GettersTest(parameterized.TestCase):
     """Tests that only updating the boundary condition works."""
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         n_e_right_bc=0.5,
         n_e=value,
@@ -439,7 +440,7 @@ class GettersTest(parameterized.TestCase):
     config['plasma_composition']['Z_eff'] = {0.0: 1.0, 1.0: 2.0}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
@@ -455,7 +456,7 @@ class GettersTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     # runtime_params.plasma_composition.Z_eff_face is not
@@ -1274,13 +1275,13 @@ class GettersTest(parameterized.TestCase):
     runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     initial_core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     ions = getters.get_updated_ions(
@@ -1294,7 +1295,7 @@ class GettersTest(parameterized.TestCase):
     np.testing.assert_allclose(ions.Z_eff, 1.0)
     np.testing.assert_allclose(ions.n_i.value, initial_core_profiles.n_e.value)
 
-    _, state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
     np.testing.assert_equal(
         state_history.sim_error,
         state.SimError.NO_ERROR,

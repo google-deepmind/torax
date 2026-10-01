@@ -21,7 +21,7 @@ protocol defined here.
 from collections.abc import Mapping
 import dataclasses
 import functools
-from typing import Protocol, Type
+from typing import Protocol, Self, Type
 
 import chex
 import jax
@@ -32,7 +32,6 @@ from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations
@@ -144,7 +143,7 @@ class PrecomputedGeometryProvider(GeometryProvider):
       cls,
       provider: GeometryProvider,
       times: array_typing.Array,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Precomputes geometries from `provider` at each time in `times`.
 
     Args:
@@ -235,6 +234,7 @@ class TimeDependentGeometryProvider:
   spr: interpolated_param.InterpolatedVarSingleAxis
   spr_face: interpolated_param.InterpolatedVarSingleAxis
   delta_face: interpolated_param.InterpolatedVarSingleAxis
+  trapped_fraction_face: interpolated_param.InterpolatedVarSingleAxis
   elongation: interpolated_param.InterpolatedVarSingleAxis
   elongation_face: interpolated_param.InterpolatedVarSingleAxis
   g0: interpolated_param.InterpolatedVarSingleAxis
@@ -270,7 +270,7 @@ class TimeDependentGeometryProvider:
       cls,
       geometries: Mapping[float, geometry.Geometry],
       calcphibdot: bool,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Creates a GeometryProvider from a mapping of times to geometries."""
     # Create a list of times and geometries.
     times = np.asarray(list(geometries.keys()), dtype=jax_utils.get_np_dtype())

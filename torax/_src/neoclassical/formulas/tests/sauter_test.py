@@ -71,27 +71,27 @@ class SauterFormulasTest(parameterized.TestCase):
         )
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     self.core_profiles = initialization.initial_core_profiles(
         runtime_params,
         self.geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     log_lambda_ei = collisions.calculate_log_lambda_ei(
-        self.core_profiles.T_e.face_value(), self.core_profiles.n_e.face_value()  # pyrefly: ignore[bad-argument-type]
+        self.core_profiles.T_e.face_value(), self.core_profiles.n_e.face_value()
     )
-    self.nu_e_star = formulas.calculate_nu_e_star(
+    self.nu_e_star = formulas._calculate_nu_e_star(
         q=self.core_profiles.q_face,
         geo=self.geo,
-        n_e=self.core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-        T_e=self.core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+        n_e=self.core_profiles.n_e.face_value(),
+        T_e=self.core_profiles.T_e.face_value(),
         Z_eff=self.core_profiles.Z_eff_face,
         log_lambda_ei=log_lambda_ei,
     )
 
-    self.f_trap = formulas.calculate_f_trap(self.geo)
+    self.f_trap = self.geo.trapped_fraction_face
 
   def test_L31_values_are_correct(self):
     L31 = sauter_formulas.calculate_L31(
@@ -107,15 +107,15 @@ class SauterFormulasTest(parameterized.TestCase):
 
 _L31_EXPECTED = np.array([
     0.0,
-    0.25942749,
+    0.2594107633186986,
     0.39198664,
-    0.48032915,
+    0.48032755509905906,
     0.53634519,
     0.57082292,
     0.5894148,
     0.59111759,
-    0.56839259,
-    0.5001917,
+    0.5683909023668218,
+    0.5001868536054601,
     0.33682819,
 ])
 _L32_EXPECTED = np.array([
@@ -128,7 +128,7 @@ _L32_EXPECTED = np.array([
     -0.06213122,
     -0.03385067,
     0.01149523,
-    0.08557197,
+    0.08556965525319629,
     0.16296924,
 ])
 

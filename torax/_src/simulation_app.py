@@ -188,12 +188,13 @@ def main(
   torax_config = get_config()
 
   log_to_stdout('Starting simulation.', color=AnsiColors.GREEN)
-  data_tree, state_history = run_simulation.run_simulation(
+  state_history = run_simulation.run_simulation(
       torax_config,
       log_sim_progress,
       progress_bar=log_sim_progress_bar,
       _use_jitted_run_loop=_use_jitted_run_loop,
   )
+  data_tree = state_history.simulation_output_to_xr()
 
   # Check if simulation encountered an error
   if state_history.sim_error != state.SimError.NO_ERROR:

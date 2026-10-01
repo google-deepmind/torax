@@ -109,7 +109,7 @@ class TimeStepCalculatorTest(parameterized.TestCase):
     }
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
-    _, state_history = run_simulation.run_simulation(
+    state_history = run_simulation.run_simulation(
         torax_config, progress_bar=False
     )
     times = fixed_time_step_calculator.get_time_grid(

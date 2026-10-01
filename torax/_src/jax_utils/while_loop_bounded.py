@@ -13,16 +13,14 @@
 # limitations under the License.
 """Implementation of a differentiable jax.lax.while_loop with a maximum number of steps."""
 
-from typing import Any, Callable, ParamSpec, TypeAlias, TypeVar
+from typing import Any, Callable, Literal
 import chex
 import jax
 from jax import numpy as jnp
 from jax.experimental import hijax
 
-T = TypeVar('T')
-BooleanNumeric: TypeAlias = Any  # A bool, or a Boolean array.
-_State = ParamSpec('_State')
-PyTree: TypeAlias = Any
+type BooleanNumeric = Any  # A bool, or a Boolean array.
+type PyTree = Any
 
 _WHILE_LOOP_COUNT_DTYPE = jnp.int32
 
@@ -33,12 +31,116 @@ HiPrim = (
 )
 
 
-def while_loop_bounded(
-    cond_fun: Callable[[_State], BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
-    body_fun: Callable[[_State], _State],  # pyrefly: ignore[invalid-annotation]
-    init_val: _State,  # pyrefly: ignore[invalid-annotation]
+@jax.jit(
+    static_argnames=['cond_fun', 'body_fun', 'max_steps', 'implementation'],
+)
+def while_loop_bounded[State](
+    cond_fun: Callable[[State], BooleanNumeric],
+    body_fun: Callable[[State], State],
+    init_val: State,
     max_steps: int,
-) -> tuple[_State, chex.Numeric, _State]:  # pyrefly: ignore[invalid-annotation]
+    implementation: Literal['scan', 'while_loop'] = 'while_loop',
+) -> tuple[State, chex.Numeric, State]:
+  """A bounded reverse-mode differentiable while_loop.
+
+  `jax.lax.while_loop` is not reverse-mode differentiable. If we make the
+  assumption that the number of steps is bounded, then this can be implemented
+  using `jax.lax.scan` + `jax.lax.cond` or `jax.lax.while_loop` with a custom
+  VJP.
+
+  Args:
+    cond_fun: As in jax.lax.while_loop.
+    body_fun: As in jax.lax.while_loop.
+    init_val: As in jax.lax.while_loop.
+    max_steps: An integer, the maximum number of iterations the loop can
+      perform.
+    implementation: The implementation to use. 'scan' uses `jax.lax.scan` along
+      with a `jax.lax.cond`, 'while_loop' uses `jax.lax.while_loop` and a custom
+      VJP. The 'scan' implementation should mainly be used for testing.
+
+  Returns:
+    A tuple of:
+      - The final state after `cond_fun` returns `False` or `max_steps` are
+        reached.
+      - The number of steps that were actually executed (integer scalar).
+      - The output history: a pytree with the same structure as `init_val`
+        where each leaf has an additional leading dimension of size
+        `max_steps`. Index 0 is the initial state, and subsequent indices
+        are the state after each step. The states for steps that are not
+        executed are filled with NaNs if floats and 0s otherwise.
+  """
+  match implementation:
+    case 'scan':
+      return _while_loop_bounded_scan(
+          cond_fun,
+          body_fun,
+          init_val,
+          max_steps=max_steps,
+          scan_unroll=1,
+      )
+    case 'while_loop':
+      return _while_loop_bounded_while_loop(
+          cond_fun, body_fun, init_val, max_steps
+      )
+
+
+@jax.jit(
+    static_argnames=['cond_fun', 'body_fun', 'max_steps', 'scan_unroll'],
+)
+def _while_loop_bounded_scan[State](
+    cond_fun: Callable[[State], BooleanNumeric],
+    body_fun: Callable[[State], State],
+    init_val: State,
+    max_steps: int,
+    scan_unroll: int = 1,
+) -> tuple[State, chex.Numeric, State]:
+  """A reverse-mode differentiable while_loop using jax.lax.scan."""
+  # Initial carry for the scan: (current_state, counter,
+  # while_loop_condition_met)
+  initial_scan_carry = (
+      init_val,
+      jnp.array(0, dtype=_WHILE_LOOP_COUNT_DTYPE),
+      jnp.array(True, dtype=jnp.bool_),
+  )
+
+  # NaN state to use for state for steps that are not executed.
+  nan_state = jax.tree_util.tree_map(
+      lambda x: jnp.full_like(x, fill_value=jnp.nan)
+      if jnp.issubdtype(x.dtype, jnp.floating)
+      else jnp.zeros_like(x),
+      init_val,
+  )
+
+  def scan_body(carry, _):
+    current_state, counter, cond_prev = carry
+    # Only execute cond if the previous cond was True.
+    should_execute_body = jax.lax.cond(
+        cond_prev, cond_fun, lambda _: False, current_state
+    )
+    # If the `while_loop` would have terminated, we no-op.
+    next_state = jax.lax.cond(
+        should_execute_body, body_fun, lambda s: s, current_state
+    )
+    output_state = jax.lax.cond(
+        should_execute_body, lambda: next_state, lambda: nan_state
+    )
+    next_counter = counter + should_execute_body.astype(jnp.int32)
+
+    return (next_state, next_counter, should_execute_body), output_state
+
+  (final_state, num_steps, _), stacked_outputs = jax.lax.scan(
+      scan_body, initial_scan_carry, length=max_steps, unroll=scan_unroll
+  )
+
+  return final_state, num_steps, stacked_outputs
+
+
+def _while_loop_bounded_while_loop[State](
+    cond_fun: Callable[[State], BooleanNumeric],
+    body_fun: Callable[[State], State],
+    init_val: State,
+    max_steps: int,
+) -> tuple[State, chex.Numeric, State]:
   """A bounded reverse-mode differentiable while_loop."""
 
   cond_aux, converted_cond_fun = (
@@ -71,30 +173,20 @@ def while_loop_bounded(
   return final_state, final_step_idx, history_final
 
 
-def _add_axis(x: jax.core.ShapedArray, size: int) -> jax.core.ShapedArray:
-  return jax.core.ShapedArray(shape=(size,) + x.shape, dtype=x.dtype)
-
-
-def _instantiate_zeros(g: PyTree) -> PyTree:
-  return jax.tree.map(
-      hijax.instantiate_zeros, g, is_leaf=lambda x: isinstance(x, hijax.Zero)
-  )
-
-
 class WhileLoopBoundedWhileLoop(HiPrim):  # pyrefly: ignore[invalid-inheritance]
   """A bounded differentiable while_loop using jax.lax.while_loop."""
 
   def __init__(
       self,
-      cond_fun: Callable[..., BooleanNumeric],  # pyrefly: ignore[invalid-annotation]
-      body_fun: Callable[..., _State],  # pyrefly: ignore[invalid-annotation]
+      cond_fun: Callable[..., BooleanNumeric],
+      body_fun: Callable[..., PyTree],
       init_val_avals: tuple[jax.core.ShapedArray, ...],
       max_steps: int,
       cond_aux_avals: tuple[jax.core.ShapedArray, ...],
       body_aux_avals: tuple[jax.core.ShapedArray, ...],
-      init_val_tree: Any,
-      cond_aux_tree: Any,
-      body_aux_tree: Any,
+      init_val_tree: PyTree,
+      cond_aux_tree: PyTree,
+      body_aux_tree: PyTree,
   ):
     """Initializes the hijax primitive."""
     self.in_avals = (
@@ -177,6 +269,16 @@ class WhileLoopBoundedWhileLoop(HiPrim):  # pyrefly: ignore[invalid-inheritance]
     out_count_dim = 0
     out_history_dims = [d if d is not None else 0 for d in init_val_dims]
     return (out_state_dims, out_count_dim, out_history_dims)
+
+
+def _add_axis(x: jax.core.ShapedArray, size: int) -> jax.core.ShapedArray:
+  return jax.core.ShapedArray(shape=(size,) + x.shape, dtype=x.dtype)
+
+
+def _instantiate_zeros(g: PyTree) -> PyTree:
+  return jax.tree.map(
+      hijax.instantiate_zeros, g, is_leaf=lambda x: isinstance(x, hijax.Zero)
+  )
 
 
 # As the history array could be longer than the number of steps executed, we

@@ -31,10 +31,10 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import tglf_based_transport_model
+from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model.tglf import tglf2py
 
 
@@ -46,7 +46,7 @@ def _get_config_and_model_inputs(
   config["transport"] = transport
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = torax_config.sources.build_models()
-  neoclassical_models = torax_config.neoclassical.build_models()
+  neoclassical_model = torax_config.neoclassical.build_model()
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
       torax_config
   )(
@@ -57,30 +57,35 @@ def _get_config_and_model_inputs(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      neoclassical_model=neoclassical_model,
   )
   source_profiles = source_profile_builders.build_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
+  transition_state = (
+      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+  )
   pedestal_model_outputs = pedestal_model(
       runtime_params,
       geo,
       core_profiles,
       source_profiles,
-      pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+      pedestal_transition_state=transition_state,
+  )
+  transition_state = dataclasses.replace(
+      transition_state, pedestal_model_output=pedestal_model_outputs
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
-      pedestal_model_outputs,
+      transition_state,
       two_point_mask,
   )
 
@@ -109,10 +114,10 @@ class TGLFTransportModelTest(parameterized.TestCase):
 
     core_transport = transport_model(*model_inputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
-    self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
-    self.assertEqual(core_transport.chi_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.d_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.v_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_ion.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.d_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.v_face_el.shape, expected_shape)
 
   def test_tglf_based_transport_model_prepare_tglf_inputs_shapes(self):
     """Tests that the tglf inputs have the expected shapes."""
@@ -142,7 +147,6 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=tglf_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
     expected_length = geo.rho_face_norm.shape[0]
     scalar_keys = ["Rmin", "Rmaj"]  # Inherited from QuasilinearInputs
@@ -200,13 +204,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=tglf_params_uncapped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_uncapped.neoclassical.poloidal_velocity_multiplier,
     )
     capped = transport_model._prepare_tglf_inputs(
         transport=tglf_params_capped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_capped.neoclassical.poloidal_velocity_multiplier,
     )
 
     # Precondition: some uncapped values must exceed the cap.
@@ -223,6 +225,43 @@ class TGLFTransportModelTest(parameterized.TestCase):
         uncapped.XNUE[~above_cap],
     )
 
+  def test_tglf_based_transport_model_dv_effective(self):
+    """Tests that DV_effective switches between effective D/V and scaled D."""
+    torax_config_false, model_inputs_false = _get_config_and_model_inputs({
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+                "DV_effective": False,
+            },
+        },
+    })
+    transport_model_false = torax_config_false.transport.build_transport_model()
+    core_transport_false = transport_model_false(*model_inputs_false)
+
+    torax_config_true, model_inputs_true = _get_config_and_model_inputs({
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+                "DV_effective": True,
+            },
+        },
+    })
+    transport_model_true = torax_config_true.transport.build_transport_model()
+    core_transport_true = transport_model_true(*model_inputs_true)
+
+    # With DV_effective=False (scaled D), d_face_el is set equal to chi_face_el.
+    np.testing.assert_allclose(
+        core_transport_false.total.d_face_el,
+        core_transport_false.total.chi_face_el,
+    )
+    # With DV_effective=True, effective D/V differs from scaled D.
+    self.assertFalse(
+        np.allclose(
+            core_transport_true.total.d_face_el,
+            core_transport_false.total.d_face_el,
+        )
+    )
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeTGLFBasedTransportModel(
@@ -236,11 +275,10 @@ class FakeTGLFBasedTransportModel(
       transport: tglf_based_transport_model.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> tglf_based_transport_model.TGLFInputs:
     """Exposing prepare_tglf_inputs for testing."""
     return self._prepare_tglf_inputs(
-        transport, geo, core_profiles, poloidal_velocity_multiplier
+        transport, geo, core_profiles
     )
 
   # pylint: enable=invalid-name
@@ -252,7 +290,7 @@ class FakeTGLFBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     # Assert required for pytype.
     assert isinstance(
         transport_runtime_params,
@@ -263,7 +301,6 @@ class FakeTGLFBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     return self._make_core_transport(
@@ -287,6 +324,7 @@ class TGLFBasedTransportModelConfig(
   model_name: Annotated[Literal["tglf_based"], torax_pydantic.JAX_STATIC] = (
       "tglf_based"
   )
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   max_normalized_collisionality: float = float("inf")
 
   # pylint: disable=undefined-variable
@@ -299,8 +337,9 @@ class TGLFBasedTransportModelConfig(
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return tglf_based_transport_model.RuntimeParams(
         # DV_effective and An_min are inherited from QuasilinearTransportModel
-        DV_effective=False,
+        DV_effective=self.DV_effective,
         An_min=0.05,
+        DV_effective_smooth_width=0.01,
         use_rotation=True,
         rotation_multiplier=1.0,
         collisionality_multiplier=1.0,

@@ -78,30 +78,6 @@ CONFIG['transport'] = {
             'V_e': 0.0,
         },
     },
-    'pedestal_transport_models': {
-        # TODO:
-        # The final desired behavior is for the contributions from the core
-        # transport models to be scaled according to the ADAPTIVE_TRANSPORT
-        # mode, and then the contributions from the pedestal transport models
-        # added to these afterwards. This is not yet implemented.
-        # Currently, the combined transport model completely masks out
-        # contributions from the core transport models in the pedestal region,
-        # leaving nothing to scale with the ADAPTIVE_TRANSPORT mode.
-        # We therefore provide a duplicate of the core transport for rho > 0.8
-        # here, which will be scaled correctly.
-        # This case has the following behaviour:
-        # - If P_sol < P_LH, transport is
-        #   [constant, qlknn, constant]
-        # - If P_sol > P_LH, transport is
-        #   [constant, qlknn, constant*ADAPTIVE_TRANSPORT_multiplier]
-        'prescribed': {
-            'model_name': 'prescribed',
-            'chi_i': 1.0,
-            'chi_e': 1.0,
-            'D_e': 1e-3,
-            'V_e': 0.0,
-        },
-    },
 }
 
 # Set pedestal to adaptive transport mode

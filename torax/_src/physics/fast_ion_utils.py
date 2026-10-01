@@ -24,6 +24,7 @@ from torax._src.physics import collisions
 # pylint: disable=invalid-name
 
 
+@jax.jit
 def _nu_epsilon(
     m_a_amu: float,
     Z_a: float,
@@ -72,6 +73,7 @@ def _nu_epsilon(
   return jnp.asarray(math_utils.safe_divide(num=num, denom=denom, eps=1e-7))
 
 
+@jax.jit
 def _compute_T_tail(
     P_density_W: jax.Array,
     T_e: jax.Array,
@@ -123,6 +125,7 @@ def _compute_T_tail(
   return T_e * (1.0 + xi)
 
 
+@jax.jit
 def bimaxwellian_split(
     power_deposition: jax.Array,
     T_e: jax.Array,

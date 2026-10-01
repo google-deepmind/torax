@@ -45,7 +45,7 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     """
     core_transport = sim_state.core_transport
     geo = sim_state.geometry
-    chi_max = core_transport.chi_max(geo)
+    chi_max = core_transport.total.chi_max(geo)
 
     # Use minimum cell width for stability
     min_drho_norm = jnp.min(geo.drho_norm)

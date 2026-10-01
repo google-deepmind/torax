@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Annotated
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -23,7 +24,6 @@ from torax._src import jax_utils
 from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_base
-import typing_extensions
 import xarray as xr
 
 RHO_NORM = 'rho_norm'
@@ -316,7 +316,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='gt_valid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               interpolated_param_2d.TimeVaryingArray,
               interpolated_param_2d.array_bounds_validator(gt=1.0),
           ],
@@ -325,7 +325,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='gt_equal_invalid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               interpolated_param_2d.TimeVaryingArray,
               interpolated_param_2d.array_bounds_validator(gt=1.0),
           ],
@@ -335,7 +335,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='ge_equal_valid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               interpolated_param_2d.TimeVaryingArray,
               interpolated_param_2d.array_bounds_validator(ge=1.0),
           ],
@@ -344,7 +344,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='interval_valid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               interpolated_param_2d.TimeVaryingArray,
               interpolated_param_2d.array_bounds_validator(
                   gt=0.0, lt=5.0
@@ -355,7 +355,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='interval_above_invalid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               interpolated_param_2d.TimeVaryingArray,
               interpolated_param_2d.array_bounds_validator(
                   gt=0.0, lt=5.0

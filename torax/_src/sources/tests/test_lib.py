@@ -111,12 +111,12 @@ class SingleProfileSourceTestCase(SourceTestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     if self._needs_source_models:
       calculated_source_profiles = source_profiles.SourceProfiles(
@@ -127,9 +127,9 @@ class SingleProfileSourceTestCase(SourceTestCase):
           n_e={},
           qei=source_profiles.QeiInfo.zeros(geo),
       )
-      conductivity = neoclassical_models.conductivity.calculate_conductivity(
-          geo, core_profiles
-      )
+      conductivity = neoclassical_model(
+          runtime_params, geo, core_profiles
+      ).conductivity
     else:
       calculated_source_profiles = None
       conductivity = None
@@ -161,7 +161,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
       config['sources'] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -174,7 +174,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     value = source.get_value(
         runtime_params=runtime_params,

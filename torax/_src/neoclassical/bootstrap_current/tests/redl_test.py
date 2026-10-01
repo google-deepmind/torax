@@ -16,12 +16,11 @@ from unittest import mock
 from absl.testing import absltest
 import numpy as np
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
-from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.bootstrap_current import redl
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_current_runtime_params
+from torax._src.neoclassical.formulas import formulas
 
 
 class RedlTest(absltest.TestCase):
@@ -31,15 +30,6 @@ class RedlTest(absltest.TestCase):
     geo = circular_geometry.CircularConfig(n_rho=n_rho).build_geometry()
     bootstrap_params = bootstrap_current_runtime_params.RuntimeParams(
         bootstrap_multiplier=1.0
-    )
-    runtime_params = mock.create_autospec(
-        runtime_params_lib.RuntimeParams,
-        instance=True,
-        neoclassical=mock.create_autospec(
-            neoclassical_runtime_params.RuntimeParams,
-            instance=True,
-            bootstrap_current=bootstrap_params,
-        ),
     )
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
@@ -68,10 +58,13 @@ class RedlTest(absltest.TestCase):
             value=np.linspace(1000, 2000, n_rho), face_centers=geo.rho_face_norm
         ),
     )
+    neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
+        geo, core_profiles
+    )
 
     model = redl.RedlModel()
     result = model.calculate_bootstrap_current(
-        runtime_params, geo, core_profiles
+        bootstrap_params, geo, core_profiles, neoclassical_intermediates
     )
     self.assertEqual(result.j_parallel_bootstrap.shape, (n_rho,))
     self.assertEqual(result.j_parallel_bootstrap_face.shape, (n_rho + 1,))

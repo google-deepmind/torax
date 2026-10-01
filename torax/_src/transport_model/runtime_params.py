@@ -68,6 +68,7 @@ class RuntimeParams:
   V_e_min: float
   V_e_max: float
   smoothing_width: float
+  pedestal_smoothing_width: float
   core_transport_model_params: Mapping[str, ComponentRuntimeParams]
   pedestal_transport_model_params: Mapping[str, ComponentRuntimeParams]
   smoothing_zones: tuple[SmoothingZoneParams, ...]

@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Classes for representing a circular geometry."""
-from typing import Annotated
-from typing import Literal
+from typing import Annotated, Literal, Self
 import numpy as np
 import pydantic
 from torax._src.geometry import base
 from torax._src.geometry import geometry
+from torax._src.geometry import trapped_fraction
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -35,6 +34,12 @@ class CircularConfig(base.BaseGeometryConfig):
       q-profile corrections.
   """
 
+  @property
+  def _supported_trapped_fraction_sources(
+      self,
+  ) -> frozenset[trapped_fraction.TrappedFractionSource]:
+    return frozenset({trapped_fraction.TrappedFractionSource.SAUTER})
+
   geometry_type: Annotated[
       Literal['circular'], torax_pydantic.TIME_INVARIANT
   ] = 'circular'
@@ -44,7 +49,7 @@ class CircularConfig(base.BaseGeometryConfig):
   elongation_LCFS: pydantic.PositiveFloat = 1.72
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     if not self.R_major >= self.a_minor:
       raise ValueError('a_minor must be less than or equal to R_major.')
     return self
@@ -217,6 +222,9 @@ def _build_circular_geometry(
   # Analytical expressions for  <1/B^2> (gm4) and <B^2> (gm5)
   epsilon = (R_out - R_in) / (R_out + R_in)
   epsilon_face = (R_out_face - R_in_face) / (R_out_face + R_in_face)
+  trapped_fraction_face = trapped_fraction.calculate_sauter_trapped_fraction(
+      epsilon=epsilon_face, delta=delta_face
+  )
   gm4 = B_0**-2 * (1.0 + 1.5 * epsilon**2)
   gm4_face = B_0**-2 * (1.0 + 1.5 * epsilon_face**2)
   gm5 = B_0**2 / np.sqrt(1.0 - epsilon**2)
@@ -244,6 +252,7 @@ def _build_circular_geometry(
       spr=spr,
       spr_face=spr_face,
       delta_face=delta_face,
+      trapped_fraction_face=trapped_fraction_face,
       g0=g0,
       g0_face=g0_face,
       g1=g1,

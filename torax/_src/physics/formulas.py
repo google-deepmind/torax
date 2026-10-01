@@ -18,6 +18,8 @@ Functions:
     - calculate_main_ion_dilution_factor: Calculates the main ion dilution
       factor based on average impurity charge and Z_eff.
     - calculate_pressure: Calculates pressure from density and temperatures.
+    - calc_dvar_dpsi: Calculates derivative of a CellVariable with respect to
+      poloidal flux.
     - calc_pprime: Calculates total pressure gradient with respect to poloidal
       flux.
     - calc_FFprime: Calculates FF', an output quantity used for equilibrium
@@ -28,6 +30,12 @@ Functions:
       averaged electron density (can be line-averaged or volume-averaged).
     - calculate_beta_volume_avg: Calculates the volume-averaged plasma beta
       based on thermal pressure.
+    - calculate_beta_pol_profile: Calculates local poloidal beta profile as a
+      CellVariable.
+    - calculate_beta_pol_prime: Calculates
+      beta_pol_prime = -d(beta_pol) / d(psi_norm) on the face grid.
+    - calculate_alpha_mhd: Calculates the MHD ballooning parameter alpha_mhd on
+      the face grid.
 """
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -36,6 +44,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.physics import psi_calculations
 
 
 # pylint: disable=invalid-name
@@ -51,67 +60,60 @@ def calculate_main_ion_dilution_factor(
   return (Z_impurity - Z_eff) / (Z_i * (Z_impurity - Z_i))
 
 
-def calc_pprime(
-    core_profiles: state.CoreProfiles,
-) -> array_typing.FloatVector:
-  r"""Calculates total pressure gradient with respect to poloidal flux.
+def calc_dvar_dpsi(
+    var: cell_variable.CellVariable,
+    psi: cell_variable.CellVariable,
+    normalized: bool = False,
+) -> array_typing.FloatVectorFace:
+  r"""Calculates d(var) / d(psi) on the face grid.
+
+  Away from the magnetic axis, computes:
+    d(var) / d(psi) = (d(var) / drhon) / (d(psi) / drhon)
+  using face gradients with respect to normalized radius rhon. On axis
+  (rho=0), uses L'Hôpital's rule with a 2nd order forward difference
+  approximation for the second derivative.
 
   Args:
-    core_profiles: CoreProfiles object containing information on temperatures
-      and densities.
+    var: CellVariable to differentiate.
+    psi: Poloidal flux CellVariable.
+    normalized: If True, differentiates with respect to normalized poloidal flux
+      psi_N in [0, 1].
 
   Returns:
-    pprime: Total pressure gradient :math:`\partial p / \partial \psi`
-      with respect to the normalized toroidal flux coordinate, on the face grid.
+    Face-grid array of the derivative.
   """
+  dvar_drhon = var.face_grad()
+  dpsi_drhon = psi.face_grad()
+  var_face = var.face_value()
+  psi_face = psi.face_value()
 
-  p_total_face = core_profiles.pressure_total.face_value()
-  psi = core_profiles.psi.face_value()
-  n_e = core_profiles.n_e.face_value()
-  n_i = core_profiles.n_i.face_value()
-  n_impurity_thermal = core_profiles.n_impurity_thermal.face_value()
-  T_i = core_profiles.T_i.face_value()
-  T_e = core_profiles.T_e.face_value()
-  dne_drhon = core_profiles.n_e.face_grad()
-  dni_drhon = core_profiles.n_i.face_grad()
-  dnimp_drhon = core_profiles.n_impurity_thermal.face_grad()
-  dti_drhon = core_profiles.T_i.face_grad()
-  dte_drhon = core_profiles.T_e.face_grad()
-  dpsi_drhon = core_profiles.psi.face_grad()
-
-  dptot_drhon = constants.CONSTANTS.keV_to_J * (
-      n_e * dte_drhon
-      + n_i * dti_drhon
-      + n_impurity_thermal * dti_drhon
-      + dne_drhon * T_e
-      + dni_drhon * T_i
-      + dnimp_drhon * T_i
-  )
-  for fi in core_profiles.fast_ions:
-    dptot_drhon += constants.CONSTANTS.keV_to_J * (
-        fi.n.face_value() * fi.T.face_grad()
-        + fi.n.face_grad() * fi.T.face_value()
-    )
-
-  # Calculate on-axis value with L'Hôpital's rule using 2nd order forward
-  # difference approximation for second derivative at edge.
-  pprime_face_axis = jnp.expand_dims(
-      (
-          2 * p_total_face[0]  # pyrefly: ignore[bad-index]
-          - 5 * p_total_face[1]  # pyrefly: ignore[bad-index]
-          + 4 * p_total_face[2]  # pyrefly: ignore[bad-index]
-          - p_total_face[3]  # pyrefly: ignore[bad-index]
-      )
-      / (2 * psi[0] - 5 * psi[1] + 4 * psi[2] - psi[3]),  # pyrefly: ignore[bad-index]
+  # 2nd order forward difference stencil coefficients [2, -5, 4, -1] for axis
+  # second derivative evaluation via L'Hopital's rule.
+  coeffs = jnp.array([2.0, -5.0, 4.0, -1.0])
+  axis_derivative = jnp.expand_dims(
+      jnp.dot(coeffs, var_face[:4]) / jnp.dot(coeffs, psi_face[:4]),
       axis=0,
   )
 
-  # Zero on-axis due to boundary conditions. Avoid division by zero.
-  pprime_face = jnp.concatenate(
-      [pprime_face_axis, dptot_drhon[1:] / dpsi_drhon[1:]]  # pyrefly: ignore[bad-index]
+  dvar_dpsi = jnp.concatenate(
+      [axis_derivative, dvar_drhon[1:] / dpsi_drhon[1:]]
   )
 
-  return pprime_face
+  if normalized:
+    psi_range = psi.right_face_value - psi.left_face_value
+    return dvar_dpsi * psi_range
+  return dvar_dpsi
+
+
+def calc_pprime(
+    core_profiles: state.CoreProfiles,
+) -> array_typing.FloatVectorFace:
+  """Calculates total pressure gradient with respect to poloidal flux."""
+  return calc_dvar_dpsi(
+      var=core_profiles.pressure_total,
+      psi=core_profiles.psi,
+      normalized=False,
+  )
 
 
 def calc_FFprime(
@@ -248,7 +250,7 @@ def calculate_betas(
 
   beta_pol = (
       4.0
-      * geo.volume[-1]
+      * geo.volume_face[-1]
       * p_total_volume_avg
       / (
           constants.CONSTANTS.mu_0
@@ -269,3 +271,106 @@ def calculate_betas(
   )
 
   return beta_tor, beta_pol, beta_N  # pyrefly: ignore[bad-return]
+
+
+def calculate_beta_pol_profile(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> cell_variable.CellVariable:
+  """Calculates the local poloidal beta profile on the cell grid.
+
+  beta_pol_local(psi) = P_total(psi) / (<Bp^2(psi)> / (2 * mu0))
+
+  Args:
+    core_profiles: CoreProfiles object.
+    geo: Geometry object.
+
+  Returns:
+    beta_pol_profile: CellVariable of local poloidal beta profile.
+  """
+  bpol2_face = psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+  bpol2_cell = geometry.face_to_cell(bpol2_face)
+  denom_cell = (
+      bpol2_cell / (2.0 * constants.CONSTANTS.mu_0) + constants.CONSTANTS.eps
+  )
+  denom_right = (
+      bpol2_face[-1] / (2.0 * constants.CONSTANTS.mu_0)
+      + constants.CONSTANTS.eps
+  )
+  right_face_constraint = (
+      core_profiles.pressure_total.right_face_constraint / denom_right
+      if core_profiles.pressure_total.right_face_constraint is not None
+      else None
+  )
+  return cell_variable.CellVariable(
+      value=core_profiles.pressure_total.value / denom_cell,
+      face_centers=core_profiles.pressure_total.face_centers,
+      right_face_constraint=right_face_constraint,
+      right_face_grad_constraint=None,
+  )
+
+
+def calculate_beta_pol_prime(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> array_typing.FloatVectorFace:
+  r"""Calculates beta_pol_prime on the face grid.
+
+  Defined as:
+    beta_pol_prime = -d(beta_pol_local) / d(psi_norm)
+  where beta_pol_local is the local poloidal beta CellVariable and psi_norm is
+  the normalized poloidal flux in [0, 1]. In normal confinement, pressure
+  decreases toward the edge, making d(beta_pol)/d(psi_norm) negative, so
+  beta_pol_prime represents the positive gradient magnitude.
+
+  Args:
+    core_profiles: CoreProfiles object.
+    geo: Geometry object.
+
+  Returns:
+    beta_pol_prime: Face-grid array of the derivative magnitude [dimensionless].
+  """
+  beta_pol = calculate_beta_pol_profile(core_profiles, geo)
+  return -calc_dvar_dpsi(
+      var=beta_pol,
+      psi=core_profiles.psi,
+      normalized=True,
+  )
+
+
+def calculate_alpha_mhd(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+    two_point_mask: array_typing.BoolVectorFace | None = None,
+) -> array_typing.FloatVectorFace:
+  r"""Calculates the MHD ballooning parameter alpha_mhd on the face grid.
+
+  Defined as:
+    alpha_mhd = - (2 * mu_0 * R_major * q^2 / B_0^2) * d(p_total) / d(r_mid)
+  where p_total is the total plasma pressure (thermal + fast ions) and r_mid is
+  the midplane-averaged minor radius.
+
+  Args:
+    core_profiles: CoreProfiles object.
+    geo: Geometry object.
+    two_point_mask: Optional boolean mask on the face grid indicating which
+      faces should use a 2-point central difference instead of the 3-point
+      stencil.
+
+  Returns:
+    alpha_mhd: Face-grid array of the MHD ballooning parameter [dimensionless].
+  """
+  dp_total_dr_mid = core_profiles.pressure_total.face_grad(
+      x=geo.r_mid,
+      x_left=geo.r_mid_face[0],
+      x_right=geo.r_mid_face[-1],
+      two_point_mask=two_point_mask,
+  )
+  return (
+      -2.0
+      * constants.CONSTANTS.mu_0
+      * geo.R_major
+      * core_profiles.q_face**2
+      / (geo.B_0**2 + constants.CONSTANTS.eps)
+      * dp_total_dr_mid
+  )

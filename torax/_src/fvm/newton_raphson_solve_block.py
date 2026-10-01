@@ -51,6 +51,8 @@ MIN_DELTA: Final[float] = 1e-7
         'models',
         'coeffs_callback',
         'initial_guess_mode',
+        'vmap_linesearch',
+        'max_linesearch_steps',
         'log_iterations',
     ],
 )
@@ -74,6 +76,8 @@ def newton_raphson_solve_block(
     delta_reduction_factor: float,
     tau_min: float,
     pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    max_linesearch_steps: int,
+    vmap_linesearch: bool = False,
     log_iterations: bool = False,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
@@ -145,6 +149,9 @@ def newton_raphson_solve_block(
       routine resets at a lower timestep.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    vmap_linesearch: If True, use parallel vmapped linesearch instead of
+      sequential backtracking.
+    max_linesearch_steps: Maximum number of linesearch steps to try.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
 
@@ -232,6 +239,9 @@ def newton_raphson_solve_block(
       pedestal_transition_state=pedestal_transition_state,
   )
 
+  residual_scaling_vector = convertors.compute_residual_scaling_vector(
+      evolving_names, x_old
+  )
   root_finder = functools.partial(
       jax_root_finding.root_newton_raphson,
       fun=residual_fun,
@@ -240,7 +250,15 @@ def newton_raphson_solve_block(
       coarse_tol=coarse_tol,
       delta_reduction_factor=delta_reduction_factor,
       tau_min=tau_min,
+      vmap_linesearch=vmap_linesearch,
+      max_linesearch_steps=max_linesearch_steps,
       log_iterations=log_iterations,
+      convergence_norm=lambda x: jax_root_finding.max_abs_norm(
+          x, residual_scaling_vector
+      ),
+      linesearch_norm=lambda x: jax_root_finding.rms_norm(
+          x, residual_scaling_vector
+      ),
   )
 
   x_root, metadata = root_finder(x0=init_x_new_vec)

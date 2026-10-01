@@ -25,8 +25,8 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.transport_model import component
 from torax._src.transport_model import tglf_based_transport_model
+from torax._src.transport_model import transport_coeffs
 
 
 # pylint: disable=invalid-name
@@ -135,12 +135,11 @@ class TGLFNNukaeaTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> component.TurbulentTransport:
+  ) -> transport_coeffs.TransportCoeffs:
     tglf_inputs = self._prepare_tglf_inputs(
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     tglfnn_inputs = self._prepare_tglfnn_inputs(tglf_inputs)

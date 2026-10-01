@@ -12,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Internal boundary conditions."""
+"""Output class for internal boundary condition models."""
 
 import dataclasses
 
-import chex
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src.core_profiles import convertors
 from torax._src.geometry import geometry
-from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
@@ -65,10 +62,10 @@ class InternalBoundaryConditions:
     )
 
   def get_two_point_face_mask(
-      self, geo: geometry.Geometry
+      self,
+      geo: geometry.Geometry,
   ) -> array_typing.BoolVectorFace:
     """Returns boolean face mask for 2-point gradient fallback left of pinned cells."""
-
     pinned_cell_mask = (self.T_i != 0.0) | (self.T_e != 0.0) | (self.n_e != 0.0)
     mask = jnp.zeros_like(geo.rho_face_norm, dtype=bool)
     return mask.at[:-1].set(pinned_cell_mask)
@@ -119,7 +116,7 @@ class InternalBoundaryConditions:
         # Only apply where the target is nonzero.
         mask_parts.append(target_original_units != 0.0)
         target_parts.append(
-            target_original_units / convertors.SCALING_FACTORS[var]
+            target_original_units / convertors.STATE_SCALING_FACTORS[var]
         )
       else:
         # Variables like psi have no internal boundary conditions.
@@ -132,23 +129,3 @@ class InternalBoundaryConditions:
     return jnp.stack(mask_parts, axis=-1), jnp.stack(target_parts, axis=-1)
 
 
-class InternalBoundaryConditionsConfig(torax_pydantic.BaseModelFrozen):
-  """Pydantic model for internal boundary conditions."""
-
-  T_i: interpolated_param_2d.SparseTimeVaryingArray = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  T_e: interpolated_param_2d.SparseTimeVaryingArray = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  n_e: interpolated_param_2d.SparseTimeVaryingArray = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-
-  def build_runtime_params(self, t: chex.Numeric) -> InternalBoundaryConditions:
-    """Builds the runtime params for the internal boundary conditions."""
-    return InternalBoundaryConditions(
-        T_i=self.T_i.get_value(t),
-        T_e=self.T_e.get_value(t),
-        n_e=self.n_e.get_value(t),
-    )

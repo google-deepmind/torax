@@ -32,17 +32,15 @@ class RotationTest(absltest.TestCase):
 
   def test_calculate_rotation_shapes_are_correct(self):
     rotation_output = rotation.calculate_rotation(
-        T_i=core_profile_helpers.make_constant_core_profile(
-            geo=self.geo, value=1.0
-        ),
         psi=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
         n_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
-        q_face=np.ones_like(self.geo.rho_face_norm),
-        Z_eff_face=np.ones_like(self.geo.rho_face_norm),
         Z_i_face=np.ones_like(self.geo.rho_face_norm),
         toroidal_angular_velocity=core_profile_helpers.make_constant_core_profile(
+            self.geo, 0.0
+        ),
+        poloidal_velocity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.0
         ),
         pressure_total_i=core_profile_helpers.make_constant_core_profile(
@@ -53,10 +51,6 @@ class RotationTest(absltest.TestCase):
     self.assertEqual(rotation_output.v_ExB.shape, self.geo.rho_face_norm.shape)
     self.assertEqual(
         rotation_output.Er.face_value().shape, self.geo.rho_face_norm.shape
-    )
-    self.assertEqual(
-        rotation_output.poloidal_velocity.face_value().shape,
-        self.geo.rho_face_norm.shape,
     )
 
   def test_electric_field_is_zero_for_zero_velocities_and_constant_pressure(

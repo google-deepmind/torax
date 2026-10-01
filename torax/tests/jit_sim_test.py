@@ -14,19 +14,17 @@
 
 """Tests for JIT run loop and run_simulation_jitted."""
 
-import functools
 import os
+from typing import Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src import state
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
-from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 from torax._src.test_utils import sim_test_case
-import xarray as xr
 
 _ALL_PROFILES = (
     output_keys.T_I,
@@ -209,9 +207,14 @@ class JitSimTest(sim_test_case.SimTestCase):
       # Tests current and density rampup for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
       # timesteps (with negligible impact on results compared to full tol).
+      # Uses rtol=1e-7 to account for minor floating point reordering
+      # differences between jitted and non-jitted execution during coarse_tol
+      # timesteps.
       (
           'test_iterhybrid_rampup',
           'test_iterhybrid_rampup.py',
+          _ALL_PROFILES,
+          1e-7,
       ),
       # Modified version of test_iterhybrid_rampup with sawtooth model.
       # Has an initial peaked current density, no heating, no current drive,
@@ -263,23 +266,17 @@ class JitSimTest(sim_test_case.SimTestCase):
   def test_run_simulation_jitted(
       self,
       config_name: str,
+      profiles: Sequence[str] = _ALL_PROFILES,
+      rtol: float | None = None,
+      atol: float | None = None,
   ):
-    test_data_dir = paths.test_data_dir()
-    config_path = os.path.join(test_data_dir, config_name)
-    data_path = os.path.join(test_data_dir, config_name).replace('.py', '.nc')
-    torax_config = config_loader.build_torax_config_from_file(config_path)
-    reference_file = output.load_state_file(data_path)
-
-    xr_data_tree, _ = run_simulation.run_simulation(
-        torax_config, progress_bar=False, _use_jitted_run_loop=True
+    self._test_run_simulation(
+        config_name,
+        profiles=profiles,
+        rtol=rtol,
+        atol=atol,
+        use_jitted_run_loop=True,
     )
-
-    # Allow for small numerical differences due to the change in the order of
-    # operations in the jitted versus non-jitted case.
-    assert_allclose_fn = functools.partial(
-        xr.testing.assert_allclose, atol=1e-6
-    )
-    xr.map_over_datasets(assert_allclose_fn, xr_data_tree, reference_file)
 
   def test_did_not_reach_t_final_error_when_max_steps_too_low(self):
     test_data_dir = paths.test_data_dir()
@@ -287,7 +284,7 @@ class JitSimTest(sim_test_case.SimTestCase):
     torax_config = config_loader.build_torax_config_from_file(config_path)
 
     # Use max_steps=1 which is far too few to reach t_final=1.
-    _, state_history = run_simulation.run_simulation(
+    state_history = run_simulation.run_simulation(
         torax_config, max_steps=1, progress_bar=False, _use_jitted_run_loop=True
     )
 

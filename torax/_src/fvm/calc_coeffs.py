@@ -15,6 +15,7 @@
 """Calculates Block1DCoeffs for a time step."""
 
 import dataclasses
+from typing import Self
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -27,14 +28,12 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -55,7 +54,7 @@ class CoeffsCallback:
         self.evolving_names,
     ))
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: Self) -> bool:  # pyrefly: ignore[bad-override]
     return (
         self.models == other.models
         and self.evolving_names == other.evolving_names
@@ -213,6 +212,7 @@ def calc_coeffs(
     static_argnames=[
         'models',
         'evolving_names',
+        'use_pereverzev',
     ],
 )
 def _calc_coeffs_full(
@@ -231,8 +231,15 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
-  conductivity = models.neoclassical_models.conductivity.calculate_conductivity(
-      geo, core_profiles
+  neoclassical_outputs = models.neoclassical_model(
+      runtime_params, geo, core_profiles
+  )
+  # Update poloidal_velocity on core_profiles for the current solver iterate;
+  # used by turbulent transport models (for ExB shear) in
+  # calculate_all_transport_coeffs below.
+  core_profiles = dataclasses.replace(
+      core_profiles,
+      poloidal_velocity=neoclassical_outputs.poloidal_velocity.v_pol,
   )
 
   # Calculate the implicit source profiles and combine them with the explicit
@@ -240,13 +247,13 @@ def _calc_coeffs_full(
   # here rather than in the source terms section.
   merged_source_profiles = source_profile_builders.build_source_profiles(
       source_models=models.source_models,
-      neoclassical_models=models.neoclassical_models,
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
-      conductivity=conductivity,
+      conductivity=neoclassical_outputs.conductivity,
+      bootstrap_current=neoclassical_outputs.bootstrap_current,
   )
 
   # --- Transient term coefficients --- #
@@ -259,7 +266,7 @@ def _calc_coeffs_full(
       1.0
       / runtime_params.numerics.resistivity_multiplier
       * geo.rho_norm
-      * conductivity.sigma
+      * neoclassical_outputs.conductivity.sigma
       * consts.mu_0
       * 16
       * jnp.pi**2
@@ -316,16 +323,30 @@ def _calc_coeffs_full(
         ),
     )
 
-  # 2. Compute transport coefficients from all models.
+  internal_boundary_conditions = (
+      internal_boundary_conditions_builder.build_internal_boundary_conditions(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          pedestal_transition_state=pedestal_transition_state,
+          internal_boundary_condition_model=models.internal_boundary_condition_model,
+          source_profiles=merged_source_profiles,
+      )
+  )
+
+  # Compute transport coefficients.
   transport_coefficients = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
-          models.transport_model,
-          models.neoclassical_models,
-          runtime_params,
-          geo,
-          core_profiles,
-          pedestal_transition_state,
-          use_pereverzev,
+          transport_model=models.transport_model,
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          pedestal_transition_state=pedestal_transition_state,
+          neoclassical_transport=neoclassical_outputs.transport,
+          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
+              geo
+          ),
+          use_pereverzev=use_pereverzev,
       )
   )
 
@@ -333,31 +354,41 @@ def _calc_coeffs_full(
   d_face_psi = geo.g2g3_over_rhon_face
   v_face_psi = jnp.zeros_like(d_face_psi)
 
-  # 2. Convert to "full" coefficients, i.e. the entire coefficient preceding the
+  # Convert to "full" coefficients, i.e. the entire coefficient preceding the
   # gradient term (dT/dr, dn/dr, etc.) in each equation.
   # Heat equations
   full_chi_face_ion = (
       geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
       * consts.keV_to_J
-      * transport_coefficients.chi_face_ion_total
+      * transport_coefficients.total.chi_face_ion
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
       * consts.keV_to_J
-      * transport_coefficients.chi_face_el_total
+      * transport_coefficients.total.chi_face_el
   )
   # PereverzevTransport convection terms are already "full" coefficients, and
   # no heat convection terms come from other models.
-  full_v_heat_face_ion = transport_coefficients.full_v_heat_face_ion_pereverzev
-  full_v_heat_face_el = transport_coefficients.full_v_heat_face_el_pereverzev
+  if transport_coefficients.pereverzev is not None:
+    full_v_heat_face_ion = (
+        transport_coefficients.pereverzev.full_v_heat_face_ion
+    )
+    full_v_heat_face_el = (
+        transport_coefficients.pereverzev.full_v_heat_face_el
+    )
+  else:
+    full_v_heat_face_ion = jnp.zeros_like(geo.rho_face)
+    full_v_heat_face_el = jnp.zeros_like(geo.rho_face)
 
   # Particle equations
-  full_d_face_el = geo.g1_over_vpr_face * transport_coefficients.d_face_el_total
-  full_v_face_el = geo.g0_face * transport_coefficients.v_face_el_total
+  full_d_face_el = (
+      geo.g1_over_vpr_face * transport_coefficients.total.d_face_el
+  )
+  full_v_face_el = geo.g0_face * transport_coefficients.total.v_face_el
 
-  # 3. Add Phi_b_dot terms to convection equations.
+  # Add Phi_b_dot terms to convection equations.
   # Psi equation doesn't include Phi_b_dot term.
   # Heat equations
   full_v_heat_face_ion += (
@@ -387,19 +418,19 @@ def _calc_coeffs_full(
   )
 
   # --- Source terms --- #
-  # 1. Construct the source vectors
+  # Construct the source vectors
   source_i = merged_source_profiles.total_sources('T_i', geo)
   source_e = merged_source_profiles.total_sources('T_e', geo)
   source_n_e = merged_source_profiles.total_sources('n_e', geo)
   source_psi = merged_source_profiles.total_psi_sources(geo)
 
-  # 2. Initialize source matrices to zero
+  # Initialize source matrices to zero
   # We don't initialize heat source matrices because they are populated by the
   # Qei terms later
   source_mat_nn = jnp.zeros_like(geo.rho)
   source_mat_psi = jnp.zeros_like(geo.rho)
 
-  # 3. Add Qei effects to the heat sources.
+  # Add Qei effects to the heat sources.
   qei = merged_source_profiles.qei
   source_mat_ii = qei.implicit_ii * geo.vpr
   source_i += qei.explicit_i * geo.vpr
@@ -408,7 +439,7 @@ def _calc_coeffs_full(
   source_mat_ie = qei.implicit_ie * geo.vpr
   source_mat_ei = qei.implicit_ei * geo.vpr
 
-  # 4. Add effective Phi_b_dot terms
+  # Add effective Phi_b_dot terms
   # Heat equations
   d_vpr53_rhon_n_e_drhon = jnp.gradient(
       geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_e.value,
@@ -458,78 +489,10 @@ def _calc_coeffs_full(
       * geo.Phi_b_dot
       * geo.Phi_b
       * geo.rho_norm**2
-      * conductivity.sigma
+      * neoclassical_outputs.conductivity.sigma
       / geo.F**2
       * core_profiles.psi.grad()
   )
-
-  # 5. Add internal boundary condition source terms
-  if (
-      runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
-  ):
-    pedestal_model_output = pedestal_transition_state.pedestal_model_output
-    if (
-        runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
-    ):
-
-      # Scale the pedestal output by the ramp fraction during transitions.
-      # In H-mode, returns full H-mode values. In L-mode, returns L-mode
-      # values. During transitions, linearly interpolates between the two.
-      ramp_fraction = _compute_ramp_fraction(
-          pedestal_transition_state=pedestal_transition_state,
-          transition_time_width=runtime_params.pedestal.transition_time_width,
-          t=runtime_params.t,
-      )
-      scaled_pedestal_model_output = _apply_transition_ramp_scaling(
-          pedestal_transition_state=pedestal_transition_state,
-          ramp_fraction=ramp_fraction,
-      )
-
-      # internal boundary conditions should be applied if we're in H mode
-      # or still in the LH/HL ramp.
-      apply_pedestal_internal_boundary_conditions = (
-          pedestal_transition_state.confinement_mode
-          != pedestal_transition_state_lib.ConfinementMode.L_MODE
-      )
-      pedestal_internal_boundary_conditions = jax.lax.cond(
-          apply_pedestal_internal_boundary_conditions,
-          lambda: scaled_pedestal_model_output.to_internal_boundary_conditions(
-              geo,
-              core_profiles=core_profiles,
-              pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
-          ),
-          lambda: internal_boundary_conditions_lib.InternalBoundaryConditions.empty(
-              geo
-          ),
-      )
-    else:
-      # If not using the formation model, we always apply the adaptive source.
-      pedestal_internal_boundary_conditions = pedestal_model_output.to_internal_boundary_conditions(
-          geo,
-          core_profiles=core_profiles,
-          pedestal_profile_form=runtime_params.pedestal.pedestal_profile_form,
-      )
-
-    # Combine the user-specified internal boundary conditions with the pedestal
-    # model output. The pedestal model output will overwrite the user-specified
-    # values if they conflict.
-    # Prioritizing the pedestal model output over the user-specified internal
-    # boundary conditions is a choice we make to get smooth, physically-
-    # realistic pedestal evolution (governed by a model) rather than getting
-    # potentially disjoint behaviour where the user-specified boundary condition
-    # collides with the predictions of the pedestal model.
-    combined_internal_boundary_conditions = (
-        runtime_params.profile_conditions.internal_boundary_conditions.merge(
-            pedestal_internal_boundary_conditions
-        )
-    )
-  else:
-    # No pedestal model, so just use the user-specified internal boundary
-    # conditions.
-    combined_internal_boundary_conditions = (
-        runtime_params.profile_conditions.internal_boundary_conditions
-    )
 
   # --- Build arguments to solver  --- #
   # Build arguments to solver based on which variables are evolving
@@ -583,15 +546,16 @@ def _calc_coeffs_full(
   # var_to_source ends up as a vector in the constructed PDE. Therefore any
   # scalings from CoreProfiles state variables to x must be applied here too.
   var_to_source = {
-      'T_i': source_i / convertors.SCALING_FACTORS['T_i'],
-      'T_e': source_e / convertors.SCALING_FACTORS['T_e'],
-      'psi': source_psi / convertors.SCALING_FACTORS['psi'],
-      'n_e': source_n_e / convertors.SCALING_FACTORS['n_e'],
+      'T_i': source_i / convertors.STATE_SCALING_FACTORS['T_i'],
+      'T_e': source_e / convertors.STATE_SCALING_FACTORS['T_e'],
+      'psi': source_psi / convertors.STATE_SCALING_FACTORS['psi'],
+      'n_e': source_n_e / convertors.STATE_SCALING_FACTORS['n_e'],
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
+  # Add internal boundary condition source terms
   internal_boundary_condition_mask, internal_boundary_condition_target_vec = (
-      combined_internal_boundary_conditions.to_solver_coeffs(
+      internal_boundary_conditions.to_solver_coeffs(
           evolving_names=evolving_names,
           nx=geo.torax_mesh.nx,
       )
@@ -643,99 +607,3 @@ def _calc_coeffs_reduced(
       transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
   )
   return coeffs
-
-
-def _compute_ramp_fraction(
-    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-    transition_time_width: array_typing.FloatScalar,
-    t: array_typing.FloatScalar,
-) -> array_typing.FloatScalar:
-  """Computes the ramp fraction for a pedestal transition.
-
-  Returns a value in [0, 1] representing the progress of the current
-  transition. 0 means the transition just started, 1 means it is complete.
-
-  Args:
-    pedestal_transition_state: Current transition state.
-    transition_time_width: Duration of the transition ramp.
-    t: Current simulation time (i.e. t + dt when called from the solver).
-
-  Returns:
-    Ramp fraction clipped to [0, 1].
-  """
-  elapsed = t - pedestal_transition_state.transition_start_time
-  fraction = elapsed / transition_time_width
-  return jnp.clip(fraction, 0.0, 1.0)
-
-
-def _apply_transition_ramp_scaling(
-    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-    ramp_fraction: array_typing.FloatScalar,
-) -> pedestal_model_output_lib.PedestalModelOutput:
-  """Applies ramp scaling to internal boundary conditions during transitions.
-
-  During an L-H transition, linearly ramps from L-mode values to the H-mode
-  targets. During an H-L transition, ramps from the H-mode targets back to
-  the L-mode values.
-
-  The L-mode values are stored in the pedestal_transition_state (captured
-  at the start of an L->H transition). The H-mode targets are the full
-  pedestal model output.
-
-  Args:
-    pedestal_transition_state: Current transition state containing L-mode
-      baseline values and the pedestal model output.
-    ramp_fraction: Progress of the current transition, in [0, 1].
-
-  Returns:
-    Scaled pedestal model output.
-  """
-
-  def _interpolate_transition(l_val, h_val):
-    """Interpolates between L-mode and H-mode values based on confinement mode.
-
-    Args:
-      l_val: L-mode baseline value.
-      h_val: H-mode target value from the pedestal model output.
-
-    Returns:
-      The interpolated value based on the current confinement mode.
-    """
-    l_to_h_ramp = l_val + ramp_fraction * (h_val - l_val)
-    h_to_l_ramp = h_val + ramp_fraction * (l_val - h_val)
-    confinement_mode = pedestal_transition_state.confinement_mode
-    return jnp.select(
-        [
-            confinement_mode
-            == pedestal_transition_state_lib.ConfinementMode.L_MODE,
-            confinement_mode
-            == pedestal_transition_state_lib.ConfinementMode.H_MODE,
-            confinement_mode
-            == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
-            confinement_mode
-            == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
-        ],
-        [l_val, h_val, l_to_h_ramp, h_to_l_ramp],
-    )
-
-  pedestal_model_output = pedestal_transition_state.pedestal_model_output
-
-  scaled_T_i = _interpolate_transition(
-      l_val=pedestal_transition_state.T_i_ped_L_mode,
-      h_val=pedestal_model_output.T_i_ped,
-  )
-  scaled_T_e = _interpolate_transition(
-      l_val=pedestal_transition_state.T_e_ped_L_mode,
-      h_val=pedestal_model_output.T_e_ped,
-  )
-  scaled_n_e = _interpolate_transition(
-      l_val=pedestal_transition_state.n_e_ped_L_mode,
-      h_val=pedestal_model_output.n_e_ped,
-  )
-
-  return dataclasses.replace(
-      pedestal_model_output,
-      T_i_ped=scaled_T_i,
-      T_e_ped=scaled_T_e,
-      n_e_ped=scaled_n_e,
-  )

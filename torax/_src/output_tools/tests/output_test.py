@@ -26,8 +26,8 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
 from torax._src.core_profiles import initialization
-from torax._src.edge import extended_lengyel_solvers
-from torax._src.edge import extended_lengyel_standalone
+from torax._src.edge import base as edge_base
+from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.fvm import cell_variable
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
@@ -36,12 +36,13 @@ from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.solver import jax_root_finding
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 import xarray as xr
 
 # pylint: disable=invalid-name
@@ -111,9 +112,27 @@ class StateHistoryTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=self.geo,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
+        neoclassical_model=models.neoclassical_model,
     )
-    self.core_transport = state.CoreTransport.zeros(self.geo)
+    self.core_transport = state.CoreTransport(
+        total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+        turbulent=transport_coeffs_lib.TurbulentTransport(
+            core=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+            pedestal=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
+            core_components={
+                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
+                    self.geo
+                )
+            },
+            pedestal_components={
+                'prescribed': transport_coeffs_lib.TransportCoeffs.zeros(
+                    self.geo
+                )
+            },
+        ),
+        neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(self.geo),
+        pereverzev=transport_coeffs_lib.PereverzevTransport.zeros(self.geo),
+    )
     self.source_models = models.source_models
     # Setup a state history object.
     t = jnp.array(0.0)
@@ -135,6 +154,7 @@ class StateHistoryTest(parameterized.TestCase):
         time_step_calculator_state=(
             models.time_step_calculator.initial_state(runtime_params)
         ),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     sim_error = state.SimError.NO_ERROR
     previous_post_processed_outputs = (
@@ -161,6 +181,24 @@ class StateHistoryTest(parameterized.TestCase):
         core_transport_dataset[output_keys.CHI_TURB_I].values.shape,
         (1, len(self.geo.rho_face_norm)),
     )
+
+  def test_turbulent_transport_is_saved(self):
+    """Tests that the turbulent transport per-model child node is saved under auxiliary."""
+    output_xr = self.history.simulation_output_to_xr()
+    self.assertIn(output_keys.AUXILIARY, output_xr.children)
+    auxiliary_tree = output_xr.children[output_keys.AUXILIARY]
+    self.assertIn(output_keys.TURBULENT_TRANSPORT, auxiliary_tree.children)
+    turbulent_tree = auxiliary_tree.children[output_keys.TURBULENT_TRANSPORT]
+    self.assertIn(output_keys.CORE, turbulent_tree.children)
+    self.assertIn(output_keys.PEDESTAL, turbulent_tree.children)
+    for region in (output_keys.CORE, output_keys.PEDESTAL):
+      region_tree = turbulent_tree.children[region]
+      self.assertIn('prescribed', region_tree.children)
+      prescribed_ds = region_tree.children['prescribed'].dataset
+      self.assertIn(output_keys.CHI_TURB_I, prescribed_ds.data_vars)
+      self.assertIn(output_keys.CHI_TURB_E, prescribed_ds.data_vars)
+      self.assertIn(output_keys.D_TURB_E, prescribed_ds.data_vars)
+      self.assertIn(output_keys.V_TURB_E, prescribed_ds.data_vars)
 
   def test_geometry_is_saved(self):
     """Tests that the geometry is saved correctly."""
@@ -477,7 +515,9 @@ class StateHistoryTest(parameterized.TestCase):
         )
     )
 
-    output_xr, _ = run_simulation.run_simulation(torax_config)
+    output_xr = run_simulation.run_simulation(
+        torax_config
+    ).simulation_output_to_xr()
 
     self.assertIn(
         impurity_radiation.RADIATION_OUTPUT_NAME, output_xr.profiles.data_vars
@@ -504,266 +544,88 @@ class StateHistoryTest(parameterized.TestCase):
         total_impurity_radiation,
     )
 
-  def test_state_history_with_extended_lengyel_outputs_fixed_point(self):
-    """Tests that extended Lengyel edge outputs are saved correctly."""
-
-    # Create dummy ExtendedLengyelOutputs
-    extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
-        q_parallel=jnp.array(1.0),
-        q_perpendicular_target=jnp.array(2.0),
-        T_e_separatrix=jnp.array(3.0),
-        T_e_target=jnp.array(4.0),
-        pressure_neutral_divertor=jnp.array(5.0),
-        alpha_t=jnp.array(0.5),
-        kappa_e=jnp.array(0.1),
-        c_z_prefactor=jnp.array(1.0),
-        Z_eff_separatrix=jnp.array(1.5),
-        seed_impurity_concentrations={'Ar': jnp.array(0.01)},
-        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
-            numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
-        ),
-        calculated_enrichment={'Ar': jnp.array(1.0)},
+  def test_base_edge_model_outputs(self):
+    """Verifies base EdgeModelOutputs serialization and StateHistory integration."""
+    outputs = edge_base.EdgeModelOutputs(
+        T_e_right_bc=jnp.array([2.5]),
+        T_i_right_bc=jnp.array([3.5]),
+        n_e_right_bc=jnp.array([4.5e19]),
+        impurity_right_bc={'Ar': jnp.array([0.01]), 'Ne': jnp.array([0.02])},
     )
+    out_dict = outputs.to_output_dict(self.history._output_grid_context)
+    self.assertIn(str(output_keys.T_E_RIGHT_BC), out_dict)
+    self.assertIn(str(output_keys.T_I_RIGHT_BC), out_dict)
+    self.assertIn(str(output_keys.N_E_RIGHT_BC), out_dict)
+    self.assertIn(str(output_keys.IMPURITY_RIGHT_BC), out_dict)
 
-    sim_state_with_edge = dataclasses.replace(
-        self.sim_state,
-        edge_outputs=extended_lengyel_outputs,
-    )
-
-    history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
-        state_history=[sim_state_with_edge],
-        post_processed_outputs_history=(self._output_state,),
-        torax_config=self.torax_config,
-    )
-
-    # Verify edge outputs are stored in the history object
-    self.assertEqual(history._edge_outputs[0], extended_lengyel_outputs)
-
-    # Verify that conversion to xarray works and contains edge data
-    output_xr = history.simulation_output_to_xr()
-    self.assertIsNotNone(output_xr)
-
-    self.assertIn(output_keys.EDGE, output_xr.children)
-    edge_dataset = output_xr.children[output_keys.EDGE].dataset
-
-    # Check standard fields
-    self.assertIn(output_keys.Q_PARALLEL, edge_dataset.data_vars)
-    self.assertIn(output_keys.T_E_TARGET, edge_dataset.data_vars)
-
-    # Check extended fields
-    self.assertIn(extended_lengyel_standalone.ALPHA_T, edge_dataset.data_vars)
-    self.assertIn(
-        extended_lengyel_standalone.Z_EFF_SEPARATRIX, edge_dataset.data_vars
-    )
-    self.assertIn(
-        extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS,
-        edge_dataset.data_vars,
-    )
-    self.assertIn(
-        extended_lengyel_standalone.SOLVER_PHYSICS_OUTCOME,
-        edge_dataset.data_vars,
-    )
-    self.assertIn(
-        extended_lengyel_standalone.CALCULATED_ENRICHMENT,
-        edge_dataset.data_vars,
-    )
-    self.assertIn(
-        extended_lengyel_standalone.FIXED_POINT_OUTCOME,
-        edge_dataset.data_vars,
-    )
-
-    # Verify values match
-    np.testing.assert_allclose(
-        edge_dataset[extended_lengyel_standalone.ALPHA_T].values,
-        np.array([0.5]),
-    )
-    np.testing.assert_allclose(
-        edge_dataset[extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS]
-        .sel(seed_impurity='Ar')
-        .values,
-        np.array([0.01]),
-    )
-
-  def test_seed_impurity_concentrations_does_not_align_with_enrichment(self):
-    # Create dummy ExtendedLengyelOutputs with mixed impurities
-    # seed_impurity_concentrations has only 'Ar'
-    # calculated_enrichment has 'Ar' and 'W' (will happen if 'W' is a fixed
-    # impurity)
-    # We expect seed_impurity_concentrations to NOT include 'W'.
-
-    seed_imp = {'Ar': jnp.array(0.01)}
-    calculated_enrichment = {'Ar': jnp.array(1.0), 'W': jnp.array(0.5)}
-
-    extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
-        q_parallel=jnp.array(1.0),
-        q_perpendicular_target=jnp.array(2.0),
-        T_e_separatrix=jnp.array(3.0),
-        T_e_target=jnp.array(4.0),
-        pressure_neutral_divertor=jnp.array(5.0),
-        alpha_t=jnp.array(0.5),
-        kappa_e=jnp.array(0.1),
-        c_z_prefactor=jnp.array(1.0),
-        Z_eff_separatrix=jnp.array(1.5),
-        seed_impurity_concentrations=seed_imp,
-        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
-            numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
-        ),
-        calculated_enrichment=calculated_enrichment,
-    )
-
-    sim_state_with_edge = dataclasses.replace(
-        self.sim_state,
-        edge_outputs=extended_lengyel_outputs,
-    )
-
-    history = output.StateHistory(
-        sim_error=state.SimError.NO_ERROR,
-        state_history=[sim_state_with_edge],
-        post_processed_outputs_history=(self._output_state,),
-        torax_config=self.torax_config,
-    )
-
-    output_xr = history.simulation_output_to_xr()
-    edge_dataset = output_xr.children[output_keys.EDGE].dataset
-
-    # Verify seed_impurity_concentrations has dimension SEED_IMPURITY
-    self.assertIn(extended_lengyel_standalone.SEED_IMPURITY, edge_dataset.dims)
-    self.assertIn(
-        extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS,
-        edge_dataset.data_vars,
-    )
-
-    seed_var = edge_dataset[
-        extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS
-    ]
-    self.assertIn(extended_lengyel_standalone.SEED_IMPURITY, seed_var.dims)
-
-    # Verify it has ONLY 'Ar'
-    self.assertLen(
-        seed_var.coords[extended_lengyel_standalone.SEED_IMPURITY], 1
-    )
-    self.assertEqual(
-        seed_var.coords[extended_lengyel_standalone.SEED_IMPURITY].values[0],
-        'Ar',
-    )
-
-    # Verify calculated_enrichment has both
-    enrich_var = edge_dataset[extended_lengyel_standalone.CALCULATED_ENRICHMENT]
-    self.assertIn(output_keys.IMPURITY, enrich_var.dims)
-    self.assertLen(enrich_var.coords[output_keys.IMPURITY], 2)
+    # Test to_xr_datatree directly on base.EdgeModelOutputs
+    dt = outputs.to_xr_datatree(self.history._output_grid_context)
+    self.assertIn(output_keys.TIME, dt.dataset.coords)
+    self.assertIn(output_keys.IMPURITY, dt.dataset.coords)
     self.assertCountEqual(
-        enrich_var.coords[output_keys.IMPURITY].values, ['Ar', 'W']
+        dt.dataset.coords[output_keys.IMPURITY].values, ['Ar', 'Ne']
     )
-
-  def test_state_history_with_extended_lengyel_outputs_newton(self):
-    """Tests that extended Lengyel edge outputs are saved correctly."""
-
-    # Create dummy ExtendedLengyelOutputs
-    extended_lengyel_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
-        q_parallel=jnp.array(1.0),
-        q_perpendicular_target=jnp.array(2.0),
-        T_e_separatrix=jnp.array(3.0),
-        T_e_target=jnp.array(4.0),
-        pressure_neutral_divertor=jnp.array(5.0),
-        alpha_t=jnp.array(0.5),
-        kappa_e=jnp.array(0.1),
-        c_z_prefactor=jnp.array(1.0),
-        Z_eff_separatrix=jnp.array(1.5),
-        seed_impurity_concentrations={'Ar': jnp.array(0.01)},
-        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
-            numerics_outcome=jax_root_finding.RootMetadata(
-                iterations=jnp.array(10),
-                # Use a vector residual to test the reduction logic
-                residual=jnp.array([1e-6, 3e-6]),
-                error=jnp.array(0),
-                last_tau=jnp.array(1.0),
-            ),
-        ),
-        calculated_enrichment={'Ar': jnp.array(1.0)},
+    np.testing.assert_allclose(
+        dt.dataset[output_keys.T_E_RIGHT_BC].values, [2.5]
     )
-
+    np.testing.assert_allclose(
+        dt.dataset[output_keys.T_I_RIGHT_BC].values, [3.5]
+    )
+    np.testing.assert_allclose(
+        dt.dataset[output_keys.N_E_RIGHT_BC].values, [4.5e19]
+    )
+    np.testing.assert_allclose(
+        dt.dataset[output_keys.IMPURITY_RIGHT_BC].sel(impurity='Ar').values,
+        [0.01],
+    )
+    # Verify StateHistory integration with base EdgeModelOutputs
+    single_step_outputs = edge_base.EdgeModelOutputs(
+        T_e_right_bc=jnp.array(2.5),
+        T_i_right_bc=jnp.array(3.5),
+        n_e_right_bc=jnp.array(4.5e19),
+        impurity_right_bc={'Ar': jnp.array(0.01)},
+    )
     sim_state_with_edge = dataclasses.replace(
         self.sim_state,
-        edge_outputs=extended_lengyel_outputs,
+        edge_outputs=single_step_outputs,
     )
-
     history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
         state_history=[sim_state_with_edge],
         post_processed_outputs_history=(self._output_state,),
         torax_config=self.torax_config,
     )
-
-    # Verify edge outputs are stored in the history object
-    self.assertEqual(history._edge_outputs[0], extended_lengyel_outputs)
-
-    # Verify that conversion to xarray works and contains edge data
     output_xr = history.simulation_output_to_xr()
-    self.assertIsNotNone(output_xr)
-
     self.assertIn(output_keys.EDGE, output_xr.children)
     edge_dataset = output_xr.children[output_keys.EDGE].dataset
+    self.assertIn(output_keys.T_E_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.T_I_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.N_E_RIGHT_BC, edge_dataset.data_vars)
+    self.assertIn(output_keys.IMPURITY_RIGHT_BC, edge_dataset.data_vars)
 
-    # Check standard fields
-    self.assertIn(output_keys.Q_PARALLEL, edge_dataset.data_vars)
-    self.assertIn(output_keys.T_E_TARGET, edge_dataset.data_vars)
-
-    # Check extended fields
-    self.assertIn(extended_lengyel_standalone.ALPHA_T, edge_dataset.data_vars)
-    self.assertIn(
-        extended_lengyel_standalone.Z_EFF_SEPARATRIX, edge_dataset.data_vars
-    )
-    self.assertIn(
-        extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS,
-        edge_dataset.data_vars,
-    )
-    self.assertIn(
-        extended_lengyel_standalone.CALCULATED_ENRICHMENT,
-        edge_dataset.data_vars,
-    )
-    self.assertIn(
-        extended_lengyel_standalone.SOLVER_PHYSICS_OUTCOME,
-        edge_dataset.data_vars,
-    )
-    self.assertIn(
-        extended_lengyel_standalone.SOLVER_ITERATIONS, edge_dataset.data_vars
-    )
-    self.assertIn(
-        extended_lengyel_standalone.SOLVER_RESIDUAL, edge_dataset.data_vars
-    )
-    self.assertIn(
-        extended_lengyel_standalone.SOLVER_ERROR, edge_dataset.data_vars
-    )
-
-    # Verify values match
-    np.testing.assert_allclose(
-        edge_dataset[extended_lengyel_standalone.ALPHA_T].values,
-        np.array([0.5]),
-    )
-    np.testing.assert_allclose(
-        edge_dataset[extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS]
-        .sel(seed_impurity='Ar')
-        .values,
-        np.array([0.01]),
-    )
-    np.testing.assert_allclose(
-        edge_dataset[extended_lengyel_standalone.SOLVER_ITERATIONS].values,
-        np.array([10]),
-    )
-    # Check that solver_residual is reduced to a scalar per time step
+  def test_pack_impurity_mapping(self):
     self.assertEqual(
-        edge_dataset[extended_lengyel_standalone.SOLVER_RESIDUAL].dims,
-        (output_keys.TIME,),
+        edge_base.pack_impurity_mapping(
+            output_keys.IMPURITY_RIGHT_BC,
+            {},
+            dim_name=output_keys.IMPURITY,
+        ),
+        {},
     )
-    # Mean of abs([1e-6, 3e-6]) is 2e-6
-    np.testing.assert_allclose(
-        edge_dataset[extended_lengyel_standalone.SOLVER_RESIDUAL].values,
-        np.array([2e-6]),
+    self.assertEqual(
+        edge_base.pack_impurity_mapping(
+            output_keys.IMPURITY_RIGHT_BC,
+            None,
+            dim_name=output_keys.IMPURITY,
+        ),
+        {},
     )
+    res = edge_base.pack_impurity_mapping(
+        output_keys.IMPURITY_RIGHT_BC,
+        {'Ar': jnp.array([0.01])},
+        dim_name=output_keys.IMPURITY,
+    )
+    self.assertIn(str(output_keys.IMPURITY_RIGHT_BC), res)
 
   def test_status_attribute_completed(self):
     """Test that status attribute is set to 'completed' for successful runs."""
@@ -834,20 +696,20 @@ class StateHistoryTest(parameterized.TestCase):
     runtime_params_t1 = runtime_params_provider(t=1.0)
 
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     core_profiles_t0 = initialization.initial_core_profiles(
         runtime_params=runtime_params_t0,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     core_profiles_t1 = initialization.initial_core_profiles(
         runtime_params=runtime_params_t1,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     # Verify the fractions in core_profiles match the config at t=0
@@ -936,20 +798,20 @@ class StateHistoryTest(parameterized.TestCase):
     runtime_params_t1 = runtime_params_provider(t=1.0)
 
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     core_profiles_t0 = initialization.initial_core_profiles(
         runtime_params=runtime_params_t0,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     core_profiles_t1 = initialization.initial_core_profiles(
         runtime_params=runtime_params_t1,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     sim_state_t0 = dataclasses.replace(
