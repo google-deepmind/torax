@@ -32,8 +32,10 @@ Functions:
       based on thermal pressure.
     - calculate_beta_pol_profile: Calculates local poloidal beta profile as a
       CellVariable.
-    - calc_beta_pol_prime: Calculates
+    - calculate_beta_pol_prime: Calculates
       beta_pol_prime = -d(beta_pol) / d(psi_norm) on the face grid.
+    - calculate_alpha_mhd: Calculates the MHD ballooning parameter alpha_mhd on
+      the face grid.
 """
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -336,3 +338,39 @@ def calculate_beta_pol_prime(
   )
 
 
+def calculate_alpha_mhd(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+    two_point_mask: array_typing.BoolVectorFace | None = None,
+) -> array_typing.FloatVectorFace:
+  r"""Calculates the MHD ballooning parameter alpha_mhd on the face grid.
+
+  Defined as:
+    alpha_mhd = - (2 * mu_0 * R_major * q^2 / B_0^2) * d(p_total) / d(r_mid)
+  where p_total is the total plasma pressure (thermal + fast ions) and r_mid is
+  the midplane-averaged minor radius.
+
+  Args:
+    core_profiles: CoreProfiles object.
+    geo: Geometry object.
+    two_point_mask: Optional boolean mask on the face grid indicating which
+      faces should use a 2-point central difference instead of the 3-point
+      stencil.
+
+  Returns:
+    alpha_mhd: Face-grid array of the MHD ballooning parameter [dimensionless].
+  """
+  dp_total_dr_mid = core_profiles.pressure_total.face_grad(
+      x=geo.r_mid,
+      x_left=geo.r_mid_face[0],
+      x_right=geo.r_mid_face[-1],
+      two_point_mask=two_point_mask,
+  )
+  return (
+      -2.0
+      * constants.CONSTANTS.mu_0
+      * geo.R_major
+      * core_profiles.q_face**2
+      / (geo.B_0**2 + constants.CONSTANTS.eps)
+      * dp_total_dr_mid
+  )

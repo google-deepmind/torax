@@ -26,6 +26,7 @@ from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.physics import collisions
+from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.transport_model import quasilinear_transport_model
@@ -238,11 +239,10 @@ class QualikizBasedTransportModel(
     log_nu_star_face = jnp.log10(nu_star)
 
     # calculate alpha for magnetic shear correction (see S. van Mulders NF 2021)
-    alpha = quasilinear_transport_model.calculate_alpha(
+    alpha = formulas.calculate_alpha_mhd(
         core_profiles=core_profiles,
-        q=q,
-        reference_magnetic_field=geo.B_0,
-        normalized_logarithmic_gradients=normalized_logarithmic_gradients,
+        geo=geo,
+        two_point_mask=two_point_mask,
     )
 
     # to approximate impact of Shafranov shift. From van Mulders Nucl. Fusion

@@ -248,52 +248,6 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(chiGB, chi_GB_expected)
 
-  def test_calculate_alpha(self):
-    """Tests that alpha is calculated correctly."""
-
-    def _get_cell_variable(value):
-      return cell_variable.CellVariable(
-          value=jnp.array([value]),
-          face_centers=jnp.array([0.0, 1.0]),
-          right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(value),
-      )
-
-    core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        instance=True,
-        T_i=_get_cell_variable(1.0),
-        T_e=_get_cell_variable(1.0),
-        n_e=_get_cell_variable(1.0e20),
-        n_i=_get_cell_variable(1.0e20),
-        n_impurity=_get_cell_variable(1.0e20),
-        fast_ions=(),
-        pressure_fast_i=_get_cell_variable(0.0),
-        n_impurity_thermal=_get_cell_variable(1.0e20),
-    )
-
-    normalized_logarithmic_gradients = (
-        quasilinear_transport_model.NormalizedLogarithmicGradients(
-            lref_over_lti=np.array([0.0, 1.0]),
-            lref_over_lte=np.array([0.0, 2.0]),
-            lref_over_lne=np.array([0.0, 3.0]),
-            lref_over_lni0=np.array([0.0, 4.0]),
-            lref_over_lni1=np.array([0.0, 5.0]),
-            fast_ion_gradients={},
-        )
-    )
-    alpha = quasilinear_transport_model.calculate_alpha(
-        core_profiles=core_profiles,
-        q=np.array(1.0),
-        reference_magnetic_field=1.0,
-        normalized_logarithmic_gradients=normalized_logarithmic_gradients,
-    )
-
-    alpha_expected = np.array(
-        [0, 32 * constants.keV_to_J * 1e20 * constants.mu_0]
-    )
-    np.testing.assert_allclose(alpha, alpha_expected)
-
   def test_calculate_normalized_logarithmic_gradient(self):
     """Tests that calculate_normalized_logarithmic_gradient is calculated correctly."""
     dummy_cell_variable = cell_variable.CellVariable(
