@@ -895,6 +895,9 @@ BETA_POL_PRIME: Final[OutputKey] = OutputKey(
 ALPHA_MHD: Final[OutputKey] = OutputKey(
     "alpha_mhd", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
 )
+ALPHA_MHD_MILLER: Final[OutputKey] = OutputKey(
+    "alpha_mhd_miller", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
+)
 
 # ---------------------------------------------------------------------------
 # Edge model outputs.

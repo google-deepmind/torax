@@ -281,6 +281,66 @@ class FormulasTest(parameterized.TestCase):
         alpha_mhd[:-1], expected_alpha_mhd[:-1], rtol=1e-6, atol=1e-12
     )
 
+  def test_calculate_alpha_mhd_miller(self):
+    # In unelongated circular geometry (elongation_LCFS=1.0), Miller alpha_mhd
+    # reduces identically to the circular s-alpha definition when q = dPhi/dpsi.
+    geo = circular_geometry.CircularConfig(
+        n_rho=50,
+        a_minor=1.0,
+        R_major=10.0,
+        B_0=2.0,
+        elongation_LCFS=1.0,
+    ).build_geometry()
+    p_0 = 1.0e5
+    # Quadratic pressure profile p(rho_norm) = p_0 * (1 - rho_norm^2).
+    p_tot_cell = p_0 * (1.0 - geo.rho_norm**2)
+    p_tot_right = 0.0
+
+    # Quadratic poloidal flux psi(rho_norm) = psi_edge * rho_norm^2, which gives
+    # constant safety factor q_true = Phi_b / psi_edge.
+    q_true = 2.0
+    psi_edge = float(geo.Phi_b / q_true)
+    psi_var = cell_variable.CellVariable(
+        value=psi_edge * geo.rho_norm**2,
+        face_centers=geo.rho_face_norm,
+        left_face_constraint=None,
+        left_face_grad_constraint=0.0,
+        right_face_constraint=psi_edge,
+        right_face_grad_constraint=None,
+    )
+
+    n_e_val = cell_variable.CellVariable(
+        value=np.ones_like(geo.rho) / constants.CONSTANTS.keV_to_J,
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=1.0 / constants.CONSTANTS.keV_to_J,
+        right_face_grad_constraint=None,
+    )
+    T_e_val = cell_variable.CellVariable(
+        value=p_tot_cell,
+        face_centers=geo.rho_face_norm,
+        left_face_constraint=None,
+        left_face_grad_constraint=0.0,
+        right_face_constraint=p_tot_right,
+        right_face_grad_constraint=None,
+    )
+    q_face = np.full_like(geo.rho_face_norm, q_true)
+
+    core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        psi=psi_var,
+        n_e=n_e_val,
+        T_e=T_e_val,
+        q_face=q_face,
+    )
+
+    alpha_mhd_miller = formulas.calculate_alpha_mhd_miller(core_profiles, geo)
+    alpha_mhd = formulas.calculate_alpha_mhd(core_profiles, geo)
+    np.testing.assert_allclose(alpha_mhd_miller[0], 0.0, atol=1e-12)
+    np.testing.assert_allclose(
+        alpha_mhd_miller[:-1], alpha_mhd[:-1], rtol=1e-6, atol=1e-12
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
