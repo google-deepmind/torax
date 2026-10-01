@@ -651,7 +651,7 @@ def _calculate_Lmn(
       Kmn_i[:, 0, 0] * Lsi * geo.gm5_face / geo.B_0**2
   )
   Lmn_i = Lmn_i.at[:, 0, 1].set(Kmn_i[:, 0, 1] * Lbi)
-  Lmn_i = Lmn_i.at[:, 1, 0].set(-Lmn_i[:, 1, 0])
+  Lmn_i = Lmn_i.at[:, 1, 0].set(-Lmn_i[:, 0, 1])
   Lmn_i = Lmn_i.at[:, 1, 1].set(
       Kmn_i[:, 1, 1] * Ldi * geo.gm4_face * geo.B_0**2
   )

@@ -28,6 +28,8 @@ _N_RHO = 10
 _A_TOL = 1e-6
 _R_TOL = 1e-6
 
+# pylint: disable=invalid-name
+
 
 class AngioniSauterTest(absltest.TestCase):
 
@@ -82,6 +84,29 @@ class AngioniSauterTest(absltest.TestCase):
     )
 
     return runtime_params, geo, core_profiles
+
+  def test_calculate_Lmn_ion_symmetry(self):
+    _, geo, core_profiles = (
+        self._get_reference_runtime_params_geo_and_core_profiles()
+    )
+    n_faces = geo.F_face.shape[0]
+    Kmn_e = np.ones((n_faces, 4, 4))
+    Kmn_i = np.ones((n_faces, 2, 2))
+    nu_e_star = np.ones(n_faces)
+    nu_i_star = np.ones(n_faces)
+
+    _, Lmn_i = angioni_sauter._calculate_Lmn(
+        Kmn_e=Kmn_e,
+        Kmn_i=Kmn_i,
+        geo=geo,
+        core_profiles=core_profiles,
+        epsilon=geo.epsilon_face,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+    )
+
+    np.testing.assert_allclose(Lmn_i[:, 1, 0], -Lmn_i[:, 0, 1])
+    self.assertTrue(np.all(Lmn_i[:, 1, 0] != 0.0))
 
   def test_angioni_sauter_against_reference_values(self):
     """Reference values generated from running Angioni-Sauter."""
