@@ -56,6 +56,7 @@ class SauterTest(absltest.TestCase):
 
     model = sauter.SauterModel()
     result = model.calculate_conductivity(
+        sauter.RuntimeParams(),
         geo,
         core_profiles,
         neoclassical_intermediates,

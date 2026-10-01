@@ -18,12 +18,12 @@ from absl.testing import absltest
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import base as neoclassical_transport_base
+from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -76,11 +76,14 @@ class NeoclassicalTransportTest(absltest.TestCase):
     neoclassical_transport_model = (
         torax_config.neoclassical.transport.build_model()
     )
+    transport_params = (
+        torax_config.neoclassical.transport.build_runtime_params()
+    )
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
         geo, core_profiles
     )
     neoclassical_transport_coeffs = neoclassical_transport_model(
-        runtime_params, geo, core_profiles, neoclassical_intermediates
+        transport_params, geo, core_profiles, neoclassical_intermediates
     )
 
     assert np.all(
@@ -121,7 +124,7 @@ class NeoclassicalTransportTest(absltest.TestCase):
 
     # v_face_el_ware should remain unclipped.
     raw_coeffs = neoclassical_transport_model._call_implementation(
-        runtime_params, geo, core_profiles, neoclassical_intermediates
+        transport_params, geo, core_profiles, neoclassical_intermediates
     )
     np.testing.assert_allclose(
         neoclassical_transport_coeffs.v_face_el_ware,
@@ -136,12 +139,12 @@ class FakeNeoclassicalTransportModel(
 
   def _call_implementation(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,
   ) -> transport_coeffs.NeoclassicalTransport:
-    del neoclassical_intermediates
+    del runtime_params, neoclassical_intermediates
     chi_face_ion = np.linspace(0.5, 2, geometry.rho_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geometry.rho_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geometry.rho_face_norm.shape[0])

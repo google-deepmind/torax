@@ -15,10 +15,10 @@
 from typing import Annotated, Literal, override
 
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import base
+from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import transport_coeffs
 
@@ -29,7 +29,7 @@ class ZerosModel(base.NeoclassicalTransportModel):
   @override
   def _call_implementation(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,

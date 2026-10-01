@@ -67,7 +67,10 @@ class RedlConductivityTest(absltest.TestCase):
   def test_redl_conductivity_shape_and_positivity(self):
     model = redl.RedlModel()
     result = model.calculate_conductivity(
-        self.geo, self.core_profiles, self.neoclassical_intermediates
+        redl.RuntimeParams(),
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
     )
     self.assertEqual(result.sigma.shape, (self.n_rho,))
     self.assertEqual(result.sigma_face.shape, (self.n_rho + 1,))
@@ -76,11 +79,17 @@ class RedlConductivityTest(absltest.TestCase):
 
   def test_redl_conductivity_differs_from_sauter(self):
     redl_result = redl.RedlModel().calculate_conductivity(
-        self.geo, self.core_profiles, self.neoclassical_intermediates
+        redl.RuntimeParams(),
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
     )
     # Verify Redl conductivity differs from Sauter conductivity for Z_eff=2.0
     sauter_result = sauter.SauterModel().calculate_conductivity(
-        self.geo, self.core_profiles, self.neoclassical_intermediates
+        sauter.RuntimeParams(),
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
     )
     self.assertFalse(
         np.allclose(redl_result.sigma_face, sauter_result.sigma_face)

@@ -31,9 +31,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import math_utils
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.formulas import sauter as sauter_formulas
 from torax._src.neoclassical.transport import base
@@ -90,7 +88,7 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
   @override
   def _call_implementation(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,
@@ -110,8 +108,8 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
     Returns:
       Neoclassical transport coefficients.
     """
+    assert isinstance(runtime_params, RuntimeParams)
     angioni_sauter = _calculate_angioni_sauter_transport(
-        runtime_params=runtime_params,
         geometry=geometry,
         core_profiles=core_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
@@ -123,22 +121,15 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
         neoclassical_intermediates=neoclassical_intermediates,
     )
 
-    # Needed for pytype.
-    assert isinstance(
-        runtime_params.neoclassical,
-        neoclassical_runtime_params.AnalyticalRuntimeParams,
-    )
-    assert isinstance(runtime_params.neoclassical.transport, RuntimeParams)
-
     # Calculate sigmoid blend weight for Angioni-Sauter (alpha)
     # If correction disabled: alpha = 1 (pure Angioni-Sauter)
     # If correction enabled: alpha varies smoothly with rho_norm
     alpha = jnp.where(
-        runtime_params.neoclassical.transport.use_shaing_ion_correction,
+        runtime_params.use_shaing_ion_correction,
         _calculate_blend_alpha(
             rho_face_norm=geometry.rho_face_norm,
-            start=runtime_params.neoclassical.transport.shaing_blend_start,
-            rate=runtime_params.neoclassical.transport.shaing_blend_rate,
+            start=runtime_params.shaing_blend_start,
+            rate=runtime_params.shaing_blend_rate,
         ),
         1.0,  # Pure Angioni-Sauter when correction disabled
     )
@@ -162,7 +153,6 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
 
 
 def _calculate_angioni_sauter_transport(
-    runtime_params: runtime_params_lib.RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_intermediates: formulas.NeoclassicalIntermediates,
@@ -170,7 +160,6 @@ def _calculate_angioni_sauter_transport(
   """JIT-compatible implementation of the Angioni-Sauter transport model.
 
   Args:
-    runtime_params: Runtime parameters.
     geometry: Geometry object.
     core_profiles: Core profiles object.
     neoclassical_intermediates: Precomputed intermediate quantities.
@@ -181,8 +170,6 @@ def _calculate_angioni_sauter_transport(
   All internally assigned profiles are on the face grid. The face suffix is
   omitted for brevity.
   """
-
-  del runtime_params  # Unused.
 
   # --- Step 1: Calculate intermediate physics quantities ---
 
@@ -673,7 +660,7 @@ def _calculate_Lmn(
 
 
 def _calculate_shaing_transport(
-    runtime_params: runtime_params_lib.RuntimeParams,
+    runtime_params: RuntimeParams,
     geometry: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
     neoclassical_intermediates: formulas.NeoclassicalIntermediates,
@@ -744,16 +731,8 @@ def _calculate_shaing_transport(
   # psi normalization difference accounted for in conversion_factor
   chi_i = (nu_ii * Delta_psi_ion**2 / f_t_ion) * conversion_factor
 
-  # Needed for pytype.
-  assert isinstance(
-      runtime_params.neoclassical,
-      neoclassical_runtime_params.AnalyticalRuntimeParams,
-  )
-  assert isinstance(runtime_params.neoclassical.transport, RuntimeParams)
-
   return transport_coeffs.NeoclassicalTransport(
-      chi_face_ion=runtime_params.neoclassical.transport.shaing_ion_multiplier
-      * chi_i,
+      chi_face_ion=runtime_params.shaing_ion_multiplier * chi_i,
       chi_face_el=jnp.zeros_like(geometry.rho_face),
       d_face_el=jnp.zeros_like(geometry.rho_face),
       v_face_el=jnp.zeros_like(geometry.rho_face),

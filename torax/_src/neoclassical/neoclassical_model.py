@@ -22,6 +22,7 @@ from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.neoclassical.formulas import formulas
@@ -84,28 +85,34 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
       core_profiles: state.CoreProfiles,
   ) -> NeoclassicalOutputs:
     """Evaluates all analytical neoclassical sub-models in a single pass."""
+    assert isinstance(
+        runtime_params.neoclassical,
+        neoclassical_runtime_params.AnalyticalRuntimeParams,
+    )
+    analytical_params = runtime_params.neoclassical
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
         geo, core_profiles
     )
     conductivity = self.conductivity.calculate_conductivity(
+        analytical_params.conductivity,
         geo,
         core_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
     )
     bootstrap_current = self.bootstrap_current.calculate_bootstrap_current(
-        runtime_params,
+        analytical_params.bootstrap_current,
         geo,
         core_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
     )
     transport = self.transport(
-        runtime_params,
+        analytical_params.transport,
         geo,
         core_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
     )
     poloidal_velocity = self.poloidal_velocity.calculate_poloidal_velocity(
-        runtime_params,
+        analytical_params.poloidal_velocity,
         geo,
         core_profiles,
         neoclassical_intermediates=neoclassical_intermediates,

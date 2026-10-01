@@ -18,12 +18,11 @@ import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import base
+from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.physics import psi_calculations
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -99,7 +98,7 @@ class KimModel(base.PoloidalVelocityModel):
 
   def calculate_poloidal_velocity(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,
@@ -111,11 +110,6 @@ class KimModel(base.PoloidalVelocityModel):
     )
     B_total_squared_face = B_pol_squared_face + B_tor_face**2
 
-    assert isinstance(
-        runtime_params.neoclassical,
-        neoclassical_runtime_params.AnalyticalRuntimeParams,
-    )
-    poloidal_velocity_params = runtime_params.neoclassical.poloidal_velocity
     v_pol = _calculate_poloidal_velocity(
         T_i=core_profiles.T_i,
         k_neo=neoclassical_intermediates.k_neo,
@@ -123,7 +117,7 @@ class KimModel(base.PoloidalVelocityModel):
         B_tor=B_tor_face,
         B_total_squared=B_total_squared_face,
         geo=geometry,
-        poloidal_velocity_multiplier=poloidal_velocity_params.poloidal_velocity_multiplier,
+        poloidal_velocity_multiplier=runtime_params.poloidal_velocity_multiplier,
     )
     return base.PoloidalVelocity(v_pol=v_pol)
 

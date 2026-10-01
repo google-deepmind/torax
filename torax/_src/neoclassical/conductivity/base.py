@@ -22,6 +22,7 @@ import jax
 from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical.conductivity import runtime_params as conductivity_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -41,6 +42,7 @@ class ConductivityModel(abc.ABC):
   @abc.abstractmethod
   def calculate_conductivity(
       self,
+      runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,
@@ -50,6 +52,10 @@ class ConductivityModel(abc.ABC):
 
 class ConductivityModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for conductivity model configs."""
+
+  def build_runtime_params(self) -> conductivity_runtime_params.RuntimeParams:
+    """Builds runtime params."""
+    return conductivity_runtime_params.RuntimeParams()
 
   @abc.abstractmethod
   def build_model(self) -> ConductivityModel:

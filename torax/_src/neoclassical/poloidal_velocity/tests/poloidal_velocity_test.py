@@ -18,6 +18,7 @@ from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import kim
+from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.neoclassical.poloidal_velocity import zeros
 from torax._src.torax_pydantic import model_config
 
@@ -110,7 +111,7 @@ class PoloidalVelocityTest(absltest.TestCase):
   def test_kim_model_produces_expected_shapes_and_non_zero_velocity(self):
     model = kim.KimModel()
     output = model.calculate_poloidal_velocity(
-        self.runtime_params,
+        poloidal_velocity_runtime_params.RuntimeParams(),
         self.geo,
         self.core_profiles,
         self.neoclassical_intermediates,
@@ -124,7 +125,7 @@ class PoloidalVelocityTest(absltest.TestCase):
   def test_zeros_model_returns_zero_poloidal_velocity(self):
     model = zeros.ZerosModel()
     output = model.calculate_poloidal_velocity(
-        self.runtime_params,
+        poloidal_velocity_runtime_params.RuntimeParams(),
         self.geo,
         self.core_profiles,
         self.neoclassical_intermediates,

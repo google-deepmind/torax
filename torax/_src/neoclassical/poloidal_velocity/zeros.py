@@ -14,10 +14,10 @@
 """Zeros model for neoclassical poloidal velocity."""
 from typing import Annotated, Literal
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import base
+from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -26,7 +26,7 @@ class ZerosModel(base.PoloidalVelocityModel):
 
   def calculate_poloidal_velocity(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,

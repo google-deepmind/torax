@@ -21,9 +21,7 @@ from typing import Self
 import jax.numpy as jnp
 import pydantic
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
@@ -37,7 +35,7 @@ class NeoclassicalTransportModel(abc.ABC):
 
   def __call__(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,
@@ -57,33 +55,29 @@ class NeoclassicalTransportModel(abc.ABC):
 
   def _apply_clipping(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: transport_runtime_params.RuntimeParams,
       neoclassical_transport: transport_coeffs_lib.NeoclassicalTransport,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     """Applies min/max clipping to neoclassical transport coefficients."""
-    assert isinstance(
-        runtime_params.neoclassical,
-        neoclassical_runtime_params.AnalyticalRuntimeParams,
-    )
     chi_face_ion = jnp.clip(
         neoclassical_transport.chi_face_ion,
-        runtime_params.neoclassical.transport.chi_min,
-        runtime_params.neoclassical.transport.chi_max,
+        runtime_params.chi_min,
+        runtime_params.chi_max,
     )
     chi_face_el = jnp.clip(
         neoclassical_transport.chi_face_el,
-        runtime_params.neoclassical.transport.chi_min,
-        runtime_params.neoclassical.transport.chi_max,
+        runtime_params.chi_min,
+        runtime_params.chi_max,
     )
     d_face_el = jnp.clip(
         neoclassical_transport.d_face_el,
-        runtime_params.neoclassical.transport.D_e_min,
-        runtime_params.neoclassical.transport.D_e_max,
+        runtime_params.D_e_min,
+        runtime_params.D_e_max,
     )
     v_face_el = jnp.clip(
         neoclassical_transport.v_face_el,
-        runtime_params.neoclassical.transport.V_e_min,
-        runtime_params.neoclassical.transport.V_e_max,
+        runtime_params.V_e_min,
+        runtime_params.V_e_max,
     )
     return transport_coeffs_lib.NeoclassicalTransport(
         chi_face_ion=chi_face_ion,
@@ -96,7 +90,7 @@ class NeoclassicalTransportModel(abc.ABC):
   @abc.abstractmethod
   def _call_implementation(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,

@@ -40,12 +40,13 @@ class SauterModel(base.ConductivityModel):
 
   def calculate_conductivity(
       self,
+      runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,
   ) -> base.Conductivity:
     """Calculates conductivity."""
-    del geometry
+    del runtime_params, geometry
     result = _calculate_conductivity(
         Z_eff_face=core_profiles.Z_eff_face,
         T_e=core_profiles.T_e,

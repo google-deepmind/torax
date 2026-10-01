@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
-
 from absl.testing import absltest
 import numpy as np
 from torax._src import state
@@ -21,7 +19,6 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
-from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.torax_pydantic import model_config
@@ -88,7 +85,7 @@ class AngioniSauterTest(absltest.TestCase):
 
   def test_angioni_sauter_against_reference_values(self):
     """Reference values generated from running Angioni-Sauter."""
-    runtime_params, geo, core_profiles = (
+    _, geo, core_profiles = (
         self._get_reference_runtime_params_geo_and_core_profiles()
     )
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
@@ -97,7 +94,9 @@ class AngioniSauterTest(absltest.TestCase):
 
     # Test raw Angioni-Sauter values
     result = angioni_sauter._calculate_angioni_sauter_transport(
-        runtime_params, geo, core_profiles, neoclassical_intermediates
+        geometry=geo,
+        core_profiles=core_profiles,
+        neoclassical_intermediates=neoclassical_intermediates,
     )
     np.testing.assert_allclose(
         result.chi_face_ion,
@@ -132,7 +131,7 @@ class AngioniSauterTest(absltest.TestCase):
 
   def test_angioni_sauter_with_shaing_against_reference_values(self):
     """Reference values generated from Angioni-Sauter + Shaing ion correction."""
-    runtime_params, geo, core_profiles = (
+    _, geo, core_profiles = (
         self._get_reference_runtime_params_geo_and_core_profiles()
     )
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
@@ -140,23 +139,13 @@ class AngioniSauterTest(absltest.TestCase):
     )
 
     # Enable Shaing ion correction
-    assert isinstance(
-        runtime_params.neoclassical,
-        neoclassical_runtime_params.AnalyticalRuntimeParams,
-    )
-    modified_runtime_params = dataclasses.replace(
-        runtime_params,
-        neoclassical=dataclasses.replace(
-            runtime_params.neoclassical,
-            transport=angioni_sauter.AngioniSauterModelConfig(
-                use_shaing_ion_correction=True
-            ).build_runtime_params(),
-        ),
-    )
+    transport_params = angioni_sauter.AngioniSauterModelConfig(
+        use_shaing_ion_correction=True
+    ).build_runtime_params()
 
     # Test blended Angioni-Sauter + Shaing values
     result = angioni_sauter.AngioniSauterModel()._call_implementation(
-        modified_runtime_params, geo, core_profiles, neoclassical_intermediates
+        transport_params, geo, core_profiles, neoclassical_intermediates
     )
     np.testing.assert_allclose(
         result.chi_face_ion,

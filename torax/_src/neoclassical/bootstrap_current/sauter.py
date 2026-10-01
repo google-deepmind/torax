@@ -18,10 +18,8 @@ from typing import Annotated, Literal
 import jax
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_current_runtime_params
 from torax._src.neoclassical.formulas import formulas
@@ -34,22 +32,14 @@ class SauterModel(bootstrap_current_base.BootstrapCurrentModel):
 
   def calculate_bootstrap_current(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: bootstrap_current_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,
   ) -> bootstrap_current_base.BootstrapCurrent:
     """Calculates bootstrap current according to the Sauter model."""
-    assert isinstance(
-        runtime_params.neoclassical,
-        neoclassical_runtime_params.AnalyticalRuntimeParams,
-    )
-    bootstrap_params = runtime_params.neoclassical.bootstrap_current
-    assert isinstance(
-        bootstrap_params, bootstrap_current_runtime_params.RuntimeParams
-    )
     return _calculate_bootstrap_current(
-        bootstrap_multiplier=bootstrap_params.bootstrap_multiplier,
+        bootstrap_multiplier=runtime_params.bootstrap_multiplier,
         Z_eff_face=core_profiles.Z_eff_face,
         n_e=core_profiles.n_e,
         n_i=core_profiles.n_i,
