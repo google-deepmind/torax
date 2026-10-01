@@ -231,10 +231,12 @@ class PedestalModelOutput:
   ) -> state.CoreTransport:
     """Modify transport coefficients in the entire pedestal region.
 
-    Scales the turbulent core and Pereverzev transport coefficients in the
-    pedestal region by the multipliers in the pedestal model output. Transport
-    coefficients from neoclassical and pedestal transport models, as well as
-    individual per-model diagnostic outputs, are not affected.
+    Scales the turbulent core transport coefficients in the pedestal region by
+    the multipliers in the pedestal model output, and applies smoothing across
+    the combined (scaled core + pedestal) turbulent transport at the pedestal
+    top. Transport coefficients from neoclassical, Pereverzev, and pedestal
+    transport models, as well as individual per-model diagnostic outputs, are
+    not transformed.
 
     Args:
       core_transport: The core transport coefficients to modify.
@@ -260,7 +262,7 @@ class PedestalModelOutput:
         clip_min: array_typing.FloatScalar | None = None,
         clip_max: array_typing.FloatScalar | None = None,
     ) -> array_typing.FloatVectorFace:
-      """Scales, clips, and smooths a single transport coefficient channel."""
+      """Scales and clips a single transport coefficient channel."""
       # If transport suppression is not in effect, perform no scaling (L-mode).
       # If transport suppression is in effect (i.e. H-mode, multiplier != 1.0),
       # then clip before scaling to avoid unrealistic values.
@@ -270,43 +272,57 @@ class PedestalModelOutput:
           jnp.clip(coeff, min=clip_min, max=clip_max) * multiplier,
       )
       # Only modify the coefficients in the pedestal region.
-      modified = jnp.where(pedestal_active_mask_face, modified, coeff)
-      # Apply smoothing to the pedestal top.
-      return jnp.dot(smoothing_matrix, modified)
+      return jnp.where(pedestal_active_mask_face, modified, coeff)
 
-    def _scale_coeffs(coeffs):
-      """Scales standard transport channels using pedestal multipliers."""
-      return dataclasses.replace(
-          coeffs,
-          chi_face_ion=_scale_channel(
-              coeffs.chi_face_ion,
-              self.transport_multipliers.chi_i_multiplier,
-              clip_max=pedestal_runtime_params.chi_max,
-          ),
-          chi_face_el=_scale_channel(
-              coeffs.chi_face_el,
-              self.transport_multipliers.chi_e_multiplier,
-              clip_max=pedestal_runtime_params.chi_max,
-          ),
-          d_face_el=_scale_channel(
-              coeffs.d_face_el,
-              self.transport_multipliers.D_e_multiplier,
-              clip_max=pedestal_runtime_params.D_e_max,
-          ),
-          v_face_el=_scale_channel(
-              coeffs.v_face_el,
-              self.transport_multipliers.v_e_multiplier,
-              clip_min=pedestal_runtime_params.V_e_min,
-              clip_max=pedestal_runtime_params.V_e_max,
-          ),
-      )
+    core_coeffs = core_transport.turbulent.core
+    pedestal_coeffs = core_transport.turbulent.pedestal
 
-    # Scale only turbulent core transport. Pedestal transport
-    # (turbulent.pedestal) and individual per-model diagnostic outputs
-    # (core_components and pedestal_components) are preserved unscaled.
+    # Scale only core transport.
+    scaled_core = dataclasses.replace(
+        core_coeffs,
+        chi_face_ion=_scale_channel(
+            core_coeffs.chi_face_ion,
+            self.transport_multipliers.chi_i_multiplier,
+            clip_max=pedestal_runtime_params.chi_max,
+        ),
+        chi_face_el=_scale_channel(
+            core_coeffs.chi_face_el,
+            self.transport_multipliers.chi_e_multiplier,
+            clip_max=pedestal_runtime_params.chi_max,
+        ),
+        d_face_el=_scale_channel(
+            core_coeffs.d_face_el,
+            self.transport_multipliers.D_e_multiplier,
+            clip_max=pedestal_runtime_params.D_e_max,
+        ),
+        v_face_el=_scale_channel(
+            core_coeffs.v_face_el,
+            self.transport_multipliers.v_e_multiplier,
+            clip_min=pedestal_runtime_params.V_e_min,
+            clip_max=pedestal_runtime_params.V_e_max,
+        ),
+    )
+
+    # Smooth across the combined core and pedestal transport, then subtract the
+    # pedestal contribution so that `modified_turbulent.total` (`core +
+    # pedestal`) equals the smoothed total while only updating `core` for
+    # simplicity.
+    def _smooth_combined(
+        scaled_core_channel: array_typing.FloatVectorFace,
+        ped_channel: array_typing.FloatVectorFace,
+    ) -> array_typing.FloatVectorFace:
+      combined = scaled_core_channel + ped_channel
+      smoothed_total = jnp.dot(smoothing_matrix, combined)
+      return smoothed_total - ped_channel
+
+    smoothed_core = jax.tree_util.tree_map(
+        _smooth_combined,
+        scaled_core,
+        pedestal_coeffs,
+    )
     modified_turbulent = dataclasses.replace(
         core_transport.turbulent,
-        core=_scale_coeffs(core_transport.turbulent.core),
+        core=smoothed_core,
     )
 
     # Neoclassical and Pereverzev-Corrigan stabilization transport are not
