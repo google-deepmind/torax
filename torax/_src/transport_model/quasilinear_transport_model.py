@@ -55,9 +55,9 @@ class NormalizedLogarithmicGradients:
   def from_profiles(
       cls,
       core_profiles: state.CoreProfiles,
-      radial_coordinate: jnp.ndarray,
-      radial_face_coordinate: jnp.ndarray,
-      reference_length: jnp.ndarray,
+      radial_coordinate: array_typing.FloatVectorCell,
+      radial_face_coordinate: array_typing.FloatVectorFace,
+      reference_length: array_typing.FloatScalar,
       two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> Self:
     """Calculates the normalized logarithmic gradients."""
@@ -145,11 +145,11 @@ class RuntimeParams(runtime_params_lib.ComponentRuntimeParams):
 @jax.jit
 def calculate_normalized_logarithmic_gradient(
     var: cell_variable.CellVariable,
-    radial_coordinate: jax.Array,
-    radial_face_coordinate: jax.Array,
-    reference_length: jax.Array,
+    radial_coordinate: array_typing.FloatVectorCell,
+    radial_face_coordinate: array_typing.FloatVectorFace,
+    reference_length: array_typing.FloatScalar,
     two_point_mask: array_typing.BoolVectorFace | None = None,
-) -> jax.Array:
+) -> array_typing.FloatVectorFace:
   """Face-grid normalized logarithmic gradient of a CellVariable."""
 
   # var ~ 0 is only possible for ions (e.g. zero impurity density), and we
