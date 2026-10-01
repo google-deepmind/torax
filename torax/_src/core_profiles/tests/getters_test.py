@@ -440,7 +440,7 @@ class GettersTest(parameterized.TestCase):
     config['plasma_composition']['Z_eff'] = {0.0: 1.0, 1.0: 2.0}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
@@ -456,7 +456,7 @@ class GettersTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     # runtime_params.plasma_composition.Z_eff_face is not
@@ -1275,13 +1275,13 @@ class GettersTest(parameterized.TestCase):
     runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     initial_core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     ions = getters.get_updated_ions(

@@ -43,7 +43,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     icrh_source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_NAME
     ]
@@ -55,7 +55,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     output = icrh_source.get_value(
         runtime_params,

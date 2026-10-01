@@ -134,12 +134,12 @@ class TransportMaskingTest(parameterized.TestCase):
     )(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     source_profiles = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
@@ -210,12 +210,12 @@ class TransportMaskingTest(parameterized.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
@@ -335,7 +335,7 @@ class TransportMaskingTest(parameterized.TestCase):
         runtime_params,
         geo,
         torax_config.sources.build_models(),
-        torax_config.neoclassical.build_models(),
+        torax_config.neoclassical.build_model(),
     )
     source_profiles = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
@@ -422,12 +422,12 @@ class TransportModelTest(absltest.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     transition_state = _make_transition_state(rho_norm_ped_top=0.91)
 
@@ -479,12 +479,12 @@ class TransportModelTest(absltest.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     transition_state = _make_transition_state(rho_norm_ped_top=0.91)
 
@@ -691,9 +691,9 @@ class TransportModelTest(absltest.TestCase):
         torax_config
     )(t=torax_config.numerics.t_initial)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
-        runtime_params, geo, source_models, neoclassical_models
+        runtime_params, geo, source_models, neoclassical_model
     )
     transition_state = _make_transition_state(rho_norm_ped_top=0.95)
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
@@ -1106,12 +1106,12 @@ class TransportModelTest(absltest.TestCase):
         )
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     pedestal_output = pedestal_model_output_lib.PedestalModelOutput(
         rho_norm_ped_top=jnp.asarray(0.8),

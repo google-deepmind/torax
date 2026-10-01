@@ -141,7 +141,7 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)
@@ -150,7 +150,7 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     alpha_n = cyclotron_radiation_heat_sink._alpha_closed_form(
         beta=2.0,

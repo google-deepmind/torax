@@ -199,7 +199,7 @@ class BuilderTest(absltest.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=models.source_models,
-        neoclassical_models=models.neoclassical_models,
+        neoclassical_model=models.neoclassical_model,
     )
     l_mode_state = (
         pedestal_transition_state.PedestalTransitionState.empty_L_mode()

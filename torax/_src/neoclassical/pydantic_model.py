@@ -17,7 +17,7 @@ import copy
 from typing import Any
 
 import pydantic
-from torax._src.neoclassical import neoclassical_models
+from torax._src.neoclassical import neoclassical_model
 from torax._src.neoclassical import runtime_params as runtime_params_lib
 from torax._src.neoclassical.bootstrap_current import redl as redl_current
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
@@ -99,8 +99,8 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
         poloidal_velocity=self.poloidal_velocity.build_runtime_params(),
     )
 
-  def build_models(self) -> neoclassical_models.NeoclassicalModels:
-    return neoclassical_models.NeoclassicalModels(
+  def build_model(self) -> neoclassical_model.NeoclassicalModel:
+    return neoclassical_model.NeoclassicalModel(
         conductivity=self.conductivity.build_model(),
         bootstrap_current=self.bootstrap_current.build_model(),
         transport=self.transport.build_model(),

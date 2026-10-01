@@ -64,12 +64,12 @@ class NeoclassicalTransportTest(absltest.TestCase):
         t=torax_config.numerics.t_initial,
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     neoclassical_transport_model = (
         torax_config.neoclassical.transport.build_model()

@@ -67,7 +67,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         )
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     jitted_pedestal_model = jax.jit(pedestal_model)
 
@@ -77,7 +77,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     source_profiles = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
@@ -144,7 +144,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         torax_config
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 
     geo = torax_config.geometry.build_provider(0.0)
@@ -153,7 +153,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     source_profiles = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,

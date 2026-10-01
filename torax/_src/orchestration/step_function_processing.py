@@ -502,7 +502,7 @@ def finalize_outputs(
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
           source_models=models.source_models,
-          neoclassical_models=models.neoclassical_models,
+          neoclassical_model=models.neoclassical_model,
           evolving_names=evolving_names,
       )
   )
@@ -521,7 +521,7 @@ def finalize_outputs(
       pedestal_model_output=final_pedestal_model_output,
       previous_pedestal_model_output=final_pedestal_model_output,
   )
-  final_neoclassical_outputs = models.neoclassical_models(
+  final_neoclassical_outputs = models.neoclassical_model(
       runtime_params_t_plus_dt, geometry_t_plus_dt, final_core_profiles
   )
   internal_boundary_conditions = (

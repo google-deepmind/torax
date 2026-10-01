@@ -40,7 +40,7 @@ class NeoclassicalOutputs:
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class NeoclassicalModels(static_dataclass.StaticDataclass):
+class NeoclassicalModel(static_dataclass.StaticDataclass):
   """Container for instantiated Neoclassical model objects.
 
   This class is intended for use as a static argument to jitted jax functions.

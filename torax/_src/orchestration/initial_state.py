@@ -105,9 +105,9 @@ def _get_initial_state(
       runtime_params,
       geo,
       source_models=models.source_models,
-      neoclassical_models=models.neoclassical_models,
+      neoclassical_model=models.neoclassical_model,
   )
-  neoclassical_outputs = models.neoclassical_models(
+  neoclassical_outputs = models.neoclassical_model(
       runtime_params, geo, initial_core_profiles
   )
   initial_core_sources = source_profile_builders.get_all_source_profiles(

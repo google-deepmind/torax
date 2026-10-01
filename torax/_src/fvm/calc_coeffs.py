@@ -231,7 +231,7 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
-  neoclassical_outputs = models.neoclassical_models(
+  neoclassical_outputs = models.neoclassical_model(
       runtime_params, geo, core_profiles
   )
   # Update poloidal_velocity on core_profiles for the current solver iterate;
@@ -607,5 +607,3 @@ def _calc_coeffs_reduced(
       transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
   )
   return coeffs
-
-
