@@ -33,6 +33,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.formulas import sauter as sauter_formulas
 from torax._src.neoclassical.transport import base
@@ -123,6 +124,10 @@ class AngioniSauterModel(base.NeoclassicalTransportModel):
     )
 
     # Needed for pytype.
+    assert isinstance(
+        runtime_params.neoclassical,
+        neoclassical_runtime_params.AnalyticalRuntimeParams,
+    )
     assert isinstance(runtime_params.neoclassical.transport, RuntimeParams)
 
     # Calculate sigmoid blend weight for Angioni-Sauter (alpha)
@@ -740,6 +745,10 @@ def _calculate_shaing_transport(
   chi_i = (nu_ii * Delta_psi_ion**2 / f_t_ion) * conversion_factor
 
   # Needed for pytype.
+  assert isinstance(
+      runtime_params.neoclassical,
+      neoclassical_runtime_params.AnalyticalRuntimeParams,
+  )
   assert isinstance(runtime_params.neoclassical.transport, RuntimeParams)
 
   return transport_coeffs.NeoclassicalTransport(

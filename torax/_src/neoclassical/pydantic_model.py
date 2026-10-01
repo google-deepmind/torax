@@ -13,8 +13,9 @@
 # limitations under the License.
 """Pydantic model for the neoclassical package."""
 
+import abc
 import copy
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import pydantic
 from torax._src.neoclassical import neoclassical_model
@@ -31,10 +32,29 @@ from torax._src.neoclassical.transport import zeros as transport_zeros
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class Neoclassical(torax_pydantic.BaseModelFrozen):
-  """Config for neoclassical models.
+class BaseNeoclassicalConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+  """Base config for neoclassical models.
+
+  Subclasses configure either the built-in composite analytical model
+  (`AnalyticalNeoclassicalConfig`, which delegates to individual analytical
+  sub-models) or a custom integrated neoclassical solver that computes all
+  neoclassical outputs in a single evaluation.
+  """
+
+  @abc.abstractmethod
+  def build_runtime_params(self) -> runtime_params_lib.RuntimeParams:
+    """Builds runtime params for the neoclassical model."""
+
+  @abc.abstractmethod
+  def build_model(self) -> neoclassical_model.NeoclassicalModel:
+    """Builds the neoclassical model."""
+
+
+class AnalyticalNeoclassicalConfig(BaseNeoclassicalConfig):
+  """Config for the composite analytical neoclassical model.
 
   Attributes:
+    model_name: The model name discriminator, set to `"analytical"`.
     bootstrap_current: Config for the bootstrap current model. Defaults to
       `"zeros"` if omitted, or `"sauter"` if a dict is provided without
       `model_name`.
@@ -47,6 +67,9 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
       Defaults to `"kim"` if omitted or if `model_name` is not provided.
   """
 
+  model_name: Annotated[Literal["analytical"], torax_pydantic.JAX_STATIC] = (
+      "analytical"
+  )
   bootstrap_current: (
       bootstrap_current_zeros.ZerosModelConfig
       | sauter_current.SauterModelConfig
@@ -91,18 +114,24 @@ class Neoclassical(torax_pydantic.BaseModelFrozen):
 
     return configurable_data
 
-  def build_runtime_params(self) -> runtime_params_lib.RuntimeParams:
-    return runtime_params_lib.RuntimeParams(
+  def build_runtime_params(self) -> runtime_params_lib.AnalyticalRuntimeParams:
+    return runtime_params_lib.AnalyticalRuntimeParams(
         bootstrap_current=self.bootstrap_current.build_runtime_params(),
         conductivity=self.conductivity.build_runtime_params(),
         transport=self.transport.build_runtime_params(),
         poloidal_velocity=self.poloidal_velocity.build_runtime_params(),
     )
 
-  def build_model(self) -> neoclassical_model.NeoclassicalModel:
-    return neoclassical_model.NeoclassicalModel(
+  def build_model(self) -> neoclassical_model.AnalyticalNeoclassicalModel:
+    return neoclassical_model.AnalyticalNeoclassicalModel(
         conductivity=self.conductivity.build_model(),
         bootstrap_current=self.bootstrap_current.build_model(),
         transport=self.transport.build_model(),
         poloidal_velocity=self.poloidal_velocity.build_model(),
     )
+
+
+NeoclassicalConfig = Annotated[
+    AnalyticalNeoclassicalConfig,
+    pydantic.Field(discriminator="model_name"),
+]

@@ -21,6 +21,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
+from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.torax_pydantic import model_config
@@ -139,6 +140,10 @@ class AngioniSauterTest(absltest.TestCase):
     )
 
     # Enable Shaing ion correction
+    assert isinstance(
+        runtime_params.neoclassical,
+        neoclassical_runtime_params.AnalyticalRuntimeParams,
+    )
     modified_runtime_params = dataclasses.replace(
         runtime_params,
         neoclassical=dataclasses.replace(

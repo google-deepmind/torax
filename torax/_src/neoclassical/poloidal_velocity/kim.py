@@ -21,6 +21,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import base
 from torax._src.physics import psi_calculations
@@ -110,6 +111,10 @@ class KimModel(base.PoloidalVelocityModel):
     )
     B_total_squared_face = B_pol_squared_face + B_tor_face**2
 
+    assert isinstance(
+        runtime_params.neoclassical,
+        neoclassical_runtime_params.AnalyticalRuntimeParams,
+    )
     poloidal_velocity_params = runtime_params.neoclassical.poloidal_velocity
     v_pol = _calculate_poloidal_velocity(
         T_i=core_profiles.T_i,

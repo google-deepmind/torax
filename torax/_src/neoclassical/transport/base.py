@@ -23,6 +23,7 @@ import pydantic
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
@@ -60,6 +61,10 @@ class NeoclassicalTransportModel(abc.ABC):
       neoclassical_transport: transport_coeffs_lib.NeoclassicalTransport,
   ) -> transport_coeffs_lib.NeoclassicalTransport:
     """Applies min/max clipping to neoclassical transport coefficients."""
+    assert isinstance(
+        runtime_params.neoclassical,
+        neoclassical_runtime_params.AnalyticalRuntimeParams,
+    )
     chi_face_ion = jnp.clip(
         neoclassical_transport.chi_face_ion,
         runtime_params.neoclassical.transport.chi_min,

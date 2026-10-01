@@ -13,7 +13,9 @@
 # limitations under the License.
 
 
-"""Base classes for Neoclassical models."""
+"""Base and analytical classes for Neoclassical models."""
+
+import abc
 import dataclasses
 import jax
 from torax._src import state
@@ -31,7 +33,7 @@ from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class NeoclassicalOutputs:
-  """Consolidated outputs from all neoclassical models."""
+  """Consolidated outputs from a neoclassical model evaluation."""
 
   conductivity: conductivity_base.Conductivity
   bootstrap_current: bootstrap_current_base.BootstrapCurrent
@@ -40,13 +42,34 @@ class NeoclassicalOutputs:
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class NeoclassicalModel(static_dataclass.StaticDataclass):
-  """Container for instantiated Neoclassical model objects.
+class NeoclassicalModel(static_dataclass.StaticDataclass, abc.ABC):
+  """Abstract base class for neoclassical models.
 
-  This class is intended for use as a static argument to jitted jax functions.
-  It is therefore immutable and supports comparison and hashing by value.
-  Because this class is not polymorphic, it does not need to hash the class
-  id, so the default frozen dataclass hashing works.
+  A neoclassical model computes all neoclassical quantities (conductivity,
+  bootstrap current, neoclassical transport, and poloidal velocity) and returns
+  a `NeoclassicalOutputs` instance when called. Subclasses can either be
+  composite models that delegate to individual analytical sub-models (see
+  `AnalyticalNeoclassicalModel`) or integrated neoclassical solvers that compute
+  all outputs in a single evaluation.
+  """
+
+  @abc.abstractmethod
+  def __call__(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry_lib.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> NeoclassicalOutputs:
+    """Evaluates the neoclassical model at the given state."""
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class AnalyticalNeoclassicalModel(NeoclassicalModel):
+  """Composite neoclassical model delegating to analytical sub-models.
+
+  Evaluates individual analytical sub-models for conductivity, bootstrap
+  current, neoclassical transport, and poloidal velocity in a single pass,
+  sharing precomputed intermediate quantities via `NeoclassicalIntermediates`.
   """
 
   conductivity: conductivity_base.ConductivityModel
@@ -60,7 +83,7 @@ class NeoclassicalModel(static_dataclass.StaticDataclass):
       geo: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> NeoclassicalOutputs:
-    """Evaluates all neoclassical sub-models in a single pass."""
+    """Evaluates all analytical neoclassical sub-models in a single pass."""
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
         geo, core_profiles
     )

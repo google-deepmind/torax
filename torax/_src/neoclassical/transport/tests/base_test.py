@@ -37,10 +37,12 @@ class NeoclassicalTransportTest(absltest.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    neoclassical_pydantic_model.Neoclassical.model_fields[  # pyrefly: ignore[bad-assignment]
+    neoclassical_pydantic_model.AnalyticalNeoclassicalConfig.model_fields[  # pyrefly: ignore[bad-assignment]
         'transport'
     ].annotation |= FakeNeoclassicalTransportModelConfig
-    neoclassical_pydantic_model.Neoclassical.model_rebuild(force=True)
+    neoclassical_pydantic_model.AnalyticalNeoclassicalConfig.model_rebuild(
+        force=True
+    )
     model_config.ToraxConfig.model_rebuild(force=True)
 
   def test_clipping(self):

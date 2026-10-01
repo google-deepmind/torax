@@ -74,8 +74,8 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_model.Sources
-  neoclassical: neoclassical_pydantic_model.Neoclassical = (
-      neoclassical_pydantic_model.Neoclassical()  # pylint: disable=missing-kwoa  # pyrefly: ignore[missing-argument]
+  neoclassical: neoclassical_pydantic_model.NeoclassicalConfig = (
+      pydantic.Field()
   )
   solver: solver_pydantic_model.SolverConfig = pydantic.Field()
   transport: transport_model_pydantic_model.TransportModel = pydantic.Field()
@@ -119,6 +119,13 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
+    if 'neoclassical' not in configurable_data:
+      configurable_data['neoclassical'] = {'model_name': 'analytical'}
+    elif (
+        isinstance(configurable_data['neoclassical'], dict)
+        and 'model_name' not in configurable_data['neoclassical']
+    ):
+      configurable_data['neoclassical']['model_name'] = 'analytical'
     if (
         isinstance(configurable_data['pedestal'], dict)
         and 'model_name' not in configurable_data['pedestal']

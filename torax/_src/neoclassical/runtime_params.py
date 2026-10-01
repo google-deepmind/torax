@@ -24,6 +24,13 @@ from torax._src.neoclassical.transport import runtime_params as transport_runtim
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams:
+  """Base runtime params for neoclassical models."""
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class AnalyticalRuntimeParams(RuntimeParams):
+  """Runtime params for the analytical neoclassical model."""
 
   bootstrap_current: bootstrap_current_runtime_params.RuntimeParams
   conductivity: conductivity_runtime_params.RuntimeParams
