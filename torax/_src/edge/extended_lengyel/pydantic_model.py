@@ -76,7 +76,10 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   ] = extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
   # Flags allowing user to test simulation sensitivity to boundary condition
   # updates, while still providing edge model outputs even if not used.
-  update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
+  update_electron_temperature: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(True)
+  )
+  update_ion_temperature: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(True)
   )
   update_electron_density: torax_pydantic.TimeVaryingScalarStep = (
