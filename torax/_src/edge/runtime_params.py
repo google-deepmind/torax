@@ -13,9 +13,13 @@
 # limitations under the License.
 
 """Base runtime_params for edge models."""
+
+from collections.abc import Mapping
 import dataclasses
 import jax
 from torax._src import array_typing
+
+# pylint: disable=invalid-name
 
 
 @jax.tree_util.register_dataclass
@@ -24,13 +28,28 @@ class RuntimeParams:
   """Base for edge model runtime parameters.
 
   Attributes:
-    update_temperatures: Whether to update temperature boundary conditions.
-    update_electron_density: Whether to update electron density boundary
-      condition.
-    update_impurities: Whether to update impurity concentrations in the core.
+    update_T_e: Whether to update electron temperature boundary condition.
+    update_T_i: Whether to update ion temperature boundary condition.
+    update_n_e: Whether to update electron density boundary condition.
+    update_impurity: Whether to update impurity concentrations in the core.
   """
 
   # Not static to allow rapid sensitivity checking of edge-model impact.
-  update_temperatures: array_typing.BoolScalar
-  update_electron_density: array_typing.BoolScalar
-  update_impurities: array_typing.BoolScalar
+  update_T_e: array_typing.BoolScalar
+  update_T_i: array_typing.BoolScalar
+  update_n_e: array_typing.BoolScalar
+  update_impurity: array_typing.BoolScalar
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class CombinedRuntimeParams(RuntimeParams):
+  """Runtime parameters for the combined edge model.
+
+  Attributes:
+    sub_models: Mapping from sub-model name to its RuntimeParams.
+  """
+
+  sub_models: Mapping[str, RuntimeParams] = dataclasses.field(
+      default_factory=dict
+  )

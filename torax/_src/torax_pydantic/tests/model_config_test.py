@@ -712,14 +712,14 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     ):
       model_config.ToraxConfig.from_dict(self.config)
 
-  def test_zero_n_e_ratio_at_lcfs_passes_when_update_impurities_false(self):
+  def test_zero_n_e_ratio_at_lcfs_passes_when_update_impurity_false(self):
     self.config["edge"] = {
         "model_name": "extended_lengyel",
         "computation_mode": "inverse",
         "T_e_target": 10.0,
         "seed_impurity_weights": {"Ne": 1.0},
         "enrichment_factor": {"Ne": 1.0},
-        "update_impurities": False,
+        "update_impurity": False,
         "diverted": True,
     }
     # Profile that goes to zero at rho_norm=1.0.
@@ -729,12 +729,12 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
             "species": {"Ne": {0: {0: 0.01, 0.5: 0.005, 1.0: 0.0}}},
         }
     }
-    # Should not raise because update_impurities is False, so the edge
+    # Should not raise because update_impurity is False, so the edge
     # model won't rescale impurity profiles.
     model_config.ToraxConfig.from_dict(self.config)
 
-  def test_zero_lcfs_passes_when_update_impurities_false_at_that_time(self):
-    # update_impurities: True at t=0, False at t=5 (step interpolation).
+  def test_zero_lcfs_passes_when_update_impurity_false_at_that_time(self):
+    # update_impurity: True at t=0, False at t=5 (step interpolation).
     # Species profile: zero at LCFS only at t=5 (where update is off).
     self.config["edge"] = {
         "model_name": "extended_lengyel",
@@ -742,7 +742,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "T_e_target": 10.0,
         "seed_impurity_weights": {"Ne": 1.0},
         "enrichment_factor": {"Ne": 1.0},
-        "update_impurities": {0: True, 5: False},
+        "update_impurity": {0: True, 5: False},
         "diverted": True,
     }
     self.config["plasma_composition"] = {
@@ -761,8 +761,8 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     # Should not raise.
     model_config.ToraxConfig.from_dict(self.config)
 
-  def test_zero_lcfs_raises_when_update_impurities_true_at_that_time(self):
-    # update_impurities: False at t=0, True at t=5 (step interpolation).
+  def test_zero_lcfs_raises_when_update_impurity_true_at_that_time(self):
+    # update_impurity: False at t=0, True at t=5 (step interpolation).
     # Species profile: zero at LCFS at t=5 (where update is on).
     self.config["edge"] = {
         "model_name": "extended_lengyel",
@@ -770,7 +770,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "T_e_target": 10.0,
         "seed_impurity_weights": {"Ne": 1.0},
         "enrichment_factor": {"Ne": 1.0},
-        "update_impurities": {0: False, 5: True},
+        "update_impurity": {0: False, 5: True},
         "diverted": True,
     }
     self.config["plasma_composition"] = {
