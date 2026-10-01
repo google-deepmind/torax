@@ -584,12 +584,12 @@ def _calculate_Lmn(
       nu_i_star * epsilon**1.5 * thermal_velocity_i + consts.eps
   )
 
-  r_larmor_e = consts.m_e * thermal_velocity_e / consts.q_e
+  r_larmor_e = consts.m_e * thermal_velocity_e / (consts.q_e * geo.B_0)
   r_larmor_i = (
       consts.m_amu
       * core_profiles.A_i
       * thermal_velocity_i
-      / (consts.q_e * core_profiles.Z_i_face)
+      / (consts.q_e * core_profiles.Z_i_face * geo.B_0)
   )
 
   dpsi_dr = core_profiles.psi.face_grad() / geo.rho_b
