@@ -397,7 +397,14 @@ class TGLFBasedTransportModel(
           pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
       )
-      v_ExB = rotation_output.v_ExB
+      B_pol_face = jnp.sqrt(
+          psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+      )
+      v_ExB = math_utils.safe_divide(
+          num=rotation_output.Er.face_value(),
+          denom=B_pol_face,
+          eps=1e-7,
+      )
       value_face = v_ExB / geo.R_major_profile_face
       cv = cell_variable.CellVariable(
           value=geometry.face_to_cell(value_face),
