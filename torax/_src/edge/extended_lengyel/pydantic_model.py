@@ -93,7 +93,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       extended_lengyel_defaults.NEWTON_RAPHSON_TOL
   )
   multistart_num_guesses: Annotated[
-      pydantic.conint(ge=2), torax_pydantic.JAX_STATIC  # pyrefly: ignore[invalid-annotation]
+      int, pydantic.Field(ge=2), torax_pydantic.JAX_STATIC
   ] = extended_lengyel_defaults.MULTISTART_NUM_GUESSES
 
   # Optional boolean to specify if the geometry is diverted.

@@ -52,7 +52,7 @@ def _get_config_and_model_inputs(
   config['transport'] = transport
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = torax_config.sources.build_models()
-  neoclassical_models = torax_config.neoclassical.build_models()
+  neoclassical_model = torax_config.neoclassical.build_model()
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
       torax_config
   )(
@@ -63,30 +63,35 @@ def _get_config_and_model_inputs(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      neoclassical_model=neoclassical_model,
   )
   source_profiles = source_profile_builders.build_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
+  transition_state = (
+      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+  )
   pedestal_model_outputs = pedestal_model(
       runtime_params,
       geo,
       core_profiles,
       source_profiles,
-      pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+      pedestal_transition_state=transition_state,
+  )
+  transition_state = dataclasses.replace(
+      transition_state, pedestal_model_output=pedestal_model_outputs
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
-      pedestal_model_outputs,
+      transition_state,
       two_point_mask,
   )
 
@@ -147,7 +152,6 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=qualikiz_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
 
     # 1D array qualikiz_inputs
@@ -229,13 +233,11 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=qualikiz_params_uncapped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params_uncapped.neoclassical.poloidal_velocity_multiplier,
     )
     capped = transport_model._prepare_qualikiz_inputs(
         transport=qualikiz_params_capped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params_capped.neoclassical.poloidal_velocity_multiplier,
     )
 
     # Precondition: some uncapped values must exceed the cap.
@@ -300,11 +302,10 @@ class FakeQualikizBasedTransportModel(
       transport: qualikiz_based_transport_model.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> qualikiz_based_transport_model.QualikizInputs:
     """Exposing prepare_qualikiz_inputs for testing."""
     return self._prepare_qualikiz_inputs(
-        transport, geo, core_profiles, poloidal_velocity_multiplier
+        transport, geo, core_profiles
     )
 
   # pylint: enable=invalid-name
@@ -329,7 +330,6 @@ class FakeQualikizBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     return self._make_core_transport(
@@ -373,8 +373,9 @@ class QualikizBasedTransportModelConfig(
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
@@ -396,6 +397,7 @@ class QualikizBasedTransportModelConfig(
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
         **base_kwargs,

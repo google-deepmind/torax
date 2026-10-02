@@ -113,6 +113,7 @@ class CoreProfiles:
       j_total_face: Total current density on face grid [A/m^2].
       Ip_profile_face: Plasma current profile on the face grid [A].
       toroidal_angular_velocity: Toroidal angular velocity [rad/s].
+      poloidal_velocity: Neoclassical poloidal velocity [m/s].
       charge_state_info: Container with averaged and per-species ion charge
         state information. See `charge_states.ChargeStateInfo`. Cell grid.
       charge_state_info_face: Container with averaged and per-species ion charge
@@ -153,6 +154,7 @@ class CoreProfiles:
   j_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
   toroidal_angular_velocity: cell_variable.CellVariable
+  poloidal_velocity: cell_variable.CellVariable
   charge_state_info: charge_states.ChargeStateInfo
   charge_state_info_face: charge_states.ChargeStateInfo
   fast_ions: tuple[fast_ion_lib.FastIon, ...]
@@ -292,13 +294,15 @@ class CoreProfiles:
         right_face_grad_constraint=None,
     )
 
-  def quasineutrality_satisfied(self) -> bool:
+  @jax.jit
+  def quasineutrality_satisfied(self) -> jax.Array:
     """Checks if quasineutrality is satisfied."""
     return jnp.allclose(
         self.n_i.value * self.Z_i + self.n_impurity.value * self.Z_impurity,
         self.n_e.value,
-    ).item()
+    )
 
+  @jax.jit
   def negative_temperature_or_density(self) -> jax.Array:
     """Checks if any temperature or density is negative."""
     profiles_to_check = (
@@ -311,14 +315,15 @@ class CoreProfiles:
     )
     # Check if any profile is less than -eps
     # (allowing for numerical precision errors)
-    return np.any(  # pyrefly: ignore[bad-return]
-        np.array([
-            np.any(np.less(x, -constants.CONSTANTS.eps))  # pyrefly: ignore[unsupported-operation]
+    return jnp.any(
+        jnp.stack([
+            jnp.any(jnp.less(x, -constants.CONSTANTS.eps))  # pyrefly: ignore[unsupported-operation]
             for x in jax.tree.leaves(profiles_to_check)
         ])
     )
 
-  def below_minimum_temperature(self, T_minimum_eV: float) -> bool:
+  @jax.jit
+  def below_minimum_temperature(self, T_minimum_eV: float) -> jax.Array:
     """Return True if T_e or T_i is below the minimum temperature threshold."""
     # Convert eV -> keV since internal storage is keV
     T_minimum_keV = T_minimum_eV / 1000.0
@@ -326,8 +331,7 @@ class CoreProfiles:
     is_low_te = jnp.any(self.T_e.value < T_minimum_keV)
     is_low_ti = jnp.any(self.T_i.value < T_minimum_keV)
 
-    # Use .item() to return a concrete Python boolean
-    return (is_low_te | is_low_ti).item()
+    return is_low_te | is_low_ti
 
   def to_output_dict(
       self,

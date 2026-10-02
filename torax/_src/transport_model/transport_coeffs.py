@@ -124,28 +124,36 @@ class TurbulentTransport:
   """Combined turbulent transport output across all models.
 
   Attributes:
-    total: Combined 4-channel turbulent transport coefficients (after merge,
+    core: Combined 4-channel core turbulent transport coefficients (after merge,
       clipping, and smoothing).
-    core_coefficients: Mapping from model name to the TransportCoeffs produced
+    pedestal: Combined 4-channel pedestal turbulent transport coefficients.
+    core_components: Mapping from model name to the TransportCoeffs produced
       by each active core transport model.
-    pedestal_coefficients: Mapping from model name to the TransportCoeffs
+    pedestal_components: Mapping from model name to the TransportCoeffs
       produced by each active pedestal transport model.
   """
 
-  total: TransportCoeffs
-  core_coefficients: Mapping[str, TransportCoeffs] = dataclasses.field(
+  core: TransportCoeffs
+  pedestal: TransportCoeffs
+  core_components: Mapping[str, TransportCoeffs] = dataclasses.field(
       default_factory=dict
   )
-  pedestal_coefficients: Mapping[str, TransportCoeffs] = dataclasses.field(
+  pedestal_components: Mapping[str, TransportCoeffs] = dataclasses.field(
       default_factory=dict
   )
+
+  @property
+  def total(self) -> TransportCoeffs:
+    """Combined 4-channel turbulent transport coefficients (core + pedestal)."""
+    return self.core + self.pedestal
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
     return cls(
-        total=TransportCoeffs.zeros(geo),
-        core_coefficients={},
-        pedestal_coefficients={},
+        core=TransportCoeffs.zeros(geo),
+        pedestal=TransportCoeffs.zeros(geo),
+        core_components={},
+        pedestal_components={},
     )
 
   def to_output_dict(
@@ -165,24 +173,24 @@ class TurbulentTransport:
         output_keys.RHO_FACE_NORM: context.coords[output_keys.RHO_FACE_NORM],
     }
     children = {}
-    if self.core_coefficients:
+    if self.core_components:
       core_children = {
           model_name: xr.DataTree(
               dataset=context.build_dataset(
                   model_output.to_output_dict(context), coords=face_coords
               )
           )
-          for model_name, model_output in self.core_coefficients.items()
+          for model_name, model_output in self.core_components.items()
       }
       children[output_keys.CORE] = xr.DataTree(children=core_children)
-    if self.pedestal_coefficients:
+    if self.pedestal_components:
       pedestal_children = {
           model_name: xr.DataTree(
               dataset=context.build_dataset(
                   model_output.to_output_dict(context), coords=face_coords
               )
           )
-          for model_name, model_output in self.pedestal_coefficients.items()
+          for model_name, model_output in self.pedestal_components.items()
       }
       children[output_keys.PEDESTAL] = xr.DataTree(children=pedestal_children)
     return xr.DataTree(children=children)

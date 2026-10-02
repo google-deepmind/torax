@@ -180,7 +180,6 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
         two_point_mask=two_point_mask,
     )
     n_faces = len(geo.rho_face_norm)
@@ -330,6 +329,12 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     DV_effective: Effective D / effective V approach for particle transport.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
+    DV_effective_smooth_width: Particle flux width in dimensionless
+      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
+      transport transitions smoothly from effective V to effective D. If 0.0,
+      uses a sharp step transition. Note that TGLF normalizes with minor radius
+      a rather than R_major, so the default (0.001) is chosen to be consistent
+      in SI units with QuaLiKiz (0.01).
     collisionality_multiplier: Collisionality multiplier.
     max_normalized_collisionality: Maximum normalized collisionality passed to
       the model. Acts as a ceiling to mitigate unreliable transport predictions
@@ -353,6 +358,7 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.001
   collisionality_multiplier: float = 1.0
   max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
   tglf_settings: Annotated[
@@ -436,6 +442,7 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
         collisionality_multiplier=self.collisionality_multiplier,
         max_normalized_collisionality=self.max_normalized_collisionality,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         tglf_settings=self.tglf_settings,
         **base_kwargs,
     )

@@ -21,6 +21,7 @@ from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.sources import source_profiles as source_profiles_lib
 
 # pylint: disable=invalid-name
 
@@ -35,6 +36,7 @@ def build_internal_boundary_conditions(
     internal_boundary_condition_model: (
         base_model.InternalBoundaryConditionModel
     ),
+    source_profiles: source_profiles_lib.SourceProfiles,
 ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
   """Builds the active internal boundary conditions for this time step.
 
@@ -51,6 +53,7 @@ def build_internal_boundary_conditions(
     pedestal_transition_state: Current state of the pedestal transition.
     internal_boundary_condition_model: Model used to evaluate profile-condition
       internal boundary conditions.
+    source_profiles: Core source profiles.
 
   Returns:
     The active InternalBoundaryConditions object.
@@ -68,6 +71,7 @@ def build_internal_boundary_conditions(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
+      source_profiles=source_profiles,
   )
 
   is_pedestal_ibc_active = pedestal_transition_state.is_ibc_active(

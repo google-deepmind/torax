@@ -185,7 +185,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     config["sources"] = {self._source_name: {"model_path": _DUMMY_MODEL_PATH}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_NAME
     ]
@@ -200,7 +200,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     icrh_out = source.get_value(
         runtime_params=runtime_params,
@@ -235,7 +235,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_NAME
     ]
@@ -250,7 +250,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     # Verify minority_species is set in runtime params
     icrh_params = runtime_params.sources[
@@ -296,7 +296,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_NAME
     ]
@@ -309,7 +309,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     # Run the source calculation
@@ -375,7 +375,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_NAME
     ]
@@ -387,7 +387,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     output = source.get_value(
         runtime_params=runtime_params,
@@ -420,7 +420,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_NAME
     ]
@@ -432,7 +432,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     output = source.get_value(
         runtime_params=runtime_params,
@@ -455,7 +455,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_NAME
     ]
@@ -467,7 +467,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     output = source.get_value(
         runtime_params=runtime_params,
@@ -488,7 +488,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_NAME
     ]
@@ -500,7 +500,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     output = source.get_value(
         runtime_params=runtime_params,

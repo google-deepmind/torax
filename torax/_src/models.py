@@ -19,7 +19,7 @@ from torax._src import static_dataclass
 from torax._src.edge import base as edge_model_lib
 from torax._src.internal_boundary_conditions import base_model as internal_boundary_conditions_base_model
 from torax._src.mhd import base as mhd_model_lib
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.time_step_calculator.time_step_calculator import TimeStepCalculator
@@ -39,7 +39,7 @@ class Models(static_dataclass.StaticDataclass):
   source_models: source_models_lib.SourceModels
   transport_model: transport_model_lib.TransportModel
   pedestal_model: pedestal_model_lib.PedestalModel
-  neoclassical_models: neoclassical_models_lib.NeoclassicalModels
+  neoclassical_model: neoclassical_model_lib.NeoclassicalModel
   mhd_models: mhd_model_lib.MHDModels
   edge_model: edge_model_lib.EdgeModel | None
   time_step_calculator: TimeStepCalculator

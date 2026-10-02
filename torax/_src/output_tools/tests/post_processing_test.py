@@ -27,6 +27,7 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
@@ -82,7 +83,7 @@ class PostProcessingTest(parameterized.TestCase):
         runtime_params=self.runtime_params,
         geo=self.geo,
         source_models=self.models.source_models,
-        neoclassical_models=self.models.neoclassical_models,
+        neoclassical_model=self.models.neoclassical_model,
     )
 
   def test_calculate_integrated_sources(self):
@@ -227,6 +228,7 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
@@ -274,6 +276,7 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
     outputs = post_processing.make_post_processed_outputs(

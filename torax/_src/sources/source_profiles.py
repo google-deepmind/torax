@@ -157,7 +157,7 @@ class SourceProfiles:
         is_leaf=_is_fast_ions_dict,
     )
 
-  def total_psi_sources(self, geo: geometry.Geometry) -> jax.Array:
+  def total_psi_sources(self, geo: geometry.Geometry) -> array_typing.Array:
     """Returns the total psi sources."""
     # All psi sources are assumed to be parallel to the magnetic field, ie
     # self.psi.values() is <j.B> / B0

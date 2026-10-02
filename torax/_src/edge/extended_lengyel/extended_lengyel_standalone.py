@@ -56,7 +56,7 @@ def _roots_are_distinct(
       extended_lengyel_defaults.MULTISTART_ROOT_ATOL
       + extended_lengyel_defaults.MULTISTART_ROOT_RTOL * jnp.abs(ref_values)
   )
-  return diffs > threshold  # pyrefly: ignore[bad-return]
+  return jnp.asarray(diffs > threshold)
 
 
 def _extract_solver_metrics(
@@ -753,7 +753,7 @@ def run_extended_lengyel_standalone(
     seed_impurity_weights = {}
 
   _validate_inputs_for_computation_mode(
-      computation_mode, T_e_target, seed_impurity_weights  # pyrefly: ignore[bad-argument-type]
+      computation_mode, T_e_target, seed_impurity_weights
   )
 
   if not use_enrichment_model and enrichment_factor is None:
@@ -1321,7 +1321,7 @@ def _run_single_solver(
 
 def _validate_inputs_for_computation_mode(
     computation_mode: extended_lengyel_enums.ComputationMode,
-    T_e_target: array_typing.FloatScalar,
+    T_e_target: array_typing.FloatScalar | None,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
 ):
   """Validates inputs based on the specified computation mode."""

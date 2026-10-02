@@ -14,16 +14,12 @@
 
 """Code to build the combined transport coefficients for a simulation."""
 
-import dataclasses
-
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import base_model as internal_boundary_conditions_base_model
-from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import pereverzev as pereverzev_lib
@@ -36,72 +32,28 @@ from torax._src.transport_model import transport_model as transport_model_lib
 @jax.jit(
     static_argnames=(
         'transport_model',
-        'neoclassical_models',
-        'internal_boundary_condition_model',
         'use_pereverzev',
     )
 )
 def calculate_all_transport_coeffs(
     transport_model: transport_model_lib.TransportModel,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
-    internal_boundary_condition_model: (
-        internal_boundary_conditions_base_model.InternalBoundaryConditionModel
-    ),
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
+    neoclassical_transport: transport_coeffs_lib.NeoclassicalTransport,
+    two_point_mask: array_typing.BoolVectorFace,
     use_pereverzev: bool = False,
 ) -> state.CoreTransport:
   """Calculates the transport coefficients from all models."""
-
-  # Toggle the pedestal model on/off based on the pedestal transition state.
-  # TODO(b/434175938): Find an alternative method for propagating pedestal
-  # transition state to the core transport masking. Currently, we're overriding
-  # the runtime params which is a bit hacky. Options include passing the
-  # transition state to the pedestal model or to the transport model, both of
-  # which are breaking API changes.
-  if (
-      runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
-  ):
-    # Pedestal model is active if we are in H-mode or in a transition.
-    set_pedestal = (
-        pedestal_transition_state.confinement_mode
-        != pedestal_transition_state_lib.ConfinementMode.L_MODE
-    )
-
-    pedestal_params = dataclasses.replace(
-        runtime_params.pedestal,
-        set_pedestal=set_pedestal,
-    )
-    runtime_params = dataclasses.replace(
-        runtime_params,
-        pedestal=pedestal_params,
-    )
-
-  pedestal_model_output = pedestal_transition_state.pedestal_model_output
-  two_point_mask = (
-      internal_boundary_conditions_builder.build_internal_boundary_conditions(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
-          internal_boundary_condition_model=internal_boundary_condition_model,
-      ).get_two_point_face_mask(geo)
-  )
   turbulent_transport_coeffs = transport_model(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
-      pedestal_model_output=pedestal_model_output,
+      pedestal_transition_state=pedestal_transition_state,
       two_point_mask=two_point_mask,
-  )
-  neoclassical_transport_coeffs = neoclassical_models.transport(
-      runtime_params,
-      geo,
-      core_profiles,
   )
 
   if use_pereverzev:
@@ -113,27 +65,24 @@ def calculate_all_transport_coeffs(
             two_point_mask,
         )
     )
-    if (
-        runtime_params.pedestal.mode
-        == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
-    ):
-      # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
-      # coefficients in the pedestal region to zero.
-      # TODO(b/485147781) Combine this masking with the turbulent transport
-      # masking.
-      pedestal_active_mask_face = (
-          geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top
-      )
-      pereverzev_transport_coeffs = jax.tree_util.tree_map(
-          lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
-          pereverzev_transport_coeffs,
-      )
+    # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
+    # coefficients in the pedestal region to zero.
+    pedestal_model_output = pedestal_transition_state.pedestal_model_output
+    pedestal_active_mask_face = jnp.where(
+        pedestal_transition_state.is_ibc_active(runtime_params.pedestal),
+        geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top,
+        False,
+    )
+    pereverzev_transport_coeffs = jax.tree_util.tree_map(
+        lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
+        pereverzev_transport_coeffs,
+    )
   else:
     pereverzev_transport_coeffs = None
 
   coeffs_to_sum = [
       turbulent_transport_coeffs.total,
-      neoclassical_transport_coeffs,
+      neoclassical_transport,
   ]
   if pereverzev_transport_coeffs is not None:
     coeffs_to_sum.append(pereverzev_transport_coeffs)
@@ -142,7 +91,7 @@ def calculate_all_transport_coeffs(
   core_transport = state.CoreTransport(
       total=total,
       turbulent=turbulent_transport_coeffs,
-      neoclassical=neoclassical_transport_coeffs,
+      neoclassical=neoclassical_transport,
       pereverzev=pereverzev_transport_coeffs,
   )
 
@@ -152,6 +101,7 @@ def calculate_all_transport_coeffs(
       runtime_params.pedestal.mode
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
   ):
+    pedestal_model_output = pedestal_transition_state.pedestal_model_output
     core_transport = pedestal_model_output.modify_core_transport(
         core_transport=core_transport,
         geo=geo,

@@ -68,27 +68,27 @@ class RedlFormulasTest(parameterized.TestCase):
         )
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     self.core_profiles = initialization.initial_core_profiles(
         runtime_params,
         self.geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     log_lambda_ei = collisions.calculate_log_lambda_ei(
-        self.core_profiles.T_e.face_value(), self.core_profiles.n_e.face_value()  # pyrefly: ignore[bad-argument-type]
+        self.core_profiles.T_e.face_value(), self.core_profiles.n_e.face_value()
     )
-    self.nu_e_star = formulas.calculate_nu_e_star(
+    self.nu_e_star = formulas._calculate_nu_e_star(
         q=self.core_profiles.q_face,
         geo=self.geo,
-        n_e=self.core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-        T_e=self.core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+        n_e=self.core_profiles.n_e.face_value(),
+        T_e=self.core_profiles.T_e.face_value(),
         Z_eff=self.core_profiles.Z_eff_face,
         log_lambda_ei=log_lambda_ei,
     )
 
-    self.f_trap = formulas.calculate_f_trap(self.geo)
+    self.f_trap = self.geo.trapped_fraction_face
 
   def test_L31_values_are_correct(self):
     L31 = redl_formulas.calculate_L31(
@@ -102,31 +102,39 @@ class RedlFormulasTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(L32, _L32_EXPECTED, atol=_A_TOL, rtol=_R_TOL)
 
+  def test_L33_values_are_correct(self):
+    L33 = redl_formulas.calculate_L33(
+        self.f_trap, self.nu_e_star, self.core_profiles.Z_eff_face
+    )
+    self.assertEqual(L33.shape, self.f_trap.shape)
+    self.assertAlmostEqual(float(L33[0]), 1.0, places=6)
+    self.assertTrue(np.all((L33 > 0.0) & (L33 <= 1.0)))
+
 
 _L31_EXPECTED = np.array([
     0.0,
-    0.24302010813886246,
+    0.24300339539816412,
     0.36213029680638326,
-    0.44486357141119376,
-    0.5036505543784661,
+    0.44486186876271433,
+    0.5036490695026902,
     0.5456217675849331,
-    0.5743686943725517,
-    0.5884757302502829,
-    0.5788428389680405,
-    0.5133804621522303,
+    0.5743679808381181,
+    0.5884746850931557,
+    0.5788407842140618,
+    0.5133748206351552,
     0.28646594502191125,
 ])
 _L32_EXPECTED = np.array([
     0.0,
     -0.040995932527566226,
     -0.08550417010706743,
-    -0.10122043852379645,
-    -0.10048876254207006,
+    -0.10122067718029655,
+    -0.10048896500508688,
     -0.09165040157223098,
-    -0.07639140154722468,
-    -0.05120454722561363,
-    -0.006618464913488831,
-    0.07582955103486738,
+    -0.07639148560064784,
+    -0.05120464653664724,
+    -0.006618625902099307,
+    0.07582707623300719,
     0.18210763398539093,
 ])
 

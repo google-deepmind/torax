@@ -231,8 +231,15 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
-  conductivity = models.neoclassical_models.conductivity.calculate_conductivity(
-      geo, core_profiles
+  neoclassical_outputs = models.neoclassical_model(
+      runtime_params, geo, core_profiles
+  )
+  # Update poloidal_velocity on core_profiles for the current solver iterate;
+  # used by turbulent transport models (for ExB shear) in
+  # calculate_all_transport_coeffs below.
+  core_profiles = dataclasses.replace(
+      core_profiles,
+      poloidal_velocity=neoclassical_outputs.poloidal_velocity.v_pol,
   )
 
   # Calculate the implicit source profiles and combine them with the explicit
@@ -240,13 +247,13 @@ def _calc_coeffs_full(
   # here rather than in the source terms section.
   merged_source_profiles = source_profile_builders.build_source_profiles(
       source_models=models.source_models,
-      neoclassical_models=models.neoclassical_models,
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
-      conductivity=conductivity,
+      conductivity=neoclassical_outputs.conductivity,
+      bootstrap_current=neoclassical_outputs.bootstrap_current,
   )
 
   # --- Transient term coefficients --- #
@@ -259,7 +266,7 @@ def _calc_coeffs_full(
       1.0
       / runtime_params.numerics.resistivity_multiplier
       * geo.rho_norm
-      * conductivity.sigma
+      * neoclassical_outputs.conductivity.sigma
       * consts.mu_0
       * 16
       * jnp.pi**2
@@ -316,16 +323,29 @@ def _calc_coeffs_full(
         ),
     )
 
-  # 2. Compute transport coefficients.
-  transport_coefficients = (
-      transport_coefficients_builder.calculate_all_transport_coeffs(
-          transport_model=models.transport_model,
-          neoclassical_models=models.neoclassical_models,
-          internal_boundary_condition_model=models.internal_boundary_condition_model,
+  internal_boundary_conditions = (
+      internal_boundary_conditions_builder.build_internal_boundary_conditions(
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=core_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          internal_boundary_condition_model=models.internal_boundary_condition_model,
+          source_profiles=merged_source_profiles,
+      )
+  )
+
+  # Compute transport coefficients.
+  transport_coefficients = (
+      transport_coefficients_builder.calculate_all_transport_coeffs(
+          transport_model=models.transport_model,
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          pedestal_transition_state=pedestal_transition_state,
+          neoclassical_transport=neoclassical_outputs.transport,
+          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
+              geo
+          ),
           use_pereverzev=use_pereverzev,
       )
   )
@@ -334,7 +354,7 @@ def _calc_coeffs_full(
   d_face_psi = geo.g2g3_over_rhon_face
   v_face_psi = jnp.zeros_like(d_face_psi)
 
-  # 2. Convert to "full" coefficients, i.e. the entire coefficient preceding the
+  # Convert to "full" coefficients, i.e. the entire coefficient preceding the
   # gradient term (dT/dr, dn/dr, etc.) in each equation.
   # Heat equations
   full_chi_face_ion = (
@@ -368,7 +388,7 @@ def _calc_coeffs_full(
   )
   full_v_face_el = geo.g0_face * transport_coefficients.total.v_face_el
 
-  # 3. Add Phi_b_dot terms to convection equations.
+  # Add Phi_b_dot terms to convection equations.
   # Psi equation doesn't include Phi_b_dot term.
   # Heat equations
   full_v_heat_face_ion += (
@@ -398,19 +418,19 @@ def _calc_coeffs_full(
   )
 
   # --- Source terms --- #
-  # 1. Construct the source vectors
+  # Construct the source vectors
   source_i = merged_source_profiles.total_sources('T_i', geo)
   source_e = merged_source_profiles.total_sources('T_e', geo)
   source_n_e = merged_source_profiles.total_sources('n_e', geo)
   source_psi = merged_source_profiles.total_psi_sources(geo)
 
-  # 2. Initialize source matrices to zero
+  # Initialize source matrices to zero
   # We don't initialize heat source matrices because they are populated by the
   # Qei terms later
   source_mat_nn = jnp.zeros_like(geo.rho)
   source_mat_psi = jnp.zeros_like(geo.rho)
 
-  # 3. Add Qei effects to the heat sources.
+  # Add Qei effects to the heat sources.
   qei = merged_source_profiles.qei
   source_mat_ii = qei.implicit_ii * geo.vpr
   source_i += qei.explicit_i * geo.vpr
@@ -419,7 +439,7 @@ def _calc_coeffs_full(
   source_mat_ie = qei.implicit_ie * geo.vpr
   source_mat_ei = qei.implicit_ei * geo.vpr
 
-  # 4. Add effective Phi_b_dot terms
+  # Add effective Phi_b_dot terms
   # Heat equations
   d_vpr53_rhon_n_e_drhon = jnp.gradient(
       geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_e.value,
@@ -469,7 +489,7 @@ def _calc_coeffs_full(
       * geo.Phi_b_dot
       * geo.Phi_b
       * geo.rho_norm**2
-      * conductivity.sigma
+      * neoclassical_outputs.conductivity.sigma
       / geo.F**2
       * core_profiles.psi.grad()
   )
@@ -533,17 +553,7 @@ def _calc_coeffs_full(
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
-  # 5. Add internal boundary condition source terms
-  internal_boundary_conditions = (
-      internal_boundary_conditions_builder.build_internal_boundary_conditions(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
-          internal_boundary_condition_model=models.internal_boundary_condition_model,
-      )
-  )
-
+  # Add internal boundary condition source terms
   internal_boundary_condition_mask, internal_boundary_condition_target_vec = (
       internal_boundary_conditions.to_solver_coeffs(
           evolving_names=evolving_names,
@@ -597,5 +607,3 @@ def _calc_coeffs_reduced(
       transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
   )
   return coeffs
-
-

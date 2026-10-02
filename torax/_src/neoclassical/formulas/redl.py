@@ -109,6 +109,31 @@ def calculate_L32(
   return F32_ee + F32_ei
 
 
+def calculate_L33(
+    f_trap: array_typing.FloatVectorFace,
+    nu_e_star: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
+  """Calculates the L33 (F33) conductivity factor: Redl PoP 2021 Eqs. 17-18."""
+  # Equation 18
+  f_eff_33 = f_trap / (
+      1.0
+      + 0.25
+      * (1.0 - 0.7 * f_trap)
+      * jnp.sqrt(nu_e_star)
+      * (1.0 + 0.45 * jnp.sqrt(Z_eff - 1.0))
+      + 0.61 * (1.0 - 0.41 * f_trap) * nu_e_star / jnp.sqrt(Z_eff)
+  )
+
+  # Equation 17
+  return (
+      1.0
+      - (1.0 + 0.21 / Z_eff) * f_eff_33
+      + (0.54 / Z_eff) * f_eff_33**2
+      - (0.33 / Z_eff) * f_eff_33**3
+  )
+
+
 def calculate_alpha(
     f_trap: array_typing.FloatVectorFace,
     nu_i_star: array_typing.FloatVectorFace,

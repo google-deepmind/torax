@@ -55,7 +55,7 @@ class InitialStatesTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     dynamic_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -71,7 +71,7 @@ class InitialStatesTest(parameterized.TestCase):
         runtime_params=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     np.testing.assert_allclose(core_profiles.T_i.right_face_constraint, 27.7)  # pyrefly: ignore[no-matching-overload]
     np.testing.assert_allclose(core_profiles.T_e.right_face_constraint, 42.0)  # pyrefly: ignore[no-matching-overload]
@@ -83,7 +83,7 @@ class InitialStatesTest(parameterized.TestCase):
         default_configs.get_default_config_dict()
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     dynamic_runtime_params_slice_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
@@ -99,7 +99,7 @@ class InitialStatesTest(parameterized.TestCase):
         runtime_params=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     assert core_profiles.quasineutrality_satisfied()
     core_profiles = dataclasses.replace(
@@ -162,7 +162,8 @@ class CoreProfilesTemperatureCheckTest(parameterized.TestCase):
 
     result = core_profiles.below_minimum_temperature(threshold_ev)
 
-    self.assertIsInstance(result, bool)
+    self.assertIsInstance(result, jax.Array)
+    self.assertEqual(result.dtype, jnp.bool_)
     self.assertEqual(result, expected)
 
   def test_below_minimum_temperature_mixed_profile(self):
@@ -601,16 +602,23 @@ class CoreTransportTest(parameterized.TestCase):
         ),
     )
     n_face = geo.rho_face_norm.size
-    turbulent_total = transport_coeffs_lib.TransportCoeffs(
+    turbulent_core = transport_coeffs_lib.TransportCoeffs(
         chi_face_ion=jnp.ones((2, n_face)) * 1.5,
         chi_face_el=jnp.ones((2, n_face)) * 2.0,
         d_face_el=jnp.ones((2, n_face)) * 0.5,
         v_face_el=jnp.ones((2, n_face)) * -0.2,
     )
+    turbulent_pedestal = transport_coeffs_lib.TransportCoeffs(
+        chi_face_ion=jnp.zeros((2, n_face)),
+        chi_face_el=jnp.zeros((2, n_face)),
+        d_face_el=jnp.zeros((2, n_face)),
+        v_face_el=jnp.zeros((2, n_face)),
+    )
     turbulent = transport_coeffs_lib.TurbulentTransport(
-        total=turbulent_total,
-        core_coefficients={},
-        pedestal_coefficients={},
+        core=turbulent_core,
+        pedestal=turbulent_pedestal,
+        core_components={},
+        pedestal_components={},
     )
     neoclassical = transport_coeffs_lib.NeoclassicalTransport(
         chi_face_ion=jnp.ones((2, n_face)) * 0.1,
@@ -668,4 +676,3 @@ class CoreTransportTest(parameterized.TestCase):
 
 if __name__ == '__main__':
   absltest.main()
-

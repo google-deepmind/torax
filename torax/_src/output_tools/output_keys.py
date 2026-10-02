@@ -892,6 +892,12 @@ BETA_POL_PROFILE: Final[OutputKey] = OutputKey(
 BETA_POL_PRIME: Final[OutputKey] = OutputKey(
     "beta_pol_prime", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
 )
+ALPHA_MHD: Final[OutputKey] = OutputKey(
+    "alpha_mhd", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
+)
+ALPHA_MHD_MILLER: Final[OutputKey] = OutputKey(
+    "alpha_mhd_miller", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
+)
 
 # ---------------------------------------------------------------------------
 # Edge model outputs.
@@ -1086,6 +1092,11 @@ GM5: Final[OutputKey] = OutputKey(
 )
 GM9: Final[OutputKey] = OutputKey(
     "gm9", units=Units.INVERSE_METER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+)
+TRAPPED_FRACTION: Final[OutputKey] = OutputKey(
+    "trapped_fraction",
+    units=Units.DIMENSIONLESS,
+    grid_type=GridType.FACE,
 )
 
 # ---------------------------------------------------------------------------

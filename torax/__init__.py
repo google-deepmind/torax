@@ -21,6 +21,7 @@ import os
 import jax
 from torax import edge
 from torax import experimental
+from torax import neoclassical
 from torax import pedestal
 from torax import transport
 from torax._src import version
@@ -55,6 +56,7 @@ __version_info__ = version.TORAX_VERSION_INFO
 __all__ = [
     'edge',
     'experimental',
+    'neoclassical',
     'pedestal',
     'transport',
     'build_torax_config_from_file',

@@ -20,6 +20,7 @@ from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
+from torax._src.geometry import trapped_fraction as trapped_fraction_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -37,6 +38,15 @@ class CheaseConfig(base.BaseGeometryConfig):
     a_minor: Minor radius (a) in meters.
     B_0: Vacuum toroidal magnetic field at `R_major` [T].
   """
+
+  @property
+  def _supported_trapped_fraction_sources(
+      self,
+  ) -> frozenset[trapped_fraction_lib.TrappedFractionSource]:
+    return frozenset({
+        trapped_fraction_lib.TrappedFractionSource.SAUTER,
+        trapped_fraction_lib.TrappedFractionSource.FILE,
+    })
 
   geometry_type: Annotated[Literal['chease'], torax_pydantic.TIME_INVARIANT] = (
       'chease'
@@ -66,6 +76,7 @@ class CheaseConfig(base.BaseGeometryConfig):
         a_minor=self.a_minor,
         B_0=self.B_0,
         hires_factor=self.hires_factor,
+        trapped_fraction_source=self.trapped_fraction_source,
     )
 
     return standard_geometry.build_standard_geometry(intermediates)
@@ -83,6 +94,9 @@ def _construct_intermediates_from_chease(
     a_minor: float,
     B_0: float,
     hires_factor: int,
+    trapped_fraction_source: (
+        trapped_fraction_lib.TrappedFractionSource
+    ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Constructs a StandardGeometryIntermediates from a CHEASE file.
 
@@ -102,6 +116,8 @@ def _construct_intermediates_from_chease(
     B_0: Vacuum toroidal magnetic field at `R_major` [T].
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed; see `trapped_fraction.TrappedFractionSource`.
 
   Returns:
     A StandardGeometry instance based on the input file. This can then be
@@ -148,6 +164,22 @@ def _construct_intermediates_from_chease(
   )
   flux_surf_avg_B2 = chease_data['<B**2>'] * B_0**2
   flux_surf_avg_1_over_B2 = chease_data['<1/B**2>'] / B_0**2
+  match trapped_fraction_source:
+    case trapped_fraction_lib.TrappedFractionSource.FILE:
+      trapped_fraction = chease_data['FTRAP']
+    case trapped_fraction_lib.TrappedFractionSource.SAUTER:
+      epsilon = (R_out_chease - R_in_chease) / (R_out_chease + R_in_chease)
+      delta = (chease_data['delta_upper'] + chease_data['delta_bottom']) / 2.0
+      trapped_fraction = trapped_fraction_lib.calculate_sauter_trapped_fraction(
+          epsilon=epsilon, delta=delta
+      )
+    case _:
+      raise ValueError(
+          f'Unsupported trapped_fraction_source: {trapped_fraction_source}.'
+          'Supported options: '
+          f'{trapped_fraction_lib.TrappedFractionSource.SAUTER.value}, '
+          f'{trapped_fraction_lib.TrappedFractionSource.FILE.value}.'
+      )
 
   rhon = np.sqrt(Phi / Phi[-1])
   vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
@@ -172,6 +204,7 @@ def _construct_intermediates_from_chease(
       flux_surf_avg_grad_psi2=flux_surf_avg_grad_psi2,
       flux_surf_avg_B2=flux_surf_avg_B2,
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
+      trapped_fraction=trapped_fraction,
       delta_upper_face=chease_data['delta_upper'],
       delta_lower_face=chease_data['delta_bottom'],
       elongation=chease_data['elongation'],

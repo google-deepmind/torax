@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for neoclassical poloidal velocity models."""
+from __future__ import annotations
+
 import abc
 import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -50,9 +52,10 @@ class PoloidalVelocityModel(abc.ABC):
   @abc.abstractmethod
   def calculate_poloidal_velocity(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
+      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
   ) -> PoloidalVelocity:
     """Calculates neoclassical poloidal velocity."""
 

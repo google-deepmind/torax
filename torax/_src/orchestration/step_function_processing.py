@@ -26,6 +26,7 @@ from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
@@ -357,7 +358,7 @@ def pre_step(
     geometry.Geometry,
     source_profiles_lib.SourceProfiles,
     edge_base.EdgeModelOutputs | None,
-    pedestal_transition_state_lib.PedestalTransitionState | None,
+    pedestal_transition_state_lib.PedestalTransitionState,
 ]:
   """Performs the pre-step operations for the step function."""
   runtime_params_t, geo_t = (
@@ -377,7 +378,6 @@ def pre_step(
       geo=geo_t,
       core_profiles=input_state.core_profiles,
       source_models=models.source_models,
-      neoclassical_models=models.neoclassical_models,
       explicit=True,
   )
 
@@ -433,7 +433,7 @@ def pre_step(
         psi=input_state.core_sources.psi | explicit_source_profiles.psi,
     )
     pedestal_transition_state = _update_pedestal_transition_state(
-        pedestal_transition_state=pedestal_transition_state,  # pyrefly: ignore[bad-argument-type]
+        pedestal_transition_state=pedestal_transition_state,
         runtime_params=runtime_params_t,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
@@ -450,9 +450,9 @@ def pre_step(
         geo_t,
         input_state.core_profiles,
         explicit_source_profiles,
-        pedestal_transition_state,  # pyrefly: ignore[bad-argument-type]
+        pedestal_transition_state,
     )
-    pedestal_transition_state = dataclasses.replace(  # pyrefly: ignore[bad-specialization]
+    pedestal_transition_state = dataclasses.replace(
         pedestal_transition_state,
         pedestal_model_output=pedestal_model_output,
     )
@@ -502,7 +502,7 @@ def finalize_outputs(
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
           source_models=models.source_models,
-          neoclassical_models=models.neoclassical_models,
+          neoclassical_model=models.neoclassical_model,
           evolving_names=evolving_names,
       )
   )
@@ -521,18 +521,32 @@ def finalize_outputs(
       pedestal_model_output=final_pedestal_model_output,
       previous_pedestal_model_output=final_pedestal_model_output,
   )
-
-  final_total_transport = (
-      transport_coefficients_builder.calculate_all_transport_coeffs(
-          transport_model=models.transport_model,
-          neoclassical_models=models.neoclassical_models,
-          internal_boundary_condition_model=(
-              models.internal_boundary_condition_model
-          ),
+  final_neoclassical_outputs = models.neoclassical_model(
+      runtime_params_t_plus_dt, geometry_t_plus_dt, final_core_profiles
+  )
+  internal_boundary_conditions = (
+      internal_boundary_conditions_builder.build_internal_boundary_conditions(
           runtime_params=runtime_params_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          internal_boundary_condition_model=(
+              models.internal_boundary_condition_model
+          ),
+          source_profiles=final_source_profiles,
+      )
+  )
+  final_total_transport = (
+      transport_coefficients_builder.calculate_all_transport_coeffs(
+          transport_model=models.transport_model,
+          runtime_params=runtime_params_t_plus_dt,
+          geo=geometry_t_plus_dt,
+          core_profiles=final_core_profiles,
+          pedestal_transition_state=pedestal_transition_state,
+          neoclassical_transport=final_neoclassical_outputs.transport,
+          two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
+              geometry_t_plus_dt
+          ),
       )
   )
   output_state = sim_state.SimState(

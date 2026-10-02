@@ -20,6 +20,7 @@ from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
+from torax._src.geometry import trapped_fraction
 from torax._src.imas_tools.input import equilibrium as imas_geometry
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -87,6 +88,16 @@ class IMASConfig(base.BaseGeometryConfig):
       ``build_geometry``.
   """
 
+  @property
+  def _supported_trapped_fraction_sources(
+      self,
+  ) -> frozenset[trapped_fraction.TrappedFractionSource]:
+    return frozenset({
+        trapped_fraction.TrappedFractionSource.SAUTER,
+        trapped_fraction.TrappedFractionSource.FILE,
+        trapped_fraction.TrappedFractionSource.EXACT,
+    })
+
   geometry_type: Annotated[Literal['imas'], torax_pydantic.TIME_INVARIANT] = (
       'imas'
   )
@@ -148,6 +159,7 @@ class IMASConfig(base.BaseGeometryConfig):
         explicit_convert=self.explicit_convert,
         slice_index=self.slice_index,
         slice_time=self.slice_time,
+        trapped_fraction_source=self.trapped_fraction_source,
     )
     intermediates = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.IMAS, **inputs
@@ -178,6 +190,7 @@ class IMASConfig(base.BaseGeometryConfig):
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         explicit_convert=self.explicit_convert,
+        trapped_fraction_source=self.trapped_fraction_source,
     )
     geometries = {}
     for t, inputs in all_inputs.items():

@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 import pydantic
 from torax._src import array_typing
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
@@ -82,6 +83,13 @@ def _alpha_closed_form(
 
   The solution is provided by setting d loss / d alpha = 0.
 
+  Because the Albajar parameterization (F. Albajar et al., Nucl. Fusion 41, 665,
+  2001, Eqs. 11-13) is only defined for peaked or flat profiles (alpha >= 0),
+  differences from profile_edge_value are clamped to eps to avoid non-positive
+  logarithm arguments, and the fitted alpha is clamped to >= 0.0 so flat,
+  hollow, or inverted profiles fall back to the flat-profile limit (alpha = 0)
+  without producing NaNs in the profile factor K.
+
   Args:
     beta: The beta parameter to use in the parameterized functions. For the
       density fit, this is always 2.
@@ -92,16 +100,15 @@ def _alpha_closed_form(
       temperature and density fits.
 
   Returns:
-    The alpha parameter being fit for either the density or temperature fits.
+    The non-negative alpha parameter being fit for either the density or
+    temperature fits.
   """
-  # To avoid dealing with slicing of non-concrete values, we do a masking trick
-  # where we replace the values of n_e_data and rhonorm above 0.9 with values
-  # that will not contribute to the sums in the numerator and denominator.
-
+  # Clamp differences from edge value to eps to keep log arguments positive.
+  profile_data_norm = jnp.maximum(
+      profile_data - profile_edge_value, constants.CONSTANTS.eps
+  ) / jnp.maximum(profile_data[0] - profile_edge_value, constants.CONSTANTS.eps)
+  # Mask rho_norm >= 0.9 to 1.0 and 0.0 so log=0 in the sums without slicing.
   mask = rho_norm < 0.9
-  profile_data_norm = (profile_data - profile_edge_value) / (
-      profile_data[0] - profile_edge_value
-  )
   sliced_profile_data_norm = jnp.where(mask, profile_data_norm, 1.0)
   sliced_rhonorm = jnp.where(mask, rho_norm, 0.0)
 
@@ -110,8 +117,8 @@ def _alpha_closed_form(
   )
   den = jnp.sum(jnp.log(1 - sliced_rhonorm**beta) ** 2)
 
-  alpha_n = num / den
-  return alpha_n
+  # Clamp alpha >= 0.0 for the peaked/flat Albajar parameterization.
+  return jnp.maximum(num / den, 0.0)
 
 
 def _loss_for_beta_t(

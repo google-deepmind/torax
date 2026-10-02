@@ -23,7 +23,7 @@ motivations:
   * Python-JAX is a natural framework for the coupling of ML-surrogates of
     physics models.
 
-TORAX, at v1.0.0, has the following physics and numerics feature set:
+TORAX has the following physics and numerics feature set:
 
   * Coupled PDEs of ion and electron heat transport, electron particle
     transport, and current diffusion, solved numerically with:
@@ -42,8 +42,12 @@ TORAX, at v1.0.0, has the following physics and numerics feature set:
   * Ohmic power, ion-electron heat exchange, fusion power, Bremsstrahlung,
     impurity line radiation, an ICRH ML-surrogate |toricnn| (as-yet covering
     limited regimes).
-  * Bootstrap current and neoclassical conductivity with the analytical Sauter
-    model.
+  * Neoclassical physics including bootstrap current and parallel conductivity
+    (analytical Sauter |sauter99| and Redl |redl2021| models), neoclassical
+    heat and particle transport (Angioni-Sauter |angioni2000| with optional
+    Shaing |shaing1997| near-axis correction), and neoclassical ion poloidal
+    velocity (Kim |kim1991| model), with a registry for custom neoclassical
+    models.
   * Coupling to the |qlknn_7_11| and QLKNN10D |qlknn10d| QuaLiKiz-neural-network
     surrogates for physics-based turbulent transport. The semi-empirical
     Bohm-GyroBohm model is also available.

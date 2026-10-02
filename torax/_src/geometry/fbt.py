@@ -28,6 +28,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import standard_geometry
+from torax._src.geometry import trapped_fraction as trapped_fraction_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -77,6 +78,12 @@ class FBTConfig(base.BaseGeometryConfig):
     divertor_domain: The divertor domain (upper or lower null) for extracting
       edge quantities when diverted.
   """
+
+  @property
+  def _supported_trapped_fraction_sources(
+      self,
+  ) -> frozenset[trapped_fraction_lib.TrappedFractionSource]:
+    return frozenset({trapped_fraction_lib.TrappedFractionSource.SAUTER})
 
   geometry_type: Annotated[Literal['fbt'], torax_pydantic.TIME_INVARIANT] = (
       'fbt'
@@ -129,6 +136,7 @@ class FBTConfig(base.BaseGeometryConfig):
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         divertor_domain=self.divertor_domain,
+        trapped_fraction_source=self.trapped_fraction_source,
     )
 
     return standard_geometry.build_standard_geometry(intermediates)
@@ -149,6 +157,7 @@ class FBTConfig(base.BaseGeometryConfig):
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         divertor_domain=self.divertor_domain,
+        trapped_fraction_source=self.trapped_fraction_source,
     )
     geometries = {
         t: standard_geometry.build_standard_geometry(intermediates[t])
@@ -168,6 +177,9 @@ def _from_fbt_single_slice(
     Ip_from_parameters: bool = True,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
+    trapped_fraction_source: (
+        trapped_fraction_lib.TrappedFractionSource
+    ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Returns StandardGeometryIntermediates from a single slice FBT LY file.
 
@@ -192,6 +204,8 @@ def _from_fbt_single_slice(
       calculations.
     divertor_domain: The divertor domain (upper or lower null) for extracting
       edge quantities when diverted.
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed; see `trapped_fraction.TrappedFractionSource`.
 
   Returns:
     A StandardGeometryIntermediates instance based on the input slice. This
@@ -225,7 +239,13 @@ def _from_fbt_single_slice(
   # Raises a ValueError if the data is invalid.
   _validate_fbt_data(LY, L)
   return _from_fbt(
-      LY, L, face_centers, Ip_from_parameters, hires_factor, divertor_domain
+      LY,
+      L,
+      face_centers,
+      Ip_from_parameters,
+      hires_factor,
+      divertor_domain,
+      trapped_fraction_source=trapped_fraction_source,
   )
 
 
@@ -238,6 +258,9 @@ def _from_fbt_bundle(
     Ip_from_parameters: bool = True,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
+    trapped_fraction_source: (
+        trapped_fraction_lib.TrappedFractionSource
+    ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
 ) -> Mapping[float, standard_geometry.StandardGeometryIntermediates]:
   """Returns StandardGeometryIntermediates from a bundled FBT LY file.
 
@@ -268,6 +291,8 @@ def _from_fbt_bundle(
       calculations.
     divertor_domain: The divertor domain (upper or lower null) for extracting
       edge quantities when diverted.
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed; see `trapped_fraction.TrappedFractionSource`.
 
   Returns:
     A mapping from user-provided (or inferred) times to
@@ -322,6 +347,7 @@ def _from_fbt_bundle(
         Ip_from_parameters,
         hires_factor,
         divertor_domain,
+        trapped_fraction_source=trapped_fraction_source,
     )
 
   return intermediates
@@ -389,6 +415,9 @@ def _from_fbt(
     Ip_from_parameters: bool = True,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
+    trapped_fraction_source: (
+        trapped_fraction_lib.TrappedFractionSource
+    ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Constructs a StandardGeometryIntermediates from a single FBT LY slice.
 
@@ -402,6 +431,8 @@ def _from_fbt(
       calculations on initialization.
     divertor_domain: The divertor domain (upper or lower null) for extracting
       edge quantities when diverted.
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed; see `trapped_fraction.TrappedFractionSource`.
 
   Returns:
     A StandardGeometryIntermediates instance based on the input slice. This
@@ -447,6 +478,18 @@ def _from_fbt(
       num=B_0**2, denom=np.sqrt(1.0 - LY['epsilon'] ** 2), eps=1e-7
   )
   flux_surf_avg_1_over_B2 = B_0**-2 * (1.0 + 1.5 * LY['epsilon'] ** 2)
+  match trapped_fraction_source:
+    case trapped_fraction_lib.TrappedFractionSource.SAUTER:
+      delta = (LY['deltau'] + LY['deltal']) / 2.0
+      trapped_fraction = trapped_fraction_lib.calculate_sauter_trapped_fraction(
+          epsilon=np.asarray(LY['epsilon']), delta=np.asarray(delta)
+      )
+    case _:
+      raise ValueError(
+          f'Unsupported trapped_fraction_source: {trapped_fraction_source}.'
+          ' Supported options: '
+          f'{trapped_fraction_lib.TrappedFractionSource.SAUTER.value}.'
+      )
 
   # Edge/Divertor geometry
   # These parameters are optional as older FBT files may not contain them.
@@ -501,6 +544,7 @@ def _from_fbt(
       flux_surf_avg_grad_psi2=LY['Q4Q'],  # pyrefly: ignore[bad-argument-type]
       flux_surf_avg_B2=flux_surf_avg_B2,  # pyrefly: ignore[bad-argument-type]
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
+      trapped_fraction=trapped_fraction,
       delta_upper_face=LY['deltau'],  # pyrefly: ignore[bad-argument-type]
       delta_lower_face=LY['deltal'],  # pyrefly: ignore[bad-argument-type]
       elongation=LY['kappa'],  # pyrefly: ignore[bad-argument-type]
