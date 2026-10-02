@@ -369,7 +369,7 @@ def _build_source_profiles_with_single_value(
       source_lib.AffectedCoreProfile.TEMP_EL: {},
   }
   for source_name, source in source_models.standard_sources.items():
-    for affected_core_profile in source.affected_core_profiles:
+    for affected_core_profile in source.AFFECTED_CORE_PROFILES:
       profiles[affected_core_profile][source_name] = cell_1d_arr
   return source_profiles_lib.SourceProfiles(
       T_e=profiles[source_lib.AffectedCoreProfile.TEMP_EL],

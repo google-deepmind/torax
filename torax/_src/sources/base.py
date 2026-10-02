@@ -25,10 +25,9 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base model holding parameters common to all source models.
 
   Subclasses should define the `model_name` attribute as a `Literal`
-  string. This string should match the name of the function that calculates the
-  source profile. This is used as an identifier for the model function in the
-  source config for Pydantic to "discriminate" against. This should be given a
-  unique value for each source model function implementation.
+  string. This is used as an identifier for the model in the source config
+  for Pydantic to "discriminate" against. This should be given a unique value
+  for each source model implementation.
 
   Attributes:
     mode: Defines how the source values are computed (from a model, from a file,
@@ -58,11 +57,6 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   @abc.abstractmethod
   def build_source(self) -> source_lib.Source:
     """Builds a source object from the model config."""
-
-  @property
-  @abc.abstractmethod
-  def model_func(self) -> source_lib.SourceProfileFunction:
-    """Returns the model function for the source."""
 
   @abc.abstractmethod
   def build_runtime_params(

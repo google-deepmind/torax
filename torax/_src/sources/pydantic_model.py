@@ -126,7 +126,7 @@ class Sources(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='before')
   @classmethod
-  def _set_default_model_functions(cls, x: dict[str, Any]) -> dict[str, Any]:
+  def _set_default_model_names(cls, x: dict[str, Any]) -> dict[str, Any]:
     constructor_data = copy.deepcopy(x)
     for k, v in x.items():
       # If this an already validated model, skip it.
@@ -137,62 +137,62 @@ class Sources(torax_pydantic.BaseModelFrozen):
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = bremsstrahlung_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = bremsstrahlung_heat_sink_lib.DEFAULT_MODEL_NAME
         case 'cyclotron_radiation':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = cyclotron_radiation_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = cyclotron_radiation_heat_sink_lib.DEFAULT_MODEL_NAME
         case 'ecrh':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = electron_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = electron_cyclotron_source_lib.DEFAULT_MODEL_NAME
         case 'gas_puff':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = gas_puff_source_lib.DEFAULT_MODEL_NAME
         case 'generic_particle':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = generic_particle_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = generic_particle_source_lib.DEFAULT_MODEL_NAME
         case 'pellet':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = pellet_source_lib.DEFAULT_MODEL_NAME
         case 'fusion':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = fusion_heat_source_lib.DEFAULT_MODEL_NAME
         case 'generic_heat':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = generic_ion_el_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = generic_ion_el_heat_source_lib.DEFAULT_MODEL_NAME
         case 'generic_current':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = generic_current_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = generic_current_source_lib.DEFAULT_MODEL_NAME
         case 'impurity_radiation':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME
+            ] = impurity_radiation_mavrin_fit.DEFAULT_MODEL_NAME
         case 'icrh':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = icrh_base.DEFAULT_MODEL_FUNCTION_NAME
+            ] = icrh_base.DEFAULT_MODEL_NAME
         case 'ohmic':
           if 'model_name' not in v:
             constructor_data[k][
                 'model_name'
-            ] = ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+            ] = ohmic_heat_source_lib.DEFAULT_MODEL_NAME
     return constructor_data
 
   @pydantic.model_validator(mode='after')

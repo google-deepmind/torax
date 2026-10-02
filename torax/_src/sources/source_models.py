@@ -40,5 +40,5 @@ class SourceModels(static_dataclass.StaticDataclass):
     return immutabledict.immutabledict({
         name: source
         for name, source in self.standard_sources.items()
-        if source_lib.AffectedCoreProfile.PSI in source.affected_core_profiles
+        if source_lib.AffectedCoreProfile.PSI in source.AFFECTED_CORE_PROFILES
     })
