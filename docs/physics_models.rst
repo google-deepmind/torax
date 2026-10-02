@@ -266,6 +266,25 @@ nonlinearity in the PDE system. TORAX offers several transport models:
     key TORAX feature. TORAX is also coupled to the QLKNN-hyper-10D model
     |qlknn10d|, including dedicated JAX inference code written in |flax|.
 
+  - **gyaradax-QL:** A quasilinear transport model backed by `gyaradax
+    <https://github.com/gerkone/gyaradax>`_, a pure-JAX reimplementation of the
+    GKW gyrokinetic solver. At each of a user-chosen set of flux-tube radii
+    (``rho_match``) it runs a linear gyrokinetic eigenmode solve, applies a
+    quasilinear saturation rule, and interpolates the resulting fluxes onto the
+    TORAX face grid. Because it is pure JAX and end-to-end differentiable it can
+    run inside the ``newton_raphson`` solver without disabling JAX compilation.
+    gyaradax is an external dependency that is not on PyPI and must be installed
+    separately from GitHub (``pip install git+https://github.com/gerkone/gyaradax``).
+    An optional calibration head (``cn_calibration_path``) rescales the
+    saturated fluxes.
+
+  - **gyaradax-NL:** The same profile mapping and unit conversion as
+    gyaradax-QL, but each ``rho_match`` radius runs a full nonlinear turbulence
+    simulation to saturation instead of the quasilinear estimate. Orders of
+    magnitude slower per transport call, and intended for offline ground-truth
+    validation and surrogate training-set generation rather than production
+    transport loops.
+
   - **QuaLiKiz:** TORAX can be configured to use the |qualikiz| quasilinear
     gyrokinetic transport model itself. Since QuaLiKiz is an external code
     (written in Fortran), both |qualikiz| and its associated
