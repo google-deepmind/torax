@@ -74,7 +74,7 @@ class PydanticModelTest(parameterized.TestCase):
   def test_correct_source_model(
       self,
       config: dict[str, Any],
-      expected_sources_model: type[base.SourceModelBase],
+      expected_sources_model: type[base.SourceConfigBase],
   ):
     sources_model = pydantic_model.Sources.from_dict(config)
     self.assertIsInstance(
@@ -83,7 +83,7 @@ class PydanticModelTest(parameterized.TestCase):
     )
     # Check that ei_exchange is always present by default.
     self.assertIn(
-        qei_source.QeiSource.SOURCE_NAME,
+        qei_source.QeiSource.SOURCE_ID,
         sources_model.source_model_config.keys(),
     )
 

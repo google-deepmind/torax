@@ -17,14 +17,12 @@ This module contains the sources config and implementation API needed
 for interacting with the sources or implementing a custom sources.
 """
 
-# pylint: disable=g-importing-member
-from torax._src.sources.base import SourceModelBase
+from torax._src.sources.base import SourceConfigBase
 from torax._src.sources.register_model import register_source_model_config
 from torax._src.sources.runtime_params import Mode
 from torax._src.sources.runtime_params import RuntimeParams
 from torax._src.sources.source import AffectedCoreProfile
 from torax._src.sources.source import Source
-from torax._src.sources.source import SourceProfileFunction
 from torax._src.sources.source_profiles import SourceProfiles
 
 __all__ = [
@@ -32,8 +30,7 @@ __all__ = [
     'Mode',
     'RuntimeParams',
     'Source',
-    'SourceModelBase',
-    'SourceProfileFunction',
+    'SourceConfigBase',
     'SourceProfiles',
     'register_source_model_config',
 ]

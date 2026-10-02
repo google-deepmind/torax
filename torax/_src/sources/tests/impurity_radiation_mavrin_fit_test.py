@@ -36,9 +36,9 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
       impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
   )
   source_name = (
-      impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME
+      impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID
   )
-  model_name = impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME
+  model_name = impurity_radiation_mavrin_fit.DEFAULT_MODEL_NAME
 
   def _run_source_model(self, torax_config: model_config.ToraxConfig):
     """Helper to run the impurity radiation model for a given config."""
@@ -55,19 +55,19 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         source_models,
         neoclassical_model,
     )
-    return impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
+    source = source_models.standard_sources[self._source_name]
+    return source.get_value(
         runtime_params=runtime_params,
-        unused_geo=geo,
-        source_name=self._source_name,
+        geo=geo,
         core_profiles=core_profiles,
-        unused_calculated_source_profiles=None,
-        unused_conductivity=None,
+        calculated_source_profiles=None,
+        conductivity=None,
     )
 
   def test_correct_dynamic_params_built(self):
     # Source models
     sources = sources_pydantic_model.Sources.from_dict({
-        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME: {},
+        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID: {},
     })
     # Set the grid to allows the dynamic params to be built without making the
     # full config.

@@ -30,12 +30,28 @@ from torax._src.sources import source as source_lib
 class SourceTest(parameterized.TestCase):
   """Tests for the base class Source."""
 
+  def test_missing_source_id_raises_error(self):
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class BadSource(source_lib.Source):
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[source_lib.AffectedCoreProfile, ...]
+      ] = (source_lib.AffectedCoreProfile.PSI,)
+
+      def _get_model_value(self, *args, **kwargs):
+        raise NotImplementedError
+
+    with self.assertRaisesRegex(ValueError, 'Source ID must be set.'):
+      BadSource()
+
   def test_missing_affected_core_profiles_raises_error(self):
 
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class BadSource(source_lib.Source):
-      SOURCE_NAME: ClassVar[str] = 'bad'
-      model_func = None
+      SOURCE_ID: ClassVar[str] = 'bad'
+
+      def _get_model_value(self, *args, **kwargs):
+        raise NotImplementedError
 
     with self.assertRaisesRegex(
         ValueError, 'Affected core profiles must be set.'
@@ -49,7 +65,7 @@ class SourceTest(parameterized.TestCase):
         geometry.Geometry, rho_norm=np.array([1, 1, 1, 1])
     )
     source_params = {
-        generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+        generic_current_source.GenericCurrentSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
                 prescribed_values=np.zeros_like(geo.rho_norm),
                 mode=sources_runtime_params_lib.Mode.ZERO,
@@ -83,11 +99,16 @@ class SourceTest(parameterized.TestCase):
       mode,
       expected_profile,
   ):
-    model_func = mock.MagicMock()
-    model_func.return_value = np.full([4], 42.0)
-    source = generic_current_source.GenericCurrentSource(model_func=model_func)
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class MockGenericCurrentSource(generic_current_source.GenericCurrentSource):
+
+      def _get_model_value(self, *args, **kwargs):
+        return (np.full([4], 42.0),)
+
+    source = MockGenericCurrentSource()
     dynamic_source_params = {
-        generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+        generic_current_source.GenericCurrentSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
                 prescribed_values=(np.full([4], 3.0),),
                 mode=mode,
@@ -123,7 +144,7 @@ class SourceTest(parameterized.TestCase):
   def test_prescribed_values_for_multiple_affected_profiles(self):
     source = electron_cyclotron_source.ElectronCyclotronSource()
     dynamic_source_params = {
-        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
                 prescribed_values=(np.full([4], 3.0), np.full([4], 4.0)),
                 mode=sources_runtime_params_lib.Mode.PRESCRIBED,
@@ -162,7 +183,7 @@ class SourceTest(parameterized.TestCase):
   def test_source_with_mismatched_prescribed_values_raises_error(self):
     source = electron_cyclotron_source.ElectronCyclotronSource()
     dynamic_source_params = {
-        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
                 prescribed_values=(np.full([4], 3.0),),
                 mode=sources_runtime_params_lib.Mode.PRESCRIBED,

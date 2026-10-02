@@ -20,7 +20,7 @@ class GenericCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GenericCurrentSource."""
 
   source_config_class = generic_current_source.GenericCurrentSourceConfig
-  source_name = generic_current_source.GenericCurrentSource.SOURCE_NAME
+  source_name = generic_current_source.GenericCurrentSource.SOURCE_ID
 
 
 if __name__ == '__main__':

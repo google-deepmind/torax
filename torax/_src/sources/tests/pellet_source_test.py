@@ -20,7 +20,7 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for PelletSource."""
 
   source_config_class = pellet_source.PelletSourceConfig
-  source_name = pellet_source.PelletSource.SOURCE_NAME
+  source_name = pellet_source.PelletSource.SOURCE_ID
 
 
 if __name__ == '__main__':
