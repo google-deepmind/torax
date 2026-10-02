@@ -36,10 +36,10 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-# Default value for the model function to be used for the Cyclotron radiation
-# heat sink source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'albajar_artaud'
+# Default value for the model to be used for the Cyclotron radiation heat
+# sink source. This is also used as an identifier for the model in the default
+# source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_NAME: str = 'albajar_artaud'
 
 
 @jax.tree_util.register_dataclass
@@ -202,7 +202,9 @@ def _solve_alpha_t_beta_t_grid_search(
     *,
     rho_norm: array_typing.FloatVector,
     te_data: array_typing.FloatVector,
-    beta_scan_parameters: tuple[float, float, int],
+    beta_scan_parameters: tuple[
+        array_typing.FloatScalar, array_typing.FloatScalar, int
+    ],
 ) -> tuple[array_typing.FloatScalar, array_typing.FloatScalar]:
   """Returns the alpha and beta parameters that minimize the temperature loss function.
 
@@ -239,122 +241,6 @@ def _solve_alpha_t_beta_t_grid_search(
   return best_alpha_t, best_beta_t
 
 
-def cyclotron_radiation_albajar(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVector, ...]:
-  """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
-
-  Total cyclotron radiation is from:
-  F. Albajar et al 2001 Nucl. Fusion 41 665
-  https://doi.org/10.1088/0029-5515/41/6/301
-
-  Radial profile of the cyclotron radiation is from:
-  J.F. Artaud et al 2018 Nucl. Fusion 58 105001
-  https://doi.org/10.1088/1741-4326/aad5b1
-
-  The alpha_n, alpha_T and beta_T parameters are calculated from best fits
-  of the following electron density and temperature parameterization to the
-  actual plasma data.
-
-  n_e = n_e(0)*(1 - rhonorm**2)**alpha_n
-  T_e = (T_e(0)-T_e(a))*(1 - rhonorm**beta_T)**alpha_T + T_e(a)
-
-  Where we take a=0.9 in rhonorm space, and perform the best fit between
-  0<rhonorm<0.9, to avoid pedestal effects.
-
-  Args:
-    runtime_params: A slice of runtime parameters.
-    geo: The geometry object.
-    source_name: The name of the source.
-    core_profiles: The core profiles object.
-    unused_calculated_source_profiles: Unused.
-
-  Returns:
-    The cyclotron radiation heat sink contribution to the electron heat
-    equation.
-  """
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-
-  # Notation conventions based on the Albajar and Artaud papers
-  # pylint: disable=invalid-name
-
-  n_e20_face = core_profiles.n_e.face_value() / 1e20
-  n_e20_cell = core_profiles.n_e.value / 1e20
-
-  # Dimensionless optical thickness parameter, on-axis:
-  # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
-  # plasma frequency and omega_ce is the cyclotron frequency.
-  p_a_0 = 6.04e3 * geo.a_minor * n_e20_face[0] / geo.B_0  # pyrefly: ignore[bad-index]
-
-  # Dimensionless correction term for aspect ratio (equation 15 in Albajar)
-  G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.R_major_profile / geo.a_minor))
-
-  # Calculate profile fit parameters
-  alpha_n = _alpha_closed_form(
-      beta=2.0,
-      rho_norm=geo.rho_face_norm,
-      profile_data=n_e20_face,  # pyrefly: ignore[bad-argument-type]
-      profile_edge_value=0.0,
-  )
-  beta_scan_parameters = (
-      source_params.beta_min,
-      source_params.beta_max,
-      source_params.beta_grid_size,
-  )
-  alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
-      rho_norm=geo.rho_face_norm,
-      te_data=core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      beta_scan_parameters=beta_scan_parameters,  # pyrefly: ignore[bad-argument-type]
-  )
-
-  # The "profile factor" (equation 13 in Albajar)
-  K = (
-      (alpha_n + 3.87 * alpha_t + 1.46) ** -0.79
-      * (1.98 + alpha_t) ** 1.36
-      * beta_t**2.14
-      * (beta_t**1.53 + 1.87 * alpha_t - 0.16) ** -1.33
-  )
-
-  # Calculate power loss in [W]
-  P_cycl_total = (
-      3.84e-2
-      * jnp.sqrt(1 - source_params.wall_reflection_coeff)
-      * geo.R_major_profile
-      * geo.a_minor**1.38
-      * geo.elongation_face[-1] ** 0.79
-      * geo.B_0**2.62
-      * n_e20_face[0] ** 0.38  # pyrefly: ignore[bad-index]
-      * core_profiles.T_e.face_value()[0]  # pyrefly: ignore[bad-index]
-      * (16 + core_profiles.T_e.face_value()[0]) ** 2.61  # pyrefly: ignore[bad-index]
-      * (1 + 0.12 * core_profiles.T_e.face_value()[0] / p_a_0**0.41) ** -1.51  # pyrefly: ignore[bad-index]
-      * K
-      * G
-  )
-
-  # Calculate the radial profile on the cell grid,
-  # according to the Artaud formula (A.45)
-  Q_cycl_shape = (
-      geo.R_major_profile
-      * geo.elongation**0.79
-      * (geo.F / geo.R_major_profile) ** 2.62
-      * n_e20_cell**0.38
-      * core_profiles.T_e.value**3.61
-  )
-
-  # Scale the profile shape to match the total integrated power loss
-  denom = math_utils.volume_integration(Q_cycl_shape, geo)
-  rescaling_factor = P_cycl_total / denom
-  Q_cycl = Q_cycl_shape * rescaling_factor
-
-  return (-Q_cycl,)
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation heat sink for electron heat equation."""
@@ -363,7 +249,123 @@ class CyclotronRadiationHeatSink(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = cyclotron_radiation_albajar  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
+
+    Total cyclotron radiation is from:
+    F. Albajar et al 2001 Nucl. Fusion 41 665
+    https://doi.org/10.1088/0029-5515/41/6/301
+
+    Radial profile of the cyclotron radiation is from:
+    J.F. Artaud et al 2018 Nucl. Fusion 58 105001
+    https://doi.org/10.1088/1741-4326/aad5b1
+
+    The alpha_n, alpha_T and beta_T parameters are calculated from best fits
+    of the following electron density and temperature parameterization to the
+    actual plasma data.
+
+    n_e = n_e(0)*(1 - rhonorm**2)**alpha_n
+    T_e = (T_e(0)-T_e(a))*(1 - rhonorm**beta_T)**alpha_T + T_e(a)
+
+    Where we take a=0.9 in rhonorm space, and perform the best fit between
+    0<rhonorm<0.9, to avoid pedestal effects.
+
+    Args:
+      runtime_params: A slice of runtime parameters.
+      geo: The geometry object.
+      core_profiles: The core profiles object.
+      calculated_source_profiles: Unused.
+      conductivity: Unused.
+
+    Returns:
+      The cyclotron radiation heat sink contribution to the electron heat
+      equation.
+    """
+    del calculated_source_profiles, conductivity
+    source_params = runtime_params.sources[self.source_name]
+    assert isinstance(source_params, RuntimeParams)
+
+    # Notation conventions based on the Albajar and Artaud papers
+    # pylint: disable=invalid-name
+
+    n_e20_face = jnp.asarray(core_profiles.n_e.face_value() / 1e20)
+    n_e20_cell = core_profiles.n_e.value / 1e20
+    te_face = jnp.asarray(core_profiles.T_e.face_value())
+
+    # Dimensionless optical thickness parameter, on-axis:
+    # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
+    # plasma frequency and omega_ce is the cyclotron frequency.
+    p_a_0 = 6.04e3 * geo.a_minor * n_e20_face[0] / geo.B_0
+
+    # Dimensionless correction term for aspect ratio (equation 15 in Albajar)
+    G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.R_major_profile / geo.a_minor))
+
+    # Calculate profile fit parameters
+    alpha_n = _alpha_closed_form(
+        beta=2.0,
+        rho_norm=geo.rho_face_norm,
+        profile_data=n_e20_face,
+        profile_edge_value=0.0,
+    )
+    beta_scan_parameters = (
+        source_params.beta_min,
+        source_params.beta_max,
+        source_params.beta_grid_size,
+    )
+    alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
+        rho_norm=geo.rho_face_norm,
+        te_data=te_face,
+        beta_scan_parameters=beta_scan_parameters,
+    )
+
+    # The "profile factor" (equation 13 in Albajar)
+    K = (
+        (alpha_n + 3.87 * alpha_t + 1.46) ** -0.79
+        * (1.98 + alpha_t) ** 1.36
+        * beta_t**2.14
+        * (beta_t**1.53 + 1.87 * alpha_t - 0.16) ** -1.33
+    )
+
+    # Calculate power loss in [W]
+    P_cycl_total = (
+        3.84e-2
+        * jnp.sqrt(1 - source_params.wall_reflection_coeff)
+        * geo.R_major_profile
+        * geo.a_minor**1.38
+        * geo.elongation_face[-1] ** 0.79
+        * geo.B_0**2.62
+        * n_e20_face[0] ** 0.38
+        * te_face[0]
+        * (16 + te_face[0]) ** 2.61
+        * (1 + 0.12 * te_face[0] / p_a_0**0.41) ** -1.51
+        * K
+        * G
+    )
+
+    # Calculate the radial profile on the cell grid,
+    # according to the Artaud formula (A.45)
+    Q_cycl_shape = (
+        geo.R_major_profile
+        * geo.elongation**0.79
+        * (geo.F / geo.R_major_profile) ** 2.62
+        * n_e20_cell**0.38
+        * core_profiles.T_e.value**3.61
+    )
+
+    # Scale the profile shape to match the total integrated power loss
+    denom = math_utils.volume_integration(Q_cycl_shape, geo)
+    rescaling_factor = P_cycl_total / denom
+    Q_cycl = Q_cycl_shape * rescaling_factor
+
+    return (-Q_cycl,)
 
 
 class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
@@ -401,10 +403,6 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
       raise ValueError('beta_min must be less than beta_max.')
     return self
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return cyclotron_radiation_albajar  # pyrefly: ignore[bad-return]
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -422,4 +420,4 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
     )
 
   def build_source(self) -> CyclotronRadiationHeatSink:
-    return CyclotronRadiationHeatSink(model_func=self.model_func)
+    return CyclotronRadiationHeatSink()

@@ -256,8 +256,8 @@ Registering a custom source model
 To integrate a custom source model (e.g. a new heat source, particle source,
 or current source), you need to:
 
-1. Define a model function that computes the source profile.
-2. Define a pydantic config class for your model.
+1. Define a custom ``Source`` subclass implementing the ``_get_model_value`` method.
+2. Define a pydantic config class for your model that builds your source in ``build_source()``.
 3. Register the config class with TORAX against a specific source name.
 
 Unlike transport and pedestal models, source models are registered against a
@@ -266,11 +266,11 @@ etc.). This allows multiple source model implementations to exist for the same
 physical source. The two special sources ``'qei'`` (ion-electron heat exchange)
 and ``'j_bootstrap'`` (bootstrap current) do not support custom registration.
 
-Step 1: Implement the model function
---------------------------------------
+Step 1: Implement the custom Source subclass
+--------------------------------------------
 
-Define a function that matches the ``torax.sources.SourceProfileFunction``
-protocol. This function receives the simulation state and must return a tuple
+Subclass the appropriate base source (or ``torax.sources.Source``) and implement
+``_get_model_value``. This method receives the simulation state and must return a tuple
 of source profile arrays (one per affected core profile). The order of the
 profiles in the tuple must match the order of the affected core profiles for the
 source being registered against (e.g. for ``generic_heat``, the tuple must be
@@ -278,33 +278,37 @@ source being registered against (e.g. for ``generic_heat``, the tuple must be
 
 .. code-block:: python
 
+    import dataclasses
     import jax.numpy as jnp
     import torax
     from torax import sources
+    from torax._src.sources import generic_ion_el_heat_source as heat_source_lib
 
-    def my_heat_source(
-        runtime_params: torax.RuntimeParams,
-        geo: torax.Geometry,
-        source_name: str,
-        core_profiles: torax.CoreProfiles,
-        calculated_source_profiles: sources.SourceProfiles | None,
-        unused_conductivity,
-    ) -> tuple[jnp.ndarray, ...]:
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class MyHeatSource(heat_source_lib.GenericIonElectronHeatSource):
       """Custom heat source model."""
-      # Return a tuple with one element per affected core profile.
-      # For a source affecting TEMP_ION and TEMP_EL, return two profiles.
-      ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
-      el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
-      return (ion_heat, el_heat)
+
+      def _get_model_value(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          calculated_source_profiles: sources.SourceProfiles | None,
+          conductivity,
+      ) -> tuple[jnp.ndarray, ...]:
+        # Return a tuple with one element per affected core profile.
+        # For a source affecting TEMP_ION and TEMP_EL, return two profiles.
+        ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
+        el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
+        return (ion_heat, el_heat)
 
 
 Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.sources.SourceModelBase`` and implements three required methods:
+``torax.sources.SourceModelBase`` and implements two required methods:
 
-- ``model_func`` (property): returns the model function.
 - ``build_source``: returns the ``Source`` instance.
 - ``build_runtime_params``: returns source-specific ``RuntimeParams``.
 
@@ -320,7 +324,6 @@ model name for the source you are registering against.
     import chex
     import jax
     from torax import sources
-    from torax._src.sources import generic_ion_el_heat_source as heat_source_lib
 
     @jax.tree_util.register_dataclass
     @dataclasses.dataclass(frozen=True)
@@ -334,14 +337,8 @@ model name for the source you are registering against.
       model_name: Literal['my_heat_model'] = 'my_heat_model'
       scaling_factor: float = 1.0
 
-      @property
-      def model_func(self) -> sources.SourceProfileFunction:
-        return my_heat_source
-
       def build_source(self) -> sources.Source:
-        return heat_source_lib.GenericIonElectronHeatSource(
-            model_func=self.model_func
-        )
+        return MyHeatSource()
 
       def build_runtime_params(
           self, t: chex.Numeric,
@@ -354,6 +351,7 @@ model name for the source you are registering against.
             mode=self.mode,
             is_explicit=self.is_explicit,
         )
+
 
 
 Step 3: Register the model

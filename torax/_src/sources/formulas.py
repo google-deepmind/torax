@@ -15,6 +15,7 @@
 """Prescribed formulas for computing source profiles."""
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.geometry import geometry
 
@@ -24,9 +25,9 @@ from torax._src.geometry import geometry
 def exponential_profile(
     geo: geometry.Geometry,
     *,
-    decay_start: float,
-    width: float,
-    total: float,
+    decay_start: array_typing.FloatScalar,
+    width: array_typing.FloatScalar,
+    total: array_typing.FloatScalar,
 ) -> jax.Array:
   """Returns an exponential profile on the cell grid.
 
@@ -56,9 +57,9 @@ def exponential_profile(
 def gaussian_profile(
     geo: geometry.Geometry,
     *,
-    center: float,
-    width: float,
-    total: float,
+    center: array_typing.FloatScalar,
+    width: array_typing.FloatScalar,
+    total: array_typing.FloatScalar,
 ) -> jax.Array:
   """Returns a gaussian profile on the cell grid.
 

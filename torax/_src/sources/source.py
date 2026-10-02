@@ -24,7 +24,7 @@ import abc
 import dataclasses
 import enum
 import typing
-from typing import ClassVar, Protocol
+from typing import ClassVar
 
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -40,22 +40,6 @@ from torax._src.sources import source_profiles
 SourceProfileElement = (
     array_typing.FloatVectorCell | tuple[fast_ion_lib.FastIon, ...]
 )
-
-
-@typing.runtime_checkable
-class SourceProfileFunction(Protocol):
-  """Sources implement these functions to be able to provide source profiles."""
-
-  def __call__(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      source_name: str,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      unused_conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[SourceProfileElement, ...]:
-    ...
 
 
 @enum.unique
@@ -91,19 +75,10 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       This attribute defines which equations the source profiles are terms for.
       By default, the number of affected core profiles should equal the rank of
       the output shape returned by `output_shape`.
-    runtime_params: Input dataclass containing all the source-specific runtime
-      parameters. At runtime, the parameters here are interpolated to a specific
-      time t and then passed to the model_func, depending on the mode this
-      source is running in.
-    model_func: The function used when the runtime type is set to "MODEL_BASED".
-      If not provided, then it defaults to returning zeros.
   """
 
   SOURCE_NAME: ClassVar[str] = 'source'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[AffectedCoreProfile, ...]] = ()
-  model_func: SourceProfileFunction | None = dataclasses.field(
-      default=None, metadata={'hash_by_id': True}
-  )
 
   def __post_init__(self):
     if self.SOURCE_NAME == 'source':
@@ -169,13 +144,24 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
           f' {expected_species_order}.'
       )
 
+  @abc.abstractmethod
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[SourceProfileElement, ...]:
+    """Calculates source profile for MODEL_BASED mode."""
+
   def get_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
   ) -> tuple[SourceProfileElement, ...]:
     """Returns the cell grid profile for this source during one time step.
 
@@ -209,14 +195,9 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
     mode = source_params.mode
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
-        if self.model_func is None:
-          raise ValueError(
-              'Source is in MODEL_BASED mode but has no model function.'
-          )
-        res = self.model_func(
+        res = self._get_model_value(
             runtime_params,
             geo,
-            self.source_name,
             core_profiles,
             calculated_source_profiles,
             conductivity,
@@ -232,8 +213,10 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
           fast_ions_idx = self.affected_core_profiles.index(
               AffectedCoreProfile.FAST_IONS
           )
-          res_list = list(source_params.prescribed_values)
-          res_list.insert(fast_ions_idx, ())  # pyrefly: ignore[bad-argument-type]
+          res_list = typing.cast(
+              list[SourceProfileElement], list(source_params.prescribed_values)
+          )
+          res_list.insert(fast_ions_idx, ())
           res = tuple(res_list)
         elif prescribed_len != expected_len:
           raise ValueError(

@@ -69,40 +69,47 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   feedback_gain: array_typing.FloatScalar
 
 
-def calc_puff_feedback_source(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
-  """Calculates external source term for n from puffs with feedback."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
+DEFAULT_MODEL_NAME: str = 'feedback'
 
-  match source_params.average_type:
-    case AverageType.LINE:
-      current_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
-    case AverageType.VOLUME:
-      current_avg_n_e = math_utils.volume_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
-    case _ as unknown:
-      raise ValueError(f'Unknown average type: {unknown}')
 
-  error = source_params.target_average_n_e - current_avg_n_e
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
+  """Gas puff source with proportional feedback control."""
 
-  S_feedback = source_params.feedback_gain * error
-  S_total = source_params.S_feedforward + S_feedback
-  S_total = jnp.clip(S_total, 0.0, jnp.inf)
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    del calculated_source_profiles, conductivity
+    source_params = runtime_params.sources[self.source_name]
+    assert isinstance(source_params, RuntimeParams)
 
-  return (
-      formulas.exponential_profile(
-          decay_start=1.0,
-          width=source_params.puff_decay_length,  # pyrefly: ignore[bad-argument-type]
-          total=S_total,  # pyrefly: ignore[bad-argument-type]
-          geo=geo,
-      ),
-  )
+    match source_params.average_type:
+      case AverageType.LINE:
+        current_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+      case AverageType.VOLUME:
+        current_avg_n_e = math_utils.volume_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+      case _ as unknown:
+        raise ValueError(f'Unknown average type: {unknown}')
+
+    error = source_params.target_average_n_e - current_avg_n_e
+
+    S_feedback = source_params.feedback_gain * error
+    S_total = source_params.S_feedforward + S_feedback
+    S_total = jnp.clip(S_total, 0.0, jnp.inf)
+
+    return (
+        formulas.exponential_profile(
+            decay_start=1.0,
+            width=source_params.puff_decay_length,
+            total=S_total,
+            geo=geo,
+        ),
+    )
 
 
 class GasPuffFeedbackSourceConfig(base.SourceModelBase):
@@ -159,10 +166,6 @@ class GasPuffFeedbackSourceConfig(base.SourceModelBase):
       torax_pydantic.ValidatedDefault(0.77e20)
   )
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return calc_puff_feedback_source  # pyrefly: ignore[bad-return]
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -180,5 +183,5 @@ class GasPuffFeedbackSourceConfig(base.SourceModelBase):
         feedback_gain=self.feedback_gain.get_value(t),
     )
 
-  def build_source(self) -> gas_puff_source.GasPuffSource:
-    return gas_puff_source.GasPuffSource(model_func=self.model_func)
+  def build_source(self) -> GasPuffFeedbackSource:
+    return GasPuffFeedbackSource()

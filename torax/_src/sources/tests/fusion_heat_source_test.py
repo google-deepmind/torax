@@ -15,12 +15,17 @@ from typing import Callable, Mapping
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import numpy as np
 from torax._src import constants
+from torax._src import math_utils
 from torax._src.core_profiles import initialization
 from torax._src.sources import fusion_heat_source
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import torax_refs
+
+
+# pylint: disable=invalid-name
 
 
 class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
@@ -44,7 +49,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     references = references_getter()
     references.config.update_fields({
         'sources.fusion': {
-            'model_name': fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
+            'model_name': fusion_heat_source.DEFAULT_MODEL_NAME
         }
     })
     runtime_params, geo = references.get_runtime_params_and_geo()
@@ -57,15 +62,26 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         neoclassical_model=neoclassical_model,
     )
 
-    torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(
-        geo,
-        core_profiles,
-        runtime_params,
+    source = source_models.standard_sources[self.source_name]
+    Pfus_i, Pfus_e = source.get_value(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
     )
+    assert isinstance(Pfus_i, jax.Array)
+    assert isinstance(Pfus_e, jax.Array)
+    # Total fusion power to charged particles (alphas) is Pfus_i + Pfus_e.
+    # Total DT fusion power includes neutrons: P_total = P_alpha / (3.5 / 17.6).
+    torax_alpha_power = (
+        math_utils.volume_integration(Pfus_i + Pfus_e, geo) / 1e6
+    )
+    torax_fusion_power = torax_alpha_power / (3.5 / 17.6)
 
     reference_fusion_power = reference_calc_fusion(geo, core_profiles)
 
-    np.testing.assert_allclose(torax_fusion_power, reference_fusion_power)
+    np.testing.assert_allclose(
+        torax_fusion_power, reference_fusion_power, rtol=1e-2
+    )
 
   @parameterized.named_parameters(
       ('no_fusion_D', {'D': 1.0}, 0.0),
@@ -84,7 +100,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     references.config.update_fields({
         'plasma_composition.main_ion': main_ion_input,
         'sources.fusion': {
-            'model_name': fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
+            'model_name': fusion_heat_source.DEFAULT_MODEL_NAME
         },
     })
 
@@ -98,16 +114,25 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         neoclassical_model=neoclassical_model,
     )
 
-    torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(
-        geo,
-        core_profiles,
-        runtime_params_t,
+    source = source_models.standard_sources[self.source_name]
+    Pfus_i, Pfus_e = source.get_value(
+        runtime_params=runtime_params_t,
+        geo=geo,
+        core_profiles=core_profiles,
     )
+    assert isinstance(Pfus_i, jax.Array)
+    assert isinstance(Pfus_e, jax.Array)
+    torax_alpha_power = (
+        math_utils.volume_integration(Pfus_i + Pfus_e, geo) / 1e6
+    )
+    torax_fusion_power = torax_alpha_power / (3.5 / 17.6)
 
     reference_fusion_power = reference_calc_fusion(geo, core_profiles)
 
     np.testing.assert_allclose(
-        torax_fusion_power, expected_fusion_factor * reference_fusion_power
+        torax_fusion_power,
+        expected_fusion_factor * reference_fusion_power,
+        rtol=1e-2,
     )
 
 

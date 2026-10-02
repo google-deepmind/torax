@@ -29,34 +29,13 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-# Default value for the model function to be used for the generic particle
-# source. This is also used as an identifier for the model function in
+# Default value for the model to be used for the generic particle
+# source. This is also used as an identifier for the model in
 # the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
+DEFAULT_MODEL_NAME: str = 'gaussian'
 
 
 # pylint: disable=invalid-name
-def calc_generic_particle_source(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    unused_state: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
-  """Calculates external source term for n from SBI."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-  return (
-      formulas.gaussian_profile(
-          center=source_params.deposition_location,  # pyrefly: ignore[bad-argument-type]
-          width=source_params.particle_width,  # pyrefly: ignore[bad-argument-type]
-          total=source_params.S_total,  # pyrefly: ignore[bad-argument-type]
-          geo=geo,
-      ),
-  )
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the n_e equation."""
@@ -65,7 +44,27 @@ class GenericParticleSource(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )
-  model_func: source.SourceProfileFunction = calc_generic_particle_source  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    """Calculates external source term for n from SBI."""
+    del core_profiles, calculated_source_profiles, conductivity
+    source_params = runtime_params.sources[self.source_name]
+    assert isinstance(source_params, RuntimeParams)
+    return (
+        formulas.gaussian_profile(
+            center=source_params.deposition_location,
+            width=source_params.particle_width,
+            total=source_params.S_total,
+            geo=geo,
+        ),
+    )
 
 
 @jax.tree_util.register_dataclass
@@ -104,10 +103,6 @@ class GenericParticleSourceConfig(base.SourceModelBase):
       sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
   ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return calc_generic_particle_source  # pyrefly: ignore[bad-return]
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -124,4 +119,4 @@ class GenericParticleSourceConfig(base.SourceModelBase):
     )
 
   def build_source(self) -> GenericParticleSource:
-    return GenericParticleSource(model_func=self.model_func)
+    return GenericParticleSource()
