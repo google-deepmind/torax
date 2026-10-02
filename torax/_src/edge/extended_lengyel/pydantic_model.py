@@ -16,7 +16,7 @@
 
 import dataclasses
 import logging
-from typing import Annotated, Any, Literal, Mapping, Self
+from typing import Annotated, Any, ClassVar, Literal, Mapping, Self
 import chex
 import jax.numpy as jnp
 import pydantic
@@ -60,6 +60,12 @@ class InitialGuessConfig(torax_pydantic.BaseModelFrozen):
 class ExtendedLengyelConfig(base.EdgeModelConfig):
   """Configuration for the extended Lengyel edge model."""
 
+  computed_bcs: ClassVar[base.BoundaryConditions] = base.BoundaryConditions(
+      electron_temperature=True,
+      ion_temperature=True,
+      electron_density=False,
+      impurities=True,
+  )
   model_name: Annotated[
       Literal['extended_lengyel'], torax_pydantic.JAX_STATIC
   ] = 'extended_lengyel'
@@ -76,7 +82,10 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   ] = extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
   # Flags allowing user to test simulation sensitivity to boundary condition
   # updates, while still providing edge model outputs even if not used.
-  update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
+  update_electron_temperature: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(True)
+  )
+  update_ion_temperature: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(True)
   )
   update_electron_density: torax_pydantic.TimeVaryingScalarStep = (
@@ -448,7 +457,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
     )
 
   def build_edge_model(self) -> extended_lengyel_model.ExtendedLengyelModel:
-    return extended_lengyel_model.ExtendedLengyelModel()
+    return extended_lengyel_model.ExtendedLengyelModel(used_bcs=self.used_bcs)
 
 
 EdgeConfig = Annotated[

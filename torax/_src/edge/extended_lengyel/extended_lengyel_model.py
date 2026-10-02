@@ -16,7 +16,7 @@
 
 import dataclasses
 import logging
-from typing import Mapping
+from typing import ClassVar, Mapping
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -141,6 +141,13 @@ class _ResolvedGeometricParams:
 @dataclasses.dataclass(frozen=True, eq=False)
 class ExtendedLengyelModel(base.EdgeModel):
   """Adapter for running the extended Lengyel model within TORAX."""
+
+  computed_bcs: ClassVar[base.BoundaryConditions] = base.BoundaryConditions(
+      electron_temperature=True,
+      ion_temperature=True,
+      electron_density=False,
+      impurities=True,
+  )
 
   def __call__(
       self,
