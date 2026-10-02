@@ -362,6 +362,8 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         extended_lengyel_pydantic_model.ExtendedLengyelConfig,
     ):
       return self
+    if not self.edge.used_bcs.impurities:
+      return self
     impurity = self.plasma_composition.impurity
     if not isinstance(impurity, electron_density_ratios.ElectronDensityRatios):
       return self

@@ -1115,6 +1115,23 @@ their physics validation, and numerical implementation.
 ``model_name`` (str [default = 'extended_lengyel'])
   Selects the edge model. Currently only ``'extended_lengyel'`` is supported.
 
+``update_electron_temperature`` (bool [default = True])
+  If ``True``, update the core solver's boundary electron temperature using the
+  value calculated by the edge model.
+
+``update_ion_temperature`` (bool [default = True])
+  If ``True``, update the core solver's boundary ion temperature using the value
+  calculated by the edge model.
+
+``update_electron_density`` (bool [default = False])
+  If ``True``, update the core solver's boundary electron density using the
+  value calculated by the edge model.
+
+``update_impurities`` (bool [default = True])
+  If ``True``, and enrichment modeling is used or enrichment factors are
+  provided, update the core solver's impurity boundary conditions based on
+  edge enrichment calculations.
+
 extended_lengyel
 ^^^^^^^^^^^^^^^^
 
@@ -1144,15 +1161,6 @@ control parameters.
     (``plasma_composition``).
   * ``'edge'``: Fixed impurity concentrations are taken from the
     ``fixed_impurity_concentrations`` dictionary in the edge configuration.
-
-``update_temperatures`` (bool [default = True])
-  If ``True``, update the core solver's boundary electron and ion temperatures
-  using the values calculated by the edge model.
-
-``update_impurities`` (bool [default = True])
-  If ``True``, and enrichment modeling is used or enrichment factors are
-  provided, update the core solver's impurity boundary conditions based on
-  edge enrichment calculations.
 
 **Key Physical Inputs:**
 
