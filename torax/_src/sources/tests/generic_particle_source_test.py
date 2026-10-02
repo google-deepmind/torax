@@ -20,7 +20,7 @@ class SourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GenericParticleSource."""
 
   source_config_class = generic_particle_source.GenericParticleSourceConfig
-  source_name = generic_particle_source.GenericParticleSource.SOURCE_NAME
+  source_name = generic_particle_source.GenericParticleSource.SOURCE_ID
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@
 
 """Collisional ion-electron heat source."""
 import dataclasses
-from typing import Annotated, ClassVar
+from typing import ClassVar
 import chex
 import jax
 from jax import numpy as jnp
@@ -28,7 +28,6 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
-from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
@@ -46,7 +45,7 @@ class QeiSource(source.Source):
   explicit terms in our solver. See sim.py for how this is used.
   """
 
-  SOURCE_NAME: ClassVar[str] = 'ei_exchange'
+  SOURCE_ID: ClassVar[str] = 'ei_exchange'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
@@ -60,7 +59,7 @@ class QeiSource(source.Source):
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
     return jax.lax.cond(
-        runtime_params.sources[self.source_name].mode
+        runtime_params.sources[self.SOURCE_ID].mode
         == sources_runtime_params_lib.Mode.MODEL_BASED,
         lambda: _model_based_qei(
             runtime_params,
@@ -70,14 +69,24 @@ class QeiSource(source.Source):
         lambda: source_profiles.QeiInfo.zeros(geo),
     )
 
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    raise NotImplementedError('Call get_qei() instead.')
+
   def get_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[array_typing.FloatVectorCell, ...]:
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source.SourceProfileElement, ...]:
     raise NotImplementedError('Call get_qei() instead.')
 
   def get_source_profile_for_affected_core_profile(
@@ -95,7 +104,7 @@ def _model_based_qei(
     core_profiles: state.CoreProfiles,
 ) -> source_profiles.QeiInfo:
   """Computes Qei via the coll_exchange model."""
-  source_params = runtime_params.sources[QeiSource.SOURCE_NAME]
+  source_params = runtime_params.sources[QeiSource.SOURCE_ID]
   assert isinstance(source_params, RuntimeParams)
   zeros = jnp.zeros_like(geo.rho_norm)
   qei_coef = collisions.coll_exchange(
@@ -139,7 +148,7 @@ def _model_based_qei(
   )
 
 
-class QeiSourceConfig(base.SourceModelBase):
+class QeiSourceConfig(base.SourceConfigBase):
   """Configuration for the QeiSource.
 
   Attributes:
@@ -148,28 +157,15 @@ class QeiSourceConfig(base.SourceModelBase):
   """
 
   Qei_multiplier: float = 1.0
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    raise NotImplementedError(
-        'QeiSource does not use a 1D model_func; call get_qei() instead.'
-    )
 
   def build_runtime_params(
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         Qei_multiplier=self.Qei_multiplier,
     )
 
   def build_source(self) -> QeiSource:
-    return QeiSource(model_func=None)
+    return QeiSource()
