@@ -34,6 +34,7 @@ from gyaradax.params import GKParams
 from gyaradax.quasilinear.models import load_cn_payload
 import jax
 import jax.numpy as jnp
+import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
@@ -371,6 +372,8 @@ class BaseGKWGyaradaxConfig(pydantic_model_base.ComponentTransportBase):
       (inert while pfe is a zero placeholder).
     An_min: minimum |R/Ln| below which effective V is used instead of
       effective D.
+    DV_effective_smooth_width: down-gradient flux below which the effective
+      D/V split is smoothly blended; 0 disables the blending.
     diagnostics_path: when set, append one JSON row per (transport call,
       radius) to this `.jsonl`. Written host-side through io_callback, so it
       is jit-safe; None (default) disables it at zero cost.
@@ -384,12 +387,16 @@ class BaseGKWGyaradaxConfig(pydantic_model_base.ComponentTransportBase):
   )
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   An_min: Annotated[float, torax_pydantic.JAX_STATIC] = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
   diagnostics_path: Annotated[Optional[str], torax_pydantic.JAX_STATIC] = None
 
   def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
     base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
     return RuntimeParams(
-        DV_effective=self.DV_effective, An_min=self.An_min, **base_kwargs
+        DV_effective=self.DV_effective,
+        An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
+        **base_kwargs,
     )
 
 
