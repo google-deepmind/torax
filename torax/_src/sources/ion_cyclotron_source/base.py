@@ -27,11 +27,6 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
-# Default value for the model function to be used for the ion cyclotron
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'toric_nn'
-
 
 def build_fast_ions(
     source_name: str,

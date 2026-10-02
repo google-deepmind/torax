@@ -16,7 +16,7 @@
 
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
-from typing import Annotated, ClassVar, Final, Literal
+from typing import Annotated, ClassVar, Literal
 import chex
 import jax
 from jax import numpy as jnp
@@ -31,11 +31,6 @@ from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
-
-# Default value for the model function to be used for the Bremsstrahlung heat
-# sink. This is also used as an identifier for the model function in the default
-# source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'wesson'
 
 
 @jax.tree_util.register_dataclass

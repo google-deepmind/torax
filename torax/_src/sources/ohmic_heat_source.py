@@ -27,11 +27,6 @@ from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import torax_pydantic
 
-# Default value for the model function to be used for the ohmic heat
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'standard'
-
 
 def ohmic_model_func(
     runtime_params: runtime_params_lib.RuntimeParams,

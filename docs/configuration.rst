@@ -2345,8 +2345,8 @@ its configuration class in Python:
   from torax._src.sources import register_model
   from torax.experimental import gas_puff_feedback_source
 
-  register_model.register_source_model_config(
-      gas_puff_feedback_source.GasPuffFeedbackSourceConfig, 'gas_puff'
+  register_model.register_source_config(
+      gas_puff_feedback_source.GasPuffFeedbackSourceConfig
   )
 
 **Common Parameters:**
