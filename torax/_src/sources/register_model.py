@@ -50,55 +50,43 @@ def _validate_source_model_config(
   model_name: str = source_model_config.model_name
 
   match source_name:
-    case bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSink.SOURCE_NAME:
-      default_model_name = (
-          bremsstrahlung_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+    case bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSink.SOURCE_ID:
+      default_model_name = bremsstrahlung_heat_sink_lib.DEFAULT_MODEL_NAME
     case (
-        cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSink.SOURCE_NAME
+        cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSink.SOURCE_ID
     ):
       default_model_name = (
-          cyclotron_radiation_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
+          cyclotron_radiation_heat_sink_lib.DEFAULT_MODEL_NAME
       )
-    case electron_cyclotron_source_lib.ElectronCyclotronSource.SOURCE_NAME:
-      default_model_name = (
-          electron_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
-    case gas_puff_source_lib.GasPuffSource.SOURCE_NAME:
-      default_model_name = gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-    case generic_particle_source_lib.GenericParticleSource.SOURCE_NAME:
-      default_model_name = (
-          generic_particle_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
-    case pellet_source_lib.PelletSource.SOURCE_NAME:
-      default_model_name = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-    case fusion_heat_source_lib.FusionHeatSource.SOURCE_NAME:
-      default_model_name = fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+    case electron_cyclotron_source_lib.ElectronCyclotronSource.SOURCE_ID:
+      default_model_name = electron_cyclotron_source_lib.DEFAULT_MODEL_NAME
+    case gas_puff_source_lib.GasPuffSource.SOURCE_ID:
+      default_model_name = gas_puff_source_lib.DEFAULT_MODEL_NAME
+    case generic_particle_source_lib.GenericParticleSource.SOURCE_ID:
+      default_model_name = generic_particle_source_lib.DEFAULT_MODEL_NAME
+    case pellet_source_lib.PelletSource.SOURCE_ID:
+      default_model_name = pellet_source_lib.DEFAULT_MODEL_NAME
+    case fusion_heat_source_lib.FusionHeatSource.SOURCE_ID:
+      default_model_name = fusion_heat_source_lib.DEFAULT_MODEL_NAME
     case (
-        generic_ion_el_heat_source_lib.GenericIonElectronHeatSource.SOURCE_NAME
+        generic_ion_el_heat_source_lib.GenericIonElectronHeatSource.SOURCE_ID
     ):
-      default_model_name = (
-          generic_ion_el_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
-    case impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME:
-      default_model_name = (
-          impurity_radiation_mavrin_fit_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
-    case icrh_base.IonCyclotronSource.SOURCE_NAME:
-      default_model_name = icrh_base.DEFAULT_MODEL_FUNCTION_NAME
-    case ohmic_heat_source_lib.OhmicHeatSource.SOURCE_NAME:
-      default_model_name = ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-    case generic_current_source_lib.GenericCurrentSource.SOURCE_NAME:
-      default_model_name = (
-          generic_current_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-      )
+      default_model_name = generic_ion_el_heat_source_lib.DEFAULT_MODEL_NAME
+    case impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID:
+      default_model_name = impurity_radiation_mavrin_fit_lib.DEFAULT_MODEL_NAME
+    case icrh_base.IonCyclotronSource.SOURCE_ID:
+      default_model_name = icrh_base.DEFAULT_MODEL_NAME
+    case ohmic_heat_source_lib.OhmicHeatSource.SOURCE_ID:
+      default_model_name = ohmic_heat_source_lib.DEFAULT_MODEL_NAME
+    case generic_current_source_lib.GenericCurrentSource.SOURCE_ID:
+      default_model_name = generic_current_source_lib.DEFAULT_MODEL_NAME
     case _:
       raise ValueError(f'The source name {source_name} is not supported.')
 
   if model_name == default_model_name:
     raise ValueError(
-        f'The model function name {model_name} must be different from'
-        f' the default model function name {default_model_name} for'
+        f'The model name {model_name} must be different from'
+        f' the default model name {default_model_name} for'
         f' the source {source_name}.'
     )
 

@@ -27,13 +27,11 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for OhmicHeatSource."""
 
   source_config_class = ohmic_heat_source.OhmicHeatSourceConfig
-  source_name = ohmic_heat_source.OhmicHeatSource.SOURCE_NAME
+  source_name = ohmic_heat_source.OhmicHeatSource.SOURCE_ID
   needs_source_models = True
 
   def test_raises_error_if_calculated_source_profiles_is_none(self):
-    source = ohmic_heat_source.OhmicHeatSource(
-        model_func=ohmic_heat_source.ohmic_model_func  # pyrefly: ignore[bad-argument-type]
-    )
+    source = ohmic_heat_source.OhmicHeatSource()
     source_config = self._source_config_class.from_dict({})
     face_centers = interpolated_param_2d.get_face_centers(4)
     torax_pydantic.set_grid(
@@ -48,8 +46,8 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     with self.assertRaisesRegex(
         ValueError,
         'calculated_source_profiles is a required argument for'
-        ' ohmic_model_func. This can occur if this source function is used in'
-        ' an explicit source.',
+        ' OhmicHeatSource._get_model_value. This can occur if this source'
+        ' is used in an explicit source.',
     ):
       source.get_value(
           runtime_params,
@@ -60,9 +58,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
       )
 
   def test_raises_error_if_conductivity_is_none(self):
-    source = ohmic_heat_source.OhmicHeatSource(
-        model_func=ohmic_heat_source.ohmic_model_func  # pyrefly: ignore[bad-argument-type]
-    )
+    source = ohmic_heat_source.OhmicHeatSource()
     source_config = self._source_config_class.from_dict({})
     face_centers = interpolated_param_2d.get_face_centers(4)
     torax_pydantic.set_grid(
@@ -77,8 +73,8 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     with self.assertRaisesRegex(
         ValueError,
         'conductivity is a required argument for'
-        ' ohmic_model_func. This can occur if this source function is used in'
-        ' an explicit source.',
+        ' OhmicHeatSource._get_model_value. This can occur if this source'
+        ' is used in an explicit source.',
     ):
       source.get_value(
           runtime_params,
@@ -117,11 +113,11 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     calculated_source_profiles.total_psi_sources.return_value = jnp.zeros(n_rho)
     conductivity = mock.Mock()
 
+    source = ohmic_heat_source.OhmicHeatSource()
     # Call function
-    (pohm,) = ohmic_heat_source.ohmic_model_func(
+    (pohm,) = source._get_model_value(
         runtime_params=runtime_params,
         geo=geo,
-        unused_source_name='ohmic',
         core_profiles=core_profiles,
         calculated_source_profiles=calculated_source_profiles,
         conductivity=conductivity,
@@ -134,7 +130,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     expected_pohm = jnp.abs(
         j_total_val * prescribed_psidot / (2 * jnp.pi * geo.R_major_profile)
     )
-    np.testing.assert_allclose(pohm, expected_pohm)
+    np.testing.assert_allclose(np.asarray(pohm), expected_pohm)
 
 
 if __name__ == '__main__':

@@ -41,52 +41,52 @@ IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING: Final[
     # External fuelling and HCD sources
     "pellet": _SourceMappingEntry(
         pellet_source.PelletSource.AFFECTED_CORE_PROFILES,
-        pellet_source.PelletSource.SOURCE_NAME,
+        pellet_source.PelletSource.SOURCE_ID,
         True,
     ),
     "gas_puff": _SourceMappingEntry(
         gas_puff_source.GasPuffSource.AFFECTED_CORE_PROFILES,
-        gas_puff_source.GasPuffSource.SOURCE_NAME,
+        gas_puff_source.GasPuffSource.SOURCE_ID,
         True,
     ),
     "ec": _SourceMappingEntry(
         electron_cyclotron_source.ElectronCyclotronSource.AFFECTED_CORE_PROFILES,
-        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID,
         True,
     ),
     "ic": _SourceMappingEntry(
         ion_cyclotron_source.IonCyclotronSource.AFFECTED_CORE_PROFILES,
-        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
+        ion_cyclotron_source.IonCyclotronSource.SOURCE_ID,
         True,
     ),
     "ohmic": _SourceMappingEntry(
         ohmic_heat_source.OhmicHeatSource.AFFECTED_CORE_PROFILES,
-        ohmic_heat_source.OhmicHeatSource.SOURCE_NAME,
+        ohmic_heat_source.OhmicHeatSource.SOURCE_ID,
         False,
     ),
     "fusion": _SourceMappingEntry(
         fusion_heat_source.FusionHeatSource.AFFECTED_CORE_PROFILES,
-        fusion_heat_source.FusionHeatSource.SOURCE_NAME,
+        fusion_heat_source.FusionHeatSource.SOURCE_ID,
         False,
     ),
     "collisional_equipartition": _SourceMappingEntry(
         qei_source.QeiSource.AFFECTED_CORE_PROFILES,
-        qei_source.QeiSource.SOURCE_NAME,
+        qei_source.QeiSource.SOURCE_ID,
         False,
     ),
     "cyclotron_radiation": _SourceMappingEntry(
         cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.AFFECTED_CORE_PROFILES,
-        cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_NAME,
+        cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID,
         False,
     ),
     "bremsstrahlung": _SourceMappingEntry(
         bremsstrahlung_heat_sink.BremsstrahlungHeatSink.AFFECTED_CORE_PROFILES,
-        bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
+        bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_ID,
         False,
     ),
     "impurity_radiation": _SourceMappingEntry(
         impurity_radiation_heat_sink.ImpurityRadiationHeatSink.AFFECTED_CORE_PROFILES,
-        impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME,
+        impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_ID,
         False,
     ),
 }

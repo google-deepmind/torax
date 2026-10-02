@@ -83,7 +83,7 @@ class PydanticModelTest(parameterized.TestCase):
     )
     # Check that ei_exchange is always present by default.
     self.assertIn(
-        qei_source.QeiSource.SOURCE_NAME,
+        qei_source.QeiSource.SOURCE_ID,
         sources_model.source_model_config.keys(),
     )
 

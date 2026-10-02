@@ -23,7 +23,7 @@ from torax._src.torax_pydantic import model_config
 class QeiSourceTest(test_lib.SourceTestCase):
   """Tests for QeiSource."""
 
-  source_name = qei_source.QeiSource.SOURCE_NAME
+  source_name = qei_source.QeiSource.SOURCE_ID
   source_config_class = qei_source.QeiSourceConfig
   needs_source_models = False
 

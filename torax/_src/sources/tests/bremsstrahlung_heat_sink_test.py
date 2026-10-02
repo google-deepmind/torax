@@ -22,6 +22,7 @@ from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.sources import bremsstrahlung_heat_sink
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import torax_refs
 
@@ -32,7 +33,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   """Tests for BremsstrahlungHeatSink."""
 
   source_config_class = bremsstrahlung_heat_sink.BremsstrahlungHeatSinkConfig
-  source_name = bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME
+  source_name = bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_ID
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -45,6 +46,11 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
       self, references_getter: Callable[[], torax_refs.References]
   ):
     references = references_getter()
+    references.config.update_fields({
+        'sources.bremsstrahlung': {
+            'model_name': bremsstrahlung_heat_sink.DEFAULT_MODEL_NAME
+        }
+    })
 
     runtime_params, geo = references.get_runtime_params_and_geo()
     source_models = references.config.sources.build_models()
@@ -56,29 +62,36 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         neoclassical_model=neoclassical_model,
     )
 
-    P_brem_total, P_brems_profile = (
-        bremsstrahlung_heat_sink.calc_bremsstrahlung(
-            core_profiles,
-            geo,
-        )
+    source = source_models.standard_sources[self.source_name]
+    (P_brems_profile,) = source.get_value(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
     )
 
-    self.assertIsNotNone(P_brem_total)
     self.assertIsNotNone(P_brems_profile)
 
-    P_brem_total_stott, P_brems_profile_stott = (
-        bremsstrahlung_heat_sink.calc_bremsstrahlung(
-            core_profiles,
-            geo,
-            use_relativistic_correction=True,
-        )
+    # Re-run with relativistic correction enabled.
+    references.config.update_fields({
+        'sources.bremsstrahlung': {
+            'use_relativistic_correction': True,
+        }
+    })
+    runtime_params_stott, _ = references.get_runtime_params_and_geo()
+    (P_brems_profile_stott,) = source.get_value(
+        runtime_params=runtime_params_stott,
+        geo=geo,
+        core_profiles=core_profiles,
     )
 
-    self.assertIsNotNone(P_brem_total_stott)
     self.assertIsNotNone(P_brems_profile_stott)
 
-    # Expect the relativistic correction to increase the total power.
-    self.assertGreater(P_brem_total_stott, P_brem_total)
+    # Expect the relativistic correction to increase the total radiated power
+    # (more negative sink).
+    self.assertLess(
+        float(jnp.sum(np.asarray(P_brems_profile_stott))),
+        float(jnp.sum(np.asarray(P_brems_profile))),
+    )
 
   def test_exclude_impurity_bremsstrahlung(self):
     """Tests that main-ion-only brems scales as Z_eff_main/Z_eff vs full."""
@@ -135,13 +148,40 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     geo.vpr = jnp.ones(n_rho)
     geo.drho_norm = rho_face_norm[1] - rho_face_norm[0]
 
+    source = bremsstrahlung_heat_sink.BremsstrahlungHeatSink()
+    runtime_params_full = mock.MagicMock()
+    runtime_params_full.sources = {
+        source.SOURCE_ID: bremsstrahlung_heat_sink.RuntimeParams(
+            prescribed_values=(),
+            mode=sources_runtime_params_lib.Mode.MODEL_BASED,
+            is_explicit=False,
+            use_relativistic_correction=False,
+            exclude_impurity_bremsstrahlung=False,
+        )
+    }
+
+    runtime_params_main = mock.MagicMock()
+    runtime_params_main.sources = {
+        source.SOURCE_ID: bremsstrahlung_heat_sink.RuntimeParams(
+            prescribed_values=(),
+            mode=sources_runtime_params_lib.Mode.MODEL_BASED,
+            is_explicit=False,
+            use_relativistic_correction=False,
+            exclude_impurity_bremsstrahlung=True,
+        )
+    }
+
     # Full bremsstrahlung (using Z_eff).
-    _, P_profile_full = bremsstrahlung_heat_sink.calc_bremsstrahlung(
-        core_profiles, geo,
+    (P_profile_full,) = source.get_value(
+        runtime_params=runtime_params_full,
+        geo=geo,
+        core_profiles=core_profiles,
     )
     # Main-ion-only bremsstrahlung (using Z_eff_main = n_i * Z_i^2 / n_e).
-    _, P_profile_main = bremsstrahlung_heat_sink.calc_bremsstrahlung(
-        core_profiles, geo, exclude_impurity_bremsstrahlung=True,
+    (P_profile_main,) = source.get_value(
+        runtime_params=runtime_params_main,
+        geo=geo,
+        core_profiles=core_profiles,
     )
 
     expected_ratio = n_i_over_n_e / 2.0

@@ -24,7 +24,7 @@ import abc
 import dataclasses
 import enum
 import typing
-from typing import ClassVar, Protocol
+from typing import ClassVar
 
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -40,22 +40,6 @@ from torax._src.sources import source_profiles
 SourceProfileElement = (
     array_typing.FloatVectorCell | tuple[fast_ion_lib.FastIon, ...]
 )
-
-
-@typing.runtime_checkable
-class SourceProfileFunction(Protocol):
-  """Sources implement these functions to be able to provide source profiles."""
-
-  def __call__(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      source_name: str,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      unused_conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[SourceProfileElement, ...]:
-    ...
 
 
 @enum.unique
@@ -86,40 +70,24 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
   are in turn used to compute coeffs in sim.py.
 
   Attributes:
-    SOURCE_NAME: The name of the source.
+    SOURCE_ID: Identifier for the source type (e.g. `'ecrh'`, `'icrh'`,
+      `'fusion'`). This corresponds to the field name on the `Sources` Pydantic
+      config and the key in `runtime_params.sources` and
+      `SourceModels.standard_sources`.
     AFFECTED_CORE_PROFILES: Core profiles affected by this source's profile(s).
       This attribute defines which equations the source profiles are terms for.
       By default, the number of affected core profiles should equal the rank of
       the output shape returned by `output_shape`.
-    runtime_params: Input dataclass containing all the source-specific runtime
-      parameters. At runtime, the parameters here are interpolated to a specific
-      time t and then passed to the model_func, depending on the mode this
-      source is running in.
-    model_func: The function used when the runtime type is set to "MODEL_BASED".
-      If not provided, then it defaults to returning zeros.
   """
 
-  SOURCE_NAME: ClassVar[str] = 'source'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[AffectedCoreProfile, ...]] = ()
-  model_func: SourceProfileFunction | None = dataclasses.field(
-      default=None, metadata={'hash_by_id': True}
-  )
+  SOURCE_ID: ClassVar[str]
+  AFFECTED_CORE_PROFILES: ClassVar[tuple[AffectedCoreProfile, ...]]
 
   def __post_init__(self):
-    if self.SOURCE_NAME == 'source':
-      raise ValueError('Source name must be set.')
-    if not self.AFFECTED_CORE_PROFILES:
+    if not hasattr(self, 'SOURCE_ID'):
+      raise ValueError('Source ID must be set.')
+    if not getattr(self, 'AFFECTED_CORE_PROFILES', None):
       raise ValueError('Affected core profiles must be set.')
-
-  @property
-  def source_name(self) -> str:
-    """Returns the name of the source."""
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(self) -> tuple[AffectedCoreProfile, ...]:
-    """Returns the core profiles affected by this source."""
-    return self.AFFECTED_CORE_PROFILES
 
   def zero_fast_ions(
       self,
@@ -127,7 +95,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
   ) -> tuple[fast_ion_lib.FastIon, ...]:
     """Returns a tuple of zero fast ion profiles."""
     del geo  # Unused in the default case.
-    if AffectedCoreProfile.FAST_IONS in self.affected_core_profiles:
+    if AffectedCoreProfile.FAST_IONS in self.AFFECTED_CORE_PROFILES:
       raise NotImplementedError(
           f'{type(self).__name__} affects FAST_IONS but does not override'
           ' zero_fast_ions.'
@@ -169,13 +137,24 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
           f' {expected_species_order}.'
       )
 
+  @abc.abstractmethod
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[SourceProfileElement, ...]:
+    """Calculates source profile for MODEL_BASED mode."""
+
   def get_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
   ) -> tuple[SourceProfileElement, ...]:
     """Returns the cell grid profile for this source during one time step.
 
@@ -204,50 +183,47 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       A tuple with one element per affected core profile. Each element is either
       a FloatVectorCell array or, for FAST_IONS, a tuple of FastIon.
     """
-    source_params = runtime_params.sources[self.source_name]
+    source_params = runtime_params.sources[self.SOURCE_ID]
 
     mode = source_params.mode
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
-        if self.model_func is None:
-          raise ValueError(
-              'Source is in MODEL_BASED mode but has no model function.'
-          )
-        res = self.model_func(
+        res = self._get_model_value(
             runtime_params,
             geo,
-            self.source_name,
             core_profiles,
             calculated_source_profiles,
             conductivity,
         )
       case sources_runtime_params_lib.Mode.PRESCRIBED:
-        expected_len = len(self.affected_core_profiles)
+        expected_len = len(self.AFFECTED_CORE_PROFILES)
         prescribed_len = len(source_params.prescribed_values)
         if (
-            AffectedCoreProfile.FAST_IONS in self.affected_core_profiles
+            AffectedCoreProfile.FAST_IONS in self.AFFECTED_CORE_PROFILES
             and not runtime_params.numerics.enable_fast_ions
             and prescribed_len == expected_len - 1
         ):
-          fast_ions_idx = self.affected_core_profiles.index(
+          fast_ions_idx = self.AFFECTED_CORE_PROFILES.index(
               AffectedCoreProfile.FAST_IONS
           )
-          res_list = list(source_params.prescribed_values)
-          res_list.insert(fast_ions_idx, ())  # pyrefly: ignore[bad-argument-type]
+          res_list: list[SourceProfileElement] = list(
+              source_params.prescribed_values
+          )
+          res_list.insert(fast_ions_idx, ())
           res = tuple(res_list)
         elif prescribed_len != expected_len:
           raise ValueError(
               'When using PRESCRIBED mode, the number of prescribed values must'
               ' match the number of affected core profiles. Was: '
               f'{len(source_params.prescribed_values)} '
-              f' Expected: {len(self.affected_core_profiles)}.'
+              f' Expected: {len(self.AFFECTED_CORE_PROFILES)}.'
           )
         else:
           res = source_params.prescribed_values
       case sources_runtime_params_lib.Mode.ZERO:
         zeros = jnp.zeros(geo.rho_norm.shape)
         res_list = []
-        for affected_core_profile in self.affected_core_profiles:
+        for affected_core_profile in self.AFFECTED_CORE_PROFILES:
           if affected_core_profile == AffectedCoreProfile.FAST_IONS:
             if runtime_params.numerics.enable_fast_ions:
               res_list.append(self.zero_fast_ions(geo))
@@ -259,8 +235,8 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       case _:
         raise ValueError(f'Unknown mode: {mode}')
 
-    if AffectedCoreProfile.FAST_IONS in self.affected_core_profiles:
-      fast_ions_idx = self.affected_core_profiles.index(
+    if AffectedCoreProfile.FAST_IONS in self.AFFECTED_CORE_PROFILES:
+      fast_ions_idx = self.AFFECTED_CORE_PROFILES.index(
           AffectedCoreProfile.FAST_IONS
       )
       if runtime_params.numerics.enable_fast_ions:

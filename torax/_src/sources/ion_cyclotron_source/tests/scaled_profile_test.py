@@ -30,7 +30,7 @@ from torax._src.torax_pydantic import model_config
 
 class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
 
-  source_name = icrh_base.IonCyclotronSource.SOURCE_NAME
+  source_name = icrh_base.IonCyclotronSource.SOURCE_ID
   source_config_class = scaled_profile.ScaledProfileIonCyclotronSourceConfig
 
   def _build_and_run(self, icrh_config_dict, n_rho=None):
@@ -39,13 +39,13 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
     if n_rho is not None:
       config['geometry']['n_rho'] = n_rho
     config['sources'] = {
-        icrh_base.IonCyclotronSource.SOURCE_NAME: icrh_config_dict,
+        icrh_base.IonCyclotronSource.SOURCE_ID: icrh_config_dict,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     icrh_source = source_models.standard_sources[
-        icrh_base.IonCyclotronSource.SOURCE_NAME
+        icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config

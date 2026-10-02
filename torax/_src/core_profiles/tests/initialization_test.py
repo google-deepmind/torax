@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import dataclasses
+import typing
 from unittest import mock
 
 from absl.testing import absltest
@@ -63,22 +64,27 @@ class InitializationTest(parameterized.TestCase):
     # Turn on the external current source.
     runtime_params, geo = references.get_runtime_params_and_geo()
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
-    j_parallel_external = generic_current_source.calculate_generic_current(
+    source = generic_current_source.GenericCurrentSource()
+    j_parallel_external = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
-        source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
-        unused_state=mock.ANY,
-        unused_calculated_source_profiles=mock.ANY,
-        unused_conductivity=mock.ANY,
+        core_profiles=mock.ANY,
+        calculated_source_profiles=None,
+        conductivity=None,
     )[0]
+    assert isinstance(j_parallel_external, jax.Array)
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-        j_parallel_external, geo, runtime_params.numerics.min_rho_norm
+        j_parallel_external,
+        geo,
+        runtime_params.numerics.min_rho_norm,
     )
-    j_total_hires = initialization.get_j_toroidal_total_hires_with_external_sources(
-        bootstrap_current=bootstrap,
-        runtime_params=runtime_params,
-        geo=geo,
-        j_toroidal_external=j_toroidal_external,  # pyrefly: ignore[bad-argument-type]
+    j_total_hires = (
+        initialization.get_j_toroidal_total_hires_with_external_sources(
+            bootstrap_current=bootstrap,
+            runtime_params=runtime_params,
+            geo=geo,
+            j_toroidal_external=typing.cast(jax.Array, j_toroidal_external),
+        )
     )
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.Ip,

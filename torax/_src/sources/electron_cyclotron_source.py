@@ -15,6 +15,7 @@
 """Electron cyclotron heating and current drive."""
 
 import dataclasses
+import typing
 from typing import Annotated, ClassVar, Literal
 
 import chex
@@ -34,10 +35,10 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-# Default value for the model function to be used for the electron cyclotron
-# source. This is also used as an identifier for the model function in
+# Default value for the model to be used for the electron cyclotron
+# source. This is also used as an identifier for the model in
 # the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
+DEFAULT_MODEL_NAME: str = "gaussian_lin_liu"
 
 
 # pylint: disable=invalid-name
@@ -53,85 +54,89 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   P_total: array_typing.FloatScalar
 
 
-def calc_heating_and_current(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
-  """Model function for the electron-cyclotron source.
-
-  Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003).
-  See https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
-  for more details.
-
-  Args:
-    runtime_params: Global runtime parameters
-    geo: Magnetic geometry.
-    source_name: Name of the source.
-    core_profiles: CoreProfiles component of the state.
-    unused_calculated_source_profiles: Unused.
-
-  Returns:
-    2D array of electron cyclotron heating power density and current density.
-  """
-  source_params = runtime_params.sources[source_name]
-  # Helps linter understand the type of source_params.
-  assert isinstance(source_params, RuntimeParams)
-
-  # Build the EC power deposition profile
-  ec_power_density = (
-      source_params.extra_prescribed_power_density
-      + formulas.gaussian_profile(
-          center=source_params.gaussian_location,  # pyrefly: ignore[bad-argument-type]
-          width=source_params.gaussian_width,  # pyrefly: ignore[bad-argument-type]
-          total=source_params.P_total,  # pyrefly: ignore[bad-argument-type]
-          geo=geo,
-      )
-  )
-
-  j_tor_ec = jnp.exp(
-      jnp.log(16.0)
-      + jnp.log(jnp.pi)
-      + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
-      + jnp.log(core_profiles.T_e.value * 1e3)
-      + jnp.log(source_params.current_drive_efficiency)
-      + jnp.log(ec_power_density)
-      - (
-          2 * jnp.log(constants.CONSTANTS.q_e)
-          + jnp.log(
-              collisions.calculate_log_lambda_ee(
-                  core_profiles.T_e.value, core_profiles.n_e.value  # pyrefly: ignore[bad-argument-type]
-              )
-          )
-          + jnp.log(core_profiles.n_e.value)
-      )
-  )
-
-  # < j.B >
-  q_cell = geometry.face_to_cell(core_profiles.q_face)
-  fsa_j_dot_B = (
-      geo.F
-      * geo.gm9
-      * (1 + geo.g2 * geo.g3 / (16 * jnp.pi**4 * q_cell**2))
-      * j_tor_ec
-  )
-
-  return ec_power_density, fsa_j_dot_B
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the T_e and Psi equations."""
 
-  SOURCE_NAME: ClassVar[str] = "ecrh"
+  SOURCE_ID: ClassVar[str] = "ecrh"
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
       source.AffectedCoreProfile.PSI,
   )
-  model_func: source.SourceProfileFunction = calc_heating_and_current  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    """Calculates external electron heat source and current drive from EC.
+
+    Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003). See
+    https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
+    for more details.
+
+    Args:
+      runtime_params: Global runtime parameters.
+      geo: Magnetic geometry.
+      core_profiles: CoreProfiles component of the state.
+      calculated_source_profiles: Unused.
+      conductivity: Unused.
+
+    Returns:
+      Tuple of electron cyclotron heating power density and current density.
+    """
+    del calculated_source_profiles, conductivity
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    # Helps linter understand the type of source_params.
+    assert isinstance(source_params, RuntimeParams)
+
+    # Build the EC power deposition profile
+    ec_power_density = (
+        source_params.extra_prescribed_power_density
+        + formulas.gaussian_profile(
+            center=source_params.gaussian_location,
+            width=source_params.gaussian_width,
+            total=source_params.P_total,
+            geo=geo,
+        )
+    )
+
+    j_tor_ec = jnp.exp(
+        jnp.log(16.0)
+        + jnp.log(jnp.pi)
+        + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
+        + jnp.log(core_profiles.T_e.value * 1e3)
+        + jnp.log(source_params.current_drive_efficiency)
+        + jnp.log(ec_power_density)
+        - (
+            2 * jnp.log(constants.CONSTANTS.q_e)
+            + jnp.log(
+                collisions.calculate_log_lambda_ee(
+                    typing.cast(
+                        array_typing.FloatVectorCell, core_profiles.T_e.value
+                    ),
+                    typing.cast(
+                        array_typing.FloatVectorCell, core_profiles.n_e.value
+                    ),
+                )
+            )
+            + jnp.log(core_profiles.n_e.value)
+        )
+    )
+
+    # < j.B >
+    q_cell = geometry.face_to_cell(core_profiles.q_face)
+    fsa_j_dot_B = (
+        geo.F
+        * geo.gm9
+        * (1 + geo.g2 * geo.g3 / (16 * jnp.pi**4 * q_cell**2))
+        * j_tor_ec
+    )
+
+    return ec_power_density, fsa_j_dot_B
 
 
 class ElectronCyclotronSourceConfig(base.SourceModelBase):
@@ -175,10 +180,6 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
       sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
   ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return calc_heating_and_current  # pyrefly: ignore[bad-return]
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -199,4 +200,4 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
     )
 
   def build_source(self):
-    return ElectronCyclotronSource(model_func=self.model_func)
+    return ElectronCyclotronSource()

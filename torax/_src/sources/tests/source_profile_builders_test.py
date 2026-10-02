@@ -85,12 +85,14 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      SOURCE_NAME = 'foo'
+      SOURCE_ID = 'foo'
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
-    test_source = TestSource(
-        model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)  # pyrefly: ignore[bad-argument-type]
-    )
+      def _get_model_value(self, *args, **kwargs):
+        return (jnp.ones(self_test.geo.rho.shape),)
+
+    self_test = self
+    test_source = TestSource()
     source_models = mock.create_autospec(
         source_models_lib.SourceModels,
         standard_sources={'foo': test_source},
@@ -132,15 +134,17 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      SOURCE_NAME = 'foo'
+      SOURCE_ID = 'foo'
       AFFECTED_CORE_PROFILES = (
           source.AffectedCoreProfile.TEMP_ION,
           source.AffectedCoreProfile.TEMP_EL,
       )
 
-    test_source = TestSource(
-        model_func=lambda *args: (jnp.ones_like(self.geo.rho),) * 2  # pyrefly: ignore[bad-argument-type]
-    )
+      def _get_model_value(self, *args, **kwargs):
+        return (jnp.ones_like(self_test.geo.rho),) * 2
+
+    self_test = self
+    test_source = TestSource()
     source_models = mock.create_autospec(
         source_models_lib.SourceModels,
         standard_sources={'foo': test_source},
@@ -215,12 +219,14 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      SOURCE_NAME = 'foo'
+      SOURCE_ID = 'foo'
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
-    test_source = TestSource(
-        model_func=lambda *args: (jnp.ones(self.geo.rho.shape),)  # pyrefly: ignore[bad-argument-type]
-    )
+      def _get_model_value(self, *args, **kwargs):
+        return (jnp.ones(self_test.geo.rho.shape),)
+
+    self_test = self
+    test_source = TestSource()
     source_models = mock.create_autospec(
         source_models_lib.SourceModels,
         standard_sources={'foo': test_source},

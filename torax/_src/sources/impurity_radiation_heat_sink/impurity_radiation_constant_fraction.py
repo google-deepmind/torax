@@ -32,50 +32,64 @@ from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_h
 from torax._src.torax_pydantic import torax_pydantic
 
 
+DEFAULT_MODEL_NAME: str = 'P_in_scaled_flat_profile'
+
+
 # pylint: disable=invalid-name
-def radially_constant_fraction_of_Pin(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    unused_core_profiles: state.CoreProfiles,
-    calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
-  """Model function for radiation heat sink from impurities."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
 
-  if calculated_source_profiles is None:
-    raise ValueError(
-        'calculated_source_profiles is a required argument for'
-        ' `radially_constant_fraction_of_Pin`. This can occur if this source'
-        ' function is used in an explicit source.'
+
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class ConstantFractionImpurityRadiationHeatSink(
+    impurity_radiation_heat_sink.ImpurityRadiationHeatSink
+):
+  """Impurity radiation heat sink based on constant fraction of total power density."""
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: (
+          source_profiles_lib.SourceProfiles | None
+      ) = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source_lib.SourceProfileElement, ...]:
+    del core_profiles, conductivity
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    assert isinstance(source_params, RuntimeParams)
+
+    if calculated_source_profiles is None:
+      raise ValueError(
+          'calculated_source_profiles is a required argument for'
+          f' `{type(self).__name__}._get_model_value`. This can occur if this'
+          ' source function is used in an explicit source.'
+      )
+
+    # Based on source_models.sum_sources_T_e and source_models.calc_and_sum
+    # sources_psi, but only summing over heating *input* sources
+    # (Pohm + Paux + Palpha + ...) and summing over *both* ion +
+    # electron heating
+
+    # TODO(b/383061556) Move away from using brittle source names to identify
+    # sinks/sources.
+    source_profiles = jnp.zeros_like(geo.rho)
+    for src_name in calculated_source_profiles.T_e:
+      if 'sink' not in src_name:
+        source_profiles += calculated_source_profiles.T_e[src_name]
+    for src_name in calculated_source_profiles.T_i:
+      if 'sink' not in src_name:
+        source_profiles += calculated_source_profiles.T_i[src_name]
+
+    Q_total_in = source_profiles
+    P_total_in = math_utils.volume_integration(Q_total_in, geo)
+
+    # Calculate the heat sink as a fraction of the total power input
+    return (
+        -source_params.fraction_P_heating
+        * P_total_in
+        / geo.volume_face[-1]
+        * jnp.ones_like(geo.rho),
     )
-
-  # Based on source_models.sum_sources_T_e and source_models.calc_and_sum
-  # sources_psi, but only summing over heating *input* sources
-  # (Pohm + Paux + Palpha + ...) and summing over *both* ion + electron heating
-
-  # TODO(b/383061556) Move away from using brittle source names to identify
-  # sinks/sources.
-  source_profiles = jnp.zeros_like(geo.rho)
-  for source_name in calculated_source_profiles.T_e:
-    if 'sink' not in source_name:
-      source_profiles += calculated_source_profiles.T_e[source_name]
-  for source_name in calculated_source_profiles.T_i:
-    if 'sink' not in source_name:
-      source_profiles += calculated_source_profiles.T_i[source_name]
-
-  Q_total_in = source_profiles
-  P_total_in = math_utils.volume_integration(Q_total_in, geo)
-
-  # Calculate the heat sink as a fraction of the total power input
-  return (
-      -source_params.fraction_P_heating
-      * P_total_in
-      / geo.volume_face[-1]
-      * jnp.ones_like(geo.rho),
-  )
 
 
 @jax.tree_util.register_dataclass
@@ -117,11 +131,5 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
 
   def build_source(
       self,
-  ) -> impurity_radiation_heat_sink.ImpurityRadiationHeatSink:
-    return impurity_radiation_heat_sink.ImpurityRadiationHeatSink(
-        model_func=self.model_func
-    )
-
-  @property
-  def model_func(self) -> source_lib.SourceProfileFunction:
-    return radially_constant_fraction_of_Pin  # pyrefly: ignore[bad-return]
+  ) -> ConstantFractionImpurityRadiationHeatSink:
+    return ConstantFractionImpurityRadiationHeatSink()

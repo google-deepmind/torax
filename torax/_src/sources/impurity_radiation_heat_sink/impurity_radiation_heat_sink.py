@@ -15,7 +15,7 @@
 
 """Class for impurity radiation heat sinks.
 
-Model functions are in separate files.
+Model implementations are in separate files.
 """
 
 import dataclasses
@@ -27,6 +27,5 @@ from torax._src.sources import source as source_lib
 class ImpurityRadiationHeatSink(source_lib.Source):
   """Impurity radiation heat sink for electron heat equation."""
 
-  SOURCE_NAME = "impurity_radiation"
+  SOURCE_ID = "impurity_radiation"
   AFFECTED_CORE_PROFILES = (source_lib.AffectedCoreProfile.TEMP_EL,)
-  model_func: source_lib.SourceProfileFunction
