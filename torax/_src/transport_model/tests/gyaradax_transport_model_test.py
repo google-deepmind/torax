@@ -43,6 +43,7 @@ if _GYARADAX_AVAILABLE:
   from torax._src.sources import source_profile_builders
   from torax._src.test_utils import default_configs
   from torax._src.torax_pydantic import model_config
+  from torax._src.transport_model import gyaradax_base
   from torax._src.transport_model import gyaradax_diagnostics as diag_lib
   from torax._src.transport_model import gyaradax_nl_transport_model
   from torax._src.transport_model import gyaradax_normalization as gb_norm
@@ -177,7 +178,7 @@ class GyaradaxTransportModelTest(parameterized.TestCase):
     ) = model_inputs
 
   def test_face_indices_for_radii(self):
-    idx = gyaradax_ql_transport_model.face_indices_for_radii(
+    idx = gyaradax_base.face_indices_for_radii(
         self.geo, (0.0, 0.5, 1.0)
     )
     rho_face = np.asarray(self.geo.rho_face_norm)
@@ -190,7 +191,7 @@ class GyaradaxTransportModelTest(parameterized.TestCase):
     model = FakeGyaradaxTransportModel()
     ql_inputs = gb_norm.build_quasilinear_inputs(self.core_profiles, self.geo)
     idx = self.geo.rho_face_norm.shape[0] // 2
-    params = gyaradax_ql_transport_model.gkparams_for_radius(
+    params = gyaradax_base.gkparams_for_radius(
         idx, ql_inputs, self.core_profiles, self.geo, model
     )
     self.assertBetween(float(params.rlt), 0.0, 30.0)

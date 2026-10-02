@@ -12,34 +12,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Full nonlinear gyaradax as a TORAX transport model (ground truth).
+"""Nonlinear gyaradax as a TORAX transport model.
 
-Identical profile/geometry mapping and unit conversion as `gyaradax-ql`, but
-each rho_match radius runs a full nonlinear turbulence simulation to
-saturation (`gyaradax.quasilinear.point_eval.nl_at_point`) instead of the
-quasilinear estimate. Orders of magnitude slower per transport call — meant
-for offline ground-truth validation and surrogate training-set generation,
-not production transport loops.
+A nonlinear gyaradax run per `rho_match` radius, time-averaged over trailing
+blocks. The grid, geometry and TORAX wiring come from `gyaradax_base`; only
+the nonlinear flux model is here. There is no saturation rule and no Cn: the
+calibration head is consulted solely for grid metadata.
 """
 
 import dataclasses
-from typing import Annotated, Any, Dict, Literal, Tuple
+from typing import Annotated, Any, Dict, Literal, Optional, Tuple
 
 from gyaradax.params import GKParams
 from gyaradax.quasilinear import point_eval
 import jax.numpy as jnp
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import gyaradax_base as base_lib
 from torax._src.transport_model import register_model
-from torax._src.transport_model import gyaradax_ql_transport_model as ql_lib
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class GyaradaxNLTransportModel(ql_lib.GyaradaxQLTransportModel):
+class GyaradaxNLTransportModel(base_lib.BaseGKWGyaradaxPlugin):
   """Nonlinear ground-truth gyaradax transport model."""
 
   n_steps_nl: int = 30000
   nl_tail_blocks: int = 12
   nl_block: int = 500
+  cn_calibration_path: str = "auto"
+
+  @classmethod
+  def _grid_fallback(cls, cfg):
+    return base_lib.head_grid(getattr(cfg, "cn_calibration_path", "") or "")
+
+  @classmethod
+  def from_config(cls, cfg) -> "GyaradaxNLTransportModel":
+    return cls(
+        **cls._base_kwargs(cfg),
+        n_steps_nl=cfg.n_steps_nl,
+        nl_tail_blocks=cfg.nl_tail_blocks,
+        nl_block=cfg.nl_block,
+        cn_calibration_path=cfg.cn_calibration_path or "",
+    )
 
   def _per_radius(
       self, params: GKParams, geom: Dict[str, Any]
@@ -56,7 +69,7 @@ class GyaradaxNLTransportModel(ql_lib.GyaradaxQLTransportModel):
     return q_i, q_e, pfe, {"n_steps": jnp.asarray(self.n_steps_nl)}
 
 
-class GyaradaxNLConfig(ql_lib.GyaradaxQLConfig):
+class GyaradaxNLConfig(base_lib.SolverGKWGyaradaxConfig):
   """Config for the gyaradax-nl ground-truth transport model.
 
   Attributes:
@@ -64,8 +77,9 @@ class GyaradaxNLConfig(ql_lib.GyaradaxQLConfig):
     n_steps_nl: total nonlinear steps per radius (burn-in + tail).
     nl_tail_blocks: number of trailing blocks averaged into the flux.
     nl_block: steps per tail block.
-    Remaining attributes are inherited from GyaradaxQLConfig (grid fields
-    resolve from the Cn head metadata; the head itself is unused here).
+    cn_calibration_path: consulted only for the grid metadata that unset grid
+      fields fall back to; no Cn is applied in a nonlinear run.
+    Remaining attributes are inherited from BaseGKWGyaradaxConfig.
   """
 
   model_name: Annotated[Literal["gyaradax-nl"], torax_pydantic.JAX_STATIC] = (
@@ -74,15 +88,12 @@ class GyaradaxNLConfig(ql_lib.GyaradaxQLConfig):
   n_steps_nl: Annotated[int, torax_pydantic.JAX_STATIC] = 30000
   nl_tail_blocks: Annotated[int, torax_pydantic.JAX_STATIC] = 12
   nl_block: Annotated[int, torax_pydantic.JAX_STATIC] = 500
+  cn_calibration_path: Annotated[Optional[str], torax_pydantic.JAX_STATIC] = (
+      "auto"
+  )
 
   def build_transport_model(self) -> GyaradaxNLTransportModel:
-    base = GyaradaxNLTransportModel.from_config(self)
-    return dataclasses.replace(
-        base,
-        n_steps_nl=self.n_steps_nl,
-        nl_tail_blocks=self.nl_tail_blocks,
-        nl_block=self.nl_block,
-    )
+    return GyaradaxNLTransportModel.from_config(self)
 
 
 register_model.register_transport_model(GyaradaxNLConfig)
