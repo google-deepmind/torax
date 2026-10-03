@@ -459,15 +459,25 @@ time-dependence of temperature, density, and current.
          smoothly with the net heating power crossing the separatrix
          :math:`P_{\text{SOL}}` according to
          :math:`\beta_{pol,\text{eff}}' = \beta_{pol,\text{min}}' +
-         (\beta_{pol}' - \beta_{pol,\text{min}}') \tanh(\max(P_{\text{SOL}}, 0)
-         / P_{\text{SOL,scaling}})`.
+         (\beta_{pol}' - \beta_{pol,\text{min}}') \tanh^p(\max(P_{\text{SOL}}, 0)
+         / P_{\text{SOL,scaling}})`, where :math:`p` is
+         ``P_SOL_scaling_exponent``.
      - ``rho_norm_edge`` (**time-varying-scalar**): Edge normalized toroidal
        flux coordinate :math:`\hat{\rho}_{\text{edge}}` bounding the constrained
        edge region.
-     - ``n_e_edge`` (**time-varying-scalar**): Prescribed electron density at
-       the edge boundary :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}`
-       if ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
-     - ``n_e_is_fGW`` (bool [default = False]): If True, ``n_e_edge`` is
+     - ``n_e_edge_value`` (**time-varying-scalar** | None [default = None]):
+       Prescribed electron density at the edge boundary
+       :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}` if
+       ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+       Mutually exclusive with ``n_e_edge_multiplier`` (exactly one must be
+       provided).
+     - ``n_e_edge_multiplier`` (**time-varying-scalar** | None [default =
+       None]): Multiplier applied to the right boundary condition density
+       (``n_e_right_bc``) to set the electron density at
+       :math:`\hat{\rho}_{\text{edge}}` [dimensionless]. Mutually exclusive
+       with ``n_e_edge_value`` (exactly one must be provided). Cannot be used
+       with ``n_e_is_fGW = True``.
+     - ``n_e_is_fGW`` (bool [default = False]): If True, ``n_e_edge_value`` is
        interpreted as a Greenwald fraction (dimensionless) instead of absolute
        density (:math:`\text{m}^{-3}`).
      - ``beta_poloidal_prime`` (**time-varying-scalar**): Prescribed normalized
@@ -481,6 +491,11 @@ time-dependence of temperature, density, and current.
        Characteristic power crossing the separatrix :math:`P_{\text{SOL,scaling}}
        > 0` [W] for the ``tanh`` transition when ``mode = 'power_dependent'``
        (required when ``mode = 'power_dependent'``).
+     - ``P_SOL_scaling_exponent`` (**time-varying-scalar** [default = 2.0]):
+       Exponent :math:`p > 0` applied to
+       :math:`\tanh(\max(P_{\text{SOL}}, 0) / P_{\text{SOL,scaling}})` when
+       ``mode = 'power_dependent'``. The default value of 2.0 is motivated by
+       having higher stiffness at low power. [dimensionless].
      - ``Ti_Te_ratio`` (**time-varying-scalar**): Prescribed ratio
        :math:`T_i / T_e` in the edge region [dimensionless].
 
@@ -492,7 +507,7 @@ time-dependence of temperature, density, and current.
            'internal_boundary_conditions': {
                'model_name': 'beta_poloidal_prime',
                'rho_norm_edge': 0.8,
-               'n_e_edge': 0.2e20,
+               'n_e_edge_value': 0.2e20,
                'beta_poloidal_prime': 1.5,
                'Ti_Te_ratio': 1.0,
            }
