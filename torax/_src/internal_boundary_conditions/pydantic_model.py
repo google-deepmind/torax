@@ -39,7 +39,8 @@ class BetaPoloidalPrimeIBC(torax_pydantic.BaseModelFrozen):
       beta_poloidal_prime_lib.Mode, torax_pydantic.JAX_STATIC
   ] = beta_poloidal_prime_lib.Mode.CONSTANT
   rho_norm_edge: torax_pydantic.TimeVaryingScalar
-  n_e_edge: torax_pydantic.PositiveTimeVaryingScalar
+  n_e_edge_value: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  n_e_edge_multiplier: torax_pydantic.PositiveTimeVaryingScalar | None = None
   beta_poloidal_prime: torax_pydantic.PositiveTimeVaryingScalar
   beta_poloidal_prime_min: torax_pydantic.NonNegativeTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
@@ -49,7 +50,16 @@ class BetaPoloidalPrimeIBC(torax_pydantic.BaseModelFrozen):
   n_e_is_fGW: Annotated[bool, torax_pydantic.JAX_STATIC] = False
 
   @pydantic.model_validator(mode='after')
-  def _check_power_dependent_params(self) -> Self:
+  def _validate_params(self) -> Self:
+    if (self.n_e_edge_value is None) == (self.n_e_edge_multiplier is None):
+      raise ValueError(
+          "Exactly one of 'n_e_edge_value' or 'n_e_edge_multiplier' must be"
+          ' provided.'
+      )
+    if self.n_e_edge_multiplier is not None and self.n_e_is_fGW:
+      raise ValueError(
+          'n_e_is_fGW cannot be True when n_e_edge_multiplier is provided.'
+      )
     if (
         self.mode == beta_poloidal_prime_lib.Mode.POWER_DEPENDENT
         and self.P_SOL_scaling is None
@@ -70,7 +80,16 @@ class BetaPoloidalPrimeIBC(torax_pydantic.BaseModelFrozen):
     """Builds the runtime params for the beta_poloidal_prime IBC model."""
     return beta_poloidal_prime_lib.RuntimeParams(
         rho_norm_edge=self.rho_norm_edge.get_value(t),
-        n_e_edge=self.n_e_edge.get_value(t),
+        n_e_edge_value=(
+            self.n_e_edge_value.get_value(t)
+            if self.n_e_edge_value is not None
+            else None
+        ),
+        n_e_edge_multiplier=(
+            self.n_e_edge_multiplier.get_value(t)
+            if self.n_e_edge_multiplier is not None
+            else None
+        ),
         beta_poloidal_prime=self.beta_poloidal_prime.get_value(t),
         Ti_Te_ratio=self.Ti_Te_ratio.get_value(t),
         n_e_is_fGW=self.n_e_is_fGW,
