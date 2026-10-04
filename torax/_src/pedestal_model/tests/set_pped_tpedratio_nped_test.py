@@ -72,17 +72,20 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
 
     geo = torax_config.geometry.build_provider(time)
     runtime_params = provider(t=time)
+    source_states = source_models.initial_state(runtime_params)
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
         neoclassical_model,
+        source_states=source_states,
     )
-    source_profiles = source_profile_builders.build_source_profiles(
+    source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
+        source_states=source_states,
         explicit=True,
     )
     pedestal_model_output = jitted_pedestal_model(
@@ -147,17 +150,20 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
 
     geo = torax_config.geometry.build_provider(0.0)
     runtime_params = provider(t=0.0)
+    source_states = source_models.initial_state(runtime_params)
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
         neoclassical_model,
+        source_states=source_states,
     )
-    source_profiles = source_profile_builders.build_source_profiles(
+    source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
+        source_states=source_states,
         explicit=True,
     )
     output_1 = pedestal_model(

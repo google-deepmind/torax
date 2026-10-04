@@ -52,6 +52,7 @@ class BohmGyroBohmTest(absltest.TestCase):
         geo,
         source_models,
         neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     return (
@@ -107,19 +108,21 @@ class BohmGyroBohmTest(absltest.TestCase):
         chi_i_gyrobohm_multiplier=5.0,
     )
 
-    output_A = model_A(
+    output_A, _ = model_A(
         bgb_params_A,
         runtime_params_A,
         geo_A,
         core_profiles_A,
         two_point_mask_A,
+        component_state=model_A.initial_state(runtime_params_A),
     )
-    output_B = model_B(
+    output_B, _ = model_B(
         bgb_params_B,
         runtime_params_B,
         geo_B,
         core_profiles_B,
         two_point_mask_B,
+        component_state=model_B.initial_state(runtime_params_B),
     )
 
     np.testing.assert_allclose(output_A.chi_face_ion, output_B.chi_face_ion)
@@ -163,19 +166,21 @@ class BohmGyroBohmTest(absltest.TestCase):
         chi_i_gyrobohm_multiplier=5.0,
     )
 
-    output_A = model_A(
+    output_A, _ = model_A(
         bgb_params_A,
         runtime_params_A,
         geo_A,
         core_profiles_A,
         two_point_mask_A,
+        component_state=model_A.initial_state(runtime_params_A),
     )
-    output_B = model_B(
+    output_B, _ = model_B(
         bgb_params_B,
         runtime_params_B,
         geo_B,
         core_profiles_B,
         two_point_mask_B,
+        component_state=model_B.initial_state(runtime_params_B),
     )
 
     # Verify that the raw fields (which are computed before applying the

@@ -16,6 +16,7 @@
 
 import dataclasses
 import jax
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -58,6 +59,7 @@ def sawtooth_step(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
+    model_state_t: model_state_lib.ModelState,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Checks for and handles a sawtooth crash.
 
@@ -83,6 +85,7 @@ def sawtooth_step(
       time step.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    model_state_t: State of models across timesteps at time t.
 
   Returns:
     Returns a tuple (output_state, post_processed_outputs).
@@ -124,6 +127,7 @@ def sawtooth_step(
       core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
       explicit_source_profiles=explicit_source_profiles,
       pedestal_transition_state=pedestal_transition_state,
+      model_state=model_state_t,
   )
 
   def _make_post_crash_state_and_post_processed_outputs():
@@ -164,6 +168,7 @@ def sawtooth_step(
         input_post_processed_outputs=input_post_processed_outputs,
         time_step_calculator_state_t=time_step_calculator_state_t,
         pedestal_transition_state=pedestal_transition_state,
+        model_state_t=model_state_t,
     )
 
   return jax.lax.cond(

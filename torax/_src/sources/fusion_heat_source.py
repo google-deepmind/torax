@@ -28,6 +28,7 @@ from torax._src.physics import collisions
 from torax._src.sources import base
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -139,7 +140,11 @@ def fusion_heat_model_func(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
+    source_state: source_state_lib.SourceState,
+) -> tuple[
+    tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell],
+    source_state_lib.SourceState,
+]:
   """Model function for fusion heating."""
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
@@ -147,7 +152,7 @@ def fusion_heat_model_func(
       core_profiles,
       runtime_params,
   )
-  return (Pfus_i, Pfus_e)
+  return (Pfus_i, Pfus_e), source_state
   # pylint: enable=invalid-name
 
 

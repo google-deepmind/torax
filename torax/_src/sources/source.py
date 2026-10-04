@@ -36,6 +36,7 @@ from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 
 SourceProfileElement = (
     array_typing.FloatVectorCell | tuple[fast_ion_lib.FastIon, ...]
@@ -54,7 +55,8 @@ class SourceProfileFunction(Protocol):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       unused_conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[SourceProfileElement, ...]:
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[tuple[SourceProfileElement, ...], source_state_lib.SourceState]:
     ...
 
 
@@ -114,6 +116,14 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
     if not getattr(self, 'AFFECTED_CORE_PROFILES', None):
       raise ValueError('Affected core profiles must be set.')
 
+  def initial_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> source_state_lib.SourceState:
+    """Returns the initial state for this source."""
+    del runtime_params
+    return source_state_lib.SourceState()
+
   def zero_fast_ions(
       self,
       geo: geometry.Geometry,
@@ -159,7 +169,8 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[SourceProfileElement, ...]:
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[tuple[SourceProfileElement, ...], source_state_lib.SourceState]:
     """Calculates source profile for MODEL_BASED mode."""
     if self.model_func is None:
       raise ValueError(
@@ -172,6 +183,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
         core_profiles,
         calculated_source_profiles,
         conductivity,
+        source_state,
     )
 
   def get_value(
@@ -181,8 +193,9 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[SourceProfileElement, ...]:
-    """Returns the cell grid profile for this source during one time step.
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[tuple[SourceProfileElement, ...], source_state_lib.SourceState]:
+    """Returns the cell grid profile and updated state for this source.
 
     Args:
       runtime_params: Slice of the general TORAX config that can be used as
@@ -204,22 +217,25 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
         See source_profile_builders.py for more details.
       conductivity: Conductivity profile if it exists. It is only provided for
         implicit sources.
+      source_state: Cross-timestep state for this source model.
 
     Returns:
-      A tuple with one element per affected core profile. Each element is either
-      a FloatVectorCell array or, for FAST_IONS, a tuple of FastIon.
+      A tuple of (profile_elements, updated_source_state), where
+      profile_elements has one element per affected core profile (either a
+      FloatVectorCell array or, for FAST_IONS, a tuple of FastIon).
     """
     source_params = runtime_params.sources[self.SOURCE_ID]
 
     mode = source_params.mode
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
-        res = self._get_model_value(
+        res, source_state = self._get_model_value(
             runtime_params,
             geo,
             core_profiles,
             calculated_source_profiles,
             conductivity,
+            source_state,
         )
       case sources_runtime_params_lib.Mode.PRESCRIBED:
         expected_len = len(self.AFFECTED_CORE_PROFILES)
@@ -267,4 +283,4 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       )
       res = res[:fast_ions_idx] + (fast_ions,) + res[fast_ions_idx + 1 :]
 
-    return res
+    return res, source_state

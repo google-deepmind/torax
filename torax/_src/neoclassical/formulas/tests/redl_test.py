@@ -74,6 +74,7 @@ class RedlFormulasTest(parameterized.TestCase):
         self.geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
 
     log_lambda_ei = collisions.calculate_log_lambda_ei(

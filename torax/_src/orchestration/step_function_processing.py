@@ -16,6 +16,7 @@
 
 import dataclasses
 import jax
+from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -48,6 +49,7 @@ def pre_step(
     source_profiles_lib.SourceProfiles,
     edge_base.EdgeModelOutputs | None,
     pedestal_transition_state_lib.PedestalTransitionState,
+    model_state_lib.ModelState,
 ]:
   """Performs the pre-step operations for the step function."""
   runtime_params_t, geo_t = (
@@ -62,12 +64,15 @@ def pre_step(
 
   # This only computes sources set to explicit in the
   # SourceConfig.
-  explicit_source_profiles = source_profile_builders.build_source_profiles(
-      runtime_params=runtime_params_t,
-      geo=geo_t,
-      core_profiles=input_state.core_profiles,
-      source_models=models.source_models,
-      explicit=True,
+  explicit_source_profiles, source_states = (
+      source_profile_builders.build_source_profiles(
+          runtime_params=runtime_params_t,
+          geo=geo_t,
+          core_profiles=input_state.core_profiles,
+          source_models=models.source_models,
+          source_states=input_state.model_state.sources,
+          explicit=True,
+      )
   )
 
   # Update core sources with any newly calculated explicit sources.
@@ -125,12 +130,17 @@ def pre_step(
         pedestal_model_output=pedestal_model_output,
     )
 
+  model_state_t = dataclasses.replace(
+      input_state.model_state,
+      sources=source_states,
+  )
   return (
       runtime_params_t,
       geo_t,
       explicit_source_profiles,
       edge_outputs,
       pedestal_transition_state,
+      model_state_t,
   )
 
 
@@ -159,21 +169,25 @@ def finalize_outputs(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
+    model_state_t: model_state_lib.ModelState,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
-  final_core_profiles, final_source_profiles = (
-      updaters.update_core_and_source_profiles_after_step(
-          dt=dt,
-          x_new=x_new,
-          runtime_params_t_plus_dt=runtime_params_t_plus_dt,
-          geo=geometry_t_plus_dt,
-          core_profiles_t=core_profiles_t,
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          explicit_source_profiles=explicit_source_profiles,
-          source_models=models.source_models,
-          neoclassical_model=models.neoclassical_model,
-          evolving_names=evolving_names,
-      )
+  (
+      final_core_profiles,
+      final_source_profiles,
+      next_source_states,
+  ) = updaters.update_core_and_source_profiles_after_step(
+      dt=dt,
+      x_new=x_new,
+      runtime_params_t_plus_dt=runtime_params_t_plus_dt,
+      geo=geometry_t_plus_dt,
+      core_profiles_t=core_profiles_t,
+      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+      explicit_source_profiles=explicit_source_profiles,
+      source_models=models.source_models,
+      neoclassical_model=models.neoclassical_model,
+      evolving_names=evolving_names,
+      source_states=model_state_t.sources,
   )
   # Compute pedestal model output and store on transition state.
   # Also update previous_pedestal_model_output if needed for EPED-NN
@@ -185,7 +199,7 @@ def finalize_outputs(
       final_source_profiles,
       pedestal_transition_state,
   )
-  pedestal_transition_state = dataclasses.replace(
+  final_pedestal_state = dataclasses.replace(
       pedestal_transition_state,
       pedestal_model_output=final_pedestal_model_output,
       previous_pedestal_model_output=final_pedestal_model_output,
@@ -198,25 +212,31 @@ def finalize_outputs(
           runtime_params=runtime_params_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
+          pedestal_transition_state=final_pedestal_state,
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
           source_profiles=final_source_profiles,
       )
   )
-  final_total_transport = (
+  final_total_transport, final_transport_state = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=models.transport_model,
           runtime_params=runtime_params_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
+          pedestal_transition_state=final_pedestal_state,
+          transport_state=model_state_t.transport,
           neoclassical_transport=final_neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
               geometry_t_plus_dt
           ),
       )
+  )
+  final_model_state = model_state_lib.ModelState(
+      pedestal=model_state_t.pedestal,
+      transport=final_transport_state,
+      sources=next_source_states,
   )
   output_state = sim_state.SimState(
       t=t + dt,
@@ -227,7 +247,8 @@ def finalize_outputs(
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
       edge_outputs=edge_outputs,
-      pedestal_transition_state=pedestal_transition_state,
+      pedestal_transition_state=final_pedestal_state,
+      model_state=final_model_state,
       time_step_calculator_state=time_step_calculator_state_t,
   )
 

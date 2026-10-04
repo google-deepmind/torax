@@ -35,6 +35,7 @@ from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 MIN_SMOOTHING_WIDTH = 1e-5
 
@@ -46,6 +47,22 @@ class TransportModel(static_dataclass.StaticDataclass):
   core_transport_models: Mapping[str, component.ComponentTransportModel]
   pedestal_transport_models: Mapping[str, component.ComponentTransportModel]
 
+  def initial_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> transport_state_lib.TransportState:
+    """Returns the initial TransportState."""
+    return transport_state_lib.TransportState(
+        core_transport_states={
+            name: model.initial_state(runtime_params)
+            for name, model in self.core_transport_models.items()
+        },
+        pedestal_transport_states={
+            name: model.initial_state(runtime_params)
+            for name, model in self.pedestal_transport_models.items()
+        },
+    )
+
   def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -55,7 +72,10 @@ class TransportModel(static_dataclass.StaticDataclass):
           pedestal_transition_state_lib.PedestalTransitionState
       ),
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TurbulentTransport:
+      transport_state: transport_state_lib.TransportState,
+  ) -> tuple[
+      transport_coeffs.TurbulentTransport, transport_state_lib.TransportState
+  ]:
     r"""Calculates transport coefficients using the TransportModel.
 
     Combines coefficients from core and pedestal transport models, applies
@@ -67,10 +87,12 @@ class TransportModel(static_dataclass.StaticDataclass):
       core_profiles: Core plasma profiles at the current time.
       pedestal_transition_state: State of pedestal L-H transitions.
       two_point_mask: Boolean mask indicating the two-point model region.
+      transport_state: TransportState containing core and pedestal component
+        states.
 
     Returns:
       TurbulentTransport containing the combined 4-channel coefficients and
-      individual model outputs.
+      individual model outputs, and updated TransportState.
     """
     pedestal_active = (
         pedestal_transition_state.confinement_mode
@@ -101,7 +123,7 @@ class TransportModel(static_dataclass.StaticDataclass):
         pedestal_transition_state,
     )
 
-    core, core_components = self._compute_domain_coeffs(
+    core, core_components, new_core_states = self._compute_domain_coeffs(
         self.core_transport_models,
         runtime_params.transport.core_transport_model_params,
         runtime_params,
@@ -110,23 +132,35 @@ class TransportModel(static_dataclass.StaticDataclass):
         two_point_mask,
         domain_mask=core_domain_mask,
         smoothing_matrix=core_smoothing_matrix,
+        component_states=transport_state.core_transport_states,
     )
-    pedestal, pedestal_components = self._compute_domain_coeffs(
-        self.pedestal_transport_models,
-        runtime_params.transport.pedestal_transport_model_params,
-        runtime_params,
-        geo,
-        core_profiles,
-        two_point_mask,
-        domain_mask=pedestal_mask,
-        smoothing_matrix=pedestal_smoothing_matrix,
+    pedestal, pedestal_components, new_pedestal_states = (
+        self._compute_domain_coeffs(
+            self.pedestal_transport_models,
+            runtime_params.transport.pedestal_transport_model_params,
+            runtime_params,
+            geo,
+            core_profiles,
+            two_point_mask,
+            domain_mask=pedestal_mask,
+            smoothing_matrix=pedestal_smoothing_matrix,
+            component_states=transport_state.pedestal_transport_states,
+        )
     )
 
-    return transport_coeffs.TurbulentTransport(
-        core=core,
-        pedestal=pedestal,
-        core_components=core_components,
-        pedestal_components=pedestal_components,
+    new_transport_state = transport_state_lib.TransportState(
+        core_transport_states=new_core_states,
+        pedestal_transport_states=new_pedestal_states,
+    )
+
+    return (
+        transport_coeffs.TurbulentTransport(
+            core=core,
+            pedestal=pedestal,
+            core_components=core_components,
+            pedestal_components=pedestal_components,
+        ),
+        new_transport_state,
     )
 
   def _compute_domain_coeffs(
@@ -141,22 +175,27 @@ class TransportModel(static_dataclass.StaticDataclass):
       two_point_mask: array_typing.BoolVectorFace,
       domain_mask: jax.Array,
       smoothing_matrix: jax.Array,
+      component_states: Mapping[
+          str, transport_state_lib.ComponentTransportState
+      ],
   ) -> tuple[
       transport_coeffs.TransportCoeffs,
       dict[str, transport_coeffs.TransportCoeffs],
+      dict[str, transport_state_lib.ComponentTransportState],
   ]:
     """Combines, clips, masks, and smooths transport models for a domain."""
     # Note: Even when models is empty, we still apply clipping to provide a
     # baseline minimum transport floor (chi_min) in the domain. In
     # ADAPTIVE_TRANSPORT mode, this means we may have slightly more transport
     # in the pedestal region.
-    combined, model_outputs = self._combine(
+    combined, model_outputs, new_component_states = self._combine(
         models,
         params_map,
         runtime_params,
         geo,
         core_profiles,
         two_point_mask,
+        component_states=component_states,
     )
     clipped = self._apply_clipping(runtime_params.transport, combined)
     masked = jax.tree.map(
@@ -167,7 +206,7 @@ class TransportModel(static_dataclass.StaticDataclass):
         masked,
         smoothing_matrix,
     )
-    return smoothed, model_outputs
+    return smoothed, model_outputs, new_component_states
 
   def _combine(
       self,
@@ -179,9 +218,13 @@ class TransportModel(static_dataclass.StaticDataclass):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
+      component_states: Mapping[
+          str, transport_state_lib.ComponentTransportState
+      ],
   ) -> tuple[
       transport_coeffs.TransportCoeffs,
       dict[str, transport_coeffs.TransportCoeffs],
+      dict[str, transport_state_lib.ComponentTransportState],
   ]:
     """Calculates and combines transport coefficients from a dict of models."""
 
@@ -198,22 +241,28 @@ class TransportModel(static_dataclass.StaticDataclass):
       accumulators[channel] = zero_profile
       locks[channel] = zero_bool
     model_outputs: dict[str, transport_coeffs.TransportCoeffs] = {}
+    new_component_states: dict[
+        str, transport_state_lib.ComponentTransportState
+    ] = {}
 
     for name in models:
       model = models[name]
       params = params_map[name]
+      comp_state = component_states[name]
       # Calculate raw coefficients and zero out disabled channels.
-      coeffs = model(
+      coeffs, new_comp_state = model(
           params,
           runtime_params,
           geo,
           core_profiles,
           two_point_mask=two_point_mask,
+          component_state=comp_state,
       )
 
       radial_range_mask = component.compute_radial_range_mask(params, geo)
 
       model_outputs[name] = coeffs
+      new_component_states[name] = new_comp_state
 
       channels_and_flags = (
           ('chi_face_ion', params.disable_chi_i),
@@ -241,7 +290,11 @@ class TransportModel(static_dataclass.StaticDataclass):
           condition = channel_active & ~locks[channel]
           accumulators[channel] = accumulators[channel] + val * condition
 
-    return transport_coeffs.TransportCoeffs(**accumulators), model_outputs
+    return (
+        transport_coeffs.TransportCoeffs(**accumulators),
+        model_outputs,
+        new_component_states,
+    )
 
   def _apply_clipping(
       self,

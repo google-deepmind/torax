@@ -59,17 +59,20 @@ def _get_config_and_model_inputs(
       t=torax_config.numerics.t_initial,
   )
   geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
+  source_states = source_models.initial_state(runtime_params)
   core_profiles = initialization.initial_core_profiles(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
       neoclassical_model=neoclassical_model,
+      source_states=source_states,
   )
-  source_profiles = source_profile_builders.build_source_profiles(
+  source_profiles, _ = source_profile_builders.build_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      source_states=source_states,
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
@@ -87,12 +90,14 @@ def _get_config_and_model_inputs(
       transition_state, pedestal_model_output=pedestal_model_outputs
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+  transport_model = torax_config.transport.build_transport_model()
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
       transition_state,
       two_point_mask,
+      transport_model.initial_state(runtime_params),
   )
 
 
@@ -112,7 +117,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     })
     transport_model = torax_config.transport.build_transport_model()
 
-    core_transport = transport_model(*model_inputs)
+    core_transport, _ = transport_model(*model_inputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
     self.assertEqual(core_transport.total.chi_face_ion.shape, expected_shape)
     self.assertEqual(core_transport.total.chi_face_el.shape, expected_shape)
@@ -141,7 +146,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params, geo, core_profiles, _, _ = model_inputs
+    runtime_params, geo, core_profiles = model_inputs[:3]
     qualikiz_params = (
         runtime_params.transport.core_transport_model_params['qualikiz_based']
     )
@@ -209,8 +214,8 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params_uncapped, geo, core_profiles, _, _ = uncapped_inputs
-    runtime_params_capped, _, _, _, _ = capped_inputs
+    runtime_params_uncapped, geo, core_profiles = uncapped_inputs[:3]
+    runtime_params_capped = capped_inputs[0]
 
     qualikiz_params_uncapped = (
         runtime_params_uncapped.transport.core_transport_model_params[

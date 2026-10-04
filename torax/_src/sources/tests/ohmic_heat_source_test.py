@@ -18,6 +18,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.sources import ohmic_heat_source
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.tests import test_lib
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
@@ -57,6 +58,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
           mock.ANY,
           calculated_source_profiles=None,
           conductivity=mock.ANY,
+          source_state=source_state_lib.SourceState(),
       )
 
   def test_raises_error_if_conductivity_is_none(self):
@@ -86,6 +88,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
           mock.ANY,
           calculated_source_profiles=mock.ANY,
           conductivity=None,
+          source_state=source_state_lib.SourceState(),
       )
 
   @mock.patch.object(
@@ -118,13 +121,14 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     conductivity = mock.Mock()
 
     # Call function
-    (pohm,) = ohmic_heat_source.ohmic_model_func(
+    (pohm,), _ = ohmic_heat_source.ohmic_model_func(
         runtime_params=runtime_params,
         geo=geo,
         unused_source_name='ohmic',
         core_profiles=core_profiles,
         calculated_source_profiles=calculated_source_profiles,
         conductivity=conductivity,
+        source_state=source_state_lib.SourceState(),
     )
 
     # Verify that the standard calculation was NOT called

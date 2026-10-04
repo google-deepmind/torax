@@ -82,6 +82,7 @@ class AngioniSauterTest(absltest.TestCase):
         geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
 
     return runtime_params, geo, core_profiles

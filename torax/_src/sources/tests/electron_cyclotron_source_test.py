@@ -16,6 +16,7 @@ import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.sources import electron_cyclotron_source
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -50,23 +51,26 @@ def _build_runtime_params(torax_config: model_config.ToraxConfig):
 def _build_plasma_state(torax_config: model_config.ToraxConfig, runtime_params):
   """Returns the geometry and initial core profiles for the config."""
   geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+  source_models = torax_config.sources.build_models()
   core_profiles = initialization.initial_core_profiles(
       runtime_params=runtime_params,
       geo=geo,
-      source_models=torax_config.sources.build_models(),
+      source_models=source_models,
       neoclassical_model=torax_config.neoclassical.build_model(),
+      source_states=source_models.initial_state(runtime_params),
   )
   return geo, core_profiles
 
 
 def _calc_ec_current(runtime_params, geo, core_profiles) -> np.ndarray:
-  _, j_parallel = electron_cyclotron_source.calc_heating_and_current(
+  (_, j_parallel), _ = electron_cyclotron_source.calc_heating_and_current(
       runtime_params=runtime_params,
       geo=geo,
       source_name=electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID,
       core_profiles=core_profiles,
       unused_calculated_source_profiles=None,
       unused_conductivity=None,
+      source_state=source_state_lib.SourceState(),
   )
   return np.asarray(j_parallel)
 
