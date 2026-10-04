@@ -18,8 +18,10 @@ import functools
 
 import immutabledict
 from torax._src import static_dataclass
+from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
+from torax._src.sources import source_state as source_state_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -33,6 +35,16 @@ class SourceModels(static_dataclass.StaticDataclass):
 
   qei_source: qei_source_lib.QeiSource
   standard_sources: immutabledict.immutabledict[str, source_lib.Source]
+
+  def initial_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> dict[str, source_state_lib.SourceState]:
+    """Returns the initial state mapping for all sources."""
+    return {
+        name: src.initial_state(runtime_params)
+        for name, src in self.standard_sources.items()
+    }
 
   @functools.cached_property
   def psi_sources(self) -> immutabledict.immutabledict[str, source_lib.Source]:
