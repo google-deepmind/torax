@@ -14,6 +14,7 @@
 
 """Functions used for initializing core profiles."""
 
+from collections.abc import Mapping
 import dataclasses
 
 from absl import logging
@@ -38,6 +39,7 @@ from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import source_state as source_state_lib
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -49,6 +51,7 @@ def initial_core_profiles(
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
+    source_states: Mapping[str, source_state_lib.SourceState] | None = None,
 ) -> state.CoreProfiles:
   """Calculates the initial core profiles.
 
@@ -57,10 +60,15 @@ def initial_core_profiles(
     geo: Torus geometry at t=t_initial.
     source_models: All models for TORAX sources/sinks.
     neoclassical_model: The neoclassical model.
+    source_states: Initial source states mapping. If None, initialized from
+      source_models.initial_state(runtime_params).
 
   Returns:
     Initial core profiles.
   """
+  # TODO(b/572586768): Remove None default in a follow-up.
+  if source_states is None:
+    source_states = source_models.initial_state(runtime_params)
   T_i = getters.get_updated_ion_temperature(
       runtime_params.profile_conditions, geo
   )
@@ -164,6 +172,7 @@ def initial_core_profiles(
       core_profiles,
       source_models,
       neoclassical_model,
+      source_states=source_states,
   )
 
 
@@ -307,6 +316,7 @@ def _init_psi_and_psi_derived(
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
+    source_states: Mapping[str, source_state_lib.SourceState],
 ) -> state.CoreProfiles:
   """Initialises psi and currents in core profiles.
 
@@ -323,6 +333,7 @@ def _init_psi_and_psi_derived(
     core_profiles: Core profiles.
     source_models: All TORAX source/sink functions.
     neoclassical_model: The neoclassical model.
+    source_states: Initial source states mapping.
 
   Returns:
     Refined core profiles.
@@ -442,6 +453,7 @@ def _init_psi_and_psi_derived(
             neoclassical_model=neoclassical_model,
             source_models=source_models,
             source_profiles=source_profiles,
+            source_states=source_states,
             iterations=2,
         )
 
@@ -458,6 +470,7 @@ def _init_psi_and_psi_derived(
       source_models=source_models,
       neoclassical_model=neoclassical_model,
       sources_are_calculated=sources_are_calculated,
+      source_states=source_states,
   )
 
   return core_profiles
@@ -472,6 +485,7 @@ def _calculate_all_psi_dependent_profiles(
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     sources_are_calculated: bool,
+    source_states: Mapping[str, source_state_lib.SourceState],
 ) -> state.CoreProfiles:
   """Supplements core profiles with all other profiles that depend on psi."""
   j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
@@ -496,6 +510,7 @@ def _calculate_all_psi_dependent_profiles(
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
+        source_states=source_states,
         psi_only=True,
         calculate_anyway=True,
         calculated_source_profiles=source_profiles,
@@ -557,16 +572,18 @@ def _iterate_psi_and_sources(
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     source_models: source_models_lib.SourceModels,
     source_profiles: source_profiles_lib.SourceProfiles,
+    source_states: Mapping[str, source_state_lib.SourceState],
     iterations: int,
 ) -> tuple[cell_variable.CellVariable, source_profiles_lib.SourceProfiles]:
   """Iterates psi and sources to converge to a consistent state."""
 
   for _ in range(iterations):
-    source_profile_builders.build_standard_source_profiles(
+    source_states = source_profile_builders.build_standard_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
+        source_states=source_states,
         psi_only=True,
         calculate_anyway=True,
         calculated_source_profiles=source_profiles,

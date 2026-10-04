@@ -28,6 +28,7 @@ from torax._src.sources import source
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -60,18 +61,23 @@ class SourceModelsTest(parameterized.TestCase):
     neoclassical_outputs = neoclassical_model(
         runtime_params, geo, core_profiles
     )
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
-        runtime_params,
-        geo,
-        core_profiles,
-        source_models,
-        explicit=True,
+    source_states = source_models.initial_state(runtime_params)
+    explicit_source_profiles, source_states = (
+        source_profile_builders.build_source_profiles(
+            runtime_params,
+            geo,
+            core_profiles,
+            source_models,
+            source_states=source_states,
+            explicit=True,
+        )
     )
     source_profile_builders.build_source_profiles(
         runtime_params,
         geo,
         core_profiles,
         source_models,
+        source_states=source_states,
         explicit=False,
         explicit_source_profiles=explicit_source_profiles,
         conductivity=neoclassical_outputs.conductivity,
@@ -117,6 +123,7 @@ class SourceModelsTest(parameterized.TestCase):
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,
+        source_states={'foo': source_state_lib.SourceState()},
         explicit=True,
         calculated_source_profiles=profiles,
     )
@@ -170,6 +177,7 @@ class SourceModelsTest(parameterized.TestCase):
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,
+        source_states={'foo': source_state_lib.SourceState()},
         explicit=True,
         calculated_source_profiles=profiles,
     )
@@ -247,6 +255,7 @@ class SourceModelsTest(parameterized.TestCase):
         geo=self.geo,
         core_profiles=mock.ANY,
         source_models=source_models,
+        source_states={'foo': source_state_lib.SourceState()},
         explicit=is_explicit,
         calculated_source_profiles=profiles,
         calculate_anyway=calculate_anyway,

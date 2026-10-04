@@ -261,11 +261,12 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
         source_models,
         neoclassical_model,
     )
-    self.source_profiles = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
+        source_states=source_models.initial_state(self.runtime_params),
         explicit=True,
     )
 
@@ -805,11 +806,12 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
         source_models,
         neoclassical_model,
     )
-    self.source_profiles = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
+        source_states=source_models.initial_state(self.runtime_params),
         explicit=True,
     )
 

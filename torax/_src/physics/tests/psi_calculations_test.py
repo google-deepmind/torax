@@ -233,6 +233,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,
+        source_states=source_models.initial_state(dynamic_runtime_params_slice),
         psi_only=True,
         calculate_anyway=True,
         calculated_source_profiles=source_profiles,

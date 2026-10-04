@@ -202,10 +202,11 @@ class ToricNNTest(test_lib.SourceTestCase):
         source_models=source_models,
         neoclassical_model=neoclassical_model,
     )
-    icrh_out = source.get_value(
+    icrh_out, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -261,10 +262,11 @@ class ToricNNTest(test_lib.SourceTestCase):
     # Verify He3 is in impurity composition
     self.assertIn("He3", runtime_params.plasma_composition.impurity_names)
     # Run the source and check it produces valid output
-    icrh_out = source.get_value(
+    icrh_out, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -313,10 +315,11 @@ class ToricNNTest(test_lib.SourceTestCase):
     )
 
     # Run the source calculation
-    icrh_out = source.get_value(
+    icrh_out, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -389,10 +392,11 @@ class ToricNNTest(test_lib.SourceTestCase):
         source_models=source_models,
         neoclassical_model=neoclassical_model,
     )
-    output = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -434,10 +438,11 @@ class ToricNNTest(test_lib.SourceTestCase):
         source_models=source_models,
         neoclassical_model=neoclassical_model,
     )
-    output = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -469,10 +474,11 @@ class ToricNNTest(test_lib.SourceTestCase):
         source_models=source_models,
         neoclassical_model=neoclassical_model,
     )
-    output = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -502,10 +508,11 @@ class ToricNNTest(test_lib.SourceTestCase):
         source_models=source_models,
         neoclassical_model=neoclassical_model,
     )
-    output = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -551,12 +558,15 @@ class ToricNNTest(test_lib.SourceTestCase):
         source_models=source_models,
         neoclassical_model=neoclassical_model,
     )
-    source_ion_partial, source_el_partial, fast_ions_partial = source.get_value(
-        runtime_params=runtime_params_partial,
-        geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
+    (source_ion_partial, source_el_partial, fast_ions_partial), _ = (
+        source.get_value(
+            runtime_params=runtime_params_partial,
+            geo=geo,
+            core_profiles=core_profiles,
+            calculated_source_profiles=None,
+            conductivity=None,
+            source_state=source.initial_state(runtime_params_partial),
+        )
     )
     self.assertIsInstance(source_ion_partial, jax.Array)
     self.assertIsInstance(source_el_partial, jax.Array)
@@ -571,12 +581,13 @@ class ToricNNTest(test_lib.SourceTestCase):
             t=torax_config.numerics.t_initial
         )
     )
-    source_ion_full, source_el_full, fast_ions_full = source.get_value(
+    (source_ion_full, source_el_full, fast_ions_full), _ = source.get_value(
         runtime_params=runtime_params_full,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source.initial_state(runtime_params_full),
     )
     self.assertIsInstance(source_ion_full, jax.Array)
     self.assertIsInstance(source_el_full, jax.Array)

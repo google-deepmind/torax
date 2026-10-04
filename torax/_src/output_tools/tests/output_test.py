@@ -22,6 +22,7 @@ import chex
 from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
@@ -155,6 +156,16 @@ class StateHistoryTest(parameterized.TestCase):
             models.time_step_calculator.initial_state(runtime_params)
         ),
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state_lib.ModelState(
+            pedestal=models.pedestal_model.initial_state(
+                runtime_params,
+                self.geo,
+                self.core_profiles,
+                self.source_profiles,
+            ),
+            transport=models.transport_model.initial_state(runtime_params),
+            sources=models.source_models.initial_state(runtime_params),
+        ),
     )
     sim_error = state.SimError.NO_ERROR
     previous_post_processed_outputs = (
