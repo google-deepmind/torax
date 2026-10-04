@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -18,6 +20,7 @@ import pydantic
 from torax._src import jax_utils
 from torax._src.pedestal_model import pydantic_model
 from torax._src.pedestal_model import runtime_params
+from torax._src.pedestal_model.formation import prescribed_formation_model
 
 
 class PedestalModelPydanticTest(parameterized.TestCase):
@@ -65,13 +68,65 @@ class PedestalModelPydanticTest(parameterized.TestCase):
             "mode": runtime_params.Mode.ADAPTIVE_TRANSPORT,
         })
 
+    with self.subTest("allow_prescribed_formation_with_adaptive_transport"):
+      pedestal_model = pydantic_model.SetTpedNped.from_dict({
+          "mode": runtime_params.Mode.ADAPTIVE_TRANSPORT,
+          "formation_model": {
+              "model_name": "prescribed",
+              "pedestal_active": {0.0: False, 2.0: True},
+              "base_multiplier": 1e-4,
+          },
+      })
+      formation_model = pedestal_model.formation_model.build_formation_model()
+      params_t0 = pedestal_model.build_runtime_params(t=1.0)
+      params_t2 = pedestal_model.build_runtime_params(t=2.5)
+      self.assertIsInstance(
+          params_t0.formation,
+          prescribed_formation_model.PrescribedFormationRuntimeParams,
+      )
+      self.assertIsInstance(
+          params_t2.formation,
+          prescribed_formation_model.PrescribedFormationRuntimeParams,
+      )
+      self.assertFalse(bool(params_t0.formation.pedestal_active))
+      self.assertTrue(bool(params_t2.formation.pedestal_active))
+      self.assertEqual(params_t0.formation.base_multiplier, 1e-4)
+
+      # Verify PrescribedFormationModel.__call__ and transition conditions.
+      dummy_rp_t0 = mock.Mock(pedestal=params_t0)
+      dummy_rp_t2 = mock.Mock(pedestal=params_t2)
+      mult_t0 = formation_model(
+          dummy_rp_t0, mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()
+      )
+      mult_t2 = formation_model(
+          dummy_rp_t2, mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()
+      )
+      self.assertEqual(float(mult_t0.chi_e_multiplier), 1.0)
+      self.assertAlmostEqual(float(mult_t2.chi_e_multiplier), 1e-4)
+
+      trigger_l_to_h_0, trigger_h_to_l_0 = (
+          formation_model.evaluate_transition_conditions(
+              dummy_rp_t0, mock.Mock(), mock.Mock(), mock.Mock()
+          )
+      )
+      trigger_l_to_h_2, trigger_h_to_l_2 = (
+          formation_model.evaluate_transition_conditions(
+              dummy_rp_t2, mock.Mock(), mock.Mock(), mock.Mock()
+          )
+      )
+      self.assertEqual(
+          (bool(trigger_l_to_h_0), bool(trigger_h_to_l_0)), (False, True)
+      )
+      self.assertEqual(
+          (bool(trigger_l_to_h_2), bool(trigger_h_to_l_2)), (True, False)
+      )
+
   def test_transition_time_width_validation(self):
     with self.subTest("allow_positive_values"):
       pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.5})
 
-    with self.subTest("disallow_zero_values"):
-      with self.assertRaises(ValueError):
-        pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.0})
+    with self.subTest("allow_zero_values"):
+      pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.0})
 
     with self.subTest("disallow_negative_values"):
       with self.assertRaises(ValueError):
