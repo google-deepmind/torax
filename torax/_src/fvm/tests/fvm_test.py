@@ -19,6 +19,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
+from torax._src import model_state as model_state_lib
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.fvm import block_1d_coeffs
@@ -255,6 +256,13 @@ class FVMTest(parameterized.TestCase):
         core_profiles=core_profiles,
         explicit=True,
     )
+    model_state = model_state_lib.ModelState(
+        pedestal=models.pedestal_model.initial_state(
+            runtime_params, geo, core_profiles, explicit_source_profiles
+        ),
+        transport=models.transport_model.initial_state(runtime_params),
+        sources=models.source_models.initial_state(runtime_params),
+    )
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
@@ -264,6 +272,7 @@ class FVMTest(parameterized.TestCase):
         evolving_names=evolving_names,
         use_pereverzev=False,
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state,
     )
     # dt well under the explicit stability limit for dx=1 and chi=1
     dt = jnp.array(0.2)
@@ -291,13 +300,14 @@ class FVMTest(parameterized.TestCase):
           geo_t_plus_dt=geo,
           x_old=x_old,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
-          core_profiles_t_plus_dt=core_profiles,
           core_profiles_t=core_profiles,
+          core_profiles_t_plus_dt=core_profiles,
           models=models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
           pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          model_state=model_state,
       )
 
       residual = residual_and_loss.theta_method_block_residual(
@@ -306,13 +316,14 @@ class FVMTest(parameterized.TestCase):
           geo_t_plus_dt=geo,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
           x_old=x_old,
-          core_profiles_t_plus_dt=core_profiles,
           core_profiles_t=core_profiles,
+          core_profiles_t_plus_dt=core_profiles,
           models=models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
           pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          model_state=model_state,
       )
 
       np.testing.assert_allclose(loss, 0.0, atol=1e-7)
@@ -370,6 +381,16 @@ class FVMTest(parameterized.TestCase):
     dt = jnp.array(1.0)
     evolving_names = tuple(['T_i'])
 
+    model_state = model_state_lib.ModelState(
+        pedestal=models.pedestal_model.initial_state(
+            runtime_params,
+            geo,
+            initial_core_profiles,
+            explicit_source_profiles,
+        ),
+        transport=models.transport_model.initial_state(runtime_params),
+        sources=models.source_models.initial_state(runtime_params),
+    )
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
@@ -379,6 +400,7 @@ class FVMTest(parameterized.TestCase):
         evolving_names=evolving_names,
         use_pereverzev=False,
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state,
     )
     initial_right_boundary = jnp.array(0.0)
     x_0 = cell_variable.CellVariable(
@@ -492,6 +514,16 @@ class FVMTest(parameterized.TestCase):
     dt = jnp.array(1.0)
     evolving_names = tuple(['T_i'])
 
+    model_state_theta05 = model_state_lib.ModelState(
+        pedestal=models.pedestal_model.initial_state(
+            runtime_params_theta05,
+            geo,
+            initial_core_profiles,
+            explicit_source_profiles,
+        ),
+        transport=models.transport_model.initial_state(runtime_params_theta05),
+        sources=models.source_models.initial_state(runtime_params_theta05),
+    )
     coeffs_old = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params_theta05,
         geo=geo,
@@ -501,6 +533,7 @@ class FVMTest(parameterized.TestCase):
         evolving_names=evolving_names,
         use_pereverzev=False,
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state_theta05,
     )
 
     initial_right_boundary = jnp.array(0.0)
@@ -531,13 +564,14 @@ class FVMTest(parameterized.TestCase):
           geo_t_plus_dt=geo,
           x_old=(x_0,),
           x_new_guess_vec=x_0.value,
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           core_profiles_t=initial_core_profiles,
+          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           models=models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
           pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          model_state=model_state_theta05,
       )
       np.testing.assert_allclose(residual, 0.0)
     with self.subTest('updated_boundary_conditions'):
@@ -545,24 +579,35 @@ class FVMTest(parameterized.TestCase):
       # of the update would generate a residual. When theta_implicit is 0, the
       # residual would still be 0.
       final_right_boundary = jnp.array(1.0)
+      model_state_theta0 = model_state_lib.ModelState(
+          pedestal=models.pedestal_model.initial_state(
+              runtime_params_theta0,
+              geo,
+              initial_core_profiles,
+              explicit_source_profiles,
+          ),
+          transport=models.transport_model.initial_state(runtime_params_theta0),
+          sources=models.source_models.initial_state(runtime_params_theta0),
+      )
       residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
           runtime_params_t_plus_dt=runtime_params_theta0,
           geo_t_plus_dt=geo,
           x_old=(x_0,),
           x_new_guess_vec=x_0.value,
+          core_profiles_t=initial_core_profiles,
           core_profiles_t_plus_dt=dataclasses.replace(
               core_profiles_t_plus_dt,
               T_i=dataclasses.replace(
                   x_0, right_face_constraint=final_right_boundary
               ),
           ),
-          core_profiles_t=initial_core_profiles,
           evolving_names=evolving_names,
           models=models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          model_state=model_state_theta0,
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_implicit > 0, the residual should be non-zero.
@@ -571,19 +616,20 @@ class FVMTest(parameterized.TestCase):
           runtime_params_t_plus_dt=runtime_params_theta05,
           geo_t_plus_dt=geo,
           x_old=(x_0,),
+          core_profiles_t=initial_core_profiles,
           core_profiles_t_plus_dt=dataclasses.replace(
               core_profiles_t_plus_dt,
               T_i=dataclasses.replace(
                   x_0, right_face_constraint=final_right_boundary
               ),
           ),
-          core_profiles_t=initial_core_profiles,
           x_new_guess_vec=x_0.value,
           models=models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
           pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          model_state=model_state_theta05,
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
 
