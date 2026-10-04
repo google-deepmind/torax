@@ -170,9 +170,10 @@ pedestal
 
 A TORAX |PedestalModel| imposes the plasma temperature and density at a desired
 internal location. This is intended to correspond to the top of the H-mode
-pedestal. The operation of the pedestal is controlled by a time-dependent
-configuration attribute. |PedestalModel| is an abstract class, and TORAX
-currently provides two simple implementations.
+pedestal. The operation of the pedestal (including L-H and H-L transitions) is
+controlled by a configurable formation model (either a prescribed boolean
+schedule or a power-scaling law). |PedestalModel| is an abstract class, and
+TORAX currently provides two simple implementations.
 
 See the |pedestal_model| modules for all implementations.
 

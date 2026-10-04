@@ -68,7 +68,6 @@ class PedestalTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'fake_pedestal',
-        'set_pedestal': True,
     }
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)

@@ -55,7 +55,6 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
         'T_i_ped': T_i_ped,
         'T_e_ped': T_e_ped,
         'rho_norm_ped_top': rho_norm_ped_top,
@@ -89,7 +88,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     if isinstance(T_i_ped, (float, int)):

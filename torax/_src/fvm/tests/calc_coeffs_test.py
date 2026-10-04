@@ -28,13 +28,13 @@ from torax._src.torax_pydantic import model_config
 class CalcCoeffsTest(parameterized.TestCase):
 
   @parameterized.parameters([
-      dict(num_cells=4, theta_implicit=0, set_pedestal=False),
-      dict(num_cells=4, theta_implicit=0, set_pedestal=True),
-      dict(num_cells=4, theta_implicit=0.5, set_pedestal=False),
-      dict(num_cells=4, theta_implicit=0.5, set_pedestal=True),
+      dict(num_cells=4, theta_implicit=0, pedestal_active=False),
+      dict(num_cells=4, theta_implicit=0, pedestal_active=True),
+      dict(num_cells=4, theta_implicit=0.5, pedestal_active=False),
+      dict(num_cells=4, theta_implicit=0.5, pedestal_active=True),
   ])
   def test_calc_coeffs_smoke_test(
-      self, num_cells, theta_implicit, set_pedestal
+      self, num_cells, theta_implicit, pedestal_active
   ):
     sources_config = default_sources.get_default_source_config()
     sources_config['ei_exchange']['Qei_multiplier'] = 0.0
@@ -48,7 +48,11 @@ class CalcCoeffsTest(parameterized.TestCase):
             profile_conditions=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(
-                set_pedestal=set_pedestal, model_name='set_T_ped_n_ped'
+                model_name='set_T_ped_n_ped',
+                formation_model=dict(
+                    model_name='prescribed',
+                    pedestal_active=pedestal_active,
+                ),
             ),
             sources=sources_config,
             solver=dict(
@@ -92,7 +96,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state.PedestalTransitionState.empty(),
     )
 
   def test_calc_coeffs_hash(self):
