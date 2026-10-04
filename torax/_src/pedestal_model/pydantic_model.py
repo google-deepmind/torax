@@ -77,11 +77,17 @@ class PowerScalingFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
   ) -> power_scaling_formation_model.PowerScalingFormationModel:
     """Builds the formation model."""
 
-  @abc.abstractmethod
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
     """Builds the runtime params."""
+    del t
+    return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
+        sharpness=self.sharpness,
+        offset=self.offset,
+        base_multiplier=self.base_multiplier,
+        P_LH_prefactor=self.P_LH_prefactor,
+    )
 
 
 class MartinScalingFormation(PowerScalingFormation):
@@ -101,17 +107,6 @@ class MartinScalingFormation(PowerScalingFormation):
   ) -> power_scaling_formation_model.PowerScalingFormationModel:
     return power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
-    )
-
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
-    del t
-    return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
-        sharpness=self.sharpness,
-        offset=self.offset,
-        base_multiplier=self.base_multiplier,
-        P_LH_prefactor=self.P_LH_prefactor,
     )
 
 
@@ -137,17 +132,6 @@ class DelabieScalingFormation(PowerScalingFormation):
     return power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_laws.PLHScalingLaw.DELABIE,
         divertor_configuration=self.divertor_configuration,
-    )
-
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
-    del t
-    return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
-        sharpness=self.sharpness,
-        offset=self.offset,
-        base_multiplier=self.base_multiplier,
-        P_LH_prefactor=self.P_LH_prefactor,
     )
 
 
@@ -424,31 +408,14 @@ class SetPpedTpedRatioNped(BasePedestal):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> set_pped_tpedratio_nped.RuntimeParams:
-    base_runtime_params = super().build_runtime_params(t)
     return set_pped_tpedratio_nped.RuntimeParams(
-        set_pedestal=base_runtime_params.set_pedestal,
-        mode=base_runtime_params.mode,
-        use_formation_model_with_internal_boundary_condition=base_runtime_params.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=base_runtime_params.transition_time_width,
-        P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
-        include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
-        explicit_pedestal=base_runtime_params.explicit_pedestal,
-        pedestal_profile_form=base_runtime_params.pedestal_profile_form,
+        **vars(super().build_runtime_params(t)),
         P_ped=self.P_ped.get_value(t),
         P_ped_multiplier=self.P_ped_multiplier.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
-        formation=base_runtime_params.formation,
-        saturation=base_runtime_params.saturation,
-        chi_max=self.chi_max.get_value(t),
-        D_e_max=self.D_e_max.get_value(t),
-        V_e_max=self.V_e_max.get_value(t),
-        V_e_min=self.V_e_min.get_value(t),
-        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
-            t
-        ),
     )
 
 
@@ -494,30 +461,13 @@ class SetTpedNped(BasePedestal):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> set_tped_nped.RuntimeParams:
-    base_runtime_params = super().build_runtime_params(t)
     return set_tped_nped.RuntimeParams(
-        set_pedestal=base_runtime_params.set_pedestal,
-        mode=base_runtime_params.mode,
-        use_formation_model_with_internal_boundary_condition=base_runtime_params.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=base_runtime_params.transition_time_width,
-        P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
-        include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
-        explicit_pedestal=base_runtime_params.explicit_pedestal,
-        pedestal_profile_form=base_runtime_params.pedestal_profile_form,
+        **vars(super().build_runtime_params(t)),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_ped=self.T_i_ped.get_value(t),
         T_e_ped=self.T_e_ped.get_value(t),
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
-        formation=base_runtime_params.formation,
-        saturation=base_runtime_params.saturation,
-        chi_max=self.chi_max.get_value(t),
-        D_e_max=self.D_e_max.get_value(t),
-        V_e_max=self.V_e_max.get_value(t),
-        V_e_min=self.V_e_min.get_value(t),
-        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
-            t
-        ),
     )
 
 
@@ -538,30 +488,6 @@ class NoPedestal(BasePedestal):
     return no_pedestal.NoPedestal(
         formation_model=self.formation_model.build_formation_model(),
         saturation_model=self.saturation_model.build_saturation_model(),
-    )
-
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> runtime_params.RuntimeParams:
-    base_runtime_params = super().build_runtime_params(t)
-    return runtime_params.RuntimeParams(
-        set_pedestal=base_runtime_params.set_pedestal,
-        mode=base_runtime_params.mode,
-        use_formation_model_with_internal_boundary_condition=base_runtime_params.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=base_runtime_params.transition_time_width,
-        P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
-        include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
-        explicit_pedestal=base_runtime_params.explicit_pedestal,
-        pedestal_profile_form=base_runtime_params.pedestal_profile_form,
-        formation=base_runtime_params.formation,
-        saturation=base_runtime_params.saturation,
-        chi_max=self.chi_max.get_value(t),
-        D_e_max=self.D_e_max.get_value(t),
-        V_e_max=self.V_e_max.get_value(t),
-        V_e_min=self.V_e_min.get_value(t),
-        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
-            t
-        ),
     )
 
 
