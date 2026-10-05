@@ -424,7 +424,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'main_ion': main_ion_symbol,
         'impurity': {
             'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
-            'species': n_e_ratios,  # pyrefly: ignore[bad-assignment]
+            'species': n_e_ratios,
         },
     }
     torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
@@ -437,7 +437,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'main_ion': main_ion_symbol,
         'impurity': {
             'impurity_mode': plasma_composition._IMPURITY_MODE_FRACTIONS,
-            'species': impurity_fractions,  # pyrefly: ignore[bad-assignment]
+            'species': impurity_fractions,
         },
         'Z_eff': float(zeff),
     }

@@ -104,7 +104,7 @@ class PowerScalingFormationModel(base.FormationModel):
     )
 
     P_SOL_total = calculate_P_SOL_total(
-        core_profiles.internal_plasma_energy,  # pyrefly: ignore[bad-argument-type]
+        core_profiles.internal_plasma_energy,
         core_sources,
         geo,
         include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,

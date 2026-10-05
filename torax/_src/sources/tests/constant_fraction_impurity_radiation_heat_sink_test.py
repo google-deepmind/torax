@@ -100,8 +100,8 @@ class ImpurityRadiationConstantFractionTest(
             calculated_source_profiles=source_profiles.SourceProfiles(
                 bootstrap_current=mock.ANY,
                 qei=mock.ANY,
-                T_e={'foo': el},  # pyrefly: ignore[bad-argument-type, bad-assignment]
-                T_i={'foo_source': ion},  # pyrefly: ignore[bad-argument-type, bad-assignment]
+                T_e={'foo': el},  # pyrefly: ignore[bad-assignment]
+                T_i={'foo_source': ion},  # pyrefly: ignore[bad-assignment]
             ),
             conductivity=None,
         )

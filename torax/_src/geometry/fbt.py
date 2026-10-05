@@ -542,7 +542,7 @@ def _from_fbt(
       flux_surf_avg_grad_psi2_over_R2=LY['Q3Q'],  # pyrefly: ignore[bad-argument-type]
       flux_surf_avg_grad_psi=2 * np.pi * LY['Q5Q'],  # pyrefly: ignore[bad-argument-type]
       flux_surf_avg_grad_psi2=LY['Q4Q'],  # pyrefly: ignore[bad-argument-type]
-      flux_surf_avg_B2=flux_surf_avg_B2,  # pyrefly: ignore[bad-argument-type]
+      flux_surf_avg_B2=flux_surf_avg_B2,
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
       trapped_fraction=trapped_fraction,
       delta_upper_face=LY['deltau'],  # pyrefly: ignore[bad-argument-type]

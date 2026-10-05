@@ -698,7 +698,7 @@ def make_post_processed_outputs(
   )
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
-  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])  # pyrefly: ignore[bad-index]
+  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
   integrated_sources = _calculate_integrated_sources(
       sim_state.geometry,
       sim_state.core_sources,
@@ -839,24 +839,24 @@ def make_post_processed_outputs(
 
   # Calculate te and ti volume average [keV]
   te_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.T_e.value, sim_state.geometry
   )
   ti_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.T_i.value, sim_state.geometry
   )
 
   # Calculate n_e and n_i (main ion) volume and line averages in m^-3
   n_e_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   n_i_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   n_e_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   n_i_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
       n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
@@ -923,7 +923,7 @@ def make_post_processed_outputs(
       runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_external,  # pyrefly: ignore[bad-argument-type]
+      j_parallel_external,
       sim_state.geometry,
       runtime_params.numerics.min_rho_norm,
   )
@@ -1038,17 +1038,17 @@ def make_post_processed_outputs(
       j_ecrh=j_toroidal_sources['j_ecrh'],
       j_generic_current=j_toroidal_sources['j_generic_current'],
       j_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
-      j_parallel_external=j_parallel_external,  # pyrefly: ignore[bad-argument-type]
+      j_parallel_external=j_parallel_external,
       j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
       I_external=I_external,
       I_non_inductive=I_non_inductive,
-      f_non_inductive=math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
-          num=I_non_inductive,  # pyrefly: ignore[bad-argument-type]
+      f_non_inductive=math_utils.safe_divide(
+          num=I_non_inductive,
           denom=sim_state.core_profiles.Ip_profile_face[-1],
           eps=1e-7,
       ),
-      f_bootstrap=math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
-          num=I_bootstrap,  # pyrefly: ignore[bad-argument-type]
+      f_bootstrap=math_utils.safe_divide(
+          num=I_bootstrap,
           denom=sim_state.core_profiles.Ip_profile_face[-1],
           eps=1e-7,
       ),
@@ -1060,8 +1060,8 @@ def make_post_processed_outputs(
       alpha_mhd=alpha_mhd,
       alpha_mhd_miller=alpha_mhd_miller,
       impurity_species=impurity_radiation_outputs,
-      poloidal_velocity=sim_state.core_profiles.poloidal_velocity.face_value(),  # pyrefly: ignore[bad-argument-type]
-      radial_electric_field=rotation_output.Er.face_value(),  # pyrefly: ignore[bad-argument-type]
+      poloidal_velocity=sim_state.core_profiles.poloidal_velocity.face_value(),
+      radial_electric_field=rotation_output.Er.face_value(),
       first_step=jnp.array(False),
   )
 

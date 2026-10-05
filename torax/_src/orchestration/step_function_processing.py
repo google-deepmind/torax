@@ -82,7 +82,7 @@ def _update_pedestal_transition_state(
 
   # Calculate P_SOL (total power crossing the separatrix).
   P_SOL = power_scaling_formation_model_lib.calculate_P_SOL_total(
-      internal_plasma_energy=core_profiles.internal_plasma_energy,  # pyrefly: ignore[bad-argument-type]
+      internal_plasma_energy=core_profiles.internal_plasma_energy,
       core_sources=core_sources,
       geo=geo,
       include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
@@ -323,17 +323,17 @@ def _update_internal_boundary_condition(
   )
   new_T_i_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.T_i.value[ped_top_idx],  # pyrefly: ignore[bad-index]
+      core_profiles.T_i.value[ped_top_idx],
       pedestal_transition_state.T_i_ped_L_mode,
   )
   new_T_e_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.T_e.value[ped_top_idx],  # pyrefly: ignore[bad-index]
+      core_profiles.T_e.value[ped_top_idx],
       pedestal_transition_state.T_e_ped_L_mode,
   )
   new_n_e_ped_L_mode = jnp.where(
       update_L_mode_values,
-      core_profiles.n_e.value[ped_top_idx],  # pyrefly: ignore[bad-index]
+      core_profiles.n_e.value[ped_top_idx],
       pedestal_transition_state.n_e_ped_L_mode,
   )
 

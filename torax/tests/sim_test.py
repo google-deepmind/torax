@@ -533,13 +533,13 @@ class SimTest(sim_test_case.SimTestCase):
 
     for profile in profiles_to_check:
       np.testing.assert_allclose(
-          profile.value[middle_index, :],  # pyrefly: ignore[bad-index]
-          profile.value[middle_index, :],  # pyrefly: ignore[bad-index]
+          profile.value[middle_index, :],
+          profile.value[middle_index, :],
           rtol=1e-3,
       )
       np.testing.assert_allclose(
-          profile.value[-1, :],  # pyrefly: ignore[bad-index]
-          profile.value[-1, :],  # pyrefly: ignore[bad-index]
+          profile.value[-1, :],
+          profile.value[-1, :],
           rtol=1e-3,
       )
 

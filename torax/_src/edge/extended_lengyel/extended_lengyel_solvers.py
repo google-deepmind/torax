@@ -795,7 +795,7 @@ def _solve_for_qcc(
   # effective. This prevents vanishing gradients for deep negative excursions.
   # TODO(b/512078510): Pick a reasonable eps value for safe_divide here.
   qcc_norm = math_utils.smooth_sqrt(
-      math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
+      math_utils.safe_divide(
           num=qcc_squared,
           denom=qu**2,
           eps=1e-7,

@@ -58,12 +58,12 @@ class PostProcessingTest(parameterized.TestCase):
             self.geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
-        T_i={  # pyrefly: ignore[bad-argument-type]
+        T_i={
             'fusion': ones,  # pyrefly: ignore[bad-assignment]
             'generic_heat': 2 * ones,  # pyrefly: ignore[bad-assignment]
             'icrh': 3 * ones,  # pyrefly: ignore[bad-assignment]
         },
-        T_e={  # pyrefly: ignore[bad-argument-type]
+        T_e={
             'bremsstrahlung': -ones,  # pyrefly: ignore[bad-assignment]
             'cyclotron_radiation': -2 * ones,  # pyrefly: ignore[bad-assignment]
             'impurity_radiation': -3 * ones,  # pyrefly: ignore[bad-assignment]
@@ -73,7 +73,7 @@ class PostProcessingTest(parameterized.TestCase):
             'ecrh': 7 * ones,  # pyrefly: ignore[bad-assignment]
             'icrh': 1.5 * ones,  # pyrefly: ignore[bad-assignment]
         },
-        psi={  # pyrefly: ignore[bad-argument-type]
+        psi={
             'generic_current': 2 * ones,  # pyrefly: ignore[bad-assignment]
             'ecrh': 2 * ones,  # pyrefly: ignore[bad-assignment]
         },
@@ -246,8 +246,8 @@ class PostProcessingTest(parameterized.TestCase):
     # Setup non-zero bootstrap current
     ones = np.ones_like(self.geo.rho)
     bootstrap_current = bootstrap_current_base.BootstrapCurrent(
-        j_parallel_bootstrap=1.0 * ones,  # pyrefly: ignore[bad-argument-type]
-        j_parallel_bootstrap_face=1.0 * np.ones_like(self.geo.rho_face),  # pyrefly: ignore[bad-argument-type]
+        j_parallel_bootstrap=1.0 * ones,
+        j_parallel_bootstrap_face=1.0 * np.ones_like(self.geo.rho_face),
     )
 
     # Source profiles with parallel currents (normalized <j.B>/B0)

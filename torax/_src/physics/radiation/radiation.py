@@ -139,11 +139,11 @@ def calculate_cooling_rate(
   # Smoothly transition between the noncoronal and coronal models based on the
   # minimum temperature of the coronal model.
   return math_utils.smoothstep_transition(
-      T_e,  # pyrefly: ignore[bad-argument-type]
+      T_e,
       smoothing_start=T_e_min_coronal / 1.5,
       smoothing_end=T_e_min_coronal * 1.5,
-      y_left=noncoronal_cooling_rate,  # pyrefly: ignore[bad-argument-type]
-      y_right=coronal_cooling_rate,  # pyrefly: ignore[bad-argument-type]
+      y_left=noncoronal_cooling_rate,
+      y_right=coronal_cooling_rate,
       log_scale=True,
   )
 

@@ -604,7 +604,7 @@ class StateHistory:
         field_name = output_keys.Z_MAGNETIC_AXIS
       data_array = self._pack_into_data_array(
           field_name,
-          data,  # pyrefly: ignore[bad-argument-type]
+          data,
       )
       if data_array is not None:
         xr_dict[field_name] = data_array
@@ -646,7 +646,7 @@ class StateHistory:
         # _face variables with no corresponding non-face variable.
         if name.endswith("_face"):
           name = name.removesuffix("_face")
-        data_array = self._pack_into_data_array(name, property_data)  # pyrefly: ignore[bad-argument-type]
+        data_array = self._pack_into_data_array(name, property_data)
         if data_array is not None:
           xr_dict[name] = data_array
 

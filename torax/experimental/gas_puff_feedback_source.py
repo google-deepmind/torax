@@ -83,9 +83,9 @@ def calc_puff_feedback_source(
 
   match source_params.average_type:
     case AverageType.LINE:
-      current_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+      current_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
     case AverageType.VOLUME:
-      current_avg_n_e = math_utils.volume_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+      current_avg_n_e = math_utils.volume_average(core_profiles.n_e.value, geo)
     case _ as unknown:
       raise ValueError(f'Unknown average type: {unknown}')
 
