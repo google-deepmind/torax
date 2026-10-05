@@ -30,11 +30,6 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-# Default value for the model function to be used for the electron cyclotron
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
-
 
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
@@ -47,63 +42,6 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   absorption_fraction: array_typing.FloatScalar
 
 
-def calc_generic_heat_source(
-    geo: geometry.Geometry,
-    gaussian_location: float,
-    gaussian_width: float,
-    P_total: float,
-    electron_heat_fraction: float,
-    absorption_fraction: float,
-) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
-  """Computes ion/electron heat source terms.
-
-  Flexible prescribed heat source term.
-
-  Args:
-    geo: Geometry describing the torus.
-    gaussian_location: Source Gaussian central location
-    gaussian_width: Gaussian width
-    P_total: total heating
-    electron_heat_fraction: fraction of heating deposited on electrons
-    absorption_fraction: fraction of absorbed power
-
-  Returns:
-    source_ion: source term for ions.
-    source_el: source term for electrons.
-  """
-  # Calculate heat profile.
-  absorbed_power = P_total * absorption_fraction
-  profile = formulas.gaussian_profile(
-      geo, center=gaussian_location, width=gaussian_width, total=absorbed_power
-  )
-  source_ion = profile * (1 - electron_heat_fraction)
-  source_el = profile * electron_heat_fraction
-
-  return source_ion, source_el
-
-
-def default_formula(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    unused_core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.Array, ...]:
-  """Returns the default formula-based ion/electron heat source profile."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-  ion, el = calc_generic_heat_source(
-      geo,
-      source_params.gaussian_location,  # pyrefly: ignore[bad-argument-type]
-      source_params.gaussian_width,  # pyrefly: ignore[bad-argument-type]
-      source_params.P_total,  # pyrefly: ignore[bad-argument-type]
-      source_params.electron_heat_fraction,  # pyrefly: ignore[bad-argument-type]
-      source_params.absorption_fraction,  # pyrefly: ignore[bad-argument-type]
-  )
-  return (ion, el)
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
@@ -113,10 +51,36 @@ class GenericIonElectronHeatSource(source.Source):
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = default_formula  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    """Returns the default formula-based ion/electron heat source profile."""
+    del core_profiles, calculated_source_profiles, conductivity
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    assert isinstance(source_params, RuntimeParams)
+
+    # Calculate heat profile.
+    absorbed_power = (
+        source_params.P_total * source_params.absorption_fraction
+    )
+    profile = formulas.gaussian_profile(
+        geo,
+        center=source_params.gaussian_location,
+        width=source_params.gaussian_width,
+        total=absorbed_power,
+    )
+    source_ion = profile * (1 - source_params.electron_heat_fraction)
+    source_el = profile * source_params.electron_heat_fraction
+    return (source_ion, source_el)
 
 
-class GenericIonElHeatSourceConfig(base.SourceModelBase):
+class GenericIonElHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
@@ -145,24 +109,13 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return default_formula  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         gaussian_width=self.gaussian_width.get_value(t),
         gaussian_location=self.gaussian_location.get_value(t),
         P_total=self.P_total.get_value(t),
@@ -171,4 +124,4 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
     )
 
   def build_source(self) -> GenericIonElectronHeatSource:
-    return GenericIonElectronHeatSource(model_func=self.model_func)
+    return GenericIonElectronHeatSource()
