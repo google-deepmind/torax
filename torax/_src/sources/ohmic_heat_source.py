@@ -15,73 +15,16 @@
 
 import dataclasses
 from typing import Annotated, ClassVar, Literal
-import chex
 import jax.numpy as jnp
-from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import psi_calculations
 from torax._src.sources import base
-from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import torax_pydantic
-
-# Default value for the model function to be used for the ohmic heat
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'standard'
-
-
-def ohmic_model_func(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    unused_source_name: str,
-    core_profiles: state.CoreProfiles,
-    calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
-    conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
-  """Returns the Ohmic source for electron heat equation."""
-  if calculated_source_profiles is None:
-    raise ValueError(
-        'calculated_source_profiles is a required argument for'
-        ' ohmic_model_func. This can occur if this source function is used in'
-        ' an explicit source.'
-    )
-
-  if conductivity is None:
-    raise ValueError(
-        'conductivity is a required argument for ohmic_model_func. This can'
-        ' occur if this source function is used in an explicit source.'
-    )
-
-  j_total, _, _ = psi_calculations.calc_j_total(
-      geo,
-      core_profiles.psi,
-      runtime_params.numerics.min_rho_norm,
-  )
-  psi_sources = calculated_source_profiles.total_psi_sources(geo)
-  if (
-      not runtime_params.numerics.evolve_current
-      and runtime_params.profile_conditions.psidot is not None
-  ):
-    # If psidot is prescribed and current does not evolve, use prescribed value
-    psidot = runtime_params.profile_conditions.psidot
-  else:
-    psidot = psi_calculations.calculate_psidot_from_psi_sources(
-        psi_sources=psi_sources,
-        sigma=conductivity.sigma,
-        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
-        psi=core_profiles.psi,
-        geo=geo,
-    )
-
-  # Ohmic power is positive regardless of the sign of voltage and current.
-  # Use local major radius for accurate local power calculation
-  pohm = jnp.abs(j_total * psidot / (2 * jnp.pi * geo.R_major_profile))
-  return (pohm,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -96,34 +39,66 @@ class OhmicHeatSource(source_lib.Source):
   AFFECTED_CORE_PROFILES: ClassVar[
       tuple[source_lib.AffectedCoreProfile, ...]
   ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
-  model_func: source_lib.SourceProfileFunction = ohmic_model_func  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: (
+          source_profiles_lib.SourceProfiles | None
+      ) = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source_lib.SourceProfileElement, ...]:
+    """Returns the Ohmic source for electron heat equation."""
+    if calculated_source_profiles is None:
+      raise ValueError(
+          'calculated_source_profiles is a required argument for'
+          ' OhmicHeatSource._get_model_value. This can occur if this source'
+          ' is used in an explicit source.'
+      )
+
+    if conductivity is None:
+      raise ValueError(
+          'conductivity is a required argument for'
+          ' OhmicHeatSource._get_model_value. This can occur if this source'
+          ' is used in an explicit source.'
+      )
+
+    j_total, _, _ = psi_calculations.calc_j_total(
+        geo,
+        core_profiles.psi,
+        runtime_params.numerics.min_rho_norm,
+    )
+    psi_sources = calculated_source_profiles.total_psi_sources(geo)
+    if (
+        not runtime_params.numerics.evolve_current
+        and runtime_params.profile_conditions.psidot is not None
+    ):
+      # If psidot is prescribed and current does not evolve, use
+      # prescribed value
+      psidot = runtime_params.profile_conditions.psidot
+    else:
+      psidot = psi_calculations.calculate_psidot_from_psi_sources(
+          psi_sources=psi_sources,
+          sigma=conductivity.sigma,
+          resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
+          psi=core_profiles.psi,
+          geo=geo,
+      )
+
+    # Ohmic power is positive regardless of the sign of voltage and current.
+    # Use local major radius for accurate local power calculation
+    pohm = jnp.abs(j_total * psidot / (2 * jnp.pi * geo.R_major_profile))
+    return (pohm,)
 
 
-class OhmicHeatSourceConfig(base.SourceModelBase):
+class OhmicHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the OhmicHeatSource."""
 
   model_name: Annotated[Literal['standard'], torax_pydantic.JAX_STATIC] = (
       'standard'
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source_lib.SourceProfileFunction:
-    return ohmic_model_func  # pyrefly: ignore[bad-return]
-
-  def build_runtime_params(
-      self,
-      t: chex.Numeric,
-  ) -> sources_runtime_params_lib.RuntimeParams:
-    return sources_runtime_params_lib.RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
-    )
 
   def build_source(self) -> OhmicHeatSource:
-    return OhmicHeatSource(model_func=self.model_func)
+    return OhmicHeatSource()

@@ -43,7 +43,7 @@ class SourceTestCase(parameterized.TestCase):
   """
 
   source_name: ClassVar[str]
-  source_config_class: ClassVar[Type[base.SourceModelBase]]
+  source_config_class: ClassVar[Type[base.SourceConfigBase]]
   needs_source_models: ClassVar[bool] = False
   model_name: ClassVar[str | None] = None
 

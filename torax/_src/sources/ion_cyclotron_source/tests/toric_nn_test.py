@@ -155,7 +155,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     # We catch generic Exception because different environments may raise
     # different errors.
     with self.assertRaises(Exception):
-      _ = config.model_func
+      _ = config.build_source()
 
   def test_toric_nn_loads_and_predicts_with_dummy_model(self):
     """Test that the ToricNNWrapper loads and predicts consistently."""
