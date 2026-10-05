@@ -22,16 +22,10 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import base as source_base
-from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
-
-# Default value for the model function to be used for the ion cyclotron
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'toric_nn'
 
 
 def build_fast_ions(
@@ -103,7 +97,7 @@ class IonCyclotronSource(source.Source):
     return build_fast_ions(source_name=cls.SOURCE_ID, geo=geo)
 
 
-class IonCyclotronSourceConfig(source_base.SourceModelBase):
+class IonCyclotronSourceConfig(source_base.SourceConfigBase):
   """Base configuration for IonCyclotronSource.
 
   This base class contains fields common to all ICRH model implementations.
@@ -129,11 +123,5 @@ class IonCyclotronSourceConfig(source_base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: Annotated[source_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
-      source_runtime_params_lib.Mode.MODEL_BASED
-  )
   # TODO(b/434175938): Make minority_species a required field in V2.
   minority_species: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
-
-  def build_source(self) -> IonCyclotronSource:
-    return IonCyclotronSource(model_func=self.model_func)

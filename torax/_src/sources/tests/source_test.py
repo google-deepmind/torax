@@ -95,9 +95,14 @@ class SourceTest(parameterized.TestCase):
       mode,
       expected_profile,
   ):
-    model_func = mock.MagicMock()
-    model_func.return_value = np.full([4], 42.0)
-    source = generic_current_source.GenericCurrentSource(model_func=model_func)
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class MockGenericCurrentSource(generic_current_source.GenericCurrentSource):
+
+      def _get_model_value(self, *args, **kwargs):
+        return (np.full([4], 42.0),)
+
+    source = MockGenericCurrentSource()
     dynamic_source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
