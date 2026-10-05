@@ -16,7 +16,7 @@
 
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
-from typing import Annotated, ClassVar, Final, Literal
+from typing import Annotated, ClassVar, Literal
 import chex
 import jax
 from jax import numpy as jnp
@@ -31,11 +31,6 @@ from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
-
-# Default value for the model function to be used for the Bremsstrahlung heat
-# sink. This is also used as an identifier for the model function in the default
-# source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'wesson'
 
 
 @jax.tree_util.register_dataclass
@@ -145,7 +140,7 @@ class BremsstrahlungHeatSink(source.Source):
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func  # pyrefly: ignore[bad-assignment]
 
 
-class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
+class BremsstrahlungHeatSinkConfig(base.SourceConfigBase):
   """Bremsstrahlung heat sink for electron heat equation.
 
   Attributes:
@@ -158,9 +153,6 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
   model_name: Annotated[Literal['wesson'], torax_pydantic.JAX_STATIC] = 'wesson'
   use_relativistic_correction: bool = False
   exclude_impurity_bremsstrahlung: bool = False
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -171,11 +163,7 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> 'RuntimeParams':
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         use_relativistic_correction=self.use_relativistic_correction,
         exclude_impurity_bremsstrahlung=self.exclude_impurity_bremsstrahlung,
     )

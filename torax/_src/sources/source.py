@@ -162,6 +162,28 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
           f' {expected_species_order}.'
       )
 
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[SourceProfileElement, ...]:
+    """Calculates source profile for MODEL_BASED mode."""
+    if self.model_func is None:
+      raise ValueError(
+          'Source is in MODEL_BASED mode but has no model function.'
+      )
+    return self.model_func(
+        runtime_params,
+        geo,
+        self.SOURCE_ID,
+        core_profiles,
+        calculated_source_profiles,
+        conductivity,
+    )
+
   def get_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -202,14 +224,9 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
     mode = source_params.mode
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
-        if self.model_func is None:
-          raise ValueError(
-              'Source is in MODEL_BASED mode but has no model function.'
-          )
-        res = self.model_func(
+        res = self._get_model_value(
             runtime_params,
             geo,
-            self.SOURCE_ID,
             core_profiles,
             calculated_source_profiles,
             conductivity,
