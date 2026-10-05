@@ -34,11 +34,6 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-# Default value for the model function to be used for the electron cyclotron
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = "gaussian_lin_liu"
-
 
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
@@ -134,7 +129,7 @@ class ElectronCyclotronSource(source.Source):
   model_func: source.SourceProfileFunction = calc_heating_and_current  # pyrefly: ignore[bad-assignment]
 
 
-class ElectronCyclotronSourceConfig(base.SourceModelBase):
+class ElectronCyclotronSourceConfig(base.SourceConfigBase):
   r"""Config for the electron-cyclotron source.
 
   Attributes:
@@ -171,9 +166,6 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
   P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.0
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -184,11 +176,7 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         current_drive_efficiency=self.current_drive_efficiency.get_value(t),
         extra_prescribed_power_density=self.extra_prescribed_power_density.get_value(
             t
@@ -198,5 +186,5 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
         P_total=self.P_total.get_value(t),
     )
 
-  def build_source(self):
+  def build_source(self) -> ElectronCyclotronSource:
     return ElectronCyclotronSource(model_func=self.model_func)

@@ -42,11 +42,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Compare `calc_fusion` function to a reference implementation."""
     references = references_getter()
-    references.config.update_fields({
-        'sources.fusion': {
-            'model_name': fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
-        }
-    })
+    references.config.update_fields({'sources.fusion': {}})
     runtime_params, geo = references.get_runtime_params_and_geo()
     source_models = references.config.sources.build_models()
     neoclassical_model = references.config.neoclassical.build_model()
@@ -83,9 +79,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     references = torax_refs.chease_references_Ip_from_chease()
     references.config.update_fields({
         'plasma_composition.main_ion': main_ion_input,
-        'sources.fusion': {
-            'model_name': fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
-        },
+        'sources.fusion': {},
     })
 
     runtime_params_t, geo = references.get_runtime_params_and_geo()

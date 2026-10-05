@@ -15,7 +15,6 @@
 """Fusion heat source for both ion and electron heat equations."""
 import dataclasses
 from typing import Annotated, ClassVar, Literal
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -27,15 +26,9 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
 from torax._src.sources import base
-from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
-
-# Default value for the model function to be used for the fusion heat
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'bosch_hale'
 
 
 def calc_fusion(
@@ -170,31 +163,16 @@ class FusionHeatSource(source.Source):
   model_func: source.SourceProfileFunction = fusion_heat_model_func  # pyrefly: ignore[bad-assignment]
 
 
-class FusionHeatSourceConfig(base.SourceModelBase):
+class FusionHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the FusionHeatSource."""
 
   model_name: Annotated[Literal['bosch_hale'], torax_pydantic.JAX_STATIC] = (
       'bosch_hale'
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
     return fusion_heat_model_func  # pyrefly: ignore[bad-return]
-
-  def build_runtime_params(
-      self,
-      t: chex.Numeric,
-  ) -> sources_runtime_params_lib.RuntimeParams:
-    return sources_runtime_params_lib.RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
-    )
 
   def build_source(self) -> FusionHeatSource:
     return FusionHeatSource(model_func=self.model_func)
