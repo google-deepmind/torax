@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
+
 from absl.testing import absltest
 import numpy as np
 from torax._src import state
@@ -22,7 +24,6 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 _N_RHO = 10
 _A_TOL = 1e-6
@@ -108,201 +109,188 @@ class AngioniSauterTest(absltest.TestCase):
     np.testing.assert_allclose(Lmn_i[:, 1, 0], -Lmn_i[:, 0, 1])
     self.assertTrue(np.all(Lmn_i[:, 1, 0] != 0.0))
 
-  def test_angioni_sauter_against_reference_values(self):
-    """Reference values generated from running Angioni-Sauter."""
+  def test_calculate_Lmn_poloidal_gyroradius(self):
+    _, geo, core_profiles = (
+        self._get_reference_runtime_params_geo_and_core_profiles()
+    )
+    n_faces = geo.F_face.shape[0]
+    Kmn_e = np.ones((n_faces, 4, 4))
+    Kmn_i = np.ones((n_faces, 2, 2))
+    nu_e_star = np.ones(n_faces)
+    nu_i_star = np.ones(n_faces)
+
+    Lmn_e, Lmn_i = angioni_sauter._calculate_Lmn(
+        Kmn_e=Kmn_e,
+        Kmn_i=Kmn_i,
+        geo=geo,
+        core_profiles=core_profiles,
+        epsilon=geo.epsilon_face,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+    )
+
+    # Verify Ldi * Lsi = 2 * Lbi^2 from Eq. 21.
+    np.testing.assert_allclose(
+        Lmn_i[:, 0, 0] * Lmn_i[:, 1, 1] / (geo.gm4_face * geo.gm5_face),
+        2.0 * Lmn_i[:, 1, 0] ** 2,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+    scale = 2.5
+    scaled_geo = dataclasses.replace(geo, F_face=geo.F_face * scale)
+    Lmn_e_scaled, Lmn_i_scaled = angioni_sauter._calculate_Lmn(
+        Kmn_e=Kmn_e,
+        Kmn_i=Kmn_i,
+        geo=scaled_geo,
+        core_profiles=core_profiles,
+        epsilon=scaled_geo.epsilon_face,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+    )
+    np.testing.assert_allclose(
+        Lmn_e_scaled[:, 0, 0],
+        Lmn_e[:, 0, 0] * scale**2,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+    np.testing.assert_allclose(
+        Lmn_i_scaled[:, 1, 1],
+        Lmn_i[:, 1, 1] * scale**2,
+        atol=_A_TOL,
+        rtol=_R_TOL,
+    )
+
+  def test_angioni_sauter_transport_and_shaing_blending(self):
     _, geo, core_profiles = (
         self._get_reference_runtime_params_geo_and_core_profiles()
     )
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
         geo, core_profiles
     )
-
-    # Test raw Angioni-Sauter values
-    result = angioni_sauter._calculate_angioni_sauter_transport(
+    raw = angioni_sauter._calculate_angioni_sauter_transport(
         geometry=geo,
         core_profiles=core_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
     )
-    np.testing.assert_allclose(
-        result.chi_face_ion,
-        _ANGIONI_SAUTER_REFERENCE_VALUES.chi_face_ion,
-        atol=_A_TOL,
-        rtol=_R_TOL,
-    )
-    np.testing.assert_allclose(
-        result.chi_face_el,
-        _ANGIONI_SAUTER_REFERENCE_VALUES.chi_face_el,
-        atol=_A_TOL,
-        rtol=_R_TOL,
-    )
-    np.testing.assert_allclose(
-        result.d_face_el,
-        _ANGIONI_SAUTER_REFERENCE_VALUES.d_face_el,
-        atol=_A_TOL,
-        rtol=_R_TOL,
-    )
-    np.testing.assert_allclose(
-        result.v_face_el,
-        _ANGIONI_SAUTER_REFERENCE_VALUES.v_face_el,
-        atol=_A_TOL,
-        rtol=_R_TOL,
-    )
-    np.testing.assert_allclose(
-        result.v_face_el_ware,
-        _ANGIONI_SAUTER_REFERENCE_VALUES.v_face_el_ware,
-        atol=_A_TOL,
-        rtol=_R_TOL,
-    )
+    for field in dataclasses.fields(raw):
+      arr = getattr(raw, field.name)
+      self.assertTrue(np.all(np.isfinite(arr)))
+      np.testing.assert_allclose(arr[0], arr[1], atol=_A_TOL, rtol=_R_TOL)
 
-  def test_angioni_sauter_with_shaing_against_reference_values(self):
-    """Reference values generated from Angioni-Sauter + Shaing ion correction."""
-    _, geo, core_profiles = (
-        self._get_reference_runtime_params_geo_and_core_profiles()
+    params_no_shaing = angioni_sauter.AngioniSauterModelConfig(
+        use_shaing_ion_correction=False
+    ).build_runtime_params()
+    res_no_shaing = angioni_sauter.AngioniSauterModel()._call_implementation(
+        params_no_shaing, geo, core_profiles, neoclassical_intermediates
     )
-    neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
-        geo, core_profiles
-    )
+    for field in dataclasses.fields(raw):
+      np.testing.assert_allclose(
+          getattr(res_no_shaing, field.name),
+          getattr(raw, field.name),
+          atol=_A_TOL,
+          rtol=_R_TOL,
+      )
 
-    # Enable Shaing ion correction
-    transport_params = angioni_sauter.AngioniSauterModelConfig(
+    params_shaing = angioni_sauter.AngioniSauterModelConfig(
         use_shaing_ion_correction=True
     ).build_runtime_params()
-
-    # Test blended Angioni-Sauter + Shaing values
-    result = angioni_sauter.AngioniSauterModel()._call_implementation(
-        transport_params, geo, core_profiles, neoclassical_intermediates
+    res_shaing = angioni_sauter.AngioniSauterModel()._call_implementation(
+        params_shaing, geo, core_profiles, neoclassical_intermediates
+    )
+    shaing = angioni_sauter._calculate_shaing_transport(
+        runtime_params=params_shaing,
+        geometry=geo,
+        core_profiles=core_profiles,
+        neoclassical_intermediates=neoclassical_intermediates,
+    )
+    alpha = angioni_sauter._calculate_blend_alpha(
+        rho_face_norm=geo.rho_face_norm,
+        start=params_shaing.shaing_blend_start,
+        rate=params_shaing.shaing_blend_rate,
     )
     np.testing.assert_allclose(
-        result.chi_face_ion,
-        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.chi_face_ion,
+        res_shaing.chi_face_ion,
+        (1.0 - alpha) * shaing.chi_face_ion + alpha * raw.chi_face_ion,
         atol=_A_TOL,
         rtol=_R_TOL,
     )
     np.testing.assert_allclose(
-        result.chi_face_el,
-        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.chi_face_el,
-        atol=_A_TOL,
-        rtol=_R_TOL,
+        res_shaing.chi_face_el, raw.chi_face_el, atol=_A_TOL, rtol=_R_TOL
     )
     np.testing.assert_allclose(
-        result.d_face_el,
-        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.d_face_el,
-        atol=_A_TOL,
-        rtol=_R_TOL,
+        res_shaing.d_face_el, raw.d_face_el, atol=_A_TOL, rtol=_R_TOL
     )
     np.testing.assert_allclose(
-        result.v_face_el,
-        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.v_face_el,
-        atol=_A_TOL,
-        rtol=_R_TOL,
+        res_shaing.v_face_el, raw.v_face_el, atol=_A_TOL, rtol=_R_TOL
     )
     np.testing.assert_allclose(
-        result.v_face_el_ware,
-        _ANGIONI_SAUTER_SHAING_REFERENCE_VALUES.v_face_el_ware,
-        atol=_A_TOL,
-        rtol=_R_TOL,
+        res_shaing.v_face_el_ware, raw.v_face_el_ware, atol=_A_TOL, rtol=_R_TOL
     )
 
+  def test_calculate_Kmn_alpha_collisionality_dependence(self):
+    ftrap = np.full(5, 0.5)
+    ftrap_d = np.full(5, 0.4)
+    Z_eff = np.full(5, 2.0)
+    B2_avg_Bm2_avg = np.full(5, 1.1)
+    nu_e_star = np.full(5, 0.1)
+    nu_i_star = np.array([0.0, 0.01, 0.1, 1.0, 10.0])
+    alpha_I = Z_eff - 1.0
 
-# Reference values from running test code in a standalone manner.
-# The test thus does not directly test the implementation, but rather
-# guards against unexpected modifications.
-#
-# The implementation was independently tested against NEOS up to the
-# generation of the Kmn matrix.
-_V_CONV = np.array([
-    3.84305595e-07,
-    3.84305595e-07,
-    3.95211833e-07,
-    5.48471882e-07,
-    9.45926210e-07,
-    1.57655305e-06,
-    2.51472902e-06,
-    4.02218832e-06,
-    6.84799094e-06,
-    1.37547927e-05,
-    4.23170619e-05,
-])
-_V_WARE = np.array([
-    -0.00038114,
-    -0.00038114,
-    -0.00041759,
-    -0.00037123,
-    -0.00032066,
-    -0.00030646,
-    -0.0003312,
-    -0.00038565,
-    -0.00056229,
-    -0.00159816,
-    -0.00178913,
-])
-
-_ANGIONI_SAUTER_REFERENCE_VALUES = transport_coeffs_lib.NeoclassicalTransport(
-    chi_face_ion=np.array([
-        0.00043435,
-        0.00043435,
-        0.00079160,
-        0.00110976,
-        0.00138541,
-        0.00162655,
-        0.00184376,
-        0.00203633,
-        0.00218851,
-        0.00225017,
-        0.00210714,
-    ]),
-    chi_face_el=np.array([
-        5.76205656e-05,
-        5.76205656e-05,
-        7.49570352e-05,
-        8.02645038e-06,
-        -6.46121367e-05,
-        -1.16471101e-04,
-        -1.56052924e-04,
-        -1.95016136e-04,
-        -2.42476213e-04,
-        -3.79547146e-04,
-        -4.30913618e-04,
-    ]),
-    d_face_el=np.array([
-        4.16454817e-06,
-        4.16454817e-06,
-        7.51341748e-06,
-        1.01368454e-05,
-        1.20045778e-05,
-        1.33603494e-05,
-        1.43740438e-05,
-        1.50229323e-05,
-        1.50958466e-05,
-        1.39879660e-05,
-        1.04093537e-05,
-    ]),
-    v_face_el=_V_CONV + _V_WARE,
-    v_face_el_ware=_V_WARE,
-)
-
-# Shaing correction only affects ions, so we can reuse the other values
-_ANGIONI_SAUTER_SHAING_REFERENCE_VALUES = (
-    transport_coeffs_lib.NeoclassicalTransport(
-        chi_face_ion=np.array([
-            0.20242597,
-            0.16813795,
-            0.01959750,
-            0.00395964,
-            0.00217907,
-            0.00194080,
-            0.00198582,
-            0.00210808,
-            0.00222910,
-            0.00227534,
-            0.00212033,
-        ]),
-        chi_face_el=_ANGIONI_SAUTER_REFERENCE_VALUES.chi_face_el,
-        d_face_el=_ANGIONI_SAUTER_REFERENCE_VALUES.d_face_el,
-        v_face_el=_ANGIONI_SAUTER_REFERENCE_VALUES.v_face_el,
-        v_face_el_ware=_ANGIONI_SAUTER_REFERENCE_VALUES.v_face_el_ware,
+    _, Kmn_i = angioni_sauter._calculate_Kmn(
+        ftrap=ftrap,
+        ftrap_d=ftrap_d,
+        Z_eff=Z_eff,
+        B2_avg_Bm2_avg=B2_avg_Bm2_avg,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+        alpha_I=alpha_I,
     )
-)
+
+    alpha_0 = (
+        -(0.62 + 1.5 * alpha_I)
+        / (0.53 + alpha_I)
+        * ((1.0 - ftrap) / (1.0 - 0.22 * ftrap - 0.19 * ftrap**2))
+    )
+    expected_alpha = (
+        (alpha_0 + 0.25 * (1.0 - ftrap**2) * np.sqrt(nu_i_star))
+        / (1.0 + 0.5 * np.sqrt(nu_i_star))
+        + 0.315 * nu_i_star**2 * ftrap**6
+    ) / (1.0 + 0.15 * nu_i_star**2 * ftrap**6)
+
+    np.testing.assert_allclose(
+        -Kmn_i[:, 0, 1], expected_alpha, atol=_A_TOL, rtol=_R_TOL
+    )
+    np.testing.assert_allclose(
+        Kmn_i[:, 1, 0], expected_alpha, atol=_A_TOL, rtol=_R_TOL
+    )
+
+  def test_calculate_Kmn_banana_limit_matches_K22e_0(self):
+    ftrap = np.array([0.0, 0.2, 0.5])
+    ftrap_d = np.array([0.0, 0.18, 0.45])
+    Z_eff = np.full_like(ftrap, 2.0)
+    B2_avg_Bm2_avg = np.full_like(ftrap, 1.05)
+    nu_e_star = np.zeros_like(ftrap)
+    nu_i_star = np.zeros_like(ftrap)
+    alpha_I = Z_eff - 1.0
+
+    Kmn_e, _ = angioni_sauter._calculate_Kmn(
+        ftrap=ftrap,
+        ftrap_d=ftrap_d,
+        Z_eff=Z_eff,
+        B2_avg_Bm2_avg=B2_avg_Bm2_avg,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+        alpha_I=alpha_I,
+    )
+    F_ftrap_d = angioni_sauter._Fmn_X(ftrap_d, Z_eff)
+    expected_K22e_0 = (
+        -(13.0 / 8.0 + 1.0 / (np.sqrt(2.0) * Z_eff)) * F_ftrap_d[:, 1, 1]
+    )
+    np.testing.assert_allclose(
+        Kmn_e[:, 1, 1], expected_K22e_0, atol=_A_TOL, rtol=_R_TOL
+    )
+    self.assertTrue(np.all(Kmn_e[1:, 1, 1] < 0.0))
+
 
 if __name__ == '__main__':
   absltest.main()
