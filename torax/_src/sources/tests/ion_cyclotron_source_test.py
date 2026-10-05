@@ -13,12 +13,13 @@
 # limitations under the License.
 """Tests for global ion_cyclotron_source infrastructure (model-agnostic)."""
 
+import dataclasses
+
 from absl.testing import absltest
 import jax
 import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.physics import fast_ion as fast_ion_lib
-from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.tests import test_lib
@@ -27,18 +28,17 @@ from torax._src.sources.tests import test_lib
 jax.config.update('jax_enable_x64', True)
 
 
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class _DummySource(icrh_base.IonCyclotronSource):
+
+  def _get_model_value(self, *args, **kwargs):
+    return ()
+
+
 class _DummyConfig(icrh_base.IonCyclotronSourceConfig):
 
-  def build_runtime_params(self, t):
-    return runtime_params_lib.RuntimeParams(
-        prescribed_values=(),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
-    )
-
-  @property
-  def model_func(self):
-    return lambda *args, **kwargs: None
+  def build_source(self) -> _DummySource:
+    return _DummySource()
 
 
 class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
@@ -59,9 +59,6 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
     self.assertEqual(
         icrh_base.IonCyclotronSource.AFFECTED_CORE_PROFILES, expected
     )
-
-  def test_default_model_function_name(self):
-    self.assertEqual(icrh_base.DEFAULT_MODEL_FUNCTION_NAME, 'toric_nn')
 
   def test_build_fast_ions_all_zeros(self):
     """build_fast_ions with no input returns zeros for all species."""

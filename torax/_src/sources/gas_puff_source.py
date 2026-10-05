@@ -30,40 +30,14 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-# Default value for the model function to be used for the gas puff
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'exponential'
-
-
 # pylint: disable=invalid-name
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   puff_decay_length: array_typing.FloatScalar
   S_total: array_typing.FloatScalar
-
-
-# Default formula: exponential
-def calc_puff_source(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    unused_state: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
-  """Calculates external source term for n from puffs."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-  return (
-      formulas.exponential_profile(
-          decay_start=1.0,
-          width=source_params.puff_decay_length,
-          total=source_params.S_total,
-          geo=geo,
-      ),
-  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -74,10 +48,30 @@ class GasPuffSource(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )
-  model_func: source.SourceProfileFunction = calc_puff_source  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    """Calculates external source term for n from puffs."""
+    del core_profiles, calculated_source_profiles, conductivity
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    assert isinstance(source_params, RuntimeParams)
+    return (
+        formulas.exponential_profile(
+            decay_start=1.0,
+            width=source_params.puff_decay_length,
+            total=source_params.S_total,
+            geo=geo,
+        ),
+    )
 
 
-class GasPuffSourceConfig(base.SourceModelBase):
+class GasPuffSourceConfig(base.SourceConfigBase):
   """Gas puff source for the n_e equation.
 
   Attributes:
@@ -95,27 +89,16 @@ class GasPuffSourceConfig(base.SourceModelBase):
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1e22
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return calc_puff_source  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         puff_decay_length=self.puff_decay_length.get_value(t),
         S_total=self.S_total.get_value(t),
     )
 
   def build_source(self) -> GasPuffSource:
-    return GasPuffSource(model_func=self.model_func)
+    return GasPuffSource()

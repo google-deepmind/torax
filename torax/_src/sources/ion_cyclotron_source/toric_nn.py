@@ -14,7 +14,6 @@
 """ToricNN surrogate model for ion-cyclotron resonance heating (ICRH)."""
 
 import dataclasses
-import functools
 import json
 import logging
 import os  # pylint: disable=unused-import
@@ -39,7 +38,7 @@ from torax._src.physics import collisions
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.physics import fast_ion_utils
 from torax._src.sources import runtime_params as source_runtime_params_lib
-from torax._src.sources import source
+from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
@@ -527,18 +526,31 @@ def icrh_model_func(
 # Cache the result of this function to avoid re-creating the partial function
 # every time it is called and ensure we hit the same JAX compile cache (as
 # model_func) is part of the key.
-# maxsize=1 is sufficient as the ToricNNWrapper only changes if a new path
-# is provided. This is not expected to happen very often.
-@functools.lru_cache(maxsize=1)
-def _icrh_model_func_with_toric_nn(
-    model_path: str,
-) -> source.SourceProfileFunction:
-  """Returns a function that computes the ICRH source terms given a ToricNN."""
-  toric_nn = ToricNNWrapper(model_path)
-  return functools.partial(
-      icrh_model_func,
-      toric_nn=toric_nn,
-  )
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class ToricNNIonCyclotronSource(base.IonCyclotronSource):
+  """Ion cyclotron source using the ToricNN surrogate model."""
+
+  model_path: str | None = None
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
+      conductivity: conductivity_base.Conductivity | None = None,
+  ) -> tuple[source_lib.SourceProfileElement, ...]:
+    del calculated_source_profiles, conductivity
+    toric_nn = ToricNNWrapper(self.model_path)
+    return icrh_model_func(
+        runtime_params=runtime_params,
+        geo=geo,
+        source_name=self.SOURCE_ID,
+        core_profiles=core_profiles,
+        unused_calculated_source_profiles=None,
+        unused_conductivity=None,
+        toric_nn=toric_nn,
+    )
 
 
 class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
@@ -571,24 +583,21 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
       torax_pydantic.ValidatedDefault(0.03)
   )
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return _icrh_model_func_with_toric_nn(self.model_path)
-
-  def build_source(self) -> base.IonCyclotronSource:
-    """Builds the source, only loading the ToricNN model in MODEL_BASED mode.
+  def build_source(self) -> ToricNNIonCyclotronSource:
+    """Builds the ToricNNIonCyclotronSource.
 
     When the mode is PRESCRIBED or ZERO, the model function is never called,
-    so we avoid loading the ToricNN model JSON file. This allows users who
-    don't have access to the toric_nn model file to still use the ICRH source
-    in prescribed mode.
+    so we can instantiate without requiring model_path to be valid.
 
     Returns:
-      An IonCyclotronSource object.
+      A ToricNNIonCyclotronSource object.
     """
     if self.mode == source_runtime_params_lib.Mode.MODEL_BASED:
-      return base.IonCyclotronSource(model_func=self.model_func)
-    return base.IonCyclotronSource(model_func=None)
+      # Eagerly validate model_path if provided, to ensure existence as before.
+      if self.model_path is not None:
+        _from_json(self.model_path)
+      return ToricNNIonCyclotronSource(model_path=self.model_path)
+    return ToricNNIonCyclotronSource(model_path=None)
 
   @pydantic.model_validator(mode='after')
   def _validate_minority_species(self) -> Self:
@@ -621,11 +630,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         wall_inner=self.wall_inner,
         wall_outer=self.wall_outer,
         frequency=self.frequency.get_value(t),
