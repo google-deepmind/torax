@@ -170,6 +170,39 @@ class CoreProfiles:
     """Scaling factor for impurity density on face grid: n_imp_true / n_imp_eff."""
     return self.Z_impurity_face / self.charge_state_info_face.Z_avg
 
+  def get_species_concentration(
+      self,
+      species: str,
+  ) -> array_typing.FloatVectorCell:
+    """Extracts species fractional concentration relative to electron density.
+
+    Args:
+      species: Symbol of the ion species (e.g., 'He3', 'D', 'T', 'Ne').
+
+    Returns:
+      Species fractional concentration relative to electron density (n_s / n_e).
+
+    Raises:
+      ValueError: If species is not found in main_ion_fractions or
+        impurity_fractions.
+    """
+    if species in self.main_ion_fractions:
+      fraction = self.main_ion_fractions[species]
+      return self.n_i.value * fraction / self.n_e.value  # pyrefly: ignore[bad-return]
+
+    if species in self.impurity_fractions:
+      fraction = self.impurity_fractions[species]
+      n_imp_species = (
+          fraction * self.n_impurity.value * self.impurity_density_scaling
+      )
+      return n_imp_species / self.n_e.value  # pyrefly: ignore[bad-return]
+
+    raise ValueError(
+        f"Species {species} not found in plasma composition."
+        f" Available main ions: {tuple(self.main_ion_fractions.keys())},"
+        f" impurities: {tuple(self.impurity_fractions.keys())}"
+    )
+
   @functools.cached_property
   def pressure_thermal_e(self) -> cell_variable.CellVariable:
     """Electron thermal pressure [Pa]."""
