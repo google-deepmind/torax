@@ -162,7 +162,7 @@ def fusion_heat_model_func(
 class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
 
-  SOURCE_NAME: ClassVar[str] = 'fusion'
+  SOURCE_ID: ClassVar[str] = 'fusion'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,

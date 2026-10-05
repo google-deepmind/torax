@@ -49,7 +49,7 @@ _DUMMY_MODEL_PATH = "/tmp/toricnn.json"
 class ToricNNTest(test_lib.SourceTestCase):
   """Test cases for the ToricNN ICRH model."""
 
-  source_name = icrh_base.IonCyclotronSource.SOURCE_NAME
+  source_name = icrh_base.IonCyclotronSource.SOURCE_ID
   source_config_class = ion_cyclotron_source.ToricNNIonCyclotronSourceConfig
 
   def setUp(self):
@@ -104,7 +104,7 @@ class ToricNNTest(test_lib.SourceTestCase):
       json.dump(config, f, indent=4, separators=(",", ":"))
     self.dummy_input = model_input
     self.dummy_output = model_output
-    self._source_name = icrh_base.IonCyclotronSource.SOURCE_NAME
+    self._source_name = icrh_base.IonCyclotronSource.SOURCE_ID
 
   def test_build_runtime_params(self):
     source = ion_cyclotron_source.ToricNNIonCyclotronSourceConfig.from_dict(
@@ -187,7 +187,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
-        icrh_base.IonCyclotronSource.SOURCE_NAME
+        icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     self.assertIsInstance(source, source_lib.Source)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -237,7 +237,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
-        icrh_base.IonCyclotronSource.SOURCE_NAME
+        icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     self.assertIsInstance(source, source_lib.Source)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -254,7 +254,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     )
     # Verify minority_species is set in runtime params
     icrh_params = runtime_params.sources[
-        icrh_base.IonCyclotronSource.SOURCE_NAME
+        icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     self.assertIsInstance(icrh_params, ion_cyclotron_source.RuntimeParams)
     self.assertEqual(icrh_params.minority_species, "He3")
@@ -298,7 +298,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
-        icrh_base.IonCyclotronSource.SOURCE_NAME
+        icrh_base.IonCyclotronSource.SOURCE_ID
     ]
 
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -377,7 +377,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
-        icrh_base.IonCyclotronSource.SOURCE_NAME
+        icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -403,7 +403,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     fi = fast_ion_data[_HE3_INDEX]
     self.assertIsInstance(fi, fast_ion_lib.FastIon)
     self.assertEqual(fi.species, "He3")
-    self.assertEqual(fi.source, icrh_base.IonCyclotronSource.SOURCE_NAME)
+    self.assertEqual(fi.source, icrh_base.IonCyclotronSource.SOURCE_ID)
     self.assertEqual(fi.n.value.shape, geo.rho.shape)
     self.assertEqual(fi.T.value.shape, geo.rho.shape)
 
@@ -422,7 +422,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
-        icrh_base.IonCyclotronSource.SOURCE_NAME
+        icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -457,7 +457,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
-        icrh_base.IonCyclotronSource.SOURCE_NAME
+        icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -490,7 +490,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
-        icrh_base.IonCyclotronSource.SOURCE_NAME
+        icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config

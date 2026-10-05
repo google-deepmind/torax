@@ -60,7 +60,7 @@ def calc_pellet_source(
 class PelletSource(source.Source):
   """Pellet source for the n_e equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'pellet'
+  SOURCE_ID: ClassVar[str] = 'pellet'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )

@@ -32,7 +32,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   """Tests for BremsstrahlungHeatSink."""
 
   source_config_class = bremsstrahlung_heat_sink.BremsstrahlungHeatSinkConfig
-  source_name = bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME
+  source_name = bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_ID
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),

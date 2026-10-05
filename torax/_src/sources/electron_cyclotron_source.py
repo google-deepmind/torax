@@ -126,7 +126,7 @@ def calc_heating_and_current(
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the T_e and Psi equations."""
 
-  SOURCE_NAME: ClassVar[str] = "ecrh"
+  SOURCE_ID: ClassVar[str] = "ecrh"
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
       source.AffectedCoreProfile.PSI,

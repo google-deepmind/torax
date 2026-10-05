@@ -26,7 +26,7 @@ from torax._src.test_utils import torax_refs
 class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   """Tests for FusionHeatSource."""
 
-  source_name = fusion_heat_source.FusionHeatSource.SOURCE_NAME
+  source_name = fusion_heat_source.FusionHeatSource.SOURCE_ID
   source_config_class = fusion_heat_source.FusionHeatSourceConfig
   needs_source_models = True
 

@@ -36,7 +36,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
       impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
   )
   source_name = (
-      impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME
+      impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID
   )
   model_name = impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME
 
@@ -67,7 +67,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def test_correct_dynamic_params_built(self):
     # Source models
     sources = sources_pydantic_model.Sources.from_dict({
-        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME: {},
+        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID: {},
     })
     # Set the grid to allows the dynamic params to be built without making the
     # full config.

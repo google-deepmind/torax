@@ -21,7 +21,7 @@ class GenericIonElectronHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
 
   source_config_class = generic_ion_el_heat_source.GenericIonElHeatSourceConfig
   source_name = (
-      generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME
+      generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_ID
   )
 
 

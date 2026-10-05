@@ -70,7 +70,7 @@ def calc_puff_source(
 class GasPuffSource(source.Source):
   """Gas puff source for the n_e equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'gas_puff'
+  SOURCE_ID: ClassVar[str] = 'gas_puff'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )

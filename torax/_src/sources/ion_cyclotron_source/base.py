@@ -88,7 +88,7 @@ def build_fast_ions(
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source."""
 
-  SOURCE_NAME: ClassVar[str] = 'icrh'
+  SOURCE_ID: ClassVar[str] = 'icrh'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
@@ -100,7 +100,7 @@ class IonCyclotronSource(source.Source):
       cls,
       geo: geometry.Geometry,
   ) -> tuple[fast_ion_lib.FastIon, ...]:
-    return build_fast_ions(source_name=cls.SOURCE_NAME, geo=geo)
+    return build_fast_ions(source_name=cls.SOURCE_ID, geo=geo)
 
 
 class IonCyclotronSourceConfig(source_base.SourceModelBase):

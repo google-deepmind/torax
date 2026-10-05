@@ -359,7 +359,7 @@ def cyclotron_radiation_albajar(
 class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation heat sink for electron heat equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'cyclotron_radiation'
+  SOURCE_ID: ClassVar[str] = 'cyclotron_radiation'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
   )

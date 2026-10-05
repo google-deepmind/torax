@@ -103,7 +103,7 @@ def _calculate_I_generic(
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 
-  SOURCE_NAME: ClassVar[str] = 'generic_current'
+  SOURCE_ID: ClassVar[str] = 'generic_current'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.PSI,
   )

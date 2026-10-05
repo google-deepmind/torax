@@ -20,7 +20,7 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GasPuffSource."""
 
   source_config_class = gas_puff_source.GasPuffSourceConfig
-  source_name = gas_puff_source.GasPuffSource.SOURCE_NAME
+  source_name = gas_puff_source.GasPuffSource.SOURCE_ID
 
 
 if __name__ == '__main__':

@@ -85,7 +85,7 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      SOURCE_NAME = 'foo'
+      SOURCE_ID = 'foo'
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
     test_source = TestSource(
@@ -132,7 +132,7 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      SOURCE_NAME = 'foo'
+      SOURCE_ID = 'foo'
       AFFECTED_CORE_PROFILES = (
           source.AffectedCoreProfile.TEMP_ION,
           source.AffectedCoreProfile.TEMP_EL,
@@ -215,7 +215,7 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      SOURCE_NAME = 'foo'
+      SOURCE_ID = 'foo'
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
     test_source = TestSource(

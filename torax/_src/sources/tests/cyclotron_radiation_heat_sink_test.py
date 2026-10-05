@@ -131,7 +131,7 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
   ):
     config = default_configs.get_default_config_dict()
     config["sources"] = {
-        cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_NAME: {}
+        cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID: {}
     }
     config["profile_conditions"] = {
         "T_e": {0.0: te_profile},
@@ -170,7 +170,7 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
     q_cycl = cyclotron_radiation_heat_sink.cyclotron_radiation_albajar(
         runtime_params=runtime_params,
         geo=geo,
-        source_name=cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_NAME,
+        source_name=cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID,
         core_profiles=core_profiles,
         unused_calculated_source_profiles=None,
         unused_conductivity=None,

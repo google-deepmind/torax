@@ -34,7 +34,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GasPuffFeedbackSource."""
 
   source_config_class = gas_puff_feedback_source.GasPuffFeedbackSourceConfig
-  source_name = gas_puff_source.GasPuffSource.SOURCE_NAME
+  source_name = gas_puff_source.GasPuffSource.SOURCE_ID
 
   def test_feedback_mode(self):
     """Tests calc_puff_feedback_source with real objects."""

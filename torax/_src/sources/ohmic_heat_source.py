@@ -92,7 +92,7 @@ class OhmicHeatSource(source_lib.Source):
   IV.
   """
 
-  SOURCE_NAME: ClassVar[str] = 'ohmic'
+  SOURCE_ID: ClassVar[str] = 'ohmic'
   AFFECTED_CORE_PROFILES: ClassVar[
       tuple[source_lib.AffectedCoreProfile, ...]
   ] = (source_lib.AffectedCoreProfile.TEMP_EL,)

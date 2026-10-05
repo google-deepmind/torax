@@ -108,7 +108,7 @@ def default_formula(
 class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
-  SOURCE_NAME: ClassVar[str] = 'generic_heat'
+  SOURCE_ID: ClassVar[str] = 'generic_heat'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,

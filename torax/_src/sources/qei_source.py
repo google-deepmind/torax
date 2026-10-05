@@ -46,7 +46,7 @@ class QeiSource(source.Source):
   explicit terms in our solver. See sim.py for how this is used.
   """
 
-  SOURCE_NAME: ClassVar[str] = 'ei_exchange'
+  SOURCE_ID: ClassVar[str] = 'ei_exchange'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
@@ -60,7 +60,7 @@ class QeiSource(source.Source):
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
     return jax.lax.cond(
-        runtime_params.sources[self.source_name].mode
+        runtime_params.sources[self.SOURCE_ID].mode
         == sources_runtime_params_lib.Mode.MODEL_BASED,
         lambda: _model_based_qei(
             runtime_params,
@@ -95,7 +95,7 @@ def _model_based_qei(
     core_profiles: state.CoreProfiles,
 ) -> source_profiles.QeiInfo:
   """Computes Qei via the coll_exchange model."""
-  source_params = runtime_params.sources[QeiSource.SOURCE_NAME]
+  source_params = runtime_params.sources[QeiSource.SOURCE_ID]
   assert isinstance(source_params, RuntimeParams)
   zeros = jnp.zeros_like(geo.rho_norm)
   qei_coef = collisions.coll_exchange(

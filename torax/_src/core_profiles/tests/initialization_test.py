@@ -66,7 +66,7 @@ class InitializationTest(parameterized.TestCase):
     j_parallel_external = generic_current_source.calculate_generic_current(
         runtime_params=runtime_params,
         geo=geo,
-        source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
+        source_name=generic_current_source.GenericCurrentSource.SOURCE_ID,
         unused_state=mock.ANY,
         unused_calculated_source_profiles=mock.ANY,
         unused_conductivity=mock.ANY,
