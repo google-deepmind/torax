@@ -127,40 +127,42 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       )
     return ()
 
-  def _validate_fast_ions(
+  def _populate_and_validate_fast_ions(
       self,
       fast_ions: SourceProfileElement,
       geo: geometry.Geometry,
-  ):
-    """Validates the fast ion profiles."""
-    if not isinstance(fast_ions, tuple):
+  ) -> tuple[fast_ion_lib.FastIon, ...]:
+    """Validates fast ion profiles and fills uncomputed species with zeros."""
+    if not isinstance(fast_ions, (tuple, list)):
       # PRESCRIBED mode might incorrectly supply a single array instead
       # of a tuple of FastIons if not configured correctly.
       raise TypeError(
-          'FAST_IONS profile must be a tuple of FastIon, but got'
+          'FAST_IONS profile must be a tuple or list of FastIon, but got'
           f' {type(fast_ions)}.'
       )
-    fast_ions = typing.cast(tuple[fast_ion_lib.FastIon, ...], fast_ions)
     zero_fast_ions = self.zero_fast_ions(geo)
-    if len(fast_ions) != len(zero_fast_ions):
-      raise ValueError(
-          'Fast ion profiles must have the same length as zero_fast_ions. Was:'
-          f' {len(fast_ions)}. Expected:'
-          f' {len(zero_fast_ions)}.'
-      )
-    expected_species_order = [fast_ion.species for fast_ion in zero_fast_ions]
-    actual_species_order = [fast_ion.species for fast_ion in fast_ions]
-    if any(
-        actual_species != expected_species
-        for actual_species, expected_species in zip(
-            actual_species_order, expected_species_order
+    expected_species = {fast_ion.species for fast_ion in zero_fast_ions}
+    computed: dict[str, fast_ion_lib.FastIon] = {}
+    for fast_ion in fast_ions:
+      if not isinstance(fast_ion, fast_ion_lib.FastIon):
+        raise TypeError(
+            'Each element of FAST_IONS profile must be a FastIon, but got'
+            f' {type(fast_ion)}.'
         )
-    ):
-      raise ValueError(
-          'Fast ion profiles must have the same species in the same order as'
-          f' zero_fast_ions. Was: {actual_species_order}. Expected:'
-          f' {expected_species_order}.'
-      )
+      if fast_ion.species not in expected_species:
+        raise ValueError(
+            f'Unsupported FastIon species {fast_ion.species!r}. Expected one'
+            f' of {[fi.species for fi in zero_fast_ions]}.'
+        )
+      if fast_ion.species in computed:
+        raise ValueError(
+            f'Duplicate FastIon species {fast_ion.species!r} in FAST_IONS'
+            ' profile.'
+        )
+      computed[fast_ion.species] = fast_ion
+    return tuple(
+        computed.get(zero_fi.species, zero_fi) for zero_fi in zero_fast_ions
+    )
 
   def get_value(
       self,
@@ -258,14 +260,14 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       fast_ions_idx = self.AFFECTED_CORE_PROFILES.index(
           AffectedCoreProfile.FAST_IONS
       )
+      res_list = list(res)
       if runtime_params.numerics.enable_fast_ions:
-        self._validate_fast_ions(
+        res_list[fast_ions_idx] = self._populate_and_validate_fast_ions(
             res[fast_ions_idx],
             geo,
         )
-      elif res[fast_ions_idx]:
-        res_list = list(res)
+      else:
         res_list[fast_ions_idx] = ()
-        res = tuple(res_list)
+      res = tuple(res_list)
 
     return res
