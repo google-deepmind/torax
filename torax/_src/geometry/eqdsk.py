@@ -21,6 +21,7 @@ import contourpy
 import eqdsk
 import eqdsk.file
 import eqdsk.tools
+from jax import numpy as jnp
 import numpy as np
 import numpy.typing as npt
 import pydantic
@@ -70,6 +71,12 @@ class EQDSKConfig(base.BaseGeometryConfig):
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
+    target_psi_grid_resolution: Desired minimum number of grid points along the
+      R and Z dimensions of the 2D psi grid before generating flux surface
+      contours. If set, the integer refinement factor is calculated dynamically
+      as `ceil(target / min_dim)`, where `target = target_psi_grid_resolution`
+      and `min_dim = min(nx, nz)`, refining both dimensions uniformly. If None,
+      no refinement is performed.
   """
 
   @property
@@ -93,6 +100,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
   Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
+  target_psi_grid_resolution: Annotated[int | None, pydantic.Field(ge=1)] = 128
 
   @pydantic.field_validator('eqdsk_object', mode='before')
   @classmethod
@@ -145,6 +153,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
         n_surfaces=self.n_surfaces,
         last_surface_factor=self.last_surface_factor,
         trapped_fraction_source=self.trapped_fraction_source,
+        target_psi_grid_resolution=self.target_psi_grid_resolution,
     )
     return standard_geometry.build_standard_geometry(intermediates)
 
@@ -162,6 +171,7 @@ def _construct_intermediates_from_eqdsk(
     trapped_fraction_source: (
         trapped_fraction_lib.TrappedFractionSource
     ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
+    target_psi_grid_resolution: int | None = None,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -190,6 +200,11 @@ def _construct_intermediates_from_eqdsk(
       1-8 or 11-18 inclusive.
     trapped_fraction_source: Selects how the effective trapped particle fraction
       is computed; see `trapped_fraction.TrappedFractionSource`.
+    target_psi_grid_resolution: Desired minimum number of grid points along the
+      R and Z dimensions of the 2D psi grid before generating flux surface
+      contours. If set, the grid is refined by `ceil(target / min_dim)`, where
+      `target = target_psi_grid_resolution` and `min_dim = min(nx, nz)`,
+      refining both dimensions uniformly. If None, no refinement is performed.
 
   Returns:
     A StandardGeometryIntermediates instance based on the input file or object.
@@ -253,20 +268,46 @@ def _construct_intermediates_from_eqdsk(
       0.0, eq_dict['psibdry'] - eq_dict['psimag'], eq_dict['nx']
   )
 
-  # 2D X-Z grid
-  X_1D = np.linspace(
+  # 2D psi grid, with psi(axis) = 0
+  psi_2dgrid = eq_dict['psi'] - eq_dict['psimag']
+
+  # Spline interpolator of 2D psi field defined on raw EQDSK X-Z grid
+  raw_X_1D = np.linspace(
       eq_dict['xgrid1'], eq_dict['xgrid1'] + eq_dict['xdim'], eq_dict['nx']
   )
-  Z_1D = np.linspace(
+  raw_Z_1D = np.linspace(
       eq_dict['zmid'] - eq_dict['zdim'] / 2,
       eq_dict['zmid'] + eq_dict['zdim'] / 2,
       eq_dict['nz'],
   )
+  psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
+      raw_X_1D, raw_Z_1D, psi_2dgrid, kx=3, ky=3, s=0
+  )
+
+  # Optionally refine the 2D psi grid.
+  if target_psi_grid_resolution is not None:
+    # Convert target resolution to refinement factor.
+    min_resolution = min(eq_dict['nx'], eq_dict['nz'])
+    refinement_factor = int(
+        jnp.ceil(target_psi_grid_resolution / min_resolution)
+    )
+  else:
+    # No refinement.
+    refinement_factor = 1
+
+  # 2D X-Z grid
+  if refinement_factor > 1:
+    nx = (eq_dict['nx'] - 1) * refinement_factor + 1
+    nz = (eq_dict['nz'] - 1) * refinement_factor + 1
+    X_1D = np.linspace(raw_X_1D[0], raw_X_1D[-1], nx)
+    Z_1D = np.linspace(raw_Z_1D[0], raw_Z_1D[-1], nz)
+    psi_2dgrid = psi_2dgrid_interpolator(X_1D, Z_1D)
+  else:
+    X_1D = raw_X_1D
+    Z_1D = raw_Z_1D
+
   X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
   Xlcfs, Zlcfs = eq_dict['xbdry'], eq_dict['zbdry']
-
-  # 2D psi grid, with psi(axis) = 0
-  psi_2dgrid = eq_dict['psi'] - eq_dict['psimag']
 
   # Mask for the region inside the LCFS
   # i.e. Xlcfs.min() < X < Xlcfs.max() and Zlcfs.min() < Z < Zlcfs.max()
@@ -306,12 +347,6 @@ def _construct_intermediates_from_eqdsk(
   # ------------------------------------------------------------------ #
   # ---- 3. Interpolate everything onto the new flux surface grid ---- #
   # ------------------------------------------------------------------ #
-  # Spline interpolator of 2D psi field defined on X-Z grid
-  # This will later be evaluated on each flux surface
-  psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
-      X_1D, Z_1D, psi_2dgrid, kx=3, ky=3, s=0
-  )
-
   # Interpolate safety factor onto new flux-surface grid
   q_interpolator = scipy.interpolate.interp1d(
       psi_1dgrid, eq_dict['qpsi'], kind='cubic'

@@ -1351,6 +1351,23 @@ It is only recommended to change the default values if issues arise.
   defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
   divergent integrations in diverted geometries.
 
+``target_psi_grid_resolution`` (int | None [default = 128])
+  Desired minimum number of grid points along the R and Z dimensions of the 2D
+  psi grid before generating flux surface contours. Contours are linear between
+  grid points, so for coarse EQDSK grids the flux surfaces near the separatrix
+  can be inaccurate (e.g. underestimating the plasma current) or fail to close.
+  Refining the grid allows ``last_surface_factor`` to be closer to 1. If set,
+  the 2D (R, Z) grid is refined (using bicubic spline interpolation of psi)
+  by an integer factor calculated dynamically as:
+
+  .. code-block:: python
+
+    ceil(target_psi_grid_resolution / min(nx, nz))
+
+  refining both dimensions uniformly. If None, no refinement is performed.
+  Must be >= 1 if provided.
+
+
 Geometry dicts for IMAS geometry require one and only one of the following
 additional keys.
 
