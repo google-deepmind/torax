@@ -191,7 +191,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 
       # This is the standard constructor input. No conforming required.
       if set(data.keys()).issubset(cls.model_fields.keys()):
-        return data  # pytype: disable=bad-return-type
+        return data  # pyrefly: ignore[bad-return]
 
     default_interpolation_mode = cls.model_fields['interpolation_mode'].default
 

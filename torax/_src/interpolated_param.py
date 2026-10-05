@@ -309,24 +309,24 @@ def convert_input_to_xs_ys(
       )
     if isinstance(interp_input[1], str):
       interpolation_mode = InterpolationMode[interp_input[1].upper()]
-      interp_input = interp_input[0]  # pyrefly: ignore[bad-assignment]
+      interp_input = interp_input[0]
 
-  if _is_bool(interp_input):  # pyrefly: ignore[bad-argument-type]
-    interp_input = _convert_value_to_floats(interp_input)  # pyrefly: ignore[bad-argument-type]
+  if _is_bool(interp_input):
+    interp_input = _convert_value_to_floats(interp_input)
     is_bool_param = True
   else:
     is_bool_param = False
 
   if isinstance(interp_input, xr.DataArray):
-    if not isinstance(interp_input.coords, Mapping):  # pytype: disable=attribute-error
+    if not isinstance(interp_input.coords, Mapping):
       raise ValueError('The coords in the xr.DataArray must be a mapping.')
-    if 'time' not in interp_input.coords:  # pytype: disable=attribute-error
+    if 'time' not in interp_input.coords:
       raise ValueError(
           'The coords in the xr.DataArray must include a "time" coordinate.'
       )
     return (
-        np.asarray(interp_input.coords['time'], dtype=jax_utils.get_np_dtype()),  # pytype: disable=attribute-error
-        np.asarray(interp_input.values, dtype=jax_utils.get_np_dtype()),  # pytype: disable=attribute-error
+        np.asarray(interp_input.coords['time'], dtype=jax_utils.get_np_dtype()),
+        np.asarray(interp_input.values, dtype=jax_utils.get_np_dtype()),
         interpolation_mode,
         is_bool_param,
     )
@@ -344,8 +344,8 @@ def convert_input_to_xs_ys(
     if not interp_input:
       raise ValueError('The time interpolated input dict must be non-empty.')
     return (
-        np.array(list(interp_input.keys()), dtype=jax_utils.get_np_dtype()),  # pytype: disable=attribute-error
-        np.array(list(interp_input.values()), dtype=jax_utils.get_np_dtype()),  # pytype: disable=attribute-error
+        np.array(list(interp_input.keys()), dtype=jax_utils.get_np_dtype()),
+        np.array(list(interp_input.values()), dtype=jax_utils.get_np_dtype()),
         interpolation_mode,
         is_bool_param,
     )

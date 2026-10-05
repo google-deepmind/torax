@@ -130,7 +130,7 @@ def calc_fusion(
   alpha_mass = 4.002602
   frac_i = collisions.fast_ion_fractional_heating_formula(
       birth_energy,
-      core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.value,
       alpha_mass,
   )
   frac_e = 1.0 - frac_i

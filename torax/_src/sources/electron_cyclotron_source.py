@@ -103,7 +103,7 @@ def calc_heating_and_current(
           2 * jnp.log(constants.CONSTANTS.q_e)
           + jnp.log(
               collisions.calculate_log_lambda_ee(
-                  core_profiles.T_e.value, core_profiles.n_e.value  # pyrefly: ignore[bad-argument-type]
+                  core_profiles.T_e.value, core_profiles.n_e.value
               )
           )
           + jnp.log(core_profiles.n_e.value)

@@ -62,7 +62,6 @@ def calculate_generic_current(
 ) -> tuple[array_typing.FloatVectorCell, ...]:
   """Calculates the external parallel current density profile on the cell grid."""
   source_params = runtime_params.sources[source_name]
-  # pytype: enable=name-error
   assert isinstance(source_params, RuntimeParams)
   I_generic = _calculate_I_generic(
       runtime_params,

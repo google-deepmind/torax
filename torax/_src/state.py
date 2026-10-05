@@ -195,12 +195,12 @@ class CoreProfiles:
     n_impurity_thermal_right = self.n_impurity.right_face_constraint
     for fast_ion in self.fast_ions:
       if fast_ion.species in self.impurity_fractions:
-        n_impurity_thermal_value -= fast_ion.n.value  # pyrefly: ignore[unsupported-operation]
+        n_impurity_thermal_value -= fast_ion.n.value
         if (
             n_impurity_thermal_right is not None
             and fast_ion.n.right_face_constraint is not None
         ):
-          n_impurity_thermal_right -= fast_ion.n.right_face_constraint  # pyrefly: ignore[unsupported-operation]
+          n_impurity_thermal_right -= fast_ion.n.right_face_constraint
     return cell_variable.CellVariable(
         value=n_impurity_thermal_value,
         face_centers=self.n_impurity.face_centers,

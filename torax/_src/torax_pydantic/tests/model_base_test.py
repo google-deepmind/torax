@@ -49,7 +49,7 @@ class PydanticBaseTest(parameterized.TestCase):
       name: Annotated[
           str, 'distractor_1', model_base.JAX_STATIC, 'distractor_2'
       ]
-      y: TestModel1  # pytype: disable=invalid-annotation
+      y: TestModel1
       z: float
 
     m = TestModel2(name='test2', y=TestModel1(name='test1', y=2.0), z=3.0)
@@ -111,10 +111,10 @@ class PydanticBaseTest(parameterized.TestCase):
     class Test2(model_base.BaseModelFrozen):
       x: dict[str, Any]
       y: int
-      z: list[tuple[Test1, Test1, int]]  # pytype: disable=invalid-annotation
+      z: list[tuple[Test1, Test1, int]]
 
     class Test3(model_base.BaseModelFrozen):
-      x: tuple[Test1, Test2, Test1]  # pytype: disable=invalid-annotation
+      x: tuple[Test1, Test2, Test1]
       y: dict[str, int]
 
     t1 = Test1(x=True)
@@ -175,8 +175,8 @@ class PydanticBaseTest(parameterized.TestCase):
       x: bool = False
 
     class Test2(model_base.BaseModelFrozen):
-      x: Test1  # pytype: disable=invalid-annotation
-      y: Test1  # pytype: disable=invalid-annotation
+      x: Test1
+      y: Test1
 
     t1 = Test1(x=True)
     t2 = Test2(x=t1, y=t1)
@@ -267,7 +267,7 @@ class PydanticBaseTest(parameterized.TestCase):
       x: float
 
     class Test2(model_base.BaseModelFrozen):
-      y: dict[str, dict[str, Test1]]  # pytype: disable=invalid-annotation
+      y: dict[str, dict[str, Test1]]
 
     model_1 = Test1(x=1.0)
     model = Test2(y={'test1': {'test2': model_1}})
@@ -280,9 +280,9 @@ class PydanticBaseTest(parameterized.TestCase):
       x: float
 
     class Test2(model_base.BaseModelFrozen):
-      x: list[Test1]  # pytype: disable=invalid-annotation
+      x: list[Test1]
       y: float
-      z: Test1  # pytype: disable=invalid-annotation
+      z: Test1
 
     t1_1 = Test1(x=1.0)
     t1_2 = Test1(x=2.0)
@@ -363,7 +363,7 @@ class PydanticBaseTest(parameterized.TestCase):
       a: float
 
     class Test2(model_base.BaseModelFrozen):
-      a: Test1  # pytype: disable=invalid-annotation
+      a: Test1
       b: float
       c: float
 
