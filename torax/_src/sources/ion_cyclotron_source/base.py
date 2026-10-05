@@ -13,7 +13,6 @@
 # limitations under the License.
 """Base infrastructure for ion-cyclotron resonance heating (ICRH) sources."""
 
-from collections.abc import Sequence
 import dataclasses
 from typing import Annotated, ClassVar
 
@@ -34,56 +33,6 @@ from torax._src.torax_pydantic import torax_pydantic
 DEFAULT_MODEL_FUNCTION_NAME: str = 'toric_nn'
 
 
-def build_fast_ions(
-    source_name: str,
-    geo: geometry.Geometry,
-    fast_ions: Sequence[fast_ion_lib.FastIon] = (),
-) -> tuple[fast_ion_lib.FastIon, ...]:
-  """Builds a complete FastIon tuple for all supported species.
-
-  Takes a list of computed FastIon objects (for a subset of species) and
-  produces a full tuple covering all species in
-  ``fast_ion_lib.FAST_ION_SPECIES``.
-  Species not present in the input list are filled with zero density and
-  temperature.
-
-  Args:
-    source_name: The name of the source.
-    geo: Geometry.
-    fast_ions: Computed FastIon objects for a subset of species.
-
-  Returns:
-    Tuple of FastIon objects, one per species in
-    ``fast_ion_lib.FAST_ION_SPECIES``, in order.
-  """
-  computed = {fi.species: fi for fi in fast_ions}
-  zeros = jnp.zeros_like(geo.rho)
-  result = []
-  for species in fast_ion_lib.FAST_ION_SPECIES:
-    if species in computed:
-      result.append(computed[species])
-    else:
-      result.append(
-          fast_ion_lib.FastIon(
-              species=species,
-              source=source_name,
-              n=cell_variable.CellVariable(
-                  value=zeros,
-                  face_centers=geo.rho_face_norm,
-                  right_face_grad_constraint=None,
-                  right_face_constraint=jnp.zeros(()),
-              ),
-              T=cell_variable.CellVariable(
-                  value=zeros,
-                  face_centers=geo.rho_face_norm,
-                  right_face_grad_constraint=None,
-                  right_face_constraint=jnp.zeros(()),
-              ),
-          )
-      )
-  return tuple(result)
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source."""
@@ -100,7 +49,26 @@ class IonCyclotronSource(source.Source):
       cls,
       geo: geometry.Geometry,
   ) -> tuple[fast_ion_lib.FastIon, ...]:
-    return build_fast_ions(source_name=cls.SOURCE_ID, geo=geo)
+    zeros = jnp.zeros_like(geo.rho)
+    return tuple(
+        fast_ion_lib.FastIon(
+            species=species,
+            source=cls.SOURCE_ID,
+            n=cell_variable.CellVariable(
+                value=zeros,
+                face_centers=geo.rho_face_norm,
+                right_face_grad_constraint=None,
+                right_face_constraint=jnp.zeros(()),
+            ),
+            T=cell_variable.CellVariable(
+                value=zeros,
+                face_centers=geo.rho_face_norm,
+                right_face_grad_constraint=None,
+                right_face_constraint=jnp.zeros(()),
+            ),
+        )
+        for species in fast_ion_lib.FAST_ION_SPECIES
+    )
 
 
 class IonCyclotronSourceConfig(source_base.SourceModelBase):
