@@ -246,7 +246,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     psidot_calculated = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
         sigma=conductivity.sigma,
-        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
+        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
         psi=references.psi,
         geo=geo,
     )

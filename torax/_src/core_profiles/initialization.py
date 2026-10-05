@@ -521,7 +521,7 @@ def _calculate_all_psi_dependent_profiles(
     psidot_value = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=psi_sources,
         sigma=neoclassical_outputs.conductivity.sigma,
-        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
+        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
         psi=psi,
         geo=geo,
     )

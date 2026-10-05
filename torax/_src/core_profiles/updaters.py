@@ -285,7 +285,7 @@ def update_core_and_source_profiles_after_step(
     psidot_value = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=psi_sources,
         sigma=intermediate_core_profiles.sigma,
-        resistivity_multiplier=runtime_params_t_plus_dt.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
+        resistivity_multiplier=runtime_params_t_plus_dt.numerics.resistivity_multiplier,
         psi=intermediate_core_profiles.psi,
         geo=geo,
     )

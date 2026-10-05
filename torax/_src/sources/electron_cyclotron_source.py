@@ -85,9 +85,9 @@ def calc_heating_and_current(
   ec_power_density = (
       source_params.extra_prescribed_power_density
       + formulas.gaussian_profile(
-          center=source_params.gaussian_location,  # pyrefly: ignore[bad-argument-type]
-          width=source_params.gaussian_width,  # pyrefly: ignore[bad-argument-type]
-          total=source_params.P_total,  # pyrefly: ignore[bad-argument-type]
+          center=source_params.gaussian_location,
+          width=source_params.gaussian_width,
+          total=source_params.P_total,
           geo=geo,
       )
   )

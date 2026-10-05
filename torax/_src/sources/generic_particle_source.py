@@ -49,9 +49,9 @@ def calc_generic_particle_source(
   assert isinstance(source_params, RuntimeParams)
   return (
       formulas.gaussian_profile(
-          center=source_params.deposition_location,  # pyrefly: ignore[bad-argument-type]
-          width=source_params.particle_width,  # pyrefly: ignore[bad-argument-type]
-          total=source_params.S_total,  # pyrefly: ignore[bad-argument-type]
+          center=source_params.deposition_location,
+          width=source_params.particle_width,
+          total=source_params.S_total,
           geo=geo,
       ),
   )

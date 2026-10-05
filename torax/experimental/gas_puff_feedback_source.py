@@ -98,8 +98,8 @@ def calc_puff_feedback_source(
   return (
       formulas.exponential_profile(
           decay_start=1.0,
-          width=source_params.puff_decay_length,  # pyrefly: ignore[bad-argument-type]
-          total=S_total,  # pyrefly: ignore[bad-argument-type]
+          width=source_params.puff_decay_length,
+          total=S_total,
           geo=geo,
       ),
   )
