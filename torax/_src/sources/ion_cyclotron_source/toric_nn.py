@@ -31,7 +31,6 @@ from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
@@ -318,47 +317,6 @@ class RuntimeParams(source_runtime_params_lib.RuntimeParams):
   )
 
 
-def _get_minority_concentration_from_composition(
-    plasma_composition: plasma_composition_lib.RuntimeParams,
-    core_profiles: state.CoreProfiles,
-    minority_species: str,
-) -> jax.Array:
-  """Extract minority species concentration from core profiles.
-
-  Args:
-    plasma_composition: Runtime parameters of plasma composition.
-    core_profiles: Core plasma profiles.
-    minority_species: Symbol of the minority species (e.g., 'He3', 'D', 'T').
-
-  Returns:
-    Minority species fractional concentration relative to electron density.
-
-  Raises:
-    ValueError: If minority_species is not found in plasma composition.
-  """
-
-  # Check if species is in main ions
-  if minority_species in plasma_composition.main_ion_names:
-    # For main ions, concentration is fraction * n_i / n_e
-    fraction = core_profiles.main_ion_fractions[minority_species]
-    return core_profiles.n_i.value * fraction / core_profiles.n_e.value  # pyrefly: ignore[bad-return]
-
-  if minority_species in plasma_composition.impurity_names:
-    impurity_fractions = core_profiles.impurity_fractions
-    impurity_density_scaling = core_profiles.impurity_density_scaling
-    fraction = impurity_fractions[minority_species]
-    n_imp_species = (
-        fraction * core_profiles.n_impurity.value * impurity_density_scaling
-    )
-    return n_imp_species / core_profiles.n_e.value  # pyrefly: ignore[bad-return]
-
-  raise ValueError(
-      f'Minority species {minority_species} not found in plasma composition.'
-      f' Available main ions: {plasma_composition.main_ion_names},'
-      f' impurities: {plasma_composition.impurity_names}'
-  )
-
-
 def icrh_model_func(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
@@ -378,13 +336,8 @@ def icrh_model_func(
 
   # Get minority concentration: either from plasma composition or from params
   if source_params.minority_species is not None:
-    # Extract minority concentration from plasma composition
-    minority_concentration_profile = (
-        _get_minority_concentration_from_composition(
-            runtime_params.plasma_composition,
-            core_profiles,
-            source_params.minority_species,
-        )
+    minority_concentration_profile = core_profiles.get_species_concentration(
+        source_params.minority_species
     )
     # Use first cell point value as assumption for relevant locations for
     # extracting scalar ToricNN input, since deposition tends to be near-axis.

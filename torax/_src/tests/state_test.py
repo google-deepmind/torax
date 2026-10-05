@@ -132,6 +132,49 @@ class InitialStatesTest(parameterized.TestCase):
       )
       self.assertFalse(new_core_profiles.negative_temperature_or_density())
 
+  def test_get_species_concentration(self):
+    config = default_configs.get_default_config_dict()
+    config['plasma_composition'] = {
+        'main_ion': {'D': 0.48, 'T': 0.48, 'He3': 0.04},
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'Ne': 0.01},
+        },
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    source_models = torax_config.sources.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        source_models=source_models,
+        neoclassical_model=neoclassical_model,
+    )
+
+    with self.subTest('main ion species'):
+      he3_conc = core_profiles.get_species_concentration('He3')
+      self.assertEqual(he3_conc.shape, geo.rho_norm.shape)
+      np.testing.assert_allclose(
+          he3_conc,
+          core_profiles.n_i.value * 0.04 / core_profiles.n_e.value,
+      )
+
+    with self.subTest('impurity species'):
+      ne_conc = core_profiles.get_species_concentration('Ne')
+      self.assertEqual(ne_conc.shape, geo.rho_norm.shape)
+      np.testing.assert_allclose(ne_conc, 0.01)
+
+    with self.subTest('unknown species raises ValueError'):
+      with self.assertRaisesRegex(
+          ValueError, 'not found in plasma composition'
+      ):
+        core_profiles.get_species_concentration('W')
+
 
 class CoreProfilesTemperatureCheckTest(parameterized.TestCase):
   """Tests for the below_minimum_temperature method in CoreProfiles."""
