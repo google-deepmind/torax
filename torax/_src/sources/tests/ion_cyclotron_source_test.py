@@ -63,23 +63,14 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
   def test_default_model_function_name(self):
     self.assertEqual(icrh_base.DEFAULT_MODEL_FUNCTION_NAME, 'toric_nn')
 
-  def test_build_fast_ions_all_zeros(self):
-    """build_fast_ions with no input returns zeros for all species."""
-    geo = circular_geometry.CircularConfig().build_geometry()
-    fast_ions = icrh_base.build_fast_ions(source_name='icrh', geo=geo)
-    self.assertLen(fast_ions, len(fast_ion_lib.FAST_ION_SPECIES))
-    for fi, species in zip(fast_ions, fast_ion_lib.FAST_ION_SPECIES):
-      self.assertEqual(fi.species, species)
-      self.assertEqual(fi.source, 'icrh')
-      np.testing.assert_allclose(fi.n.value, 0.0, atol=1e-15)
-      np.testing.assert_allclose(fi.T.value, 0.0, atol=1e-15)
-
   def test_zero_fast_ions(self):
     """IonCyclotronSource.zero_fast_ions returns all-zero fast ions."""
     geo = circular_geometry.CircularConfig().build_geometry()
     fast_ions = icrh_base.IonCyclotronSource.zero_fast_ions(geo)
     self.assertLen(fast_ions, len(fast_ion_lib.FAST_ION_SPECIES))
-    for fi in fast_ions:
+    for fi, species in zip(fast_ions, fast_ion_lib.FAST_ION_SPECIES):
+      self.assertEqual(fi.species, species)
+      self.assertEqual(fi.source, 'icrh')
       np.testing.assert_allclose(fi.n.value, 0.0, atol=1e-15)
       np.testing.assert_allclose(fi.T.value, 0.0, atol=1e-15)
 

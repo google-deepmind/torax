@@ -123,11 +123,9 @@ def scaled_profile_model_func(
   source_ion = shifted_ion * scale
   source_el = shifted_el * scale
 
-  # --- 3. Default zero fast ions in build_fast_ions ---
+  # --- 3. Default empty fast ions (populated by Source.get_value) ---
   # TODO(b/508118026): extend to support scaled prescribed fast ion profiles.
-  fast_ions = base.build_fast_ions(source_name=source_name, geo=geo)
-
-  return (source_ion, source_el, fast_ions)
+  return (source_ion, source_el, ())
 
 
 class ScaledProfileIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
