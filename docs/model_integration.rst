@@ -413,10 +413,14 @@ Step 1: Implement the edge model
 --------------------------------
 
 Create a frozen dataclass that inherits from ``torax.edge.EdgeModel`` and
-implements the ``__call__`` method. This method receives the current runtime
-parameters, geometry, core profiles, and source profiles, and must return an
-``torax.edge.EdgeModelOutputs``. All four boundary condition fields are
-required on ``EdgeModelOutputs``:
+implements the ``__call__`` method. Declare ``computed_bcs`` as a ``ClassVar``
+of type ``torax.edge.BoundaryConditions`` to specify which boundary conditions
+your model is capable of calculating (by default on ``EdgeModel``, all four are
+``True``). The ``__call__`` method receives the current runtime parameters,
+geometry, core profiles, and source profiles, and must return an
+``torax.edge.EdgeModelOutputs`` with the boundary conditions computed by the
+model (any boundary conditions not computed by the model can be left as
+``None``):
 
 * ``T_e_right_bc``: Electron temperature boundary condition at the LCFS [keV].
 * ``T_i_right_bc``: Ion temperature boundary condition at the LCFS [keV].
@@ -424,21 +428,22 @@ required on ``EdgeModelOutputs``:
 * ``impurity_right_bc``: Mapping from impurity symbol to its right boundary
   condition ratio.
 
-If a model does not compute a particular boundary condition, set ``jnp.nan`` for
-that quantity (or an empty dictionary ``{}`` for ``impurity_right_bc``).
-TORAX's boundary condition updaters detect ``NaN`` values and automatically
-preserve the existing core profile boundary conditions without modifying them.
-
 .. code-block:: python
 
     import dataclasses
+    from typing import ClassVar
     import jax.numpy as jnp
     import torax
     from torax import edge
 
     @dataclasses.dataclass(frozen=True, eq=False)
     class MyEdgeModel(edge.EdgeModel):
-      """Custom edge model computing fixed boundary conditions."""
+      """Custom edge model computing temperature boundary conditions."""
+
+      computed_bcs: ClassVar[edge.BoundaryConditions] = edge.BoundaryConditions(
+          electron_temperature=True,
+          ion_temperature=True,
+      )
 
       def __call__(
           self,
@@ -448,21 +453,11 @@ preserve the existing core profile boundary conditions without modifying them.
           core_sources: torax.SourceProfiles,
           previous_edge_outputs: edge.EdgeModelOutputs | None = None,
       ) -> edge.EdgeModelOutputs:
-        del (
-            runtime_params,
-            geo,
-            core_profiles,
-            core_sources,
-            previous_edge_outputs,
-        )
-        # Temperature boundary conditions in [keV], density uncalculated (NaN):
+        del runtime_params, geo, core_profiles, core_sources
+        del previous_edge_outputs
         return edge.EdgeModelOutputs(
             T_i_right_bc=jnp.array(0.08),  # [keV]
             T_e_right_bc=jnp.array(0.12),  # [keV]
-            # Preserves existing electron and impurity density boundary
-            # conditions:
-            n_e_right_bc=jnp.array(jnp.nan),
-            impurity_right_bc={},
         )
 
 
@@ -470,41 +465,32 @@ Step 2: Define the pydantic config
 ----------------------------------
 
 Create a pydantic config class that inherits from
-``torax.edge.EdgeModelConfig`` and implements ``build_edge_model``.
-The config class must declare a ``model_name`` field with a unique
-``Literal`` type identifying the model. Standard boundary condition update
-flags (``update_temperatures``, ``update_electron_density``,
-``update_impurities``) and their default runtime parameters are inherited
-automatically, or you can optionally override ``build_runtime_params`` if your
-model requires custom parameter handling. On the model Pydantic config class,
-a validator can be used if the model only supports ``update_... = True`` for a
-subset of the fields (for example, ensuring unsupported boundary updates remain
-False).
+``torax.edge.EdgeModelConfig`` and implements ``build_edge_model`` (passing
+``used_bcs=self.used_bcs``). Declare ``computed_bcs`` matching your
+``EdgeModel`` class and a ``model_name`` field with a unique ``Literal`` type
+identifying the model. ``EdgeModelConfig`` automatically validates that
+``used_bcs`` only enables boundary conditions supported by ``computed_bcs``, and
+defaults the ``update_*`` flags to ``used_bcs``.
 
 .. code-block:: python
 
-    from typing import Annotated, Literal
-    import pydantic
+    from typing import Annotated, ClassVar, Literal
     import torax
     from torax import edge
 
     class MyEdgeConfig(edge.EdgeModelConfig):
       """Pydantic config for MyEdgeModel."""
 
+      computed_bcs: ClassVar[edge.BoundaryConditions] = edge.BoundaryConditions(
+          electron_temperature=True,
+          ion_temperature=True,
+      )
       model_name: Annotated[
           Literal['my_edge'], torax.JAX_STATIC
       ] = 'my_edge'
 
-      @pydantic.model_validator(mode='after')
-      def check_update_flags(self) -> 'MyEdgeConfig':
-        if self.update_electron_density.value.any():
-          raise ValueError(
-              'MyEdgeModel does not support update_electron_density.'
-          )
-        return self
-
       def build_edge_model(self) -> MyEdgeModel:
-        return MyEdgeModel()
+        return MyEdgeModel(used_bcs=self.used_bcs)
 
 
 Step 3: Register the model

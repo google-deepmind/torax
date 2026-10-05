@@ -15,7 +15,7 @@
 """Tests for the edge model registration."""
 
 import dataclasses
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 from absl.testing import absltest
 import jax.numpy as jnp
@@ -46,7 +46,31 @@ class RegisterEdgeModelTest(absltest.TestCase):
     config["edge"] = {"model_name": "dummy_edge"}
     torax_config = model_config.ToraxConfig.from_dict(config)
     self.assertIsNotNone(torax_config.edge)
-    self.assertIsInstance(torax_config.edge.build_edge_model(), DummyEdgeModel)
+    edge_model = torax_config.edge.build_edge_model()
+    self.assertIsInstance(edge_model, DummyEdgeModel)
+
+  def test_error_if_used_bc_is_not_computed(self):
+    """Test that an error is raised if a used BC is not computed."""
+    register_model.register_edge_model(DummyElectronTemperatureConfig)
+
+    config = default_configs.get_default_config_dict()
+    config["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    config["edge"] = {
+        "model_name": "dummy_te",
+        "used_bcs": base.BoundaryConditions(
+            electron_temperature=True,
+            ion_temperature=True,
+        ),
+    }
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Boundary condition 'ion_temperature' cannot be True in 'used_bcs'"
+        r" because 'dummy_te' does not compute it\.",
+    ):
+      model_config.ToraxConfig.from_dict(config)
 
   def test_dynamic_registration_updates_discriminator(self):
     register_model.register_edge_model(DummyEdgeConfig)
@@ -90,7 +114,26 @@ class DummyEdgeConfig(base.EdgeModelConfig):
   )
 
   def build_edge_model(self) -> DummyEdgeModel:
-    return DummyEdgeModel()
+    return DummyEdgeModel(used_bcs=self.used_bcs)
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class DummyElectronTemperatureModel(DummyEdgeModel):
+  computed_bcs: ClassVar[base.BoundaryConditions] = base.BoundaryConditions(
+      electron_temperature=True
+  )
+
+
+class DummyElectronTemperatureConfig(base.EdgeModelConfig):
+  computed_bcs: ClassVar[base.BoundaryConditions] = base.BoundaryConditions(
+      electron_temperature=True
+  )
+  model_name: Annotated[Literal["dummy_te"], torax_pydantic.JAX_STATIC] = (
+      "dummy_te"
+  )
+
+  def build_edge_model(self) -> DummyElectronTemperatureModel:
+    return DummyElectronTemperatureModel(used_bcs=self.used_bcs)
 
 
 if __name__ == "__main__":
