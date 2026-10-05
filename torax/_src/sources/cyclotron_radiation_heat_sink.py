@@ -36,11 +36,6 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-# Default value for the model function to be used for the Cyclotron radiation
-# heat sink source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'albajar_artaud'
-
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
@@ -366,7 +361,7 @@ class CyclotronRadiationHeatSink(source.Source):
   model_func: source.SourceProfileFunction = cyclotron_radiation_albajar  # pyrefly: ignore[bad-assignment]
 
 
-class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
+class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):
   """Cyclotron radiation heat sink for electron heat equation.
 
   Attributes:
@@ -385,9 +380,6 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
   model_name: Annotated[
       Literal['albajar_artaud'], torax_pydantic.JAX_STATIC
   ] = 'albajar_artaud'
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9
   beta_min: Annotated[float, torax_pydantic.JAX_STATIC] = 0.5
   beta_max: Annotated[float, torax_pydantic.JAX_STATIC] = 8.0
@@ -410,12 +402,8 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> 'RuntimeParams':
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
+        **dataclasses.asdict(super().build_runtime_params(t)),
         wall_reflection_coeff=self.wall_reflection_coeff,
-        mode=self.mode,
-        is_explicit=self.is_explicit,
         beta_min=self.beta_min,
         beta_max=self.beta_max,
         beta_grid_size=self.beta_grid_size,

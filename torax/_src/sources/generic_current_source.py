@@ -33,11 +33,6 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-# Default value for the model function to be used for the generic current
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'gaussian'
-
 
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
@@ -110,7 +105,7 @@ class GenericCurrentSource(source.Source):
   model_func: source.SourceProfileFunction = calculate_generic_current  # pyrefly: ignore[bad-assignment]
 
 
-class GenericCurrentSourceConfig(source_base.SourceModelBase):
+class GenericCurrentSourceConfig(source_base.SourceConfigBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
@@ -139,9 +134,6 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       torax_pydantic.ValidatedDefault(0.4)
   )
   use_absolute_current: bool = False
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -152,11 +144,7 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         I_generic=self.I_generic.get_value(t),
         fraction_of_total_current=self.fraction_of_total_current.get_value(t),
         gaussian_width=self.gaussian_width.get_value(t),
