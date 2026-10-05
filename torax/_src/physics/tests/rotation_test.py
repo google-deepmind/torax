@@ -67,7 +67,7 @@ class RotationTest(absltest.TestCase):
             self.geo, 0.0
         ),
         n_i=core_profile_helpers.make_constant_core_profile(self.geo, 1e19),
-        Z_i_face=1.0,  # pyrefly: ignore[bad-argument-type]
+        Z_i_face=1.0,
         B_pol_face=np.ones_like(self.geo.rho_face_norm),
         B_tor_face=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,
@@ -88,7 +88,7 @@ class RotationTest(absltest.TestCase):
             self.geo, 0.0
         ),
         n_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
-        Z_i_face=1.0,  # pyrefly: ignore[bad-argument-type]
+        Z_i_face=1.0,
         B_pol_face=np.ones_like(self.geo.rho_face_norm),
         B_tor_face=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,
@@ -108,7 +108,7 @@ class RotationTest(absltest.TestCase):
             self.geo, 1.0
         ),
         n_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
-        Z_i_face=1.0,  # pyrefly: ignore[bad-argument-type]
+        Z_i_face=1.0,
         B_pol_face=np.ones_like(self.geo.rho_face_norm),
         B_tor_face=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,
@@ -129,7 +129,7 @@ class RotationTest(absltest.TestCase):
             self.geo, 0.0
         ),
         n_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
-        Z_i_face=1.0,  # pyrefly: ignore[bad-argument-type]
+        Z_i_face=1.0,
         B_pol_face=np.ones_like(self.geo.rho_face_norm),
         B_tor_face=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,
