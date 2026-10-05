@@ -15,6 +15,7 @@
 
 from absl.testing import absltest
 import jax
+from jax import numpy as jnp
 import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.physics import fast_ion as fast_ion_lib
@@ -22,6 +23,8 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.tests import test_lib
+
+# pylint: disable=invalid-name
 
 # Most of the checks and computations in TORAX require float64.
 jax.config.update('jax_enable_x64', True)
@@ -63,10 +66,10 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
   def test_default_model_function_name(self):
     self.assertEqual(icrh_base.DEFAULT_MODEL_FUNCTION_NAME, 'toric_nn')
 
-  def test_build_fast_ions_all_zeros(self):
-    """build_fast_ions with no input returns zeros for all species."""
+  def test_zero_fast_ions(self):
+    """IonCyclotronSource.zero_fast_ions returns all-zero fast ions."""
     geo = circular_geometry.CircularConfig().build_geometry()
-    fast_ions = icrh_base.build_fast_ions(source_name='icrh', geo=geo)
+    fast_ions = icrh_base.IonCyclotronSource.zero_fast_ions(geo)
     self.assertLen(fast_ions, len(fast_ion_lib.FAST_ION_SPECIES))
     for fi, species in zip(fast_ions, fast_ion_lib.FAST_ION_SPECIES):
       self.assertEqual(fi.species, species)
@@ -74,14 +77,26 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
       np.testing.assert_allclose(fi.n.value, 0.0, atol=1e-15)
       np.testing.assert_allclose(fi.T.value, 0.0, atol=1e-15)
 
-  def test_zero_fast_ions(self):
-    """IonCyclotronSource.zero_fast_ions returns all-zero fast ions."""
+  def test_make_fast_ion(self):
     geo = circular_geometry.CircularConfig().build_geometry()
-    fast_ions = icrh_base.IonCyclotronSource.zero_fast_ions(geo)
-    self.assertLen(fast_ions, len(fast_ion_lib.FAST_ION_SPECIES))
-    for fi in fast_ions:
-      np.testing.assert_allclose(fi.n.value, 0.0, atol=1e-15)
-      np.testing.assert_allclose(fi.T.value, 0.0, atol=1e-15)
+    n = jnp.ones_like(geo.rho_norm) * 2.0
+    T = jnp.ones_like(geo.rho_norm) * 5.0
+    fi = icrh_base.make_fast_ion(
+        species='He3',
+        source_name='icrh',
+        geo=geo,
+        n=n,
+        T=T,
+        T_right_face_constraint=jnp.asarray(1.5),
+    )
+    self.assertEqual(fi.species, 'He3')
+    self.assertEqual(fi.source, 'icrh')
+    np.testing.assert_allclose(fi.n.value, n)
+    np.testing.assert_allclose(fi.T.value, T)
+    self.assertIsNotNone(fi.n.right_face_constraint)
+    self.assertIsNotNone(fi.T.right_face_constraint)
+    np.testing.assert_allclose(fi.n.right_face_constraint, 0.0)
+    np.testing.assert_allclose(fi.T.right_face_constraint, 1.5)
 
   def test_build_source_returns_correct_type(self):
     """IonCyclotronSourceConfig.build_source returns IonCyclotronSource."""

@@ -21,6 +21,7 @@ import numpy as np
 from torax._src.config import numerics
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
@@ -194,6 +195,85 @@ class SourceTest(parameterized.TestCase):
         'the number of prescribed values must match the number of affected',
     ):
       source.get_value(
+          runtime_params=dynamic_slice,
+          geo=mock.ANY,
+          core_profiles=mock.ANY,
+          calculated_source_profiles=None,
+          conductivity=None,
+      )
+
+  def test_fast_ions_populates_missing_species_and_validates(self):
+    zero_d = mock.create_autospec(
+        fast_ion_lib.FastIon, instance=True, species='D'
+    )
+    zero_he3 = mock.create_autospec(
+        fast_ion_lib.FastIon, instance=True, species='He3'
+    )
+    computed_he3 = mock.create_autospec(
+        fast_ion_lib.FastIon, instance=True, species='He3'
+    )
+
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class DummyFastIonSource(source_lib.Source):
+      SOURCE_ID: ClassVar[str] = 'dummy_fast_ion'
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[source_lib.AffectedCoreProfile, ...]
+      ] = (source_lib.AffectedCoreProfile.FAST_IONS,)
+
+      def zero_fast_ions(self, geo):
+        del geo
+        return (zero_d, zero_he3)
+
+    dynamic_slice = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
+        sources={
+            'dummy_fast_ion': sources_runtime_params_lib.RuntimeParams(
+                prescribed_values=(),
+                mode=sources_runtime_params_lib.Mode.MODEL_BASED,
+                is_explicit=False,
+            )
+        },
+        numerics=mock.create_autospec(
+            numerics.RuntimeParams, enable_fast_ions=True
+        ),
+    )
+
+    source = DummyFastIonSource(
+        model_func=mock.MagicMock(return_value=((computed_he3,),))
+    )
+    profile = source.get_value(
+        runtime_params=dynamic_slice,
+        geo=mock.ANY,
+        core_profiles=mock.ANY,
+        calculated_source_profiles=None,
+        conductivity=None,
+    )
+    self.assertEqual(profile[0], (zero_d, computed_he3))
+
+    # Unsupported species raises ValueError.
+    bad_species = mock.create_autospec(
+        fast_ion_lib.FastIon, instance=True, species='W'
+    )
+    bad_source = DummyFastIonSource(
+        model_func=mock.MagicMock(return_value=((bad_species,),))
+    )
+    with self.assertRaisesRegex(ValueError, 'Unsupported FastIon species'):
+      bad_source.get_value(
+          runtime_params=dynamic_slice,
+          geo=mock.ANY,
+          core_profiles=mock.ANY,
+          calculated_source_profiles=None,
+          conductivity=None,
+      )
+
+    # Duplicate species raises ValueError.
+    dup_source = DummyFastIonSource(
+        model_func=mock.MagicMock(
+            return_value=((computed_he3, computed_he3),)
+        )
+    )
+    with self.assertRaisesRegex(ValueError, 'Duplicate FastIon species'):
+      dup_source.get_value(
           runtime_params=dynamic_slice,
           geo=mock.ANY,
           core_profiles=mock.ANY,
