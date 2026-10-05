@@ -217,7 +217,7 @@ def update_psi_from_j(
   assert y.ndim == 1
   assert geo.rho_hires.ndim == 1
   Ip_profile = math_utils.cumulative_trapezoid(
-      y=y, x=geo.rho_hires_norm, initial=0.0  # pyrefly: ignore[bad-argument-type]
+      y=y, x=geo.rho_hires_norm, initial=0.0
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
@@ -229,7 +229,7 @@ def update_psi_from_j(
 
   # psi on hires cell grid
   psi_hires = math_utils.cumulative_trapezoid(
-      y=dpsi_drhon_hires, x=geo.rho_hires_norm, initial=0.0  # pyrefly: ignore[bad-argument-type]
+      y=dpsi_drhon_hires, x=geo.rho_hires_norm, initial=0.0
   )
 
   psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
@@ -537,7 +537,7 @@ def _calculate_all_psi_dependent_profiles(
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=psidot_value,
-      right_face_constraint=v_loop_lcfs,  # pyrefly: ignore[bad-argument-type]
+      right_face_constraint=v_loop_lcfs,
       right_face_grad_constraint=None,
   )
   core_profiles = dataclasses.replace(

@@ -471,7 +471,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
 
     # Get the original, non-JITted function to avoid issues with mocking.
     run_standalone_nojit = (
-        extended_lengyel_standalone.run_extended_lengyel_standalone.__wrapped__  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
+        extended_lengyel_standalone.run_extended_lengyel_standalone.__wrapped__  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
     )
 
     # Case 1: FIXED_POINT, default iterations
@@ -703,7 +703,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     # Create fake roots array (shape: [num_guesses, ...])
 
     roots_solver_status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-        physics_outcome=jnp.array([  # pytype: disable=wrong-arg-types  # pylint: disable=g-blanket-type-suppression
+        physics_outcome=jnp.array([  # pylint: disable=g-blanket-type-suppression
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
@@ -766,7 +766,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
 
     self.assertIsNotNone(unique.solver_status.physics_outcome)
     physics_outcome = unique.solver_status.physics_outcome
-    self.assertEqual(physics_outcome.shape, (2,))  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
+    self.assertEqual(physics_outcome.shape, (2,))  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
 
   def test_get_unique_roots_time_dependent(self):
     # Shape: [time, num_guesses]
@@ -776,7 +776,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     Te_data = [[5.0, 10.0, 10.000001], [20.0, 20.0, 20.000001]]
 
     roots_solver_status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-        physics_outcome=jnp.zeros((2, 3), dtype=jnp.int32),  # pytype: disable=wrong-arg-types  # pylint: disable=g-blanket-type-suppression
+        physics_outcome=jnp.zeros((2, 3), dtype=jnp.int32),  # pylint: disable=g-blanket-type-suppression
         numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
     )
 
@@ -837,8 +837,8 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     self.assertIsNotNone(unique)
 
     physics_outcome = unique.solver_status.physics_outcome
-    self.assertEqual(physics_outcome.shape, (2, 2))  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
-    self.assertEqual(physics_outcome[1, 1], -1)  # pytype: disable=unsupported-operands  # pylint: disable=g-blanket-type-suppression
+    self.assertEqual(physics_outcome.shape, (2, 2))  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
+    self.assertEqual(physics_outcome[1, 1], -1)  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[bad-index]
 
   def test_get_unique_roots_keeps_error_roots(self):
     """Test that roots with solver error=1 are kept in deduplicated output."""
@@ -849,7 +849,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
         last_tau=jnp.array([0.5, 0.5, 0.5]),
     )
     roots_solver_status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-        physics_outcome=jnp.array([  # pytype: disable=wrong-arg-types  # pylint: disable=g-blanket-type-suppression
+        physics_outcome=jnp.array([  # pylint: disable=g-blanket-type-suppression
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
@@ -901,7 +901,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     self.assertEqual(unique.T_e_target.shape, (3,))
     np.testing.assert_allclose(unique.T_e_target, [5.0, 15.0, 25.0], atol=1e-4)
     numerics = unique.solver_status.numerics_outcome
-    np.testing.assert_array_equal(numerics.error, [0, 1, 0])  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
+    np.testing.assert_array_equal(numerics.error, [0, 1, 0])  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
 
   def test_run_extended_lengyel_raises_when_no_enrichment_factor_and_no_model(
       self,

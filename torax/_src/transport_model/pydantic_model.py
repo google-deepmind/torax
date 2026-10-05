@@ -520,12 +520,12 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
       str, ComponentTransportModelConfig
   ] = pydantic.Field(
       default_factory=dict
-  )  # pyrefly: ignore[invalid-annotation]
+  )
   pedestal_transport_models: dict[
       str, ComponentTransportModelConfig
   ] = pydantic.Field(
       default_factory=dict
-  )  # pyrefly: ignore[invalid-annotation]
+  )
   smoothing_zones: Sequence[SmoothingZone] = pydantic.Field(
       default_factory=list
   )

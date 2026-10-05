@@ -566,12 +566,12 @@ def _calc_coeffs_full(
       transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
       d_face=d_face,  # pyrefly: ignore[bad-argument-type]
       v_face=v_face,  # pyrefly: ignore[bad-argument-type]
-      source_mat_cell=source_mat_cell,  # pyrefly: ignore[bad-argument-type]
-      source_cell=source_cell,  # pyrefly: ignore[bad-argument-type]
-      internal_boundary_condition_mask=internal_boundary_condition_mask,  # pyrefly: ignore[bad-argument-type]
+      source_mat_cell=source_mat_cell,
+      source_cell=source_cell,
+      internal_boundary_condition_mask=internal_boundary_condition_mask,
       internal_boundary_condition_target_vec=(
           internal_boundary_condition_target_vec
-      ),  # pyrefly: ignore[bad-argument-type]
+      ),
   )
 
   return coeffs

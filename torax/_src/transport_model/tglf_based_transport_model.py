@@ -229,7 +229,7 @@ class TGLFBasedTransportModel(
     # avoid being swamped by the eps in the denominator.
     rho_s = (
         math_utils.safe_divide(
-            num=m_D * c_s,  # pyrefly: ignore[bad-argument-type]
+            num=m_D * c_s,
             denom=B_unit,
             eps=1e-7,
         )
@@ -267,9 +267,9 @@ class TGLFBasedTransportModel(
     # Dimensionless gradients
     normalized_log_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
-        radial_coordinate=geo.r_mid,  # On the cell grid  # pyrefly: ignore[bad-argument-type]
-        radial_face_coordinate=geo.r_mid_face,  # pyrefly: ignore[bad-argument-type]
-        reference_length=a,  # pyrefly: ignore[bad-argument-type]
+        radial_coordinate=geo.r_mid,  # On the cell grid
+        radial_face_coordinate=geo.r_mid_face,
+        reference_length=a,
         two_point_mask=two_point_mask,
     )
 
@@ -463,12 +463,12 @@ class TGLFBasedTransportModel(
         AS_1=n_e_over_n_e,
         ZS_2=core_profiles.Z_i_face,
         MASS_2=m_i_over_m_D,
-        TAUS_2=T_i_over_T_e,  # pyrefly: ignore[bad-argument-type]
-        AS_2=n_i_over_n_e,  # pyrefly: ignore[bad-argument-type]
+        TAUS_2=T_i_over_T_e,
+        AS_2=n_i_over_n_e,
         ZS_3=core_profiles.Z_impurity_face,
         MASS_3=m_imp_over_m_D,
-        TAUS_3=T_imp_over_T_e,  # pyrefly: ignore[bad-argument-type]
-        AS_3=n_impurity_over_n_e,  # pyrefly: ignore[bad-argument-type]
+        TAUS_3=T_imp_over_T_e,
+        AS_3=n_impurity_over_n_e,
         RLNS_1=normalized_log_gradients.lref_over_lne,
         RLNS_2=normalized_log_gradients.lref_over_lni0,
         RLNS_3=normalized_log_gradients.lref_over_lni1,
@@ -479,18 +479,18 @@ class TGLFBasedTransportModel(
         RMAJ_LOC=r_major / a,
         DRMAJDX_LOC=dr_major,  # pyrefly: ignore[bad-argument-type]
         Q_LOC=core_profiles.q_face,
-        Q_PRIME_LOC=q_prime,  # pyrefly: ignore[bad-argument-type]
+        Q_PRIME_LOC=q_prime,
         XNUE=normalized_nu_ee,
-        DEBYE=normalized_debye,  # pyrefly: ignore[bad-argument-type]
+        DEBYE=normalized_debye,
         KAPPA_LOC=kappa,
         S_KAPPA_LOC=kappa_shear,  # pyrefly: ignore[bad-argument-type]
         DELTA_LOC=geo.delta_face,
         S_DELTA_LOC=delta_shear,  # pyrefly: ignore[bad-argument-type]
-        BETAE=beta_e,  # pyrefly: ignore[bad-argument-type]
-        P_PRIME_LOC=p_prime,  # pyrefly: ignore[bad-argument-type]
+        BETAE=beta_e,
+        P_PRIME_LOC=p_prime,
         ZEFF=core_profiles.Z_eff_face,
-        Q_GB=Q_GB,  # pyrefly: ignore[bad-argument-type]
-        GAMMA_GB=Gamma_GB,  # pyrefly: ignore[bad-argument-type]
+        Q_GB=Q_GB,
+        GAMMA_GB=Gamma_GB,
         VEXB_SHEAR=v_ExB_shear,
     )
 
