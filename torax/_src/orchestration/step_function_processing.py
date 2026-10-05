@@ -471,6 +471,7 @@ def pre_step(
         'models',
         'evolving_names',
     ],
+    inline=jax.Inline.XLA_LATE,
 )
 def finalize_outputs(
     t: jax.Array,
