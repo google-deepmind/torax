@@ -16,7 +16,7 @@
 
 import dataclasses
 import logging
-from typing import Annotated, Any, Literal, Mapping, Self
+from typing import Annotated, Any, ClassVar, Literal, Mapping, Self
 import chex
 import jax.numpy as jnp
 import pydantic
@@ -60,6 +60,14 @@ class InitialGuessConfig(torax_pydantic.BaseModelFrozen):
 class ExtendedLengyelConfig(base.EdgeModelConfig):
   """Configuration for the extended Lengyel edge model."""
 
+  supported_bcs: ClassVar[base.SupportedBoundaryConditions] = (
+      base.SupportedBoundaryConditions(
+          T_e=True,
+          T_i=True,
+          n_e=False,
+          impurity=True,
+      )
+  )
   model_name: Annotated[
       Literal['extended_lengyel'], torax_pydantic.JAX_STATIC
   ] = 'extended_lengyel'
@@ -74,17 +82,6 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       extended_lengyel_enums.FixedImpuritySourceOfTruth,
       torax_pydantic.JAX_STATIC,
   ] = extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
-  # Flags allowing user to test simulation sensitivity to boundary condition
-  # updates, while still providing edge model outputs even if not used.
-  update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(True)
-  )
-  update_electron_density: torax_pydantic.TimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(False)
-  )
-  update_impurities: torax_pydantic.TimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(True)
-  )
   fixed_point_iterations: pydantic.PositiveInt | None = None
   newton_raphson_iterations: pydantic.PositiveInt = (
       extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS
