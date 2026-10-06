@@ -19,7 +19,6 @@ import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
-from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.physics import collisions
 
@@ -62,15 +61,10 @@ def compute_neoclassical_intermediates(
       Z_eff=core_profiles.Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
-  n_ions_thermal_face = calculate_ion_density_sum_face(
-      core_profiles.n_i,
-      core_profiles.n_impurity_thermal,
-      core_profiles.impurity_density_scaling_face,
-  )
   nu_i_star = calculate_nu_i_star(
       q=core_profiles.q_face,
       geo=geo,
-      n_i=n_ions_thermal_face,
+      n_i=core_profiles.n_ions_thermal_face,
       T_i=core_profiles.T_i.face_value(),
       Z_i=core_profiles.Z_i_face,
       log_lambda_ii=log_lambda_ii,
@@ -149,9 +143,10 @@ def calculate_nu_i_star(
   Args:
     q: Safety factor.
     geo: The geometry of the torus.
-    n_i: Ion density in Sauter Eq. (18c) [m^-3]. Total thermal ion density
-      (``calculate_ion_density_sum_face``) for bootstrap and Angioni-Sauter;
-      main-ion density for single-fluid uses (e.g. poloidal velocity).
+    n_i: Ion density in Sauter Eq. (18c) [m^-3]. Total thermal ion particle
+      density (``CoreProfiles.n_ions_thermal_face``) for bootstrap and
+      Angioni-Sauter; main-ion density for single-fluid uses (e.g. poloidal
+      velocity).
     T_i: Ion temperature [keV].
     Z_i: Main ion charge.
     log_lambda_ii: Ion-ion Coulomb logarithm (Sauter Eq. 18e, also uses Z_i).
@@ -170,32 +165,6 @@ def calculate_nu_i_star(
           ((T_i * 1e3) ** 2)
           * (geo.epsilon_face + constants.CONSTANTS.eps) ** 1.5
       )
-  )
-
-
-def calculate_ion_density_sum_face(
-    n_i: cell_variable.CellVariable,
-    n_impurity_thermal: cell_variable.CellVariable,
-    impurity_density_scaling_face: array_typing.FloatVectorFace,
-) -> array_typing.FloatVectorFace:
-  """Total thermal ion particle density (main ions + impurities) [m^-3].
-
-  The ion collisionality in Sauter PoP 1999 Eq. (18c) is written in terms of
-  the total ion particle density, so the bundled impurity density is rescaled
-  back to a true particle density before summing.
-
-  Args:
-    n_i: Bundled main-ion density.
-    n_impurity_thermal: Effective thermal impurity density (fast ions
-      subtracted), as bundled with ``Z_impurity``.
-    impurity_density_scaling_face: ``n_imp_true / n_imp_eff`` on the face grid.
-
-  Returns:
-    Total thermal ion particle density on the face grid.
-  """
-  return (
-      n_i.face_value()
-      + n_impurity_thermal.face_value() * impurity_density_scaling_face
   )
 
 

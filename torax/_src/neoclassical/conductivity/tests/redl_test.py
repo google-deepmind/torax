@@ -54,11 +54,7 @@ class RedlConductivityTest(absltest.TestCase):
             value=jnp.linspace(0.8e20, 0.4e20, self.n_rho),
             face_centers=self.geo.rho_face_norm,
         ),
-        n_impurity_thermal=cell_variable.CellVariable(
-            value=jnp.linspace(0.05e20, 0.025e20, self.n_rho),
-            face_centers=self.geo.rho_face_norm,
-        ),
-        impurity_density_scaling_face=jnp.ones(self.n_rho + 1),
+        n_ions_thermal_face=jnp.linspace(0.85e20, 0.425e20, self.n_rho + 1),
         Z_i_face=jnp.ones(self.n_rho + 1),
         Z_eff_face=jnp.full(self.n_rho + 1, 2.0),
         q_face=jnp.linspace(1.0, 4.0, self.n_rho + 1),
