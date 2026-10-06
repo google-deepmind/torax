@@ -28,7 +28,4 @@ CONFIG = copy.deepcopy(test_iterhybrid_lh_transition.CONFIG)
 # Switch pedestal mode from ADAPTIVE_TRANSPORT to INTERNAL_BOUNDARY_CONDITION
 # with formation model.
 CONFIG['pedestal']['mode'] = 'INTERNAL_BOUNDARY_CONDITION'
-CONFIG['pedestal'][
-    'use_formation_model_with_internal_boundary_condition'
-] = True
 CONFIG['pedestal']['transition_time_width'] = 3.0
