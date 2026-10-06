@@ -253,8 +253,12 @@ def _calculate_angioni_sauter_transport(
   pi = core_profiles.pressure_thermal_i.face_value()
   Rpe = pe / (pe + pi)
   alpha = -Kmn_i[:, 0, 1]
-  E_parallel = core_profiles.psidot.face_value() / (
-      2 * jnp.pi * geometry.R_major_profile_face
+  # <E_parallel * B> / <B^2> (Angioni & Sauter, 2000, Section V).
+  E_parallel_B_over_B2 = (
+      geometry.F_face
+      * core_profiles.psidot.face_value()
+      * geometry.g3_face
+      / (2 * jnp.pi * geometry.gm5_face)
   )
 
   # Total electron heat flux Q_e = B_e2 * T_e / (dpsi/drho) (see Angioni Sec 5)
@@ -263,7 +267,7 @@ def _calculate_angioni_sauter_transport(
       + (Lmn_e[:, 1, 0] + Lmn_e[:, 1, 1]) * dlnte_dpsi
       + (1 - Rpe) / Rpe * Lmn_e[:, 1, 0] * dlnni_dpsi
       + (1 - Rpe) / Rpe * (Lmn_e[:, 1, 0] + alpha * Lmn_e[:, 1, 3]) * dlnti_dpsi
-      + Lmn_e[:, 1, 2] * E_parallel / geometry.B_0
+      + Lmn_e[:, 1, 2] * E_parallel_B_over_B2
   )
 
   # Total ion heat flux Q_i = B_i2 / T_i * (dpsi/drho) (see Angioni Sec 5)
@@ -271,7 +275,7 @@ def _calculate_angioni_sauter_transport(
       alpha * Lmn_e[:, 3, 0] * dlnne_dpsi
       + alpha * (Lmn_e[:, 3, 0] + Lmn_e[:, 3, 1]) * dlnte_dpsi
       + alpha * (1 - Rpe) / Rpe * Lmn_e[:, 3, 0] * dlnni_dpsi
-      + alpha * Lmn_e[:, 3, 2] * E_parallel / geometry.B_0
+      + alpha * Lmn_e[:, 3, 2] * E_parallel_B_over_B2
       + (
           Lmn_i[:, 1, 1]
           + (1 - Rpe) / Rpe * alpha**2 / core_profiles.Z_i_face * Lmn_e[:, 3, 3]
@@ -334,10 +338,9 @@ def _calculate_angioni_sauter_transport(
   # V_ware*n*dpsi/rho = L02*<E_parallel * B>/<B^2>
   V_neo_ware_e_bulk = (
       Lmn_e[1:, 0, 2]
-      * E_parallel[1:]
+      * E_parallel_B_over_B2[1:]
       / (
-          geometry.B_0
-          * (dpsi_drhon[1:] / geometry.rho_b)
+          (dpsi_drhon[1:] / geometry.rho_b)
           * core_profiles.n_e.face_value()[1:]
           + constants.CONSTANTS.eps
       )
