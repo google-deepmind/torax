@@ -22,7 +22,7 @@ from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
-from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -73,7 +73,7 @@ class SourceProfilesTest(parameterized.TestCase):
     torax_mesh = torax_pydantic.Grid1D(
         face_centers=interpolated_param_2d.get_face_centers(nx=10)
     )
-    sources = sources_pydantic_model.Sources.from_dict(
+    sources = sources_pydantic_config.Sources.from_dict(
         default_sources.get_default_source_config()
     )
     source_models = sources.build_models()

@@ -134,7 +134,7 @@ class ElectronCyclotronSource(source.Source):
   model_func: source.SourceProfileFunction = calc_heating_and_current  # pyrefly: ignore[bad-assignment]
 
 
-class ElectronCyclotronSourceConfig(base.SourceModelBase):
+class ElectronCyclotronSourceConfig(base.SourceConfigBase):
   r"""Config for the electron-cyclotron source.
 
   Attributes:
@@ -171,9 +171,6 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
   P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.0
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -198,5 +195,5 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
         P_total=self.P_total.get_value(t),
     )
 
-  def build_source(self):
+  def build_source(self) -> ElectronCyclotronSource:
     return ElectronCyclotronSource(model_func=self.model_func)

@@ -109,7 +109,7 @@ class GenericCurrentSource(source.Source):
   model_func: source.SourceProfileFunction = calculate_generic_current  # pyrefly: ignore[bad-assignment]
 
 
-class GenericCurrentSourceConfig(source_base.SourceModelBase):
+class GenericCurrentSourceConfig(source_base.SourceConfigBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
@@ -138,9 +138,6 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       torax_pydantic.ValidatedDefault(0.4)
   )
   use_absolute_current: bool = False
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

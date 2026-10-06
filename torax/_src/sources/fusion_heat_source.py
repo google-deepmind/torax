@@ -170,15 +170,12 @@ class FusionHeatSource(source.Source):
   model_func: source.SourceProfileFunction = fusion_heat_model_func  # pyrefly: ignore[bad-assignment]
 
 
-class FusionHeatSourceConfig(base.SourceModelBase):
+class FusionHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the FusionHeatSource."""
 
   model_name: Annotated[Literal['bosch_hale'], torax_pydantic.JAX_STATIC] = (
       'bosch_hale'
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

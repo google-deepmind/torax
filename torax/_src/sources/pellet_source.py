@@ -75,7 +75,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   S_total: array_typing.FloatScalar
 
 
-class PelletSourceConfig(base.SourceModelBase):
+class PelletSourceConfig(base.SourceConfigBase):
   """Pellet source for the n_e equation.
 
   Attributes:
@@ -99,9 +99,6 @@ class PelletSourceConfig(base.SourceModelBase):
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       2e22
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

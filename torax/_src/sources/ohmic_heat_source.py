@@ -99,15 +99,12 @@ class OhmicHeatSource(source_lib.Source):
   model_func: source_lib.SourceProfileFunction = ohmic_model_func  # pyrefly: ignore[bad-assignment]
 
 
-class OhmicHeatSourceConfig(base.SourceModelBase):
+class OhmicHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the OhmicHeatSource."""
 
   model_name: Annotated[Literal['standard'], torax_pydantic.JAX_STATIC] = (
       'standard'
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:

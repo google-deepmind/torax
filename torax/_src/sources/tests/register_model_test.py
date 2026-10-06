@@ -61,7 +61,7 @@ def double_gas_puff_source(
   return 2 * output
 
 
-class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
+class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceConfigBase):
   """New source model config."""
 
   model_name: Literal['test_model_function'] = 'test_model_function'
@@ -91,7 +91,7 @@ class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
 
 
 class DuplicateGasPuffSourceModelConfig(
-    source_base_pydantic_model.SourceModelBase
+    source_base_pydantic_model.SourceConfigBase
 ):
   # Name that is already registered.
   model_name: Literal['exponential'] = 'exponential'

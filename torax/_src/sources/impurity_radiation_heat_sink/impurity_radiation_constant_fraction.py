@@ -84,7 +84,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   fraction_P_heating: array_typing.FloatScalar
 
 
-class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
+class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceConfigBase):
   """Configuration for the ImpurityRadiationHeatSink.
 
   Attributes:
@@ -98,9 +98,6 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
   fraction_P_heating: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   def build_runtime_params(
       self,

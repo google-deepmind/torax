@@ -116,7 +116,7 @@ class GenericIonElectronHeatSource(source.Source):
   model_func: source.SourceProfileFunction = default_formula  # pyrefly: ignore[bad-assignment]
 
 
-class GenericIonElHeatSourceConfig(base.SourceModelBase):
+class GenericIonElHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
@@ -145,9 +145,6 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

@@ -77,7 +77,7 @@ class GasPuffSource(source.Source):
   model_func: source.SourceProfileFunction = calc_puff_source  # pyrefly: ignore[bad-assignment]
 
 
-class GasPuffSourceConfig(base.SourceModelBase):
+class GasPuffSourceConfig(base.SourceConfigBase):
   """Gas puff source for the n_e equation.
 
   Attributes:
@@ -95,9 +95,6 @@ class GasPuffSourceConfig(base.SourceModelBase):
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1e22
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

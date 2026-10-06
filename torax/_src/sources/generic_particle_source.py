@@ -76,7 +76,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   S_total: array_typing.FloatScalar
 
 
-class GenericParticleSourceConfig(base.SourceModelBase):
+class GenericParticleSourceConfig(base.SourceConfigBase):
   """Generic particle source for the n_e equation.
 
   Attributes:
@@ -100,9 +100,6 @@ class GenericParticleSourceConfig(base.SourceModelBase):
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1e22
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

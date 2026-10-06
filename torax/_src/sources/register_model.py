@@ -24,7 +24,7 @@ from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat
 from torax._src.sources import generic_particle_source as generic_particle_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
-from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit as impurity_radiation_mavrin_fit_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
@@ -32,7 +32,7 @@ from torax._src.torax_pydantic import model_config
 
 
 def _validate_source_model_config(
-    source_model_config_class: type[base.SourceModelBase],
+    source_model_config_class: type[base.SourceConfigBase],
     source_name: str,
 ):
   """Validates that the source model config is valid."""
@@ -104,7 +104,7 @@ def _validate_source_model_config(
 
 
 def register_source_model_config(
-    source_model_config_class: type[base.SourceModelBase],
+    source_model_config_class: type[base.SourceConfigBase],
     source_name: str,
 ):
   """Update Pydantic schema to include a source model config.
@@ -114,7 +114,7 @@ def register_source_model_config(
 
   Args:
     source_model_config_class: The new source model config to register. This
-      should be a subclass of SourceModelBase that implements the interface and
+      should be a subclass of SourceConfigBase that implements the interface and
       has a unique `model_name`.
     source_name: The name of the source to register the model config against.
       This should be one of the fields in the Sources pydantic model. For the
@@ -123,10 +123,10 @@ def register_source_model_config(
   """
   _validate_source_model_config(source_model_config_class, source_name)
   # Update the Sources pydantic model to be aware of the new config.
-  sources_pydantic_model.Sources.model_fields[  # pyrefly: ignore[bad-assignment]
+  sources_pydantic_config.Sources.model_fields[  # pyrefly: ignore[bad-assignment]
       f'{source_name}'
   ].annotation |= source_model_config_class
   # Rebuild the pydantic schema for both the Sources and ToraxConfig models so
   # that uses of either will have access to the new config.
-  sources_pydantic_model.Sources.model_rebuild(force=True)
+  sources_pydantic_config.Sources.model_rebuild(force=True)
   model_config.ToraxConfig.model_rebuild(force=True)

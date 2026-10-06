@@ -130,7 +130,7 @@ class Sources(torax_pydantic.BaseModelFrozen):
     constructor_data = copy.deepcopy(x)
     for k, v in x.items():
       # If this an already validated model, skip it.
-      if isinstance(v, base.SourceModelBase) or v is None:
+      if isinstance(v, base.SourceConfigBase) or v is None:
         continue
       match k:
         case 'bremsstrahlung':
@@ -252,9 +252,9 @@ class Sources(torax_pydantic.BaseModelFrozen):
     )
 
   @property
-  def source_model_config(self) -> dict[str, base.SourceModelBase]:
+  def source_model_config(self) -> dict[str, base.SourceConfigBase]:
     return {
         k: v
         for k, v in self.__dict__.items()
-        if isinstance(v, base.SourceModelBase)
+        if isinstance(v, base.SourceConfigBase)
     }

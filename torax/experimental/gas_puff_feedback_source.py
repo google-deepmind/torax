@@ -105,7 +105,7 @@ def calc_puff_feedback_source(
   )
 
 
-class GasPuffFeedbackSourceConfig(base.SourceModelBase):
+class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
   """Configuration for the gas puff electron density source with feedback control.
 
   The total particle injection rate is computed using a proportional feedback
@@ -151,10 +151,6 @@ class GasPuffFeedbackSourceConfig(base.SourceModelBase):
   feedback_gain: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
-
   target_average_n_e: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.77e20)
   )

@@ -302,7 +302,7 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.sources.SourceModelBase`` and implements three required methods:
+``torax.sources.SourceConfigBase`` and implements three required methods:
 
 - ``model_func`` (property): returns the model function.
 - ``build_source``: returns the ``Source`` instance.
@@ -328,7 +328,7 @@ model name for the source you are registering against.
       """Custom runtime params with an extra parameter."""
       scaling_factor: float
 
-    class MyHeatSourceConfig(sources.SourceModelBase):
+    class MyHeatSourceConfig(sources.SourceConfigBase):
       """Pydantic config for my custom heat source."""
 
       model_name: Literal['my_heat_model'] = 'my_heat_model'
@@ -650,7 +650,7 @@ Example usage in a custom model config:
     from torax import sources
     from torax._src.torax_pydantic import torax_pydantic
 
-    class MyCustomConfig(sources.SourceModelBase):
+    class MyCustomConfig(sources.SourceConfigBase):
       """Custom source config with bounded parameters."""
 
       model_name: Annotated[

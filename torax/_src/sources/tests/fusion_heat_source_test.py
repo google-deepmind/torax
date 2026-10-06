@@ -83,9 +83,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     references = torax_refs.chease_references_Ip_from_chease()
     references.config.update_fields({
         'plasma_composition.main_ion': main_ion_input,
-        'sources.fusion': {
-            'model_name': fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
-        },
+        'sources.fusion': {},
     })
 
     runtime_params_t, geo = references.get_runtime_params_and_geo()

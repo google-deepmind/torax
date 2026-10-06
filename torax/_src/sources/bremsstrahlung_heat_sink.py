@@ -145,7 +145,7 @@ class BremsstrahlungHeatSink(source.Source):
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func  # pyrefly: ignore[bad-assignment]
 
 
-class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
+class BremsstrahlungHeatSinkConfig(base.SourceConfigBase):
   """Bremsstrahlung heat sink for electron heat equation.
 
   Attributes:
@@ -158,9 +158,6 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
   model_name: Annotated[Literal['wesson'], torax_pydantic.JAX_STATIC] = 'wesson'
   use_relativistic_correction: bool = False
   exclude_impurity_bremsstrahlung: bool = False
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:

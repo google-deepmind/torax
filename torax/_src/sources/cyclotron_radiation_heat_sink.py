@@ -366,7 +366,7 @@ class CyclotronRadiationHeatSink(source.Source):
   model_func: source.SourceProfileFunction = cyclotron_radiation_albajar  # pyrefly: ignore[bad-assignment]
 
 
-class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
+class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):
   """Cyclotron radiation heat sink for electron heat equation.
 
   Attributes:
@@ -385,9 +385,6 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
   model_name: Annotated[
       Literal['albajar_artaud'], torax_pydantic.JAX_STATIC
   ] = 'albajar_artaud'
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9
   beta_min: Annotated[float, torax_pydantic.JAX_STATIC] = 0.5
   beta_max: Annotated[float, torax_pydantic.JAX_STATIC] = 8.0
