@@ -185,18 +185,17 @@ def _calculate_angioni_sauter_transport(
   log_lambda_ei = neoclassical_intermediates.log_lambda_ei
   log_lambda_ii = neoclassical_intermediates.log_lambda_ii
 
-  # Equation 18c from Sauter PoP 1999
-  nu_i_star = (
-      4.9e-18
-      * core_profiles.q_face
-      * geometry.R_major_profile_face
-      * core_profiles.n_i.face_value()
-      * core_profiles.Z_i_face**4
-      * log_lambda_ii
-      / (
-          (core_profiles.T_i.face_value() * 1e3) ** 2
-          * (geometry.epsilon_face + constants.CONSTANTS.eps) ** 1.5
-      )
+  # Equation (18c) from Sauter PoP 1999.
+  # Note: Sauter Eq. (18c) is defined for a pure plasma (using Z_i^4); in
+  # Angioni & Sauter (2000) Eq. (30h), nu_i_star is the pure main-ion
+  # collisionality since impurity collisions enter separately via alpha_I.
+  nu_i_star = formulas.calculate_nu_i_star(
+      q=core_profiles.q_face,
+      geo=geometry,
+      n_i=core_profiles.n_i.face_value(),
+      T_i=core_profiles.T_i.face_value(),
+      Z_eff=core_profiles.Z_i_face,
+      log_lambda_ii=log_lambda_ii,
   )
 
   # Impurity strength parameter
