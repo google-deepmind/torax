@@ -459,6 +459,7 @@ def _calculate_Kmn(
   Kmn_e = Kmn_e.at[:, 3, 0].set(Kmn_e[:, 0, 3])
   Kmn_e = Kmn_e.at[:, 1, 3].set(H42 - 2.5 * H41)
   Kmn_e = Kmn_e.at[:, 3, 1].set(Kmn_e[:, 1, 3])
+  Kmn_e = Kmn_e.at[:, 3, 3].set(H41)
 
   # Supplement K matrix with "bootstrap terms" needed for Ware pinch from the
   # Sauter model (PoP 1999)
@@ -470,6 +471,10 @@ def _calculate_Kmn(
       -sauter_formulas.calculate_L32(ftrap, nu_e_star, Z_eff)
   )
   Kmn_e = Kmn_e.at[:, 2, 1].set(Kmn_e[:, 1, 2])
+  Kmn_e = Kmn_e.at[:, 2, 3].set(
+      -sauter_formulas.calculate_L34(ftrap, nu_e_star, Z_eff)
+  )
+  Kmn_e = Kmn_e.at[:, 3, 2].set(Kmn_e[:, 2, 3])
 
   # Ion Kmn matrix
   # alpha coefficient, Eq. (25)
