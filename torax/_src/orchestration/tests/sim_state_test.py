@@ -22,6 +22,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import sim_state
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles
 from torax._src.test_utils import core_profile_helpers
 from torax._src.time_step_calculator import time_step_calculator_state
@@ -54,6 +55,7 @@ class SimStateTest(parameterized.TestCase):
         flux_surf_avg_1_over_B2=np.linspace(0.03, 0.04, 10),
         delta_upper_face=np.linspace(0.0, 0.3, 10),
         delta_lower_face=np.linspace(0.0, 0.3, 10),
+        trapped_fraction=np.linspace(0.0, 1.0, 10),
         elongation=np.linspace(1.0, 1.7, 10),
         vpr=np.linspace(0.01, 1.0, 10),
         face_centers=np.linspace(0, 1.0, 5),
@@ -95,6 +97,7 @@ class SimStateTest(parameterized.TestCase):
             sawtooth_crash=False,
         ),
         time_step_calculator_state=time_step_calculator_state.TimeStepCalculatorState(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
     )
 
   def test_has_nan_no_nan(self):

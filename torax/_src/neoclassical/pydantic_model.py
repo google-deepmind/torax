@@ -13,66 +13,125 @@
 # limitations under the License.
 """Pydantic model for the neoclassical package."""
 
+import abc
 import copy
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import pydantic
-from torax._src import array_typing
-from torax._src.neoclassical import neoclassical_models
+from torax._src.neoclassical import neoclassical_model
 from torax._src.neoclassical import runtime_params as runtime_params_lib
 from torax._src.neoclassical.bootstrap_current import redl as redl_current
 from torax._src.neoclassical.bootstrap_current import sauter as sauter_current
 from torax._src.neoclassical.bootstrap_current import zeros as bootstrap_current_zeros
+from torax._src.neoclassical.conductivity import redl as redl_conductivity
 from torax._src.neoclassical.conductivity import sauter as sauter_conductivity
+from torax._src.neoclassical.poloidal_velocity import kim as kim_poloidal_velocity
+from torax._src.neoclassical.poloidal_velocity import zeros as poloidal_velocity_zeros
 from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.neoclassical.transport import zeros as transport_zeros
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class Neoclassical(torax_pydantic.BaseModelFrozen):
-  """Config for neoclassical models."""
+class BaseNeoclassicalConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+  """Base config for neoclassical models.
 
+  Subclasses configure either the built-in composite analytical model
+  (`AnalyticalNeoclassicalConfig`, which delegates to individual analytical
+  sub-models) or a custom integrated neoclassical solver that computes all
+  neoclassical outputs in a single evaluation.
+  """
+
+  @abc.abstractmethod
+  def build_runtime_params(self) -> runtime_params_lib.RuntimeParams:
+    """Builds runtime params for the neoclassical model."""
+
+  @abc.abstractmethod
+  def build_model(self) -> neoclassical_model.NeoclassicalModel:
+    """Builds the neoclassical model."""
+
+
+class AnalyticalNeoclassicalConfig(BaseNeoclassicalConfig):
+  """Config for the composite analytical neoclassical model.
+
+  Attributes:
+    model_name: The model name discriminator, set to `"analytical"`.
+    bootstrap_current: Config for the bootstrap current model. Defaults to
+      `"zeros"` if omitted, or `"sauter"` if a dict is provided without
+      `model_name`.
+    conductivity: Config for the parallel conductivity model. Defaults to
+      `"sauter"` if omitted or if `model_name` is not provided.
+    transport: Config for the neoclassical transport model. Defaults to
+      `"zeros"` if omitted, or `"angioni_sauter"` if a dict is provided without
+      `model_name`.
+    poloidal_velocity: Config for the neoclassical poloidal velocity model.
+      Defaults to `"kim"` if omitted or if `model_name` is not provided.
+  """
+
+  model_name: Annotated[Literal["analytical"], torax_pydantic.JAX_STATIC] = (
+      "analytical"
+  )
   bootstrap_current: (
       bootstrap_current_zeros.ZerosModelConfig
       | sauter_current.SauterModelConfig
       | redl_current.RedlModelConfig
   ) = pydantic.Field(discriminator="model_name")
-  conductivity: sauter_conductivity.SauterModelConfig = (
-      torax_pydantic.ValidatedDefault(sauter_conductivity.SauterModelConfig())
-  )
+  conductivity: (
+      sauter_conductivity.SauterModelConfig
+      | redl_conductivity.RedlModelConfig
+  ) = pydantic.Field(discriminator="model_name")
   transport: (
       transport_zeros.ZerosModelConfig | angioni_sauter.AngioniSauterModelConfig
   ) = pydantic.Field(discriminator="model_name")
-  poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0
+  poloidal_velocity: (
+      poloidal_velocity_zeros.ZerosModelConfig
+      | kim_poloidal_velocity.KimModelConfig
+  ) = pydantic.Field(discriminator="model_name")
 
   @pydantic.model_validator(mode="before")
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
-    # Set zero models if model not in config dict.
+    # Set default model dicts if not in config dict.
+    # bootstrap_current and transport default to "zeros" (off) when omitted,
+    # whereas conductivity and poloidal_velocity default to "sauter" and "kim".
     if "bootstrap_current" not in configurable_data:
       configurable_data["bootstrap_current"] = {"model_name": "zeros"}
+    if "conductivity" not in configurable_data:
+      configurable_data["conductivity"] = {"model_name": "sauter"}
     if "transport" not in configurable_data:
       configurable_data["transport"] = {"model_name": "zeros"}
-    # Set default model names.
+    if "poloidal_velocity" not in configurable_data:
+      configurable_data["poloidal_velocity"] = {"model_name": "kim"}
+    # Set default model names when a sub-dict is provided without model_name.
     if "model_name" not in configurable_data["bootstrap_current"]:
       configurable_data["bootstrap_current"]["model_name"] = "sauter"
+    if "model_name" not in configurable_data["conductivity"]:
+      configurable_data["conductivity"]["model_name"] = "sauter"
     if "model_name" not in configurable_data["transport"]:
       configurable_data["transport"]["model_name"] = "angioni_sauter"
+    if "model_name" not in configurable_data["poloidal_velocity"]:
+      configurable_data["poloidal_velocity"]["model_name"] = "kim"
 
     return configurable_data
 
-  def build_runtime_params(self) -> runtime_params_lib.RuntimeParams:
-    return runtime_params_lib.RuntimeParams(
+  def build_runtime_params(self) -> runtime_params_lib.AnalyticalRuntimeParams:
+    return runtime_params_lib.AnalyticalRuntimeParams(
         bootstrap_current=self.bootstrap_current.build_runtime_params(),
         conductivity=self.conductivity.build_runtime_params(),
         transport=self.transport.build_runtime_params(),
-        poloidal_velocity_multiplier=self.poloidal_velocity_multiplier,
+        poloidal_velocity=self.poloidal_velocity.build_runtime_params(),
     )
 
-  def build_models(self) -> neoclassical_models.NeoclassicalModels:
-    return neoclassical_models.NeoclassicalModels(
+  def build_model(self) -> neoclassical_model.AnalyticalNeoclassicalModel:
+    return neoclassical_model.AnalyticalNeoclassicalModel(
         conductivity=self.conductivity.build_model(),
         bootstrap_current=self.bootstrap_current.build_model(),
         transport=self.transport.build_model(),
+        poloidal_velocity=self.poloidal_velocity.build_model(),
     )
+
+
+NeoclassicalConfig = Annotated[
+    AnalyticalNeoclassicalConfig,
+    pydantic.Field(discriminator="model_name"),
+]

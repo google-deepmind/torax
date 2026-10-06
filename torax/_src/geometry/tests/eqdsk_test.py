@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dataclasses
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import eqdsk as eqdsk_lib
 import numpy as np
 from torax._src import array_typing
+from torax._src.geometry import base
 from torax._src.geometry import eqdsk
 from torax._src.geometry import geometry_loader
 
@@ -84,6 +86,80 @@ class EqdskGeometryTest(parameterized.TestCase):
       else:
         self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch.')
 
+  def test_trapped_fraction_is_physically_sensible(self):
+    """Tests that the exact trapped particle fraction is well-behaved."""
+    geo = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk',
+        cocos=11,
+        trapped_fraction_source=base.TrappedFractionSource.EXACT,
+    ).build_geometry()
+    trapped_fraction = geo.trapped_fraction_face
+    self.assertIsNotNone(trapped_fraction)
+    with self.subTest('axis_zero'):
+      # No trapped particles on the magnetic axis, where B is uniform.
+      self.assertAlmostEqual(float(trapped_fraction[0]), 0.0)
+    with self.subTest('range_zero_to_one'):
+      # The trapped particle fraction is a fraction, so must lie in [0, 1].
+      self.assertTrue(np.all(trapped_fraction >= 0.0))
+      self.assertTrue(np.all(trapped_fraction <= 1.0))
+    with self.subTest('monotonicity'):
+      # Trapped fraction increases with normalized radius over most of the
+      # profile (small deviations from strict monotonicity are possible near
+      # the edge for diverted geometries, due to the X-point).
+      self.assertGreater(
+          np.mean(np.diff(trapped_fraction) >= -1e-6),
+          0.8,
+      )
+
+  def test_exact_trapped_fraction_warns_for_bad_values(self):
+    """Tests that EXACT trapped fraction warns when bad values are overwritten."""
+    with mock.patch.object(
+        eqdsk.trapped_fraction_lib,
+        'calculate_bounce_averaged_trapped_fraction',
+        return_value=np.nan,
+    ):
+      with self.assertLogs(level='WARNING') as cm:
+        geo = eqdsk.EQDSKConfig(
+            geometry_file='iterhybrid_cocos11.eqdsk',
+            cocos=11,
+            trapped_fraction_source=base.TrappedFractionSource.EXACT,
+        ).build_geometry()
+    self.assertTrue(
+        any('Overwriting' in msg and 'EXACT' in msg for msg in cm.output)
+    )
+    self.assertIsNotNone(geo.trapped_fraction_face)
+
+  def test_trapped_fraction_source_file_not_supported(self):
+    """Tests that FILE is rejected for EQDSK (no precomputed value)."""
+    with self.assertRaisesRegex(ValueError, 'not supported for EQDSKConfig'):
+      eqdsk.EQDSKConfig(
+          geometry_file='iterhybrid_cocos11.eqdsk',
+          cocos=11,
+          trapped_fraction_source=base.TrappedFractionSource.FILE,
+      )
+
+  def test_trapped_fraction_geometry_consistent_with_sauter(self):
+    """Tests that the exact and Sauter trapped fractions roughly agree."""
+    geo_sauter = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk',
+        cocos=11,
+        trapped_fraction_source=base.TrappedFractionSource.SAUTER,
+    ).build_geometry()
+    geo_geometry = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk',
+        cocos=11,
+        trapped_fraction_source=base.TrappedFractionSource.EXACT,
+    ).build_geometry()
+    # Moderately coarse tolerance: Sauter is only an analytic approximation,
+    # so it need not match the exact integral closely, but a large deviation
+    # would indicate a bug rather than the expected model discrepancy.
+    np.testing.assert_allclose(
+        geo_geometry.trapped_fraction_face,
+        geo_sauter.trapped_fraction_face,
+        atol=0.05,
+        rtol=0.15,
+    )
+
   def test_eqdsk_serialization_round_trip(self):
     """Test that EQDSKConfig with eqdsk_object can be serialized and deserialized."""
     geo_dir = geometry_loader.get_geometry_dir()
@@ -115,6 +191,124 @@ class EqdskGeometryTest(parameterized.TestCase):
         self.assertIsNone(val2, msg=f'Field "{name}" mismatch (dict).')
       else:
         self.assertEqual(val1, val2, msg=f'Field "{name}" mismatch (dict).')
+
+  def _coarsened_iterhybrid_eqdsk(
+      self, stride: int
+  ) -> eqdsk_lib.EQDSKInterface:
+    """Returns the ITER hybrid EQDSK with every `stride`-th grid point kept."""
+    geo_dir = geometry_loader.get_geometry_dir()
+    eqdsk_obj = eqdsk_lib.EQDSKInterface.from_file(
+        f'{geo_dir}/iterhybrid_cocos11.eqdsk', from_cocos=11
+    )
+    eqdsk_obj.psi = eqdsk_obj.psi[::stride, ::stride]
+    eqdsk_obj.nx, eqdsk_obj.nz = eqdsk_obj.psi.shape
+    # 1D profiles are on nx evenly spaced psi_norm points.
+    for name in ['fpol', 'pressure', 'pprime', 'ffprime', 'qpsi', 'psinorm']:
+      setattr(eqdsk_obj, name, getattr(eqdsk_obj, name)[::stride])
+    return eqdsk_obj
+
+  def test_target_psi_grid_resolution_improves_coarse_grid_accuracy(self):
+    """Tests that grid refinement recovers the fine-grid plasma current."""
+    reference_Ip = (
+        eqdsk.EQDSKConfig(geometry_file='iterhybrid_cocos11.eqdsk', cocos=11)
+        .build_geometry()
+        .Ip_profile_face[-1]
+    )
+    # coarsened_obj has nx = 65, nz = 65.
+    # resolution=None: no refinement. resolution=130: ceil(130/65) = 2.
+    coarse_Ip_unrefined = (
+        eqdsk.EQDSKConfig(
+            eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
+            cocos=11,
+            target_psi_grid_resolution=None,
+        )
+        .build_geometry()
+        .Ip_profile_face[-1]
+    )
+    coarse_Ip_refined = (
+        eqdsk.EQDSKConfig(
+            eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
+            cocos=11,
+            target_psi_grid_resolution=130,
+        )
+        .build_geometry()
+        .Ip_profile_face[-1]
+    )
+    error_unrefined = abs(coarse_Ip_unrefined / reference_Ip - 1)
+    error_refined = abs(coarse_Ip_refined / reference_Ip - 1)
+    self.assertLess(error_refined, 5e-3)
+    self.assertLess(error_refined, error_unrefined)
+
+  def test_target_psi_grid_resolution_enables_contouring_on_coarse_grid(self):
+    """Tests that grid refinement fixes contouring failures on coarse grids."""
+    with self.subTest('unrefined_fails'):
+      with self.assertRaisesRegex(ValueError, 'monotonically increasing'):
+        eqdsk.EQDSKConfig(
+            eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=4),
+            cocos=11,
+            target_psi_grid_resolution=None,
+        ).build_geometry()
+    with self.subTest('refined_succeeds'):
+      # stride 4 coarsened_obj has nx = 33, nz = 33.
+      # target_psi_grid_resolution = 130 leads to ceil(130 / 33) = 4.
+      eqdsk.EQDSKConfig(
+          eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=4),
+          cocos=11,
+          target_psi_grid_resolution=130,
+      ).build_geometry()
+
+  def test_target_psi_grid_resolution_preserves_well_resolved_geometry(self):
+    """Tests that refining an already well-resolved grid changes little."""
+    # iterhybrid_cocos11 has nx = 129, nz = 129.
+    geo_unrefined = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk',
+        cocos=11,
+        target_psi_grid_resolution=None,
+    ).build_geometry()
+    # target_psi_grid_resolution = 260 leads to ceil(260 / 129) = 2.
+    geo_refined = eqdsk.EQDSKConfig(
+        geometry_file='iterhybrid_cocos11.eqdsk',
+        cocos=11,
+        target_psi_grid_resolution=260,
+    ).build_geometry()
+    for name in ['Phi_face', 'volume_face', 'area_face', 'F_face']:
+      np.testing.assert_allclose(
+          getattr(geo_unrefined, name),
+          getattr(geo_refined, name),
+          rtol=5e-3,
+          atol=1e-8,
+          err_msg=f'Field "{name}" mismatch.',
+      )
+
+  def test_default_target_psi_grid_resolution(self):
+    """Tests that default target_psi_grid_resolution is 128."""
+    coarsened_obj = self._coarsened_iterhybrid_eqdsk(stride=2)
+    # coarsened_obj has nx = 65, nz = 65.
+    # Default target_psi_grid_resolution = 128 gives ceil(128 / 65) = 2.
+    geo_default = eqdsk.EQDSKConfig(
+        eqdsk_object=coarsened_obj,
+        cocos=11,
+    ).build_geometry()
+    geo_explicit_128 = eqdsk.EQDSKConfig(
+        eqdsk_object=coarsened_obj,
+        cocos=11,
+        target_psi_grid_resolution=128,
+    ).build_geometry()
+    for name in ['Phi_face', 'volume_face', 'area_face', 'F_face']:
+      np.testing.assert_allclose(
+          getattr(geo_default, name),
+          getattr(geo_explicit_128, name),
+          err_msg=f'Field "{name}" mismatch for default target resolution.',
+      )
+
+  def test_target_psi_grid_resolution_invalid_value_raises(self):
+    """Tests that target_psi_grid_resolution < 1 raises a validation error."""
+    with self.assertRaises(ValueError):
+      eqdsk.EQDSKConfig(
+          geometry_file='iterhybrid_cocos11.eqdsk',
+          cocos=11,
+          target_psi_grid_resolution=0,
+      )
 
 
 if __name__ == '__main__':

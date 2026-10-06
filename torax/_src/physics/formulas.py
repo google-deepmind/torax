@@ -32,8 +32,12 @@ Functions:
       based on thermal pressure.
     - calculate_beta_pol_profile: Calculates local poloidal beta profile as a
       CellVariable.
-    - calc_beta_pol_prime: Calculates
+    - calculate_beta_pol_prime: Calculates
       beta_pol_prime = -d(beta_pol) / d(psi_norm) on the face grid.
+    - calculate_alpha_mhd: Calculates the circular/s-alpha MHD ballooning
+      parameter alpha_mhd on the face grid.
+    - calculate_alpha_mhd_miller: Calculates the Miller general-geometry MHD
+      ballooning parameter alpha_mhd_miller on the face grid.
 """
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -169,9 +173,9 @@ def calculate_stored_thermal_energy(
     wth_ion: Ion thermal stored energy [J]
     wth_tot: Total thermal stored energy [J]
   """
-  wth_el = math_utils.volume_integration(1.5 * p_el.value, geo)  # pyrefly: ignore[bad-argument-type]
-  wth_ion = math_utils.volume_integration(1.5 * p_ion.value, geo)  # pyrefly: ignore[bad-argument-type]
-  wth_tot = math_utils.volume_integration(1.5 * p_tot.value, geo)  # pyrefly: ignore[bad-argument-type]
+  wth_el = math_utils.volume_integration(1.5 * p_el.value, geo)
+  wth_ion = math_utils.volume_integration(1.5 * p_ion.value, geo)
+  wth_tot = math_utils.volume_integration(1.5 * p_tot.value, geo)
 
   return wth_el, wth_ion, wth_tot
 
@@ -237,13 +241,13 @@ def calculate_betas(
     Tuple of beta_tor, beta_pol, and beta_N
   """
   p_total_volume_avg = math_utils.volume_average(
-      core_profiles.pressure_total.value, geo  # pyrefly: ignore[bad-argument-type]
+      core_profiles.pressure_total.value, geo
   )
 
   magnetic_pressure_on_axis = geo.B_0**2 / (2 * constants.CONSTANTS.mu_0)
   # Add a division guard though B0 should typically be non-zero.
   beta_tor = math_utils.safe_divide(
-      num=p_total_volume_avg, denom=magnetic_pressure_on_axis, eps=1e-7  # pyrefly: ignore[bad-argument-type]
+      num=p_total_volume_avg, denom=magnetic_pressure_on_axis, eps=1e-7
   )
 
   beta_pol = (
@@ -335,4 +339,87 @@ def calculate_beta_pol_prime(
       normalized=True,
   )
 
+
+def calculate_alpha_mhd(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+    two_point_mask: array_typing.BoolVectorFace | None = None,
+) -> array_typing.FloatVectorFace:
+  r"""Calculates the s-alpha (shifted-circle) MHD ballooning parameter on faces.
+
+  Defined in the circular-cross-section s-alpha ballooning model
+  (Connor, Hastie & Taylor, Phys. Rev. Lett. 40, 396, 1978) as:
+    alpha_mhd = - (2 * mu_0 * R_major * q^2 / B_0^2) * d(p_total) / d(r_mid)
+  where p_total is the total plasma pressure (thermal + fast ions), q is the
+  flux-surface safety factor, and r_mid is the midplane-averaged minor radius.
+
+  Args:
+    core_profiles: CoreProfiles object.
+    geo: Geometry object.
+    two_point_mask: Optional boolean mask on the face grid indicating which
+      faces should use a 2-point central difference instead of the 3-point
+      stencil.
+
+  Returns:
+    alpha_mhd: Face-grid array of the s-alpha MHD ballooning parameter
+      [dimensionless].
+  """
+  dp_total_dr_mid = core_profiles.pressure_total.face_grad(
+      x=geo.r_mid,
+      x_left=geo.r_mid_face[0],
+      x_right=geo.r_mid_face[-1],
+      two_point_mask=two_point_mask,
+  )
+  return (
+      -2.0
+      * constants.CONSTANTS.mu_0
+      * geo.R_major
+      * core_profiles.q_face**2
+      / (geo.B_0**2 + constants.CONSTANTS.eps)
+      * dp_total_dr_mid
+  )
+
+
+def calculate_alpha_mhd_miller(
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> array_typing.FloatVectorFace:
+  r"""Calculates the Miller general-geometry MHD ballooning parameter on faces.
+
+  Defined in general flux-surface geometry in:
+  (Miller et al., Phys. Plasmas 5, 973, 1998) as:
+    alpha_mhd_miller = -(2 * dV/dpsi_rad) / (2 * pi)^2
+                       * sqrt(V / (2 * pi^2 * R_0)) * mu_0 * dp/dpsi_rad
+  where psi_rad = psi / (2 * pi) is the poloidal flux per radian [Wb/rad].
+  In terms of TORAX's total poloidal flux psi [Wb], the two (2 * pi) factors in
+  dV/dpsi_rad and dp/dpsi_rad cancel the (2 * pi)^2 denominator:
+    alpha_mhd_miller = -2 * (dV/dpsi) * sqrt(V / (2 * pi^2 * R_major))
+                       * mu_0 * (dp_total/dpsi)
+
+  On the magnetic axis (rho=0), V = 0 while dV/dpsi and dp/dpsi are finite, so
+  alpha_mhd_miller[0] = 0.
+
+  Args:
+    core_profiles: CoreProfiles object.
+    geo: Geometry object.
+
+  Returns:
+    alpha_mhd_miller: Face-grid array of the Miller MHD ballooning parameter
+      [dimensionless].
+  """
+  pprime = calc_pprime(core_profiles)
+  dpsi_drhon = core_profiles.psi.face_grad()
+  dV_dpsi_bulk = geo.vpr_face[1:] / dpsi_drhon[1:]
+  r_vol_bulk = jnp.sqrt(
+      geo.volume_face[1:] / (2.0 * jnp.pi**2 * geo.R_major)
+  )
+  alpha_bulk = (
+      -2.0
+      * dV_dpsi_bulk
+      * r_vol_bulk
+      * constants.CONSTANTS.mu_0
+      * pprime[1:]
+  )
+  alpha_axis = jnp.zeros(1, dtype=alpha_bulk.dtype)
+  return jnp.concatenate([alpha_axis, alpha_bulk])
 

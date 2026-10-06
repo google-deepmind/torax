@@ -49,9 +49,9 @@ def calc_generic_particle_source(
   assert isinstance(source_params, RuntimeParams)
   return (
       formulas.gaussian_profile(
-          center=source_params.deposition_location,  # pyrefly: ignore[bad-argument-type]
-          width=source_params.particle_width,  # pyrefly: ignore[bad-argument-type]
-          total=source_params.S_total,  # pyrefly: ignore[bad-argument-type]
+          center=source_params.deposition_location,
+          width=source_params.particle_width,
+          total=source_params.S_total,
           geo=geo,
       ),
   )
@@ -61,7 +61,7 @@ def calc_generic_particle_source(
 class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the n_e equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'generic_particle'
+  SOURCE_ID: ClassVar[str] = 'generic_particle'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )
@@ -76,7 +76,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   S_total: array_typing.FloatScalar
 
 
-class GenericParticleSourceConfig(base.SourceModelBase):
+class GenericParticleSourceConfig(base.SourceConfigBase):
   """Generic particle source for the n_e equation.
 
   Attributes:
@@ -100,9 +100,6 @@ class GenericParticleSourceConfig(base.SourceModelBase):
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1e22
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -113,11 +110,7 @@ class GenericParticleSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         particle_width=self.particle_width.get_value(t),
         deposition_location=self.deposition_location.get_value(t),
         S_total=self.S_total.get_value(t),

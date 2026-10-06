@@ -18,7 +18,7 @@ import functools
 import json
 import logging
 import os  # pylint: disable=unused-import
-from typing import Annotated, Any, Final, Literal, Sequence
+from typing import Annotated, Any, Final, Literal, Self, Sequence
 
 import chex
 import flax.linen as nn
@@ -43,7 +43,6 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # Internal import.
 
@@ -264,7 +263,7 @@ class ToricNNWrapper:
   def __hash__(self) -> int:
     return hash(self._path)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: Self) -> bool:  # pyrefly: ignore[bad-override]
     return isinstance(other, ToricNNWrapper)
 
 
@@ -399,17 +398,17 @@ def icrh_model_func(
 
   # Construct inputs for ToricNN.
   volume_average_temperature = math_utils.volume_average(
-      core_profiles.T_e.value, geo  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.value, geo
   )
   volume_average_density = math_utils.volume_average(
-      core_profiles.n_e.value, geo  # pyrefly: ignore[bad-argument-type]
+      core_profiles.n_e.value, geo
   )
 
   # Peaking factors are core w.r.t volume averages.
   temperature_peaking_factor = (
-      core_profiles.T_e.value[0] / volume_average_temperature  # pyrefly: ignore[bad-index]
+      core_profiles.T_e.value[0] / volume_average_temperature
   )
-  density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density  # pyrefly: ignore[bad-index]
+  density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
   Router = geo.R_out_face[-1]  # Use LCFS outboard radius
   Rinner = geo.R_in_face[-1]  # Use LCFS inboard radius
   # Assumption: inner and outer gaps are not functions of z0.
@@ -468,19 +467,19 @@ def icrh_model_func(
 
   n_tail, T_tail = fast_ion_utils.bimaxwellian_split(
       power_deposition=power_deposition_he3,
-      T_e=core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
-      n_e=core_profiles.n_e.value,  # pyrefly: ignore[bad-argument-type]
-      T_i=core_profiles.T_i.value,  # pyrefly: ignore[bad-argument-type]
-      n_i=core_profiles.n_i.value,  # pyrefly: ignore[bad-argument-type]
-      minority_concentration=minority_concentration_profile,  # pyrefly: ignore[bad-argument-type]
-      P_total_W=source_params.P_total,  # pyrefly: ignore[bad-argument-type]
+      T_e=core_profiles.T_e.value,
+      n_e=core_profiles.n_e.value,
+      T_i=core_profiles.T_i.value,
+      n_i=core_profiles.n_i.value,
+      minority_concentration=minority_concentration_profile,
+      P_total_W=source_params.P_total,
       charge_number=he3_charge_number,
       mass_number=he3_atomic_mass,
-      bulk_ion_mass=core_profiles.A_i,  # pyrefly: ignore[bad-argument-type]
-      Z_i=core_profiles.Z_i,  # pyrefly: ignore[bad-argument-type]
-      n_impurity=core_profiles.n_impurity.value,  # pyrefly: ignore[bad-argument-type]
-      Z_impurity=core_profiles.Z_impurity,  # pyrefly: ignore[bad-argument-type]
-      A_impurity=core_profiles.A_impurity,  # pyrefly: ignore[bad-argument-type]
+      bulk_ion_mass=core_profiles.A_i,
+      Z_i=core_profiles.Z_i,
+      n_impurity=core_profiles.n_impurity.value,
+      Z_impurity=core_profiles.Z_impurity,
+      A_impurity=core_profiles.A_impurity,
   )
 
   # Build fast ion output for all supported species.
@@ -509,7 +508,7 @@ def icrh_model_func(
 
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
       T_tail,
-      core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.value,
       he3_atomic_mass,
   )
   absorbed_power = source_params.P_total * source_params.absorption_fraction
@@ -592,7 +591,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
     return base.IonCyclotronSource(model_func=None)
 
   @pydantic.model_validator(mode='after')
-  def _validate_minority_species(self) -> typing_extensions.Self:
+  def _validate_minority_species(self) -> Self:
     if self.minority_species is not None and self.minority_species != 'He3':
       raise ValueError(
           "Minority species must be 'He3' if specified. Got:"
@@ -604,7 +603,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
   @pydantic.model_validator(mode='after')
   def _log_warning_for_used_minority_concentration(
       self,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Logs a warning if minority_concentration is provided."""
     if self.minority_concentration is not None:
       logging.warning(
@@ -622,11 +621,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         wall_inner=self.wall_inner,
         wall_outer=self.wall_outer,
         frequency=self.frequency.get_value(t),

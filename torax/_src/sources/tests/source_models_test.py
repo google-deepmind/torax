@@ -15,7 +15,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
-from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.test_utils import default_sources
 
 
@@ -23,11 +23,11 @@ class SourceModelsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.default_sources_config = sources_pydantic_model.Sources.from_dict(
+    self.default_sources_config = sources_pydantic_config.Sources.from_dict(
         default_sources.get_default_source_config()
     )
     self.default_neoclassical_config = (
-        neoclassical_pydantic_model.Neoclassical.from_dict({})
+        neoclassical_pydantic_model.AnalyticalNeoclassicalConfig.from_dict({})
     )
     self.default_source_model = self.default_sources_config.build_models()
 
@@ -42,7 +42,7 @@ class SourceModelsTest(parameterized.TestCase):
 
     modified_sources_dict = default_sources.get_default_source_config()
     modified_sources_dict['generic_heat']['P_total'] = 10e6
-    modified_sources_config = sources_pydantic_model.Sources.from_dict(
+    modified_sources_config = sources_pydantic_config.Sources.from_dict(
         modified_sources_dict
     )
     test_source_model = modified_sources_config.build_models()
@@ -55,7 +55,7 @@ class SourceModelsTest(parameterized.TestCase):
     modified_sources_dict = default_sources.get_default_source_config().pop(
         'fusion'
     )
-    modified_sources_config = sources_pydantic_model.Sources.from_dict(
+    modified_sources_config = sources_pydantic_config.Sources.from_dict(
         modified_sources_dict
     )
     test_source_model = modified_sources_config.build_models()

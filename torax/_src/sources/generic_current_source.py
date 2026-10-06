@@ -62,7 +62,6 @@ def calculate_generic_current(
 ) -> tuple[array_typing.FloatVectorCell, ...]:
   """Calculates the external parallel current density profile on the cell grid."""
   source_params = runtime_params.sources[source_name]
-  # pytype: enable=name-error
   assert isinstance(source_params, RuntimeParams)
   I_generic = _calculate_I_generic(
       runtime_params,
@@ -103,14 +102,14 @@ def _calculate_I_generic(
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 
-  SOURCE_NAME: ClassVar[str] = 'generic_current'
+  SOURCE_ID: ClassVar[str] = 'generic_current'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.PSI,
   )
   model_func: source.SourceProfileFunction = calculate_generic_current  # pyrefly: ignore[bad-assignment]
 
 
-class GenericCurrentSourceConfig(source_base.SourceModelBase):
+class GenericCurrentSourceConfig(source_base.SourceConfigBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
@@ -139,9 +138,6 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       torax_pydantic.ValidatedDefault(0.4)
   )
   use_absolute_current: bool = False
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -152,11 +148,7 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         I_generic=self.I_generic.get_value(t),
         fraction_of_total_current=self.fraction_of_total_current.get_value(t),
         gaussian_width=self.gaussian_width.get_value(t),

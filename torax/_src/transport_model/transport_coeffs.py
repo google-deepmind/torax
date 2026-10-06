@@ -15,7 +15,7 @@
 """Transport coefficient data structures."""
 
 import dataclasses
-from typing import Mapping
+from typing import Any, Mapping, Self
 
 import jax
 from jax import numpy as jnp
@@ -23,7 +23,7 @@ from torax._src import array_typing
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-import typing_extensions
+import xarray as xr
 
 
 # pylint: disable=invalid-name
@@ -45,7 +45,7 @@ class TransportCoeffs:
   v_face_el: array_typing.FloatVectorFace
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a TransportCoeffs with all zeros."""
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(
@@ -55,7 +55,7 @@ class TransportCoeffs:
         v_face_el=zeros,
     )
 
-  def __add__(self, other: typing_extensions.Self) -> typing_extensions.Self:
+  def __add__(self, other: Self) -> Self:
     """Adds two TransportCoeffs channel-by-channel."""
     return self.__class__(
         chi_face_ion=self.chi_face_ion + other.chi_face_ion,
@@ -124,28 +124,36 @@ class TurbulentTransport:
   """Combined turbulent transport output across all models.
 
   Attributes:
-    total: Combined 4-channel turbulent transport coefficients (after merge,
+    core: Combined 4-channel core turbulent transport coefficients (after merge,
       clipping, and smoothing).
-    core_coefficients: Mapping from model name to the TransportCoeffs produced
+    pedestal: Combined 4-channel pedestal turbulent transport coefficients.
+    core_components: Mapping from model name to the TransportCoeffs produced
       by each active core transport model.
-    pedestal_coefficients: Mapping from model name to the TransportCoeffs
+    pedestal_components: Mapping from model name to the TransportCoeffs
       produced by each active pedestal transport model.
   """
 
-  total: TransportCoeffs
-  core_coefficients: Mapping[str, TransportCoeffs] = dataclasses.field(
+  core: TransportCoeffs
+  pedestal: TransportCoeffs
+  core_components: Mapping[str, TransportCoeffs] = dataclasses.field(
       default_factory=dict
   )
-  pedestal_coefficients: Mapping[str, TransportCoeffs] = dataclasses.field(
+  pedestal_components: Mapping[str, TransportCoeffs] = dataclasses.field(
       default_factory=dict
   )
 
+  @property
+  def total(self) -> TransportCoeffs:
+    """Combined 4-channel turbulent transport coefficients (core + pedestal)."""
+    return self.core + self.pedestal
+
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     return cls(
-        total=TransportCoeffs.zeros(geo),
-        core_coefficients={},
-        pedestal_coefficients={},
+        core=TransportCoeffs.zeros(geo),
+        pedestal=TransportCoeffs.zeros(geo),
+        core_components={},
+        pedestal_components={},
     )
 
   def to_output_dict(
@@ -154,6 +162,38 @@ class TurbulentTransport:
   ) -> dict[str, output_grid_context.OutputVar]:
     """Converts turbulent transport outputs to an OutputVar mapping."""
     return self.total.to_output_dict(context)
+
+  def to_xr_datatree(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> xr.DataTree:
+    """Builds an xr.DataTree of the per-model turbulent transport outputs."""
+    face_coords: Mapping[str, Any] = {
+        output_keys.TIME: context.times,
+        output_keys.RHO_FACE_NORM: context.coords[output_keys.RHO_FACE_NORM],
+    }
+    children = {}
+    if self.core_components:
+      core_children = {
+          model_name: xr.DataTree(
+              dataset=context.build_dataset(
+                  model_output.to_output_dict(context), coords=face_coords
+              )
+          )
+          for model_name, model_output in self.core_components.items()
+      }
+      children[output_keys.CORE] = xr.DataTree(children=core_children)
+    if self.pedestal_components:
+      pedestal_children = {
+          model_name: xr.DataTree(
+              dataset=context.build_dataset(
+                  model_output.to_output_dict(context), coords=face_coords
+              )
+          )
+          for model_name, model_output in self.pedestal_components.items()
+      }
+      children[output_keys.PEDESTAL] = xr.DataTree(children=pedestal_children)
+    return xr.DataTree(children=children)
 
 
 @jax.tree_util.register_dataclass
@@ -169,7 +209,7 @@ class NeoclassicalTransport(TransportCoeffs):
   v_face_el_ware: array_typing.FloatVectorFace
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a NeoclassicalTransport with zero transport coefficients."""
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(
@@ -218,7 +258,7 @@ class PereverzevTransport(TransportCoeffs):
   full_v_heat_face_el: array_typing.FloatVectorFace
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a PereverzevTransport with zero transport coefficients."""
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(

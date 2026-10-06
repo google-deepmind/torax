@@ -48,7 +48,7 @@ def core_sources_to_IMAS(
     active_sources.update(source.psi.keys())
     active_sources.update(source.fast_ions.keys())
     # qei source treated differently so added separately.
-    active_sources.add(qei_source.QeiSource.SOURCE_NAME)
+    active_sources.add(qei_source.QeiSource.SOURCE_ID)
 
   ids.source.resize(len(active_sources))
 
@@ -134,7 +134,7 @@ def _compute_source_profiles(
   particles_el = np.zeros_like(geo.rho)
   j_par = np.zeros_like(geo.rho)
   # qei source stored differently so needs to be handled separately
-  if source_name == qei_source.QeiSource.SOURCE_NAME:
+  if source_name == qei_source.QeiSource.SOURCE_ID:
     # qei represents power to ions.
     energy_ion = core_source_state.qei.p_ei
     energy_el = -core_source_state.qei.p_ei

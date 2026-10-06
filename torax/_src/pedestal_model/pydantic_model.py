@@ -16,7 +16,7 @@
 
 import abc
 import copy
-from typing import Annotated, Any, Literal, TypeAlias
+from typing import Annotated, Any, Literal, Self, TypeAlias
 import chex
 import pydantic
 from torax._src import array_typing
@@ -29,7 +29,6 @@ from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.physics import scaling_laws
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -326,7 +325,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     return configurable_data
 
   @pydantic.model_validator(mode="after")
-  def _check_source_mode(self) -> typing_extensions.Self:
+  def _check_source_mode(self) -> Self:
     if (
         self.use_formation_model_with_internal_boundary_condition
         and self.mode != runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION

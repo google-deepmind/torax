@@ -94,7 +94,7 @@ def cell_to_face(
       cell_centers=geo.rho_norm,
   )
   # Linearly extrapolate to get left value.
-  left = cell_values[0] - (inner_face_values[0] - cell_values[0])  # pyrefly: ignore[bad-index]
+  left = cell_values[0] - (inner_face_values[0] - cell_values[0])
   face_values_without_right = jnp.concatenate([left[None], inner_face_values])
   # Use the last cell width for the rightmost face calculation
   last_drho = geo.drho_norm[-1]

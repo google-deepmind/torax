@@ -15,7 +15,7 @@
 """Functions for adding post-processed outputs to the simulation state."""
 
 import dataclasses
-from typing import Callable
+from typing import Callable, Self
 
 from absl import logging
 import jax
@@ -36,7 +36,6 @@ from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -205,6 +204,14 @@ class PostProcessedOutputs:
     beta_pol_prime: Derivative of local poloidal beta with respect to normalized
       poloidal flux on the face grid: -d(beta_pol_local) / d(psi_norm)
       [dimensionless]
+    alpha_mhd: s-alpha (shifted-circle) MHD ballooning parameter on the face
+      grid (Connor, Hastie & Taylor, Phys. Rev. Lett. 40, 396, 1978):
+      -(2 * mu_0 * R_major * q^2 / B_0^2) * d(p_total) / d(r_mid)
+      [dimensionless]
+    alpha_mhd_miller: General-geometry (Miller) MHD ballooning parameter on the
+      face grid (Miller et al., Phys. Plasmas 5, 973, 1998):
+      -(2 * dV/dpsi_rad) / (2 * pi)^2 * sqrt(V / (2 * pi^2 * R_0)) *
+      mu_0 * dp_total/dpsi_rad [dimensionless]
     impurity_species: Dictionary of outputs for each impurity species.
     poloidal_velocity: Poloidal velocity [m/s]
     radial_electric_field: Radial electric field [V/m]
@@ -322,6 +329,8 @@ class PostProcessedOutputs:
   beta_N: array_typing.FloatScalar
   beta_pol_profile: array_typing.FloatVector
   beta_pol_prime: array_typing.FloatVector
+  alpha_mhd: array_typing.FloatVector
+  alpha_mhd_miller: array_typing.FloatVector
   S_total: array_typing.FloatScalar
   impurity_species: dict[str, impurity_radiation.ImpuritySpeciesOutput]
   poloidal_velocity: array_typing.FloatVector
@@ -330,7 +339,7 @@ class PostProcessedOutputs:
   # pylint: enable=invalid-name
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
         pprime=jnp.zeros(geo.rho_face.shape),
@@ -437,6 +446,8 @@ class PostProcessedOutputs:
         beta_N=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         beta_pol_profile=jnp.zeros(geo.rho_face.shape),
         beta_pol_prime=jnp.zeros(geo.rho_face.shape),
+        alpha_mhd=jnp.zeros(geo.rho_face.shape),
+        alpha_mhd_miller=jnp.zeros(geo.rho_face.shape),
         S_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         impurity_species={},
         poloidal_velocity=jnp.zeros(geo.rho_face.shape),
@@ -444,8 +455,15 @@ class PostProcessedOutputs:
         first_step=jnp.array(True),
     )
 
+  @jax.jit
+  def has_nan(self) -> jax.Array:
+    """Returns a boolean JAX scalar indicating whether any leaf has NaNs."""
+    return jnp.any(
+        jnp.stack([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)])
+    )
+
   def check_for_errors(self):
-    if any([np.any(np.isnan(x)) for x in jax.tree.leaves(self)]):
+    if self.has_nan():
       path_vals, _ = jax.tree.flatten_with_path(self)
       for path, value in path_vals:
         if np.any(np.isnan(value)):
@@ -680,7 +698,7 @@ def make_post_processed_outputs(
   )
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
-  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])  # pyrefly: ignore[bad-index]
+  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
   integrated_sources = _calculate_integrated_sources(
       sim_state.geometry,
       sim_state.core_sources,
@@ -821,24 +839,24 @@ def make_post_processed_outputs(
 
   # Calculate te and ti volume average [keV]
   te_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.T_e.value, sim_state.geometry
   )
   ti_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.T_i.value, sim_state.geometry
   )
 
   # Calculate n_e and n_i (main ion) volume and line averages in m^-3
   n_e_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   n_i_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   n_e_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   n_i_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
       n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
@@ -905,7 +923,7 @@ def make_post_processed_outputs(
       runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_external,  # pyrefly: ignore[bad-argument-type]
+      j_parallel_external,
       sim_state.geometry,
       runtime_params.numerics.min_rho_norm,
   )
@@ -942,17 +960,21 @@ def make_post_processed_outputs(
   beta_pol_prime = formulas.calculate_beta_pol_prime(
       sim_state.core_profiles, sim_state.geometry
   )
+  alpha_mhd = formulas.calculate_alpha_mhd(
+      sim_state.core_profiles, sim_state.geometry
+  )
+  alpha_mhd_miller = formulas.calculate_alpha_mhd_miller(
+      sim_state.core_profiles, sim_state.geometry
+  )
 
   rotation_output = rotation.calculate_rotation(
-      T_i=sim_state.core_profiles.T_i,
       psi=sim_state.core_profiles.psi,
       n_i=sim_state.core_profiles.n_i,
-      q_face=sim_state.core_profiles.q_face,
       Z_i_face=sim_state.core_profiles.Z_i_face,
       toroidal_angular_velocity=sim_state.core_profiles.toroidal_angular_velocity,
+      poloidal_velocity=sim_state.core_profiles.poloidal_velocity,
       pressure_total_i=sim_state.core_profiles.pressure_total_i,
       geo=sim_state.geometry,
-      poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
   )
 
   return PostProcessedOutputs(
@@ -1016,17 +1038,17 @@ def make_post_processed_outputs(
       j_ecrh=j_toroidal_sources['j_ecrh'],
       j_generic_current=j_toroidal_sources['j_generic_current'],
       j_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
-      j_parallel_external=j_parallel_external,  # pyrefly: ignore[bad-argument-type]
+      j_parallel_external=j_parallel_external,
       j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
       I_external=I_external,
       I_non_inductive=I_non_inductive,
-      f_non_inductive=math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
-          num=I_non_inductive,  # pyrefly: ignore[bad-argument-type]
+      f_non_inductive=math_utils.safe_divide(
+          num=I_non_inductive,
           denom=sim_state.core_profiles.Ip_profile_face[-1],
           eps=1e-7,
       ),
-      f_bootstrap=math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
-          num=I_bootstrap,  # pyrefly: ignore[bad-argument-type]
+      f_bootstrap=math_utils.safe_divide(
+          num=I_bootstrap,
           denom=sim_state.core_profiles.Ip_profile_face[-1],
           eps=1e-7,
       ),
@@ -1035,9 +1057,11 @@ def make_post_processed_outputs(
       beta_N=beta_N,
       beta_pol_profile=beta_pol_profile.face_value(),
       beta_pol_prime=beta_pol_prime,
+      alpha_mhd=alpha_mhd,
+      alpha_mhd_miller=alpha_mhd_miller,
       impurity_species=impurity_radiation_outputs,
-      poloidal_velocity=rotation_output.poloidal_velocity.face_value(),  # pyrefly: ignore[bad-argument-type]
-      radial_electric_field=rotation_output.Er.face_value(),  # pyrefly: ignore[bad-argument-type]
+      poloidal_velocity=sim_state.core_profiles.poloidal_velocity.face_value(),
+      radial_electric_field=rotation_output.Er.face_value(),
       first_step=jnp.array(False),
   )
 

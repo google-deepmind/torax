@@ -19,6 +19,7 @@ from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.conductivity import sauter
+from torax._src.neoclassical.formulas import formulas
 
 
 class SauterTest(absltest.TestCase):
@@ -45,15 +46,24 @@ class SauterTest(absltest.TestCase):
         n_i=cell_variable.CellVariable(
             value=jnp.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
         ),
+        n_impurity_thermal=cell_variable.CellVariable(
+            value=jnp.linspace(10, 20, n_rho), face_centers=geo.rho_face_norm
+        ),
+        impurity_density_scaling_face=jnp.linspace(1.0, 1.5, n_rho + 1),
         Z_i_face=jnp.linspace(1000, 2000, n_rho + 1),
         Z_eff_face=jnp.linspace(1.0, 1.0, n_rho + 1),
         q_face=jnp.linspace(1, 5, n_rho + 1),
     )
+    neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
+        geo, core_profiles
+    )
 
     model = sauter.SauterModel()
     result = model.calculate_conductivity(
+        sauter.RuntimeParams(),
         geo,
         core_profiles,
+        neoclassical_intermediates,
     )
     self.assertEqual(result.sigma.shape, (n_rho,))
     self.assertEqual(result.sigma_face.shape, (n_rho + 1,))

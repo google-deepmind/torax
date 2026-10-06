@@ -14,17 +14,22 @@
 
 """Unit tests for internal boundary conditions."""
 
+from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 import pydantic
+from torax._src import state
+from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import circular_geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.internal_boundary_conditions import no_ibc
 from torax._src.internal_boundary_conditions import prescribed
 from torax._src.internal_boundary_conditions import pydantic_model
 from torax._src.internal_boundary_conditions import runtime_params as ibc_runtime_params
+from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
@@ -102,18 +107,25 @@ class PrescribedIBCTest(parameterized.TestCase):
         T_e=jnp.array([0.0, 0.0, 0.0, 10.0, 0.0]),
         n_e=jnp.zeros(5),
     )
-
-    class _MockProfileConditions:
-      internal_boundary_conditions = ibc_params
-
-    class _MockRuntimeParams:
-      profile_conditions = _MockProfileConditions()
+    profile_conditions = mock.create_autospec(
+        core_profile_runtime_params.RuntimeParams,
+        instance=True,
+        internal_boundary_conditions=ibc_params,
+    )
+    runtime_params = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
+        instance=True,
+        profile_conditions=profile_conditions,
+    )
 
     model = prescribed.PrescribedIBCModel()
     res = model(
-        runtime_params=_MockRuntimeParams(),  # pyrefly: ignore[bad-argument-type]
+        runtime_params=runtime_params,
         geo=geo,
-        core_profiles=None,  # pyrefly: ignore[bad-argument-type]
+        core_profiles=mock.create_autospec(state.CoreProfiles, instance=True),
+        source_profiles=mock.create_autospec(
+            source_profiles_lib.SourceProfiles, instance=True
+        ),
     )
     self.assertIsInstance(
         res, internal_boundary_conditions.InternalBoundaryConditions
@@ -134,9 +146,14 @@ class NoIBCTest(absltest.TestCase):
     geo = circular_geometry.CircularConfig(n_rho=5).build_geometry()
     model = no_ibc.NoIBCModel()
     res = model(
-        runtime_params=None,  # pyrefly: ignore[bad-argument-type]
+        runtime_params=mock.create_autospec(
+            runtime_params_lib.RuntimeParams, instance=True
+        ),
         geo=geo,
-        core_profiles=None,  # pyrefly: ignore[bad-argument-type]
+        core_profiles=mock.create_autospec(state.CoreProfiles, instance=True),
+        source_profiles=mock.create_autospec(
+            source_profiles_lib.SourceProfiles, instance=True
+        ),
     )
     np.testing.assert_array_equal(res.T_i, jnp.zeros(5))
     np.testing.assert_array_equal(res.T_e, jnp.zeros(5))

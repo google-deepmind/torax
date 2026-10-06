@@ -83,9 +83,9 @@ def calc_puff_feedback_source(
 
   match source_params.average_type:
     case AverageType.LINE:
-      current_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+      current_avg_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
     case AverageType.VOLUME:
-      current_avg_n_e = math_utils.volume_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+      current_avg_n_e = math_utils.volume_average(core_profiles.n_e.value, geo)
     case _ as unknown:
       raise ValueError(f'Unknown average type: {unknown}')
 
@@ -98,14 +98,14 @@ def calc_puff_feedback_source(
   return (
       formulas.exponential_profile(
           decay_start=1.0,
-          width=source_params.puff_decay_length,  # pyrefly: ignore[bad-argument-type]
-          total=S_total,  # pyrefly: ignore[bad-argument-type]
+          width=source_params.puff_decay_length,
+          total=S_total,
           geo=geo,
       ),
   )
 
 
-class GasPuffFeedbackSourceConfig(base.SourceModelBase):
+class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
   """Configuration for the gas puff electron density source with feedback control.
 
   The total particle injection rate is computed using a proportional feedback
@@ -151,10 +151,6 @@ class GasPuffFeedbackSourceConfig(base.SourceModelBase):
   feedback_gain: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
-
   target_average_n_e: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.77e20)
   )
@@ -168,11 +164,7 @@ class GasPuffFeedbackSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         puff_decay_length=self.puff_decay_length.get_value(t),
         S_feedforward=self.S_feedforward.get_value(t),
         target_average_n_e=self.target_average_n_e.get_value(t),

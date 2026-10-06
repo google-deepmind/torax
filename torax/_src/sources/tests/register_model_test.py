@@ -61,7 +61,7 @@ def double_gas_puff_source(
   return 2 * output
 
 
-class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
+class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceConfigBase):
   """New source model config."""
 
   model_name: Literal['test_model_function'] = 'test_model_function'
@@ -80,18 +80,14 @@ class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
+        **dataclasses.asdict(super().build_runtime_params(t)),
         a=self.a.get_value(t),
         b=self.b,
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
     )
 
 
 class DuplicateGasPuffSourceModelConfig(
-    source_base_pydantic_model.SourceModelBase
+    source_base_pydantic_model.SourceConfigBase
 ):
   # Name that is already registered.
   model_name: Literal['exponential'] = 'exponential'
@@ -110,13 +106,9 @@ class DuplicateGasPuffSourceModelConfig(
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
+        **dataclasses.asdict(super().build_runtime_params(t)),
         a=self.a.get_value(t),
         b=self.b,
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
     )
 
 

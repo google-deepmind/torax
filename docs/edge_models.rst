@@ -186,6 +186,31 @@ be adjusted if convergence issues arise:
     converge.
 
 
+.. _edge_config:
+
+Base Edge Configuration Parameters
+==================================
+
+All edge model configurations inherit from ``EdgeModelConfig`` and support
+the following common configuration parameters:
+
+``model_name`` (str [default = 'extended_lengyel'])
+  The edge model discriminator tag. Set to ``'extended_lengyel'`` for the
+  built-in extended Lengyel model, or the registered model name for a custom
+  edge model.
+
+``update_temperatures`` (bool [default = False])
+  If True, update core temperature boundary conditions based on edge model
+  results.
+
+``update_electron_density`` (bool [default = False])
+  If True, update core electron density boundary condition based on edge model
+  results.
+
+``update_impurities`` (bool [default = False])
+  If True, update core impurity profiles based on edge model results.
+
+
 .. _extended_lengyel_config:
 
 Extended Lengyel Configuration Parameters
@@ -208,14 +233,6 @@ Control Parameters
   Source of Truth (SOT) for fixed impurities.
   * ``'core'``: Core profiles define the concentration.
   * ``'edge'``: Edge config defines the concentration.
-
-``update_temperatures`` (bool [default = True])
-  If True, update core temperature boundary conditions based on edge model
-  results.
-
-``update_impurities`` (bool [default = True])
-  If True, update core impurity profiles in ``inverse`` mode based on edge model
-  results.
 
 ``fixed_point_iterations`` (int | None [default = None])
   Number of iterations for the fixed-point solver. If None, defaults to 25
@@ -358,3 +375,14 @@ that can lead to cold root convergence in subsequent time steps.
 ``initial_guess.c_z_prefactor`` (**time-varying-scalar**) [default = 1e-4]
   Impurity concentration prefactor [dimensionless]. Only used in Inverse
   computation mode.
+
+
+.. _custom_edge_models:
+
+Custom Edge Models
+==================
+
+TORAX provides a modular edge model interface allowing users to implement and
+register custom edge physics models. For instructions on implementing and
+registering custom edge models via ``torax.edge.register_edge_model``, see
+:ref:`model-integration`.

@@ -146,6 +146,84 @@ class TransportCoeffsTest(parameterized.TestCase):
     self.assertIn(output_keys.D_TURB_E, out)
     self.assertIn(output_keys.V_TURB_E, out)
 
+  def test_to_xr_datatree_empty(self):
+    turb = transport_coeffs.TurbulentTransport.zeros(self.geo)
+    tree = turb.to_xr_datatree(self.context)
+    self.assertEmpty(tree.children)
+
+  def test_to_xr_datatree_core_and_pedestal_overlapping_keys(self):
+    core_prescribed = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones((1, self.n_face)) * 1.0,
+        chi_face_el=jnp.ones((1, self.n_face)) * 2.0,
+        d_face_el=jnp.ones((1, self.n_face)) * 0.5,
+        v_face_el=jnp.ones((1, self.n_face)) * -0.1,
+    )
+    pedestal_prescribed = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones((1, self.n_face)) * 0.25,
+        chi_face_el=jnp.ones((1, self.n_face)) * 0.5,
+        d_face_el=jnp.ones((1, self.n_face)) * 0.1,
+        v_face_el=jnp.ones((1, self.n_face)) * -0.05,
+    )
+    turb = transport_coeffs.TurbulentTransport(
+        core=core_prescribed,
+        pedestal=pedestal_prescribed,
+        core_components={'prescribed': core_prescribed},
+        pedestal_components={'prescribed': pedestal_prescribed},
+    )
+    tree = turb.to_xr_datatree(self.context)
+    self.assertIn(output_keys.CORE, tree.children)
+    self.assertIn(output_keys.PEDESTAL, tree.children)
+    self.assertIn('prescribed', tree.children[output_keys.CORE].children)
+    self.assertIn('prescribed', tree.children[output_keys.PEDESTAL].children)
+    core_ds = tree.children[output_keys.CORE].children['prescribed'].dataset
+    ped_ds = tree.children[output_keys.PEDESTAL].children['prescribed'].dataset
+    np.testing.assert_allclose(
+        core_ds[output_keys.CHI_TURB_I].values, np.ones((1, self.n_face)) * 1.0
+    )
+    np.testing.assert_allclose(
+        ped_ds[output_keys.CHI_TURB_I].values, np.ones((1, self.n_face)) * 0.25
+    )
+    self.assertCountEqual(
+        list(core_ds.coords.keys()),
+        [output_keys.TIME, output_keys.RHO_FACE_NORM],
+    )
+
+  def test_turbulent_transport_zeros(self):
+    turb = transport_coeffs.TurbulentTransport.zeros(self.geo)
+    np.testing.assert_allclose(turb.core.chi_face_ion, np.zeros(self.n_face))
+    np.testing.assert_allclose(
+        turb.pedestal.chi_face_ion, np.zeros(self.n_face)
+    )
+    np.testing.assert_allclose(turb.total.chi_face_ion, np.zeros(self.n_face))
+
+  def test_turbulent_transport_core_pedestal_and_total(self):
+    core = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 1.0,
+        chi_face_el=jnp.ones(self.n_face) * 2.0,
+        d_face_el=jnp.ones(self.n_face) * 0.5,
+        v_face_el=jnp.ones(self.n_face) * -0.1,
+    )
+    pedestal = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 0.25,
+        chi_face_el=jnp.ones(self.n_face) * 0.5,
+        d_face_el=jnp.ones(self.n_face) * 0.1,
+        v_face_el=jnp.ones(self.n_face) * -0.05,
+    )
+    turb = transport_coeffs.TurbulentTransport(
+        core=core,
+        pedestal=pedestal,
+    )
+    np.testing.assert_allclose(
+        turb.total.chi_face_ion, np.ones(self.n_face) * 1.25
+    )
+    np.testing.assert_allclose(
+        turb.total.chi_face_el, np.ones(self.n_face) * 2.5
+    )
+    np.testing.assert_allclose(turb.total.d_face_el, np.ones(self.n_face) * 0.6)
+    np.testing.assert_allclose(
+        turb.total.v_face_el, np.ones(self.n_face) * -0.15
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

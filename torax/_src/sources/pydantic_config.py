@@ -15,7 +15,7 @@
 """Pydantic config for source models."""
 
 import copy
-from typing import Any
+from typing import Any, Self
 
 import immutabledict
 import pydantic
@@ -39,7 +39,6 @@ from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.ion_cyclotron_source import scaled_profile
 from torax._src.sources.ion_cyclotron_source import toric_nn
 from torax._src.torax_pydantic import torax_pydantic
-from typing_extensions import Self
 
 
 class Sources(torax_pydantic.BaseModelFrozen):
@@ -131,7 +130,7 @@ class Sources(torax_pydantic.BaseModelFrozen):
     constructor_data = copy.deepcopy(x)
     for k, v in x.items():
       # If this an already validated model, skip it.
-      if isinstance(v, base.SourceModelBase) or v is None:
+      if isinstance(v, base.SourceConfigBase) or v is None:
         continue
       match k:
         case 'bremsstrahlung':
@@ -253,9 +252,9 @@ class Sources(torax_pydantic.BaseModelFrozen):
     )
 
   @property
-  def source_model_config(self) -> dict[str, base.SourceModelBase]:
+  def source_model_config(self) -> dict[str, base.SourceConfigBase]:
     return {
         k: v
         for k, v in self.__dict__.items()
-        if isinstance(v, base.SourceModelBase)
+        if isinstance(v, base.SourceConfigBase)
     }

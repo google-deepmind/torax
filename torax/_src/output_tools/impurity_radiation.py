@@ -70,13 +70,13 @@ def calculate_impurity_species_output(
   radiation_active = True
   # If the impurity radiation heat sink is not enabled, return empty dictionary.
   if (
-      impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME
+      impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_ID
       not in runtime_params.sources
   ):
     radiation_active = False
   else:
     runtime_params_impurity = runtime_params.sources[
-        impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME
+        impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_ID
     ]
     # If the impurity radiation heat sink is not the mavrin model and in model
     # based mode, return empty dictionary.

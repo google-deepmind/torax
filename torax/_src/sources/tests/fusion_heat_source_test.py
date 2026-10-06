@@ -26,7 +26,7 @@ from torax._src.test_utils import torax_refs
 class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   """Tests for FusionHeatSource."""
 
-  source_name = fusion_heat_source.FusionHeatSource.SOURCE_NAME
+  source_name = fusion_heat_source.FusionHeatSource.SOURCE_ID
   source_config_class = fusion_heat_source.FusionHeatSourceConfig
   needs_source_models = True
 
@@ -49,12 +49,12 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     })
     runtime_params, geo = references.get_runtime_params_and_geo()
     source_models = references.config.sources.build_models()
-    neoclassical_models = references.config.neoclassical.build_models()
+    neoclassical_model = references.config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(
@@ -83,19 +83,17 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     references = torax_refs.chease_references_Ip_from_chease()
     references.config.update_fields({
         'plasma_composition.main_ion': main_ion_input,
-        'sources.fusion': {
-            'model_name': fusion_heat_source.DEFAULT_MODEL_FUNCTION_NAME
-        },
+        'sources.fusion': {},
     })
 
     runtime_params_t, geo = references.get_runtime_params_and_geo()
     source_models = references.config.sources.build_models()
-    neoclassical_models = references.config.neoclassical.build_models()
+    neoclassical_model = references.config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params_t,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(

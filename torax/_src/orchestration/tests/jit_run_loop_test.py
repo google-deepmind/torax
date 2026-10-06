@@ -73,7 +73,7 @@ class JitRunLoopTest(absltest.TestCase):
     # eps is in amperes and Ip is O(MA), so a small absolute step leaves the
     # finite difference dominated by solver roundoff rather than by the
     # gradient.
-    eps = 1e3
+    eps = 1.0
     index = 1
     eps_vec = jax.nn.one_hot(index, len(Ip_new_values), dtype=jnp.float64) * eps
     grad_diff = (

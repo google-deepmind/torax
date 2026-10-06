@@ -27,6 +27,7 @@ Functions:
       electron-ion collisions.
     - calculate_log_lambda_ii: Calculates the Coulomb logarithm for ion-ion
       collisions.
+    - calculate_tau_e: Calculates the electron-ion collision time.
     - calculate_tau_ii: Calculates the ion-ion collision time.
     - _calculate_weighted_Z_eff: Calculates ion mass weighted Z_eff used in
       the equipartion calculation.
@@ -59,13 +60,13 @@ def coll_exchange(
   """
   # Calculate Coulomb logarithm
   log_lambda_ei = calculate_log_lambda_ei(
-      core_profiles.T_e.value, core_profiles.n_e.value  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.value, core_profiles.n_e.value
   )
   # ion-electron collisionality for Z_eff=1. Ion charge and multiple ion effects
   # are included in the Qei_coef calculation below.
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.T_e.value,  # pyrefly: ignore[bad-argument-type]
-      core_profiles.n_e.value,  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.value,
+      core_profiles.n_e.value,
       log_lambda_ei,
   )
   # pylint: disable=invalid-name
@@ -104,14 +105,14 @@ def calc_nu_star(
 
   # Calculate Coulomb logarithm
   log_lambda_ei_face = calculate_log_lambda_ei(
-      core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.face_value(),
+      core_profiles.n_e.face_value(),
   )
 
   # ion_electron collisionality
   log_tau_e_Z1 = _calculate_log_tau_e_Z1(
-      core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
-      core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      core_profiles.T_e.face_value(),
+      core_profiles.n_e.face_value(),
       log_lambda_ei_face,
   )
 
@@ -182,8 +183,8 @@ def fast_ion_fractional_heating_formula(
 
 
 def calculate_log_lambda_ee(
-    T_e: jax.Array,
-    n_e: jax.Array,
+    T_e: array_typing.FloatVector,
+    n_e: array_typing.FloatVector,
 ) -> jax.Array:
   """Calculates Coulomb logarithm for electron-electron collisions.
 
@@ -204,8 +205,8 @@ def calculate_log_lambda_ee(
 
 
 def calculate_log_lambda_ei(
-    T_e: jax.Array,
-    n_e: jax.Array,
+    T_e: array_typing.FloatVector,
+    n_e: array_typing.FloatVector,
 ) -> jax.Array:
   """Calculates Coulomb logarithm for electron-ion collisions.
 
@@ -224,9 +225,9 @@ def calculate_log_lambda_ei(
 
 
 def calculate_log_lambda_ii(
-    T_i: jax.Array,
-    n_i: jax.Array,
-    Z_i: jax.Array,
+    T_i: array_typing.FloatVector,
+    n_i: array_typing.FloatVector,
+    Z_i: array_typing.FloatVector,
 ) -> jax.Array:
   """Calculates Coulomb logarithm for ion-ion collisions.
 
@@ -245,12 +246,39 @@ def calculate_log_lambda_ii(
   return 30.0 - 0.5 * jnp.log(n_i) + 1.5 * jnp.log(T_i_ev) - 3.0 * jnp.log(Z_i)
 
 
+def calculate_tau_e(
+    T_e: array_typing.FloatVector,
+    n_e: array_typing.FloatVector,
+    Z_eff: array_typing.FloatVector,
+    ln_Lambda_ei: array_typing.FloatVector,
+) -> jax.Array:
+  """Calculates electron-ion collision time.
+
+  See Wesson 3rd edition p729.
+
+  Args:
+    T_e: Electron temperature [keV].
+    n_e: Electron density [m^-3].
+    Z_eff: Effective ion charge [dimensionless].
+    ln_Lambda_ei: Coulomb logarithm for electron-ion collisions [dimensionless].
+
+  Returns:
+    Electron-ion collision time [s].
+  """
+  log_tau_e_Z1 = _calculate_log_tau_e_Z1(
+      T_e=T_e,
+      n_e=n_e,
+      log_lambda_ei=ln_Lambda_ei,
+  )
+  return jnp.exp(log_tau_e_Z1) / Z_eff
+
+
 def calculate_tau_ii(
-    A_i: jax.Array,
-    Z_i: jax.Array,
-    T_i: jax.Array,
-    n_i: jax.Array,
-    ln_Lambda_ii: jax.Array,
+    A_i: array_typing.FloatScalar,
+    Z_i: array_typing.FloatVector,
+    T_i: array_typing.FloatVector,
+    n_i: array_typing.FloatVector,
+    ln_Lambda_ii: array_typing.FloatVector,
 ) -> jax.Array:
   """Calculates ion-ion (self) collision time for a single ion species.
 
@@ -294,9 +322,9 @@ def _calculate_weighted_Z_eff(
 
 
 def _calculate_log_tau_e_Z1(
-    T_e: jax.Array,
-    n_e: jax.Array,
-    log_lambda_ei: jax.Array,
+    T_e: array_typing.FloatVector,
+    n_e: array_typing.FloatVector,
+    log_lambda_ei: array_typing.FloatVector,
 ) -> jax.Array:
   """Calculates log of electron-ion collision time for Z=1 plasma.
 

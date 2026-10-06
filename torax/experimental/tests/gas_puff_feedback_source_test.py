@@ -34,7 +34,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GasPuffFeedbackSource."""
 
   source_config_class = gas_puff_feedback_source.GasPuffFeedbackSourceConfig
-  source_name = gas_puff_source.GasPuffSource.SOURCE_NAME
+  source_name = gas_puff_source.GasPuffSource.SOURCE_ID
 
   def test_feedback_mode(self):
     """Tests calc_puff_feedback_source with real objects."""
@@ -56,15 +56,15 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     runtime_params = runtime_params_provider(t=torax_config.numerics.t_initial)
 
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
-    initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+    initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)
 
     # Rebuild with specific requested value
     config['sources']['gas_puff']['model_name'] = 'feedback'

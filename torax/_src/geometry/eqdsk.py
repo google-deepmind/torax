@@ -15,12 +15,13 @@
 
 import json
 import logging
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Final, Literal, Self
 
 import contourpy
 import eqdsk
 import eqdsk.file
 import eqdsk.tools
+from jax import numpy as jnp
 import numpy as np
 import numpy.typing as npt
 import pydantic
@@ -30,8 +31,8 @@ from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import standard_geometry
+from torax._src.geometry import trapped_fraction as trapped_fraction_lib
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # Inject `npt` into eqdsk.file's runtime namespace to prevent Pydantic from
 # raising `PydanticUndefinedAnnotation: name 'npt' is not defined.`
@@ -42,6 +43,13 @@ eqdsk.file.npt = npt
 
 # COCOS convention that TORAX translates all EQDSK geometries to.
 _TORAX_EQDSK_COCOS = 11
+
+# Below this many contour vertices, the poloidal (R, Z) equilibrium grid does
+# not resolve the flux surface well enough for an accurate line integral
+# (e.g. flux surfaces very close to the magnetic axis, which can be much
+# smaller than a single grid cell). Surfaces below this threshold are marked
+# unreliable (NaN) so the caller can smoothly extrapolate to the axis.
+_MIN_CONTOUR_POINTS_FOR_EXACT_INTEGRAL: Final[int] = 20
 
 
 # pylint: disable=invalid-name
@@ -63,7 +71,22 @@ class EQDSKConfig(base.BaseGeometryConfig):
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
+    target_psi_grid_resolution: Desired minimum number of grid points along the
+      R and Z dimensions of the 2D psi grid before generating flux surface
+      contours. If set, the integer refinement factor is calculated dynamically
+      as `ceil(target / min_dim)`, where `target = target_psi_grid_resolution`
+      and `min_dim = min(nx, nz)`, refining both dimensions uniformly. If None,
+      no refinement is performed.
   """
+
+  @property
+  def _supported_trapped_fraction_sources(
+      self,
+  ) -> frozenset[trapped_fraction_lib.TrappedFractionSource]:
+    return frozenset({
+        trapped_fraction_lib.TrappedFractionSource.SAUTER,
+        trapped_fraction_lib.TrappedFractionSource.EXACT,
+    })
 
   cocos: torax_pydantic.COCOSInt = ...  # pyrefly: ignore[bad-assignment]
   geometry_file: str | None = None
@@ -77,11 +100,13 @@ class EQDSKConfig(base.BaseGeometryConfig):
   Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
+  target_psi_grid_resolution: Annotated[int | None, pydantic.Field(ge=1)] = 128
 
   @pydantic.field_validator('eqdsk_object', mode='before')
   @classmethod
   def _eqdskinterface_before_validator(
-      cls, x: eqdsk.EQDSKInterface | dict[str, Any] | None,
+      cls,
+      x: eqdsk.EQDSKInterface | dict[str, Any] | None,
   ) -> eqdsk.EQDSKInterface | None:
     """Convert input to an EQDSKInterface object or None."""
     if x is None:
@@ -96,7 +121,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
   @pydantic.field_serializer('eqdsk_object', return_type=dict[str, Any] | None)
   @classmethod
   def _eqdskinterface_serializer(
-      cls, obj: eqdsk.EQDSKInterface | None,
+      cls, obj: eqdsk.EQDSKInterface | None
   ) -> dict[str, Any] | None:
     if obj is None:
       return None
@@ -105,7 +130,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
     return json.loads(json_str)
 
   @pydantic.model_validator(mode='after')
-  def _validate_model(self) -> typing_extensions.Self:
+  def _validate_model(self) -> Self:
     if self.geometry_file is None and self.eqdsk_object is None:
       raise ValueError(
           "Either 'geometry_file' or 'eqdsk_object' must be provided."
@@ -127,6 +152,8 @@ class EQDSKConfig(base.BaseGeometryConfig):
         cocos=self.cocos,
         n_surfaces=self.n_surfaces,
         last_surface_factor=self.last_surface_factor,
+        trapped_fraction_source=self.trapped_fraction_source,
+        target_psi_grid_resolution=self.target_psi_grid_resolution,
     )
     return standard_geometry.build_standard_geometry(intermediates)
 
@@ -141,6 +168,10 @@ def _construct_intermediates_from_eqdsk(
     n_surfaces: int,
     last_surface_factor: float,
     cocos: int,
+    trapped_fraction_source: (
+        trapped_fraction_lib.TrappedFractionSource
+    ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
+    target_psi_grid_resolution: int | None = None,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -167,6 +198,13 @@ def _construct_intermediates_from_eqdsk(
       grid. Needed to avoid divergent integrations in diverted geometries.
     cocos: COCOS convention of the EQDSK file, specified as an integer between
       1-8 or 11-18 inclusive.
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed; see `trapped_fraction.TrappedFractionSource`.
+    target_psi_grid_resolution: Desired minimum number of grid points along the
+      R and Z dimensions of the 2D psi grid before generating flux surface
+      contours. If set, the grid is refined by `ceil(target / min_dim)`, where
+      `target = target_psi_grid_resolution` and `min_dim = min(nx, nz)`,
+      refining both dimensions uniformly. If None, no refinement is performed.
 
   Returns:
     A StandardGeometryIntermediates instance based on the input file or object.
@@ -230,20 +268,46 @@ def _construct_intermediates_from_eqdsk(
       0.0, eq_dict['psibdry'] - eq_dict['psimag'], eq_dict['nx']
   )
 
-  # 2D X-Z grid
-  X_1D = np.linspace(
+  # 2D psi grid, with psi(axis) = 0
+  psi_2dgrid = eq_dict['psi'] - eq_dict['psimag']
+
+  # Spline interpolator of 2D psi field defined on raw EQDSK X-Z grid
+  raw_X_1D = np.linspace(
       eq_dict['xgrid1'], eq_dict['xgrid1'] + eq_dict['xdim'], eq_dict['nx']
   )
-  Z_1D = np.linspace(
+  raw_Z_1D = np.linspace(
       eq_dict['zmid'] - eq_dict['zdim'] / 2,
       eq_dict['zmid'] + eq_dict['zdim'] / 2,
       eq_dict['nz'],
   )
+  psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
+      raw_X_1D, raw_Z_1D, psi_2dgrid, kx=3, ky=3, s=0
+  )
+
+  # Optionally refine the 2D psi grid.
+  if target_psi_grid_resolution is not None:
+    # Convert target resolution to refinement factor.
+    min_resolution = min(eq_dict['nx'], eq_dict['nz'])
+    refinement_factor = int(
+        jnp.ceil(target_psi_grid_resolution / min_resolution)
+    )
+  else:
+    # No refinement.
+    refinement_factor = 1
+
+  # 2D X-Z grid
+  if refinement_factor > 1:
+    nx = (eq_dict['nx'] - 1) * refinement_factor + 1
+    nz = (eq_dict['nz'] - 1) * refinement_factor + 1
+    X_1D = np.linspace(raw_X_1D[0], raw_X_1D[-1], nx)
+    Z_1D = np.linspace(raw_Z_1D[0], raw_Z_1D[-1], nz)
+    psi_2dgrid = psi_2dgrid_interpolator(X_1D, Z_1D)
+  else:
+    X_1D = raw_X_1D
+    Z_1D = raw_Z_1D
+
   X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
   Xlcfs, Zlcfs = eq_dict['xbdry'], eq_dict['zbdry']
-
-  # 2D psi grid, with psi(axis) = 0
-  psi_2dgrid = eq_dict['psi'] - eq_dict['psimag']
 
   # Mask for the region inside the LCFS
   # i.e. Xlcfs.min() < X < Xlcfs.max() and Zlcfs.min() < Z < Zlcfs.max()
@@ -283,12 +347,6 @@ def _construct_intermediates_from_eqdsk(
   # ------------------------------------------------------------------ #
   # ---- 3. Interpolate everything onto the new flux surface grid ---- #
   # ------------------------------------------------------------------ #
-  # Spline interpolator of 2D psi field defined on X-Z grid
-  # This will later be evaluated on each flux surface
-  psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
-      X_1D, Z_1D, psi_2dgrid, kx=3, ky=3, s=0
-  )
-
   # Interpolate safety factor onto new flux-surface grid
   q_interpolator = scipy.interpolate.interp1d(
       psi_1dgrid, eq_dict['qpsi'], kind='cubic'
@@ -321,6 +379,7 @@ def _construct_intermediates_from_eqdsk(
   flux_surf_avg_grad_psi2 = np.empty(len(surfaces) + 1)  # <|grad(psi)|**2>
   flux_surf_avg_B2 = np.empty(len(surfaces) + 1)  # <B**2>
   flux_surf_avg_1_over_B2 = np.empty(len(surfaces) + 1)  # <1/B**2>
+  trapped_fraction = np.full(len(surfaces) + 1, np.nan)
   int_dl_over_Bp = np.empty(len(surfaces) + 1)  # int(Rdl / | grad(psi) |)
   Ip = np.empty(len(surfaces) + 1)  # Toroidal plasma current
   delta_upper_face = np.empty(len(surfaces) + 1)  # Upper face delta
@@ -425,6 +484,39 @@ def _construct_intermediates_from_eqdsk(
     flux_surf_avg_grad_psi2_over_R2[n + 1] = surface_FSA_abs_grad_psi2_over_R2
     flux_surf_avg_B2[n + 1] = surface_FSA_B2
     flux_surf_avg_1_over_B2[n + 1] = surface_FSA_1_over_B2
+    if (
+        trapped_fraction_source
+        == trapped_fraction_lib.TrappedFractionSource.EXACT
+    ):
+      if len(x_surface) < _MIN_CONTOUR_POINTS_FOR_EXACT_INTEGRAL:
+        trapped_fraction[n + 1] = np.nan
+      else:
+        surface_B = np.sqrt(surface_B2)
+        if (
+            len(x_surface) > 1
+            and np.isclose(x_surface[0], x_surface[-1])
+            and np.isclose(z_surface[0], z_surface[-1])
+        ):
+          x_closed = x_surface[:-1]
+          z_closed = z_surface[:-1]
+          B_closed = surface_B[:-1]
+          Bpol_closed = surface_Bpol[:-1]
+        else:
+          x_closed = x_surface
+          z_closed = z_surface
+          B_closed = surface_B
+          Bpol_closed = surface_Bpol
+        segment_lengths = np.hypot(
+            np.roll(x_closed, -1) - x_closed,
+            np.roll(z_closed, -1) - z_closed,
+        )
+        dl_closed = 0.5 * (segment_lengths + np.roll(segment_lengths, 1))
+        trapped_fraction[n + 1] = (
+            trapped_fraction_lib.calculate_bounce_averaged_trapped_fraction(
+                B=B_closed,
+                dl_over_Bp=dl_closed / Bpol_closed,
+            )
+        )
     Ip[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
     delta_upper_face[n + 1] = surface_delta_upper_face
     delta_lower_face[n + 1] = surface_delta_lower_face
@@ -445,6 +537,12 @@ def _construct_intermediates_from_eqdsk(
   flux_surf_avg_grad_psi2_over_R2[0] = 0
   flux_surf_avg_B2[0] = Btor_axis**2
   flux_surf_avg_1_over_B2[0] = 1 / Btor_axis**2
+  if (
+      trapped_fraction_source
+      == trapped_fraction_lib.TrappedFractionSource.EXACT
+  ):
+    # No trapped particles on the magnetic axis, where B is uniform.
+    trapped_fraction[0] = 0.0
   Ip[0] = 0
   delta_upper_face[0] = delta_upper_face[1]
   delta_lower_face[0] = delta_lower_face[1]
@@ -458,6 +556,44 @@ def _construct_intermediates_from_eqdsk(
   )
   rhon = np.sqrt(Phi / Phi[-1])
   vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
+
+  epsilon = (R_outboard - R_inboard) / (R_outboard + R_inboard)
+  delta = (delta_upper_face + delta_lower_face) / 2.0
+  sauter_trapped_fraction = (
+      trapped_fraction_lib.calculate_sauter_trapped_fraction(
+          epsilon=epsilon, delta=delta
+      )
+  )
+
+  match trapped_fraction_source:
+    case trapped_fraction_lib.TrappedFractionSource.EXACT:
+      # Fill any unreliable values (NaN, or outside the physically valid
+      # [0, 1] range, e.g. surfaces too close to the magnetic axis for the
+      # integral to resolve well) via smooth extrapolation to the axis.
+      exact_is_unreliable = (
+          np.isnan(trapped_fraction)
+          | (trapped_fraction < 0.0)
+          | (trapped_fraction > 1.0)
+      )
+      if np.any(exact_is_unreliable):
+        logging.warning(
+            'Overwriting %d bad/unphysical EXACT trapped fraction values via'
+            ' smooth extrapolation to the axis.',
+            int(np.sum(exact_is_unreliable)),
+        )
+      trapped_fraction = (
+          trapped_fraction_lib.extrapolate_exact_trapped_fraction_to_axis(
+              trapped_fraction=trapped_fraction,
+              rhon=rhon,
+              sauter_trapped_fraction=sauter_trapped_fraction,
+          )
+      )
+    case trapped_fraction_lib.TrappedFractionSource.SAUTER:
+      trapped_fraction = sauter_trapped_fraction
+    case _:
+      raise ValueError(
+          f'Unsupported trapped_fraction_source: {trapped_fraction_source}.'
+      )
 
   # ------------------------------------ #
   # ---- 6. Sense-check the results ---- #
@@ -496,6 +632,7 @@ def _construct_intermediates_from_eqdsk(
       flux_surf_avg_grad_psi2_over_R2=flux_surf_avg_grad_psi2_over_R2,
       flux_surf_avg_B2=flux_surf_avg_B2,
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
+      trapped_fraction=trapped_fraction,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
       elongation=elongation,

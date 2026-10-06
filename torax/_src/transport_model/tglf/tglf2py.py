@@ -40,7 +40,7 @@ except (ImportError, ModuleNotFoundError, AttributeError):
   _TGLF2pyLibType = Any
 
 
-def _get_tglf_lib_and_interface() -> tuple[_TGLF2pyLibType, _TGLFInterfaceType]:  # pytype: disable=invalid-annotation
+def _get_tglf_lib_and_interface() -> tuple[_TGLF2pyLibType, _TGLFInterfaceType]:
   """Returns the compiled tglf2py_lib and tglf_interface, or raises RuntimeError."""
   if tglf2py_lib is None or tglf_interface is None:
     raise RuntimeError(

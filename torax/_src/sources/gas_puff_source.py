@@ -59,8 +59,8 @@ def calc_puff_source(
   return (
       formulas.exponential_profile(
           decay_start=1.0,
-          width=source_params.puff_decay_length,  # pyrefly: ignore[bad-argument-type]
-          total=source_params.S_total,  # pyrefly: ignore[bad-argument-type]
+          width=source_params.puff_decay_length,
+          total=source_params.S_total,
           geo=geo,
       ),
   )
@@ -70,14 +70,14 @@ def calc_puff_source(
 class GasPuffSource(source.Source):
   """Gas puff source for the n_e equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'gas_puff'
+  SOURCE_ID: ClassVar[str] = 'gas_puff'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )
   model_func: source.SourceProfileFunction = calc_puff_source  # pyrefly: ignore[bad-assignment]
 
 
-class GasPuffSourceConfig(base.SourceModelBase):
+class GasPuffSourceConfig(base.SourceConfigBase):
   """Gas puff source for the n_e equation.
 
   Attributes:
@@ -95,9 +95,6 @@ class GasPuffSourceConfig(base.SourceModelBase):
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       1e22
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -108,11 +105,7 @@ class GasPuffSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         puff_decay_length=self.puff_decay_length.get_value(t),
         S_total=self.S_total.get_value(t),
     )

@@ -86,7 +86,7 @@ def compute_state(
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
+        pedestal_transition_state_lib.PedestalTransitionState
     ),
     solver: solver_lib.Solver,
 ) -> tuple[AdaptiveStepState, dict[str, array_typing.IntScalar]]:
@@ -150,7 +150,7 @@ def cond_fun(
     unused_runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     unused_geometry_provider: geometry_provider_lib.GeometryProvider,
     unused_pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState | None
+        pedestal_transition_state_lib.PedestalTransitionState
     ),
 ) -> array_typing.BoolScalar:
   """Condition function for the adaptive step to keep stepping."""

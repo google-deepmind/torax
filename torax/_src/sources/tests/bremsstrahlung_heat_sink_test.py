@@ -32,7 +32,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   """Tests for BremsstrahlungHeatSink."""
 
   source_config_class = bremsstrahlung_heat_sink.BremsstrahlungHeatSinkConfig
-  source_name = bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME
+  source_name = bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_ID
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -48,12 +48,12 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
     runtime_params, geo = references.get_runtime_params_and_geo()
     source_models = references.config.sources.build_models()
-    neoclassical_models = references.config.neoclassical.build_models()
+    neoclassical_model = references.config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     P_brem_total, P_brems_profile = (

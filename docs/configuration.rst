@@ -449,19 +449,46 @@ time-dependence of temperature, density, and current.
      poloidal flux, :math:`\beta_{pol}' \equiv -\partial
      \beta_{pol,\text{local}} / \partial \psi_N`, motivated by empirical
      observations of critical edge pressure gradients in L-mode plasmas (see
-     e.g. |labombard2008|). Requires:
+     e.g. |labombard2008|). Parameters:
 
-     - ``rho_norm_edge`` (float in (0, 1)): Edge normalized toroidal flux
-       coordinate :math:`\hat{\rho}_{\text{edge}}` bounding the constrained
+     - ``mode`` (str [default = ``'constant'``]): Controls how the effective
+       edge poloidal beta gradient is determined:
+
+       - ``'constant'``: Uses ``beta_poloidal_prime`` directly.
+       - ``'power_dependent'``: Scales the effective poloidal beta gradient
+         smoothly with the net heating power crossing the separatrix
+         :math:`P_{\text{SOL}}` according to
+         :math:`\beta_{pol,\text{eff}}' = \beta_{pol,\text{min}}' +
+         (\beta_{pol}' - \beta_{pol,\text{min}}') \tanh(\max(P_{\text{SOL}}, 0)
+         / P_{\text{SOL,scaling}})`.
+     - ``rho_norm_edge`` (**time-varying-scalar**): Edge normalized toroidal
+       flux coordinate :math:`\hat{\rho}_{\text{edge}}` bounding the constrained
        edge region.
-     - ``n_e_edge`` (**time-varying-scalar**): Prescribed electron density at
-       the edge boundary :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}`
-       if ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+     - ``n_e_edge`` (**time-varying-scalar** | None [default = None]):
+       Prescribed electron density at the edge boundary
+       :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}` if
+       ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+       Mutually exclusive with ``n_e_edge_multiplier`` (exactly one must be
+       provided).
+     - ``n_e_edge_multiplier`` (**time-varying-scalar** | None [default =
+       None]): Multiplier applied to the right boundary condition density
+       (``n_e_right_bc``) to set the electron density at
+       :math:`\hat{\rho}_{\text{edge}}` [dimensionless]. Mutually exclusive
+       with ``n_e_edge`` (exactly one must be provided).
      - ``n_e_is_fGW`` (bool [default = False]): If True, ``n_e_edge`` is
        interpreted as a Greenwald fraction (dimensionless) instead of absolute
        density (:math:`\text{m}^{-3}`).
      - ``beta_poloidal_prime`` (**time-varying-scalar**): Prescribed normalized
-       poloidal beta gradient :math:`\beta_{pol}' > 0` [dimensionless].
+       poloidal beta gradient :math:`\beta_{pol}' > 0` [dimensionless] (serves
+       as the high-power asymptotic value when ``mode = 'power_dependent'``).
+     - ``beta_poloidal_prime_min`` (**time-varying-scalar** [default = 0.1]):
+       Minimum normalized poloidal beta gradient :math:`\beta_{pol,\text{min}}'
+       \ge 0` at :math:`P_{\text{SOL}} \le 0` when
+       ``mode = 'power_dependent'`` [dimensionless].
+     - ``P_SOL_scaling`` (**time-varying-scalar** | None [default = None]):
+       Characteristic power crossing the separatrix :math:`P_{\text{SOL,scaling}}
+       > 0` [W] for the ``tanh`` transition when ``mode = 'power_dependent'``
+       (required when ``mode = 'power_dependent'``).
      - ``Ti_Te_ratio`` (**time-varying-scalar**): Prescribed ratio
        :math:`T_i / T_e` in the edge region [dimensionless].
 
@@ -1224,6 +1251,26 @@ Geometry dicts for all geometry types can contain the following additional keys.
   higher resolution mesh with ``nrho_hires = nrho * hi_res_fac``, used for
   ``j`` to ``psi`` conversions.
 
+``trapped_fraction_source`` (str [default = 'SAUTER'])
+  Selects how the effective trapped particle fraction, used by the
+  neoclassical ``bootstrap_current``, ``conductivity``, and ``transport``
+  models, is computed. Computed once at geometry construction time. Options are:
+
+  * ``'SAUTER'`` (default)
+    Uses the analytical approximation from
+    `O. Sauter, Fusion Eng. Des. 112, 633 (2016) <https://doi.org/10.1016/j.fusengdes.2016.04.033>`_.
+    Supported by every geometry source.
+
+  * ``'FILE'``
+    Reads the value precomputed by the input equilibrium code directly from
+    the geometry file. Only supported for CHEASE and IMAS geometries.
+
+  * ``'EXACT'``
+    Computes the exact bounce-averaged integral directly from the traced 2D
+    equilibrium, using the formulation of
+    `Y. R. Lin-Liu and R. L. Miller, Phys. Plasmas 2, 1666 (1995) <https://doi.org/10.1063/1.871315>`_.
+    Only supported for EQDSK and IMAS geometries.
+
 
 Geometry dicts for all non-circular geometry types can contain the following
 additional keys.
@@ -1311,6 +1358,23 @@ It is only recommended to change the default values if issues arise.
   Multiplication factor of the boundary poloidal flux, used for the contour
   defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
   divergent integrations in diverted geometries.
+
+``target_psi_grid_resolution`` (int | None [default = 128])
+  Desired minimum number of grid points along the R and Z dimensions of the 2D
+  psi grid before generating flux surface contours. Contours are linear between
+  grid points, so for coarse EQDSK grids the flux surfaces near the separatrix
+  can be inaccurate (e.g. underestimating the plasma current) or fail to close.
+  Refining the grid allows ``last_surface_factor`` to be closer to 1. If set,
+  the 2D (R, Z) grid is refined (using bicubic spline interpolation of psi)
+  by an integer factor calculated dynamically as:
+
+  .. code-block:: python
+
+    ceil(target_psi_grid_resolution / min(nx, nz))
+
+  refining both dimensions uniformly. If None, no refinement is performed.
+  Must be >= 1 if provided.
+
 
 Geometry dicts for IMAS geometry require one and only one of the following
 additional keys.
@@ -1506,6 +1570,10 @@ Top-level Transport Parameters
   outputs. Note that if a QLKNN surrogate model (such as ``qlknn`` / ``QLKNN_7_11``)
   is used and ``smoothing_width`` is set to ``0.0``, a warning is logged
   recommending non-zero smoothing to avoid sharp numerical artifacts.
+
+``pedestal_smoothing_width`` (float [default = 0.0])
+  Width of HWHM Gaussian smoothing kernel operating on pedestal transport model
+  outputs. If set to ``0.0``, no smoothing is applied to pedestal models.
 
 ``smoothing_zones`` (list[dict] [default = []])
   Optional list of configuration dictionaries specifying radial zones with
@@ -1864,6 +1932,15 @@ It is recommended to not set ``qlknn_model_name``,  or
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``DV_effective_smooth_width`` (float [default = 0.01])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that QuaLiKiz normalizes using major
+  radius :math:`R_{major}` rather than minor radius :math:`a`, so the default
+  (:math:`0.01`) corresponds roughly to the TGLF default (:math:`0.001`) in SI
+  units.
+
 ``rotation_multiplier`` (float [default = 1.0])
   Multiplier for :math:`v_{E\times B}` in the rotation correction factor.
 
@@ -1906,6 +1983,15 @@ Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cit
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
+
+``DV_effective_smooth_width`` (float [default = 0.001])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that TGLF normalizes using minor
+  radius :math:`a` rather than :math:`R_{major}`, so the default
+  (:math:`0.001`) corresponds roughly to the QuaLiKiz default (:math:`0.01`) in
+  SI units.
 
 ``rotation_multiplier`` (float [default = 1.0])
   Multiplier for :math:`v_{E\times B}^{\text{shear}}`.
@@ -1974,6 +2060,15 @@ Runtime parameters for the QuaLiKiz model.
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``DV_effective_smooth_width`` (float [default = 0.01])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that QuaLiKiz normalizes using major
+  radius :math:`R_{major}` rather than minor radius :math:`a`, so the default
+  (:math:`0.01`) corresponds roughly to the TGLF default (:math:`0.001`) in SI
+  units.
+
 
 tglf
 ^^^^
@@ -2010,6 +2105,15 @@ Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
+
+``DV_effective_smooth_width`` (float [default = 0.001])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that TGLF normalizes using minor
+  radius :math:`a` rather than :math:`R_{major}`, so the default
+  (:math:`0.001`) corresponds roughly to the QuaLiKiz default (:math:`0.01`) in
+  SI units.
 
 ``collisionality_multiplier`` (float [default = 1.0])
   Collisionality multiplier.
@@ -2142,8 +2246,11 @@ effects from Stott PPCF 2005.
 cyclotron_radiation
 ^^^^^^^^^^^^^^^^^^^
 
-Cyclotron radiation model from Albajar NF 2001 with a deposition profile from
-Artaud NF 2018.
+Cyclotron radiation model from |albajar2001| with a deposition profile from
+|artaud2018|. Because the Albajar profile parameterization is only defined
+for peaked or flat profiles (:math:`\alpha \ge 0`), hollow or inverted density
+and temperature profiles are clamped to the flat-profile limit
+(:math:`\alpha = 0`) in the fit.
 
 ``mode`` (str [default = 'model'])
 
@@ -2742,71 +2849,111 @@ time_step_calculator
 neoclassical
 ------------
 
+Configures the neoclassical physics model.
+
+``model_name`` (str [default = ``'analytical'``])
+  Selects the top-level neoclassical model. The built-in ``'analytical'`` model
+  combines four modular analytical sub-models configured under
+  ``bootstrap_current``, ``conductivity``, ``transport``, and
+  ``poloidal_velocity``. Custom top-level neoclassical models can also be
+  registered via ``torax.neoclassical.register_neoclassical_model`` (see
+  :ref:`model-integration`).
+
+When ``model_name = 'analytical'`` (the default), the following four sub-model
+sections are available:
+
 bootstrap_current
 ^^^^^^^^^^^^^^^^^
-``model_name`` (str [default = 'sauter'])
-  The name of the model to use. If not provided, the default is to use the
-  Sauter model with default values. Options are ``'sauter'``, ``'redl'``, or ``'zeros'``.
-  Note that the Redl model has been shown to have poor accuracy in some cases
-  for multi-species plasmas.
+``model_name`` (str [default = ``'sauter'``])
+  The name of the bootstrap current model to use. If the ``bootstrap_current``
+  section is omitted, ``'zeros'`` is used. If the section is present without a
+  ``model_name``, ``'sauter'`` is used. Options are:
 
-If the ``sauter`` or ``redl`` model is used, the following parameters can be set:
+  * ``'sauter'``: Analytical model from |sauter99|.
+  * ``'redl'``: Analytical model from |redl2021|.
+  * ``'zeros'``: Sets bootstrap current to zero.
+
+If the ``'sauter'`` or ``'redl'`` model is used, the following parameter can be
+set:
 
 ``bootstrap_multiplier`` (float [default = 1.0])
   Multiplier for the bootstrap current.
 
 conductivity
 ^^^^^^^^^^^^
-``model_name`` (str [default = 'sauter'])
-  The name of the Sauter model to use. If not provided, the default is to use
-  the Sauter model with default values.
+``model_name`` (str [default = ``'sauter'``])
+  The name of the neoclassical parallel conductivity model to use. If the
+  ``conductivity`` section or ``model_name`` is omitted, ``'sauter'`` is used.
+  Options are:
+
+  * ``'sauter'`` (default): Analytical conductivity model from |sauter99|.
+  * ``'redl'``: Analytical conductivity model from |redl2021|.
 
 transport
 ^^^^^^^^^
-``model_name`` (str [default = 'zeros'])
-  The name of the neoclassical transport model. The following models are
+``model_name`` (str [default = ``'angioni_sauter'``])
+  The name of the neoclassical transport model. If the ``transport`` section is
+  omitted, ``'zeros'`` is used. If the section is present without a
+  ``model_name``, ``'angioni_sauter'`` is used. The following models are
   supported:
 
   * ``'zeros'``
     Sets all neoclassical transport coefficients to zero.
 
   * ``'angioni_sauter'``
-    The Angioni-Sauter neoclassical transport model from
-    `C. Angioni and O. Sauter, Phys. Plasmas 7, 1224 (2000) <https://doi.org/10.1063/1.873918>`_.
-    This is the default model. This model does not have any additional
-    configurable parameters.
+    The Angioni-Sauter neoclassical transport model from |angioni2000|, with an
+    optional near-axis ion thermal conductivity correction from |shaing1997|.
+    Supports the following additional parameters:
 
+    - ``use_shaing_ion_correction`` (bool [default = False]): If ``True``,
+      smoothly blends the near-axis Shaing ion thermal conductivity into the
+      Angioni-Sauter ion thermal conductivity.
+    - ``shaing_ion_multiplier`` (float [default = 1.8]): Multiplier applied to
+      the Shaing ion thermal conductivity term.
+    - ``shaing_blend_start`` (float in [0, 1] [default = 0.2]): Normalized
+      toroidal flux coordinate :math:`\hat{\rho}` where the sigmoid transition
+      between Shaing and Angioni-Sauter is centered.
+    - ``shaing_blend_rate`` (float [default = 5.0]): Steepness of the sigmoid
+      transition between the Shaing and Angioni-Sauter models.
+
+All neoclassical transport models share the following clipping bounds:
 
 ``chi_min`` (float [default = 0.0])
-  Lower allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Lower allowed bound for neoclassical heat conductivities
+  :math:`\chi_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``chi_max`` (float [default = 100.0])
-  Upper allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Upper allowed bound for neoclassical heat conductivities
+  :math:`\chi_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``D_e_min`` (float [default = 0.0])
-  Lower allowed bound for neoclassical particle diffusivity :math:`D_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Lower allowed bound for neoclassical particle diffusivity
+  :math:`D_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``D_e_max`` (float [default = 100.0])
-  Upper allowed bound for neoclassical particle conductivity :math:`D_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Upper allowed bound for neoclassical particle diffusivity
+  :math:`D_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``V_e_min`` (float [default = -50.0])
-  Lower allowed bound for neoclassical particle convection terms
-  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
-  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
-  and :math:`V_\mathrm{neo, ware}` separately.
+  Lower allowed bound for neoclassical particle convection
+  :math:`V_\mathrm{neo}` in units of :math:`m/s`.
 
 ``V_e_max`` (float [default = 50.0])
-  Upper allowed bound for neoclassical particle convection terms
-  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
-  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
-  and :math:`V_\mathrm{neo, ware}` separately.
+  Upper allowed bound for neoclassical particle convection
+  :math:`V_\mathrm{neo}` in units of :math:`m/s`.
+
+poloidal_velocity
+^^^^^^^^^^^^^^^^^
+``model_name`` (str [default = ``'kim'``])
+  The name of the neoclassical ion poloidal velocity model. If the
+  ``poloidal_velocity`` section or ``model_name`` is omitted, ``'kim'`` is
+  used. The following models are supported:
+
+  * ``'kim'`` (default): Analytical poloidal velocity model from |kim1991|.
+  * ``'zeros'``: Sets the neoclassical poloidal velocity to zero.
 
 ``poloidal_velocity_multiplier`` (float [default = 1.0])
-  Multiplier for the poloidal velocity.
+  Multiplier applied to the neoclassical poloidal velocity.
 
 restart
 -------

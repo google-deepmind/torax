@@ -97,6 +97,11 @@ CONFIG = {
         "geometry_type": "IMAS",
         "imas_filepath": "STEP_SPP_001_ECHD_ftop.nc",
         "n_rho": 100,
+        # STEP is a low-aspect-ratio (spherical tokamak) scenario, where the
+        # Sauter analytic approximation for the trapped particle fraction is
+        # least accurate. Compute the exact value directly from the 2D
+        # equilibrium instead.
+        "trapped_fraction_source": "EXACT",
     },
     "pedestal": {
         "model_name": "set_T_ped_n_ped",

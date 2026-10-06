@@ -24,7 +24,7 @@ from torax._src.sources import generic_ion_el_heat_source as generic_ion_el_heat
 from torax._src.sources import generic_particle_source as generic_particle_source_lib
 from torax._src.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax._src.sources import pellet_source as pellet_source_lib
-from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit as impurity_radiation_mavrin_fit_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
@@ -32,7 +32,7 @@ from torax._src.torax_pydantic import model_config
 
 
 def _validate_source_model_config(
-    source_model_config_class: type[base.SourceModelBase],
+    source_model_config_class: type[base.SourceConfigBase],
     source_name: str,
 ):
   """Validates that the source model config is valid."""
@@ -50,45 +50,45 @@ def _validate_source_model_config(
   model_name: str = source_model_config.model_name
 
   match source_name:
-    case bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSink.SOURCE_NAME:
+    case bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSink.SOURCE_ID:
       default_model_name = (
           bremsstrahlung_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
     case (
-        cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSink.SOURCE_NAME
+        cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSink.SOURCE_ID
     ):
       default_model_name = (
           cyclotron_radiation_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
-    case electron_cyclotron_source_lib.ElectronCyclotronSource.SOURCE_NAME:
+    case electron_cyclotron_source_lib.ElectronCyclotronSource.SOURCE_ID:
       default_model_name = (
           electron_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
-    case gas_puff_source_lib.GasPuffSource.SOURCE_NAME:
+    case gas_puff_source_lib.GasPuffSource.SOURCE_ID:
       default_model_name = gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-    case generic_particle_source_lib.GenericParticleSource.SOURCE_NAME:
+    case generic_particle_source_lib.GenericParticleSource.SOURCE_ID:
       default_model_name = (
           generic_particle_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
-    case pellet_source_lib.PelletSource.SOURCE_NAME:
+    case pellet_source_lib.PelletSource.SOURCE_ID:
       default_model_name = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-    case fusion_heat_source_lib.FusionHeatSource.SOURCE_NAME:
+    case fusion_heat_source_lib.FusionHeatSource.SOURCE_ID:
       default_model_name = fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
     case (
-        generic_ion_el_heat_source_lib.GenericIonElectronHeatSource.SOURCE_NAME
+        generic_ion_el_heat_source_lib.GenericIonElectronHeatSource.SOURCE_ID
     ):
       default_model_name = (
           generic_ion_el_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
-    case impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME:
+    case impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID:
       default_model_name = (
           impurity_radiation_mavrin_fit_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
-    case icrh_base.IonCyclotronSource.SOURCE_NAME:
+    case icrh_base.IonCyclotronSource.SOURCE_ID:
       default_model_name = icrh_base.DEFAULT_MODEL_FUNCTION_NAME
-    case ohmic_heat_source_lib.OhmicHeatSource.SOURCE_NAME:
+    case ohmic_heat_source_lib.OhmicHeatSource.SOURCE_ID:
       default_model_name = ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-    case generic_current_source_lib.GenericCurrentSource.SOURCE_NAME:
+    case generic_current_source_lib.GenericCurrentSource.SOURCE_ID:
       default_model_name = (
           generic_current_source_lib.DEFAULT_MODEL_FUNCTION_NAME
       )
@@ -104,7 +104,7 @@ def _validate_source_model_config(
 
 
 def register_source_model_config(
-    source_model_config_class: type[base.SourceModelBase],
+    source_model_config_class: type[base.SourceConfigBase],
     source_name: str,
 ):
   """Update Pydantic schema to include a source model config.
@@ -114,7 +114,7 @@ def register_source_model_config(
 
   Args:
     source_model_config_class: The new source model config to register. This
-      should be a subclass of SourceModelBase that implements the interface and
+      should be a subclass of SourceConfigBase that implements the interface and
       has a unique `model_name`.
     source_name: The name of the source to register the model config against.
       This should be one of the fields in the Sources pydantic model. For the
@@ -123,10 +123,10 @@ def register_source_model_config(
   """
   _validate_source_model_config(source_model_config_class, source_name)
   # Update the Sources pydantic model to be aware of the new config.
-  sources_pydantic_model.Sources.model_fields[  # pyrefly: ignore[bad-assignment]
+  sources_pydantic_config.Sources.model_fields[  # pyrefly: ignore[bad-assignment]
       f'{source_name}'
   ].annotation |= source_model_config_class
   # Rebuild the pydantic schema for both the Sources and ToraxConfig models so
   # that uses of either will have access to the new config.
-  sources_pydantic_model.Sources.model_rebuild(force=True)
+  sources_pydantic_config.Sources.model_rebuild(force=True)
   model_config.ToraxConfig.model_rebuild(force=True)
