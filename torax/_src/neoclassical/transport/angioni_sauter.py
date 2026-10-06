@@ -182,6 +182,7 @@ def _calculate_angioni_sauter_transport(
 
   # Collisionalities
   nu_e_star = neoclassical_intermediates.nu_e_star
+  log_lambda_ei = neoclassical_intermediates.log_lambda_ei
   log_lambda_ii = neoclassical_intermediates.log_lambda_ii
 
   # Equation 18c from Sauter PoP 1999
@@ -219,9 +220,8 @@ def _calculate_angioni_sauter_transport(
       Kmn_i=Kmn_i,
       geo=geometry,
       core_profiles=core_profiles,
-      epsilon=geometry.epsilon_face,
-      nu_e_star=nu_e_star,
-      nu_i_star=nu_i_star,
+      log_lambda_ei=log_lambda_ei,
+      log_lambda_ii=log_lambda_ii,
   )
 
   # --- Step 4: Calculate thermodynamic forces ---
@@ -561,69 +561,74 @@ def _calculate_Lmn(
     Kmn_i: array_typing.Array,
     geo: geometry_lib.Geometry,
     core_profiles: state.CoreProfiles,
-    epsilon: array_typing.FloatVectorFace,
-    nu_e_star: array_typing.FloatVectorFace,
-    nu_i_star: array_typing.FloatVectorFace,
+    log_lambda_ei: array_typing.FloatVectorFace,
+    log_lambda_ii: array_typing.FloatVectorFace,
 ) -> tuple[array_typing.Array, array_typing.Array]:
   """Calculates the dimensional transport matrices Lmn."""
-  # Normalization factors from Eqs. 16, 20, 21
+  # Normalization factors from Eqs. 16, 20, and 21.
   consts = constants.CONSTANTS
-  thermal_velocity_e = jnp.sqrt(
-      2 * core_profiles.T_e.face_value() * consts.keV_to_J / consts.m_e
+  m_i = core_profiles.A_i * consts.m_amu
+  q_i = core_profiles.Z_i_face * consts.q_e
+
+  collision_time_e = collisions.calculate_tau_e(
+      T_e=core_profiles.T_e.face_value(),
+      n_e=core_profiles.n_e.face_value(),
+      Z_eff=core_profiles.Z_eff_face,
+      ln_Lambda_ei=log_lambda_ei,
   )
-  collision_time_e = (core_profiles.q_face * geo.R_major_profile_face) / (
-      nu_e_star * epsilon**1.5 * thermal_velocity_e + consts.eps
-  )
-  thermal_velocity_i = jnp.sqrt(
-      2
-      * core_profiles.T_i.face_value()
-      * consts.keV_to_J
-      / (core_profiles.A_i * consts.m_amu)
-  )
-  collision_time_i = (core_profiles.q_face * geo.R_major_profile_face) / (
-      nu_i_star * epsilon**1.5 * thermal_velocity_i + consts.eps
+  collision_time_i = collisions.calculate_tau_ii(
+      A_i=core_profiles.A_i,
+      Z_i=core_profiles.Z_i_face,
+      T_i=core_profiles.T_i.face_value(),
+      n_i=core_profiles.n_i.face_value(),
+      ln_Lambda_ii=log_lambda_ii,
   )
 
-  r_larmor_e = consts.m_e * thermal_velocity_e / (consts.q_e * geo.B_0)
-  r_larmor_i = (
-      consts.m_amu
-      * core_profiles.A_i
-      * thermal_velocity_i
-      / (consts.q_e * core_profiles.Z_i_face * geo.B_0)
-  )
-
-  dpsi_dr = core_profiles.psi.face_grad() / geo.rho_b
-
+  # Ld coefficients for species s are defined as
+  #   Lds = (n_s rho_sp^2 / tau_s) * (dpsi/drho)^2   (Eq 16, Eq 21)
+  # where rho_sp for species s is defined as
+  #   rho_sp = sqrt(2 m_s T_s) / (q_s B_p0)
+  # (Eq. 18, as in Hinton & Hazeltine 1976 Eq. 5.122)
+  # with B_p0 = (B_0 / F) * (dpsi/drho) (defined below Eq. 18).
+  # Simplifying,
+  #   rho_sp^2 = (2 m_s T_s) / (q_s^2 B_p0^2)
+  #            = 2 m_s T_s q_s^-2 B_0^-2 F^2 (dpsi/drho)^-2
+  # so
+  #   Lds = 2 n_s m_s T_s q_s^-2 B_0^-2 F^2 tau_s^-1,
+  # where the (dpsi/drho)^2 terms have cancelled.
   Ld = (
-      core_profiles.n_e.face_value()
-      * r_larmor_e**2
+      2
+      * core_profiles.n_e.face_value()
+      * consts.m_e
+      * (core_profiles.T_e.face_value() * consts.keV_to_J)
+      / consts.q_e**2
+      / geo.B_0**2
+      * geo.F_face**2
       / collision_time_e
-      * dpsi_dr**2
   )
   Ldi = (
-      core_profiles.n_i.face_value()
-      * r_larmor_i**2
+      2
+      * core_profiles.n_i.face_value()
+      * m_i
+      * (core_profiles.T_i.face_value() * consts.keV_to_J)
+      / q_i**2
+      / geo.B_0**2
+      * geo.F_face**2
       / collision_time_i
-      * dpsi_dr**2
   )
   Lb = geo.F_face * core_profiles.n_e.face_value()
   Lbi = geo.F_face * core_profiles.n_i.face_value()
 
   Lsi = (
       core_profiles.n_i.face_value()
-      * (consts.q_e * core_profiles.Z_i_face) ** 2
+      * q_i**2
       * collision_time_i
       * geo.B_0**2
-      / (
-          consts.m_amu
-          * core_profiles.A_i
-          * core_profiles.T_i.face_value()
-          * consts.keV_to_J
-      )
+      / (m_i * core_profiles.T_i.face_value() * consts.keV_to_J)
   )
 
   # Calculate electron matrix (Eq. 20)
-  Lmn_e = jnp.zeros((nu_e_star.shape[0], 4, 4))
+  Lmn_e = jnp.zeros((log_lambda_ei.shape[0], 4, 4))
 
   Lmn_e = Lmn_e.at[:, 0, 0].set(Kmn_e[:, 0, 0] * Ld * geo.gm4_face * geo.B_0**2)
   Lmn_e = Lmn_e.at[:, 0, 1].set(Kmn_e[:, 0, 1] * Ld * geo.gm4_face * geo.B_0**2)
@@ -646,7 +651,7 @@ def _calculate_Lmn(
   Lmn_e = Lmn_e.at[:, 3, 3].set(Kmn_e[:, 3, 3] * Ld / geo.gm5_face * geo.B_0**2)
 
   # Calculate ion matrix
-  Lmn_i = jnp.zeros((nu_i_star.shape[0], 2, 2))
+  Lmn_i = jnp.zeros((log_lambda_ii.shape[0], 2, 2))
   Lmn_i = Lmn_i.at[:, 0, 0].set(
       Kmn_i[:, 0, 0] * Lsi * geo.gm5_face / geo.B_0**2
   )

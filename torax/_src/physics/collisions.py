@@ -27,6 +27,7 @@ Functions:
       electron-ion collisions.
     - calculate_log_lambda_ii: Calculates the Coulomb logarithm for ion-ion
       collisions.
+    - calculate_tau_e: Calculates the electron-ion collision time.
     - calculate_tau_ii: Calculates the ion-ion collision time.
     - _calculate_weighted_Z_eff: Calculates ion mass weighted Z_eff used in
       the equipartion calculation.
@@ -243,6 +244,33 @@ def calculate_log_lambda_ii(
   # Rescale T_i to eV for specific form of formula.
   T_i_ev = T_i * 1e3
   return 30.0 - 0.5 * jnp.log(n_i) + 1.5 * jnp.log(T_i_ev) - 3.0 * jnp.log(Z_i)
+
+
+def calculate_tau_e(
+    T_e: array_typing.FloatVector,
+    n_e: array_typing.FloatVector,
+    Z_eff: array_typing.FloatVector,
+    ln_Lambda_ei: array_typing.FloatVector,
+) -> jax.Array:
+  """Calculates electron-ion collision time.
+
+  See Wesson 3rd edition p729.
+
+  Args:
+    T_e: Electron temperature [keV].
+    n_e: Electron density [m^-3].
+    Z_eff: Effective ion charge [dimensionless].
+    ln_Lambda_ei: Coulomb logarithm for electron-ion collisions [dimensionless].
+
+  Returns:
+    Electron-ion collision time [s].
+  """
+  log_tau_e_Z1 = _calculate_log_tau_e_Z1(
+      T_e=T_e,
+      n_e=n_e,
+      log_lambda_ei=ln_Lambda_ei,
+  )
+  return jnp.exp(log_tau_e_Z1) / Z_eff
 
 
 def calculate_tau_ii(
