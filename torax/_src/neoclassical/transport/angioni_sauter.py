@@ -168,7 +168,8 @@ def _calculate_angioni_sauter_transport(
     Neoclassical transport coefficients.
 
   All internally assigned profiles are on the face grid. The face suffix is
-  omitted for brevity.
+  omitted for brevity. The Angioni-Sauter model uses poloidal flux psi in
+  [Wb/rad], so TORAX's psi [Wb] is converted accordingly.
   """
 
   # --- Step 1: Calculate intermediate physics quantities ---
@@ -224,7 +225,8 @@ def _calculate_angioni_sauter_transport(
   )
 
   # --- Step 4: Calculate thermodynamic forces ---
-  dpsi_drhon = core_profiles.psi.face_grad()
+  # Convert to Angioni-Sauter psi units.
+  dpsi_drhon = core_profiles.psi.face_grad() / (2 * jnp.pi)
   dlnne_dpsi = math_utils.safe_divide(
       num=core_profiles.n_e.face_grad() / core_profiles.n_e.face_value(),
       denom=dpsi_drhon,
