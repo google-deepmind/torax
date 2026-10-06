@@ -16,6 +16,7 @@
 
 import dataclasses
 import enum
+from typing import Self
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -77,38 +78,24 @@ class PedestalTransitionState:
   previous_pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput
 
   @classmethod
-  def empty_L_mode(cls):
-    """An L-mode transition state with no stored values.
-
-    These will be overwritten when the first L-mode to H-mode transition begins.
-    """
+  def empty(
+      cls,
+      confinement_mode: array_typing.IntScalar = ConfinementMode.L_MODE,
+  ) -> Self:
+    """Returns a transition state with empty pedestal outputs and L-mode baselines."""
     return cls(
-        confinement_mode=jnp.array(
-            ConfinementMode.L_MODE, dtype=jax_utils.get_int_dtype()
+        confinement_mode=jnp.asarray(
+            confinement_mode, dtype=jax_utils.get_int_dtype()
         ),
         transition_start_time=jnp.array(-jnp.inf, dtype=jax_utils.get_dtype()),
         T_i_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         T_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         pedestal_model_output=(
-            pedestal_model_output_lib.PedestalModelOutput(
-                rho_norm_ped_top=jnp.array(
-                    jnp.inf, dtype=jax_utils.get_dtype()
-                ),
-                T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-                T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-                n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-            )
+            pedestal_model_output_lib.PedestalModelOutput.no_pedestal()
         ),
         previous_pedestal_model_output=(
-            pedestal_model_output_lib.PedestalModelOutput(
-                rho_norm_ped_top=jnp.array(
-                    jnp.inf, dtype=jax_utils.get_dtype()
-                ),
-                T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-                T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-                n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-            )
+            pedestal_model_output_lib.PedestalModelOutput.no_pedestal()
         ),
     )
 
@@ -130,7 +117,14 @@ class PedestalTransitionState:
       Ramp fraction clipped to [0, 1].
     """
     elapsed = t - self.transition_start_time
-    fraction = elapsed / transition_time_width
+    safe_width = jnp.where(
+        transition_time_width == 0.0, 1.0, transition_time_width
+    )
+    fraction = jnp.where(
+        transition_time_width == 0.0,
+        1.0,
+        elapsed / safe_width,
+    )
     return jnp.clip(fraction, 0.0, 1.0)
 
   def _apply_transition_ramp_scaling(

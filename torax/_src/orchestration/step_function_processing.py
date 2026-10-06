@@ -17,6 +17,7 @@
 import dataclasses
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -31,8 +32,6 @@ from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
-from torax._src.pedestal_model.formation import power_scaling_formation_model as power_scaling_formation_model_lib
-from torax._src.physics import scaling_laws
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
@@ -53,10 +52,10 @@ def _update_pedestal_transition_state(
     core_sources: source_profiles_lib.SourceProfiles,
     models: models_lib.Models,
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
-  """Evaluates P_SOL vs P_LH and updates the pedestal transition state.
+  """Evaluates transition conditions and updates the pedestal transition state.
 
-  Called once per timestep in pre_step. Computes P_SOL and P_LH, then
-  delegates to the mode-specific update function.
+  Called once per timestep in pre_step. Evaluates the formation model's
+  transition conditions, then delegates to the mode-specific update function.
 
   Args:
     pedestal_transition_state: Current transition state from previous timestep.
@@ -69,34 +68,14 @@ def _update_pedestal_transition_state(
   Returns:
     Updated PedestalTransitionState.
   """
-  formation_model = models.pedestal_model.formation_model
-  # Explicitly check types (required for pytype).
-  assert isinstance(
-      formation_model,
-      power_scaling_formation_model_lib.PowerScalingFormationModel,
+  trigger_l_to_h_transition, trigger_h_to_l_transition = (
+      models.pedestal_model.formation_model.evaluate_transition_conditions(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          source_profiles=core_sources,
+      )
   )
-  assert isinstance(
-      runtime_params.pedestal.formation,
-      power_scaling_formation_model_lib.PowerScalingFormationRuntimeParams,
-  )
-
-  # Calculate P_SOL (total power crossing the separatrix).
-  P_SOL = power_scaling_formation_model_lib.calculate_P_SOL_total(
-      internal_plasma_energy=core_profiles.internal_plasma_energy,
-      core_sources=core_sources,
-      geo=geo,
-      include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
-  )
-
-  # Calculate P_LH (L-H transition threshold power), with a configurable
-  # prefactor to allow for tuning.
-  P_LH, _ = scaling_laws.calculate_P_LH(
-      geo=geo,
-      core_profiles=core_profiles,
-      scaling_law=formation_model.scaling_law,
-      divertor_configuration=formation_model.divertor_configuration,
-  )
-  P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
 
   if (
       runtime_params.pedestal.mode
@@ -104,9 +83,8 @@ def _update_pedestal_transition_state(
   ):
     return _update_adaptive_transport(
         pedestal_transition_state,
-        runtime_params,
-        P_SOL,
-        P_LH,
+        trigger_l_to_h_transition,
+        trigger_h_to_l_transition,
     )
 
   return _update_internal_boundary_condition(
@@ -114,8 +92,8 @@ def _update_pedestal_transition_state(
       runtime_params,
       geo,
       core_profiles,
-      P_SOL,
-      P_LH,
+      trigger_l_to_h_transition,
+      trigger_h_to_l_transition,
   )
 
 
@@ -123,9 +101,8 @@ def _update_adaptive_transport(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
-    runtime_params: runtime_params_lib.RuntimeParams,
-    P_SOL: jax.Array,
-    P_LH: jax.Array,
+    trigger_l_to_h_transition: array_typing.BoolScalar,
+    trigger_h_to_l_transition: array_typing.BoolScalar,
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
   """Updates pedestal transition state for ADAPTIVE_TRANSPORT mode.
 
@@ -135,14 +112,14 @@ def _update_adaptive_transport(
 
   Note that interpretation of ConfinementMode is on the expectation of the
   confinement regime at the end of the timestep interval based on the
-  P_SOL/P_LH ratio at the beginning of the timestep interval. There is no
-  information on the dynamics and where we are in the transition.
+  transition conditions evaluated at the beginning of the timestep interval.
+  There is no information on the dynamics and where we are in the transition.
 
   Args:
     pedestal_transition_state: Current transition state from previous timestep.
-    runtime_params: Runtime parameters at time t.
-    P_SOL: Total power crossing the separatrix.
-    P_LH: L-H transition threshold power (already rescaled by P_LH_prefactor).
+    trigger_l_to_h_transition: Boolean condition to trigger L->H transition.
+    trigger_h_to_l_transition: Boolean condition to trigger H->L
+      back-transition.
 
   Returns:
     Updated PedestalTransitionState.
@@ -151,10 +128,11 @@ def _update_adaptive_transport(
   new_confinement_mode = jnp.select(
       [
           # L-H transition.
-          (old_confinement_mode == ConfinementMode.L_MODE) & (P_SOL > P_LH),
+          (old_confinement_mode == ConfinementMode.L_MODE)
+          & trigger_l_to_h_transition,
           # H-L back transition, with hysteresis.
           (old_confinement_mode == ConfinementMode.H_MODE)
-          & (P_SOL < P_LH * runtime_params.pedestal.P_LH_hysteresis_factor),
+          & trigger_h_to_l_transition,
       ],
       [ConfinementMode.H_MODE, ConfinementMode.L_MODE],
       default=old_confinement_mode,
@@ -178,22 +156,22 @@ def _update_internal_boundary_condition(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    P_SOL: jax.Array,
-    P_LH: jax.Array,
+    trigger_l_to_h_transition: array_typing.BoolScalar,
+    trigger_h_to_l_transition: array_typing.BoolScalar,
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
   """Updates pedestal transition state for INTERNAL_BOUNDARY_CONDITION mode.
 
   Full 4-state machine with TRANSITIONING_TO_H/L states, transition timers,
-  dithering support, and L-mode value capture for ramp interpolation.
+  dithering support, and L-mode value capture for ramp interpolation. When
+  transition_time_width == 0.0, transitions step directly between L_MODE and
+  H_MODE.
 
-  When transitioning from L-mode to H-mode (currently in L-mode and P_SOL >
-  P_LH):
+  When transitioning from L-mode to H-mode:
     - Records the current simulation time as transition_start_time
     - Saves the current kinetic profile values at the pedestal-top for the
       lower target values when setting up pedestal ramp up/down.
 
-  When transitioning from H-mode to L-mode (currently in H-mode and P_SOL <
-  P_LH):
+  When transitioning from H-mode to L-mode:
     - Records the current simulation time as transition_start_time
     - Loads the saved L-mode pedestal-top values as a target for the end of
       the transition.
@@ -209,8 +187,9 @@ def _update_internal_boundary_condition(
     runtime_params: Runtime parameters at time t.
     geo: Geometry at time t.
     core_profiles: Core plasma profiles at time t.
-    P_SOL: Total power crossing the separatrix.
-    P_LH: L-H transition threshold power (already rescaled by P_LH_prefactor).
+    trigger_l_to_h_transition: Boolean condition to trigger L->H transition.
+    trigger_h_to_l_transition: Boolean condition to trigger H->L
+      back-transition.
 
   Returns:
     Updated PedestalTransitionState.
@@ -224,15 +203,18 @@ def _update_internal_boundary_condition(
   transition_is_complete = (
       elapsed_transition_time >= runtime_params.pedestal.transition_time_width
   )
+  instant_transition = runtime_params.pedestal.transition_time_width == 0.0
+  l_to_h_transition_target_mode = jnp.where(
+      instant_transition,
+      ConfinementMode.H_MODE,
+      ConfinementMode.TRANSITIONING_TO_H_MODE,
+  )
+  h_to_l_transition_target_mode = jnp.where(
+      instant_transition,
+      ConfinementMode.L_MODE,
+      ConfinementMode.TRANSITIONING_TO_L_MODE,
+  )
 
-  # Update transition state based on P_SOL vs P_LH.
-  # The transition has hysteresis, which boils down to the following:
-  # - If P_SOL > P_LH, start transitioning to H-mode if not already in H-mode.
-  # - If P_SOL < h*P_LH, where 0 < h < 1, start transitioning to L-mode if not
-  #   already in L-mode.
-  # - If in a transition and the transition time has elapsed, exit transition
-  #   and enter the target mode.
-  # - Otherwise, remain in the current state.
   conditions = [
       # Completed LH transition. Checked first so that completed transitions
       # take priority over starting new transitions in jnp.select.
@@ -242,16 +224,17 @@ def _update_internal_boundary_condition(
       (old_confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE)
       & transition_is_complete,
       # L-H transition.
-      (old_confinement_mode != ConfinementMode.H_MODE) & (P_SOL > P_LH),
+      (old_confinement_mode != ConfinementMode.H_MODE)
+      & trigger_l_to_h_transition,
       # H-L back transition, with hysteresis.
       (old_confinement_mode != ConfinementMode.L_MODE)
-      & (P_SOL < P_LH * runtime_params.pedestal.P_LH_hysteresis_factor),
+      & trigger_h_to_l_transition,
   ]
   new_confinement_modes = [
       ConfinementMode.H_MODE,
       ConfinementMode.L_MODE,
-      ConfinementMode.TRANSITIONING_TO_H_MODE,
-      ConfinementMode.TRANSITIONING_TO_L_MODE,
+      l_to_h_transition_target_mode,
+      h_to_l_transition_target_mode,
   ]
   new_confinement_mode = jnp.select(
       conditions,
@@ -295,14 +278,15 @@ def _update_internal_boundary_condition(
       ],
       # Otherwise, preserve the current transition start time. This covers
       # both ongoing transitions (where the mode hasn't changed) and
-      # non-transition states (H_MODE/L_MODE where start_time is already inf).
+      # non-transition states (H_MODE/L_MODE where start_time is unused).
       default=pedestal_transition_state.transition_start_time,
   )
 
   # Update the target values for transitions to L-mode.
   # Only needed for INTERNAL_BOUNDARY_CONDITION, which uses ramp interpolation.
   update_L_mode_values = (old_confinement_mode == ConfinementMode.L_MODE) & (
-      new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
+      (new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE)
+      | (new_confinement_mode == ConfinementMode.H_MODE)
   )
   ped_top_idx = jnp.argmin(
       jnp.abs(
