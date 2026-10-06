@@ -410,7 +410,10 @@ class TransportModelTest(absltest.TestCase):
             'pedestal_prescribed': {'model_name': 'prescribed', 'chi_i': 0.1}
         },
     }
-    config['pedestal'] = {'set_pedestal': True}
+    config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -467,7 +470,10 @@ class TransportModelTest(absltest.TestCase):
         },
         'chi_min': 1.0,
     }
-    config['pedestal'] = {'set_pedestal': True}
+    config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -588,6 +594,7 @@ class TransportModelTest(absltest.TestCase):
         },
     }
     config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
     }
