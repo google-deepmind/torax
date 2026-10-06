@@ -476,13 +476,21 @@ def _calculate_Kmn(
   )
   Kmn_e = Kmn_e.at[:, 3, 2].set(Kmn_e[:, 2, 3])
 
-  # Ion Kmn matrix
-  # alpha coefficient, Eq. (25)
-  alpha = (
+  # Ion Kmn matrix:
+  # Compute the banana-regime alpha_0 coefficient (Angioni & Sauter Eq. 25)
+  # and interpolate across collisionality regimes to obtain alpha(nu_i_star)
+  # following Section V and Sauter et al., Phys. Plasmas 6, 2834 (1999) Eq. 17b
+  # (and erratum Phys. Plasmas 9, 5140 (2002)).
+  alpha_0 = (
       -(0.62 + 1.5 * alpha_I)
       / (0.53 + alpha_I)
       * ((1.0 - ftrap) / (1.0 - 0.22 * ftrap - 0.19 * ftrap**2))
   )
+  alpha = (
+      (alpha_0 + 0.25 * (1.0 - ftrap**2) * jnp.sqrt(nu_i_star))
+      / (1.0 + 0.5 * jnp.sqrt(nu_i_star))
+      + 0.315 * nu_i_star**2 * ftrap**6
+  ) / (1.0 + 0.15 * nu_i_star**2 * ftrap**6)
 
   # Eq. 24d
   F22_i_ftrapd = (1.0 - 0.55) * (

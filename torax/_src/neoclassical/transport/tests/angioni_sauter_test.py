@@ -175,6 +175,43 @@ class AngioniSauterTest(absltest.TestCase):
         res_shaing.v_face_el_ware, raw.v_face_el_ware, atol=_A_TOL, rtol=_R_TOL
     )
 
+  def test_calculate_Kmn_alpha_collisionality_dependence(self):
+    ftrap = np.full(5, 0.5)
+    ftrap_d = np.full(5, 0.4)
+    Z_eff = np.full(5, 2.0)
+    B2_avg_Bm2_avg = np.full(5, 1.1)
+    nu_e_star = np.full(5, 0.1)
+    nu_i_star = np.array([0.0, 0.01, 0.1, 1.0, 10.0])
+    alpha_I = Z_eff - 1.0
+
+    _, Kmn_i = angioni_sauter._calculate_Kmn(
+        ftrap=ftrap,
+        ftrap_d=ftrap_d,
+        Z_eff=Z_eff,
+        B2_avg_Bm2_avg=B2_avg_Bm2_avg,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+        alpha_I=alpha_I,
+    )
+
+    alpha_0 = (
+        -(0.62 + 1.5 * alpha_I)
+        / (0.53 + alpha_I)
+        * ((1.0 - ftrap) / (1.0 - 0.22 * ftrap - 0.19 * ftrap**2))
+    )
+    expected_alpha = (
+        (alpha_0 + 0.25 * (1.0 - ftrap**2) * np.sqrt(nu_i_star))
+        / (1.0 + 0.5 * np.sqrt(nu_i_star))
+        + 0.315 * nu_i_star**2 * ftrap**6
+    ) / (1.0 + 0.15 * nu_i_star**2 * ftrap**6)
+
+    np.testing.assert_allclose(
+        -Kmn_i[:, 0, 1], expected_alpha, atol=_A_TOL, rtol=_R_TOL
+    )
+    np.testing.assert_allclose(
+        Kmn_i[:, 1, 0], expected_alpha, atol=_A_TOL, rtol=_R_TOL
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
