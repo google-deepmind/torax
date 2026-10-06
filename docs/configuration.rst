@@ -464,9 +464,17 @@ time-dependence of temperature, density, and current.
      - ``rho_norm_edge`` (**time-varying-scalar**): Edge normalized toroidal
        flux coordinate :math:`\hat{\rho}_{\text{edge}}` bounding the constrained
        edge region.
-     - ``n_e_edge`` (**time-varying-scalar**): Prescribed electron density at
-       the edge boundary :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}`
-       if ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+     - ``n_e_edge`` (**time-varying-scalar** | None [default = None]):
+       Prescribed electron density at the edge boundary
+       :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}` if
+       ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+       Mutually exclusive with ``n_e_edge_multiplier`` (exactly one must be
+       provided).
+     - ``n_e_edge_multiplier`` (**time-varying-scalar** | None [default =
+       None]): Multiplier applied to the right boundary condition density
+       (``n_e_right_bc``) to set the electron density at
+       :math:`\hat{\rho}_{\text{edge}}` [dimensionless]. Mutually exclusive
+       with ``n_e_edge`` (exactly one must be provided).
      - ``n_e_is_fGW`` (bool [default = False]): If True, ``n_e_edge`` is
        interpreted as a Greenwald fraction (dimensionless) instead of absolute
        density (:math:`\text{m}^{-3}`).
