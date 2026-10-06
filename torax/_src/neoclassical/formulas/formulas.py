@@ -110,8 +110,8 @@ def calculate_nu_i_star(
   Args:
     q: Safety factor.
     geo: The geometry of the torus.
-    n_i: Density in Sauter Eq. (18c) [m^-3]. Use
-      ``calculate_ion_density_sum_face`` for bootstrap and Angioni-Sauter;
+    n_i: Ion density in Sauter Eq. (18c) [m^-3]. Total thermal ion density
+      (``calculate_ion_density_sum_face``) for bootstrap and Angioni-Sauter;
       main-ion density for single-fluid uses (e.g. poloidal velocity).
     T_i: Ion temperature [keV].
     Z_i: Main ion charge.
@@ -139,17 +139,20 @@ def calculate_ion_density_sum_face(
     n_impurity_thermal: cell_variable.CellVariable,
     impurity_density_scaling_face: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorFace:
-  """Face dens_sum: thermal main-ion plus impurity particle density [m^-3].
+  """Total thermal ion particle density (main ions + impurities) [m^-3].
+
+  The ion collisionality in Sauter PoP 1999 Eq. (18c) is written in terms of
+  the total ion particle density, so the bundled impurity density is rescaled
+  back to a true particle density before summing.
 
   Args:
     n_i: Bundled main-ion density.
     n_impurity_thermal: Effective thermal impurity density (fast ions
       subtracted), as bundled with ``Z_impurity``.
-    impurity_density_scaling_face: ``n_imp_true / n_imp_eff`` on the face grid,
-      needed since Sauter Eq. (18c) sums particle densities.
+    impurity_density_scaling_face: ``n_imp_true / n_imp_eff`` on the face grid.
 
   Returns:
-    Sum of thermal ion and impurity densities on the face grid.
+    Total thermal ion particle density on the face grid.
   """
   return (
       n_i.face_value()

@@ -208,7 +208,7 @@ def _calculate_angioni_sauter_transport(
       core_profiles.n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
       core_profiles.Z_i_face,  # pyrefly: ignore[bad-argument-type]
   )
-  dens_sum_face = formulas.calculate_ion_density_sum_face(
+  n_ions_thermal_face = formulas.calculate_ion_density_sum_face(
       core_profiles.n_i,
       core_profiles.n_impurity_thermal,
       core_profiles.impurity_density_scaling_face,
@@ -216,7 +216,7 @@ def _calculate_angioni_sauter_transport(
   nu_i_star = formulas.calculate_nu_i_star(
       q=core_profiles.q_face,
       geo=geometry,
-      n_i=dens_sum_face,
+      n_i=n_ions_thermal_face,
       T_i=core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
       Z_i=core_profiles.Z_i_face,
       log_lambda_ii=log_lambda_ii,
