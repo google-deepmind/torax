@@ -148,11 +148,7 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceConfigBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         radiation_multiplier=self.radiation_multiplier,
     )
 

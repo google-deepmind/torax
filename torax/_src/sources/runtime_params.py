@@ -45,6 +45,6 @@ class Mode(enum.Enum):
 class RuntimeParams:
   """Runtime params for a single TORAX source."""
 
-  prescribed_values: tuple[array_typing.FloatVector, ...]
+  prescribed_values: tuple[array_typing.FloatVectorCell, ...]
   mode: Mode = dataclasses.field(metadata={"static": True})
   is_explicit: bool = dataclasses.field(metadata={"static": True})

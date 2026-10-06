@@ -164,11 +164,7 @@ class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         puff_decay_length=self.puff_decay_length.get_value(t),
         S_feedforward=self.S_feedforward.get_value(t),
         target_average_n_e=self.target_average_n_e.get_value(t),

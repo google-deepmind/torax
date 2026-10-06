@@ -302,11 +302,12 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.sources.SourceConfigBase`` and implements three required methods:
+``torax.sources.SourceConfigBase``:
 
-- ``model_func`` (property): returns the model function.
-- ``build_source``: returns the ``Source`` instance.
-- ``build_runtime_params``: returns source-specific ``RuntimeParams``.
+- Implement ``model_func`` (property): returns the model function.
+- Implement ``build_source``: returns the ``Source`` instance.
+- Override ``build_runtime_params`` if your source requires custom
+  ``RuntimeParams`` fields beyond the base ``RuntimeParams``.
 
 The config class must have a ``model_name`` field with a unique ``Literal``
 type that identifies your model. This name must be different from the default
@@ -347,12 +348,8 @@ model name for the source you are registering against.
           self, t: chex.Numeric,
       ) -> MyRuntimeParams:
         return MyRuntimeParams(
+            **dataclasses.asdict(super().build_runtime_params(t)),
             scaling_factor=self.scaling_factor,
-            prescribed_values=tuple(
-                [v.get_value(t) for v in self.prescribed_values]
-            ),
-            mode=self.mode,
-            is_explicit=self.is_explicit,
         )
 
 

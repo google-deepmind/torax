@@ -109,11 +109,7 @@ class PelletSourceConfig(base.SourceConfigBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         pellet_width=self.pellet_width.get_value(t),
         pellet_deposition_location=self.pellet_deposition_location.get_value(t),
         S_total=self.S_total.get_value(t),

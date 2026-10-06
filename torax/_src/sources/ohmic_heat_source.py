@@ -15,7 +15,6 @@
 
 import dataclasses
 from typing import Annotated, ClassVar, Literal
-import chex
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
@@ -24,7 +23,6 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import psi_calculations
 from torax._src.sources import base
-from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -109,18 +107,6 @@ class OhmicHeatSourceConfig(base.SourceConfigBase):
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
     return ohmic_model_func  # pyrefly: ignore[bad-return]
-
-  def build_runtime_params(
-      self,
-      t: chex.Numeric,
-  ) -> sources_runtime_params_lib.RuntimeParams:
-    return sources_runtime_params_lib.RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
-    )
 
   def build_source(self) -> OhmicHeatSource:
     return OhmicHeatSource(model_func=self.model_func)

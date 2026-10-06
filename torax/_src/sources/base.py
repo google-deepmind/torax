@@ -30,6 +30,10 @@ class SourceConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   source config for Pydantic to "discriminate" against. This should be given a
   unique value for each source model function implementation.
 
+  Subclasses must override `build_source` to return the `Source` object for this
+  config, and may override `build_runtime_params` if the source uses custom
+  runtime parameters.
+
   Attributes:
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
@@ -64,8 +68,14 @@ class SourceConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   def model_func(self) -> source_lib.SourceProfileFunction:
     """Returns the model function for the source."""
 
-  @abc.abstractmethod
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
     """Builds runtime parameters for the source."""
+    return runtime_params.RuntimeParams(
+        prescribed_values=tuple(
+            v.get_value(t) for v in self.prescribed_values
+        ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
+    )
