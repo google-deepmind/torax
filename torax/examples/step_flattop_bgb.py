@@ -171,7 +171,7 @@ CONFIG = {
         "bootstrap_current": {"model_name": "redl"},
         "transport": {
             "model_name": "angioni_sauter",
-            "use_shaing_ion_correction": True,
+            "use_shaing_ion_correction": False,
         },
     },
     "numerics": {
