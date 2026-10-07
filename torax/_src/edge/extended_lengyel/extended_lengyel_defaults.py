@@ -43,6 +43,7 @@ NEWTON_RAPHSON_ITERATIONS: Final[int] = 50
 NEWTON_RAPHSON_TOL: Final[float] = 1e-5
 HYBRID_FIXED_POINT_ITERATIONS: Final[int] = 5
 NEWTON_RAPHSON_TAU_MIN: Final[float] = 1e-4
+L_INT_INTEGRATION_RESOLUTION: Final[int] = 100
 
 # Multistart Solver
 # Number of guesses to use for the multistart solver in forward mode.
