@@ -280,6 +280,15 @@ def _calculate_angioni_sauter_transport(
   )
 
   # Total ion heat flux Q_i = B_i2 * T_i / (dpsi/drho) (see Angioni Sec 5)
+  # NOTE: Reproduces the published B_i2 (p. 1233), which has two minor
+  # approximations when expanding Eq. (28b):
+  # 1. It omits +alpha * (1 - Rpe) / Rpe * L_41^e * dln(T_i)/dpsi from the
+  #    expansion of A_e1 (whose analogue is retained in B_en above).
+  # 2. Eqs. (26–28) assume single-ion quasineutrality (n_e = Z_i * n_i) when
+  #    eliminating A_i1, A_e4 via Eq. (2) and rewriting T_i / (Z_i * T_e) as
+  #    (1 - Rpe) / Rpe, rather than keeping n_i / n_e for an impure plasma.
+  # Since L_4m^e / L_22^i ~ O((m_e / m_i)**0.5), these affect chi_i by at most
+  # ~3% (banana-regime deuterium), so the published form is kept as-is.
   Bi2 = (
       alpha * Lmn_e[:, 3, 0] * dlnne_dpsi
       + alpha * (Lmn_e[:, 3, 0] + Lmn_e[:, 3, 1]) * dlnte_dpsi
