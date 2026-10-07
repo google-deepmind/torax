@@ -103,7 +103,7 @@ def _make_transition_state(
       rho_norm_ped_top=rho_norm_ped_top,
   )
   return dataclasses.replace(
-      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+      pedestal_transition_state_lib.PedestalTransitionState.empty(),
       pedestal_model_output=output,
   )
 
@@ -151,7 +151,7 @@ class TransportMaskingTest(parameterized.TestCase):
     # We need a pedestal model even if unused by the fixed transport
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     transition_state = (
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+        pedestal_transition_state_lib.PedestalTransitionState.empty()
     )
     pedestal_model_outputs = pedestal_model(
         runtime_params,
@@ -345,7 +345,7 @@ class TransportMaskingTest(parameterized.TestCase):
         explicit=True,
     )
     transition_state = (
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+        pedestal_transition_state_lib.PedestalTransitionState.empty()
     )
     pedestal_outputs = pedestal_model(
         runtime_params,
@@ -410,7 +410,10 @@ class TransportModelTest(absltest.TestCase):
             'pedestal_prescribed': {'model_name': 'prescribed', 'chi_i': 0.1}
         },
     }
-    config['pedestal'] = {'set_pedestal': True}
+    config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -467,7 +470,10 @@ class TransportModelTest(absltest.TestCase):
         },
         'chi_min': 1.0,
     }
-    config['pedestal'] = {'set_pedestal': True}
+    config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
+        'set_pedestal': True,
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -588,6 +594,7 @@ class TransportModelTest(absltest.TestCase):
         },
     }
     config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
     }

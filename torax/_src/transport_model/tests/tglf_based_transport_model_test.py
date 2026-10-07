@@ -68,7 +68,7 @@ def _get_config_and_model_inputs(
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
   transition_state = (
-      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+      pedestal_transition_state_lib.PedestalTransitionState.empty()
   )
   pedestal_model_outputs = pedestal_model(
       runtime_params,

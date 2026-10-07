@@ -141,7 +141,7 @@ def _get_initial_state(
   # TODO(b/500713368): Ensure that this works as expected when we start from
   # H mode.
   pedestal_transition_state = (
-      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+      pedestal_transition_state_lib.PedestalTransitionState.empty()
   )
 
   # Compute pedestal model output and store on transition state.

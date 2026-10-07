@@ -201,9 +201,7 @@ class BuilderTest(absltest.TestCase):
         source_models=models.source_models,
         neoclassical_model=models.neoclassical_model,
     )
-    l_mode_state = (
-        pedestal_transition_state.PedestalTransitionState.empty_L_mode()
-    )
+    l_mode_state = pedestal_transition_state.PedestalTransitionState.empty()
 
     built_ibc = builder.build_internal_boundary_conditions(
         runtime_params=runtime_params,
