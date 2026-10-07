@@ -212,6 +212,33 @@ class AngioniSauterTest(absltest.TestCase):
         Kmn_i[:, 1, 0], expected_alpha, atol=_A_TOL, rtol=_R_TOL
     )
 
+  def test_calculate_Kmn_banana_limit_matches_K22e_0(self):
+    ftrap = np.array([0.0, 0.2, 0.5])
+    ftrap_d = np.array([0.0, 0.18, 0.45])
+    Z_eff = np.full_like(ftrap, 2.0)
+    B2_avg_Bm2_avg = np.full_like(ftrap, 1.05)
+    nu_e_star = np.zeros_like(ftrap)
+    nu_i_star = np.zeros_like(ftrap)
+    alpha_I = Z_eff - 1.0
+
+    Kmn_e, _ = angioni_sauter._calculate_Kmn(
+        ftrap=ftrap,
+        ftrap_d=ftrap_d,
+        Z_eff=Z_eff,
+        B2_avg_Bm2_avg=B2_avg_Bm2_avg,
+        nu_e_star=nu_e_star,
+        nu_i_star=nu_i_star,
+        alpha_I=alpha_I,
+    )
+    F_ftrap_d = angioni_sauter._Fmn_X(ftrap_d, Z_eff)
+    expected_K22e_0 = (
+        -(13.0 / 8.0 + 1.0 / (np.sqrt(2.0) * Z_eff)) * F_ftrap_d[:, 1, 1]
+    )
+    np.testing.assert_allclose(
+        Kmn_e[:, 1, 1], expected_K22e_0, atol=_A_TOL, rtol=_R_TOL
+    )
+    self.assertTrue(np.all(Kmn_e[1:, 1, 1] < 0.0))
+
 
 if __name__ == '__main__':
   absltest.main()

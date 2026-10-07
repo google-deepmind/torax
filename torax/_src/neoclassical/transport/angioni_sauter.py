@@ -422,10 +422,23 @@ def _calculate_Kmn(
   K14e_0 = -0.5 * F_ftrap[:, 0, 0]
   K24e_0 = 0.75 * F_ftrap[:, 0, 1]
 
-  # Eq. 30c
+  # Eq. 30c (note: Angioni & Sauter 2000 Eq. 30c contains a sign erratum:
+  # published as `- 6.25 * K11e_0`, but mathematically must be
+  # `+ 6.25 * K11e_0`.
+  # Proof: Eq. 30a defines K22e = H22 - 5*H12 + 6.25*H11. In the banana limit
+  # (nu_e_star -> 0), Hmn -> Hmn_0. Substituting H11_0 = K11e_0 and
+  # H12_0 = K12e_0 + 2.5*K11e_0 into Eq. 30a gives:
+  #   K22e -> H22_0 - 5*(K12e_0 + 2.5*K11e_0) + 6.25*K11e_0
+  #         = H22_0 - 5*K12e_0 - 6.25*K11e_0.
+  # For K22e to reduce to K22e_0 in this limit, we must invert this as:
+  #   H22_0 = K22e_0 + 5.0*K12e_0 + 6.25*K11e_0.
+  # The published minus sign (also transcribed in NEOS as +3.125*F11 =
+  # -6.25*K11e_0 at
+  # https://gitlab.epfl.ch/spc/public/neos/-/blob/master/F90/neoothercoeffmod.f90#L354)
+  # leaves an uncancelled -12.5*K11e_0, making K22e > 0 (and chi_e < 0)).
   H11_0 = K11e_0
   H12_0 = K12e_0 + 2.5 * K11e_0
-  H22_0 = K22e_0 + 5.0 * K12e_0 - 6.25 * K11e_0
+  H22_0 = K22e_0 + 5.0 * K12e_0 + 6.25 * K11e_0
 
   # Eq. 30f
   H41_0 = K14e_0
