@@ -22,7 +22,7 @@ https://gitlab.epfl.ch/spc/public/neos [O. Sauter et al]
 """
 
 import dataclasses
-from typing import Annotated, Literal, override
+from typing import Annotated, Final, Literal, override
 
 import jax
 from jax import numpy as jnp
@@ -42,6 +42,15 @@ from torax._src.transport_model import transport_coeffs
 
 
 # pylint: disable=invalid-name
+
+
+# Denominators in neoclassical transport coefficient extractions scale with
+# plasma density (n_e, n_i ~ 1e19 - 1e20 m^-3) and poloidal flux gradient
+# (dpsi/dr ~ 1 Wb/m), giving typical denominator magnitudes of order
+# ~1e20 in SI units. Choosing eps ~ 1e12 ensures a relative error < 1e-7 in the
+# 'normal' range of values, while providing a finite numerical ceiling if a
+# denominator vanishes.
+_SAFE_DIVIDE_EPS: Final[float] = 1e12
 
 
 @jax.tree_util.register_dataclass
@@ -270,7 +279,7 @@ def _calculate_angioni_sauter_transport(
       + Lmn_e[:, 1, 2] * E_parallel_B_over_B2
   )
 
-  # Total ion heat flux Q_i = B_i2 / T_i * (dpsi/drho) (see Angioni Sec 5)
+  # Total ion heat flux Q_i = B_i2 * T_i / (dpsi/drho) (see Angioni Sec 5)
   Bi2 = (
       alpha * Lmn_e[:, 3, 0] * dlnne_dpsi
       + alpha * (Lmn_e[:, 3, 0] + Lmn_e[:, 3, 1]) * dlnte_dpsi
@@ -284,66 +293,86 @@ def _calculate_angioni_sauter_transport(
   )
 
   # --- Step 6: Extract transport coefficients --- Angioni Section 5.
-
-  # Q_e = - chi_e * n_e * dT/drho = B_e2 * T_e / dpsi/drho
-  # Q_i = - chi_i * n_i * dT/drho = B_i2 * T_i / dpsi/drho
+  # Q_e = - chi_e * <|grad rho|^2> * n_e * dT_e/drho = B_e2 * T_e / (dpsi/drho)
+  # Q_i = - chi_i * <|grad rho|^2> * n_i * dT_i/drho = B_i2 * T_i / (dpsi/drho)
 
   # All transport quantities have constant extrapolation to the magnetic axis
   # to avoid division by near-zero and unphysical values.
 
-  chi_neo_e_bulk = -Be2[1:] / (
-      core_profiles.n_e.face_value()[1:]
-      * dlnte_dpsi[1:]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
-      + constants.CONSTANTS.eps
+  grad_rho_sq = geometry.rho_b**2 * geometry.g1_over_vpr2_face
+  grad_rho = geometry.rho_b * geometry.g0_over_vpr_face
+
+  chi_neo_e_bulk = math_utils.safe_divide(
+      num=-Be2[1:],
+      denom=(
+          core_profiles.n_e.face_value()[1:]
+          * dlnte_dpsi[1:]
+          * (dpsi_drhon[1:] / geometry.rho_b) ** 2
+          * grad_rho_sq[1:]
+      ),
+      eps=_SAFE_DIVIDE_EPS,
   )
   chi_neo_e = jnp.concatenate([chi_neo_e_bulk[0:1], chi_neo_e_bulk])
 
-  chi_neo_i_bulk = -Bi2[1:] / (
-      core_profiles.n_i.face_value()[1:]
-      * dlnti_dpsi[1:]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
-      + constants.CONSTANTS.eps
+  chi_neo_i_bulk = math_utils.safe_divide(
+      num=-Bi2[1:],
+      denom=(
+          core_profiles.n_i.face_value()[1:]
+          * dlnti_dpsi[1:]
+          * (dpsi_drhon[1:] / geometry.rho_b) ** 2
+          * grad_rho_sq[1:]
+      ),
+      eps=_SAFE_DIVIDE_EPS,
   )
   chi_neo_i = jnp.concatenate([chi_neo_i_bulk[0:1], chi_neo_i_bulk])
 
-  # Decomposition of particle flux Be1 = Gamma * dpsi_drho. Page 1232+1233.
+  # Decomposition of particle flux Be1 = Gamma * dpsi_drho.
+  # Reference: Angioni & Sauter (2000), Eq. (1a) and Section V (pp. 1232–1233).
 
-  # Diffusive part of particle flux
-  # D_e * dn_e/drho  = - L00 *dlog(n_e)/dpsi / dpsi/drho
-  D_neo_e_bulk = -Lmn_e[1:, 0, 0] / (
-      core_profiles.n_e.face_value()[1:]
-      * (dpsi_drhon[1:] / geometry.rho_b) ** 2
-      + constants.CONSTANTS.eps
+  # Diffusive part of particle flux:
+  # D_e * <|grad rho|^2> * dn_e/drho = - L00 * dlog(n_e)/dpsi / (dpsi/drho)
+  D_neo_e_bulk = math_utils.safe_divide(
+      num=-Lmn_e[1:, 0, 0],
+      denom=(
+          core_profiles.n_e.face_value()[1:]
+          * (dpsi_drhon[1:] / geometry.rho_b) ** 2
+          * grad_rho_sq[1:]
+      ),
+      eps=_SAFE_DIVIDE_EPS,
   )
   D_neo_e = jnp.concatenate([D_neo_e_bulk[0:1], D_neo_e_bulk])
 
-  # Convective part of particle flux, apart from the Ware Pinch term
-  # V*n*dpsi/rho = (L00+L01)*dlog(Te)/dpsi + (1-Rpe)/Rpe*L00*dlog(ni)/dpsi +
-  # (1-Rpe)/Rpe * (L00+alpha*L03) *dlog(Ti)/dpsi
-  V_neo_e_bulk = (
-      (Lmn_e[1:, 0, 0] + Lmn_e[1:, 0, 1]) * dlnte_dpsi[1:]
-      + (1 - Rpe[1:]) / Rpe[1:] * Lmn_e[1:, 0, 0] * dlnni_dpsi[1:]
-      + (1 - Rpe[1:])
-      / Rpe[1:]
-      * (Lmn_e[1:, 0, 0] + alpha[1:] * Lmn_e[1:, 0, 3])
-      * dlnti_dpsi[1:]
-  ) / (
-      dpsi_drhon[1:] / geometry.rho_b * core_profiles.n_e.face_value()[1:]
-      + constants.CONSTANTS.eps
+  # Convective part of particle flux, apart from the Ware pinch term:
+  # V * <|grad rho|> * n * dpsi/drho = (L00+L01)*dlog(Te)/dpsi +
+  # (1-Rpe)/Rpe*L00*dlog(ni)/dpsi + (1-Rpe)/Rpe * (L00+alpha*L03) *dlog(Ti)/dpsi
+  V_neo_e_bulk = math_utils.safe_divide(
+      num=(
+          (Lmn_e[1:, 0, 0] + Lmn_e[1:, 0, 1]) * dlnte_dpsi[1:]
+          + (1 - Rpe[1:]) / Rpe[1:] * Lmn_e[1:, 0, 0] * dlnni_dpsi[1:]
+          + (1 - Rpe[1:])
+          / Rpe[1:]
+          * (Lmn_e[1:, 0, 0] + alpha[1:] * Lmn_e[1:, 0, 3])
+          * dlnti_dpsi[1:]
+      ),
+      denom=(
+          (dpsi_drhon[1:] / geometry.rho_b)
+          * grad_rho[1:]
+          * core_profiles.n_e.face_value()[1:]
+      ),
+      eps=_SAFE_DIVIDE_EPS,
   )
   V_neo_e = jnp.concatenate([V_neo_e_bulk[0:1], V_neo_e_bulk])
 
-  # Ware pinch term component of particle convection
-  # V_ware*n*dpsi/rho = L02*<E_parallel * B>/<B^2>
-  V_neo_ware_e_bulk = (
-      Lmn_e[1:, 0, 2]
-      * E_parallel_B_over_B2[1:]
-      / (
+  # Ware pinch term component of particle convection:
+  # V_ware * <|grad rho|> * n * dpsi/drho = L02 * <E_parallel * B>/<B^2>
+  V_neo_ware_e_bulk = math_utils.safe_divide(
+      num=Lmn_e[1:, 0, 2] * E_parallel_B_over_B2[1:],
+      denom=(
           (dpsi_drhon[1:] / geometry.rho_b)
+          * grad_rho[1:]
           * core_profiles.n_e.face_value()[1:]
-          + constants.CONSTANTS.eps
-      )
+      ),
+      eps=_SAFE_DIVIDE_EPS,
   )
   V_neo_ware_e = jnp.concatenate([V_neo_ware_e_bulk[0:1], V_neo_ware_e_bulk])
 
