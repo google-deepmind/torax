@@ -1253,7 +1253,9 @@ def _build_extended_lengyel_outputs(
 
   T_e_separatrix_keV = sol_model.T_e_separatrix / 1e3
   T_e_right_bc = T_e_separatrix_keV
-  T_i_right_bc = T_e_separatrix_keV * sol_model.params.T_i_T_e_ratio_target
+  T_i_right_bc = (
+      T_e_separatrix_keV * sol_model.params.T_i_T_e_ratio_separatrix
+  )
 
   return ExtendedLengyelOutputs(
       T_e_right_bc=T_e_right_bc,
