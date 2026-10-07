@@ -45,7 +45,7 @@ class BetaPoloidalPrimeIBC(torax_pydantic.BaseModelFrozen):
       beta_poloidal_prime_lib.Mode, torax_pydantic.JAX_STATIC
   ] = beta_poloidal_prime_lib.Mode.CONSTANT
   beta_poloidal_prime_min: torax_pydantic.NonNegativeTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.1)
+      torax_pydantic.ValidatedDefault(0.2)
   )
   P_SOL_scaling: torax_pydantic.PositiveTimeVaryingScalar | None = None
 

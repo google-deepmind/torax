@@ -459,8 +459,10 @@ time-dependence of temperature, density, and current.
          smoothly with the net heating power crossing the separatrix
          :math:`P_{\text{SOL}}` according to
          :math:`\beta_{pol,\text{eff}}' = \beta_{pol,\text{min}}' +
-         (\beta_{pol}' - \beta_{pol,\text{min}}') \tanh(\max(P_{\text{SOL}}, 0)
-         / P_{\text{SOL,scaling}})`.
+         (\beta_{pol}' - \beta_{pol,\text{min}}') y(x)`, where
+         :math:`x = \max(P_{\text{SOL}}, 0) / P_{\text{SOL,scaling}}`,
+         :math:`z_1 = (x^2 + 0.3 x) / 1.3`, and
+         :math:`y = (z_1^{\alpha} + 1)^{1/\alpha}` with :math:`\alpha = -15`.
      - ``rho_norm_edge`` (**time-varying-scalar**): Edge normalized toroidal
        flux coordinate :math:`\hat{\rho}_{\text{edge}}` bounding the constrained
        edge region.
@@ -481,14 +483,16 @@ time-dependence of temperature, density, and current.
      - ``beta_poloidal_prime`` (**time-varying-scalar**): Prescribed normalized
        poloidal beta gradient :math:`\beta_{pol}' > 0` [dimensionless] (serves
        as the high-power asymptotic value when ``mode = 'power_dependent'``).
-     - ``beta_poloidal_prime_min`` (**time-varying-scalar** [default = 0.1]):
+     - ``beta_poloidal_prime_min`` (**time-varying-scalar** [default = 0.2]):
        Minimum normalized poloidal beta gradient :math:`\beta_{pol,\text{min}}'
        \ge 0` at :math:`P_{\text{SOL}} \le 0` when
        ``mode = 'power_dependent'`` [dimensionless].
      - ``P_SOL_scaling`` (**time-varying-scalar** | None [default = None]):
        Characteristic power crossing the separatrix :math:`P_{\text{SOL,scaling}}
-       > 0` [W] for the ``tanh`` transition when ``mode = 'power_dependent'``
-       (required when ``mode = 'power_dependent'``).
+       > 0` [W] for the power transition when ``mode = 'power_dependent'``
+       (required when ``mode = 'power_dependent'``). ``P_SOL_scaling`` sets the
+       knee of the power scaling curve, so that a scaled :math:`P_{\text{SOL}}`
+       of 1 is approximately where ``beta_poloidal_prime`` saturates.
      - ``Ti_Te_ratio`` (**time-varying-scalar**): Prescribed ratio
        :math:`T_i / T_e` in the edge region [dimensionless].
 

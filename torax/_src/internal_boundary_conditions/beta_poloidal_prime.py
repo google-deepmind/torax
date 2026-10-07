@@ -72,10 +72,13 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
     n_e_is_fGW: Whether n_e_edge is provided in units of Greenwald fraction.
     mode: Mode for determining the effective beta_poloidal_prime.
     beta_poloidal_prime_min: Minimum poloidal beta gradient at P_SOL <= 0 when
-      mode is POWER_DEPENDENT.
-    P_SOL_scaling: Characteristic power crossing the separatrix [W] for the tanh
+      mode is POWER_DEPENDENT. The default of 0.2 reflects typical low-power
+      (ohmic) L-mode edge normalized pressure gradients.
+    P_SOL_scaling: Characteristic power crossing the separatrix [W] for the
       transition from beta_poloidal_prime_min to beta_poloidal_prime when mode
-      is POWER_DEPENDENT.
+      is POWER_DEPENDENT. P_SOL_scaling sets the knee of the power scaling
+      curve, so that a scaled P_SOL of 1 is approximately where
+      beta_poloidal_prime saturates.
   """
 
   rho_norm_edge: array_typing.FloatScalar
@@ -87,8 +90,48 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
   mode: Mode = dataclasses.field(
       default=Mode.CONSTANT, metadata={'static': True}
   )
-  beta_poloidal_prime_min: array_typing.FloatScalar = 0.1
+  beta_poloidal_prime_min: array_typing.FloatScalar = 0.2
   P_SOL_scaling: array_typing.FloatScalar | None = None
+
+
+def _calculate_power_dependent_beta_poloidal_prime(
+    P_SOL: array_typing.FloatScalar,
+    P_SOL_scaling: array_typing.FloatScalar,
+    beta_poloidal_prime_min: array_typing.FloatScalar,
+    beta_poloidal_prime: array_typing.FloatScalar,
+) -> jax.Array:
+  """Calculates effective beta_poloidal_prime from P_SOL."""
+  normalized_P_SOL = jnp.maximum(P_SOL, 0.0) / P_SOL_scaling
+  # Set a desired beta_poloidal_prime scaling with normalized P_SOL.
+  # This was hand-designed to mimic expected L-mode edge profiles, but
+  # much more could be done to set a curve with better physical grounding.
+  # The desiderata were:
+  #  - beta_poloidal_prime_min at P_SOL = 0
+  #  - beta_poloidal_prime at P_SOL >> P_SOL_scaling
+  #  - Smooth transition between the two.
+  #  - "Significant" derivative in beta_poloidal_prime at P_SOL = 0.
+  #  - Positive second derivative throughout "most" of the transition.
+  #  - Sharp saturation to beta_poloidal_prime at P_SOL = P_SOL_scaling.
+  # Within these desiderata, the choice of the curve and numeric constants
+  # was chosen to seem reasonable.
+
+  # Build a quadratic to give smooth transition with positive curvature
+  # and non-zero slope at P_SOL = 0. Normalize the curve so that it
+  # passes through (1, 1) (scaled P_SOL, normalized beta_poloidal_prime).
+  bpp_growth = (normalized_P_SOL**2 + 0.3 * normalized_P_SOL) / 1.3
+  # Use a softmin with a large exponent to sharply transition from the
+  # quadratic growth to a saturated value.
+  softmin_exponent = 15.0
+  # Clever computational formula to avoid NaN gradients near zero, and prevent
+  # overflow.
+  bpp_growth = jnp.minimum(bpp_growth, 10.0)
+  bpp_fraction = bpp_growth * (1.0 + bpp_growth**softmin_exponent) ** (
+      -1.0 / softmin_exponent
+  )
+  return jnp.asarray(
+      beta_poloidal_prime_min
+      + (beta_poloidal_prime - beta_poloidal_prime_min) * bpp_fraction
+  )
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -100,6 +143,9 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
   empirical observations of critical edge pressure gradients, e.g. B. LaBombard
   et al., Phys. Plasmas 15 (2008) 056106):
     beta_pol' = -d(beta_pol) / d(psi_norm)
+
+  In POWER_DEPENDENT mode, the normalized P_SOL maps to a normalized gradient
+  factor from a smooth min and a quadratic.
 
   Integrating inward from the separatrix (where 1 - psi_norm = 0):
     beta_pol(psi_norm) = beta_pol_sep + beta_pol' * (1 - psi_norm)
@@ -199,9 +245,12 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
             jnp.zeros_like(geo.rho_norm),
         )
         P_SOL = math_utils.volume_integration(total_power_density, geo)
-        beta_poloidal_prime = params.beta_poloidal_prime_min + (
-            params.beta_poloidal_prime - params.beta_poloidal_prime_min
-        ) * jnp.tanh(jnp.maximum(P_SOL, 0.0) / params.P_SOL_scaling)
+        beta_poloidal_prime = _calculate_power_dependent_beta_poloidal_prime(
+            P_SOL=P_SOL,
+            P_SOL_scaling=params.P_SOL_scaling,
+            beta_poloidal_prime_min=params.beta_poloidal_prime_min,
+            beta_poloidal_prime=params.beta_poloidal_prime,
+        )
 
     beta_pol_local_cell = beta_pol_sep + beta_poloidal_prime * (
         1.0 - psi_norm_cell

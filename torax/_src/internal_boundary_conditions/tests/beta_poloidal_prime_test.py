@@ -19,6 +19,7 @@ import typing
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pydantic
@@ -50,7 +51,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     self.assertIsNone(ibc_config.n_e_edge_multiplier)
     self.assertEqual(ibc_config.mode, beta_poloidal_prime.Mode.CONSTANT)
     self.assertIsNone(ibc_config.P_SOL_scaling)
-    self.assertEqual(ibc_config.beta_poloidal_prime_min.get_value(0.0), 0.1)
+    self.assertEqual(ibc_config.beta_poloidal_prime_min.get_value(0.0), 0.2)
 
   def test_missing_required_params_raises(self):
     with self.assertRaises(pydantic.ValidationError):
@@ -102,7 +103,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       n_e_is_fGW: bool = False,
       Ip: float = 5e6,
       mode: beta_poloidal_prime.Mode = beta_poloidal_prime.Mode.CONSTANT,
-      beta_poloidal_prime_min: float = 0.1,
+      beta_poloidal_prime_min: float = 0.2,
       P_SOL_scaling: float | None = None,
       source_profiles: source_profiles_lib.SourceProfiles | None = None,
   ):
@@ -160,7 +161,8 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('zero_p_sol_equals_min', 0.0, 0.2, 1.8, 10.0e6),
-      ('intermediate_p_sol_tanh_scaling', 10.0e6, 0.2, 1.8, 10.0e6),
+      ('intermediate_p_sol_half_scaling', 5.0e6, 0.2, 1.8, 10.0e6),
+      ('intermediate_p_sol_at_scaling', 10.0e6, 0.2, 1.8, 10.0e6),
       ('high_p_sol_saturates_at_max', 100.0e6, 0.2, 1.8, 10.0e6),
   )
   def test_power_dependent_matches_expected_effective_beta_poloidal_prime(
@@ -205,9 +207,14 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         'Ti_Te_ratio': 1.2,
     })
 
-    expected_beta_poloidal_prime = beta_poloidal_prime_min + (
-        beta_poloidal_prime_max - beta_poloidal_prime_min
-    ) * np.tanh(max(P_total, 0.0) / P_SOL_scaling)
+    expected_beta_poloidal_prime = float(
+        beta_poloidal_prime._calculate_power_dependent_beta_poloidal_prime(
+            P_SOL=P_total,
+            P_SOL_scaling=P_SOL_scaling,
+            beta_poloidal_prime_min=beta_poloidal_prime_min,
+            beta_poloidal_prime=beta_poloidal_prime_max,
+        )
+    )
     ibc_constant_equiv = _build_ibc_from_config({
         'model_name': 'beta_poloidal_prime',
         'mode': 'constant',
@@ -242,6 +249,60 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(ibc_power_dep.T_e, ibc_min_constant.T_e)
     np.testing.assert_allclose(ibc_power_dep.T_i, ibc_min_constant.T_i)
+
+  @parameterized.parameters(-1.0e6, 0.0, 1.0e-20, 1.0, 1.0e6)
+  def test_power_dependent_gradients_finite(self, q_val: float):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+        T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+        n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+        Ip_profile_face=jnp.linspace(0.0, 5e6, geo.rho_face.shape[0]),
+    )
+    model = beta_poloidal_prime.BetaPoloidalPrimeIBCModel()
+
+    def _loss(q_density: jax.Array, p_sol_scaling: jax.Array) -> jax.Array:
+      ibc_rp = beta_poloidal_prime.RuntimeParams(
+          rho_norm_edge=jnp.asarray(0.7),
+          beta_poloidal_prime=jnp.asarray(1.8),
+          Ti_Te_ratio=jnp.asarray(1.2),
+          n_e_edge=jnp.asarray(2.5e19),
+          n_e_edge_multiplier=None,
+          n_e_is_fGW=False,
+          mode=beta_poloidal_prime.Mode.POWER_DEPENDENT,
+          beta_poloidal_prime_min=jnp.asarray(0.2),
+          P_SOL_scaling=p_sol_scaling,
+      )
+
+      class _MockProfileConditions:
+        internal_boundary_conditions = ibc_rp
+        Ip = 5e6
+
+      class _MockRuntimeParams:
+        profile_conditions = _MockProfileConditions()
+
+      mock_rp = typing.cast(
+          runtime_params_lib.RuntimeParams, _MockRuntimeParams()
+      )
+      sources = mock.create_autospec(
+          source_profiles_lib.SourceProfiles,
+          instance=True,
+          T_e={'radiation': jnp.full_like(geo.rho_norm, q_density)},
+          T_i={},
+      )
+      out = model(mock_rp, geo, core_profiles, source_profiles=sources)
+      return jnp.sum(out.T_e)
+
+    grads = jax.grad(_loss, argnums=(0, 1))(
+        jnp.asarray(q_val), jnp.asarray(10.0e6)
+    )
+    for g in grads:
+      self.assertTrue(np.all(np.isfinite(g)))
+      if q_val < 0.0:
+        np.testing.assert_allclose(g, 0.0)
 
   def test_evaluates_profiles_in_edge_cells_only(self):
     geo, _, ibc_out = self._setup_model_and_profiles(rho_norm_edge=0.7)
