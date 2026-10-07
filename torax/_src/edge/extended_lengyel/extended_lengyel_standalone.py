@@ -1259,10 +1259,8 @@ def _build_extended_lengyel_outputs(
       T_e_right_bc=T_e_right_bc,
       T_i_right_bc=T_i_right_bc,
       impurity_right_bc=impurity_right_bc,
-      # Extended Lengyel does not predict boundary density; set NaN so if the
-      # value is used to update the density boundary condition a NaN error is
-      # raised.
-      n_e_right_bc=jnp.array(jnp.nan, dtype=jax_utils.get_dtype()),
+      # Extended Lengyel does not predict boundary density.
+      n_e_right_bc=None,
       T_e_target=sol_model.state.T_e_target,
       pressure_neutral_divertor=pressure_neutral_divertor,
       alpha_t=sol_model.state.alpha_t,

@@ -17,14 +17,15 @@
 import abc
 from collections.abc import Mapping
 import dataclasses
-from typing import Annotated, Any
+from typing import Annotated, Any, ClassVar, Self
 import chex
 import jax
 import numpy as np
+import pydantic
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.edge import runtime_params as edge_runtime_params
+from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
@@ -58,8 +59,25 @@ def pack_impurity_mapping(
   }
 
 
-@jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
+class SupportedBoundaryConditions:
+  """Specifies which boundary conditions an edge model supports computing.
+
+  Attributes:
+    T_e: Electron temperature boundary condition (T_e_right_bc).
+    T_i: Ion temperature boundary condition (T_i_right_bc).
+    n_e: Electron density boundary condition (n_e_right_bc).
+    impurity: Impurity boundary conditions (impurity_right_bc).
+  """
+
+  T_e: bool = False
+  T_i: bool = False
+  n_e: bool = False
+  impurity: bool = False
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class EdgeModelOutputs:
   """Base class for outputs from an edge model.
 
@@ -71,26 +89,30 @@ class EdgeModelOutputs:
       condition (n_e_ratio at LCFS).
   """
 
-  T_e_right_bc: jax.Array
-  T_i_right_bc: jax.Array
-  n_e_right_bc: jax.Array
-  impurity_right_bc: Mapping[str, jax.Array]
+  T_e_right_bc: jax.Array | None = None
+  T_i_right_bc: jax.Array | None = None
+  n_e_right_bc: jax.Array | None = None
+  impurity_right_bc: Mapping[str, jax.Array] = dataclasses.field(
+      default_factory=dict
+  )
 
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
     """Returns a dictionary of standard edge output variable tuples."""
-    out_dict: dict[str, output_grid_context.OutputVar] = {
-        output_keys.T_E_RIGHT_BC: context.pack(
-            output_keys.T_E_RIGHT_BC, self.T_e_right_bc
-        ),
-        output_keys.T_I_RIGHT_BC: context.pack(
-            output_keys.T_I_RIGHT_BC, self.T_i_right_bc
-        ),
-        output_keys.N_E_RIGHT_BC: context.pack(
-            output_keys.N_E_RIGHT_BC, self.n_e_right_bc
-        ),
-    }
+    out_dict: dict[str, output_grid_context.OutputVar] = {}
+    if self.T_e_right_bc is not None:
+      out_dict[output_keys.T_E_RIGHT_BC] = context.pack(
+          output_keys.T_E_RIGHT_BC, self.T_e_right_bc
+      )
+    if self.T_i_right_bc is not None:
+      out_dict[output_keys.T_I_RIGHT_BC] = context.pack(
+          output_keys.T_I_RIGHT_BC, self.T_i_right_bc
+      )
+    if self.n_e_right_bc is not None:
+      out_dict[output_keys.N_E_RIGHT_BC] = context.pack(
+          output_keys.N_E_RIGHT_BC, self.n_e_right_bc
+      )
     out_dict.update(
         pack_impurity_mapping(
             output_keys.IMPURITY_RIGHT_BC,
@@ -117,7 +139,11 @@ class EdgeModelOutputs:
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
-  """Abstract base class for edge models."""
+  """Abstract base class for edge models.
+
+  Boundary conditions that a model does not compute should be returned as
+  `None` in its `EdgeModelOutputs`.
+  """
 
   @abc.abstractmethod
   def __call__(
@@ -140,31 +166,77 @@ class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   Attributes:
     model_name: Discriminator field for Pydantic. Subclasses must override with
       a `Literal` value.
-    update_temperatures: Whether to update temperature boundary conditions.
-    update_electron_density: Whether to update electron density boundary
-      condition.
-    update_impurities: Whether to update impurity concentrations in the core.
+    supported_bcs: Class-level declaration of which boundary conditions this
+      model is capable of computing. Defaults to all False, so subclasses must
+      declare the boundary conditions they support.
+    update_T_e: Whether to update electron temperature boundary condition.
+      Defaults to `supported_bcs.T_e`.
+    update_T_i: Whether to update ion temperature boundary condition. Defaults
+      to `supported_bcs.T_i`.
+    update_n_e: Whether to update electron density boundary condition. Defaults
+      to `supported_bcs.n_e`.
+    update_impurity: Whether to update impurity concentrations in the core.
+      Defaults to `supported_bcs.impurity`.
   """
 
-  model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ""
-  update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
+  model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''
+  supported_bcs: ClassVar[SupportedBoundaryConditions] = (
+      SupportedBoundaryConditions(
+          T_e=False,
+          T_i=False,
+          n_e=False,
+          impurity=False,
+      )
+  )
+  update_T_e: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(False)
   )
-  update_electron_density: torax_pydantic.TimeVaryingScalarStep = (
+  update_T_i: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(False)
   )
-  update_impurities: torax_pydantic.TimeVaryingScalarStep = (
+  update_n_e: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(False)
   )
+  update_impurity: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _default_update_flags(cls, data: Any) -> Any:
+    """Defaults any unset `update_<bc>` flag to `supported_bcs.<bc>`."""
+    if not isinstance(data, Mapping):
+      return data
+    configurable_data = dict(data)
+    for field in dataclasses.fields(SupportedBoundaryConditions):
+      configurable_data.setdefault(
+          f'update_{field.name}', getattr(cls.supported_bcs, field.name)
+      )
+    return configurable_data
+
+  @pydantic.model_validator(mode='after')
+  def _validate_update_flags(self) -> Self:
+    """Ensures no `update_<bc>` flag is True for an unsupported BC."""
+    for field in dataclasses.fields(SupportedBoundaryConditions):
+      update_flag = f'update_{field.name}'
+      if not getattr(self.supported_bcs, field.name) and np.any(
+          getattr(self, update_flag).value
+      ):
+        raise ValueError(
+            f"'{update_flag}' cannot be True because '{self.model_name}'"
+            f" does not support the '{field.name}' boundary condition."
+        )
+    return self
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> edge_runtime_params.RuntimeParams:
+  ) -> edge_runtime_params_lib.RuntimeParams:
     """Builds the runtime parameters for the edge model at time t."""
-    return edge_runtime_params.RuntimeParams(
-        update_temperatures=self.update_temperatures.get_value(t),
-        update_electron_density=self.update_electron_density.get_value(t),
-        update_impurities=self.update_impurities.get_value(t),
+    return edge_runtime_params_lib.RuntimeParams(
+        update_T_e=self.update_T_e.get_value(t),
+        update_T_i=self.update_T_i.get_value(t),
+        update_n_e=self.update_n_e.get_value(t),
+        update_impurity=self.update_impurity.get_value(t),
     )
 
   @abc.abstractmethod
