@@ -182,7 +182,9 @@ class AngioniSauterTest(absltest.TestCase):
     B2_avg_Bm2_avg = np.full(5, 1.1)
     nu_e_star = np.full(5, 0.1)
     nu_i_star = np.array([0.0, 0.01, 0.1, 1.0, 10.0])
-    alpha_I = Z_eff - 1.0
+    # alpha_I = n_I Z_I^2 / (n_i Z_i^2) for D plus a single Ne impurity.
+    Z_I = 10.0
+    alpha_I = Z_I * (Z_eff - 1.0) / (Z_I - Z_eff)
 
     _, Kmn_i = angioni_sauter._calculate_Kmn(
         ftrap=ftrap,
@@ -219,7 +221,9 @@ class AngioniSauterTest(absltest.TestCase):
     B2_avg_Bm2_avg = np.full_like(ftrap, 1.05)
     nu_e_star = np.zeros_like(ftrap)
     nu_i_star = np.zeros_like(ftrap)
-    alpha_I = Z_eff - 1.0
+    # alpha_I = n_I Z_I^2 / (n_i Z_i^2) for D plus a single Ne impurity.
+    Z_I = 10.0
+    alpha_I = Z_I * (Z_eff - 1.0) / (Z_I - Z_eff)
 
     Kmn_e, _ = angioni_sauter._calculate_Kmn(
         ftrap=ftrap,

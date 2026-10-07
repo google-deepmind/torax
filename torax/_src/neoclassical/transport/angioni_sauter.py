@@ -208,9 +208,14 @@ def _calculate_angioni_sauter_transport(
       log_lambda_ii=log_lambda_ii,
   )
 
-  # Impurity strength parameter
-  # Using single impurity definition: alpha_I = nimpZimp/niZi = Zeff - 1
-  alpha_I = core_profiles.Z_eff_face - 1.0
+  # Impurity strength parameter alpha_I = n_I Z_I^2 / (n_i Z_i^2), defined
+  # below Eq. 25. Since the bundled impurity has Z_impurity = <Z^2> / <Z>,
+  # n_impurity * Z_impurity^2 = sum_k n_k Z_k^2 for impurity mixtures.
+  alpha_I = (
+      core_profiles.n_impurity.face_value()
+      * core_profiles.Z_impurity_face**2
+      / (core_profiles.n_i.face_value() * core_profiles.Z_i_face**2)
+  )
 
   # --- Step 2: Calculate dimensionless transport matrix K_mn ---
   Kmn_e, Kmn_i = _calculate_Kmn(
