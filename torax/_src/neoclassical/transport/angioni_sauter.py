@@ -2,7 +2,7 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may
+# You may obtain a copy of the License at
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -190,23 +190,13 @@ def _calculate_angioni_sauter_transport(
   # Equation (17)
   ftrap_d = 1.0 - (1.0 - ftrap) / B2_avg_Bm2_avg
 
-  # Collisionalities
+  # Collisionalities. In Angioni & Sauter (2000) Eqs. (8), (25), and (30h),
+  # nu_i_star is the pure main-ion collisionality since impurity collisions
+  # enter separately via alpha_I.
   nu_e_star = neoclassical_intermediates.nu_e_star
+  nu_i_star = neoclassical_intermediates.nu_i_star_main_ion
   log_lambda_ei = neoclassical_intermediates.log_lambda_ei
   log_lambda_ii = neoclassical_intermediates.log_lambda_ii
-
-  # Equation (18c) from Sauter PoP 1999.
-  # Note: Sauter Eq. (18c) is defined for a pure plasma (using Z_i^4); in
-  # Angioni & Sauter (2000) Eq. (30h), nu_i_star is the pure main-ion
-  # collisionality since impurity collisions enter separately via alpha_I.
-  nu_i_star = formulas.calculate_nu_i_star(
-      q=core_profiles.q_face,
-      geo=geometry,
-      n_i=core_profiles.n_i.face_value(),
-      T_i=core_profiles.T_i.face_value(),
-      Z_eff=core_profiles.Z_i_face,
-      log_lambda_ii=log_lambda_ii,
-  )
 
   # Impurity strength parameter alpha_I = n_I Z_I^2 / (n_i Z_i^2), defined
   # below Eq. 25. Since the bundled impurity has Z_impurity = <Z^2> / <Z>,

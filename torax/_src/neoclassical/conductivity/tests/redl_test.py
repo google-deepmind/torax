@@ -54,6 +54,7 @@ class RedlConductivityTest(absltest.TestCase):
             value=jnp.linspace(0.8e20, 0.4e20, self.n_rho),
             face_centers=self.geo.rho_face_norm,
         ),
+        n_i_total_thermal_face=jnp.linspace(0.85e20, 0.425e20, self.n_rho + 1),
         Z_i_face=jnp.ones(self.n_rho + 1),
         Z_eff_face=jnp.full(self.n_rho + 1, 2.0),
         q_face=jnp.linspace(1.0, 4.0, self.n_rho + 1),
