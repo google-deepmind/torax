@@ -51,6 +51,7 @@ Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
         'convection_neumann_mode',
         'theta_implicit',
     ],
+    inline=jax.Inline.XLA_LATE,
 )
 def theta_method_matrix_equation(
     dt: jax.Array,
