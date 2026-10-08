@@ -51,10 +51,10 @@ def _make_transition_state(
       T_e_ped_L_mode=jnp.array(T_e_ped_L),
       n_e_ped_L_mode=jnp.array(n_e_ped_L),
       pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
-          rho_norm_ped_top=jnp.inf,
-          T_i_ped=0.0,
-          T_e_ped=0.0,
-          n_e_ped=0.0,
+          rho_norm_ped_top=jnp.array(0.9),
+          T_i_ped=4.5,
+          T_e_ped=4.5,
+          n_e_ped=0.62e20,
       ),
       previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
           rho_norm_ped_top=jnp.inf,
@@ -291,10 +291,24 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
         ConfinementMode.L_MODE, T_i_ped_L=0.0, T_e_ped_L=0.0, n_e_ped_L=0.0
     )
     new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
-    # Values should be updated from core_profiles (non-zero).
-    self.assertNotEqual(new_state.T_i_ped_L_mode, 0.0)
-    self.assertNotEqual(new_state.T_e_ped_L_mode, 0.0)
-    self.assertNotEqual(new_state.n_e_ped_L_mode, 0.0)
+    ped_top_idx = jnp.argmin(
+        jnp.abs(
+            self.initial_state.geometry.rho_norm
+            - self.initial_state.pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
+        )
+    )
+    np.testing.assert_allclose(
+        new_state.T_i_ped_L_mode,
+        self.initial_state.core_profiles.T_i.value[ped_top_idx],
+    )
+    np.testing.assert_allclose(
+        new_state.T_e_ped_L_mode,
+        self.initial_state.core_profiles.T_e.value[ped_top_idx],
+    )
+    np.testing.assert_allclose(
+        new_state.n_e_ped_L_mode,
+        self.initial_state.core_profiles.n_e.value[ped_top_idx],
+    )
 
   def test_non_L_to_H_preserves_L_mode_values(self):
     """Non LH transitions should keep existing L-mode values."""

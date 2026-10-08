@@ -114,8 +114,6 @@ def _update_pedestal_transition_state(
       runtime_params,
       geo,
       core_profiles,
-      core_sources,
-      models,
       P_SOL,
       P_LH,
   )
@@ -180,8 +178,6 @@ def _update_internal_boundary_condition(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    core_sources: source_profiles_lib.SourceProfiles,
-    models: models_lib.Models,
     P_SOL: jax.Array,
     P_LH: jax.Array,
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
@@ -213,8 +209,6 @@ def _update_internal_boundary_condition(
     runtime_params: Runtime parameters at time t.
     geo: Geometry at time t.
     core_profiles: Core plasma profiles at time t.
-    core_sources: Source profiles at time t.
-    models: Models for the simulation.
     P_SOL: Total power crossing the separatrix.
     P_LH: L-H transition threshold power (already rescaled by P_LH_prefactor).
 
@@ -310,16 +304,11 @@ def _update_internal_boundary_condition(
   update_L_mode_values = (old_confinement_mode == ConfinementMode.L_MODE) & (
       new_confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE
   )
-  # TODO(b/500260959): Avoid calling the pedestal model again.
-  pedestal_model_output = models.pedestal_model(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_profiles=core_sources,
-      pedestal_transition_state=pedestal_transition_state,
-  )
   ped_top_idx = jnp.argmin(
-      jnp.abs(geo.rho_norm - pedestal_model_output.rho_norm_ped_top)
+      jnp.abs(
+          geo.rho_norm
+          - pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
+      )
   )
   new_T_i_ped_L_mode = jnp.where(
       update_L_mode_values,
