@@ -370,30 +370,30 @@ def pre_step(
       explicit=True,
   )
 
+  # Update core sources with any newly calculated explicit sources.
+  # This is because in input_state, the sources are those which were
+  # used to compute the state. For explicit sources, these were computed with
+  # core_profiles at time t_minus_dt, whereas the implicit sources are
+  # consistent with time t. For the edge and pedestal models, we want all
+  # sources consistent with the state at time t, so we replace the explicit
+  # sources with the newly calculated profiles.
+  merged_sources = dataclasses.replace(
+      input_state.core_sources,
+      T_e=input_state.core_sources.T_e | explicit_source_profiles.T_e,
+      T_i=input_state.core_sources.T_i | explicit_source_profiles.T_i,
+      n_e=input_state.core_sources.n_e | explicit_source_profiles.n_e,
+      psi=input_state.core_sources.psi | explicit_source_profiles.psi,
+  )
+
   # Execute the edge model if one is configured. The edge model uses the state
   # at time t to calculate new edge conditions for the next time step.
   edge_model = models.edge_model
   if edge_model is not None:
-
-    # Update core sources with any newly calculated explicit sources.
-    # This is because in input_state, the sources are those which were
-    # used to compute the state. For explicit sources, these were computed with
-    # core_profiles at time t_minus_dt, whereas the implicit sources are
-    # consistent with time t. For the edge model, we want all sources consistent
-    # with the state at time t, so we replace the explicit sources with the
-    # newly calculated profiles.
-    core_sources = dataclasses.replace(
-        input_state.core_sources,
-        T_e=input_state.core_sources.T_e | explicit_source_profiles.T_e,
-        T_i=input_state.core_sources.T_i | explicit_source_profiles.T_i,
-        n_e=input_state.core_sources.n_e | explicit_source_profiles.n_e,
-        psi=input_state.core_sources.psi | explicit_source_profiles.psi,
-    )
     edge_outputs = edge_model(
         runtime_params_t,
         geo_t,
         input_state.core_profiles,
-        core_sources,
+        merged_sources,
         previous_edge_outputs=input_state.edge_outputs,
     )
   else:
@@ -412,15 +412,6 @@ def pre_step(
       or runtime_params_t.pedestal.mode
       == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
   ):
-    # Merge explicit sources with previous implicit sources for accurate
-    # P_SOL calculation (same pattern as the edge model above).
-    merged_sources = dataclasses.replace(
-        input_state.core_sources,
-        T_e=input_state.core_sources.T_e | explicit_source_profiles.T_e,
-        T_i=input_state.core_sources.T_i | explicit_source_profiles.T_i,
-        n_e=input_state.core_sources.n_e | explicit_source_profiles.n_e,
-        psi=input_state.core_sources.psi | explicit_source_profiles.psi,
-    )
     pedestal_transition_state = _update_pedestal_transition_state(
         pedestal_transition_state=pedestal_transition_state,
         runtime_params=runtime_params_t,
@@ -438,7 +429,7 @@ def pre_step(
         runtime_params_t,
         geo_t,
         input_state.core_profiles,
-        explicit_source_profiles,
+        merged_sources,
         pedestal_transition_state,
     )
     pedestal_transition_state = dataclasses.replace(
