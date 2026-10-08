@@ -21,46 +21,21 @@ diffusion equation with a stiff transport", Computer Physics Communications 179
 (2008) 579–585. https://doi.org/10.1016/j.cpc.2008.05.006
 """
 
-import dataclasses
-
-import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class PereverzevTransport:
-  """Pereverzev-Corrigan transport coefficients."""
-
-  chi_face_ion_pereverzev: jax.Array
-  chi_face_el_pereverzev: jax.Array
-  full_v_heat_face_ion_pereverzev: jax.Array
-  full_v_heat_face_el_pereverzev: jax.Array
-  d_face_el_pereverzev: jax.Array
-  v_face_el_pereverzev: jax.Array
-
-  @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> 'PereverzevTransport':
-    """Returns a PereverzevTransport with all zeros."""
-    return cls(
-        chi_face_ion_pereverzev=jnp.zeros_like(geo.rho_face),
-        chi_face_el_pereverzev=jnp.zeros_like(geo.rho_face),
-        full_v_heat_face_ion_pereverzev=jnp.zeros_like(geo.rho_face),
-        full_v_heat_face_el_pereverzev=jnp.zeros_like(geo.rho_face),
-        d_face_el_pereverzev=jnp.zeros_like(geo.rho_face),
-        v_face_el_pereverzev=jnp.zeros_like(geo.rho_face),
-    )
+from torax._src.transport_model import transport_coeffs
 
 
 def calculate_pereverzev_transport(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> PereverzevTransport:
+    two_point_mask: array_typing.BoolVectorFace | None = None,
+) -> transport_coeffs.PereverzevTransport:
   """Calculates Pereverzev-Corrigan transport coefficients.
 
   Pereverzev-Corrigan adds additional transport to help deal with stiff
@@ -70,6 +45,8 @@ def calculate_pereverzev_transport(
     runtime_params: Runtime configuration parameters.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles.
+    two_point_mask: Boolean face mask indicating where face gradients are
+      calculated with 2-point central differences instead of 3-point.
 
   Returns:
     Pereverzev-Corrigan transport coefficients.
@@ -91,7 +68,7 @@ def calculate_pereverzev_transport(
   # multiply by g0 to get the real convection coefficient. Hence, these are
   # labeled as "full" coefficients.
   full_v_heat_face_per_ion = (
-      core_profiles.T_i.face_grad()
+      core_profiles.T_i.face_grad(two_point_mask=two_point_mask)
       / core_profiles.T_i.face_value()
       * geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
@@ -99,7 +76,7 @@ def calculate_pereverzev_transport(
       * runtime_params.solver.chi_pereverzev
   )
   full_v_heat_face_per_el = (
-      core_profiles.T_e.face_grad()
+      core_profiles.T_e.face_grad(two_point_mask=two_point_mask)
       / core_profiles.T_e.face_value()
       * geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
@@ -120,16 +97,16 @@ def calculate_pereverzev_transport(
   # term
   v_face_per_el = (
       g1_over_vpr_g0
-      * core_profiles.n_e.face_grad()
+      * core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
       / core_profiles.n_e.face_value()
       * runtime_params.solver.D_pereverzev
   )
 
-  return PereverzevTransport(
-      chi_face_ion_pereverzev=chi_face_per_ion,
-      chi_face_el_pereverzev=chi_face_per_el,
-      full_v_heat_face_ion_pereverzev=full_v_heat_face_per_ion,  # pyrefly: ignore[bad-argument-type]
-      full_v_heat_face_el_pereverzev=full_v_heat_face_per_el,  # pyrefly: ignore[bad-argument-type]
-      d_face_el_pereverzev=d_face_per_el,
-      v_face_el_pereverzev=v_face_per_el,
+  return transport_coeffs.PereverzevTransport(
+      chi_face_ion=chi_face_per_ion,
+      chi_face_el=chi_face_per_el,
+      d_face_el=d_face_per_el,
+      v_face_el=v_face_per_el,
+      full_v_heat_face_ion=full_v_heat_face_per_ion,
+      full_v_heat_face_el=full_v_heat_face_per_el,
   )

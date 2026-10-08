@@ -35,7 +35,7 @@ CONFIG['transport'] = {
         },
         # Inner patch
         'inner_patch': {
-            'model_name': 'constant',
+            'model_name': 'prescribed',
             'chi_i': 1.0,
             'chi_e': 1.0,
             'D_e': 0.25,
@@ -44,7 +44,7 @@ CONFIG['transport'] = {
         },
         # Outer patch
         'outer_patch': {
-            'model_name': 'constant',
+            'model_name': 'prescribed',
             'chi_i': 2.0,
             'chi_e': 2.0,
             'D_e': 0.1,

@@ -12,34 +12,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for geometry configuration."""
-from typing import Annotated, Any
+import abc
+from typing import Annotated, Any, Self
 
 import numpy as np
 import pydantic
+from torax._src.geometry import trapped_fraction
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
+
+TrappedFractionSource = trapped_fraction.TrappedFractionSource
 
 
-class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
+class BaseGeometryConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for all geometry configuration classes.
 
   Attributes:
     n_rho: Number of radial grid cells in a uniform grid. Must be at least 4.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
-      For a grid with N cells, there are N+1 faces. This can be non-uniform.
-      The internal TORAX fvm method assumes we have at least 4 cells so this
-      will be validated here.
+      For a grid with N cells, there are N+1 faces. This can be non-uniform. The
+      internal TORAX fvm method assumes we have at least 4 cells so this will be
+      validated here.
     hires_factor: Only used when the initial condition ``psi`` is from plasma
       current. Sets up a higher resolution mesh with ``nrho_hires = nrho *
       hi_res_fac``, used for ``j`` to ``psi`` conversions.
+    trapped_fraction_source: Selects how the effective trapped particle fraction
+      is computed. See `trapped_fraction.TrappedFractionSource`.
+    _supported_trapped_fraction_sources: Overridden per subclass to restrict
+      which `trapped_fraction.TrappedFractionSource` options that geometry
+      source actually supports.
   """
+
+  @property
+  @abc.abstractmethod
+  def _supported_trapped_fraction_sources(
+      self,
+  ) -> frozenset[trapped_fraction.TrappedFractionSource]:
+    """Supported trapped fraction sources for this geometry."""
 
   n_rho: Annotated[int | None, torax_pydantic.TIME_INVARIANT] = None
   face_centers: Annotated[
       torax_pydantic.NumpyArray1DSorted | None, torax_pydantic.TIME_INVARIANT
   ] = None
   hires_factor: pydantic.PositiveInt = 4
+  trapped_fraction_source: Annotated[
+      trapped_fraction.TrappedFractionSource, torax_pydantic.TIME_INVARIANT
+  ] = trapped_fraction.TrappedFractionSource.SAUTER
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -52,7 +70,7 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
     return data
 
   @pydantic.model_validator(mode='after')
-  def _validate_n_rho_or_face_centers(self) -> typing_extensions.Self:
+  def _validate_n_rho_or_face_centers(self) -> Self:
     """Validates that there are at least 4 cells."""
     if self.n_rho is None and self.face_centers is None:
       raise ValueError('Either n_rho or face_centers must be set.')
@@ -76,15 +94,35 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen):
 
     return self
 
+  @pydantic.model_validator(mode='after')
+  def _validate_trapped_fraction_source(self) -> Self:
+    """Validates that trapped_fraction_source is supported by this geometry."""
+    if (
+        self.trapped_fraction_source
+        not in self._supported_trapped_fraction_sources
+    ):
+      allowed = ', '.join(
+          sorted(s.value for s in self._supported_trapped_fraction_sources)
+      )
+      raise ValueError(
+          f'trapped_fraction_source={self.trapped_fraction_source.value} is'
+          f' not supported for {type(self).__name__}. Supported options:'
+          f' {allowed}.'
+      )
+    return self
+
   def get_face_centers(self) -> np.ndarray:
     """Returns face_centers, computing from n_rho if needed."""
     if self.face_centers is not None:
       return self.face_centers
     return interpolated_param_2d.get_face_centers(self.n_rho)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: object) -> bool:
     """Equality operator for BaseGeometryConfig."""
-    if not isinstance(other, type(self)):
+    if (
+        not isinstance(other, BaseGeometryConfig)
+        or type(other) is not type(self)
+    ):
       return False
     return (
         np.array_equal(self.get_face_centers(), other.get_face_centers())

@@ -41,7 +41,7 @@ from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.neoclassical import neoclassical_models as neoclassical_models_lib
+from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_models as source_models_lib
@@ -138,7 +138,7 @@ def update_core_and_source_profiles_after_step(
     core_profiles_t_plus_dt: state.CoreProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
-    neoclassical_models: neoclassical_models_lib.NeoclassicalModels,
+    neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     evolving_names: tuple[str, ...],
 ) -> tuple[state.CoreProfiles, source_profiles_lib.SourceProfiles]:
   """Returns a core profiles and source profiles after the solver has finished.
@@ -156,7 +156,7 @@ def update_core_and_source_profiles_after_step(
       conditions are already set. But evolving values are not.
     explicit_source_profiles: The explicit source profiles.
     source_models: The source models.
-    neoclassical_models: The neoclassical models.
+    neoclassical_model: The neoclassical model.
     evolving_names: The names of the evolving variables.
 
   Returns:
@@ -224,6 +224,9 @@ def update_core_and_source_profiles_after_step(
       j_total_face=j_total_face,
       Ip_profile_face=Ip_profile_face,
       toroidal_angular_velocity=updated_core_profiles_t_plus_dt.toroidal_angular_velocity,
+      poloidal_velocity=(
+          core_profiles_t_plus_dt.poloidal_velocity
+      ),  # Not yet updated
       charge_state_info=ions.charge_state_info,
       charge_state_info_face=ions.charge_state_info_face,
       fast_ions=core_profiles_t_plus_dt.fast_ions,
@@ -236,14 +239,15 @@ def update_core_and_source_profiles_after_step(
       dt,
   )
 
-  conductivity = neoclassical_models.conductivity.calculate_conductivity(
-      geo, intermediate_core_profiles
+  neoclassical_outputs = neoclassical_model(
+      runtime_params_t_plus_dt, geo, intermediate_core_profiles
   )
 
   intermediate_core_profiles = dataclasses.replace(
       intermediate_core_profiles,
-      sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
+      sigma=neoclassical_outputs.conductivity.sigma,
+      sigma_face=neoclassical_outputs.conductivity.sigma_face,
+      poloidal_velocity=neoclassical_outputs.poloidal_velocity.v_pol,
       internal_plasma_energy=energy_state,
   )
 
@@ -252,11 +256,11 @@ def update_core_and_source_profiles_after_step(
       runtime_params=runtime_params_t_plus_dt,
       geo=geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
       core_profiles=intermediate_core_profiles,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
-      conductivity=conductivity,
+      conductivity=neoclassical_outputs.conductivity,
+      bootstrap_current=neoclassical_outputs.bootstrap_current,
   )
 
   intermediate_core_profiles = dataclasses.replace(
@@ -281,14 +285,14 @@ def update_core_and_source_profiles_after_step(
     psidot_value = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=psi_sources,
         sigma=intermediate_core_profiles.sigma,
-        resistivity_multiplier=runtime_params_t_plus_dt.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
+        resistivity_multiplier=runtime_params_t_plus_dt.numerics.resistivity_multiplier,
         psi=intermediate_core_profiles.psi,
         geo=geo,
     )
   psidot = dataclasses.replace(
       core_profiles_t_plus_dt.psidot,
       value=psidot_value,
-      right_face_constraint=v_loop_lcfs,  # pyrefly: ignore[bad-argument-type]
+      right_face_constraint=v_loop_lcfs,
       right_face_grad_constraint=None,
   )
 

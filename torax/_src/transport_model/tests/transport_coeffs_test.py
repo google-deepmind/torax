@@ -1,0 +1,229 @@
+# Copyright 2024 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from absl.testing import absltest
+from absl.testing import parameterized
+from jax import numpy as jnp
+import numpy as np
+from torax._src.geometry import circular_geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
+from torax._src.transport_model import transport_coeffs
+
+
+class TransportCoeffsTest(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    self.times = np.array([0.0])
+    self.context = output_grid_context.OutputGridContext(
+        times=self.times,
+        rho_face_norm=self.geo.rho_face_norm,
+        rho_cell_norm=self.geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], self.geo.rho_norm, [1.0]]
+        ),
+    )
+    self.n_face = self.geo.rho_face_norm.size
+
+  def test_zeros(self):
+    coeffs = transport_coeffs.TransportCoeffs.zeros(self.geo)
+    np.testing.assert_allclose(coeffs.chi_face_ion, np.zeros(self.n_face))
+    np.testing.assert_allclose(coeffs.chi_face_el, np.zeros(self.n_face))
+    np.testing.assert_allclose(coeffs.d_face_el, np.zeros(self.n_face))
+    np.testing.assert_allclose(coeffs.v_face_el, np.zeros(self.n_face))
+
+  def test_addition(self):
+    c1 = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 1.0,
+        chi_face_el=jnp.ones(self.n_face) * 2.0,
+        d_face_el=jnp.ones(self.n_face) * 0.5,
+        v_face_el=jnp.ones(self.n_face) * -0.1,
+    )
+    c2 = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 0.5,
+        chi_face_el=jnp.ones(self.n_face) * 0.3,
+        d_face_el=jnp.ones(self.n_face) * 0.1,
+        v_face_el=jnp.ones(self.n_face) * -0.2,
+    )
+    c_sum = c1 + c2
+    np.testing.assert_allclose(c_sum.chi_face_ion, np.ones(self.n_face) * 1.5)
+    np.testing.assert_allclose(c_sum.chi_face_el, np.ones(self.n_face) * 2.3)
+    np.testing.assert_allclose(c_sum.d_face_el, np.ones(self.n_face) * 0.6)
+    np.testing.assert_allclose(c_sum.v_face_el, np.ones(self.n_face) * -0.3)
+
+  def test_sum_transport_coeffs(self):
+    c1 = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 1.0,
+        chi_face_el=jnp.ones(self.n_face) * 2.0,
+        d_face_el=jnp.ones(self.n_face) * 0.5,
+        v_face_el=jnp.ones(self.n_face) * -0.1,
+    )
+    c2 = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 0.5,
+        chi_face_el=jnp.ones(self.n_face) * 0.3,
+        d_face_el=jnp.ones(self.n_face) * 0.1,
+        v_face_el=jnp.ones(self.n_face) * -0.2,
+    )
+    c3 = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 0.2,
+        chi_face_el=jnp.ones(self.n_face) * 0.1,
+        d_face_el=jnp.ones(self.n_face) * 0.05,
+        v_face_el=jnp.ones(self.n_face) * 0.05,
+    )
+    c_sum = transport_coeffs.sum_transport_coeffs(c1, c2, c3)
+    np.testing.assert_allclose(c_sum.chi_face_ion, np.ones(self.n_face) * 1.7)
+    np.testing.assert_allclose(c_sum.chi_face_el, np.ones(self.n_face) * 2.4)
+    np.testing.assert_allclose(c_sum.d_face_el, np.ones(self.n_face) * 0.65)
+    np.testing.assert_allclose(c_sum.v_face_el, np.ones(self.n_face) * -0.25)
+
+  def test_sum_transport_coeffs_empty_raises(self):
+    with self.assertRaises(ValueError):
+      transport_coeffs.sum_transport_coeffs()
+
+  def test_sum_transport_coeffs_different_types(self):
+    c_base = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 1.0,
+        chi_face_el=jnp.ones(self.n_face) * 2.0,
+        d_face_el=jnp.ones(self.n_face) * 0.5,
+        v_face_el=jnp.ones(self.n_face) * -0.1,
+    )
+    c_neo = transport_coeffs.NeoclassicalTransport(
+        chi_face_ion=jnp.ones(self.n_face) * 0.5,
+        chi_face_el=jnp.ones(self.n_face) * 0.3,
+        d_face_el=jnp.ones(self.n_face) * 0.1,
+        v_face_el=jnp.ones(self.n_face) * -0.2,
+        v_face_el_ware=jnp.ones(self.n_face) * -0.05,
+    )
+    c_per = transport_coeffs.PereverzevTransport(
+        chi_face_ion=jnp.ones(self.n_face) * 0.2,
+        chi_face_el=jnp.ones(self.n_face) * 0.1,
+        d_face_el=jnp.ones(self.n_face) * 0.05,
+        v_face_el=jnp.ones(self.n_face) * 0.05,
+        full_v_heat_face_ion=jnp.ones(self.n_face) * 0.15,
+        full_v_heat_face_el=jnp.ones(self.n_face) * 0.25,
+    )
+    c_sum = transport_coeffs.sum_transport_coeffs(c_base, c_neo, c_per)
+    self.assertIs(type(c_sum), transport_coeffs.TransportCoeffs)
+    np.testing.assert_allclose(c_sum.chi_face_ion, np.ones(self.n_face) * 1.7)
+    np.testing.assert_allclose(c_sum.chi_face_el, np.ones(self.n_face) * 2.4)
+    np.testing.assert_allclose(c_sum.d_face_el, np.ones(self.n_face) * 0.65)
+    np.testing.assert_allclose(c_sum.v_face_el, np.ones(self.n_face) * -0.25)
+
+  def test_chi_max(self):
+    coeffs = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 1.0,
+        chi_face_el=jnp.ones(self.n_face) * 2.5,
+        d_face_el=jnp.ones(self.n_face) * 0.5,
+        v_face_el=jnp.ones(self.n_face) * -0.1,
+    )
+    chi_max = coeffs.chi_max(self.geo)
+    expected = jnp.max(2.5 * self.geo.g1_over_vpr2_face)
+    np.testing.assert_allclose(chi_max, expected)
+
+  def test_to_output_dict_base(self):
+    coeffs = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones((1, self.n_face)) * 1.0,
+        chi_face_el=jnp.ones((1, self.n_face)) * 2.0,
+        d_face_el=jnp.ones((1, self.n_face)) * 0.5,
+        v_face_el=jnp.ones((1, self.n_face)) * -0.1,
+    )
+    out = coeffs.to_output_dict(self.context)
+    self.assertIn(output_keys.CHI_TURB_I, out)
+    self.assertIn(output_keys.CHI_TURB_E, out)
+    self.assertIn(output_keys.D_TURB_E, out)
+    self.assertIn(output_keys.V_TURB_E, out)
+
+  def test_to_xr_datatree_empty(self):
+    turb = transport_coeffs.TurbulentTransport.zeros(self.geo)
+    tree = turb.to_xr_datatree(self.context)
+    self.assertEmpty(tree.children)
+
+  def test_to_xr_datatree_core_and_pedestal_overlapping_keys(self):
+    core_prescribed = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones((1, self.n_face)) * 1.0,
+        chi_face_el=jnp.ones((1, self.n_face)) * 2.0,
+        d_face_el=jnp.ones((1, self.n_face)) * 0.5,
+        v_face_el=jnp.ones((1, self.n_face)) * -0.1,
+    )
+    pedestal_prescribed = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones((1, self.n_face)) * 0.25,
+        chi_face_el=jnp.ones((1, self.n_face)) * 0.5,
+        d_face_el=jnp.ones((1, self.n_face)) * 0.1,
+        v_face_el=jnp.ones((1, self.n_face)) * -0.05,
+    )
+    turb = transport_coeffs.TurbulentTransport(
+        core=core_prescribed,
+        pedestal=pedestal_prescribed,
+        core_components={'prescribed': core_prescribed},
+        pedestal_components={'prescribed': pedestal_prescribed},
+    )
+    tree = turb.to_xr_datatree(self.context)
+    self.assertIn(output_keys.CORE, tree.children)
+    self.assertIn(output_keys.PEDESTAL, tree.children)
+    self.assertIn('prescribed', tree.children[output_keys.CORE].children)
+    self.assertIn('prescribed', tree.children[output_keys.PEDESTAL].children)
+    core_ds = tree.children[output_keys.CORE].children['prescribed'].dataset
+    ped_ds = tree.children[output_keys.PEDESTAL].children['prescribed'].dataset
+    np.testing.assert_allclose(
+        core_ds[output_keys.CHI_TURB_I].values, np.ones((1, self.n_face)) * 1.0
+    )
+    np.testing.assert_allclose(
+        ped_ds[output_keys.CHI_TURB_I].values, np.ones((1, self.n_face)) * 0.25
+    )
+    self.assertCountEqual(
+        list(core_ds.coords.keys()),
+        [output_keys.TIME, output_keys.RHO_FACE_NORM],
+    )
+
+  def test_turbulent_transport_zeros(self):
+    turb = transport_coeffs.TurbulentTransport.zeros(self.geo)
+    np.testing.assert_allclose(turb.core.chi_face_ion, np.zeros(self.n_face))
+    np.testing.assert_allclose(
+        turb.pedestal.chi_face_ion, np.zeros(self.n_face)
+    )
+    np.testing.assert_allclose(turb.total.chi_face_ion, np.zeros(self.n_face))
+
+  def test_turbulent_transport_core_pedestal_and_total(self):
+    core = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 1.0,
+        chi_face_el=jnp.ones(self.n_face) * 2.0,
+        d_face_el=jnp.ones(self.n_face) * 0.5,
+        v_face_el=jnp.ones(self.n_face) * -0.1,
+    )
+    pedestal = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.ones(self.n_face) * 0.25,
+        chi_face_el=jnp.ones(self.n_face) * 0.5,
+        d_face_el=jnp.ones(self.n_face) * 0.1,
+        v_face_el=jnp.ones(self.n_face) * -0.05,
+    )
+    turb = transport_coeffs.TurbulentTransport(
+        core=core,
+        pedestal=pedestal,
+    )
+    np.testing.assert_allclose(
+        turb.total.chi_face_ion, np.ones(self.n_face) * 1.25
+    )
+    np.testing.assert_allclose(
+        turb.total.chi_face_el, np.ones(self.n_face) * 2.5
+    )
+    np.testing.assert_allclose(turb.total.d_face_el, np.ones(self.n_face) * 0.6)
+    np.testing.assert_allclose(
+        turb.total.v_face_el, np.ones(self.n_face) * -0.15
+    )
+
+
+if __name__ == '__main__':
+  absltest.main()

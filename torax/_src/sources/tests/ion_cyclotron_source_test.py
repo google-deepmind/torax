@@ -44,11 +44,11 @@ class _DummyConfig(icrh_base.IonCyclotronSourceConfig):
 class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
   """Tests for model-agnostic IonCyclotronSource infrastructure."""
 
-  source_name = icrh_base.IonCyclotronSource.SOURCE_NAME
+  source_name = icrh_base.IonCyclotronSource.SOURCE_ID
   source_config_class = _DummyConfig
 
   def test_source_name(self):
-    self.assertEqual(icrh_base.IonCyclotronSource.SOURCE_NAME, 'icrh')
+    self.assertEqual(icrh_base.IonCyclotronSource.SOURCE_ID, 'icrh')
 
   def test_affected_core_profiles(self):
     expected = (

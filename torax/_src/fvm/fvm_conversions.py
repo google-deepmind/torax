@@ -60,9 +60,9 @@ def vec_to_cell_variable_tuple(
   # First scale the core profiles to match the scaling in x_split, then
   # update the values in the scaled core profiles with new values from x_split.
   scaled_evolving_cp_list = [
-      convertors.scale_cell_variable(
+      convertors.apply_state_scaling(
           getattr(core_profiles, name),
-          scaling_factor=1 / convertors.SCALING_FACTORS[name],
+          scaling_factor=1 / convertors.STATE_SCALING_FACTORS[name],
       )
       for name in evolving_names
   ]

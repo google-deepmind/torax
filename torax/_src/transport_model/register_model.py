@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Register a transport model with TORAX."""
-from typing import get_args
+from typing import Annotated, get_args, get_origin
 
+import pydantic
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model
 from torax._src.transport_model import pydantic_model_base
@@ -45,8 +46,14 @@ def register_transport_model(
     dict_args = get_args(field_annotation)
     assert len(dict_args) == 2
     value_type = dict_args[1]
+    assert get_origin(value_type) is Annotated
+    inner_type = get_args(value_type)[0]
     combined_model.model_fields[field_name].annotation = dict[
-        str, value_type | pydantic_model_class
+        str,
+        Annotated[
+            inner_type | pydantic_model_class,
+            pydantic.Discriminator('model_name'),
+        ],
     ]
   combined_model.model_rebuild(force=True)
 

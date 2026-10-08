@@ -32,7 +32,3 @@ CONFIG['pedestal'][
     'use_formation_model_with_internal_boundary_condition'
 ] = True
 CONFIG['pedestal']['transition_time_width'] = 3.0
-
-# INTERNAL_BOUNDARY_CONDITION does not need pedestal_transport_models since it
-# uses source/sink terms rather than transport scaling.
-del CONFIG['transport']['pedestal_transport_models']

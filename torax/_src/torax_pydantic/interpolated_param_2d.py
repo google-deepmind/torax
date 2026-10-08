@@ -17,7 +17,7 @@
 from collections.abc import Mapping
 import dataclasses
 import functools
-from typing import Any, Literal, TypeAlias
+from typing import Annotated, Any, Literal, Self, TypeAlias
 
 import chex
 import equinox as eqx
@@ -31,7 +31,6 @@ from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
-import typing_extensions
 import xarray as xr
 
 ValueType: TypeAlias = dict[
@@ -90,7 +89,7 @@ class Grid1D(model_base.BaseModelFrozen):
     """Widths of cells."""
     return jnp.diff(self.face_centers)
 
-  def __eq__(self, other: typing_extensions.Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: Self) -> bool:  # pyrefly: ignore[bad-override]
     """Custom equality to handle numpy array comparison."""
     if not isinstance(other, Grid1D):
       return False
@@ -156,10 +155,10 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
   """
 
   value: ValueType
-  rho_interpolation_mode: typing_extensions.Annotated[
+  rho_interpolation_mode: Annotated[
       interpolated_param.InterpolationMode, model_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
-  time_interpolation_mode: typing_extensions.Annotated[
+  time_interpolation_mode: Annotated[
       interpolated_param.InterpolationMode, model_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   grid: Grid1D | None = None
@@ -249,8 +248,8 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     if not np.any(sign_change):
       return subintervals
 
-    t_cross = t_i + dt * (-v_i[sign_change]) / (  # pyrefly: ignore[bad-index]
-        v_next[sign_change] - v_i[sign_change]  # pyrefly: ignore[bad-index]
+    t_cross = t_i + dt * (-v_i[sign_change]) / (
+        v_next[sign_change] - v_i[sign_change]
     )
 
     # Points nonpositive at t_i are nonpositive on [t_i, t_cross].
@@ -360,7 +359,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
   def update(
       self, replace_value: TimeVaryingArrayUpdate
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """This method can be used under `jax.jit`."""
     assert self.grid is not None, 'grid must be set to update.'
 
@@ -394,7 +393,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     )
 
     def get_leaves(
-        x: typing_extensions.Self,
+        x: Self,
     ) -> tuple[
         chex.Array, chex.Array, chex.Array, chex.Array, chex.Array, chex.Array
     ]:
@@ -415,7 +414,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         (time, cell_value, time, face_value, time, face_right_value),
     )
 
-  def __eq__(self, other: typing_extensions.Self):  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: Self):  # pyrefly: ignore[bad-override]
     try:
       chex.assert_trees_all_equal(self.value, other.value)
       return (
@@ -490,7 +489,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
             data[1]['rho_interpolation_mode'].upper()
         ]
         # First element in tuple assumed to be the input.
-        data = data[0]  # pyrefly: ignore[bad-assignment]
+        data = data[0]
 
     if isinstance(data, xr.DataArray):
       value = _load_from_arrays(data)
@@ -755,7 +754,7 @@ def array_bounds_validator(
   )
 
 
-PositiveTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
+PositiveTimeVaryingArray: TypeAlias = Annotated[
     TimeVaryingArray, array_bounds_validator(gt=0.0)
 ]
 
@@ -791,13 +790,13 @@ def _load_from_primitives(
   ):
     primitive_values = {0.0: primitive_values}  # pyrefly: ignore[bad-assignment]
 
-  if len(set(primitive_values.keys())) != len(primitive_values):  # pyrefly: ignore[bad-argument-type, missing-attribute]
+  if len(set(primitive_values.keys())) != len(primitive_values):
     raise ValueError('Indicies in values mapping must be unique.')
   if not primitive_values:
     raise ValueError('Values mapping must not be empty.')
 
   loaded_values = {}
-  for t, v in primitive_values.items():  # pyrefly: ignore[missing-attribute]
+  for t, v in primitive_values.items():
     x, y, _, _ = interpolated_param.convert_input_to_xs_ys(v)
     loaded_values[t] = (x, y)
 
@@ -830,7 +829,7 @@ def _load_from_arrays(
 
   if len(arrays) == 2:
     # Shortcut for initial condition profile.
-    rho_norm, values = arrays  # pytype: disable=bad-unpacking
+    rho_norm, values = arrays
     return {
         0.0: (
             np.asarray(rho_norm, dtype=jax_utils.get_np_dtype()),
@@ -905,6 +904,6 @@ def get_face_centers(nx: int, dx: float | None = None) -> np.ndarray:
   return np.linspace(0, nx * dx, nx + 1)
 
 
-NonNegativeTimeVaryingArray: TypeAlias = typing_extensions.Annotated[
+NonNegativeTimeVaryingArray: TypeAlias = Annotated[
     TimeVaryingArray, array_bounds_validator(ge=0.0)
 ]

@@ -27,7 +27,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for OhmicHeatSource."""
 
   source_config_class = ohmic_heat_source.OhmicHeatSourceConfig
-  source_name = ohmic_heat_source.OhmicHeatSource.SOURCE_NAME
+  source_name = ohmic_heat_source.OhmicHeatSource.SOURCE_ID
   needs_source_models = True
 
   def test_raises_error_if_calculated_source_profiles_is_none(self):

@@ -26,16 +26,18 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import register_model
+from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 
 def setUpModule():
@@ -50,7 +52,7 @@ def _get_config_and_model_inputs(
   config['transport'] = transport
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = torax_config.sources.build_models()
-  neoclassical_models = torax_config.neoclassical.build_models()
+  neoclassical_model = torax_config.neoclassical.build_model()
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
       torax_config
   )(
@@ -61,29 +63,36 @@ def _get_config_and_model_inputs(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
+      neoclassical_model=neoclassical_model,
   )
   source_profiles = source_profile_builders.build_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
-      neoclassical_models=neoclassical_models,
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
+  transition_state = (
+      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+  )
   pedestal_model_outputs = pedestal_model(
       runtime_params,
       geo,
       core_profiles,
       source_profiles,
-      pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+      pedestal_transition_state=transition_state,
   )
+  transition_state = dataclasses.replace(
+      transition_state, pedestal_model_output=pedestal_model_outputs
+  )
+  two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
-      pedestal_model_outputs,
+      transition_state,
+      two_point_mask,
   )
 
 
@@ -105,10 +114,10 @@ class QualikizTransportModelTest(parameterized.TestCase):
 
     core_transport = transport_model(*model_inputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
-    self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
-    self.assertEqual(core_transport.chi_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.d_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.v_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_ion.shape, expected_shape)
+    self.assertEqual(core_transport.total.chi_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.d_face_el.shape, expected_shape)
+    self.assertEqual(core_transport.total.v_face_el.shape, expected_shape)
 
   def test_qualikiz_based_transport_model_prepare_qualikiz_inputs_shapes(self):
     """Tests that the qualikiz inputs have the expected shapes."""
@@ -132,7 +141,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params, geo, core_profiles, _ = model_inputs
+    runtime_params, geo, core_profiles, _, _ = model_inputs
     qualikiz_params = (
         runtime_params.transport.core_transport_model_params['qualikiz_based']
     )
@@ -143,7 +152,6 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=qualikiz_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
     )
 
     # 1D array qualikiz_inputs
@@ -201,8 +209,8 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params_uncapped, geo, core_profiles, _ = uncapped_inputs
-    runtime_params_capped, _, _, _ = capped_inputs
+    runtime_params_uncapped, geo, core_profiles, _, _ = uncapped_inputs
+    runtime_params_capped, _, _, _, _ = capped_inputs
 
     qualikiz_params_uncapped = (
         runtime_params_uncapped.transport.core_transport_model_params[
@@ -225,13 +233,11 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=qualikiz_params_uncapped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params_uncapped.neoclassical.poloidal_velocity_multiplier,
     )
     capped = transport_model._prepare_qualikiz_inputs(
         transport=qualikiz_params_capped,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params_capped.neoclassical.poloidal_velocity_multiplier,
     )
 
     # Precondition: some uncapped values must exceed the cap.
@@ -248,6 +254,41 @@ class QualikizTransportModelTest(parameterized.TestCase):
         uncapped.log_nu_star_face[~above_cap],
     )
 
+  def test_qualikiz_output_to_output_dict(self):
+    n_face = 10
+    ql_coeffs = qualikiz_based_transport_model.QualikizTransportModelOutput(
+        chi_face_ion=jnp.ones((1, n_face)) * 1.0,
+        chi_face_el=jnp.ones((1, n_face)) * 2.0,
+        d_face_el=jnp.ones((1, n_face)) * 0.5,
+        v_face_el=jnp.ones((1, n_face)) * -0.1,
+        chi_face_ion_itg=jnp.ones((1, n_face)) * 0.8,
+        chi_face_ion_tem=jnp.ones((1, n_face)) * 0.2,
+        chi_face_el_itg=jnp.ones((1, n_face)) * 1.0,
+        chi_face_el_tem=jnp.ones((1, n_face)) * 0.5,
+        chi_face_el_etg=jnp.ones((1, n_face)) * 0.5,
+        d_face_el_itg=jnp.ones((1, n_face)) * 0.3,
+        d_face_el_tem=jnp.ones((1, n_face)) * 0.2,
+        v_face_el_itg=jnp.ones((1, n_face)) * -0.05,
+        v_face_el_tem=jnp.ones((1, n_face)) * -0.05,
+    )
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=np.linspace(0, 1, n_face),
+        rho_cell_norm=np.linspace(0, 1, n_face - 1),
+        rho_cell_plus_boundaries_norm=np.linspace(0, 1, n_face + 1),
+    )
+    out = ql_coeffs.to_output_dict(context)
+    self.assertIn(output_keys.CHI_TURB_I, out)
+    self.assertIn(output_keys.CHI_ITG_I, out)
+    self.assertIn(output_keys.CHI_TEM_I, out)
+    self.assertIn(output_keys.CHI_ITG_E, out)
+    self.assertIn(output_keys.CHI_TEM_E, out)
+    self.assertIn(output_keys.CHI_ETG_E, out)
+    self.assertIn(output_keys.D_ITG_E, out)
+    self.assertIn(output_keys.D_TEM_E, out)
+    self.assertIn(output_keys.V_ITG_E, out)
+    self.assertIn(output_keys.V_TEM_E, out)
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeQualikizBasedTransportModel(
@@ -261,23 +302,24 @@ class FakeQualikizBasedTransportModel(
       transport: qualikiz_based_transport_model.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
   ) -> qualikiz_based_transport_model.QualikizInputs:
     """Exposing prepare_qualikiz_inputs for testing."""
     return self._prepare_qualikiz_inputs(
-        transport, geo, core_profiles, poloidal_velocity_multiplier
+        transport, geo, core_profiles
     )
 
   # pylint: enable=invalid-name
 
-  def call_implementation(  # pyrefly: ignore[bad-override]
+  def call_implementation(
       self,
-      transport_runtime_params: qualikiz_based_transport_model.RuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> component.TurbulentTransport:
+      two_point_mask: array_typing.BoolVectorFace,
+  ) -> transport_coeffs.TransportCoeffs:
     # Assert required for pytype.
     assert isinstance(
         transport_runtime_params,
@@ -288,7 +330,7 @@ class FakeQualikizBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
+        two_point_mask=two_point_mask,
     )
     return self._make_core_transport(
         qi=jnp.ones(geo.rho_face_norm.shape) * 0.4,
@@ -331,8 +373,9 @@ class QualikizBasedTransportModelConfig(
   avoid_big_negative_s: bool = True
   smag_alpha_correction: bool = True
   q_sawtooth_proxy: bool = True
-  DV_effective: bool = False
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
@@ -354,6 +397,7 @@ class QualikizBasedTransportModelConfig(
         q_sawtooth_proxy=self.q_sawtooth_proxy,
         DV_effective=self.DV_effective,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
         **base_kwargs,

@@ -170,7 +170,7 @@ def calculate_P_LH(
   else:
     divertor_factor = 1.0
 
-  line_average_n_e = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+  line_average_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
   line_average_n_e_at_P_LH_min = _calculate_line_average_n_e_at_P_LH_min(
       geo, core_profiles
   )
@@ -306,7 +306,7 @@ def calculate_scaling_law_confinement_time(
   scaled_Ploss = P_loss / 1e6  # convert to MW
   B = geo.B_0
   line_avg_n_e = (  # convert to 10^19 m^-3
-      math_utils.line_average(core_profiles.n_e.value, geo) / 1e19  # pyrefly: ignore[bad-argument-type]
+      math_utils.line_average(core_profiles.n_e.value, geo) / 1e19
   )
   R = geo.R_major
   inverse_aspect_ratio = geo.a_minor / geo.R_major

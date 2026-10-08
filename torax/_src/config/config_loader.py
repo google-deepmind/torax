@@ -81,7 +81,7 @@ def _import_from_path(
   if module is None:
     raise ValueError(f'No loader found for module {module_name}.')
   else:
-    spec.loader.exec_module(module)  # pytype: disable=attribute-error
+    spec.loader.exec_module(module)  # pyrefly: ignore[missing-attribute]
   return module
 
 

@@ -4,10 +4,10 @@ How to integrate new models
 ###########################
 
 TORAX has a modular design which supports easy coupling of new physics models
-such as sources, transport models, pedestal models, etc.
+such as sources, transport models, pedestal models, and neoclassical models.
 
-TORAX provides a public API for registering custom transport, pedestal, and
-source models.
+TORAX provides a public API for registering custom transport, pedestal,
+neoclassical, source, and edge models.
 Once registered, custom models can be configured via TORAX config files or
 dictionaries just like the built-in models.
 
@@ -28,10 +28,11 @@ To integrate a custom transport model, you need to:
 Step 1: Implement the transport model
 --------------------------------------
 
-Create a frozen dataclass that inherits from ``torax.transport.TransportModel``
-and implements the ``call_implementation`` method. This method receives the
-current simulation state and must return a ``torax.transport.TurbulentTransport``
-object containing the computed transport coefficients on the face grid.
+Create a frozen dataclass that inherits from
+``torax.transport.ComponentTransportModel`` and implements the
+``call_implementation`` method. This method receives the current simulation
+state and must return a ``torax.transport.TurbulentTransport`` object
+containing the computed transport coefficients on the face grid.
 
 .. code-block:: python
 
@@ -41,16 +42,16 @@ object containing the computed transport coefficients on the face grid.
     from torax import transport
 
     @dataclasses.dataclass(frozen=True, eq=False)
-    class MyTransportModel(transport.TransportModel):
+    class MyTransportModel(transport.ComponentTransportModel):
       """Custom transport model."""
 
       def call_implementation(
           self,
-          transport_runtime_params: transport.RuntimeParams,
+          transport_runtime_params: transport.ComponentRuntimeParams,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-          pedestal_model_outputs: torax.PedestalModelOutput,
+          two_point_mask: array_typing.BoolVectorFace,
       ) -> transport.TurbulentTransport:
         # Implement your transport model here.
         # Must return a TurbulentTransport with at least the four required
@@ -72,15 +73,15 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.transport.TransportBase`` and implements the ``build_transport_model``
-method. The config class must have a ``model_name`` field with a unique
-``Literal`` type that identifies your model.
+``torax.transport.ComponentTransportBase`` and implements the
+``build_transport_model`` method. The config class must have a ``model_name``
+field with a unique ``Literal`` type that identifies your model.
 
 .. code-block:: python
 
     from typing import Annotated, Literal
 
-    class MyTransportConfig(transport.TransportBase):
+    class MyTransportConfig(transport.ComponentTransportBase):
       """Pydantic config for MyTransportModel."""
 
       model_name: Annotated[
@@ -105,15 +106,20 @@ class. This must be done at module level, before any TORAX config is built.
 Using the registered model
 ---------------------------
 
-Once registered, the model can be used in a TORAX config by setting the
-``transport.model_name`` field to the model name you defined:
+Once registered, the model can be used in a TORAX config under
+``core_transport_models`` or ``pedestal_transport_models`` within the
+``transport`` configuration:
 
 .. code-block:: python
 
     config = {
         ...
         'transport': {
-            'model_name': 'my_transport',
+            'core_transport_models': {
+                'my_custom_model': {
+                    'model_name': 'my_transport',
+                },
+            },
         },
         ...
     }
@@ -296,11 +302,12 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.sources.SourceModelBase`` and implements three required methods:
+``torax.sources.SourceConfigBase``:
 
-- ``model_func`` (property): returns the model function.
-- ``build_source``: returns the ``Source`` instance.
-- ``build_runtime_params``: returns source-specific ``RuntimeParams``.
+- Implement ``model_func`` (property): returns the model function.
+- Implement ``build_source``: returns the ``Source`` instance.
+- Override ``build_runtime_params`` if your source requires custom
+  ``RuntimeParams`` fields beyond the base ``RuntimeParams``.
 
 The config class must have a ``model_name`` field with a unique ``Literal``
 type that identifies your model. This name must be different from the default
@@ -322,7 +329,7 @@ model name for the source you are registering against.
       """Custom runtime params with an extra parameter."""
       scaling_factor: float
 
-    class MyHeatSourceConfig(sources.SourceModelBase):
+    class MyHeatSourceConfig(sources.SourceConfigBase):
       """Pydantic config for my custom heat source."""
 
       model_name: Literal['my_heat_model'] = 'my_heat_model'
@@ -341,12 +348,8 @@ model name for the source you are registering against.
           self, t: chex.Numeric,
       ) -> MyRuntimeParams:
         return MyRuntimeParams(
+            **dataclasses.asdict(super().build_runtime_params(t)),
             scaling_factor=self.scaling_factor,
-            prescribed_values=tuple(
-                [v.get_value(t) for v in self.prescribed_values]
-            ),
-            mode=self.mode,
-            is_explicit=self.is_explicit,
         )
 
 
@@ -392,6 +395,228 @@ Once registered, the model can be used in a TORAX config by setting the
     torax.run_simulation(torax_config)
 
 
+Registering a custom edge model
+===============================
+
+Integrating a custom edge model matches the way a custom transport model is
+implemented (via ``torax.register_transport_model``). To integrate a custom
+edge model, you need to:
+
+1. Define an edge model class that computes boundary conditions for the core.
+2. Define a pydantic config class for your model.
+3. Register the config class with TORAX.
+
+Step 1: Implement the edge model
+--------------------------------
+
+Create a frozen dataclass that inherits from ``torax.edge.EdgeModel`` and
+implements the ``__call__`` method. This method receives the current runtime
+parameters, geometry, core profiles, and source profiles, and must return an
+``torax.edge.EdgeModelOutputs``. All four boundary condition fields are
+required on ``EdgeModelOutputs``:
+
+* ``T_e_right_bc``: Electron temperature boundary condition at the LCFS [keV].
+* ``T_i_right_bc``: Ion temperature boundary condition at the LCFS [keV].
+* ``n_e_right_bc``: Electron density boundary condition at the LCFS [m^-3].
+* ``impurity_right_bc``: Mapping from impurity symbol to its right boundary
+  condition ratio.
+
+If a model does not compute a particular boundary condition, set ``jnp.nan`` for
+that quantity (or an empty dictionary ``{}`` for ``impurity_right_bc``).
+TORAX's boundary condition updaters detect ``NaN`` values and automatically
+preserve the existing core profile boundary conditions without modifying them.
+
+.. code-block:: python
+
+    import dataclasses
+    import jax.numpy as jnp
+    import torax
+    from torax import edge
+
+    @dataclasses.dataclass(frozen=True, eq=False)
+    class MyEdgeModel(edge.EdgeModel):
+      """Custom edge model computing fixed boundary conditions."""
+
+      def __call__(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          core_sources: torax.SourceProfiles,
+          previous_edge_outputs: edge.EdgeModelOutputs | None = None,
+      ) -> edge.EdgeModelOutputs:
+        del (
+            runtime_params,
+            geo,
+            core_profiles,
+            core_sources,
+            previous_edge_outputs,
+        )
+        # Temperature boundary conditions in [keV], density uncalculated (NaN):
+        return edge.EdgeModelOutputs(
+            T_i_right_bc=jnp.array(0.08),  # [keV]
+            T_e_right_bc=jnp.array(0.12),  # [keV]
+            # Preserves existing electron and impurity density boundary
+            # conditions:
+            n_e_right_bc=jnp.array(jnp.nan),
+            impurity_right_bc={},
+        )
+
+
+Step 2: Define the pydantic config
+----------------------------------
+
+Create a pydantic config class that inherits from
+``torax.edge.EdgeModelConfig`` and implements ``build_edge_model``.
+The config class must declare a ``model_name`` field with a unique
+``Literal`` type identifying the model. Standard boundary condition update
+flags (``update_temperatures``, ``update_electron_density``,
+``update_impurities``) and their default runtime parameters are inherited
+automatically, or you can optionally override ``build_runtime_params`` if your
+model requires custom parameter handling. On the model Pydantic config class,
+a validator can be used if the model only supports ``update_... = True`` for a
+subset of the fields (for example, ensuring unsupported boundary updates remain
+False).
+
+.. code-block:: python
+
+    from typing import Annotated, Literal
+    import pydantic
+    import torax
+    from torax import edge
+
+    class MyEdgeConfig(edge.EdgeModelConfig):
+      """Pydantic config for MyEdgeModel."""
+
+      model_name: Annotated[
+          Literal['my_edge'], torax.JAX_STATIC
+      ] = 'my_edge'
+
+      @pydantic.model_validator(mode='after')
+      def check_update_flags(self) -> 'MyEdgeConfig':
+        if self.update_electron_density.value.any():
+          raise ValueError(
+              'MyEdgeModel does not support update_electron_density.'
+          )
+        return self
+
+      def build_edge_model(self) -> MyEdgeModel:
+        return MyEdgeModel()
+
+
+Step 3: Register the model
+--------------------------
+
+Call ``torax.edge.register_edge_model`` with your pydantic config class.
+This must be done at module level before any TORAX config is built.
+
+.. code-block:: python
+
+    edge.register_edge_model(MyEdgeConfig)
+
+
+Using the registered model
+--------------------------
+
+Once registered, the model can be used in a TORAX config:
+
+.. code-block:: python
+
+    config = {
+        ...
+        'edge': {
+            'model_name': 'my_edge',
+        },
+        ...
+    }
+    torax_config = torax.ToraxConfig.from_dict(config)
+    torax.run_simulation(torax_config)
+
+
+Registering a custom neoclassical model
+=======================================
+
+Use ``torax.neoclassical.register_neoclassical_model`` to couple a custom
+neoclassical model, for example a single solver that computes all neoclassical
+quantities (bootstrap current, parallel conductivity, neoclassical transport,
+and poloidal velocity) together in one evaluation.
+
+Create a ``NeoclassicalModel`` subclass implementing ``__call__`` (returning
+``NeoclassicalOutputs``), an optional ``RuntimeParams`` subclass for dynamic
+parameters, and a ``BaseNeoclassicalConfig`` config subclass with a unique
+``model_name`` ``Literal``:
+
+.. code-block:: python
+
+    import dataclasses
+    from typing import Annotated, Literal
+    import jax
+    import jax.numpy as jnp
+    import torax
+    from torax import neoclassical
+
+    @jax.tree_util.register_dataclass
+    @dataclasses.dataclass(frozen=True)
+    class MyNeoclassicalRuntimeParams(neoclassical.RuntimeParams):
+      """Custom runtime params for an integrated neoclassical model."""
+
+      sigma_scale: float
+
+    @dataclasses.dataclass(frozen=True, eq=False)
+    class MyNeoclassicalModel(neoclassical.NeoclassicalModel):
+      """Custom integrated neoclassical model."""
+
+      def __call__(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geometry: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+      ) -> neoclassical.NeoclassicalOutputs:
+        assert isinstance(
+            runtime_params.neoclassical, MyNeoclassicalRuntimeParams
+        )
+        scale = runtime_params.neoclassical.sigma_scale
+        return neoclassical.NeoclassicalOutputs(
+            bootstrap_current=neoclassical.BootstrapCurrent.zeros(geometry),
+            conductivity=neoclassical.Conductivity(
+                sigma=jnp.ones_like(geometry.rho_norm) * scale,
+                sigma_face=jnp.ones_like(geometry.rho_face_norm) * scale,
+            ),
+            transport=neoclassical.NeoclassicalTransport.zeros(geometry),
+            poloidal_velocity=neoclassical.PoloidalVelocity.zeros(geometry),
+        )
+
+    class MyNeoclassicalConfig(neoclassical.BaseNeoclassicalConfig):
+      """Pydantic config for MyNeoclassicalModel."""
+
+      model_name: Annotated[
+          Literal['my_neoclassical'], torax.JAX_STATIC
+      ] = 'my_neoclassical'
+      sigma_scale: float = 1.0e6
+
+      def build_runtime_params(self) -> MyNeoclassicalRuntimeParams:
+        return MyNeoclassicalRuntimeParams(sigma_scale=self.sigma_scale)
+
+      def build_model(self) -> MyNeoclassicalModel:
+        return MyNeoclassicalModel()
+
+    neoclassical.register_neoclassical_model(MyNeoclassicalConfig)
+
+Once registered, select your top-level model in the ``neoclassical`` config
+dictionary:
+
+.. code-block:: python
+
+    config = {
+        ...
+        'neoclassical': {
+            'model_name': 'my_neoclassical',
+            'sigma_scale': 2.0e6,
+        },
+        ...
+    }
+
+
 Configuring time-varying parameters and physical bounds
 =======================================================
 
@@ -422,7 +647,7 @@ Example usage in a custom model config:
     from torax import sources
     from torax._src.torax_pydantic import torax_pydantic
 
-    class MyCustomConfig(sources.SourceModelBase):
+    class MyCustomConfig(sources.SourceConfigBase):
       """Custom source config with bounded parameters."""
 
       model_name: Annotated[

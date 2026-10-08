@@ -44,7 +44,7 @@ class SourceModelsTest(parameterized.TestCase):
         default_configs.get_default_config_dict()
     )
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(
@@ -55,14 +55,16 @@ class SourceModelsTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
+    )
+    neoclassical_outputs = neoclassical_model(
+        runtime_params, geo, core_profiles
     )
     explicit_source_profiles = source_profile_builders.build_source_profiles(
         runtime_params,
         geo,
         core_profiles,
         source_models,
-        neoclassical_models,
         explicit=True,
     )
     source_profile_builders.build_source_profiles(
@@ -70,9 +72,10 @@ class SourceModelsTest(parameterized.TestCase):
         geo,
         core_profiles,
         source_models,
-        neoclassical_models,
         explicit=False,
         explicit_source_profiles=explicit_source_profiles,
+        conductivity=neoclassical_outputs.conductivity,
+        bootstrap_current=neoclassical_outputs.bootstrap_current,
     )
 
   def test_computing_standard_source_profiles_for_single_affected_core_profile(
@@ -82,7 +85,7 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      SOURCE_NAME = 'foo'
+      SOURCE_ID = 'foo'
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
     test_source = TestSource(
@@ -129,7 +132,7 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      SOURCE_NAME = 'foo'
+      SOURCE_ID = 'foo'
       AFFECTED_CORE_PROFILES = (
           source.AffectedCoreProfile.TEMP_ION,
           source.AffectedCoreProfile.TEMP_EL,
@@ -212,7 +215,7 @@ class SourceModelsTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class TestSource(source.Source):
 
-      SOURCE_NAME = 'foo'
+      SOURCE_ID = 'foo'
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
     test_source = TestSource(

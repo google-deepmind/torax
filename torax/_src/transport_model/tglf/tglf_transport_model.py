@@ -23,16 +23,16 @@ import chex
 import jax
 import numpy as np
 import pydantic
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import tglf_based_transport_model
+from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model.tglf import defaults as tglf_defaults
 from torax._src.transport_model.tglf import tglf2py
 
@@ -155,8 +155,8 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> component.TurbulentTransport:
+      two_point_mask: array_typing.BoolVectorFace,
+  ) -> transport_coeffs.TransportCoeffs:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -166,13 +166,13 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         simulation at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      pedestal_model_output: Output of the pedestal model.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       coeffs: transport coefficients
     """
-    del pedestal_model_output  # Unused.
-
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
 
@@ -180,7 +180,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=runtime_params.neoclassical.poloidal_velocity_multiplier,
+        two_point_mask=two_point_mask,
     )
     n_faces = len(geo.rho_face_norm)
     # Discard fields that aren't needed for the TGLF calculation.
@@ -249,6 +249,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
 
     return core_transport
@@ -328,6 +329,12 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     DV_effective: Effective D / effective V approach for particle transport.
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
+    DV_effective_smooth_width: Particle flux width in dimensionless
+      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
+      transport transitions smoothly from effective V to effective D. If 0.0,
+      uses a sharp step transition. Note that TGLF normalizes with minor radius
+      a rather than R_major, so the default (0.001) is chosen to be consistent
+      in SI units with QuaLiKiz (0.01).
     collisionality_multiplier: Collisionality multiplier.
     max_normalized_collisionality: Maximum normalized collisionality passed to
       the model. Acts as a ceiling to mitigate unreliable transport predictions
@@ -351,6 +358,7 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.001
   collisionality_multiplier: float = 1.0
   max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
   tglf_settings: Annotated[
@@ -434,6 +442,7 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
         collisionality_multiplier=self.collisionality_multiplier,
         max_normalized_collisionality=self.max_normalized_collisionality,
         An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
         tglf_settings=self.tglf_settings,
         **base_kwargs,
     )

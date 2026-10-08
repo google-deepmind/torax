@@ -22,7 +22,7 @@
 """
 
 import dataclasses
-from typing import Any, Callable, Mapping, Sequence, TypeAlias
+from typing import Any, Callable, Mapping, Self, Sequence, TypeAlias
 
 import chex
 import equinox as eqx
@@ -34,6 +34,7 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters as getters_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
 from torax._src.edge import updaters as edge_updaters
@@ -43,13 +44,12 @@ from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.solver import pydantic_model as solver_pydantic_model
-from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import pydantic_model as transport_pydantic_model
-import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -81,7 +81,7 @@ class RuntimeParamsProvider:
   corresponding geometry.
   """
 
-  sources: sources_pydantic_model.Sources
+  sources: sources_pydantic_config.Sources
   numerics: numerics_lib.Numerics
   profile_conditions: profile_conditions_lib.ProfileConditions
   plasma_composition: plasma_composition_lib.PlasmaComposition
@@ -90,14 +90,14 @@ class RuntimeParamsProvider:
   pedestal: pedestal_pydantic_model.PedestalConfig
   mhd: mhd_pydantic_model.MHD
   edge: edge_base.EdgeModelConfig | None
-  neoclassical: neoclassical_pydantic_model.Neoclassical
+  neoclassical: neoclassical_pydantic_model.BaseNeoclassicalConfig
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
 
   @classmethod
   def from_config(
       cls,
       config: model_config.ToraxConfig,
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Constructs a RuntimeParamsProvider from a ToraxConfig."""
     return cls(
         sources=config.sources,
@@ -141,11 +141,11 @@ class RuntimeParamsProvider:
   def update_provider(
       self,
       get_nodes_to_replace: Callable[
-          [typing_extensions.Self],
+          [Self],
           Sequence[ReplaceablePytreeNodes],
       ],
       replacement_values: Sequence[ValidUpdates],
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Updates a provider with new values. Works under `jax.jit`.
 
     Example usage:
@@ -205,7 +205,7 @@ class RuntimeParamsProvider:
 
   def update_provider_from_mapping(
       self, replacements: Mapping[str, ValidUpdates]
-  ) -> typing_extensions.Self:
+  ) -> Self:
     """Update a provider from a mapping of replacements.
 
     Example usage:
@@ -238,7 +238,7 @@ class RuntimeParamsProvider:
     """
 
     def get_replacements(
-        provider: typing_extensions.Self,
+        provider: Self,
     ) -> list[ReplaceablePytreeNodes]:
       """Returns the nodes to replace."""
       nodes_to_replace: list[ReplaceablePytreeNodes] = []
@@ -307,7 +307,7 @@ def _update_ne_density_fraction_boundary_condition(
   """Updates n_e boundary condition for ``density_fraction`` mode."""
   if (
       runtime_params.profile_conditions.n_e_right_bc_mode
-      != profile_conditions_lib.NeBoundaryConditionMode.DENSITY_FRACTION
+      != core_profile_runtime_params.NeBoundaryConditionMode.DENSITY_FRACTION
   ):
     return runtime_params
 

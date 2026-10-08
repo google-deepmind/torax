@@ -127,7 +127,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   radiation_multiplier: array_typing.FloatScalar
 
 
-class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
+class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceConfigBase):
   """Configuration for the ImpurityRadiationHeatSink.
 
   Attributes:
@@ -138,9 +138,6 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
       'mavrin_fit'
   )
   radiation_multiplier: float = 1.0
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
@@ -151,11 +148,7 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         radiation_multiplier=self.radiation_multiplier,
     )
 

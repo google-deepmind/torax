@@ -22,8 +22,8 @@ from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
 from torax._src.transport_model import component
-from torax._src.transport_model import constant
 from torax._src.transport_model import critical_gradient
+from torax._src.transport_model import prescribed
 from torax._src.transport_model import pydantic_model as transport_pydantic_model
 from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
@@ -40,9 +40,9 @@ class PydanticModelTest(parameterized.TestCase):
           expected_transport_model=qlknn_transport_model.QLKNNTransportModel,
       ),
       dict(
-          pydantic_model=transport_pydantic_model.ConstantTransportModel,
-          expected_runtime_params=constant.RuntimeParams,
-          expected_transport_model=constant.ConstantTransportModel,
+          pydantic_model=transport_pydantic_model.PrescribedTransportModel,
+          expected_runtime_params=prescribed.RuntimeParams,
+          expected_transport_model=prescribed.PrescribedTransportModel,
       ),
       dict(
           pydantic_model=transport_pydantic_model.CriticalGradientTransportModel,
@@ -192,9 +192,9 @@ class PydanticModelTest(parameterized.TestCase):
   def test_rho_validation(self, params, error_msg, should_fail):
     if should_fail:
       with self.assertRaisesRegex(pydantic.ValidationError, error_msg):
-        transport_pydantic_model.ConstantTransportModel(**params)
+        transport_pydantic_model.PrescribedTransportModel(**params)
     else:
-      transport_pydantic_model.ConstantTransportModel(**params)
+      transport_pydantic_model.PrescribedTransportModel(**params)
 
   @parameterized.named_parameters(
       dict(
@@ -206,8 +206,8 @@ class PydanticModelTest(parameterized.TestCase):
           param_name='collisionality_multiplier',
       ),
       dict(
-          testcase_name='constant',
-          pydantic_model=transport_pydantic_model.ConstantTransportModel,
+          testcase_name='prescribed',
+          pydantic_model=transport_pydantic_model.PrescribedTransportModel,
           param_to_update='chi_i',
           initial_value=1.0,
           updated_value=2.0,
@@ -269,36 +269,32 @@ class TransportModelValidationTest(parameterized.TestCase):
   def test_valid_no_overwrite(self):
     config = transport_pydantic_model.TransportModel(
         core_transport_models={
-            'm1': transport_pydantic_model.ConstantTransportModel(
+            'm1': transport_pydantic_model.PrescribedTransportModel(
                 merge_mode='add'
             ),
-            'm2': transport_pydantic_model.ConstantTransportModel(
+            'm2': transport_pydantic_model.PrescribedTransportModel(
                 merge_mode='add'
             ),
         }
     )
-    self.assertIsInstance(
-        config, transport_pydantic_model.TransportModel
-    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
 
   def test_valid_single_overwrite(self):
     config = transport_pydantic_model.TransportModel(
         core_transport_models={
-            'm1': transport_pydantic_model.ConstantTransportModel(
+            'm1': transport_pydantic_model.PrescribedTransportModel(
                 merge_mode='overwrite'
             ),
-            'm2': transport_pydantic_model.ConstantTransportModel(
+            'm2': transport_pydantic_model.PrescribedTransportModel(
                 merge_mode='add'
             ),
         }
     )
-    self.assertIsInstance(
-        config, transport_pydantic_model.TransportModel
-    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
 
   def test_valid_split_overwrites(self):
     # Model 1 overwrites Chi_i only
-    m1 = transport_pydantic_model.ConstantTransportModel(
+    m1 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_i=False,
         disable_chi_e=True,
@@ -306,7 +302,7 @@ class TransportModelValidationTest(parameterized.TestCase):
         disable_V_e=True,
     )
     # Model 2 overwrites Chi_e only
-    m2 = transport_pydantic_model.ConstantTransportModel(
+    m2 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_i=True,
         disable_chi_e=False,
@@ -316,19 +312,17 @@ class TransportModelValidationTest(parameterized.TestCase):
     config = transport_pydantic_model.TransportModel(
         core_transport_models={'m1': m1, 'm2': m2}
     )
-    self.assertIsInstance(
-        config, transport_pydantic_model.TransportModel
-    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
 
   def test_invalid_duplicate_overwrite(self):
     # Both models overwrite Chi_i
-    m1 = transport_pydantic_model.ConstantTransportModel(
+    m1 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_e=True,
         disable_D_e=True,
         disable_V_e=True,
     )
-    m2 = transport_pydantic_model.ConstantTransportModel(
+    m2 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_e=True,
         disable_D_e=True,
@@ -345,13 +339,13 @@ class TransportModelValidationTest(parameterized.TestCase):
 
   def test_invalid_duplicate_overwrite_pedestal(self):
     # Both models overwrite Chi_i in pedestal
-    m1 = transport_pydantic_model.ConstantTransportModel(
+    m1 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_e=True,
         disable_D_e=True,
         disable_V_e=True,
     )
-    m2 = transport_pydantic_model.ConstantTransportModel(
+    m2 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_e=True,
         disable_D_e=True,
@@ -368,7 +362,7 @@ class TransportModelValidationTest(parameterized.TestCase):
 
   def test_valid_disjoint_overwrite(self):
     # M1 and M2 overwrite Chi_i, but in disjoint spatial domains
-    m1 = transport_pydantic_model.ConstantTransportModel(
+    m1 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_i=False,
         disable_chi_e=True,
@@ -377,7 +371,7 @@ class TransportModelValidationTest(parameterized.TestCase):
         rho_min=0.0,
         rho_max=0.5,
     )
-    m2 = transport_pydantic_model.ConstantTransportModel(
+    m2 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_i=False,
         disable_chi_e=True,
@@ -389,13 +383,11 @@ class TransportModelValidationTest(parameterized.TestCase):
     config = transport_pydantic_model.TransportModel(
         core_transport_models={'m1': m1, 'm2': m2}
     )
-    self.assertIsInstance(
-        config, transport_pydantic_model.TransportModel
-    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
 
   def test_invalid_overlapping_overwrite(self):
     # M1 and M2 overwrite Chi_i in overlapping domains
-    m1 = transport_pydantic_model.ConstantTransportModel(
+    m1 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_i=False,
         disable_chi_e=True,
@@ -404,7 +396,7 @@ class TransportModelValidationTest(parameterized.TestCase):
         rho_min=0.0,
         rho_max=0.6,
     )
-    m2 = transport_pydantic_model.ConstantTransportModel(
+    m2 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_i=False,
         disable_chi_e=True,
@@ -424,7 +416,7 @@ class TransportModelValidationTest(parameterized.TestCase):
 
   def test_invalid_overlapping_overwrite_part_time(self):
     # M1 and M2 overwrite Chi_i in overlapping domains
-    m1 = transport_pydantic_model.ConstantTransportModel(
+    m1 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_i=True,
         disable_chi_e={0: False, 1: True},
@@ -433,7 +425,7 @@ class TransportModelValidationTest(parameterized.TestCase):
         rho_min=0.0,
         rho_max=0.6,
     )
-    m2 = transport_pydantic_model.ConstantTransportModel(
+    m2 = transport_pydantic_model.PrescribedTransportModel(
         merge_mode='overwrite',
         disable_chi_i=True,
         disable_chi_e=False,
@@ -449,6 +441,27 @@ class TransportModelValidationTest(parameterized.TestCase):
     ):
       transport_pydantic_model.TransportModel(
           core_transport_models={'m1': m1, 'm2': m2}
+      )
+
+  def test_invalid_model_name_error_message(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Input tag 'constant' found using 'model_name' does not match any"
+        r' of the'
+        r' expected tags',
+    ):
+      transport_pydantic_model.TransportModel(
+          core_transport_models={'inner': {'model_name': 'constant'}}
+      )
+
+  def test_missing_model_name_error_message(self):
+    """Tests that a clear error message is raised when model_name is omitted."""
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Unable to extract tag using discriminator 'model_name'",
+    ):
+      transport_pydantic_model.TransportModel(
+          core_transport_models={'inner': {'chi_i': 1.0}}
       )
 
 

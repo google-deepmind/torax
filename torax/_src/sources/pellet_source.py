@@ -48,9 +48,9 @@ def calc_pellet_source(
   assert isinstance(source_params, RuntimeParams)
   return (
       formulas.gaussian_profile(
-          center=source_params.pellet_deposition_location,  # pyrefly: ignore[bad-argument-type]
-          width=source_params.pellet_width,  # pyrefly: ignore[bad-argument-type]
-          total=source_params.S_total,  # pyrefly: ignore[bad-argument-type]
+          center=source_params.pellet_deposition_location,
+          width=source_params.pellet_width,
+          total=source_params.S_total,
           geo=geo,
       ),
   )
@@ -60,7 +60,7 @@ def calc_pellet_source(
 class PelletSource(source.Source):
   """Pellet source for the n_e equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'pellet'
+  SOURCE_ID: ClassVar[str] = 'pellet'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )
@@ -75,7 +75,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   S_total: array_typing.FloatScalar
 
 
-class PelletSourceConfig(base.SourceModelBase):
+class PelletSourceConfig(base.SourceConfigBase):
   """Pellet source for the n_e equation.
 
   Attributes:
@@ -99,9 +99,6 @@ class PelletSourceConfig(base.SourceModelBase):
   S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       2e22
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -112,11 +109,7 @@ class PelletSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         pellet_width=self.pellet_width.get_value(t),
         pellet_deposition_location=self.pellet_deposition_location.get_value(t),
         S_total=self.S_total.get_value(t),

@@ -389,46 +389,126 @@ time-dependence of temperature, density, and current.
   ``toroidal_angular_velocity`` at :math:`\hat{\rho}=1`. If ``toroidal_angular_velocity`` is
   also ``None``, then the boundary condition will be set to zero.
 
-``internal_boundary_conditions`` (dict [default = {}])
+``internal_boundary_conditions`` (dict [default = ``{'model_name': 'no_ibc'}``])
   Internal boundary conditions for :math:`T_i`, :math:`T_e`, and :math:`n_e`.
-  These conditions are enforced via adaptive sources. The dictionary can contain
-  the keys ``T_i``, ``T_e``, and ``n_e``. Each of these keys accepts a
-  **sparse time-varying-array** type, allowing specification of time-varying
-  values at fixed spatial points.
+  These conditions are enforced via matrix row replacement in the PDE solver.
+  Defaults to ``'no_ibc'`` (no internal boundary conditions active). Active
+  models are selected via the ``'model_name'`` key:
 
-  Values are specified as ``{time: {rho_norm: value, ...}, ...}``. For example:
+  1. ``'model_name': 'no_ibc'`` (default):
+     No internal boundary conditions are active.
 
-  .. code-block:: python
+  2. ``'model_name': 'prescribed'``:
+     Explicitly prescribe time-varying values for any subset of ``T_i``,
+     ``T_e``, and ``n_e`` using **sparse time-varying-array** types. Any values
+     of 0.0 will be treated as no IBC in that location. It is therefore possible
+     to only have an IBC for a subset of the channels (e.g. only setting
+     ``T_e``). Not including a channel in the config means no IBC for that
+     channel. Values are specified as ``{time: {rho_norm: value, ...}, ...}``.
+     For example:
 
-    'internal_boundary_conditions': {
-        'T_e': {
-            0.0: {0.85: 1.0},
-            1.0: {0.85: 1.5}
-        }
-    }
+     .. code-block:: python
 
-  This will set the electron temperature to 1.0 keV at :math:`\hat{\rho}=0.85`
-  at t=0, and 1.5 keV at :math:`\hat{\rho}=0.85` at t=1, with linear
-  interpolation in time in between.
+       'profile_conditions': {
+           'internal_boundary_conditions': {
+               'model_name': 'prescribed',
+               'T_e': {
+                   0.0: {0.85: 1.0},
+                   1.0: {0.85: 1.5}
+               }
+           }
+       }
 
-  In addition, time-varying values can be specified for a given **range** of
-  :math:`\hat{\rho}` values. For example:
+     This sets the electron temperature to 1.0 keV at :math:`\hat{\rho}=0.85`
+     at t=0, and 1.5 keV at :math:`\hat{\rho}=0.85` at t=1, with linear
+     interpolation in time in between.
 
-  .. code-block:: python
+     Time-varying values can also be specified for a **range** of
+     :math:`\hat{\rho}` values:
 
-    'T_i': {
-        0.0: {
-            (0.85, 1.0): {0.85: 1.5, 1.0: 1.0}
-        }
-    }
+     .. code-block:: python
 
-  This will set the ion temperature to 1.5keV at :math:`\hat{\rho}=0.85` with
-  linear interpolation to 1.0keV at :math:`\hat{\rho}=1.0` at t=0.
+       'profile_conditions': {
+           'internal_boundary_conditions': {
+               'model_name': 'prescribed',
+               'T_i': {
+                   0.0: {
+                       (0.85, 1.0): {0.85: 1.5, 1.0: 1.0}
+                   }
+               }
+           }
+       }
 
-  Note that the radial locations (:math:`\hat{\rho}` keys) of the internal
-  boundary conditions must be the same at all times - there is currently no way
-  to specify time-varying radial locations for the internal boundary
-  conditions.
+     Note that radial locations (:math:`\hat{\rho}` keys) must be the same at
+     all times.
+
+  3. ``'model_name': 'beta_poloidal_prime'``:
+     Dynamically computes L-mode edge kinetic profiles (:math:`T_i, T_e, n_e`)
+     in the edge region :math:`\hat{\rho} \ge \hat{\rho}_{\text{edge}}` from a
+     prescribed gradient of the local poloidal beta with respect to normalized
+     poloidal flux, :math:`\beta_{pol}' \equiv -\partial
+     \beta_{pol,\text{local}} / \partial \psi_N`, motivated by empirical
+     observations of critical edge pressure gradients in L-mode plasmas (see
+     e.g. |labombard2008|). Parameters:
+
+     - ``mode`` (str [default = ``'constant'``]): Controls how the effective
+       edge poloidal beta gradient is determined:
+
+       - ``'constant'``: Uses ``beta_poloidal_prime`` directly.
+       - ``'power_dependent'``: Scales the effective poloidal beta gradient
+         smoothly with the net heating power crossing the separatrix
+         :math:`P_{\text{SOL}}` according to
+         :math:`\beta_{pol,\text{eff}}' = \beta_{pol,\text{min}}' +
+         (\beta_{pol}' - \beta_{pol,\text{min}}') y(x)`, where
+         :math:`x = \max(P_{\text{SOL}}, 0) / P_{\text{SOL,scaling}}`,
+         :math:`z_1 = (x^2 + 0.3 x) / 1.3`, and
+         :math:`y = (z_1^{\alpha} + 1)^{1/\alpha}` with :math:`\alpha = -15`.
+     - ``rho_norm_edge`` (**time-varying-scalar**): Edge normalized toroidal
+       flux coordinate :math:`\hat{\rho}_{\text{edge}}` bounding the constrained
+       edge region.
+     - ``n_e_edge`` (**time-varying-scalar** | None [default = None]):
+       Prescribed electron density at the edge boundary
+       :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}` if
+       ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+       Mutually exclusive with ``n_e_edge_multiplier`` (exactly one must be
+       provided).
+     - ``n_e_edge_multiplier`` (**time-varying-scalar** | None [default =
+       None]): Multiplier applied to the right boundary condition density
+       (``n_e_right_bc``) to set the electron density at
+       :math:`\hat{\rho}_{\text{edge}}` [dimensionless]. Mutually exclusive
+       with ``n_e_edge`` (exactly one must be provided).
+     - ``n_e_is_fGW`` (bool [default = False]): If True, ``n_e_edge`` is
+       interpreted as a Greenwald fraction (dimensionless) instead of absolute
+       density (:math:`\text{m}^{-3}`).
+     - ``beta_poloidal_prime`` (**time-varying-scalar**): Prescribed normalized
+       poloidal beta gradient :math:`\beta_{pol}' > 0` [dimensionless] (serves
+       as the high-power asymptotic value when ``mode = 'power_dependent'``).
+     - ``beta_poloidal_prime_min`` (**time-varying-scalar** [default = 0.2]):
+       Minimum normalized poloidal beta gradient :math:`\beta_{pol,\text{min}}'
+       \ge 0` at :math:`P_{\text{SOL}} \le 0` when
+       ``mode = 'power_dependent'`` [dimensionless].
+     - ``P_SOL_scaling`` (**time-varying-scalar** | None [default = None]):
+       Characteristic power crossing the separatrix :math:`P_{\text{SOL,scaling}}
+       > 0` [W] for the power transition when ``mode = 'power_dependent'``
+       (required when ``mode = 'power_dependent'``). ``P_SOL_scaling`` sets the
+       knee of the power scaling curve, so that a scaled :math:`P_{\text{SOL}}`
+       of 1 is approximately where ``beta_poloidal_prime`` saturates.
+     - ``Ti_Te_ratio`` (**time-varying-scalar**): Prescribed ratio
+       :math:`T_i / T_e` in the edge region [dimensionless].
+
+     Example configuration:
+
+     .. code-block:: python
+
+       'profile_conditions': {
+           'internal_boundary_conditions': {
+               'model_name': 'beta_poloidal_prime',
+               'rho_norm_edge': 0.8,
+               'n_e_edge': 0.2e20,
+               'beta_poloidal_prime': 1.5,
+               'Ti_Te_ratio': 1.0,
+           }
+       }
 
 ``fast_ions`` (list[dict] | None [default = None])
   Prescribed fast ion density and temperature profiles. Each entry prescribes
@@ -589,10 +669,7 @@ follows:
   Specifies the impurity species. The way impurities are defined is set by the
   ``impurity_mode`` field within this dictionary. Three modes are supported:
   ``'fractions'``, ``'n_e_ratios'``, and ``'n_e_ratios_Z_eff'``. See the
-  "Plasma Composition Examples" section below for details. For backward
-  compatibility, legacy formats (e.g., ``'impurity': 'Ne'`` or ``'impurity':
-  {'Ne': 0.8, 'Ar': 0.2}``) are automatically converted to the ``'fractions'``
-  mode.
+  "Plasma Composition Examples" section below for details.
 
 ``Z_eff`` ( **time-varying-array** [default = 1.0])
   Plasma effective charge, defined as :math:`Z_{eff}=\sum_i n_i Z_i^2 / n_e`.
@@ -610,20 +687,6 @@ follows:
   An optional override for the main ion's mass (A) in amu units or average mass
   of an ion mixture. If provided, this value will be used instead of the A
   calculated from the ``main_ion`` specification.
-
-``Z_impurity_override`` (**time-varying-scalar** | None [default = None])
-  (DEPRECATED) As ``Z_i_override``, but for the impurity ion. This is only used
-  for legacy ``impurity`` inputs (a string or a simple dictionary of fractions).
-  When using the new API (with ``impurity_mode``), this parameter is ignored
-  and a warning is issued. Use ``Z_override`` inside the ``impurity`` dictionary
-  instead.
-
-``A_impurity_override`` (**time-varying-scalar** | None [default = None])
-  (DEPRECATED) As ``A_i_override``, but for the impurity ion. This is only used
-  for legacy ``impurity`` inputs (a string or a simple dictionary of fractions).
-  When using the new API (with ``impurity_mode``), this parameter is ignored
-  and a warning is issued. Use ``A_override`` inside the ``impurity`` dictionary
-  instead.
 
 The average charge state of each ion in each mixture is determined by
 `Mavrin polynomials <https://doi.org/10.1080/10420150.2018.1462361>`_, which are
@@ -645,7 +708,10 @@ with a single impurity species set for each case.
 
     'plasma_composition': {
         'main_ion': 'D',
-        'impurity': 'Ne',  # Neon
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': 'Ne',  # Neon
+        },
         'Z_eff': 1.5,
     }
 
@@ -655,7 +721,10 @@ with a single impurity species set for each case.
 
     'plasma_composition': {
         'main_ion': {'D': 0.5, 'T': 0.5},
-        'impurity': 'Be',  # Beryllium
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': 'Be',  # Beryllium
+        },
         'Z_eff': 1.8,
     }
 
@@ -668,14 +737,17 @@ with a single impurity species set for each case.
         'D': {0.0: 0.1, 5.0: 0.9},  # D fraction from 0.1 to 0.9
         'T': {0.0: 0.9, 5.0: 0.1},  # T fraction from 0.9 to 0.1
       },
-      'impurity': 'W',  # Tungsten
+      'impurity': {
+          'impurity_mode': 'fractions',
+          'species': 'W',  # Tungsten
+      },
       'Z_eff': 1.1,
     }
 
 
 **2. Impurity Fractions Mode (`impurity_mode: 'fractions'`)**
 
-This is the default and backward-compatible mode. You provide fractional
+This is the default mode. You provide fractional
 abundances for a set of impurities, which are then treated as a single
 effective impurity species. ``Z_eff`` is a required input to constrain the
 total impurity density. Attributes in the ``impurity`` dict are as follows:
@@ -1192,6 +1264,26 @@ Geometry dicts for all geometry types can contain the following additional keys.
   higher resolution mesh with ``nrho_hires = nrho * hi_res_fac``, used for
   ``j`` to ``psi`` conversions.
 
+``trapped_fraction_source`` (str [default = 'SAUTER'])
+  Selects how the effective trapped particle fraction, used by the
+  neoclassical ``bootstrap_current``, ``conductivity``, and ``transport``
+  models, is computed. Computed once at geometry construction time. Options are:
+
+  * ``'SAUTER'`` (default)
+    Uses the analytical approximation from
+    `O. Sauter, Fusion Eng. Des. 112, 633 (2016) <https://doi.org/10.1016/j.fusengdes.2016.04.033>`_.
+    Supported by every geometry source.
+
+  * ``'FILE'``
+    Reads the value precomputed by the input equilibrium code directly from
+    the geometry file. Only supported for CHEASE and IMAS geometries.
+
+  * ``'EXACT'``
+    Computes the exact bounce-averaged integral directly from the traced 2D
+    equilibrium, using the formulation of
+    `Y. R. Lin-Liu and R. L. Miller, Phys. Plasmas 2, 1666 (1995) <https://doi.org/10.1063/1.871315>`_.
+    Only supported for EQDSK and IMAS geometries.
+
 
 Geometry dicts for all geometry types, except ``circular`` and ``tokamaker``, can contain the following
 additional keys.
@@ -1280,47 +1372,22 @@ It is only recommended to change the default values if issues arise.
   defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
   divergent integrations in diverted geometries.
 
-Geometry dicts for TokaMaker geometry require the following key.
-
-``fsa_profiles`` (dict[str, np.ndarray | float])
-  Flux surface averaged profiles, as returned by ``TokaMaker_equilibrium.get_fsa()``.
-  Pass the dict straight through:
-
-  .. code-block:: python
-
-    'geometry': {
-        'geometry_type': 'tokamaker',
-        'n_rho': 25,
-        'fsa_profiles': my_equilibrium.get_fsa(npsi=100),
-    }
-
-  A time-dependent geometry is built by giving one equilibrium per time in
-  ``geometry_configs``:
+``target_psi_grid_resolution`` (int | None [default = 128])
+  Desired minimum number of grid points along the R and Z dimensions of the 2D
+  psi grid before generating flux surface contours. Contours are linear between
+  grid points, so for coarse EQDSK grids the flux surfaces near the separatrix
+  can be inaccurate (e.g. underestimating the plasma current) or fail to close.
+  Refining the grid allows ``last_surface_factor`` to be closer to 1. If set,
+  the 2D (R, Z) grid is refined (using bicubic spline interpolation of psi)
+  by an integer factor calculated dynamically as:
 
   .. code-block:: python
 
-    'geometry': {
-        'geometry_type': 'tokamaker',
-        'n_rho': 25,
-        'geometry_configs': {
-            t: {'fsa_profiles': eq.get_fsa(npsi=100)} for t, eq in equilibria.items()
-        },
-    }
+    ceil(target_psi_grid_resolution / min(nx, nz))
 
-  The number of flux surfaces and the outermost surface sampled are set by the
-  ``get_fsa()`` call rather than by this config. The outermost sampled surface
-  becomes :math:`\hat{\rho} = 1` in TORAX, so ``get_fsa(psi_pad=0.01)`` plays
-  the same role as ``last_surface_factor = 0.99`` does for EQDSK geometry.
+  refining both dimensions uniformly. If None, no refinement is performed.
+  Must be >= 1 if provided.
 
-  Note that a flux surface grid uniform in normalized poloidal flux is sparse
-  in :math:`\hat{\rho}` near the axis, since
-  :math:`\hat{\rho} \propto \sqrt{\hat{\psi}}` there. Sampling uniformly in
-  :math:`\sqrt{\hat{\psi}}` gives a well resolved TORAX grid:
-
-  .. code-block:: python
-
-    psi_norm = np.linspace(np.sqrt(1e-4), np.sqrt(0.99), 100) ** 2
-    fsa = my_equilibrium.get_fsa(psi=psi_norm)
 
 Geometry dicts for IMAS geometry require one and only one of the following
 additional keys.
@@ -1451,38 +1518,41 @@ transport
 ---------
 
 In TORAX, turbulent transport models for the core and pedestal are combined
-under a single required top-level model container: the **combined** transport
-model (``model_name: 'combined'``, which is the default). Note that neoclassical
-transport is configured separately under the ``neoclassical`` section.
+under a single top-level model container: the ``TransportModel`` (configured
+under the ``transport`` key). Note that neoclassical transport is configured
+separately under the ``neoclassical`` section.
 
-The combined model calculates turbulent transport coefficients by
-sequentially applying a list of component models. Each component model is
-active only within its defined radial domain, which can be overlapping or
-non-overlapping. Top-level post-processing (min/max clipping and Gaussian
-smoothing) is performed on the summed coefficients from all component models
-across the core and pedestal. These combined coefficients are then added to the
-neoclassical transport coefficients to form the total transport coefficients
-used in the transport PDEs.
+The transport model calculates turbulent transport coefficients by
+evaluating a dictionary of named component models for the core
+(``core_transport_models``) and pedestal (``pedestal_transport_models``). Each
+component model has a user-chosen name as its key and is active within its
+defined radial domain, which can be overlapping or non-overlapping. Top-level
+post-processing (min/max clipping and Gaussian smoothing) is performed on the
+summed coefficients from all component models across the core and pedestal.
+These combined coefficients are then added to the neoclassical transport
+coefficients to form the total transport coefficients used in the transport
+PDEs.
 
-Top-level Combined Parameters
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Top-level Transport Parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``model_name`` (str [default = 'combined'])
-  Must be set to ``'combined'``.
-
-``transport_models`` (list[dict] [default = []])
-  A list containing config dicts for the component models for turbulent
-  transport in the core. For each component model, ``rho_min`` and ``rho_max``
-  are set to define its active radial domain. If a pedestal is active and
+``core_transport_models`` (dict[str, dict] [default = {}])
+  A dictionary mapping user-given names to config dictionaries for the component
+  models for turbulent transport in the core. Each entry must specify
+  ``'model_name'`` (e.g. ``'prescribed'``, ``'qlknn'``, ``'cgm'``,
+  ``'bohm-gyrobohm'``, ``'tglf'``, ``'tglfnn-ukaea'``, ``'qualikiz'``) along
+  with model-specific parameters. For each component model, ``rho_min`` and
+  ``rho_max`` define its active radial domain. If a pedestal is active and
   configured with an internal boundary condition, the core ``rho_max`` is
-  overridden by max(``rho_max``, ``rho_norm_ped_top``), where
-  ``rho_norm_ped_top`` is set in the ``pedestal`` config.
+  bounded by ``rho_norm_ped_top``, where ``rho_norm_ped_top`` is set in the
+  ``pedestal`` config.
 
-``pedestal_transport_models`` (list[dict] [default = []])
-  A list containing config dicts for the component models for turbulent
-  transport in the pedestal. The pedestal transport model is active only for
-  radii above ``rho_norm_ped_top``. ``rho_min`` and ``rho_max`` are ignored in
-  these models, and an error is raised if they are specified.
+``pedestal_transport_models`` (dict[str, dict] [default = {}])
+  A dictionary mapping user-given names to config dictionaries for the component
+  models for turbulent transport in the pedestal. The pedestal transport models
+  are active only for radii above ``rho_norm_ped_top``. Setting ``rho_min`` or
+  ``rho_max`` is not supported for pedestal transport models, and an error is
+  raised if they deviate from default values (0.0 and 1.0).
 
 ``chi_min`` (float [default = 0.05])
   Lower allowed bound for heat conductivities :math:`\chi` across all models,
@@ -1514,6 +1584,10 @@ Top-level Combined Parameters
   is used and ``smoothing_width`` is set to ``0.0``, a warning is logged
   recommending non-zero smoothing to avoid sharp numerical artifacts.
 
+``pedestal_smoothing_width`` (float [default = 0.0])
+  Width of HWHM Gaussian smoothing kernel operating on pedestal transport model
+  outputs. If set to ``0.0``, no smoothing is applied to pedestal models.
+
 ``smoothing_zones`` (list[dict] [default = []])
   Optional list of configuration dictionaries specifying radial zones with
   distinct Gaussian smoothing widths. Each zone dictionary specifies
@@ -1529,7 +1603,7 @@ Combining Logic and Merge Modes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The combination logic is controlled by the ``merge_mode`` of each component
-model inside ``transport_models`` and ``pedestal_transport_models``:
+model inside ``core_transport_models`` and ``pedestal_transport_models``:
 
 *   **ADD (default)**: The model's coefficients are added to the accumulated
     total in its active region. However, it does not contribute to regions
@@ -1537,7 +1611,7 @@ model inside ``transport_models`` and ``pedestal_transport_models``:
 *   **OVERWRITE**: The model is the sole contributor to the transport
     coefficients in its active region, for enabled transport channels. It
     **locks** this region for the specific transport channels it provides,
-    preventing other models in the list from modifying them.
+    preventing other models from modifying them.
 
 You can selectively enable or disable specific transport channels (e.g.,
 ``chi_i``, ``D_e``) for each model using flags like ``disable_chi_i``.
@@ -1553,39 +1627,39 @@ Examples:
 
   ...
   'transport': {
-      'transport_models': [
-          {
-              'model_name': 'constant',
+      'core_transport_models': {
+          'inner': {
+              'model_name': 'prescribed',
               'chi_i': 1.0,
               'rho_max': 0.3,
           },
-          {
-              'model_name': 'constant',
+          'outer': {
+              'model_name': 'prescribed',
               'chi_i': 2.0,
               'rho_min': 0.2,
           },
-      ],
-      'pedestal_transport_models': [
-          {
-              'model_name': 'constant',
+      },
+      'pedestal_transport_models': {
+          'pedestal': {
+              'model_name': 'prescribed',
               'chi_i': 0.5,
           },
-      ],
-    },
-    'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-        'rho_norm_ped_top': 0.9,
-        'n_e_ped': 0.8,
-        'n_e_ped_is_fGW': True,
-    },
-    ...
+      },
+  },
+  'pedestal': {
+      'model_name': 'set_T_ped_n_ped',
+      'set_pedestal': True,
+      'rho_norm_ped_top': 0.9,
+      'n_e_ped': 0.8,
+      'n_e_ped_is_fGW': True,
+  },
+  ...
 
 This would produce a ``chi_i`` profile that looks like the following.
 
 .. image:: images/combined_transport_example.png
   :width: 400
-  :alt: A stepwise constant chi_i profile
+  :alt: A stepwise prescribed chi_i profile
 
 Note that in the region :math:`[0, 0.2]`, only the first component is active,
 so ``chi_i = 1.0``. In :math:`(0.2, 0.3]` the first two components are both
@@ -1598,22 +1672,22 @@ docs/scripts/combined_transport_example.py.
 
 The next example shows how to apply a physics-based model (QLKNN) in the core,
 but enforcing specific transport coefficients in the edge region using a
-Constant model with ``OVERWRITE`` mode, effectively overriding the core model
+Prescribed model with ``OVERWRITE`` mode, effectively overriding the core model
 in that region. This is useful e.g. for L-mode modelling.
 
 .. code-block:: python
 
   'transport': {
-      'transport_models': [
+      'core_transport_models': {
           # Base model: QLKNN applied everywhere (default ADD)
-          {
+          'qlknn': {
               'model_name': 'qlknn',
               'rho_max': 1.0,
           },
           # Edge overwrite: Sets D_e and V_e in the edge, ignoring QLKNN there.
           # Keeps chi_i/chi_e from QLKNN (because they are disabled here).
-          {
-              'model_name': 'constant',
+          'edge_particle_transport_patch': {
+              'model_name': 'prescribed',
               'rho_min': 0.9,
               'D_e': 0.5,
               'V_e': -1.0,
@@ -1621,21 +1695,21 @@ in that region. This is useful e.g. for L-mode modelling.
               'disable_chi_i': True,
               'disable_chi_e': True,
           },
-      ],
-    },
+      },
+  },
 
 Component Transport Models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Component models are specified inside ``transport_models`` and
+Component models are specified inside ``core_transport_models`` and
 ``pedestal_transport_models``. The following runtime parameters are common to
 all component models:
 
 ``model_name`` (str)
   Select the component transport model according to the following options:
 
-* ``'constant'``
-  Constant transport coefficients.
+* ``'prescribed'``
+  Prescribed (constant or space/time-varying) transport coefficients.
 * ``'CGM'``
   Critical Gradient Model.
 * ``'bohm-gyrobohm'``
@@ -1696,13 +1770,13 @@ all component models:
   ``'fast_ion_H_v1'``), it is loaded from the model registry. Otherwise treated
   as a file path to a ``.fistab`` model file.
 
-constant
-^^^^^^^^
+prescribed
+^^^^^^^^^^
 
-Runtime parameters for the constant transport model. This model can be used
-to implement constant coefficients (e.g. ``chi_i`` = 1.0 for all rho), as well
-as time-varying transport profiles of arbitrary form (such as an exponential
-decay) using the time-varying-array syntax.
+Runtime parameters for the prescribed transport model. This
+model can be used to implement constant coefficients (e.g. ``chi_i`` = 1.0 for
+all rho), as well as time-varying transport profiles of arbitrary form (such as
+an exponential decay) using the time-varying-array syntax.
 
 ``chi_i`` (**time-varying-array** [default = 1.0])
   Ion heat conductivity. In units of :math:`m^2/s`.
@@ -1871,6 +1945,15 @@ It is recommended to not set ``qlknn_model_name``,  or
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``DV_effective_smooth_width`` (float [default = 0.01])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that QuaLiKiz normalizes using major
+  radius :math:`R_{major}` rather than minor radius :math:`a`, so the default
+  (:math:`0.01`) corresponds roughly to the TGLF default (:math:`0.001`) in SI
+  units.
+
 ``rotation_multiplier`` (float [default = 1.0])
   Multiplier for :math:`v_{E\times B}` in the rotation correction factor.
 
@@ -1913,6 +1996,15 @@ Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cit
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
+
+``DV_effective_smooth_width`` (float [default = 0.001])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that TGLF normalizes using minor
+  radius :math:`a` rather than :math:`R_{major}`, so the default
+  (:math:`0.001`) corresponds roughly to the QuaLiKiz default (:math:`0.01`) in
+  SI units.
 
 ``rotation_multiplier`` (float [default = 1.0])
   Multiplier for :math:`v_{E\times B}^{\text{shear}}`.
@@ -1981,6 +2073,15 @@ Runtime parameters for the QuaLiKiz model.
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
 
+``DV_effective_smooth_width`` (float [default = 0.01])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that QuaLiKiz normalizes using major
+  radius :math:`R_{major}` rather than minor radius :math:`a`, so the default
+  (:math:`0.01`) corresponds roughly to the TGLF default (:math:`0.001`) in SI
+  units.
+
 
 tglf
 ^^^^
@@ -2017,6 +2118,15 @@ Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
 ``An_min`` (float [default = 0.05])
   :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of
   :math:`D_{eff}`, if ``DV_effective==True``.
+
+``DV_effective_smooth_width`` (float [default = 0.001])
+  Width in dimensionless GyroBohm-normalized particle flux units
+  (:math:`\Gamma_e / \Gamma_{GB}`) over which down-gradient transport
+  transitions smoothly from :math:`V_{eff}` to :math:`D_{eff}`. If ``0.0``, uses
+  a sharp step-function transition. Note that TGLF normalizes using minor
+  radius :math:`a` rather than :math:`R_{major}`, so the default
+  (:math:`0.001`) corresponds roughly to the QuaLiKiz default (:math:`0.01`) in
+  SI units.
 
 ``collisionality_multiplier`` (float [default = 1.0])
   Collisionality multiplier.
@@ -2114,7 +2224,7 @@ can be set to anything convenient.
 ``is_explicit`` (bool [default = False])
   Defines whether the source is to be considered explicit or implicit. Explicit
   sources are calculated based on the simulation state at the beginning of a
-  time step, or do not have any dependance on state. Implicit sources depend on
+  time step, or do not have any dependence on state. Implicit sources depend on
   updated states as the iterative solvers evolve the state through the course of
   a time step. If a source model is complex but evolves over slow timescales
   compared to the state, it may be beneficial to set it as explicit.
@@ -2149,8 +2259,11 @@ effects from Stott PPCF 2005.
 cyclotron_radiation
 ^^^^^^^^^^^^^^^^^^^
 
-Cyclotron radiation model from Albajar NF 2001 with a deposition profile from
-Artaud NF 2018.
+Cyclotron radiation model from |albajar2001| with a deposition profile from
+|artaud2018|. Because the Albajar profile parameterization is only defined
+for peaked or flat profiles (:math:`\alpha \ge 0`), hollow or inverted density
+and temperature profiles are clamped to the flat-profile limit
+(:math:`\alpha = 0`) in the fit.
 
 ``mode`` (str [default = 'model'])
 
@@ -2680,6 +2793,11 @@ newton_raphson
   will still be accepted if ``residual < coarse_tol``, otherwise dt backtracking
   will take place if enabled.
 
+``vmap_linesearch`` (bool [default = False])
+  If True, use a vmapped implementation of the linesearch. This can provide a
+  significant speedup when many linesearch steps are required, at the cost of
+  higher peak memory usage and compilation time.
+
 optimizer
 ^^^^^^^^^
 
@@ -2744,71 +2862,111 @@ time_step_calculator
 neoclassical
 ------------
 
+Configures the neoclassical physics model.
+
+``model_name`` (str [default = ``'analytical'``])
+  Selects the top-level neoclassical model. The built-in ``'analytical'`` model
+  combines four modular analytical sub-models configured under
+  ``bootstrap_current``, ``conductivity``, ``transport``, and
+  ``poloidal_velocity``. Custom top-level neoclassical models can also be
+  registered via ``torax.neoclassical.register_neoclassical_model`` (see
+  :ref:`model-integration`).
+
+When ``model_name = 'analytical'`` (the default), the following four sub-model
+sections are available:
+
 bootstrap_current
 ^^^^^^^^^^^^^^^^^
-``model_name`` (str [default = 'sauter'])
-  The name of the model to use. If not provided, the default is to use the
-  Sauter model with default values. Options are ``'sauter'``, ``'redl'``, or ``'zeros'``.
-  Note that the Redl model has been shown to have poor accuracy in some cases
-  for multi-species plasmas.
+``model_name`` (str [default = ``'sauter'``])
+  The name of the bootstrap current model to use. If the ``bootstrap_current``
+  section is omitted, ``'zeros'`` is used. If the section is present without a
+  ``model_name``, ``'sauter'`` is used. Options are:
 
-If the ``sauter`` or ``redl`` model is used, the following parameters can be set:
+  * ``'sauter'``: Analytical model from |sauter99|.
+  * ``'redl'``: Analytical model from |redl2021|.
+  * ``'zeros'``: Sets bootstrap current to zero.
+
+If the ``'sauter'`` or ``'redl'`` model is used, the following parameter can be
+set:
 
 ``bootstrap_multiplier`` (float [default = 1.0])
   Multiplier for the bootstrap current.
 
 conductivity
 ^^^^^^^^^^^^
-``model_name`` (str [default = 'sauter'])
-  The name of the Sauter model to use. If not provided, the default is to use
-  the Sauter model with default values.
+``model_name`` (str [default = ``'sauter'``])
+  The name of the neoclassical parallel conductivity model to use. If the
+  ``conductivity`` section or ``model_name`` is omitted, ``'sauter'`` is used.
+  Options are:
+
+  * ``'sauter'`` (default): Analytical conductivity model from |sauter99|.
+  * ``'redl'``: Analytical conductivity model from |redl2021|.
 
 transport
 ^^^^^^^^^
-``model_name`` (str [default = 'zeros'])
-  The name of the neoclassical transport model. The following models are
+``model_name`` (str [default = ``'angioni_sauter'``])
+  The name of the neoclassical transport model. If the ``transport`` section is
+  omitted, ``'zeros'`` is used. If the section is present without a
+  ``model_name``, ``'angioni_sauter'`` is used. The following models are
   supported:
 
   * ``'zeros'``
     Sets all neoclassical transport coefficients to zero.
 
   * ``'angioni_sauter'``
-    The Angioni-Sauter neoclassical transport model from
-    `C. Angioni and O. Sauter, Phys. Plasmas 7, 1224 (2000) <https://doi.org/10.1063/1.873918>`_.
-    This is the default model. This model does not have any additional
-    configurable parameters.
+    The Angioni-Sauter neoclassical transport model from |angioni2000|, with an
+    optional near-axis ion thermal conductivity correction from |shaing1997|.
+    Supports the following additional parameters:
 
+    - ``use_shaing_ion_correction`` (bool [default = False]): If ``True``,
+      smoothly blends the near-axis Shaing ion thermal conductivity into the
+      Angioni-Sauter ion thermal conductivity.
+    - ``shaing_ion_multiplier`` (float [default = 1.8]): Multiplier applied to
+      the Shaing ion thermal conductivity term.
+    - ``shaing_blend_start`` (float in [0, 1] [default = 0.2]): Normalized
+      toroidal flux coordinate :math:`\hat{\rho}` where the sigmoid transition
+      between Shaing and Angioni-Sauter is centered.
+    - ``shaing_blend_rate`` (float [default = 5.0]): Steepness of the sigmoid
+      transition between the Shaing and Angioni-Sauter models.
+
+All neoclassical transport models share the following clipping bounds:
 
 ``chi_min`` (float [default = 0.0])
-  Lower allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Lower allowed bound for neoclassical heat conductivities
+  :math:`\chi_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``chi_max`` (float [default = 100.0])
-  Upper allowed bound for neoclassical heat conductivities :math:`\chi_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Upper allowed bound for neoclassical heat conductivities
+  :math:`\chi_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``D_e_min`` (float [default = 0.0])
-  Lower allowed bound for neoclassical particle diffusivity :math:`D_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Lower allowed bound for neoclassical particle diffusivity
+  :math:`D_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``D_e_max`` (float [default = 100.0])
-  Upper allowed bound for neoclassical particle conductivity :math:`D_\mathrm{neo}`,
-  in units of :math:`m^2/s`.
+  Upper allowed bound for neoclassical particle diffusivity
+  :math:`D_\mathrm{neo}`, in units of :math:`m^2/s`.
 
 ``V_e_min`` (float [default = -50.0])
-  Lower allowed bound for neoclassical particle convection terms
-  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
-  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
-  and :math:`V_\mathrm{neo, ware}` separately.
+  Lower allowed bound for neoclassical particle convection
+  :math:`V_\mathrm{neo}` in units of :math:`m/s`.
 
 ``V_e_max`` (float [default = 50.0])
-  Upper allowed bound for neoclassical particle convection terms
-  :math:`V_\mathrm{neo}` and :math:`V_\mathrm{neo, ware}` in units of :math:`m^2/s`.
-  Note that clipping to the desired range will be applied to  :math:`V_\mathrm{neo}`
-  and :math:`V_\mathrm{neo, ware}` separately.
+  Upper allowed bound for neoclassical particle convection
+  :math:`V_\mathrm{neo}` in units of :math:`m/s`.
+
+poloidal_velocity
+^^^^^^^^^^^^^^^^^
+``model_name`` (str [default = ``'kim'``])
+  The name of the neoclassical ion poloidal velocity model. If the
+  ``poloidal_velocity`` section or ``model_name`` is omitted, ``'kim'`` is
+  used. The following models are supported:
+
+  * ``'kim'`` (default): Analytical poloidal velocity model from |kim1991|.
+  * ``'zeros'``: Sets the neoclassical poloidal velocity to zero.
 
 ``poloidal_velocity_multiplier`` (float [default = 1.0])
-  Multiplier for the poloidal velocity.
+  Multiplier applied to the neoclassical poloidal velocity.
 
 restart
 -------
@@ -2931,11 +3089,11 @@ Profiles in TORAX can be read from any IMAS core_profiles or plasma_profiles IDS
 saved in Data Dictionary version 4.0.0 or newer.
 If the IDS is stored in an IMAS db or in a netCDF file it can be loaded using
 the loader function ``load_imas_data`` from |imas_loader|.
-It can then be loaded programatically in the ``CONFIG`` by constructing a nested
+It can then be loaded programmatically in the ``CONFIG`` by constructing a nested
 dictionary with the ``profile_conditions_from_imas`` and
 ``plasma_composition_from_imas`` functions from |core_profiles_input_imas|. The
 functions returns a dictionary whose structure fits the schema of
-profile_conditions or plasma_composition and can be programatically loaded into
+profile_conditions or plasma_composition and can be programmatically loaded into
 a ``CONFIG`` with standard dictionary manipulation.
 
 An example on how to inject the IMAS conditions into the config can be found in
@@ -2959,7 +3117,10 @@ CHEASE geometry), is shown below. The configuration file is also available in
   CONFIG = {
       'plasma_composition': {
           'main_ion': {'D': 0.5, 'T': 0.5},
-          'impurity': 'Ne',
+          'impurity': {
+              'impurity_mode': 'fractions',
+              'species': 'Ne',
+          },
           'Z_eff': 1.6,
       },
       'profile_conditions': {

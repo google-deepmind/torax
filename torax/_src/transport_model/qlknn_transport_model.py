@@ -28,13 +28,12 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.transport_model import base_qlknn_model
-from torax._src.transport_model import component
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 
 # pylint: disable=invalid-name
@@ -88,41 +87,6 @@ def get_model(path: str, name: str) -> base_qlknn_model.BaseQLKNNModel:
         f'Failed to load model with path "{path}" and name "{name}". Check that'
         ' the path exists.'
     ) from fnfe
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class QLKNNRuntimeConfigInputs:
-  """Runtime config inputs for QLKNN.
-
-  The runtime RuntimeParams contains global runtime parameters, not
-  all of which are cacheable. This set of inputs IS cacheable, and using this
-  added layer allows the global config to change without affecting how
-  QLKNNTransportModel works.
-  """
-
-  # pylint: disable=invalid-name
-  transport: RuntimeParams
-  Ped_top: float
-  set_pedestal: bool
-  # pylint: enable=invalid-name
-
-  @staticmethod
-  def from_runtime_params_slice(
-      transport_runtime_params: (
-          transport_runtime_params_lib.ComponentRuntimeParams
-      ),
-      runtime_params: runtime_params_lib.RuntimeParams,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> 'QLKNNRuntimeConfigInputs':
-    # Required for pytype
-    assert isinstance(transport_runtime_params, RuntimeParams)
-
-    return QLKNNRuntimeConfigInputs(
-        transport=transport_runtime_params,
-        Ped_top=pedestal_model_output.rho_norm_ped_top,  # pyrefly: ignore[bad-argument-type]
-        set_pedestal=runtime_params.pedestal.set_pedestal,  # pyrefly: ignore[bad-argument-type]
-    )
 
 
 def _filter_model_output(
@@ -277,14 +241,16 @@ class QLKNNTransportModel(
   path: str
   name: str
 
-  def call_implementation(  # pyrefly: ignore[bad-override]
+  def call_implementation(
       self,
-      transport_runtime_params: RuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> component.TurbulentTransport:
+      two_point_mask: array_typing.BoolVectorFace,
+  ) -> transport_coeffs.TransportCoeffs:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -294,7 +260,9 @@ class QLKNNTransportModel(
         simulation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      pedestal_model_output: Output of the pedestal model.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       coeffs: transport coefficients
@@ -302,35 +270,29 @@ class QLKNNTransportModel(
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
 
-    runtime_config_inputs = QLKNNRuntimeConfigInputs.from_runtime_params_slice(
-        transport_runtime_params,
-        runtime_params,
-        pedestal_model_output,
-    )
     return self._combined(
-        runtime_config_inputs,
+        transport_runtime_params,
         geo,
         core_profiles,
-        runtime_params.neoclassical.poloidal_velocity_multiplier,
+        two_point_mask,
     )
 
   def _combined(
       self,
-      runtime_config_inputs: QLKNNRuntimeConfigInputs,
+      transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
-  ) -> component.TurbulentTransport:
+      two_point_mask: array_typing.BoolVectorFace,
+  ) -> transport_coeffs.TransportCoeffs:
     """Actual implementation of `__call__`.
 
-    `__call__` itself is just a cache dispatch wrapper.
-
     Args:
-      runtime_config_inputs: Input runtime parameters that can change without
-        triggering a JAX recompilation.
+      transport: Input runtime parameters for this transport model.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      poloidal_velocity_multiplier: Poloidal velocity multiplier.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       chi_face_ion: Chi for ion temperature, along faces.
@@ -339,10 +301,10 @@ class QLKNNTransportModel(
       v_face_ne: Convectivity for electron density, along faces.
     """
     qualikiz_inputs = self._prepare_qualikiz_inputs(
-        transport=runtime_config_inputs.transport,
+        transport=transport,
         geo=geo,
         core_profiles=core_profiles,
-        poloidal_velocity_multiplier=poloidal_velocity_multiplier,
+        two_point_mask=two_point_mask,
     )
     model = get_model(self.path, self.name)
 
@@ -359,10 +321,10 @@ class QLKNNTransportModel(
     # Clip inputs if requested.
     # TODO(b/364218524): Consider better clipping of out-of-distribution inputs.
     feature_scan = jax.lax.cond(
-        runtime_config_inputs.transport.clip_inputs,
+        transport.clip_inputs,
         lambda: clip_inputs(
             feature_scan,
-            runtime_config_inputs.transport.clip_margin,
+            transport.clip_margin,
             model.inputs_and_ranges,
         ),  # Called when True
         lambda: feature_scan,  # Called when False
@@ -372,16 +334,16 @@ class QLKNNTransportModel(
     model_output = _maybe_apply_rotation_rule(
         model_output,
         qualikiz_inputs,
-        runtime_config_inputs.transport.rotation_mode,
-        runtime_config_inputs.transport.shear_suppression_alpha,
+        transport.rotation_mode,
+        transport.shear_suppression_alpha,
         geo,
     )
 
     model_output = _filter_model_output(
         model_output=model_output,
-        include_ITG=runtime_config_inputs.transport.include_ITG,
-        include_TEM=runtime_config_inputs.transport.include_TEM,
-        include_ETG=runtime_config_inputs.transport.include_ETG,
+        include_ITG=transport.include_ITG,
+        include_TEM=transport.include_TEM,
+        include_ETG=transport.include_ETG,
     )
 
     # combine fluxes
@@ -389,12 +351,12 @@ class QLKNNTransportModel(
     qi_tem = model_output['qi_tem'].squeeze()
     qe_itg = (
         model_output['qe_itg'].squeeze()
-        * runtime_config_inputs.transport.ITG_flux_ratio_correction
+        * transport.ITG_flux_ratio_correction
     )
     qe_tem = model_output['qe_tem'].squeeze()
     qe_etg = (
         model_output['qe_etg'].squeeze()
-        * runtime_config_inputs.transport.ETG_correction_factor
+        * transport.ETG_correction_factor
     )
     pfe_itg = model_output['pfe_itg'].squeeze()
     pfe_tem = model_output['pfe_tem'].squeeze()
@@ -410,14 +372,17 @@ class QLKNNTransportModel(
         qe=qe_total,
         pfe=pfe_total,
         quasilinear_inputs=qualikiz_inputs,
-        transport=runtime_config_inputs.transport,
+        transport=transport,
         geo=geo,
         core_profiles=core_profiles,
         gradient_reference_length=geo.R_major,
         gyrobohm_flux_reference_length=geo.a_minor,
+        two_point_mask=two_point_mask,
     )
 
-    def add_mode_contributions() -> component.TurbulentTransport:
+    def add_mode_contributions() -> (
+        qualikiz_based_transport_model.QualikizTransportModelOutput
+    ):
       """Decompose transport coefficients into mode contributions."""
       eps = constants.CONSTANTS.eps
 
@@ -436,8 +401,11 @@ class QLKNNTransportModel(
       v_el_itg = base_transport.v_face_el * pfe_itg / (pfe_total + eps)
       v_el_tem = base_transport.v_face_el * pfe_tem / (pfe_total + eps)
 
-      return dataclasses.replace(
-          base_transport,
+      return qualikiz_based_transport_model.QualikizTransportModelOutput(
+          chi_face_ion=base_transport.chi_face_ion,
+          chi_face_el=base_transport.chi_face_el,
+          d_face_el=base_transport.d_face_el,
+          v_face_el=base_transport.v_face_el,
           chi_face_ion_itg=chi_ion_itg,
           chi_face_ion_tem=chi_ion_tem,
           chi_face_el_itg=chi_el_itg,
@@ -449,6 +417,6 @@ class QLKNNTransportModel(
           v_face_el_tem=v_el_tem,
       )
 
-    if runtime_config_inputs.transport.output_mode_contributions:
+    if transport.output_mode_contributions:
       base_transport = add_mode_contributions()
     return base_transport

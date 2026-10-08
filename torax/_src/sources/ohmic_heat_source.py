@@ -15,7 +15,6 @@
 
 import dataclasses
 from typing import Annotated, ClassVar, Literal
-import chex
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
@@ -24,7 +23,6 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import psi_calculations
 from torax._src.sources import base
-from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -73,7 +71,7 @@ def ohmic_model_func(
     psidot = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=psi_sources,
         sigma=conductivity.sigma,
-        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
+        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
         psi=core_profiles.psi,
         geo=geo,
     )
@@ -92,38 +90,23 @@ class OhmicHeatSource(source_lib.Source):
   IV.
   """
 
-  SOURCE_NAME: ClassVar[str] = 'ohmic'
+  SOURCE_ID: ClassVar[str] = 'ohmic'
   AFFECTED_CORE_PROFILES: ClassVar[
       tuple[source_lib.AffectedCoreProfile, ...]
   ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
   model_func: source_lib.SourceProfileFunction = ohmic_model_func  # pyrefly: ignore[bad-assignment]
 
 
-class OhmicHeatSourceConfig(base.SourceModelBase):
+class OhmicHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the OhmicHeatSource."""
 
   model_name: Annotated[Literal['standard'], torax_pydantic.JAX_STATIC] = (
       'standard'
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source_lib.SourceProfileFunction:
     return ohmic_model_func  # pyrefly: ignore[bad-return]
-
-  def build_runtime_params(
-      self,
-      t: chex.Numeric,
-  ) -> sources_runtime_params_lib.RuntimeParams:
-    return sources_runtime_params_lib.RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
-    )
 
   def build_source(self) -> OhmicHeatSource:
     return OhmicHeatSource(model_func=self.model_func)

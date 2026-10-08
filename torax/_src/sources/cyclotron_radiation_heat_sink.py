@@ -16,13 +16,14 @@
 
 """Cyclotron radiation heat sink for electron heat equation.."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
 from jax import numpy as jnp
 import pydantic
 from torax._src import array_typing
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
@@ -34,7 +35,6 @@ from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 # Default value for the model function to be used for the Cyclotron radiation
 # heat sink source. This is also used as an identifier for the model function in
@@ -83,6 +83,13 @@ def _alpha_closed_form(
 
   The solution is provided by setting d loss / d alpha = 0.
 
+  Because the Albajar parameterization (F. Albajar et al., Nucl. Fusion 41, 665,
+  2001, Eqs. 11-13) is only defined for peaked or flat profiles (alpha >= 0),
+  differences from profile_edge_value are clamped to eps to avoid non-positive
+  logarithm arguments, and the fitted alpha is clamped to >= 0.0 so flat,
+  hollow, or inverted profiles fall back to the flat-profile limit (alpha = 0)
+  without producing NaNs in the profile factor K.
+
   Args:
     beta: The beta parameter to use in the parameterized functions. For the
       density fit, this is always 2.
@@ -93,16 +100,15 @@ def _alpha_closed_form(
       temperature and density fits.
 
   Returns:
-    The alpha parameter being fit for either the density or temperature fits.
+    The non-negative alpha parameter being fit for either the density or
+    temperature fits.
   """
-  # To avoid dealing with slicing of non-concrete values, we do a masking trick
-  # where we replace the values of n_e_data and rhonorm above 0.9 with values
-  # that will not contribute to the sums in the numerator and denominator.
-
+  # Clamp differences from edge value to eps to keep log arguments positive.
+  profile_data_norm = jnp.maximum(
+      profile_data - profile_edge_value, constants.CONSTANTS.eps
+  ) / jnp.maximum(profile_data[0] - profile_edge_value, constants.CONSTANTS.eps)
+  # Mask rho_norm >= 0.9 to 1.0 and 0.0 so log=0 in the sums without slicing.
   mask = rho_norm < 0.9
-  profile_data_norm = (profile_data - profile_edge_value) / (
-      profile_data[0] - profile_edge_value
-  )
   sliced_profile_data_norm = jnp.where(mask, profile_data_norm, 1.0)
   sliced_rhonorm = jnp.where(mask, rho_norm, 0.0)
 
@@ -111,8 +117,8 @@ def _alpha_closed_form(
   )
   den = jnp.sum(jnp.log(1 - sliced_rhonorm**beta) ** 2)
 
-  alpha_n = num / den
-  return alpha_n
+  # Clamp alpha >= 0.0 for the peaked/flat Albajar parameterization.
+  return jnp.maximum(num / den, 0.0)
 
 
 def _loss_for_beta_t(
@@ -284,7 +290,7 @@ def cyclotron_radiation_albajar(
   # Dimensionless optical thickness parameter, on-axis:
   # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
   # plasma frequency and omega_ce is the cyclotron frequency.
-  p_a_0 = 6.04e3 * geo.a_minor * n_e20_face[0] / geo.B_0  # pyrefly: ignore[bad-index]
+  p_a_0 = 6.04e3 * geo.a_minor * n_e20_face[0] / geo.B_0
 
   # Dimensionless correction term for aspect ratio (equation 15 in Albajar)
   G = 0.93 * (1 + 0.85 * jnp.exp(-0.82 * geo.R_major_profile / geo.a_minor))
@@ -293,7 +299,7 @@ def cyclotron_radiation_albajar(
   alpha_n = _alpha_closed_form(
       beta=2.0,
       rho_norm=geo.rho_face_norm,
-      profile_data=n_e20_face,  # pyrefly: ignore[bad-argument-type]
+      profile_data=n_e20_face,
       profile_edge_value=0.0,
   )
   beta_scan_parameters = (
@@ -303,7 +309,7 @@ def cyclotron_radiation_albajar(
   )
   alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
       rho_norm=geo.rho_face_norm,
-      te_data=core_profiles.T_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+      te_data=core_profiles.T_e.face_value(),
       beta_scan_parameters=beta_scan_parameters,  # pyrefly: ignore[bad-argument-type]
   )
 
@@ -323,10 +329,10 @@ def cyclotron_radiation_albajar(
       * geo.a_minor**1.38
       * geo.elongation_face[-1] ** 0.79
       * geo.B_0**2.62
-      * n_e20_face[0] ** 0.38  # pyrefly: ignore[bad-index]
-      * core_profiles.T_e.face_value()[0]  # pyrefly: ignore[bad-index]
-      * (16 + core_profiles.T_e.face_value()[0]) ** 2.61  # pyrefly: ignore[bad-index]
-      * (1 + 0.12 * core_profiles.T_e.face_value()[0] / p_a_0**0.41) ** -1.51  # pyrefly: ignore[bad-index]
+      * n_e20_face[0] ** 0.38
+      * core_profiles.T_e.face_value()[0]
+      * (16 + core_profiles.T_e.face_value()[0]) ** 2.61
+      * (1 + 0.12 * core_profiles.T_e.face_value()[0] / p_a_0**0.41) ** -1.51
       * K
       * G
   )
@@ -353,14 +359,14 @@ def cyclotron_radiation_albajar(
 class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation heat sink for electron heat equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'cyclotron_radiation'
+  SOURCE_ID: ClassVar[str] = 'cyclotron_radiation'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
   )
   model_func: source.SourceProfileFunction = cyclotron_radiation_albajar  # pyrefly: ignore[bad-assignment]
 
 
-class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
+class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):
   """Cyclotron radiation heat sink for electron heat equation.
 
   Attributes:
@@ -379,9 +385,6 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
   model_name: Annotated[
       Literal['albajar_artaud'], torax_pydantic.JAX_STATIC
   ] = 'albajar_artaud'
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9
   beta_min: Annotated[float, torax_pydantic.JAX_STATIC] = 0.5
   beta_max: Annotated[float, torax_pydantic.JAX_STATIC] = 8.0
@@ -390,7 +393,7 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
   )
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     if not self.beta_min < self.beta_max:
       raise ValueError('beta_min must be less than beta_max.')
     return self
@@ -404,12 +407,8 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> 'RuntimeParams':
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
+        **dataclasses.asdict(super().build_runtime_params(t)),
         wall_reflection_coeff=self.wall_reflection_coeff,
-        mode=self.mode,
-        is_explicit=self.is_explicit,
         beta_min=self.beta_min,
         beta_max=self.beta_max,
         beta_grid_size=self.beta_grid_size,

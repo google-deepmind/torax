@@ -26,6 +26,7 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import initialization
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
@@ -54,7 +55,7 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_i_right_bc=bound,
         T_i=value,
@@ -66,7 +67,7 @@ class GettersTest(parameterized.TestCase):
   def test_only_updating_boundary_condition(self):
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_i_right_bc=0.5,
         T_i=value,
@@ -91,7 +92,7 @@ class GettersTest(parameterized.TestCase):
     bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_e_right_bc=bound,
         T_e=value,
@@ -106,7 +107,7 @@ class GettersTest(parameterized.TestCase):
   def test_only_updating_boundary_condition_electron_temperature(self):
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         T_e_right_bc=0.5,
         T_e=value,
@@ -157,7 +158,7 @@ class GettersTest(parameterized.TestCase):
     """Tests that only updating the boundary condition works."""
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
-        profile_conditions_lib.RuntimeParams,
+        core_profile_runtime_params.RuntimeParams,
         instance=True,
         n_e_right_bc=0.5,
         n_e=value,
@@ -333,8 +334,8 @@ class GettersTest(parameterized.TestCase):
     )
 
     ratio = n_e_unnormalized.value / n_e_normalized.value
-    np.all(np.isclose(ratio, ratio[0]))  # pyrefly: ignore[bad-index]
-    self.assertNotEqual(ratio[0], 1.0)  # pyrefly: ignore[bad-index]
+    np.all(np.isclose(ratio, ratio[0]))
+    self.assertNotEqual(ratio[0], 1.0)
 
   @parameterized.parameters(
       True,
@@ -379,8 +380,8 @@ class GettersTest(parameterized.TestCase):
     )
 
     ratio = n_e.value / n_e_fGW.value
-    np.all(np.isclose(ratio, ratio[0]))  # pyrefly: ignore[bad-index]
-    self.assertNotEqual(ratio[0], 1.0)  # pyrefly: ignore[bad-index]
+    np.all(np.isclose(ratio, ratio[0]))
+    self.assertNotEqual(ratio[0], 1.0)
 
   def test_get_updated_ion_data(self):
     expected_value = np.array([1.4375e20, 1.3125e20, 1.1875e20, 1.0625e20])
@@ -439,7 +440,7 @@ class GettersTest(parameterized.TestCase):
     config['plasma_composition']['Z_eff'] = {0.0: 1.0, 1.0: 2.0}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
@@ -455,7 +456,7 @@ class GettersTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     # runtime_params.plasma_composition.Z_eff_face is not
@@ -471,17 +472,17 @@ class GettersTest(parameterized.TestCase):
     calculated_Z_eff = getters._calculate_Z_eff(
         core_profiles.Z_i,
         core_profiles.Z_impurity,
-        core_profiles.n_i.value,  # pyrefly: ignore[bad-argument-type]
-        core_profiles.n_impurity.value,  # pyrefly: ignore[bad-argument-type]
-        core_profiles.n_e.value,  # pyrefly: ignore[bad-argument-type]
+        core_profiles.n_i.value,
+        core_profiles.n_impurity.value,
+        core_profiles.n_e.value,
     )
 
     calculated_Z_eff_face = getters._calculate_Z_eff(
         core_profiles.Z_i_face,
         core_profiles.Z_impurity_face,
-        core_profiles.n_i.face_value(),  # pyrefly: ignore[bad-argument-type]
-        core_profiles.n_impurity.face_value(),  # pyrefly: ignore[bad-argument-type]
-        core_profiles.n_e.face_value(),  # pyrefly: ignore[bad-argument-type]
+        core_profiles.n_i.face_value(),
+        core_profiles.n_impurity.face_value(),
+        core_profiles.n_e.face_value(),
     )
 
     np.testing.assert_allclose(
@@ -543,8 +544,11 @@ class GettersTest(parameterized.TestCase):
         'plasma_composition': {
             'main_ion': 'D',
             'impurity': {
-                'W': impurity_fraction_w,
-                'He3': impurity_fraction_he3,
+                'impurity_mode': 'fractions',
+                'species': {
+                    'W': impurity_fraction_w,
+                    'He3': impurity_fraction_he3,
+                },
             },
             'Z_eff': zeff,
         },
@@ -566,13 +570,13 @@ class GettersTest(parameterized.TestCase):
     T_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, T_e),
         face_centers=geo.rho_face_norm,
-        right_face_constraint=T_e,  # pyrefly: ignore[bad-argument-type]
+        right_face_constraint=T_e,
         right_face_grad_constraint=None,
     )
     n_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, n_e),
         face_centers=geo.rho_face_norm,
-        right_face_constraint=n_e,  # pyrefly: ignore[bad-argument-type]
+        right_face_constraint=n_e,
         right_face_grad_constraint=None,
     )
     ions = getters.get_updated_ions(
@@ -671,13 +675,13 @@ class GettersTest(parameterized.TestCase):
     T_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, T_e),
         face_centers=geo.rho_face_norm,
-        right_face_constraint=T_e,  # pyrefly: ignore[bad-argument-type]
+        right_face_constraint=T_e,
         right_face_grad_constraint=None,
     )
     n_e_cell_variable = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, n_e),
         face_centers=geo.rho_face_norm,
-        right_face_constraint=n_e,  # pyrefly: ignore[bad-argument-type]
+        right_face_constraint=n_e,
         right_face_grad_constraint=None,
     )
     ions = getters.get_updated_ions(
@@ -795,13 +799,13 @@ class GettersTest(parameterized.TestCase):
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=t_e_keV,  # pyrefly: ignore[bad-argument-type]
+          right_face_constraint=t_e_keV,
           right_face_grad_constraint=None,
       )
       n_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, n_e_val),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=n_e_val,  # pyrefly: ignore[bad-argument-type]
+          right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
       return getters.get_updated_ions(
@@ -856,13 +860,13 @@ class GettersTest(parameterized.TestCase):
     T_e_cv = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, t_e_keV),
         face_centers=geo.rho_face_norm,
-        right_face_constraint=t_e_keV,  # pyrefly: ignore[bad-argument-type]
+        right_face_constraint=t_e_keV,
         right_face_grad_constraint=None,
     )
     n_e_cv = cell_variable.CellVariable(
         value=jnp.full_like(geo.rho_norm, n_e_val),
         face_centers=geo.rho_face_norm,
-        right_face_constraint=n_e_val,  # pyrefly: ignore[bad-argument-type]
+        right_face_constraint=n_e_val,
         right_face_grad_constraint=None,
     )
     ions = getters.get_updated_ions(
@@ -995,13 +999,13 @@ class GettersTest(parameterized.TestCase):
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=t_e_keV,  # pyrefly: ignore[bad-argument-type]
+          right_face_constraint=t_e_keV,
           right_face_grad_constraint=None,
       )
       n_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, n_e_val),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=n_e_val,  # pyrefly: ignore[bad-argument-type]
+          right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
       return getters.get_updated_ions(
@@ -1065,13 +1069,13 @@ class GettersTest(parameterized.TestCase):
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=t_e_keV,  # pyrefly: ignore[bad-argument-type]
+          right_face_constraint=t_e_keV,
           right_face_grad_constraint=None,
       )
       n_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, n_e_val),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=n_e_val,  # pyrefly: ignore[bad-argument-type]
+          right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
       return getters.get_updated_ions(
@@ -1166,13 +1170,13 @@ class GettersTest(parameterized.TestCase):
       t_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, t_e_keV),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=t_e_keV,  # pyrefly: ignore[bad-argument-type]
+          right_face_constraint=t_e_keV,
           right_face_grad_constraint=None,
       )
       n_e_cell_variable = cell_variable.CellVariable(
           value=jnp.full_like(geo.rho_norm, n_e_val),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=n_e_val,  # pyrefly: ignore[bad-argument-type]
+          right_face_constraint=n_e_val,
           right_face_grad_constraint=None,
       )
       return getters.get_updated_ions(
@@ -1271,13 +1275,13 @@ class GettersTest(parameterized.TestCase):
     runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
 
     initial_core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     ions = getters.get_updated_ions(
@@ -1291,7 +1295,7 @@ class GettersTest(parameterized.TestCase):
     np.testing.assert_allclose(ions.Z_eff, 1.0)
     np.testing.assert_allclose(ions.n_i.value, initial_core_profiles.n_e.value)
 
-    _, state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config)
     np.testing.assert_equal(
         state_history.sim_error,
         state.SimError.NO_ERROR,

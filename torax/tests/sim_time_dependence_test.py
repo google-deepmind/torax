@@ -23,6 +23,7 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -33,7 +34,6 @@ from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
@@ -44,6 +44,7 @@ from torax._src.transport_model import component
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
+from torax._src.transport_model import transport_coeffs
 
 
 def setUpModule():
@@ -222,8 +223,8 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
       pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState | None
-      ) = None,
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -278,9 +279,9 @@ class FakeTransportModel(component.ComponentTransportModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> component.TurbulentTransport:
-    return component.TurbulentTransport(
+      two_point_mask: array_typing.BoolVectorFace,
+  ) -> transport_coeffs.TransportCoeffs:
+    return transport_coeffs.TransportCoeffs(
         chi_face_ion=jnp.zeros(geo.rho_face.shape),
         chi_face_el=jnp.zeros(geo.rho_face.shape),
         d_face_el=jnp.zeros(geo.rho_face.shape),

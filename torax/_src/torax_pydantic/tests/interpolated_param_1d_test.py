@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Annotated
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -23,7 +24,6 @@ from torax._src import jax_utils
 from torax._src.geometry import circular_geometry
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 import xarray as xr
 
 RHO_NORM = 'rho_norm'
@@ -212,7 +212,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='gt_valid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalar,
               torax_pydantic.scalar_bounds_validator(gt=1.0),
           ],
@@ -221,7 +221,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='gt_equal_invalid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalar,
               torax_pydantic.scalar_bounds_validator(gt=1.0),
           ],
@@ -231,7 +231,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='ge_equal_valid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalar,
               torax_pydantic.scalar_bounds_validator(ge=1.0),
           ],
@@ -240,7 +240,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='lt_valid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalar,
               torax_pydantic.scalar_bounds_validator(lt=5.0),
           ],
@@ -249,7 +249,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='lt_equal_invalid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalar,
               torax_pydantic.scalar_bounds_validator(lt=5.0),
           ],
@@ -259,7 +259,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='le_equal_valid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalar,
               torax_pydantic.scalar_bounds_validator(le=5.0),
           ],
@@ -268,7 +268,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='interval_valid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalar,
               torax_pydantic.scalar_bounds_validator(
                   gt=1.0, lt=10.0
@@ -279,7 +279,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='interval_below_invalid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalar,
               torax_pydantic.scalar_bounds_validator(
                   gt=1.0, lt=10.0
@@ -291,7 +291,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='interval_above_invalid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalar,
               torax_pydantic.scalar_bounds_validator(
                   gt=1.0, lt=10.0
@@ -303,7 +303,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='step_mode_valid',
-          field_type=typing_extensions.Annotated[
+          field_type=Annotated[
               torax_pydantic.TimeVaryingScalarStep,
               torax_pydantic.scalar_bounds_validator(ge=0.0),
           ],

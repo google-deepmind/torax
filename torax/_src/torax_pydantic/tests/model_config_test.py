@@ -118,9 +118,9 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
 
-    new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pytype: disable=attribute-error
+    new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pyrefly: ignore[missing-attribute]
     new_hires_factor = (
-        config_pydantic.geometry.geometry_configs.config.hires_factor * 2  # pytype: disable=attribute-error
+        config_pydantic.geometry.geometry_configs.config.hires_factor * 2  # pyrefly: ignore[missing-attribute]
     )
 
     # Check that the caches are invalidated.
@@ -133,11 +133,11 @@ class ConfigTest(parameterized.TestCase):
     })
 
     self.assertEqual(
-        config_pydantic.geometry.geometry_configs.config.n_rho,  # pytype: disable=attribute-error
+        config_pydantic.geometry.geometry_configs.config.n_rho,  # pyrefly: ignore[missing-attribute]
         new_n_rho,
     )
     self.assertEqual(
-        config_pydantic.geometry.geometry_configs.config.hires_factor,  # pytype: disable=attribute-error
+        config_pydantic.geometry.geometry_configs.config.hires_factor,  # pyrefly: ignore[missing-attribute]
         new_hires_factor,
     )
 
@@ -158,7 +158,7 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
 
-    new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pytype: disable=attribute-error
+    new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pyrefly: ignore[missing-attribute]
 
     config_pydantic.update_fields({
         "geometry": {
@@ -168,7 +168,7 @@ class ConfigTest(parameterized.TestCase):
     })
 
     self.assertEqual(
-        config_pydantic.geometry.geometry_configs.config.n_rho,  # pytype: disable=attribute-error
+        config_pydantic.geometry.geometry_configs.config.n_rho,  # pyrefly: ignore[missing-attribute]
         new_n_rho,
     )
 
@@ -512,11 +512,11 @@ class ConfigTest(parameterized.TestCase):
 
     torax_config_restored = model_config.ToraxConfig.from_dict(dumped)
     assert (
-        torax_config_restored.geometry.geometry_configs.config.eqdsk_object  # pytype: disable=attribute-error
+        torax_config_restored.geometry.geometry_configs.config.eqdsk_object  # pyrefly: ignore[missing-attribute]
         is not None
     )
     self.assertIsInstance(
-        torax_config_restored.geometry.geometry_configs.config.eqdsk_object,  # pytype: disable=attribute-error
+        torax_config_restored.geometry.geometry_configs.config.eqdsk_object,  # pyrefly: ignore[missing-attribute]
         eqdsk_lib.EQDSKInterface,
     )
     provider = torax_config_restored.geometry.build_provider
@@ -799,6 +799,32 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     }
     # Should not raise because no edge model is active.
     model_config.ToraxConfig.from_dict(self.config)
+
+  def test_adaptive_transport_with_internal_boundary_conditions_raises(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["pedestal"] = {
+        "model_name": "set_T_ped_n_ped",
+        "mode": "ADAPTIVE_TRANSPORT",
+    }
+    config_dict["profile_conditions"]["internal_boundary_conditions"] = {
+        "model_name": "prescribed",
+        "T_e": {0.0: {(0.8, 1.0): 10.0}},
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "Internal boundary conditions cannot be configured when pedestal mode"
+        " is ADAPTIVE_TRANSPORT",
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  def test_adaptive_transport_without_internal_boundary_conditions_passes(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["pedestal"] = {
+        "model_name": "set_T_ped_n_ped",
+        "mode": "ADAPTIVE_TRANSPORT",
+    }
+    # Should not raise when internal_boundary_conditions is default/empty
+    model_config.ToraxConfig.from_dict(config_dict)
 
 
 if __name__ == "__main__":

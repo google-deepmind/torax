@@ -21,9 +21,19 @@ import jax.numpy as jnp
 from torax._src.solver import linesearch
 
 
-class BacktrackingLinesearchTest(parameterized.TestCase):
+@parameterized.named_parameters(
+    {
+        'testcase_name': 'sequential',
+        'use_vmap': False,
+    },
+    {
+        'testcase_name': 'vmapped',
+        'use_vmap': True,
+    },
+)
+class BacktrackingLinesearchTest(absltest.TestCase):
 
-  def test_linesearch_success(self):
+  def test_linesearch_success(self, use_vmap):
     def residual_fn(x):
       return x - 2.0
 
@@ -47,13 +57,14 @@ class BacktrackingLinesearchTest(parameterized.TestCase):
         initial_residual_norm=jnp.array(2.0),
         delta_reduction_factor=0.5,
         max_steps=10,
+        vmap=use_vmap,
     )
 
-    self.assertTrue(bool(final.step_found))
+    self.assertTrue(bool(final.accepted))
     self.assertLessEqual(int(final.iteration), 10)
     chex.assert_trees_all_close(final.x, jnp.array(2.0))
 
-  def test_linesearch_backtracking(self):
+  def test_linesearch_backtracking(self, use_vmap):
     # A function that increases residual if step is too large
     def residual_fn(x):
       # If x > 1.0, return large residual, else return x - 2.0
@@ -79,13 +90,14 @@ class BacktrackingLinesearchTest(parameterized.TestCase):
         initial_residual_norm=jnp.array(2.0),
         delta_reduction_factor=0.5,
         max_steps=10,
+        vmap=use_vmap,
     )
 
-    self.assertTrue(bool(final.step_found))
+    self.assertTrue(bool(final.accepted))
     self.assertGreater(int(final.iteration), 1)  # Must have backtracked
     chex.assert_trees_all_close(final.x, jnp.array(1.0))
 
-  def test_linesearch_pytree(self):
+  def test_linesearch_pytree(self, use_vmap):
     def residual_fn(x):
       return {'a': x['a'] - 2.0, 'b': x['b'] - 3.0}
 
@@ -112,9 +124,10 @@ class BacktrackingLinesearchTest(parameterized.TestCase):
         initial_residual_norm=init_norm,
         delta_reduction_factor=0.5,
         max_steps=10,
+        vmap=use_vmap,
     )
 
-    self.assertTrue(bool(final.step_found))
+    self.assertTrue(bool(final.accepted))
     chex.assert_trees_all_close(
         final.x, {'a': jnp.array(2.0), 'b': jnp.array(3.0)}
     )

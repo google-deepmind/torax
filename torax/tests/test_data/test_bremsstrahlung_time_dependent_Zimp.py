@@ -21,7 +21,10 @@ Ip from parameters. implicit, T_i+T_e, Pei low dens, no pedestal, constant chi
 CONFIG = {
     'plasma_composition': {
         'Z_eff': {0: {0: 3.0, 1: 3.0}, 1: {0: 5.0, 1: 5.0}},
-        'Z_impurity_override': {0: 10.0, 1: 30.0},
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'Z_override': {0: 10.0, 1: 30.0},
+        },
     },
     'profile_conditions': {
         'n_e_nbar_is_fGW': True,
@@ -60,8 +63,8 @@ CONFIG = {
     },
     'transport': {
         'core_transport_models': {
-            'constant': {
-                'model_name': 'constant',
+            'prescribed': {
+                'model_name': 'prescribed',
                 'chi_i': 0.5,
                 'chi_e': 0.5,
             },

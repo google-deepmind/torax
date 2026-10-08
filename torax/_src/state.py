@@ -17,7 +17,7 @@
 import dataclasses
 import enum
 import functools
-from typing import Mapping
+from typing import Mapping, Self
 
 from absl import logging
 import jax
@@ -27,9 +27,11 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
 from torax._src.physics import fast_ion as fast_ion_lib
-import typing_extensions
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 
 # pylint: disable=invalid-name
@@ -111,6 +113,7 @@ class CoreProfiles:
       j_total_face: Total current density on face grid [A/m^2].
       Ip_profile_face: Plasma current profile on the face grid [A].
       toroidal_angular_velocity: Toroidal angular velocity [rad/s].
+      poloidal_velocity: Neoclassical poloidal velocity [m/s].
       charge_state_info: Container with averaged and per-species ion charge
         state information. See `charge_states.ChargeStateInfo`. Cell grid.
       charge_state_info_face: Container with averaged and per-species ion charge
@@ -151,6 +154,7 @@ class CoreProfiles:
   j_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
   toroidal_angular_velocity: cell_variable.CellVariable
+  poloidal_velocity: cell_variable.CellVariable
   charge_state_info: charge_states.ChargeStateInfo
   charge_state_info_face: charge_states.ChargeStateInfo
   fast_ions: tuple[fast_ion_lib.FastIon, ...]
@@ -191,12 +195,12 @@ class CoreProfiles:
     n_impurity_thermal_right = self.n_impurity.right_face_constraint
     for fast_ion in self.fast_ions:
       if fast_ion.species in self.impurity_fractions:
-        n_impurity_thermal_value -= fast_ion.n.value  # pyrefly: ignore[unsupported-operation]
+        n_impurity_thermal_value -= fast_ion.n.value
         if (
             n_impurity_thermal_right is not None
             and fast_ion.n.right_face_constraint is not None
         ):
-          n_impurity_thermal_right -= fast_ion.n.right_face_constraint  # pyrefly: ignore[unsupported-operation]
+          n_impurity_thermal_right -= fast_ion.n.right_face_constraint
     return cell_variable.CellVariable(
         value=n_impurity_thermal_value,
         face_centers=self.n_impurity.face_centers,
@@ -290,13 +294,15 @@ class CoreProfiles:
         right_face_grad_constraint=None,
     )
 
-  def quasineutrality_satisfied(self) -> bool:
+  @jax.jit
+  def quasineutrality_satisfied(self) -> jax.Array:
     """Checks if quasineutrality is satisfied."""
     return jnp.allclose(
         self.n_i.value * self.Z_i + self.n_impurity.value * self.Z_impurity,
         self.n_e.value,
-    ).item()
+    )
 
+  @jax.jit
   def negative_temperature_or_density(self) -> jax.Array:
     """Checks if any temperature or density is negative."""
     profiles_to_check = (
@@ -309,14 +315,15 @@ class CoreProfiles:
     )
     # Check if any profile is less than -eps
     # (allowing for numerical precision errors)
-    return np.any(  # pyrefly: ignore[bad-return]
-        np.array([
-            np.any(np.less(x, -constants.CONSTANTS.eps))  # pyrefly: ignore[unsupported-operation]
+    return jnp.any(
+        jnp.stack([
+            jnp.any(jnp.less(x, -constants.CONSTANTS.eps))  # pyrefly: ignore[unsupported-operation]
             for x in jax.tree.leaves(profiles_to_check)
         ])
     )
 
-  def below_minimum_temperature(self, T_minimum_eV: float) -> bool:
+  @jax.jit
+  def below_minimum_temperature(self, T_minimum_eV: float) -> jax.Array:
     """Return True if T_e or T_i is below the minimum temperature threshold."""
     # Convert eV -> keV since internal storage is keV
     T_minimum_keV = T_minimum_eV / 1000.0
@@ -324,8 +331,134 @@ class CoreProfiles:
     is_low_te = jnp.any(self.T_e.value < T_minimum_keV)
     is_low_ti = jnp.any(self.T_i.value < T_minimum_keV)
 
-    # Use .item() to return a concrete Python boolean
-    return (is_low_te | is_low_ti).item()
+    return is_low_te | is_low_ti
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts core profiles into an OutputVar mapping."""
+    out_dict = {}
+
+    # 1. Standard CellVariable profiles (CELL_PLUS_BOUNDARIES)
+    cell_vars = {
+        output_keys.T_I: self.T_i.cell_plus_boundaries(),
+        output_keys.T_E: self.T_e.cell_plus_boundaries(),
+        output_keys.PSI: self.psi.cell_plus_boundaries(),
+        output_keys.V_LOOP: self.psidot.cell_plus_boundaries(),
+        output_keys.N_E: self.n_e.cell_plus_boundaries(),
+        output_keys.N_I: self.n_i.cell_plus_boundaries(),
+        output_keys.N_IMPURITY: self.n_impurity.cell_plus_boundaries(),
+        output_keys.TOROIDAL_ANGULAR_VELOCITY: (
+            self.toroidal_angular_velocity.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_THERMAL_E: (
+            self.pressure_thermal_e.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_THERMAL_I: (
+            self.pressure_thermal_i.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_THERMAL_TOTAL: (
+            self.pressure_thermal_total.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_FAST_I: (
+            self.pressure_fast_i.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_TOTAL_I: (
+            self.pressure_total_i.cell_plus_boundaries()
+        ),
+        output_keys.PRESSURE_TOTAL: (
+            self.pressure_total.cell_plus_boundaries()
+        ),
+    }
+    for key, cell_val in cell_vars.items():
+      out_dict[key] = context.pack(key, cell_val)
+
+    # 2. Combined Cell + Face profiles (CELL_PLUS_BOUNDARIES)
+    cell_face_pairs = [
+        (output_keys.Z_I, self.Z_i, self.Z_i_face),
+        (output_keys.Z_IMPURITY, self.Z_impurity, self.Z_impurity_face),
+        (output_keys.Z_EFF, self.Z_eff, self.Z_eff_face),
+        (output_keys.SIGMA_PARALLEL, self.sigma, self.sigma_face),
+        (output_keys.J_TOROIDAL_TOTAL, self.j_total, self.j_total_face),
+    ]
+    for key, cell_val, face_val in cell_face_pairs:
+      extended_data = output_grid_context.extend_cell_grid_to_boundaries(
+          cell_val, face_val
+      )
+      out_dict[key] = context.pack(key, extended_data)
+
+    # TODO(b/434175938): Special handling for A_impurity for backward
+    # compatibility with V1 API for default 'fractions' impurity mode where
+    # A_impurity was a scalar.
+    # Check if A_impurity is constant across the radial dimension for all
+    # time steps. Slicing is required to avoid broadcasting errors.
+    is_constant = np.all(self.A_impurity == self.A_impurity[..., 0:1], axis=-1)
+    if np.all(is_constant):
+      out_dict[output_keys.A_IMPURITY] = context.pack(
+          output_keys.A_IMPURITY, self.A_impurity[..., 0]
+      )
+    else:
+      extended_a_impurity = (
+          output_grid_context.extend_cell_grid_to_boundaries(
+              self.A_impurity, self.A_impurity_face
+          )
+      )
+      a_imp_key = output_keys.OutputKey(
+          output_keys.A_IMPURITY,
+          units=output_keys.A_IMPURITY.units,
+          grid_type=output_keys.GridType.CELL_PLUS_BOUNDARIES,
+      )
+      out_dict[a_imp_key] = context.pack(a_imp_key, extended_a_impurity)
+
+    # 3. Face-only profiles (FACE)
+    face_vars = {
+        output_keys.Q: self.q_face,
+        output_keys.MAGNETIC_SHEAR: self.s_face,
+        output_keys.IP_PROFILE: self.Ip_profile_face,
+    }
+    for key, face_data in face_vars.items():
+      out_dict[key] = context.pack(key, face_data)
+
+    # 4. Scalars (SCALAR)
+    scalar_vars = {
+        output_keys.V_LOOP_LCFS: self.v_loop_lcfs,
+        output_keys.A_I: self.A_i,
+        output_keys.IP: self.Ip_profile_face[..., -1],
+    }
+    for key, scalar_data in scalar_vars.items():
+      out_dict[key] = context.pack(key, scalar_data)
+
+    # 5. Multi-dimensional collections: main_ion_fractions
+    if self.main_ion_fractions:
+      main_ions = sorted(self.main_ion_fractions)
+      data = np.stack(
+          [self.main_ion_fractions[ion] for ion in main_ions],
+          axis=0,
+      )
+      out_dict[output_keys.MAIN_ION_FRACTIONS] = (
+          (output_keys.MAIN_ION, output_keys.TIME),
+          data,
+          output_keys.get_units(output_keys.MAIN_ION_FRACTIONS),
+      )
+
+    # 6. Fast ions (CELL_PLUS_BOUNDARIES)
+    for fi in self.fast_ions:
+      source_key = f"{fi.source}_{fi.species}"
+      n_key = output_keys.OutputKey(
+          output_keys.n_fast_ion_key(source_key),
+          units=output_keys.Units.INVERSE_CUBIC_METER,
+          grid_type=output_keys.GridType.CELL_PLUS_BOUNDARIES,
+      )
+      t_key = output_keys.OutputKey(
+          output_keys.T_fast_ion_key(source_key),
+          units=output_keys.Units.KEV,
+          grid_type=output_keys.GridType.CELL_PLUS_BOUNDARIES,
+      )
+      out_dict[n_key] = context.pack(n_key, fi.n.cell_plus_boundaries())
+      out_dict[t_key] = context.pack(t_key, fi.T.cell_plus_boundaries())
+
+    return out_dict
 
   def __str__(self) -> str:
     return f"""
@@ -341,139 +474,44 @@ class CoreProfiles:
     """
 
 
-# TODO(b/426132633): restructure and rename attributes for V2. Choices were made
-# when refactoring to avoid breaking public API.
 @jax.tree_util.register_dataclass
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class CoreTransport:
-  """Coefficients for the plasma transport.
+  """Composite coefficients for plasma transport.
 
-  See docstrings of `neoclassical/transport/base.py` and
-  `transport_model/transport_model.py` for more details.
+  Attributes:
+    total: Combined 4-channel net transport coefficients (turbulent +
+      neoclassical + pereverzev).
+    turbulent: Turbulent transport output containing total and per-model
+      outputs.
+    neoclassical: Neoclassical transport output.
+    pereverzev: Pereverzev-Corrigan transport output.
   """
 
-  chi_face_ion: jax.Array
-  chi_face_el: jax.Array
-  d_face_el: jax.Array
-  v_face_el: jax.Array
-  chi_face_el_bohm: jax.Array | None = None
-  chi_face_el_gyrobohm: jax.Array | None = None
-  chi_face_ion_bohm: jax.Array | None = None
-  chi_face_ion_gyrobohm: jax.Array | None = None
-  chi_face_el_itg: jax.Array | None = None
-  chi_face_el_tem: jax.Array | None = None
-  chi_face_el_etg: jax.Array | None = None
-  chi_face_ion_itg: jax.Array | None = None
-  chi_face_ion_tem: jax.Array | None = None
-  d_face_el_itg: jax.Array | None = None
-  d_face_el_tem: jax.Array | None = None
-  v_face_el_itg: jax.Array | None = None
-  v_face_el_tem: jax.Array | None = None
-  chi_neo_i: jax.Array | None = None
-  chi_neo_e: jax.Array | None = None
-  D_neo_e: jax.Array | None = None
-  V_neo_e: jax.Array | None = None
-  V_neo_ware_e: jax.Array | None = None
-  chi_face_ion_pereverzev: jax.Array | None = None
-  chi_face_el_pereverzev: jax.Array | None = None
-  full_v_heat_face_ion_pereverzev: jax.Array | None = None
-  full_v_heat_face_el_pereverzev: jax.Array | None = None
-  d_face_el_pereverzev: jax.Array | None = None
-  v_face_el_pereverzev: jax.Array | None = None
-
-  def __post_init__(self):
-    # Use the array size of chi_face_el as a template.
-    template = self.chi_face_el
-    if self.chi_neo_i is None:
-      self.chi_neo_i = jnp.zeros_like(template)
-    if self.chi_neo_e is None:
-      self.chi_neo_e = jnp.zeros_like(template)
-    if self.D_neo_e is None:
-      self.D_neo_e = jnp.zeros_like(template)
-    if self.V_neo_e is None:
-      self.V_neo_e = jnp.zeros_like(template)
-    if self.V_neo_ware_e is None:
-      self.V_neo_ware_e = jnp.zeros_like(template)
-    if self.chi_face_ion_pereverzev is None:
-      self.chi_face_ion_pereverzev = jnp.zeros_like(template)
-    if self.chi_face_el_pereverzev is None:
-      self.chi_face_el_pereverzev = jnp.zeros_like(template)
-    if self.full_v_heat_face_ion_pereverzev is None:
-      self.full_v_heat_face_ion_pereverzev = jnp.zeros_like(template)
-    if self.full_v_heat_face_el_pereverzev is None:
-      self.full_v_heat_face_el_pereverzev = jnp.zeros_like(template)
-    if self.d_face_el_pereverzev is None:
-      self.d_face_el_pereverzev = jnp.zeros_like(template)
-    if self.v_face_el_pereverzev is None:
-      self.v_face_el_pereverzev = jnp.zeros_like(template)
-
-  @property
-  def chi_face_ion_total(self) -> jax.Array:
-    """Calculates the total ion heat diffusion coefficient."""
-    return self.chi_face_ion + self.chi_face_ion_pereverzev + self.chi_neo_i  # pyrefly: ignore[unsupported-operation]
-
-  @property
-  def chi_face_el_total(self) -> jax.Array:
-    """Calculates the total electron heat diffusion coefficient."""
-    return self.chi_face_el + self.chi_face_el_pereverzev + self.chi_neo_e  # pyrefly: ignore[unsupported-operation]
-
-  @property
-  def d_face_el_total(self) -> jax.Array:
-    """Calculates the total particle diffusion coefficient."""
-    return self.d_face_el + self.d_face_el_pereverzev + self.D_neo_e  # pyrefly: ignore[unsupported-operation]
-
-  @property
-  def v_face_el_total(self) -> jax.Array:
-    """Calculates the total particle convection coefficient."""
-    return (
-        self.v_face_el  # pyrefly: ignore[unsupported-operation]
-        + self.v_face_el_pereverzev
-        + self.V_neo_e
-        + self.V_neo_ware_e
-    )
-
-  def chi_max(
-      self,
-      geo: geometry.Geometry,
-  ) -> jax.Array:
-    """Calculates the maximum value of chi.
-
-    Args:
-      geo: Geometry of the torus.
-
-    Returns:
-      chi_max: Maximum value of chi.
-    """
-    return jnp.maximum(
-        jnp.max((self.chi_face_ion + self.chi_neo_i) * geo.g1_over_vpr2_face),  # pyrefly: ignore[unsupported-operation]
-        jnp.max((self.chi_face_el + self.chi_neo_e) * geo.g1_over_vpr2_face),  # pyrefly: ignore[unsupported-operation]
-    )
+  total: transport_coeffs_lib.TransportCoeffs
+  turbulent: transport_coeffs_lib.TurbulentTransport
+  neoclassical: transport_coeffs_lib.NeoclassicalTransport
+  pereverzev: transport_coeffs_lib.PereverzevTransport | None = None
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+  def zeros(cls, geo: geometry.Geometry) -> Self:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
-    shape = geo.rho_face.shape
     return cls(
-        chi_face_ion=jnp.zeros(shape),
-        chi_face_el=jnp.zeros(shape),
-        d_face_el=jnp.zeros(shape),
-        v_face_el=jnp.zeros(shape),
-        chi_face_el_bohm=jnp.zeros(shape),
-        chi_face_el_gyrobohm=jnp.zeros(shape),
-        chi_face_ion_bohm=jnp.zeros(shape),
-        chi_face_ion_gyrobohm=jnp.zeros(shape),
-        chi_neo_i=jnp.zeros(shape),
-        chi_neo_e=jnp.zeros(shape),
-        D_neo_e=jnp.zeros(shape),
-        V_neo_e=jnp.zeros(shape),
-        V_neo_ware_e=jnp.zeros(shape),
-        chi_face_ion_pereverzev=jnp.zeros(shape),
-        chi_face_el_pereverzev=jnp.zeros(shape),
-        full_v_heat_face_ion_pereverzev=jnp.zeros(shape),
-        full_v_heat_face_el_pereverzev=jnp.zeros(shape),
-        d_face_el_pereverzev=jnp.zeros(shape),
-        v_face_el_pereverzev=jnp.zeros(shape),
+        total=transport_coeffs_lib.TransportCoeffs.zeros(geo),
+        turbulent=transport_coeffs_lib.TurbulentTransport.zeros(geo),
+        neoclassical=transport_coeffs_lib.NeoclassicalTransport.zeros(geo),
+        pereverzev=None,
     )
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts CoreTransport into an OutputVar mapping for the profiles node."""
+    return {
+        **self.turbulent.to_output_dict(context),
+        **self.neoclassical.to_output_dict(context),
+    }
 
 
 @jax.tree_util.register_dataclass

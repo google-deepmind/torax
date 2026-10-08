@@ -15,7 +15,7 @@
 """Impurity content defined by ratios of impurity to electron density."""
 
 import dataclasses
-from typing import Annotated, Literal, Mapping
+from typing import Annotated, Literal, Mapping, Self
 
 import chex
 import jax
@@ -25,7 +25,6 @@ import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src.torax_pydantic import torax_pydantic
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -99,7 +98,7 @@ class ElectronDensityRatios(torax_pydantic.BaseModelFrozen):
   )
 
   @pydantic.model_validator(mode='after')
-  def _validate_species_not_empty(self) -> typing_extensions.Self:
+  def _validate_species_not_empty(self) -> Self:
     if not self.species:
       raise ValueError('The species dictionary cannot be empty.')
     return self

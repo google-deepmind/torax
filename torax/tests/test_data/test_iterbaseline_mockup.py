@@ -22,7 +22,10 @@ CONFIG = {
         'Z_eff': 1.74,
         # effective impurity charge state assumed for matching
         # dilution=0.862
-        'Z_impurity_override': 6.3623,
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'Z_override': 6.3623,
+        },
     },
     'profile_conditions': {
         'Ip': 15e6,  # total plasma current in A
@@ -159,7 +162,7 @@ CONFIG = {
             },
             # Inner patch
             'inner_patch': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'chi_i': 0.5,
                 'chi_e': 0.25,
                 'D_e': 0.25,

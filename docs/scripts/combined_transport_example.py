@@ -47,26 +47,26 @@ def main(argv: Sequence[str]) -> None:
       'transport': {
           'core_transport_models': {
               'inner': {
-                  'model_name': 'constant',
+                  'model_name': 'prescribed',
                   'chi_i': 1.0,
                   'rho_max': 0.3,
               },
               'outer': {
-                  'model_name': 'constant',
+                  'model_name': 'prescribed',
                   'chi_i': 2.0,
                   'rho_min': 0.2,
               },
           },
           'pedestal_transport_models': {
-              'constant': {
-                  'model_name': 'constant',
+              'pedestal': {
+                  'model_name': 'prescribed',
                   'chi_i': 0.5,
               },
           },
       },
   }
   torax_config = model_config.ToraxConfig.from_dict(config)
-  data_tree, _ = torax.run_simulation(torax_config)
+  data_tree = torax.run_simulation(torax_config).simulation_output_to_xr()
   plt.figure(figsize=(8, 2))
   plt.plot(
       data_tree.rho_face_norm,

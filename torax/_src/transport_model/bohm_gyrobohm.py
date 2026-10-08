@@ -23,11 +23,53 @@ from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 # pylint: disable=invalid-name
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class BohmGyroBohmTransportOutput(transport_coeffs.TransportCoeffs):
+  """Bohm-GyroBohm transport coefficients with required sub-mode decompositions.
+
+  Attributes:
+    chi_face_el_bohm: Bohm contribution for electron heat conductivity [m^2/s].
+    chi_face_el_gyrobohm: GyroBohm contribution for electron heat conductivity
+      [m^2/s].
+    chi_face_ion_bohm: Bohm contribution for ion heat conductivity [m^2/s].
+    chi_face_ion_gyrobohm: GyroBohm contribution for ion heat conductivity
+      [m^2/s].
+  """
+
+  chi_face_el_bohm: array_typing.FloatVectorFace
+  chi_face_el_gyrobohm: array_typing.FloatVectorFace
+  chi_face_ion_bohm: array_typing.FloatVectorFace
+  chi_face_ion_gyrobohm: array_typing.FloatVectorFace
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts Bohm-GyroBohm channels to an OutputVar mapping."""
+    out_dict = super().to_output_dict(context)
+    out_dict[output_keys.CHI_BOHM_E] = context.pack(
+        output_keys.CHI_BOHM_E, self.chi_face_el_bohm
+    )
+    out_dict[output_keys.CHI_GYROBOHM_E] = context.pack(
+        output_keys.CHI_GYROBOHM_E, self.chi_face_el_gyrobohm
+    )
+    out_dict[output_keys.CHI_BOHM_I] = context.pack(
+        output_keys.CHI_BOHM_I, self.chi_face_ion_bohm
+    )
+    out_dict[output_keys.CHI_GYROBOHM_I] = context.pack(
+        output_keys.CHI_GYROBOHM_I, self.chi_face_ion_gyrobohm
+    )
+    return out_dict
 
 
 @jax.tree_util.register_dataclass
@@ -54,12 +96,14 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
 
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> component.TurbulentTransport:
+      two_point_mask: array_typing.BoolVectorFace,
+  ) -> BohmGyroBohmTransportOutput:
     r"""Calculates transport coefficients using the BohmGyroBohm model.
 
     We use the implementation from Tholerus et al, Section 3.3.
@@ -74,13 +118,13 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
       runtime_params: Input runtime parameters at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      pedestal_model_output: Output of the pedestal model.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       coeffs: The transport coefficients
     """
-    del pedestal_model_output
-    # pylint: disable=invalid-name
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
 
@@ -94,9 +138,13 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
             * core_profiles.n_e.face_value()
         )
         * (
-            jnp.abs(core_profiles.n_e.face_grad())
+            jnp.abs(
+                core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
+            )
             * core_profiles.T_e.face_value()
-            + jnp.abs(core_profiles.T_e.face_grad())
+            + jnp.abs(
+                core_profiles.T_e.face_grad(two_point_mask=two_point_mask)
+            )
             * core_profiles.n_e.face_value()
         )
         * constants_module.CONSTANTS.keV_to_J
@@ -112,7 +160,9 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
         jnp.sqrt(runtime_params.plasma_composition.main_ion.A_avg / 2)
         * jnp.sqrt(core_profiles.T_e.face_value() * 1e3)
         / geo.B_0**2
-        * jnp.abs(core_profiles.T_e.face_grad() * 1e3)
+        * jnp.abs(
+            core_profiles.T_e.face_grad(two_point_mask=two_point_mask) * 1e3
+        )
         / geo.rho_b
     )
 
@@ -171,13 +221,13 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
     # Electron convectivity set proportional to the electron diffusivity
     v_face_el = transport_runtime_params.V_face_coeff * d_face_el
 
-    return component.TurbulentTransport(
-        chi_face_ion=chi_i,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el=chi_e,  # pyrefly: ignore[bad-argument-type]
+    return BohmGyroBohmTransportOutput(
+        chi_face_ion=chi_i,
+        chi_face_el=chi_e,
         d_face_el=d_face_el,
-        v_face_el=v_face_el,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el_bohm=chi_e_bohm,  # pyrefly: ignore[bad-argument-type]
-        chi_face_el_gyrobohm=chi_e_gyrobohm,  # pyrefly: ignore[bad-argument-type]
-        chi_face_ion_bohm=chi_i_bohm,  # pyrefly: ignore[bad-argument-type]
-        chi_face_ion_gyrobohm=chi_i_gyrobohm,  # pyrefly: ignore[bad-argument-type]
+        v_face_el=v_face_el,
+        chi_face_el_bohm=chi_e_bohm,
+        chi_face_el_gyrobohm=chi_e_gyrobohm,
+        chi_face_ion_bohm=chi_i_bohm,
+        chi_face_ion_gyrobohm=chi_i_gyrobohm,
     )

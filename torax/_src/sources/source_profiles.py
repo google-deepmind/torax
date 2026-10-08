@@ -11,19 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Source/sink profiles for all the sources in TORAX."""
+
+from collections.abc import Iterator, Mapping
 import dataclasses
 import operator
-from typing import Literal
+from typing import Any, Literal, Self
 
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
-import typing_extensions
 
 # pylint: disable=invalid-name
 
@@ -33,25 +36,36 @@ import typing_extensions
 class QeiInfo:
   """Represents the source values coming from a QeiSource."""
 
-  qei_coef: jax.Array
-  implicit_ii: jax.Array
-  explicit_i: jax.Array
-  implicit_ee: jax.Array
-  explicit_e: jax.Array
-  implicit_ie: jax.Array
-  implicit_ei: jax.Array
+  implicit_ii: array_typing.Array
+  explicit_i: array_typing.Array
+  implicit_ee: array_typing.Array
+  explicit_e: array_typing.Array
+  implicit_ie: array_typing.Array
+  implicit_ei: array_typing.Array
+  p_ei: array_typing.Array
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
-    return QeiInfo(  # pyrefly: ignore[bad-return]
-        qei_coef=jnp.zeros_like(geo.rho),
+  def zeros(cls, geo: geometry.Geometry) -> Self:
+    return cls(
         implicit_ii=jnp.zeros_like(geo.rho),
         explicit_i=jnp.zeros_like(geo.rho),
         implicit_ee=jnp.zeros_like(geo.rho),
         explicit_e=jnp.zeros_like(geo.rho),
         implicit_ie=jnp.zeros_like(geo.rho),
         implicit_ei=jnp.zeros_like(geo.rho),
+        p_ei=jnp.zeros_like(geo.rho),
     )
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts QeiInfo into an OutputVar mapping."""
+    return {
+        output_keys.EI_EXCHANGE: context.pack(
+            output_keys.EI_EXCHANGE, self.p_ei
+        )
+    }
 
 
 @jax.tree_util.register_dataclass
@@ -96,9 +110,9 @@ class SourceProfiles:
   @classmethod
   def merge(
       cls,
-      explicit_source_profiles: typing_extensions.Self,
-      implicit_source_profiles: typing_extensions.Self,
-  ) -> typing_extensions.Self:
+      explicit_source_profiles: Self,
+      implicit_source_profiles: Self,
+  ) -> Self:
     """Returns a SourceProfiles that merges the input profiles.
 
     Sources can either be explicit or implicit. The explicit_source_profiles
@@ -124,14 +138,14 @@ class SourceProfiles:
       implicit (assuming the source model outputted a non-zero profile).
 
     """
-    def _is_fast_ions_dict(x: typing_extensions.Any) -> bool:
+    def _is_fast_ions_dict(x: Any) -> bool:
       return isinstance(x, dict) and all(
           isinstance(v, tuple)
           and all(isinstance(el, fast_ion_lib.FastIon) for el in v)
           for v in x.values()
       )
 
-    def _merge(a: typing_extensions.Any, b: typing_extensions.Any):
+    def _merge(a: Any, b: Any):
       if _is_fast_ions_dict(a):
         return {**a, **b}
       return operator.add(a, b)
@@ -143,7 +157,7 @@ class SourceProfiles:
         is_leaf=_is_fast_ions_dict,
     )
 
-  def total_psi_sources(self, geo: geometry.Geometry) -> jax.Array:
+  def total_psi_sources(self, geo: geometry.Geometry) -> array_typing.Array:
     """Returns the total psi sources."""
     # All psi sources are assumed to be parallel to the magnetic field, ie
     # self.psi.values() is <j.B> / B0
@@ -165,7 +179,76 @@ class SourceProfiles:
       self,
       source_type: Literal['n_e', 'T_i', 'T_e'],
       geo: geometry.Geometry,
-  ) -> jax.Array:
+  ) -> array_typing.Array:
     source: dict[str, jax.Array] = getattr(self, source_type)
+    if not source:
+      return jnp.zeros_like(geo.vpr)
     total = sum(source.values())
-    return total * geo.vpr  # pyrefly: ignore[bad-return]
+    return total * geo.vpr
+
+  def _iterate_channels_for_output(
+      self,
+      *,
+      renames: Mapping[str, str],
+  ) -> Iterator[tuple[output_keys.OutputKey, array_typing.Array]]:
+    """Yields (OutputKey, data) across all active channels for output.
+
+    Args:
+      renames: Mapping from internal profile names to output naming convention.
+
+    Yields:
+      Tuples of (OutputKey, data) for all active source profiles.
+    """
+    for profile, data in self.T_i.items():
+      name = renames.get(profile, profile)
+      yield (
+          output_keys.OutputKey(
+              output_keys.p_source_i_key(name),
+              units=output_keys.Units.MW_PER_CUBIC_METER,
+              grid_type=output_keys.GridType.CELL,
+          ),
+          data,
+      )
+    for profile, data in self.T_e.items():
+      name = renames.get(profile, profile)
+      yield (
+          output_keys.OutputKey(
+              output_keys.p_source_e_key(name),
+              units=output_keys.Units.MW_PER_CUBIC_METER,
+              grid_type=output_keys.GridType.CELL,
+          ),
+          data,
+      )
+    for profile, data in self.psi.items():
+      name = renames.get(profile, profile)
+      yield (
+          output_keys.OutputKey(
+              output_keys.j_parallel_source_key(name),
+              units=output_keys.Units.AMPERE_PER_SQUARE_METER,
+              grid_type=output_keys.GridType.CELL,
+          ),
+          data,
+      )
+    for profile, data in self.n_e.items():
+      name = renames.get(profile, profile)
+      yield (
+          output_keys.OutputKey(
+              output_keys.s_source_key(name),
+              units=output_keys.Units.INVERSE_CUBIC_METER_PER_SECOND,
+              grid_type=output_keys.GridType.CELL,
+          ),
+          data,
+      )
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts source profiles into an OutputVar mapping."""
+    out_dict = self.bootstrap_current.to_output_dict(context)
+    out_dict.update(self.qei.to_output_dict(context))
+    for key, data in self._iterate_channels_for_output(
+        renames=output_keys.SOURCE_NAME_RENAMES
+    ):
+      out_dict[key] = context.pack(key, data)
+    return out_dict

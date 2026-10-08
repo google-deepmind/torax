@@ -21,14 +21,18 @@ from torax._src.sources import source as source_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
-  """Base model holding parameters common to all source models.
+class SourceConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
+  """Base model holding parameters common to all source model configs.
 
   Subclasses should define the `model_name` attribute as a `Literal`
   string. This string should match the name of the function that calculates the
   source profile. This is used as an identifier for the model function in the
   source config for Pydantic to "discriminate" against. This should be given a
   unique value for each source model function implementation.
+
+  Subclasses must override `build_source` to return the `Source` object for this
+  config, and may override `build_runtime_params` if the source uses custom
+  runtime parameters.
 
   Attributes:
     mode: Defines how the source values are computed (from a model, from a file,
@@ -48,7 +52,7 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   """
 
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
-      runtime_params.Mode.ZERO
+      runtime_params.Mode.MODEL_BASED
   )
   is_explicit: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   prescribed_values: tuple[torax_pydantic.TimeVaryingArray, ...] = (
@@ -64,8 +68,14 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   def model_func(self) -> source_lib.SourceProfileFunction:
     """Returns the model function for the source."""
 
-  @abc.abstractmethod
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
     """Builds runtime parameters for the source."""
+    return runtime_params.RuntimeParams(
+        prescribed_values=tuple(
+            v.get_value(t) for v in self.prescribed_values
+        ),
+        mode=self.mode,
+        is_explicit=self.is_explicit,
+    )

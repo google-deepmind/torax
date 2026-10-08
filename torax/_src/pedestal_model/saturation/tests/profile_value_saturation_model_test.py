@@ -36,12 +36,12 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
     self.runtime_params = self.provider(t=0.0)
     self.geo = self.torax_config.geometry.build_provider(t=0.0)
     self.source_models = self.torax_config.sources.build_models()
-    self.neoclassical_models = self.torax_config.neoclassical.build_models()
+    self.neoclassical_model = self.torax_config.neoclassical.build_model()
     self.core_profiles = initialization.initial_core_profiles(
         self.runtime_params,
         self.geo,
         self.source_models,
-        self.neoclassical_models,
+        self.neoclassical_model,
     )
 
   @parameterized.named_parameters(
@@ -66,7 +66,7 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
 
     # For this test, we put the pedestal top at the last grid point.
     ped_top_idx = -1
-    current_T_e_ped = self.core_profiles.T_e.face_value()[ped_top_idx]  # pyrefly: ignore[bad-index]
+    current_T_e_ped = self.core_profiles.T_e.face_value()[ped_top_idx]
 
     # Construct a pedestal output that is asking for a pedestal with
     # target temperature.

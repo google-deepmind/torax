@@ -20,7 +20,7 @@ class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
   """Tests for ElectronCyclotronSource."""
 
   source_config_class = electron_cyclotron_source.ElectronCyclotronSourceConfig
-  source_name = electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME
+  source_name = electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID
 
 
 if __name__ == "__main__":

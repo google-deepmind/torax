@@ -20,7 +20,7 @@ import jax
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -53,7 +53,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(
@@ -64,7 +64,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
 
     # Mocking the actual call to QuaLiKiz and its results.
@@ -85,16 +85,13 @@ class QualikizTransportModelTest(parameterized.TestCase):
         model_call = (
             jax.jit(test_model.__call__) if jit else test_model.__call__
         )
+        two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
         model_call(
             runtime_params,
             geo,
             core_profiles,
-            pedestal_model_output_lib.PedestalModelOutput(
-                rho_norm_ped_top=np.inf,
-                T_i_ped=0.0,
-                T_e_ped=0.0,
-                n_e_ped=0.0,
-            ),
+            pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+            two_point_mask,
         )
 
 

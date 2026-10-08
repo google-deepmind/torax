@@ -17,7 +17,6 @@
 from collections.abc import Sequence
 import dataclasses
 import enum
-from typing import TypeVar
 
 import chex
 import jax
@@ -27,6 +26,7 @@ from torax._src import array_typing
 from torax._src.torax_pydantic import torax_pydantic
 
 
+@jax.jit
 def face_to_cell(
     face: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorCell:
@@ -173,6 +173,8 @@ class Geometry:
       location of the upper extent of the flux surface. Lower triangularity is
       defined as (R_major_local - R_lower) / a_minor_local, where R_lower is the
       radial location of the lower extent of the flux surface.
+    trapped_fraction_face: Effective trapped particle fraction on the face grid
+      [dimensionless], computed at geometry construction time.
     elongation: Plasma elongation profile on cell grid [dimensionless].
       Elongation is defined as (Z_upper - Z_lower) / (2.0 * a_minor_local),
       where Z_upper and Z_lower are the Z coordinates of the upper and lower
@@ -202,6 +204,7 @@ class Geometry:
   spr: array_typing.Array
   spr_face: array_typing.Array
   delta_face: array_typing.Array
+  trapped_fraction_face: array_typing.Array
   elongation: array_typing.Array
   elongation_face: array_typing.Array
   g0: array_typing.Array
@@ -392,10 +395,9 @@ class Geometry:
       raise ValueError('Geometry does not have a z magnetic axis.')
 
 
-GeometryT = TypeVar('GeometryT', bound='Geometry')
-
-
-def stack_geometries(geometries: Sequence[GeometryT]) -> GeometryT:
+def stack_geometries[GeometryT: Geometry](
+    geometries: Sequence[GeometryT],
+) -> GeometryT:
   """Batch together a sequence of geometries.
 
   Args:

@@ -15,7 +15,7 @@
 """Base pydantic config for Transport models."""
 
 import abc
-from typing import Annotated
+from typing import Annotated, Self
 
 import chex
 import numpy as np
@@ -25,7 +25,6 @@ from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params
-import typing_extensions
 
 
 # pylint: disable=invalid-name
@@ -80,7 +79,7 @@ class ComponentTransportBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   )
 
   @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
+  def _check_fields(self) -> Self:
     # For the time-varying parameter pair (rho_min, rho_max), we have relative
     # magnitude constraints that must hold at all times. We validate this by
     # checking the inequality at the combined time points (knots) of the pair.

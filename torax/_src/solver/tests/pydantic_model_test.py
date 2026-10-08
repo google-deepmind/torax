@@ -14,6 +14,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
+import pydantic
 from torax._src import jax_utils
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
@@ -84,6 +85,18 @@ class PydanticModelTest(parameterized.TestCase):
       output = f(solver)
       self.assertEqual(output.D_pereverzev, 0.6)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+  def test_solver_discriminator(self):
+    config = default_configs.get_default_config_dict()
+    config['solver'] = {
+        'solver_type': 'unknown_solver',
+    }
+    with self.assertRaises(pydantic.ValidationError) as cm:
+      model_config.ToraxConfig.from_dict(config)
+    self.assertIn(
+        "Input tag 'unknown_solver' found using 'solver_type'",
+        str(cm.exception),
+    )
 
 
 if __name__ == '__main__':

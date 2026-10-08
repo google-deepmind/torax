@@ -13,14 +13,29 @@
 # limitations under the License.
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import jax
 import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
+from torax._src.geometry import trapped_fraction
 
 
-class CircularGeometryTest(absltest.TestCase):
+class CircularGeometryTest(parameterized.TestCase):
+
+  @parameterized.parameters([
+      trapped_fraction.TrappedFractionSource.FILE,
+      trapped_fraction.TrappedFractionSource.EXACT,
+  ])
+  def test_trapped_fraction_source_not_supported(
+      self, trapped_fraction_source: trapped_fraction.TrappedFractionSource
+  ):
+    """Tests that CircularConfig only supports SAUTER."""
+    with self.assertRaisesRegex(ValueError, "not supported for CircularConfig"):
+      circular_geometry.CircularConfig(
+          trapped_fraction_source=trapped_fraction_source
+      )
 
   def test_build_geometry_provider_from_circular(self):
     """Test that the circular geometry provider can be built."""

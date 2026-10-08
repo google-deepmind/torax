@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """The CriticalGradientModel class."""
-
 import dataclasses
 
 import jax
@@ -23,9 +22,9 @@ from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import transport_coeffs
 
 
 # pylint: disable=invalid-name
@@ -47,12 +46,14 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
 
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
-  ) -> component.TurbulentTransport:
+      two_point_mask: array_typing.BoolVectorFace,
+  ) -> transport_coeffs.TransportCoeffs:
     r"""Calculates transport coefficients using the Critical Gradient Model.
 
     Uses critical normalized logarithmic ion temperature gradient
@@ -68,7 +69,9 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
       runtime_params: Input runtime parameters at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      pedestal_model_output: Output of the pedestal model.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
 
     Returns:
       coeffs: The transport coefficients
@@ -94,7 +97,10 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
 
     T_i_face = core_profiles.T_i.face_value()
     T_i_face_grad = core_profiles.T_i.face_grad(
-        x=rmid, x_left=geo.r_mid_face[0], x_right=geo.r_mid_face[-1]
+        x=rmid,
+        x_left=geo.r_mid_face[0],
+        x_right=geo.r_mid_face[-1],
+        two_point_mask=two_point_mask,
     )
     T_e_face = core_profiles.T_e.face_value()
 
@@ -139,7 +145,7 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
         / geo.R_major_profile_face
     )
 
-    return component.TurbulentTransport(
+    return transport_coeffs.TransportCoeffs(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

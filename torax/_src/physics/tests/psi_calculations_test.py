@@ -215,7 +215,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         {'sources.generic_current.mode': 'MODEL_BASED'}
     )
     source_models = references.config.sources.build_models()
-    neoclassical_models = references.config.neoclassical.build_models()
+    neoclassical_model = references.config.neoclassical.build_model()
     dynamic_runtime_params_slice, geo = references.get_runtime_params_and_geo()
     source_profiles = source_profiles_lib.SourceProfiles(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
@@ -225,7 +225,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         dynamic_runtime_params_slice,
         geo,
         source_models=source_models,
-        neoclassical_models=neoclassical_models,
+        neoclassical_model=neoclassical_model,
     )
     # Updates the calculated source profiles with the standard source profiles.
     source_profile_builders.build_standard_source_profiles(
@@ -237,15 +237,16 @@ class PsiCalculationsTest(parameterized.TestCase):
         calculate_anyway=True,
         calculated_source_profiles=source_profiles,
     )
-    conductivity = neoclassical_models.conductivity.calculate_conductivity(
+    conductivity = neoclassical_model(
+        dynamic_runtime_params_slice,
         geo,
         initial_core_profiles,
-    )
+    ).conductivity
 
     psidot_calculated = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
         sigma=conductivity.sigma,
-        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
+        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
         psi=references.psi,
         geo=geo,
     )
@@ -420,12 +421,12 @@ class PsiCalculationsTest(parameterized.TestCase):
     psi_t = cell_variable.CellVariable(
         value=np.ones_like(mesh.cell_centers) * 0.5,
         face_centers=mesh.face_centers,
-        right_face_grad_constraint=0.0,  # pyrefly: ignore[bad-argument-type]
+        right_face_grad_constraint=0.0,
     )
     psi_t_plus_dt = cell_variable.CellVariable(
         value=np.ones_like(mesh.cell_centers) * psi_lcfs_t_plus_dt,
         face_centers=mesh.face_centers,
-        right_face_grad_constraint=0.0,  # pyrefly: ignore[bad-argument-type]
+        right_face_grad_constraint=0.0,
     )
 
     v_loop_lcfs_t_plus_dt = psi_calculations.calculate_v_loop_lcfs_from_psi(

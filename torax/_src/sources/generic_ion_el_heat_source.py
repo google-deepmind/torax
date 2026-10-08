@@ -108,7 +108,7 @@ def default_formula(
 class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
-  SOURCE_NAME: ClassVar[str] = 'generic_heat'
+  SOURCE_ID: ClassVar[str] = 'generic_heat'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
@@ -116,7 +116,7 @@ class GenericIonElectronHeatSource(source.Source):
   model_func: source.SourceProfileFunction = default_formula  # pyrefly: ignore[bad-assignment]
 
 
-class GenericIonElHeatSourceConfig(base.SourceModelBase):
+class GenericIonElHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
@@ -145,9 +145,6 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -158,11 +155,7 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> RuntimeParams:
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **dataclasses.asdict(super().build_runtime_params(t)),
         gaussian_width=self.gaussian_width.get_value(t),
         gaussian_location=self.gaussian_location.get_value(t),
         P_total=self.P_total.get_value(t),

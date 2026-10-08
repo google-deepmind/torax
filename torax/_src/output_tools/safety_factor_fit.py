@@ -51,6 +51,7 @@ class SafetyFactorFit:
   rho_q_3_1_second: array_typing.FloatScalar
 
 
+@jax.jit
 def _linear_intercepts(
     rho_norm: jax.Array, q_face: jax.Array, q_target: float
 ) -> jax.Array:

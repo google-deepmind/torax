@@ -1,0 +1,235 @@
+# Copyright 2024 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Commonly repeated jax expressions."""
+
+import contextlib
+import functools
+import os
+from typing import Any, Callable, Literal, TypeAlias
+import chex
+import jax
+from jax import numpy as jnp
+import numpy as np
+
+PyTree: TypeAlias = Any
+
+
+@functools.cache
+def get_dtype() -> type(jnp.float32):  # pyrefly: ignore[invalid-annotation]
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  return jnp.float64 if precision == 'f64' else jnp.float32
+
+
+@functools.cache
+def get_np_dtype() -> type(np.float32):  # pyrefly: ignore[invalid-annotation]
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  return np.float64 if precision == 'f64' else np.float32
+
+
+@functools.cache
+def get_int_dtype() -> type(jnp.int32):  # pyrefly: ignore[invalid-annotation]
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  return jnp.int64 if precision == 'f64' else jnp.int32
+
+
+def env_bool(name: str, default: bool) -> bool:
+  """Get a bool from an environment variable.
+
+  Args:
+    name: The name of the environment variable.
+    default: The default value of the bool.
+
+  Returns:
+    value: The value of the bool.
+  """
+  if name not in os.environ:
+    return default
+  str_value = os.environ[name]
+  if str_value in ['1', 'True', 'true']:
+    return True
+  if str_value in ['0', 'False', 'false']:
+    return False
+  raise ValueError(f'Unrecognized boolean string {str_value}.')
+
+
+# If True, `error_if` functions will raise errors.  Otherwise they are
+# pass throughs.
+# Default to False, because host_callbacks are incompatible with the
+# persistent compilation cache.
+_ERRORS_ENABLED: bool = env_bool('TORAX_ERRORS_ENABLED', False)
+
+
+@contextlib.contextmanager
+def enable_errors(value: bool):
+  """Enables / disables `error_if` inside a code block.
+
+  Example:
+
+  with enable_errors(False):
+    my_sim.run() # NaNs etc will be ignored
+
+  Args:
+    value: Sets `errors_enabled` to this value
+
+  Yields:
+    Cleanup function restoring previous value
+  """
+  global _ERRORS_ENABLED
+  previous_value = _ERRORS_ENABLED
+  _ERRORS_ENABLED = value
+  yield
+  if previous_value is not None:
+    _ERRORS_ENABLED = previous_value
+
+
+def error_if(
+    var: jax.Array,
+    cond: jax.Array,
+    msg: str,
+) -> jax.Array:
+  """Raises error if cond is true, and `errors_enabled` is True.
+
+  Args:
+    var: The variable to pass through.
+    cond: Boolean array, error if cond is true.
+    msg: Message to print on error.
+
+  Returns:
+    var: Identity wrapper that must be used for the check to be included.
+  """
+  if not _ERRORS_ENABLED:
+    return var
+
+  def _check(cond_val):
+    if cond_val:
+      raise RuntimeError(msg)
+
+  jax.debug.callback(_check, jnp.any(cond))
+  return var
+
+
+def assert_rank(
+    inputs: chex.Numeric | jax.stages.ArgInfo,
+    rank: int,
+) -> None:
+  """Wrapper around chex.assert_rank that supports jax.stages.ArgInfo."""
+  if isinstance(inputs, jax.stages.ArgInfo):
+    chex.assert_rank(inputs.shape, rank)
+  else:
+    chex.assert_rank(inputs, rank)
+
+
+def get_number_of_compiles(
+    jitted_function: Callable[..., Any],
+) -> int:
+  """Helper function for debugging JAX compilation.
+
+  This counts the number of times the function has been JIT compiled. This does
+  not include any uses of the AOT compile workflow.
+
+  Args:
+    jitted_function: A function that has been wrapped with `jax.jit`.
+
+  Returns:
+    The number of times the function has been compiled.
+  Raises:
+    RuntimeError: If the function does not have a _cache_size attribute.
+  """
+  # pylint: disable=protected-access
+  if not hasattr(jitted_function, '_cache_size'):
+    raise RuntimeError(
+        'The function does not have a _cache_size attribute. Possibly because'
+        ' the function was not jitted.'
+    )
+  return jitted_function._cache_size()
+  # pylint: enable=protected-access
+
+
+def batched_cond(
+    pred: jax.Array,
+    true_fun: Callable[..., PyTree],
+    false_fun: Callable[..., PyTree],
+    operands: tuple[PyTree, ...],
+    implementation: Literal['vectorize', 'map'] = 'vectorize',
+):
+  """A batched version of `jax.lax.cond`.
+
+  JAX provides two approaches for implementing a batched version of
+  `jax.lax.cond`, neither of which is always faster:
+  `implementation='vectorize'` is equivalent to `jnp.select`, which evaluates
+  both braches for every batch element. This is fully vectorized, allowing for
+  parallel execution on CPU/GPU, but requiring twice the number of function
+  evaluations. `implementation='map'` will sequentially evaluate `jax.lax.cond`,
+  preventing vectorized execution, but only requiring a single function
+  evaluation per batch element.
+
+  This function also handles the special case where `pred` is a concrete list of
+  length-1, in which case we can avoid tracing both branches like `jax.lax.cond`
+  does by doing the control-flow in Python.
+
+  Args:
+    pred: Boolean 1D array `[batch_size]`, indicating which branch function to
+      apply.
+    true_fun: Function (A -> B), to be applied if `pred` is True.
+    false_fun: Function (A -> B), to be applied if `pred` is False.
+    operands: A tuple of arguments to pass to the functions. Each `jax.Array`
+      (every PyTree leaf) must have a leading batch dimension of size
+      `batch_size`.
+    implementation: The implementation to use. 'vectorize' compiles to a
+      `jax.lax.select`, where both branches are evaluated. 'map' uses
+      `jax.lax.map`.
+
+  Returns:
+    The result of applying the appropriate function to each element of the
+    batch.
+  """
+
+  if not isinstance(operands, tuple):
+    raise ValueError('The args must be a tuple.')
+
+  if pred.ndim != 1 or pred.dtype != jnp.bool:
+    raise ValueError('pred must be a 1D array of bools.')
+
+  # For the special case where `pred` is a concrete list of length 1, we can
+  # avoid tracing both branches by doing the control flow in Python.
+  if len(pred) == 1 and not isinstance(pred, jax.core.Tracer):
+    f = true_fun if bool(pred) else false_fun
+    operands = jax.tree.map(lambda x: jnp.squeeze(x, axis=0), operands)
+    out = f(*operands)
+    return jax.tree.map(lambda x: jnp.expand_dims(x, axis=0), out)
+
+  f = lambda args: jax.lax.cond(args[0], true_fun, false_fun, *args[1])
+  match implementation:
+    case 'vectorize':
+      # This is compiled to a jax.lax.select, where both branches are evaluated.
+      return jax.vmap(f)((pred, operands))
+    case 'map':
+      return jax.lax.map(f, (pred, operands))
+    case _:
+      raise ValueError(f'Unknown implementation: {implementation}')
+
+

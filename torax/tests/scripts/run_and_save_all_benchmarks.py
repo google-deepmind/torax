@@ -34,6 +34,11 @@ _OUTPUT_DIR = flags.DEFINE_string(
 _NUM_PROCESSES = flags.DEFINE_integer(
     'num_proc', 16, 'Number of processes to use.'
 )
+_CONFIGS = flags.DEFINE_list(
+    'configs',
+    [],
+    'Specific configs to run (e.g. test_psi_heat_dens). If empty, runs all.',
+)
 
 
 def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
@@ -67,9 +72,9 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
         ' or a CONFIG dictionary.'
     )
   try:
-    simulation_xr, _ = run_simulation.run_simulation(
+    simulation_xr = run_simulation.run_simulation(
         torax_config, progress_bar=False
-    )
+    ).simulation_output_to_xr()
     output_file = os.path.join(output_dir, f'{config_name}.nc')
     simulation_app.write_output_to_file(output_file, simulation_xr)
     print(f'Finished running {config_name}, output saved to {output_file}')
@@ -83,20 +88,23 @@ def main(argv: Sequence[str]) -> None:
     raise app.UsageError('Too many command-line arguments.')
   configs = []
   test_data_dir = paths.test_data_dir()
-  for path in os.listdir(test_data_dir):
-    # avoid rerunning qualikiz tests, which are more expensive and are not
-    # part of the standard sim tests.
-    if path.endswith('.nc') and 'qualikiz' not in path:
-      basename = os.path.basename(path)
-      config_name, _ = basename.split('.')
-      configs.append(config_name)
+  if _CONFIGS.value:
+    configs = list(_CONFIGS.value)
+  else:
+    for path in os.listdir(test_data_dir):
+      # avoid rerunning qualikiz tests, which are more expensive and are not
+      # part of the standard sim tests.
+      if path.endswith('.nc') and 'qualikiz' not in path:
+        basename = os.path.basename(path)
+        config_name, _ = basename.split('.')
+        configs.append(config_name)
   print(f'Found {len(configs)} config experiments to run.')
   output_dir = _OUTPUT_DIR.value
   if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
   run_sim = functools.partial(
       _run_sim,
-      test_data_dir=test_data_dir,
+      test_data_dir=test_data_dir,  # pyrefly: ignore[bad-argument-type]
       output_dir=_OUTPUT_DIR.value,
   )
   # Important to use 'spawn' over 'forkserver' as JAX is not fork-safe.

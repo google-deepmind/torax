@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Zeros model for neoclassical transport."""
-from typing import Annotated, Literal
+from typing import Annotated, Literal, override
 
-import jax.numpy as jnp
 from torax._src import state
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import base
+from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.torax_pydantic import torax_pydantic
-from typing_extensions import override
+from torax._src.transport_model import transport_coeffs
 
 
 class ZerosModel(base.NeoclassicalTransportModel):
@@ -29,18 +29,14 @@ class ZerosModel(base.NeoclassicalTransportModel):
   @override
   def _call_implementation(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> base.NeoclassicalTransport:
+      neoclassical_intermediates: formulas.NeoclassicalIntermediates,
+  ) -> transport_coeffs.NeoclassicalTransport:
     """Calculates neoclassical transport."""
-    return base.NeoclassicalTransport(
-        chi_neo_i=jnp.zeros_like(geometry.rho_face),
-        chi_neo_e=jnp.zeros_like(geometry.rho_face),
-        D_neo_e=jnp.zeros_like(geometry.rho_face),
-        V_neo_e=jnp.zeros_like(geometry.rho_face),
-        V_neo_ware_e=jnp.zeros_like(geometry.rho_face),
-    )
+    del runtime_params, core_profiles, neoclassical_intermediates
+    return transport_coeffs.NeoclassicalTransport.zeros(geometry)
 
   def __eq__(self, other) -> bool:
     return isinstance(other, self.__class__)

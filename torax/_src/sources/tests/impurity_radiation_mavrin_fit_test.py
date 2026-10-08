@@ -20,7 +20,7 @@ from torax._src.core_profiles import initialization
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.physics import charge_states
 from torax._src.physics.radiation import radiation
-from torax._src.sources import pydantic_model as sources_pydantic_model
+from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.sources import source as source_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
@@ -36,7 +36,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
       impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
   )
   source_name = (
-      impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME
+      impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID
   )
   model_name = impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME
 
@@ -48,12 +48,12 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     runtime_params = provider(t=0.0)
     geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_models = torax_config.neoclassical.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models,
-        neoclassical_models,
+        neoclassical_model,
     )
     return impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit(
         runtime_params=runtime_params,
@@ -66,8 +66,8 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
   def test_correct_dynamic_params_built(self):
     # Source models
-    sources = sources_pydantic_model.Sources.from_dict({
-        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME: {},
+    sources = sources_pydantic_config.Sources.from_dict({
+        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID: {},
     })
     # Set the grid to allows the dynamic params to be built without making the
     # full config.
@@ -338,7 +338,10 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         },
         'plasma_composition': {
             'main_ion': 'D',
-            'impurity': impurity_mixture_fractions,
+            'impurity': {
+                'impurity_mode': 'fractions',
+                'species': impurity_mixture_fractions,
+            },
             'Z_eff': zeff_true.item(),  # pyrefly: ignore[missing-attribute]
         },
         'numerics': {},
@@ -421,7 +424,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'main_ion': main_ion_symbol,
         'impurity': {
             'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
-            'species': n_e_ratios,  # pyrefly: ignore[bad-assignment]
+            'species': n_e_ratios,
         },
     }
     torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
@@ -434,7 +437,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'main_ion': main_ion_symbol,
         'impurity': {
             'impurity_mode': plasma_composition._IMPURITY_MODE_FRACTIONS,
-            'species': impurity_fractions,  # pyrefly: ignore[bad-assignment]
+            'species': impurity_fractions,
         },
         'Z_eff': float(zeff),
     }

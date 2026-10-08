@@ -18,7 +18,10 @@
 CONFIG = {
     'plasma_composition': {
         'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
-        'impurity': 'Ne',
+        'impurity': {
+            'impurity_mode': 'fractions',
+            'species': 'Ne',
+        },
         'Z_eff': 1.8,  # sets impurity density
     },
     'profile_conditions': {
@@ -156,7 +159,7 @@ CONFIG = {
             },
             # Inner patch
             'inner_patch': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'chi_i': 0.75,
                 'chi_e': 1.0,
                 'D_e': 0.25,
@@ -165,7 +168,7 @@ CONFIG = {
             },
             # Outer patch
             'outer_patch': {
-                'model_name': 'constant',
+                'model_name': 'prescribed',
                 'chi_i': 2.0,
                 'chi_e': 2.0,
                 'D_e': 0.1,

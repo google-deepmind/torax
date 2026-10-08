@@ -23,10 +23,77 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.physics import collisions
+from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import transport_coeffs
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class QualikizTransportModelOutput(transport_coeffs.TransportCoeffs):
+  """QuaLiKiz transport coefficients with required sub-mode decompositions.
+
+  Attributes:
+    chi_face_ion_itg: ITG contribution for ion heat conductivity [m^2/s].
+    chi_face_ion_tem: TEM contribution for ion heat conductivity [m^2/s].
+    chi_face_el_itg: ITG contribution for electron heat conductivity [m^2/s].
+    chi_face_el_tem: TEM contribution for electron heat conductivity [m^2/s].
+    chi_face_el_etg: ETG contribution for electron heat conductivity [m^2/s].
+    d_face_el_itg: ITG contribution for electron diffusivity [m^2/s].
+    d_face_el_tem: TEM contribution for electron diffusivity [m^2/s].
+    v_face_el_itg: ITG contribution for electron convection [m/s].
+    v_face_el_tem: TEM contribution for electron convection [m/s].
+  """
+
+  chi_face_ion_itg: array_typing.FloatVectorFace
+  chi_face_ion_tem: array_typing.FloatVectorFace
+  chi_face_el_itg: array_typing.FloatVectorFace
+  chi_face_el_tem: array_typing.FloatVectorFace
+  chi_face_el_etg: array_typing.FloatVectorFace
+  d_face_el_itg: array_typing.FloatVectorFace
+  d_face_el_tem: array_typing.FloatVectorFace
+  v_face_el_itg: array_typing.FloatVectorFace
+  v_face_el_tem: array_typing.FloatVectorFace
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts QuaLiKiz decomposition channels to an OutputVar mapping."""
+    out_dict = super().to_output_dict(context)
+    out_dict[output_keys.CHI_ITG_I] = context.pack(
+        output_keys.CHI_ITG_I, self.chi_face_ion_itg
+    )
+    out_dict[output_keys.CHI_TEM_I] = context.pack(
+        output_keys.CHI_TEM_I, self.chi_face_ion_tem
+    )
+    out_dict[output_keys.CHI_ITG_E] = context.pack(
+        output_keys.CHI_ITG_E, self.chi_face_el_itg
+    )
+    out_dict[output_keys.CHI_TEM_E] = context.pack(
+        output_keys.CHI_TEM_E, self.chi_face_el_tem
+    )
+    out_dict[output_keys.CHI_ETG_E] = context.pack(
+        output_keys.CHI_ETG_E, self.chi_face_el_etg
+    )
+    out_dict[output_keys.D_ITG_E] = context.pack(
+        output_keys.D_ITG_E, self.d_face_el_itg
+    )
+    out_dict[output_keys.D_TEM_E] = context.pack(
+        output_keys.D_TEM_E, self.d_face_el_tem
+    )
+    out_dict[output_keys.V_ITG_E] = context.pack(
+        output_keys.V_ITG_E, self.v_face_el_itg
+    )
+    out_dict[output_keys.V_TEM_E] = context.pack(
+        output_keys.V_TEM_E, self.v_face_el_tem
+    )
+    return out_dict
 
 
 class RotationMode(enum.StrEnum):
@@ -109,84 +176,82 @@ class QualikizBasedTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      poloidal_velocity_multiplier: array_typing.FloatScalar,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
   ) -> QualikizInputs:
-    """Prepare Qualikiz inputs."""
+    """Constructs a `QualikizInputs` object from the TORAX state.
+
+    Uses the midplane-averaged minor radius `r_mid` as the radial coordinate,
+    with `L_ref = a_minor` for `chiGB` and `L_ref = R_major` for logarithmic
+    gradients. Applies optional heuristic adjustments to avoid unreliable
+    transport predictions and approximate missing physics: capping `nu_star`,
+    clamping `q >= 1` and `smag = 0.1` where `q < 1` as a sawtooth proxy
+    (`q_sawtooth_proxy`), and adjusting `smag` for the Shafranov shift
+    (`smag - alpha / 2`) and strongly negative effective shear
+    (`smag - alpha >= -0.2`) following S. van Mulders et al., Nucl. Fusion 61,
+    086019 (2021).
+
+    Args:
+      transport: Runtime parameters for the QuaLiKiz-based transport model.
+      geo: Torus geometry.
+      core_profiles: Core plasma profiles.
+      two_point_mask: Optional boolean face mask indicating where face gradients
+        are calculated with 2-point central differences instead of 3-point.
+
+    Returns:
+      A `QualikizInputs` dataclass on the face grid.
+    """
     constants = constants_module.CONSTANTS
 
-    # define radial coordinate as midplane average r
-    # (typical assumption for transport models developed in circular geo)
     rmid = geo.r_mid
     rmid_face = geo.r_mid_face
 
-    # gyrobohm diffusivity
-    # (defined here with Lref=a_minor due to QLKNN training set normalization)
     chiGB = quasilinear_transport_model.calculate_chiGB(
-        reference_temperature=core_profiles.T_i.face_value(),  # pyrefly: ignore[bad-argument-type]
+        reference_temperature=core_profiles.T_i.face_value(),
         reference_magnetic_field=geo.B_0,
         reference_mass=core_profiles.A_i,
         reference_length=geo.a_minor,
     )
 
-    # transport coefficients from the qlknn-hyper-10D model
-    # (K.L. van de Plassche PoP 2020)
-
-    # set up input vectors (all as jax.numpy arrays on face grid)
-
-    # Calculate normalized logarithmic gradients
     normalized_logarithmic_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
-        radial_coordinate=rmid,  # pyrefly: ignore[bad-argument-type]
-        radial_face_coordinate=rmid_face,  # pyrefly: ignore[bad-argument-type]
-        reference_length=geo.R_major,  # pyrefly: ignore[bad-argument-type]
+        radial_coordinate=rmid,
+        radial_face_coordinate=rmid_face,
+        reference_length=geo.R_major,
+        two_point_mask=two_point_mask,
     )
 
     q = core_profiles.q_face
-
-    # Due to QuaLikiz geometry assumptions, we need to calculate s with respect
-    # to the midplane average, and not use the standard s_face from CoreProfiles
     smag = psi_calculations.calc_s_rmid(
         geo,
         core_profiles.psi,
     )
 
-    # Inverse aspect ratio.
     epsilon = geo.epsilon_face
-    # Local normalized radius.
     x = rmid_face / rmid_face[-1]
     x = jnp.where(jnp.abs(x) < constants.eps, constants.eps, x)
 
-    # Ion to electron temperature ratio
     Ti_Te = core_profiles.T_i.face_value() / core_profiles.T_e.face_value()
 
-    # logarithm of normalized collisionality
     nu_star = collisions.calc_nu_star(
         geo=geo,
         core_profiles=core_profiles,
         collisionality_multiplier=transport.collisionality_multiplier,
     )
-    # Cap nu_star to mitigate unreliable transport predictions at high
-    # collisionality.
     nu_star = jnp.minimum(nu_star, transport.max_normalized_collisionality)
     log_nu_star_face = jnp.log10(nu_star)
 
-    # calculate alpha for magnetic shear correction (see S. van Mulders NF 2021)
-    alpha = quasilinear_transport_model.calculate_alpha(
+    alpha = formulas.calculate_alpha_mhd(
         core_profiles=core_profiles,
-        q=q,
-        reference_magnetic_field=geo.B_0,
-        normalized_logarithmic_gradients=normalized_logarithmic_gradients,
+        geo=geo,
+        two_point_mask=two_point_mask,
     )
 
-    # to approximate impact of Shafranov shift. From van Mulders Nucl. Fusion
-    # 2021.
     smag = jnp.where(
         transport.smag_alpha_correction,
         smag - alpha / 2,
         smag,
     )
 
-    # very basic ad-hoc sawtooth model
     smag = jnp.where(
         jnp.logical_and(
             transport.q_sawtooth_proxy,
@@ -229,16 +294,13 @@ class QualikizBasedTransportModel(
       v_ExB_toroidal = jnp.zeros_like(core_profiles.q_face)
     else:
       rotation_output = rotation.calculate_rotation(
-          T_i=core_profiles.T_i,
           psi=core_profiles.psi,
           n_i=core_profiles.n_i,
-          q_face=core_profiles.q_face,
-          Z_eff_face=core_profiles.Z_eff_face,
           Z_i_face=core_profiles.Z_i_face,
           toroidal_angular_velocity=core_profiles.toroidal_angular_velocity,
+          poloidal_velocity=core_profiles.poloidal_velocity,
           pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
-          poloidal_velocity_multiplier=poloidal_velocity_multiplier,
       )
       v_ExB = rotation_output.v_ExB
       v_ExB_poloidal_and_pressure = rotation_output.v_ExB_poloidal_and_pressure
@@ -259,7 +321,6 @@ class QualikizBasedTransportModel(
           / q
           * cv.face_grad(x=rmid, x_left=rmid_face[0], x_right=rmid_face[-1])
       )
-      # Smooth the profile near the axis to avoid numerical instabilities.
       axis_ramp = jnp.minimum(
           (geo.rho_face_norm / 0.1) ** 2,
           1.0,
@@ -273,7 +334,6 @@ class QualikizBasedTransportModel(
     )
     gamma_E_SI_toroidal = _calc_gamma_E_SI(v_ExB_toroidal)
 
-    # We need different normalizations for QuaLiKiz and QLKNN models.
     c_ref = jnp.sqrt(constants.keV_to_J / constants.m_amu)
     gamma_E_QLK = gamma_E_SI * (geo.R_major / c_ref)
     mach_toroidal = (
@@ -304,9 +364,9 @@ class QualikizBasedTransportModel(
         q=q,
         smag=smag,
         x=x,
-        Ti_Te=Ti_Te,  # pyrefly: ignore[bad-argument-type]
+        Ti_Te=Ti_Te,
         log_nu_star_face=log_nu_star_face,
-        normni=normni,  # pyrefly: ignore[bad-argument-type]
+        normni=normni,
         chiGB=chiGB,
         Rmaj=geo.R_major,
         Rmin=geo.a_minor,

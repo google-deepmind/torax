@@ -14,6 +14,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
+import pydantic
 from torax._src import jax_utils
 from torax._src.pedestal_model import pydantic_model
 from torax._src.pedestal_model import runtime_params
@@ -75,6 +76,35 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     with self.subTest("disallow_negative_values"):
       with self.assertRaises(ValueError):
         pydantic_model.SetTpedNped.from_dict({"transition_time_width": -1.0})
+
+  def test_invalid_model_name_error_message(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Input tag 'invalid_model' found using 'model_name' does not match any"
+        r" of the expected tags",
+    ):
+      pydantic.TypeAdapter(pydantic_model.PedestalConfig).validate_python(
+          {"model_name": "invalid_model"}
+      )
+
+  def test_missing_model_name_error_message(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Unable to extract tag using discriminator 'model_name'",
+    ):
+      pydantic.TypeAdapter(pydantic_model.PedestalConfig).validate_python(
+          {"n_e_ped": 0.7e20}
+      )
+
+  def test_invalid_formation_model_error_message(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"Input tag 'invalid_formation' found using 'model_name' does not match"
+        r" any of the expected tags",
+    ):
+      pydantic_model.SetTpedNped.from_dict(
+          {"formation_model": {"model_name": "invalid_formation"}}
+      )
 
 
 if __name__ == "__main__":

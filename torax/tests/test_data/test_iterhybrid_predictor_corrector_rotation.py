@@ -37,4 +37,6 @@ CONFIG['profile_conditions']['toroidal_angular_velocity'] = {
 core_models['qlknn']['rotation_multiplier'] = 1.0
 # Modify this if you want to scale up or down the poloidal velocity
 # contribution to the rotation.
-CONFIG['neoclassical']['poloidal_velocity_multiplier'] = 1.0
+CONFIG['neoclassical']['poloidal_velocity'] = {
+    'poloidal_velocity_multiplier': 1.0
+}

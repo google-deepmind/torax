@@ -24,6 +24,7 @@ from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
 
@@ -48,6 +49,7 @@ class TransportMultipliers:
     )
 
 
+@jax.jit(static_argnames=["n_sigma"])
 def _build_smoothing_matrix(
     rho_face_norm: array_typing.FloatVectorFace,
     rho_norm_ped_top: array_typing.FloatScalar,
@@ -183,8 +185,8 @@ class PedestalModelOutput:
     """
     # Get ψ_N at each cell grid point.
     psi_face = core_profiles.psi.face_value()
-    psi_norm_cell = (core_profiles.psi.value - psi_face[0]) / (  # pyrefly: ignore[bad-index]
-        psi_face[-1] - psi_face[0]  # pyrefly: ignore[bad-index]
+    psi_norm_cell = (core_profiles.psi.value - psi_face[0]) / (
+        psi_face[-1] - psi_face[0]
     )
 
     # Derive Δ from rho_norm_ped_top via ψ_N mapping.
@@ -229,12 +231,12 @@ class PedestalModelOutput:
   ) -> state.CoreTransport:
     """Modify transport coefficients in the entire pedestal region.
 
-    Scales the turbulent and Pereverzev transport coefficients in the pedestal
-    region by the multipliers in the pedestal model output. This will also scale
-    any components of the transport coefficients that are inherited from the
-    turbulent model, such as ITG, ETG, TEM, Bohm, GyroBohm, etc. Transport
-    coefficients from neoclassical and pedestal transport models are not
-    affected.
+    Scales the turbulent core transport coefficients in the pedestal region by
+    the multipliers in the pedestal model output, and applies smoothing across
+    the combined (scaled core + pedestal) turbulent transport at the pedestal
+    top. Transport coefficients from neoclassical, Pereverzev, and pedestal
+    transport models, as well as individual per-model diagnostic outputs, are
+    not transformed.
 
     Args:
       core_transport: The core transport coefficients to modify.
@@ -246,11 +248,6 @@ class PedestalModelOutput:
     """
     # We are using the face grid here, since transport coefficients are
     # applied on the face grid.
-
-    # TODO(b/485147781):  In the case where we have a TransportModel
-    # with a pedestal transport model specified, we are currently scaling
-    # all the coefficients in the pedestal region, whereas we should be only
-    # scaling the turbulent coeffs and leaving the pedestal coeffs alone.
     pedestal_active_mask_face = geo.rho_face_norm > self.rho_norm_ped_top
 
     smoothing_matrix = _build_smoothing_matrix(
@@ -259,67 +256,87 @@ class PedestalModelOutput:
         pedestal_runtime_params.pedestal_top_smoothing_width,
     )
 
-    def multiply_coeff(
-        path: jax.tree_util.KeyPath, coeff: array_typing.FloatVectorFace
+    def _scale_channel(
+        coeff: array_typing.FloatVectorFace,
+        multiplier: array_typing.FloatScalar,
+        clip_min: array_typing.FloatScalar | None = None,
+        clip_max: array_typing.FloatScalar | None = None,
     ) -> array_typing.FloatVectorFace:
-      """Scale turbulent+Pereverzev transport coefficients in the pedestal."""
-      # Get the variable name of the leaf
-      key = str(path[-1])
-
-      # Apply the correct multiplier based on the variable name
-      # TODO(b/488314338): Improve robustness of applying multipliers to
-      # transport coefficients, ideally avoiding string matching.
-      if "neo" in key:
-        # Neoclassical transport should not be affected by scaling from an
-        # ADAPTIVE_TRANSPORT pedestal model.
-        return coeff
-      elif "chi_face_ion" in key:
-        # If transport suppression is not in effect, perform no scaling
-        # (L-mode). If transport suppression is in effect (i.e. H-mode,
-        # chi_i_multiplier != 1.0), then we clip the chi before scaling, to
-        # avoid unrealistic values.
-        modified_coeff = jnp.where(
-            jnp.isclose(self.transport_multipliers.chi_i_multiplier, 1.0),
-            coeff,
-            jnp.clip(coeff, max=pedestal_runtime_params.chi_max)
-            * self.transport_multipliers.chi_i_multiplier,
-        )
-      elif "chi_face_el" in key:
-        modified_coeff = jnp.where(
-            jnp.isclose(self.transport_multipliers.chi_e_multiplier, 1.0),
-            coeff,
-            jnp.clip(coeff, max=pedestal_runtime_params.chi_max)
-            * self.transport_multipliers.chi_e_multiplier,
-        )
-      elif "d_face_el" in key:
-        modified_coeff = jnp.where(
-            jnp.isclose(self.transport_multipliers.D_e_multiplier, 1.0),
-            coeff,
-            jnp.clip(coeff, max=pedestal_runtime_params.D_e_max)
-            * self.transport_multipliers.D_e_multiplier,
-        )
-      elif "v_face_el" in key:
-        modified_coeff = jnp.where(
-            jnp.isclose(self.transport_multipliers.v_e_multiplier, 1.0),
-            coeff,
-            jnp.clip(
-                coeff,
-                min=pedestal_runtime_params.V_e_min,
-                max=pedestal_runtime_params.V_e_max,
-            )
-            * self.transport_multipliers.v_e_multiplier,
-        )
-      else:
-        return coeff
-
-      # Only modify the coefficients in the pedestal region.
-      modified_coeff = jnp.where(
-          pedestal_active_mask_face, modified_coeff, coeff
+      """Scales and clips a single transport coefficient channel."""
+      # If transport suppression is not in effect, perform no scaling (L-mode).
+      # If transport suppression is in effect (i.e. H-mode, multiplier != 1.0),
+      # then clip before scaling to avoid unrealistic values.
+      modified = jnp.where(
+          jnp.isclose(multiplier, 1.0),
+          coeff,
+          jnp.clip(coeff, min=clip_min, max=clip_max) * multiplier,
       )
+      # Only modify the coefficients in the pedestal region.
+      return jnp.where(pedestal_active_mask_face, modified, coeff)
 
-      # Apply smoothing to the pedestal top
-      modified_coeff = jnp.dot(smoothing_matrix, modified_coeff)
+    core_coeffs = core_transport.turbulent.core
+    pedestal_coeffs = core_transport.turbulent.pedestal
 
-      return modified_coeff
+    # Scale only core transport.
+    scaled_core = dataclasses.replace(
+        core_coeffs,
+        chi_face_ion=_scale_channel(
+            core_coeffs.chi_face_ion,
+            self.transport_multipliers.chi_i_multiplier,
+            clip_max=pedestal_runtime_params.chi_max,
+        ),
+        chi_face_el=_scale_channel(
+            core_coeffs.chi_face_el,
+            self.transport_multipliers.chi_e_multiplier,
+            clip_max=pedestal_runtime_params.chi_max,
+        ),
+        d_face_el=_scale_channel(
+            core_coeffs.d_face_el,
+            self.transport_multipliers.D_e_multiplier,
+            clip_max=pedestal_runtime_params.D_e_max,
+        ),
+        v_face_el=_scale_channel(
+            core_coeffs.v_face_el,
+            self.transport_multipliers.v_e_multiplier,
+            clip_min=pedestal_runtime_params.V_e_min,
+            clip_max=pedestal_runtime_params.V_e_max,
+        ),
+    )
 
-    return jax.tree_util.tree_map_with_path(multiply_coeff, core_transport)
+    # Smooth across the combined core and pedestal transport, then subtract the
+    # pedestal contribution so that `modified_turbulent.total` (`core +
+    # pedestal`) equals the smoothed total while only updating `core` for
+    # simplicity.
+    def _smooth_combined(
+        scaled_core_channel: array_typing.FloatVectorFace,
+        ped_channel: array_typing.FloatVectorFace,
+    ) -> array_typing.FloatVectorFace:
+      combined = scaled_core_channel + ped_channel
+      smoothed_total = jnp.dot(smoothing_matrix, combined)
+      return smoothed_total - ped_channel
+
+    smoothed_core = jax.tree_util.tree_map(
+        _smooth_combined,
+        scaled_core,
+        pedestal_coeffs,
+    )
+    modified_turbulent = dataclasses.replace(
+        core_transport.turbulent,
+        core=smoothed_core,
+    )
+
+    # Neoclassical and Pereverzev-Corrigan stabilization transport are not
+    # affected by scaling from an ADAPTIVE_TRANSPORT pedestal model.
+    # Pereverzev diffusivity (chi_face, d_face) and counter-convection
+    # (full_v_heat_face, v_face) must remain exactly balanced so their net flux
+    # vanishes at convergence.
+    coeffs_to_sum = [modified_turbulent.total, core_transport.neoclassical]
+    if core_transport.pereverzev is not None:
+      coeffs_to_sum.append(core_transport.pereverzev)
+    total = transport_coeffs_lib.sum_transport_coeffs(*coeffs_to_sum)
+    return state.CoreTransport(
+        total=total,
+        turbulent=modified_turbulent,
+        neoclassical=core_transport.neoclassical,
+        pereverzev=core_transport.pereverzev,
+    )

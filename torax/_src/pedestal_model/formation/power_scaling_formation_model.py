@@ -42,6 +42,7 @@ class PowerScalingFormationRuntimeParams(
   P_LH_prefactor: array_typing.FloatScalar = 1.0
 
 
+@jax.jit(static_argnames=['include_dW_dt'])
 def calculate_P_SOL_total(
     internal_plasma_energy: state.PlasmaInternalEnergy,
     core_sources: source_profiles_lib.SourceProfiles,
@@ -103,7 +104,7 @@ class PowerScalingFormationModel(base.FormationModel):
     )
 
     P_SOL_total = calculate_P_SOL_total(
-        core_profiles.internal_plasma_energy,  # pyrefly: ignore[bad-argument-type]
+        core_profiles.internal_plasma_energy,
         core_sources,
         geo,
         include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
