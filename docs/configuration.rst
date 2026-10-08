@@ -1213,6 +1213,15 @@ geometry
     (IDS) or directly the equilibrium IDS on the fly. It handles IDSs in Data
     Dictionary version 4.0.0.
 
+* ``'tokamaker'``
+    Takes flux surface averages computed by
+    `TokaMaker <https://github.com/openfusiontoolkit/OpenFUSIONToolkit>`_.
+    TokaMaker traces flux surfaces on the finite element mesh used for the
+    equilibrium solve, then passes arrays of flux surface averaged quantities
+    to TORAX. TORAX does not depend on TokaMaker (or Open FUSION Toolkit),
+    the geometry information is passed as plain arrays, which can be done
+    without saving and loading files.
+
 Geometry dicts for all geometry types can contain the following additional keys.
 
 ``calcphibdot`` (bool [default = True])
@@ -1276,7 +1285,7 @@ Geometry dicts for all geometry types can contain the following additional keys.
     Only supported for EQDSK and IMAS geometries.
 
 
-Geometry dicts for all non-circular geometry types can contain the following
+Geometry dicts for all geometry types, except ``circular`` and ``tokamaker``, can contain the following
 additional keys.
 
 ``geometry_file`` (str) See below for information on defaults
