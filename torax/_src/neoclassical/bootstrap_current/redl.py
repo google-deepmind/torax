@@ -78,13 +78,6 @@ class RedlModelConfig(bootstrap_current_base.BootstrapCurrentModelConfig):
 
   model_name: Annotated[Literal['redl'], torax_pydantic.JAX_STATIC] = 'redl'
 
-  def build_runtime_params(
-      self,
-  ) -> bootstrap_current_runtime_params.RuntimeParams:
-    return bootstrap_current_runtime_params.RuntimeParams(
-        bootstrap_multiplier=self.bootstrap_multiplier
-    )
-
   def build_model(self) -> RedlModel:
     return RedlModel()
 

@@ -408,8 +408,9 @@ class SetPpedTpedRatioNped(BasePedestal):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> set_pped_tpedratio_nped.RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return set_pped_tpedratio_nped.RuntimeParams(
-        **vars(super().build_runtime_params(t)),
+        **vars(base_params),
         P_ped=self.P_ped.get_value(t),
         P_ped_multiplier=self.P_ped_multiplier.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
@@ -461,8 +462,9 @@ class SetTpedNped(BasePedestal):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> set_tped_nped.RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return set_tped_nped.RuntimeParams(
-        **vars(super().build_runtime_params(t)),
+        **vars(base_params),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_ped=self.T_i_ped.get_value(t),
