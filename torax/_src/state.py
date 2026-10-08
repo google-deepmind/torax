@@ -209,20 +209,6 @@ class CoreProfiles:
     )
 
   @functools.cached_property
-  def n_i_total_thermal_face(self) -> array_typing.FloatVectorFace:
-    """Total thermal ion particle density (main ions + impurities) [m^-3].
-
-    On the face grid. The bundled impurity density (charge Z_impurity =
-    <Z^2>/<Z>) is rescaled to the true impurity particle density with
-    `impurity_density_scaling_face` before being summed with the main ions.
-    """
-    return (
-        self.n_i.face_value()
-        + self.n_impurity_thermal.face_value()
-        * self.impurity_density_scaling_face
-    )
-
-  @functools.cached_property
   def pressure_thermal_i(self) -> cell_variable.CellVariable:
     """Ion thermal pressure [Pa]."""
     return cell_variable.CellVariable(

@@ -367,28 +367,6 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         8.75e20 * constants.CONSTANTS.keV_to_J,
     )
 
-  def test_n_i_total_thermal_face_rescales_impurity_density(self):
-    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    base_core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
-    # Bundled impurity charge <Z^2>/<Z> = 3 and <Z> = 2, so the true impurity
-    # particle density is 1.5x the bundled one.
-    core_profiles = dataclasses.replace(
-        base_core_profiles,
-        n_i=core_profile_helpers.make_constant_core_profile(geo, 2.5e20),
-        n_impurity=core_profile_helpers.make_constant_core_profile(
-            geo, 0.25e20
-        ),
-        Z_impurity_face=jnp.full_like(geo.rho_face, 3.0),
-        charge_state_info_face=dataclasses.replace(
-            base_core_profiles.charge_state_info_face,
-            Z_avg=jnp.full_like(geo.rho_face, 2.0),
-        ),
-    )
-
-    np.testing.assert_allclose(
-        core_profiles.n_i_total_thermal_face, 2.5e20 + 1.5 * 0.25e20
-    )
-
   def test_thermal_densities_with_fast_ions(self):
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
     base_core_profiles = core_profile_helpers.make_zero_core_profiles(geo)

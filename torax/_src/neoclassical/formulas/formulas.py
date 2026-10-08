@@ -29,32 +29,13 @@ from torax._src.physics import collisions
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class NeoclassicalIntermediates:
-  """Precomputed intermediate quantities for analytical neoclassical models.
-
-  Attributes:
-    f_trap: Trapped particle fraction on the face grid.
-    log_lambda_ei: Electron-ion Coulomb logarithm on the face grid.
-    log_lambda_ii: Ion-ion Coulomb logarithm on the face grid.
-    nu_e_star: Electron collisionality on the face grid.
-    nu_i_star: Ion collisionality on the face grid computed with the total
-      thermal ion particle density (`n_i_total_thermal_face`). Used by the
-      Sauter and Redl bootstrap current models, where multi-species ion
-      collisionality is parameterized through the summed ion density.
-    nu_i_star_main_ion: Ion collisionality on the face grid computed with the
-      main-ion density (`n_i`). Used by models that either treat a single ion
-      fluid (Kim poloidal velocity `k_neo`) or account for impurity collisions
-      separately via the impurity strength parameter `alpha_I` (Angioni-Sauter
-      neoclassical transport).
-    k_neo: Neoclassical poloidal rotation coefficient on the face grid,
-      evaluated using `nu_i_star_main_ion`.
-  """
+  """Precomputed intermediate quantities for analytical neoclassical models."""
 
   f_trap: array_typing.FloatVectorFace
   log_lambda_ei: array_typing.FloatVectorFace
   log_lambda_ii: array_typing.FloatVectorFace
   nu_e_star: array_typing.FloatVectorFace
   nu_i_star: array_typing.FloatVectorFace
-  nu_i_star_main_ion: array_typing.FloatVectorFace
   k_neo: array_typing.FloatVectorFace
 
 
@@ -80,35 +61,21 @@ def compute_neoclassical_intermediates(
       Z_eff=core_profiles.Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
-  # Total thermal ion collisionality (main ions + impurities), used by the
-  # Sauter and Redl bootstrap current models.
   nu_i_star = calculate_nu_i_star(
-      q=core_profiles.q_face,
-      geo=geo,
-      n_i=core_profiles.n_i_total_thermal_face,
-      T_i=core_profiles.T_i.face_value(),
-      Z_i=core_profiles.Z_i_face,
-      log_lambda_ii=log_lambda_ii,
-  )
-  # Main-ion-only collisionality, used by single-fluid models (k_neo for Kim
-  # poloidal velocity) and by Angioni-Sauter transport (where impurity
-  # collisions enter separately via alpha_I).
-  nu_i_star_main_ion = calculate_nu_i_star(
       q=core_profiles.q_face,
       geo=geo,
       n_i=core_profiles.n_i.face_value(),
       T_i=core_profiles.T_i.face_value(),
-      Z_i=core_profiles.Z_i_face,
+      Z_eff=core_profiles.Z_eff_face,
       log_lambda_ii=log_lambda_ii,
   )
-  k_neo = _calculate_neoclassical_k_neo(nu_i_star_main_ion, geo.epsilon_face)
+  k_neo = _calculate_neoclassical_k_neo(nu_i_star, geo.epsilon_face)
   return NeoclassicalIntermediates(
       f_trap=f_trap,
       log_lambda_ei=log_lambda_ei,
       log_lambda_ii=log_lambda_ii,
       nu_e_star=nu_e_star,
       nu_i_star=nu_i_star,
-      nu_i_star_main_ion=nu_i_star_main_ion,
       k_neo=k_neo,
   )
 
@@ -158,25 +125,21 @@ def calculate_nu_i_star(
     geo: geometry_lib.Geometry,
     n_i: array_typing.FloatVectorFace,
     T_i: array_typing.FloatVectorFace,
-    Z_i: array_typing.FloatVectorFace,
+    Z_eff: array_typing.FloatVectorFace,
     log_lambda_ii: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorFace:
   """Calculates the ion collisionality, nu_i_star.
 
-  Sauter PoP 1999 Eq. (18c), with Z = Z_i (main-ion charge), not Z_eff.
-  See erratum: O. Sauter, C. Angioni, and Y. R. Lin-Liu,
-  Phys. Plasmas 9, 5140 (2002), https://doi.org/10.1063/1.1517052
+  This is the ion collisionality, defined as the ratio of the ion
+  collision frequency to the bounce frequency. From Sauter PoP 1999 Eq. (18c).
 
   Args:
     q: Safety factor.
     geo: The geometry of the torus.
-    n_i: Ion density in Sauter Eq. (18c) [m^-3]. Total thermal ion particle
-      density (``CoreProfiles.n_i_total_thermal_face``) for Sauter/Redl
-      bootstrap; main-ion density for single-fluid uses (poloidal velocity) and
-      Angioni-Sauter transport (where impurity collisions enter via alpha_I).
-    T_i: Ion temperature [keV].
-    Z_i: Main ion charge.
-    log_lambda_ii: Ion-ion Coulomb logarithm (Sauter Eq. 18e, also uses Z_i).
+    n_i: Ion density.
+    T_i: Ion temperature.
+    Z_eff: Effective charge.
+    log_lambda_ii: Ion-ion Coulomb logarithm.
 
   Returns:
     The ion collisionality.
@@ -186,7 +149,7 @@ def calculate_nu_i_star(
       * q
       * geo.R_major_profile_face
       * n_i
-      * Z_i**4
+      * Z_eff**4
       * log_lambda_ii
       / (
           ((T_i * 1e3) ** 2)
@@ -195,7 +158,6 @@ def calculate_nu_i_star(
   )
 
 
-# Functions to calculate the neoclassical poloidal velocity.
 def _calculate_neoclassical_k_neo(
     nu_star: array_typing.FloatScalar, epsilon: array_typing.FloatScalar
 ):

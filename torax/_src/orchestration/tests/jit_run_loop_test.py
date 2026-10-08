@@ -70,10 +70,7 @@ class JitRunLoopTest(absltest.TestCase):
     _, grad_vjp = grad_fn(Ip_new_values)
 
     # jax.test_util.check_grads could be used here, but its very slow.
-    # eps is in amperes and Ip is O(MA), so a small absolute step leaves the
-    # finite difference dominated by solver roundoff rather than by the
-    # gradient.
-    eps = 1.0
+    eps = 1e-6
     index = 1
     eps_vec = jax.nn.one_hot(index, len(Ip_new_values), dtype=jnp.float64) * eps
     grad_diff = (
