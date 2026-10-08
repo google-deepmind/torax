@@ -79,7 +79,7 @@ electron_heating_ec = core_sources_xr["source.profiles_1d.electrons.energy"][
 
 # Set BgB multiplier to achieve desired confinement
 # Lower -> better confinement
-bgb_multiplier = 0.15
+bgb_multiplier = 0.12
 
 
 CONFIG = {
@@ -158,7 +158,7 @@ CONFIG = {
             },
         },
         # Clipping
-        "chi_min": 0.15,
+        "chi_min": 1e-3,
         "chi_max": 100.0,
         "D_e_min": 1e-3,
         "D_e_max": 100.0,
