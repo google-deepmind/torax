@@ -306,11 +306,9 @@ def _toric_nn_predict(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(source_runtime_params_lib.RuntimeParams):
+class RuntimeParams(base.RuntimeParams):
   frequency: array_typing.FloatScalar
   minority_concentration: array_typing.FloatScalar | None
-  P_total: array_typing.FloatScalar
-  absorption_fraction: array_typing.FloatScalar
   wall_inner: float
   wall_outer: float
   minority_species: str | None = dataclasses.field(
@@ -555,6 +553,9 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
       the electron density. This parameter is used when minority_species is not
       specified (legacy mode). When minority_species is set, the concentration
       is automatically extracted from plasma_composition.
+    minority_species: Optional symbol of the minority species (e.g., 'He3').
+      When specified, the minority concentration is extracted from
+      plasma_composition. The species can be either a main ion or an impurity.
   """
 
   model_name: Annotated[Literal['toric_nn'], torax_pydantic.JAX_STATIC] = (
@@ -570,6 +571,8 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
   minority_concentration: torax_pydantic.TimeVaryingScalar | None = (
       torax_pydantic.ValidatedDefault(0.03)
   )
+  # TODO(b/434175938): Make minority_species a required field in V2.
+  minority_species: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -632,6 +635,4 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
             else None
         ),
         minority_species=self.minority_species,
-        P_total=self.P_total.get_value(t),
-        absorption_fraction=self.absorption_fraction.get_value(t),
     )

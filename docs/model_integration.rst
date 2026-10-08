@@ -202,23 +202,6 @@ additional runtime parameters beyond the base pedestal parameters.
             saturation_model=self.saturation_model.build_saturation_model(),
         )
 
-      def build_runtime_params(
-          self, t,
-      ) -> pedestal.RuntimeParams:
-        return pedestal.RuntimeParams(
-            set_pedestal=self.set_pedestal.get_value(t),
-            mode=self.mode,
-            formation=self.formation_model.build_runtime_params(t),
-            saturation=self.saturation_model.build_runtime_params(t),
-            chi_max=self.chi_max.get_value(t),
-            D_e_max=self.D_e_max.get_value(t),
-            V_e_max=self.V_e_max.get_value(t),
-            V_e_min=self.V_e_min.get_value(t),
-            pedestal_top_smoothing_width=(
-                self.pedestal_top_smoothing_width.get_value(t)
-            ),
-        )
-
 
 Step 3: Register the model
 ---------------------------
