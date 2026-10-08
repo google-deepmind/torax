@@ -1127,6 +1127,28 @@ their physics validation, and numerical implementation.
 ``model_name`` (str [default = 'extended_lengyel'])
   Selects the edge model. Currently only ``'extended_lengyel'`` is supported.
 
+The following boundary condition update flags are common to all edge models.
+Each defaults to whether the selected model supports computing that boundary
+condition, and cannot be set to ``True`` for a boundary condition the model
+does not support. See :ref:`edge_models` for details.
+
+``update_T_e`` (bool [default = model dependent])
+  If ``True``, update the core solver's boundary electron temperature using the
+  value calculated by the edge model.
+
+``update_T_i`` (bool [default = model dependent])
+  If ``True``, update the core solver's boundary ion temperature using the value
+  calculated by the edge model.
+
+``update_n_e`` (bool [default = model dependent])
+  If ``True``, update the core solver's boundary electron density using the
+  value calculated by the edge model.
+
+``update_impurity`` (bool [default = model dependent])
+  If ``True``, and enrichment modeling is used or enrichment factors are
+  provided, update the core solver's impurity boundary conditions based on
+  edge enrichment calculations.
+
 extended_lengyel
 ^^^^^^^^^^^^^^^^
 
@@ -1136,6 +1158,12 @@ radiation.
 
 See :ref:`extended_lengyel_config` for the complete list of physical and
 control parameters.
+
+The Extended Lengyel model computes the electron temperature, ion temperature
+and impurity boundary conditions, but not the electron density boundary
+condition. So ``update_T_e``, ``update_T_i`` and ``update_impurity`` default to
+``True``, and ``update_n_e`` defaults to ``False`` (and cannot be set to
+``True``).
 
 **Key Control Parameters:**
 
@@ -1156,15 +1184,6 @@ control parameters.
     (``plasma_composition``).
   * ``'edge'``: Fixed impurity concentrations are taken from the
     ``fixed_impurity_concentrations`` dictionary in the edge configuration.
-
-``update_temperatures`` (bool [default = True])
-  If ``True``, update the core solver's boundary electron and ion temperatures
-  using the values calculated by the edge model.
-
-``update_impurities`` (bool [default = True])
-  If ``True``, and enrichment modeling is used or enrichment factors are
-  provided, update the core solver's impurity boundary conditions based on
-  edge enrichment calculations.
 
 **Key Physical Inputs:**
 

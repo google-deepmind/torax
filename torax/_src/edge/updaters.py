@@ -48,26 +48,34 @@ def update_runtime_params(
 
   edge = runtime_params.edge
 
-  # Conditionally update temperatures based on the update_temperatures flag.
+  # Conditionally update electron temperature based on update_T_e.
   runtime_params = jax.lax.cond(
-      edge.update_temperatures,
-      lambda runtime_params: _update_temperatures(runtime_params, edge_outputs),
+      edge.update_T_e,
+      lambda runtime_params: _update_T_e(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
   )
 
-  # Conditionally update density based on the update_electron_density flag.
+  # Conditionally update ion temperature based on update_T_i.
   runtime_params = jax.lax.cond(
-      edge.update_electron_density,
-      lambda runtime_params: _update_density(runtime_params, edge_outputs),
+      edge.update_T_i,
+      lambda runtime_params: _update_T_i(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
   )
 
-  # Conditionally update impurities based on the update_impurities flag.
+  # Conditionally update density based on the update_n_e flag.
   runtime_params = jax.lax.cond(
-      edge.update_impurities,
-      lambda runtime_params: _update_impurities(runtime_params, edge_outputs),
+      edge.update_n_e,
+      lambda runtime_params: _update_n_e(runtime_params, edge_outputs),
+      lambda runtime_params: runtime_params,
+      runtime_params,
+  )
+
+  # Conditionally update impurities based on the update_impurity flag.
+  runtime_params = jax.lax.cond(
+      edge.update_impurity,
+      lambda runtime_params: _update_impurity(runtime_params, edge_outputs),
       lambda runtime_params: runtime_params,
       runtime_params,
   )
@@ -75,26 +83,45 @@ def update_runtime_params(
   return runtime_params
 
 
-def _update_temperatures(
+def _update_T_e(
     runtime_params: runtime_params_lib.RuntimeParams,
     edge_outputs: edge_base.EdgeModelOutputs,
 ) -> runtime_params_lib.RuntimeParams:
-  """Updates temperature boundary conditions based on edge model outputs."""
+  """Updates electron temperature boundary condition based on edge outputs."""
+  if edge_outputs.T_e_right_bc is None:
+    return runtime_params
   return dataclasses.replace(
       runtime_params,
       profile_conditions=dataclasses.replace(
           runtime_params.profile_conditions,
           T_e_right_bc=edge_outputs.T_e_right_bc,
+      ),
+  )
+
+
+def _update_T_i(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    edge_outputs: edge_base.EdgeModelOutputs,
+) -> runtime_params_lib.RuntimeParams:
+  """Updates ion temperature boundary condition based on edge model outputs."""
+  if edge_outputs.T_i_right_bc is None:
+    return runtime_params
+  return dataclasses.replace(
+      runtime_params,
+      profile_conditions=dataclasses.replace(
+          runtime_params.profile_conditions,
           T_i_right_bc=edge_outputs.T_i_right_bc,
       ),
   )
 
 
-def _update_density(
+def _update_n_e(
     runtime_params: runtime_params_lib.RuntimeParams,
     edge_outputs: edge_base.EdgeModelOutputs,
 ) -> runtime_params_lib.RuntimeParams:
   """Updates electron density boundary condition based on edge model outputs."""
+  if edge_outputs.n_e_right_bc is None:
+    return runtime_params
   return dataclasses.replace(
       runtime_params,
       profile_conditions=dataclasses.replace(
@@ -105,7 +132,7 @@ def _update_density(
   )
 
 
-def _update_impurities(
+def _update_impurity(
     runtime_params: runtime_params_lib.RuntimeParams,
     edge_outputs: edge_base.EdgeModelOutputs,
 ) -> runtime_params_lib.RuntimeParams:
