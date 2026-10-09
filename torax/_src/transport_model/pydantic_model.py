@@ -15,7 +15,6 @@
 """Pydantic config for Transport models."""
 
 import copy
-import dataclasses
 from typing import Annotated, Any, Literal, Mapping, Self, Sequence
 from absl import logging
 import chex
@@ -186,7 +185,7 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> qlknn_transport_model.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return qlknn_transport_model.RuntimeParams(
         include_ITG=self.include_ITG,
         include_TEM=self.include_TEM,
@@ -207,7 +206,7 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
         rotation_mode=self.rotation_mode,
         shear_suppression_alpha=self.shear_suppression_alpha,
         output_mode_contributions=self.output_mode_contributions,
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
@@ -258,7 +257,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> tglfnn_ukaea_transport_model.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return tglfnn_ukaea_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,
         An_min=self.An_min,
@@ -268,7 +267,7 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
         collisionality_multiplier=self.collisionality_multiplier,
         max_normalized_collisionality=self.max_normalized_collisionality,
         # From base
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
@@ -301,13 +300,13 @@ class PrescribedTransportModel(pydantic_model_base.ComponentTransportBase):
     return prescribed.PrescribedTransportModel()
 
   def build_runtime_params(self, t: chex.Numeric) -> prescribed.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return prescribed.RuntimeParams(
         chi_i=self.chi_i.get_value(t, 'face'),
         chi_e=self.chi_e.get_value(t, 'face'),
         D_e=self.D_e.get_value(t, 'face'),
         V_e=self.V_e.get_value(t, 'face'),
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
@@ -349,14 +348,14 @@ class CriticalGradientTransportModel(
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> critical_gradient.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return critical_gradient.RuntimeParams(
         alpha=self.alpha,
         chi_stiff=self.chi_stiff,
         chi_e_i_ratio=self.chi_e_i_ratio.get_value(t),
         chi_D_ratio=self.chi_D_ratio.get_value(t),
         VR_D_ratio=self.VR_D_ratio.get_value(t),
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
@@ -428,7 +427,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.ComponentTransportBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> bohm_gyrobohm.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return bohm_gyrobohm.RuntimeParams(
         chi_e_bohm_coeff=self.chi_e_bohm_coeff.get_value(t),
         chi_e_gyrobohm_coeff=self.chi_e_gyrobohm_coeff.get_value(t),
@@ -441,7 +440,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.ComponentTransportBase):
         D_face_c1=self.D_face_c1.get_value(t),
         D_face_c2=self.D_face_c2.get_value(t),
         V_face_coeff=self.V_face_coeff.get_value(t),
-        **base_kwargs,
+        **vars(base_params),
     )
 
 

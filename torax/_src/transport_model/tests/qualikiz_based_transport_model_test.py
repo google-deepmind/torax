@@ -388,7 +388,7 @@ class QualikizBasedTransportModelConfig(
     return FakeQualikizBasedTransportModel()
 
   def build_runtime_params(self, t: chex.Numeric):
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return qualikiz_based_transport_model.RuntimeParams(
         collisionality_multiplier=self.collisionality_multiplier,
         max_normalized_collisionality=self.max_normalized_collisionality,
@@ -400,7 +400,7 @@ class QualikizBasedTransportModelConfig(
         DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
-        **base_kwargs,
+        **vars(base_params),
     )
 
 

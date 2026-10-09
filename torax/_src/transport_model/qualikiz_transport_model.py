@@ -503,7 +503,7 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     return QualikizTransportModel()
 
   def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
         n_max_runs=self.n_max_runs,
         n_processes=self.n_processes,
@@ -517,5 +517,5 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
         DV_effective_smooth_width=self.DV_effective_smooth_width,
         rotation_multiplier=self.rotation_multiplier,
         rotation_mode=self.rotation_mode,
-        **base_kwargs,
+        **vars(base_params),
     )

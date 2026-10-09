@@ -103,8 +103,9 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceConfigBase):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **dataclasses.asdict(super().build_runtime_params(t)),
+        **vars(base_params),
         fraction_P_heating=self.fraction_P_heating.get_value(t),
     )
 

@@ -406,8 +406,9 @@ class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):
       self,
       t: chex.Numeric,
   ) -> 'RuntimeParams':
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **dataclasses.asdict(super().build_runtime_params(t)),
+        **vars(base_params),
         wall_reflection_coeff=self.wall_reflection_coeff,
         beta_min=self.beta_min,
         beta_max=self.beta_max,

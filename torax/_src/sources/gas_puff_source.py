@@ -104,8 +104,9 @@ class GasPuffSourceConfig(base.SourceConfigBase):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **dataclasses.asdict(super().build_runtime_params(t)),
+        **vars(base_params),
         puff_decay_length=self.puff_decay_length.get_value(t),
         S_total=self.S_total.get_value(t),
     )

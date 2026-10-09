@@ -154,8 +154,9 @@ class GenericIonElHeatSourceConfig(base.SourceConfigBase):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **dataclasses.asdict(super().build_runtime_params(t)),
+        **vars(base_params),
         gaussian_width=self.gaussian_width.get_value(t),
         gaussian_location=self.gaussian_location.get_value(t),
         P_total=self.P_total.get_value(t),

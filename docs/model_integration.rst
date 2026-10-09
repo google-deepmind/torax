@@ -347,8 +347,9 @@ model name for the source you are registering against.
       def build_runtime_params(
           self, t: chex.Numeric,
       ) -> MyRuntimeParams:
+        base_params = super().build_runtime_params(t)
         return MyRuntimeParams(
-            **dataclasses.asdict(super().build_runtime_params(t)),
+            **vars(base_params),
             scaling_factor=self.scaling_factor,
         )
 

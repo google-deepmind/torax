@@ -175,8 +175,9 @@ class ScaledProfileIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **dataclasses.asdict(super().build_runtime_params(t)),
+        **vars(base_params),
         P_total=self.P_total.get_value(t),
         absorption_fraction=self.absorption_fraction.get_value(t),
         heat_profile_ion=self.heat_profile_ion.get_value(t),

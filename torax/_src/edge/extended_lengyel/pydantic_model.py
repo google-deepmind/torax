@@ -14,7 +14,6 @@
 
 """Pydantic configs for all edge models, currently only extended_lengyel."""
 
-import dataclasses
 import logging
 from typing import Annotated, Any, Literal, Mapping, Self
 import chex
@@ -395,7 +394,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
     base_params = super().build_runtime_params(t)
 
     return extended_lengyel_model.RuntimeParams(
-        **dataclasses.asdict(base_params),
+        **vars(base_params),
         computation_mode=self.computation_mode,
         solver_mode=self.solver_mode,
         impurity_sot=self.impurity_sot,

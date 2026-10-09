@@ -429,7 +429,7 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     )
 
   def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
         n_processes=self.n_processes,
         n_cores_per_process=self.n_cores_per_process,
@@ -444,5 +444,5 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
         An_min=self.An_min,
         DV_effective_smooth_width=self.DV_effective_smooth_width,
         tglf_settings=self.tglf_settings,
-        **base_kwargs,
+        **vars(base_params),
     )

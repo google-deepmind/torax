@@ -81,13 +81,13 @@ class AngioniSauterModelConfig(base.NeoclassicalTransportModelConfig):
 
   @override
   def build_runtime_params(self) -> RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params())
+    base_params = super().build_runtime_params()
     return RuntimeParams(
         use_shaing_ion_correction=self.use_shaing_ion_correction,
         shaing_ion_multiplier=self.shaing_ion_multiplier,
         shaing_blend_start=self.shaing_blend_start,
         shaing_blend_rate=self.shaing_blend_rate,
-        **base_kwargs
+        **vars(base_params),
     )
 
 

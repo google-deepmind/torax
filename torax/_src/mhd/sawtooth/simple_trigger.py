@@ -135,9 +135,9 @@ class SimpleTriggerConfig(trigger_base.TriggerConfig):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **base_kwargs,
+        **vars(base_params),
         s_critical=self.s_critical.get_value(t),
     )
 

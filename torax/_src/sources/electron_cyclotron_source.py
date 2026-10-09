@@ -180,8 +180,9 @@ class ElectronCyclotronSourceConfig(base.SourceConfigBase):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **dataclasses.asdict(super().build_runtime_params(t)),
+        **vars(base_params),
         current_drive_efficiency=self.current_drive_efficiency.get_value(t),
         extra_prescribed_power_density=self.extra_prescribed_power_density.get_value(
             t

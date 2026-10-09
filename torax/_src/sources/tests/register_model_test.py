@@ -79,8 +79,9 @@ class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceConfigBase):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **dataclasses.asdict(super().build_runtime_params(t)),
+        **vars(base_params),
         a=self.a.get_value(t),
         b=self.b,
     )
@@ -105,8 +106,9 @@ class DuplicateGasPuffSourceModelConfig(
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **dataclasses.asdict(super().build_runtime_params(t)),
+        **vars(base_params),
         a=self.a.get_value(t),
         b=self.b,
     )

@@ -334,7 +334,7 @@ class TGLFBasedTransportModelConfig(
     return FakeTGLFBasedTransportModel()
 
   def build_runtime_params(self, t: chex.Numeric):
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return tglf_based_transport_model.RuntimeParams(
         # DV_effective and An_min are inherited from QuasilinearTransportModel
         DV_effective=self.DV_effective,
@@ -344,7 +344,7 @@ class TGLFBasedTransportModelConfig(
         rotation_multiplier=1.0,
         collisionality_multiplier=1.0,
         max_normalized_collisionality=self.max_normalized_collisionality,
-        **base_kwargs,
+        **vars(base_params),
     )
 
 

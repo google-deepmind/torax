@@ -109,8 +109,9 @@ class GenericParticleSourceConfig(base.SourceConfigBase):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **dataclasses.asdict(super().build_runtime_params(t)),
+        **vars(base_params),
         particle_width=self.particle_width.get_value(t),
         deposition_location=self.deposition_location.get_value(t),
         S_total=self.S_total.get_value(t),

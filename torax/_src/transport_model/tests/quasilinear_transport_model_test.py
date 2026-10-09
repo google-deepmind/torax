@@ -584,12 +584,12 @@ class QuasilinearTransportConfig(
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> quasilinear_transport_model.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return quasilinear_transport_model.RuntimeParams(
         DV_effective=self.DV_effective,
         An_min=self.An_min,
         DV_effective_smooth_width=self.DV_effective_smooth_width,
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
