@@ -248,6 +248,28 @@ class WhileLoopBoundedTest(parameterized.TestCase):
     expected_out = jnp.array([1.0 * (2.0**4), 2.0 * (3.0**4)])
     chex.assert_trees_all_close(vmapped_out, expected_out)
 
+  @parameterized.parameters(['scan', 'while_loop'])
+  def test_vmap_grad(self, implementation):
+    """Test that gradients can be taken through jax.vmap of while_loop_bounded."""
+
+    def f(a, x):
+      cond_fun = lambda state: state[0] < 4
+      body_fun = lambda state: (state[0] + 1, a * jnp.sin(state[1]))
+      init_state = (0, x)
+      return jax_utils.while_loop_bounded(
+          cond_fun,
+          body_fun,
+          init_state,
+          max_steps=10,
+          implementation=implementation,
+      )[0][1]
+
+    a = 2.0
+    xs = jnp.array([0.1, 0.5, 1.0])
+    jtu.check_grads(
+        jax.vmap(f, in_axes=(None, 0)), (a, xs), modes=('rev', 'fwd'), order=1
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
