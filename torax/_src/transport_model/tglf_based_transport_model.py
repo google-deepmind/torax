@@ -206,14 +206,18 @@ class TGLFBasedTransportModel(
     c_s = (T_e_J / m_D) ** 0.5  # T_e [J], m_D [kg], gives c_s in [m/s]
     a = geo.a_minor  # Device minor radius at LCFS [m]
     r = geo.r_mid_face  # Flux surface centroid minor radius [m]
-    # r is zero on axis, so use safe_divide to avoid division by zero.
+    # On the magnetic axis (index 0), both r and dpsi/dr vanish (0/0), so use
+    # the first off-axis face ratio
     # Use face_grad to correctly handle constraints on the psi CellVariable.
-    B_unit = math_utils.safe_divide(
-        num=core_profiles.q_face
-        * core_profiles.psi.face_grad(x=geo.r_mid, x_left=r[0], x_right=r[-1]),
-        denom=(2 * jnp.pi * r),  # Note: psi_TGLF is psi_TORAX/2π
-        eps=1e-7,
+    dpsi_dr = core_profiles.psi.face_grad(
+        x=geo.r_mid, x_left=r[0], x_right=r[-1]
     )
+    dpsi_dr_over_r = jnp.concatenate([
+        dpsi_dr[1:2] / r[1:2],
+        dpsi_dr[1:] / r[1:],
+    ])
+    # Note: psi_TGLF is psi_TORAX/2π
+    B_unit = core_profiles.q_face * dpsi_dr_over_r / (2 * jnp.pi)
 
     # Mass profiles.
     n_faces = len(geo.rho_face_norm)
