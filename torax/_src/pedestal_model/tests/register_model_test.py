@@ -28,7 +28,6 @@ from torax._src.pedestal_model import pedestal_model_output as pedestal_model_ou
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import register_model
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -93,28 +92,6 @@ class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
     return FixedPedestalModel(
         formation_model=self.formation_model.build_formation_model(),
         saturation_model=self.saturation_model.build_saturation_model(),
-    )
-
-  def build_runtime_params(
-      self,
-      t,
-  ) -> pedestal_runtime_params_lib.RuntimeParams:
-    return pedestal_runtime_params_lib.RuntimeParams(
-        set_pedestal=self.set_pedestal.get_value(t),
-        mode=self.mode,
-        use_formation_model_with_internal_boundary_condition=self.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=self.transition_time_width.get_value(t),
-        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
-        include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
-        explicit_pedestal=True,
-        pedestal_profile_form=pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP,
-        formation=self.formation_model.build_runtime_params(t),
-        saturation=self.saturation_model.build_runtime_params(t),
-        chi_max=self.chi_max,  # pyrefly: ignore[bad-argument-type]
-        D_e_max=self.D_e_max,  # pyrefly: ignore[bad-argument-type]
-        V_e_max=self.V_e_max,  # pyrefly: ignore[bad-argument-type]
-        V_e_min=self.V_e_min,  # pyrefly: ignore[bad-argument-type]
-        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width,  # pyrefly: ignore[bad-argument-type]
     )
 
 
