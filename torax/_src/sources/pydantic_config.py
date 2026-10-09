@@ -14,7 +14,7 @@
 
 """Pydantic config for source models."""
 
-import copy
+from collections.abc import Mapping
 from typing import Any, Self
 
 import immutabledict
@@ -35,17 +35,41 @@ from torax._src.sources import runtime_params
 from torax._src.sources import source_models
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
-from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.ion_cyclotron_source import scaled_profile
 from torax._src.sources.ion_cyclotron_source import toric_nn
 from torax._src.torax_pydantic import torax_pydantic
 
 
+def _source_field(
+    default_config_if_enabled: type[base.SourceConfigBase],
+) -> Any:
+  """Creates a Pydantic field for an optional source config.
+
+  Args:
+    default_config_if_enabled: The source config to use if the field is
+      provided as a dict without a `model_name`.
+
+  Returns:
+    A Pydantic field with appropriate discriminator and default values set in
+    the schema extra.
+  """
+  return pydantic.Field(
+      discriminator='model_name',
+      default=None,
+      json_schema_extra={
+          'default_model_name': (
+              default_config_if_enabled.model_fields['model_name'].default
+          )
+      },
+  )
+
+
 class Sources(torax_pydantic.BaseModelFrozen):
   """Config for source models.
 
-  The `from_dict` method of constructing this class supports the config
-  described in: https://torax.readthedocs.io/en/latest/configuration.html
+  Each standard source field defaults to `None` (disabled) when omitted. When a
+  source is configured with a mapping that omits `model_name`, the default model
+  specified via `_source_field` for that source is used.
   """
 
   ei_exchange: qei_source_lib.QeiSourceConfig = torax_pydantic.ValidatedDefault(
@@ -54,145 +78,75 @@ class Sources(torax_pydantic.BaseModelFrozen):
   # keep-sorted start
   bremsstrahlung: (
       bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSinkConfig | None
-  ) = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  ) = _source_field(
+      default_config_if_enabled=bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSinkConfig
   )
   cyclotron_radiation: (
       cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSinkConfig | None
-  ) = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  ) = _source_field(
+      default_config_if_enabled=cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSinkConfig
   )
   ecrh: electron_cyclotron_source_lib.ElectronCyclotronSourceConfig | None = (
-      pydantic.Field(
-          discriminator='model_name',
-          default=None,
+      _source_field(
+          default_config_if_enabled=electron_cyclotron_source_lib.ElectronCyclotronSourceConfig
       )
   )
-  fusion: fusion_heat_source_lib.FusionHeatSourceConfig | None = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  fusion: fusion_heat_source_lib.FusionHeatSourceConfig | None = _source_field(
+      default_config_if_enabled=fusion_heat_source_lib.FusionHeatSourceConfig
   )
-  gas_puff: gas_puff_source_lib.GasPuffSourceConfig | None = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  gas_puff: gas_puff_source_lib.GasPuffSourceConfig | None = _source_field(
+      default_config_if_enabled=gas_puff_source_lib.GasPuffSourceConfig
   )
   generic_current: (
       generic_current_source_lib.GenericCurrentSourceConfig | None
-  ) = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  ) = _source_field(
+      default_config_if_enabled=generic_current_source_lib.GenericCurrentSourceConfig
   )
   generic_heat: (
       generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig | None
-  ) = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  ) = _source_field(
+      default_config_if_enabled=generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig
   )
   generic_particle: (
       generic_particle_source_lib.GenericParticleSourceConfig | None
-  ) = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  ) = _source_field(
+      default_config_if_enabled=generic_particle_source_lib.GenericParticleSourceConfig
   )
   icrh: (
       toric_nn.ToricNNIonCyclotronSourceConfig
       | scaled_profile.ScaledProfileIonCyclotronSourceConfig
       | None
-  ) = (
-      pydantic.Field(
-          discriminator='model_name',
-          default=None,
-      )
+  ) = _source_field(
+      default_config_if_enabled=toric_nn.ToricNNIonCyclotronSourceConfig
   )
   impurity_radiation: (
       impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
       | impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig
       | None
-  ) = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  ) = _source_field(
+      default_config_if_enabled=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
   )
-  ohmic: ohmic_heat_source_lib.OhmicHeatSourceConfig | None = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  ohmic: ohmic_heat_source_lib.OhmicHeatSourceConfig | None = _source_field(
+      default_config_if_enabled=ohmic_heat_source_lib.OhmicHeatSourceConfig
   )
-  pellet: pellet_source_lib.PelletSourceConfig | None = pydantic.Field(
-      discriminator='model_name',
-      default=None,
+  pellet: pellet_source_lib.PelletSourceConfig | None = _source_field(
+      default_config_if_enabled=pellet_source_lib.PelletSourceConfig
   )
   # keep-sorted end
 
   @pydantic.model_validator(mode='before')
   @classmethod
-  def _set_default_model_functions(cls, x: dict[str, Any]) -> dict[str, Any]:
-    constructor_data = copy.deepcopy(x)
+  def _set_default_model_names(cls, x: dict[str, Any]) -> dict[str, Any]:
+    """Populates default `model_name`s for source mappings that omit them."""
+    constructor_data = dict(x)
     for k, v in x.items():
-      # If this an already validated model, skip it.
-      if isinstance(v, base.SourceConfigBase) or v is None:
-        continue
-      match k:
-        case 'bremsstrahlung':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = bremsstrahlung_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
-        case 'cyclotron_radiation':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = cyclotron_radiation_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
-        case 'ecrh':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = electron_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-        case 'gas_puff':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-        case 'generic_particle':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = generic_particle_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-        case 'pellet':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-        case 'fusion':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-        case 'generic_heat':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = generic_ion_el_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-        case 'generic_current':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = generic_current_source_lib.DEFAULT_MODEL_FUNCTION_NAME
-        case 'impurity_radiation':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME
-        case 'icrh':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = icrh_base.DEFAULT_MODEL_FUNCTION_NAME
-        case 'ohmic':
-          if 'model_name' not in v:
-            constructor_data[k][
-                'model_name'
-            ] = ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+      if isinstance(v, Mapping) and 'model_name' not in v:
+        field = cls.model_fields.get(k)
+        if field is not None and isinstance(field.json_schema_extra, Mapping):
+          constructor_data[k] = {
+              'model_name': field.json_schema_extra['default_model_name'],
+              **v,
+          }
     return constructor_data
 
   @pydantic.model_validator(mode='after')
