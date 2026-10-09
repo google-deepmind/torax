@@ -17,6 +17,7 @@
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_transition_state
@@ -57,6 +58,12 @@ class PedestalTransitionStateTest(parameterized.TestCase):
     self.assertEqual(transition_state._compute_ramp_fraction(1.5, 1.0), 0.5)
     self.assertEqual(transition_state._compute_ramp_fraction(2.0, 1.0), 1.0)
     self.assertEqual(transition_state._compute_ramp_fraction(2.5, 1.0), 1.0)
+    # transition_time_width = 0.0 returns 1.0 with finite gradients.
+    self.assertEqual(transition_state._compute_ramp_fraction(1.0, 0.0), 1.0)
+    grad_w = jax.grad(
+        lambda w: transition_state._compute_ramp_fraction(jnp.array(1.5), w)
+    )(jnp.array(0.0))
+    self.assertTrue(bool(jnp.isfinite(grad_w)))
 
   def test_apply_transition_ramp_scaling_l_to_h(self):
     l_mode_baseline = 1.0
