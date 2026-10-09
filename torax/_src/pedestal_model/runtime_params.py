@@ -35,6 +35,14 @@ class Mode(enum.Enum):
   INTERNAL_BOUNDARY_CONDITION = "INTERNAL_BOUNDARY_CONDITION"
 
 
+# Store confinement mode as an int so that it is a valid JAX dynamic type.
+class ConfinementMode(enum.IntEnum):
+  L_MODE = 0
+  H_MODE = 1
+  TRANSITIONING_TO_H_MODE = 2
+  TRANSITIONING_TO_L_MODE = 3
+
+
 @enum.unique
 class PedestalProfileForm(enum.StrEnum):
   """Controls the shape of internal boundary conditions in the pedestal region.
@@ -54,10 +62,8 @@ class PedestalProfileForm(enum.StrEnum):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class FormationRuntimeParams:
-  """Runtime params for pedestal formation models."""
+  """Base runtime params for pedestal formation models."""
 
-  sharpness: array_typing.FloatScalar
-  offset: array_typing.FloatScalar
   base_multiplier: array_typing.FloatScalar
 
 
@@ -77,25 +83,16 @@ class RuntimeParams:
   """Input params for the pedestal model.
 
   Attributes:
-    set_pedestal: Whether to use the pedestal model and set the pedestal.
     mode: Defines how the pedestal is generated.
-    use_formation_model_with_internal_boundary_condition: When True and mode is
-      INTERNAL_BOUNDARY_CONDITION, enables state-dependent L-H transitions based
-      on P_SOL vs P_LH comparison. The formation model is used to check the
-      transition condition. When False, INTERNAL_BOUNDARY_CONDITION mode always
-      applies the pedestal values directly, whenever set_pedestal is True.
     transition_time_width: Duration of the L-H or H-L transition ramp [s].
       During a transition, pedestal values are linearly interpolated between
-      L-mode and H-mode values over this time window. Only used when
-      use_formation_model_with_internal_boundary_condition is True.
+      L-mode and H-mode values over this time window.
     P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
       checking for an H-L transition, the L-H threshold power P_LH is multiplied
       by this factor, i.e. the back transition occurs when P_SOL < P_LH *
       P_LH_hysteresis_factor. A value less than 1 means that the plasma must
       lose more power to transition back to L-mode than was required to enter
       H-mode, which is the experimentally observed behavior. Must be in [0, 1].
-      Only used when use_formation_model_with_internal_boundary_condition is
-      True.
     include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
       calculation used for comparing against P_LH. When False (default), uses
       P_heat (total auxiliary + Ohmic power - sinks) instead of P_SOL = P_heat -
@@ -123,13 +120,16 @@ class RuntimeParams:
     V_e_min: Minimum effective particle pinch velocity [m/s].
     pedestal_top_smoothing_width: Width of the smoothing kernel at the pedestal
       top.
+    initial_confinement_mode: Optional explicit initial confinement mode
+      (L_MODE or H_MODE) at t_initial. When None, inferred from the formation
+      model's transition conditions at t_initial.
+    initial_L_mode_bc_multiplier: Multiplier applied to the LCFS boundary
+      condition values (`T_i`, `T_e`, `n_e` at the right face) to seed the
+      L-mode pedestal-top baselines at `t_initial` when the simulation starts
+      directly in H-mode without L-mode profile data.
   """
 
-  set_pedestal: array_typing.BoolScalar
   mode: Mode = dataclasses.field(metadata={"static": True})
-  use_formation_model_with_internal_boundary_condition: bool = (
-      dataclasses.field(metadata={"static": True})
-  )
   transition_time_width: array_typing.FloatScalar
   P_LH_hysteresis_factor: array_typing.FloatScalar
   include_dW_dt_in_P_SOL: bool = dataclasses.field(metadata={"static": True})
@@ -144,3 +144,5 @@ class RuntimeParams:
   V_e_max: array_typing.FloatScalar
   V_e_min: array_typing.FloatScalar
   pedestal_top_smoothing_width: array_typing.FloatScalar
+  initial_confinement_mode: ConfinementMode | None
+  initial_L_mode_bc_multiplier: array_typing.FloatScalar

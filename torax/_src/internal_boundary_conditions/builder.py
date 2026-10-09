@@ -40,11 +40,10 @@ def build_internal_boundary_conditions(
 ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
   """Builds the active internal boundary conditions for this time step.
 
-  When a pedestal model is actively controlling the edge (either statically via
-  set_pedestal=True without a formation model, or dynamically in H-mode or
-  transition), user internal boundary conditions from profile_conditions are
-  turned off to prevent conflicting boundary conditions or discontinuous cliffs
-  at the edge.
+  When a pedestal model is actively controlling the edge (either in H-mode or
+  during an L-H/H-L transition), user internal boundary conditions from
+  profile_conditions are turned off to prevent conflicting boundary conditions
+  or discontinuous cliffs at the edge.
 
   Args:
     runtime_params: Runtime parameters for the simulation.
