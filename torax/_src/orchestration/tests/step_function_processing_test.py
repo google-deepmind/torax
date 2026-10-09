@@ -24,6 +24,8 @@ from torax._src.orchestration import run_simulation
 from torax._src.orchestration import step_function_processing
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model.formation import power_scaling_formation_model
+from torax._src.physics import scaling_laws
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -108,11 +110,11 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     """Calls _update_pedestal_transition_state with mocked P_SOL and P_LH."""
     runtime_params = dataclasses.replace(self.runtime_params, t=jnp.array(t))
     with mock.patch.object(
-        step_function_processing.power_scaling_formation_model_lib,
+        power_scaling_formation_model,
         'calculate_P_SOL_total',
         return_value=jnp.array(P_SOL),
     ), mock.patch.object(
-        step_function_processing.scaling_laws,
+        scaling_laws,
         'calculate_P_LH',
         return_value=(jnp.array(_P_LH), None),
     ):
@@ -326,6 +328,67 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     np.testing.assert_allclose(new_state.T_e_ped_L_mode, original_T_e)
     np.testing.assert_allclose(new_state.n_e_ped_L_mode, original_n_e)
 
+  def test_zero_transition_time_width_steps_directly_and_captures_L_mode_values(
+      self,
+  ):
+    """When transition_time_width == 0.0, L->H and H->L step directly."""
+    zero_width_pedestal = dataclasses.replace(
+        self.runtime_params.pedestal, transition_time_width=jnp.array(0.0)
+    )
+    runtime_params = dataclasses.replace(
+        self.runtime_params, t=jnp.array(5.0), pedestal=zero_width_pedestal
+    )
+    state = _make_transition_state(
+        ConfinementMode.L_MODE, T_i_ped_L=0.0, T_e_ped_L=0.0, n_e_ped_L=0.0
+    )
+    with mock.patch.object(
+        power_scaling_formation_model,
+        'calculate_P_SOL_total',
+        return_value=jnp.array(_P_LH * 1.5),
+    ), mock.patch.object(
+        scaling_laws,
+        'calculate_P_LH',
+        return_value=(jnp.array(_P_LH), None),
+    ):
+      h_state = step_function_processing._update_pedestal_transition_state(
+          pedestal_transition_state=state,
+          runtime_params=runtime_params,
+          geo=self.initial_state.geometry,
+          core_profiles=self.initial_state.core_profiles,
+          core_sources=self.initial_state.core_sources,
+          models=self.models,
+      )
+    self.assertEqual(h_state.confinement_mode, ConfinementMode.H_MODE)
+    ped_top_idx = jnp.argmin(
+        jnp.abs(
+            self.initial_state.geometry.rho_norm
+            - self.initial_state.pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
+        )
+    )
+    np.testing.assert_allclose(
+        h_state.T_i_ped_L_mode,
+        self.initial_state.core_profiles.T_i.value[ped_top_idx],
+    )
+
+    with mock.patch.object(
+        power_scaling_formation_model,
+        'calculate_P_SOL_total',
+        return_value=jnp.array(_P_LH * _HYSTERESIS * 0.5),
+    ), mock.patch.object(
+        scaling_laws,
+        'calculate_P_LH',
+        return_value=(jnp.array(_P_LH), None),
+    ):
+      l_state = step_function_processing._update_pedestal_transition_state(
+          pedestal_transition_state=h_state,
+          runtime_params=runtime_params,
+          geo=self.initial_state.geometry,
+          core_profiles=self.initial_state.core_profiles,
+          core_sources=self.initial_state.core_sources,
+          models=self.models,
+      )
+    self.assertEqual(l_state.confinement_mode, ConfinementMode.L_MODE)
+
 
 class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
   """Tests for the simplified ADAPTIVE_TRANSPORT state machine."""
@@ -334,6 +397,7 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
     super().setUp()
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
         'mode': 'ADAPTIVE_TRANSPORT',
         'formation_model': {'model_name': 'martin_scaling'},
@@ -363,11 +427,11 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
   ) -> pedestal_transition_state_lib.PedestalTransitionState:
     runtime_params = dataclasses.replace(self.runtime_params, t=jnp.array(t))
     with mock.patch.object(
-        step_function_processing.power_scaling_formation_model_lib,
+        power_scaling_formation_model,
         'calculate_P_SOL_total',
         return_value=jnp.array(P_SOL),
     ), mock.patch.object(
-        step_function_processing.scaling_laws,
+        scaling_laws,
         'calculate_P_LH',
         return_value=(jnp.array(_P_LH), None),
     ):

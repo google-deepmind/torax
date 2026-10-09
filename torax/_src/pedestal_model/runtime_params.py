@@ -54,10 +54,8 @@ class PedestalProfileForm(enum.StrEnum):
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class FormationRuntimeParams:
-  """Runtime params for pedestal formation models."""
+  """Base runtime params for pedestal formation models."""
 
-  sharpness: array_typing.FloatScalar
-  offset: array_typing.FloatScalar
   base_multiplier: array_typing.FloatScalar
 
 

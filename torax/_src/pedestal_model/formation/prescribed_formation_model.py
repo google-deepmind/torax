@@ -12,25 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base class for pedestal formation models."""
+"""Prescribed pedestal formation model."""
 
-import abc
 import dataclasses
+import jax
+import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
-from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.pedestal_model.formation import base
 from torax._src.sources import source_profiles as source_profiles_lib
 
 
-@dataclasses.dataclass(frozen=True, eq=False)
-class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
-  """Base class for pedestal formation models."""
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class PrescribedFormationRuntimeParams(
+    pedestal_runtime_params_lib.FormationRuntimeParams
+):
+  """Runtime params for prescribed pedestal formation model."""
 
-  @abc.abstractmethod
+  pedestal_active: array_typing.BoolScalar
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class PrescribedFormationModel(base.FormationModel):
+  """Prescribed pedestal formation model driven by a boolean schedule."""
+
   def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -39,21 +50,22 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.TransportMultipliers:
-    """Calculates the transport decrease multipliers.
+    del geo, core_profiles, source_profiles, pedestal_transition_state
+    assert isinstance(
+        runtime_params.pedestal.formation, PrescribedFormationRuntimeParams
+    )
+    transport_multiplier = jnp.where(
+        runtime_params.pedestal.formation.pedestal_active,
+        runtime_params.pedestal.formation.base_multiplier,
+        1.0,
+    )
+    return pedestal_model_output.TransportMultipliers(
+        chi_e_multiplier=transport_multiplier,
+        chi_i_multiplier=transport_multiplier,
+        D_e_multiplier=transport_multiplier,
+        v_e_multiplier=transport_multiplier,
+    )
 
-    Args:
-      runtime_params: Runtime parameters.
-      geo: Geometry.
-      core_profiles: Core profiles.
-      source_profiles: Source profiles.
-      pedestal_transition_state: Current pedestal transition state.
-
-    Returns:
-      transport_decrease_multiplier: Factors to multiply transport coefficients
-        by (<= 1.0).
-    """
-
-  @abc.abstractmethod
   def evaluate_transition_conditions(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -61,11 +73,11 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[array_typing.BoolScalar, array_typing.BoolScalar]:
-    """Evaluates L-H and H-L transition triggers.
-
-    Returns:
-      A tuple `(trigger_l_to_h_transition, trigger_h_to_l_transition)` of
-      mutually exclusive boolean scalars indicating whether the conditions to
-      trigger an L->H transition or an H->L back-transition are satisfied
-      (`trigger_l_to_h_transition & trigger_h_to_l_transition` must be False).
-    """
+    del geo, core_profiles, source_profiles
+    assert isinstance(
+        runtime_params.pedestal.formation, PrescribedFormationRuntimeParams
+    )
+    trigger_l_to_h_transition = jnp.asarray(
+        runtime_params.pedestal.formation.pedestal_active, dtype=bool
+    )
+    return trigger_l_to_h_transition, ~trigger_l_to_h_transition

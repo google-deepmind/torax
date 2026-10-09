@@ -27,7 +27,6 @@ class NoPedestalTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'no_pedestal',
-        'set_pedestal': True,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -57,7 +56,7 @@ class NoPedestalTest(absltest.TestCase):
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     self.assertEqual(pedestal_model_output.rho_norm_ped_top, jnp.inf)
 
