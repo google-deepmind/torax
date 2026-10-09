@@ -13,7 +13,7 @@
 # limitations under the License.
 import copy
 import dataclasses
-from typing import Literal
+from typing import ClassVar, Literal
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -121,10 +121,8 @@ class RegisterConfigTest(parameterized.TestCase):
     test_config_path = 'tests/test_data/' + config_name
     config_module = config_loader.import_module(test_config_path)
     config = copy.deepcopy(config_module['CONFIG'])
-    # Register the new source model config against the gas puff source.
-    register_model.register_source_model_config(
-        NewGasPuffSourceModelConfig, 'gas_puff'
-    )
+    # Register the new source model config (inferring source_name='gas_puff').
+    register_model.register_source_config(NewGasPuffSourceModelConfig)
 
     # Load the original config and check the gas puff source is expected type.
     config_pydantic = model_config.ToraxConfig.from_dict(config)
@@ -154,30 +152,43 @@ class RegisterConfigTest(parameterized.TestCase):
     self.assertEqual(new_runtime_params.b, False)
 
   def test_error_thrown_if_model_name_is_already_registered(self):
-    with self.assertRaises(ValueError):
-      register_model.register_source_model_config(
-          DuplicateGasPuffSourceModelConfig, 'gas_puff'
-      )
+    with self.assertRaisesRegex(
+        TypeError,
+        "Value 'exponential' for discriminator 'model_name' mapped to multiple"
+        ' choices',
+    ):
+      register_model.register_source_config(DuplicateGasPuffSourceModelConfig)
 
-  @parameterized.parameters('qei', 'j_bootstrap')
-  def test_error_thrown_if_using_special_source(self, special_source):
+  def test_error_thrown_if_using_special_source(self):
+    class SpecialSource(gas_puff_source_lib.GasPuffSource):
+      SOURCE_ID: ClassVar[str] = 'ei_exchange'
+
+    class SpecialSourceModelConfig(NewGasPuffSourceModelConfig):
+
+      def build_source(self) -> source_lib.Source:
+        return SpecialSource(model_func=self.model_func)
+
     with self.assertRaisesRegex(
         ValueError,
-        'Cannot register a new source model config for the qei or j_bootstrap'
-        ' sources.',
+        'Cannot register a new source model config for the ei_exchange'
+        ' source.',
     ):
-      register_model.register_source_model_config(
-          NewGasPuffSourceModelConfig, special_source
-      )
+      register_model.register_source_config(SpecialSourceModelConfig)
 
   def test_error_thrown_if_source_not_supported(self):
+    class UnsupportedSource(gas_puff_source_lib.GasPuffSource):
+      SOURCE_ID: ClassVar[str] = 'foo_source'
+
+    class UnsupportedSourceModelConfig(NewGasPuffSourceModelConfig):
+
+      def build_source(self) -> source_lib.Source:
+        return UnsupportedSource(model_func=self.model_func)
+
     with self.assertRaisesRegex(
         ValueError,
         'The source name foo_source is not supported.',
     ):
-      register_model.register_source_model_config(
-          NewGasPuffSourceModelConfig, 'foo_source'
-      )
+      register_model.register_source_config(UnsupportedSourceModelConfig)
 
 
 if __name__ == '__main__':

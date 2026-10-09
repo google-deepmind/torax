@@ -258,13 +258,13 @@ or current source), you need to:
 
 1. Define a model function that computes the source profile.
 2. Define a pydantic config class for your model.
-3. Register the config class with TORAX against a specific source name.
+3. Register the config class with TORAX.
 
 Unlike transport and pedestal models, source models are registered against a
 specific *source name* (e.g. ``'gas_puff'``, ``'fusion'``, ``'generic_heat'``,
 etc.). This allows multiple source model implementations to exist for the same
-physical source. The two special sources ``'qei'`` (ion-electron heat exchange)
-and ``'j_bootstrap'`` (bootstrap current) do not support custom registration.
+physical source. The special source ``'ei_exchange'`` (ion-electron heat
+exchange) does not support custom registration.
 
 Step 1: Implement the model function
 --------------------------------------
@@ -310,8 +310,8 @@ Create a pydantic config class that inherits from
   ``RuntimeParams`` fields beyond the base ``RuntimeParams``.
 
 The config class must have a ``model_name`` field with a unique ``Literal``
-type that identifies your model. This name must be different from the default
-model name for the source you are registering against.
+type that identifies your model. This name must be different from any already
+registered ``model_name`` for the source slot.
 
 .. code-block:: python
 
@@ -357,18 +357,18 @@ model name for the source you are registering against.
 Step 3: Register the model
 ---------------------------
 
-Call ``torax.sources.register_source_model_config`` with your pydantic config
-class and the name of the source to register against. This must be done at
-module level, before any TORAX config is built.
+Call ``torax.sources.register_source_config`` with your pydantic config class.
+The target source is inferred automatically from ``build_source().SOURCE_ID``.
+This must be done at module level, before any TORAX config is built.
 
 .. code-block:: python
 
-    sources.register_source_model_config(MyHeatSourceConfig, 'generic_heat')
+    sources.register_source_config(MyHeatSourceConfig)
 
-The ``source_name`` must be one of the fields in the ``Sources`` pydantic model:
-``bremsstrahlung``, ``cyclotron_radiation``, ``ecrh``, ``fusion``, ``gas_puff``,
-``generic_current``, ``generic_heat``, ``generic_particle``, ``icrh``,
-``impurity_radiation``, ``ohmic``, or ``pellet``.
+The source's ``SOURCE_ID`` must be one of the fields in the ``Sources`` pydantic
+model: ``bremsstrahlung``, ``cyclotron_radiation``, ``ecrh``, ``fusion``,
+``gas_puff``, ``generic_current``, ``generic_heat``, ``generic_particle``,
+``icrh``, ``impurity_radiation``, ``ohmic``, or ``pellet``.
 
 If you want to register a custom implementation for a source that isn't in this
 list (for example "nbi"), please reach out to the TORAX team and we will help.

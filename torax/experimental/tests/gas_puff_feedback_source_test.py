@@ -25,8 +25,8 @@ from torax._src.torax_pydantic import model_config
 from torax.experimental import gas_puff_feedback_source
 
 # Register the experimental source model
-register_model.register_source_model_config(
-    gas_puff_feedback_source.GasPuffFeedbackSourceConfig, 'gas_puff'
+register_model.register_source_config(
+    gas_puff_feedback_source.GasPuffFeedbackSourceConfig
 )
 
 
