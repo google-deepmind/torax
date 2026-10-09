@@ -631,8 +631,13 @@ def get_j_toroidal_total_hires_with_external_sources(
       geo,
       runtime_params.numerics.min_rho_norm,
   )
+  j_toroidal_bootstrap_face = math_utils.cell_to_face(
+      j_toroidal_bootstrap,
+      geo,
+      preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
+  )
   j_toroidal_bootstrap_hires = jnp.interp(
-      geo.rho_hires, geo.rho_face, bootstrap_current.j_parallel_bootstrap_face
+      geo.rho_hires, geo.rho_face, j_toroidal_bootstrap_face
   )
 
   # Calculate high-resolution version of external (eg ECCD) current density
