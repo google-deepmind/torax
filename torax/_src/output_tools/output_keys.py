@@ -965,6 +965,11 @@ SAWTOOTH_CRASH: Final[OutputKey] = OutputKey(
 CONFIG: Final[OutputKey] = OutputKey(
     "config", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )
+PREVIOUS_CONFIG: Final[OutputKey] = OutputKey(
+    "previous_config",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.NOT_APPLICABLE,
+)
 
 # ---------------------------------------------------------------------------
 # Geometry: scalar quantities.
