@@ -143,9 +143,11 @@ Create a frozen dataclass that inherits from ``torax.pedestal.PedestalModel``
 and implements the ``_call_implementation`` method. This method must return a
 ``torax.pedestal.PedestalModelOutput`` with the pedestal properties.
 
-The ``PedestalModel`` base class requires ``formation_model`` and
-``saturation_model`` fields (used in ``ADAPTIVE_TRANSPORT`` mode). These should
-be passed through from the pydantic config's ``build_pedestal_model`` method.
+The ``PedestalModel`` base class requires ``formation_model`` (which controls
+L-H and H-L transitions in both ``INTERNAL_BOUNDARY_CONDITION`` and
+``ADAPTIVE_TRANSPORT`` modes) and ``saturation_model`` (used in
+``ADAPTIVE_TRANSPORT`` mode) fields. These should be passed through from the
+pydantic config's ``build_pedestal_model`` method.
 
 .. code-block:: python
 
@@ -163,11 +165,11 @@ be passed through from the pydantic config's ``build_pedestal_model`` method.
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
+          pedestal_transition_state: pedestal.PedestalTransitionState,
       ) -> pedestal.PedestalModelOutput:
         # Implement your pedestal model here.
         return pedestal.PedestalModelOutput(
             rho_norm_ped_top=jnp.array(0.9),
-            rho_norm_ped_top_idx=jnp.abs(geo.rho_norm - 0.9).argmin(),
             T_i_ped=jnp.array(5.0),
             T_e_ped=jnp.array(5.0),
             n_e_ped=jnp.array(0.7e20),
@@ -189,17 +191,31 @@ additional runtime parameters beyond the base pedestal parameters.
 
     from typing import Annotated, Literal
 
+    @jax.tree_util.register_dataclass
+    @dataclasses.dataclass(frozen=True)
+    class MyPedestalRuntimeParams(pedestal.RuntimeParams):
+      """Runtime parameters for MyPedestalModel."""
+
+      T_ped: torax.FloatScalar
+
     class MyPedestalConfig(pedestal.BasePedestal):
       """Pydantic config for MyPedestalModel."""
 
       model_name: Annotated[
           Literal['my_pedestal'], torax.JAX_STATIC
       ] = 'my_pedestal'
+      T_ped: torax.TimeVaryingScalar = torax.ValidatedDefault(5.0)
 
       def build_pedestal_model(self) -> MyPedestalModel:
         return MyPedestalModel(
             formation_model=self.formation_model.build_formation_model(),
             saturation_model=self.saturation_model.build_saturation_model(),
+        )
+
+      def build_runtime_params(self, t) -> MyPedestalRuntimeParams:
+        return MyPedestalRuntimeParams(
+            **vars(super().build_runtime_params(t)),
+            T_ped=self.T_ped.get_value(t),
         )
 
 
@@ -225,7 +241,6 @@ Once registered, the model can be used in a TORAX config:
         ...
         'pedestal': {
             'model_name': 'my_pedestal',
-            'set_pedestal': True,
         },
         ...
     }

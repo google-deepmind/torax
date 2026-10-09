@@ -59,7 +59,7 @@ def _get_model_and_model_inputs(
   config['transport'] = transport
   config['pedestal'] = {
       'model_name': 'set_T_ped_n_ped',
-      'set_pedestal': False,
+      'formation_model': {'model_name': 'prescribed', 'pedestal_active': False},
       'T_i_ped': 4.0,
       'T_e_ped': 4.0,
       'n_e_ped': 0.8,
@@ -84,7 +84,7 @@ def _get_model_and_model_inputs(
   )
 
   transition_state = (
-      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+      pedestal_transition_state_lib.PedestalTransitionState.empty()
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
 

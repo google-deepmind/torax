@@ -805,6 +805,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     config_dict["pedestal"] = {
         "model_name": "set_T_ped_n_ped",
         "mode": "ADAPTIVE_TRANSPORT",
+        "formation_model": {"model_name": "martin_scaling"},
     }
     config_dict["profile_conditions"]["internal_boundary_conditions"] = {
         "model_name": "prescribed",
@@ -822,6 +823,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     config_dict["pedestal"] = {
         "model_name": "set_T_ped_n_ped",
         "mode": "ADAPTIVE_TRANSPORT",
+        "formation_model": {"model_name": "martin_scaling"},
     }
     # Should not raise when internal_boundary_conditions is default/empty
     model_config.ToraxConfig.from_dict(config_dict)

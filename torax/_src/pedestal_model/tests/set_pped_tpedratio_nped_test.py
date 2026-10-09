@@ -54,7 +54,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_P_ped_n_ped',
-        'set_pedestal': True,
         'n_e_ped': n_e_ped,
         'n_e_ped_is_fGW': n_e_ped_is_fGW,
         'rho_norm_ped_top': rho_norm_ped_top,
@@ -91,7 +90,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     if isinstance(rho_norm_ped_top, (float, int)):
@@ -131,7 +130,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_P_ped_n_ped',
-        'set_pedestal': True,
         'n_e_ped': 0.7e20,
         'n_e_ped_is_fGW': False,
         'rho_norm_ped_top': 0.91,
@@ -167,7 +165,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     # Modify multiplier to 1.5
@@ -182,7 +180,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     np.testing.assert_allclose(output_2.T_e_ped, output_1.T_e_ped * 1.5)

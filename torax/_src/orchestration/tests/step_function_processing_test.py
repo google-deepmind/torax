@@ -22,62 +22,26 @@ import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import step_function_processing
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
-ConfinementMode = pedestal_transition_state_lib.ConfinementMode
-
-# Constants for test readability.
-_P_LH = 10.0  # MW, mocked L-H threshold power.
-_HYSTERESIS = 0.8  # P_LH_hysteresis_factor.
-_TRANSITION_WIDTH = 2.0  # seconds.
+ConfinementMode = pedestal_runtime_params_lib.ConfinementMode
 
 
-def _make_transition_state(
-    mode: ConfinementMode,
-    start_time: float = jnp.inf,
-    T_i_ped_L: float = 0.5,
-    T_e_ped_L: float = 0.4,
-    n_e_ped_L: float = 0.5e19,
-) -> pedestal_transition_state_lib.PedestalTransitionState:
-  """Helper to create a PedestalTransitionState with given values."""
-  return pedestal_transition_state_lib.PedestalTransitionState(
-      confinement_mode=jnp.array(mode),
-      transition_start_time=jnp.array(start_time),
-      T_i_ped_L_mode=jnp.array(T_i_ped_L),
-      T_e_ped_L_mode=jnp.array(T_e_ped_L),
-      n_e_ped_L_mode=jnp.array(n_e_ped_L),
-      pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
-          rho_norm_ped_top=jnp.array(0.9),
-          T_i_ped=4.5,
-          T_e_ped=4.5,
-          n_e_ped=0.62e20,
-      ),
-      previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
-          rho_norm_ped_top=jnp.inf,
-          T_i_ped=0.0,
-          T_e_ped=0.0,
-          n_e_ped=0.0,
-      ),
-  )
-
-
-class UpdatePedestalTransitionStateTest(parameterized.TestCase):
+class StepFunctionProcessingTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
+        'explicit_pedestal': True,
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
-        'use_formation_model_with_internal_boundary_condition': True,
         'formation_model': {'model_name': 'martin_scaling'},
-        'P_LH_hysteresis_factor': _HYSTERESIS,
-        'transition_time_width': _TRANSITION_WIDTH,
+        'P_LH_hysteresis_factor': 0.8,
+        'transition_time_width': 2.0,
         'T_i_ped': 4.5,
         'T_e_ped': 4.5,
         'n_e_ped': 0.62e20,
@@ -96,337 +60,153 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     self.initial_state, _ = (
         initial_state.get_initial_state_and_post_processed_outputs(self.step_fn)
     )
-    self.runtime_params = self.step_fn.runtime_params_provider(t=0.0)
     self.models = self.step_fn._solver.models
 
-  def _call_update(
-      self,
-      transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-      P_SOL: float,
-      t: float = 5.0,
-  ) -> pedestal_transition_state_lib.PedestalTransitionState:
-    """Calls _update_pedestal_transition_state with mocked P_SOL and P_LH."""
-    runtime_params = dataclasses.replace(self.runtime_params, t=jnp.array(t))
-    with mock.patch.object(
-        step_function_processing.power_scaling_formation_model_lib,
-        'calculate_P_SOL_total',
-        return_value=jnp.array(P_SOL),
-    ), mock.patch.object(
-        step_function_processing.scaling_laws,
-        'calculate_P_LH',
-        return_value=(jnp.array(_P_LH), None),
+  @parameterized.parameters((True, 1), (False, 0))
+  def test_pre_step_pedestal_evaluation(
+      self, explicit_pedestal: bool, expected_pedestal_calls: int
+  ):
+    """pre_step always updates transition state and evaluates pedestal iff explicit."""
+    self.torax_config.pedestal._update_fields(
+        {'explicit_pedestal': explicit_pedestal}
+    )
+    step_fn = run_simulation.make_step_fn(self.torax_config)
+    init_state, _ = initial_state.get_initial_state_and_post_processed_outputs(
+        step_fn
+    )
+    models = step_fn._solver.models
+    pedestal_cls = type(models.pedestal_model)
+    with (
+        mock.patch.object(
+            pedestal_cls,
+            'update_transition_state',
+            autospec=True,
+            side_effect=pedestal_cls.update_transition_state,
+        ) as mock_update,
+        mock.patch.object(
+            pedestal_cls,
+            '__call__',
+            autospec=True,
+            side_effect=pedestal_cls.__call__,
+        ) as mock_call,
     ):
-      return step_function_processing._update_pedestal_transition_state(
-          pedestal_transition_state=transition_state,
-          runtime_params=runtime_params,
-          geo=self.initial_state.geometry,
-          core_profiles=self.initial_state.core_profiles,
-          core_sources=self.initial_state.core_sources,
-          models=self.models,
+      step_function_processing.pre_step(
+          input_state=init_state,
+          runtime_params_provider=step_fn.runtime_params_provider,
+          geometry_provider=step_fn.geometry_provider,
+          models=models,
       )
+      self.assertEqual(mock_update.call_count, 1)
+      self.assertEqual(mock_call.call_count, expected_pedestal_calls)
 
-  # ===== Confinement mode transitions =====
-
-  def test_L_mode_stays_L_mode_when_P_SOL_below_P_LH(self):
-    state = _make_transition_state(ConfinementMode.L_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * 0.5)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.L_MODE)
-
-  def test_L_mode_to_transitioning_to_H_mode_when_P_SOL_above_P_LH(self):
-    state = _make_transition_state(ConfinementMode.L_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='explicit_pedestal',
+          explicit_pedestal=True,
+      ),
+      dict(
+          testcase_name='implicit_pedestal',
+          explicit_pedestal=False,
+      ),
+  )
+  def test_pedestal_transition_updates_in_pre_step_at_t(
+      self,
+      explicit_pedestal: bool,
+  ):
+    """Discrete mode transitions are evaluated once per step in pre_step at t."""
+    config = default_configs.get_default_config_dict()
+    config['numerics'] = {'fixed_dt': 1.0, 't_initial': 0.0, 't_final': 2.0}
+    config['time_step_calculator'] = {'calculator_type': 'fixed'}
+    config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
+        'explicit_pedestal': explicit_pedestal,
+        'formation_model': {
+            'model_name': 'prescribed',
+            'pedestal_active': ({0.0: False, 0.5: True}, 'STEP'),
+        },
+        'T_i_ped': 4.5,
+        'T_e_ped': 4.5,
+        'n_e_ped': 0.62e20,
+        'rho_norm_ped_top': 0.9,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    step_fn = run_simulation.make_step_fn(torax_config)
+    sim_state, post_processed = (
+        initial_state.get_initial_state_and_post_processed_outputs(step_fn)
+    )
     self.assertEqual(
-        new_state.confinement_mode, ConfinementMode.TRANSITIONING_TO_H_MODE
+        sim_state.pedestal_transition_state.confinement_mode,
+        ConfinementMode.L_MODE,
     )
 
-  def test_transitioning_to_H_mode_stays_when_incomplete(self):
-    t = 5.0
-    start_time = t - _TRANSITION_WIDTH * 0.5  # Only half elapsed.
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_H_MODE, start_time=start_time
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5, t=t)
+    # Step 1 (t=0.0 -> 1.0): pre_step evaluates transition conditions at t=0.0
+    # (where pedestal_active is False), so the step remains in L_MODE.
+    sim_state_1, post_processed_1 = step_fn(sim_state, post_processed)
     self.assertEqual(
-        new_state.confinement_mode, ConfinementMode.TRANSITIONING_TO_H_MODE
+        sim_state_1.pedestal_transition_state.confinement_mode,
+        ConfinementMode.L_MODE,
     )
 
-  def test_transitioning_to_H_mode_completes_to_H_mode(self):
-    t = 5.0
-    start_time = t - _TRANSITION_WIDTH - 0.1  # Transition complete.
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_H_MODE, start_time=start_time
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5, t=t)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
-
-  def test_H_mode_stays_H_mode_within_hysteresis_band(self):
-    state = _make_transition_state(ConfinementMode.H_MODE)
-    # P_SOL between h*P_LH and P_LH.
-    P_SOL = _P_LH * (_HYSTERESIS + (1.0 - _HYSTERESIS) / 2.0)
-    new_state = self._call_update(state, P_SOL=P_SOL)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
-
-  def test_H_mode_stays_H_mode_when_P_SOL_above_P_LH(self):
-    state = _make_transition_state(ConfinementMode.H_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
-
-  def test_H_mode_to_transitioning_to_L_mode_below_hysteresis(self):
-    state = _make_transition_state(ConfinementMode.H_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5)
+    # Step 2 (t=1.0 -> 2.0): pre_step evaluates transition conditions at t=1.0
+    # (where pedestal_active is True), transitioning to H_MODE.
+    sim_state_2, _ = step_fn(sim_state_1, post_processed_1)
     self.assertEqual(
-        new_state.confinement_mode, ConfinementMode.TRANSITIONING_TO_L_MODE
-    )
-
-  def test_transitioning_to_L_mode_stays_when_incomplete(self):
-    t = 5.0
-    start_time = t - _TRANSITION_WIDTH * 0.5
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_L_MODE, start_time=start_time
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5, t=t)
-    self.assertEqual(
-        new_state.confinement_mode, ConfinementMode.TRANSITIONING_TO_L_MODE
-    )
-
-  def test_transitioning_to_L_mode_completes_to_L_mode(self):
-    t = 5.0
-    start_time = t - _TRANSITION_WIDTH - 0.1  # Transition complete.
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_L_MODE, start_time=start_time
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5, t=t)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.L_MODE)
-
-  # ===== Dither transitions =====
-
-  def test_dither_LH_to_HL(self):
-    t = 5.0
-    start_time = t - _TRANSITION_WIDTH * 0.3  # Only partially transitioned.
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_H_MODE, start_time=start_time
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5, t=t)
-    self.assertEqual(
-        new_state.confinement_mode, ConfinementMode.TRANSITIONING_TO_L_MODE
-    )
-
-  def test_dither_HL_to_LH(self):
-    t = 5.0
-    start_time = t - _TRANSITION_WIDTH * 0.3
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_L_MODE, start_time=start_time
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5, t=t)
-    self.assertEqual(
-        new_state.confinement_mode, ConfinementMode.TRANSITIONING_TO_H_MODE
-    )
-
-  # ===== transition_start_time =====
-
-  def test_standard_L_to_H_sets_start_time_to_current_time(self):
-    t = 5.0
-    state = _make_transition_state(ConfinementMode.L_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5, t=t)
-    np.testing.assert_allclose(new_state.transition_start_time, t)
-
-  def test_standard_H_to_L_sets_start_time_to_current_time(self):
-    t = 5.0
-    state = _make_transition_state(ConfinementMode.H_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5, t=t)
-    np.testing.assert_allclose(new_state.transition_start_time, t)
-
-  def test_ongoing_LH_transition_preserves_start_time(self):
-    t = 5.0
-    original_start_time = 3.5
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_H_MODE,
-        start_time=original_start_time,
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5, t=t)
-    np.testing.assert_allclose(
-        new_state.transition_start_time, original_start_time
-    )
-
-  def test_ongoing_HL_transition_preserves_start_time(self):
-    t = 5.0
-    original_start_time = 4.0
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_L_MODE,
-        start_time=original_start_time,
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5, t=t)
-    np.testing.assert_allclose(
-        new_state.transition_start_time, original_start_time
-    )
-
-  def test_dither_sets_mirrored_start_time(self):
-    """Dither should set start_time = 2t - t0 - w for symmetric reversal."""
-    t = 5.0
-    t0 = 4.0  # Original transition started 1s ago.
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_H_MODE, start_time=t0
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5, t=t)
-    expected_start = 2.0 * t - t0 - _TRANSITION_WIDTH
-    np.testing.assert_allclose(new_state.transition_start_time, expected_start)
-
-  def test_completed_transition_preserves_start_time(self):
-    t = 5.0
-    start_time = 2.0  # Transition complete: elapsed = 3.0 > width = 2.0.
-    state = _make_transition_state(
-        ConfinementMode.TRANSITIONING_TO_H_MODE, start_time=start_time
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5, t=t)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
-    # start_time is preserved (not reset to inf), but this is fine because
-    # H_MODE doesn't use it.
-    np.testing.assert_allclose(new_state.transition_start_time, start_time)
-
-  # ===== L-mode pedestal values =====
-
-  def test_L_to_H_captures_L_mode_values(self):
-    """LH transition should capture current pedestal-top profile values."""
-    state = _make_transition_state(
-        ConfinementMode.L_MODE, T_i_ped_L=0.0, T_e_ped_L=0.0, n_e_ped_L=0.0
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
-    ped_top_idx = jnp.argmin(
-        jnp.abs(
-            self.initial_state.geometry.rho_norm
-            - self.initial_state.pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
-        )
-    )
-    np.testing.assert_allclose(
-        new_state.T_i_ped_L_mode,
-        self.initial_state.core_profiles.T_i.value[ped_top_idx],
-    )
-    np.testing.assert_allclose(
-        new_state.T_e_ped_L_mode,
-        self.initial_state.core_profiles.T_e.value[ped_top_idx],
-    )
-    np.testing.assert_allclose(
-        new_state.n_e_ped_L_mode,
-        self.initial_state.core_profiles.n_e.value[ped_top_idx],
-    )
-
-  def test_non_L_to_H_preserves_L_mode_values(self):
-    """Non LH transitions should keep existing L-mode values."""
-    original_T_i = 0.5
-    original_T_e = 0.4
-    original_n_e = 0.5e19
-    state = _make_transition_state(
+        sim_state_2.pedestal_transition_state.confinement_mode,
         ConfinementMode.H_MODE,
-        T_i_ped_L=original_T_i,
-        T_e_ped_L=original_T_e,
-        n_e_ped_L=original_n_e,
     )
-    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5)
-    np.testing.assert_allclose(new_state.T_i_ped_L_mode, original_T_i)
-    np.testing.assert_allclose(new_state.T_e_ped_L_mode, original_T_e)
-    np.testing.assert_allclose(new_state.n_e_ped_L_mode, original_n_e)
 
-
-class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
-  """Tests for the simplified ADAPTIVE_TRANSPORT state machine."""
-
-  def setUp(self):
-    super().setUp()
+  def test_prescribed_formation_adaptive_transport_L_to_H_and_H_to_L(self):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'set_pedestal': True,
+        'model_name': 'set_T_ped_n_ped',
         'mode': 'ADAPTIVE_TRANSPORT',
-        'formation_model': {'model_name': 'martin_scaling'},
-        'P_LH_hysteresis_factor': _HYSTERESIS,
+        'formation_model': {
+            'model_name': 'prescribed',
+            'pedestal_active': {0.0: False, 1.0: True, 2.0: False},
+            'base_multiplier': 1e-5,
+        },
     }
-    config['sources'] = {
-        'generic_heat': {
-            'gaussian_location': 0.15,
-            'gaussian_width': 0.1,
-            'P_total': 20.0e6,
-            'electron_heat_fraction': 0.8,
-        }
-    }
-    self.torax_config = model_config.ToraxConfig.from_dict(config)
-    self.step_fn = run_simulation.make_step_fn(self.torax_config)
-    self.initial_state, _ = (
-        initial_state.get_initial_state_and_post_processed_outputs(self.step_fn)
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    step_fn = run_simulation.make_step_fn(torax_config)
+    sim_state, _ = initial_state.get_initial_state_and_post_processed_outputs(
+        step_fn
     )
-    self.runtime_params = self.step_fn.runtime_params_provider(t=0.0)
-    self.models = self.step_fn._solver.models
 
-  def _call_update(
-      self,
-      transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-      P_SOL: float,
-      t: float = 5.0,
-  ) -> pedestal_transition_state_lib.PedestalTransitionState:
-    runtime_params = dataclasses.replace(self.runtime_params, t=jnp.array(t))
-    with mock.patch.object(
-        step_function_processing.power_scaling_formation_model_lib,
-        'calculate_P_SOL_total',
-        return_value=jnp.array(P_SOL),
-    ), mock.patch.object(
-        step_function_processing.scaling_laws,
-        'calculate_P_LH',
-        return_value=(jnp.array(_P_LH), None),
-    ):
-      return step_function_processing._update_pedestal_transition_state(
-          pedestal_transition_state=transition_state,
-          runtime_params=runtime_params,
-          geo=self.initial_state.geometry,
-          core_profiles=self.initial_state.core_profiles,
-          core_sources=self.initial_state.core_sources,
-          models=self.models,
+    with self.subTest('initial_L_mode'):
+      init_ts = sim_state.pedestal_transition_state
+      self.assertEqual(init_ts.confinement_mode, ConfinementMode.L_MODE)
+      np.testing.assert_allclose(
+          init_ts.pedestal_model_output.transport_multipliers.chi_i_multiplier,
+          1.0,
       )
 
-  def test_L_mode_stays_L_mode_below_threshold(self):
-    state = _make_transition_state(ConfinementMode.L_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * 0.5)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.L_MODE)
+    with self.subTest('L_to_H_transition'):
+      _, _, _, _, state_h = step_function_processing.pre_step(
+          input_state=dataclasses.replace(sim_state, t=jnp.array(1.5)),
+          runtime_params_provider=step_fn.runtime_params_provider,
+          geometry_provider=step_fn.geometry_provider,
+          models=step_fn._solver.models,
+      )
+      self.assertEqual(state_h.confinement_mode, ConfinementMode.H_MODE)
+      np.testing.assert_allclose(
+          state_h.pedestal_model_output.transport_multipliers.chi_i_multiplier,
+          1e-5,
+      )
 
-  def test_L_mode_to_H_mode_directly(self):
-    """ADAPTIVE_TRANSPORT goes directly L→H, no TRANSITIONING state."""
-    state = _make_transition_state(ConfinementMode.L_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
-
-  def test_H_mode_stays_H_mode_above_threshold(self):
-    state = _make_transition_state(ConfinementMode.H_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
-
-  def test_H_mode_stays_in_hysteresis_band(self):
-    """P_SOL between h*P_LH and P_LH should stay in H_MODE."""
-    state = _make_transition_state(ConfinementMode.H_MODE)
-    P_SOL = _P_LH * (_HYSTERESIS + (1.0 - _HYSTERESIS) / 2.0)
-    new_state = self._call_update(state, P_SOL=P_SOL)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.H_MODE)
-
-  def test_H_mode_to_L_mode_directly(self):
-    """ADAPTIVE_TRANSPORT goes directly H→L, no TRANSITIONING state."""
-    state = _make_transition_state(ConfinementMode.H_MODE)
-    new_state = self._call_update(state, P_SOL=_P_LH * _HYSTERESIS * 0.5)
-    self.assertEqual(new_state.confinement_mode, ConfinementMode.L_MODE)
-
-  def test_no_L_mode_value_capture(self):
-    """ADAPTIVE_TRANSPORT should preserve L-mode values unchanged."""
-    original_T_i = 0.5
-    state = _make_transition_state(
-        ConfinementMode.L_MODE, T_i_ped_L=original_T_i
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
-    # L-mode values should be preserved (not updated from core_profiles).
-    np.testing.assert_allclose(new_state.T_i_ped_L_mode, original_T_i)
-
-  def test_no_transition_timer_updates(self):
-    """ADAPTIVE_TRANSPORT should not update transition_start_time."""
-    original_start = jnp.inf
-    state = _make_transition_state(
-        ConfinementMode.L_MODE, start_time=float(original_start)
-    )
-    new_state = self._call_update(state, P_SOL=_P_LH * 1.5)
-    np.testing.assert_allclose(new_state.transition_start_time, original_start)
+    with self.subTest('H_to_L_transition'):
+      _, _, _, _, state_l = step_function_processing.pre_step(
+          input_state=dataclasses.replace(
+              sim_state, t=jnp.array(2.5), pedestal_transition_state=state_h
+          ),
+          runtime_params_provider=step_fn.runtime_params_provider,
+          geometry_provider=step_fn.geometry_provider,
+          models=step_fn._solver.models,
+      )
+      self.assertEqual(state_l.confinement_mode, ConfinementMode.L_MODE)
+      np.testing.assert_allclose(
+          state_l.pedestal_model_output.transport_multipliers.chi_i_multiplier,
+          1.0,
+      )
 
 
 if __name__ == '__main__':
