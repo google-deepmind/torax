@@ -26,7 +26,6 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import fast_ion as fast_ion_lib
-from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.sources.ion_cyclotron_source import base
@@ -37,11 +36,9 @@ from torax._src.torax_pydantic import torax_pydantic
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(source_runtime_params_lib.RuntimeParams):
+class RuntimeParams(base.RuntimeParams):
   """Runtime parameters for the scaled-profile ICRH model."""
 
-  P_total: array_typing.FloatScalar
-  absorption_fraction: array_typing.FloatScalar
   heat_profile_ion: array_typing.FloatVector
   heat_profile_electron: array_typing.FloatVector
   reference_B0: array_typing.FloatScalar
@@ -178,8 +175,6 @@ class ScaledProfileIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        P_total=self.P_total.get_value(t),
-        absorption_fraction=self.absorption_fraction.get_value(t),
         heat_profile_ion=self.heat_profile_ion.get_value(t),
         heat_profile_electron=self.heat_profile_electron.get_value(t),
         reference_B0=self.reference_B0.get_value(t),
