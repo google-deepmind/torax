@@ -16,6 +16,7 @@
 
 import abc
 import dataclasses
+from torax._src import array_typing
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -50,4 +51,21 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
     Returns:
       transport_decrease_multiplier: Factors to multiply transport coefficients
         by (<= 1.0).
+    """
+
+  @abc.abstractmethod
+  def evaluate_transition_conditions(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      source_profiles: source_profiles_lib.SourceProfiles,
+  ) -> tuple[array_typing.BoolScalar, array_typing.BoolScalar]:
+    """Evaluates L-H and H-L transition triggers.
+
+    Returns:
+      A tuple `(trigger_l_to_h_transition, trigger_h_to_l_transition)` of
+      mutually exclusive boolean scalars indicating whether the conditions to
+      trigger an L->H transition or an H->L back-transition are satisfied
+      (`trigger_l_to_h_transition & trigger_h_to_l_transition` must be False).
     """

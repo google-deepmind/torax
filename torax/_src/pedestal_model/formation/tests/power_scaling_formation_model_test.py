@@ -215,7 +215,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     target_P_SOL = P_LH * p_sol_factor
 
     with mock.patch.object(
-        step_function_processing.power_scaling_formation_model_lib,
+        power_scaling_formation_model,
         'calculate_P_SOL_total',
     ) as mock_calc:
       mock_calc.return_value = target_P_SOL
@@ -311,6 +311,68 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         multiplier_h_mode.chi_e_multiplier,
         multiplier_l_mode.chi_e_multiplier,
     )
+
+  def test_calculate_P_SOL_total_raises_when_energy_is_none(self):
+    with self.assertRaises(ValueError):
+      power_scaling_formation_model.calculate_P_SOL_total(
+          None,
+          self.initial_state.core_sources,
+          self.initial_state.geometry,
+          include_dW_dt=True,
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='above_P_LH',
+          p_sol=120.0e6,
+          expected_trigger_l_to_h=True,
+          expected_trigger_h_to_l=False,
+      ),
+      dict(
+          testcase_name='in_hysteresis_band',
+          p_sol=90.0e6,
+          expected_trigger_l_to_h=False,
+          expected_trigger_h_to_l=False,
+      ),
+      dict(
+          testcase_name='below_hysteresis_threshold',
+          p_sol=70.0e6,
+          expected_trigger_l_to_h=False,
+          expected_trigger_h_to_l=True,
+      ),
+  )
+  def test_evaluate_transition_conditions(
+      self, p_sol, expected_trigger_l_to_h, expected_trigger_h_to_l
+  ):
+    formation_model = power_scaling_formation_model.PowerScalingFormationModel(
+        scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
+    )
+    runtime_params = dataclasses.replace(
+        self.runtime_params,
+        pedestal=dataclasses.replace(
+            self.runtime_params.pedestal,
+            P_LH_hysteresis_factor=0.8,
+        ),
+    )
+    with mock.patch.object(
+        power_scaling_formation_model,
+        'calculate_P_SOL_total',
+        return_value=jnp.array(p_sol),
+    ), mock.patch.object(
+        scaling_laws,
+        'calculate_P_LH',
+        return_value=(jnp.array(100.0e6), None),
+    ):
+      trigger_l_to_h, trigger_h_to_l = (
+          formation_model.evaluate_transition_conditions(
+              runtime_params=runtime_params,
+              geo=self.initial_state.geometry,
+              core_profiles=self.initial_state.core_profiles,
+              source_profiles=self.initial_state.core_sources,
+          )
+      )
+    self.assertEqual(bool(trigger_l_to_h), expected_trigger_l_to_h)
+    self.assertEqual(bool(trigger_h_to_l), expected_trigger_h_to_l)
 
 
 if __name__ == '__main__':
