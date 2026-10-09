@@ -163,11 +163,11 @@ be passed through from the pydantic config's ``build_pedestal_model`` method.
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
+          pedestal_transition_state: pedestal.PedestalTransitionState,
       ) -> pedestal.PedestalModelOutput:
         # Implement your pedestal model here.
         return pedestal.PedestalModelOutput(
             rho_norm_ped_top=jnp.array(0.9),
-            rho_norm_ped_top_idx=jnp.abs(geo.rho_norm - 0.9).argmin(),
             T_i_ped=jnp.array(5.0),
             T_e_ped=jnp.array(5.0),
             n_e_ped=jnp.array(0.7e20),
@@ -621,7 +621,7 @@ Configuring time-varying parameters and physical bounds
 =======================================================
 
 When defining custom Pydantic config classes for models, TORAX provides several
-type helpers in ``torax._src.torax_pydantic`` to enforce physical constraints
+type helpers in ``torax.torax_pydantic`` to enforce physical constraints
 (such as positivity, non-negativity, intervals, or custom bounds) on
 time-varying scalars and arrays:
 
@@ -644,8 +644,9 @@ Example usage in a custom model config:
 .. code-block:: python
 
     from typing import Annotated, Literal
+    import torax
     from torax import sources
-    from torax._src.torax_pydantic import torax_pydantic
+    from torax import torax_pydantic
 
     class MyCustomConfig(sources.SourceConfigBase):
       """Custom source config with bounded parameters."""
