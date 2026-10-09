@@ -24,6 +24,7 @@ from typing import Mapping
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import mavrin_2017_charge_states_data
 from torax._src.physics.radiation import radiation
 
@@ -118,7 +119,7 @@ def _calculate_L_INT(
     stop_temp: array_typing.FloatScalar,
     ne_tau: array_typing.FloatScalar,
     ion_symbol: str,
-    resolution: int = 100,
+    resolution: int = extended_lengyel_defaults.L_INT_INTEGRATION_RESOLUTION,
 ) -> jax.Array:
   """Calculates the integral of Lz * sqrt(Te) from start_temp to stop_temp.
 
@@ -172,7 +173,7 @@ def calculate_weighted_L_INT(
     start_temp: array_typing.FloatScalar,
     stop_temp: array_typing.FloatScalar,
     ne_tau: array_typing.FloatScalar,
-    resolution: int = 100,
+    resolution: int = extended_lengyel_defaults.L_INT_INTEGRATION_RESOLUTION,
 ) -> jax.Array:
   """Calculates the weighted integral of Lz * sqrt(Te).
 
@@ -188,9 +189,7 @@ def calculate_weighted_L_INT(
     resolution: The number of points for numerical integration.
 
   Returns:
-    The total integrated cooling rate.
-    For concentration inputs, output unit is [eV^1.5].
-    For weight inputs, output unit is [eV^1.5 * m^3].
+    The total integrated cooling rate [eV^1.5 * m^3 * W].
   """
   total_weighted_L_INT = jnp.array(0.0)
   for ion_symbol, weight in impurity_map.items():
