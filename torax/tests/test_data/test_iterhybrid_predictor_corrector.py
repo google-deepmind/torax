@@ -128,7 +128,6 @@ CONFIG = {
     },
     'pedestal': {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
         'T_i_ped': 4.5,  # ion pedestal top temperature in keV for T_i and T_e
         'T_e_ped': (
             4.5

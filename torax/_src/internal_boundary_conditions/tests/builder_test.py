@@ -64,8 +64,6 @@ class BuilderTest(absltest.TestCase):
         pedestal_runtime_params_lib.RuntimeParams,
         instance=True,
         mode=pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
-        set_pedestal=True,
-        use_formation_model_with_internal_boundary_condition=True,
         transition_time_width=1.0,
         pedestal_profile_form=pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP,
     )
@@ -181,7 +179,7 @@ class BuilderTest(absltest.TestCase):
                 ),
             ),
             geometry=dict(geometry_type='circular', n_rho=20),
-            pedestal=dict(set_pedestal=False),
+            pedestal=dict(),
             sources=dict(),
             solver=dict(use_predictor_corrector=False),
             transport=dict(),
@@ -201,9 +199,7 @@ class BuilderTest(absltest.TestCase):
         source_models=models.source_models,
         neoclassical_model=models.neoclassical_model,
     )
-    l_mode_state = (
-        pedestal_transition_state.PedestalTransitionState.empty_L_mode()
-    )
+    l_mode_state = pedestal_transition_state.PedestalTransitionState.empty()
 
     built_ibc = builder.build_internal_boundary_conditions(
         runtime_params=runtime_params,

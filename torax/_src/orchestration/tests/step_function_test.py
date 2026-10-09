@@ -199,7 +199,7 @@ class StepFunctionTest(parameterized.TestCase):
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
         geometry_provider=step_fn.geometry_provider,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     self.assertGreater(config_dt, passed_max_dt)
     np.testing.assert_allclose(
@@ -233,7 +233,7 @@ class StepFunctionTest(parameterized.TestCase):
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
         geometry_provider=step_fn.geometry_provider,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     self.assertGreater(passed_max_dt, config_dt)
     np.testing.assert_allclose(
@@ -266,7 +266,7 @@ class StepFunctionTest(parameterized.TestCase):
         previous_post_processed_outputs=post_processed_outputs,
         runtime_params_provider=step_fn.runtime_params_provider,
         geometry_provider=step_fn.geometry_provider,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     self.assertTrue(np.less_equal(output_state.dt, passed_max_dt))
 
@@ -379,7 +379,7 @@ class StepFunctionTest(parameterized.TestCase):
     ) = run_simulation.prepare_simulation(cfg)
     params_provider = step_fn.runtime_params_provider
 
-    # Run a step with overriden Ip.
+    # Run a step with overridden Ip.
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=params_provider.profile_conditions.Ip.value * 2.0  # pyrefly: ignore[bad-argument-type]
     )

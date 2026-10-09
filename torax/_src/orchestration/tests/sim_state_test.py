@@ -97,7 +97,7 @@ class SimStateTest(parameterized.TestCase):
             sawtooth_crash=False,
         ),
         time_step_calculator_state=time_step_calculator_state.TimeStepCalculatorState(),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
   def test_has_nan_no_nan(self):
