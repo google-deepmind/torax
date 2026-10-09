@@ -91,7 +91,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     if isinstance(rho_norm_ped_top, (float, int)):
@@ -167,7 +167,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     # Modify multiplier to 1.5
@@ -182,7 +182,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     np.testing.assert_allclose(output_2.T_e_ped, output_1.T_e_ped * 1.5)
