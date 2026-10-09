@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Useful functions to load IMAS core_profiles or plasma_profiles IDSs."""
+
 from collections.abc import Collection, Mapping
 from typing import Any
 
@@ -122,14 +123,14 @@ def profile_conditions_from_IMAS(
   }
 
 
-# TODO(b/528212645): Add support for custom mappings of IMAS ion names to TORAX
-# ion names. Also add support for DT -> 50/50 D, T mix.
+# TODO(b/528212645): Support mixed-species DT -> 50/50 D/T ion entries.
 def plasma_composition_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
     *,
     excluded_impurities: Collection[str] | None = None,
     main_ions_symbols: Collection[str] | None = None,
+    imas_to_torax_ions: Mapping[str, str] | None = None,
 ) -> Mapping[str, Any]:
   """Returns dict with args for plasma_composition config from a given ids.
 
@@ -153,10 +154,12 @@ def plasma_composition_from_IMAS(
       t_initial.
     excluded_impurities: Optional arg to specify which impurities from the IDS
       should not be parsed.
-    main_ions_symbols: collection of ions to be used to define the main_ion
-      mixture. If value is not None, will check that the given ions exist in the
-      IDS and their density is filled. If not explicitly provided, will parse H,
-      D, T as main ions.
+    main_ions_symbols: collection of TORAX ion names for the main-ion mixture.
+      If specified, they must be present after applying imas_to_torax_ions.
+      Defaults to treating H, D and T as main ions.
+    imas_to_torax_ions: Optional mapping from source IMAS ion names to supported
+      TORAX species, e.g. {'C+': 'C'}. Only renames single species; composite
+      entries such as 'DT' need a separate species-fraction conversion.
 
   Returns:
     The updated fields read from the IDS that can be used to completely or
@@ -172,15 +175,31 @@ def plasma_composition_from_IMAS(
   profiles_1d, rhon_array, time_array = loader.get_time_and_radial_arrays(
       ids, t_initial
   )
-  # Parse only ions with non empty density and not in excluded_impurities.
-  if excluded_impurities:
-    parsed_ions = [
-        ion.name
-        for ion in profiles_1d[0].ion
-        if ion.density and ion.name not in excluded_impurities
-    ]
-  else:
-    parsed_ions = [ion.name for ion in profiles_1d[0].ion if ion.density]
+  # Resolve aliases consistently for validation and the emitted dictionaries.
+  # Exclusions refer to original IMAS names, before aliasing.
+  name_mapping = imas_to_torax_ions or {}
+  excluded = set(excluded_impurities or ())
+  parsed_ions = []
+  for ion in profiles_1d[0].ion:
+    try:
+      source_name = str(ion.name)
+    except AttributeError:
+      source_name = str(ion.label)  # Early plasma_profiles DDv4.
+    if ion.density and source_name not in excluded:
+      parsed_ions.append(name_mapping.get(source_name, source_name))
+
+  # Two separate IMAS populations must never overwrite each other's densities
+  # under the same TORAX symbol. Blended DT populations cannot be renamed to a
+  # pure D or T species without losing their physical meaning.
+  if len(parsed_ions) != len(set(parsed_ions)):
+    raise ValueError(
+        "IMAS ion aliases must map distinct populations to distinct TORAX ions."
+    )
+  if "DT" in name_mapping and name_mapping["DT"] in ("D", "T"):
+    raise ValueError(
+        "A mixed DT population cannot be mapped to a pure D or T ion; "
+        "split its density into species fractions before loading."
+    )
   # main_ions_symbols not explicitly provided: no validation of main ions and
   # value set to hydrogenic ions.
   if main_ions_symbols is None:
@@ -205,6 +224,8 @@ def plasma_composition_from_IMAS(
       # that instead of using a try-except.
       # Case ids is plasma_profiles in early DDv4 releases.
       symbol = str(profiles_1d[0].ion[ion].label)
+    if symbol in name_mapping:
+      symbol = name_mapping[symbol]
     if symbol in parsed_ions:
       # Fill main ions
       if symbol in main_ions_symbols:
