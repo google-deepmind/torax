@@ -72,9 +72,6 @@ class RedlModelConfig(base.ConductivityModelConfig):
 
   model_name: Annotated[Literal['redl'], torax_pydantic.JAX_STATIC] = 'redl'
 
-  def build_runtime_params(self) -> RuntimeParams:
-    return RuntimeParams()
-
   def build_model(self) -> RedlModel:
     return RedlModel()
 

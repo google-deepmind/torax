@@ -71,9 +71,6 @@ class SauterModelConfig(base.ConductivityModelConfig):
 
   model_name: Annotated[Literal['sauter'], torax_pydantic.JAX_STATIC] = 'sauter'
 
-  def build_runtime_params(self) -> RuntimeParams:
-    return RuntimeParams()
-
   def build_model(self) -> SauterModel:
     return SauterModel()
 

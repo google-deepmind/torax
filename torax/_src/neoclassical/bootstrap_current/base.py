@@ -158,9 +158,11 @@ class BootstrapCurrentModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for bootstrap current model configs."""
   bootstrap_multiplier: pydantic.NonNegativeFloat = 1.0
 
-  @abc.abstractmethod
   def build_runtime_params(self) -> bootstrap_runtime_params.RuntimeParams:
     """Builds runtime params."""
+    return bootstrap_runtime_params.RuntimeParams(
+        bootstrap_multiplier=self.bootstrap_multiplier
+    )
 
   @abc.abstractmethod
   def build_model(self) -> BootstrapCurrentModel:
