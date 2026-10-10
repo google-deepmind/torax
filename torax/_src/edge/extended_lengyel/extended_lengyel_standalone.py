@@ -1253,7 +1253,9 @@ def _build_extended_lengyel_outputs(
 
   T_e_separatrix_keV = sol_model.T_e_separatrix / 1e3
   T_e_right_bc = T_e_separatrix_keV
-  T_i_right_bc = T_e_separatrix_keV * sol_model.params.T_i_T_e_ratio_target
+  T_i_right_bc = (
+      T_e_separatrix_keV * sol_model.params.T_i_T_e_ratio_separatrix
+  )
 
   return ExtendedLengyelOutputs(
       T_e_right_bc=T_e_right_bc,
@@ -1354,7 +1356,7 @@ def _calc_post_processed_outputs(
 ) -> tuple[jax.Array, jax.Array]:
   """Calculates post-processed outputs for the extended Lengyel model."""
   sound_speed_at_target = jnp.sqrt(
-      2.0
+      (1.0 + sol_model.params.T_i_T_e_ratio_target)
       * sol_model.state.T_e_target
       * constants.CONSTANTS.eV_to_J
       / (sol_model.params.average_ion_mass * constants.CONSTANTS.m_amu)
