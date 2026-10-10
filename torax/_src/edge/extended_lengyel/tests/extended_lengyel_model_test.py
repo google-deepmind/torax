@@ -1221,7 +1221,8 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
             'ratio_bpol_omp_to_bpol_avg': 4.0 / 3.0,
             # Test parameters
             'update_temperatures': update_temperatures,
-            'T_i_T_e_ratio_target': ion_to_electron_ratio,
+            'T_i_T_e_ratio_separatrix': ion_to_electron_ratio,
+            'T_i_T_e_ratio_target': 1.5,
             'use_enrichment_model': False,
             'diverted': True,
         },
@@ -1241,9 +1242,13 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
     # Check the last time step
     final_state = state_history.core_profiles[-1]
     final_edge_output = state_history._edge_outputs[-1]
-    self.assertIsNotNone(final_edge_output)
-    self.assertIsInstance(
+    assert isinstance(
         final_edge_output, extended_lengyel_standalone.ExtendedLengyelOutputs
+    )
+    np.testing.assert_allclose(
+        final_edge_output.T_i_right_bc,
+        final_edge_output.T_e_right_bc * ion_to_electron_ratio,
+        rtol=1e-5,
     )
 
     if update_temperatures:
