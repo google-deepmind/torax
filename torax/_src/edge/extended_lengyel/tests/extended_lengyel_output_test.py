@@ -145,6 +145,12 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         .values,
         np.array([0.01]),
     )
+    self.assertEqual(
+        edge_dataset[
+            extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS
+        ].attrs.get('units'),
+        output_keys.Units.DIMENSIONLESS,
+    )
     np.testing.assert_allclose(
         edge_dataset[output_keys.T_E_RIGHT_BC].values,
         np.array([3.0]),
