@@ -93,9 +93,7 @@ class EquilibriumTest(parameterized.TestCase):
     with mock.patch('imas.DBEntry') as mocked_class:
       mocked_class.return_value = mock_value
       imas_uri = f'imas:hdf5?path={full_path}'
-      config = imas_config.IMASConfig(
-          imas_uri=imas_uri, imas_filepath=None
-      )
+      config = imas_config.IMASConfig(imas_uri=imas_uri, imas_filepath=None)
       config.build_geometry()
 
   def test_IMAS_input_with_equilibrium_object(self):
@@ -154,6 +152,34 @@ class EquilibriumTest(parameterized.TestCase):
         AssertionError, 'mismatched between slice_time and slice_index'
     ):
       _check_geo_match(geo_at_0, geo_at_slice_from_index)
+
+  def test_IMAS_raises_if_required_geometry_field_missing(self):
+    equilibrium_in = loader.load_imas_data(
+        'ITERhybrid_COCOS17_IDS_ddv4.nc', 'equilibrium'
+    )
+    equilibrium_in.time_slice[0].profiles_1d.gm7 = np.array([])
+    config = imas_config.IMASConfig(
+        equilibrium_object=equilibrium_in, imas_filepath=None
+    )
+
+    with self.assertRaisesRegex(ValueError, r'profiles_1d\.gm7'):
+      config.build_geometry()
+
+  def test_IMAS_requires_volume_or_dvolume_dpsi(self):
+    equilibrium_in = loader.load_imas_data(
+        'ITERhybrid_COCOS17_IDS_ddv4.nc', 'equilibrium'
+    )
+    profiles_1d = equilibrium_in.time_slice[0].profiles_1d
+    profiles_1d.dvolume_dpsi = np.array([])
+    profiles_1d.volume = np.array([])
+    config = imas_config.IMASConfig(
+        equilibrium_object=equilibrium_in, imas_filepath=None
+    )
+
+    with self.assertRaisesRegex(
+        ValueError, r'profiles_1d\.dvolume_dpsi or profiles_1d\.volume'
+    ):
+      config.build_geometry()
 
   def test_IMAS_raises_if_slice_out_of_range(self):
     filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
