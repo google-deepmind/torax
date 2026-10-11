@@ -306,18 +306,19 @@ def cumulative_volume_integration(
 def safe_divide(
     *, num: chex.Array, denom: chex.Array, eps: float
 ) -> chex.Array:
-  """Divides y by x, adding eps to the denominator for numerical stability.
+  """Divides num by denom with a sign-preserving epsilon offset.
 
   Args:
     num: Numerator.
     denom: Denominator.
-    eps: Small value added to the denominator to prevent division by zero.
-      Choose a value that is small relative to the expected magnitude of x.
+    eps: Small positive value added to the denominator magnitude to prevent
+      division by zero. Choose a value small relative to denom.
 
   Returns:
-    num / (denom + eps).
+    num / (denom + sign(denom) * eps).
   """
-  return num / (denom + eps)
+  safe_denom = denom + jnp.where(denom >= 0, eps, -eps)
+  return num / safe_denom
 
 
 @jax.jit

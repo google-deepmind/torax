@@ -447,6 +447,13 @@ class MathUtilsTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(got, expected, rtol=1e-6)
 
+  def test_safe_divide(self):
+    eps = 1e-7
+    denom = jnp.array([-eps, 0.0, eps])
+    got = math_utils.safe_divide(num=jnp.ones(3), denom=denom, eps=eps)
+    expected = jnp.array([-0.5 / eps, 1.0 / eps, 0.5 / eps])
+    np.testing.assert_allclose(got, expected, rtol=1e-12)
+
 
 if __name__ == '__main__':
   absltest.main()
