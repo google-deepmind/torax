@@ -39,7 +39,9 @@ class PowerScalingFormationRuntimeParams(
 ):
   """Runtime params for power scaling pedestal formation models."""
 
-  P_LH_prefactor: array_typing.FloatScalar = 1.0
+  sharpness: array_typing.FloatScalar
+  offset: array_typing.FloatScalar
+  P_LH_prefactor: array_typing.FloatScalar
 
 
 @jax.jit(static_argnames=['include_dW_dt'])
