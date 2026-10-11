@@ -356,17 +356,13 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
-    if "formation_model" not in configurable_data:
-      configurable_data["formation_model"] = {"model_name": "martin_scaling"}
-    elif (
-        isinstance(configurable_data["formation_model"], dict)
+    if (
+        isinstance(configurable_data.get("formation_model"), dict)
         and "model_name" not in configurable_data["formation_model"]
     ):
       configurable_data["formation_model"]["model_name"] = "martin_scaling"
-    if "saturation_model" not in configurable_data:
-      configurable_data["saturation_model"] = {"model_name": "profile_value"}
-    elif (
-        isinstance(configurable_data["saturation_model"], dict)
+    if (
+        isinstance(configurable_data.get("saturation_model"), dict)
         and "model_name" not in configurable_data["saturation_model"]
     ):
       configurable_data["saturation_model"]["model_name"] = "profile_value"
@@ -528,15 +524,25 @@ class SetTpedNped(BasePedestal):
 
 
 class NoPedestal(BasePedestal):
-  """A pedestal model for when there is no pedestal.
-
-  Note that setting `set_pedestal` to True with a NoPedestal model is the
-  equivalent of setting it to False.
-  """
+  """A pedestal model for when there is no pedestal."""
 
   model_name: Annotated[Literal["no_pedestal"], torax_pydantic.JAX_STATIC] = (
       "no_pedestal"
   )
+  use_formation_model_with_internal_boundary_condition: Annotated[
+      Literal[False], torax_pydantic.JAX_STATIC
+  ] = False
+  formation_model: PrescribedFormation = torax_pydantic.ValidatedDefault(
+      PrescribedFormation(pedestal_active=False)
+  )
+
+  @pydantic.model_validator(mode="after")
+  def _validate_inactive(self) -> Self:
+    if any(self.set_pedestal.value) or any(
+        self.formation_model.pedestal_active.value
+    ):
+      raise ValueError("NoPedestal cannot have an active pedestal.")
+    return self
 
   def build_pedestal_model(
       self,

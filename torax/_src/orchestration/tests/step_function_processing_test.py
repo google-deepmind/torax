@@ -397,6 +397,7 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
     super().setUp()
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
         'set_pedestal': True,
         'mode': 'ADAPTIVE_TRANSPORT',
         'formation_model': {'model_name': 'martin_scaling'},

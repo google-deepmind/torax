@@ -28,7 +28,6 @@ class PedestalModelPydanticTest(parameterized.TestCase):
   @parameterized.parameters(
       pydantic_model.SetPpedTpedRatioNped,
       pydantic_model.SetTpedNped,
-      pydantic_model.NoPedestal,
   )
   def test_build_and_call_model(
       self, pydantic_model_class: type[pydantic_model.BasePedestal]
@@ -50,6 +49,29 @@ class PedestalModelPydanticTest(parameterized.TestCase):
       output = f(pedestal_model)
       self.assertTrue(output.set_pedestal)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+
+  def test_no_pedestal_always_inactive(self):
+    pedestal_model = pydantic_model.NoPedestal.from_dict({})
+    output = jax.jit(lambda x: x.build_runtime_params(t=0.0))(pedestal_model)
+    self.assertFalse(output.set_pedestal)
+    self.assertFalse(
+        output.use_formation_model_with_internal_boundary_condition
+    )
+    self.assertIsInstance(
+        output.formation,
+        prescribed_formation_model.PrescribedFormationRuntimeParams,
+    )
+    self.assertFalse(output.formation.pedestal_active)
+
+    with self.assertRaises(pydantic.ValidationError):
+      pydantic_model.NoPedestal.from_dict({"set_pedestal": True})
+    with self.assertRaises(pydantic.ValidationError):
+      pydantic_model.NoPedestal.from_dict({
+          "formation_model": {
+              "model_name": "prescribed",
+              "pedestal_active": True,
+          },
+      })
 
   def test_source_mode_validation(self):
     with self.subTest("allow_internal_boundary_condition"):
