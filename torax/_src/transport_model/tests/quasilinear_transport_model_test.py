@@ -276,6 +276,28 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         normalized_logarithmic_gradient_expected,
     )
 
+  def test_calculate_normalized_logarithmic_gradient_preserves_negative_sign_near_zero(
+      self,
+  ):
+    small_hollow_var = cell_variable.CellVariable(
+        value=jnp.array([1.0, 1.0 + 0.25 * constants.eps]),
+        face_centers=jnp.array([0.0, 1.0, 2.0]),
+        right_face_constraint=jnp.array(1.0 + 0.5 * constants.eps),
+        right_face_grad_constraint=None,
+    )
+    hollow_grad = (
+        quasilinear_transport_model.calculate_normalized_logarithmic_gradient(
+            var=small_hollow_var,
+            radial_coordinate=jnp.array([0.0, 1.0]),
+            radial_face_coordinate=jnp.array([-0.5, 0.5, 1.5]),
+            reference_length=jnp.array(1.0),
+        )
+    )
+    np.testing.assert_allclose(
+        hollow_grad,
+        np.array([1.0, -1.0, -1.0]) * constants.eps,
+    )
+
   def test_apply_fast_ion_stabilization_multiplier_scales_correction(self):
     """Tests that the multiplier scales (factor-1), not the whole factor."""
     n_rho = 5

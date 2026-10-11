@@ -170,7 +170,7 @@ def calculate_normalized_logarithmic_gradient(
   # to avoid divisions by zero elsewhere in TORAX, if the gradient is zero
   result = jnp.where(
       jnp.abs(result) < constants_module.CONSTANTS.eps,
-      constants_module.CONSTANTS.eps,
+      jnp.where(result >= 0, 1.0, -1.0) * constants_module.CONSTANTS.eps,
       result,
   )
   return result
