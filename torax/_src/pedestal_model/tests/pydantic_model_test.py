@@ -69,9 +69,8 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     with self.subTest("allow_positive_values"):
       pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.5})
 
-    with self.subTest("disallow_zero_values"):
-      with self.assertRaises(ValueError):
-        pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.0})
+    with self.subTest("allow_zero_values"):
+      pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.0})
 
     with self.subTest("disallow_negative_values"):
       with self.assertRaises(ValueError):

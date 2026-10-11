@@ -257,7 +257,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   use_formation_model_with_internal_boundary_condition: Annotated[
       bool, torax_pydantic.JAX_STATIC
   ] = False
-  transition_time_width: torax_pydantic.PositiveTimeVaryingScalar = (
+  transition_time_width: torax_pydantic.NonNegativeTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.5)
   )
   P_LH_hysteresis_factor: torax_pydantic.UnitIntervalTimeVaryingScalar = (

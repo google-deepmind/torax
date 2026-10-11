@@ -130,7 +130,14 @@ class PedestalTransitionState:
       Ramp fraction clipped to [0, 1].
     """
     elapsed = t - self.transition_start_time
-    fraction = elapsed / transition_time_width
+    safe_width = jnp.where(
+        transition_time_width == 0.0, 1.0, transition_time_width
+    )
+    fraction = jnp.where(
+        transition_time_width == 0.0,
+        1.0,
+        elapsed / safe_width,
+    )
     return jnp.clip(fraction, 0.0, 1.0)
 
   def _apply_transition_ramp_scaling(
