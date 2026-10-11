@@ -22,7 +22,7 @@ from torax._src import constants
 
 
 # pylint: disable=invalid-name
-def _get_nested_attr(obj: Any, path: str) -> Any:
+def get_nested_attr(obj: Any, path: str) -> Any:
   """Gets a nested attribute using a dot-separated path."""
   return functools.reduce(getattr, path.split("."), obj)
 
@@ -34,10 +34,10 @@ def _validate_paths(
 ) -> None:
   """Validates required and optional paths on an object."""
   for path in required_paths:
-    if not _get_nested_attr(obj, path).has_value:
+    if not get_nested_attr(obj, path).has_value:
       raise ValueError(f"The IDS is missing the {path} quantity.")
   for path in warning_paths:
-    if not _get_nested_attr(obj, path).has_value:
+    if not get_nested_attr(obj, path).has_value:
       logging.warning("The IDS is missing the %s quantity.", path)
 
 
