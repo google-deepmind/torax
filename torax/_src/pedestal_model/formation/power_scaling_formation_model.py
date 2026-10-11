@@ -44,7 +44,7 @@ class PowerScalingFormationRuntimeParams(
 
 @jax.jit(static_argnames=['include_dW_dt'])
 def calculate_P_SOL_total(
-    internal_plasma_energy: state.PlasmaInternalEnergy,
+    internal_plasma_energy: state.PlasmaInternalEnergy | None,
     core_sources: source_profiles_lib.SourceProfiles,
     geo: geometry.Geometry,
     include_dW_dt: bool = True,
@@ -69,10 +69,14 @@ def calculate_P_SOL_total(
       math_utils.volume_integration(source, geo)
       for source in core_sources.T_i.values()
   )
-  P_heat_total = P_heat_e + P_heat_i
+  P_heat_total = jnp.asarray(P_heat_e + P_heat_i)
   if not include_dW_dt:
-    return P_heat_total  # pyrefly: ignore[bad-return]
-  return P_heat_total - internal_plasma_energy.dW_thermal_dt_smoothed  # pyrefly: ignore[bad-return]
+    return P_heat_total
+  if internal_plasma_energy is None:
+    raise ValueError(
+        'internal_plasma_energy must not be None when include_dW_dt is True.'
+    )
+  return P_heat_total - internal_plasma_energy.dW_thermal_dt_smoothed
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -90,6 +94,50 @@ class PowerScalingFormationModel(base.FormationModel):
       scaling_laws.DivertorConfiguration.HT
   )
 
+  def _calculate_P_SOL_and_P_LH(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      core_sources: source_profiles_lib.SourceProfiles,
+  ) -> tuple[jax.Array, jax.Array]:
+    """Calculates P_SOL and rescaled P_LH."""
+    assert isinstance(
+        runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
+    )
+    P_SOL_total = calculate_P_SOL_total(
+        core_profiles.internal_plasma_energy,
+        core_sources,
+        geo,
+        include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
+    )
+    P_LH, _ = scaling_laws.calculate_P_LH(
+        geo,
+        core_profiles,
+        scaling_law=self.scaling_law,
+        divertor_configuration=self.divertor_configuration,
+    )
+    rescaled_P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
+    return P_SOL_total, rescaled_P_LH
+
+  def evaluate_transition_conditions(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      source_profiles: source_profiles_lib.SourceProfiles,
+  ) -> tuple[array_typing.BoolScalar, array_typing.BoolScalar]:
+    """Evaluates L-H and H-L transition triggers based on P_SOL vs P_LH."""
+    P_SOL_total, rescaled_P_LH = self._calculate_P_SOL_and_P_LH(
+        runtime_params, geo, core_profiles, source_profiles
+    )
+    trigger_l_to_h_transition = P_SOL_total > rescaled_P_LH
+    trigger_h_to_l_transition = (
+        P_SOL_total
+        < rescaled_P_LH * runtime_params.pedestal.P_LH_hysteresis_factor
+    )
+    return trigger_l_to_h_transition, trigger_h_to_l_transition
+
   def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -102,22 +150,9 @@ class PowerScalingFormationModel(base.FormationModel):
     assert isinstance(
         runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
-
-    P_SOL_total = calculate_P_SOL_total(
-        core_profiles.internal_plasma_energy,
-        core_sources,
-        geo,
-        include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
+    P_SOL_total, rescaled_P_LH = self._calculate_P_SOL_and_P_LH(
+        runtime_params, geo, core_profiles, core_sources
     )
-
-    P_LH, _ = scaling_laws.calculate_P_LH(
-        geo,
-        core_profiles,
-        scaling_law=self.scaling_law,
-        divertor_configuration=self.divertor_configuration,
-    )
-
-    rescaled_P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
 
     # Apply hysteresis: in H-mode, use a lower effective P_LH threshold,
     # making it harder to transition back to L-mode.

@@ -17,6 +17,7 @@
 import dataclasses
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -31,8 +32,6 @@ from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
-from torax._src.pedestal_model.formation import power_scaling_formation_model as power_scaling_formation_model_lib
-from torax._src.physics import scaling_laws
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
@@ -53,10 +52,10 @@ def _update_pedestal_transition_state(
     core_sources: source_profiles_lib.SourceProfiles,
     models: models_lib.Models,
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
-  """Evaluates P_SOL vs P_LH and updates the pedestal transition state.
+  """Evaluates transition conditions and updates the pedestal transition state.
 
-  Called once per timestep in pre_step. Computes P_SOL and P_LH, then
-  delegates to the mode-specific update function.
+  Called once per timestep in pre_step. Evaluates the formation model's
+  transition conditions, then delegates to the mode-specific update function.
 
   Args:
     pedestal_transition_state: Current transition state from previous timestep.
@@ -69,37 +68,13 @@ def _update_pedestal_transition_state(
   Returns:
     Updated PedestalTransitionState.
   """
-  formation_model = models.pedestal_model.formation_model
-  # Explicitly check types (required for pytype).
-  assert isinstance(
-      formation_model,
-      power_scaling_formation_model_lib.PowerScalingFormationModel,
-  )
-  assert isinstance(
-      runtime_params.pedestal.formation,
-      power_scaling_formation_model_lib.PowerScalingFormationRuntimeParams,
-  )
-
-  # Calculate P_SOL (total power crossing the separatrix).
-  P_SOL = power_scaling_formation_model_lib.calculate_P_SOL_total(
-      internal_plasma_energy=core_profiles.internal_plasma_energy,
-      core_sources=core_sources,
-      geo=geo,
-      include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
-  )
-
-  # Calculate P_LH (L-H transition threshold power), with a configurable
-  # prefactor to allow for tuning.
-  P_LH, _ = scaling_laws.calculate_P_LH(
-      geo=geo,
-      core_profiles=core_profiles,
-      scaling_law=formation_model.scaling_law,
-      divertor_configuration=formation_model.divertor_configuration,
-  )
-  P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
-  trigger_l_to_h_transition = P_SOL > P_LH
-  trigger_h_to_l_transition = (
-      P_SOL < P_LH * runtime_params.pedestal.P_LH_hysteresis_factor
+  trigger_l_to_h_transition, trigger_h_to_l_transition = (
+      models.pedestal_model.formation_model.evaluate_transition_conditions(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          source_profiles=core_sources,
+      )
   )
 
   if (
@@ -126,8 +101,8 @@ def _update_adaptive_transport(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
-    trigger_l_to_h_transition: jax.Array,
-    trigger_h_to_l_transition: jax.Array,
+    trigger_l_to_h_transition: array_typing.BoolScalar,
+    trigger_h_to_l_transition: array_typing.BoolScalar,
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
   """Updates pedestal transition state for ADAPTIVE_TRANSPORT mode.
 
@@ -181,8 +156,8 @@ def _update_internal_boundary_condition(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    trigger_l_to_h_transition: jax.Array,
-    trigger_h_to_l_transition: jax.Array,
+    trigger_l_to_h_transition: array_typing.BoolScalar,
+    trigger_h_to_l_transition: array_typing.BoolScalar,
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
   """Updates pedestal transition state for INTERNAL_BOUNDARY_CONDITION mode.
 
