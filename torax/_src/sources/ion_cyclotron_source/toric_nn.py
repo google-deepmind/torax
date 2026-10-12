@@ -418,6 +418,8 @@ def icrh_model_func(
   he3_atomic_mass = 3.016
   he3_charge_number = 2
 
+  absorbed_power = source_params.P_total * source_params.absorption_fraction
+
   n_tail, T_tail = fast_ion_utils.bimaxwellian_split(
       power_deposition=power_deposition_he3,
       T_e=core_profiles.T_e.value,
@@ -425,7 +427,7 @@ def icrh_model_func(
       T_i=core_profiles.T_i.value,
       n_i=core_profiles.n_i.value,
       minority_concentration=minority_concentration_profile,
-      P_total_W=source_params.P_total,
+      P_total_W=absorbed_power,
       charge_number=he3_charge_number,
       mass_number=he3_atomic_mass,
       bulk_ion_mass=core_profiles.A_i,
@@ -457,7 +459,6 @@ def icrh_model_func(
       core_profiles.T_e.value,
       he3_atomic_mass,
   )
-  absorbed_power = source_params.P_total * source_params.absorption_fraction
   source_ion = power_deposition_he3 * frac_ion_heating * absorbed_power
   source_el = power_deposition_he3 * (1 - frac_ion_heating) * absorbed_power
 

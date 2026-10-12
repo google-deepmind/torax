@@ -517,6 +517,82 @@ class ToricNNTest(test_lib.SourceTestCase):
         fast_ion_data[_HE3_INDEX].T.value, core_profiles.T_i.value  # pyrefly: ignore[missing-attribute]
     )
 
+  @parameterized.parameters(
+      (20e6, 0.5),
+      (40e6, 0.25),
+  )
+  def test_absorption_fraction_scales_heating_and_fast_ions(
+      self, p_total: float, absorption_fraction: float
+  ):
+    config = default_configs.get_default_config_dict()
+    config["numerics"] = {"enable_fast_ions": True}
+    config["sources"] = {
+        self._source_name: {
+            "model_path": _DUMMY_MODEL_PATH,
+            "P_total": p_total,
+            "absorption_fraction": absorption_fraction,
+        }
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    source_models = torax_config.sources.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
+    source = source_models.standard_sources[
+        icrh_base.IonCyclotronSource.SOURCE_ID
+    ]
+    runtime_params_partial = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
+            t=torax_config.numerics.t_initial
+        )
+    )
+    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params=runtime_params_partial,
+        geo=geo,
+        source_models=source_models,
+        neoclassical_model=neoclassical_model,
+    )
+    source_ion_partial, source_el_partial, fast_ions_partial = source.get_value(
+        runtime_params=runtime_params_partial,
+        geo=geo,
+        core_profiles=core_profiles,
+        calculated_source_profiles=None,
+        conductivity=None,
+    )
+    self.assertIsInstance(source_ion_partial, jax.Array)
+    self.assertIsInstance(source_el_partial, jax.Array)
+    self.assertIsInstance(fast_ions_partial, tuple)
+
+    torax_config.update_fields({
+        f"sources.{self._source_name}.P_total": p_total * absorption_fraction,
+        f"sources.{self._source_name}.absorption_fraction": 1.0,
+    })
+    runtime_params_full = (
+        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
+            t=torax_config.numerics.t_initial
+        )
+    )
+    source_ion_full, source_el_full, fast_ions_full = source.get_value(
+        runtime_params=runtime_params_full,
+        geo=geo,
+        core_profiles=core_profiles,
+        calculated_source_profiles=None,
+        conductivity=None,
+    )
+    self.assertIsInstance(source_ion_full, jax.Array)
+    self.assertIsInstance(source_el_full, jax.Array)
+    self.assertIsInstance(fast_ions_full, tuple)
+
+    np.testing.assert_allclose(source_ion_partial, source_ion_full)
+    np.testing.assert_allclose(source_el_partial, source_el_full)
+    np.testing.assert_allclose(
+        fast_ions_partial[_HE3_INDEX].n.value,
+        fast_ions_full[_HE3_INDEX].n.value,
+    )
+    np.testing.assert_allclose(
+        fast_ions_partial[_HE3_INDEX].T.value,
+        fast_ions_full[_HE3_INDEX].T.value,
+    )
+
 
 if __name__ == "__main__":
   absltest.main()
