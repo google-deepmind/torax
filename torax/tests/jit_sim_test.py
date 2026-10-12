@@ -53,12 +53,6 @@ class JitSimTest(sim_test_case.SimTestCase):
           'test_combined_transport',
           'test_combined_transport.py',
       ),
-      # Test that we are able to reproduce FiPy's behavior in a case where
-      # FiPy is unstable
-      (
-          'test_semiimplicit_convection',
-          'test_semiimplicit_convection.py',
-      ),
       # Tests fixed_dt timestep
       (
           'test_fixed_dt',

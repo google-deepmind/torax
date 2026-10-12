@@ -27,8 +27,6 @@ class RuntimeParams:
   theta_implicit: float = dataclasses.field(metadata={'static': True})
   use_predictor_corrector: bool = dataclasses.field(metadata={'static': True})
   n_corrector_steps: int = dataclasses.field(metadata={'static': True})
-  convection_dirichlet_mode: str = dataclasses.field(metadata={'static': True})
-  convection_neumann_mode: str = dataclasses.field(metadata={'static': True})
   use_pereverzev: bool = dataclasses.field(metadata={'static': True})
   implicit_solver_type: tridiagonal.SolverType = dataclasses.field(
       metadata={'static': True}

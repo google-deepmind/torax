@@ -47,8 +47,6 @@ Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
 @jax.jit(
     static_argnames=[
-        'convection_dirichlet_mode',
-        'convection_neumann_mode',
         'theta_implicit',
     ],
 )
@@ -59,8 +57,6 @@ def theta_method_matrix_equation(
     coeffs_old: Block1DCoeffs,
     coeffs_new: Block1DCoeffs,
     theta_implicit: float = 1.0,
-    convection_dirichlet_mode: str = 'ghost',
-    convection_neumann_mode: str = 'ghost',
 ) -> tuple[
     tridiagonal.BlockTriDiagonal,
     jax.Array,
@@ -116,10 +112,6 @@ def theta_method_matrix_equation(
     coeffs_old: The coefficients calculated at x_old.
     coeffs_new: The coefficients calculated at x_new.
     theta_implicit: Coefficient on implicit term of theta method.
-    convection_dirichlet_mode: See docstring of the `convection_terms` function,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See docstring of the `convection_terms` function,
-      `neumann_mode` argument.
 
   Returns:
     A tuple of (lhs, lhs_vec, rhs, rhs_vec) where:
@@ -157,8 +149,6 @@ def theta_method_matrix_equation(
   c_new_matrix, c_new_forcing = discrete_system.calc_c(
       x_new_guess,
       coeffs_new,
-      convection_dirichlet_mode,
-      convection_neumann_mode,
   )
 
   # Compute LHS = I - scale_new * C_new directly, avoiding intermediate
@@ -184,8 +174,6 @@ def theta_method_matrix_equation(
     c_old_matrix, c_old_forcing = discrete_system.calc_c(
         x_old,
         coeffs_old,
-        convection_dirichlet_mode,
-        convection_neumann_mode,
     )
 
     scale_old = dt * theta_exp / (tc_out_old * tc_in_new)
@@ -395,8 +383,6 @@ def theta_method_block_residual(
       coeffs_old=coeffs_old,
       coeffs_new=coeffs_new,
       theta_implicit=solver_params.theta_implicit,
-      convection_dirichlet_mode=solver_params.convection_dirichlet_mode,
-      convection_neumann_mode=solver_params.convection_neumann_mode,
   )
 
   # Apply direct IBC enforcement via matrix row replacement.

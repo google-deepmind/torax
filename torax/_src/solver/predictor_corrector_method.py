@@ -102,8 +102,6 @@ def predictor_corrector_method(
         coeffs_old=coeffs_exp,
         coeffs_new=coeffs_new,
         theta_implicit=solver_params.theta_implicit,
-        convection_dirichlet_mode=(solver_params.convection_dirichlet_mode),
-        convection_neumann_mode=(solver_params.convection_neumann_mode),
         implicit_solver_type=solver_params.implicit_solver_type,
     )
 

@@ -30,13 +30,12 @@ def make_convection_terms(
     v_face: jax.Array,
     d_face: jax.Array,
     var: cell_variable.CellVariable,
-    dirichlet_mode: str = 'ghost',
-    neumann_mode: str = 'ghost',
 ) -> tuple[tridiagonal.TriDiagonal, jax.Array]:
   """Makes the terms of the matrix equation derived from the convection term.
 
   The convection term of the differential equation is of the form
-  - (partial / partial r) v u
+  - (partial / partial r) v u, discretized with ghost-cell boundary conditions
+  consistent with `make_diffusion_terms`.
 
   Args:
     v_face: Convection coefficient on faces.
@@ -44,19 +43,6 @@ def make_convection_terms(
       to diffusion is used to weight the contribution of neighboring cells when
       calculating face values of u.
     var: CellVariable to define mesh and boundary conditions.
-    dirichlet_mode: The strategy to use to handle Dirichlet boundary conditions.
-      The default is 'ghost', which has superior stability. 'ghost' -> Boundary
-      face values are inferred by constructing a ghost cell then alpha weighting
-      cells 'direct' -> Boundary face values are read directly from constraints
-      'semi-implicit' -> Matches FiPy. Boundary face values are alpha weighted
-      with the constraint value specifying the value of the "other" cell:
-      x_{boundary_face} = alpha x_{last_cell} + (1 - alpha) BC
-    neumann_mode: Which strategy to use to handle Neumann boundary conditions.
-      The default is `ghost`, which has superior stability. 'ghost' -> Boundary
-      face values are inferred by constructing a ghost cell then alpha weighting
-      cells. 'semi-implicit' -> Matches FiPy. Boundary face values are alpha
-      weighted, with the (1 - alpha) weight applied to the external face value
-      rather than to a ghost cell.
 
   Returns:
     mat: Tridiagonal matrix of coefficients on u
@@ -143,68 +129,34 @@ def make_convection_terms(
 
   if var.left_face_constraint is not None:
     # Dirichlet condition at leftmost face
-    match dirichlet_mode:
-      case 'ghost':
-        diag_left_face = (
-            v_face[0] * (2.0 * left_alpha[0] - 1.0) - v_face[1] * right_alpha[0]
-        ) / cell_spacings[0]
-        vec_left_face = (
-            2.0 * v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
-        ) / cell_spacings[0]
-      case 'direct':
-        vec_left_face = v_face[0] * var.left_face_constraint / cell_spacings[0]
-        diag_left_face = -v_face[1] * right_alpha[0] / cell_spacings[0]
-      case 'semi-implicit':
-        vec_left_face = (
-            v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
-        ) / cell_spacings[0]
-        diag_left_face = diag[0]
-      case _:
-        raise ValueError(dirichlet_mode)
+    diag_left_face = (
+        v_face[0] * (2.0 * left_alpha[0] - 1.0) - v_face[1] * right_alpha[0]
+    ) / cell_spacings[0]
+    vec_left_face = (
+        2.0 * v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
+    ) / cell_spacings[0]
   else:
     # Gradient boundary condition at leftmost face
     diag_left_face = (v_face[0] - right_alpha[0] * v_face[1]) / cell_spacings[0]
     vec_left_face = (
         -v_face[0] * (1.0 - left_alpha[0]) * var.left_face_grad_constraint
     )
-    match neumann_mode:
-      case 'ghost':
-        pass  # no adjustment needed
-      case 'semi-implicit':
-        vec_left_face /= 2.0
-      case _:
-        raise ValueError(neumann_mode)
 
   diag = diag.at[0].set(diag_left_face)
   vec = vec.at[0].set(vec_left_face)
 
   if var.right_face_constraint is not None:
     # Dirichlet condition at rightmost face
-    match dirichlet_mode:
-      case 'ghost':
-        diag_right_face = (
-            v_face[-2] * left_alpha[-1]
-            + v_face[-1] * (1.0 - 2.0 * right_alpha[-1])
-        ) / cell_spacings[-1]
-        vec_right_face = (
-            -2.0
-            * v_face[-1]
-            * (1.0 - right_alpha[-1])
-            * var.right_face_constraint
-        ) / cell_spacings[-1]
-      case 'direct':
-        diag_right_face = v_face[-2] * left_alpha[-1] / cell_spacings[-1]
-        vec_right_face = (
-            -v_face[-1] * var.right_face_constraint / cell_spacings[-1]
-        )
-      case 'semi-implicit':
-        diag_right_face = diag[-1]
-        vec_right_face = (
-            -(v_face[-1] * (1.0 - right_alpha[-1]) * var.right_face_constraint)
-            / cell_spacings[-1]
-        )
-      case _:
-        raise ValueError(dirichlet_mode)
+    diag_right_face = (
+        v_face[-2] * left_alpha[-1]
+        + v_face[-1] * (1.0 - 2.0 * right_alpha[-1])
+    ) / cell_spacings[-1]
+    vec_right_face = (
+        -2.0
+        * v_face[-1]
+        * (1.0 - right_alpha[-1])
+        * var.right_face_constraint
+    ) / cell_spacings[-1]
   else:
     # Gradient boundary condition at rightmost face
     diag_right_face = (
@@ -213,13 +165,6 @@ def make_convection_terms(
     vec_right_face = (
         -v_face[-1] * (1.0 - right_alpha[-1]) * var.right_face_grad_constraint
     )
-    match neumann_mode:
-      case 'ghost':
-        pass  # no adjustment needed
-      case 'semi-implicit':
-        vec_right_face /= 2.0
-      case _:
-        raise ValueError(neumann_mode)
 
   diag = diag.at[-1].set(diag_right_face)
   above = -(1.0 - right_alpha) * right_v / var.cell_widths

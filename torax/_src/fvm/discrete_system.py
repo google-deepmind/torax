@@ -42,8 +42,6 @@ Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 def calc_c(
     x: tuple[cell_variable.CellVariable, ...],
     coeffs: Block1DCoeffs,
-    convection_dirichlet_mode: str = 'ghost',
-    convection_neumann_mode: str = 'ghost',
 ) -> tuple[tridiagonal.BlockTriDiagonal, jax.Array]:
   """Calculate banded blocks and vector c such that F = C x + c.
 
@@ -54,10 +52,6 @@ def calc_c(
     x: Tuple containing CellVariables for each channel. This function uses only
       their shape and their boundary conditions, not their values.
     coeffs: Coefficients defining the differential equation.
-    convection_dirichlet_mode: See docstring of the `convection_terms` function,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See docstring of the `convection_terms` function,
-      `neumann_mode` argument.
 
   Returns:
     A tuple of (c_matrix, c_forcing) where:
@@ -95,8 +89,6 @@ def calc_c(
           v_face[i],
           d_face_i,
           x[i],
-          dirichlet_mode=convection_dirichlet_mode,
-          neumann_mode=convection_neumann_mode,
       )
       channel_mats.append(diff_mat_i + conv_mat_i)
       forcing_i = diff_forcing_i + conv_forcing_i
@@ -111,8 +103,6 @@ def calc_c(
           v_face[i],
           jnp.zeros_like(v_face[i]),
           x[i],
-          dirichlet_mode=convection_dirichlet_mode,
-          neumann_mode=convection_neumann_mode,
       )
       channel_mats.append(conv_mat_i)
       forcing_i = conv_forcing_i

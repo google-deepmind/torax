@@ -28,8 +28,6 @@ from torax._src.fvm import residual_and_loss
 
 @jax.jit(
     static_argnames=[
-        'convection_dirichlet_mode',
-        'convection_neumann_mode',
         'implicit_solver_type',
         'theta_implicit',
     ],
@@ -41,8 +39,6 @@ def implicit_solve_block(
     coeffs_old: block_1d_coeffs.Block1DCoeffs,
     coeffs_new: block_1d_coeffs.Block1DCoeffs,
     theta_implicit: float = 1.0,
-    convection_dirichlet_mode: str = 'ghost',
-    convection_neumann_mode: str = 'ghost',
     implicit_solver_type: tridiagonal.SolverType = tridiagonal.SolverType.THOMAS,
 ) -> tuple[cell_variable.CellVariable, ...]:
   # pyformat: disable  # pyformat removes line breaks needed for readability
@@ -64,10 +60,6 @@ def implicit_solve_block(
       correspond to named solution methods: theta_implicit = 1: Backward Euler
       implicit method (default). theta_implicit = 0.5: Crank-Nicolson.
       theta_implicit = 0: Forward Euler explicit method
-    convection_dirichlet_mode: See docstring of the `convection_terms` function,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See docstring of the `convection_terms` function,
-      `neumann_mode` argument.
     implicit_solver_type: The tridiagonal solver algorithm to use for the
       implicit linear system solve.
 
@@ -93,8 +85,6 @@ def implicit_solve_block(
           coeffs_old=coeffs_old,
           coeffs_new=coeffs_new,
           theta_implicit=theta_implicit,
-          convection_dirichlet_mode=convection_dirichlet_mode,
-          convection_neumann_mode=convection_neumann_mode,
       )
   )
 

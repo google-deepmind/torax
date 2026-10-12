@@ -40,10 +40,6 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       linear solver. If False, compilation is faster.
     n_corrector_steps: The number of corrector steps for the predictor-corrector
       linear solver. 0 means a pure linear solve with no corrector steps.
-    convection_dirichlet_mode: See `fvm.convection_terms` docstring,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See `fvm.convection_terms` docstring,
-      `neumann_mode` argument.
     use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
       the nonlinear solver for the optional initial guess from the linear solver
     implicit_solver_type: The tridiagonal solver algorithm to use for the
@@ -68,12 +64,6 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   n_corrector_steps: Annotated[
       pydantic.PositiveInt, torax_pydantic.JAX_STATIC
   ] = 10
-  convection_dirichlet_mode: Annotated[
-      Literal['ghost', 'direct', 'semi-implicit'], torax_pydantic.JAX_STATIC
-  ] = 'ghost'
-  convection_neumann_mode: Annotated[
-      Literal['ghost', 'semi-implicit'], torax_pydantic.JAX_STATIC
-  ] = 'ghost'
   use_pereverzev: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   implicit_solver_type: Annotated[
       tridiagonal.SolverType, torax_pydantic.JAX_STATIC
@@ -96,8 +86,6 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
     """Builds runtime params from the config."""
     return runtime_params.RuntimeParams(
         theta_implicit=self.theta_implicit,
-        convection_dirichlet_mode=self.convection_dirichlet_mode,
-        convection_neumann_mode=self.convection_neumann_mode,
         use_pereverzev=self.use_pereverzev,
         use_predictor_corrector=self.use_predictor_corrector,
         implicit_solver_type=self.implicit_solver_type,
