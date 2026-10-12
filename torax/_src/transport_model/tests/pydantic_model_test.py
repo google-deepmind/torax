@@ -464,6 +464,34 @@ class TransportModelValidationTest(parameterized.TestCase):
           core_transport_models={'inner': {'chi_i': 1.0}}
       )
 
+  def test_invalid_pedestal_model_rho_range_fails(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        r'rho_min and rho_max not supported',
+    ):
+      transport_pydantic_model.TransportModel(
+          pedestal_transport_models={
+              'p1': transport_pydantic_model.PrescribedTransportModel(
+                  rho_min=0.1
+              )
+          }
+      )
+
+  def test_smoothing_zones_config(self):
+    zone = transport_pydantic_model.SmoothingZone(
+        rho_min=0.2, rho_max=0.8, smoothing_width=0.05
+    )
+    config = transport_pydantic_model.TransportModel(
+        smoothing_zones=[zone],
+    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
+
+  def test_negative_smoothing_zone_width_fails(self):
+    with self.assertRaises(pydantic.ValidationError):
+      transport_pydantic_model.SmoothingZone(
+          rho_min=0.2, rho_max=0.8, smoothing_width=-0.05
+      )
+
 
 if __name__ == '__main__':
   absltest.main()
