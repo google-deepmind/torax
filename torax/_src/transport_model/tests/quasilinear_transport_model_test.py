@@ -38,7 +38,7 @@ from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
 from torax._src.transport_model import register_model
-from torax._src.transport_model import runtime_params as transport_model_runtime_params
+from torax._src.transport_model import runtime_params as transport_params
 from torax._src.transport_model import transport_coeffs
 
 
@@ -383,7 +383,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
 
     multiplier = 3.0
     transport = mock.create_autospec(
-        transport_model_runtime_params.ComponentRuntimeParams,
+        transport_params.ComponentRuntimeParams,
         instance=True,
         fast_ion_stabilization=True,
         fast_ion_stabilization_model=(),
@@ -556,14 +556,17 @@ class FakeQuasilinearTransportModel(
 ):
   """Fake QuasilinearTransportModel for testing purposes."""
 
-  def call_implementation(  # pyrefly: ignore[bad-override]
+  def call_implementation(
       self,
-      transport_runtime_params: quasilinear_transport_model.RuntimeParams,
+      transport_runtime_params: transport_params.ComponentRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
+    assert isinstance(
+        transport_runtime_params, quasilinear_transport_model.RuntimeParams
+    )
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
         chiGB=np.array(4.0),
         Rmin=np.array(0.5),

@@ -64,20 +64,20 @@ class QuaLiKizNDNN:
   ):
     self._model_config = model_config
 
-    self._feature_names = model_config.get('feature_names')
-    self._target_names = model_config.get('target_names')
+    self._feature_names: list[str] = model_config['feature_names']
+    self._target_names: list[str] = model_config['target_names']
 
     self._feature_prescale_factor = self._load_prescale(
-        'prescale_factor', self._feature_names  # pyrefly: ignore[bad-argument-type]
+        'prescale_factor', self._feature_names
     )
     self._feature_prescale_bias = self._load_prescale(
-        'prescale_bias', self._feature_names  # pyrefly: ignore[bad-argument-type]
+        'prescale_bias', self._feature_names
     )
     self._target_prescale_factor = self._load_prescale(
-        'prescale_factor', self._target_names  # pyrefly: ignore[bad-argument-type]
+        'prescale_factor', self._target_names
     )
     self._target_prescale_bias = self._load_prescale(
-        'prescale_bias', self._target_names  # pyrefly: ignore[bad-argument-type]
+        'prescale_bias', self._target_names
     )
 
     activations = model_config['hidden_activation'] + [
@@ -118,7 +118,8 @@ class QuaLiKizNDNN:
 
   @classmethod
   def from_json(cls, json_file) -> Self:
-    with open(json_file) as file_:
+    open_fn = open
+    with open_fn(json_file) as file_:
       model_dict = json.load(file_)
     return cls(model_dict)
 

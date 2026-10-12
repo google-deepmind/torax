@@ -42,6 +42,8 @@ from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
 
+# pylint: disable=invalid-name
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
@@ -371,7 +373,6 @@ def _extract_qualikiz_plan(
       danisdr=0,
   )
 
-  # pylint: disable=invalid-name
   Zi0 = core_profiles.Z_i_face
   Zi1 = core_profiles.Z_impurity_face
 
@@ -416,7 +417,7 @@ def _extract_qualikiz_plan(
       **options,
   )
 
-  scan_dict = {
+  scan_dict: dict[str, array_typing.Array] = {
       'x': np.array(qualikiz_inputs.x),
       'rho': np.array(geo.rho_face_norm),
       'q': np.array(qualikiz_inputs.q),
@@ -440,10 +441,9 @@ def _extract_qualikiz_plan(
   }
   if transport.rotation_mode != qualikiz_based_transport_model.RotationMode.OFF:
     scan_dict['gammaE'] = (
-        transport.rotation_multiplier * qualikiz_inputs.gamma_E_QLK  # pyrefly: ignore[bad-assignment]
+        transport.rotation_multiplier * qualikiz_inputs.gamma_E_QLK
     )
-    scan_dict['Machtor'] = qualikiz_inputs.mach_toroidal  # pyrefly: ignore[bad-assignment]
-  # pylint: enable=invalid-name
+    scan_dict['Machtor'] = qualikiz_inputs.mach_toroidal
 
   qualikiz_plan = qualikiz_inputtools.QuaLiKizPlan(
       scan_dict=scan_dict, scan_type='parallel', xpoint_base=xpoint_base
@@ -452,7 +452,6 @@ def _extract_qualikiz_plan(
   return qualikiz_plan
 
 
-# pylint: disable=invalid-name
 class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   """Model for the Qualikiz transport model.
 
