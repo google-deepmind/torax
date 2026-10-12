@@ -499,7 +499,7 @@ class TGLFBasedTransportModel(
     )
 
   @override
-  def _make_core_transport(  # pyrefly: ignore[bad-override]
+  def _make_transport_coeffs(  # pyrefly: ignore[bad-override]
       self,
       electron_heat_flux_GB: jax.Array,
       ion_heat_flux_GB: jax.Array,

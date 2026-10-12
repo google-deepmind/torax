@@ -304,7 +304,7 @@ class FakeTGLFBasedTransportModel(
         core_profiles=core_profiles,
         two_point_mask=two_point_mask,
     )
-    return self._make_core_transport(
+    return self._make_transport_coeffs(
         ion_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.4,
         electron_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.5,
         electron_particle_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 1.6,

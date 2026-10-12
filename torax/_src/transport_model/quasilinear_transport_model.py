@@ -283,7 +283,7 @@ def calculate_dv_effective(
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class QuasilinearInputs:
-  """Variables required to convert outputs to TORAX CoreTransport outputs."""
+  """Variables required to convert outputs to TORAX TransportCoeffs outputs."""
 
   chiGB: (
       array_typing.FloatVectorFace
@@ -451,7 +451,7 @@ def apply_fast_ion_stabilization(
 class QuasilinearTransportModel(component.ComponentTransportModel):
   """Base class for quasilinear models."""
 
-  def _make_core_transport(
+  def _make_transport_coeffs(
       self,
       qi: jax.Array,
       qe: jax.Array,

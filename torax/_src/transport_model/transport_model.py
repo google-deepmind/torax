@@ -281,7 +281,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       smoothing_matrix: jax.Array,
   ) -> transport_coeffs.TransportCoeffs:
     """Gaussian smoothing of turbulent transport coefficients."""
-    # Iterate over fields of the CoreTransport dataclass.
+    # Iterate over fields of the TransportCoeffs dataclass.
     # Ignore optional fields that are made all zero in post_init.
     def smooth_single_coeff(coeff):
       return jnp.where(

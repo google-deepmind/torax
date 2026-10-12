@@ -35,7 +35,8 @@ from torax._src.transport_model import transport_coeffs
 class RuntimeParams(transport_runtime_params_lib.ComponentRuntimeParams):
   """Extends the base runtime params with additional params for this model.
 
-  See base class runtime_params_lib.RuntimeParams docstring for more info.
+  See base class transport_runtime_params_lib.ComponentRuntimeParams docstring
+  for more info.
   """
 
   chi_i: array_typing.FloatVector

@@ -577,7 +577,7 @@ class FakeQuasilinearTransportModel(
         lref_over_lni0=np.array(1.4),
         lref_over_lni1=np.array(1.5),
     )
-    return self._make_core_transport(
+    return self._make_transport_coeffs(
         qi=jnp.full_like(geo.rho_face_norm, 0.4),
         qe=jnp.full_like(geo.rho_face_norm, 0.5),
         pfe=jnp.full_like(geo.rho_face_norm, 1.6),

@@ -332,7 +332,7 @@ class FakeQualikizBasedTransportModel(
         core_profiles=core_profiles,
         two_point_mask=two_point_mask,
     )
-    return self._make_core_transport(
+    return self._make_transport_coeffs(
         qi=jnp.ones(geo.rho_face_norm.shape) * 0.4,
         qe=jnp.ones(geo.rho_face_norm.shape) * 0.5,
         pfe=jnp.ones(geo.rho_face_norm.shape) * 1.6,

@@ -366,8 +366,7 @@ class QLKNNTransportModel(
     qe_total = qe_itg + qe_tem + qe_etg
     pfe_total = pfe_itg + pfe_tem
 
-    # Create base transport
-    base_transport = self._make_core_transport(
+    base_transport = self._make_transport_coeffs(
         qi=qi_total,
         qe=qe_total,
         pfe=pfe_total,

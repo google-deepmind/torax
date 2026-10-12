@@ -249,7 +249,7 @@ class QualikizTransportModel(
     qe = jnp.asarray(np.loadtxt(self._runpath + '/output/efe_GB.dat'))
     pfe = jnp.asarray(np.loadtxt(self._runpath + '/output/pfe_GB.dat'))
 
-    return self._make_core_transport(
+    return self._make_transport_coeffs(
         qi=qi,
         qe=qe,
         pfe=pfe,
@@ -291,8 +291,6 @@ def _extract_qualikiz_plan(
       A qualikiz_tools.qualikiz_io.inputfiles.QuaLiKizPlan
   """
   # Generate QuaLiKizXPoint, changing object defaults
-
-  # TODO(b/381199010): Add option to use rotation.
 
   if transport.rotation_mode == qualikiz_based_transport_model.RotationMode.OFF:
     rot_flag = 0

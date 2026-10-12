@@ -20,7 +20,7 @@ import enum
 class MergeMode(enum.StrEnum):
   """Defines how a transport model's output is combined with previous models.
 
-  Only impacts models used in the `combined` transport model.
+  Only impacts component models used in `TransportModel`.
 
   Attributes:
     ADD: The model's output will be added to all other transport models for the

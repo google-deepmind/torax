@@ -146,7 +146,7 @@ class TGLFNNukaeaTransportModel(
     predictions = self.model.predict(tglfnn_inputs)
 
     # TODO(b/323504363): expose variance outputs
-    return self._make_core_transport(
+    return self._make_transport_coeffs(
         ion_heat_flux_GB=predictions["efi_gb"][..., 0],
         electron_heat_flux_GB=predictions["efe_gb"][..., 0],
         # TODO(b/323504363): Convert pfi to pfe for multi-ion plasmas

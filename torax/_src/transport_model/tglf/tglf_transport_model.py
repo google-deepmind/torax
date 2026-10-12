@@ -198,7 +198,7 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         )
     )
 
-    core_transport = self._make_core_transport(
+    return self._make_transport_coeffs(
         electron_heat_flux_GB=electron_heat_flux,
         ion_heat_flux_GB=ion_heat_flux,
         electron_particle_flux_GB=electron_particle_flux,
@@ -208,8 +208,6 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         core_profiles=core_profiles,
         two_point_mask=two_point_mask,
     )
-
-    return core_transport
 
 
 class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
