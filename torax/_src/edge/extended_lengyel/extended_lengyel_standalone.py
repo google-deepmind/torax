@@ -161,7 +161,7 @@ N_ROOTS = output_keys.OutputKey(
 )
 SEED_IMPURITY_CONCENTRATIONS = output_keys.OutputKey(
     'seed_impurity_concentrations',
-    units=output_keys.Units.INVERSE_CUBIC_METER,
+    units=output_keys.Units.DIMENSIONLESS,
     grid_type=output_keys.GridType.NOT_APPLICABLE,
 )
 CALCULATED_ENRICHMENT = output_keys.OutputKey(
