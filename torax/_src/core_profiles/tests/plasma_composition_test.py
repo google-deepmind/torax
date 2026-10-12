@@ -39,6 +39,22 @@ class PlasmaCompositionTest(parameterized.TestCase):
     with self.assertRaises(pydantic.ValidationError):
       plasma_composition.PlasmaComposition(Z_eff=Z_eff)
 
+  @parameterized.named_parameters(
+      ('hydrogenic_dt_with_h_unknown', {'D': 0.5, 'T': 0.5}, 'H'),
+      ('same_single_species_he4', {'He4': 1.0}, 'He4'),
+  )
+  def test_n_e_ratios_zeff_rejects_unknown_species_matching_main_ion_charge(
+      self, main_ion, unknown_species
+  ):
+    with self.assertRaisesRegex(pydantic.ValidationError, 'linearly dependent'):
+      plasma_composition.PlasmaComposition(
+          main_ion=main_ion,
+          impurity={
+              'impurity_mode': 'n_e_ratios_Z_eff',
+              'species': {unknown_species: None, 'Ne': 0.01},
+          },
+      )
+
   def test_plasma_composition_build_runtime_params_smoke_test(self):
     pc = plasma_composition.PlasmaComposition()
     geo = circular_geometry.CircularConfig().build_geometry()

@@ -22,6 +22,7 @@ import jax
 import numpy as np
 import pydantic
 from torax._src import array_typing
+from torax._src import constants
 from torax._src.config import runtime_validation_utils
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import electron_density_ratios_zeff
@@ -122,6 +123,31 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
           ' emergent quantity and the input value will be ignored.',
           _IMPURITY_MODE_NE_RATIOS,
       )
+    if (
+        isinstance(
+            self.impurity,
+            electron_density_ratios_zeff.ElectronDensityRatiosZeff,
+        )
+        and self.Z_i_override is None
+        and self.impurity.Z_override is None
+    ):
+      unknown_species = next(
+          symbol
+          for symbol, ratio in self.impurity.species.items()
+          if ratio is None
+      )
+      main_ion_symbols = set(self.main_ion.keys())
+      all_hydrogenic = all(
+          constants.ION_PROPERTIES_DICT[s].Z == 1
+          for s in {unknown_species, *main_ion_symbols}
+      )
+      if main_ion_symbols == {unknown_species} or all_hydrogenic:
+        raise ValueError(
+            f"Impurity unknown species '{unknown_species}' in mode"
+            f" '{_IMPURITY_MODE_NE_RATIOS_ZEFF}' cannot have the same atomic"
+            f' charge Z as the main ion species {tuple(self.main_ion.keys())}:'
+            ' quasineutrality and Z_eff equations become linearly dependent.'
+        )
     return self
 
   def tree_flatten(self):
