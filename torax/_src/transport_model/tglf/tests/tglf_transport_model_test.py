@@ -74,56 +74,6 @@ class TGLFTransportModelTest(parameterized.TestCase):
     self.assertIsNotNone(outputs.total.chi_face_ion)
     self.assertIsNotNone(outputs.total.chi_face_el)
 
-  def test_deprecated_params_warn_and_run(self):
-    """Tests that deprecated config params raise warnings and the execution still runs."""
-    config = default_configs.get_default_config_dict()
-    config["transport"] = {
-        "core_transport_models": {"tglf": {
-            "model_name": "tglf",
-            "tglf_exec_path": "/deprecated/path",
-            "output_directory": "/deprecated/dir",
-            "verbose": True,
-            "sat_rule": 0,  # legacy config param format
-        }},
-    }
-    with self.assertLogs(level="WARNING") as log_watcher:
-      torax_config = model_config.ToraxConfig.from_dict(config)
-    log_output = "\n".join(log_watcher.output)
-    self.assertIn("Config option 'tglf_exec_path' is deprecated", log_output)
-    self.assertIn("Config option 'output_directory' is deprecated", log_output)
-    self.assertIn("Config option 'verbose' is deprecated", log_output)
-    self.assertIn(
-        "Parsing TGLF settings from the legacy config kwargs is deprecated",
-        log_output,
-    )
-
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    transport_model = torax_config.transport.build_transport_model()
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
-    )
-
-    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    outputs = transport_model(
-        runtime_params,
-        geo,
-        core_profiles,
-        pedestal_transition_state_lib.PedestalTransitionState.empty(),
-        two_point_mask,
-    )
-    self.assertIsNotNone(outputs.total.chi_face_ion)
-    self.assertIsNotNone(outputs.total.chi_face_el)
-
 
 if __name__ == "__main__":
   absltest.main()

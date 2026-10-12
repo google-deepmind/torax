@@ -2080,21 +2080,11 @@ tglf
 Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
 :ref:`tglf_installation` for installation instructions.
 
-``tglf_exec_path`` (str [default = '~/tglf'])
-  Path to the TGLF executable. Deprecated, and will be ignored.
-
-``output_directory`` (str [default = '/tmp/torax_tglf_runs'])
-  Path to the directory where temporary TGLF run files are stored. Deprecated,
-  and will be ignored.
-
 ``n_processes`` (int [default = 8])
   Number of parallel TGLF calculations to run across radial faces.
 
 ``n_cores_per_process`` (int [default = 2])
   Number of cores to use for each TGLF process.
-
-``verbose`` (bool [default = False])
-  Whether to enable verbose logging (capturing stdout/stderr) for TGLF subprocesses.
 
 ``use_rotation`` (bool [default = False])
   Toggles the use of the rotation shear model.
@@ -2131,11 +2121,6 @@ Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
 
 ``tglf_settings`` (dict [default = {}])
   Dictionary of TGLF namelist parameters to override default physics settings.
-
-``use_legacy_torax_defaults`` (bool [default = True])
-  *Deprecated.* If ``True``, use legacy TORAX defaults for TGLF parameters.
-  Otherwise, use the defaults distributed with TGLF. Note that in a future release,
-  this option will be removed and the defaults will be those distributed with TGLF.
 
 sources
 -------

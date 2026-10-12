@@ -18,7 +18,6 @@ from concurrent import futures
 import dataclasses
 from typing import Annotated, Any, Literal, TypeAlias
 
-from absl import logging
 import chex
 import jax
 import numpy as np
@@ -41,41 +40,6 @@ import multiprocessing
 # pylint: disable=invalid-name
 
 
-# TODO(b/434175938): remove support for parsing via the legacy config kwargs.
-# Most of these are just lower->upper but some have _ in different places.
-_OLD_CONFIG_MAPPING = {
-    'kygrid_model': 'KYGRID_MODEL',
-    'ky': 'KY',
-    'n_ky': 'NKY',
-    'n_modes': 'NMODES',
-    'geometry_flag': 'GEOMETRY_FLAG',
-    'sat_rule': 'SAT_RULE',
-    'xnu_model': 'XNU_MODEL',
-    'n_width': 'NWIDTH',
-    'width_min': 'WIDTH_MIN',
-    'width': 'WIDTH',
-    'filter': 'FILTER',
-    'theta_trapped': 'THETA_TRAPPED',
-    'w_dia_trapped': 'WDIA_TRAPPED',
-    'sign_bt': 'SIGN_BT',
-    'sign_it': 'SIGN_IT',
-    'xnu_factor': 'XNU_FACTOR',
-    'debye_factor': 'DEBYE_FACTOR',
-    'etg_factor': 'ETG_FACTOR',
-    'find_width': 'FIND_WIDTH',
-    'use_mhd_rule': 'USE_MHD_RULE',
-    'use_bpar': 'USE_BPAR',
-    'use_bper': 'USE_BPER',
-    'use_inboard_detrapped': 'USE_INBOARD_DETRAPPED',
-    'use_ave_ion_grid': 'USE_AVE_ION_GRID',
-    'alpha_e': 'ALPHA_E',
-    'alpha_zf': 'ALPHA_ZF',
-    'alpha_quench': 'ALPHA_QUENCH',
-    'n_xgrid': 'NXGRID',
-    'n_basis_min': 'NBASIS_MIN',
-    'n_basis_max': 'NBASIS_MAX',
-}
-
 TGLFSettingsValueTypes: TypeAlias = str | float | int | bool | None
 
 
@@ -86,15 +50,8 @@ class RuntimeParams(tglf_based_transport_model.RuntimeParams):
 
   n_processes: int
   n_cores_per_process: int
-  verbose: bool
   tglf_settings: dict[str, TGLFSettingsValueTypes] = dataclasses.field(
       metadata={'static': True}
-  )
-  tglf_exec_path: str = dataclasses.field(
-      default='~/tglf', metadata={'static': True}
-  )
-  output_directory: str = dataclasses.field(
-      default='/tmp/torax_tglf_runs', metadata={'static': True}
   )
 
 
@@ -258,72 +215,11 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
 class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   r"""Model for the TGLF transport model.
 
-  TGLF settings used to be passed as kwargs to the constructor of this
-  class. This behavior is now deprecated in favour of setting TGLF parameters
-  via the tglf_settings dictionary. The following options can still be parsed
-  from kwargs for backwards compatibility:
-    kygrid_model: 0 = user-defined with n_ky points equally spaced with kymin =
-      ky/n_ky. 1 = standard ky spectrum for SAT0 and SAT1 with kymin=0.1/rho_i.
-      4 = standard ky spectrum with more low ky points and
-      kymin=0.05*grad_r0/rho_i.
-    ky: Specify wavenumber for single wavenumber call, or set user-defined ky
-      grid with kygrid_model=0.
-    n_ky: Number of ky points with kygrid_model=0, else number of additional
-      logarithmically equally spaced points within 1 < ky < 24 when using
-      kygrid_model=4.
-    n_modes: Number of eigenmodes to track, advise to use num_species+2 for
-      efficiency.
-    geometry_flag: 0 = s-alpha, 1 = Miller/MXH, 2 = Fourier, 3 = ELITE.
-    sat_rule: Specify quasilinear saturation rule used to compute transport
-      fluxes.
-    xnu_model: Specify collision model. 2 = default for SAT0 and SAT1, 3 =
-      default for SAT2 and SAT3.
-    n_width: Maximum number of mode widths in mode width scan.
-    width_min: Minimum value for mode width scan, set negative for
-      electromagnetic search.
-    width: Maximum value for mode width scan.
-    filter: Set frequency threshold to filter out non-drift-wave instabilities.
-    theta_trapped: Adjustment parameter for trapped fraction model. Set to 0.4
-      with n_basis_max = 8 for low aspect ratio
-      (https://eprints.whiterose.ac.uk/159700/).
-    w_dia_trapped: Non-standard option. Set to 1.0 for SAT2 and SAT3.
-    sign_bt: Sign of toroidal field, positive = CCW from the top.
-    sign_it: Sign of toroidal current, positive = CCW from the top.
-    xnu_factor: Multiplier for the trapped/passing boundary collision terms, not
-      the same as collisionality_multiplier.
-    debye_factor: Multiplier for the normalized Debye length.
-    etg_factor: Exponent for the ETG saturation rule.
-    find_width: Toggle mode width scan for maximum growth rate search, uses
-      width argument if False.
-    use_mhd_rule: If True, ignore pressure gradient contribution to curvature
-      drift. Recommended to set False for high beta.
-    use_bpar: If True, include compressional magnetic fluctuations,
-      :math:`\delta B_{\par}`.
-    use_bper: If true, include transverse magnetic fluctuations, :math:`\delta
-      B_{\perp}`.
-    use_inboard_detrapped: If True, set trapped fraction to zero if eigenmode is
-      inward ballooning.
-    use_ave_ion_grid: If True, use average ion gyroradius as opposed to main ion
-      gyroradius
-    alpha_e: Multiplier for ExB velocity shear for spectral shift model.
-    alpha_zf: Zonal flow mixing coefficient. If -1.0, toggles switch that avoids
-      picking lowest ky as maximum gamma/ky for intensity spectrum shape in
-      quasilinear saturation rules.
-    alpha_quench: 0.0 = use spectral shift model, 1.0 = use quench rule.
-    n_xgrid: Number of nodes in Gauss-Hermite quadrature. Recommended to use 4 *
-      n_basis_max
-    n_basis_min: Minimum number of parallel basis functions (Hermite
-      polynomials) used to find mode width.
-    n_basis_max: Maximum number of parallel basis functions (Hermite
-      polynomials) used to find mode width. Recommended 4 for SAT0 and  SAT1, 6
-      for SAT2 and SAT3.
-
   Attributes:
     model_name: The transport model to use. Hardcoded to 'tglf'.
     n_processes: Set number of parallel TGLF calculations to run.
     n_cores_per_process: Number of cores to use for each parallel TGLF
       calculation.
-    verbose: Whether to enable verbose logging for TGLF subprocess runs.
     use_rotation: Toggles the use of rotation shear model.
     rotation_multiplier: Multiplier for the input rotation shear.
     DV_effective: Effective D / effective V approach for particle transport.
@@ -340,20 +236,11 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
       the model. Acts as a ceiling to mitigate unreliable transport predictions
       at high collisionality. Default is inf (no capping).
     tglf_settings: Dictionary of TGLF namelist parameters.
-    use_legacy_torax_defaults: If True, use legacy TORAX defaults for TGLF
-      parameters. Otherwise, use the defaults distributed with TGLF. Note that
-      in a future release, this option will be removed and the defaults will be
-      those distributed with TGLF.
   """
 
   model_name: Annotated[Literal['tglf'], torax_pydantic.JAX_STATIC] = 'tglf'
-  tglf_exec_path: Annotated[str, torax_pydantic.JAX_STATIC] = '~/tglf'
-  output_directory: Annotated[str, torax_pydantic.JAX_STATIC] = (
-      '/tmp/torax_tglf_runs'
-  )
   n_processes: pydantic.PositiveInt = 8
   n_cores_per_process: pydantic.PositiveInt = 2
-  verbose: bool = False
   use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
@@ -364,60 +251,6 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   tglf_settings: Annotated[
       dict[str, TGLFSettingsValueTypes], torax_pydantic.JAX_STATIC
   ] = pydantic.Field(default_factory=dict)
-  use_legacy_torax_defaults: bool = True
-
-  # TODO(b/434175938): remove support for parsing via the legacy config kwargs
-  # and remove use_legacy_torax_defaults. Note that when we remove the legacy
-  # TORAX defaults, we can remove all of the merging in this function as the
-  # tglf2py module will handle setting the defaults.
-  @pydantic.model_validator(mode='before')
-  @classmethod
-  def _validate_tglf_settings(cls, data: dict[str, Any]) -> dict[str, Any]:
-    """Parses tglf_settings combining defaults and old config kwargs."""
-    if data.get('model_name', '') != 'tglf':
-      return data
-
-    for deprecated_param in ['tglf_exec_path', 'output_directory', 'verbose']:
-      if deprecated_param in data:
-        logging.warning(
-            "Config option '%s' is deprecated and has no effect.",
-            deprecated_param,
-        )
-
-    if data.get('use_legacy_torax_defaults', True):
-      logging.warning(
-          'use_legacy_torax_defaults=True is deprecated. This flag uses'
-          ' TORAX-specific defaults for TGLF settings. In future, the defaults'
-          ' will be those distributed with TGLF and this flag will be removed.'
-      )
-      tglf_settings = dict(tglf_defaults.LEGACY_TORAX_TGLF_DEFAULTS)
-    else:
-      tglf_settings = dict(tglf_defaults.TGLF_DEFAULTS)
-
-    # Merge settings from the legacy config parameters.
-    legacy_config_used = False
-    for old_key, new_key in _OLD_CONFIG_MAPPING.items():
-      if old_key in data:
-        legacy_config_used = True
-        val = data.pop(old_key)
-        if isinstance(val, bool):
-          val = '.true.' if val else '.false.'
-        tglf_settings[new_key] = val
-    if legacy_config_used:
-      logging.warning(
-          'Parsing TGLF settings from the legacy config kwargs is deprecated. '
-          'Please use the tglf_settings dictionary instead.'
-      )
-
-    # Merge settings from the user-provided tglf_settings dictionary.
-    user_tglf_settings = data.pop('tglf_settings', {})
-    for k, v in user_tglf_settings.items():
-      if isinstance(v, bool):
-        v = '.true.' if v else '.false.'
-      tglf_settings[k] = v
-
-    data['tglf_settings'] = tglf_settings
-    return data
 
   def build_transport_model(self) -> TGLFTransportModel:
     mp_context = multiprocessing.get_context('spawn')
@@ -433,9 +266,6 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     return RuntimeParams(
         n_processes=self.n_processes,
         n_cores_per_process=self.n_cores_per_process,
-        verbose=self.verbose,
-        tglf_exec_path=self.tglf_exec_path,
-        output_directory=self.output_directory,
         use_rotation=self.use_rotation,
         rotation_multiplier=self.rotation_multiplier,
         DV_effective=self.DV_effective,
