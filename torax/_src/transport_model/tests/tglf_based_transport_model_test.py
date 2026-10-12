@@ -262,6 +262,22 @@ class TGLFTransportModelTest(parameterized.TestCase):
         )
     )
 
+  def test_ExB_frequency_is_normalized_to_poloidal_field(self):
+    """Tests that the TGLF ExB frequency is Er / (R B_pol)."""
+    Er_face = jnp.array([0.0, 2.0e3, 6.0e3, 1.2e4])
+    B_pol_face = jnp.array([0.0, 0.1, 0.2, 0.4])
+    R_major_face = jnp.array([6.0, 6.0, 6.0, 6.0])
+
+    frequency = tglf_based_transport_model._calculate_ExB_frequency_face(
+        Er_face, B_pol_face, R_major_face
+    )
+
+    expected_bulk = Er_face[1:] / (R_major_face[1:] * B_pol_face[1:])
+    np.testing.assert_allclose(frequency[1:], expected_bulk)
+    # B_pol is zero on the axis, so the axis face takes the next face value.
+    np.testing.assert_allclose(frequency[0], expected_bulk[0])
+    self.assertTrue(jnp.all(jnp.isfinite(frequency)))
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class FakeTGLFBasedTransportModel(

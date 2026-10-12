@@ -130,6 +130,31 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   GAMMA_GB: array_typing.FloatVectorFace
 
 
+def _calculate_ExB_frequency_face(
+    Er_face: array_typing.FloatVectorFace,
+    B_pol_face: array_typing.FloatVectorFace,
+    R_major_face: array_typing.FloatVectorFace,
+) -> array_typing.FloatVectorFace:
+  """Calculates the ExB rotation frequency Er / (R B_pol) on the face grid.
+
+  GACODE codes, including TGLF, normalize the ExB rotation to the poloidal
+  field: https://gacode.io/rotation.html
+
+  Args:
+    Er_face: Radial electric field on the face grid [V/m].
+    B_pol_face: Flux-surface-averaged poloidal field on the face grid [T].
+    R_major_face: Major radius on the face grid [m].
+
+  Returns:
+    The ExB rotation frequency on the face grid [rad/s]. B_pol is zero on the
+    magnetic axis, so the axis face takes the value of the next face, consistent
+    with the zero gradient imposed there.
+  """
+  B_pol_bulk = jnp.maximum(B_pol_face[1:], constants.CONSTANTS.eps)
+  frequency_bulk = Er_face[1:] / (R_major_face[1:] * B_pol_bulk)
+  return jnp.concatenate([frequency_bulk[:1], frequency_bulk])
+
+
 class TGLFBasedTransportModel(
     quasilinear_transport_model.QuasilinearTransportModel
 ):
@@ -401,8 +426,16 @@ class TGLFBasedTransportModel(
           pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
       )
-      v_ExB = rotation_output.v_ExB
-      value_face = v_ExB / geo.R_major_profile_face
+      # rotation_output.v_ExB is normalized to the total field, so build the
+      # frequency TGLF expects from Er and the poloidal field instead.
+      B_pol_face = jnp.sqrt(
+          psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+      )
+      value_face = _calculate_ExB_frequency_face(
+          rotation_output.Er.face_value(),
+          B_pol_face,
+          geo.R_major_profile_face,
+      )
       cv = cell_variable.CellVariable(
           value=geometry.face_to_cell(value_face),
           face_centers=geo.rho_face_norm,
