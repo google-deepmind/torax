@@ -478,7 +478,7 @@ class StateHistory:
         logging.warning(
             "Unsupported data shape for %s: %s. Skipping persisting.",
             name,
-            data.shape,  # type: ignore[attr-defined]
+            getattr(data, "shape", type(data)),
         )
         return None
 

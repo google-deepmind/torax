@@ -38,7 +38,7 @@ class ProfileValueSaturationModel(base.SaturationModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_output: pedestal_model_output.PedestalModelOutput,
-  ) -> array_typing.FloatScalar:
+  ) -> pedestal_model_output.TransportMultipliers:
     """Calculates transport increase multipliers."""
     # Get the current profile values at the pedestal top.
     # Interpolating to get the values at exactly rho_norm_ped_top is difficult,
@@ -63,7 +63,7 @@ class ProfileValueSaturationModel(base.SaturationModel):
         current_T_i_ped_top, pedestal_output.T_i_ped, runtime_params.pedestal
     )
 
-    return pedestal_model_output.TransportMultipliers(  # pyrefly: ignore[bad-return]
+    return pedestal_model_output.TransportMultipliers(
         chi_e_multiplier=chi_e_multiplier,
         chi_i_multiplier=chi_i_multiplier,
         # TODO(b/487920703): set the density transport coefficients based on

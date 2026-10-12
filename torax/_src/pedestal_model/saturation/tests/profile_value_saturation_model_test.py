@@ -87,11 +87,11 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
     if T_target_over_T_current > 1.0:
       # If the target temperature is above the current temperature, we expect
       # the multiplier to be equal to 1.0 - the pedestal is not saturated.
-      np.testing.assert_allclose(transport_multipliers.chi_e_multiplier, 1.0)  # pyrefly: ignore[missing-attribute]
+      np.testing.assert_allclose(transport_multipliers.chi_e_multiplier, 1.0)
     else:
       # If the target temperature is below the current temperature, we expect
       # the multiplier to be greater than 1.0 - the pedestal is saturated.
-      self.assertGreater(transport_multipliers.chi_e_multiplier, 1.0)  # pyrefly: ignore[missing-attribute]
+      self.assertGreater(transport_multipliers.chi_e_multiplier, 1.0)
 
 
 if __name__ == '__main__':
