@@ -20,7 +20,6 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
-from torax._src.orchestration import step_function_processing
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
@@ -211,13 +210,14 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     ) as mock_calc:
       mock_calc.return_value = target_P_SOL
 
-      new_state = step_function_processing._update_pedestal_transition_state(
-          pedestal_transition_state=initial_transition_state,
-          runtime_params=runtime_params,
-          geo=self.initial_state.geometry,
-          core_profiles=self.initial_state.core_profiles,
-          core_sources=self.initial_state.core_sources,
-          models=self.step_fn._solver.models,
+      new_state = (
+          self.step_fn._solver.models.pedestal_model.update_transition_state(
+              runtime_params=runtime_params,
+              geo=self.initial_state.geometry,
+              core_profiles=self.initial_state.core_profiles,
+              source_profiles=self.initial_state.core_sources,
+              pedestal_transition_state=initial_transition_state,
+          )
       )
 
       self.assertEqual(new_state.confinement_mode, expected_mode)
