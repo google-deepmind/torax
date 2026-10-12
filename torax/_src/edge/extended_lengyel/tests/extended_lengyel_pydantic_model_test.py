@@ -14,6 +14,7 @@
 import dataclasses
 from absl.testing import absltest
 import numpy as np
+import pydantic
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
@@ -502,6 +503,44 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     # Just past the breakpoint the value switches to True.
     runtime_params_after = config.build_runtime_params(t=1.01)
     self.assertTrue(runtime_params_after.update_temperatures)
+
+  def test_update_electron_density_default_and_explicit_false_valid(self):
+    with self.subTest('default'):
+      config_default = pydantic_model.ExtendedLengyelConfig()
+      self.assertFalse(config_default.update_electron_density.value.any())
+
+    with self.subTest('explicit_false'):
+      config_explicit_false = pydantic_model.ExtendedLengyelConfig(
+          update_electron_density=False
+      )
+      self.assertFalse(
+          config_explicit_false.update_electron_density.value.any()
+      )
+
+  def test_update_electron_density_time_varying_false_valid(self):
+    config_time_varying_false = pydantic_model.ExtendedLengyelConfig(
+        update_electron_density={0.0: False, 1.0: False}
+    )
+    self.assertFalse(
+        config_time_varying_false.update_electron_density.value.any()
+    )
+
+  def test_update_electron_density_scalar_and_time_varying_true_raises(self):
+    with self.subTest('scalar_true'):
+      with self.assertRaisesRegex(
+          pydantic.ValidationError,
+          'ExtendedLengyelConfig does not support update_electron_density.',
+      ):
+        pydantic_model.ExtendedLengyelConfig(update_electron_density=True)
+
+    with self.subTest('time_varying_true'):
+      with self.assertRaisesRegex(
+          pydantic.ValidationError,
+          'ExtendedLengyelConfig does not support update_electron_density.',
+      ):
+        pydantic_model.ExtendedLengyelConfig(
+            update_electron_density={0.0: False, 1.0: True}
+        )
 
 
 if __name__ == '__main__':

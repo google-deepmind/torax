@@ -222,6 +222,14 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
     return data
 
   @pydantic.model_validator(mode='after')
+  def _validate_update_electron_density(self) -> Self:
+    if self.update_electron_density.value.any():
+      raise ValueError(
+          'ExtendedLengyelConfig does not support update_electron_density.'
+      )
+    return self
+
+  @pydantic.model_validator(mode='after')
   def _log_warning_for_unused_enrichment_factor(
       self,
   ) -> Self:
