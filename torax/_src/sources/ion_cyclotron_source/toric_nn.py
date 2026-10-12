@@ -435,8 +435,6 @@ def icrh_model_func(
       A_impurity=core_profiles.A_impurity,
   )
 
-  # Build fast ion output for all supported species.
-  # Only He3 has non-zero values from the model; others are zeroed.
   he3_fast_ion = fast_ion_lib.FastIon(
       species='He3',
       source=source_name,
@@ -452,11 +450,6 @@ def icrh_model_func(
           right_face_grad_constraint=None,
           right_face_constraint=core_profiles.T_i.right_face_constraint,
       ),
-  )
-  fast_ions = base.build_fast_ions(
-      source_name=source_name,
-      geo=geo,
-      fast_ions=[he3_fast_ion],
   )
 
   frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
@@ -474,7 +467,7 @@ def icrh_model_func(
   # Assume that all the power from the tritium power profile goes to ions.
   source_ion += power_deposition_2T * absorbed_power
 
-  return (source_ion, source_el, fast_ions)
+  return (source_ion, source_el, (he3_fast_ion,))
 
 
 # Cache the result of this function to avoid re-creating the partial function

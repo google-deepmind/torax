@@ -127,40 +127,30 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       )
     return ()
 
-  def _validate_fast_ions(
+  def _populate_and_validate_fast_ions(
       self,
-      fast_ions: SourceProfileElement,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
       geo: geometry.Geometry,
-  ):
-    """Validates the fast ion profiles."""
-    if not isinstance(fast_ions, tuple):
-      # PRESCRIBED mode might incorrectly supply a single array instead
-      # of a tuple of FastIons if not configured correctly.
-      raise TypeError(
-          'FAST_IONS profile must be a tuple of FastIon, but got'
-          f' {type(fast_ions)}.'
-      )
-    fast_ions = typing.cast(tuple[fast_ion_lib.FastIon, ...], fast_ions)
+  ) -> tuple[fast_ion_lib.FastIon, ...]:
+    """Validates fast ion profiles and fills uncomputed species with zeros."""
     zero_fast_ions = self.zero_fast_ions(geo)
-    if len(fast_ions) != len(zero_fast_ions):
-      raise ValueError(
-          'Fast ion profiles must have the same length as zero_fast_ions. Was:'
-          f' {len(fast_ions)}. Expected:'
-          f' {len(zero_fast_ions)}.'
-      )
-    expected_species_order = [fast_ion.species for fast_ion in zero_fast_ions]
-    actual_species_order = [fast_ion.species for fast_ion in fast_ions]
-    if any(
-        actual_species != expected_species
-        for actual_species, expected_species in zip(
-            actual_species_order, expected_species_order
+    expected_species = {fast_ion.species for fast_ion in zero_fast_ions}
+    computed: dict[str, fast_ion_lib.FastIon] = {}
+    for fast_ion in fast_ions:
+      if fast_ion.species not in expected_species:
+        raise ValueError(
+            f'Unsupported FastIon species {fast_ion.species!r}. Expected one'
+            f' of {expected_species}.'
         )
-    ):
-      raise ValueError(
-          'Fast ion profiles must have the same species in the same order as'
-          f' zero_fast_ions. Was: {actual_species_order}. Expected:'
-          f' {expected_species_order}.'
-      )
+      if fast_ion.species in computed:
+        raise ValueError(
+            f'Duplicate FastIon species {fast_ion.species!r} in FAST_IONS'
+            ' profile.'
+        )
+      computed[fast_ion.species] = fast_ion
+    return tuple(
+        computed.get(zero_fi.species, zero_fi) for zero_fi in zero_fast_ions
+    )
 
   def get_value(
       self,
@@ -219,17 +209,16 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
         prescribed_len = len(source_params.prescribed_values)
         if (
             AffectedCoreProfile.FAST_IONS in self.AFFECTED_CORE_PROFILES
-            and not runtime_params.numerics.enable_fast_ions
             and prescribed_len == expected_len - 1
         ):
           fast_ions_idx = self.AFFECTED_CORE_PROFILES.index(
               AffectedCoreProfile.FAST_IONS
           )
-          res_list: list[SourceProfileElement] = list(
-              source_params.prescribed_values
+          res = (
+              source_params.prescribed_values[:fast_ions_idx]
+              + ((),)
+              + source_params.prescribed_values[fast_ions_idx:]
           )
-          res_list.insert(fast_ions_idx, ())
-          res = tuple(res_list)
         elif prescribed_len != expected_len:
           raise ValueError(
               'When using PRESCRIBED mode, the number of prescribed values must'
@@ -241,16 +230,10 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
           res = source_params.prescribed_values
       case sources_runtime_params_lib.Mode.ZERO:
         zeros = jnp.zeros(geo.rho_norm.shape)
-        res_list = []
-        for affected_core_profile in self.AFFECTED_CORE_PROFILES:
-          if affected_core_profile == AffectedCoreProfile.FAST_IONS:
-            if runtime_params.numerics.enable_fast_ions:
-              res_list.append(self.zero_fast_ions(geo))
-            else:
-              res_list.append(())
-          else:
-            res_list.append(zeros)
-        res = tuple(res_list)
+        res = tuple(
+            () if profile == AffectedCoreProfile.FAST_IONS else zeros
+            for profile in self.AFFECTED_CORE_PROFILES
+        )
       case _:
         raise ValueError(f'Unknown mode: {mode}')
 
@@ -258,14 +241,13 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       fast_ions_idx = self.AFFECTED_CORE_PROFILES.index(
           AffectedCoreProfile.FAST_IONS
       )
-      if runtime_params.numerics.enable_fast_ions:
-        self._validate_fast_ions(
-            res[fast_ions_idx],
-            geo,
-        )
-      elif res[fast_ions_idx]:
-        res_list = list(res)
-        res_list[fast_ions_idx] = ()
-        res = tuple(res_list)
+      fast_ions = res[fast_ions_idx]
+      assert isinstance(fast_ions, tuple)
+      fast_ions = (
+          self._populate_and_validate_fast_ions(fast_ions, geo)
+          if runtime_params.numerics.enable_fast_ions
+          else ()
+      )
+      res = res[:fast_ions_idx] + (fast_ions,) + res[fast_ions_idx + 1 :]
 
     return res
