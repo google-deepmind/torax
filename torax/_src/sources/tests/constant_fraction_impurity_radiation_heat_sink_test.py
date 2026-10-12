@@ -15,6 +15,7 @@ from unittest import mock
 
 from absl.testing import absltest
 import chex
+import jax.numpy as jnp
 from torax._src import math_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import circular_geometry
@@ -100,7 +101,11 @@ class ImpurityRadiationConstantFractionTest(
             calculated_source_profiles=source_profiles.SourceProfiles(
                 bootstrap_current=mock.ANY,
                 qei=mock.ANY,
-                T_e={'foo': el},  # pyrefly: ignore[bad-assignment]
+                T_e={
+                    'foo': jnp.asarray(el),
+                    'bremsstrahlung': -0.3 * jnp.asarray(el),
+                    'cyclotron_radiation': -0.2 * jnp.asarray(el),
+                },
                 T_i={'foo_source': ion},  # pyrefly: ignore[bad-assignment]
             ),
             conductivity=None,

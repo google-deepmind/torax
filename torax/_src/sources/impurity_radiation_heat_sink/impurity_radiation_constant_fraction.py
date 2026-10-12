@@ -25,11 +25,20 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
+from torax._src.sources import bremsstrahlung_heat_sink
+from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.torax_pydantic import torax_pydantic
+
+
+_HEAT_SINK_SOURCE_IDS = frozenset({
+    bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_ID,
+    cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID,
+    impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_ID,
+})
 
 
 # pylint: disable=invalid-name
@@ -55,16 +64,13 @@ def radially_constant_fraction_of_Pin(
   # Based on source_models.sum_sources_T_e and source_models.calc_and_sum
   # sources_psi, but only summing over heating *input* sources
   # (Pohm + Paux + Palpha + ...) and summing over *both* ion + electron heating
-
-  # TODO(b/383061556) Move away from using brittle source names to identify
-  # sinks/sources.
   source_profiles = jnp.zeros_like(geo.rho)
-  for source_name in calculated_source_profiles.T_e:
-    if 'sink' not in source_name:
-      source_profiles += calculated_source_profiles.T_e[source_name]
-  for source_name in calculated_source_profiles.T_i:
-    if 'sink' not in source_name:
-      source_profiles += calculated_source_profiles.T_i[source_name]
+  for name, profile in calculated_source_profiles.T_e.items():
+    if name not in _HEAT_SINK_SOURCE_IDS:
+      source_profiles += profile
+  for name, profile in calculated_source_profiles.T_i.items():
+    if name not in _HEAT_SINK_SOURCE_IDS:
+      source_profiles += profile
 
   Q_total_in = source_profiles
   P_total_in = math_utils.volume_integration(Q_total_in, geo)
