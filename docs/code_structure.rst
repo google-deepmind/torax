@@ -159,9 +159,11 @@ See the |sources| subpackage for all implementations.
 transport
 ^^^^^^^^^
 
-A TORAX |TransportModel| computes the heat and particle turbulent transport
-coefficients. |TransportModel| is an abstract class, and TORAX provides several
-implementations, including |QLKNN|.
+The TORAX |TransportModel| combines one or more component transport models
+across the core and pedestal domains to compute the heat and particle turbulent
+transport coefficients. Each component model inherits from the abstract
+``ComponentTransportModel`` class, and TORAX provides several implementations,
+including |QLKNN|.
 
 See the |transport_model| subpackage for all implementations.
 

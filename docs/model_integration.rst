@@ -31,7 +31,7 @@ Step 1: Implement the transport model
 Create a frozen dataclass that inherits from
 ``torax.transport.ComponentTransportModel`` and implements the
 ``call_implementation`` method. This method receives the current simulation
-state and must return a ``torax.transport.TurbulentTransport`` object
+state and must return a ``torax.transport.TransportCoeffs`` object
 containing the computed transport coefficients on the face grid.
 
 .. code-block:: python
@@ -51,17 +51,17 @@ containing the computed transport coefficients on the face grid.
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-          two_point_mask: array_typing.BoolVectorFace,
-      ) -> transport.TurbulentTransport:
+          two_point_mask: jax.Array,
+      ) -> transport.TransportCoeffs:
         # Implement your transport model here.
-        # Must return a TurbulentTransport with at least the four required
+        # Must return a TransportCoeffs with at least the four required
         # fields: chi_face_ion, chi_face_el, d_face_el, v_face_el.
         chi_i = jnp.ones_like(geo.rho_face_norm) * 2.0
         chi_e = jnp.ones_like(geo.rho_face_norm) * 1.5
         d_e = jnp.ones_like(geo.rho_face_norm) * 0.5
         v_e = jnp.zeros_like(geo.rho_face_norm)
 
-        return transport.TurbulentTransport(
+        return transport.TransportCoeffs(
             chi_face_ion=chi_i,
             chi_face_el=chi_e,
             d_face_el=d_e,

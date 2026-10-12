@@ -18,16 +18,21 @@ disk at a specific path, use the ``to_netcdf()`` method:
   data_tree.to_netcdf('path/to/my_output/state_history.nc')
 
 
-We currently support the below output structure for Torax V1.
+We currently support the below output structure for Torax V2.
 
 The output is an `[xarray DataTree] <https://docs.xarray.dev/en/latest/generated/xarray.DataTree.html>`_.
 
-The DataTree is a hierarchical structure containing three ``xarray.DataSet``
-objects:
+The DataTree is a hierarchical structure containing ``xarray.DataSet``
+objects, including:
 
 * ``numerics`` containing simulation numeric quantities.
 * ``scalars`` containing scalar quantities.
 * ``profiles`` containing 1D profile quantities.
+* ``edge`` containing edge model quantities (when an edge model is configured).
+* ``auxiliary`` containing auxiliary datasets, such as
+  ``auxiliary/turbulent_transport/core/<model_name>`` and
+  ``auxiliary/turbulent_transport/pedestal/<model_name>`` for per-model
+  turbulent transport coefficients and mode contributions.
 
 Where sensible we have aimed to match names used by the IMAS standard.
 
@@ -150,54 +155,25 @@ profiles
 This dataset contains radial profiles of various plasma parameters at different
 times. The radial coordinate is the normalized toroidal flux coordinate. Note
 that the output structure is dependent on the input config for the
-``geometry``, ``transport`` and ``sources`` fields.
+``geometry`` and ``sources`` fields.
 
 Note that certain profiles are only output for specific input configurations.
 These are called out in the list of profiles below, and generally relate to:
 
 * ``sources`` profiles which are only output if the source is active.
 
-* ``transport`` profiles which are only output if the ``bohm-gyrobohm`` model is
-  used.
-
 * ``geometry`` profiles which are only output for non ``circular`` geometries.
 
 ``area`` (time, rho_norm)
   Poloidal cross-sectional area of each flux surface [:math:`m^2`].
 
-``chi_bohm_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  Bohm component of electron heat turbulent conductivity. Only output if active.
-
-``chi_bohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
-  Bohm component of ion heat turbulent conductivity. Only output if active.
-
-``chi_etg_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  ETG component of electron heat turbulent conductivity. Only output if active.
-
-``chi_gyrobohm_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  Gyro-Bohm component of electron heat turbulent conductivity. Only output if
-  active.
-
-``chi_gyrobohm_i`` (time, rho_face_norm) [:math:`m^2/s`]
-  Gyro-Bohm component of ion heat turbulent conductivity. Only output if active.
-
-``chi_itg_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  ITG component of electron heat turbulent conductivity. Only output if active.
-
-``chi_itg_i`` (time, rho_face_norm) [:math:`m^2/s`]
-  ITG component of ion heat turbulent conductivity. Only output if active.
-
 ``chi_neo_e`` (time, rho_face_norm)
-  Neoclassical electron heat conductivity [:math:`m^2/s`].
+  Neoclassical electron heat conductivity [:math:`m^2/s`]. Set to zero if
+  neoclassical transport is disabled or unconfigured.
 
 ``chi_neo_i`` (time, rho_face_norm)
-  Neoclassical ion heat conductivity [:math:`m^2/s`].
-
-``chi_tem_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  TEM component of electron heat turbulent conductivity. Only output if active.
-
-``chi_tem_i`` (time, rho_face_norm) [:math:`m^2/s`]
-  TEM component of ion heat turbulent conductivity. Only output if active.
+  Neoclassical ion heat conductivity [:math:`m^2/s`]. Set to zero if
+  neoclassical transport is disabled or unconfigured.
 
 ``chi_turb_e`` (time, rho_face_norm)
   Total turbulent electron heat conductivity [:math:`m^2/s`].
@@ -205,16 +181,9 @@ These are called out in the list of profiles below, and generally relate to:
 ``chi_turb_i`` (time, rho_face_norm)
   Total turbulent ion heat conductivity [:math:`m^2/s`].
 
-``D_itg_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  ITG component of electron particle turbulent diffusivity. Only output if
-  active.
-
 ``D_neo_e`` (time, rho_face_norm)
-  Neoclassical electron particle diffusivity [:math:`m^2/s`].
-
-``D_tem_e`` (time, rho_face_norm) [:math:`m^2/s`]
-  TEM component of electron particle turbulent diffusivity. Only output if
-  active.
+  Neoclassical electron particle diffusivity [:math:`m^2/s`]. Set to zero if
+  neoclassical transport is disabled or unconfigured.
 
 ``D_turb_e`` (time, rho_face_norm)
   Total turbulent electron particle diffusivity [:math:`m^2/s`].
@@ -498,21 +467,15 @@ These are called out in the list of profiles below, and generally relate to:
   Derivative of plasma volume enclosed by each flux surface with respect to the
   normalized toroidal flux coordinate rho_norm [:math:`m^3`].
 
-``V_itg_e`` (time, rho_face_norm) [:math:`m/s`]
-  ITG component of electron particle turbulent convection velocity. Only output
-  if active.
-
 ``V_neo_e`` (time, rho_face_norm)
   Neoclassical electron particle convection velocity [:math:`m/s`]. Contains
-  all components apart from the Ware pinch, which is output separately.
+  all components apart from the Ware pinch, which is output separately. Set to
+  zero if neoclassical transport is disabled or unconfigured.
 
 ``V_neo_ware_e`` (time, rho_face_norm)
   Ware pinch electron particle convection velocity [:math:`m/s`], i.e. the
   component of neoclassical convection arising from the parallel electric field.
-
-``V_tem_e`` (time, rho_face_norm) [:math:`m/s`]
-  TEM component of electron particle turbulent convection velocity. Only output
-  if active.
+  Set to zero if neoclassical transport is disabled or unconfigured.
 
 ``V_turb_e`` (time, rho_face_norm)
   Turbulent electron particle convection [:math:`m/s`].
@@ -1008,8 +971,8 @@ purposes or to rerun the simulation.
   filepath = 'state_history.nc'
   data_tree = xr.open_datatree(filepath).sel(time=1.0, method='nearest')
   config_dict = json.loads(data_tree.config)
-  # Check which transport model was used.
-  print(config_dict['transport']['model_name'])
+  # Check which transport models were used.
+  print(list(config_dict['transport']['core_transport_models'].keys()))
   # We can also use ToraxConfig to run the simulation again.
   torax_config = torax.ToraxConfig.from_dict(config_dict)
   new_output = torax.run_simulation(torax_config).simulation_output_to_xr()
