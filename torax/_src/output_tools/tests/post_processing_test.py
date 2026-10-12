@@ -228,7 +228,7 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
@@ -276,7 +276,7 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     outputs = post_processing.make_post_processed_outputs(

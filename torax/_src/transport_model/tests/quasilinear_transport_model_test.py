@@ -84,7 +84,7 @@ def _get_model_and_model_inputs(
   )
 
   transition_state = (
-      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+      pedestal_transition_state_lib.PedestalTransitionState.empty()
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
 

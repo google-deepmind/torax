@@ -15,6 +15,8 @@
 """Output of the pedestal model."""
 
 import dataclasses
+from typing import Self
+
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -102,6 +104,21 @@ class PedestalModelOutput:
   transport_multipliers: TransportMultipliers = dataclasses.field(
       default_factory=TransportMultipliers.default
   )
+
+  @classmethod
+  def no_pedestal(cls) -> Self:
+    """Returns a PedestalModelOutput representing an inactive or absent pedestal.
+
+    Uses `rho_norm_ped_top=jnp.inf`, `0.0` pedestal values, and default `1.0`
+    transport multipliers so that radial masks are False while maintaining a
+    concrete PyTree structure compatible with `jax.lax.cond`.
+    """
+    return cls(
+        rho_norm_ped_top=jnp.array(jnp.inf, dtype=jax_utils.get_dtype()),
+        T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+    )
 
   def to_internal_boundary_conditions(
       self,

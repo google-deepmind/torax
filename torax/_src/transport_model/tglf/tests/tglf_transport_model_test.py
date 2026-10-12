@@ -68,7 +68,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         runtime_params,
         geo,
         core_profiles,
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state_lib.PedestalTransitionState.empty(),
         two_point_mask,
     )
     self.assertIsNotNone(outputs.total.chi_face_ion)
@@ -118,7 +118,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         runtime_params,
         geo,
         core_profiles,
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state_lib.PedestalTransitionState.empty(),
         two_point_mask,
     )
     self.assertIsNotNone(outputs.total.chi_face_ion)

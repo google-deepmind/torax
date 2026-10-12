@@ -22,7 +22,6 @@ import dataclasses
 
 import jax
 import jax.numpy as jnp
-from torax._src import jax_utils
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -118,14 +117,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
     return jax.lax.cond(
         runtime_params.pedestal.set_pedestal,
         self._evaluate_pedestal,
-        lambda runtime_params, geo, core_profiles, source_profiles, pedestal_transition_state: pedestal_model_output.PedestalModelOutput(
-            rho_norm_ped_top=jnp.array(
-                jnp.inf, dtype=jax_utils.get_dtype()
-            ),
-            T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-            T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-            n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ),
+        lambda *_: pedestal_model_output.PedestalModelOutput.no_pedestal(),
         runtime_params,
         geo,
         core_profiles,

@@ -92,7 +92,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state.PedestalTransitionState.empty(),
     )
 
   def test_calc_coeffs_hash(self):

@@ -56,7 +56,7 @@ class NoPedestalTest(absltest.TestCase):
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     self.assertEqual(pedestal_model_output.rho_norm_ped_top, jnp.inf)
 

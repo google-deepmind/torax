@@ -154,7 +154,7 @@ class StateHistoryTest(parameterized.TestCase):
         time_step_calculator_state=(
             models.time_step_calculator.initial_state(runtime_params)
         ),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     sim_error = state.SimError.NO_ERROR
     previous_post_processed_outputs = (

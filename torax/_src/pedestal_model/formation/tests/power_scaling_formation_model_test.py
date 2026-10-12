@@ -136,7 +136,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         self.initial_state.geometry,
         self.initial_state.core_profiles,
         high_power_profiles,
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     for k, multiplier in dataclasses.asdict(transport_multipliers).items():
       np.testing.assert_allclose(
@@ -199,18 +199,8 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i_ped_L_mode=jnp.array(0.5),
         T_e_ped_L_mode=jnp.array(0.5),
         n_e_ped_L_mode=jnp.array(0.5e19),
-        pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
-            rho_norm_ped_top=jnp.inf,
-            T_i_ped=0.0,
-            T_e_ped=0.0,
-            n_e_ped=0.0,
-        ),
-        previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput(
-            rho_norm_ped_top=jnp.inf,
-            T_i_ped=0.0,
-            T_e_ped=0.0,
-            n_e_ped=0.0,
-        ),
+        pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput.no_pedestal(),
+        previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput.no_pedestal(),
     )
 
     target_P_SOL = P_LH * p_sol_factor
@@ -248,33 +238,9 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         ),
     )
 
-    _dummy_pedestal_output = pedestal_model_output_lib.PedestalModelOutput(
-        rho_norm_ped_top=jnp.inf,
-        T_i_ped=0.0,
-        T_e_ped=0.0,
-        n_e_ped=0.0,
-    )
-    l_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
-        confinement_mode=jnp.array(
-            pedestal_transition_state_lib.ConfinementMode.L_MODE
-        ),
-        transition_start_time=jnp.inf,
-        T_i_ped_L_mode=jnp.array(0.0),
-        T_e_ped_L_mode=jnp.array(0.0),
-        n_e_ped_L_mode=jnp.array(0.0),
-        pedestal_model_output=_dummy_pedestal_output,
-        previous_pedestal_model_output=_dummy_pedestal_output,
-    )
-    h_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
-        confinement_mode=jnp.array(
-            pedestal_transition_state_lib.ConfinementMode.H_MODE
-        ),
-        transition_start_time=jnp.array(0.0),
-        T_i_ped_L_mode=jnp.array(0.0),
-        T_e_ped_L_mode=jnp.array(0.0),
-        n_e_ped_L_mode=jnp.array(0.0),
-        pedestal_model_output=_dummy_pedestal_output,
-        previous_pedestal_model_output=_dummy_pedestal_output,
+    l_mode_state = pedestal_transition_state_lib.PedestalTransitionState.empty()
+    h_mode_state = pedestal_transition_state_lib.PedestalTransitionState.empty(
+        confinement_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE
     )
 
     # Mock calculate_P_SOL_total and calculate_P_LH to avoid depending on

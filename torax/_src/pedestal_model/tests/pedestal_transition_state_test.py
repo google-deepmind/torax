@@ -37,19 +37,9 @@ class PedestalTransitionStateTest(parameterized.TestCase):
         confinement_mode=(
             pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE
         ),
-        pedestal_model_output=pedestal_model_output.PedestalModelOutput(
-            rho_norm_ped_top=jnp.inf,
-            T_i_ped=0.0,
-            T_e_ped=0.0,
-            n_e_ped=0.0,
-        ),
+        pedestal_model_output=pedestal_model_output.PedestalModelOutput.no_pedestal(),
         previous_pedestal_model_output=(
-            pedestal_model_output.PedestalModelOutput(
-                rho_norm_ped_top=jnp.inf,
-                T_i_ped=0.0,
-                T_e_ped=0.0,
-                n_e_ped=0.0,
-            )
+            pedestal_model_output.PedestalModelOutput.no_pedestal()
         ),
     )
     # transition_time_width = 1.0. Start at 1.0. Clip at both ends.
@@ -84,12 +74,7 @@ class PedestalTransitionStateTest(parameterized.TestCase):
             rho_norm_ped_top=0.5,
         ),
         previous_pedestal_model_output=(
-            pedestal_model_output.PedestalModelOutput(
-                rho_norm_ped_top=jnp.inf,
-                T_i_ped=0.0,
-                T_e_ped=0.0,
-                n_e_ped=0.0,
-            )
+            pedestal_model_output.PedestalModelOutput.no_pedestal()
         ),
     )
 
@@ -123,12 +108,7 @@ class PedestalTransitionStateTest(parameterized.TestCase):
             rho_norm_ped_top=0.8,
         ),
         previous_pedestal_model_output=(
-            pedestal_model_output.PedestalModelOutput(
-                rho_norm_ped_top=jnp.inf,
-                T_i_ped=0.0,
-                T_e_ped=0.0,
-                n_e_ped=0.0,
-            )
+            pedestal_model_output.PedestalModelOutput.no_pedestal()
         ),
     )
 

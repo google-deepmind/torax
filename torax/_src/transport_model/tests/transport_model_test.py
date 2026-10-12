@@ -103,7 +103,7 @@ def _make_transition_state(
       rho_norm_ped_top=rho_norm_ped_top,
   )
   return dataclasses.replace(
-      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+      pedestal_transition_state_lib.PedestalTransitionState.empty(),
       pedestal_model_output=output,
   )
 
@@ -151,7 +151,7 @@ class TransportMaskingTest(parameterized.TestCase):
     # We need a pedestal model even if unused by the fixed transport
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     transition_state = (
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+        pedestal_transition_state_lib.PedestalTransitionState.empty()
     )
     pedestal_model_outputs = pedestal_model(
         runtime_params,
@@ -345,7 +345,7 @@ class TransportMaskingTest(parameterized.TestCase):
         explicit=True,
     )
     transition_state = (
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+        pedestal_transition_state_lib.PedestalTransitionState.empty()
     )
     pedestal_outputs = pedestal_model(
         runtime_params,
