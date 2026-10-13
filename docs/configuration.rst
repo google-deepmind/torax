@@ -80,8 +80,8 @@ Currently, two interpolation modes are supported:
 
 * ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series
   (default).
-* ``'STEP'``: stepwise change in values following each traversal above a time
-  value in the time-series.
+* ``'STEP'``: stepwise change in values at each time value in the time-series
+  (for :math:`t \in [t_k, t_{k+1})`, the value is :math:`y_k`).
 
 The interpolation method can be specified by giving a tuple of the form
 ``(inputs, interpolation_mode)``, where ``inputs`` is one of the input
@@ -224,8 +224,8 @@ Currently two interpolation modes are supported as for **time-varying-scalar**:
 
 * ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series
   (default).
-* ``'STEP'``: stepwise change in values following each traversal above a time
-  value in the time-series.
+* ``'STEP'``: stepwise change in values at each time value in the time-series
+  (for :math:`t \in [t_k, t_{k+1})`, the value is :math:`y_k`).
 
 
 .. _config_details:
@@ -581,17 +581,13 @@ equations being solved, constant numerical variables.
   known transitions (e.g. ramp-up, ramp-down, and/or LH transitions) and a
   different granularity of simulation is required for each phase. Note that the
   default interpolation mode for `fixed_dt` has been internally imposed as
-  `'STEP'`. Also note that the `'STEP'` interpolation changes value AFTER the
-  boundary, so you may want to move the boundaries by a small epsilon to change
-  dt at the prescribed value. The need for this epsilon will go away in the
-  near future with the release of v2.0.
+  `'STEP'`.
   E.g.:
 
   .. code-block:: python
 
     # Setting a higher time resolution between 5s and 10s.
-    epsilon = 1e-5
-    'fixed_dt': {0.0: 1e-1, 5.0 - epsilon: 1e-2, 10.0 - epsilon: 1e-1}
+    'fixed_dt': {0.0: 1e-1, 5.0: 1e-2, 10.0: 1e-1}
 
 ``adaptive_dt`` (bool [default = True])
   If True, then if a nonlinear solver does not converge for a given timestep,

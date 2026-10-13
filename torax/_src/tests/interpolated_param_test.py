@@ -117,6 +117,12 @@ class InterpolatedParamTest(parameterized.TestCase):
       ),
       (
           (np.array([0.0, 2.0, 3.0]), np.array([1.0, 7.0, -1.0])),
+          2.0,
+          7.0,
+          interpolated_param.InterpolationMode.STEP,
+      ),
+      (
+          (np.array([0.0, 2.0, 3.0]), np.array([1.0, 7.0, -1.0])),
           2.6,
           7.0,
           interpolated_param.InterpolationMode.STEP,

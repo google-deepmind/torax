@@ -373,6 +373,11 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
       (
           ({0.0: 1.0, 2.0: 7.0, 3.0: -1.0}, 'step'),
+          2.0,
+          7.0,
+      ),
+      (
+          ({0.0: 1.0, 2.0: 7.0, 3.0: -1.0}, 'step'),
           2.6,
           7.0,
       ),
@@ -385,6 +390,11 @@ class InterpolatedParam1dTest(parameterized.TestCase):
           ({0.0: False, 2.0: True, 3.0: False}, 'step'),
           1.0,
           False,
+      ),
+      (
+          ({0.0: False, 2.0: True, 3.0: False}, 'step'),
+          2.0,
+          True,
       ),
       (
           ({0.0: False, 2.0: True, 3.0: False}, 'step'),
