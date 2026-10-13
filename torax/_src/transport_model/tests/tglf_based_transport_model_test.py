@@ -150,12 +150,8 @@ class TGLFTransportModelTest(parameterized.TestCase):
         core_profiles=core_profiles,
     )
     expected_length = geo.rho_face_norm.shape[0]
-    scalar_keys = ["Rmin", "Rmaj"]  # Inherited from QuasilinearInputs
     for key in tglf_inputs.__dict__.keys():
-      if key in scalar_keys:
-        self.assertEqual(getattr(tglf_inputs, key).shape, ())
-      else:
-        self.assertEqual(getattr(tglf_inputs, key).shape, (expected_length,))
+      self.assertEqual(getattr(tglf_inputs, key).shape, (expected_length,))
 
   def test_max_normalized_collisionality_caps_xnue(self):
     """Tests that max_normalized_collisionality clamps XNUE."""
@@ -337,7 +333,6 @@ class TGLFBasedTransportModelConfig(
   def build_runtime_params(self, t: chex.Numeric):
     base_params = super().build_runtime_params(t)
     return tglf_based_transport_model.RuntimeParams(
-        # DV_effective and An_min are inherited from QuasilinearTransportModel
         DV_effective=self.DV_effective,
         An_min=0.05,
         DV_effective_smooth_width=0.01,
