@@ -93,7 +93,7 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
 
     # define radial coordinate as midplane average r
     # (typical assumption for transport models developed in circular geo)
-    rmid = (geo.R_out - geo.R_in) * 0.5
+    rmid = geo.r_mid
 
     T_i_face = core_profiles.T_i.face_value()
     T_i_face_grad = core_profiles.T_i.face_grad(
@@ -126,7 +126,7 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
         rlti >= rlti_crit,
         chiGB
         * transport_runtime_params.chi_stiff
-        * (rlti - rlti_crit) ** transport_runtime_params.alpha,
+        * jnp.maximum(rlti - rlti_crit, 0.0) ** transport_runtime_params.alpha,
         0.0,
     )
 

@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class and utils for Qualikiz-based models."""
+import abc
 import dataclasses
 import enum
+from typing import Annotated
 
 import chex
 import jax
 from jax import numpy as jnp
+import pydantic
 from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import jax_utils
@@ -30,8 +33,10 @@ from torax._src.physics import collisions
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
+from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
-from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import pydantic_model_base
+from torax._src.transport_model import quasilinear_utils
 from torax._src.transport_model import runtime_params as transport_runtime_params
 from torax._src.transport_model import transport_coeffs
 
@@ -149,6 +154,41 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
   rotation_mode: RotationMode = dataclasses.field(metadata={'static': True})
 
 
+class QualikizBasedTransportModelConfig(
+    pydantic_model_base.ComponentTransportBase, abc.ABC
+):
+  """Base config for Qualikiz-family transport models."""
+
+  collisionality_multiplier: float = 1.0
+  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
+  avoid_big_negative_s: bool = True
+  smag_alpha_correction: bool = True
+  q_sawtooth_proxy: bool = True
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
+  rotation_mode: Annotated[RotationMode, torax_pydantic.JAX_STATIC] = (
+      RotationMode.OFF
+  )
+
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
+    return RuntimeParams(
+        collisionality_multiplier=self.collisionality_multiplier,
+        max_normalized_collisionality=self.max_normalized_collisionality,
+        avoid_big_negative_s=self.avoid_big_negative_s,
+        smag_alpha_correction=self.smag_alpha_correction,
+        q_sawtooth_proxy=self.q_sawtooth_proxy,
+        DV_effective=self.DV_effective,
+        An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
+        rotation_multiplier=self.rotation_multiplier,
+        rotation_mode=self.rotation_mode,
+        **vars(base_params),
+    )
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class QualikizInputs:
@@ -156,8 +196,6 @@ class QualikizInputs:
 
   Attributes:
     chiGB: GyroBohm diffusivity used for normalizations [m^2/s].
-    Rmin: Minor radius [m].
-    Rmaj: Major radius [m].
     lref_over_lti: Normalized ion temperature logarithmic gradient (Rmaj / LTi).
     lref_over_lte: Normalized electron temperature logarithmic gradient (Rmaj /
       LTe).
@@ -177,7 +215,6 @@ class QualikizInputs:
     normni: Ratio of main ion to electron density (n_i / n_e) on the face grid.
     alpha: MHD alpha parameter on the face grid.
     epsilon: Inverse aspect ratio (r_mid / R_major) on the face grid.
-    gamma_E_GB: GyroBohm-normalized ExB shear rate.
     gamma_E_GB_poloidal_and_pressure: GyroBohm-normalized ExB shear rate from
       poloidal velocity and diamagnetic pressure.
     gamma_E_GB_toroidal: GyroBohm-normalized ExB shear rate from toroidal
@@ -193,8 +230,6 @@ class QualikizInputs:
   """
 
   chiGB: array_typing.FloatVectorFace
-  Rmin: array_typing.FloatScalar
-  Rmaj: array_typing.FloatScalar
   lref_over_lti: array_typing.FloatVectorFace
   lref_over_lte: array_typing.FloatVectorFace
   lref_over_lne: array_typing.FloatVectorFace
@@ -209,7 +244,6 @@ class QualikizInputs:
   normni: array_typing.FloatVectorFace
   alpha: array_typing.FloatVectorFace
   epsilon: array_typing.FloatVectorFace
-  gamma_E_GB: array_typing.FloatVectorFace
   gamma_E_GB_poloidal_and_pressure: array_typing.FloatVectorFace
   gamma_E_GB_toroidal: array_typing.FloatVectorFace
   gamma_E_QLK: array_typing.FloatVectorFace
@@ -249,7 +283,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      two_point_mask: array_typing.BoolVectorFace | None = None,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     """Converts model output to TransportCoeffs."""
     # Convert the electron particle flux from GB (pfe) to SI units.
@@ -277,7 +311,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     ) * qualikiz_inputs.chiGB
 
     if transport.DV_effective:
-      d_face_el, v_face_el = quasilinear_transport_model.calculate_dv_effective(
+      d_face_el, v_face_el = quasilinear_utils.calculate_dv_effective(
           particle_flux_SI=pfe_SI,
           normalized_particle_flux=pfe,
           n_e=core_profiles.n_e,
@@ -292,7 +326,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       # conductivity (this has some physical motivations),
       # and set convection to then match total particle transport.
       chex.assert_rank(pfe, 1)
-      d_face_el, v_face_el = quasilinear_transport_model.calculate_d_scaled(
+      d_face_el, v_face_el = quasilinear_utils.calculate_d_scaled(
           particle_flux_SI=pfe_SI,
           chi_face_el=chi_face_el,
           n_e=core_profiles.n_e,
@@ -341,19 +375,21 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     rmid = geo.r_mid
     rmid_face = geo.r_mid_face
 
-    chiGB = quasilinear_transport_model.calculate_chiGB(
+    chiGB = quasilinear_utils.calculate_chiGB(
         reference_temperature=core_profiles.T_i.face_value(),
         reference_magnetic_field=geo.B_0,
         reference_mass=core_profiles.A_i,
         reference_length=geo.a_minor,
     )
 
-    normalized_logarithmic_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
-        core_profiles=core_profiles,
-        radial_coordinate=rmid,
-        radial_face_coordinate=rmid_face,
-        reference_length=geo.R_major,
-        two_point_mask=two_point_mask,
+    normalized_logarithmic_gradients = (
+        quasilinear_utils.NormalizedLogarithmicGradients.from_profiles(
+            core_profiles=core_profiles,
+            radial_coordinate=rmid,
+            radial_face_coordinate=rmid_face,
+            reference_length=geo.R_major,
+            two_point_mask=two_point_mask,
+        )
     )
 
     q = core_profiles.q_face
@@ -416,7 +452,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     )
     normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
 
-    lref_over_lti = quasilinear_transport_model.apply_fast_ion_stabilization(
+    lref_over_lti = quasilinear_utils.apply_fast_ion_stabilization(
         core_profiles=core_profiles,
         smag=smag,
         q=q,
@@ -484,7 +520,6 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
         * constants.keV_to_J
         / (core_profiles.A_i * constants.m_amu)
     )
-    gamma_E_GB = gamma_E_SI * (geo.a_minor / c_sou)
     gamma_E_GB_poloidal_and_pressure = gamma_E_SI_poloidal_and_pressure * (
         geo.a_minor / c_sou
     )
@@ -504,11 +539,8 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
         log_nu_star_face=log_nu_star_face,
         normni=normni,
         chiGB=chiGB,
-        Rmaj=geo.R_major,
-        Rmin=geo.a_minor,
         alpha=alpha,
         epsilon=epsilon,
-        gamma_E_GB=gamma_E_GB,
         gamma_E_GB_poloidal_and_pressure=gamma_E_GB_poloidal_and_pressure,
         gamma_E_GB_toroidal=gamma_E_GB_toroidal,
         gamma_E_QLK=gamma_E_QLK,

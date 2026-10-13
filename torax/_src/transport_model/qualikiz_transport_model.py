@@ -37,7 +37,6 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
@@ -240,7 +239,7 @@ class QualikizTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      two_point_mask: array_typing.BoolVectorFace | None = None,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     """Extracts QuaLiKiz run data from runpath."""
 
@@ -446,7 +445,9 @@ def _extract_qualikiz_plan(
   return qualikiz_plan
 
 
-class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
+class QualikizTransportModelConfig(
+    qualikiz_based_transport_model.QualikizBasedTransportModelConfig
+):
   """Model for the Qualikiz transport model.
 
   Attributes:
@@ -454,24 +455,6 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     n_max_runs: Set frequency of full QuaLiKiz contour solutions.
     n_processes: Set number of cores used QuaLiKiz calculations.
     collisionality_multiplier: Collisionality multiplier.
-    max_normalized_collisionality: Maximum normalized collisionality passed to
-      the model. Acts as a ceiling to mitigate unreliable transport predictions
-      at high collisionality. Default is inf (no capping).
-    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
-      for no slab modes.
-    smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
-      impact of alpha.
-    q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
-      are sawteeth.
-    DV_effective: Effective D / effective V approach for particle transport.
-    An_min: Minimum |R/Lne| below which effective V is used instead of effective
-      D.
-    DV_effective_smooth_width: Particle flux width in dimensionless
-      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
-      transport transitions smoothly from effective V to effective D. If 0.0,
-      uses a sharp step transition. Note that QuaLiKiz normalizes with major
-      radius R_major rather than minor radius a, so the default (0.01) is chosen
-      to be consistent in SI units with TGLF (0.001).
   """
 
   model_name: Annotated[Literal['qualikiz'], torax_pydantic.JAX_STATIC] = (
@@ -480,17 +463,6 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   n_max_runs: pydantic.PositiveInt = 2
   n_processes: pydantic.PositiveInt = 8
   collisionality_multiplier: pydantic.PositiveFloat = 1.0
-  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
-  avoid_big_negative_s: bool = True
-  smag_alpha_correction: bool = True
-  q_sawtooth_proxy: bool = True
-  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  An_min: pydantic.PositiveFloat = 0.05
-  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
-  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
-  rotation_mode: Annotated[
-      qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
-  ] = qualikiz_based_transport_model.RotationMode.OFF
 
   def build_transport_model(self) -> QualikizTransportModel:
     return QualikizTransportModel()
@@ -500,15 +472,5 @@ class QualikizTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     return RuntimeParams(
         n_max_runs=self.n_max_runs,
         n_processes=self.n_processes,
-        collisionality_multiplier=self.collisionality_multiplier,
-        max_normalized_collisionality=self.max_normalized_collisionality,
-        avoid_big_negative_s=self.avoid_big_negative_s,
-        smag_alpha_correction=self.smag_alpha_correction,
-        q_sawtooth_proxy=self.q_sawtooth_proxy,
-        DV_effective=self.DV_effective,
-        An_min=self.An_min,
-        DV_effective_smooth_width=self.DV_effective_smooth_width,
-        rotation_multiplier=self.rotation_multiplier,
-        rotation_mode=self.rotation_mode,
         **vars(base_params),
     )

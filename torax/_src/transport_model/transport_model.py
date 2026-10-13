@@ -283,16 +283,9 @@ class TransportModel(static_dataclass.StaticDataclass):
       smoothing_matrix: jax.Array,
   ) -> transport_coeffs.TransportCoeffs:
     """Gaussian smoothing of turbulent transport coefficients."""
-    # Iterate over fields of the TransportCoeffs dataclass.
-    # Ignore optional fields that are made all zero in post_init.
-    def smooth_single_coeff(coeff):
-      return jnp.where(
-          jnp.all(coeff == 0.0),
-          coeff,
-          jnp.dot(smoothing_matrix, coeff),
-      )
-
-    return jax.tree.map(smooth_single_coeff, input_coeffs)
+    return jax.tree.map(
+        lambda coeff: jnp.dot(smoothing_matrix, coeff), input_coeffs
+    )
 
 
 def _build_smoothing_matrix(
@@ -324,11 +317,10 @@ def _build_smoothing_matrix(
         geo.rho_face_norm, transport_runtime_params.smoothing_width
     )
 
-  smoothing_width_profile = jax.lax.cond(
-      has_zones,
-      build_profile_from_zones,
-      build_profile_fallback,
-  )
+  if has_zones:
+    smoothing_width_profile = build_profile_from_zones()
+  else:
+    smoothing_width_profile = build_profile_fallback()
 
   # Apply pedestal mask if in INTERNAL_BOUNDARY_CONDITION mode.
   # Zeros out smoothing_width_profile for rho >= rho_ped_top to avoid bleeding

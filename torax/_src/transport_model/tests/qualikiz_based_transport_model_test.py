@@ -16,10 +16,8 @@ import dataclasses
 from typing import Annotated, Any, Literal
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax.numpy as jnp
 import numpy as np
-import pydantic
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -33,7 +31,6 @@ from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
@@ -120,7 +117,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     self.assertEqual(core_transport.total.v_face_el.shape, expected_shape)
 
   def test_qualikiz_based_transport_model_prepare_qualikiz_inputs_shapes(self):
-    """Tests that the qualikiz inputs have the expected shapes."""
+    """Tests that the Qualikiz-based inputs have the expected shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
         'core_transport_models': {
             'qualikiz_based': {
@@ -170,14 +167,11 @@ class QualikizTransportModelTest(parameterized.TestCase):
         'normni',
         'chiGB',
     ]
-    scalar_keys = ['Rmaj', 'Rmin']
     expected_vector_length = geo.rho_face_norm.shape[0]
     for key in vector_keys:
       self.assertEqual(
           getattr(qualikiz_inputs, key).shape, (expected_vector_length,)
       )
-    for key in scalar_keys:
-      self.assertEqual(getattr(qualikiz_inputs, key).shape, ())
 
   @parameterized.parameters((0.001,), (0.1,))
   def test_collisionality_max(self, max_normalized_collisionality):
@@ -296,20 +290,6 @@ class FakeQualikizBasedTransportModel(
 ):
   """Fake QualikizBasedTransportModel for testing purposes."""
 
-  # pylint: disable=invalid-name
-  def prepare_qualikiz_inputs(
-      self,
-      transport: qualikiz_based_transport_model.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> qualikiz_based_transport_model.QualikizInputs:
-    """Exposing prepare_qualikiz_inputs for testing."""
-    return self._prepare_qualikiz_inputs(
-        transport, geo, core_profiles
-    )
-
-  # pylint: enable=invalid-name
-
   def call_implementation(
       self,
       transport_runtime_params: (
@@ -340,69 +320,27 @@ class FakeQualikizBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
 
 
 # pylint: disable=invalid-name
 class QualikizBasedTransportModelConfig(
-    transport_pydantic_model_base.ComponentTransportBase
+    qualikiz_based_transport_model.QualikizBasedTransportModelConfig
 ):
-  """Model for the Qualikiz-based transport model.
-
-  Attributes:
-    transport_model: The transport model to use. Hardcoded to 'qualikiz'.
-    collisionality_multiplier: Collisionality multiplier.
-    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
-      for no slab modes.
-    smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
-      impact of alpha.
-    q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
-      are sawteeth.
-    DV_effective: Effective D / effective V approach for particle transport.
-    An_min: Minimum |R/Lne| below which effective V is used instead of effective
-      D.
-  """
+  """Model for testing the Qualikiz-based transport model."""
 
   model_name: Annotated[
       Literal['qualikiz_based'], torax_pydantic.JAX_STATIC
   ] = 'qualikiz_based'
-  collisionality_multiplier: pydantic.PositiveFloat = 1.0
-  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
-  avoid_big_negative_s: bool = True
-  smag_alpha_correction: bool = True
-  q_sawtooth_proxy: bool = True
-  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  An_min: pydantic.PositiveFloat = 0.05
-  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
-  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
   rotation_mode: Annotated[
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
   ] = qualikiz_based_transport_model.RotationMode.HALF_RADIUS
 
-  # pylint: disable=undefined-variable
   def build_transport_model(
       self,
   ) -> FakeQualikizBasedTransportModel:
     return FakeQualikizBasedTransportModel()
-
-  def build_runtime_params(self, t: chex.Numeric):
-    base_params = super().build_runtime_params(t)
-    return qualikiz_based_transport_model.RuntimeParams(
-        collisionality_multiplier=self.collisionality_multiplier,
-        max_normalized_collisionality=self.max_normalized_collisionality,
-        avoid_big_negative_s=self.avoid_big_negative_s,
-        smag_alpha_correction=self.smag_alpha_correction,
-        q_sawtooth_proxy=self.q_sawtooth_proxy,
-        DV_effective=self.DV_effective,
-        An_min=self.An_min,
-        DV_effective_smooth_width=self.DV_effective_smooth_width,
-        rotation_multiplier=self.rotation_multiplier,
-        rotation_mode=self.rotation_mode,
-        **vars(base_params),
-    )
-
-
-# pylint: enable=undefined-variable
 
 
 if __name__ == '__main__':

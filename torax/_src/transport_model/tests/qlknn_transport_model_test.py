@@ -41,11 +41,8 @@ def _make_mock_qualikiz_inputs(n_rho: int = 10):
       log_nu_star_face=jnp.zeros(n_rho),
       normni=jnp.ones(n_rho),
       chiGB=jnp.ones(n_rho),
-      Rmaj=jnp.array(6.2),
-      Rmin=jnp.array(2.0),
       alpha=jnp.zeros(n_rho),
       epsilon=jnp.linspace(0.0, 0.3, n_rho),
-      gamma_E_GB=jnp.ones(n_rho) * 0.5,
       gamma_E_GB_poloidal_and_pressure=jnp.ones(n_rho) * 0.25,
       gamma_E_GB_toroidal=jnp.ones(n_rho) * 0.25,
       gamma_E_QLK=jnp.ones(n_rho) * 0.5,
@@ -69,11 +66,8 @@ def _make_mock_qualikiz_inputs_poloidal_only(n_rho: int = 10):
       log_nu_star_face=jnp.zeros(n_rho),
       normni=jnp.ones(n_rho),
       chiGB=jnp.ones(n_rho),
-      Rmaj=jnp.array(6.2),
-      Rmin=jnp.array(2.0),
       alpha=jnp.zeros(n_rho),
       epsilon=jnp.linspace(0.0, 0.3, n_rho),
-      gamma_E_GB=jnp.ones(n_rho) * 0.5,
       gamma_E_GB_poloidal_and_pressure=jnp.ones(n_rho) * 0.5,
       gamma_E_GB_toroidal=jnp.zeros(n_rho),
       gamma_E_QLK=jnp.ones(n_rho) * 0.5,
@@ -196,38 +190,32 @@ class QlknnTransportModelTest(parameterized.TestCase):
 
   @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
   def test_get_model_with_path(self, mock_qlknn_model_wrapper):
-    """Tests that the model is loaded from the path."""
     qlknn_transport_model.get_model(path='/my/foo.qlknn', name='bar')
     mock_qlknn_model_wrapper.assert_called_once_with('/my/foo.qlknn', 'bar')
 
   @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
   def test_get_model_with_name_only(self, mock_qlknn_model_wrapper):
-    """Tests that the model is loaded from the path."""
     qlknn_transport_model.get_model(path='', name='bar')
     mock_qlknn_model_wrapper.assert_called_once_with('', 'bar')
 
   @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
   def test_get_model_without_path_or_name(self, mock_qlknn_model_wrapper):
-    """Tests that the model is loaded from the path."""
     qlknn_transport_model.get_model(path='', name='')
     mock_qlknn_model_wrapper.assert_called_once_with('', '')
 
   @mock.patch.object(qlknn_10d, 'QLKNN10D', autospec=True)
-  def test_get_model_from_path_qlknn10d(self, mock_qlknn_qlknn10d):
-    """Tests that the model is loaded from the path."""
+  def test_get_model_from_path_qlknn10d(self, mock_qlknn_10d):
     qlknn_transport_model.get_model(path='/foo/qlknn_hyper', name='bar')
-    mock_qlknn_qlknn10d.assert_called_once_with('/foo/qlknn_hyper', 'bar')
+    mock_qlknn_10d.assert_called_once_with('/foo/qlknn_hyper', 'bar')
 
   @mock.patch.object(qlknn_10d, 'QLKNN10D', autospec=True)
-  def test_get_model_from_name_qlknn10d_fails(self, mock_qlknn_qlknn10d):
-    """Tests that the model is loaded from the path."""
+  def test_get_model_from_name_qlknn10d_fails(self, mock_qlknn_10d):
     with self.assertRaises(ValueError):
       qlknn_transport_model.get_model(path='', name='qlknn10D')
-    mock_qlknn_qlknn10d.assert_not_called()
+    mock_qlknn_10d.assert_not_called()
 
   @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
   def test_get_model_caching(self, mock_qlknn_model_wrapper):
-    """Tests that the model is loaded only once."""
     qlknn_transport_model.get_model(path='', name='bar')
     qlknn_transport_model.get_model(path='', name='bar')
     qlknn_transport_model.get_model(path='', name='bar')
@@ -413,11 +401,8 @@ class ShearSuppressionModelTest(parameterized.TestCase):
         log_nu_star_face=jnp.zeros(n_rho),
         normni=jnp.ones(n_rho),
         chiGB=jnp.ones(n_rho),
-        Rmaj=jnp.array(6.2),
-        Rmin=jnp.array(2.0),
         alpha=jnp.zeros(n_rho),
         epsilon=jnp.linspace(0.0, 0.3, n_rho),
-        gamma_E_GB=jnp.zeros(n_rho),
         gamma_E_GB_poloidal_and_pressure=jnp.zeros(n_rho),
         gamma_E_GB_toroidal=jnp.zeros(n_rho),
         gamma_E_QLK=jnp.zeros(n_rho),
