@@ -14,7 +14,9 @@
 """Base class and utils for Qualikiz-based models."""
 import dataclasses
 import enum
+import typing
 
+import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -29,7 +31,9 @@ from torax._src.physics import collisions
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
+from torax._src.transport_model import component
 from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import runtime_params as transport_runtime_params
 from torax._src.transport_model import transport_coeffs
 
 
@@ -109,11 +113,34 @@ class RotationMode(enum.StrEnum):
   FULL_RADIUS = 'full_radius'
 
 
+# pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(quasilinear_transport_model.RuntimeParams):
-  """Shared parameters for Qualikiz-based models."""
+class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
+  """Shared parameters for Qualikiz-based models.
 
+  Attributes:
+    DV_effective: Effective D / effective V approach for particle transport.
+    An_min: Minimum |R/Lne| below which effective V is used instead of effective
+      D.
+    DV_effective_smooth_width: Particle flux width over which down-gradient
+      transport transitions from convection to diffusion.
+    collisionality_multiplier: Multiplier applied to collisionality.
+    max_normalized_collisionality: Upper bound clamping normalized
+      collisionality nu_star.
+    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
+      for no slab modes.
+    smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
+      impact of alpha.
+    q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
+      are sawteeth.
+    rotation_multiplier: Multiplier applied to rotation.
+    rotation_mode: Defines how the rotation correction is applied.
+  """
+
+  DV_effective: bool = dataclasses.field(metadata={'static': True})
+  An_min: float
+  DV_effective_smooth_width: float
   collisionality_multiplier: float
   max_normalized_collisionality: float
   avoid_big_negative_s: bool
@@ -123,12 +150,57 @@ class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   rotation_mode: RotationMode = dataclasses.field(metadata={'static': True})
 
 
-# pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
-  """Inputs to Qualikiz-based models."""
+class QualikizInputs:
+  """Inputs to Qualikiz-based models.
 
+  Attributes:
+    chiGB: GyroBohm diffusivity used for normalizations [m^2/s].
+    Rmin: Minor radius [m].
+    Rmaj: Major radius [m].
+    lref_over_lti: Normalized ion temperature logarithmic gradient (Rmaj / LTi).
+    lref_over_lte: Normalized electron temperature logarithmic gradient (Rmaj /
+      LTe).
+    lref_over_lne: Normalized electron density logarithmic gradient (Rmaj /
+      Lne).
+    lref_over_lni0: Normalized main ion density logarithmic gradient (Rmaj /
+      Lni0).
+    lref_over_lni1: Normalized impurity density logarithmic gradient (Rmaj /
+      Lni1).
+    Z_eff_face: Effective charge on the face grid.
+    q: Safety factor on the face grid.
+    smag: Magnetic shear on the face grid.
+    x: Normalized radial coordinate (r_mid / r_mid[-1]) on the face grid.
+    Ti_Te: Ion-to-electron temperature ratio (T_i / T_e) on the face grid.
+    log_nu_star_face: Base-10 logarithm of normalized collisionality nu_star on
+      the face grid.
+    normni: Ratio of main ion to electron density (n_i / n_e) on the face grid.
+    alpha: MHD alpha parameter on the face grid.
+    epsilon: Inverse aspect ratio (r_mid / R_major) on the face grid.
+    gamma_E_GB: GyroBohm-normalized ExB shear rate.
+    gamma_E_GB_poloidal_and_pressure: GyroBohm-normalized ExB shear rate from
+      poloidal velocity and diamagnetic pressure.
+    gamma_E_GB_toroidal: GyroBohm-normalized ExB shear rate from toroidal
+      rotation.
+    gamma_E_QLK: QuaLiKiz-normalized ExB shear rate (in units of c_ref /
+      R_major).
+    mach_toroidal: Toroidal Mach number.
+    Ati: Logarithmic ion temperature gradient (Rmaj / LTi).
+    Ate: Logarithmic electron temperature gradient (Rmaj / LTe).
+    Ane: Logarithmic electron density gradient (Rmaj / Lne).
+    Ani0: Logarithmic main ion density gradient (Rmaj / Lni0).
+    Ani1: Logarithmic impurity density gradient (Rmaj / Lni1).
+  """
+
+  chiGB: array_typing.FloatVectorFace
+  Rmin: array_typing.FloatScalar
+  Rmaj: array_typing.FloatScalar
+  lref_over_lti: array_typing.FloatVectorFace
+  lref_over_lte: array_typing.FloatVectorFace
+  lref_over_lne: array_typing.FloatVectorFace
+  lref_over_lni0: array_typing.FloatVectorFace
+  lref_over_lni1: array_typing.FloatVectorFace
   Z_eff_face: array_typing.FloatVectorFace
   q: array_typing.FloatVectorFace
   smag: array_typing.FloatVectorFace
@@ -154,7 +226,7 @@ class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
     return self.lref_over_lte
 
   @property
-  def Ane(self) -> array_typing.Array:
+  def Ane(self) -> array_typing.FloatVectorFace:
     return self.lref_over_lne
 
   @property
@@ -166,10 +238,79 @@ class QualikizInputs(quasilinear_transport_model.QuasilinearInputs):
     return self.lref_over_lni1
 
 
-class QualikizBasedTransportModel(
-    quasilinear_transport_model.QuasilinearTransportModel
-):
+class QualikizBasedTransportModel(component.ComponentTransportModel):
   """Base class for Qualikiz-based transport models."""
+
+  def _make_transport_coeffs(
+      self,
+      qi: jax.Array,
+      qe: jax.Array,
+      pfe: jax.Array,
+      qualikiz_inputs: QualikizInputs,
+      transport: RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
+  ) -> transport_coeffs.TransportCoeffs:
+    """Converts model output to TransportCoeffs."""
+    # Convert the electron particle flux from GB (pfe) to SI units.
+    # The gyrobohm flux reference length in QuaLiKiz is the minor radius
+    # (a_minor).
+    pfe_SI = (
+        pfe
+        * core_profiles.n_e.face_value()
+        * qualikiz_inputs.chiGB
+        / geo.a_minor
+    )
+
+    # chi outputs in SI units.
+    # chi[GB] = -Q[GB]/(Lref/LT), where chi is heat diffusivity, Q is heat flux,
+    # and LT is the logarithmic gradient length.
+    # In QuaLiKiz, the gradient reference length is the major radius (R_major),
+    # while the gyrobohm flux reference length is the minor radius (a_minor).
+    # We rescale the normalized logarithmic gradient by the ratio of the two
+    # reference lengths (geo.R_major / geo.a_minor).
+    chi_face_ion = (
+        ((geo.R_major / geo.a_minor) * qi) / qualikiz_inputs.lref_over_lti
+    ) * qualikiz_inputs.chiGB
+    chi_face_el = (
+        ((geo.R_major / geo.a_minor) * qe) / qualikiz_inputs.lref_over_lte
+    ) * qualikiz_inputs.chiGB
+
+    if transport.DV_effective:
+      d_face_el, v_face_el = quasilinear_transport_model.calculate_dv_effective(
+          particle_flux_SI=pfe_SI,
+          normalized_particle_flux=pfe,
+          n_e=core_profiles.n_e,
+          geo=geo,
+          gradient_reference_length=geo.R_major,
+          An_min=transport.An_min,
+          DV_effective_smooth_width=transport.DV_effective_smooth_width,
+          two_point_mask=two_point_mask,
+      )
+    else:
+      # Scaled D approach. Scale electron diffusivity to electron heat
+      # conductivity (this has some physical motivations),
+      # and set convection to then match total particle transport.
+      # TODO(b/567403838): Create a helper function, calculate_d_scaled, and
+      # fix gradient to use dn_e_drhon for consistency with TGLF in follow-up.
+      chex.assert_rank(pfe, 1)
+      d_face_el = chi_face_el
+      v_face_el = (
+          pfe_SI / core_profiles.n_e.face_value()
+          - qualikiz_inputs.lref_over_lne
+          * d_face_el
+          / geo.R_major
+          * geo.g1_over_vpr2_face
+          * geo.rho_b**2
+      ) / (geo.g0_over_vpr_face * geo.rho_b)
+
+    return transport_coeffs.TransportCoeffs(
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
+    )
 
   def _prepare_qualikiz_inputs(
       self,
@@ -285,7 +426,9 @@ class QualikizBasedTransportModel(
         smag=smag,
         q=q,
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
-        transport=transport,
+        transport=typing.cast(
+            quasilinear_transport_model.RuntimeParams, transport
+        ),
     )
 
     if transport.rotation_mode == RotationMode.OFF:

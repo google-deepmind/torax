@@ -336,12 +336,10 @@ class FakeQualikizBasedTransportModel(
         qi=jnp.ones(geo.rho_face_norm.shape) * 0.4,
         qe=jnp.ones(geo.rho_face_norm.shape) * 0.5,
         pfe=jnp.ones(geo.rho_face_norm.shape) * 1.6,
-        quasilinear_inputs=qualikiz_inputs,
+        qualikiz_inputs=qualikiz_inputs,
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        gradient_reference_length=geo.R_major,
-        gyrobohm_flux_reference_length=geo.a_minor,
     )
 
 

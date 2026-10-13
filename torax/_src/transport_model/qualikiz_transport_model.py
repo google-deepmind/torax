@@ -253,12 +253,10 @@ class QualikizTransportModel(
         qi=qi,
         qe=qe,
         pfe=pfe,
-        quasilinear_inputs=qualikiz_inputs,
+        qualikiz_inputs=qualikiz_inputs,
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
-        gradient_reference_length=geo.R_major,
-        gyrobohm_flux_reference_length=geo.a_minor,
         two_point_mask=two_point_mask,
     )
 
