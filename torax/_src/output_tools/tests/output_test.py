@@ -520,14 +520,10 @@ class StateHistoryTest(parameterized.TestCase):
     ).simulation_output_to_xr()
 
     self.assertIn(
-        impurity_radiation.RADIATION_OUTPUT_NAME, output_xr.profiles.data_vars
+        output_keys.RADIATION_IMPURITY_SPECIES, output_xr.profiles.data_vars
     )
-    self.assertIn(
-        impurity_radiation.DENSITY_OUTPUT_NAME, output_xr.profiles.data_vars
-    )
-    self.assertIn(
-        impurity_radiation.Z_OUTPUT_NAME, output_xr.profiles.data_vars
-    )
+    self.assertIn(output_keys.N_IMPURITY_SPECIES, output_xr.profiles.data_vars)
+    self.assertIn(output_keys.Z_IMPURITY_SPECIES, output_xr.profiles.data_vars)
     total_impurity_from_species = (
         output_xr.profiles.radiation_impurity_species.sel(
             impurity_symbol='Ne'

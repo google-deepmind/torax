@@ -30,7 +30,6 @@ from torax._src import state
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
-from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
@@ -506,60 +505,11 @@ class StateHistory:
 
   def _save_post_processed_outputs(
       self,
-  ) -> dict[str, xr.DataArray | None]:
+  ) -> dict[str, output_grid_context.OutputVar]:
     """Saves the post processed outputs to a dict."""
-    xr_dict = {}
-
-    pp_field_names = {
-        f.name for f in dataclasses.fields(self._stacked_post_processed_outputs)
-    }
-
-    for field in dataclasses.fields(self._stacked_post_processed_outputs):
-      attr_name = field.name
-      if attr_name == "first_step":
-        continue
-
-      # The impurity_radiation is structured differently and handled separately.
-      if attr_name == "impurity_species":
-        continue
-
-      # Skip _face attributes if cell counterpart exists
-      if attr_name.endswith("_face") and (
-          attr_name.removesuffix("_face") in pp_field_names
-      ):
-        continue
-
-      attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
-
-      # Check if a corresponding face variable exists to extend the grid.
-      face_attr_name = f"{attr_name}_face"
-
-      if hasattr(attr_value, "cell_plus_boundaries"):
-        # Handles stacked CellVariable-like objects.
-        data_to_save = attr_value.cell_plus_boundaries()
-      elif face_attr_name in pp_field_names:
-        face_value = getattr(
-            self._stacked_post_processed_outputs, face_attr_name
-        )
-        data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
-      else:
-        data_to_save = attr_value
-      xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
-
-    if self._stacked_post_processed_outputs.impurity_species:
-      radiation_outputs = (
-          impurity_radiation.construct_xarray_for_radiation_output(
-              self._stacked_post_processed_outputs.impurity_species,
-              self.times,  # pyrefly: ignore[bad-argument-type]
-              self.rho_cell_norm,  # pyrefly: ignore[bad-argument-type]
-              output_keys.TIME,
-              output_keys.RHO_CELL_NORM,
-          )
-      )
-      for key, value in radiation_outputs.items():
-        xr_dict[key] = value
-
-    return xr_dict
+    return self._stacked_post_processed_outputs.to_output_dict(
+        self._output_grid_context
+    )
 
   def _save_geometry(
       self,
