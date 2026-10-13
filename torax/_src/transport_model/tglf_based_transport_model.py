@@ -14,7 +14,6 @@
 """Base class and utils for TGLF-based models."""
 
 import dataclasses
-from typing import cast
 
 import jax
 from jax import numpy as jnp
@@ -447,7 +446,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
         smag=smag,
         q=jnp.asarray(core_profiles.q_face),
         normalized_logarithmic_gradients=normalized_log_gradients,
-        transport=cast(quasilinear_transport_model.RuntimeParams, transport),
+        transport=transport,
     )
 
     Z_e_face = -1.0 * jnp.ones(n_faces)

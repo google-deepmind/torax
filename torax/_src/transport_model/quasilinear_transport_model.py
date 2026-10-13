@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Base class for quasilinear models."""
+"""Shared utilities for quasilinear transport models."""
 
 from collections.abc import Mapping
 import dataclasses
@@ -28,9 +28,7 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.transport_model import component
-from torax._src.transport_model import runtime_params as runtime_params_lib
-from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import runtime_params as transport_runtime_params
 
 
 @jax.tree_util.register_dataclass
@@ -130,16 +128,6 @@ def calculate_chiGB(
       * (reference_temperature * constants.keV_to_J) ** 1.5
       / reference_length
   )
-
-
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class RuntimeParams(runtime_params_lib.ComponentRuntimeParams):
-  """Shared parameters for Quasilinear models."""
-
-  DV_effective: bool = dataclasses.field(metadata={"static": True})
-  An_min: float
-  DV_effective_smooth_width: float
 
 
 @jax.jit
@@ -280,25 +268,6 @@ def calculate_dv_effective(
   return d_face_el, v_face_el
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class QuasilinearInputs:
-  """Variables required to convert outputs to TORAX TransportCoeffs outputs."""
-
-  chiGB: (
-      array_typing.FloatVectorFace
-  )  # gyrobohm diffusivity used for normalizations [m^2/s].
-  Rmin: array_typing.FloatScalar  # minor radius [m].
-  Rmaj: array_typing.FloatScalar  #  major radius [m].
-  # Normalized logarithmic gradients of the plasma profiles.
-  # See NormalizedLogarithmicGradients for details.
-  lref_over_lti: array_typing.FloatVectorFace
-  lref_over_lte: array_typing.FloatVectorFace
-  lref_over_lne: array_typing.FloatVectorFace
-  lref_over_lni0: array_typing.FloatVectorFace
-  lref_over_lni1: array_typing.FloatVectorFace
-
-
 @functools.lru_cache(maxsize=2)
 def _get_default_fi_stabilization_model(species: str):
   """Loads the default fast ion stabilization model for a species.
@@ -411,7 +380,7 @@ def apply_fast_ion_stabilization(
     smag: jax.Array,
     q: jax.Array,
     normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
-    transport: RuntimeParams,
+    transport: transport_runtime_params.ComponentRuntimeParams,
 ) -> jax.Array:
   """Applies fast ion stabilization to the ion temperature gradient.
 
@@ -446,84 +415,3 @@ def apply_fast_ion_stabilization(
       math_utils.safe_divide(num=lref_over_lti, denom=fi_stab_factor, eps=1e-7),
       lref_over_lti,
   )
-
-
-class QuasilinearTransportModel(component.ComponentTransportModel):
-  """Base class for quasilinear models."""
-
-  def _make_transport_coeffs(
-      self,
-      qi: jax.Array,
-      qe: jax.Array,
-      pfe: jax.Array,
-      quasilinear_inputs: QuasilinearInputs,
-      transport: RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      gradient_reference_length: array_typing.FloatScalar,
-      gyrobohm_flux_reference_length: array_typing.FloatScalar,
-      two_point_mask: array_typing.BoolVectorFace | None = None,
-  ) -> transport_coeffs.TransportCoeffs:
-    """Converts model output to TransportCoeffs."""
-    # conversion to SI units (note that n is normalized here)
-
-    # Convert the electron particle flux from GB (pfe) to SI units.
-    pfe_SI = (
-        pfe
-        * core_profiles.n_e.face_value()
-        * quasilinear_inputs.chiGB
-        / gyrobohm_flux_reference_length
-    )
-
-    # chi outputs in SI units.
-    # chi[GB] = -Q[GB]/(Lref/LT), chi is heat diffusivity, Q is heat flux,
-    # where Lref is the gyrobohm normalization length, LT the logarithmic
-    # gradient length (unnormalized). For normalized_logarithmic_gradients, the
-    # normalization length can in principle be different from the gyrobohm flux
-    # reference length. e.g. in QuaLiKiz Ati = -Rmaj/LTi, but the
-    # gyrobohm flux reference length in QuaLiKiz is Rmin.
-    # In case they are indeed different we rescale the normalized logarithmic
-    # gradient by the ratio of the two reference lengths.
-    chi_face_ion = (
-        ((gradient_reference_length / gyrobohm_flux_reference_length) * qi)
-        / quasilinear_inputs.lref_over_lti
-    ) * quasilinear_inputs.chiGB
-    chi_face_el = (
-        ((gradient_reference_length / gyrobohm_flux_reference_length) * qe)
-        / quasilinear_inputs.lref_over_lte
-    ) * quasilinear_inputs.chiGB
-
-    if transport.DV_effective:
-      d_face_el, v_face_el = calculate_dv_effective(
-          particle_flux_SI=pfe_SI,
-          normalized_particle_flux=pfe,
-          n_e=core_profiles.n_e,
-          geo=geo,
-          gradient_reference_length=gradient_reference_length,
-          An_min=transport.An_min,
-          DV_effective_smooth_width=transport.DV_effective_smooth_width,
-          two_point_mask=two_point_mask,
-      )
-    else:
-      # Scaled D approach. Scale electron diffusivity to electron heat
-      # conductivity (this has some physical motivations),
-      # and set convection to then match total particle transport.
-      # TODO(b/567403838): Create a helper function, calculate_d_scaled, and
-      # fix gradient to use dn_e_drhon for consistency with TGLF in follow-up.
-      chex.assert_rank(pfe, 1)
-      d_face_el = chi_face_el
-      v_face_el = (
-          pfe_SI / core_profiles.n_e.face_value()
-          - quasilinear_inputs.lref_over_lne
-          * d_face_el
-          / gradient_reference_length
-          * geo.g1_over_vpr2_face
-          * geo.rho_b**2
-      ) / (geo.g0_over_vpr_face * geo.rho_b)
-
-    return transport_coeffs.TransportCoeffs(
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
-    )

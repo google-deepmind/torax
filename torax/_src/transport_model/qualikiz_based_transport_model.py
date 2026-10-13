@@ -14,7 +14,6 @@
 """Base class and utils for Qualikiz-based models."""
 import dataclasses
 import enum
-import typing
 
 import chex
 import jax
@@ -426,9 +425,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
         smag=smag,
         q=q,
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
-        transport=typing.cast(
-            quasilinear_transport_model.RuntimeParams, transport
-        ),
+        transport=transport,
     )
 
     if transport.rotation_mode == RotationMode.OFF:

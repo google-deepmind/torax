@@ -11,166 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from collections.abc import Mapping
-import dataclasses
-from typing import Annotated, Any, Literal
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
-import pydantic
-from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import state
-from torax._src.config import build_runtime_params
-from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
-from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
-from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import quasilinear_transport_model
-from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_params
-from torax._src.transport_model import transport_coeffs
-
-
-def setUpModule():
-  # This model isn't registered by default as it's actually a base class.
-  register_model.register_transport_model(QuasilinearTransportConfig)
 
 
 constants = constants_module.CONSTANTS
 jax.config.update('jax_enable_x64', True)
 
 
-def _get_model_and_model_inputs(
-    transport: Mapping[str, Any],
-):
-  """Returns the model inputs for testing."""
-  config = default_configs.get_default_config_dict()
-  config['transport'] = transport
-  config['pedestal'] = {
-      'model_name': 'set_T_ped_n_ped',
-      'set_pedestal': False,
-      'T_i_ped': 4.0,
-      'T_e_ped': 4.0,
-      'n_e_ped': 0.8,
-      'rho_norm_ped_top': 0.93,
-  }
-  torax_config = model_config.ToraxConfig.from_dict(config)
-
-  model = torax_config.transport.build_transport_model()
-  runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-      torax_config
-  )(t=0.0)
-
-  source_models = torax_config.sources.build_models()
-  neoclassical_model = torax_config.neoclassical.build_model()
-  geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-
-  core_profiles = initialization.initial_core_profiles(
-      runtime_params=runtime_params,
-      geo=geo,
-      source_models=source_models,
-      neoclassical_model=neoclassical_model,
-  )
-
-  transition_state = (
-      pedestal_transition_state_lib.PedestalTransitionState.empty()
-  )
-  two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-
-  return model, (
-      runtime_params,
-      geo,
-      core_profiles,
-      transition_state,
-      two_point_mask,
-  )
-
-
 class QuasilinearTransportModelTest(parameterized.TestCase):
 
   # pylint: disable=invalid-name
-
-  def test_quasilinear_transport_model_output_shapes(self):
-    """Tests that the core transport output has the right shapes."""
-    transport_model, model_inputs = _get_model_and_model_inputs({
-        'core_transport_models': {'quasilinear': {'model_name': 'quasilinear'}},
-    })
-    core_transport = transport_model(*model_inputs)
-    expected_shape = model_inputs[1].rho_face_norm.shape
-
-    self.assertEqual(core_transport.total.chi_face_ion.shape, expected_shape)
-    self.assertEqual(core_transport.total.chi_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.total.d_face_el.shape, expected_shape)
-    self.assertEqual(core_transport.total.v_face_el.shape, expected_shape)
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='DV_effective_False',
-          DV_effective=False,
-          An_min=0.05,
-          expected_zero_v_face_el=False,
-          expected_zero_d_face_el=False,
-      ),
-      dict(
-          testcase_name='DV_effective_True_An_min_less_than_Ane',
-          DV_effective=True,
-          An_min=0.05,
-          expected_zero_v_face_el=True,
-          expected_zero_d_face_el=False,
-      ),
-      dict(
-          testcase_name='DV_effective_True_An_min_greater_than_Ane',
-          DV_effective=True,
-          An_min=2.0,
-          expected_zero_v_face_el=False,
-          expected_zero_d_face_el=True,
-      ),
-  )
-  def test_quasilinear_transport_model_dveff(
-      self,
-      DV_effective,
-      An_min,
-      expected_zero_v_face_el,
-      expected_zero_d_face_el,
-  ):
-    """Tests that the DV_effective approach options behaves as expected."""
-    model, model_inputs = _get_model_and_model_inputs({
-        'chi_min': 0.0,
-        'D_e_min': 0.0,
-        'V_e_min': 0.0,
-        'core_transport_models': {
-            'quasilinear': {
-                'model_name': 'quasilinear',
-                'DV_effective': DV_effective,
-                'An_min': An_min,
-            },
-        },
-    })
-    core_transport = model(*model_inputs)
-    # On the magnetic axis, the density gradient is zero by symmetry, so
-    # effective D/V mode always assigns pure convection there regardless of the
-    # minimum gradient threshold. Check the axis and the bulk separately.
-    self.assertNotEqual(core_transport.total.v_face_el[0], 0.0)
-    self.assertEqual(core_transport.total.d_face_el[0] == 0.0, DV_effective)
-    self.assertEqual(
-        (np.sum(np.abs(core_transport.total.v_face_el[1:])) == 0.0),
-        expected_zero_v_face_el,
-    )
-    self.assertEqual(
-        (np.sum(np.abs(core_transport.total.d_face_el[1:])) == 0.0),
-        expected_zero_d_face_el,
-    )
 
   @parameterized.product(
       A_n_and_pfe=[
@@ -190,10 +53,11 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
       self, A_n_and_pfe, DV_effective_smooth_width
   ):
     A_n_target, pfe_val = A_n_and_pfe
-    _, model_inputs = _get_model_and_model_inputs({
-        'core_transport_models': {'quasilinear': {'model_name': 'quasilinear'}},
-    })
-    _, geo, _, _, two_point_mask = model_inputs
+    torax_config = model_config.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict()
+    )
+    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     L_ref = 3.0
     An_min = 0.05
     n_e_0 = 1.0e20
@@ -548,74 +412,6 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     quasilinear_transport_model._get_default_fi_stabilization_model.cache_clear()
     with self.assertRaises(ValueError):
       quasilinear_transport_model._get_default_fi_stabilization_model('Ar')
-
-
-@dataclasses.dataclass(frozen=True, eq=False)
-class FakeQuasilinearTransportModel(
-    quasilinear_transport_model.QuasilinearTransportModel
-):
-  """Fake QuasilinearTransportModel for testing purposes."""
-
-  def call_implementation(
-      self,
-      transport_runtime_params: transport_params.ComponentRuntimeParams,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
-    assert isinstance(
-        transport_runtime_params, quasilinear_transport_model.RuntimeParams
-    )
-    quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
-        chiGB=np.array(4.0),
-        Rmin=np.array(0.5),
-        Rmaj=np.array(1.0),
-        lref_over_lti=np.array(1.1),
-        lref_over_lte=np.array(1.2),
-        lref_over_lne=np.array(1.3),
-        lref_over_lni0=np.array(1.4),
-        lref_over_lni1=np.array(1.5),
-    )
-    return self._make_transport_coeffs(
-        qi=jnp.full_like(geo.rho_face_norm, 0.4),
-        qe=jnp.full_like(geo.rho_face_norm, 0.5),
-        pfe=jnp.full_like(geo.rho_face_norm, 1.6),
-        quasilinear_inputs=quasilinear_inputs,
-        transport=transport_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        gradient_reference_length=3.0,
-        gyrobohm_flux_reference_length=1.0,
-    )
-
-
-class QuasilinearTransportConfig(
-    transport_pydantic_model_base.ComponentTransportBase
-):
-  """QuasilinearTransportConfig for testing purposes."""
-
-  # pylint: disable=invalid-name
-  model_name: Annotated[Literal['quasilinear'], torax_pydantic.JAX_STATIC] = (
-      'quasilinear'
-  )
-  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  An_min: pydantic.PositiveFloat = 0.05
-  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.0
-
-  def build_transport_model(self) -> FakeQuasilinearTransportModel:
-    return FakeQuasilinearTransportModel()
-
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> quasilinear_transport_model.RuntimeParams:
-    base_params = super().build_runtime_params(t)
-    return quasilinear_transport_model.RuntimeParams(
-        DV_effective=self.DV_effective,
-        An_min=self.An_min,
-        DV_effective_smooth_width=self.DV_effective_smooth_width,
-        **vars(base_params),
-    )
 
 
 if __name__ == '__main__':
