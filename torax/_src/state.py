@@ -464,7 +464,8 @@ class CoreProfiles:
 
     # 5. Multi-dimensional collections: main_ion_fractions
     if self.main_ion_fractions:
-      main_ions = sorted(self.main_ion_fractions)
+      main_ions = np.asarray(sorted(self.main_ion_fractions.keys()))
+      context.register_coord(output_keys.MAIN_ION, main_ions)
       data = np.stack(
           [self.main_ion_fractions[ion] for ion in main_ions],
           axis=0,

@@ -604,10 +604,12 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn(output_keys.IMPURITY_RIGHT_BC, edge_dataset.data_vars)
 
   def test_pack_impurity_mapping(self):
+    context = self.history._output_grid_context
     self.assertEqual(
         edge_base.pack_impurity_mapping(
             output_keys.IMPURITY_RIGHT_BC,
             {},
+            context=context,
             dim_name=output_keys.IMPURITY,
         ),
         {},
@@ -616,6 +618,7 @@ class StateHistoryTest(parameterized.TestCase):
         edge_base.pack_impurity_mapping(
             output_keys.IMPURITY_RIGHT_BC,
             None,
+            context=context,
             dim_name=output_keys.IMPURITY,
         ),
         {},
@@ -623,9 +626,14 @@ class StateHistoryTest(parameterized.TestCase):
     res = edge_base.pack_impurity_mapping(
         output_keys.IMPURITY_RIGHT_BC,
         {'Ar': jnp.array([0.01])},
+        context=context,
         dim_name=output_keys.IMPURITY,
     )
     self.assertIn(str(output_keys.IMPURITY_RIGHT_BC), res)
+    self.assertEqual(
+        list(context.coords[output_keys.IMPURITY]),
+        ['Ar'],
+    )
 
   def test_status_attribute_completed(self):
     """Test that status attribute is set to 'completed' for successful runs."""

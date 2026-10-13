@@ -18,7 +18,6 @@ from collections.abc import Hashable, Sequence
 import dataclasses
 import inspect
 import itertools
-from typing import Any
 
 import os
 
@@ -394,18 +393,13 @@ class StateHistory:
         for k, v in flattened_all_core_data.items()
         if v is not None and any(d in spatial_coords for d in _get_dims(v))
     }
-    profiles = xr.Dataset(profiles_dict)
+    profiles = self._output_grid_context.build_dataset(profiles_dict)
     scalars_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
         if v is not None and not any(d in spatial_coords for d in _get_dims(v))
     }
-    scalars_coords: dict[Hashable, Any] = {output_keys.TIME: time}
-    if self._stacked_core_profiles.main_ion_fractions:
-      scalars_coords[output_keys.MAIN_ION] = sorted(
-          self._stacked_core_profiles.main_ion_fractions
-      )
-    scalars = xr.Dataset(scalars_dict, coords=scalars_coords)
+    scalars = self._output_grid_context.build_dataset(scalars_dict)
     children = {
         output_keys.PROFILES: xr.DataTree(dataset=profiles),
         output_keys.NUMERICS: xr.DataTree(dataset=numerics),

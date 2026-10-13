@@ -491,6 +491,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         base.pack_impurity_mapping(
             SEED_IMPURITY_CONCENTRATIONS,
             self.seed_impurity_concentrations,
+            context=context,
             dim_name=SEED_IMPURITY,
         )
     )
@@ -498,6 +499,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         base.pack_impurity_mapping(
             CALCULATED_ENRICHMENT,
             self.calculated_enrichment,
+            context=context,
             dim_name=ENRICHMENT_IMPURITY,
         )
     )
@@ -583,27 +585,14 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       self, context: output_grid_context.OutputGridContext
   ) -> xr.DataTree:
     """Builds the xr.DataTree for the 'edge' node, with optional roots subtree."""
-    coords: dict[str, Any] = {output_keys.TIME: context.times}
-    if self.seed_impurity_concentrations:
-      coords[SEED_IMPURITY] = sorted(
-          list(self.seed_impurity_concentrations.keys())
-      )
-    if self.calculated_enrichment:
-      coords[ENRICHMENT_IMPURITY] = sorted(
-          list(self.calculated_enrichment.keys())
-      )
-    if self.impurity_right_bc:
-      coords[output_keys.IMPURITY] = sorted(list(self.impurity_right_bc.keys()))
-    edge_dataset = context.build_dataset(
-        self.to_output_dict(context), coords=coords
-    )
+    edge_dataset = context.build_dataset(self.to_output_dict(context))
     children = {}
     if self.roots is not None:
       roots_dict = self._process_roots_output(context)
       if roots_dict:
         children[ROOTS] = xr.DataTree(
-            dataset=context.build_dataset(
-                roots_dict, coords={output_keys.TIME: context.times}
+            dataset=xr.Dataset(
+                data_vars=roots_dict, coords={output_keys.TIME: context.times}
             )
         )
     return xr.DataTree(children=children, dataset=edge_dataset)

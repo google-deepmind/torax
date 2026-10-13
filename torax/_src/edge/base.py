@@ -17,7 +17,7 @@
 import abc
 from collections.abc import Mapping
 import dataclasses
-from typing import Annotated, Any
+from typing import Annotated
 import chex
 import jax
 import numpy as np
@@ -39,12 +39,14 @@ def pack_impurity_mapping(
     key: output_keys.OutputKey | str,
     mapping: Mapping[str, chex.Numeric] | None,
     *,
+    context: output_grid_context.OutputGridContext,
     dim_name: str,
 ) -> dict[str, output_grid_context.OutputVar]:
   """Packs an impurity mapping into a dictionary for to_output_dict."""
   if not mapping:
     return {}
   impurities = sorted(list(mapping.keys()))
+  context.register_coord(dim_name, np.asarray(impurities))
   data_array = np.stack(
       [np.asarray(mapping[i]) for i in impurities],
       axis=0,
@@ -95,6 +97,7 @@ class EdgeModelOutputs:
         pack_impurity_mapping(
             output_keys.IMPURITY_RIGHT_BC,
             self.impurity_right_bc,
+            context=context,
             dim_name=output_keys.IMPURITY,
         )
     )
@@ -104,14 +107,8 @@ class EdgeModelOutputs:
       self, context: output_grid_context.OutputGridContext
   ) -> xr.DataTree:
     """Builds an xr.DataTree of the edge model outputs."""
-    coords: dict[str, Any] = {output_keys.TIME: context.times}
-    if self.impurity_right_bc:
-      coords[output_keys.IMPURITY] = sorted(list(self.impurity_right_bc.keys()))
     return xr.DataTree(
-        dataset=context.build_dataset(
-            self.to_output_dict(context),
-            coords=coords,
-        )
+        dataset=context.build_dataset(self.to_output_dict(context))
     )
 
 

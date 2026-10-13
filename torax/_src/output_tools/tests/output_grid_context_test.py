@@ -163,6 +163,10 @@ class OutputGridContextTest(parameterized.TestCase):
     self.assertEqual(
         ds["test_face"].dims, (output_keys.TIME, output_keys.RHO_FACE_NORM)
     )
+    # Only coordinates used by the variables should be included in the dataset.
+    self.assertCountEqual(
+        ds.coords.keys(), [output_keys.TIME, output_keys.RHO_FACE_NORM]
+    )
     np.testing.assert_array_equal(
         ds.coords[output_keys.TIME].values, self.times
     )
@@ -170,44 +174,40 @@ class OutputGridContextTest(parameterized.TestCase):
         ds.coords[output_keys.RHO_FACE_NORM].values, self.rho_face_norm
     )
 
-  def test_build_dataset_with_custom_coords(self):
-    key_scalar = output_keys.OutputKey(
-        "test_scalar",
-        units=output_keys.Units.KEV,
-        grid_type=output_keys.GridType.SCALAR,
-    )
-    var_dict = {
-        str(key_scalar): self.context.pack(
-            key_scalar, np.ones((self.n_times,))
-        ),
-    }
-    ds = self.context.build_dataset(
-        var_dict, coords={output_keys.TIME: self.times}
-    )
-    self.assertIn("test_scalar", ds)
-    self.assertEqual(list(ds.coords.keys()), [output_keys.TIME])
-    np.testing.assert_array_equal(
-        ds.coords[output_keys.TIME].values, self.times
-    )
+  def test_register_coord_and_build_dataset(self):
+    self.context.register_coord("impurity", np.array(["Ar", "Ne"]))
+    # Re-registering identical values is a no-op.
+    self.context.register_coord("impurity", np.array(["Ar", "Ne"]))
 
-  def test_build_dataset_with_extra_coords(self):
-    key = output_keys.OutputKey(
-        "test_impurity",
-        units=output_keys.Units.INVERSE_CUBIC_METER,
-        grid_type=output_keys.GridType.SCALAR,
-    )
     var_dict = {
-        str(key): (
+        "test_impurity": (
             ("impurity", output_keys.TIME),
             np.ones((2, self.n_times)),
             {"units": "m^-3"},
         ),
     }
-    coords = {output_keys.TIME: self.times, "impurity": ["Ar", "Ne"]}
-    ds = self.context.build_dataset(var_dict, coords=coords)
+    ds = self.context.build_dataset(var_dict)
     self.assertIn("test_impurity", ds)
-    self.assertEqual(ds["test_impurity"].dims, ("impurity", output_keys.TIME))
+    self.assertCountEqual(ds.coords.keys(), ["impurity", output_keys.TIME])
     self.assertEqual(list(ds.coords["impurity"].values), ["Ar", "Ne"])
+
+  def test_register_coord_conflict_raises(self):
+    self.context.register_coord("impurity", np.array(["Ar", "Ne"]))
+    with self.assertRaisesRegex(ValueError, "Conflicting coordinate values"):
+      self.context.register_coord("impurity", np.array(["Ar", "W"]))
+
+  def test_build_dataset_missing_coord_raises(self):
+    var_dict = {
+        "unregistered": (
+            ("unregistered_dim", output_keys.TIME),
+            np.ones((2, self.n_times)),
+            {"units": ""},
+        ),
+    }
+    with self.assertRaisesRegex(
+        KeyError, "Missing coordinate array for dimension 'unregistered_dim'"
+    ):
+      self.context.build_dataset(var_dict)
 
   def test_extend_cell_grid_to_boundaries(self):
     cell_var = np.array([[10.0, 20.0, 30.0], [10.0, 20.0, 30.0]])
