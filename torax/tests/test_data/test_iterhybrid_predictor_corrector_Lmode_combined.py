@@ -29,6 +29,7 @@ CONFIG['transport'] = {
         'qlknn': {
             'model_name': 'qlknn',
             'rho_max': 1.0,
+            'clip_inputs': True,
             'DV_effective': True,
             'include_ITG': True,
             'include_TEM': True,
@@ -49,6 +50,7 @@ CONFIG['transport'] = {
             'disable_chi_e': True,
         },
     },
+    'smoothing_width': 0.1,
 }
 CONFIG['sources']['gas_puff']['S_total'] = 3.0e22
 CONFIG['sources']['gas_puff']['puff_decay_length'] = 0.1
