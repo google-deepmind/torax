@@ -41,34 +41,27 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_initial_guess_config_defaults(self):
     """Checks default values for the initial guess config."""
     config = pydantic_model.ExtendedLengyelConfig()
-    self.assertIsNone(config.initial_guess.alpha_t)
-    self.assertIsNone(config.initial_guess.kappa_e)
-    self.assertIsNone(config.initial_guess.T_e_separatrix)
-    self.assertIsNone(config.initial_guess.T_e_target)
-    self.assertIsNone(config.initial_guess.c_z_prefactor)
-    self.assertTrue(config.initial_guess.use_previous_step_as_guess)
-
-  def test_initial_guess_runtime_params(self):
-    """Tests that initial guess parameters are correctly built."""
-    config = pydantic_model.ExtendedLengyelConfig(
-        initial_guess=pydantic_model.InitialGuessConfig(
-            alpha_t=0.5,
-            T_e_target=5.0,
-        )
+    self.assertEqual(
+        config.initial_guess.alpha_t.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT,
     )
-    runtime_params = config.build_runtime_params(t=0.0)
-
-    self.assertEqual(runtime_params.initial_guess.alpha_t, 0.5)
-    self.assertTrue(runtime_params.initial_guess.alpha_t_provided)
-
-    self.assertEqual(runtime_params.initial_guess.T_e_target, 5.0)
-    self.assertTrue(runtime_params.initial_guess.T_e_target_provided)
-
-    # Check default/non-provided values
-    self.assertEqual(runtime_params.initial_guess.kappa_e, 0.0)
-    self.assertFalse(runtime_params.initial_guess.kappa_e_provided)
-
-    self.assertTrue(runtime_params.initial_guess.use_previous_step_as_guess)
+    self.assertEqual(
+        config.initial_guess.kappa_e.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT,
+    )
+    self.assertEqual(
+        config.initial_guess.T_e_separatrix.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT,
+    )
+    self.assertEqual(
+        config.initial_guess.T_e_target.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD,
+    )
+    self.assertEqual(
+        config.initial_guess.c_z_prefactor.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT,
+    )
+    self.assertTrue(config.initial_guess.use_previous_step_as_guess)
 
   def test_fixed_point_iterations_default(self):
     # Default solver_mode is HYBRID

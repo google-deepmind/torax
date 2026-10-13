@@ -17,9 +17,7 @@
 import logging
 from typing import Annotated, Any, Literal, Mapping, Self
 import chex
-import jax.numpy as jnp
 import pydantic
-from torax._src import array_typing
 from torax._src.edge import base
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
@@ -44,16 +42,47 @@ class InitialGuessConfig(torax_pydantic.BaseModelFrozen):
     c_z_prefactor: Impurity concentration prefactor [dimensionless]. Only used
       in Inverse computation mode.
     use_previous_step_as_guess: If True, use the converged state from the
-      previous time step as the initial guess for the current step. Overridden
-      by any explicit values provided above.
+      previous time step as the initial guess for the current step.
   """
 
-  alpha_t: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  kappa_e: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  T_e_separatrix: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  T_e_target: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  c_z_prefactor: torax_pydantic.NonNegativeTimeVaryingScalar | None = None
+  alpha_t: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT
+      )
+  )
+  kappa_e: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT
+      )
+  )
+  T_e_separatrix: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
+      )
+  )
+  T_e_target: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD
+      )
+  )
+  c_z_prefactor: torax_pydantic.NonNegativeTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
+      )
+  )
   use_previous_step_as_guess: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> extended_lengyel_model.InitialGuessRuntimeParams:
+    return extended_lengyel_model.InitialGuessRuntimeParams(
+        alpha_t=self.alpha_t.get_value(t),
+        kappa_e=self.kappa_e.get_value(t),
+        T_e_separatrix=self.T_e_separatrix.get_value(t),
+        T_e_target=self.T_e_target.get_value(t),
+        c_z_prefactor=self.c_z_prefactor.get_value(t),
+        use_previous_step_as_guess=self.use_previous_step_as_guess,
+    )
 
 
 class ExtendedLengyelConfig(base.EdgeModelConfig):
@@ -200,7 +229,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   enrichment_model_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  initial_guess: InitialGuessConfig = InitialGuessConfig()
+  initial_guess: InitialGuessConfig = pydantic.Field(
+      default_factory=InitialGuessConfig
+  )
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -361,44 +392,6 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
           k: v.get_value(t) for k, v in self.enrichment_factor.items()
       }
 
-    # TODO(b/323504363): b/446608829 - Simplify design and avoid the "provided" flags.
-    def _get_value_and_flag(
-        param: torax_pydantic.TimeVaryingScalar | None,
-        default: float = 0.0,
-    ) -> tuple[array_typing.FloatScalar, array_typing.BoolScalar]:
-      if param is not None:
-        return param.get_value(t), jnp.array(True, dtype=jnp.bool_)
-      # Default is an arbitrary value, only used such that we have consistent
-      # typing in a jnp.where in extended_lengyel_model when choosing between
-      # defaults or provided values.
-      return jnp.array(default), jnp.array(False, dtype=jnp.bool_)
-
-    alpha_t, alpha_t_provided = _get_value_and_flag(self.initial_guess.alpha_t)
-    kappa_e, kappa_e_provided = _get_value_and_flag(self.initial_guess.kappa_e)
-    T_e_separatrix, T_e_separatrix_provided = _get_value_and_flag(
-        self.initial_guess.T_e_separatrix
-    )
-    T_e_target_guess, T_e_target_provided = _get_value_and_flag(
-        self.initial_guess.T_e_target
-    )
-    c_z_prefactor, c_z_prefactor_provided = _get_value_and_flag(
-        self.initial_guess.c_z_prefactor
-    )
-
-    initial_guess_params = extended_lengyel_model.InitialGuessRuntimeParams(
-        alpha_t=alpha_t,
-        alpha_t_provided=alpha_t_provided,
-        kappa_e=kappa_e,
-        kappa_e_provided=kappa_e_provided,
-        T_e_separatrix=T_e_separatrix,
-        T_e_separatrix_provided=T_e_separatrix_provided,
-        T_e_target=T_e_target_guess,
-        T_e_target_provided=T_e_target_provided,
-        c_z_prefactor=c_z_prefactor,
-        c_z_prefactor_provided=c_z_prefactor_provided,
-        use_previous_step_as_guess=self.initial_guess.use_previous_step_as_guess,
-    )
-
     base_params = super().build_runtime_params(t)
 
     return extended_lengyel_model.RuntimeParams(
@@ -451,7 +444,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         T_e_target=_get_optional_value(self.T_e_target, t),
         use_enrichment_model=self.use_enrichment_model,
         enrichment_model_multiplier=enrichment_model_multiplier,
-        initial_guess=initial_guess_params,
+        initial_guess=self.initial_guess.build_runtime_params(t),
     )
 
   def build_edge_model(self) -> extended_lengyel_model.ExtendedLengyelModel:

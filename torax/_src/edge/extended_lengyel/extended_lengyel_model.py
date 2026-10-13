@@ -29,7 +29,6 @@ from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
-from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
@@ -50,15 +49,10 @@ class InitialGuessRuntimeParams:
   """Runtime parameters for the initial guess."""
 
   alpha_t: array_typing.FloatScalar
-  alpha_t_provided: array_typing.BoolScalar
   kappa_e: array_typing.FloatScalar
-  kappa_e_provided: array_typing.BoolScalar
   T_e_separatrix: array_typing.FloatScalar
-  T_e_separatrix_provided: array_typing.BoolScalar
   T_e_target: array_typing.FloatScalar
-  T_e_target_provided: array_typing.BoolScalar
   c_z_prefactor: array_typing.FloatScalar
-  c_z_prefactor_provided: array_typing.BoolScalar
   use_previous_step_as_guess: bool = dataclasses.field(
       metadata={'static': True}
   )
@@ -528,57 +522,27 @@ def _get_initial_guess(
       and viable_previous
   )
 
-  # Defaults
-  alpha_t_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT,
-      dtype=jax_utils.get_dtype(),
-  )
-  kappa_e_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT,
-      dtype=jax_utils.get_dtype(),
-  )
-  T_e_separatrix_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT,
-      dtype=jax_utils.get_dtype(),
-  )
-  T_e_target_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD,
-      dtype=jax_utils.get_dtype(),
-  )
-  c_z_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT,
-      dtype=jax_utils.get_dtype(),
-  )
-
-  # Helper for priority resolution: Previous > Config > Default
   # When previous_val is None (no previous outputs), we use 0.0 as a safe
   # placeholder. This value is never selected because use_previous is False
   # when there are no previous outputs.
-  def _resolve(previous_val, config_val, config_provided, default_val):
+  def _resolve(previous_val, config_val):
     safe_previous = previous_val if previous_val is not None else 0.0
-    val_config_or_default = jnp.where(config_provided, config_val, default_val)
-    return jnp.where(use_previous, safe_previous, val_config_or_default)
+    return jnp.where(use_previous, safe_previous, config_val)
 
   # Resolve common variables
   alpha_t = _resolve(
       previous_edge_outputs.alpha_t if has_previous else None,
       initial_guess.alpha_t,
-      initial_guess.alpha_t_provided,
-      alpha_t_default,
   )
   kappa_e = _resolve(
       previous_edge_outputs.kappa_e if has_previous else None,
       initial_guess.kappa_e,
-      initial_guess.kappa_e_provided,
-      kappa_e_default,
   )
 
   # T_e_separatrix: convert previous value from keV to eV
   T_e_separatrix = _resolve(
       previous_edge_outputs.T_e_separatrix * 1e3 if has_previous else None,
       initial_guess.T_e_separatrix,
-      initial_guess.T_e_separatrix_provided,
-      T_e_separatrix_default,
   )
 
   # Resolve mode-specific variables
@@ -589,8 +553,6 @@ def _get_initial_guess(
     T_e_target = _resolve(
         previous_edge_outputs.T_e_target if has_previous else None,
         initial_guess.T_e_target,
-        initial_guess.T_e_target_provided,
-        T_e_target_default,
     )
     return divertor_sol_1d_lib.ForwardInitialGuess(
         alpha_t=alpha_t,
@@ -602,8 +564,6 @@ def _get_initial_guess(
     c_z_prefactor = _resolve(
         previous_edge_outputs.c_z_prefactor if has_previous else None,
         initial_guess.c_z_prefactor,
-        initial_guess.c_z_prefactor_provided,
-        c_z_default,
     )
     return divertor_sol_1d_lib.InverseInitialGuess(
         alpha_t=alpha_t,
