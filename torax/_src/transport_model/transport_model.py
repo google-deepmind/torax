@@ -23,12 +23,13 @@ from typing import Mapping
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import constants
 from torax._src import jax_utils
+from torax._src import math_utils
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import component
@@ -78,9 +79,9 @@ class TransportModel(static_dataclass.StaticDataclass):
     )
     pedestal_mask = jnp.asarray(
         pedestal_active
-        & (
-            geo.rho_face_norm
-            >= pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
+        & pedestal_model_output_lib.pedestal_face_mask(
+            geo.rho_face_norm,
+            pedestal_transition_state.pedestal_model_output.rho_norm_ped_top,
         )
     )
     core_domain_mask = jnp.where(
@@ -283,6 +284,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       smoothing_matrix: jax.Array,
   ) -> transport_coeffs.TransportCoeffs:
     """Gaussian smoothing of turbulent transport coefficients."""
+
     # Iterate over fields of the TransportCoeffs dataclass.
     # Ignore optional fields that are made all zero in post_init.
     def smooth_single_coeff(coeff):
@@ -340,7 +342,10 @@ def _build_smoothing_matrix(
       pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
   )
   smoothing_width_profile = jnp.where(
-      is_ibc_active & (geo.rho_face_norm >= rho_norm_ped_top),
+      is_ibc_active
+      & pedestal_model_output_lib.pedestal_face_mask(
+          geo.rho_face_norm, rho_norm_ped_top
+      ),
       0.0,
       smoothing_width_profile,
   )
@@ -360,7 +365,9 @@ def _build_pedestal_smoothing_matrix(
       pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
   )
   smoothing_width_profile = jnp.where(
-      geo.rho_face_norm >= rho_norm_ped_top,
+      pedestal_model_output_lib.pedestal_face_mask(
+          geo.rho_face_norm, rho_norm_ped_top
+      ),
       transport_runtime_params.pedestal_smoothing_width,
       0.0,
   )
@@ -372,37 +379,11 @@ def _build_smoothing_matrix_from_profile(
     smoothing_width_profile: jax.Array,
 ) -> jax.Array:
   """Builds a Gaussian convolution smoothing matrix from a width profile."""
-  # To reduce the range of the convolution, weights under lower_cutoff are
-  # clipped to zero.
-  lower_cutoff = 0.01
-  # used for eps, small number to avoid divisions by zero for sigma = 0
-  consts = constants.CONSTANTS
-
-  # 1. Kernel matrix with variable width (sigma_i for each destination row i)
-  r_diff = geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm
-  sigma = smoothing_width_profile[:, jnp.newaxis]
-
-  kernel = jnp.exp(-jnp.log(2) * r_diff**2 / (sigma**2 + consts.eps))
-
-  # 2. Clip kernel before applying normalization. Ensures convolution width is
-  # invariant to grid resolution.
-  kernel = jnp.where(kernel < lower_cutoff, 0.0, kernel)
-
-  # 3. Dynamic active mask derivation (sigma > threshold)
-  # Derives a binary active mask vector directly from smoothing_width_profile.
-  mask = jnp.where(smoothing_width_profile > MIN_SMOOTHING_WIDTH, 1.0, 0.0)
-
-  # Zero out rows (destinations) and columns (sources) outside active mask
-  kernel = kernel * mask[:, jnp.newaxis] * mask[jnp.newaxis, :]
-
-  # Restore identity to the zero rows (so smoothing is a no-op there)
-  zero_row_mask = jnp.all(kernel == 0, axis=1)
-  kernel = jnp.where(
-      zero_row_mask[:, jnp.newaxis], jnp.eye(kernel.shape[0]), kernel
+  # Kernel values below 0.01 of the peak are clipped to limit the range of the
+  # convolution. Faces with widths below MIN_SMOOTHING_WIDTH are not smoothed.
+  return math_utils.gaussian_smoothing_matrix(
+      geo.rho_face_norm,
+      smoothing_width_profile,
+      active=smoothing_width_profile > MIN_SMOOTHING_WIDTH,
+      lower_cutoff=0.01,
   )
-
-  # 4. Normalization
-  row_sums = jnp.sum(kernel, axis=1, keepdims=True)
-  kernel = kernel / row_sums
-
-  return kernel

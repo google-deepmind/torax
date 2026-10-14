@@ -454,6 +454,28 @@ class MathUtilsTest(parameterized.TestCase):
     expected = jnp.array([-0.5 / eps, 1.0 / eps, 0.5 / eps])
     np.testing.assert_allclose(got, expected, rtol=1e-12)
 
+  @parameterized.named_parameters(('n_rho_50', 50), ('n_rho_2000', 2000))
+  def test_gaussian_smoothing_matrix(self, n_rho):
+    rho_face_norm = jnp.linspace(0.0, 1.0, n_rho + 1)
+    active = rho_face_norm < 0.8
+    matrix = math_utils.gaussian_smoothing_matrix(
+        rho_face_norm, 0.1, active=active, lower_cutoff=0.01
+    )
+    with self.subTest('rows_sum_to_one'):
+      np.testing.assert_allclose(jnp.sum(matrix, axis=1), 1.0, rtol=1e-12)
+    with self.subTest('inactive_rows_are_identity'):
+      np.testing.assert_array_equal(
+          matrix[~active], jnp.eye(n_rho + 1)[~active]
+      )
+    with self.subTest('support_is_independent_of_resolution'):
+      # exp(-ln2 x^2 / w^2) >= 0.01 for |x| <= w * sqrt(log2(100)).
+      half_support = 0.1 * np.sqrt(np.log2(100.0))
+      r_diff = np.abs(rho_face_norm[:, None] - rho_face_norm)
+      inside = (r_diff <= half_support) & active[:, None] & active[None, :]
+      np.testing.assert_array_equal(
+          np.asarray(matrix[active]) > 0, inside[active]
+      )
+
 
 if __name__ == '__main__':
   absltest.main()

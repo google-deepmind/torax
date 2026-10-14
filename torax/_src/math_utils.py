@@ -433,3 +433,47 @@ def smoothstep_transition(
   # Smoothstep function (https://en.wikipedia.org/wiki/Smoothstep)
   w = 3.0 * t**2 - 2.0 * t**3
   return w * y_right + (1 - w) * y_left
+
+
+def gaussian_smoothing_matrix(
+    rho_face_norm: array_typing.FloatVectorFace,
+    smoothing_width: array_typing.FloatVectorFace | array_typing.FloatScalar,
+    active: jax.Array,
+    lower_cutoff: float = 0.0,
+) -> jax.Array:
+  """Returns a row-normalized Gaussian smoothing matrix on the face grid.
+
+  Row i averages face values j with weights
+  exp(-ln(2) (rho_i - rho_j)^2 / w_i^2) * face_width_j, where w_i is the
+  kernel half width at half maximum for row i. Only active faces are smoothed
+  and used as sources. Inactive rows are left unchanged.
+
+  Args:
+    rho_face_norm: Face grid.
+    smoothing_width: Kernel half width at half maximum. Can be a profile.
+    active: Boolean mask of the faces taking part in the smoothing.
+    lower_cutoff: Kernel values below this are set to zero before normalization,
+      which limits the range of the convolution independently of grid
+      resolution.
+
+  Returns:
+    The smoothing matrix, with rows summing to 1.
+  """
+  width = jnp.atleast_1d(smoothing_width)[:, jnp.newaxis]
+  r_diff = rho_face_norm[:, jnp.newaxis] - rho_face_norm
+  kernel = jnp.exp(
+      -jnp.log(2) * r_diff**2 / (width**2 + constants.CONSTANTS.eps)
+  )
+  kernel = jnp.where(kernel < lower_cutoff, 0.0, kernel)
+
+  # Weight columns by face widths. Full widths at the endpoints keep uniform
+  # grids identical to an unweighted average.
+  dr = jnp.diff(rho_face_norm)
+  face_widths = jnp.concatenate([dr[:1], 0.5 * (dr[1:] + dr[:-1]), dr[-1:]])
+  kernel = kernel * face_widths[jnp.newaxis, :]
+
+  kernel = jnp.where(active[jnp.newaxis, :], kernel, 0.0)
+  kernel = jnp.where(
+      active[:, jnp.newaxis], kernel, jnp.eye(rho_face_norm.shape[0])
+  )
+  return kernel / jnp.sum(kernel, axis=1, keepdims=True)

@@ -1089,12 +1089,8 @@ class TransportModelTest(parameterized.TestCase):
     np.testing.assert_allclose(
         coeffs.total.chi_face_el, mock_coeffs.chi_face_el
     )
-    np.testing.assert_allclose(
-        coeffs.total.d_face_el, mock_coeffs.d_face_el
-    )
-    np.testing.assert_allclose(
-        coeffs.total.v_face_el, mock_coeffs.v_face_el
-    )
+    np.testing.assert_allclose(coeffs.total.d_face_el, mock_coeffs.d_face_el)
+    np.testing.assert_allclose(coeffs.total.v_face_el, mock_coeffs.v_face_el)
 
   def test_pedestal_transition_state_internal_boundary_condition_masking(self):
     model, runtime_params, geo = self._build_model_and_params({
@@ -1174,7 +1170,7 @@ class TransportModelTest(parameterized.TestCase):
     def _smoothed_on_common_grid(n: int) -> np.ndarray:
       matrix, rho_face_norm = _build_smoothing_matrix_for_n_rho(n)
       smooth_profile = 1.0 + 4.0 * jnp.exp(
-          -((rho_face_norm - 0.5) / 0.15) ** 2
+          -(((rho_face_norm - 0.5) / 0.15) ** 2)
       )
       return np.interp(
           rho_common, rho_face_norm, jnp.dot(matrix, smooth_profile)
@@ -1184,6 +1180,25 @@ class TransportModelTest(parameterized.TestCase):
         _smoothed_on_common_grid(n_rho),
         _smoothed_on_common_grid(500),
         atol=atol,
+    )
+
+  def test_core_smoothing_preserves_linear_profile_on_non_uniform_grid(
+      self,
+  ):
+    config = default_configs.get_default_config_dict()
+    config['geometry'] = {
+        'geometry_type': 'circular',
+        'face_centers': 1.0 - (1.0 - np.linspace(0.0, 1.0, 201)) ** 2.0,
+    }
+    geo = model_config.ToraxConfig.from_dict(config).geometry.build_provider(
+        t=0.0
+    )
+    mat = transport_model._build_smoothing_matrix_from_profile(
+        geo, jnp.full_like(geo.rho_face_norm, 0.05)
+    )
+    idx = int(jnp.argmin(jnp.abs(geo.rho_face_norm - 0.5)))
+    np.testing.assert_allclose(
+        (mat @ geo.rho_face_norm)[idx], geo.rho_face_norm[idx], atol=5e-4
     )
 
 

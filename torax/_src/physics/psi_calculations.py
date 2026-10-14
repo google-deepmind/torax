@@ -105,6 +105,48 @@ def _extrapolate_face_profile_to_axis(
   )
 
 
+def calc_psi_norm_face(
+    psi: cell_variable.CellVariable,
+) -> array_typing.FloatVectorFace:
+  """Returns the normalized poloidal flux on the face grid.
+
+  psi_norm is 0 on the magnetic axis and 1 at the LCFS.
+
+  Args:
+    psi: Poloidal flux.
+  """
+  psi_face = psi.face_value()
+  return (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+
+
+def psi_norm_at_rho_norm(
+    rho_norm: array_typing.FloatScalar,
+    psi: cell_variable.CellVariable,
+) -> array_typing.FloatScalar:
+  """Returns psi_norm at rho_norm, interpolated on the face grid.
+
+  Args:
+    rho_norm: Normalized toroidal flux coordinate, clamped to [0, 1].
+    psi: Poloidal flux.
+  """
+  return jnp.interp(rho_norm, psi.face_centers, calc_psi_norm_face(psi))
+
+
+def rho_norm_at_psi_norm(
+    psi_norm: array_typing.FloatScalar,
+    psi: cell_variable.CellVariable,
+) -> array_typing.FloatScalar:
+  """Returns rho_norm at psi_norm, the inverse of `psi_norm_at_rho_norm`.
+
+  Assumes psi_norm increases monotonically with rho_norm.
+
+  Args:
+    psi_norm: Normalized poloidal flux, clamped to [0, 1].
+    psi: Poloidal flux.
+  """
+  return jnp.interp(psi_norm, calc_psi_norm_face(psi), psi.face_centers)
+
+
 def calc_q_face(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,

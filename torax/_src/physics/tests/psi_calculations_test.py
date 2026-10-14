@@ -256,6 +256,38 @@ class PsiCalculationsTest(parameterized.TestCase):
     np.testing.assert_allclose(psidot_calculated, psidot_expected, atol=1e-6)
 
   # pylint: disable=invalid-name
+  def test_psi_norm_rho_norm_maps(self):
+    geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
+    psi = cell_variable.CellVariable(
+        value=geo.rho_norm**2,
+        face_centers=geo.rho_face_norm,
+        right_face_grad_constraint=jnp.array(2.0),
+    )
+    psi_norm_face = psi_calculations.calc_psi_norm_face(psi)
+    with self.subTest('psi_norm_face_spans_zero_to_one'):
+      np.testing.assert_allclose(
+          [psi_norm_face[0], psi_norm_face[-1]], [0.0, 1.0]
+      )
+    with self.subTest('psi_norm_at_rho_norm_matches_faces'):
+      np.testing.assert_allclose(
+          jax.vmap(psi_calculations.psi_norm_at_rho_norm, in_axes=(0, None))(
+              geo.rho_face_norm, psi
+          ),
+          psi_norm_face,
+      )
+    with self.subTest('round_trip_including_beyond_last_cell_center'):
+      rho_norm = jnp.array([0.3, 0.9, 0.985, 0.995])
+      psi_norm = jax.vmap(
+          psi_calculations.psi_norm_at_rho_norm, in_axes=(0, None)
+      )(rho_norm, psi)
+      np.testing.assert_allclose(
+          jax.vmap(psi_calculations.rho_norm_at_psi_norm, in_axes=(0, None))(
+              psi_norm, psi
+          ),
+          rho_norm,
+          rtol=1e-12,
+      )
+
   def test_calc_Wpol(self):
     # Small inverse aspect ratio limit of circular geometry, such that we
     # approximate the simplest form of circular geometry where the analytical

@@ -22,10 +22,12 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
+from torax._src import math_utils
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.physics import psi_calculations
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
@@ -51,35 +53,31 @@ class TransportMultipliers:
     )
 
 
-@jax.jit(static_argnames=["n_sigma"])
-def _build_smoothing_matrix(
+def pedestal_face_mask(
+    rho_face_norm: array_typing.FloatVectorFace,
+    rho_norm_ped_top: array_typing.FloatScalar,
+) -> array_typing.Array:
+  """Returns the faces at or beyond the pedestal top."""
+  return rho_face_norm >= rho_norm_ped_top
+
+
+def pedestal_cell_mask(
+    rho_face_norm: array_typing.FloatVectorFace,
+    rho_norm_ped_top: array_typing.FloatScalar,
+) -> array_typing.Array:
+  """Returns the cells whose right face is at or beyond the pedestal top."""
+  return pedestal_face_mask(rho_face_norm, rho_norm_ped_top)[1:]
+
+
+# TODO(b/573686723): The +/-2 width band spreads the smoothing well into the
+# pedestal at the default width and is strongly resolution dependent.
+def _pedestal_top_smoothing_mask(
     rho_face_norm: array_typing.FloatVectorFace,
     rho_norm_ped_top: array_typing.FloatScalar,
     smoothing_width: array_typing.FloatScalar,
-    n_sigma: float = 2.0,
 ) -> jax.Array:
-  """Builds a smoothing matrix for the pedestal top."""
-  # Gaussian kernel with sigma = smoothing_width.
-  kernel = jnp.exp(
-      -jnp.log(2)
-      * (rho_face_norm[:, jnp.newaxis] - rho_face_norm) ** 2
-      / (smoothing_width**2 + constants.CONSTANTS.eps)
-  )
-  # Smoothing matrix is only non-identity within n_sigma of the pedestal top.
-  mask = jnp.abs(rho_face_norm - rho_norm_ped_top) < (n_sigma * smoothing_width)
-  # Zero out restricted columns so active points don't read from them
-  masked_kernel = jnp.where(mask, kernel, 0.0)
-  # Replace restricted rows with identity so they are unmodified (pass-through)
-  smoothing_matrix = jnp.where(
-      mask[:, jnp.newaxis], masked_kernel, jnp.eye(kernel.shape[0])
-  )
-  # Normalize the smoothing matrix
-  smoothing_matrix /= jnp.sum(smoothing_matrix, axis=1, keepdims=True)
-  # Remove small values
-  smoothing_matrix = jnp.where(smoothing_matrix < 1e-3, 0.0, smoothing_matrix)
-  # Re-normalize
-  smoothing_matrix /= jnp.sum(smoothing_matrix, axis=1, keepdims=True)
-  return smoothing_matrix
+  """Returns the faces within two smoothing widths of the pedestal top."""
+  return jnp.abs(rho_face_norm - rho_norm_ped_top) < 2.0 * smoothing_width
 
 
 @jax.tree_util.register_dataclass
@@ -190,8 +188,8 @@ class PedestalModelOutput:
       ψ_mid = 1 - Δ/2 (center of the tanh)
       a₀ = (q_top - q_sep) / (tanh(1) + tanh(2))
 
-    Values are only applied for cells at or beyond ρ_ped_top (the pedestal
-    region). Core cells get 0.0 (no IBC contribution).
+    Values are applied to the cells given by `pedestal_cell_mask`, whose right
+    face lies at or beyond ρ_ped_top. Core cells get 0.0.
 
     Args:
       geo: Geometry object for the grid.
@@ -200,20 +198,22 @@ class PedestalModelOutput:
     Returns:
       Internal boundary conditions with mtanh-shaped profiles for T_i, T_e, n_e.
     """
-    # Get ψ_N at each cell grid point.
+    # Get ψ_N at each cell center.
     psi_face = core_profiles.psi.face_value()
     psi_norm_cell = (core_profiles.psi.value - psi_face[0]) / (
         psi_face[-1] - psi_face[0]
     )
 
-    # Derive Δ from rho_norm_ped_top via ψ_N mapping.
-    # Use psi at the nearest cell to rho_ped_top (not interpolated) so that
-    # the mtanh formula evaluates to exactly q_top at that cell.
-    rho_norm_ped_top_idx = jnp.argmin(
-        jnp.abs(geo.rho_norm - self.rho_norm_ped_top)
+    # Interpolate ψ_top continuously at rho_norm_ped_top so Δ = (1 - ψ_top)/1.5
+    # avoids O(Δρ) cell-snapping steps, clamping rho_norm_ped_top and flooring
+    # Δ at eps so reverse-mode AD stays finite when rho_norm_ped_top >= 1.0.
+    rho_ped_clamped = jnp.clip(
+        self.rho_norm_ped_top, geo.rho_face_norm[0], geo.rho_face_norm[-1]
     )
-    psi_top = psi_norm_cell[rho_norm_ped_top_idx]
-    delta = (1.0 - psi_top) / 1.5
+    psi_top = psi_calculations.psi_norm_at_rho_norm(
+        rho_ped_clamped, core_profiles.psi
+    )
+    delta = jnp.maximum((1.0 - psi_top) / 1.5, constants.CONSTANTS.eps)
     psi_mid = 1.0 - delta / 2.0
 
     # Separatrix values from the rightmost face of core_profiles.
@@ -221,8 +221,7 @@ class PedestalModelOutput:
     T_e_sep = core_profiles.T_e.right_face_value
     n_e_sep = core_profiles.n_e.right_face_value
 
-    # Pedestal region mask: cells at or beyond rho_norm_ped_top.
-    ped_mask = geo.rho_norm >= self.rho_norm_ped_top
+    ped_mask = pedestal_cell_mask(geo.rho_face_norm, self.rho_norm_ped_top)
 
     def _mtanh_profile(val_top, val_sep):
       """Evaluate mtanh for one quantity."""
@@ -267,10 +266,13 @@ class PedestalModelOutput:
     # applied on the face grid.
     pedestal_active_mask_face = geo.rho_face_norm > self.rho_norm_ped_top
 
-    smoothing_matrix = _build_smoothing_matrix(
+    smoothing_width = pedestal_runtime_params.pedestal_top_smoothing_width
+    smoothing_matrix = math_utils.gaussian_smoothing_matrix(
         geo.rho_face_norm,
-        self.rho_norm_ped_top,
-        pedestal_runtime_params.pedestal_top_smoothing_width,
+        smoothing_width,
+        active=_pedestal_top_smoothing_mask(
+            geo.rho_face_norm, self.rho_norm_ped_top, smoothing_width
+        ),
     )
 
     def _scale_channel(
