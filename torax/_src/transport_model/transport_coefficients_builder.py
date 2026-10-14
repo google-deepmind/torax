@@ -57,13 +57,10 @@ def calculate_all_transport_coeffs(
   )
 
   if use_pereverzev:
-    pereverzev_transport_coeffs = (
-        pereverzev_lib.calculate_pereverzev_transport(
-            runtime_params,
-            geo,
-            core_profiles,
-            two_point_mask,
-        )
+    pereverzev_transport_coeffs = pereverzev_lib.calculate_pereverzev_transport(
+        runtime_params,
+        geo,
+        core_profiles,
     )
     # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
     # coefficients in the pedestal region to zero.

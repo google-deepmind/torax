@@ -72,10 +72,18 @@ class Block1DCoeffs:
     transient_in_cell: Tuple with one entry per channel, transient_in_cell[i]
       gives the transient coefficients inside the time derivative for channel i
       on the cell grid.
-    d_face: Tuple, with d_face[i] containing diffusion term coefficients for
-      channel i on the face grid.
-    v_face: Tuple, with v_face[i] containing convection term coefficients for
-      channel i on the face grid.
+    d_face: Tuple, with d_face[i] containing physical diffusion term
+      coefficients for channel i on the face grid.
+    v_face: Tuple, with v_face[i] containing physical convection term
+      coefficients for channel i on the face grid.
+    d_pereverzev_face: Optional tuple of Pereverzev-Corrigan diffusion face
+      coefficients, one entry per channel (zeros for channels without
+      Pereverzev-Corrigan terms, e.g. psi). Must be set iff v_pereverzev_face is
+      set.
+    v_pereverzev_face: Optional tuple of Pereverzev-Corrigan counter-convection
+      face coefficients, one entry per channel (zeros for channels without
+      Pereverzev-Corrigan terms, e.g. psi), discretized with 0.5/0.5
+      zero-Péclet weights. Must be set iff d_pereverzev_face is set.
     source_mat_cell: 2-D matrix of Tuples, with source_mat_cell[i][j] adding to
       block-row i a term of the form source_cell[j] * u[channel j]. Depending on
       the source runtime_params, may be constant values for a timestep, or
@@ -95,6 +103,8 @@ class Block1DCoeffs:
   transient_out_cell: tuple[jax.Array, ...] | None = None
   d_face: tuple[jax.Array, ...] | None = None
   v_face: tuple[jax.Array, ...] | None = None
+  d_pereverzev_face: tuple[jax.Array, ...] | None = None
+  v_pereverzev_face: tuple[jax.Array, ...] | None = None
   source_mat_cell: OptionalTupleMatrix = None
   source_cell: tuple[jax.Array | None, ...] | None = None
   internal_boundary_condition_mask: jax.Array | None = None
@@ -108,6 +118,11 @@ class Block1DCoeffs:
           'internal_boundary_condition_mask and'
           ' internal_boundary_condition_target_vec must both be'
           ' set or both be None.'
+      )
+    if (self.d_pereverzev_face is None) != (self.v_pereverzev_face is None):
+      raise ValueError(
+          'd_pereverzev_face and v_pereverzev_face must both be set or both be'
+          ' None.'
       )
 
   @property

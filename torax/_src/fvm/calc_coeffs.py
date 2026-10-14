@@ -34,6 +34,7 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 
 # pylint: disable=invalid-name
@@ -323,15 +324,13 @@ def _calc_coeffs_full(
         ),
     )
 
-  internal_boundary_conditions = (
-      internal_boundary_conditions_builder.build_internal_boundary_conditions(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
-          internal_boundary_condition_model=models.internal_boundary_condition_model,
-          source_profiles=merged_source_profiles,
-      )
+  internal_boundary_conditions = internal_boundary_conditions_builder.build_internal_boundary_conditions(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      pedestal_transition_state=pedestal_transition_state,
+      internal_boundary_condition_model=models.internal_boundary_condition_model,
+      source_profiles=merged_source_profiles,
   )
 
   # Compute transport coefficients.
@@ -354,6 +353,12 @@ def _calc_coeffs_full(
   d_face_psi = geo.g2g3_over_rhon_face
   v_face_psi = jnp.zeros_like(d_face_psi)
 
+  # Physical transport excludes Pereverzev-Corrigan stabilization terms.
+  physical_transport = transport_coeffs_lib.sum_transport_coeffs(
+      transport_coefficients.turbulent.total,
+      transport_coefficients.neoclassical,
+  )
+
   # Convert to "full" coefficients, i.e. the entire coefficient preceding the
   # gradient term (dT/dr, dn/dr, etc.) in each equation.
   # Heat equations
@@ -361,61 +366,76 @@ def _calc_coeffs_full(
       geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
       * consts.keV_to_J
-      * transport_coefficients.total.chi_face_ion
+      * physical_transport.chi_face_ion
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
       * consts.keV_to_J
-      * transport_coefficients.total.chi_face_el
+      * physical_transport.chi_face_el
   )
-  # PereverzevTransport convection terms are already "full" coefficients, and
-  # no heat convection terms come from other models.
-  if transport_coefficients.pereverzev is not None:
-    full_v_heat_face_ion = (
-        transport_coefficients.pereverzev.full_v_heat_face_ion
-    )
-    full_v_heat_face_el = (
-        transport_coefficients.pereverzev.full_v_heat_face_el
-    )
-  else:
-    full_v_heat_face_ion = jnp.zeros_like(geo.rho_face)
-    full_v_heat_face_el = jnp.zeros_like(geo.rho_face)
 
   # Particle equations
-  full_d_face_el = (
-      geo.g1_over_vpr_face * transport_coefficients.total.d_face_el
-  )
-  full_v_face_el = geo.g0_face * transport_coefficients.total.v_face_el
+  full_d_face_el = geo.g1_over_vpr_face * physical_transport.d_face_el
+  full_v_face_el = geo.g0_face * physical_transport.v_face_el
 
   # Add Phi_b_dot terms to convection equations.
-  # Psi equation doesn't include Phi_b_dot term.
+  # Note:
+  # - Psi equation has no Phi_b_dot term.
+  # - Convection in the heat equations is solely due to Phi_b_dot, with no
+  #   contribution from TransportCoefficients.
+  phib_dot_factor = geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
   # Heat equations
-  full_v_heat_face_ion += (
-      -3.0
-      / 4.0
-      * geo.Phi_b_dot
-      / geo.Phi_b
-      * geo.rho_face_norm
-      * geo.vpr_face
-      * core_profiles.n_i.face_value()
-      * consts.keV_to_J
+  full_v_heat_face_ion = (
+      -0.75 * phib_dot_factor * core_profiles.n_i.face_value() * consts.keV_to_J
   )
-  full_v_heat_face_el += (
-      -3.0
-      / 4.0
-      * geo.Phi_b_dot
-      / geo.Phi_b
-      * geo.rho_face_norm
-      * geo.vpr_face
-      * core_profiles.n_e.face_value()
-      * consts.keV_to_J
+  full_v_heat_face_el = (
+      -0.75 * phib_dot_factor * core_profiles.n_e.face_value() * consts.keV_to_J
   )
-
   # Particle equations
-  full_v_face_el += (
-      -1.0 / 2.0 * geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
-  )
+  full_v_face_el -= 0.5 * phib_dot_factor
+
+  # Keep Pereverzev-Corrigan terms separate from physical convection so they
+  # use central 0.5/0.5 zero-Péclet face weights rather than upwinding,
+  # canceling the added Pereverzev diffusion in `discrete_system.py`.
+  per = transport_coefficients.pereverzev
+  if per is not None:
+    d_per_ion_heat = (
+        geo.g1_over_vpr_face
+        * core_profiles.n_i.face_value()
+        * consts.keV_to_J
+        * per.chi_face_ion
+    )
+    d_per_el_heat = (
+        geo.g1_over_vpr_face
+        * core_profiles.n_e.face_value()
+        * consts.keV_to_J
+        * per.chi_face_el
+    )
+    v_per_el_heat = per.full_v_heat_face_el
+    v_per_ion_heat = per.full_v_heat_face_ion
+
+    d_per_el_particle = geo.g1_over_vpr_face * per.d_face_el
+    v_per_el_particle = geo.g0_face * per.v_face_el
+    # Pereverzev-Corrigan is not applied to psi.
+    zero_face = jnp.zeros_like(geo.rho_face)
+    var_to_d_per_face = {
+        'T_i': d_per_ion_heat,
+        'T_e': d_per_el_heat,
+        'psi': zero_face,
+        'n_e': d_per_el_particle,
+    }
+    var_to_v_per_face = {
+        'T_i': v_per_ion_heat,
+        'T_e': v_per_el_heat,
+        'psi': zero_face,
+        'n_e': v_per_el_particle,
+    }
+    d_pereverzev_face = tuple(var_to_d_per_face[var] for var in evolving_names)
+    v_pereverzev_face = tuple(var_to_v_per_face[var] for var in evolving_names)
+  else:
+    d_pereverzev_face = None
+    v_pereverzev_face = None
 
   # --- Source terms --- #
   # Construct the source vectors
@@ -566,6 +586,8 @@ def _calc_coeffs_full(
       transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
       d_face=d_face,  # pyrefly: ignore[bad-argument-type]
       v_face=v_face,  # pyrefly: ignore[bad-argument-type]
+      d_pereverzev_face=d_pereverzev_face,
+      v_pereverzev_face=v_pereverzev_face,
       source_mat_cell=source_mat_cell,
       source_cell=source_cell,
       internal_boundary_condition_mask=internal_boundary_condition_mask,

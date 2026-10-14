@@ -142,7 +142,6 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         self.runtime_params,
         self.geo,
         self.core_profiles,
-        self.mock_two_point_mask,
     )
     self.assertIsNotNone(result.pereverzev)
     expected_total = transport_coeffs_lib.sum_transport_coeffs(
