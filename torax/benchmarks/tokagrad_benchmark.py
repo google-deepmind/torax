@@ -268,5 +268,5 @@ CONFIG = {
         "use_pereverzev": False,
     },
     "time_step_calculator": {"calculator_type": "fixed"},
-    "pedestal": {"model_name": "no_pedestal", "set_pedestal": False},
+    "pedestal": {"model_name": "no_pedestal"},
 }

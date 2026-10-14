@@ -264,16 +264,12 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for pedestal models.
 
   Attributes:
-    set_pedestal: Deprecated compatibility alias for
-      formation_model.pedestal_active.
     mode: Defines how the pedestal is generated. Set to ADAPTIVE_TRANSPORT to
       set the pedestal by modifying the transport coefficients in the pedestal
       region, allowing the pedestal to self-consistently evolve. Set to
       INTERNAL_BOUNDARY_CONDITION to set the pedestal by adding a source/sink
       term at the pedestal top, forcing the pedestal top values to be as
       prescribed.
-    use_formation_model_with_internal_boundary_condition: Deprecated
-      compatibility flag.
     transition_time_width: Duration of the L-H or H-L transition ramp [s].
       During a transition, pedestal values are linearly interpolated between
       L-mode baseline and H-mode target values over this time window. Must be
@@ -305,15 +301,9 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       [m/s].
   """
 
-  set_pedestal: torax_pydantic.TimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(False)
-  )
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
       runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
   )
-  use_formation_model_with_internal_boundary_condition: Annotated[
-      bool, torax_pydantic.JAX_STATIC
-  ] = False
   transition_time_width: torax_pydantic.NonNegativeTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
@@ -369,29 +359,14 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   @pydantic.model_validator(mode="after")
   def _check_source_mode(self) -> Self:
     if (
-        self.use_formation_model_with_internal_boundary_condition
-        and self.mode != runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
+        "formation_model" not in self.model_fields_set
+        and not isinstance(self, NoPedestal)
+        and self.mode == runtime_params.Mode.ADAPTIVE_TRANSPORT
     ):
       raise ValueError(
-          "use_formation_model_with_internal_boundary_condition can only be"
-          " True when mode is INTERNAL_BOUNDARY_CONDITION"
+          "formation_model must be explicitly specified when mode is"
+          " ADAPTIVE_TRANSPORT."
       )
-    if "formation_model" not in self.model_fields_set and not isinstance(
-        self, NoPedestal
-    ):
-      if (
-          self.use_formation_model_with_internal_boundary_condition
-          or self.mode == runtime_params.Mode.ADAPTIVE_TRANSPORT
-      ):
-        raise ValueError(
-            "formation_model must be explicitly specified when mode is"
-            " ADAPTIVE_TRANSPORT or"
-            " use_formation_model_with_internal_boundary_condition is True."
-        )
-      if "set_pedestal" in self.model_fields_set:
-        self.__dict__["formation_model"] = PrescribedFormation(
-            pedestal_active=copy.deepcopy(self.set_pedestal)
-        )
     if (
         self.mode == runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
         and "transition_time_width" not in self.model_fields_set
@@ -413,9 +388,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   ) -> runtime_params.RuntimeParams:
     """Builds the runtime params."""
     return runtime_params.RuntimeParams(
-        set_pedestal=self.set_pedestal.get_value(t),
         mode=self.mode,
-        use_formation_model_with_internal_boundary_condition=self.use_formation_model_with_internal_boundary_condition,
         transition_time_width=self.transition_time_width.get_value(t),
         P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
         include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
@@ -552,18 +525,13 @@ class NoPedestal(BasePedestal):
   model_name: Annotated[Literal["no_pedestal"], torax_pydantic.JAX_STATIC] = (
       "no_pedestal"
   )
-  use_formation_model_with_internal_boundary_condition: Annotated[
-      Literal[False], torax_pydantic.JAX_STATIC
-  ] = False
   formation_model: PrescribedFormation = torax_pydantic.ValidatedDefault(
       PrescribedFormation(pedestal_active=False)
   )
 
   @pydantic.model_validator(mode="after")
   def _validate_inactive(self) -> Self:
-    if any(self.set_pedestal.value) or any(
-        self.formation_model.pedestal_active.value
-    ):
+    if any(self.formation_model.pedestal_active.value):
       raise ValueError("NoPedestal cannot have an active pedestal.")
     return self
 
@@ -574,7 +542,6 @@ class NoPedestal(BasePedestal):
         formation_model=self.formation_model.build_formation_model(),
         saturation_model=self.saturation_model.build_saturation_model(),
     )
-
 
 PedestalConfig = Annotated[
     SetPpedTpedRatioNped | SetTpedNped | NoPedestal,

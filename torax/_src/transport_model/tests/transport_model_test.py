@@ -415,10 +415,7 @@ class TransportModelTest(parameterized.TestCase):
             'pedestal_prescribed': {'model_name': 'prescribed', 'chi_i': 0.1}
         },
     }
-    config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-    }
+    config['pedestal'] = {'model_name': 'set_T_ped_n_ped'}
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -478,10 +475,7 @@ class TransportModelTest(parameterized.TestCase):
         },
         'chi_min': 1.0,
     }
-    config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-    }
+    config['pedestal'] = {'model_name': 'set_T_ped_n_ped'}
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -606,7 +600,6 @@ class TransportModelTest(parameterized.TestCase):
     }
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
@@ -1027,10 +1020,6 @@ class TransportModelTest(parameterized.TestCase):
 
     runtime_params = mock.Mock()
     runtime_params.transport = combined_params
-    runtime_params.pedestal.set_pedestal = False
-    runtime_params.pedestal.use_formation_model_with_internal_boundary_condition = (
-        False
-    )
     runtime_params.pedestal.mode = (
         pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
     )

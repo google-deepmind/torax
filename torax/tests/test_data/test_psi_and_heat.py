@@ -45,7 +45,6 @@ CONFIG = {
     },
     'pedestal': {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
     },
     'transport': {
         'core_transport_models': {

@@ -54,7 +54,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_P_ped_n_ped',
-        'set_pedestal': True,
         'n_e_ped': n_e_ped,
         'n_e_ped_is_fGW': n_e_ped_is_fGW,
         'rho_norm_ped_top': rho_norm_ped_top,
@@ -131,7 +130,6 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_P_ped_n_ped',
-        'set_pedestal': True,
         'n_e_ped': 0.7e20,
         'n_e_ped_is_fGW': False,
         'rho_norm_ped_top': 0.91,

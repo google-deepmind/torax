@@ -38,7 +38,6 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     # Switch to use the PowerScaling formation model.
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
         'mode': 'ADAPTIVE_TRANSPORT',
         # Individual tests will override the model name.
         'formation_model': {'model_name': 'martin_scaling'},

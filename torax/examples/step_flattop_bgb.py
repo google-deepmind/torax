@@ -105,7 +105,6 @@ CONFIG = {
     },
     "pedestal": {
         "model_name": "set_T_ped_n_ped",
-        "set_pedestal": True,
         "rho_norm_ped_top": 0.95,
         "T_i_ped": 4.0,  # [keV]
         "T_e_ped": 5.0,  # [keV]

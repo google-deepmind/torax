@@ -41,7 +41,6 @@ class RegisterPedestalModelTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'fixed_pedestal',
-        'set_pedestal': True,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     pedestal_model = torax_config.pedestal.build_pedestal_model()

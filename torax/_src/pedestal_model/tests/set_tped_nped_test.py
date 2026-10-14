@@ -55,7 +55,6 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
         'T_i_ped': T_i_ped,
         'T_e_ped': T_e_ped,
         'rho_norm_ped_top': rho_norm_ped_top,

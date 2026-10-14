@@ -22,7 +22,6 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['pedestal'] = {
     'model_name': 'set_P_ped_n_ped',
-    'set_pedestal': True,
     'T_i_T_e_ratio': 1.0,
     'P_ped': 89300.0,
     'n_e_ped': 0.62e20,

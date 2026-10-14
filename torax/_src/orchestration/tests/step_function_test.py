@@ -379,7 +379,7 @@ class StepFunctionTest(parameterized.TestCase):
     ) = run_simulation.prepare_simulation(cfg)
     params_provider = step_fn.runtime_params_provider
 
-    # Run a step with overriden Ip.
+    # Run a step with overridden Ip.
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=params_provider.profile_conditions.Ip.value * 2.0  # pyrefly: ignore[bad-argument-type]
     )

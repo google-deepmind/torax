@@ -229,9 +229,7 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
-        'use_formation_model_with_internal_boundary_condition': True,
         'formation_model': {'model_name': 'martin_scaling'},
         'P_LH_hysteresis_factor': _HYSTERESIS,
         'transition_time_width': _TRANSITION_WIDTH,
@@ -680,7 +678,6 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
         'mode': 'ADAPTIVE_TRANSPORT',
         'formation_model': {'model_name': 'martin_scaling'},
         'P_LH_hysteresis_factor': _HYSTERESIS,

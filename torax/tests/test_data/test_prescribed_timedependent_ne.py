@@ -23,7 +23,6 @@ CONFIG = {
     'pedestal': {
         'explicit_pedestal': False,
         'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
         'T_i_ped': {0: 2, 4: 2, 6: 5, 8: 4},
         'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
