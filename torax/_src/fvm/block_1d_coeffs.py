@@ -24,6 +24,7 @@ import dataclasses
 from typing import Any, TypeAlias
 
 import jax
+from torax._src import array_typing
 
 # An optional argument, consisting of a 2D matrix of nested tuples, with each
 # leaf being either None or a JAX Array. Used to define block matrices.
@@ -99,12 +100,12 @@ class Block1DCoeffs:
       (num_cells, num_channels) with target values in solver-scaled units for
       constrained entries. None if no internal boundary conditions.
   """
-  transient_in_cell: tuple[jax.Array, ...]
-  transient_out_cell: tuple[jax.Array, ...] | None = None
-  d_face: tuple[jax.Array, ...] | None = None
-  v_face: tuple[jax.Array, ...] | None = None
-  d_pereverzev_face: tuple[jax.Array, ...] | None = None
-  v_pereverzev_face: tuple[jax.Array, ...] | None = None
+  transient_in_cell: tuple[array_typing.FloatVectorCell, ...]
+  transient_out_cell: tuple[array_typing.FloatVectorCell, ...] | None = None
+  d_face: tuple[array_typing.FloatVectorFace, ...] | None = None
+  v_face: tuple[array_typing.FloatVectorFace, ...] | None = None
+  d_pereverzev_face: tuple[array_typing.FloatVectorFace, ...] | None = None
+  v_pereverzev_face: tuple[array_typing.FloatVectorFace, ...] | None = None
   source_mat_cell: OptionalTupleMatrix = None
   source_cell: tuple[jax.Array | None, ...] | None = None
   internal_boundary_condition_mask: jax.Array | None = None

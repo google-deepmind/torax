@@ -15,7 +15,6 @@
 """Calculates Block1DCoeffs for a time step."""
 
 import dataclasses
-from typing import Self
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -55,7 +54,9 @@ class CoeffsCallback:
         self.evolving_names,
     ))
 
-  def __eq__(self, other: Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: object) -> bool:
+    if not isinstance(other, type(self)):
+      return False
     return (
         self.models == other.models
         and self.evolving_names == other.evolving_names
@@ -461,16 +462,20 @@ def _calc_coeffs_full(
 
   # Add effective Phi_b_dot terms
   # Heat equations
-  d_vpr53_rhon_n_e_drhon = jnp.gradient(
-      geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_e.value,
-      geo.rho_norm,
+  d_vpr53_rhon_n_e_drhon = jnp.asarray(
+      jnp.gradient(
+          geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_e.value,
+          geo.rho_norm,
+      )
   )
-  d_vpr53_rhon_n_i_drhon = jnp.gradient(
-      geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_i.value,
-      geo.rho_norm,
+  d_vpr53_rhon_n_i_drhon = jnp.asarray(
+      jnp.gradient(
+          geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_i.value,
+          geo.rho_norm,
+      )
   )
   source_i += (
-      3.0  # pyrefly: ignore[unsupported-operation]
+      3.0
       / 4.0
       * geo.vpr ** (-2.0 / 3.0)
       * d_vpr53_rhon_n_i_drhon
@@ -480,7 +485,7 @@ def _calc_coeffs_full(
       * consts.keV_to_J
   )
   source_e += (
-      3.0  # pyrefly: ignore[unsupported-operation]
+      3.0
       / 4.0
       * geo.vpr ** (-2.0 / 3.0)
       * d_vpr53_rhon_n_e_drhon
@@ -491,9 +496,11 @@ def _calc_coeffs_full(
   )
 
   # Particle equations
-  d_vpr_rhon_drhon = jnp.gradient(geo.vpr * geo.rho_norm, geo.rho_norm)
+  d_vpr_rhon_drhon = jnp.asarray(
+      jnp.gradient(geo.vpr * geo.rho_norm, geo.rho_norm)
+  )
   source_n_e += (
-      1.0  # pyrefly: ignore[unsupported-operation]
+      1.0
       / 2.0
       * d_vpr_rhon_drhon
       * geo.Phi_b_dot
@@ -545,7 +552,7 @@ def _calc_coeffs_full(
       'psi': v_face_psi,
       'n_e': full_v_face_el,
   }
-  v_face = tuple(var_to_v_face.get(var) for var in evolving_names)
+  v_face = tuple(var_to_v_face[var] for var in evolving_names)
 
   # d maps (row var, col var) to the coefficient for that block of the matrix
   # (Can't use a descriptive name or the nested comprehension to build the
@@ -582,10 +589,10 @@ def _calc_coeffs_full(
   )
 
   coeffs = block_1d_coeffs.Block1DCoeffs(
-      transient_out_cell=transient_out_cell,  # pyrefly: ignore[bad-argument-type]
-      transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
-      d_face=d_face,  # pyrefly: ignore[bad-argument-type]
-      v_face=v_face,  # pyrefly: ignore[bad-argument-type]
+      transient_out_cell=transient_out_cell,
+      transient_in_cell=transient_in_cell,
+      d_face=d_face,
+      v_face=v_face,
       d_pereverzev_face=d_pereverzev_face,
       v_pereverzev_face=v_pereverzev_face,
       source_mat_cell=source_mat_cell,
@@ -626,6 +633,6 @@ def _calc_coeffs_reduced(
   transient_in_cell = tuple(var_to_tic[var] for var in evolving_names)
 
   coeffs = block_1d_coeffs.Block1DCoeffs(
-      transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
+      transient_in_cell=transient_in_cell,
   )
   return coeffs

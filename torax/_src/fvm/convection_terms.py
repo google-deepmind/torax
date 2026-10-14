@@ -20,6 +20,7 @@ Builds the convection terms of the discrete matrix equation.
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import tridiagonal
 from torax._src.fvm import cell_variable
@@ -71,8 +72,8 @@ def _peclet_to_alpha(p):
 
 # TODO(b/469726859): Once non-uniform grid is supported add in testing.
 def make_convection_terms(
-    v_face: jax.Array,
-    d_face: jax.Array,
+    v_face: array_typing.FloatVectorFace,
+    d_face: array_typing.FloatVectorFace,
     var: cell_variable.CellVariable,
 ) -> tuple[tridiagonal.TriDiagonal, jax.Array]:
   """Makes the terms of the matrix equation derived from the convection term.

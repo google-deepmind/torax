@@ -41,8 +41,8 @@ Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
 
 def _make_pereverzev_terms(
-    d_pereverzev_face: jax.Array,
-    v_pereverzev_face: jax.Array,
+    d_pereverzev_face: array_typing.FloatVectorFace,
+    v_pereverzev_face: array_typing.FloatVectorFace,
     var: cell_variable.CellVariable,
 ) -> tuple[tridiagonal.TriDiagonal, array_typing.FloatVectorCell]:
   """Makes the Pereverzev-Corrigan diffusion and counter-convection terms."""
