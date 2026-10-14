@@ -113,6 +113,32 @@ def _make_transition_state(
   )
 
 
+def _build_smoothing_matrix_for_n_rho(
+    n_rho: int,
+) -> tuple[array_typing.Array, array_typing.Array]:
+  """Returns the transport smoothing matrix and face grid for a circular geo."""
+  config = default_configs.get_default_config_dict()
+  config['geometry'] = {'geometry_type': 'circular', 'n_rho': n_rho}
+  config['transport'] = {
+      'smoothing_width': 0.1,
+      'core_transport_models': {
+          'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
+      },
+  }
+  torax_config = model_config.ToraxConfig.from_dict(config)
+  runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+      torax_config
+  )(t=torax_config.numerics.t_initial)
+  geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
+  matrix = transport_model._build_smoothing_matrix(
+      runtime_params.transport,
+      runtime_params,
+      geo,
+      _make_transition_state(rho_norm_ped_top=1.0),
+  )
+  return matrix, geo.rho_face_norm
+
+
 class TransportMaskingTest(parameterized.TestCase):
   """Tests for output masking in transport models."""
 
@@ -1125,6 +1151,40 @@ class TransportModelTest(parameterized.TestCase):
             active_coeffs.pedestal.chi_face_ion,
             np.where(ped_mask, 0.5, 0.0),
         )
+
+  @parameterized.parameters(50, 200, 500)
+  def test_build_smoothing_matrix_fine_grid_is_finite_and_normalized(
+      self, n_rho: int
+  ):
+    matrix, _ = _build_smoothing_matrix_for_n_rho(n_rho)
+    with self.subTest('no_nan'):
+      self.assertFalse(np.any(np.isnan(matrix)))
+    with self.subTest('rows_normalized'):
+      np.testing.assert_allclose(np.sum(matrix, axis=1), 1.0, atol=1e-6)
+
+  @parameterized.named_parameters(
+      dict(testcase_name='n_rho_200', n_rho=200, atol=2e-3),
+      dict(testcase_name='n_rho_50', n_rho=50, atol=1e-2),
+  )
+  def test_build_smoothing_matrix_resolution_invariant(
+      self, n_rho: int, atol: float
+  ):
+    rho_common = np.linspace(0.0, 1.0, 201)
+
+    def _smoothed_on_common_grid(n: int) -> np.ndarray:
+      matrix, rho_face_norm = _build_smoothing_matrix_for_n_rho(n)
+      smooth_profile = 1.0 + 4.0 * jnp.exp(
+          -((rho_face_norm - 0.5) / 0.15) ** 2
+      )
+      return np.interp(
+          rho_common, rho_face_norm, jnp.dot(matrix, smooth_profile)
+      )
+
+    np.testing.assert_allclose(
+        _smoothed_on_common_grid(n_rho),
+        _smoothed_on_common_grid(500),
+        atol=atol,
+    )
 
 
 if __name__ == '__main__':

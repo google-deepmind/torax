@@ -378,11 +378,15 @@ def _build_smoothing_matrix_from_profile(
   # used for eps, small number to avoid divisions by zero for sigma = 0
   consts = constants.CONSTANTS
 
-  # 2. Kernel matrix with variable width (sigma_i for each destination row i)
+  # 1. Kernel matrix with variable width (sigma_i for each destination row i)
   r_diff = geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm
   sigma = smoothing_width_profile[:, jnp.newaxis]
 
   kernel = jnp.exp(-jnp.log(2) * r_diff**2 / (sigma**2 + consts.eps))
+
+  # 2. Clip kernel before applying normalization. Ensures convolution width is
+  # invariant to grid resolution.
+  kernel = jnp.where(kernel < lower_cutoff, 0.0, kernel)
 
   # 3. Dynamic active mask derivation (sigma > threshold)
   # Derives a binary active mask vector directly from smoothing_width_profile.
@@ -398,13 +402,6 @@ def _build_smoothing_matrix_from_profile(
   )
 
   # 4. Normalization
-  row_sums = jnp.sum(kernel, axis=1, keepdims=True)
-  kernel = kernel / row_sums
-
-  # 5. Remove small numbers
-  kernel = jnp.where(kernel < lower_cutoff, 0.0, kernel)
-
-  # 6. Final Normalization following removal of small numbers
   row_sums = jnp.sum(kernel, axis=1, keepdims=True)
   kernel = kernel / row_sums
 
