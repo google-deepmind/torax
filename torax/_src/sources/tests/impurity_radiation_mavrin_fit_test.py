@@ -38,7 +38,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   source_name = (
       impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID
   )
-  model_name = impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME
+  model_name = 'mavrin_fit'
 
   def _run_source_model(self, torax_config: model_config.ToraxConfig):
     """Helper to run the impurity radiation model for a given config."""

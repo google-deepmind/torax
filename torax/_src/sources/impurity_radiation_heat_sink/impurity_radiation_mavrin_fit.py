@@ -33,11 +33,6 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
-# Default value for the model function to be used for the impurity radiation
-# source. This is also used as an identifier for the model function in
-# the source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'mavrin_fit'
-
 
 @jax.jit(
     static_argnames=[

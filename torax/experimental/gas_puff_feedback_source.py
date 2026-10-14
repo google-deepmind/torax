@@ -25,8 +25,8 @@ import torax
 from torax.experimental import gas_puff_feedback_source
 from torax._src.sources import register_model
 
-register_model.register_source_model_config(
-    gas_puff_feedback_source.GasPuffFeedbackSourceConfig, 'gas_puff'
+register_model.register_source_config(
+    gas_puff_feedback_source.GasPuffFeedbackSourceConfig
 )
 ```
 """

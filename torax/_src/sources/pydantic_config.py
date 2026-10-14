@@ -184,24 +184,15 @@ class Sources(torax_pydantic.BaseModelFrozen):
 
   def build_models(self) -> source_models.SourceModels:
     """Builds and returns a container with instantiated source model objects."""
-    standard_sources = {}
-    for k, v in dict(self).items():
-      # ei_exchange is handled separately above.
-      if k == 'ei_exchange':
-        continue
-      else:
-        if v is not None:
-          source = v.build_source()
-          if k in standard_sources:
-            raise ValueError(
-                f'Trying to add another source with the same name: {k}.'
-            )
-          standard_sources[k] = source
-    qei_source_model = self.ei_exchange.build_source()
+    standard_sources = {
+        k: v.build_source()
+        for k, v in self.source_model_config.items()
+        if k != 'ei_exchange'
+    }
     # Qei is a special source that is not in standard_sources.
     # It has its own attribute in SourceModels.
     return source_models.SourceModels(
-        qei_source=qei_source_model,
+        qei_source=self.ei_exchange.build_source(),
         standard_sources=immutabledict.immutabledict(standard_sources),
     )
 
