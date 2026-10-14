@@ -23,6 +23,8 @@ from torax._src.geometry import geometry
 from torax._src.geometry import get_example_L_LY_data
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.torax_pydantic import interpolated_param_2d
 
 # pylint: disable=invalid-name
@@ -335,6 +337,100 @@ class GeometryTest(parameterized.TestCase):
     trimmed = ratio[3:]
     np.testing.assert_array_less(trimmed, 1.0 + 1e-10)
     np.testing.assert_array_less(0.5, trimmed)
+
+  def test_to_output_dict(self):
+    # Test with optional scalars present
+    inter0 = self._make_intermediates(
+        connection_length_target=np.array(10.0),
+        connection_length_divertor=np.array(5.0),
+        angle_of_incidence_target=np.array(1.5),
+        R_OMP=np.array(6.5),
+        R_target=np.array(5.5),
+        B_pol_OMP=np.array(0.8),
+        diverted=np.array(True),
+    )
+    inter1 = self._make_intermediates(
+        connection_length_target=np.array(12.0),
+        connection_length_divertor=np.array(6.0),
+        angle_of_incidence_target=np.array(1.8),
+        R_OMP=np.array(6.6),
+        R_target=np.array(5.6),
+        B_pol_OMP=np.array(0.9),
+        diverted=np.array(True),
+    )
+    geo0 = standard_geometry.build_standard_geometry(inter0)
+    geo1 = standard_geometry.build_standard_geometry(inter1)
+    stacked_geo = geometry.stack_geometries([geo0, geo1])
+
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=stacked_geo.rho_face_norm,
+        rho_cell_norm=stacked_geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], stacked_geo.rho_norm, [1.0]]
+        ),
+    )
+
+    out = stacked_geo.to_output_dict(context)
+
+    # StandardGeometry profiles
+    self.assertIn(output_keys.IP_PROFILE_FROM_GEO, out)
+    dims, _, attrs = out[output_keys.IP_PROFILE_FROM_GEO]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.AMPERE})
+
+    self.assertIn(output_keys.PSI_FROM_GEO, out)
+    dims, _, attrs = out[output_keys.PSI_FROM_GEO]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_CELL_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.WEBER})
+
+    self.assertIn(output_keys.PSI_FROM_IP, out)
+    dims, _, attrs = out[output_keys.PSI_FROM_IP]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.WEBER})
+
+    self.assertIn(output_keys.DELTA_UPPER, out)
+    dims, _, attrs = out[output_keys.DELTA_UPPER]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.DIMENSIONLESS})
+
+    self.assertIn(output_keys.DELTA_LOWER, out)
+    dims, _, attrs = out[output_keys.DELTA_LOWER]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.DIMENSIONLESS})
+
+    # Optional scalars present
+    optional_keys = [
+        (output_keys.CONNECTION_LENGTH_TARGET, output_keys.Units.METER),
+        (output_keys.CONNECTION_LENGTH_DIVERTOR, output_keys.Units.METER),
+        (output_keys.ANGLE_OF_INCIDENCE_TARGET, output_keys.Units.DEGREE),
+        (output_keys.R_OMP, output_keys.Units.METER),
+        (output_keys.R_TARGET, output_keys.Units.METER),
+        (output_keys.B_POL_OMP, output_keys.Units.TESLA),
+    ]
+    for key, expected_unit in optional_keys:
+      self.assertIn(key, out)
+      dims, _, attrs = out[key]
+      self.assertEqual(dims, (output_keys.TIME,))
+      self.assertEqual(attrs, {'units': expected_unit})
+
+    self.assertIn(output_keys.DIVERTED, out)
+    dims, _, attrs = out[output_keys.DIVERTED]
+    self.assertEqual(dims, (output_keys.TIME,))
+    self.assertEqual(attrs, {})
+
+    # Test with optional scalars None
+    inter_none0 = self._make_intermediates()
+    inter_none1 = self._make_intermediates()
+    geo_none0 = standard_geometry.build_standard_geometry(inter_none0)
+    geo_none1 = standard_geometry.build_standard_geometry(inter_none1)
+    stacked_geo_none = geometry.stack_geometries([geo_none0, geo_none1])
+    out_none = stacked_geo_none.to_output_dict(context)
+
+    for key, _ in optional_keys:
+      self.assertNotIn(key, out_none)
+    self.assertNotIn(output_keys.DIVERTED, out_none)
 
 
 if __name__ == '__main__':

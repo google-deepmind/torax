@@ -568,12 +568,6 @@ properties and characteristics, as well as scalar edge geometry quantities.
   Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
   set in the `numerics` config.
 
-``drho`` (time)
-  Radial grid spacing in the unnormalized rho coordinate [:math:`m`].
-
-``drho_norm`` ()
-  Radial grid spacing in the normalized rho coordinate [dimensionless].
-
 ``E_aux_total`` (time)
   Total (ion + electron) cumulative (integrated over time) auxiliary energy
     absorbed by the plasma. Corresponds to external heating sources like NBI,

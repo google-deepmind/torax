@@ -32,6 +32,8 @@ from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -109,6 +111,42 @@ class StandardGeometry(geometry.Geometry):
   R_target: array_typing.FloatScalar | None
   B_pol_OMP: array_typing.FloatScalar | None
   diverted: array_typing.BoolScalar | None
+
+  def to_output_dict(
+      self, context: output_grid_context.OutputGridContext
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Serializes stacked StandardGeometry into a flat dictionary of OutputVar tuples."""
+    output_dict = super().to_output_dict(context)
+    vars_to_pack: dict[output_keys.OutputKey, chex.Numeric] = {
+        output_keys.IP_PROFILE_FROM_GEO: self.Ip_profile_face,
+        output_keys.PSI_FROM_GEO: self.psi,
+        output_keys.PSI_FROM_IP: (
+            output_grid_context.extend_cell_grid_to_boundaries(
+                self.psi_from_Ip, self.psi_from_Ip_face
+            )
+        ),
+        output_keys.DELTA_UPPER: self.delta_upper_face,
+        output_keys.DELTA_LOWER: self.delta_lower_face,
+    }
+    optional_scalars = (
+        (output_keys.CONNECTION_LENGTH_TARGET, self.connection_length_target),
+        (
+            output_keys.CONNECTION_LENGTH_DIVERTOR,
+            self.connection_length_divertor,
+        ),
+        (output_keys.ANGLE_OF_INCIDENCE_TARGET, self.angle_of_incidence_target),
+        (output_keys.R_OMP, self.R_OMP),
+        (output_keys.R_TARGET, self.R_target),
+        (output_keys.B_POL_OMP, self.B_pol_OMP),
+        (output_keys.DIVERTED, self.diverted),
+    )
+    for key, value in optional_scalars:
+      if value is not None:
+        vars_to_pack[key] = value
+
+    for key, val in vars_to_pack.items():
+      output_dict[key] = context.pack(key, val)
+    return output_dict
 
 
 @jax.tree_util.register_dataclass

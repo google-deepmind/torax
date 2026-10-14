@@ -16,7 +16,6 @@
 
 from collections.abc import Hashable, Sequence
 import dataclasses
-import inspect
 import itertools
 
 import os
@@ -513,88 +512,9 @@ class StateHistory:
 
   def _save_geometry(
       self,
-  ) -> dict[str, xr.DataArray]:
-    """Save geometry to a dict. We skip over hires and non-array quantities."""
-    xr_dict = {}
-    geometry_attributes = dataclasses.asdict(self._stacked_geometry)
-
-    # Get the variables from dataclass fields.
-    for field_name, data in geometry_attributes.items():
-      if (
-          "hires" in field_name
-          or (
-              field_name.endswith("_face")
-              and field_name.removesuffix("_face") in geometry_attributes
-          )
-          or field_name in _EXCLUDED_GEOMETRY_FIELDS
-          or not isinstance(data, array_typing.Array)
-      ):
-        continue
-      if f"{field_name}_face" in geometry_attributes:
-        data = extend_cell_grid_to_boundaries(
-            data, geometry_attributes[f"{field_name}_face"]
-        )
-      # Remap to avoid outputting _face suffix in output.
-      if field_name.endswith("_face"):
-        field_name = field_name.removesuffix("_face")
-      if field_name == "Ip_profile":
-        # Ip_profile exists in core profiles so rename to avoid duplicate.
-        field_name = output_keys.IP_PROFILE_FROM_GEO
-      if field_name == "psi":
-        # Psi also exists in core profiles so rename to avoid duplicate.
-        field_name = output_keys.PSI_FROM_GEO
-      if field_name == "_z_magnetic_axis":
-        # This logic only reached if not None. Avoid leading underscore.
-        field_name = output_keys.Z_MAGNETIC_AXIS
-      data_array = self._pack_into_data_array(
-          field_name,
-          data,
-      )
-      if data_array is not None:
-        xr_dict[field_name] = data_array
-
-    # Get variables from property methods
-    geometry_properties = inspect.getmembers(type(self._stacked_geometry))
-    property_names = set([name for name, _ in geometry_properties])
-
-    for name, value in geometry_properties:
-      # Skip over saving any variables that are named *_face.
-      if (
-          name.endswith("_face")
-          and name.removesuffix("_face") in property_names
-      ):
-        continue
-      if name in _EXCLUDED_GEOMETRY_PROPERTIES:
-        continue
-      if isinstance(value, property):
-        property_data = value.fget(self._stacked_geometry)  # pyrefly: ignore[not-callable]
-        # TODO(b/434175938): Remove this once we move to V2.
-        if name == "drho":
-          is_uniform = np.all(
-              np.isclose(property_data[:, 0][..., None], property_data)
-          )
-          if is_uniform:
-            property_data = property_data[:, 0]
-        elif name == "drho_norm":
-          is_uniform = all(np.isclose(property_data, property_data[0]))
-          if is_uniform:
-            property_data = property_data[0]
-        # Check if there is a corresponding face variable for this property.
-        # If so, extend the data to the cell+boundaries grid.
-        if f"{name}_face" in property_names:
-          face_data = getattr(self._stacked_geometry, f"{name}_face")
-          property_data = extend_cell_grid_to_boundaries(
-              property_data, face_data
-          )
-        # Remap to avoid outputting _face suffix in output. Done only for
-        # _face variables with no corresponding non-face variable.
-        if name.endswith("_face"):
-          name = name.removesuffix("_face")
-        data_array = self._pack_into_data_array(name, property_data)
-        if data_array is not None:
-          xr_dict[name] = data_array
-
-    return xr_dict
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Saves the geometry to a dict."""
+    return self._stacked_geometry.to_output_dict(self._output_grid_context)
 
   def _save_edge_outputs(self) -> xr.DataTree:
     """Saves the edge outputs to a DataTree."""

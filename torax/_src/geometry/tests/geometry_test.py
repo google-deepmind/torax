@@ -21,6 +21,8 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 
 
 class GeometryTest(parameterized.TestCase):
@@ -201,6 +203,95 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(
         geometry.increase_grid_resolution(arr, factor), expected_arr
     )
+
+  def test_to_output_dict(self):
+    geo0 = circular_geometry.CircularConfig(
+        a_minor=0.5, R_major=1.0, B_0=2.0, n_rho=10
+    ).build_geometry()
+    geo1 = circular_geometry.CircularConfig(
+        a_minor=0.5, R_major=1.5, B_0=2.5, n_rho=10
+    ).build_geometry()
+    stacked_geo = geometry.stack_geometries([geo0, geo1])
+
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=stacked_geo.rho_face_norm,
+        rho_cell_norm=stacked_geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], stacked_geo.rho_norm, [1.0]]
+        ),
+    )
+
+    out = stacked_geo.to_output_dict(context)
+
+    # Extended cell+boundaries profiles (time, rho_norm)
+    extended_profile_keys = [
+        output_keys.PHI,
+        output_keys.VOLUME,
+        output_keys.AREA,
+        output_keys.VPR,
+        output_keys.SPR,
+        output_keys.ELONGATION,
+        output_keys.G0,
+        output_keys.G1,
+        output_keys.G2,
+        output_keys.G3,
+        output_keys.GM4,
+        output_keys.GM5,
+        output_keys.G2G3_OVER_RHON,
+        output_keys.TFF,
+        output_keys.R_IN,
+        output_keys.R_OUT,
+        output_keys.R_MID,
+        output_keys.EPSILON,
+        output_keys.G1_OVER_VPR,
+        output_keys.G1_OVER_VPR2,
+        output_keys.GM9,
+        output_keys.R_MAJOR_PROFILE,
+    ]
+    for key in extended_profile_keys:
+      self.assertIn(key, out)
+      dims, arr, _ = out[key]
+      self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_NORM))
+      self.assertEqual(arr.shape, (2, 12))  # 10 cells + 2 boundaries = 12
+
+    # Face profiles (time, rho_face_norm)
+    face_profile_keys = [
+        output_keys.DELTA,
+        output_keys.TRAPPED_FRACTION,
+        output_keys.G0_OVER_VPR,
+    ]
+    for key in face_profile_keys:
+      self.assertIn(key, out)
+      dims, arr, _ = out[key]
+      self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+      self.assertEqual(arr.shape, (2, 11))  # 10 cells + 1 = 11 faces
+
+    # Scalars (time,)
+    scalar_keys = [
+        output_keys.R_MAJOR,
+        output_keys.A_MINOR,
+        output_keys.B_0,
+        output_keys.PHI_B_DOT,
+        output_keys.RHO_B,
+        output_keys.PHI_B,
+    ]
+    for key in scalar_keys:
+      self.assertIn(key, out)
+      dims, arr, _ = out[key]
+      self.assertEqual(dims, (output_keys.TIME,))
+      self.assertEqual(arr.shape, (2,))
+
+    # z_magnetic_axis present vs None
+    self.assertIn(output_keys.Z_MAGNETIC_AXIS, out)
+    dims, _, _ = out[output_keys.Z_MAGNETIC_AXIS]
+    self.assertEqual(dims, (output_keys.TIME,))
+
+    # Test with z_magnetic_axis = None
+    geo_none_z = dataclasses.replace(stacked_geo, _z_magnetic_axis=None)
+    out_none_z = geo_none_z.to_output_dict(context)
+    self.assertNotIn(output_keys.Z_MAGNETIC_AXIS, out_none_z)
 
 
 def _pint_face_to_cell(n_rho, face):

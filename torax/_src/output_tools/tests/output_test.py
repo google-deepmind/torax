@@ -915,6 +915,7 @@ class StateHistoryTest(parameterized.TestCase):
         output_keys.OUTER_SOLVER_ITERATIONS,
         output_keys.INNER_SOLVER_ITERATIONS,
         output_keys.SAWTOOTH_CRASH,
+        output_keys.DIVERTED,
         extended_lengyel_standalone.SOLVER_PHYSICS_OUTCOME,
         extended_lengyel_standalone.SOLVER_ITERATIONS,
         extended_lengyel_standalone.SOLVER_RESIDUAL,

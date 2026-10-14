@@ -64,6 +64,7 @@ class Units(enum.StrEnum):
   KEV = "keV"
   EV = "eV"
   AMU = "amu"
+  DEGREE = "deg"
   # Composite / derived.
   INVERSE_METER = "m^-1"
   SQUARE_METER = "m^2"
@@ -987,11 +988,32 @@ PHI_B_DOT: Final[OutputKey] = OutputKey(
 RHO_B: Final[OutputKey] = OutputKey(
     "rho_b", units=Units.METER, grid_type=GridType.SCALAR
 )
-DRHO: Final[OutputKey] = OutputKey(
-    "drho", units=Units.METER, grid_type=GridType.SCALAR
+CONNECTION_LENGTH_TARGET: Final[OutputKey] = OutputKey(
+    "connection_length_target",
+    units=Units.METER,
+    grid_type=GridType.SCALAR,
 )
-DRHO_NORM: Final[OutputKey] = OutputKey(
-    "drho_norm", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+CONNECTION_LENGTH_DIVERTOR: Final[OutputKey] = OutputKey(
+    "connection_length_divertor",
+    units=Units.METER,
+    grid_type=GridType.SCALAR,
+)
+ANGLE_OF_INCIDENCE_TARGET: Final[OutputKey] = OutputKey(
+    "angle_of_incidence_target",
+    units=Units.DEGREE,
+    grid_type=GridType.SCALAR,
+)
+R_OMP: Final[OutputKey] = OutputKey(
+    "R_OMP", units=Units.METER, grid_type=GridType.SCALAR
+)
+R_TARGET: Final[OutputKey] = OutputKey(
+    "R_target", units=Units.METER, grid_type=GridType.SCALAR
+)
+B_POL_OMP: Final[OutputKey] = OutputKey(
+    "B_pol_OMP", units=Units.TESLA, grid_type=GridType.SCALAR
+)
+DIVERTED: Final[OutputKey] = OutputKey(
+    "diverted", units=Units.NOT_APPLICABLE, grid_type=GridType.SCALAR
 )
 
 # ---------------------------------------------------------------------------
