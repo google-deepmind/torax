@@ -911,19 +911,12 @@ pedestal
 --------
 In TORAX we aim to support different models for computing the pedestal width,
 and electron density, ion temperature and electron temperature at the pedestal
-top. These models will only be used if the ``set_pedestal`` flag is set to True.
+top.
 
 ``model_name`` (str [default = 'no_pedestal'])
   The model can be configured by setting the ``model_name`` key in the
   ``pedestal`` section of the configuration. If this field is not set, then
   the default model is ``no_pedestal``.
-
-``set_pedestal`` (**time-varying-scalar** [default = False])
-  If True use the configured pedestal model to set internal boundary conditions.
-  Do not set internal boundary conditions if False. Internal boundary conditions
-  are set using an adaptive localized source term. While a common use-case is to
-  mock up a pedestal, this feature can also be used for L-mode modeling with a
-  desired internal boundary condition below :math:`\hat{\rho}=1`.
 
 ``mode`` (str [default = 'INTERNAL_BOUNDARY_CONDITION'])
   Defines how the pedestal is generated. Options:
@@ -931,28 +924,21 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   * ``'INTERNAL_BOUNDARY_CONDITION'``: Sets the pedestal top value by directly
     modifying the state equations to set Dirichlet internal boundary
     conditions at a cell grid point corresponding to the pedestal top, or for a
-    profile (see ``pedestal_profile_form``). This is the default mode whenever
-    ``set_pedestal`` is True.
+    profile (see ``pedestal_profile_form``). This is the default mode.
   * ``'ADAPTIVE_TRANSPORT'``: Sets the pedestal by modifying the transport
     coefficients in the pedestal region, allowing the pedestal to
     self-consistently evolve. Transport coefficients are scaled to allow the
     temperature and density to evolve towards the prescribed pedestal values.
 
-``use_formation_model_with_internal_boundary_condition`` (bool [default = False])
-  Only applicable when ``mode`` is ``'INTERNAL_BOUNDARY_CONDITION'``. When True, enables
-  state-dependent L-H and H-L transitions based on comparison of the power
-  crossing the separatrix (:math:`P_{SOL}`) with the L-H power threshold
-  (:math:`P_{LH}`), as determined by the formation model. Pedestal values are
-  ramped over the ``transition_time_width`` during transitions. When False,
-  ``INTERNAL_BOUNDARY_CONDITION`` mode always applies the prescribed pedestal values
-  (legacy behavior). Raises an error if set to True when ``mode`` is not
-  ``'INTERNAL_BOUNDARY_CONDITION'``.
-
-``transition_time_width`` (**time-varying-scalar** [default = 0.5])
-  Duration of the L-H or H-L transition ramp in seconds. During a transition,
-  pedestal values are linearly interpolated between L-mode baseline values
-  and H-mode target values over this time window. Must be strictly positive.
-  Only used when ``use_formation_model_with_internal_boundary_condition`` is True.
+``transition_time_width`` (**time-varying-scalar** [default = 0.0])
+  Duration of the L-H or H-L transition ramp in seconds for
+  ``'INTERNAL_BOUNDARY_CONDITION'`` mode. During a transition, pedestal values
+  are linearly interpolated between L-mode baseline values and H-mode target
+  values over this time window. Must be non-negative. Defaults to ``0.0``
+  (immediate step transition) for ``'prescribed'`` formation, and must be
+  explicitly specified when using a power-scaling formation model
+  (``'martin_scaling'`` or ``'delabie_scaling'``) in
+  ``'INTERNAL_BOUNDARY_CONDITION'`` mode.
 
 ``P_LH_hysteresis_factor`` (**time-varying-scalar** [default = 0.8])
   Hysteresis factor for H-to-L back transitions. When checking for an H-L
@@ -961,8 +947,7 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   :math:`P_{SOL} < P_{LH} \times` ``P_LH_hysteresis_factor``. A value less
   than 1 means the plasma must lose more power to transition back to L-mode
   than was required to enter H-mode, consistent with experimentally observed
-  hysteresis. Must be in [0, 1]. Currently, only used when
-  ``use_formation_model_with_internal_boundary_condition`` is True.
+  hysteresis. Must be in [0, 1].
 
 ``include_dW_dt_in_P_SOL`` (**bool** [default = False])
   Whether to include the :math:`dW/dt` term in the :math:`P_{SOL}` calculation
@@ -1006,21 +991,67 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
      :math:`\psi_{\text{mid}} = 1 - \Delta/2`, and
      :math:`a_0 = (f_{\text{top}} - f_{\text{sep}}) / (\tanh(1) + \tanh(2))`.
 
+``initial_confinement_mode`` (**str | None** [default = ``None``])
+  Optional explicit initial confinement mode (``'L_MODE'`` or ``'H_MODE'``) at
+  :math:`t_{\text{initial}}`. When ``None`` (default), the initial mode is
+  inferred automatically from the formation model's transition conditions at
+  :math:`t_{\text{initial}}` (cannot be ``'H_MODE'`` for ``'no_pedestal'``).
+
+``initial_L_mode_bc_multiplier`` (**float** [default = 2.0])
+  Multiplier applied to the LCFS right-boundary values (:math:`T_i`, :math:`T_e`,
+  :math:`n_e`) at :math:`t_{\text{initial}}` to seed the L-mode pedestal-top
+  baselines when the simulation starts directly in H-mode without prior L-mode
+  profile data. Must be positive.
+
 ``formation_model`` (dict)
   Configuration for the pedestal formation model, which determines when L-H
-  and H-L transitions occur. The ``model_name`` key selects the model:
+  and H-L transitions occur. Defaults to
+  ``{'model_name': 'prescribed',  'pedestal_active': True}`` in
+  ``'INTERNAL_BOUNDARY_CONDITION'`` mode, and must be explicitly
+  specified when ``mode`` is ``'ADAPTIVE_TRANSPORT'``.
+
+  .. note::
+     Transition conditions are evaluated in the pre-step phase at the **start**
+     of each timestep :math:`[t, t + dt]`. A transition condition met at
+     :math:`t_{\text{trans}}` therefore takes effect on the first timestep
+     starting at :math:`t \ge t_{\text{trans}}` (and not during an earlier step
+     that merely crosses :math:`t_{\text{trans}}`).
+
+  The ``model_name`` key selects the model:
+
+  * ``'prescribed'``: Controls pedestal activation via a prescribed boolean
+    schedule rather than a power-threshold scaling law. When
+    ``pedestal_active`` is ``True``, activates the internal boundary condition
+    in ``'INTERNAL_BOUNDARY_CONDITION'`` mode, or applies a constant transport
+    suppression multiplier (``base_multiplier``) in ``'ADAPTIVE_TRANSPORT'``
+    mode (while the saturation model regulates transport once pedestal targets
+    are reached). Additional parameters:
+
+    * ``pedestal_active`` (**time-varying-scalar** [default = True]): Whether
+      the pedestal is active (default interpolation is ``STEP``; evaluated at
+      step start :math:`t`).
+    * ``base_multiplier`` (float [default = 1e-6]): Transport decrease
+      multiplier applied in ``ADAPTIVE_TRANSPORT`` mode when
+      ``pedestal_active`` is True.
 
   * ``'martin_scaling'``: Uses the Martin scaling law to determine the L-H
     power threshold. Additional parameters:
 
-    * ``sharpness`` (float [default = 10.0]): Controls the sharpness of the
+    * ``sharpness`` (float [default = 100.0]): Controls the sharpness of the
       transition sigmoid function.
+    * ``offset`` (float [default = 0.0]): Dimensionless offset applied to the
+      argument of the transition sigmoid function.
+    * ``base_multiplier`` (float [default = 1e-6]): The base value of the
+      transport decrease multiplier in ``ADAPTIVE_TRANSPORT`` mode.
+    * ``P_LH_prefactor`` (float [default = 1.0]): Dimensionless multiplier
+      applied to :math:`P_{LH}`.
 
   * ``'delabie_scaling'``: Uses the Delabie scaling law for the L-H power
-    threshold. Additional parameters:
+    threshold. Accepts the same parameters as ``'martin_scaling'``, plus:
 
-    * ``sharpness`` (float [default = 10.0]): Controls the sharpness of the
-      transition sigmoid function.
+    * ``divertor_configuration`` (str [default = ``'HT'``]): Divertor
+      configuration (``'HT'`` for horizontal target or ``'VT'`` for vertical
+      target).
 
 ``saturation_model`` (dict)
   Configuration for the pedestal saturation model, which determines how the
@@ -1032,8 +1063,8 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
 
     * ``steepness`` (float [default = 100.0]): Controls the steepness of the
       saturation function.
-    * ``offset`` (float [default = 0.0]): Offset for the saturation function.
-    * ``base_multiplier`` (float [default = 0.0]): Base multiplier for the
+    * ``offset`` (float [default = 0.1]): Offset for the saturation function.
+    * ``base_multiplier`` (float [default = 1e6]): Base multiplier for the
       saturation function.
 
 ``pedestal_top_smoothing_width`` (**time-varying-scalar** [default = 0.02])
@@ -1060,8 +1091,7 @@ The following ``model_name`` options are currently supported:
 
 no_pedestal
 ^^^^^^^^^^^
-No pedestal profile is set. This is the default option and the equivalent of
-setting ``set_pedestal`` to False.
+No pedestal profile is set. This is the default option.
 
 set_T_ped_n_ped
 ^^^^^^^^^^^^^^^
@@ -1635,7 +1665,6 @@ Examples:
   },
   'pedestal': {
       'model_name': 'set_T_ped_n_ped',
-      'set_pedestal': True,
       'rho_norm_ped_top': 0.9,
       'n_e_ped': 0.8,
       'n_e_ped_is_fGW': True,
@@ -3168,7 +3197,6 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'pedestal': {
           'model_name': 'set_T_ped_n_ped',
-          'set_pedestal': True,
           'T_i_ped': 1.0,
           'T_e_ped': 1.0,
           'n_e_ped': {0: 0.3, 80: 0.7},
