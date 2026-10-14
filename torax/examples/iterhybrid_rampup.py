@@ -187,7 +187,7 @@ CONFIG = {
     'solver': {
         'solver_type': 'newton_raphson',
         'use_predictor_corrector': True,
-        'n_corrector_steps': 10,
+        'n_corrector_steps': 5,
         # (deliberately) large heat conductivity for Pereverzev rule
         'chi_pereverzev': 30,
         # (deliberately) large particle diffusion for Pereverzev rule
