@@ -33,7 +33,8 @@ from torax._src.transport_model import transport_model as transport_model_lib
     static_argnames=(
         'transport_model',
         'use_pereverzev',
-    )
+    ),
+    inline=jax.Inline.XLA_LATE,
 )
 def calculate_all_transport_coeffs(
     transport_model: transport_model_lib.TransportModel,
