@@ -164,6 +164,39 @@ def calculate_normalized_logarithmic_gradient(
   return result
 
 
+def calculate_d_scaled(
+    particle_flux_SI: array_typing.FloatVectorFace,
+    chi_face_el: array_typing.FloatVectorFace,
+    n_e: cell_variable.CellVariable,
+    geo: geometry.Geometry,
+    two_point_mask: array_typing.BoolVectorFace | None = None,
+) -> tuple[array_typing.FloatVectorFace, array_typing.FloatVectorFace]:
+  """Calculates electron diffusivity and convectivity in scaled-D mode.
+
+  Sets `d_face_el = chi_face_el` and chooses `v_face_el` using `dn_e/drho_norm`
+  so `-d_face_el * dn_e/drho_norm * g1/vpr^2 * rho_b + v_face_el * n_e *
+  g0/vpr * rho_b` matches `particle_flux_SI` in shaped geometries where
+  `dr_mid/drho_norm != rho_b`.
+
+  Args:
+    particle_flux_SI: Electron particle flux in SI units [m^-2 s^-1].
+    chi_face_el: Electron heat diffusivity on faces [m^2/s].
+    n_e: Electron density CellVariable [m^-3].
+    geo: Torus geometry.
+    two_point_mask: Optional boolean mask for 2-point face gradients.
+
+  Returns:
+    Tuple of (d_face_el [m^2/s], v_face_el [m/s]).
+  """
+  d_face_el = chi_face_el
+  dn_e_drhon = n_e.face_grad(two_point_mask=two_point_mask)
+  v_face_el = (
+      particle_flux_SI
+      + d_face_el * dn_e_drhon * geo.g1_over_vpr2_face * geo.rho_b
+  ) / (n_e.face_value() * geo.g0_over_vpr_face * geo.rho_b)
+  return d_face_el, v_face_el
+
+
 def calculate_dv_effective(
     particle_flux_SI: jax.Array,
     normalized_particle_flux: jax.Array,

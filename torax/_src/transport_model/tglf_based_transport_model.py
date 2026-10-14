@@ -557,12 +557,13 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       # Scaled D approach. Scale electron diffusivity to electron heat
       # conductivity (this has some physical motivations),
       # and set convection to then match total particle transport.
-      # TODO(b/567403838): Create a helper function, calculate_d_scaled.
-      dn_e_drhon = core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
-      d_face_el = chi_e
-      v_face_el = (
-          Gamma_e + d_face_el * dn_e_drhon * geo.g1_over_vpr2_face * geo.rho_b
-      ) / (core_profiles.n_e.face_value() * geo.g0_over_vpr_face * geo.rho_b)
+      d_face_el, v_face_el = quasilinear_transport_model.calculate_d_scaled(
+          particle_flux_SI=Gamma_e,
+          chi_face_el=chi_e,
+          n_e=core_profiles.n_e,
+          geo=geo,
+          two_point_mask=two_point_mask,
+      )
 
     return transport_coeffs.TransportCoeffs(
         chi_face_ion=chi_i,

@@ -291,18 +291,14 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       # Scaled D approach. Scale electron diffusivity to electron heat
       # conductivity (this has some physical motivations),
       # and set convection to then match total particle transport.
-      # TODO(b/567403838): Create a helper function, calculate_d_scaled, and
-      # fix gradient to use dn_e_drhon for consistency with TGLF in follow-up.
       chex.assert_rank(pfe, 1)
-      d_face_el = chi_face_el
-      v_face_el = (
-          pfe_SI / core_profiles.n_e.face_value()
-          - qualikiz_inputs.lref_over_lne
-          * d_face_el
-          / geo.R_major
-          * geo.g1_over_vpr2_face
-          * geo.rho_b**2
-      ) / (geo.g0_over_vpr_face * geo.rho_b)
+      d_face_el, v_face_el = quasilinear_transport_model.calculate_d_scaled(
+          particle_flux_SI=pfe_SI,
+          chi_face_el=chi_face_el,
+          n_e=core_profiles.n_e,
+          geo=geo,
+          two_point_mask=two_point_mask,
+      )
 
     return transport_coeffs.TransportCoeffs(
         chi_face_ion=chi_face_ion,

@@ -96,6 +96,72 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     if A_n_target * pfe_val <= 0.0:
       np.testing.assert_allclose(d_face_el, 0.0, atol=1e-15)
 
+  @parameterized.named_parameters(
+      # Outward (down-gradient) flux on a peaked n_e profile takes the
+      # DV_effective diffusive pathway.
+      dict(testcase_name='outward_flux', pfe_value=1.6),
+      # Inward (up-gradient) flux takes the DV_effective convective pathway.
+      dict(testcase_name='inward_flux', pfe_value=-1.6),
+  )
+  def test_scaled_d_matches_dv_effective_flux_in_chease_geometry(
+      self, pfe_value: float
+  ):
+    config = default_configs.get_default_config_dict()
+    config['geometry'] = {'geometry_type': 'chease'}
+    geo = model_config.ToraxConfig.from_dict(config).geometry.build_provider(
+        t=0.0
+    )
+    n_e = cell_variable.CellVariable(
+        value=1.0e20 * (1.0 - 0.7 * geo.rho_norm**2),
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=jnp.asarray(0.3e20),
+        right_face_grad_constraint=None,
+    )
+    two_point_mask = np.asarray(geo.rho_face_norm >= 0.85)
+    pfe = jnp.full_like(geo.rho_face_norm, pfe_value)
+    pfe_SI = pfe * n_e.face_value() * 4.0
+    chi_face_el = jnp.full_like(geo.rho_face_norm, 2.0)
+
+    d_scaled, v_scaled = quasilinear_transport_model.calculate_d_scaled(
+        particle_flux_SI=pfe_SI,
+        chi_face_el=chi_face_el,
+        n_e=n_e,
+        geo=geo,
+        two_point_mask=two_point_mask,
+    )
+    d_dv_eff, v_dv_eff = quasilinear_transport_model.calculate_dv_effective(
+        particle_flux_SI=pfe_SI,
+        normalized_particle_flux=pfe,
+        n_e=n_e,
+        geo=geo,
+        gradient_reference_length=geo.R_major,
+        An_min=0.05,
+        DV_effective_smooth_width=0.0,
+        two_point_mask=two_point_mask,
+    )
+    np.testing.assert_allclose(d_scaled, chi_face_el)
+
+    # Check that DV_effective took the expected pathway away from the axis
+    # face (where dn_e/drho_norm = 0 always gives pure convection).
+    if pfe_value > 0.0:
+      self.assertTrue(np.all(d_dv_eff[1:] > 0.0))
+      np.testing.assert_allclose(v_dv_eff[1:], 0.0, atol=1e-15)
+    else:
+      np.testing.assert_allclose(d_dv_eff, 0.0, atol=1e-15)
+      self.assertTrue(np.all(v_dv_eff[1:] != 0.0))
+
+    dn_drhon = n_e.face_grad(two_point_mask=two_point_mask)
+
+    def _flux(d_face_el, v_face_el):
+      return (
+          -d_face_el * dn_drhon * geo.g1_over_vpr2_face
+          + v_face_el * n_e.face_value() * geo.g0_over_vpr_face
+      ) * geo.rho_b
+
+    np.testing.assert_allclose(
+        _flux(d_scaled, v_scaled), _flux(d_dv_eff, v_dv_eff), rtol=1e-12
+    )
+
   def test_calculate_chiGB(self):
     """Tests that chiGB is calculated correctly."""
 
