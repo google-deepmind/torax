@@ -92,22 +92,24 @@ def calc_heating_and_current(
       )
   )
 
-  j_tor_ec = jnp.exp(
-      jnp.log(16.0)
-      + jnp.log(jnp.pi)
-      + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
-      + jnp.log(core_profiles.T_e.value * 1e3)
-      + jnp.log(source_params.current_drive_efficiency)
-      + jnp.log(ec_power_density)
-      - (
-          2 * jnp.log(constants.CONSTANTS.q_e)
-          + jnp.log(
-              collisions.calculate_log_lambda_ee(
-                  core_profiles.T_e.value, core_profiles.n_e.value
+  j_tor_ec = (
+      jnp.exp(
+          jnp.log(16.0)
+          + jnp.log(jnp.pi)
+          + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
+          + jnp.log(core_profiles.T_e.value * 1e3)
+          - (
+              2 * jnp.log(constants.CONSTANTS.q_e)
+              + jnp.log(
+                  collisions.calculate_log_lambda_ee(
+                      core_profiles.T_e.value, core_profiles.n_e.value
+                  )
               )
+              + jnp.log(core_profiles.n_e.value)
           )
-          + jnp.log(core_profiles.n_e.value)
       )
+      * source_params.current_drive_efficiency
+      * ec_power_density
   )
 
   # < j.B >
