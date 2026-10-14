@@ -69,8 +69,9 @@ class PedestalTransitionState:
 
   confinement_mode: array_typing.IntScalar
   transition_start_time: array_typing.FloatScalar
-  # TODO(b/496703290) provide a way for these to be initialized in config, to
-  # avoid edge case where we start in H-mode and have no good L-mode values.
+  # TODO(b/496703290): Allow configuring explicit L-mode baseline values in
+  # PedestalConfig to override the LCFS boundary fallback when starting in
+  # H-mode.
   T_i_ped_L_mode: array_typing.FloatScalar
   T_e_ped_L_mode: array_typing.FloatScalar
   n_e_ped_L_mode: array_typing.FloatScalar
@@ -202,24 +203,13 @@ class PedestalTransitionState:
       pedestal_runtime_params: runtime_params_lib.RuntimeParams,
   ) -> array_typing.BoolScalar:
     """Returns whether the pedestal IBC is actively controlling the edge."""
-    # 1. Static check: must be in IBC mode
     if (
         pedestal_runtime_params.mode
         != runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
     ):
       return False
 
-    # 2. Dynamic check: pedestal setting must be enabled
-    is_active = pedestal_runtime_params.set_pedestal
-
-    # 3. If using formation model, dynamic check that we are not in L-mode
-    if (
-        pedestal_runtime_params.use_formation_model_with_internal_boundary_condition
-    ):
-      not_l_mode = self.confinement_mode != ConfinementMode.L_MODE
-      is_active = is_active & not_l_mode
-
-    return is_active
+    return self.confinement_mode != ConfinementMode.L_MODE
 
   def to_internal_boundary_conditions(
       self,
@@ -233,14 +223,10 @@ class PedestalTransitionState:
         pedestal_runtime_params.mode
         == runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
     ):
-      pedestal_model_output = self.pedestal_model_output
-      if (
-          pedestal_runtime_params.use_formation_model_with_internal_boundary_condition
-      ):
-        pedestal_model_output = self._get_scaled_pedestal_model_output(
-            t=t,
-            transition_time_width=pedestal_runtime_params.transition_time_width,
-        )
+      pedestal_model_output = self._get_scaled_pedestal_model_output(
+          t=t,
+          transition_time_width=pedestal_runtime_params.transition_time_width,
+      )
       return pedestal_model_output.to_internal_boundary_conditions(
           geo,
           core_profiles=core_profiles,

@@ -16,7 +16,9 @@
 
 import abc
 import dataclasses
+import jax.numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -69,3 +71,26 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       trigger an L->H transition or an H->L back-transition are satisfied
       (`trigger_l_to_h_transition & trigger_h_to_l_transition` must be False).
     """
+
+  def initial_confinement_mode(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      source_profiles: source_profiles_lib.SourceProfiles,
+  ) -> array_typing.IntScalar:
+    """Returns the initial confinement mode at t_initial."""
+    trigger_l_to_h_transition, _ = self.evaluate_transition_conditions(
+        runtime_params, geo, core_profiles, source_profiles
+    )
+    return jnp.where(
+        trigger_l_to_h_transition,
+        jnp.array(
+            pedestal_transition_state_lib.ConfinementMode.H_MODE,
+            dtype=jax_utils.get_int_dtype(),
+        ),
+        jnp.array(
+            pedestal_transition_state_lib.ConfinementMode.L_MODE,
+            dtype=jax_utils.get_int_dtype(),
+        ),
+    )

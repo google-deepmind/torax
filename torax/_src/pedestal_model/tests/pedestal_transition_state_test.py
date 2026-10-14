@@ -167,50 +167,41 @@ class PedestalTransitionStateTest(parameterized.TestCase):
   @parameterized.parameters(
       (
           pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT,
-          True,
-          True,
           pedestal_transition_state.ConfinementMode.H_MODE,
           False,
       ),
       (
           pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
-          False,
-          True,
-          pedestal_transition_state.ConfinementMode.H_MODE,
-          False,
-      ),
-      (
-          pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
-          True,
-          True,
           pedestal_transition_state.ConfinementMode.L_MODE,
           False,
       ),
       (
           pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
-          True,
-          True,
           pedestal_transition_state.ConfinementMode.H_MODE,
           True,
       ),
       (
           pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
+          pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
           True,
-          False,
-          pedestal_transition_state.ConfinementMode.L_MODE,
+      ),
+      (
+          pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
+          pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_L_MODE,
           True,
       ),
   )
   def test_is_ibc_active(
       self,
       mode,
-      set_pedestal,
-      use_formation_model,
       confinement_mode,
       expected,
   ):
     output = pedestal_model_output.PedestalModelOutput(
-        rho_norm_ped_top=0.9, T_i_ped=2.0, T_e_ped=2.0, n_e_ped=1e19
+        rho_norm_ped_top=0.9,
+        T_i_ped=2.0,
+        T_e_ped=2.0,
+        n_e_ped=1e19,
     )
     transition_state = pedestal_transition_state.PedestalTransitionState(
         transition_start_time=jnp.array(0.0),
@@ -225,8 +216,6 @@ class PedestalTransitionStateTest(parameterized.TestCase):
         pedestal_runtime_params_lib.RuntimeParams,
         instance=True,
         mode=mode,
-        set_pedestal=set_pedestal,
-        use_formation_model_with_internal_boundary_condition=use_formation_model,
     )
     self.assertEqual(
         bool(transition_state.is_ibc_active(pedestal_params)), expected
@@ -564,6 +553,123 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
           pedestal_transition_state=h_state,
       )
     self.assertEqual(l_state.confinement_mode, ConfinementMode.L_MODE)
+
+  def test_initialize_transition_state_two_pass_previous_output(self):
+    """Verifies two-pass evaluation for models using previous width."""
+    pedestal_cls = type(self.pedestal_model)
+
+    def width_dependent_impl(
+        model_self,
+        runtime_params,
+        geo,
+        core_profiles,
+        transition_state,
+    ):
+      del model_self, runtime_params, geo, core_profiles
+      prev_rho = (
+          transition_state.previous_pedestal_model_output.rho_norm_ped_top
+      )
+      # Simulate EPED-NN behavior: first call has prev_rho == inf (uses fallback
+      # width 0.9 -> T_ped=4.0, computes new width 0.85); second call has
+      # prev_rho == 0.85 -> T_ped=6.0.
+      t_ped = jnp.where(jnp.isinf(prev_rho), 4.0, 6.0)
+      return pedestal_model_output.PedestalModelOutput(
+          rho_norm_ped_top=jnp.array(0.85),
+          T_i_ped=t_ped,
+          T_e_ped=t_ped,
+          n_e_ped=jnp.array(0.7e20),
+      )
+
+    with mock.patch.object(
+        pedestal_cls,
+        '_call_implementation',
+        autospec=True,
+        side_effect=width_dependent_impl,
+    ):
+      init_ts = self.pedestal_model.initialize_transition_state(
+          self.runtime_params,
+          self.geo,
+          self.core_profiles,
+          self.source_profiles,
+      )
+    np.testing.assert_allclose(
+        init_ts.pedestal_model_output.rho_norm_ped_top, 0.85
+    )
+    np.testing.assert_allclose(init_ts.pedestal_model_output.T_i_ped, 6.0)
+    np.testing.assert_allclose(
+        init_ts.previous_pedestal_model_output.rho_norm_ped_top, 0.85
+    )
+    np.testing.assert_allclose(
+        init_ts.previous_pedestal_model_output.T_i_ped, 6.0
+    )
+
+  def test_initialize_transition_state_L_mode_baselines(self):
+    """Verifies L-mode baselines when starting in L-mode vs H-mode."""
+    with self.subTest('starting_in_L_mode'):
+      with mock.patch.object(
+          power_scaling_formation_model,
+          'calculate_P_SOL_total',
+          return_value=jnp.array(_P_LH * 0.5),
+      ), mock.patch.object(
+          scaling_laws,
+          'calculate_P_LH',
+          return_value=(jnp.array(_P_LH), None),
+      ):
+        l_init_ts = self.pedestal_model.initialize_transition_state(
+            self.runtime_params,
+            self.geo,
+            self.core_profiles,
+            self.source_profiles,
+        )
+      ped_top_idx = jnp.argmin(
+          jnp.abs(
+              self.geo.rho_norm
+              - l_init_ts.pedestal_model_output.rho_norm_ped_top
+          )
+      )
+      self.assertEqual(l_init_ts.confinement_mode, ConfinementMode.L_MODE)
+      np.testing.assert_allclose(
+          l_init_ts.T_i_ped_L_mode,
+          self.core_profiles.T_i.value[ped_top_idx],
+      )
+      np.testing.assert_allclose(
+          l_init_ts.T_e_ped_L_mode,
+          self.core_profiles.T_e.value[ped_top_idx],
+      )
+      np.testing.assert_allclose(
+          l_init_ts.n_e_ped_L_mode,
+          self.core_profiles.n_e.value[ped_top_idx],
+      )
+
+    with self.subTest('starting_in_H_mode_uses_2x_lcfs_fallback'):
+      with mock.patch.object(
+          power_scaling_formation_model,
+          'calculate_P_SOL_total',
+          return_value=jnp.array(_P_LH * 1.5),
+      ), mock.patch.object(
+          scaling_laws,
+          'calculate_P_LH',
+          return_value=(jnp.array(_P_LH), None),
+      ):
+        h_init_ts = self.pedestal_model.initialize_transition_state(
+            self.runtime_params,
+            self.geo,
+            self.core_profiles,
+            self.source_profiles,
+        )
+      self.assertEqual(h_init_ts.confinement_mode, ConfinementMode.H_MODE)
+      np.testing.assert_allclose(
+          h_init_ts.T_i_ped_L_mode,
+          2.0 * self.core_profiles.T_i.face_value()[-1],
+      )
+      np.testing.assert_allclose(
+          h_init_ts.T_e_ped_L_mode,
+          2.0 * self.core_profiles.T_e.face_value()[-1],
+      )
+      np.testing.assert_allclose(
+          h_init_ts.n_e_ped_L_mode,
+          2.0 * self.core_profiles.n_e.face_value()[-1],
+      )
 
 
 class AdaptiveTransportTransitionStateTest(parameterized.TestCase):

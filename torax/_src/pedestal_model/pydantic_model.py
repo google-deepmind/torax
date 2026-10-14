@@ -264,30 +264,27 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for pedestal models.
 
   Attributes:
-    set_pedestal: Whether to use the pedestal model and set the pedestal. Can be
-      time varying.
+    set_pedestal: Deprecated compatibility alias for
+      formation_model.pedestal_active.
     mode: Defines how the pedestal is generated. Set to ADAPTIVE_TRANSPORT to
       set the pedestal by modifying the transport coefficients in the pedestal
       region, allowing the pedestal to self-consistently evolve. Set to
       INTERNAL_BOUNDARY_CONDITION to set the pedestal by adding a source/sink
       term at the pedestal top, forcing the pedestal top values to be as
-      prescribed. use_formation_model_with_internal_boundary_condition: When
-      True and mode is INTERNAL_BOUNDARY_CONDITION, enables state-dependent L-H
-      transitions based on P_SOL vs P_LH comparison. When False,
-      INTERNAL_BOUNDARY_CONDITION mode always applies the prescribed pedestal
-      values (legacy behavior). Ignored when mode is ADAPTIVE_TRANSPORT.
+      prescribed.
+    use_formation_model_with_internal_boundary_condition: Deprecated
+      compatibility flag.
     transition_time_width: Duration of the L-H or H-L transition ramp [s].
       During a transition, pedestal values are linearly interpolated between
-      L-mode baseline and H-mode target values over this time window. Only used
-      when use_formation_model_with_internal_boundary_condition is True.
+      L-mode baseline and H-mode target values over this time window. Must be
+      explicitly specified in INTERNAL_BOUNDARY_CONDITION mode when using a
+      power-scaling formation model; defaults to 0.0 otherwise.
     P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
       checking for an H-L transition, the L-H threshold power P_LH is multiplied
       by this factor, i.e. the back transition occurs when P_SOL < P_LH *
       P_LH_hysteresis_factor. A value less than 1 means that the plasma must
       lose more power to transition back to L-mode than was required to enter
       H-mode, which is the experimentally observed behavior. Must be in [0, 1].
-      Only applicable when use_formation_model_with_internal_boundary_condition
-      is True.
     include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
       calculation used for comparing against P_LH. When False (default), uses
       P_heat (total auxiliary + Ohmic power - sinks) instead of P_SOL = P_heat -
@@ -308,7 +305,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       [m/s].
   """
 
-  set_pedestal: torax_pydantic.TimeVaryingScalar = (
+  set_pedestal: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(False)
   )
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
@@ -318,7 +315,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       bool, torax_pydantic.JAX_STATIC
   ] = False
   transition_time_width: torax_pydantic.NonNegativeTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.5)
+      torax_pydantic.ValidatedDefault(0.0)
   )
   P_LH_hysteresis_factor: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.8)
@@ -329,7 +326,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       runtime_params.PedestalProfileForm, torax_pydantic.JAX_STATIC
   ] = runtime_params.PedestalProfileForm.SET_AT_PED_TOP
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
-      MartinScalingFormation()
+      PrescribedFormation(pedestal_active=True)
   )
   saturation_model: SaturationConfig = torax_pydantic.ValidatedDefault(
       ProfileValueSaturation()
@@ -360,7 +357,7 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
         isinstance(configurable_data.get("formation_model"), dict)
         and "model_name" not in configurable_data["formation_model"]
     ):
-      configurable_data["formation_model"]["model_name"] = "martin_scaling"
+      configurable_data["formation_model"]["model_name"] = "prescribed"
     if (
         isinstance(configurable_data.get("saturation_model"), dict)
         and "model_name" not in configurable_data["saturation_model"]
@@ -378,6 +375,32 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       raise ValueError(
           "use_formation_model_with_internal_boundary_condition can only be"
           " True when mode is INTERNAL_BOUNDARY_CONDITION"
+      )
+    if "formation_model" not in self.model_fields_set and not isinstance(
+        self, NoPedestal
+    ):
+      if (
+          self.use_formation_model_with_internal_boundary_condition
+          or self.mode == runtime_params.Mode.ADAPTIVE_TRANSPORT
+      ):
+        raise ValueError(
+            "formation_model must be explicitly specified when mode is"
+            " ADAPTIVE_TRANSPORT or"
+            " use_formation_model_with_internal_boundary_condition is True."
+        )
+      if "set_pedestal" in self.model_fields_set:
+        self.__dict__["formation_model"] = PrescribedFormation(
+            pedestal_active=copy.deepcopy(self.set_pedestal)
+        )
+    if (
+        self.mode == runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
+        and "transition_time_width" not in self.model_fields_set
+        and not isinstance(self.formation_model, PrescribedFormation)
+    ):
+      raise ValueError(
+          "transition_time_width must be specified when using a"
+          " power-scaling formation model in INTERNAL_BOUNDARY_CONDITION"
+          " mode."
       )
     return self
 

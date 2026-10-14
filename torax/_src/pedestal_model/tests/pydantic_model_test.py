@@ -62,7 +62,6 @@ class PedestalModelPydanticTest(parameterized.TestCase):
         prescribed_formation_model.PrescribedFormationRuntimeParams,
     )
     self.assertFalse(output.formation.pedestal_active)
-
     with self.assertRaises(pydantic.ValidationError):
       pydantic_model.NoPedestal.from_dict({"set_pedestal": True})
     with self.assertRaises(pydantic.ValidationError):
@@ -75,9 +74,11 @@ class PedestalModelPydanticTest(parameterized.TestCase):
 
   def test_source_mode_validation(self):
     with self.subTest("allow_internal_boundary_condition"):
-      pydantic_model.SetTpedNped.from_dict(
-          {"use_formation_model_with_internal_boundary_condition": True}
-      )
+      pydantic_model.SetTpedNped.from_dict({
+          "use_formation_model_with_internal_boundary_condition": True,
+          "formation_model": {"model_name": "martin_scaling"},
+          "transition_time_width": 0.5,
+      })
 
     with self.subTest("disallow_adaptive_transport"):
       with self.assertRaisesRegex(
@@ -88,6 +89,7 @@ class PedestalModelPydanticTest(parameterized.TestCase):
         pydantic_model.SetTpedNped.from_dict({
             "use_formation_model_with_internal_boundary_condition": True,
             "mode": runtime_params.Mode.ADAPTIVE_TRANSPORT,
+            "formation_model": {"model_name": "martin_scaling"},
         })
 
     with self.subTest("allow_prescribed_formation_with_adaptive_transport"):
@@ -153,6 +155,62 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     with self.subTest("disallow_negative_values"):
       with self.assertRaises(ValueError):
         pydantic_model.SetTpedNped.from_dict({"transition_time_width": -1.0})
+
+    with self.subTest("required_for_scaling_in_ibc_mode"):
+      with self.assertRaisesRegex(
+          ValueError,
+          "transition_time_width must be specified when using a"
+          " power-scaling formation model in INTERNAL_BOUNDARY_CONDITION"
+          " mode",
+      ):
+        pydantic_model.SetTpedNped.from_dict({
+            "mode": "INTERNAL_BOUNDARY_CONDITION",
+            "formation_model": {"model_name": "martin_scaling"},
+        })
+      ped = pydantic_model.SetTpedNped.from_dict({
+          "mode": "INTERNAL_BOUNDARY_CONDITION",
+          "formation_model": {"model_name": "martin_scaling"},
+          "transition_time_width": 0.5,
+      })
+      self.assertEqual(
+          ped.build_runtime_params(t=0.0).transition_time_width, 0.5
+      )
+
+    with self.subTest("optional_for_scaling_in_adaptive_transport_mode"):
+      ped = pydantic_model.SetTpedNped.from_dict({
+          "mode": "ADAPTIVE_TRANSPORT",
+          "formation_model": {"model_name": "martin_scaling"},
+      })
+      self.assertEqual(
+          ped.build_runtime_params(t=0.0).transition_time_width, 0.0
+      )
+
+  def test_formation_model_required_when_needed(self):
+    with self.subTest("required_in_adaptive_transport_mode"):
+      with self.assertRaisesRegex(
+          ValueError,
+          "formation_model must be explicitly specified",
+      ):
+        pydantic_model.SetTpedNped.from_dict({
+            "mode": "ADAPTIVE_TRANSPORT",
+        })
+
+    with self.subTest("required_when_use_formation_ibc_true"):
+      with self.assertRaisesRegex(
+          ValueError,
+          "formation_model must be explicitly specified",
+      ):
+        pydantic_model.SetTpedNped.from_dict({
+            "use_formation_model_with_internal_boundary_condition": True,
+        })
+
+    with self.subTest("formation_dict_without_model_name_in_ibc_mode"):
+      pedestal = pydantic_model.SetTpedNped.from_dict({
+          "formation_model": {"pedestal_active": True},
+      })
+      self.assertIsInstance(
+          pedestal.formation_model, pydantic_model.PrescribedFormation
+      )
 
   def test_invalid_model_name_error_message(self):
     with self.assertRaisesRegex(

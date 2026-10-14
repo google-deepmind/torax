@@ -37,6 +37,8 @@ from torax._src.sources import source_profiles as source_profiles_lib
 # pylint: disable=invalid-name
 # Using physics notation naming convention
 
+_L_MODE_PEDESTAL_BC_MULTIPLIER = 2.0
+
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
@@ -45,37 +47,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
   formation_model: formation_base.FormationModel
   saturation_model: saturation_base.SaturationModel
 
-  def compute_transport_multipliers(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      source_profiles: source_profiles_lib.SourceProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-      pedestal_output: pedestal_model_output.PedestalModelOutput,
-  ) -> pedestal_model_output.TransportMultipliers:
-    """Computes transport multipliers from formation and saturation models."""
-
-    transport_decrease = self.formation_model(
-        runtime_params,
-        geo,
-        core_profiles,
-        source_profiles,
-        pedestal_transition_state,
-    )
-    transport_increase = self.saturation_model(
-        runtime_params, geo, core_profiles, pedestal_output
-    )
-
-    # Combine via exp(log) for numerical stability, as multipliers can
-    # be very small or large.
-    return jax.tree.map(
-        lambda x, y: jnp.exp(jnp.log(x) + jnp.log(y)),
-        transport_decrease,
-        transport_increase,
-    )
-
-  def _evaluate_pedestal(
+  def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
@@ -107,23 +79,75 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
 
     return pedestal_output
 
-  def __call__(
+  def initialize_transition_state(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalModelOutput:
-    return jax.lax.cond(
-        runtime_params.pedestal.set_pedestal,
-        self._evaluate_pedestal,
-        lambda *_: pedestal_model_output.PedestalModelOutput.no_pedestal(),
+  ) -> pedestal_transition_state_lib.PedestalTransitionState:
+    """Initializes the pedestal transition state."""
+    confinement_mode = self.formation_model.initial_confinement_mode(
+        runtime_params, geo, core_profiles, source_profiles
+    )
+    transition_state = (
+        pedestal_transition_state_lib.PedestalTransitionState.empty(
+            confinement_mode=confinement_mode
+        )
+    )
+    pedestal_output = self._call_implementation(
+        runtime_params,
+        geo,
+        core_profiles,
+        transition_state,
+    )
+    # Re-evaluate with previous_pedestal_model_output populated so models that
+    # depend on the previous pedestal width (e.g. EPED-NN) use a consistent
+    # width at t_initial rather than the empty fallback.
+    transition_state = dataclasses.replace(
+        transition_state,
+        previous_pedestal_model_output=pedestal_output,
+    )
+    pedestal_output = self(
         runtime_params,
         geo,
         core_profiles,
         source_profiles,
-        pedestal_transition_state,
+        transition_state,
+    )
+    ped_top_idx = jnp.argmin(
+        jnp.abs(geo.rho_norm - pedestal_output.rho_norm_ped_top)
+    )
+    in_l_mode = (
+        confinement_mode == pedestal_transition_state_lib.ConfinementMode.L_MODE
+    )
+    # Seed L-mode pedestal-top baselines so a subsequent H->L ramp has sensible
+    # targets even if the simulation starts directly in H-mode. When starting in
+    # L-mode, use the initial profile values at the pedestal top; when starting
+    # in H-mode (where the pedestal top already reflects the H-mode pedestal),
+    # fall back to a multiple of the LCFS boundary values (`face_value()[-1]`).
+    return dataclasses.replace(
+        transition_state,
+        T_i_ped_L_mode=jnp.where(
+            in_l_mode,
+            core_profiles.T_i.value[ped_top_idx],
+            _L_MODE_PEDESTAL_BC_MULTIPLIER
+            * core_profiles.T_i.face_value()[-1],
+        ),
+        T_e_ped_L_mode=jnp.where(
+            in_l_mode,
+            core_profiles.T_e.value[ped_top_idx],
+            _L_MODE_PEDESTAL_BC_MULTIPLIER
+            * core_profiles.T_e.face_value()[-1],
+        ),
+        n_e_ped_L_mode=jnp.where(
+            in_l_mode,
+            core_profiles.n_e.value[ped_top_idx],
+            _L_MODE_PEDESTAL_BC_MULTIPLIER
+            * core_profiles.n_e.face_value()[-1],
+        ),
+        pedestal_model_output=pedestal_output,
+        previous_pedestal_model_output=pedestal_output,
     )
 
   def update_transition_state(
@@ -152,13 +176,6 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
     Returns:
       Updated PedestalTransitionState.
     """
-    if (
-        runtime_params.pedestal.mode
-        == pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
-        and not runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
-    ):
-      return pedestal_transition_state
-
     trigger_l_to_h_transition, trigger_h_to_l_transition = (
         self.formation_model.evaluate_transition_conditions(
             runtime_params=runtime_params,
@@ -187,6 +204,36 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
         raise ValueError(
             f'Unknown pedestal mode: {runtime_params.pedestal.mode}'
         )
+
+  def compute_transport_multipliers(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      source_profiles: source_profiles_lib.SourceProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+      pedestal_output: pedestal_model_output.PedestalModelOutput,
+  ) -> pedestal_model_output.TransportMultipliers:
+    """Computes transport multipliers from formation and saturation models."""
+
+    transport_decrease = self.formation_model(
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
+        pedestal_transition_state,
+    )
+    transport_increase = self.saturation_model(
+        runtime_params, geo, core_profiles, pedestal_output
+    )
+
+    # Combine via exp(log) for numerical stability, as multipliers can
+    # be very small or large.
+    return jax.tree.map(
+        lambda x, y: jnp.exp(jnp.log(x) + jnp.log(y)),
+        transport_decrease,
+        transport_increase,
+    )
 
   @abc.abstractmethod
   def _call_implementation(

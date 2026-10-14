@@ -71,8 +71,9 @@ class TransportModel(static_dataclass.StaticDataclass):
       TurbulentTransport containing the combined 4-channel coefficients and
       individual model outputs.
     """
-    pedestal_active = _is_pedestal_active(
-        runtime_params, pedestal_transition_state
+    pedestal_active = (
+        pedestal_transition_state.confinement_mode
+        != pedestal_transition_state_lib.ConfinementMode.L_MODE
     )
     pedestal_mask = jnp.asarray(
         pedestal_active
@@ -291,26 +292,6 @@ class TransportModel(static_dataclass.StaticDataclass):
       )
 
     return jax.tree.map(smooth_single_coeff, input_coeffs)
-
-
-def _is_pedestal_active(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
-) -> array_typing.BoolScalar:
-  """Returns whether the pedestal model is active for transport masking."""
-  if (
-      runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
-  ):
-    return jnp.asarray(
-        runtime_params.pedestal.set_pedestal
-        & (
-            pedestal_transition_state.confinement_mode
-            != pedestal_transition_state_lib.ConfinementMode.L_MODE
-        )
-    )
-  return jnp.asarray(runtime_params.pedestal.set_pedestal)
 
 
 def _build_smoothing_matrix(
