@@ -21,6 +21,7 @@ from torax._src import constants
 from torax._src.geometry import base
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
+from torax._src.geometry import trapped_fraction as trapped_fraction_lib
 from torax._src.torax_pydantic import torax_pydantic
 import typing_extensions
 
@@ -149,6 +150,12 @@ class TokaMakerConfig(base.BaseGeometryConfig):
     fsa_profiles: Flux surface profiles, as returned by
       ``TokaMaker_equilibrium.get_fsa()``.
   """
+
+  @property
+  def _supported_trapped_fraction_sources(
+      self,
+  ) -> frozenset[trapped_fraction_lib.TrappedFractionSource]:
+    return frozenset({trapped_fraction_lib.TrappedFractionSource.SAUTER})
 
   geometry_type: Annotated[
       Literal['tokamaker'], torax_pydantic.TIME_INVARIANT
@@ -279,6 +286,11 @@ def _construct_intermediates_from_tokamaker(
   delta_upper_face = prepend(delta_upper_face[0], delta_upper_face)
   delta_lower_face = prepend(delta_lower_face[0], delta_lower_face)
 
+  trapped_fraction = trapped_fraction_lib.calculate_sauter_trapped_fraction(
+      epsilon=(R_out - R_in) / (R_out + R_in),
+      delta=(delta_upper_face + delta_lower_face) / 2.0,
+  )
+
   R_major = (eq.R_max[-1] + eq.R_min[-1]) / 2.0
   a_minor = (eq.R_max[-1] - eq.R_min[-1]) / 2.0
   if a_minor <= 0.0:
@@ -293,7 +305,10 @@ def _construct_intermediates_from_tokamaker(
 
   # dV/drho_norm, from dV/dpsi and dpsi/drho_norm = 2*Phi_b*rho_norm/q.
   rhon = np.sqrt(np.abs(Phi / Phi[-1]))
-  vpr = 4 * np.pi * np.abs(Phi[-1]) * rhon / (F * flux_surf_avg_1_over_R2)
+  vpr = (
+      4 * np.pi * np.abs(Phi[-1]) * rhon
+      / (np.abs(F) * flux_surf_avg_1_over_R2)
+  )
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.TOKAMAKER,
@@ -315,6 +330,7 @@ def _construct_intermediates_from_tokamaker(
       flux_surf_avg_grad_psi2_over_R2=flux_surf_avg_grad_psi2_over_R2,
       flux_surf_avg_B2=flux_surf_avg_B2,
       flux_surf_avg_1_over_B2=flux_surf_avg_1_over_B2,
+      trapped_fraction=trapped_fraction,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
       elongation=elongation,
