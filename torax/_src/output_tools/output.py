@@ -14,7 +14,7 @@
 
 """Module containing functions for saving and loading simulation output."""
 
-from collections.abc import Hashable, Sequence
+from collections.abc import Sequence
 import dataclasses
 import itertools
 
@@ -38,28 +38,6 @@ from torax._src.torax_pydantic import model_config
 import xarray as xr
 
 # Internal import.
-
-# pylint: disable=invalid-name
-
-# Geometry field names excluded from direct output serialization.
-_EXCLUDED_GEOMETRY_FIELDS = frozenset({
-    "geometry_type",
-    "Ip_from_parameters",
-    "j_total",  # Already in core_profiles output.
-})
-
-# Geometry property names excluded because they are coordinates at the top
-# DataTree level, or are not interesting to save.
-# TODO(b/338033916): consolidate on either rho or rho_cell naming for cell grid
-_EXCLUDED_GEOMETRY_PROPERTIES = frozenset({
-    output_keys.RHO_FACE,
-    output_keys.RHO_CELL,
-    output_keys.RHO_CELL_NORM,
-    output_keys.RHO_FACE_NORM,
-    "rho",
-    "rho_norm",
-    "q_correction_factor",
-})
 
 
 def load_state_file(filepath: str) -> xr.DataTree:
@@ -379,23 +357,16 @@ class StateHistory:
         output_keys.RHO_NORM,
     }
 
-    def _get_dims(
-        var: xr.DataArray | output_grid_context.OutputVar,
-    ) -> Sequence[Hashable]:
-      if isinstance(var, xr.DataArray):
-        return var.dims
-      # Otherwise var is an OutputVar 3-tuple: (dims, data, attrs).
-      return var[0]
     profiles_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and any(d in spatial_coords for d in _get_dims(v))
+        if any(d in spatial_coords for d in v[0])
     }
     profiles = self._output_grid_context.build_dataset(profiles_dict)
     scalars_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and not any(d in spatial_coords for d in _get_dims(v))
+        if not any(d in spatial_coords for d in v[0])
     }
     scalars = self._output_grid_context.build_dataset(scalars_dict)
     children = {
@@ -430,53 +401,6 @@ class StateHistory:
       data_tree = stitch_state_files(self.torax_config.restart, data_tree)
 
     return data_tree
-
-  def _pack_into_data_array(
-      self,
-      name: str,
-      data: array_typing.Array | None,
-  ) -> xr.DataArray | None:
-    """Packs the data into an xr.DataArray."""
-    if data is None:
-      return None
-
-    is_face_var = lambda x: x.ndim == 2 and x.shape == (
-        len(self.times),
-        len(self.rho_face_norm),
-    )
-    is_cell_var = lambda x: x.ndim == 2 and x.shape == (
-        len(self.times),
-        len(self.rho_cell_norm),
-    )
-    is_cell_plus_boundaries_var = lambda x: x.ndim == 2 and x.shape == (
-        len(self.times),
-        len(self.rho_norm),
-    )
-    is_scalar = lambda x: x.ndim == 1 and x.shape == (len(self.times),)
-    is_constant = lambda x: x.ndim == 0
-
-    match data:
-      case data if is_face_var(data):
-        dims = [output_keys.TIME, output_keys.RHO_FACE_NORM]
-      case data if is_cell_var(data):
-        dims = [output_keys.TIME, output_keys.RHO_CELL_NORM]
-      case data if is_scalar(data):
-        dims = [output_keys.TIME]
-      case data if is_constant(data):
-        dims = []
-      case data if is_cell_plus_boundaries_var(data):
-        dims = [output_keys.TIME, output_keys.RHO_NORM]
-      case _:
-        logging.warning(
-            "Unsupported data shape for %s: %s. Skipping persisting.",
-            name,
-            getattr(data, "shape", type(data)),
-        )
-        return None
-
-    return xr.DataArray(
-        data, dims=dims, name=name, attrs=output_keys.get_units(name)
-    )
 
   def _save_core_profiles(
       self,

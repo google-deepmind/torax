@@ -108,24 +108,18 @@ class OutputGridContext:
 
   def build_dataset(
       self,
-      data_vars: Mapping[str, OutputVar | xr.DataArray],
+      data_vars: Mapping[str, OutputVar],
   ) -> xr.Dataset:
     """Builds an xr.Dataset from a mapping of variables in one fast step."""
     used_dims = set()
-    for var in data_vars.values():
-      dims = var.dims if isinstance(var, xr.DataArray) else var[0]
+    for dims, _, _ in data_vars.values():
       used_dims.update(dims)
     coords = {}
     for dim in used_dims:
       if dim in self.coords:
         coords[dim] = self.coords[dim]
       else:
-        for var in data_vars.values():
-          if isinstance(var, xr.DataArray) and dim in var.coords:
-            coords[dim] = var.coords[dim]
-            break
-        else:
-          raise KeyError(f"Missing coordinate array for dimension '{dim}'.")
+        raise KeyError(f"Missing coordinate array for dimension '{dim}'.")
     return xr.Dataset(data_vars=data_vars, coords=coords)
 
 
