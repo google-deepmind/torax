@@ -71,9 +71,6 @@ class CustomConductivityConfig(conductivity_base.ConductivityModelConfig):
   def build_model(self) -> CustomConductivityModel:
     return CustomConductivityModel()
 
-  def build_runtime_params(self) -> conductivity_runtime_params.RuntimeParams:
-    return conductivity_runtime_params.RuntimeParams()
-
 
 class CustomPoloidalVelocityModel(poloidal_velocity_base.PoloidalVelocityModel):
 
