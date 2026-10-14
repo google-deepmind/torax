@@ -73,6 +73,10 @@ class PedestalModelPydanticTest(parameterized.TestCase):
               "pedestal_active": True,
           },
       })
+    with self.assertRaises(pydantic.ValidationError):
+      pydantic_model.NoPedestal.from_dict({
+          "initial_confinement_mode": "H_MODE",
+      })
 
   def test_power_scaling_with_internal_boundary_condition(self):
     pedestal = pydantic_model.SetTpedNped.from_dict({
@@ -224,6 +228,31 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     ):
       pydantic_model.SetTpedNped.from_dict(
           {"formation_model": {"model_name": "invalid_formation"}}
+      )
+
+  def test_initial_confinement_mode_and_bc_multiplier_validation(self):
+    default_ped = pydantic_model.SetTpedNped.from_dict({})
+    self.assertIsNone(default_ped.initial_confinement_mode)
+    self.assertEqual(default_ped.initial_L_mode_bc_multiplier, 2.0)
+
+    custom_ped = pydantic_model.SetTpedNped.from_dict({
+        "initial_confinement_mode": "L_MODE",
+        "initial_L_mode_bc_multiplier": 3.5,
+    })
+    params = custom_ped.build_runtime_params(t=0.0)
+    self.assertEqual(
+        params.initial_confinement_mode,
+        runtime_params.ConfinementMode.L_MODE,
+    )
+    self.assertEqual(params.initial_L_mode_bc_multiplier, 3.5)
+
+    with self.assertRaises(pydantic.ValidationError):
+      pydantic_model.SetTpedNped.from_dict(
+          {"initial_confinement_mode": "invalid_mode"}
+      )
+    with self.assertRaises(pydantic.ValidationError):
+      pydantic_model.SetTpedNped.from_dict(
+          {"initial_L_mode_bc_multiplier": 0.0}
       )
 
 

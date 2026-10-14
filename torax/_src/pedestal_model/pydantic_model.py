@@ -299,6 +299,15 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     V_e_min: Minimum effective particle pinch velocity from the core transport
       model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
       [m/s].
+    initial_confinement_mode: Optional explicit initial confinement mode
+      ('L_MODE' or 'H_MODE') at t_initial. When None (default), the initial
+      mode is inferred automatically from the formation model's transition
+      conditions at t_initial. Used to enable triggering L-H or H-L transitions
+      from a cold start.
+    initial_L_mode_bc_multiplier: Multiplier applied to the LCFS boundary
+      condition values (`T_i`, `T_e`, `n_e` at the right face) to seed the
+      L-mode pedestal-top baselines at `t_initial` when the simulation starts
+      directly in H-mode without L-mode profile data.
   """
 
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
@@ -338,6 +347,8 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   pedestal_top_smoothing_width: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.02)
   )
+  initial_confinement_mode: Literal["L_MODE", "H_MODE"] | None = None
+  initial_L_mode_bc_multiplier: pydantic.PositiveFloat = 2.0
 
   @pydantic.model_validator(mode="before")
   @classmethod
@@ -387,6 +398,11 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
     """Builds the runtime params."""
+    initial_confinement_mode = (
+        runtime_params.ConfinementMode[self.initial_confinement_mode]
+        if self.initial_confinement_mode is not None
+        else None
+    )
     return runtime_params.RuntimeParams(
         mode=self.mode,
         transition_time_width=self.transition_time_width.get_value(t),
@@ -403,6 +419,8 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
         pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
             t
         ),
+        initial_confinement_mode=initial_confinement_mode,
+        initial_L_mode_bc_multiplier=self.initial_L_mode_bc_multiplier,
     )
 
 
@@ -533,6 +551,10 @@ class NoPedestal(BasePedestal):
   def _validate_inactive(self) -> Self:
     if any(self.formation_model.pedestal_active.value):
       raise ValueError("NoPedestal cannot have an active pedestal.")
+    if self.initial_confinement_mode == "H_MODE":
+      raise ValueError(
+          "NoPedestal cannot have initial_confinement_mode='H_MODE'."
+      )
     return self
 
   def build_pedestal_model(
@@ -542,6 +564,7 @@ class NoPedestal(BasePedestal):
         formation_model=self.formation_model.build_formation_model(),
         saturation_model=self.saturation_model.build_saturation_model(),
     )
+
 
 PedestalConfig = Annotated[
     SetPpedTpedRatioNped | SetTpedNped | NoPedestal,

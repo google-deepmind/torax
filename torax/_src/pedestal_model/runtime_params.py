@@ -35,6 +35,14 @@ class Mode(enum.Enum):
   INTERNAL_BOUNDARY_CONDITION = "INTERNAL_BOUNDARY_CONDITION"
 
 
+# Store confinement mode as an int so that it is a valid JAX dynamic type.
+class ConfinementMode(enum.IntEnum):
+  L_MODE = 0
+  H_MODE = 1
+  TRANSITIONING_TO_H_MODE = 2
+  TRANSITIONING_TO_L_MODE = 3
+
+
 @enum.unique
 class PedestalProfileForm(enum.StrEnum):
   """Controls the shape of internal boundary conditions in the pedestal region.
@@ -112,6 +120,13 @@ class RuntimeParams:
     V_e_min: Minimum effective particle pinch velocity [m/s].
     pedestal_top_smoothing_width: Width of the smoothing kernel at the pedestal
       top.
+    initial_confinement_mode: Optional explicit initial confinement mode
+      (L_MODE or H_MODE) at t_initial. When None, inferred from the formation
+      model's transition conditions at t_initial.
+    initial_L_mode_bc_multiplier: Multiplier applied to the LCFS boundary
+      condition values (`T_i`, `T_e`, `n_e` at the right face) to seed the
+      L-mode pedestal-top baselines at `t_initial` when the simulation starts
+      directly in H-mode without L-mode profile data.
   """
 
   mode: Mode = dataclasses.field(metadata={"static": True})
@@ -129,3 +144,5 @@ class RuntimeParams:
   V_e_max: array_typing.FloatScalar
   V_e_min: array_typing.FloatScalar
   pedestal_top_smoothing_width: array_typing.FloatScalar
+  initial_confinement_mode: ConfinementMode | None
+  initial_L_mode_bc_multiplier: array_typing.FloatScalar

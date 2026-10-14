@@ -160,7 +160,7 @@ class PowerScalingFormationModel(base.FormationModel):
     # making it harder to transition back to L-mode.
     effective_P_LH = jnp.where(
         pedestal_transition_state.confinement_mode
-        == pedestal_transition_state_lib.ConfinementMode.H_MODE,
+        == pedestal_runtime_params_lib.ConfinementMode.H_MODE,
         rescaled_P_LH * runtime_params.pedestal.P_LH_hysteresis_factor,
         rescaled_P_LH,
     )

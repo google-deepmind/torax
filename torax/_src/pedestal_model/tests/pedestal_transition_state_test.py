@@ -34,7 +34,7 @@ from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name,protected-access
-ConfinementMode = pedestal_transition_state.ConfinementMode
+ConfinementMode = pedestal_runtime_params_lib.ConfinementMode
 
 # Constants for test readability.
 _P_LH = 10.0  # MW, mocked L-H threshold power.
@@ -80,7 +80,7 @@ class PedestalTransitionStateTest(parameterized.TestCase):
         T_e_ped_L_mode=jnp.array(0.0),
         n_e_ped_L_mode=jnp.array(0.0),
         confinement_mode=(
-            pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE
+            pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
         ),
         pedestal_model_output=pedestal_model_output.PedestalModelOutput.no_pedestal(),
         previous_pedestal_model_output=(
@@ -110,7 +110,7 @@ class PedestalTransitionStateTest(parameterized.TestCase):
         T_e_ped_L_mode=jnp.array(l_mode_baseline),
         n_e_ped_L_mode=jnp.array(l_mode_baseline),
         confinement_mode=(
-            pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE
+            pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
         ),
         pedestal_model_output=pedestal_model_output.PedestalModelOutput(
             T_i_ped=h_mode_target,
@@ -144,7 +144,7 @@ class PedestalTransitionStateTest(parameterized.TestCase):
         T_e_ped_L_mode=jnp.array(l_mode_baseline),
         n_e_ped_L_mode=jnp.array(l_mode_baseline),
         confinement_mode=(
-            pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE
+            pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
         ),
         pedestal_model_output=pedestal_model_output.PedestalModelOutput(
             T_i_ped=h_mode_target,
@@ -167,27 +167,27 @@ class PedestalTransitionStateTest(parameterized.TestCase):
   @parameterized.parameters(
       (
           pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT,
-          pedestal_transition_state.ConfinementMode.H_MODE,
+          pedestal_runtime_params_lib.ConfinementMode.H_MODE,
           False,
       ),
       (
           pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
-          pedestal_transition_state.ConfinementMode.L_MODE,
+          pedestal_runtime_params_lib.ConfinementMode.L_MODE,
           False,
       ),
       (
           pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
-          pedestal_transition_state.ConfinementMode.H_MODE,
+          pedestal_runtime_params_lib.ConfinementMode.H_MODE,
           True,
       ),
       (
           pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
-          pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_H_MODE,
+          pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
           True,
       ),
       (
           pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
-          pedestal_transition_state.ConfinementMode.TRANSITIONING_TO_L_MODE,
+          pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
           True,
       ),
   )
@@ -668,6 +668,106 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
           h_init_ts.n_e_ped_L_mode,
           2.0 * self.core_profiles.n_e.face_value()[-1],
       )
+
+    with self.subTest('starting_in_H_mode_with_custom_bc_multiplier'):
+      custom_pedestal = dataclasses.replace(
+          self.runtime_params.pedestal,
+          initial_L_mode_bc_multiplier=3.5,
+      )
+      custom_runtime_params = dataclasses.replace(
+          self.runtime_params, pedestal=custom_pedestal
+      )
+      with mock.patch.object(
+          power_scaling_formation_model,
+          'calculate_P_SOL_total',
+          return_value=jnp.array(_P_LH * 1.5),
+      ), mock.patch.object(
+          scaling_laws,
+          'calculate_P_LH',
+          return_value=(jnp.array(_P_LH), None),
+      ):
+        h_custom_ts = self.pedestal_model.initialize_transition_state(
+            custom_runtime_params,
+            self.geo,
+            self.core_profiles,
+            self.source_profiles,
+        )
+      self.assertEqual(h_custom_ts.confinement_mode, ConfinementMode.H_MODE)
+      np.testing.assert_allclose(
+          h_custom_ts.T_i_ped_L_mode,
+          3.5 * self.core_profiles.T_i.face_value()[-1],
+      )
+      np.testing.assert_allclose(
+          h_custom_ts.T_e_ped_L_mode,
+          3.5 * self.core_profiles.T_e.face_value()[-1],
+      )
+      np.testing.assert_allclose(
+          h_custom_ts.n_e_ped_L_mode,
+          3.5 * self.core_profiles.n_e.face_value()[-1],
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='override_L_mode_above_P_LH_triggers_LH_ramp',
+          initial_confinement_mode=ConfinementMode.L_MODE,
+          P_SOL=_P_LH * 1.5,
+          expected_init_mode=ConfinementMode.L_MODE,
+          expected_update_mode=ConfinementMode.TRANSITIONING_TO_H_MODE,
+      ),
+      dict(
+          testcase_name='override_H_mode_below_hysteresis_triggers_HL_ramp',
+          initial_confinement_mode=ConfinementMode.H_MODE,
+          P_SOL=_P_LH * _HYSTERESIS * 0.5,
+          expected_init_mode=ConfinementMode.H_MODE,
+          expected_update_mode=ConfinementMode.TRANSITIONING_TO_L_MODE,
+      ),
+      dict(
+          testcase_name='override_H_mode_in_hysteresis_band_stays_H_mode',
+          initial_confinement_mode=ConfinementMode.H_MODE,
+          P_SOL=_P_LH * (_HYSTERESIS + (1.0 - _HYSTERESIS) / 2.0),
+          expected_init_mode=ConfinementMode.H_MODE,
+          expected_update_mode=ConfinementMode.H_MODE,
+      ),
+      dict(
+          testcase_name='inferred_in_hysteresis_band_starts_and_stays_L_mode',
+          initial_confinement_mode=None,
+          P_SOL=_P_LH * (_HYSTERESIS + (1.0 - _HYSTERESIS) / 2.0),
+          expected_init_mode=ConfinementMode.L_MODE,
+          expected_update_mode=ConfinementMode.L_MODE,
+      ),
+  )
+  def test_initialize_transition_state_initial_confinement_mode_override(
+      self,
+      initial_confinement_mode,
+      P_SOL,
+      expected_init_mode,
+      expected_update_mode,
+  ):
+    pedestal_params = dataclasses.replace(
+        self.runtime_params.pedestal,
+        initial_confinement_mode=initial_confinement_mode,
+    )
+    runtime_params = dataclasses.replace(
+        self.runtime_params, pedestal=pedestal_params
+    )
+    with mock.patch.object(
+        power_scaling_formation_model,
+        'calculate_P_SOL_total',
+        return_value=jnp.array(P_SOL),
+    ), mock.patch.object(
+        scaling_laws,
+        'calculate_P_LH',
+        return_value=(jnp.array(_P_LH), None),
+    ):
+      init_ts = self.pedestal_model.initialize_transition_state(
+          runtime_params,
+          self.geo,
+          self.core_profiles,
+          self.source_profiles,
+      )
+    self.assertEqual(init_ts.confinement_mode, expected_init_mode)
+    updated_ts = self._call_update(init_ts, P_SOL=P_SOL)
+    self.assertEqual(updated_ts.confinement_mode, expected_update_mode)
 
 
 class AdaptiveTransportTransitionStateTest(parameterized.TestCase):

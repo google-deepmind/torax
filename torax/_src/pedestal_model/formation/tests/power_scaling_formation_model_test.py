@@ -22,6 +22,7 @@ from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.physics import scaling_laws
 from torax._src.test_utils import default_configs
@@ -151,12 +152,12 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
       dict(
           testcase_name='stays_in_h_mode',
           p_sol_factor=0.9,
-          expected_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE,
+          expected_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
       ),
       dict(
           testcase_name='transitions_to_l_mode',
           p_sol_factor=0.7,
-          expected_mode=pedestal_transition_state_lib.ConfinementMode.L_MODE,
+          expected_mode=pedestal_runtime_params_lib.ConfinementMode.L_MODE,
       ),
   )
   def test_pedestal_transition_hysteresis(self, p_sol_factor, expected_mode):
@@ -191,7 +192,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     # Create a state in H-mode
     initial_transition_state = pedestal_transition_state_lib.PedestalTransitionState(
         confinement_mode=jnp.array(
-            pedestal_transition_state_lib.ConfinementMode.H_MODE
+            pedestal_runtime_params_lib.ConfinementMode.H_MODE
         ),
         transition_start_time=jnp.array(0.0),
         T_i_ped_L_mode=jnp.array(0.5),
@@ -239,7 +240,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
 
     l_mode_state = pedestal_transition_state_lib.PedestalTransitionState.empty()
     h_mode_state = pedestal_transition_state_lib.PedestalTransitionState.empty(
-        confinement_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE
     )
 
     # Mock calculate_P_SOL_total and calculate_P_LH to avoid depending on

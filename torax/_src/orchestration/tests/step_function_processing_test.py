@@ -21,12 +21,12 @@ import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import step_function_processing
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
-ConfinementMode = pedestal_transition_state_lib.ConfinementMode
+ConfinementMode = pedestal_runtime_params_lib.ConfinementMode
 
 
 class StepFunctionProcessingTest(parameterized.TestCase):

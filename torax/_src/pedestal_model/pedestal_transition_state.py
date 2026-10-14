@@ -15,7 +15,6 @@
 """State for tracking pedestal transitions and persisting pedestal outputs."""
 
 import dataclasses
-import enum
 from typing import Self
 import jax
 import jax.numpy as jnp
@@ -28,14 +27,6 @@ from torax._src.pedestal_model import pedestal_model_output as pedestal_model_ou
 from torax._src.pedestal_model import runtime_params as runtime_params_lib
 
 # pylint: disable=invalid-name
-
-
-# Store confinement mode as an int so that it is a valid JAX dynamic type.
-class ConfinementMode(enum.IntEnum):
-  L_MODE = 0
-  H_MODE = 1
-  TRANSITIONING_TO_H_MODE = 2
-  TRANSITIONING_TO_L_MODE = 3
 
 
 @jax.tree_util.register_dataclass
@@ -69,9 +60,6 @@ class PedestalTransitionState:
 
   confinement_mode: array_typing.IntScalar
   transition_start_time: array_typing.FloatScalar
-  # TODO(b/496703290): Allow configuring explicit L-mode baseline values in
-  # PedestalConfig to override the LCFS boundary fallback when starting in
-  # H-mode.
   T_i_ped_L_mode: array_typing.FloatScalar
   T_e_ped_L_mode: array_typing.FloatScalar
   n_e_ped_L_mode: array_typing.FloatScalar
@@ -81,7 +69,9 @@ class PedestalTransitionState:
   @classmethod
   def empty(
       cls,
-      confinement_mode: array_typing.IntScalar = ConfinementMode.L_MODE,
+      confinement_mode: array_typing.IntScalar = (
+          runtime_params_lib.ConfinementMode.L_MODE
+      ),
   ) -> Self:
     """Returns a transition state with empty pedestal outputs and L-mode baselines."""
     return cls(
@@ -156,10 +146,12 @@ class PedestalTransitionState:
       confinement_mode = self.confinement_mode
       return jnp.select(
           [
-              confinement_mode == ConfinementMode.L_MODE,
-              confinement_mode == ConfinementMode.H_MODE,
-              confinement_mode == ConfinementMode.TRANSITIONING_TO_H_MODE,
-              confinement_mode == ConfinementMode.TRANSITIONING_TO_L_MODE,
+              confinement_mode == runtime_params_lib.ConfinementMode.L_MODE,
+              confinement_mode == runtime_params_lib.ConfinementMode.H_MODE,
+              confinement_mode
+              == runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
+              confinement_mode
+              == runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
           ],
           [l_val, h_val, l_to_h_ramp, h_to_l_ramp],
       )
@@ -209,7 +201,7 @@ class PedestalTransitionState:
     ):
       return False
 
-    return self.confinement_mode != ConfinementMode.L_MODE
+    return self.confinement_mode != runtime_params_lib.ConfinementMode.L_MODE
 
   def to_internal_boundary_conditions(
       self,

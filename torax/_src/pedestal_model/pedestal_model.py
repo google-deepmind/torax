@@ -37,8 +37,6 @@ from torax._src.sources import source_profiles as source_profiles_lib
 # pylint: disable=invalid-name
 # Using physics notation naming convention
 
-_L_MODE_PEDESTAL_BC_MULTIPLIER = 2.0
-
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
@@ -56,7 +54,10 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalModelOutput:
     pedestal_output = self._call_implementation(
-        runtime_params, geo, core_profiles, pedestal_transition_state,
+        runtime_params,
+        geo,
+        core_profiles,
+        pedestal_transition_state,
     )
 
     # If in ADAPTIVE_TRANSPORT mode, calculate the transport multipliers based
@@ -119,32 +120,30 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
         jnp.abs(geo.rho_norm - pedestal_output.rho_norm_ped_top)
     )
     in_l_mode = (
-        confinement_mode == pedestal_transition_state_lib.ConfinementMode.L_MODE
+        confinement_mode == pedestal_runtime_params_lib.ConfinementMode.L_MODE
     )
+    bc_multiplier = runtime_params.pedestal.initial_L_mode_bc_multiplier
     # Seed L-mode pedestal-top baselines so a subsequent H->L ramp has sensible
     # targets even if the simulation starts directly in H-mode. When starting in
     # L-mode, use the initial profile values at the pedestal top; when starting
     # in H-mode (where the pedestal top already reflects the H-mode pedestal),
-    # fall back to a multiple of the LCFS boundary values (`face_value()[-1]`).
+    # fall back to `initial_L_mode_bc_multiplier * face_value()[-1]`.
     return dataclasses.replace(
         transition_state,
         T_i_ped_L_mode=jnp.where(
             in_l_mode,
             core_profiles.T_i.value[ped_top_idx],
-            _L_MODE_PEDESTAL_BC_MULTIPLIER
-            * core_profiles.T_i.face_value()[-1],
+            bc_multiplier * core_profiles.T_i.face_value()[-1],
         ),
         T_e_ped_L_mode=jnp.where(
             in_l_mode,
             core_profiles.T_e.value[ped_top_idx],
-            _L_MODE_PEDESTAL_BC_MULTIPLIER
-            * core_profiles.T_e.face_value()[-1],
+            bc_multiplier * core_profiles.T_e.face_value()[-1],
         ),
         n_e_ped_L_mode=jnp.where(
             in_l_mode,
             core_profiles.n_e.value[ped_top_idx],
-            _L_MODE_PEDESTAL_BC_MULTIPLIER
-            * core_profiles.n_e.face_value()[-1],
+            bc_multiplier * core_profiles.n_e.face_value()[-1],
         ),
         pedestal_model_output=pedestal_output,
         previous_pedestal_model_output=pedestal_output,
@@ -276,19 +275,19 @@ def _update_adaptive_transport(
           # L-H transition.
           (
               old_confinement_mode
-              == pedestal_transition_state_lib.ConfinementMode.L_MODE
+              == pedestal_runtime_params_lib.ConfinementMode.L_MODE
           )
           & trigger_l_to_h_transition,
           # H-L back transition, with hysteresis.
           (
               old_confinement_mode
-              == pedestal_transition_state_lib.ConfinementMode.H_MODE
+              == pedestal_runtime_params_lib.ConfinementMode.H_MODE
           )
           & trigger_h_to_l_transition,
       ],
       [
-          pedestal_transition_state_lib.ConfinementMode.H_MODE,
-          pedestal_transition_state_lib.ConfinementMode.L_MODE,
+          pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+          pedestal_runtime_params_lib.ConfinementMode.L_MODE,
       ],
       default=old_confinement_mode,
   )
@@ -361,13 +360,13 @@ def _update_internal_boundary_condition(
   instant_transition = runtime_params.pedestal.transition_time_width == 0.0
   l_to_h_transition_target_mode = jnp.where(
       instant_transition,
-      pedestal_transition_state_lib.ConfinementMode.H_MODE,
-      pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
+      pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+      pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
   )
   h_to_l_transition_target_mode = jnp.where(
       instant_transition,
-      pedestal_transition_state_lib.ConfinementMode.L_MODE,
-      pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
+      pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+      pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
   )
 
   conditions = [
@@ -375,31 +374,31 @@ def _update_internal_boundary_condition(
       # take priority over starting new transitions in jnp.select.
       (
           old_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
       )
       & transition_is_complete,
       # Completed HL transition.
       (
           old_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE
       )
       & transition_is_complete,
       # L-H transition.
       (
           old_confinement_mode
-          != pedestal_transition_state_lib.ConfinementMode.H_MODE
+          != pedestal_runtime_params_lib.ConfinementMode.H_MODE
       )
       & trigger_l_to_h_transition,
       # H-L back transition, with hysteresis.
       (
           old_confinement_mode
-          != pedestal_transition_state_lib.ConfinementMode.L_MODE
+          != pedestal_runtime_params_lib.ConfinementMode.L_MODE
       )
       & trigger_h_to_l_transition,
   ]
   new_confinement_modes = [
-      pedestal_transition_state_lib.ConfinementMode.H_MODE,
-      pedestal_transition_state_lib.ConfinementMode.L_MODE,
+      pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+      pedestal_runtime_params_lib.ConfinementMode.L_MODE,
       l_to_h_transition_target_mode,
       h_to_l_transition_target_mode,
   ]
@@ -419,39 +418,39 @@ def _update_internal_boundary_condition(
   standard_transition = (
       (
           old_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.L_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.L_MODE
       )
       & (
           new_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
       )
   ) | (
       (
           old_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.H_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.H_MODE
       )
       & (
           new_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE
       )
   )
   dithering_transition = (
       (
           old_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
       )
       & (
           new_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE
       )
   ) | (
       (
           old_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE
       )
       & (
           new_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
       )
   )
   # At time t, suppose we have been in forward transition since t0, with desired
@@ -476,16 +475,15 @@ def _update_internal_boundary_condition(
   # Update the target values for transitions to L-mode.
   # Only needed for INTERNAL_BOUNDARY_CONDITION, which uses ramp interpolation.
   update_L_mode_values = (
-      old_confinement_mode
-      == pedestal_transition_state_lib.ConfinementMode.L_MODE
+      old_confinement_mode == pedestal_runtime_params_lib.ConfinementMode.L_MODE
   ) & (
       (
           new_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
       )
       | (
           new_confinement_mode
-          == pedestal_transition_state_lib.ConfinementMode.H_MODE
+          == pedestal_runtime_params_lib.ConfinementMode.H_MODE
       )
   )
   ped_top_idx = jnp.argmin(

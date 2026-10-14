@@ -25,6 +25,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 
 
@@ -80,17 +81,24 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       source_profiles: source_profiles_lib.SourceProfiles,
   ) -> array_typing.IntScalar:
     """Returns the initial confinement mode at t_initial."""
+    # Allow explicit override (e.g. to trigger an L-H or H-L transition ramp
+    # from initialization) before falling back to transition conditions.
+    if runtime_params.pedestal.initial_confinement_mode is not None:
+      return jnp.array(
+          runtime_params.pedestal.initial_confinement_mode,
+          dtype=jax_utils.get_int_dtype(),
+      )
     trigger_l_to_h_transition, _ = self.evaluate_transition_conditions(
         runtime_params, geo, core_profiles, source_profiles
     )
     return jnp.where(
         trigger_l_to_h_transition,
         jnp.array(
-            pedestal_transition_state_lib.ConfinementMode.H_MODE,
+            pedestal_runtime_params_lib.ConfinementMode.H_MODE,
             dtype=jax_utils.get_int_dtype(),
         ),
         jnp.array(
-            pedestal_transition_state_lib.ConfinementMode.L_MODE,
+            pedestal_runtime_params_lib.ConfinementMode.L_MODE,
             dtype=jax_utils.get_int_dtype(),
         ),
     )

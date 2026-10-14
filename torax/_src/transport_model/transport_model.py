@@ -30,6 +30,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
@@ -73,7 +74,7 @@ class TransportModel(static_dataclass.StaticDataclass):
     """
     pedestal_active = (
         pedestal_transition_state.confinement_mode
-        != pedestal_transition_state_lib.ConfinementMode.L_MODE
+        != pedestal_runtime_params_lib.ConfinementMode.L_MODE
     )
     pedestal_mask = jnp.asarray(
         pedestal_active

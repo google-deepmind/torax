@@ -96,8 +96,8 @@ def setUpModule():
 
 def _make_transition_state(
     rho_norm_ped_top: float = 1.0,
-    confinement_mode: pedestal_transition_state_lib.ConfinementMode = (
-        pedestal_transition_state_lib.ConfinementMode.L_MODE
+    confinement_mode: pedestal_runtime_params_lib.ConfinementMode = (
+        pedestal_runtime_params_lib.ConfinementMode.L_MODE
     ),
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
   output = mock.create_autospec(
@@ -436,7 +436,7 @@ class TransportModelTest(parameterized.TestCase):
     )
     transition_state = _make_transition_state(
         rho_norm_ped_top=0.91,
-        confinement_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE,
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
     )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
@@ -496,7 +496,7 @@ class TransportModelTest(parameterized.TestCase):
     )
     transition_state = _make_transition_state(
         rho_norm_ped_top=0.91,
-        confinement_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE,
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
     )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
@@ -611,7 +611,7 @@ class TransportModelTest(parameterized.TestCase):
     )
     transition_state = _make_transition_state(
         rho_norm_ped_top=0.8,
-        confinement_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE,
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
     )
     matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
@@ -1088,7 +1088,7 @@ class TransportModelTest(parameterized.TestCase):
         mock.ANY,
         _make_transition_state(
             rho_norm_ped_top=0.8,
-            confinement_mode=pedestal_transition_state_lib.ConfinementMode.L_MODE,
+            confinement_mode=pedestal_runtime_params_lib.ConfinementMode.L_MODE,
         ),
         two_point_mask,
     )
@@ -1102,9 +1102,9 @@ class TransportModelTest(parameterized.TestCase):
     )
 
     for active_mode in (
-        pedestal_transition_state_lib.ConfinementMode.H_MODE,
-        pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
-        pedestal_transition_state_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
+        pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+        pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
+        pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
     ):
       with self.subTest(confinement_mode=active_mode.name):
         active_coeffs = model(
