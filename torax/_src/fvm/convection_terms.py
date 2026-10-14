@@ -25,6 +25,50 @@ from torax._src import tridiagonal
 from torax._src.fvm import cell_variable
 
 
+# Below this |Péclet number|, `_peclet_to_alpha` uses its Taylor expansion
+# instead of the exponential form, avoiding cancellation error near p = 0.
+_SMALL_PECLET = 0.1
+# |Péclet number| at which `expm1` is clipped to avoid overflow; beyond this the
+# weights equal the upwind limits to machine precision.
+_LARGE_PECLET = 40.0
+
+
+def _peclet_to_alpha(p):
+  """Face interpolation weight for the exponential convection-diffusion scheme.
+
+  Computes `alpha(p) = ((p - 1) * exp(p) + 1) / (p * (exp(p) - 1))`
+  (Scharfetter & Gummel 1969; Patankar 1980 Section 5), which reproduces the
+  exact local steady solution with constant coefficients and zero source. See
+  also the FiPy discussion of convection schemes (`ExponentialConvectionTerm`):
+  https://www.ctcms.nist.gov/fipy/documentation/numerical/scheme.html
+
+  Uses the degree-7 Bernoulli Taylor expansion for `|p| < 0.1` (full accuracy
+  in both float32 and float64) and clips `|p|` at 40 in `expm1` so large `|p|`
+  matches the upwind limits `1 - 1 / p` (`p >> 1`) and `-1 / p` (`p << -1`)
+  without overflow or NaN gradients.
+
+  Args:
+    p: Face Péclet number array.
+
+  Returns:
+    Face interpolation weight `alpha` in `[0, 1]`.
+  """
+  is_small = jnp.abs(p) < _SMALL_PECLET
+  # Exponential branch for |p| >= _SMALL_PECLET. Masked entries get the
+  # placeholder _SMALL_PECLET so that neither 1 / p nor expm1 is evaluated at 0.
+  p_safe = jnp.where(is_small, _SMALL_PECLET, p)
+  p_clipped = jnp.clip(p_safe, -_LARGE_PECLET, _LARGE_PECLET)
+  alpha_exp = 1.0 - 1.0 / p_safe + 1.0 / jnp.expm1(p_clipped)
+  # Taylor expansion for |p| < _SMALL_PECLET. Masked entries use 0 so that the
+  # polynomial cannot overflow (or produce NaN gradients) at large |p|.
+  p_small = jnp.where(is_small, p, 0.0)
+  p2 = p_small * p_small
+  alpha_series = 0.5 + p_small * (
+      1.0 / 12.0 - p2 * (1.0 / 720.0 - p2 * (1.0 / 30240.0 - p2 / 1209600.0))
+  )
+  return jnp.where(is_small, alpha_series, alpha_exp)
+
+
 # TODO(b/469726859): Once non-uniform grid is supported add in testing.
 def make_convection_terms(
     v_face: jax.Array,
@@ -48,9 +92,6 @@ def make_convection_terms(
     mat: Tridiagonal matrix of coefficients on u
     c: Vector of terms not dependent on u
   """
-
-  # Alpha weighting calculated using power law scheme described in
-  # https://www.ctcms.nist.gov/fipy/documentation/numerical/scheme.html
 
   # Avoid divide by zero
   eps = 1e-20
@@ -76,30 +117,8 @@ def make_convection_terms(
   left_peclet = -ratio[:-1]
   right_peclet = ratio[1:]
 
-  def peclet_to_alpha(p):
-    eps = 1e-3
-    p = jnp.where(jnp.abs(p) < eps, eps, p)
-
-    alpha_pg10 = (p - 1) / p
-    alpha_p0to10 = ((p - 1) + (1 - p / 10) ** 5) / p
-    # FiPy doc has a typo on the next line, where we use a + the doc has a
-    # -, which is clearly a mistake since it makes the function
-    # discontinuous and negative
-    alpha_pneg10to0 = ((1 + p / 10) ** 5 - 1) / p
-    alpha_plneg10 = -1 / p
-
-    alpha = 0.5 * jnp.ones_like(p)
-    alpha = jnp.where(p > 10.0, alpha_pg10, alpha)
-    alpha = jnp.where(jnp.logical_and(10.0 >= p, p > eps), alpha_p0to10, alpha)
-    alpha = jnp.where(
-        jnp.logical_and(-eps > p, p >= -10), alpha_pneg10to0, alpha
-    )
-    alpha = jnp.where(p < -10.0, alpha_plneg10, alpha)
-
-    return alpha
-
-  left_alpha = peclet_to_alpha(left_peclet)
-  right_alpha = peclet_to_alpha(right_peclet)
+  left_alpha = _peclet_to_alpha(left_peclet)
+  right_alpha = _peclet_to_alpha(right_peclet)
 
   left_v = v_face[:-1]
   right_v = v_face[1:]
