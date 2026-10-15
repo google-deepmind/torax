@@ -27,6 +27,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 
 # pylint: disable=invalid-name
@@ -135,7 +136,11 @@ class TGLFNNukaeaTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     tglf_inputs = self._prepare_tglf_inputs(
         transport=transport,
         geo=geo,
@@ -146,14 +151,17 @@ class TGLFNNukaeaTransportModel(
     predictions = self.model.predict(tglfnn_inputs)
 
     # TODO(b/323504363): expose variance outputs
-    return self._make_transport_coeffs(
-        ion_heat_flux_GB=predictions["efi_gb"][..., 0],
-        electron_heat_flux_GB=predictions["efe_gb"][..., 0],
-        # TODO(b/323504363): Convert pfi to pfe for multi-ion plasmas
-        electron_particle_flux_GB=predictions["pfi_gb"][..., 0],
-        tglf_inputs=tglf_inputs,
-        transport=transport,
-        geo=geo,
-        core_profiles=core_profiles,
-        two_point_mask=two_point_mask,
+    return (
+        self._make_transport_coeffs(
+            ion_heat_flux_GB=predictions["efi_gb"][..., 0],
+            electron_heat_flux_GB=predictions["efe_gb"][..., 0],
+            # TODO(b/323504363): Convert pfi to pfe for multi-ion plasmas
+            electron_particle_flux_GB=predictions["pfi_gb"][..., 0],
+            tglf_inputs=tglf_inputs,
+            transport=transport,
+            geo=geo,
+            core_profiles=core_profiles,
+            two_point_mask=two_point_mask,
+        ),
+        component_state,
     )

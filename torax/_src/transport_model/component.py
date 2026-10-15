@@ -31,6 +31,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 # pylint: disable=invalid-name
 
@@ -39,6 +40,14 @@ from torax._src.transport_model import transport_coeffs
 class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
   """Calculates various coefficients related to heat and particle transport."""
 
+  def initial_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> transport_state_lib.ComponentTransportState:
+    """Returns the initial state for this component transport model."""
+    del runtime_params
+    return transport_state_lib.ComponentTransportState()
+
   def __call__(
       self,
       transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
@@ -46,7 +55,11 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     """Computes transport coefficients and zeros out disabled channels.
 
     Delegates to call_implementation to compute the raw transport coefficients,
@@ -60,29 +73,38 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
+      component_state: ComponentTransportState for this model.
 
     Returns:
-      Transport coefficients with disabled channels zeroed out.
+      tuple of (TransportCoeffs with disabled channels zeroed out,
+      updated ComponentTransportState).
     """
-    coeffs = self.call_implementation(
+    coeffs, component_state = self.call_implementation(
         transport_runtime_params,
         runtime_params,
         geo,
         core_profiles,
         two_point_mask=two_point_mask,
+        component_state=component_state,
     )
     coeffs = self.zero_out_disabled_channels(transport_runtime_params, coeffs)
-    return coeffs
+    return coeffs, component_state
 
   @abc.abstractmethod
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     pass
 
   def zero_out_disabled_channels(
@@ -140,4 +162,3 @@ def compute_radial_range_mask(
   return jnp.asarray(active_mask).at[0].set(
       transport_runtime_params.rho_min == 0
   )
-

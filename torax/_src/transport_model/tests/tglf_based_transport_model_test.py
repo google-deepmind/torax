@@ -36,6 +36,7 @@ from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_params
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 from torax._src.transport_model.tglf import tglf2py
 
 
@@ -54,17 +55,20 @@ def _get_config_and_model_inputs(
       t=torax_config.numerics.t_initial,
   )
   geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
+  source_states = source_models.initial_state(runtime_params)
   core_profiles = initialization.initial_core_profiles(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
       neoclassical_model=neoclassical_model,
+      source_states=source_states,
   )
-  source_profiles = source_profile_builders.build_source_profiles(
+  source_profiles, _ = source_profile_builders.build_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      source_states=source_states,
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
@@ -82,12 +86,14 @@ def _get_config_and_model_inputs(
       transition_state, pedestal_model_output=pedestal_model_outputs
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+  transport_model = torax_config.transport.build_transport_model()
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
       transition_state,
       two_point_mask,
+      transport_model.initial_state(runtime_params),
   )
 
 
@@ -113,7 +119,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
     })
     transport_model = torax_config.transport.build_transport_model()
 
-    core_transport = transport_model(*model_inputs)
+    core_transport, _ = transport_model(*model_inputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
     self.assertEqual(core_transport.total.chi_face_ion.shape, expected_shape)
     self.assertEqual(core_transport.total.chi_face_el.shape, expected_shape)
@@ -137,7 +143,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
-    runtime_params, geo, core_profiles, _, _ = model_inputs
+    runtime_params, geo, core_profiles = model_inputs[:3]
     tglf_params = (
         runtime_params.transport.core_transport_model_params["tglf_based"]
     )
@@ -181,8 +187,8 @@ class TGLFTransportModelTest(parameterized.TestCase):
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
-    runtime_uncapped, geo, core_profiles, _, _ = uncapped_inputs
-    runtime_capped, _, _, _, _ = capped_inputs
+    runtime_uncapped, geo, core_profiles = uncapped_inputs[:3]
+    runtime_capped = capped_inputs[0]
 
     tglf_params_uncapped = (
         runtime_uncapped.transport.core_transport_model_params["tglf_based"]
@@ -233,7 +239,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         },
     })
     transport_model_false = torax_config_false.transport.build_transport_model()
-    core_transport_false = transport_model_false(*model_inputs_false)
+    core_transport_false, _ = transport_model_false(*model_inputs_false)
 
     torax_config_true, model_inputs_true = _get_config_and_model_inputs({
         "core_transport_models": {
@@ -244,7 +250,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         },
     })
     transport_model_true = torax_config_true.transport.build_transport_model()
-    core_transport_true = transport_model_true(*model_inputs_true)
+    core_transport_true, _ = transport_model_true(*model_inputs_true)
 
     # With DV_effective=False (scaled D), d_face_el is set equal to chi_face_el.
     np.testing.assert_allclose(
@@ -287,7 +293,11 @@ class FakeTGLFBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     # Assert required for pytype.
     assert isinstance(
         transport_runtime_params,
@@ -300,15 +310,18 @@ class FakeTGLFBasedTransportModel(
         core_profiles=core_profiles,
         two_point_mask=two_point_mask,
     )
-    return self._make_transport_coeffs(
-        ion_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.4,
-        electron_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.5,
-        electron_particle_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 1.6,
-        tglf_inputs=tglf_inputs,
-        transport=transport_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        two_point_mask=two_point_mask,
+    return (
+        self._make_transport_coeffs(
+            ion_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.4,
+            electron_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.5,
+            electron_particle_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 1.6,
+            tglf_inputs=tglf_inputs,
+            transport=transport_runtime_params,
+            geo=geo,
+            core_profiles=core_profiles,
+            two_point_mask=two_point_mask,
+        ),
+        component_state,
     )
 
 

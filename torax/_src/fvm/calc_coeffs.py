@@ -19,6 +19,7 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -74,6 +75,7 @@ class CoeffsCallback:
       pedestal_transition_state: (
           pedestal_transition_state_lib.PedestalTransitionState
       ),
+      model_state: model_state_lib.ModelState,
       allow_pereverzev: bool = False,
       # Checks if reduced calc_coeffs for explicit terms when theta_implicit=1
       # should be called
@@ -102,6 +104,7 @@ class CoeffsCallback:
         set to all zeros.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
         transitions.
+      model_state: State of models across timesteps.
       allow_pereverzev: If True, then the coeffs are being called within a
         linear solver. Thus could be either the use_predictor_corrector solver
         or as part of calculating the initial guess for the nonlinear solver. In
@@ -139,9 +142,10 @@ class CoeffsCallback:
         explicit_source_profiles=explicit_source_profiles,
         models=self.models,
         evolving_names=self.evolving_names,
+        pedestal_transition_state=pedestal_transition_state,
+        model_state=model_state,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
-        pedestal_transition_state=pedestal_transition_state,
     )
 
 
@@ -155,6 +159,7 @@ def calc_coeffs(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
+    model_state: model_state_lib.ModelState,
     use_pereverzev: bool = False,
     explicit_call: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
@@ -179,6 +184,7 @@ def calc_coeffs(
       coefficients should be written to `coeffs`.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    model_state: Cross-timestep model state.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
     explicit_call: If True, indicates that calc_coeffs is being called for the
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
@@ -205,8 +211,9 @@ def calc_coeffs(
         explicit_source_profiles=explicit_source_profiles,
         models=models,
         evolving_names=evolving_names,
-        use_pereverzev=use_pereverzev,
         pedestal_transition_state=pedestal_transition_state,
+        model_state=model_state,
+        use_pereverzev=use_pereverzev,
     )
 
 
@@ -227,6 +234,7 @@ def _calc_coeffs_full(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
+    model_state: model_state_lib.ModelState,
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """See `calc_coeffs` for details."""
@@ -247,8 +255,9 @@ def _calc_coeffs_full(
   # Calculate the implicit source profiles and combine them with the explicit
   # source profiles. These are needed for the pedestal model, so are computed
   # here rather than in the source terms section.
-  merged_source_profiles = source_profile_builders.build_source_profiles(
+  merged_source_profiles, _ = source_profile_builders.build_source_profiles(
       source_models=models.source_models,
+      source_states=model_state.sources,
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
@@ -335,13 +344,14 @@ def _calc_coeffs_full(
   )
 
   # Compute transport coefficients.
-  transport_coefficients = (
+  transport_coefficients, _ = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=models.transport_model,
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=core_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          transport_state=model_state.transport,
           neoclassical_transport=neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
               geo

@@ -30,6 +30,7 @@ from torax._src.sources import register_model
 from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -52,15 +53,20 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source_lib.SourceProfileElement, ...]:
-    output = super()._get_model_value(
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source_lib.SourceProfileElement, ...],
+      source_state_lib.SourceState,
+  ]:
+    output, source_state = super()._get_model_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=calculated_source_profiles,
         conductivity=conductivity,
+        source_state=source_state,
     )
-    return tuple(2 * x for x in output)
+    return tuple(2 * x for x in output), source_state
 
 
 class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceConfigBase):

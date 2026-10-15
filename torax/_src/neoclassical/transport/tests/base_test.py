@@ -72,6 +72,7 @@ class NeoclassicalTransportTest(absltest.TestCase):
         geo,
         source_models,
         neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
     neoclassical_transport_model = (
         torax_config.neoclassical.transport.build_model()

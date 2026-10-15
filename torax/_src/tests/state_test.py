@@ -72,6 +72,7 @@ class InitialStatesTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(dynamic_runtime_params_slice),
     )
     np.testing.assert_allclose(core_profiles.T_i.right_face_constraint, 27.7)  # pyrefly: ignore[no-matching-overload]
     np.testing.assert_allclose(core_profiles.T_e.right_face_constraint, 42.0)  # pyrefly: ignore[no-matching-overload]
@@ -100,6 +101,7 @@ class InitialStatesTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(dynamic_runtime_params_slice),
     )
     assert core_profiles.quasineutrality_satisfied()
     core_profiles = dataclasses.replace(
@@ -154,6 +156,7 @@ class InitialStatesTest(parameterized.TestCase):
         geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
 
     with self.subTest('main ion species'):

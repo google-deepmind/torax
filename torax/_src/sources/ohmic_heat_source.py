@@ -25,6 +25,7 @@ from torax._src.physics import psi_calculations
 from torax._src.sources import base
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -35,7 +36,10 @@ def ohmic_model_func(
     core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
     conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
+    source_state: source_state_lib.SourceState,
+) -> tuple[
+    tuple[array_typing.FloatVectorCell, ...], source_state_lib.SourceState
+]:
   """Returns the Ohmic source for electron heat equation."""
   if calculated_source_profiles is None:
     raise ValueError(
@@ -74,7 +78,7 @@ def ohmic_model_func(
   # Ohmic power is positive regardless of the sign of voltage and current.
   # Use local major radius for accurate local power calculation
   pohm = jnp.abs(j_total * psidot / (2 * jnp.pi * geo.R_major_profile))
-  return (pohm,)
+  return (pohm,), source_state
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)

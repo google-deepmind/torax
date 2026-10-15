@@ -32,6 +32,7 @@ from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 from torax._src.transport_model.tglf import defaults as tglf_defaults
 from torax._src.transport_model.tglf import tglf2py
 
@@ -113,7 +114,11 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -126,9 +131,10 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
+      component_state: ComponentTransportState for this model.
 
     Returns:
-      coeffs: transport coefficients
+      tuple of (TransportCoeffs, updated ComponentTransportState).
     """
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
@@ -198,15 +204,18 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         )
     )
 
-    return self._make_transport_coeffs(
-        electron_heat_flux_GB=electron_heat_flux,
-        ion_heat_flux_GB=ion_heat_flux,
-        electron_particle_flux_GB=electron_particle_flux,
-        tglf_inputs=tglf_inputs,
-        transport=transport_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        two_point_mask=two_point_mask,
+    return (
+        self._make_transport_coeffs(
+            electron_heat_flux_GB=electron_heat_flux,
+            ion_heat_flux_GB=ion_heat_flux,
+            electron_particle_flux_GB=electron_particle_flux,
+            tglf_inputs=tglf_inputs,
+            transport=transport_runtime_params,
+            geo=geo,
+            core_profiles=core_profiles,
+            two_point_mask=two_point_mask,
+        ),
+        component_state,
     )
 
 

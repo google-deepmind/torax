@@ -81,11 +81,13 @@ class SimpleRedistributionTest(parameterized.TestCase):
     runtime_params_t = runtime_params_provider(t=0.0)
     geo_t = torax_config.geometry.build_provider(t=0.0)
 
+    source_models = torax_config.sources.build_models()
     core_profiles_t = initialization.initial_core_profiles(
         runtime_params=runtime_params_t,
         geo=geo_t,
-        source_models=torax_config.sources.build_models(),
+        source_models=source_models,
         neoclassical_model=torax_config.neoclassical.build_model(),
+        source_states=source_models.initial_state(runtime_params_t),
     )
 
     # Find the q=1 surface radius to pass to the model
@@ -163,11 +165,13 @@ class MixingRadiusClampingTest(parameterized.TestCase):
     )
     runtime_params_t = runtime_params_provider(t=0.0)
     geo_t = torax_config.geometry.build_provider(t=0.0)
+    source_models = torax_config.sources.build_models()
     core_profiles_t = initialization.initial_core_profiles(
         runtime_params=runtime_params_t,
         geo=geo_t,
-        source_models=torax_config.sources.build_models(),
+        source_models=source_models,
         neoclassical_model=torax_config.neoclassical.build_model(),
+        source_states=source_models.initial_state(runtime_params_t),
     )
     rho_norm_q1 = np.interp(
         1.0,
