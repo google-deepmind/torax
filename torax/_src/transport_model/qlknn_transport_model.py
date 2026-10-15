@@ -34,6 +34,7 @@ from torax._src.transport_model import qlknn_model_wrapper
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 
 # pylint: disable=invalid-name
@@ -250,7 +251,11 @@ class QLKNNTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -263,18 +268,22 @@ class QLKNNTransportModel(
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
+      component_state: ComponentTransportState for this model.
 
     Returns:
-      coeffs: transport coefficients
+      tuple of (TransportCoeffs, updated ComponentTransportState).
     """
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
 
-    return self._combined(
-        transport_runtime_params,
-        geo,
-        core_profiles,
-        two_point_mask,
+    return (
+        self._combined(
+            transport_runtime_params,
+            geo,
+            core_profiles,
+            two_point_mask,
+        ),
+        component_state,
     )
 
   def _combined(

@@ -19,6 +19,7 @@ import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import source as source_lib
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.tests import test_lib
 
@@ -30,7 +31,10 @@ class _DummyConfig(icrh_base.IonCyclotronSourceConfig):
 
   @property
   def model_func(self):
-    return lambda *args, **kwargs: None
+    return lambda *args, **kwargs: (
+        (),
+        args[-1] if args else source_state_lib.SourceState(),
+    )
 
 
 class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):

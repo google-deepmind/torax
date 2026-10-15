@@ -27,6 +27,7 @@ from torax._src.geometry import geometry
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 
 # pylint: disable=invalid-name
@@ -58,28 +59,36 @@ class PrescribedTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     r"""Calculates transport coefficients using the Prescribed model.
 
     Args:
-      transport_runtime_params: Input runtime parameters for this
-        transport model.
+      transport_runtime_params: Input runtime parameters for this transport
+        model.
       runtime_params: Input runtime parameters at the current time.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
+      component_state: ComponentTransportState for this model.
 
     Returns:
-      coeffs: The transport coefficients
+      tuple of (TransportCoeffs, updated ComponentTransportState).
     """
     assert isinstance(transport_runtime_params, RuntimeParams)
     del two_point_mask
 
-    return transport_coeffs.TransportCoeffs(
-        chi_face_ion=transport_runtime_params.chi_i,
-        chi_face_el=transport_runtime_params.chi_e,
-        d_face_el=transport_runtime_params.D_e,
-        v_face_el=transport_runtime_params.V_e,
+    return (
+        transport_coeffs.TransportCoeffs(
+            chi_face_ion=transport_runtime_params.chi_i,
+            chi_face_el=transport_runtime_params.chi_e,
+            d_face_el=transport_runtime_params.D_e,
+            v_face_el=transport_runtime_params.V_e,
+        ),
+        component_state,
     )

@@ -31,6 +31,7 @@ from torax._src.sources import base as source_base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -64,7 +65,11 @@ class GenericCurrentSource(source.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source.SourceProfileElement, ...]:
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source.SourceProfileElement, ...],
+      source_state_lib.SourceState,
+  ]:
     """Calculates the external parallel current density profile on the cell grid."""
     del core_profiles, calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -88,9 +93,12 @@ class GenericCurrentSource(source.Source):
     j_tor = Cext * generic_current_form
 
     return (
-        psi_calculations.j_toroidal_to_j_parallel(
-            j_tor, geo, runtime_params.numerics.min_rho_norm
+        (
+            psi_calculations.j_toroidal_to_j_parallel(
+                j_tor, geo, runtime_params.numerics.min_rho_norm
+            ),
         ),
+        source_state,
     )
 
 

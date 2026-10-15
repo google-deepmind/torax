@@ -26,6 +26,7 @@ from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -47,18 +48,25 @@ class PelletSource(source.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source.SourceProfileElement, ...]:
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source.SourceProfileElement, ...],
+      source_state_lib.SourceState,
+  ]:
     """Calculates external source term for n from pellets."""
     del core_profiles, calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
     return (
-        formulas.gaussian_profile(
-            center=source_params.pellet_deposition_location,
-            width=source_params.pellet_width,
-            total=source_params.S_total,
-            geo=geo,
+        (
+            formulas.gaussian_profile(
+                center=source_params.pellet_deposition_location,
+                width=source_params.pellet_width,
+                total=source_params.S_total,
+                geo=geo,
+            ),
         ),
+        source_state,
     )
 
 

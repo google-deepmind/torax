@@ -28,6 +28,7 @@ from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -51,10 +52,14 @@ def scaled_profile_model_func(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
+    source_state: source_state_lib.SourceState,
 ) -> tuple[
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    tuple[fast_ion_lib.FastIon, ...],
+    tuple[
+        array_typing.FloatVectorCell,
+        array_typing.FloatVectorCell,
+        tuple[fast_ion_lib.FastIon, ...],
+    ],
+    source_state_lib.SourceState,
 ]:
   """Compute ICRH heating from prescribed profiles with B-field shift.
 
@@ -72,11 +77,12 @@ def scaled_profile_model_func(
     core_profiles: Core plasma profiles (unused by this model).
     unused_calculated_source_profiles: Not used.
     unused_conductivity: Not used.
+    source_state: Cross-timestep state for this source.
 
   Returns:
-    Tuple of (ion_heating, electron_heating, fast_ions). Fast_ions are
-    all zeros for now. Scaled fast ion profiles will be supported in a future
-    version.
+    Tuple of (ion_heating, electron_heating, fast_ions), and the source state.
+    Fast_ions are all zeros for now. Scaled fast ion profiles will be supported
+    in a future version.
   """
   del core_profiles  # Unused.
   source_params = runtime_params.sources[source_name]
@@ -122,7 +128,7 @@ def scaled_profile_model_func(
 
   # --- 3. Default empty fast ions (populated by Source.get_value) ---
   # TODO(b/508118026): extend to support scaled prescribed fast ion profiles.
-  return (source_ion, source_el, ())
+  return (source_ion, source_el, ()), source_state
 
 
 class ScaledProfileIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):

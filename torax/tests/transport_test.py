@@ -24,6 +24,7 @@ import torax
 from torax import transport
 from torax._src import array_typing
 from torax._src.test_utils import default_configs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -37,12 +38,19 @@ class FakeTransportModel(transport.ComponentTransportModel):
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport.TransportCoeffs:
-    return transport.TransportCoeffs(
-        chi_face_ion=jnp.zeros_like(geo.rho_face_norm),
-        chi_face_el=jnp.zeros_like(geo.rho_face_norm),
-        d_face_el=jnp.zeros_like(geo.rho_face_norm),
-        v_face_el=jnp.zeros_like(geo.rho_face_norm),
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
+    return (
+        transport.TransportCoeffs(
+            chi_face_ion=jnp.zeros_like(geo.rho_face_norm),
+            chi_face_el=jnp.zeros_like(geo.rho_face_norm),
+            d_face_el=jnp.zeros_like(geo.rho_face_norm),
+            v_face_el=jnp.zeros_like(geo.rho_face_norm),
+        ),
+        component_state,
     )
 
 

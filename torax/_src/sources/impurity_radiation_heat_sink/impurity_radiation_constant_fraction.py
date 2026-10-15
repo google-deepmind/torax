@@ -30,6 +30,7 @@ from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -49,7 +50,10 @@ def radially_constant_fraction_of_Pin(
     unused_core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
+    source_state: source_state_lib.SourceState,
+) -> tuple[
+    tuple[array_typing.FloatVectorCell, ...], source_state_lib.SourceState
+]:
   """Model function for radiation heat sink from impurities."""
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)
@@ -77,10 +81,13 @@ def radially_constant_fraction_of_Pin(
 
   # Calculate the heat sink as a fraction of the total power input
   return (
-      -source_params.fraction_P_heating
-      * P_total_in
-      / geo.volume_face[-1]
-      * jnp.ones_like(geo.rho),
+      (
+          -source_params.fraction_P_heating
+          * P_total_in
+          / geo.volume_face[-1]
+          * jnp.ones_like(geo.rho),
+      ),
+      source_state,
   )
 
 

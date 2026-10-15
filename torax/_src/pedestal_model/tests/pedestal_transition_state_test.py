@@ -255,17 +255,20 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     self.geo = torax_config.geometry.build_provider(0.0)
     self.runtime_params = provider(t=0.0)
     self.pedestal_model = torax_config.pedestal.build_pedestal_model()
+    source_states = source_models.initial_state(self.runtime_params)
     self.core_profiles = initialization.initial_core_profiles(
         self.runtime_params,
         self.geo,
         source_models,
         neoclassical_model,
+        source_states=source_states,
     )
-    self.source_profiles = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
+        source_states=source_states,
         explicit=True,
     )
 
@@ -799,17 +802,20 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
     self.geo = torax_config.geometry.build_provider(0.0)
     self.runtime_params = provider(t=0.0)
     self.pedestal_model = torax_config.pedestal.build_pedestal_model()
+    source_states = source_models.initial_state(self.runtime_params)
     self.core_profiles = initialization.initial_core_profiles(
         self.runtime_params,
         self.geo,
         source_models,
         neoclassical_model,
+        source_states=source_states,
     )
-    self.source_profiles = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
+        source_states=source_states,
         explicit=True,
     )
 

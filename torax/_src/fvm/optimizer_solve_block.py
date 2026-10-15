@@ -21,6 +21,7 @@ from typing import TypeAlias
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
+from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -63,7 +64,10 @@ def optimizer_solve_block(
     initial_guess_mode: enums.InitialGuessMode,
     maxiter: int,
     tol: float,
-    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    model_state: model_state_lib.ModelState,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state.SolverNumericOutputs,
@@ -113,6 +117,7 @@ def optimizer_solve_block(
     tol: See docstring of `jaxopt.LBFGS`.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    model_state: State of models across timesteps.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
@@ -131,6 +136,7 @@ def optimizer_solve_block(
       explicit_source_profiles=explicit_source_profiles,
       explicit_call=True,
       pedestal_transition_state=pedestal_transition_state,
+      model_state=model_state,
   )
 
   match initial_guess_mode:
@@ -152,6 +158,7 @@ def optimizer_solve_block(
           allow_pereverzev=True,
           explicit_call=True,
           pedestal_transition_state=pedestal_transition_state,
+          model_state=model_state,
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
       x_new_guess = convertors.core_profiles_to_solver_x_tuple(
@@ -169,6 +176,7 @@ def optimizer_solve_block(
           coeffs_callback=coeffs_callback,
           explicit_source_profiles=explicit_source_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          model_state=model_state,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case enums.InitialGuessMode.X_OLD:
@@ -196,6 +204,7 @@ def optimizer_solve_block(
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
       pedestal_transition_state=pedestal_transition_state,
+      model_state=model_state,
       maxiter=maxiter,
       tol=tol,
   )

@@ -24,6 +24,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
+from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -45,6 +46,7 @@ from torax._src.transport_model import pydantic_model_base as transport_pydantic
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 
 def setUpModule():
@@ -225,6 +227,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       pedestal_transition_state: (
           pedestal_transition_state_lib.PedestalTransitionState
       ),
+      model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -280,12 +283,19 @@ class FakeTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
-    return transport_coeffs.TransportCoeffs(
-        chi_face_ion=jnp.zeros(geo.rho_face.shape),
-        chi_face_el=jnp.zeros(geo.rho_face.shape),
-        d_face_el=jnp.zeros(geo.rho_face.shape),
-        v_face_el=jnp.zeros(geo.rho_face.shape),
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
+    return (
+        transport_coeffs.TransportCoeffs(
+            chi_face_ion=jnp.zeros(geo.rho_face.shape),
+            chi_face_el=jnp.zeros(geo.rho_face.shape),
+            d_face_el=jnp.zeros(geo.rho_face.shape),
+            v_face_el=jnp.zeros(geo.rho_face.shape),
+        ),
+        component_state,
     )
 
 

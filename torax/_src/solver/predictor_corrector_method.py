@@ -21,6 +21,7 @@ a standard linear solution.
 
 
 import jax
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import block_1d_coeffs
@@ -50,7 +51,10 @@ def predictor_corrector_method(
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
     explicit_source_profiles: source_profiles.SourceProfiles,
     coeffs_callback: calc_coeffs.CoeffsCallback,
-    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    model_state: model_state_lib.ModelState,
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Predictor-corrector method.
 
@@ -74,6 +78,7 @@ def predictor_corrector_method(
       to all zeros.
     coeffs_callback: coefficient callback function.
     pedestal_transition_state: State tracking the pedestal transitions.
+    model_state: State of models across timesteps.
 
   Returns:
     x_new: Solution of evolving core profile state variables
@@ -92,6 +97,7 @@ def predictor_corrector_method(
         x=x_new_guess,
         explicit_source_profiles=explicit_source_profiles,
         pedestal_transition_state=pedestal_transition_state,
+        model_state=model_state,
         allow_pereverzev=True,
     )
 

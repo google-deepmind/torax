@@ -51,6 +51,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
 
     torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(
@@ -90,6 +91,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params_t),
     )
 
     torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(

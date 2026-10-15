@@ -25,6 +25,7 @@ from torax._src.geometry import geometry
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 
 # pylint: disable=invalid-name
@@ -53,7 +54,11 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     r"""Calculates transport coefficients using the Critical Gradient Model.
 
     Uses critical normalized logarithmic ion temperature gradient
@@ -72,9 +77,10 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
+      component_state: ComponentTransportState for this model.
 
     Returns:
-      coeffs: The transport coefficients
+      tuple of (TransportCoeffs, updated ComponentTransportState).
     """
 
     # pylint: disable=invalid-name
@@ -145,9 +151,12 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
         / geo.R_major_profile_face
     )
 
-    return transport_coeffs.TransportCoeffs(
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
+    return (
+        transport_coeffs.TransportCoeffs(
+            chi_face_ion=chi_face_ion,
+            chi_face_el=chi_face_el,
+            d_face_el=d_face_el,
+            v_face_el=v_face_el,
+        ),
+        component_state,
     )

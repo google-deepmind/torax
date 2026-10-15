@@ -22,6 +22,7 @@ import chex
 from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
@@ -113,6 +114,7 @@ class StateHistoryTest(parameterized.TestCase):
         geo=self.geo,
         source_models=models.source_models,
         neoclassical_model=models.neoclassical_model,
+        source_states=models.source_models.initial_state(runtime_params),
     )
     self.core_transport = state.CoreTransport(
         total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
@@ -155,6 +157,16 @@ class StateHistoryTest(parameterized.TestCase):
             models.time_step_calculator.initial_state(runtime_params)
         ),
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state_lib.ModelState(
+            pedestal=models.pedestal_model.initial_state(
+                runtime_params,
+                self.geo,
+                self.core_profiles,
+                self.source_profiles,
+            ),
+            transport=models.transport_model.initial_state(runtime_params),
+            sources=models.source_models.initial_state(runtime_params),
+        ),
     )
     sim_error = state.SimError.NO_ERROR
     previous_post_processed_outputs = (
@@ -708,6 +720,7 @@ class StateHistoryTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params_t0),
     )
 
     core_profiles_t1 = initialization.initial_core_profiles(
@@ -715,6 +728,7 @@ class StateHistoryTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params_t1),
     )
 
     # Verify the fractions in core_profiles match the config at t=0
@@ -810,6 +824,7 @@ class StateHistoryTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params_t0),
     )
 
     core_profiles_t1 = initialization.initial_core_profiles(
@@ -817,6 +832,7 @@ class StateHistoryTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params_t1),
     )
 
     sim_state_t0 = dataclasses.replace(
