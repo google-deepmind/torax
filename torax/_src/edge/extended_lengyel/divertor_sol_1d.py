@@ -100,7 +100,7 @@ class ExtendedLengyelState:
   alpha_t: jax.Array  # [dimensionless]
   kappa_e: jax.Array  # [W/(m*eV^3.5)]
   T_e_target: jax.Array  # [eV]
-  c_z_prefactor: jax.Array  # [m^-3]
+  c_z_prefactor: jax.Array  # [dimensionless]
 
 
 @jax.tree_util.register_dataclass
