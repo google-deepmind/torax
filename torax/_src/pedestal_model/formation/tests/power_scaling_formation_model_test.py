@@ -181,11 +181,18 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
 
     # Set hysteresis factor
+    assert isinstance(
+        self.runtime_params.pedestal.formation,
+        power_scaling_formation_model.PowerScalingFormationRuntimeParams,
+    )
     runtime_params = dataclasses.replace(
         self.runtime_params,
         pedestal=dataclasses.replace(
             self.runtime_params.pedestal,
-            P_LH_hysteresis_factor=0.8,
+            formation=dataclasses.replace(
+                self.runtime_params.pedestal.formation,
+                P_LH_hysteresis_factor=0.8,
+            ),
         ),
     )
 
@@ -230,11 +237,18 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
 
     # Set hysteresis factor
+    assert isinstance(
+        self.runtime_params.pedestal.formation,
+        power_scaling_formation_model.PowerScalingFormationRuntimeParams,
+    )
     runtime_params = dataclasses.replace(
         self.runtime_params,
         pedestal=dataclasses.replace(
             self.runtime_params.pedestal,
-            P_LH_hysteresis_factor=0.5,
+            formation=dataclasses.replace(
+                self.runtime_params.pedestal.formation,
+                P_LH_hysteresis_factor=0.5,
+            ),
         ),
     )
 
@@ -314,11 +328,18 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     formation_model = power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
     )
+    assert isinstance(
+        self.runtime_params.pedestal.formation,
+        power_scaling_formation_model.PowerScalingFormationRuntimeParams,
+    )
     runtime_params = dataclasses.replace(
         self.runtime_params,
         pedestal=dataclasses.replace(
             self.runtime_params.pedestal,
-            P_LH_hysteresis_factor=0.8,
+            formation=dataclasses.replace(
+                self.runtime_params.pedestal.formation,
+                P_LH_hysteresis_factor=0.8,
+            ),
         ),
     )
     with mock.patch.object(

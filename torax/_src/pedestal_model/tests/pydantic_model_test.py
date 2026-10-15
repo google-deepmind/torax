@@ -20,6 +20,7 @@ import pydantic
 from torax._src import jax_utils
 from torax._src.pedestal_model import pydantic_model
 from torax._src.pedestal_model import runtime_params
+from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.formation import prescribed_formation_model
 
 
@@ -80,7 +81,11 @@ class PedestalModelPydanticTest(parameterized.TestCase):
 
   def test_power_scaling_with_internal_boundary_condition(self):
     pedestal = pydantic_model.SetTpedNped.from_dict({
-        "formation_model": {"model_name": "martin_scaling"},
+        "formation_model": {
+            "model_name": "martin_scaling",
+            "P_LH_hysteresis_factor": 0.7,
+            "include_dW_dt_in_P_SOL": True,
+        },
         "transition_time_width": 0.5,
     })
     self.assertIsInstance(
@@ -89,6 +94,13 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     self.assertEqual(
         pedestal.mode, runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
     )
+    formation_params = pedestal.build_runtime_params(t=0.0).formation
+    self.assertIsInstance(
+        formation_params,
+        power_scaling_formation_model.PowerScalingFormationRuntimeParams,
+    )
+    self.assertEqual(formation_params.P_LH_hysteresis_factor, 0.7)
+    self.assertTrue(formation_params.include_dW_dt_in_P_SOL)
 
   def test_prescribed_formation_with_adaptive_transport(self):
     pedestal_model = pydantic_model.SetTpedNped.from_dict({

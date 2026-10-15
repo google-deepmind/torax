@@ -87,17 +87,6 @@ class RuntimeParams:
     transition_time_width: Duration of the L-H or H-L transition ramp [s].
       During a transition, pedestal values are linearly interpolated between
       L-mode and H-mode values over this time window.
-    P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
-      checking for an H-L transition, the L-H threshold power P_LH is multiplied
-      by this factor, i.e. the back transition occurs when P_SOL < P_LH *
-      P_LH_hysteresis_factor. A value less than 1 means that the plasma must
-      lose more power to transition back to L-mode than was required to enter
-      H-mode, which is the experimentally observed behavior. Must be in [0, 1].
-    include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
-      calculation used for comparing against P_LH. When False (default), uses
-      P_heat (total auxiliary + Ohmic power - sinks) instead of P_SOL = P_heat -
-      dW/dt. Excluding dW/dt avoids possible spurious dithering during
-      transients.
     explicit_pedestal: When True (default), the pedestal model is evaluated once
       per timestep before the solver loop and its output (T_ped, n_ped,
       rho_ped_top) is frozen during Newton iterations. When False, the pedestal
@@ -131,8 +120,6 @@ class RuntimeParams:
 
   mode: Mode = dataclasses.field(metadata={"static": True})
   transition_time_width: array_typing.FloatScalar
-  P_LH_hysteresis_factor: array_typing.FloatScalar
-  include_dW_dt_in_P_SOL: bool = dataclasses.field(metadata={"static": True})
   explicit_pedestal: bool = dataclasses.field(metadata={"static": True})
   pedestal_profile_form: PedestalProfileForm = dataclasses.field(
       metadata={"static": True}

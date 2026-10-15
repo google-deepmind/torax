@@ -230,8 +230,10 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
-        'formation_model': {'model_name': 'martin_scaling'},
-        'P_LH_hysteresis_factor': _HYSTERESIS,
+        'formation_model': {
+            'model_name': 'martin_scaling',
+            'P_LH_hysteresis_factor': _HYSTERESIS,
+        },
         'transition_time_width': _TRANSITION_WIDTH,
         'T_i_ped': 4.5,
         'T_e_ped': 4.5,
@@ -889,8 +891,10 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
     config['pedestal'] = {
         'model_name': 'set_T_ped_n_ped',
         'mode': 'ADAPTIVE_TRANSPORT',
-        'formation_model': {'model_name': 'martin_scaling'},
-        'P_LH_hysteresis_factor': _HYSTERESIS,
+        'formation_model': {
+            'model_name': 'martin_scaling',
+            'P_LH_hysteresis_factor': _HYSTERESIS,
+        },
     }
     config['sources'] = {
         'generic_heat': {

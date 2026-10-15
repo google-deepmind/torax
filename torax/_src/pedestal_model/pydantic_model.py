@@ -89,6 +89,16 @@ class PowerScalingFormation(BaseFormation):
       at a higher P_SOL.
     P_LH_prefactor: Dimensionless multiplier for P_LH. Increase to scale up
       P_LH, and therefore start the L-H transition at a higher P_SOL.
+    P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
+      checking for an H-L transition, the L-H threshold power P_LH is multiplied
+      by this factor, i.e. the back transition occurs when P_SOL < P_LH *
+      P_LH_hysteresis_factor. A value less than 1 means that the plasma must
+      lose more power to transition back to L-mode than was required to enter
+      H-mode, which is the experimentally observed behavior. Must be in [0, 1].
+    include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
+      calculation used for comparing against P_LH. When False (default), uses
+      P_heat (total auxiliary + Ohmic power - sinks) instead of P_SOL = P_heat -
+      dW/dt. Excluding dW/dt avoids unphysical dithering during transients.
   """
 
   sharpness: pydantic.PositiveFloat = 100.0
@@ -96,6 +106,10 @@ class PowerScalingFormation(BaseFormation):
       array_typing.FloatScalar, pydantic.Field(ge=-10.0, le=10.0)
   ] = 0.0
   P_LH_prefactor: pydantic.PositiveFloat = 1.0
+  P_LH_hysteresis_factor: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.8)
+  )
+  include_dW_dt_in_P_SOL: Annotated[bool, torax_pydantic.JAX_STATIC] = False
 
   @abc.abstractmethod
   def build_formation_model(
@@ -111,6 +125,8 @@ class PowerScalingFormation(BaseFormation):
         sharpness=self.sharpness,
         offset=self.offset,
         P_LH_prefactor=self.P_LH_prefactor,
+        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
+        include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
     )
 
 
@@ -275,16 +291,6 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       L-mode baseline and H-mode target values over this time window. Must be
       explicitly specified in INTERNAL_BOUNDARY_CONDITION mode when using a
       power-scaling formation model; defaults to 0.0 otherwise.
-    P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
-      checking for an H-L transition, the L-H threshold power P_LH is multiplied
-      by this factor, i.e. the back transition occurs when P_SOL < P_LH *
-      P_LH_hysteresis_factor. A value less than 1 means that the plasma must
-      lose more power to transition back to L-mode than was required to enter
-      H-mode, which is the experimentally observed behavior. Must be in [0, 1].
-    include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
-      calculation used for comparing against P_LH. When False (default), uses
-      P_heat (total auxiliary + Ohmic power - sinks) instead of P_SOL = P_heat -
-      dW/dt. Excluding dW/dt avoids unphysical dithering during transients.
     formation_model: Configuration for the pedestal formation model.
     saturation_model: Configuration for the pedestal saturation model.
     chi_max: Maximum effective thermal diffusion coefficient from the core
@@ -316,10 +322,6 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   transition_time_width: torax_pydantic.NonNegativeTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
-  P_LH_hysteresis_factor: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.8)
-  )
-  include_dW_dt_in_P_SOL: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   explicit_pedestal: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   pedestal_profile_form: Annotated[
       runtime_params.PedestalProfileForm, torax_pydantic.JAX_STATIC
@@ -406,8 +408,6 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     return runtime_params.RuntimeParams(
         mode=self.mode,
         transition_time_width=self.transition_time_width.get_value(t),
-        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
-        include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
         explicit_pedestal=self.explicit_pedestal,
         pedestal_profile_form=self.pedestal_profile_form,
         formation=self.formation_model.build_runtime_params(t),

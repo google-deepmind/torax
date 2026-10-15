@@ -946,22 +946,6 @@ top.
   encoding the L-H ramp, as the ramp scaling is applied on top of the target
   values.
 
-``P_LH_hysteresis_factor`` (**time-varying-scalar** [default = 0.8])
-  Hysteresis factor for H-to-L back transitions. When checking for an H-L
-  transition, the L-H threshold power :math:`P_{LH}` is multiplied by this
-  factor, i.e. the back transition occurs when
-  :math:`P_{SOL} < P_{LH} \times` ``P_LH_hysteresis_factor``. A value less
-  than 1 means the plasma must lose more power to transition back to L-mode
-  than was required to enter H-mode, consistent with experimentally observed
-  hysteresis. Must be in [0, 1].
-
-``include_dW_dt_in_P_SOL`` (**bool** [default = False])
-  Whether to include the :math:`dW/dt` term in the :math:`P_{SOL}` calculation
-  used for comparing against :math:`P_{LH}`. When False (default), uses
-  :math:`P_{heat}` (total auxiliary heating + Ohmic power - sinks) instead of
-  :math:`P_{SOL} = P_{heat} - dW/dt`. When ``False``, avoids spurious dithering
-  during L-mode to H-mode transitions.
-
 ``explicit_pedestal`` (**bool** [default = True])
   Controls whether the pedestal model is evaluated explicitly (once per
   timestep) or implicitly (every internal iteration). When ``True`` (default),
@@ -1054,6 +1038,20 @@ top.
       transport decrease multiplier in ``ADAPTIVE_TRANSPORT`` mode.
     * ``P_LH_prefactor`` (float [default = 1.0]): Dimensionless multiplier
       applied to :math:`P_{LH}`.
+    * ``P_LH_hysteresis_factor`` (**time-varying-scalar** [default = 0.8]):
+      Hysteresis factor for H-to-L back transitions. When checking for an H-L
+      transition, the L-H threshold power :math:`P_{LH}` is multiplied by this
+      factor, i.e. the back transition occurs when
+      :math:`P_{SOL} < P_{LH} \times` ``P_LH_hysteresis_factor``. A value less
+      than 1 means the plasma must lose more power to transition back to L-mode
+      than was required to enter H-mode, consistent with experimentally observed
+      hysteresis. Must be in [0, 1].
+    * ``include_dW_dt_in_P_SOL`` (**bool** [default = False]): Whether to
+      include the :math:`dW/dt` term in the :math:`P_{SOL}` calculation used for
+      comparing against :math:`P_{LH}`. When ``False`` (default), uses
+      :math:`P_{heat}` (total auxiliary heating + Ohmic power - sinks) instead
+      of :math:`P_{SOL} = P_{heat} - dW/dt`, avoiding spurious dithering during
+      L-mode to H-mode transitions.
 
   * ``'delabie_scaling'``: Uses the Delabie scaling law for the L-H power
     threshold. Accepts the same parameters as ``'martin_scaling'``, plus:

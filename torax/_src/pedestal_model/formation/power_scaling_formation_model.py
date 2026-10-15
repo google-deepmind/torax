@@ -42,6 +42,8 @@ class PowerScalingFormationRuntimeParams(
   sharpness: array_typing.FloatScalar
   offset: array_typing.FloatScalar
   P_LH_prefactor: array_typing.FloatScalar
+  P_LH_hysteresis_factor: array_typing.FloatScalar
+  include_dW_dt_in_P_SOL: bool = dataclasses.field(metadata={'static': True})
 
 
 @jax.jit(static_argnames=['include_dW_dt'])
@@ -111,7 +113,7 @@ class PowerScalingFormationModel(base.FormationModel):
         core_profiles.internal_plasma_energy,
         core_sources,
         geo,
-        include_dW_dt=runtime_params.pedestal.include_dW_dt_in_P_SOL,
+        include_dW_dt=runtime_params.pedestal.formation.include_dW_dt_in_P_SOL,
     )
     P_LH, _ = scaling_laws.calculate_P_LH(
         geo,
@@ -130,13 +132,17 @@ class PowerScalingFormationModel(base.FormationModel):
       source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[array_typing.BoolScalar, array_typing.BoolScalar]:
     """Evaluates L-H and H-L transition triggers based on P_SOL vs P_LH."""
+    assert isinstance(
+        runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
+    )
     P_SOL_total, rescaled_P_LH = self._calculate_P_SOL_and_P_LH(
         runtime_params, geo, core_profiles, source_profiles
     )
     trigger_l_to_h_transition = P_SOL_total > rescaled_P_LH
     trigger_h_to_l_transition = (
         P_SOL_total
-        < rescaled_P_LH * runtime_params.pedestal.P_LH_hysteresis_factor
+        < rescaled_P_LH
+        * runtime_params.pedestal.formation.P_LH_hysteresis_factor
     )
     return trigger_l_to_h_transition, trigger_h_to_l_transition
 
@@ -161,7 +167,8 @@ class PowerScalingFormationModel(base.FormationModel):
     effective_P_LH = jnp.where(
         pedestal_transition_state.confinement_mode
         == pedestal_runtime_params_lib.ConfinementMode.H_MODE,
-        rescaled_P_LH * runtime_params.pedestal.P_LH_hysteresis_factor,
+        rescaled_P_LH
+        * runtime_params.pedestal.formation.P_LH_hysteresis_factor,
         rescaled_P_LH,
     )
 
