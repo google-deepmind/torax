@@ -140,10 +140,6 @@ class Geometry:
       [:math:`\mathrm{T}^{2}`].
     gm5_face: Flux surface averaged :math:`\langle B^2 \rangle` on the face grid
       [:math:`\mathrm{T}^{2}`].
-    gm9: Flux surface averaged :math:`\langle 1 / R \rangle` on cell grid
-      [:math:`\mathrm{m}^{-1}`].
-    gm9_face: Flux surface averaged :math:`\langle 1 / R \rangle` on face grid
-      [:math:`\mathrm{m}^{-1}`].
     g2g3_over_rhon: Ratio of g2g3 to the normalized toroidal flux coordinate
       rho_norm on cell grid [dimensionless].
     g2g3_over_rhon_face: Ratio of g2g3 to the normalized toroidal flux
