@@ -769,6 +769,116 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     updated_ts = self._call_update(init_ts, P_SOL=P_SOL)
     self.assertEqual(updated_ts.confinement_mode, expected_update_mode)
 
+  def test_prescribed_formation_with_finite_transition_time_width(self):
+    # No pedestal until t=1.0, linear ramp over [1.0, 2.0], H-mode for t >= 2.0.
+    config = default_configs.get_default_config_dict()
+    config['pedestal'] = {
+        'model_name': 'set_T_ped_n_ped',
+        'mode': 'INTERNAL_BOUNDARY_CONDITION',
+        'transition_time_width': 1.0,
+        'formation_model': {
+            'model_name': 'prescribed',
+            'pedestal_active': {0.0: False, 1.0: True},
+        },
+        'T_i_ped': 5.0,
+        'T_e_ped': 5.0,
+        'n_e_ped': 0.7e20,
+        'rho_norm_ped_top': 0.9,
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
+    ts = pedestal_model.initialize_transition_state(
+        provider(t=0.0), self.geo, self.core_profiles, self.source_profiles
+    )
+    l_mode_ti = float(ts.T_i_ped_L_mode)
+
+    ts = pedestal_model.update_transition_state(
+        provider(t=0.5), self.geo, self.core_profiles, self.source_profiles, ts
+    )
+    self.assertEqual(ts.confinement_mode, ConfinementMode.L_MODE)
+
+    ts = pedestal_model.update_transition_state(
+        provider(t=1.0), self.geo, self.core_profiles, self.source_profiles, ts
+    )
+    self.assertEqual(
+        ts.confinement_mode, ConfinementMode.TRANSITIONING_TO_H_MODE
+    )
+
+    params_mid = provider(t=1.5)
+    ts = pedestal_model.update_transition_state(
+        params_mid, self.geo, self.core_profiles, self.source_profiles, ts
+    )
+    output_mid = pedestal_model(
+        params_mid, self.geo, self.core_profiles, self.source_profiles, ts
+    )
+    ts = dataclasses.replace(ts, pedestal_model_output=output_mid)
+    scaled_mid = ts._get_scaled_pedestal_model_output(
+        t=jnp.array(1.5), transition_time_width=jnp.array(1.0)
+    )
+    np.testing.assert_allclose(
+        scaled_mid.T_i_ped, l_mode_ti + 0.5 * (5.0 - l_mode_ti)
+    )
+
+    for t in (2.0, 2.5):
+      params_t = provider(t=t)
+      ts = pedestal_model.update_transition_state(
+          params_t, self.geo, self.core_profiles, self.source_profiles, ts
+      )
+      self.assertEqual(ts.confinement_mode, ConfinementMode.H_MODE)
+      output_t = pedestal_model(
+          params_t, self.geo, self.core_profiles, self.source_profiles, ts
+      )
+      ts = dataclasses.replace(ts, pedestal_model_output=output_t)
+      scaled_t = ts._get_scaled_pedestal_model_output(
+          t=jnp.array(t), transition_time_width=jnp.array(1.0)
+      )
+      np.testing.assert_allclose(scaled_t.T_i_ped, 5.0)
+
+  @parameterized.named_parameters(
+      dict(testcase_name='exact_boundary', overshoot=0.0),
+      dict(testcase_name='overshoot_boundary', overshoot=0.3),
+  )
+  def test_lh_transition_completion_yields_to_hl_back_transition(
+      self, overshoot: float
+  ):
+    t = 5.0 + _TRANSITION_WIDTH + overshoot
+    state = _make_transition_state(
+        ConfinementMode.TRANSITIONING_TO_H_MODE, start_time=5.0
+    )
+    new_state = self._call_update(
+        state,
+        P_SOL=_P_LH * _HYSTERESIS * 0.5,
+        t=t,
+    )
+    self.assertEqual(
+        new_state.confinement_mode, ConfinementMode.TRANSITIONING_TO_L_MODE
+    )
+    np.testing.assert_allclose(new_state.transition_start_time, t)
+
+  @parameterized.named_parameters(
+      dict(testcase_name='exact_boundary', overshoot=0.0),
+      dict(testcase_name='overshoot_boundary', overshoot=0.3),
+  )
+  def test_hl_transition_completion_yields_to_lh_transition(
+      self, overshoot: float
+  ):
+    t = 5.0 + _TRANSITION_WIDTH + overshoot
+    state = _make_transition_state(
+        ConfinementMode.TRANSITIONING_TO_L_MODE, start_time=5.0
+    )
+    new_state = self._call_update(
+        state,
+        P_SOL=_P_LH * 1.5,
+        t=t,
+    )
+    self.assertEqual(
+        new_state.confinement_mode, ConfinementMode.TRANSITIONING_TO_H_MODE
+    )
+    np.testing.assert_allclose(new_state.transition_start_time, t)
+
 
 class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
   """Tests for the simplified ADAPTIVE_TRANSPORT state machine."""

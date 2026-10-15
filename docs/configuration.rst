@@ -932,13 +932,19 @@ top.
 
 ``transition_time_width`` (**time-varying-scalar** [default = 0.0])
   Duration of the L-H or H-L transition ramp in seconds for
-  ``'INTERNAL_BOUNDARY_CONDITION'`` mode. During a transition, pedestal values
-  are linearly interpolated between L-mode baseline values and H-mode target
-  values over this time window. Must be non-negative. Defaults to ``0.0``
-  (immediate step transition) for ``'prescribed'`` formation, and must be
-  explicitly specified when using a power-scaling formation model
-  (``'martin_scaling'`` or ``'delabie_scaling'``) in
-  ``'INTERNAL_BOUNDARY_CONDITION'`` mode.
+  ``'INTERNAL_BOUNDARY_CONDITION'`` mode. During a transition, the confinement
+  mode enters ``TRANSITIONING_TO_H_MODE`` or ``TRANSITIONING_TO_L_MODE`` and
+  pedestal values are linearly interpolated between the captured L-mode baseline
+  values and the H-mode target values (e.g. ``T_i_ped(t)``, ``T_e_ped(t)``,
+  ``n_e_ped(t)``) over this time window. Must be non-negative. Defaults to
+  ``0.0`` (immediate step transition between ``L_MODE`` and ``H_MODE``) for
+  ``'prescribed'`` formation, and must be explicitly specified when using a
+  power-scaling formation model (``'martin_scaling'`` or ``'delabie_scaling'``)
+  in ``'INTERNAL_BOUNDARY_CONDITION'`` mode. Note that if
+  ``transition_time_width > 0.0`` is used with time-varying pedestal targets,
+  those targets should represent the H-mode trajectory rather than manually
+  encoding the L-H ramp, as the ramp scaling is applied on top of the target
+  values.
 
 ``P_LH_hysteresis_factor`` (**time-varying-scalar** [default = 0.8])
   Hysteresis factor for H-to-L back transitions. When checking for an H-L
@@ -1022,10 +1028,13 @@ top.
   * ``'prescribed'``: Controls pedestal activation via a prescribed boolean
     schedule rather than a power-threshold scaling law. When
     ``pedestal_active`` is ``True``, activates the internal boundary condition
-    in ``'INTERNAL_BOUNDARY_CONDITION'`` mode, or applies a constant transport
-    suppression multiplier (``base_multiplier``) in ``'ADAPTIVE_TRANSPORT'``
-    mode (while the saturation model regulates transport once pedestal targets
-    are reached). Additional parameters:
+    in ``'INTERNAL_BOUNDARY_CONDITION'`` mode (stepping directly between
+    ``L_MODE`` and ``H_MODE`` when ``transition_time_width == 0.0``, or ramping
+    through ``TRANSITIONING_TO_H_MODE`` / ``TRANSITIONING_TO_L_MODE`` over
+    ``transition_time_width`` when ``transition_time_width > 0.0``), or applies
+    a constant transport suppression multiplier (``base_multiplier``) in
+    ``'ADAPTIVE_TRANSPORT'`` mode (while the saturation model regulates
+    transport once pedestal targets are reached). Additional parameters:
 
     * ``pedestal_active`` (**time-varying-scalar** [default = True]): Whether
       the pedestal is active (default interpolation is ``STEP``; evaluated at

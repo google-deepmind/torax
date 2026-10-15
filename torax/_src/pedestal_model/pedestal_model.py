@@ -357,6 +357,10 @@ def _update_internal_boundary_condition(
   transition_is_complete = (
       elapsed_transition_time >= runtime_params.pedestal.transition_time_width
   )
+  # `dt` is chosen after `pre_step` (and may be adapted during the step), so
+  # only `transition_time_width == 0.0` skips the transitioning state here; if
+  # `0 < transition_time_width <= dt`, `_compute_ramp_fraction` at `t + dt`
+  # clips to 1.0 and `transition_is_complete` finalizes the mode next step.
   instant_transition = runtime_params.pedestal.transition_time_width == 0.0
   l_to_h_transition_target_mode = jnp.where(
       instant_transition,
@@ -370,26 +374,29 @@ def _update_internal_boundary_condition(
   )
 
   conditions = [
-      # Completed LH transition. Checked first so that completed transitions
-      # take priority over starting new transitions in jnp.select.
+      # Completed L-H transition, unless we meet the threshold for an H-L
+      # back-transition.
       (
           old_confinement_mode
           == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE
       )
-      & transition_is_complete,
-      # Completed HL transition.
+      & transition_is_complete
+      & ~trigger_h_to_l_transition,
+      # Completed H-L back-transition, unless we meet the threshold for an L-H
+      # transition.
       (
           old_confinement_mode
           == pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE
       )
-      & transition_is_complete,
+      & transition_is_complete
+      & ~trigger_l_to_h_transition,
       # L-H transition.
       (
           old_confinement_mode
           != pedestal_runtime_params_lib.ConfinementMode.H_MODE
       )
       & trigger_l_to_h_transition,
-      # H-L back transition, with hysteresis.
+      # H-L back-transition, with hysteresis.
       (
           old_confinement_mode
           != pedestal_runtime_params_lib.ConfinementMode.L_MODE
@@ -455,16 +462,19 @@ def _update_internal_boundary_condition(
   )
   # At time t, suppose we have been in forward transition since t0, with desired
   # transition duration w. If we now begin a back-transition, we have been in
-  # forward transition for t - t0, and so we want to end the back-transition at
-  # time t + (t - t0) = 2t - t0. As we have specified the transition time width
-  # as w, to achieve this we set the start time to (2t - t0) - w.
+  # forward transition for min(t - t0, w), and so we want the back-transition to
+  # take the same duration min(t - t0, w). As the transition time width is w, we
+  # set the start time to min((2t - t0) - w, t).
   new_transition_start_time = jnp.select(
       [standard_transition, dithering_transition],
       [
           runtime_params.t,
-          2.0 * runtime_params.t
-          - pedestal_transition_state.transition_start_time
-          - runtime_params.pedestal.transition_time_width,
+          jnp.minimum(
+              2.0 * runtime_params.t
+              - pedestal_transition_state.transition_start_time
+              - runtime_params.pedestal.transition_time_width,
+              runtime_params.t,
+          ),
       ],
       # Otherwise, preserve the current transition start time. This covers
       # both ongoing transitions (where the mode hasn't changed) and
