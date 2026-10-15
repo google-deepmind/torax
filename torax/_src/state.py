@@ -543,6 +543,25 @@ class SolverNumericOutputs:
   inner_solver_iterations: array_typing.IntScalar
   sawtooth_crash: array_typing.BoolScalar
 
+  def to_output_dict(
+      self, context: output_grid_context.OutputGridContext
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Serializes stacked SolverNumericOutputs into a dictionary of OutputVar tuples."""
+    return {
+        output_keys.OUTER_SOLVER_ITERATIONS: context.pack(
+            output_keys.OUTER_SOLVER_ITERATIONS, self.outer_solver_iterations
+        ),
+        output_keys.INNER_SOLVER_ITERATIONS: context.pack(
+            output_keys.INNER_SOLVER_ITERATIONS, self.inner_solver_iterations
+        ),
+        output_keys.SOLVER_ERROR_STATE: context.pack(
+            output_keys.SOLVER_ERROR_STATE, self.solver_error_state
+        ),
+        output_keys.SAWTOOTH_CRASH: context.pack(
+            output_keys.SAWTOOTH_CRASH, self.sawtooth_crash
+        ),
+    }
+
 
 # TODO(b/434175938): change to StrEnum
 @enum.unique

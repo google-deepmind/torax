@@ -27,7 +27,7 @@ from torax._src import constants
 from torax._src import math_utils
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.output_tools import output
+from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
@@ -187,6 +187,7 @@ def _fill_profiles_1d(
     times: array_typing.FloatVector,
 ) -> None:
   """Fills `profiles_1d` section in-place for the IDS."""
+  extend = output_grid_context.extend_cell_grid_to_boundaries
   # Resize profiles_1d to create its substructure for the different slices.
   ids.profiles_1d.resize(len(times))
   for i in range(len(times)):
@@ -240,7 +241,7 @@ def _fill_profiles_1d(
         n_impurity,  # pyrefly: ignore[bad-argument-type]
         pressure_thermal_i,  # pyrefly: ignore[bad-argument-type]
     )
-    Z_eff = output.extend_cell_grid_to_boundaries(
+    Z_eff = extend(
         [cp_state.Z_eff], np.array([cp_state.Z_eff_face])  # pyrefly: ignore[bad-argument-type]
     )[0]
     ids.profiles_1d[i].zeff = Z_eff
@@ -264,16 +265,17 @@ def _calculate_impurity_density_scaling_and_charge_states(
       FloatVector of avg Z_per_species for all impurities on
       cell_plus_boundaries grid.
   """
+  extend = output_grid_context.extend_cell_grid_to_boundaries
   charge_state_info = core_profiles.charge_state_info
   charge_state_info_face = core_profiles.charge_state_info_face
   Z_per_species = {
-      species: output.extend_cell_grid_to_boundaries(
+      species: extend(
           [charge_state_info.Z_per_species[species]],  # pyrefly: ignore[bad-argument-type]
           np.array([charge_state_info_face.Z_per_species[species]]),
       )[0]
       for species in charge_state_info.Z_per_species
   }
-  impurity_density_scaling = output.extend_cell_grid_to_boundaries(
+  impurity_density_scaling = extend(
       [core_profiles.impurity_density_scaling],  # pyrefly: ignore[bad-argument-type]
       np.array([core_profiles.impurity_density_scaling_face]),
   )[0]
@@ -287,6 +289,7 @@ def _fill_profiles_1d_grid(
     cp_state: state.CoreProfiles,
 ) -> None:
   """Fills `grid` section of `profiles_1d` in-place for the IDS."""
+  extend = output_grid_context.extend_cell_grid_to_boundaries
   ids.profiles_1d[i].grid.rho_tor_norm = np.concatenate(
       [[0.0], geometry_slice.rho_norm, [1.0]]
   )
@@ -300,10 +303,10 @@ def _fill_profiles_1d_grid(
       (cp_state.psi.cell_plus_boundaries() - cp_state.psi.left_face_value[0])
       / (cp_state.psi.right_face_value[0] - cp_state.psi.left_face_value[0])
   )
-  ids.profiles_1d[i].grid.volume = output.extend_cell_grid_to_boundaries(
+  ids.profiles_1d[i].grid.volume = extend(
       [geometry_slice.volume], np.array([geometry_slice.volume_face])  # pyrefly: ignore[bad-argument-type]
   )[0]
-  ids.profiles_1d[i].grid.area = output.extend_cell_grid_to_boundaries(
+  ids.profiles_1d[i].grid.area = extend(
       [geometry_slice.area], np.array([geometry_slice.area_face])  # pyrefly: ignore[bad-argument-type]
   )[0]
 
@@ -317,24 +320,25 @@ def _fill_profiles_1d_currents(
     geo: geometry_lib.Geometry,
 ) -> None:
   """Fills `currents` section of `profiles_1d` in-place for the IDS."""
+  extend = output_grid_context.extend_cell_grid_to_boundaries
   q_cell = geometry_lib.face_to_cell(cp_state.q_face)
   s_cell = geometry_lib.face_to_cell(cp_state.s_face)
-  ids.profiles_1d[i].q = output.extend_cell_grid_to_boundaries(
+  ids.profiles_1d[i].q = extend(
       [q_cell], np.array([cp_state.q_face])  # pyrefly: ignore[bad-argument-type]
   )[0]
-  ids.profiles_1d[i].magnetic_shear = output.extend_cell_grid_to_boundaries(
+  ids.profiles_1d[i].magnetic_shear = extend(
       [s_cell], np.array([cp_state.s_face])  # pyrefly: ignore[bad-argument-type]
   )[0]
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
   # Currents sign flipped due to the difference between TORAX COCOS convention
   # and IMAS one.
   # Total toroidal current density
-  j_phi = output.extend_cell_grid_to_boundaries(
+  j_phi = extend(
       [cp_state.j_total], np.array([cp_state.j_total_face])  # pyrefly: ignore[bad-argument-type]
   )[0]
   ids.profiles_1d[i].j_phi = -1 * j_phi
   # Parallel current densities
-  j_bootstrap = output.extend_cell_grid_to_boundaries(
+  j_bootstrap = extend(
       [cs_state.bootstrap_current.j_parallel_bootstrap],  # pyrefly: ignore[bad-argument-type]
       np.array([cs_state.bootstrap_current.j_parallel_bootstrap_face]),
   )[0]
@@ -343,7 +347,7 @@ def _fill_profiles_1d_currents(
   j_parallel_total_face = math_utils.cell_to_face(
       j_parallel_total, geo, math_utils.IntegralPreservationQuantity.SURFACE
   )
-  ids.profiles_1d[i].j_total = output.extend_cell_grid_to_boundaries(
+  ids.profiles_1d[i].j_total = extend(
       [j_parallel_total], np.array([j_parallel_total_face])  # pyrefly: ignore[bad-argument-type]
   )[0]
 
@@ -351,7 +355,7 @@ def _fill_profiles_1d_currents(
   j_ohmic_face = math_utils.cell_to_face(
       j_ohmic, geo, math_utils.IntegralPreservationQuantity.SURFACE
   )
-  ids.profiles_1d[i].j_ohmic = output.extend_cell_grid_to_boundaries(
+  ids.profiles_1d[i].j_ohmic = extend(
       [j_ohmic], np.array([j_ohmic_face])  # pyrefly: ignore[bad-argument-type]
   )[0]
 
@@ -359,14 +363,12 @@ def _fill_profiles_1d_currents(
   j_non_inductive_face = math_utils.cell_to_face(
       j_non_inductive, geo, math_utils.IntegralPreservationQuantity.SURFACE
   )
-  ids.profiles_1d[i].j_non_inductive = output.extend_cell_grid_to_boundaries(
+  ids.profiles_1d[i].j_non_inductive = extend(
       [j_non_inductive], np.array([j_non_inductive_face])  # pyrefly: ignore[bad-argument-type]
   )[0]
-  ids.profiles_1d[i].conductivity_parallel = (
-      output.extend_cell_grid_to_boundaries(
-          [cp_state.sigma], np.array([cp_state.sigma_face])  # pyrefly: ignore[bad-argument-type]
-      )[0]
-  )
+  ids.profiles_1d[i].conductivity_parallel = extend(
+      [cp_state.sigma], np.array([cp_state.sigma_face])  # pyrefly: ignore[bad-argument-type]
+  )[0]
 
 
 def _fill_profiles_1d_ions(

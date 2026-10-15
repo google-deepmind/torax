@@ -86,11 +86,6 @@ def concat_datatrees(
   return xr.map_over_datasets(_concat_datasets, tree1, tree2)
 
 
-extend_cell_grid_to_boundaries = (
-    output_grid_context.extend_cell_grid_to_boundaries
-)
-
-
 def stitch_state_files(
     file_restart: file_restart_pydantic_model.FileRestart, datatree: xr.DataTree
 ) -> xr.DataTree:
@@ -157,25 +152,25 @@ class StateHistory:
     self._geometries = [state.geometry for state in state_history]
     self._stacked_geometry = geometry_lib.stack_geometries(self.geometries)
     stack = lambda *ys: np.stack(ys)
-    self._stacked_core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
+    self._stacked_core_profiles: state.CoreProfiles = jax.tree.map(
         stack, *self._core_profiles
     )
     self._stacked_core_sources: source_profiles_lib.SourceProfiles = (
-        jax.tree_util.tree_map(stack, *self._core_sources)
+        jax.tree.map(stack, *self._core_sources)
     )
-    self._stacked_core_transport: state.CoreTransport = jax.tree_util.tree_map(
+    self._stacked_core_transport: state.CoreTransport = jax.tree.map(
         stack, *self._transport
     )
     self._stacked_post_processed_outputs: (
         post_processing.PostProcessedOutputs
-    ) = jax.tree_util.tree_map(stack, *post_processed_outputs_history)
+    ) = jax.tree.map(stack, *post_processed_outputs_history)
     self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
-        jax.tree_util.tree_map(stack, *self._solver_numeric_outputs)
+        jax.tree.map(stack, *self._solver_numeric_outputs)
     )
     # If self._edge_outputs is a list of Nones, stacked_edge_outputs will just
-    # be None, since jax.tree_util.tree_map treats None as a node with no leaves
-    self._stacked_edge_outputs: edge_base.EdgeModelOutputs = (
-        jax.tree_util.tree_map(stack, *self._edge_outputs)
+    # be None, since jax.tree.map treats None as a node with no leaves.
+    self._stacked_edge_outputs: edge_base.EdgeModelOutputs = jax.tree.map(
+        stack, *self._edge_outputs
     )
 
     self._times = np.array([state.t for state in state_history])
@@ -273,8 +268,6 @@ class StateHistory:
         - scalars: Contains data variables for scalars.
         - edge: Contains data variables for the edge model, if one is active.
     """
-    # Cleanup structure by excluding QeiInfo from core_sources altogether.
-    # Add attribute to dataset variables with explanation of contents + units.
 
     time = xr.DataArray(
         self.times,
@@ -308,7 +301,7 @@ class StateHistory:
         output_keys.RHO_NORM: rho_norm,
     }
 
-    # Update dict with flattened StateHistory dataclass containers
+    # Update dict with flattened StateHistory dataclass containers.
     all_core_data = [
         self._save_core_profiles(),
         self._save_core_transport(),
@@ -323,33 +316,32 @@ class StateHistory:
       else:
         raise ValueError(f"Duplicate key: {key}")
 
-    # Determine simulation status based on error state
+    # Determine simulation status based on error state.
     sim_status = (
         state.SimStatus.COMPLETED
         if self.sim_error is state.SimError.NO_ERROR
         else state.SimStatus.ERROR
     )
 
-    numerics_dict = {
-        output_keys.SIM_STATUS: sim_status.value,
-        output_keys.SIM_ERROR: self.sim_error.value,
-        output_keys.SAWTOOTH_CRASH: xr.DataArray(
-            self._stacked_solver_numeric_outputs.sawtooth_crash,
-            dims=[output_keys.TIME],
-            name=output_keys.SAWTOOTH_CRASH,
+    numerics_vars: dict[str, output_grid_context.OutputVar] = {
+        output_keys.SIM_STATUS: (
+            (),
+            np.asarray(sim_status.value),
+            output_keys.get_units(output_keys.SIM_STATUS),
         ),
-        output_keys.OUTER_SOLVER_ITERATIONS: xr.DataArray(
-            self._stacked_solver_numeric_outputs.outer_solver_iterations,
-            dims=[output_keys.TIME],
-            name=output_keys.OUTER_SOLVER_ITERATIONS,
-        ),
-        output_keys.INNER_SOLVER_ITERATIONS: xr.DataArray(
-            self._stacked_solver_numeric_outputs.inner_solver_iterations,
-            dims=[output_keys.TIME],
-            name=output_keys.INNER_SOLVER_ITERATIONS,
+        output_keys.SIM_ERROR: (
+            (),
+            np.asarray(self.sim_error.value),
+            output_keys.get_units(output_keys.SIM_ERROR),
         ),
     }
-    numerics = xr.Dataset(numerics_dict)
+    # Populate solver numeric variables from stacked solver outputs.
+    numerics_vars.update(
+        self._stacked_solver_numeric_outputs.to_output_dict(
+            self._output_grid_context
+        )
+    )
+    numerics = self._output_grid_context.build_dataset(numerics_vars)
 
     spatial_coords = {
         output_keys.RHO_FACE_NORM,

@@ -642,6 +642,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertEqual(
         output_xr.numerics.sim_error, state.SimError.NO_ERROR.value
     )
+    self.assertIn(output_keys.SOLVER_ERROR_STATE, output_xr.numerics)
 
   def test_status_attribute_error(self):
     """Test that status attribute is set to 'error' when sim has errors."""
@@ -914,6 +915,7 @@ class StateHistoryTest(parameterized.TestCase):
         output_keys.SIM_ERROR,
         output_keys.OUTER_SOLVER_ITERATIONS,
         output_keys.INNER_SOLVER_ITERATIONS,
+        output_keys.SOLVER_ERROR_STATE,
         output_keys.SAWTOOTH_CRASH,
         output_keys.DIVERTED,
         extended_lengyel_standalone.SOLVER_PHYSICS_OUTCOME,

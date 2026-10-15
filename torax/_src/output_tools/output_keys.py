@@ -944,22 +944,25 @@ SIM_STATUS: Final[OutputKey] = OutputKey(
 SIM_ERROR: Final[OutputKey] = OutputKey(
     "sim_error", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )
+SOLVER_ERROR_STATE: Final[OutputKey] = OutputKey(
+    "solver_error_state",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
 OUTER_SOLVER_ITERATIONS: Final[OutputKey] = OutputKey(
     "outer_solver_iterations",
     units=Units.NOT_APPLICABLE,
-    grid_type=GridType.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
 )
 INNER_SOLVER_ITERATIONS: Final[OutputKey] = OutputKey(
     "inner_solver_iterations",
     units=Units.NOT_APPLICABLE,
-    grid_type=GridType.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
 )
-# Boolean array indicating whether the state corresponds to a
-# post-sawtooth-crash state.
 SAWTOOTH_CRASH: Final[OutputKey] = OutputKey(
     "sawtooth_crash",
     units=Units.NOT_APPLICABLE,
-    grid_type=GridType.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
 )
 
 # ---------------------------------------------------------------------------
