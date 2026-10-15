@@ -1089,12 +1089,8 @@ class TransportModelTest(parameterized.TestCase):
     np.testing.assert_allclose(
         coeffs.total.chi_face_el, mock_coeffs.chi_face_el
     )
-    np.testing.assert_allclose(
-        coeffs.total.d_face_el, mock_coeffs.d_face_el
-    )
-    np.testing.assert_allclose(
-        coeffs.total.v_face_el, mock_coeffs.v_face_el
-    )
+    np.testing.assert_allclose(coeffs.total.d_face_el, mock_coeffs.d_face_el)
+    np.testing.assert_allclose(coeffs.total.v_face_el, mock_coeffs.v_face_el)
 
   def test_pedestal_transition_state_internal_boundary_condition_masking(self):
     model, runtime_params, geo = self._build_model_and_params({
@@ -1174,7 +1170,7 @@ class TransportModelTest(parameterized.TestCase):
     def _smoothed_on_common_grid(n: int) -> np.ndarray:
       matrix, rho_face_norm = _build_smoothing_matrix_for_n_rho(n)
       smooth_profile = 1.0 + 4.0 * jnp.exp(
-          -((rho_face_norm - 0.5) / 0.15) ** 2
+          -(((rho_face_norm - 0.5) / 0.15) ** 2)
       )
       return np.interp(
           rho_common, rho_face_norm, jnp.dot(matrix, smooth_profile)

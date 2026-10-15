@@ -23,8 +23,8 @@ from typing import Mapping
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import constants
 from torax._src import jax_utils
+from torax._src import math_utils
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -37,6 +37,9 @@ from torax._src.transport_model import runtime_params as transport_runtime_param
 from torax._src.transport_model import transport_coeffs
 
 MIN_SMOOTHING_WIDTH = 1e-5
+# Smoothing kernel values below this fraction of the peak are set to zero,
+# limiting the range of the convolution independently of grid resolution.
+SMOOTHING_KERNEL_LOWER_CUTOFF = 0.01
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -283,6 +286,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       smoothing_matrix: jax.Array,
   ) -> transport_coeffs.TransportCoeffs:
     """Gaussian smoothing of turbulent transport coefficients."""
+
     # Iterate over fields of the TransportCoeffs dataclass.
     # Ignore optional fields that are made all zero in post_init.
     def smooth_single_coeff(coeff):
@@ -345,7 +349,12 @@ def _build_smoothing_matrix(
       smoothing_width_profile,
   )
 
-  return _build_smoothing_matrix_from_profile(geo, smoothing_width_profile)
+  return math_utils.gaussian_smoothing_matrix(
+      geo.rho_face_norm,
+      smoothing_width_profile,
+      active=smoothing_width_profile > MIN_SMOOTHING_WIDTH,
+      lower_cutoff=SMOOTHING_KERNEL_LOWER_CUTOFF,
+  )
 
 
 def _build_pedestal_smoothing_matrix(
@@ -364,45 +373,9 @@ def _build_pedestal_smoothing_matrix(
       transport_runtime_params.pedestal_smoothing_width,
       0.0,
   )
-  return _build_smoothing_matrix_from_profile(geo, smoothing_width_profile)
-
-
-def _build_smoothing_matrix_from_profile(
-    geo: geometry.Geometry,
-    smoothing_width_profile: jax.Array,
-) -> jax.Array:
-  """Builds a Gaussian convolution smoothing matrix from a width profile."""
-  # To reduce the range of the convolution, weights under lower_cutoff are
-  # clipped to zero.
-  lower_cutoff = 0.01
-  # used for eps, small number to avoid divisions by zero for sigma = 0
-  consts = constants.CONSTANTS
-
-  # 1. Kernel matrix with variable width (sigma_i for each destination row i)
-  r_diff = geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm
-  sigma = smoothing_width_profile[:, jnp.newaxis]
-
-  kernel = jnp.exp(-jnp.log(2) * r_diff**2 / (sigma**2 + consts.eps))
-
-  # 2. Clip kernel before applying normalization. Ensures convolution width is
-  # invariant to grid resolution.
-  kernel = jnp.where(kernel < lower_cutoff, 0.0, kernel)
-
-  # 3. Dynamic active mask derivation (sigma > threshold)
-  # Derives a binary active mask vector directly from smoothing_width_profile.
-  mask = jnp.where(smoothing_width_profile > MIN_SMOOTHING_WIDTH, 1.0, 0.0)
-
-  # Zero out rows (destinations) and columns (sources) outside active mask
-  kernel = kernel * mask[:, jnp.newaxis] * mask[jnp.newaxis, :]
-
-  # Restore identity to the zero rows (so smoothing is a no-op there)
-  zero_row_mask = jnp.all(kernel == 0, axis=1)
-  kernel = jnp.where(
-      zero_row_mask[:, jnp.newaxis], jnp.eye(kernel.shape[0]), kernel
+  return math_utils.gaussian_smoothing_matrix(
+      geo.rho_face_norm,
+      smoothing_width_profile,
+      active=smoothing_width_profile > MIN_SMOOTHING_WIDTH,
+      lower_cutoff=SMOOTHING_KERNEL_LOWER_CUTOFF,
   )
-
-  # 4. Normalization
-  row_sums = jnp.sum(kernel, axis=1, keepdims=True)
-  kernel = kernel / row_sums
-
-  return kernel

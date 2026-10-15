@@ -16,6 +16,7 @@ from unittest import mock
 from absl.testing import absltest
 from jax import numpy as jnp
 import numpy as np
+from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
@@ -153,9 +154,7 @@ class PedestalModelOutputTest(absltest.TestCase):
         modified_core_transport.turbulent.total.chi_face_el,
         jnp.where(pedestal_mask, 2.0, 1.0),
     )
-    bgb_mod = modified_core_transport.turbulent.core_components[
-        'bohm_gyrobohm'
-    ]
+    bgb_mod = modified_core_transport.turbulent.core_components['bohm_gyrobohm']
     self.assertIsInstance(bgb_mod, transport_coeffs_lib.TransportCoeffs)
     # Constituent core transport coefficients should NOT be scaled by the
     # pedestal model.
@@ -430,10 +429,13 @@ class PedestalModelOutputTest(absltest.TestCase):
         turbulent_core.v_face_el,
     )
 
-    smoothing_matrix = pedestal_model_output._build_smoothing_matrix(
+    smoothing_matrix = math_utils.gaussian_smoothing_matrix(
         self.geo.rho_face_norm,
-        ped_output.rho_norm_ped_top,
         smoothing_width,
+        active=(
+            jnp.abs(self.geo.rho_face_norm - ped_output.rho_norm_ped_top)
+            < 2.0 * smoothing_width
+        ),
     )
     # Ensure smoothing matrix is non-trivial.
     self.assertFalse(np.allclose(smoothing_matrix, np.eye(n_face)))

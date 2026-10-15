@@ -454,6 +454,85 @@ class MathUtilsTest(parameterized.TestCase):
     expected = jnp.array([-0.5 / eps, 1.0 / eps, 0.5 / eps])
     np.testing.assert_allclose(got, expected, rtol=1e-12)
 
+  @parameterized.named_parameters(('n_rho_50', 50), ('n_rho_2000', 2000))
+  def test_gaussian_smoothing_matrix(self, n_rho):
+    rho_face_norm = jnp.linspace(0.0, 1.0, n_rho + 1)
+    active = rho_face_norm < 0.8
+    matrix = math_utils.gaussian_smoothing_matrix(
+        rho_face_norm, 0.1, active=active, lower_cutoff=0.01
+    )
+    with self.subTest('rows_sum_to_one'):
+      np.testing.assert_allclose(jnp.sum(matrix, axis=1), 1.0, rtol=1e-12)
+    with self.subTest('inactive_rows_are_identity'):
+      np.testing.assert_array_equal(
+          matrix[~active], jnp.eye(n_rho + 1)[~active]
+      )
+    with self.subTest('support_is_independent_of_resolution'):
+      # exp(-ln2 x^2 / w^2) >= 0.01 for |x| <= w * sqrt(log2(100)).
+      half_support = 0.1 * np.sqrt(np.log2(100.0))
+      r_diff = np.abs(rho_face_norm[:, None] - rho_face_norm)
+      inside = (r_diff <= half_support) & active[:, None] & active[None, :]
+      np.testing.assert_array_equal(
+          np.asarray(matrix[active]) > 0, inside[active]
+      )
+
+  @parameterized.named_parameters(('zero', 0.0), ('below_eps', 1e-8))
+  def test_gaussian_smoothing_matrix_vanishing_width_is_identity(self, width):
+    rho_face_norm = jnp.linspace(0.0, 1.0, 11)
+    active = jnp.ones_like(rho_face_norm, dtype=bool)
+    with self.subTest('matrix'):
+      np.testing.assert_array_equal(
+          math_utils.gaussian_smoothing_matrix(rho_face_norm, width, active),
+          jnp.eye(11),
+      )
+    with self.subTest('gradient_is_finite'):
+      grad = jax.grad(
+          lambda w: jnp.sum(
+              math_utils.gaussian_smoothing_matrix(rho_face_norm, w, active)
+              @ rho_face_norm**2
+          )
+      )(width)
+      self.assertTrue(np.isfinite(grad))
+
+  def test_gaussian_smoothing_matrix_non_uniform_matches_fine_uniform_grid(
+      self,
+  ):
+    # Piecewise-uniform grid with 10x finer spacing for rho >= 0.7.
+    rho_non_uniform = jnp.concatenate([
+        jnp.linspace(0.0, 0.7, 71, endpoint=False),
+        jnp.linspace(0.7, 1.0, 301),
+    ])
+    rho_fine_uniform = jnp.linspace(0.0, 1.0, 2001)
+
+    def _profile(rho):
+      return 1.0 + 3.0 * jnp.exp(-(((rho - 0.7) / 0.1) ** 2))
+
+    def _smoothed(rho):
+      matrix = math_utils.gaussian_smoothing_matrix(
+          rho,
+          smoothing_width=0.05,
+          active=jnp.ones_like(rho, dtype=bool),
+          lower_cutoff=0.01,
+      )
+      return matrix @ _profile(rho)
+
+    np.testing.assert_allclose(
+        _smoothed(rho_non_uniform),
+        jnp.interp(
+            rho_non_uniform, rho_fine_uniform, _smoothed(rho_fine_uniform)
+        ),
+        atol=3e-3,
+    )
+
+  def test_gaussian_smoothing_matrix_local_band_preserves_linear_profile(self):
+    rho_face = jnp.asarray(1.0 - (1.0 - np.linspace(0.0, 1.0, 201)) ** 2.0)
+    active = jnp.abs(rho_face - 0.85) <= 0.06
+    matrix = math_utils.gaussian_smoothing_matrix(rho_face, 0.03, active=active)
+    idx = int(jnp.argmin(jnp.abs(rho_face - 0.85)))
+    np.testing.assert_allclose(
+        (matrix @ rho_face)[idx], rho_face[idx], atol=5e-4
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
