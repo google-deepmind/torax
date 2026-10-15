@@ -19,8 +19,6 @@ import datetime
 
 import imas
 from imas import ids_toplevel
-import jax
-import jaxtyping as jt
 import numpy as np
 from torax._src import array_typing
 from torax._src import constants
@@ -235,23 +233,20 @@ def _fill_profiles_1d(
         post_processed_outputs_slice,
         geometry_slice,
         cp_state,
-        T_i,  # pyrefly: ignore[bad-argument-type]
-        n_i,  # pyrefly: ignore[bad-argument-type]
-        n_e,  # pyrefly: ignore[bad-argument-type]
-        n_impurity,  # pyrefly: ignore[bad-argument-type]
-        pressure_thermal_i,  # pyrefly: ignore[bad-argument-type]
+        T_i,
+        n_i,
+        n_e,
+        n_impurity,
+        pressure_thermal_i,
     )
-    Z_eff = extend(
-        [cp_state.Z_eff], np.array([cp_state.Z_eff_face])  # pyrefly: ignore[bad-argument-type]
-    )[0]
-    ids.profiles_1d[i].zeff = Z_eff
+    ids.profiles_1d[i].zeff = extend(cp_state.Z_eff, cp_state.Z_eff_face)
 
 
 # TODO(b/323504363): b/424190851 - Map impurity quantities in PostProcessedOutputs on
 # cell_plus_boundaries grid to get rid of this function.
 def _calculate_impurity_density_scaling_and_charge_states(
     core_profiles: state.CoreProfiles,
-) -> tuple[array_typing.FloatVector, array_typing.FloatVector]:
+) -> tuple[array_typing.FloatVector, dict[str, array_typing.FloatVector]]:
   """Computes the impurity_density_scaling factor to compute "True" impurity density.
 
   Output quantities are on the cell_plus_boundaries grid.
@@ -262,7 +257,7 @@ def _calculate_impurity_density_scaling_and_charge_states(
 
   Returns:
       FloatVector of impurity density scaling Z_imp_eff / <Z> and
-      FloatVector of avg Z_per_species for all impurities on
+      dict of avg Z_per_species for all impurities on
       cell_plus_boundaries grid.
   """
   extend = output_grid_context.extend_cell_grid_to_boundaries
@@ -270,16 +265,16 @@ def _calculate_impurity_density_scaling_and_charge_states(
   charge_state_info_face = core_profiles.charge_state_info_face
   Z_per_species = {
       species: extend(
-          [charge_state_info.Z_per_species[species]],  # pyrefly: ignore[bad-argument-type]
-          np.array([charge_state_info_face.Z_per_species[species]]),
-      )[0]
+          charge_state_info.Z_per_species[species],
+          charge_state_info_face.Z_per_species[species],
+      )
       for species in charge_state_info.Z_per_species
   }
   impurity_density_scaling = extend(
-      [core_profiles.impurity_density_scaling],  # pyrefly: ignore[bad-argument-type]
-      np.array([core_profiles.impurity_density_scaling_face]),
-  )[0]
-  return impurity_density_scaling, Z_per_species  # pyrefly: ignore[bad-return]
+      core_profiles.impurity_density_scaling,
+      core_profiles.impurity_density_scaling_face,
+  )
+  return impurity_density_scaling, Z_per_species
 
 
 def _fill_profiles_1d_grid(
@@ -293,8 +288,8 @@ def _fill_profiles_1d_grid(
   ids.profiles_1d[i].grid.rho_tor_norm = np.concatenate(
       [[0.0], geometry_slice.rho_norm, [1.0]]
   )
-  ids.profiles_1d[i].grid.rho_tor = np.concatenate(  # pyrefly: ignore[no-matching-overload]
-      [[0.0], geometry_slice.rho, [geometry_slice.rho_b]]
+  ids.profiles_1d[i].grid.rho_tor = np.concatenate(
+      [np.array([0.0]), geometry_slice.rho, np.array([geometry_slice.rho_b])]
   )
   ids.profiles_1d[i].grid.psi = cp_state.psi.cell_plus_boundaries()
   ids.profiles_1d[i].grid.psi_magnetic_axis = cp_state.psi.left_face_value[0]
@@ -304,11 +299,11 @@ def _fill_profiles_1d_grid(
       / (cp_state.psi.right_face_value[0] - cp_state.psi.left_face_value[0])
   )
   ids.profiles_1d[i].grid.volume = extend(
-      [geometry_slice.volume], np.array([geometry_slice.volume_face])  # pyrefly: ignore[bad-argument-type]
-  )[0]
+      geometry_slice.volume, geometry_slice.volume_face
+  )
   ids.profiles_1d[i].grid.area = extend(
-      [geometry_slice.area], np.array([geometry_slice.area_face])  # pyrefly: ignore[bad-argument-type]
-  )[0]
+      geometry_slice.area, geometry_slice.area_face
+  )
 
 
 def _fill_profiles_1d_currents(
@@ -323,52 +318,42 @@ def _fill_profiles_1d_currents(
   extend = output_grid_context.extend_cell_grid_to_boundaries
   q_cell = geometry_lib.face_to_cell(cp_state.q_face)
   s_cell = geometry_lib.face_to_cell(cp_state.s_face)
-  ids.profiles_1d[i].q = extend(
-      [q_cell], np.array([cp_state.q_face])  # pyrefly: ignore[bad-argument-type]
-  )[0]
-  ids.profiles_1d[i].magnetic_shear = extend(
-      [s_cell], np.array([cp_state.s_face])  # pyrefly: ignore[bad-argument-type]
-  )[0]
+  ids.profiles_1d[i].q = extend(q_cell, cp_state.q_face)
+  ids.profiles_1d[i].magnetic_shear = extend(s_cell, cp_state.s_face)
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
   # Currents sign flipped due to the difference between TORAX COCOS convention
   # and IMAS one.
   # Total toroidal current density
-  j_phi = extend(
-      [cp_state.j_total], np.array([cp_state.j_total_face])  # pyrefly: ignore[bad-argument-type]
-  )[0]
+  j_phi = extend(cp_state.j_total, cp_state.j_total_face)
   ids.profiles_1d[i].j_phi = -1 * j_phi
   # Parallel current densities
   j_bootstrap = extend(
-      [cs_state.bootstrap_current.j_parallel_bootstrap],  # pyrefly: ignore[bad-argument-type]
-      np.array([cs_state.bootstrap_current.j_parallel_bootstrap_face]),
-  )[0]
+      cs_state.bootstrap_current.j_parallel_bootstrap,
+      cs_state.bootstrap_current.j_parallel_bootstrap_face,
+  )
   ids.profiles_1d[i].j_bootstrap = -1 * j_bootstrap
   j_parallel_total = -1 * post_processed_outputs_slice.j_parallel_total
   j_parallel_total_face = math_utils.cell_to_face(
       j_parallel_total, geo, math_utils.IntegralPreservationQuantity.SURFACE
   )
-  ids.profiles_1d[i].j_total = extend(
-      [j_parallel_total], np.array([j_parallel_total_face])  # pyrefly: ignore[bad-argument-type]
-  )[0]
+  ids.profiles_1d[i].j_total = extend(j_parallel_total, j_parallel_total_face)
 
   j_ohmic = -1 * post_processed_outputs_slice.j_parallel_ohmic
   j_ohmic_face = math_utils.cell_to_face(
       j_ohmic, geo, math_utils.IntegralPreservationQuantity.SURFACE
   )
-  ids.profiles_1d[i].j_ohmic = extend(
-      [j_ohmic], np.array([j_ohmic_face])  # pyrefly: ignore[bad-argument-type]
-  )[0]
+  ids.profiles_1d[i].j_ohmic = extend(j_ohmic, j_ohmic_face)
 
   j_non_inductive = -1 * post_processed_outputs_slice.j_parallel_non_inductive
   j_non_inductive_face = math_utils.cell_to_face(
       j_non_inductive, geo, math_utils.IntegralPreservationQuantity.SURFACE
   )
   ids.profiles_1d[i].j_non_inductive = extend(
-      [j_non_inductive], np.array([j_non_inductive_face])  # pyrefly: ignore[bad-argument-type]
-  )[0]
+      j_non_inductive, j_non_inductive_face
+  )
   ids.profiles_1d[i].conductivity_parallel = extend(
-      [cp_state.sigma], np.array([cp_state.sigma_face])  # pyrefly: ignore[bad-argument-type]
-  )[0]
+      cp_state.sigma, cp_state.sigma_face
+  )
 
 
 def _fill_profiles_1d_ions(
@@ -377,11 +362,11 @@ def _fill_profiles_1d_ions(
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
     geometry_slice: geometry_lib.Geometry,
     cp_state: state.CoreProfiles,
-    T_i: jt.Float[jax.Array, 't* cell+2'],
-    n_i: jt.Float[jax.Array, 't* cell+2'],
-    n_e: jt.Float[jax.Array, 't* cell+2'],
-    n_impurity: jt.Float[jax.Array, 't* cell+2'],
-    pressure_thermal_i: jt.Float[jax.Array, 't* cell+2'],
+    T_i: array_typing.FloatVector,
+    n_i: array_typing.FloatVector,
+    n_e: array_typing.FloatVector,
+    n_impurity: array_typing.FloatVector,
+    pressure_thermal_i: array_typing.FloatVector,
 ) -> None:
   """Fills `ion` section of `profiles_1d` in-place for the IDS."""
   main_ion_fractions = cp_state.main_ion_fractions
@@ -415,7 +400,7 @@ def _fill_profiles_1d_ions(
         i,
         ion,
         symbol,
-        frac,  # pyrefly: ignore[bad-argument-type]
+        frac,
         T_i,
         n_i,
         n_impurity_true,
@@ -435,12 +420,12 @@ def _fill_profiles_1d_ions(
         n_impurity,
         n_impurity_true,
         pressure_thermal_i,
-        Z_per_species,  # pyrefly: ignore[bad-argument-type]
-        impurity_density_scaling,  # pyrefly: ignore[bad-argument-type]
+        Z_per_species,
+        impurity_density_scaling,
         num_of_main_ions,
         post_processed_outputs_slice,
         geometry_slice,
-        impurities,  # pyrefly: ignore[bad-argument-type]
+        impurities,
     )
 
 
@@ -449,11 +434,11 @@ def _fill_main_ions(
     i: int,
     ion: int,
     symbol: str,
-    frac: float,
-    T_i: jt.Float[jax.Array, 'cell+2'],
-    n_i: jt.Float[jax.Array, 'cell+2'],
-    n_impurity_true: jt.Float[jax.Array, 'cell+2'],
-    pressure_thermal_i: jt.Float[jax.Array, 'cell+2'],
+    frac: array_typing.FloatScalar,
+    T_i: array_typing.FloatVector,
+    n_i: array_typing.FloatVector,
+    n_impurity_true: array_typing.FloatVector,
+    pressure_thermal_i: array_typing.FloatVector,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
 ) -> None:
   """Fills main ion quantities for the IDS.
@@ -510,17 +495,17 @@ def _fill_impurities(
     ids: ids_toplevel.IDSToplevel,
     i: int,
     ion: int,
-    T_i: jt.Float[jax.Array, 't* cell+2'],
-    n_i: jt.Float[jax.Array, 't* cell+2'],
-    n_impurity_eff: jt.Float[jax.Array, 't* cell+2'],
-    n_impurity_true: jt.Float[jax.Array, 't* cell+2'],
-    pressure_thermal_i: jt.Float[jax.Array, 't* cell+2'],
-    Z_avg_per_species: dict[str, jt.Float[jax.Array, 't* cell+2']],
-    impurity_density_scaling: jt.Float[jax.Array, 't* cell+2'],
+    T_i: array_typing.FloatVector,
+    n_i: array_typing.FloatVector,
+    n_impurity_eff: array_typing.FloatVector,
+    n_impurity_true: array_typing.FloatVector,
+    pressure_thermal_i: array_typing.FloatVector,
+    Z_avg_per_species: dict[str, array_typing.FloatVector],
+    impurity_density_scaling: array_typing.FloatVector,
     num_of_main_ions: int,
     post_processed_outputs_slice: post_processing.PostProcessedOutputs,
     geometry_slice: geometry_lib.Geometry,
-    impurities: Sequence[tuple[str, jt.Float[jax.Array, 't* cell+2']]],
+    impurities: Sequence[tuple[str, array_typing.FloatVector]],
 ) -> None:
   """Fills impurity quantities for the IDS."""
   # TODO(b/459479939): i/1660) - We can directly use the impurity densities
