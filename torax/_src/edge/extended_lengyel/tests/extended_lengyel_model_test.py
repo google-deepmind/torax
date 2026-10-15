@@ -39,7 +39,7 @@ from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
 from torax._src.solver import jax_root_finding
-from torax._src.sources import generic_ion_el_heat_source
+from torax._src.sources import formulas
 from torax._src.sources import source_profiles
 from torax._src.test_utils import sim_test_case
 
@@ -130,14 +130,14 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     # Set up CoreSources to give P_SOL_total = 5.5e6 W.
     target_P_SOL = 5.5e6
 
-    ion_heat, el_heat = generic_ion_el_heat_source.calc_generic_heat_source(
-        geo=mock_geo,
-        gaussian_location=0.5,
-        gaussian_width=0.2,
-        P_total=target_P_SOL,
-        electron_heat_fraction=0.7,
-        absorption_fraction=1.0,
+    profile = formulas.gaussian_profile(
+        mock_geo,
+        center=0.5,
+        width=0.2,
+        total=target_P_SOL,
     )
+    ion_heat = profile * 0.3
+    el_heat = profile * 0.7
 
     mock_core_sources = source_profiles.SourceProfiles(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(

@@ -76,9 +76,7 @@ class ImpurityRadiationConstantFractionTest(
         },
     )
 
-    heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource(
-        model_func=generic_ion_el_heat_source.default_formula,  # pyrefly: ignore[bad-argument-type]
-    )
+    heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource()
 
     geo = circular_geometry.CircularConfig().build_geometry()
     el, ion = heat_source.get_value(
