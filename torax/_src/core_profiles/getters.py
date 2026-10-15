@@ -16,6 +16,7 @@
 
 import dataclasses
 from typing import Mapping
+
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -28,6 +29,7 @@ from torax._src.core_profiles.plasma_composition import electron_density_ratios_
 from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.geometry import standard_geometry
 from torax._src.physics import charge_states
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
@@ -240,6 +242,19 @@ def get_updated_psi(
       if profile_conditions_params.use_v_loop_lcfs_boundary_condition
       else None
   )
+  if (
+      not only_boundary_condition
+      and profile_conditions_params.psi is None
+      and profile_conditions_params.initial_psi_mode
+      == core_profile_runtime_params.InitialPsiMode.GEOMETRY
+  ):
+    if not isinstance(geo, standard_geometry.StandardGeometry):
+      raise ValueError('Geometry-prescribed psi requires standard geometry.')
+    value = geo.psi_from_Ip
+    if right_face_constraint is not None:
+      # A uniform offset preserves the equilibrium's magnetic field while
+      # retaining the prescribed loop-voltage boundary condition.
+      value = value + (right_face_constraint - geo.psi_from_Ip_face[-1])
   return cell_variable.CellVariable(
       value=value,
       face_centers=geo.rho_face_norm,

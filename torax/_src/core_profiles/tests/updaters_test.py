@@ -26,6 +26,7 @@ from torax._src.core_profiles import initialization
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
+from torax._src.physics import psi_calculations
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -57,6 +58,81 @@ class UpdatersTest(parameterized.TestCase):
         T_e=T_e,
         n_e=n_e,
     )
+
+  @parameterized.named_parameters(
+      ('current_boundary', False),
+      ('voltage_boundary', True),
+  )
+  def test_prescribed_psi_follows_geometry(self, voltage_boundary):
+    """Scaling both magnetic fluxes preserves the safety factor."""
+    config = default_configs.get_default_config_dict()
+    config['numerics']['evolve_current'] = False
+    config['profile_conditions'].update({
+        'initial_psi_mode': 'geometry',
+        'use_v_loop_lcfs_boundary_condition': voltage_boundary,
+        'v_loop_lcfs': 2.0,
+    })
+    config['geometry'] = {
+        'geometry_type': 'chease',
+        'n_rho': 4,
+        'Ip_from_parameters': False,
+        'geometry_configs': {0.0: {'B_0': 5.3}, 1.0: {'B_0': 10.6}},
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=0.0,
+            runtime_params_provider=provider,
+            geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
+        )
+    )
+    initial_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        torax_config.sources.build_models(),
+        torax_config.neoclassical.build_model(),
+    )
+    core_profiles = initial_profiles
+    for time in (0.5, 1.0):
+      next_params, next_geo = (
+          build_runtime_params.get_consistent_runtime_params_and_geometry(
+              t=time,
+              runtime_params_provider=provider,
+              geometry_provider=torax_config.geometry.build_provider,
+              core_profiles=core_profiles,
+          )
+      )
+      core_profiles = updaters.provide_core_profiles_t_plus_dt(
+          dt=jnp.asarray(0.5),
+          runtime_params_t=runtime_params,
+          runtime_params_t_plus_dt=next_params,
+          geo_t_plus_dt=next_geo,
+          core_profiles_t=core_profiles,
+      )
+      expected_psi = initial_profiles.psi.value * (1 + time)
+      np.testing.assert_allclose(next_geo.psi_from_Ip, expected_psi)
+      if voltage_boundary:
+        initial_edge = initial_profiles.psi.right_face_constraint
+        expected_psi = (
+            (initial_profiles.psi.value - initial_edge) * (1 + time)
+            + initial_edge
+            + 2.0 * time
+        )
+      np.testing.assert_allclose(core_profiles.psi.value, expected_psi)
+      np.testing.assert_allclose(
+          psi_calculations.calc_q_face(next_geo, core_profiles.psi),
+          initial_profiles.q_face,
+      )
+      if voltage_boundary:
+        np.testing.assert_allclose(
+            core_profiles.psi.right_face_constraint,
+            initial_profiles.psi.right_face_constraint + 2.0 * time,
+        )
+      runtime_params = next_params
 
   @parameterized.named_parameters(
       dict(

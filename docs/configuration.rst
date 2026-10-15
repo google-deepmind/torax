@@ -378,6 +378,10 @@ time-dependence of temperature, density, and current.
   Options are ``'profile_conditions'`` (uses the ``psi`` array attribute),
   ``'geometry'`` (uses :math:`\psi` from numerical geometry), or ``'j'``
   (calculates from the ``current_profile_nu`` current formula).
+  With ``'geometry'``, if ``numerics.evolve_current`` is False and no ``psi``
+  profile is provided, :math:`\psi` follows the geometry at each timestep.
+  A loop-voltage boundary condition is retained by shifting the geometry's
+  :math:`\psi` by a spatially uniform offset, preserving its magnetic field.
 
 ``toroidal_angular_velocity`` (**time-varying-array** | None [default = None])
   Toroidal angular velocity profile. If not provided, the velocity will be set
