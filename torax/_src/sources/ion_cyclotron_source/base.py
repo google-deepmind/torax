@@ -38,7 +38,7 @@ class RuntimeParams(source_runtime_params_lib.RuntimeParams):
 
   P_total: array_typing.FloatScalar
   absorption_fraction: array_typing.FloatScalar
-  minority_species: str | None = dataclasses.field(metadata={'static': True})
+  minority_species: str = dataclasses.field(metadata={'static': True})
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -91,10 +91,10 @@ class IonCyclotronSourceConfig(source_base.SourceConfigBase):
       a `Literal` value.
     P_total: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
+    minority_species: Symbol of the minority species (e.g., 'He3'). The
+      minority concentration is extracted from plasma_composition. The species
+      can be either a main ion or an impurity.
     mode: Defines how the source values are computed.
-    minority_species: Optional symbol of the minority species (e.g., 'He3').
-      When specified, the minority concentration is extracted from
-      plasma_composition. The species can be either a main ion or an impurity.
   """
 
   model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''
@@ -105,8 +105,7 @@ class IonCyclotronSourceConfig(source_base.SourceConfigBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  # TODO(b/434175938): Make minority_species a required field in V2.
-  minority_species: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
+  minority_species: Annotated[str, torax_pydantic.JAX_STATIC]
 
   def build_source(self) -> IonCyclotronSource:
     return IonCyclotronSource(model_func=self.model_func)

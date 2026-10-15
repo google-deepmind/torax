@@ -2478,13 +2478,18 @@ available, selected via the ``model_name`` discriminator.
 ``absorption_fraction`` (**time-varying-scalar** [default = 1.0])
   Fraction of ``P_total`` absorbed by the plasma.
 
+``minority_species`` (str)
+  Symbol of the minority species (e.g. 'He3'). The minority concentration is
+  automatically extracted from the plasma composition.
+
 ``model_name`` (str)
   Selects the ICRH model. Available options:
 
 * ``'toric_nn'`` (default)
     Surrogate model of the TORIC ICRH spectrum solver simulation
     https://meetings.aps.org/Meeting/DPP24/Session/NP12.106.
-    This source is currently SPARC specific.
+    This source is currently SPARC specific, and presently only ``'He3'`` is
+    supported as ``minority_species``.
 
     Weights and configuration for the surrogate model are needed to use this
     source. By default these are expected to be found under
@@ -2505,18 +2510,6 @@ available, selected via the ``model_name`` discriminator.
 
     ``frequency`` (**time-varying-scalar** [default = 120e6])
       ICRF wave frequency in Hz.
-
-    ``minority_concentration`` (**time-varying-scalar** [default = 0.03])
-      Helium-3 minority fractional concentration relative to the electron
-      density. This is a deprecated legacy option, used only when
-      ``minority_species`` is not specified. It is recommended to instead set
-      ``minority_species`` to 'He3' and use the plasma composition to set the
-      minority concentration.
-
-    ``minority_species`` (str | None [default = None])
-      Symbol of the minority species (e.g. 'He3'). If specified, the minority
-      concentration is automatically extracted from the plasma composition.
-      Presently, only 'He3' is supported.
 
 * ``'scaled_profile'``
     Prescribed-profile model with magnetic-field-dependent resonance shifting.
@@ -2546,6 +2539,7 @@ available, selected via the ``model_name`` discriminator.
                 'model_name': 'scaled_profile',
                 'P_total': 25e6,
                 'absorption_fraction': 0.9,
+                'minority_species': 'He3',
                 'heat_profile_ion': {0: {0.0: 0, 0.3: 1.0, 0.6: 0.2, 1.0: 0}},
                 'heat_profile_electron': {0: {0.0: 0, 0.35: 0.8, 0.65: 0.1, 1.0: 0}},
                 'reference_B0': 12.2,

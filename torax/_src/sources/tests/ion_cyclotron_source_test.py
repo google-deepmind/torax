@@ -38,6 +38,7 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
 
   source_name = icrh_base.IonCyclotronSource.SOURCE_ID
   source_config_class = _DummyConfig
+  extra_source_config_kwargs = {'minority_species': 'He3'}
 
   def test_source_name(self):
     self.assertEqual(icrh_base.IonCyclotronSource.SOURCE_ID, 'icrh')
@@ -65,13 +66,13 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
 
   def test_build_source_returns_correct_type(self):
     """IonCyclotronSourceConfig.build_source returns IonCyclotronSource."""
-    config = _DummyConfig()
+    config = _DummyConfig(minority_species='He3')
     source = config.build_source()
     self.assertIsInstance(source, icrh_base.IonCyclotronSource)
 
   def test_config_default_values(self):
     """Verify default config values are correct."""
-    config = _DummyConfig()
+    config = _DummyConfig(minority_species='He3')
     np.testing.assert_allclose(config.P_total.get_value(0.0), 10e6)
     np.testing.assert_allclose(
         config.absorption_fraction.get_value(0.0), 1.0

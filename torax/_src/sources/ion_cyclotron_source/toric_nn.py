@@ -25,7 +25,6 @@ import flax.linen as nn
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
-import pydantic
 from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import math_utils
@@ -307,7 +306,6 @@ def _toric_nn_predict(
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(base.RuntimeParams):
   frequency: array_typing.FloatScalar
-  minority_concentration: array_typing.FloatScalar | None
   wall_inner: float
   wall_outer: float
 
@@ -329,20 +327,13 @@ def icrh_model_func(
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)
 
-  # Get minority concentration: either from plasma composition or from params
-  if source_params.minority_species is not None:
-    minority_concentration_profile = core_profiles.get_species_concentration(
-        source_params.minority_species
-    )
-    # Use first cell point value as assumption for relevant locations for
-    # extracting scalar ToricNN input, since deposition tends to be near-axis.
-    minority_concentration_scalar = minority_concentration_profile[0]
-  else:
-    # Use legacy parameter (backward compatibility)
-    # TODO(b/434175938): Remove backward compatibility in V2.
-    minority_concentration_scalar = source_params.minority_concentration
-    # For profile-dependent calculations, use constant value
-    minority_concentration_profile = source_params.minority_concentration
+  # Extract minority concentration from plasma composition
+  minority_concentration_profile = core_profiles.get_species_concentration(
+      source_params.minority_species
+  )
+  # Use first cell point value as assumption for relevant locations for
+  # extracting scalar ToricNN input, since deposition tends to be near-axis.
+  minority_concentration_scalar = minority_concentration_profile[0]
 
   # Construct inputs for ToricNN.
   volume_average_temperature = math_utils.volume_average(
@@ -369,7 +360,7 @@ def icrh_model_func(
       volume_average_temperature=volume_average_temperature,
       volume_average_density=volume_average_density
       / 1e20,  # convert to 10^20 m^-3
-      minority_concentration=minority_concentration_scalar  # pyrefly: ignore[unsupported-operation]
+      minority_concentration=minority_concentration_scalar
       * 100,  # Convert to percentage.
       gap_inner=gap_inner,
       gap_outer=gap_outer,
@@ -493,10 +484,8 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
     wall_outer: Outer radial location of first wall at plasma midplane level
       [m].
     frequency: ICRF wave frequency [Hz].
-    minority_concentration: He3 minority fractional concentration relative to
-      the electron density. This parameter is used when minority_species is not
-      specified (legacy mode). When minority_species is set, the concentration
-      is automatically extracted from plasma_composition.
+    minority_species: Symbol of the minority species. Currently only 'He3' is
+      supported by the ToricNN model.
   """
 
   model_name: Annotated[Literal['toric_nn'], torax_pydantic.JAX_STATIC] = (
@@ -508,10 +497,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
   frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       120e6
   )
-  # TODO(b/434175938): Remove in V2. Will be set in plasma_composition.
-  minority_concentration: torax_pydantic.TimeVaryingScalar | None = (
-      torax_pydantic.ValidatedDefault(0.03)
-  )
+  minority_species: Annotated[Literal['He3'], torax_pydantic.JAX_STATIC] = 'He3'
 
   @property
   def model_func(self) -> source.SourceProfileFunction:
@@ -532,32 +518,6 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
       return base.IonCyclotronSource(model_func=self.model_func)
     return base.IonCyclotronSource(model_func=None)
 
-  @pydantic.model_validator(mode='after')
-  def _validate_minority_species(self) -> Self:
-    if self.minority_species is not None and self.minority_species != 'He3':
-      raise ValueError(
-          "Minority species must be 'He3' if specified. Got:"
-          f' {self.minority_species}. '
-          'The current ToricNN model supports only He3.'
-      )
-    return self
-
-  @pydantic.model_validator(mode='after')
-  def _log_warning_for_used_minority_concentration(
-      self,
-  ) -> Self:
-    """Logs a warning if minority_concentration is provided."""
-    if self.minority_concentration is not None:
-      logging.warning(
-          'minority_concentration is provided in ion_cyclotron_source. '
-          'This is a deprecated parameter. It is recommended to explicitly set '
-          'minority_species to None and then define the minority density in '
-          'plasma_composition instead. Note that defining '
-          'non None minority_concentration in ion_cyclotron_source overrides '
-          'any plasma_composition values for ICRH model input.'
-      )
-    return self
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -568,9 +528,4 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
         wall_inner=self.wall_inner,
         wall_outer=self.wall_outer,
         frequency=self.frequency.get_value(t),
-        minority_concentration=(
-            self.minority_concentration.get_value(t)
-            if self.minority_concentration is not None
-            else None
-        ),
     )

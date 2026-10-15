@@ -446,19 +446,31 @@ class ConfigTest(parameterized.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
-  def test_validate_toric_nn_requires_he3(self):
-    """Tests that ToricNN model requires He3 in plasma composition."""
+  @parameterized.named_parameters(
+      (
+          "toric_nn",
+          {"model_name": "toric_nn", "model_path": "/tmp/dummy_path.json"},
+          "He3",
+      ),
+      (
+          "scaled_profile",
+          {"model_name": "scaled_profile"},
+          "Li",
+      ),
+  )
+  def test_validate_icrh_requires_minority_species_in_composition(
+      self, icrh_kwargs, minority_species
+  ):
+    """Tests that ICRH models require minority_species in plasma composition."""
     config_dict = default_configs.get_default_config_dict()
     config_dict["sources"] = {
         "icrh": {
-            "model_name": "toric_nn",
-            "model_path": "/tmp/dummy_path.json",
+            **icrh_kwargs,
+            "minority_species": minority_species,
         }
     }
 
-    # Case 1: He3 is missing (default config often doesn't have it)
-    # Default plasma composition usually has D and T.
-    # This should be VALID in V1 mode (minority_species is None)
+    # Case 1: minority_species is missing -> INVALID
     config_dict["plasma_composition"] = {
         "main_ion": {"D": 0.5, "T": 0.5},
         "impurity": {
@@ -466,18 +478,21 @@ class ConfigTest(parameterized.TestCase):
             "species": {"Ne": 0.01},
         },
     }
-    model_config.ToraxConfig.from_dict(config_dict)
-
-    # Case 1b: He3 missing AND minority_species set -> INVALID
-    config_dict["sources"]["icrh"]["minority_species"] = "He3"
     with self.assertRaisesRegex(
-        ValueError, 'The ToricNN ICRH model requires "He3" to be present'
+        ValueError,
+        f'The ICRH source requires "{minority_species}" to be present',
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
-    # Case 2: He3 is present as main ion -> Valid
+    # Case 1b: minority_species is missing in ZERO or PRESCRIBED mode -> Valid
+    for mode in ("ZERO", "PRESCRIBED"):
+      non_model_config = copy.deepcopy(config_dict)
+      non_model_config["sources"]["icrh"]["mode"] = mode
+      model_config.ToraxConfig.from_dict(non_model_config)  # Should not raise
+
+    # Case 2: minority_species is present as main ion -> Valid
     config_dict["plasma_composition"] = {
-        "main_ion": {"D": 0.47, "T": 0.5, "He3": 0.03},
+        "main_ion": {"D": 0.47, "T": 0.5, minority_species: 0.03},
         "impurity": {
             "impurity_mode": "n_e_ratios",
             "species": {"Ne": 0.01},
@@ -485,12 +500,12 @@ class ConfigTest(parameterized.TestCase):
     }
     model_config.ToraxConfig.from_dict(config_dict)  # Should not raise
 
-    # Case 3: He3 is present as impurity -> Valid
+    # Case 3: minority_species is present as impurity -> Valid
     config_dict["plasma_composition"] = {
         "main_ion": {"D": 0.5, "T": 0.5},
         "impurity": {
             "impurity_mode": "n_e_ratios",
-            "species": {"He3": 0.03},
+            "species": {minority_species: 0.03},
         },
     }
     model_config.ToraxConfig.from_dict(config_dict)  # Should not raise

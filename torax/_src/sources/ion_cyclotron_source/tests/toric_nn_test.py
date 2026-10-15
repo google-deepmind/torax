@@ -15,6 +15,7 @@
 import dataclasses
 import json
 import os
+from typing import Any
 from unittest import mock
 
 from absl.testing import absltest
@@ -106,6 +107,19 @@ class ToricNNTest(test_lib.SourceTestCase):
     self.dummy_output = model_output
     self._source_name = icrh_base.IonCyclotronSource.SOURCE_ID
 
+  def _get_default_config_dict(
+      self, minority_concentration: float = 0.03
+  ) -> dict[str, Any]:
+    config = default_configs.get_default_config_dict()
+    config["plasma_composition"] = {
+        "main_ion": {"D": 0.5, "T": 0.5},
+        "impurity": {
+            "impurity_mode": "n_e_ratios",
+            "species": {"He3": minority_concentration},
+        },
+    }
+    return config
+
   def test_build_runtime_params(self):
     source = ion_cyclotron_source.ToricNNIonCyclotronSourceConfig.from_dict(
         {"model_path": _DUMMY_MODEL_PATH}
@@ -181,7 +195,7 @@ class ToricNNTest(test_lib.SourceTestCase):
 
   def test_source_value(self):
     """Tests that the source can provide a value by default."""
-    config = default_configs.get_default_config_dict()
+    config = self._get_default_config_dict()
     config["sources"] = {self._source_name: {"model_path": _DUMMY_MODEL_PATH}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
@@ -215,22 +229,11 @@ class ToricNNTest(test_lib.SourceTestCase):
 
   def test_source_with_minority_species_from_composition(self):
     """Tests ICRH source with minority_species reading from composition."""
-    config = default_configs.get_default_config_dict()
-    # Add He3 as an impurity in the plasma composition
-    config["plasma_composition"] = {
-        "main_ion": {"D": 0.5, "T": 0.5},
-        "impurity": {
-            "impurity_mode": "n_e_ratios",
-            "species": {"He3": 0.03},  # 3% He3 minority
-        },
-    }
-    # Configure ICRH to use minority_species instead of minority_concentration
+    config = self._get_default_config_dict()
     config["sources"] = {
         self._source_name: {
             "model_path": _DUMMY_MODEL_PATH,
             "minority_species": "He3",
-            # minority_concentration is ignored when minority_species is set
-            "minority_concentration": 0.01,  # This should be ignored
         }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
@@ -341,34 +344,21 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     with self.assertRaisesRegex(
         pydantic.ValidationError,
-        'The ToricNN ICRH model requires "He3" to be present',
+        'The ICRH source requires "He3" to be present',
     ):
       model_config.ToraxConfig.from_dict(config)
 
-  def test_minority_concentration_warning_by_default(self):
-    with self.assertLogs(level="WARNING") as cm:
-      ion_cyclotron_source.ToricNNIonCyclotronSourceConfig()
-    self.assertTrue(
-        any("minority_concentration is provided" in o for o in cm.output)
-    )
-
-  def test_minority_concentration_warning_when_explicitly_set_to_non_none(self):
-    with self.assertLogs(level="WARNING") as cm:
+  def test_invalid_minority_species_raises(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        "Input should be 'He3'",
+    ):
       ion_cyclotron_source.ToricNNIonCyclotronSourceConfig(
-          minority_concentration=0.05
-      )
-    self.assertTrue(
-        any("minority_concentration is provided" in o for o in cm.output)
-    )
-
-  def test_minority_concentration_no_warning_when_none(self):
-    with self.assertNoLogs(level="WARNING"):
-      ion_cyclotron_source.ToricNNIonCyclotronSourceConfig(
-          minority_concentration=None
+          minority_species="D"  # pyrefly: ignore[bad-argument-type]
       )
 
   def test_icrh_returns_fast_ion_data(self):
-    config = default_configs.get_default_config_dict()
+    config = self._get_default_config_dict()
     config["numerics"] = {"enable_fast_ions": True}
     config["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 10e6}
@@ -408,15 +398,13 @@ class ToricNNTest(test_lib.SourceTestCase):
     self.assertEqual(fi.T.value.shape, geo.rho.shape)
 
   def test_fast_ion_density_conservation(self):
-    config = default_configs.get_default_config_dict()
-    config["numerics"] = {"enable_fast_ions": True}
     minority_conc = 0.03
+    config = self._get_default_config_dict(
+        minority_concentration=minority_conc
+    )
+    config["numerics"] = {"enable_fast_ions": True}
     config["sources"] = {
-        self._source_name: {
-            "model_path": _DUMMY_MODEL_PATH,
-            "P_total": 10e6,
-            "minority_concentration": minority_conc,
-        }
+        self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 10e6}
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
@@ -448,7 +436,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     self.assertTrue(jnp.all(n_tail <= n_total))
 
   def test_fast_ion_tail_temperature_above_electron_temp(self):
-    config = default_configs.get_default_config_dict()
+    config = self._get_default_config_dict()
     config["numerics"] = {"enable_fast_ions": True}
     config["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 10e6}
@@ -481,7 +469,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     self.assertTrue(jnp.all(temperature_tail >= core_profiles.T_e.value))
 
   def test_zero_power_produces_zero_fast_ions(self):
-    config = default_configs.get_default_config_dict()
+    config = self._get_default_config_dict()
     config["numerics"] = {"enable_fast_ions": True}
     config["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 0.0}
@@ -524,7 +512,7 @@ class ToricNNTest(test_lib.SourceTestCase):
   def test_absorption_fraction_scales_heating_and_fast_ions(
       self, p_total: float, absorption_fraction: float
   ):
-    config = default_configs.get_default_config_dict()
+    config = self._get_default_config_dict()
     config["numerics"] = {"enable_fast_ions": True}
     config["sources"] = {
         self._source_name: {

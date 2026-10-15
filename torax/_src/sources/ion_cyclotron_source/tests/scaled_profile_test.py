@@ -32,12 +32,20 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
 
   source_name = icrh_base.IonCyclotronSource.SOURCE_ID
   source_config_class = scaled_profile.ScaledProfileIonCyclotronSourceConfig
+  extra_source_config_kwargs = {'minority_species': 'He3'}
 
   def _build_and_run(self, icrh_config_dict, n_rho=None):
     """Helper to build a ToraxConfig and run the ICRH source."""
     config = default_configs.get_default_config_dict()
     if n_rho is not None:
       config['geometry']['n_rho'] = n_rho
+    config['plasma_composition'] = {
+        'main_ion': {'D': 0.5, 'T': 0.5},
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'He3': 0.03, 'Ne': 0.01},
+        },
+    }
     config['sources'] = {
         icrh_base.IonCyclotronSource.SOURCE_ID: icrh_config_dict,
     }
@@ -77,6 +85,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
         'model_name': 'scaled_profile',
         'P_total': total_power,
         'absorption_fraction': 0.9,
+        'minority_species': 'He3',
         'heat_profile_ion': (rho, profile),
         'heat_profile_electron': (rho, profile),
         'reference_B0': 5.3,  # Matches default circular geometry B_0.
@@ -102,6 +111,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
             'model_name': 'scaled_profile',
             'P_total': 10e6,
             'absorption_fraction': 1.0,
+            'minority_species': 'He3',
             'heat_profile_ion': (rho, ion_profile),
             'heat_profile_electron': (rho, el_profile),
             'reference_B0': 5.3,  # Matches default circular geo B_0.
@@ -136,6 +146,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
         'model_name': 'scaled_profile',
         'P_total': 10e6,
         'absorption_fraction': 1.0,
+        'minority_species': 'He3',
         'heat_profile_ion': (rho, profile),
         'heat_profile_electron': (rho, profile),
         'reference_B0': 12.2,
@@ -157,6 +168,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
             'model_name': 'scaled_profile',
             'P_total': 10e6,
             'absorption_fraction': 1.0,
+            'minority_species': 'He3',
             'heat_profile_ion': (rho, profile),
             'heat_profile_electron': (rho, np.zeros_like(profile)),
             'reference_B0': reference_B0,

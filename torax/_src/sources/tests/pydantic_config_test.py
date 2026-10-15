@@ -312,6 +312,7 @@ class PydanticConfigTest(parameterized.TestCase):
           field_to_update='reference_B0',
           initial_value=12.2,
           updated_value=8.71,
+          extra_fields={'minority_species': 'He3'},
       ),
       dict(
           testcase_name='impurity_radiation_mavrin_fit',
@@ -345,10 +346,13 @@ class PydanticConfigTest(parameterized.TestCase):
       field_to_update,
       initial_value,
       updated_value,
+      extra_fields=None,
   ):
     config_dict = {source_name: {field_to_update: initial_value}}
     if model_name is not None:
       config_dict[source_name]['model_name'] = model_name
+    if extra_fields is not None:
+      config_dict[source_name].update(extra_fields)
     sm = pydantic_config.Sources.from_dict(config_dict)
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(sm, geo.torax_mesh)
