@@ -76,11 +76,16 @@ class ConfigTest(parameterized.TestCase):
         config_dict["time_step_calculator"]["calculator_type"],
     )
     with self.subTest("pedestal_model_set"):
+      pedestal_dict = config_dict["pedestal"]
+      if "structure_model" in pedestal_dict:
+        expected_model_name = pedestal_dict["structure_model"].get(
+            "model_name", "no_pedestal"
+        )
+      else:
+        expected_model_name = pedestal_dict.get("model_name", "no_pedestal")
       self.assertEqual(
-          config_pydantic.pedestal.model_name,
-          config_dict["pedestal"]["model_name"]
-          if "model_name" in config_dict["pedestal"]
-          else "no_pedestal",
+          config_pydantic.pedestal.structure_model.model_name,
+          expected_model_name,
       )
     with self.subTest("transport_model_set"):
       self.assertNotEmpty(

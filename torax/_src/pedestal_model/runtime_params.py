@@ -61,6 +61,16 @@ class PedestalProfileForm(enum.StrEnum):
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
+class StructureRuntimeParams:
+  """Base runtime params for pedestal structure models."""
+
+  pedestal_profile_form: PedestalProfileForm = dataclasses.field(
+      metadata={"static": True}
+  )
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class FormationRuntimeParams:
   """Base runtime params for pedestal formation models."""
 
@@ -95,12 +105,7 @@ class RuntimeParams:
       multipliers are always re-evaluated implicitly with current profiles
       regardless of this setting, since the saturation model feedback loop
       requires implicit coupling.
-    pedestal_profile_form: Controls the shape of internal boundary conditions in
-      the pedestal region. SET_AT_PED_TOP (default) pins pedestal values at a
-      single grid cell nearest to rho_norm_ped_top. MTANH applies a smooth
-      modified-tanh profile between the pedestal top and the separatrix, with
-      the mtanh width Δ derived from rho_norm_ped_top via the ψ_N(ρ) mapping in
-      core_profiles.
+    structure: Runtime params for the pedestal structure model.
     formation: Runtime params for the formation model.
     saturation: Runtime params for the saturation model.
     chi_max: Maximum effective thermal diffusion coefficient [m^2/s].
@@ -121,9 +126,7 @@ class RuntimeParams:
   mode: Mode = dataclasses.field(metadata={"static": True})
   transition_time_width: array_typing.FloatScalar
   explicit_pedestal: bool = dataclasses.field(metadata={"static": True})
-  pedestal_profile_form: PedestalProfileForm = dataclasses.field(
-      metadata={"static": True}
-  )
+  structure: StructureRuntimeParams
   formation: FormationRuntimeParams
   saturation: SaturationRuntimeParams
   chi_max: array_typing.FloatScalar

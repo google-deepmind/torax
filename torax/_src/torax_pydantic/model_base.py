@@ -254,6 +254,17 @@ class BaseModelFrozen(pydantic.BaseModel):
       path_split = path.split('.')
       value_name = path_split.pop()
       model = self._lookup_path(path_split)
+      # Temporary compatibility shim for legacy dotted-path updates on
+      # `pedestal` (e.g. `pedestal.n_e_ped` or `pedestal.P_ped_multiplier`)
+      # pending caller migration to `pedestal.structure_model.<field>`.
+      structure_model = getattr(model, 'structure_model', None)
+      if (
+          isinstance(model, BaseModelFrozen)
+          and value_name not in model.__class__.model_fields
+          and isinstance(structure_model, BaseModelFrozen)
+          and value_name in structure_model.__class__.model_fields
+      ):
+        model = structure_model
       mutated_models.append(model)
 
       if not isinstance(model, BaseModelFrozen) or (

@@ -222,7 +222,7 @@ class PedestalTransitionState:
       return pedestal_model_output.to_internal_boundary_conditions(
           geo,
           core_profiles=core_profiles,
-          pedestal_profile_form=pedestal_runtime_params.pedestal_profile_form,
+          pedestal_profile_form=pedestal_runtime_params.structure.pedestal_profile_form,
       )
     else:
       # In ADAPTIVE_TRANSPORT mode, transport coefficients govern the edge;

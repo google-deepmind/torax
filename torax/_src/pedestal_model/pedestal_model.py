@@ -39,11 +39,37 @@ from torax._src.sources import source_profiles as source_profiles_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
-  """Calculates temperature and density of the pedestal."""
+class PedestalStructureModel(static_dataclass.StaticDataclass, abc.ABC):
+  """Calculates temperature, density, and location of the pedestal."""
+
+  @abc.abstractmethod
+  def __call__(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+  ) -> pedestal_model_output.PedestalStructure:
+    """Calculates the pedestal structure properties."""
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class PedestalModel(static_dataclass.StaticDataclass):
+  """Calculates pedestal structure and transport multipliers."""
 
   formation_model: formation_base.FormationModel
   saturation_model: saturation_base.SaturationModel
+  structure_model: PedestalStructureModel | None = None
+
+  def _call_implementation(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+  ) -> pedestal_model_output.PedestalStructure:
+    """Legacy structure calculation hook pending caller migration."""
+    raise NotImplementedError
 
   def __call__(
       self,
@@ -53,7 +79,8 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalStructure:
-    pedestal_output = self._call_implementation(
+    structure_fn = self.structure_model or self._call_implementation
+    pedestal_output = structure_fn(
         runtime_params,
         geo,
         core_profiles,
@@ -96,7 +123,8 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
             confinement_mode=confinement_mode
         )
     )
-    pedestal_output = self._call_implementation(
+    structure_fn = self.structure_model or self._call_implementation
+    pedestal_output = structure_fn(
         runtime_params,
         geo,
         core_profiles,
@@ -233,16 +261,6 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
         transport_decrease,
         transport_increase,
     )
-
-  @abc.abstractmethod
-  def _call_implementation(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalStructure:
-    """Calculate the pedestal properties."""
 
 
 def _update_adaptive_transport(

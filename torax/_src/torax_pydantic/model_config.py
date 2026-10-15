@@ -127,11 +127,6 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     ):
       configurable_data['neoclassical']['model_name'] = 'analytical'
     if (
-        isinstance(configurable_data['pedestal'], dict)
-        and 'model_name' not in configurable_data['pedestal']
-    ):
-      configurable_data['pedestal']['model_name'] = 'no_pedestal'
-    if (
         isinstance(configurable_data['transport'], dict)
         and 'core_transport_models' not in configurable_data['transport']
         and 'pedestal_transport_models' not in configurable_data['transport']
@@ -206,7 +201,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @pydantic.model_validator(mode='after')
   def _check_pedestal_with_non_uniform_grid(self) -> Self:
     """Warns if a pedestal and non-uniform grid are used."""
-    if self.pedestal.model_name != 'no_pedestal':
+    if self.pedestal.structure_model.model_name != 'no_pedestal':
       face_centers = self.geometry.get_face_centers()
       is_uniform = np.all(
           np.isclose(np.diff(face_centers), np.diff(face_centers)[0])

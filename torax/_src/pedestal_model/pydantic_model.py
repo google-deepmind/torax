@@ -16,6 +16,7 @@
 
 import abc
 import copy
+import dataclasses
 from typing import Annotated, Any, Literal, Self, TypeAlias
 import chex
 import pydantic
@@ -276,10 +277,163 @@ FormationConfig: TypeAlias = Annotated[
 SaturationConfig: TypeAlias = ProfileValueSaturation
 
 
-class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
-  """Base class for pedestal models.
+class BaseStructure(torax_pydantic.BaseModelFrozen, abc.ABC):
+  """Base configuration for pedestal structure models.
 
   Attributes:
+    pedestal_profile_form: Controls the shape of internal boundary conditions in
+      the pedestal region (SET_AT_PED_TOP or MTANH).
+  """
+
+  pedestal_profile_form: Annotated[
+      runtime_params.PedestalProfileForm, torax_pydantic.JAX_STATIC
+  ] = runtime_params.PedestalProfileForm.SET_AT_PED_TOP
+
+  @abc.abstractmethod
+  def build_structure_model(self) -> pedestal_model.PedestalStructureModel:
+    """Builds the pedestal structure model."""
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.StructureRuntimeParams:
+    """Builds the runtime params."""
+    del t
+    return runtime_params.StructureRuntimeParams(
+        pedestal_profile_form=self.pedestal_profile_form,
+    )
+
+
+class SetPpedTpedRatioNped(BaseStructure):
+  """Model for direct specification of pressure, temperature ratio, and density.
+
+  Attributes:
+    P_ped: The plasma pressure at the pedestal [Pa].
+    P_ped_multiplier: Multiplier for the pedestal pressure (mostly used for
+      sensitivity analysis) [dimensionless].
+    n_e_ped: The electron density at the pedestal [m^-3] or fGW.
+    n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
+      fGW.
+    T_i_T_e_ratio: Ratio of the ion and electron temperature at the pedestal
+      [dimensionless].
+    rho_norm_ped_top: The location of the pedestal top.
+  """
+
+  model_name: Annotated[
+      Literal["set_P_ped_n_ped"], torax_pydantic.JAX_STATIC
+  ] = "set_P_ped_n_ped"
+  P_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1e5)
+  )
+  P_ped_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  n_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.7e20)
+  )
+  n_e_ped_is_fGW: bool = False
+  T_i_T_e_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  rho_norm_ped_top: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.91)
+  )
+
+  def build_structure_model(
+      self,
+  ) -> (
+      set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel
+  ):
+    return (
+        set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel()
+    )
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> set_pped_tpedratio_nped.RuntimeParams:
+    return set_pped_tpedratio_nped.RuntimeParams(
+        **vars(super().build_runtime_params(t)),
+        P_ped=self.P_ped.get_value(t),
+        P_ped_multiplier=self.P_ped_multiplier.get_value(t),
+        n_e_ped=self.n_e_ped.get_value(t),
+        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
+        T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
+        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+    )
+
+
+class SetTpedNped(BaseStructure):
+  """A basic version of the pedestal structure model using direct specification.
+
+  Attributes:
+    n_e_ped: The electron density at the pedestal [m^-3] or fGW.
+    n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
+      fGW.
+    T_i_ped: Ion temperature at the pedestal [keV].
+    T_e_ped: Electron temperature at the pedestal [keV].
+    rho_norm_ped_top: The location of the pedestal top.
+  """
+
+  model_name: Annotated[
+      Literal["set_T_ped_n_ped"], torax_pydantic.JAX_STATIC
+  ] = "set_T_ped_n_ped"
+  n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      0.7e20
+  )
+  n_e_ped_is_fGW: bool = False
+  # TODO(b/434175938): Consider extending to TimeVaryingArray
+  T_i_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      5.0
+  )
+  T_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      5.0
+  )
+  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.91)
+  )
+
+  def build_structure_model(
+      self,
+  ) -> set_tped_nped.SetTemperatureDensityPedestalModel:
+    return set_tped_nped.SetTemperatureDensityPedestalModel()
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> set_tped_nped.RuntimeParams:
+    return set_tped_nped.RuntimeParams(
+        **vars(super().build_runtime_params(t)),
+        n_e_ped=self.n_e_ped.get_value(t),
+        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
+        T_i_ped=self.T_i_ped.get_value(t),
+        T_e_ped=self.T_e_ped.get_value(t),
+        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+    )
+
+
+class NoPedestal(BaseStructure):
+  """A pedestal structure model for when there is no pedestal."""
+
+  model_name: Annotated[Literal["no_pedestal"], torax_pydantic.JAX_STATIC] = (
+      "no_pedestal"
+  )
+
+  def build_structure_model(
+      self,
+  ) -> no_pedestal.NoPedestal:
+    return no_pedestal.NoPedestal()
+
+
+StructureConfig = Annotated[
+    SetPpedTpedRatioNped | SetTpedNped | NoPedestal,
+    pydantic.Discriminator("model_name"),
+]
+
+
+class Pedestal(torax_pydantic.BaseModelFrozen):
+  """Configuration for the pedestal model.
+
+  Attributes:
+    structure_model: Configuration for the pedestal structure model (computing
+      target pedestal height, width, and profile form).
     mode: Defines how the pedestal is generated. Set to ADAPTIVE_TRANSPORT to
       set the pedestal by modifying the transport coefficients in the pedestal
       region, allowing the pedestal to self-consistently evolve. Set to
@@ -316,6 +470,9 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       directly in H-mode without L-mode profile data.
   """
 
+  structure_model: StructureConfig = torax_pydantic.ValidatedDefault(
+      NoPedestal()
+  )
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
       runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
   )
@@ -323,9 +480,6 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       torax_pydantic.ValidatedDefault(0.0)
   )
   explicit_pedestal: Annotated[bool, torax_pydantic.JAX_STATIC] = True
-  pedestal_profile_form: Annotated[
-      runtime_params.PedestalProfileForm, torax_pydantic.JAX_STATIC
-  ] = runtime_params.PedestalProfileForm.SET_AT_PED_TOP
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
       PrescribedFormation(pedestal_active=True)
   )
@@ -356,6 +510,17 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
+    if "structure_model" not in configurable_data:
+      # Temporary compatibility shim for flat pedestal dicts pending caller
+      # migration: any unknown key is moved into `structure_model`.
+      structure_fields = {
+          k: configurable_data.pop(k)
+          for k in list(configurable_data.keys())
+          if k not in cls.model_fields
+      }
+      if structure_fields:
+        structure_fields.setdefault("model_name", "no_pedestal")
+        configurable_data["structure_model"] = structure_fields
     if (
         isinstance(configurable_data.get("formation_model"), dict)
         and "model_name" not in configurable_data["formation_model"]
@@ -371,9 +536,21 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   @pydantic.model_validator(mode="after")
   def _check_source_mode(self) -> Self:
+    if isinstance(self.structure_model, NoPedestal) and not isinstance(
+        self, BasePedestal
+    ):
+      if not isinstance(self.formation_model, PrescribedFormation):
+        raise ValueError(
+            "NoPedestal cannot be used with a power-scaling formation model."
+        )
+      if self.initial_confinement_mode == "H_MODE":
+        raise ValueError(
+            "NoPedestal cannot have initial_confinement_mode='H_MODE'."
+        )
+      return self
+
     if (
         "formation_model" not in self.model_fields_set
-        and not isinstance(self, NoPedestal)
         and self.mode == runtime_params.Mode.ADAPTIVE_TRANSPORT
     ):
       raise ValueError(
@@ -392,9 +569,25 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
       )
     return self
 
-  @abc.abstractmethod
+  def __getattr__(self, name: str) -> Any:
+    # Temporary compatibility shim for callers reading structure fields directly
+    # on `torax_config.pedestal` (e.g. `pedestal.n_e_ped` or
+    # `pedestal.model_name`).
+    structure_model = self.__dict__.get("structure_model")
+    if (
+        structure_model is not None
+        and name in structure_model.__class__.model_fields
+    ):
+      return getattr(structure_model, name)
+    return super().__getattr__(name)  # pyrefly: ignore[missing-attribute]
+
   def build_pedestal_model(self) -> pedestal_model.PedestalModel:
     """Builds the pedestal model."""
+    return pedestal_model.PedestalModel(
+        structure_model=self.structure_model.build_structure_model(),
+        formation_model=self.formation_model.build_formation_model(),
+        saturation_model=self.saturation_model.build_saturation_model(),
+    )
 
   def build_runtime_params(
       self, t: chex.Numeric
@@ -405,12 +598,24 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
         if self.initial_confinement_mode is not None
         else None
     )
+    formation_params = self.formation_model.build_runtime_params(t)
+    if (
+        isinstance(self.structure_model, NoPedestal)
+        and not isinstance(self, BasePedestal)
+        and isinstance(
+            formation_params,
+            prescribed_formation_model.PrescribedFormationRuntimeParams,
+        )
+    ):
+      formation_params = dataclasses.replace(
+          formation_params, pedestal_active=False
+      )
     return runtime_params.RuntimeParams(
         mode=self.mode,
         transition_time_width=self.transition_time_width.get_value(t),
         explicit_pedestal=self.explicit_pedestal,
-        pedestal_profile_form=self.pedestal_profile_form,
-        formation=self.formation_model.build_runtime_params(t),
+        structure=self.structure_model.build_runtime_params(t),
+        formation=formation_params,
         saturation=self.saturation_model.build_runtime_params(t),
         chi_max=self.chi_max.get_value(t),
         D_e_max=self.D_e_max.get_value(t),
@@ -424,149 +629,18 @@ class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
     )
 
 
-class SetPpedTpedRatioNped(BasePedestal):
-  """Model for direct specification of pressure, temperature ratio, and density.
+class BasePedestal(Pedestal, abc.ABC):
+  """Legacy base configuration for pedestal models pending caller migration."""
 
-  Attributes:
-    P_ped: The plasma pressure at the pedestal [Pa].
-    P_ped_multiplier: Multiplier for the pedestal pressure (mostly used for
-      sensitivity analysis) [dimensionless].
-    n_e_ped: The electron density at the pedestal [m^-3] or fGW.
-    n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
-      fGW.
-    T_i_T_e_ratio: Ratio of the ion and electron temperature at the pedestal
-      [dimensionless].
-    rho_norm_ped_top: The location of the pedestal top.
-  """
-
-  model_name: Annotated[
-      Literal["set_P_ped_n_ped"], torax_pydantic.JAX_STATIC
-  ] = "set_P_ped_n_ped"
-  P_ped: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1e5)
-  )
-  P_ped_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  n_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.7e20)
-  )
-  n_e_ped_is_fGW: bool = False
-  T_i_T_e_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  rho_norm_ped_top: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.91)
-  )
-
-  def build_pedestal_model(
-      self,
-  ) -> (
-      set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel
-  ):
-    return set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel(
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
-    )
-
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> set_pped_tpedratio_nped.RuntimeParams:
-    base_params = super().build_runtime_params(t)
-    return set_pped_tpedratio_nped.RuntimeParams(
-        **vars(base_params),
-        P_ped=self.P_ped.get_value(t),
-        P_ped_multiplier=self.P_ped_multiplier.get_value(t),
-        n_e_ped=self.n_e_ped.get_value(t),
-        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
-        T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
-        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
-    )
+  @pydantic.model_validator(mode="before")
+  @classmethod
+  def _require_matching_model_name(cls, data: dict[str, Any]) -> dict[str, Any]:
+    if (
+        isinstance(data, dict)
+        and data.get("model_name") != cls.model_fields["model_name"].default
+    ):
+      raise ValueError("Not this BasePedestal model.")
+    return data
 
 
-class SetTpedNped(BasePedestal):
-  """A basic version of the pedestal model that uses direct specification.
-
-  Attributes:
-    n_e_ped: The electron density at the pedestal [m^-3] or fGW.
-    n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
-      fGW.
-    T_i_ped: Ion temperature at the pedestal [keV].
-    T_e_ped: Electron temperature at the pedestal [keV].
-    rho_norm_ped_top: The location of the pedestal top.
-  """
-
-  model_name: Annotated[
-      Literal["set_T_ped_n_ped"], torax_pydantic.JAX_STATIC
-  ] = "set_T_ped_n_ped"
-  n_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      0.7e20
-  )
-  n_e_ped_is_fGW: bool = False
-  # TODO(b/434175938): Consider extending to TimeVaryingArray
-  T_i_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      5.0
-  )
-  T_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      5.0
-  )
-  # TODO(b/517487852): Add pedestal height multiplier.
-  rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.91)
-  )
-
-  def build_pedestal_model(
-      self,
-  ) -> set_tped_nped.SetTemperatureDensityPedestalModel:
-    return set_tped_nped.SetTemperatureDensityPedestalModel(
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
-    )
-
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> set_tped_nped.RuntimeParams:
-    base_params = super().build_runtime_params(t)
-    return set_tped_nped.RuntimeParams(
-        **vars(base_params),
-        n_e_ped=self.n_e_ped.get_value(t),
-        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
-        T_i_ped=self.T_i_ped.get_value(t),
-        T_e_ped=self.T_e_ped.get_value(t),
-        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
-    )
-
-
-class NoPedestal(BasePedestal):
-  """A pedestal model for when there is no pedestal."""
-
-  model_name: Annotated[Literal["no_pedestal"], torax_pydantic.JAX_STATIC] = (
-      "no_pedestal"
-  )
-  formation_model: PrescribedFormation = torax_pydantic.ValidatedDefault(
-      PrescribedFormation(pedestal_active=False)
-  )
-
-  @pydantic.model_validator(mode="after")
-  def _validate_inactive(self) -> Self:
-    if any(self.formation_model.pedestal_active.value):
-      raise ValueError("NoPedestal cannot have an active pedestal.")
-    if self.initial_confinement_mode == "H_MODE":
-      raise ValueError(
-          "NoPedestal cannot have initial_confinement_mode='H_MODE'."
-      )
-    return self
-
-  def build_pedestal_model(
-      self,
-  ) -> no_pedestal.NoPedestal:
-    return no_pedestal.NoPedestal(
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
-    )
-
-
-PedestalConfig = Annotated[
-    SetPpedTpedRatioNped | SetTpedNped | NoPedestal,
-    pydantic.Discriminator("model_name"),
-]
+PedestalConfig: TypeAlias = Pedestal

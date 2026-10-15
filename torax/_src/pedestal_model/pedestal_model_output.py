@@ -71,7 +71,7 @@ def _pedestal_cell_mask(
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class PedestalStructure:
-  """Output of a PedestalModel.
+  """Output of a PedestalStructureModel.
 
   Attributes:
     rho_norm_ped_top: The requested location of the pedestal top in rho_norm,

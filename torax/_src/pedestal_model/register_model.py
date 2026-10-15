@@ -17,17 +17,32 @@ from torax._src.pedestal_model import pydantic_model
 from torax._src.torax_pydantic import model_config
 
 
-def register_pedestal_model(
-    pydantic_model_class: type[pydantic_model.BasePedestal],
+def register_pedestal_structure_model(
+    pydantic_model_class: type[pydantic_model.BaseStructure],
 ):
-  """Registers a pedestal model with TORAX."""
-  inner_union, discriminator = get_args(pydantic_model.PedestalConfig)
+  """Registers a pedestal structure model with TORAX."""
+  inner_union, discriminator = get_args(pydantic_model.StructureConfig)
   new_union = inner_union | pydantic_model_class
   setattr(
       pydantic_model,
-      'PedestalConfig',
+      'StructureConfig',
       Annotated[new_union, discriminator],
   )
+  setattr(
+      pydantic_model.Pedestal.model_fields['structure_model'],
+      'annotation',
+      new_union,
+  )
+  pydantic_model.Pedestal.model_rebuild(force=True)
+  model_config.ToraxConfig.model_rebuild(force=True)
+
+
+def register_pedestal_model(
+    pydantic_model_class: type[pydantic_model.BasePedestal],
+):
+  """Temporary compatibility wrapper pending caller migration."""
+  new_union = pydantic_model_class | pydantic_model.PedestalConfig
+  setattr(pydantic_model, 'PedestalConfig', new_union)
   setattr(
       model_config.ToraxConfig.model_fields['pedestal'],
       'annotation',

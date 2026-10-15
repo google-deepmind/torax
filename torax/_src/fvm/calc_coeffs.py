@@ -286,7 +286,7 @@ def _calc_coeffs_full(
   # for ADAPTIVE_TRANSPORT mode, transport multipliers must still be
   # re-evaluated implicitly with current profiles (the saturation model's
   # feedback loop requires it). We call formation + saturation directly to
-  # avoid re-running _call_implementation (the expensive pedestal physics).
+  # avoid re-running the structure model (the expensive pedestal physics).
   # TODO(b/434175938): V2: Consider having pedestal_model return an updated
   # PedestalTransitionState directly, avoiding the fragile manual
   # dataclasses.replace at every call site.

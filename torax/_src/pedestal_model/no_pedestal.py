@@ -23,18 +23,20 @@ from torax._src.pedestal_model import pedestal_transition_state as pedestal_tran
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class NoPedestal(pedestal_model.PedestalModel):
-  """A pedestal model for when there is no pedestal.
+class NoPedestal(pedestal_model.PedestalStructureModel):
+  """A pedestal structure model for when there is no pedestal.
 
-  This is a placeholder pedestal model that is used when there is no pedestal.
-  It returns infinite pedestal location and zero temperature and density.
+  This is a placeholder pedestal structure model that is used when there is no
+  pedestal. It returns infinite pedestal location and zero temperature and
+  density.
   """
 
-  def _call_implementation(
+  def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalStructure:
+    del runtime_params, geo, core_profiles, pedestal_transition_state
     return pedestal_model_output.PedestalStructure.no_pedestal()

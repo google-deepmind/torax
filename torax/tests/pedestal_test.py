@@ -26,16 +26,17 @@ from torax._src.test_utils import default_configs
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class FakePedestalModel(pedestal.PedestalModel):
-  """Fake pedestal model that returns fixed values."""
+class FakePedestalModel(pedestal.PedestalStructureModel):
+  """Fake pedestal structure model that returns fixed values."""
 
-  def _call_implementation(
+  def __call__(
       self,
       runtime_params: torax.RuntimeParams,
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal.PedestalStructure:
+    del runtime_params, geo, core_profiles, pedestal_transition_state
     return pedestal.PedestalStructure(
         rho_norm_ped_top=jnp.array(0.9),
         T_i_ped=jnp.array(5.0),
@@ -44,21 +45,18 @@ class FakePedestalModel(pedestal.PedestalModel):
     )
 
 
-class FakePedestalPydantic(pedestal.BasePedestal):
-  """Fake pedestal model pydantic config."""
+class FakePedestalPydantic(pedestal.BaseStructure):
+  """Fake pedestal structure model pydantic config."""
 
   model_name: Annotated[Literal['fake_pedestal'], torax.JAX_STATIC] = (
       'fake_pedestal'
   )
 
-  def build_pedestal_model(self) -> FakePedestalModel:
-    return FakePedestalModel(
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
-    )
+  def build_structure_model(self) -> FakePedestalModel:
+    return FakePedestalModel()
 
 
-pedestal.register_pedestal_model(FakePedestalPydantic)
+pedestal.register_pedestal_structure_model(FakePedestalPydantic)
 
 
 class PedestalTest(absltest.TestCase):
@@ -67,7 +65,9 @@ class PedestalTest(absltest.TestCase):
     """Tests that the fake pedestal model can be used in a simulation."""
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'fake_pedestal',
+        'structure_model': {
+            'model_name': 'fake_pedestal',
+        },
     }
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)

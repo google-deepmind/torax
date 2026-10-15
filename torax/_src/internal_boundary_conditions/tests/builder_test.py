@@ -60,12 +60,17 @@ class BuilderTest(absltest.TestCase):
       self,
       profile_conditions_ibc: ibc_lib.InternalBoundaryConditions | None = None,
   ) -> runtime_params_lib.RuntimeParams:
+    structure = mock.create_autospec(
+        pedestal_runtime_params_lib.StructureRuntimeParams,
+        instance=True,
+        pedestal_profile_form=pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP,
+    )
     pedestal = mock.create_autospec(
         pedestal_runtime_params_lib.RuntimeParams,
         instance=True,
         mode=pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
         transition_time_width=1.0,
-        pedestal_profile_form=pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP,
+        structure=structure,
     )
     profile_conditions = mock.create_autospec(
         core_profile_runtime_params.RuntimeParams,

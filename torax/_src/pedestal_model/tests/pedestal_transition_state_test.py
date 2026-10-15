@@ -556,7 +556,7 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
 
   def test_initialize_transition_state_two_pass_previous_output(self):
     """Verifies two-pass evaluation for models using previous width."""
-    pedestal_cls = type(self.pedestal_model)
+    structure_cls = type(self.pedestal_model.structure_model)
 
     def width_dependent_impl(
         model_self,
@@ -581,8 +581,8 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
       )
 
     with mock.patch.object(
-        pedestal_cls,
-        '_call_implementation',
+        structure_cls,
+        '__call__',
         autospec=True,
         side_effect=width_dependent_impl,
     ):

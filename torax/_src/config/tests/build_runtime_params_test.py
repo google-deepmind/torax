@@ -93,13 +93,15 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
 
   def test_pedestal_is_time_dependent(self):
     """Tests that the pedestal runtime params are time dependent."""
-    pedestal = pedestal_pydantic_model.SetTpedNped.from_dict(
+    pedestal = pedestal_pydantic_model.Pedestal.from_dict(
         dict(
-            model_name='set_T_ped_n_ped',
-            T_i_ped={0.0: 0.0, 1.0: 1.0},
-            T_e_ped={0.0: 1.0, 1.0: 2.0},
-            n_e_ped={0.0: 2.0e20, 1.0: 3.0e20},
-            rho_norm_ped_top={0.0: 3.0, 1.0: 5.0},
+            structure_model=dict(
+                model_name='set_T_ped_n_ped',
+                T_i_ped={0.0: 0.0, 1.0: 1.0},
+                T_e_ped={0.0: 1.0, 1.0: 2.0},
+                n_e_ped={0.0: 2.0e20, 1.0: 3.0e20},
+                rho_norm_ped_top={0.0: 3.0, 1.0: 5.0},
+            ),
             formation_model=dict(
                 model_name='prescribed',
                 pedestal_active={0.0: True, 1.0: False},
@@ -109,28 +111,32 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     # Check at time 0.
 
     pedestal_params = pedestal.build_runtime_params(t=0.0)
-    assert isinstance(pedestal_params, set_tped_nped.RuntimeParams)
+    assert isinstance(pedestal_params.structure, set_tped_nped.RuntimeParams)
     assert isinstance(
         pedestal_params.formation,
         prescribed_formation_model.PrescribedFormationRuntimeParams,
     )
     np.testing.assert_allclose(pedestal_params.formation.pedestal_active, True)
-    np.testing.assert_allclose(pedestal_params.T_i_ped, 0.0)
-    np.testing.assert_allclose(pedestal_params.T_e_ped, 1.0)
-    np.testing.assert_allclose(pedestal_params.n_e_ped, 2.0e20)
-    np.testing.assert_allclose(pedestal_params.rho_norm_ped_top, 3.0)
+    np.testing.assert_allclose(pedestal_params.structure.T_i_ped, 0.0)
+    np.testing.assert_allclose(pedestal_params.structure.T_e_ped, 1.0)
+    np.testing.assert_allclose(pedestal_params.structure.n_e_ped, 2.0e20)
+    np.testing.assert_allclose(
+        pedestal_params.structure.rho_norm_ped_top, 3.0
+    )
     # And check after the time limit.
     pedestal_params = pedestal.build_runtime_params(t=1.5)
-    assert isinstance(pedestal_params, set_tped_nped.RuntimeParams)
+    assert isinstance(pedestal_params.structure, set_tped_nped.RuntimeParams)
     assert isinstance(
         pedestal_params.formation,
         prescribed_formation_model.PrescribedFormationRuntimeParams,
     )
     np.testing.assert_allclose(pedestal_params.formation.pedestal_active, False)
-    np.testing.assert_allclose(pedestal_params.T_i_ped, 1.0)
-    np.testing.assert_allclose(pedestal_params.T_e_ped, 2.0)
-    np.testing.assert_allclose(pedestal_params.n_e_ped, 3.0e20)
-    np.testing.assert_allclose(pedestal_params.rho_norm_ped_top, 5.0)
+    np.testing.assert_allclose(pedestal_params.structure.T_i_ped, 1.0)
+    np.testing.assert_allclose(pedestal_params.structure.T_e_ped, 2.0)
+    np.testing.assert_allclose(pedestal_params.structure.n_e_ped, 3.0e20)
+    np.testing.assert_allclose(
+        pedestal_params.structure.rho_norm_ped_top, 5.0
+    )
 
   @parameterized.parameters(
       (

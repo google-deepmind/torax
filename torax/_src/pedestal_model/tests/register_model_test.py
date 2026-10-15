@@ -36,21 +36,25 @@ from torax._src.torax_pydantic import torax_pydantic
 class RegisterPedestalModelTest(absltest.TestCase):
 
   def test_registered_model_in_config(self):
-    register_model.register_pedestal_model(FixedPedestalConfig)
+    register_model.register_pedestal_structure_model(FixedPedestalConfig)
 
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'fixed_pedestal',
+        'structure_model': {
+            'model_name': 'fixed_pedestal',
+        },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    self.assertIsInstance(pedestal_model, FixedPedestalModel)
+    self.assertIsInstance(
+        pedestal_model.structure_model, FixedPedestalModel
+    )
 
   def test_dynamic_registration_updates_discriminator(self):
-    register_model.register_pedestal_model(FixedPedestalConfig)
+    register_model.register_pedestal_structure_model(FixedPedestalConfig)
 
     config = default_configs.get_default_config_dict()
-    config['pedestal'] = {'model_name': 'invalid_name'}
+    config['pedestal'] = {'structure_model': {'model_name': 'invalid_name'}}
     with self.assertRaisesRegex(
         pydantic.ValidationError,
         r"Input tag 'invalid_name' found using 'model_name' does not match any"
@@ -60,16 +64,17 @@ class RegisterPedestalModelTest(absltest.TestCase):
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class FixedPedestalModel(pedestal_model_lib.PedestalModel):
-  """Fixed PedestalModel for testing purposes."""
+class FixedPedestalModel(pedestal_model_lib.PedestalStructureModel):
+  """Fixed PedestalStructureModel for testing purposes."""
 
-  def _call_implementation(
+  def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output_lib.PedestalStructure:
+    del runtime_params, geo, core_profiles, pedestal_transition_state
     return pedestal_model_output_lib.PedestalStructure(
         rho_norm_ped_top=jnp.array(0.9),
         T_i_ped=jnp.array(5.0),
@@ -78,20 +83,17 @@ class FixedPedestalModel(pedestal_model_lib.PedestalModel):
     )
 
 
-class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
-  """Fixed pedestal config for testing."""
+class FixedPedestalConfig(pedestal_pydantic_model.BaseStructure):
+  """Fixed pedestal structure config for testing."""
 
   model_name: Annotated[
       Literal['fixed_pedestal'], torax_pydantic.JAX_STATIC
   ] = 'fixed_pedestal'
 
-  def build_pedestal_model(
+  def build_structure_model(
       self,
   ) -> FixedPedestalModel:
-    return FixedPedestalModel(
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
-    )
+    return FixedPedestalModel()
 
 
 if __name__ == '__main__':
