@@ -517,10 +517,9 @@ def _get_initial_guess(
 
   # Warm start logic: use previous only if enabled AND we have previous outputs
   # AND those previous outputs are usable (good solver outcome).
-  use_previous = (
-      initial_guess.use_previous_step_as_guess
-      and has_previous
-      and viable_previous
+  use_previous = jnp.logical_and(
+      initial_guess.use_previous_step_as_guess and has_previous,
+      viable_previous,
   )
 
   # When previous_val is None (no previous outputs), we use 0.0 as a safe
