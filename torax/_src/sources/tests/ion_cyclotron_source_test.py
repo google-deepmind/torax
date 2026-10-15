@@ -13,6 +13,8 @@
 # limitations under the License.
 """Tests for global ion_cyclotron_source infrastructure (model-agnostic)."""
 
+import dataclasses
+
 from absl.testing import absltest
 import jax
 import numpy as np
@@ -26,11 +28,17 @@ from torax._src.sources.tests import test_lib
 jax.config.update('jax_enable_x64', True)
 
 
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class _DummySource(icrh_base.IonCyclotronSource):
+
+  def _get_model_value(self, *args, **kwargs):
+    return ()
+
+
 class _DummyConfig(icrh_base.IonCyclotronSourceConfig):
 
-  @property
-  def model_func(self):
-    return lambda *args, **kwargs: None
+  def build_source(self) -> _DummySource:
+    return _DummySource()
 
 
 class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):

@@ -310,168 +310,165 @@ class RuntimeParams(base.RuntimeParams):
   wall_outer: float
 
 
-def icrh_model_func(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-    toric_nn: ToricNNWrapper,
-) -> tuple[
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    tuple[fast_ion_lib.FastIon, ...],
-]:
-  """Compute ion/electron heat source terms."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-
-  # Extract minority concentration from plasma composition
-  minority_concentration_profile = core_profiles.get_species_concentration(
-      source_params.minority_species
-  )
-  # Use first cell point value as assumption for relevant locations for
-  # extracting scalar ToricNN input, since deposition tends to be near-axis.
-  minority_concentration_scalar = minority_concentration_profile[0]
-
-  # Construct inputs for ToricNN.
-  volume_average_temperature = math_utils.volume_average(
-      core_profiles.T_e.value, geo
-  )
-  volume_average_density = math_utils.volume_average(
-      core_profiles.n_e.value, geo
-  )
-
-  # Peaking factors are core w.r.t volume averages.
-  temperature_peaking_factor = (
-      core_profiles.T_e.value[0] / volume_average_temperature
-  )
-  density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
-  Router = geo.R_out_face[-1]  # Use LCFS outboard radius
-  Rinner = geo.R_in_face[-1]  # Use LCFS inboard radius
-  # Assumption: inner and outer gaps are not functions of z0.
-  # This is a good assumption for the inner gap but perhaps less good for the
-  # outer gap where there is significant curvature to the outer limiter.
-  gap_inner = Rinner - source_params.wall_inner
-  gap_outer = source_params.wall_outer - Router
-  toric_inputs = ToricNNInputs(
-      frequency=source_params.frequency,
-      volume_average_temperature=volume_average_temperature,
-      volume_average_density=volume_average_density
-      / 1e20,  # convert to 10^20 m^-3
-      minority_concentration=minority_concentration_scalar
-      * 100,  # Convert to percentage.
-      gap_inner=gap_inner,
-      gap_outer=gap_outer,
-      z0=geo.z_magnetic_axis(),  # pyrefly: ignore[bad-argument-type]
-      temperature_peaking_factor=temperature_peaking_factor,
-      density_peaking_factor=density_peaking_factor,
-      B_0=geo.B_0,
-  )
-
-  toric_nn_outputs = _toric_nn_predict(toric_nn, toric_inputs)
-  toric_grid = jnp.linspace(0.0, 1.0, _TORIC_GRID_SIZE)
-
-  # Ideally total ICRH power should equal one but normalise if not.
-  power_deposition_he3 = jnp.interp(
-      geo.torax_mesh.cell_centers,
-      toric_grid,
-      toric_nn_outputs.power_deposition_He3,
-  )
-  power_deposition_e = jnp.interp(
-      geo.torax_mesh.cell_centers,
-      toric_grid,
-      toric_nn_outputs.power_deposition_e,
-  )
-  power_deposition_2T = jnp.interp(
-      geo.torax_mesh.cell_centers,
-      toric_grid,
-      toric_nn_outputs.power_deposition_2T,
-  )
-  power_deposition_all = (
-      power_deposition_2T + power_deposition_e + power_deposition_he3
-  )
-
-  total_power_deposition = math_utils.volume_integration(
-      power_deposition_all, geo
-  )
-  power_deposition_he3 /= total_power_deposition
-  power_deposition_e /= total_power_deposition
-  power_deposition_2T /= total_power_deposition
-
-  # Computing fast ion density and temperatures for He3.
-  he3_atomic_mass = 3.016
-  he3_charge_number = 2
-
-  absorbed_power = source_params.P_total * source_params.absorption_fraction
-
-  n_tail, T_tail = fast_ion_utils.bimaxwellian_split(
-      power_deposition=power_deposition_he3,
-      T_e=core_profiles.T_e.value,
-      n_e=core_profiles.n_e.value,
-      T_i=core_profiles.T_i.value,
-      n_i=core_profiles.n_i.value,
-      minority_concentration=minority_concentration_profile,
-      P_total_W=absorbed_power,
-      charge_number=he3_charge_number,
-      mass_number=he3_atomic_mass,
-      bulk_ion_mass=core_profiles.A_i,
-      Z_i=core_profiles.Z_i,
-      n_impurity=core_profiles.n_impurity.value,
-      Z_impurity=core_profiles.Z_impurity,
-      A_impurity=core_profiles.A_impurity,
-  )
-
-  he3_fast_ion = fast_ion_lib.FastIon(
-      species='He3',
-      source=source_name,
-      n=cell_variable.CellVariable(
-          value=n_tail,
-          face_centers=geo.rho_face_norm,
-          right_face_grad_constraint=None,
-          right_face_constraint=jnp.zeros(()),
-      ),
-      T=cell_variable.CellVariable(
-          value=T_tail,
-          face_centers=geo.rho_face_norm,
-          right_face_grad_constraint=None,
-          right_face_constraint=core_profiles.T_i.right_face_constraint,
-      ),
-  )
-
-  frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
-      T_tail,
-      core_profiles.T_e.value,
-      he3_atomic_mass,
-  )
-  source_ion = power_deposition_he3 * frac_ion_heating * absorbed_power
-  source_el = power_deposition_he3 * (1 - frac_ion_heating) * absorbed_power
-
-  # Assume that all the power from the electron power profile goes to electrons.
-  source_el += power_deposition_e * absorbed_power
-
-  # Assume that all the power from the tritium power profile goes to ions.
-  source_ion += power_deposition_2T * absorbed_power
-
-  return (source_ion, source_el, (he3_fast_ion,))
-
-
-# Cache the result of this function to avoid re-creating the partial function
-# every time it is called and ensure we hit the same JAX compile cache (as
-# model_func) is part of the key.
+# Cache the result of this function to avoid reloading the ToricNN weights
+# every time the source is evaluated.
 # maxsize=1 is sufficient as the ToricNNWrapper only changes if a new path
 # is provided. This is not expected to happen very often.
 @functools.lru_cache(maxsize=1)
-def _icrh_model_func_with_toric_nn(
-    model_path: str,
-) -> source.SourceProfileFunction:
-  """Returns a function that computes the ICRH source terms given a ToricNN."""
-  toric_nn = ToricNNWrapper(model_path)
-  return functools.partial(
-      icrh_model_func,
-      toric_nn=toric_nn,
-  )
+def _load_toric_nn(model_path: str | None) -> ToricNNWrapper:
+  """Returns the (cached) ToricNN model loaded from `model_path`."""
+  return ToricNNWrapper(model_path)
+
+
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class ToricNNIonCyclotronSource(base.IonCyclotronSource):
+  """Ion cyclotron source using the ToricNN surrogate model."""
+
+  model_path: str | None = None
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    """Computes ion/electron heat source terms using ToricNN."""
+    del calculated_source_profiles, conductivity
+    toric_nn = _load_toric_nn(self.model_path)
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    assert isinstance(source_params, RuntimeParams)
+
+    # Extract minority concentration from plasma composition
+    minority_concentration_profile = core_profiles.get_species_concentration(
+        source_params.minority_species
+    )
+    # Use first cell point value as assumption for relevant locations for
+    # extracting scalar ToricNN input, since deposition tends to be near-axis.
+    minority_concentration_scalar = minority_concentration_profile[0]
+
+    # Construct inputs for ToricNN.
+    volume_average_temperature = math_utils.volume_average(
+        core_profiles.T_e.value, geo
+    )
+    volume_average_density = math_utils.volume_average(
+        core_profiles.n_e.value, geo
+    )
+
+    # Peaking factors are core w.r.t volume averages.
+    temperature_peaking_factor = (
+        core_profiles.T_e.value[0] / volume_average_temperature
+    )
+    density_peaking_factor = core_profiles.n_e.value[0] / volume_average_density
+    Router = geo.R_out_face[-1]  # Use LCFS outboard radius
+    Rinner = geo.R_in_face[-1]  # Use LCFS inboard radius
+    # Assumption: inner and outer gaps are not functions of z0.
+    # This is a good assumption for the inner gap but perhaps less good for the
+    # outer gap where there is significant curvature to the outer limiter.
+    gap_inner = Rinner - source_params.wall_inner
+    gap_outer = source_params.wall_outer - Router
+    toric_inputs = ToricNNInputs(
+        frequency=source_params.frequency,
+        volume_average_temperature=volume_average_temperature,
+        volume_average_density=volume_average_density
+        / 1e20,  # convert to 10^20 m^-3
+        minority_concentration=minority_concentration_scalar
+        * 100,  # Convert to percentage.
+        gap_inner=gap_inner,
+        gap_outer=gap_outer,
+        z0=geo.z_magnetic_axis(),  # pyrefly: ignore[bad-argument-type]
+        temperature_peaking_factor=temperature_peaking_factor,
+        density_peaking_factor=density_peaking_factor,
+        B_0=geo.B_0,
+    )
+
+    toric_nn_outputs = _toric_nn_predict(toric_nn, toric_inputs)
+    toric_grid = jnp.linspace(0.0, 1.0, _TORIC_GRID_SIZE)
+
+    # Ideally total ICRH power should equal one but normalise if not.
+    power_deposition_he3 = jnp.interp(
+        geo.torax_mesh.cell_centers,
+        toric_grid,
+        toric_nn_outputs.power_deposition_He3,
+    )
+    power_deposition_e = jnp.interp(
+        geo.torax_mesh.cell_centers,
+        toric_grid,
+        toric_nn_outputs.power_deposition_e,
+    )
+    power_deposition_2T = jnp.interp(
+        geo.torax_mesh.cell_centers,
+        toric_grid,
+        toric_nn_outputs.power_deposition_2T,
+    )
+    power_deposition_all = (
+        power_deposition_2T + power_deposition_e + power_deposition_he3
+    )
+
+    total_power_deposition = math_utils.volume_integration(
+        power_deposition_all, geo
+    )
+    power_deposition_he3 /= total_power_deposition
+    power_deposition_e /= total_power_deposition
+    power_deposition_2T /= total_power_deposition
+
+    # Computing fast ion density and temperatures for He3.
+    he3_atomic_mass = 3.016
+    he3_charge_number = 2
+
+    absorbed_power = source_params.P_total * source_params.absorption_fraction
+
+    n_tail, T_tail = fast_ion_utils.bimaxwellian_split(
+        power_deposition=power_deposition_he3,
+        T_e=core_profiles.T_e.value,
+        n_e=core_profiles.n_e.value,
+        T_i=core_profiles.T_i.value,
+        n_i=core_profiles.n_i.value,
+        minority_concentration=minority_concentration_profile,
+        P_total_W=absorbed_power,
+        charge_number=he3_charge_number,
+        mass_number=he3_atomic_mass,
+        bulk_ion_mass=core_profiles.A_i,
+        Z_i=core_profiles.Z_i,
+        n_impurity=core_profiles.n_impurity.value,
+        Z_impurity=core_profiles.Z_impurity,
+        A_impurity=core_profiles.A_impurity,
+    )
+
+    he3_fast_ion = fast_ion_lib.FastIon(
+        species='He3',
+        source=self.SOURCE_ID,
+        n=cell_variable.CellVariable(
+            value=n_tail,
+            face_centers=geo.rho_face_norm,
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.zeros(()),
+        ),
+        T=cell_variable.CellVariable(
+            value=T_tail,
+            face_centers=geo.rho_face_norm,
+            right_face_grad_constraint=None,
+            right_face_constraint=core_profiles.T_i.right_face_constraint,
+        ),
+    )
+
+    frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
+        T_tail,
+        core_profiles.T_e.value,
+        he3_atomic_mass,
+    )
+    source_ion = power_deposition_he3 * frac_ion_heating * absorbed_power
+    source_el = power_deposition_he3 * (1 - frac_ion_heating) * absorbed_power
+
+    # Assume that all the power from the electron power profile goes to
+    # electrons.
+    source_el += power_deposition_e * absorbed_power
+
+    # Assume that all the power from the tritium power profile goes to ions.
+    source_ion += power_deposition_2T * absorbed_power
+
+    return (source_ion, source_el, (he3_fast_ion,))
 
 
 class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
@@ -499,11 +496,7 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
   )
   minority_species: Annotated[Literal['He3'], torax_pydantic.JAX_STATIC] = 'He3'
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return _icrh_model_func_with_toric_nn(self.model_path)
-
-  def build_source(self) -> base.IonCyclotronSource:
+  def build_source(self) -> ToricNNIonCyclotronSource:
     """Builds the source, only loading the ToricNN model in MODEL_BASED mode.
 
     When the mode is PRESCRIBED or ZERO, the model function is never called,
@@ -512,11 +505,12 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
     in prescribed mode.
 
     Returns:
-      An IonCyclotronSource object.
+      A ToricNNIonCyclotronSource object.
     """
     if self.mode == source_runtime_params_lib.Mode.MODEL_BASED:
-      return base.IonCyclotronSource(model_func=self.model_func)
-    return base.IonCyclotronSource(model_func=None)
+      # Eagerly load (and cache) the model so that invalid paths fail early.
+      _load_toric_nn(self.model_path)
+    return ToricNNIonCyclotronSource(model_path=self.model_path)
 
   def build_runtime_params(
       self,

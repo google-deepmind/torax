@@ -107,9 +107,6 @@ class IonCyclotronSourceConfig(source_base.SourceConfigBase):
   )
   minority_species: Annotated[str, torax_pydantic.JAX_STATIC]
 
-  def build_source(self) -> IonCyclotronSource:
-    return IonCyclotronSource(model_func=self.model_func)
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
