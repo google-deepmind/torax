@@ -373,7 +373,6 @@ class CoreProfiles:
     """Converts core profiles into an OutputVar mapping."""
     out_dict = {}
 
-    # 1. Standard CellVariable profiles (CELL_PLUS_BOUNDARIES)
     cell_vars = {
         output_keys.T_I: self.T_i.cell_plus_boundaries(),
         output_keys.T_E: self.T_e.cell_plus_boundaries(),
@@ -407,10 +406,10 @@ class CoreProfiles:
     for key, cell_val in cell_vars.items():
       out_dict[key] = context.pack(key, cell_val)
 
-    # 2. Combined Cell + Face profiles (CELL_PLUS_BOUNDARIES)
     cell_face_pairs = [
         (output_keys.Z_I, self.Z_i, self.Z_i_face),
         (output_keys.Z_IMPURITY, self.Z_impurity, self.Z_impurity_face),
+        (output_keys.A_IMPURITY, self.A_impurity, self.A_impurity_face),
         (output_keys.Z_EFF, self.Z_eff, self.Z_eff_face),
         (output_keys.SIGMA_PARALLEL, self.sigma, self.sigma_face),
         (output_keys.J_TOROIDAL_TOTAL, self.j_total, self.j_total_face),
@@ -421,30 +420,6 @@ class CoreProfiles:
       )
       out_dict[key] = context.pack(key, extended_data)
 
-    # TODO(b/434175938): Special handling for A_impurity for backward
-    # compatibility with V1 API for default 'fractions' impurity mode where
-    # A_impurity was a scalar.
-    # Check if A_impurity is constant across the radial dimension for all
-    # time steps. Slicing is required to avoid broadcasting errors.
-    is_constant = np.all(self.A_impurity == self.A_impurity[..., 0:1], axis=-1)
-    if np.all(is_constant):
-      out_dict[output_keys.A_IMPURITY] = context.pack(
-          output_keys.A_IMPURITY, self.A_impurity[..., 0]
-      )
-    else:
-      extended_a_impurity = (
-          output_grid_context.extend_cell_grid_to_boundaries(
-              self.A_impurity, self.A_impurity_face
-          )
-      )
-      a_imp_key = output_keys.OutputKey(
-          output_keys.A_IMPURITY,
-          units=output_keys.A_IMPURITY.units,
-          grid_type=output_keys.GridType.CELL_PLUS_BOUNDARIES,
-      )
-      out_dict[a_imp_key] = context.pack(a_imp_key, extended_a_impurity)
-
-    # 3. Face-only profiles (FACE)
     face_vars = {
         output_keys.Q: self.q_face,
         output_keys.MAGNETIC_SHEAR: self.s_face,
@@ -453,7 +428,6 @@ class CoreProfiles:
     for key, face_data in face_vars.items():
       out_dict[key] = context.pack(key, face_data)
 
-    # 4. Scalars (SCALAR)
     scalar_vars = {
         output_keys.V_LOOP_LCFS: self.v_loop_lcfs,
         output_keys.A_I: self.A_i,
@@ -462,7 +436,6 @@ class CoreProfiles:
     for key, scalar_data in scalar_vars.items():
       out_dict[key] = context.pack(key, scalar_data)
 
-    # 5. Multi-dimensional collections: main_ion_fractions
     if self.main_ion_fractions:
       main_ions = np.asarray(sorted(self.main_ion_fractions.keys()))
       context.register_coord(output_keys.MAIN_ION, main_ions)
@@ -476,7 +449,6 @@ class CoreProfiles:
           output_keys.get_units(output_keys.MAIN_ION_FRACTIONS),
       )
 
-    # 6. Fast ions (CELL_PLUS_BOUNDARIES)
     for fi in self.fast_ions:
       source_key = f"{fi.source}_{fi.species}"
       n_key = output_keys.OutputKey(

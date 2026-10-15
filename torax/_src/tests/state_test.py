@@ -499,7 +499,6 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     )
     out_dict = stacked_profiles.to_output_dict(context)
 
-    # 1. Cell + boundary profiles (CELL_PLUS_BOUNDARIES)
     cell_plus_boundaries_keys = (
         output_keys.T_I,
         output_keys.T_E,
@@ -517,6 +516,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         output_keys.PRESSURE_TOTAL,
         output_keys.Z_I,
         output_keys.Z_IMPURITY,
+        output_keys.A_IMPURITY,
         output_keys.Z_EFF,
         output_keys.SIGMA_PARALLEL,
         output_keys.J_TOROIDAL_TOTAL,
@@ -528,7 +528,6 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
       self.assertEqual(data.shape, (2, len(rho_cell_plus_boundaries)))
       self.assertIn('units', attrs)
 
-    # 2. Face profiles
     face_keys = (
         output_keys.Q,
         output_keys.MAGNETIC_SHEAR,
@@ -540,12 +539,10 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
       self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
       self.assertEqual(data.shape, (2, len(geo.rho_face_norm)))
 
-    # 3. Scalars
     scalar_keys = (
         output_keys.V_LOOP_LCFS,
         output_keys.A_I,
         output_keys.IP,
-        output_keys.A_IMPURITY,
     )
     for key in scalar_keys:
       self.assertIn(key, out_dict)
@@ -553,7 +550,6 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
       self.assertEqual(dims, (output_keys.TIME,))
       self.assertEqual(data.shape, (2,))
 
-    # 4. Multi-dimensional: main_ion_fractions
     self.assertIn(output_keys.MAIN_ION_FRACTIONS, out_dict)
     dims, data, attrs = out_dict[output_keys.MAIN_ION_FRACTIONS]
     self.assertEqual(
@@ -627,6 +623,12 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_NORM))
     self.assertEqual(data.shape, (2, len(rho_cell_plus_boundaries)))
     self.assertEqual(attrs['units'], 'amu')
+    expected_extended = output_grid_context.extend_cell_grid_to_boundaries(
+        profiles.A_impurity, profiles.A_impurity_face
+    )
+    np.testing.assert_allclose(
+        data, np.stack([expected_extended, expected_extended])
+    )
 
 
 class CoreTransportTest(parameterized.TestCase):

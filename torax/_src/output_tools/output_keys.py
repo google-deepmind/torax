@@ -250,7 +250,9 @@ A_I: Final[OutputKey] = OutputKey(
     "A_i", units=Units.AMU, grid_type=GridType.SCALAR
 )
 A_IMPURITY: Final[OutputKey] = OutputKey(
-    "A_impurity", units=Units.AMU, grid_type=GridType.SCALAR
+    "A_impurity",
+    units=Units.AMU,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
 Z_I: Final[OutputKey] = OutputKey(
     "Z_i", units=Units.DIMENSIONLESS, grid_type=GridType.CELL_PLUS_BOUNDARIES
