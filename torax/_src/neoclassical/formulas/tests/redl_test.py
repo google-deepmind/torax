@@ -12,8 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections.abc import Callable
+
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
+import jax.numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -109,6 +113,24 @@ class RedlFormulasTest(parameterized.TestCase):
     self.assertEqual(L33.shape, self.f_trap.shape)
     self.assertAlmostEqual(float(L33[0]), 1.0, places=6)
     self.assertTrue(np.all((L33 > 0.0) & (L33 <= 1.0)))
+
+
+class RedlAlphaTest(parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ('forward_mode', jax.jacfwd),
+      ('reverse_mode', jax.jacrev),
+  )
+  def test_gradient_is_finite_at_zero_trapped_fraction(
+      self, differentiate: Callable[..., Callable[..., jax.Array]]
+  ) -> None:
+    f_trap = jnp.array([0.0, 0.25, 0.5])
+    nu_i_star = jnp.ones_like(f_trap)
+    Z_eff = jnp.full_like(f_trap, 2.0)
+    jacobian = differentiate(redl_formulas.calculate_alpha)(
+        f_trap, nu_i_star, Z_eff
+    )
+    self.assertTrue(np.all(np.isfinite(jacobian)))
 
 
 _L31_EXPECTED = np.array([
