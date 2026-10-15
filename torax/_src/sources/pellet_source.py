@@ -28,27 +28,7 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-
 # pylint: disable=invalid-name
-def calc_pellet_source(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    unused_state: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
-  """Calculates external source term for n from pellets."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-  return (
-      formulas.gaussian_profile(
-          center=source_params.pellet_deposition_location,
-          width=source_params.pellet_width,
-          total=source_params.S_total,
-          geo=geo,
-      ),
-  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -59,7 +39,27 @@ class PelletSource(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.NE,
   )
-  model_func: source.SourceProfileFunction = calc_pellet_source  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    """Calculates external source term for n from pellets."""
+    del core_profiles, calculated_source_profiles, conductivity
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    assert isinstance(source_params, RuntimeParams)
+    return (
+        formulas.gaussian_profile(
+            center=source_params.pellet_deposition_location,
+            width=source_params.pellet_width,
+            total=source_params.S_total,
+            geo=geo,
+        ),
+    )
 
 
 @jax.tree_util.register_dataclass
@@ -95,10 +95,6 @@ class PelletSourceConfig(base.SourceConfigBase):
       2e22
   )
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return calc_pellet_source  # pyrefly: ignore[bad-return]
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -112,4 +108,4 @@ class PelletSourceConfig(base.SourceConfigBase):
     )
 
   def build_source(self) -> PelletSource:
-    return PelletSource(model_func=self.model_func)
+    return PelletSource()

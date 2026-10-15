@@ -157,8 +157,8 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None = None,
-      conductivity: conductivity_base.Conductivity | None = None,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
   ) -> tuple[SourceProfileElement, ...]:
     """Calculates source profile for MODEL_BASED mode."""
     if self.model_func is None:
