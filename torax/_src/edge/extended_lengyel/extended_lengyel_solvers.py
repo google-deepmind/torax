@@ -641,7 +641,7 @@ def _solve_for_c_z_prefactor(
           sol_model.params.seed_impurity_weights,
           start_temp=cc_temp_keV,
           stop_temp=div_temp_keV,
-          ne_tau=sol_model.params.ne_tau,
+          n_e_tau=sol_model.params.n_e_tau,
       )
       * _LINT_SCALE_FACTOR
   )
@@ -650,7 +650,7 @@ def _solve_for_c_z_prefactor(
           sol_model.params.seed_impurity_weights,
           start_temp=cc_temp_keV,
           stop_temp=sep_temp_keV,
-          ne_tau=sol_model.params.ne_tau,
+          n_e_tau=sol_model.params.n_e_tau,
       )
       * _LINT_SCALE_FACTOR
   )
@@ -662,7 +662,7 @@ def _solve_for_c_z_prefactor(
           sol_model.params.fixed_impurity_concentrations,
           start_temp=cc_temp_keV,
           stop_temp=div_temp_keV,
-          ne_tau=sol_model.params.ne_tau,
+          n_e_tau=sol_model.params.n_e_tau,
       )
       * _LINT_SCALE_FACTOR
   )
@@ -671,7 +671,7 @@ def _solve_for_c_z_prefactor(
           sol_model.params.fixed_impurity_concentrations,
           start_temp=cc_temp_keV,
           stop_temp=sep_temp_keV,
-          ne_tau=sol_model.params.ne_tau,
+          n_e_tau=sol_model.params.n_e_tau,
       )
       * _LINT_SCALE_FACTOR
   )
@@ -761,7 +761,7 @@ def _solve_for_qcc(
           sol_model.params.fixed_impurity_concentrations,
           start_temp=cc_temp_keV,
           stop_temp=div_temp_keV,
-          ne_tau=sol_model.params.ne_tau,
+          n_e_tau=sol_model.params.n_e_tau,
       )
       * _LINT_SCALE_FACTOR
   )
@@ -770,7 +770,7 @@ def _solve_for_qcc(
           sol_model.params.fixed_impurity_concentrations,
           start_temp=cc_temp_keV,
           stop_temp=sep_temp_keV,
-          ne_tau=sol_model.params.ne_tau,
+          n_e_tau=sol_model.params.n_e_tau,
       )
       * _LINT_SCALE_FACTOR
   )

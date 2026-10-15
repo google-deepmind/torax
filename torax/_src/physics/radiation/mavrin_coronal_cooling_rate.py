@@ -159,7 +159,7 @@ MAX_TEMPERATURES: Final[Mapping[str, float]] = immutabledict.immutabledict({
 
 def evaluate_polynomial_fit(
     T_e: array_typing.FloatVector,
-    unused_ne_tau_fraction: array_typing.FloatScalar,
+    unused_n_e_tau_fraction: array_typing.FloatScalar,
     coeffs: jt.Float[array_typing.Array, '5 _'],
 ) -> array_typing.FloatVector:
   """Evaluate the polynomial fit for the cooling rate."""

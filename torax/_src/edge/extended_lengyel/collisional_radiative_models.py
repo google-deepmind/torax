@@ -29,8 +29,7 @@ from torax._src.edge.extended_lengyel import mavrin_2017_charge_states_data
 from torax._src.physics.radiation import radiation
 
 # pylint: disable=invalid-name
-# TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
-_NE_TAU_CORONAL_LIMIT = 1e19
+_N_E_TAU_CORONAL_LIMIT = 1e19
 
 
 # TODO(b/479521524): Similarly to radiation, create a new package for
@@ -39,8 +38,7 @@ _NE_TAU_CORONAL_LIMIT = 1e19
 @jax.jit(static_argnames=['ion_symbol'])
 def calculate_mavrin_noncoronal_charge_state(
     T_e: array_typing.FloatVector,
-    # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
-    ne_tau: array_typing.FloatScalar,
+    n_e_tau: array_typing.FloatScalar,
     ion_symbol: str,
 ) -> jax.Array:
   """Calculates the average charge state of an impurity based on a polynomial fit.
@@ -51,9 +49,9 @@ def calculate_mavrin_noncoronal_charge_state(
 
   Args:
     T_e: Electron temperature [keV].
-    ne_tau: The non-coronal parameter, being the product of electron density and
-      impurity residence time [m^-3 s]. High values of ne_tau correspond to the
-      coronal limit.
+    n_e_tau: The non-coronal parameter, being the product of electron density
+      and impurity residence time [m^-3 s]. High values of n_e_tau correspond to
+      the coronal limit.
     ion_symbol: Species to calculate average charge state for.
 
   Returns:
@@ -81,7 +79,7 @@ def calculate_mavrin_noncoronal_charge_state(
   max_temp = mavrin_2017_charge_states_data.MAX_TEMPERATURES[ion_symbol_lookup]
   T_e_ev = jnp.clip(T_e_ev, min_temp, max_temp)
   # Residence parameter capped at 10^19, which is the coronal limit.
-  ne_tau = jnp.clip(ne_tau, max=_NE_TAU_CORONAL_LIMIT)
+  n_e_tau = jnp.clip(n_e_tau, max=_N_E_TAU_CORONAL_LIMIT)
 
   # Gather coefficients for each temperature
   interval_indices = jnp.searchsorted(
@@ -95,7 +93,7 @@ def calculate_mavrin_noncoronal_charge_state(
   )
 
   X = jnp.log10(T_e_ev)
-  Y = jnp.log10(ne_tau / _NE_TAU_CORONAL_LIMIT)
+  Y = jnp.log10(n_e_tau / _N_E_TAU_CORONAL_LIMIT)
 
   # 2D polynomial from Mavrin 2017, Eq. 8
   log10_variable = (
@@ -117,7 +115,7 @@ def calculate_mavrin_noncoronal_charge_state(
 def _calculate_L_INT(
     start_temp: array_typing.FloatScalar,
     stop_temp: array_typing.FloatScalar,
-    ne_tau: array_typing.FloatScalar,
+    n_e_tau: array_typing.FloatScalar,
     ion_symbol: str,
     resolution: int = extended_lengyel_defaults.L_INT_INTEGRATION_RESOLUTION,
 ) -> jax.Array:
@@ -130,7 +128,7 @@ def _calculate_L_INT(
   Args:
     start_temp: The starting electron temperature for the integration [keV].
     stop_temp: The stopping electron temperature for the integration [keV].
-    ne_tau: The non-coronal parameter [m^-3 s].
+    n_e_tau: The non-coronal parameter [m^-3 s].
     ion_symbol: The impurity species.
     resolution: The number of points to use in the numerical integration.
 
@@ -154,7 +152,7 @@ def _calculate_L_INT(
       T_e=electron_temp,
       ion_symbol=ion_symbol,
       model_type=radiation.MavrinModelType.NONCORONAL,
-      ne_tau=ne_tau,
+      n_e_tau=n_e_tau,
   )
 
   # The integrand is Lz * sqrt(Te)
@@ -172,7 +170,7 @@ def calculate_weighted_L_INT(
     impurity_map: Mapping[str, array_typing.FloatScalar],
     start_temp: array_typing.FloatScalar,
     stop_temp: array_typing.FloatScalar,
-    ne_tau: array_typing.FloatScalar,
+    n_e_tau: array_typing.FloatScalar,
     resolution: int = extended_lengyel_defaults.L_INT_INTEGRATION_RESOLUTION,
 ) -> jax.Array:
   """Calculates the weighted integral of Lz * sqrt(Te).
@@ -185,7 +183,7 @@ def calculate_weighted_L_INT(
     impurity_map: A mapping of impurity symbols to their weights/concentrations.
     start_temp: The starting electron temperature for integration [keV].
     stop_temp: The stopping electron temperature for integration [keV].
-    ne_tau: The non-coronal parameter [m^-3 s].
+    n_e_tau: The non-coronal parameter [m^-3 s].
     resolution: The number of points for numerical integration.
 
   Returns:
@@ -196,7 +194,7 @@ def calculate_weighted_L_INT(
     L_INT = _calculate_L_INT(
         start_temp=start_temp,
         stop_temp=stop_temp,
-        ne_tau=ne_tau,
+        n_e_tau=n_e_tau,
         ion_symbol=ion_symbol,
         resolution=resolution,
     )

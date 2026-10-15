@@ -634,7 +634,7 @@ def run_extended_lengyel_standalone(
     ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar = (
         extended_lengyel_defaults.RATIO_BPOL_OMP_TO_BPOL_AVG
     ),
-    ne_tau: array_typing.FloatScalar = extended_lengyel_defaults.NE_TAU,
+    n_e_tau: array_typing.FloatScalar = extended_lengyel_defaults.N_E_TAU,
     sheath_heat_transmission_factor: array_typing.FloatScalar = (
         extended_lengyel_defaults.SHEATH_HEAT_TRANSMISSION_FACTOR
     ),
@@ -706,7 +706,7 @@ def run_extended_lengyel_standalone(
     solver_mode: The solver mode for the model. See SolverMode for details.
     divertor_broadening_factor: lambda_INT / lambda_q  [dimensionless].
     ratio_bpol_omp_to_bpol_avg: Bpol_omp / Bpol_avg  [dimensionless].
-    ne_tau: Product of electron density and ion residence time [s m^-3].
+    n_e_tau: Product of electron density and ion residence time [s m^-3].
     sheath_heat_transmission_factor: Sheath heat transmission factor gamma
       [dimensionless].
     angle_of_incidence_target: Angle between fieldline and target [degrees].
@@ -774,7 +774,7 @@ def run_extended_lengyel_standalone(
       seed_impurity_weights=seed_impurity_weights,
       divertor_broadening_factor=divertor_broadening_factor,
       ratio_bpol_omp_to_bpol_avg=ratio_bpol_omp_to_bpol_avg,
-      ne_tau=ne_tau,
+      n_e_tau=n_e_tau,
       sheath_heat_transmission_factor=sheath_heat_transmission_factor,
       angle_of_incidence_target=angle_of_incidence_target,
       fraction_of_P_SOL_to_divertor=fraction_of_P_SOL_to_divertor,
@@ -862,7 +862,7 @@ def _construct_parameters(
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
     divertor_broadening_factor: array_typing.FloatScalar,
     ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar,
-    ne_tau: array_typing.FloatScalar,
+    n_e_tau: array_typing.FloatScalar,
     sheath_heat_transmission_factor: array_typing.FloatScalar,
     angle_of_incidence_target: array_typing.FloatScalar,
     fraction_of_P_SOL_to_divertor: array_typing.FloatScalar,
@@ -925,7 +925,7 @@ def _construct_parameters(
       T_wall=T_wall,
       seed_impurity_weights=seed_impurity_weights,
       fixed_impurity_concentrations=fixed_impurity_concentrations,
-      ne_tau=ne_tau,
+      n_e_tau=n_e_tau,
       main_ion_charge=main_ion_charge,
       mean_ion_charge_state=mean_ion_charge_state,
       divertor_broadening_factor=divertor_broadening_factor,

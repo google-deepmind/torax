@@ -29,7 +29,7 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
   def test_temperature_clipping(self):
     """Tests that T_e is correctly clipped to the model's validity range."""
     ion_symbol = 'Ar'
-    ne_tau = 5e16
+    n_e_tau = 5e16
     # Get the valid temperature range for Argon from the model
     min_temp_keV = (
         mavrin_2017_charge_states_data.MIN_TEMPERATURES[ion_symbol] / 1e3
@@ -43,14 +43,14 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     val_low = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             T_e_low,
-            ne_tau,
+            n_e_tau,
             ion_symbol,
         )
     )
     val_min_ref = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             np.array([min_temp_keV]),
-            ne_tau,
+            n_e_tau,
             ion_symbol,
         )
     )
@@ -61,38 +61,37 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     val_high = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             T_e_high,
-            ne_tau,
+            n_e_tau,
             ion_symbol,
         )
     )
     val_max_ref = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             np.array([max_temp_keV]),
-            ne_tau,
+            n_e_tau,
             ion_symbol,
         )
     )
     np.testing.assert_allclose(val_high, val_max_ref)
 
-  # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
-  def test_ne_tau_clipping(self):
-    """Tests that ne_tau is correctly capped at the coronal limit."""
+  def test_n_e_tau_clipping(self):
+    """Tests that n_e_tau is correctly capped at the coronal limit."""
     ion_symbol = 'C'
     T_e = np.array([1.0])  # 1 keV
-    ne_tau_high = 2e19
-    ne_tau_limit = collisional_radiative_models._NE_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
+    n_e_tau_high = 2e19
+    n_e_tau_limit = collisional_radiative_models._N_E_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
 
     val_high = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             T_e,
-            ne_tau_high,
+            n_e_tau_high,
             ion_symbol,
         )
     )
     val_limit = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             T_e,
-            ne_tau_limit,
+            n_e_tau_limit,
             ion_symbol,
         )
     )
@@ -107,13 +106,13 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
   )
   def test_coronal_limit_vs_2018_model(self, ion_symbol):
     """Compares to 2018 model in coronal limit for overlapping ions and T_e range."""
-    ne_tau = collisional_radiative_models._NE_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
+    n_e_tau = collisional_radiative_models._N_E_TAU_CORONAL_LIMIT  # pylint: disable=protected-access
     T_e_keV = np.array([0.1, 0.2, 0.5, 0.9, 1.5, 9.0])
 
     z_edge_model = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             T_e_keV,
-            ne_tau,
+            n_e_tau,
             ion_symbol,
         )
     )
@@ -134,20 +133,20 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
   def test_helium_isotope_equivalence(self):
     """Tests that He3 and He4 produce identical results to He."""
     T_e_keV = np.array([0.005, 0.01, 0.1])
-    ne_tau = 1e17
+    n_e_tau = 1e17
     val_He = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            T_e_keV, ne_tau, 'He'
+            T_e_keV, n_e_tau, 'He'
         )
     )
     val_He3 = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            T_e_keV, ne_tau, 'He3'
+            T_e_keV, n_e_tau, 'He3'
         )
     )
     val_He4 = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            T_e_keV, ne_tau, 'He4'
+            T_e_keV, n_e_tau, 'He4'
         )
     )
 
@@ -303,12 +302,12 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
         1.5,
         9.0,
     ])
-    ne_tau = 1e17  # A representative non-coronal value
+    n_e_tau = 1e17  # A representative non-coronal value
 
     calculated_z = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             T_e_keV,
-            ne_tau,
+            n_e_tau,
             ion_symbol,
         )
     )
@@ -325,7 +324,7 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     """Tests the _calculate_L_INT function against a reference value."""
     start_temp = 0.01  # keV
     stop_temp = 0.02  # keV
-    ne_tau = 0.5e17
+    n_e_tau = 0.5e17
     ion_symbol = 'N'
 
     # Reference value taken from running the same routine in
@@ -335,7 +334,7 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     calculated_L_INT = collisional_radiative_models._calculate_L_INT(
         start_temp=start_temp,
         stop_temp=stop_temp,
-        ne_tau=ne_tau,
+        n_e_tau=n_e_tau,
         ion_symbol=ion_symbol,
     )
 
@@ -350,7 +349,7 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
     """Tests the calculate_weighted_L_INT function against a reference value."""
     start_temp = 6.167578954082415e-3  # keV
     stop_temp = 55.02789988290978e-3  # keV
-    ne_tau = 0.5e17
+    n_e_tau = 0.5e17
     impurity_map = {'N': 1.0, 'Ar': 0.05}
 
     # Reference value taken from running the same routine in
@@ -362,7 +361,7 @@ class CollisionalRadiativeModelsTest(parameterized.TestCase):
             impurity_map=impurity_map,
             start_temp=start_temp,
             stop_temp=stop_temp,
-            ne_tau=ne_tau,
+            n_e_tau=n_e_tau,
         )
     )
 

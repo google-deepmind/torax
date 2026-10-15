@@ -231,8 +231,7 @@ def calc_Z_eff(
     c_z: array_typing.FloatScalar,
     T_e: array_typing.FloatScalar,
     Z_i: array_typing.FloatScalar,
-    # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
-    ne_tau: array_typing.FloatScalar,
+    n_e_tau: array_typing.FloatScalar,
     seed_impurity_weights: Mapping[str, array_typing.FloatScalar],
     fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar],
 ) -> jax.Array:
@@ -249,8 +248,8 @@ def calc_Z_eff(
     c_z: Concentration of the total seeded impurity species.
     T_e: Electron temperature [keV].
     Z_i: Main ion charge.
-    ne_tau: The non-coronal parameter, being the product of electron density and
-      impurity residence time [m^-3 s].
+    n_e_tau: The non-coronal parameter, being the product of electron density
+      and impurity residence time [m^-3 s].
     seed_impurity_weights: Mapping from ion symbol (e.g., 'C') to its relative
       weight within the seeded impurity mix.
     fixed_impurity_concentrations: Mapping from ion symbol to its absolute
@@ -268,7 +267,7 @@ def calc_Z_eff(
     Z_impurity_per_species = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             T_e=T_e_1d,
-            ne_tau=ne_tau,
+            n_e_tau=n_e_tau,
             ion_symbol=key,
         )
     )
@@ -279,7 +278,7 @@ def calc_Z_eff(
     Z_impurity_per_species = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
             T_e=T_e_1d,
-            ne_tau=ne_tau,
+            n_e_tau=n_e_tau,
             ion_symbol=key,
         )
     )
