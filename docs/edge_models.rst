@@ -199,8 +199,12 @@ the following common configuration parameters:
   built-in extended Lengyel model, or the registered model name for a custom
   edge model.
 
-``update_temperatures`` (bool [default = False])
-  If True, update core temperature boundary conditions based on edge model
+``update_electron_temperature`` (bool [default = False])
+  If True, update core electron temperature boundary condition based on edge
+  model results.
+
+``update_ion_temperature`` (bool [default = False])
+  If True, update core ion temperature boundary condition based on edge model
   results.
 
 ``update_electron_density`` (bool [default = False])
