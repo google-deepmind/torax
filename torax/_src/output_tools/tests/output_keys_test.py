@@ -134,13 +134,6 @@ class OutputKeysTest(parameterized.TestCase):
               actual_grid = output_keys.GridType.SCALAR
 
         if var_name in all_keys:
-          # A_impurity in this benchmark NetCDF file is stored under /scalars
-          # until reference NetCDF files are regenerated in CL 7.
-          if (
-              var_name == output_keys.A_IMPURITY
-              and actual_grid == output_keys.GridType.SCALAR
-          ):
-            continue
           expected_grid = all_keys[var_name].grid_type
           if expected_grid != actual_grid:
             mismatches.append(

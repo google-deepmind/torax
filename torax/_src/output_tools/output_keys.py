@@ -514,12 +514,6 @@ RHO_NORM: Final[OutputKey] = OutputKey(
     units=Units.DIMENSIONLESS,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
-RHO_FACE: Final[OutputKey] = OutputKey(
-    "rho_face", units=Units.METER, grid_type=GridType.FACE
-)
-RHO_CELL: Final[OutputKey] = OutputKey(
-    "rho_cell", units=Units.METER, grid_type=GridType.CELL
-)
 TIME: Final[OutputKey] = OutputKey(
     "time", units=Units.SECOND, grid_type=GridType.SCALAR
 )
@@ -541,18 +535,8 @@ J_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
-J_PARALLEL_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
-    "j_parallel_generic_current",
-    units=Units.AMPERE_PER_SQUARE_METER,
-    grid_type=GridType.CELL,
-)
 J_ECRH: Final[OutputKey] = OutputKey(
     "j_ecrh",
-    units=Units.AMPERE_PER_SQUARE_METER,
-    grid_type=GridType.CELL,
-)
-J_PARALLEL_ECRH: Final[OutputKey] = OutputKey(
-    "j_parallel_ecrh",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
