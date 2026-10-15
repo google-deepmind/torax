@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+from torax._src.fvm import cell_variable
 from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import get_example_L_LY_data
@@ -25,6 +26,7 @@ from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
+from torax._src.physics import psi_calculations
 from torax._src.torax_pydantic import interpolated_param_2d
 
 # pylint: disable=invalid-name
@@ -431,6 +433,49 @@ class GeometryTest(parameterized.TestCase):
     for key, _ in optional_keys:
       self.assertNotIn(key, out_none)
     self.assertNotIn(output_keys.DIVERTED, out_none)
+
+
+class PsiFromIpTest(absltest.TestCase):
+  """Tests j_total derived from psi_from_Ip on a mesh finer than the equilibrium."""
+
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    geo = geometry_pydantic_model.Geometry.from_dict({
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+        'n_rho': 400,
+    }).build_provider(0.0)
+    assert isinstance(geo, standard_geometry.StandardGeometry)
+    # LCFS psi value constraint (as with the V_loop boundary condition), so the
+    # edge gradient also comes from the psi_from_Ip interpolation.
+    psi = cell_variable.CellVariable(
+        value=geo.psi_from_Ip,
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=geo.psi_from_Ip_face[-1],
+        right_face_grad_constraint=None,
+    )
+    j_total, _, ip_profile_face = psi_calculations.calc_j_total(
+        geo, psi, min_rho_norm=0.0
+    )
+    cls.geo = geo
+    cls.j_total = np.asarray(j_total)
+    cls.ip_profile_face = np.asarray(ip_profile_face)
+
+  def test_lcfs_ip_matches_equilibrium_ip(self):
+    np.testing.assert_allclose(
+        self.ip_profile_face[-1], self.geo.Ip_profile_face[-1], rtol=1e-12
+    )
+
+  def test_bulk_j_total_has_no_spikes_at_equilibrium_knots(self):
+    bulk = slice(2, -1)
+    max_rel_err = np.max(
+        np.abs(self.j_total[bulk] - self.geo.j_total[bulk])
+    ) / np.max(np.abs(self.geo.j_total))
+    self.assertLess(max_rel_err, 0.06)
+
+  def test_edge_j_total_matches_equilibrium(self):
+    np.testing.assert_allclose(self.j_total[-1], self.geo.j_total[-1], rtol=0.5)
 
 
 if __name__ == '__main__':

@@ -446,32 +446,6 @@ def build_standard_geometry(
   g2g3_over_rhon = g2[1:] * g3[1:] / rho_norm_intermediate[1:]
   g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
 
-  # make an alternative initial psi, self-consistent with numerical geometry
-  # Ip profile. Needed since input psi profile may have noisy second derivatives
-  dpsidrhon = (
-      intermediates.Ip_profile[1:]
-      * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediates.Phi[-1])
-      / (g2g3_over_rhon[1:] * intermediates.F[1:])
-  )
-  dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
-  psi_from_Ip = scipy.integrate.cumulative_trapezoid(
-      y=dpsidrhon,
-      x=rho_norm_intermediate,
-      initial=0.0,
-  )
-  # `initial` can only be zero or None, so add psi_axis afterwards.
-  psi_from_Ip += intermediates.psi[0]
-
-  # set Ip-consistent psi derivative boundary condition (although will be
-  # replaced later with an fvm constraint)
-  psi_from_Ip[-1] = psi_from_Ip[-2] + (
-      16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediates.Phi[-1]
-  ) * intermediates.Ip_profile[-1] / (
-      g2g3_over_rhon[-1] * intermediates.F[-1]
-  ) * (
-      rho_norm_intermediate[-1] - rho_norm_intermediate[-2]
-  )
-
   # dV/drhon, dS/drhon
   vpr = intermediates.vpr
   spr = vpr * intermediates.flux_surf_avg_1_over_R / (2 * np.pi)
@@ -547,8 +521,6 @@ def build_standard_geometry(
   F_hires = rhon_interpolation_func(rho_hires_norm, intermediates.F)
 
   psi = rhon_interpolation_func(rho_norm, intermediates.psi)
-  psi_from_Ip_face = rhon_interpolation_func(rho_face_norm, psi_from_Ip)
-  psi_from_Ip = rhon_interpolation_func(rho_norm, psi_from_Ip)
 
   j_total_face = rhon_interpolation_func(rho_face_norm, j_total)
   j_total = rhon_interpolation_func(rho_norm, j_total)
@@ -582,6 +554,18 @@ def build_standard_geometry(
   g2g3_over_rhon_face = rhon_interpolation_func(rho_face_norm, g2g3_over_rhon)
   g2g3_over_rhon_hires = rhon_interpolation_func(rho_hires_norm, g2g3_over_rhon)
   g2g3_over_rhon = rhon_interpolation_func(rho_norm, g2g3_over_rhon)
+
+  # Alternative initial psi, consistent with the equilibrium Ip profile.
+  psi_from_Ip, psi_from_Ip_face = _calculate_psi_from_Ip(
+      rho_norm_intermediate=rho_norm_intermediate,
+      Ip_profile=intermediates.Ip_profile,
+      psi_axis=intermediates.psi[0],
+      Phi_b=intermediates.Phi[-1],
+      rho_norm=rho_norm,
+      rho_face_norm=rho_face_norm,
+      g2g3_over_rhon_face=g2g3_over_rhon_face,
+      F_face=F_face,
+  )
 
   gm4 = rhon_interpolation_func(rho_norm, intermediates.flux_surf_avg_1_over_B2)
   gm4_face = rhon_interpolation_func(
@@ -665,6 +649,61 @@ def build_standard_geometry(
       R_target=intermediates.R_target,
       B_pol_OMP=intermediates.B_pol_OMP,
   )
+
+
+def _calculate_psi_from_Ip(
+    rho_norm_intermediate: array_typing.Array,
+    Ip_profile: array_typing.Array,
+    psi_axis: array_typing.FloatScalar,
+    Phi_b: array_typing.FloatScalar,
+    rho_norm: array_typing.Array,
+    rho_face_norm: array_typing.Array,
+    g2g3_over_rhon_face: array_typing.Array,
+    F_face: array_typing.Array,
+) -> tuple[np.ndarray, np.ndarray]:
+  """Returns psi on the cell and face grids, consistent with Ip_profile.
+
+  Ip_profile is cubic-spline interpolated onto the transport faces, and the
+  face psi gradients are obtained by inverting the finite-volume Ip relation
+  used in `psi_calculations.calc_j_total`. psi is then the cumulative sum of
+  these gradients from the axis.
+
+  Args:
+    rho_norm_intermediate: Normalized toroidal flux coordinate of the
+      equilibrium grid.
+    Ip_profile: Enclosed plasma current on the equilibrium grid [A].
+    psi_axis: Poloidal flux on the magnetic axis [Wb].
+    Phi_b: Toroidal flux at the LCFS [Wb].
+    rho_norm: Cell centers of the transport mesh.
+    rho_face_norm: Face centers of the transport mesh.
+    g2g3_over_rhon_face: g2g3_over_rhon on the transport faces.
+    F_face: F on the transport faces.
+
+  Returns:
+    psi_from_Ip on the cell and face grids [Wb].
+  """
+  Ip_face = scipy.interpolate.CubicSpline(rho_norm_intermediate, Ip_profile)(
+      rho_face_norm
+  )
+  dpsi_drhon_face = np.zeros_like(rho_face_norm)
+  dpsi_drhon_face[1:] = (
+      Ip_face[1:]
+      * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * Phi_b)
+      / (g2g3_over_rhon_face[1:] * F_face[1:])
+  )
+  # dpsi/drho_norm is linear in rho_norm near the axis.
+  psi_first_cell = (
+      psi_axis + 0.5 * dpsi_drhon_face[1] * rho_norm[0] ** 2 / rho_face_norm[1]
+  )
+  psi = psi_first_cell + np.concatenate(
+      [np.zeros(1), np.cumsum(dpsi_drhon_face[1:-1] * np.diff(rho_norm))]
+  )
+  psi_face = np.interp(rho_face_norm, rho_norm, psi)
+  psi_face[0] = psi_axis
+  psi_face[-1] = psi[-1] + dpsi_drhon_face[-1] * (
+      rho_face_norm[-1] - rho_norm[-1]
+  )
+  return psi, psi_face
 
 
 # TODO(b/401502047): Investigate how window_length should depend on the
