@@ -49,6 +49,19 @@ class IMASLoaderTest(absltest.TestCase):
     with self.assertRaises(ValueError):
       validation.validate_plasma_composition_from_IMAS(ids_in)
 
+  def test_validate_finite_values_raises_with_nested_path(self):
+    values = {"profiles": [np.array([1.0, 2.0]), np.array([3.0, np.nan])]}
+    with self.assertRaisesRegex(
+        ValueError, r"core_profiles IDS.*profiles\[1\]"
+    ):
+      validation.validate_finite_values(values, context="core_profiles IDS")
+
+  def test_validate_finite_values_allows_optional_non_numeric_values(self):
+    validation.validate_finite_values(
+        {"optional": None, "label": "D", "values": [1.0, 2.0]},
+        context="test IDS",
+    )
+
   def test_validate_core_profiles_ions_raises_on_unrecognized_ions(self):
     parsed_ions = ["D", "T", "He5"]
     with self.assertRaises(KeyError):
