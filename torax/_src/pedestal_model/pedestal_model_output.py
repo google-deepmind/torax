@@ -20,6 +20,7 @@ from typing import Self
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
+from torax._src import constants
 from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
@@ -49,6 +50,22 @@ class TransportMultipliers:
         D_e_multiplier=jnp.array(1.0, dtype=jax_utils.get_dtype()),
         v_e_multiplier=jnp.array(1.0, dtype=jax_utils.get_dtype()),
     )
+
+
+def pedestal_face_mask(
+    rho_face_norm: array_typing.FloatVectorFace,
+    rho_norm_ped_top: array_typing.FloatScalar,
+) -> array_typing.BoolVectorFace:
+  """Returns the faces at or beyond the pedestal top."""
+  return rho_face_norm >= rho_norm_ped_top
+
+
+def _pedestal_cell_mask(
+    rho_face_norm: array_typing.FloatVectorFace,
+    rho_norm_ped_top: array_typing.FloatScalar,
+) -> array_typing.BoolVectorCell:
+  """Returns the cells whose right face is at or beyond the pedestal top."""
+  return pedestal_face_mask(rho_face_norm, rho_norm_ped_top)[1:]
 
 
 @jax.tree_util.register_dataclass
@@ -159,8 +176,9 @@ class PedestalModelOutput:
       ψ_mid = 1 - Δ/2 (center of the tanh)
       a₀ = (q_top - q_sep) / (tanh(1) + tanh(2))
 
-    Values are only applied for cells at or beyond ρ_ped_top (the pedestal
-    region). Core cells get 0.0 (no IBC contribution).
+    Values are applied to the cells given by `_pedestal_cell_mask`, whose right
+    face lies at or beyond ρ_ped_top. Core cells get 0.0, and no cells are
+    pinned when ρ_ped_top >= 1.
 
     Args:
       geo: Geometry object for the grid.
@@ -169,20 +187,19 @@ class PedestalModelOutput:
     Returns:
       Internal boundary conditions with mtanh-shaped profiles for T_i, T_e, n_e.
     """
-    # Get ψ_N at each cell grid point.
-    psi_face = core_profiles.psi.face_value()
-    psi_norm_cell = (core_profiles.psi.value - psi_face[0]) / (
-        psi_face[-1] - psi_face[0]
-    )
+    # Get ψ_N at each cell center.
+    psi_norm_cell = core_profiles.psi_norm
 
-    # Derive Δ from rho_norm_ped_top via ψ_N mapping.
-    # Use psi at the nearest cell to rho_ped_top (not interpolated) so that
-    # the mtanh formula evaluates to exactly q_top at that cell.
-    rho_norm_ped_top_idx = jnp.argmin(
-        jnp.abs(geo.rho_norm - self.rho_norm_ped_top)
+    # Interpolate ψ_top continuously at rho_norm_ped_top so Δ = (1 - ψ_top)/1.5
+    # avoids O(Δρ) cell-snapping steps. Clamp rho_norm_ped_top to the [0, 1]
+    # face grid and floor Δ at eps so reverse-mode AD stays finite when
+    # rho_norm_ped_top >= 1.0 (e.g. no_pedestal() = inf, where jnp.interp's
+    # discarded extrapolation branch would otherwise give inf * 0 gradients).
+    rho_ped_clamped = jnp.clip(self.rho_norm_ped_top, 0.0, 1.0)
+    psi_top = jnp.interp(
+        rho_ped_clamped, geo.rho_face_norm, core_profiles.psi_norm_face
     )
-    psi_top = psi_norm_cell[rho_norm_ped_top_idx]
-    delta = (1.0 - psi_top) / 1.5
+    delta = jnp.maximum((1.0 - psi_top) / 1.5, constants.CONSTANTS.eps)
     psi_mid = 1.0 - delta / 2.0
 
     # Separatrix values from the rightmost face of core_profiles.
@@ -190,8 +207,11 @@ class PedestalModelOutput:
     T_e_sep = core_profiles.T_e.right_face_value
     n_e_sep = core_profiles.n_e.right_face_value
 
-    # Pedestal region mask: cells at or beyond rho_norm_ped_top.
-    ped_mask = geo.rho_norm >= self.rho_norm_ped_top
+    # A pedestal top at or beyond the LCFS means no pedestal: Δ collapses to eps
+    # and would otherwise pin the last cell to a zero-width step at ~q_top.
+    ped_mask = _pedestal_cell_mask(geo.rho_face_norm, self.rho_norm_ped_top) & (
+        self.rho_norm_ped_top < 1.0
+    )
 
     def _mtanh_profile(val_top, val_sep):
       """Evaluate mtanh for one quantity."""

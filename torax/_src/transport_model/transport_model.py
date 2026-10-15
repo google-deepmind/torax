@@ -29,6 +29,7 @@ from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import component
@@ -81,9 +82,9 @@ class TransportModel(static_dataclass.StaticDataclass):
     )
     pedestal_mask = jnp.asarray(
         pedestal_active
-        & (
-            geo.rho_face_norm
-            >= pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
+        & pedestal_model_output_lib.pedestal_face_mask(
+            geo.rho_face_norm,
+            pedestal_transition_state.pedestal_model_output.rho_norm_ped_top,
         )
     )
     core_domain_mask = jnp.where(
@@ -344,7 +345,10 @@ def _build_smoothing_matrix(
       pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
   )
   smoothing_width_profile = jnp.where(
-      is_ibc_active & (geo.rho_face_norm >= rho_norm_ped_top),
+      is_ibc_active
+      & pedestal_model_output_lib.pedestal_face_mask(
+          geo.rho_face_norm, rho_norm_ped_top
+      ),
       0.0,
       smoothing_width_profile,
   )
@@ -369,7 +373,9 @@ def _build_pedestal_smoothing_matrix(
       pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
   )
   smoothing_width_profile = jnp.where(
-      geo.rho_face_norm >= rho_norm_ped_top,
+      pedestal_model_output_lib.pedestal_face_mask(
+          geo.rho_face_norm, rho_norm_ped_top
+      ),
       transport_runtime_params.pedestal_smoothing_width,
       0.0,
   )
