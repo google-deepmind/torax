@@ -23,6 +23,7 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
+from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src import static_dataclass
@@ -59,7 +60,10 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
+      model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -90,6 +94,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         non-JAX-friendly ways.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
         transitions.
+      model_state: State of models across timesteps.
 
     Returns:
       x_new: Tuple containing new cell-grid values of the evolving variables.
@@ -115,6 +120,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
           explicit_source_profiles=explicit_source_profiles,
           evolving_names=runtime_params_t.numerics.evolving_names,
           pedestal_transition_state=pedestal_transition_state,
+          model_state=model_state,
       )
     else:
       x_new = tuple()
@@ -141,7 +147,10 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
+      model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -169,6 +178,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       evolving_names: The names of core_profiles variables that should evolve.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
         transitions.
+      model_state: State of models across timesteps.
 
     Returns:
       x_new: The values of the evolving variables at time t + dt.
