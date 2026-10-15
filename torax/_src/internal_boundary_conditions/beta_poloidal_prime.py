@@ -185,15 +185,12 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
         f' {type(params)}.'
     )
 
-    psi_face = core_profiles.psi.face_value()
-    psi_axis = psi_face[0]
-    psi_sep = psi_face[-1]
-    delta_psi = psi_sep - psi_axis
-    psi_norm_cell = (core_profiles.psi.value - psi_axis) / delta_psi
+    psi_norm_cell = core_profiles.psi_norm
 
     # Map the edge model boundary location rho_norm_edge to psi_norm_edge.
-    psi_edge = jnp.interp(params.rho_norm_edge, geo.rho_face_norm, psi_face)
-    psi_norm_edge = (psi_edge - psi_axis) / delta_psi
+    psi_norm_edge = jnp.interp(
+        params.rho_norm_edge, geo.rho_face_norm, core_profiles.psi_norm_face
+    )
     edge_mask = geo.rho_norm >= params.rho_norm_edge
 
     if params.n_e_edge_multiplier is not None:

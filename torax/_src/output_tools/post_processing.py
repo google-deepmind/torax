@@ -884,8 +884,7 @@ def make_post_processed_outputs(
       sim_state.core_profiles, sim_state.geometry
   )
   # Calculate normalized poloidal flux.
-  psi_face = sim_state.core_profiles.psi.face_value()
-  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+  psi_norm_face = sim_state.core_profiles.psi_norm_face
   integrated_sources = _calculate_integrated_sources(
       sim_state.geometry,
       sim_state.core_sources,

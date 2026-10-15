@@ -27,6 +27,7 @@ from torax._src.core_profiles import initialization
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import plasma_composition
+from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output_grid_context
@@ -406,6 +407,18 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     np.testing.assert_allclose(
         self.core_profiles.pressure_thermal_total.value,
         8.75e20 * constants.CONSTANTS.keV_to_J,
+    )
+
+  def test_psi_norm_face_spans_zero_to_one(self):
+    psi = cell_variable.CellVariable(
+        value=1.0 + self.geo.rho_norm**2,
+        face_centers=self.geo.rho_face_norm,
+        right_face_grad_constraint=jnp.array(2.0),
+    )
+    core_profiles = dataclasses.replace(self.core_profiles, psi=psi)
+    np.testing.assert_allclose(
+        [core_profiles.psi_norm_face[0], core_profiles.psi_norm_face[-1]],
+        [0.0, 1.0],
     )
 
   def test_thermal_densities_with_fast_ions(self):

@@ -46,6 +46,13 @@ from torax._src.test_utils import sim_test_case
 # pylint: disable=invalid-name
 
 
+def _set_psi_norm_face(core_profiles: mock.MagicMock) -> None:
+  """Sets psi_norm_face on a mocked CoreProfiles from its mocked psi."""
+  core_profiles.psi_norm_face = state.CoreProfiles.psi_norm_face.func(
+      core_profiles
+  )
+
+
 class ExtendedLengyelModelTest(parameterized.TestCase):
 
   def test_call_inverse_mode(self):
@@ -106,6 +113,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_psi.face_value.return_value = np.linspace(0, 1.0, (n_rho + 1))
     mock_core_profiles.psi = mock_psi
+    _set_psi_norm_face(mock_core_profiles)
 
     mock_n_e = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_n_e.face_value.return_value = np.array([3.3e19] * (n_rho + 1))
@@ -282,6 +290,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_n_i.face_value.return_value = np.ones(n_rho + 1) * 1e19
     mock_n_impurity.face_value.return_value = np.zeros(n_rho + 1)
     mock_core_profiles.psi = mock_psi
+    _set_psi_norm_face(mock_core_profiles)
     mock_core_profiles.n_e = mock_n_e
     mock_core_profiles.n_i = mock_n_i
     mock_core_profiles.n_impurity = mock_n_impurity
@@ -381,6 +390,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1)
       setattr(mock_core_profiles, attr, m)
+    _set_psi_norm_face(mock_core_profiles)
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
@@ -544,6 +554,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1)
       setattr(mock_core_profiles, attr, m)
+    _set_psi_norm_face(mock_core_profiles)
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
@@ -687,6 +698,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
     mock_psi.face_value.return_value = np.linspace(0.0, 1.0, n_rho + 1)
     mock_core_profiles.psi = mock_psi
+    _set_psi_norm_face(mock_core_profiles)
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
@@ -854,6 +866,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1)
       setattr(mock_core_profiles, attr, m)
+    _set_psi_norm_face(mock_core_profiles)
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
@@ -928,6 +941,7 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
     mock_psi.face_value.return_value = np.array([0.0, 0.5, 1.0])
     mock_psi.face_grad.return_value = np.array([0.0, 0.5, 1.0])
     self.mock_core_profiles.psi = mock_psi
+    _set_psi_norm_face(self.mock_core_profiles)
 
     self.mock_runtime_params = mock.MagicMock(
         spec=runtime_params_lib.RuntimeParams
@@ -1523,6 +1537,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
       m = mock.MagicMock(spec=cell_variable.CellVariable)
       m.face_value.return_value = np.ones(n_rho + 1) * 1e19
       setattr(mock_core_profiles, attr, m)
+    _set_psi_norm_face(mock_core_profiles)
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0

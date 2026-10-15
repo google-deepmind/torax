@@ -168,8 +168,7 @@ class ExtendedLengyelModel(base.EdgeModel):
 
     # Calculate normalized poloidal flux (psi_norm) on the face grid.
     # Used to interpolate geometry quantities at psi_norm = 0.95.
-    psi_face = jnp.asarray(core_profiles.psi.face_value())
-    psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+    psi_norm_face = core_profiles.psi_norm_face
 
     # Interpolate elongation and triangularity at psi_norm = 0.95
     elongation_psi95 = jnp.interp(0.95, psi_norm_face, geo.elongation_face)

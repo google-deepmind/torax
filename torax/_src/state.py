@@ -204,6 +204,18 @@ class CoreProfiles:
     )
 
   @functools.cached_property
+  def psi_norm(self) -> array_typing.FloatVectorCell:
+    """Normalized poloidal flux on the cell grid."""
+    psi_face = self.psi.face_value()
+    return (self.psi.value - psi_face[0]) / (psi_face[-1] - psi_face[0])
+
+  @functools.cached_property
+  def psi_norm_face(self) -> array_typing.FloatVectorFace:
+    """Normalized poloidal flux on the face grid."""
+    psi_face = self.psi.face_value()
+    return (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+
+  @functools.cached_property
   def pressure_thermal_e(self) -> cell_variable.CellVariable:
     """Electron thermal pressure [Pa]."""
     return cell_variable.CellVariable(
