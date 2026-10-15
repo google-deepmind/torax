@@ -85,6 +85,7 @@ class PoloidalVelocityTest(absltest.TestCase):
         self.geo,
         source_models=models.source_models,
         neoclassical_model=models.neoclassical_model,
+        source_states=models.source_models.initial_state(self.runtime_params),
     )
     self.neoclassical_intermediates = (
         formulas.compute_neoclassical_intermediates(

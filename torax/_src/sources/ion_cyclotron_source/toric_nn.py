@@ -40,6 +40,7 @@ from torax._src.physics import fast_ion_utils
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -319,11 +320,15 @@ def icrh_model_func(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
+    source_state: source_state_lib.SourceState,
     toric_nn: ToricNNWrapper,
 ) -> tuple[
-    array_typing.FloatVectorCell,
-    array_typing.FloatVectorCell,
-    tuple[fast_ion_lib.FastIon, ...],
+    tuple[
+        array_typing.FloatVectorCell,
+        array_typing.FloatVectorCell,
+        tuple[fast_ion_lib.FastIon, ...],
+    ],
+    source_state_lib.SourceState,
 ]:
   """Compute ion/electron heat source terms."""
   source_params = runtime_params.sources[source_name]
@@ -463,7 +468,7 @@ def icrh_model_func(
   # Assume that all the power from the tritium power profile goes to ions.
   source_ion += power_deposition_2T * absorbed_power
 
-  return (source_ion, source_el, (he3_fast_ion,))
+  return (source_ion, source_el, (he3_fast_ion,)), source_state
 
 
 # Cache the result of this function to avoid re-creating the partial function

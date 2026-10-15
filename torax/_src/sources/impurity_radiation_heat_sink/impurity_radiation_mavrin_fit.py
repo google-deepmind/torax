@@ -28,6 +28,7 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -73,7 +74,10 @@ def impurity_radiation_mavrin_fit(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
+    source_state: source_state_lib.SourceState,
+) -> tuple[
+    tuple[array_typing.FloatVectorCell, ...], source_state_lib.SourceState
+]:
   """Model function for impurity radiation heat sink."""
 
   # Reconstruct array from mapping for DynamicIonMixture and effective LZ
@@ -113,7 +117,7 @@ def impurity_radiation_mavrin_fit(
 
   # The impurity radiation heat sink is a negative source, so we return a
   # negative profile.
-  return (-radiation_profile,)
+  return (-radiation_profile,), source_state
 
 
 @jax.tree_util.register_dataclass

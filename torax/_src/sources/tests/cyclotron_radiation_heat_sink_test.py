@@ -19,6 +19,7 @@ import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.sources import cyclotron_radiation_heat_sink
+from torax._src.sources import source_state as source_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -151,6 +152,7 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
     alpha_n = cyclotron_radiation_heat_sink._alpha_closed_form(
         beta=2.0,
@@ -167,14 +169,15 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
     )
     self.assertGreaterEqual(float(alpha_n), 0.0)
     self.assertGreaterEqual(float(alpha_t), 0.0)
-    q_cycl = cyclotron_radiation_heat_sink.cyclotron_radiation_albajar(
+    (q_cycl,), _ = cyclotron_radiation_heat_sink.cyclotron_radiation_albajar(
         runtime_params=runtime_params,
         geo=geo,
         source_name=cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID,
         core_profiles=core_profiles,
         unused_calculated_source_profiles=None,
         unused_conductivity=None,
-    )[0]
+        source_state=source_state_lib.SourceState(),
+    )
     self.assertFalse(np.any(np.isnan(q_cycl)))
     self.assertTrue(np.all(np.isfinite(q_cycl)))
     self.assertTrue(np.all(q_cycl <= 0.0))
