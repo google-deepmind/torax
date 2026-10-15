@@ -32,6 +32,7 @@ from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -55,7 +56,11 @@ def calc_heating_and_current(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell]:
+    source_state: source_state_lib.SourceState,
+) -> tuple[
+    tuple[array_typing.FloatVectorCell, array_typing.FloatVectorCell],
+    source_state_lib.SourceState,
+]:
   """Model function for the electron-cyclotron source.
 
   Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003).
@@ -68,9 +73,12 @@ def calc_heating_and_current(
     source_name: Name of the source.
     core_profiles: CoreProfiles component of the state.
     unused_calculated_source_profiles: Unused.
+    unused_conductivity: Unused.
+    source_state: Cross-timestep state for this source.
 
   Returns:
-    2D array of electron cyclotron heating power density and current density.
+    2D array of electron cyclotron heating power density and current density,
+    and the source state.
   """
   source_params = runtime_params.sources[source_name]
   # Helps linter understand the type of source_params.
@@ -116,7 +124,7 @@ def calc_heating_and_current(
       * j_tor_ec
   )
 
-  return ec_power_density, fsa_j_dot_B
+  return (ec_power_density, fsa_j_dot_B), source_state
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)

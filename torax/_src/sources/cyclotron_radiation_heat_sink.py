@@ -34,6 +34,7 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -241,7 +242,8 @@ def cyclotron_radiation_albajar(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVector, ...]:
+    source_state: source_state_lib.SourceState,
+) -> tuple[tuple[array_typing.FloatVector, ...], source_state_lib.SourceState]:
   """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
 
   Total cyclotron radiation is from:
@@ -268,6 +270,8 @@ def cyclotron_radiation_albajar(
     source_name: The name of the source.
     core_profiles: The core profiles object.
     unused_calculated_source_profiles: Unused.
+    unused_conductivity: Unused.
+    source_state: Cross-timestep state for this source.
 
   Returns:
     The cyclotron radiation heat sink contribution to the electron heat
@@ -347,7 +351,7 @@ def cyclotron_radiation_albajar(
   rescaling_factor = P_cycl_total / denom
   Q_cycl = Q_cycl_shape * rescaling_factor
 
-  return (-Q_cycl,)
+  return (-Q_cycl,), source_state
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)

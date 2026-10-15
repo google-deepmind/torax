@@ -14,6 +14,7 @@
 
 """Functions for building source profiles in TORAX."""
 
+from collections.abc import Mapping
 import jax
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -23,6 +24,7 @@ from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 
 # Sources that depend on the output of other sources (e.g.
@@ -45,11 +47,14 @@ def build_source_profiles(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
+    source_states: Mapping[str, source_state_lib.SourceState],
     explicit: bool,
     explicit_source_profiles: source_profiles.SourceProfiles | None = None,
     conductivity: conductivity_base.Conductivity | None = None,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent | None = None,
-) -> source_profiles.SourceProfiles:
+) -> tuple[
+    source_profiles.SourceProfiles, dict[str, source_state_lib.SourceState]
+]:
   """Builds explicit profiles or the union of explicit and implicit profiles.
 
   Args:
@@ -60,6 +65,7 @@ def build_source_profiles(
       (if explicit) or the live profiles being evolved during the time step (if
       implicit).
     source_models: Functions computing profiles for all TORAX sources/sinks.
+    source_states: Cross-timestep states for all sources.
     explicit: If True, this function will only return profiles for explicit
       sources. If False, then the explicit_source_profiles argument must be
       provided and the returned profiles will be the union of the explicit
@@ -76,10 +82,13 @@ def build_source_profiles(
       provided when explicit is False.
 
   Returns:
-    SourceProfiles calculated from the source models. If explicit is True, then
-    only explicit profiles will be returned. If explicit is False, then the
-    union of the explicit profiles in explicit_source_profiles and the implicit
-    profiles computed here will be returned.
+    A tuple (profiles, updated_source_states) calculated from the source
+    models. If explicit is True, then only explicit profiles will be returned,
+    and updated_source_states will contain updated states for the explicit
+    sources with the remaining source states unchanged. If explicit is False,
+    then the union of the explicit profiles in explicit_source_profiles and
+    the implicit profiles computed here will be returned, and
+    updated_source_states will have the implicit source states updated.
   """
   if explicit:
     qei = source_profiles.QeiInfo.zeros(geo)
@@ -106,16 +115,17 @@ def build_source_profiles(
       if explicit_source_profiles
       else {},
   )
-  build_standard_source_profiles(
+  updated_source_states = build_standard_source_profiles(
       calculated_source_profiles=profiles,
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      source_states=source_states,
       explicit=explicit,
       conductivity=conductivity,
   )
-  return profiles
+  return profiles, updated_source_states
 
 
 def build_standard_source_profiles(
@@ -125,23 +135,28 @@ def build_standard_source_profiles(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
+    source_states: Mapping[str, source_state_lib.SourceState],
     explicit: bool = True,
     conductivity: conductivity_base.Conductivity | None = None,
     calculate_anyway: bool = False,
     psi_only: bool = False,
-):
-  """Updates calculated_source_profiles with standard source profiles."""
+) -> dict[str, source_state_lib.SourceState]:
+  """Updates calculated_source_profiles and returns updated source states."""
+  updated_source_states = dict(source_states)
 
   def calculate_source(source_name: str, source: source_lib.Source):
     source_params = runtime_params.sources[source_name]
     if (explicit == source_params.is_explicit) | calculate_anyway:
-      value = source.get_value(
+      curr_state = source_states[source_name]
+      value, new_state = source.get_value(
           runtime_params,
           geo,
           core_profiles,
           calculated_source_profiles,
           conductivity,
+          curr_state,
       )
+      updated_source_states[source_name] = new_state
       _update_standard_source_profiles(
           calculated_source_profiles,
           source_name,
@@ -158,7 +173,7 @@ def build_standard_source_profiles(
   # (specifically, the psidot, psi and currents), so we provide an option to
   # only calculate the psi sources to avoid extra work.
   if psi_only:
-    return
+    return updated_source_states
 
   to_calculate = {}
   # Calculate the standard sources
@@ -176,6 +191,8 @@ def build_standard_source_profiles(
       calculate_source(source_name, source)
   for source_name, source in to_calculate.items():
     calculate_source(source_name, source)
+
+  return updated_source_states
 
 
 def _update_standard_source_profiles(
@@ -227,7 +244,10 @@ def get_all_source_profiles(
     source_models: source_models_lib.SourceModels,
     conductivity: conductivity_base.Conductivity,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
-) -> source_profiles.SourceProfiles:
+    source_states: Mapping[str, source_state_lib.SourceState],
+) -> tuple[
+    source_profiles.SourceProfiles, dict[str, source_state_lib.SourceState]
+]:
   """Returns all source profiles for a given time.
 
   Used e.g. to initialize the source profiles at an initial time step.
@@ -241,17 +261,19 @@ def get_all_source_profiles(
     source_models: Source models used to compute core source profiles.
     conductivity: Conductivity calculated for this time step.
     bootstrap_current: Bootstrap current calculated for this time step.
+    source_states: Initial source states.
 
   Returns:
-    Implicit and explicit SourceProfiles from source models based on the core
+    (profiles, updated_source_states) from source models based on the core
     profiles from the starting state.
   """
   # Also add in the explicit sources to the initial sources.
-  explicit_source_profiles = build_source_profiles(
+  explicit_source_profiles, source_states = build_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      source_states=source_states,
       explicit=True,
   )
   return build_source_profiles(
@@ -259,6 +281,7 @@ def get_all_source_profiles(
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      source_states=source_states,
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
       conductivity=conductivity,

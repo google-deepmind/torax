@@ -42,6 +42,7 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
         self.geo,
         self.source_models,
         self.neoclassical_model,
+        source_states=self.source_models.initial_state(self.runtime_params),
     )
 
   @parameterized.named_parameters(

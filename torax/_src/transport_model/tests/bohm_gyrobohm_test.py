@@ -52,6 +52,7 @@ class BohmGyroBohmTest(absltest.TestCase):
         geo,
         source_models,
         neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     return (

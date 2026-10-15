@@ -65,6 +65,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
 
     # Mocking the actual call to QuaLiKiz and its results.
