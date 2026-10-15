@@ -98,6 +98,7 @@ class UpdatersTest(parameterized.TestCase):
         geo,
         source_models,
         neoclassical_model,
+        source_states=source_models.initial_state(runtime_params_t0),
     )
 
     dt = 1.0
@@ -144,6 +145,7 @@ class UpdatersTest(parameterized.TestCase):
         geo,
         source_models,
         neoclassical_model,
+        source_states=source_models.initial_state(runtime_params_t0),
     )
 
     # Create runtime_params at t=1.0, but force psi to None
@@ -194,6 +196,7 @@ class UpdatersTest(parameterized.TestCase):
         geo,
         source_models,
         neoclassical_model,
+        source_states=source_models.initial_state(runtime_params_t0),
     )
 
     # Initial should be 10.0

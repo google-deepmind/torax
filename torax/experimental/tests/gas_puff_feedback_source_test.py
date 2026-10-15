@@ -62,6 +62,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
 
     initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)
@@ -86,13 +87,14 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     chex.assert_trees_all_close(gas_puff_params.feedback_gain, 10.0)
 
     source = source_models.standard_sources['gas_puff']
-    profile = source.get_value(
+    (profile,), _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
         conductivity=None,
-    )[0]
+        source_state=source.initial_state(runtime_params),
+    )
     assert isinstance(profile, chex.Array)
 
     total_particles = math_utils.volume_integration(profile, geo)

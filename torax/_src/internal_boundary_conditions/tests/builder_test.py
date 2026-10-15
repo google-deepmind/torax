@@ -198,6 +198,7 @@ class BuilderTest(absltest.TestCase):
         geo=geo,
         source_models=models.source_models,
         neoclassical_model=models.neoclassical_model,
+        source_states=models.source_models.initial_state(runtime_params),
     )
     l_mode_state = pedestal_transition_state.PedestalTransitionState.empty()
 

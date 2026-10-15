@@ -457,6 +457,7 @@ class GettersTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
 
     # runtime_params.plasma_composition.Z_eff_face is not
@@ -1282,6 +1283,7 @@ class GettersTest(parameterized.TestCase):
         geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_models.initial_state(runtime_params),
     )
 
     ions = getters.get_updated_ions(

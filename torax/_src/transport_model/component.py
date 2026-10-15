@@ -31,6 +31,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 # pylint: disable=invalid-name
 
@@ -38,6 +39,14 @@ from torax._src.transport_model import transport_coeffs
 @dataclasses.dataclass(frozen=True, eq=False)
 class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
   """Calculates various coefficients related to heat and particle transport."""
+
+  def initial_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> transport_state_lib.ComponentTransportState:
+    """Returns the initial state for this component transport model."""
+    del runtime_params
+    return transport_state_lib.ComponentTransportState()
 
   def __call__(
       self,

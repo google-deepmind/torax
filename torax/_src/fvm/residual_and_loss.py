@@ -28,6 +28,7 @@ import jax
 from jax import numpy as jnp
 import jaxopt
 from torax._src import jax_utils
+from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src import tridiagonal
@@ -317,7 +318,10 @@ def theta_method_block_residual(
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
-    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    model_state: model_state_lib.ModelState,
 ) -> jax.Array:
   """Residual of theta-method equation for core profiles at next time-step.
 
@@ -342,6 +346,7 @@ def theta_method_block_residual(
       evolve.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    model_state: State of models across timesteps.
 
   Returns:
     residual: Vector residual between LHS and RHS of the theta method equation.
@@ -372,8 +377,9 @@ def theta_method_block_residual(
       explicit_source_profiles=explicit_source_profiles,
       models=models,
       evolving_names=evolving_names,
-      use_pereverzev=False,
       pedestal_transition_state=pedestal_transition_state,
+      model_state=model_state,
+      use_pereverzev=False,
   )
 
   solver_params = runtime_params_t_plus_dt.solver
@@ -426,7 +432,10 @@ def theta_method_block_loss(
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
-    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    model_state: model_state_lib.ModelState,
 ) -> jax.Array:
   """Loss for the optimizer method of nonlinear solution.
 
@@ -450,6 +459,7 @@ def theta_method_block_loss(
       evolve.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    model_state: State of models across timesteps.
 
   Returns:
     loss: mean squared loss of theta method residual.
@@ -468,6 +478,7 @@ def theta_method_block_loss(
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
       pedestal_transition_state=pedestal_transition_state,
+      model_state=model_state,
   )
   loss = jnp.mean(jnp.square(residual))
   return loss
@@ -491,7 +502,10 @@ def jaxopt_solver(
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
-    pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+    pedestal_transition_state: (
+        pedestal_transition_state_lib.PedestalTransitionState
+    ),
+    model_state: model_state_lib.ModelState,
     maxiter: int,
     tol: float,
 ) -> tuple[jax.Array, float, int]:
@@ -517,6 +531,7 @@ def jaxopt_solver(
       evolve.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    model_state: State of models across timesteps.
     maxiter: maximum number of iterations of jaxopt solver.
     tol: tolerance for jaxopt solver convergence.
 
@@ -539,6 +554,7 @@ def jaxopt_solver(
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
       pedestal_transition_state=pedestal_transition_state,
+      model_state=model_state,
   )
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, implicit_diff=True)
   solver_output = solver.run(init_x_new_vec)

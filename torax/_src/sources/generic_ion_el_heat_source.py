@@ -28,6 +28,7 @@ from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -84,7 +85,8 @@ def default_formula(
     unused_core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.Array, ...]:
+    source_state: source_state_lib.SourceState,
+) -> tuple[tuple[array_typing.Array, ...], source_state_lib.SourceState]:
   """Returns the default formula-based ion/electron heat source profile."""
   source_params = runtime_params.sources[source_name]
   assert isinstance(source_params, RuntimeParams)
@@ -96,7 +98,7 @@ def default_formula(
       source_params.electron_heat_fraction,  # pyrefly: ignore[bad-argument-type]
       source_params.absorption_fraction,  # pyrefly: ignore[bad-argument-type]
   )
-  return (ion, el)
+  return (ion, el), source_state
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
