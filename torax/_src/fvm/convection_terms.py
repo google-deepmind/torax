@@ -70,7 +70,6 @@ def _peclet_to_alpha(p):
   return jnp.where(is_small, alpha_series, alpha_exp)
 
 
-# TODO(b/469726859): Once non-uniform grid is supported add in testing.
 def make_convection_terms(
     v_face: array_typing.FloatVectorFace,
     d_face: array_typing.FloatVectorFace,

@@ -23,7 +23,6 @@ def _make_face_centers(dr: float, num_cells: int) -> np.ndarray:
   return np.linspace(0.0, num_cells * dr, num=num_cells + 1)
 
 
-# TODO(b/469726859): Extend tests to cover non-uniform grid.
 class DiffusionTermsTest(absltest.TestCase):
 
   def test_diffusion_terms_with_dirichlet_boundary_conditions_unit_space(self):
