@@ -32,7 +32,6 @@ from torax._src.geometry.geometry import Geometry
 from torax._src.orchestration.run_simulation import run_simulation
 from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
-from torax._src.pedestal_model.pedestal_model_output import PedestalModelOutput
 from torax._src.pedestal_model.pedestal_model_output import PedestalStructure
 from torax._src.plotting.plotruns_lib import plot_run
 from torax._src.plotting.plotruns_lib import plot_run_from_data_tree
@@ -68,7 +67,6 @@ __all__ = [
     'CoreProfiles',
     'CoreTransport',
     'Geometry',
-    'PedestalModelOutput',
     'PedestalStructure',
     'PostProcessedOutputs',
     'RuntimeParams',

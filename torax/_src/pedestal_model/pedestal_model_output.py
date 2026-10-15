@@ -352,7 +352,3 @@ class PedestalStructure:
         neoclassical=core_transport.neoclassical,
         pereverzev=core_transport.pereverzev,
     )
-
-
-# Temporary alias pending caller migration.
-PedestalModelOutput = PedestalStructure

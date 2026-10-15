@@ -536,9 +536,7 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode="after")
   def _check_source_mode(self) -> Self:
-    if isinstance(self.structure_model, NoPedestal) and not isinstance(
-        self, BasePedestal
-    ):
+    if isinstance(self.structure_model, NoPedestal):
       if not isinstance(self.formation_model, PrescribedFormation):
         raise ValueError(
             "NoPedestal cannot be used with a power-scaling formation model."
@@ -599,13 +597,9 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
         else None
     )
     formation_params = self.formation_model.build_runtime_params(t)
-    if (
-        isinstance(self.structure_model, NoPedestal)
-        and not isinstance(self, BasePedestal)
-        and isinstance(
-            formation_params,
-            prescribed_formation_model.PrescribedFormationRuntimeParams,
-        )
+    if isinstance(self.structure_model, NoPedestal) and isinstance(
+        formation_params,
+        prescribed_formation_model.PrescribedFormationRuntimeParams,
     ):
       formation_params = dataclasses.replace(
           formation_params, pedestal_active=False
@@ -627,20 +621,6 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
         initial_confinement_mode=initial_confinement_mode,
         initial_L_mode_bc_multiplier=self.initial_L_mode_bc_multiplier,
     )
-
-
-class BasePedestal(Pedestal, abc.ABC):
-  """Legacy base configuration for pedestal models pending caller migration."""
-
-  @pydantic.model_validator(mode="before")
-  @classmethod
-  def _require_matching_model_name(cls, data: dict[str, Any]) -> dict[str, Any]:
-    if (
-        isinstance(data, dict)
-        and data.get("model_name") != cls.model_fields["model_name"].default
-    ):
-      raise ValueError("Not this BasePedestal model.")
-    return data
 
 
 PedestalConfig: TypeAlias = Pedestal

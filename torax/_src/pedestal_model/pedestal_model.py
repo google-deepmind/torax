@@ -57,19 +57,9 @@ class PedestalStructureModel(static_dataclass.StaticDataclass, abc.ABC):
 class PedestalModel(static_dataclass.StaticDataclass):
   """Calculates pedestal structure and transport multipliers."""
 
+  structure_model: PedestalStructureModel
   formation_model: formation_base.FormationModel
   saturation_model: saturation_base.SaturationModel
-  structure_model: PedestalStructureModel | None = None
-
-  def _call_implementation(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalStructure:
-    """Legacy structure calculation hook pending caller migration."""
-    raise NotImplementedError
 
   def __call__(
       self,
@@ -79,8 +69,7 @@ class PedestalModel(static_dataclass.StaticDataclass):
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
   ) -> pedestal_model_output.PedestalStructure:
-    structure_fn = self.structure_model or self._call_implementation
-    pedestal_output = structure_fn(
+    pedestal_output = self.structure_model(
         runtime_params,
         geo,
         core_profiles,
@@ -123,8 +112,7 @@ class PedestalModel(static_dataclass.StaticDataclass):
             confinement_mode=confinement_mode
         )
     )
-    structure_fn = self.structure_model or self._call_implementation
-    pedestal_output = structure_fn(
+    pedestal_output = self.structure_model(
         runtime_params,
         geo,
         core_profiles,

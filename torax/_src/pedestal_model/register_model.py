@@ -37,15 +37,5 @@ def register_pedestal_structure_model(
   model_config.ToraxConfig.model_rebuild(force=True)
 
 
-def register_pedestal_model(
-    pydantic_model_class: type[pydantic_model.BasePedestal],
-):
-  """Temporary compatibility wrapper pending caller migration."""
-  new_union = pydantic_model_class | pydantic_model.PedestalConfig
-  setattr(pydantic_model, 'PedestalConfig', new_union)
-  setattr(
-      model_config.ToraxConfig.model_fields['pedestal'],
-      'annotation',
-      new_union,
-  )
-  model_config.ToraxConfig.model_rebuild(force=True)
+# Temporary alias pending caller migration.
+register_pedestal_model = register_pedestal_structure_model
