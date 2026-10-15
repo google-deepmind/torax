@@ -25,7 +25,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class CheaseConfig(base.BaseGeometryConfig):
+class CheaseConfig(base.GeometryConfigBase):
   """Pydantic model for the CHEASE geometry.
 
   Attributes:

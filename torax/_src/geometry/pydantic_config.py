@@ -29,8 +29,8 @@ from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class GeometryConfig(torax_pydantic.BaseModelFrozen):
-  """Pydantic model for a single geometry config."""
+class SingleGeometryConfig(torax_pydantic.ConfigBase):
+  """Pydantic config for a single geometry config."""
 
   config: (
       circular_geometry.CircularConfig
@@ -41,17 +41,17 @@ class GeometryConfig(torax_pydantic.BaseModelFrozen):
   ) = pydantic.Field(discriminator='geometry_type')
 
 
-class Geometry(torax_pydantic.BaseModelFrozen):
-  """Pydantic model for a geometry.
+class GeometryConfig(torax_pydantic.ConfigBase):
+  """Pydantic config for a geometry.
 
-  This object can be constructed via `Geometry.from_dict(config)`, where
+  This object can be constructed via `GeometryConfig.from_dict(config)`, where
   `config` is a dict described in
   https://torax.readthedocs.io/en/latest/configuration.html#geometry.
 
   Attributes:
     geometry_type: A `geometry.GeometryType` enum.
-    geometry_configs: Either a single `GeometryConfig` or a dict of
-      `GeometryConfig` objects, where the keys are times in seconds.
+    geometry_configs: Either a single `SingleGeometryConfig` or a dict of
+      `SingleGeometryConfig` objects, where the keys are times in seconds.
     calcphibdot: Whether to calculate Phibdot in the geometry dataclasses. This
       is used in calc_coeffs to calculate terms related to time-dependent
       geometry. We can set this to False to zero out Phibdot in the geometry
@@ -59,7 +59,9 @@ class Geometry(torax_pydantic.BaseModelFrozen):
   """
 
   geometry_type: geometry.GeometryType
-  geometry_configs: GeometryConfig | dict[torax_pydantic.Second, GeometryConfig]
+  geometry_configs: (
+      SingleGeometryConfig | dict[torax_pydantic.Second, SingleGeometryConfig]
+  )
   calcphibdot: Annotated[bool, torax_pydantic.JAX_STATIC] = True
 
   @pydantic.model_validator(mode='before')
@@ -154,7 +156,9 @@ def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
       raise ValueError('geometry_configs must be a dict.')
     constructor_args['geometry_configs'] = {}
     for time, c_time_dependent in configs_time_dependent.items():
-      gc = GeometryConfig.from_dict({'config': c_time_dependent | data_copy})
+      gc = SingleGeometryConfig.from_dict(
+          {'config': c_time_dependent | data_copy}
+      )
       constructor_args['geometry_configs'][time] = gc
       if x := set(gc.config.time_invariant_fields()).intersection(
           c_time_dependent.keys()

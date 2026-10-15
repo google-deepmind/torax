@@ -27,7 +27,7 @@ from torax._src.geometry import circular_geometry
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
 from torax._src.internal_boundary_conditions import no_ibc
 from torax._src.internal_boundary_conditions import prescribed
-from torax._src.internal_boundary_conditions import pydantic_model
+from torax._src.internal_boundary_conditions import pydantic_config
 from torax._src.internal_boundary_conditions import runtime_params as ibc_runtime_params
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_configs
@@ -47,7 +47,7 @@ class PrescribedIBCTest(parameterized.TestCase):
       ('after_final_time', 1.5, np.array([3.0, 0.0, 0.0, 4.0])),
   )
   def test_prescribed_ibc_config_build_runtime_params(self, t, expected_T_i):
-    ibc_config = pydantic_model.PrescribedIBC(
+    ibc_config = pydantic_config.PrescribedIBCConfig(
         T_i={
             0.0: {0: 1.0, 1: 2.0},
             1.0: {0: 3.0, 1: 4.0},
@@ -79,7 +79,7 @@ class PrescribedIBCTest(parameterized.TestCase):
             }
         },
     }
-    ibc = pydantic_model.PrescribedIBC.model_validate(config)
+    ibc = pydantic_config.PrescribedIBCConfig.model_validate(config)
 
     face_centers = interpolated_param_2d.get_face_centers(4)
     grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
@@ -95,7 +95,7 @@ class PrescribedIBCTest(parameterized.TestCase):
 
   def test_prescribed_ibc_build_runtime_params(self):
     geo = circular_geometry.CircularConfig(n_rho=5).build_geometry()
-    ibc = pydantic_model.PrescribedIBC()
+    ibc = pydantic_config.PrescribedIBCConfig()
     torax_pydantic.set_grid(ibc, geo.torax_mesh)
     runtime_params = ibc.build_runtime_params(0.0)
     self.assertIsInstance(runtime_params, prescribed.RuntimeParams)
@@ -138,7 +138,7 @@ class PrescribedIBCTest(parameterized.TestCase):
 class NoIBCTest(absltest.TestCase):
 
   def test_no_ibc_build_runtime_params(self):
-    ibc = pydantic_model.NoIBC()
+    ibc = pydantic_config.NoIBCConfig()
     runtime_params = ibc.build_runtime_params(0.0)
     self.assertIsInstance(runtime_params, ibc_runtime_params.RuntimeParams)
 

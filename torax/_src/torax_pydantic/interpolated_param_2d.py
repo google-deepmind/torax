@@ -29,7 +29,7 @@ import pydantic
 from torax._src import array_typing
 from torax._src import interpolated_param
 from torax._src import jax_utils
-from torax._src.torax_pydantic import model_base
+from torax._src.torax_pydantic import config_base
 from torax._src.torax_pydantic import pydantic_types
 import xarray as xr
 
@@ -39,7 +39,7 @@ ValueType: TypeAlias = dict[
 ]
 
 
-class Grid1D(model_base.BaseModelFrozen):
+class Grid1D(config_base.ConfigBase):
   """Data structure defining a 1-D grid of cells with faces.
 
   The grid is defined by the face_centers array, which specifies the locations
@@ -134,7 +134,7 @@ class TimeVaryingArrayUpdate:
 _vmap_interp = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 0)))
 
 
-class TimeVaryingArray(model_base.BaseModelFrozen):
+class TimeVaryingArray(config_base.ConfigBase):
   """Base class for time interpolated array types.
 
   The Pydantic `.model_validate` constructor can accept a variety of input types
@@ -156,10 +156,10 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
   value: ValueType
   rho_interpolation_mode: Annotated[
-      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+      interpolated_param.InterpolationMode, config_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   time_interpolation_mode: Annotated[
-      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+      interpolated_param.InterpolationMode, config_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   grid: Grid1D | None = None
 
@@ -564,7 +564,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     )
 
 
-class SparseTimeVaryingArray(model_base.BaseModelFrozen):
+class SparseTimeVaryingArray(config_base.ConfigBase):
   """A class for specifying profiles that are zero except at particular locations.
 
   This class conforms data from the format: {time: {point_or_range: value}}.
@@ -855,7 +855,7 @@ def _load_from_arrays(
 
 
 def set_grid(
-    model: model_base.BaseModelFrozen,
+    model: config_base.ConfigBase,
     grid: Grid1D,
     mode: Literal['strict', 'force', 'relaxed'] = 'strict',
 ):

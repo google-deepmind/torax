@@ -24,7 +24,7 @@ from torax._src.torax_pydantic import torax_pydantic
 TrappedFractionSource = trapped_fraction.TrappedFractionSource
 
 
-class BaseGeometryConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class GeometryConfigBase(torax_pydantic.ConfigBase, abc.ABC):
   """Base class for all geometry configuration classes.
 
   Attributes:
@@ -118,9 +118,9 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
     return interpolated_param_2d.get_face_centers(self.n_rho)
 
   def __eq__(self, other: object) -> bool:
-    """Equality operator for BaseGeometryConfig."""
+    """Equality operator for GeometryConfigBase."""
     if (
-        not isinstance(other, BaseGeometryConfig)
+        not isinstance(other, GeometryConfigBase)
         or type(other) is not type(self)
     ):
       return False

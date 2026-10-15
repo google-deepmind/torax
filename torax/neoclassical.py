@@ -24,15 +24,15 @@ from torax._src.neoclassical.conductivity.base import Conductivity
 from torax._src.neoclassical.neoclassical_model import NeoclassicalModel
 from torax._src.neoclassical.neoclassical_model import NeoclassicalOutputs
 from torax._src.neoclassical.poloidal_velocity.base import PoloidalVelocity
-from torax._src.neoclassical.pydantic_model import BaseNeoclassicalConfig
+from torax._src.neoclassical.pydantic_config import NeoclassicalConfigBase
 from torax._src.neoclassical.register_model import register_neoclassical_model
 from torax._src.neoclassical.runtime_params import RuntimeParams
 from torax._src.transport_model.transport_coeffs import NeoclassicalTransport
 
 __all__ = [
-    'BaseNeoclassicalConfig',
     'BootstrapCurrent',
     'Conductivity',
+    'NeoclassicalConfigBase',
     'NeoclassicalModel',
     'NeoclassicalOutputs',
     'NeoclassicalTransport',

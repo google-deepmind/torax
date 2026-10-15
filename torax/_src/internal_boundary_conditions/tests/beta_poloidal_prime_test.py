@@ -27,7 +27,7 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import circular_geometry
 from torax._src.internal_boundary_conditions import beta_poloidal_prime
-from torax._src.internal_boundary_conditions import pydantic_model
+from torax._src.internal_boundary_conditions import pydantic_config
 from torax._src.orchestration import run_simulation
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
@@ -41,7 +41,7 @@ from torax._src.torax_pydantic import torax_pydantic
 class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   def test_defaults(self):
-    ibc_config = pydantic_model.BetaPoloidalPrimeIBC(
+    ibc_config = pydantic_config.BetaPoloidalPrimeIBCConfig(
         rho_norm_edge=0.85,
         n_e_edge=2.0e19,
         beta_poloidal_prime=1.5,
@@ -55,14 +55,14 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   def test_missing_required_params_raises(self):
     with self.assertRaises(pydantic.ValidationError):
-      pydantic_model.BetaPoloidalPrimeIBC.model_validate({})
+      pydantic_config.BetaPoloidalPrimeIBCConfig.model_validate({})
 
   def test_missing_n_e_edge_and_multiplier_raises(self):
     with self.assertRaisesRegex(
         pydantic.ValidationError,
         "Exactly one of 'n_e_edge' or 'n_e_edge_multiplier' must be provided",
     ):
-      pydantic_model.BetaPoloidalPrimeIBC(
+      pydantic_config.BetaPoloidalPrimeIBCConfig(
           rho_norm_edge=0.85,
           beta_poloidal_prime=1.5,
           Ti_Te_ratio=1.0,
@@ -73,7 +73,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         pydantic.ValidationError,
         "Exactly one of 'n_e_edge' or 'n_e_edge_multiplier' must be provided",
     ):
-      pydantic_model.BetaPoloidalPrimeIBC(
+      pydantic_config.BetaPoloidalPrimeIBCConfig(
           rho_norm_edge=0.85,
           n_e_edge=2.0e19,
           n_e_edge_multiplier=1.5,
@@ -85,7 +85,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         pydantic.ValidationError, 'P_SOL_scaling must be provided'
     ):
-      pydantic_model.BetaPoloidalPrimeIBC(
+      pydantic_config.BetaPoloidalPrimeIBCConfig(
           mode=beta_poloidal_prime.Mode.POWER_DEPENDENT,
           rho_norm_edge=0.85,
           n_e_edge=2.0e19,
@@ -118,7 +118,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         Ip_profile_face=jnp.linspace(0.0, Ip, geo.rho_face.shape[0]),
     )
 
-    ibc_config = pydantic_model.BetaPoloidalPrimeIBC(
+    ibc_config = pydantic_config.BetaPoloidalPrimeIBCConfig(
         mode=mode,
         rho_norm_edge=rho_norm_edge,
         n_e_edge=n_e_edge,

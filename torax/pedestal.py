@@ -22,7 +22,8 @@ model.
 from torax._src.pedestal_model.pedestal_model import PedestalStructureModel
 from torax._src.pedestal_model.pedestal_model_output import PedestalStructure
 from torax._src.pedestal_model.pedestal_transition_state import PedestalTransitionState
-from torax._src.pedestal_model.pydantic_model import BaseStructure
+from torax._src.pedestal_model.pydantic_config import BaseStructure
+from torax._src.pedestal_model.pydantic_config import StructureConfigBase
 from torax._src.pedestal_model.register_model import register_pedestal_structure_model
 from torax._src.pedestal_model.runtime_params import RuntimeParams
 from torax._src.pedestal_model.runtime_params import StructureRuntimeParams
@@ -33,6 +34,7 @@ __all__ = [
     'PedestalStructureModel',
     'PedestalTransitionState',
     'RuntimeParams',
+    'StructureConfigBase',
     'StructureRuntimeParams',
     'register_pedestal_structure_model',
 ]

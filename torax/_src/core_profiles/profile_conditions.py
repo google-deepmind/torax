@@ -24,7 +24,7 @@ import numpy as np
 import pydantic
 from torax._src.core_profiles import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
-from torax._src.internal_boundary_conditions import pydantic_model as ibc_pydantic_model
+from torax._src.internal_boundary_conditions import pydantic_config as ibc_pydantic_config
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -38,7 +38,7 @@ _MAX_TEMPERATURE_KEV: Final[float] = 1e3
 _MAX_TEMPERATURE_BC_KEV: Final[float] = 5e1
 
 
-class PrescribedFastIon(torax_pydantic.BaseModelFrozen):
+class PrescribedFastIon(torax_pydantic.ConfigBase):
   """User-facing config for prescribed fast ion density and temperature.
 
   This is the Pydantic configuration class that users interact with. Fields
@@ -64,7 +64,7 @@ class PrescribedFastIon(torax_pydantic.BaseModelFrozen):
   T_right_bc: torax_pydantic.TimeVaryingScalar
 
 
-class ProfileConditions(torax_pydantic.BaseModelFrozen):
+class ProfileConditions(torax_pydantic.ConfigBase):
   """Generic numeric parameters for the simulation.
 
   The `from_dict(...)` method can accept a dictionary defined by
@@ -180,8 +180,8 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   n_e_right_bc_reference_rho: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_multiplier: torax_pydantic.TimeVaryingScalar | None = None
   internal_boundary_conditions: (
-      ibc_pydantic_model.InternalBoundaryConditionsConfig
-  ) = torax_pydantic.ValidatedDefault(ibc_pydantic_model.NoIBC())
+      ibc_pydantic_config.InternalBoundaryConditionsConfig
+  ) = torax_pydantic.ValidatedDefault(ibc_pydantic_config.NoIBCConfig())
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/434175938): Remove this before the V2 API release in place of
