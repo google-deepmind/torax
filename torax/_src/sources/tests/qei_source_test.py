@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from absl.testing import absltest
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.sources import qei_source
 from torax._src.sources.tests import test_lib
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -33,21 +32,9 @@ class QeiSourceTest(test_lib.SourceTestCase):
     config["sources"] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.qei_source
-    runtime_params = (
-        build_runtime_params.RuntimeParamsProvider.from_config(
-            torax_config
-        )(
-            t=torax_config.numerics.t_initial,
-        )
-    )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     qei = source.get_qei(
         runtime_params,

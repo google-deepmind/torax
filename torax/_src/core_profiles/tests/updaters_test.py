@@ -22,10 +22,10 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -88,16 +88,8 @@ class UpdatersTest(parameterized.TestCase):
     )
 
     # Initialize at t=0
-    runtime_params_t0 = provider(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-
-    core_profiles_t0 = initialization.initial_core_profiles(
-        runtime_params_t0,
-        geo,
-        source_models,
-        neoclassical_model,
+    core_profiles_t0, runtime_params_t0, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
 
     dt = 1.0
@@ -134,16 +126,8 @@ class UpdatersTest(parameterized.TestCase):
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    runtime_params_t0 = provider(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-
-    core_profiles_t0 = initialization.initial_core_profiles(
-        runtime_params_t0,
-        geo,
-        source_models,
-        neoclassical_model,
+    core_profiles_t0, runtime_params_t0, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
 
     # Create runtime_params at t=1.0, but force psi to None
@@ -184,16 +168,8 @@ class UpdatersTest(parameterized.TestCase):
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    runtime_params_t0 = provider(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-
-    core_profiles_t0 = initialization.initial_core_profiles(
-        runtime_params_t0,
-        geo,
-        source_models,
-        neoclassical_model,
+    core_profiles_t0, runtime_params_t0, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
 
     # Initial should be 10.0

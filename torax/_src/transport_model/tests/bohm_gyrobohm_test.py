@@ -15,10 +15,9 @@
 from absl.testing import absltest
 from jax import numpy as jnp
 import numpy as np
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import bohm_gyrobohm
@@ -41,17 +40,8 @@ class BohmGyroBohmTest(absltest.TestCase):
     )
     t = torax_config.numerics.t_initial
     bgb_runtime_params = bgb_config.build_runtime_params(t)
-    geo = torax_config.geometry.build_provider(t=t)
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=t)
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models,
-        neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     return (

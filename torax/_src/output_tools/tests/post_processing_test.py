@@ -21,9 +21,8 @@ import numpy as np
 import scipy
 from torax._src import jax_utils
 from torax._src import math_utils
+from torax._src import model_state as model_state_lib
 from torax._src import state
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
@@ -32,6 +31,7 @@ from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import sim_test_case
@@ -47,13 +47,10 @@ class PostProcessingTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['sources'] = default_sources.get_default_source_config()
     torax_config = model_config.ToraxConfig.from_dict(config)
-    self.runtime_params = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
-            t=0.0
-        )
-    )
     self.models = torax_config.build_models()
-    self.geo = torax_config.geometry.build_provider(t=0.0)
+    self.core_profiles, self.runtime_params, self.geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
     # Make some dummy source profiles.
     ones = np.ones_like(self.geo.rho)
     self.source_profiles = source_profiles_lib.SourceProfiles(
@@ -81,12 +78,6 @@ class PostProcessingTest(parameterized.TestCase):
             'ecrh': 2 * ones,  # pyrefly: ignore[bad-assignment]
         },
         n_e={},
-    )
-    self.core_profiles = initialization.initial_core_profiles(
-        runtime_params=self.runtime_params,
-        geo=self.geo,
-        source_models=self.models.source_models,
-        neoclassical_model=self.models.neoclassical_model,
     )
 
   def test_calculate_integrated_sources(self):
@@ -232,6 +223,20 @@ class PostProcessingTest(parameterized.TestCase):
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state_lib.ModelState(
+            pedestal=self.models.pedestal_model.initial_state(
+                self.runtime_params,
+                self.geo,
+                self.core_profiles,
+                self.source_profiles,
+            ),
+            transport=self.models.transport_model.initial_state(
+                self.runtime_params
+            ),
+            sources=self.models.source_models.initial_state(
+                self.runtime_params
+            ),
+        ),
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
@@ -280,6 +285,20 @@ class PostProcessingTest(parameterized.TestCase):
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state_lib.ModelState(
+            pedestal=self.models.pedestal_model.initial_state(
+                self.runtime_params,
+                self.geo,
+                self.core_profiles,
+                self.source_profiles,
+            ),
+            transport=self.models.transport_model.initial_state(
+                self.runtime_params
+            ),
+            sources=self.models.source_models.initial_state(
+                self.runtime_params
+            ),
+        ),
     )
 
     outputs = post_processing.make_post_processed_outputs(

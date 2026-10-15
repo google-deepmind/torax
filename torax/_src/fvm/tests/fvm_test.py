@@ -20,8 +20,6 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
@@ -29,10 +27,9 @@ from torax._src.fvm import convection_terms
 from torax._src.fvm import diffusion_terms
 from torax._src.fvm import implicit_solve_block
 from torax._src.fvm import residual_and_loss
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
-from torax._src.sources import runtime_params as source_runtime_params
+from torax._src.orchestration import initial_state
+from torax._src.orchestration import run_simulation
 from torax._src.sources import source_profile_builders
-from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
 
 
@@ -212,11 +209,6 @@ class FVMTest(parameterized.TestCase):
       self, num_cells, theta_implicit, time_steps
   ):
     """Tests that the linear solution for a linear problem yields zero residual and loss."""
-    source_config = default_sources.get_default_source_config()
-    source_config['ei_exchange']['Qei_multiplier'] = 0.0
-    source_config['generic_heat']['P_total'] = 0.0
-    source_config['fusion']['mode'] = source_runtime_params.Mode.ZERO
-    source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
@@ -224,7 +216,7 @@ class FVMTest(parameterized.TestCase):
             profile_conditions=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
-            sources=source_config,
+            sources=dict(),
             solver=dict(
                 use_predictor_corrector=False, theta_implicit=theta_implicit
             ),
@@ -237,41 +229,35 @@ class FVMTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    models = torax_config.build_models()
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
+    step_fn = run_simulation.make_step_fn(torax_config)
+    runtime_params = step_fn.runtime_params_provider(
+        t=torax_config.numerics.t_initial
     )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models=models.source_models,
-        neoclassical_model=models.neoclassical_model,
-    )
-    evolving_names = tuple(['T_i'])
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
-        source_models=models.source_models,
+    geo = step_fn.geometry_provider(torax_config.numerics.t_initial)
+    sim_state = initial_state._get_initial_state(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=core_profiles,
-        explicit=True,
+        step_fn=step_fn,
+    )
+    evolving_names = tuple(['T_i'])
+    explicit_source_profiles = source_profile_builders.build_all_zero_profiles(
+        geo
     )
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        models=models,
+        geo=sim_state.geometry,
+        core_profiles=sim_state.core_profiles,
+        models=step_fn.solver.models,
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_transition_state=sim_state.pedestal_transition_state,
+        model_state=sim_state.model_state,
     )
     # dt well under the explicit stability limit for dx=1 and chi=1
     dt = jnp.array(0.2)
     # initialize x_new for timestepping
-    x_new = (core_profiles.T_i,)
+    x_new = (sim_state.core_profiles.T_i,)
     for _ in range(time_steps):
       x_old = copy.deepcopy(x_new)
       x_new = implicit_solve_block.implicit_solve_block(
@@ -291,31 +277,33 @@ class FVMTest(parameterized.TestCase):
       loss = residual_and_loss.theta_method_block_loss(
           dt=dt,
           runtime_params_t_plus_dt=runtime_params,
-          geo_t_plus_dt=geo,
+          geo_t_plus_dt=sim_state.geometry,
           x_old=x_old,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
-          core_profiles_t_plus_dt=core_profiles,
-          core_profiles_t=core_profiles,
-          models=models,
+          core_profiles_t=sim_state.core_profiles,
+          core_profiles_t_plus_dt=sim_state.core_profiles,
+          models=step_fn.solver.models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          pedestal_transition_state=sim_state.pedestal_transition_state,
+          model_state=sim_state.model_state,
       )
 
       residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
           runtime_params_t_plus_dt=runtime_params,
-          geo_t_plus_dt=geo,
+          geo_t_plus_dt=sim_state.geometry,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
           x_old=x_old,
-          core_profiles_t_plus_dt=core_profiles,
-          core_profiles_t=core_profiles,
-          models=models,
+          core_profiles_t=sim_state.core_profiles,
+          core_profiles_t_plus_dt=sim_state.core_profiles,
+          models=step_fn.solver.models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          pedestal_transition_state=sim_state.pedestal_transition_state,
+          model_state=sim_state.model_state,
       )
 
       np.testing.assert_allclose(loss, 0.0, atol=1e-7)
@@ -326,11 +314,6 @@ class FVMTest(parameterized.TestCase):
     # Create a system with diffusive transport and no sources. When initialized
     # flat, x_new should remain zero unless boundary conditions change.
     num_cells = 4
-    source_config = default_sources.get_default_source_config()
-    source_config['ei_exchange']['Qei_multiplier'] = 0.0
-    source_config['generic_heat']['P_total'] = 0.0
-    source_config['fusion']['mode'] = source_runtime_params.Mode.ZERO
-    source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
@@ -338,7 +321,7 @@ class FVMTest(parameterized.TestCase):
             profile_conditions=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
-            sources=source_config,
+            sources=dict(),
             solver=dict(use_predictor_corrector=False, theta_implicit=1.0),
             transport=dict(
                 core_transport_models=dict(
@@ -349,39 +332,33 @@ class FVMTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
+    step_fn = run_simulation.make_step_fn(torax_config)
+    runtime_params = step_fn.runtime_params_provider(
+        t=torax_config.numerics.t_initial
     )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    models = torax_config.build_models()
-    initial_core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models=models.source_models,
-        neoclassical_model=models.neoclassical_model,
-    )
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    geo = step_fn.geometry_provider(torax_config.numerics.t_initial)
+    sim_state = initial_state._get_initial_state(
         runtime_params=runtime_params,
         geo=geo,
-        core_profiles=initial_core_profiles,
-        source_models=models.source_models,
-        explicit=True,
+        step_fn=step_fn,
     )
 
     dt = jnp.array(1.0)
     evolving_names = tuple(['T_i'])
+    explicit_source_profiles = source_profile_builders.build_all_zero_profiles(
+        geo
+    )
 
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
-        geo=geo,
-        core_profiles=initial_core_profiles,
-        models=models,
+        geo=sim_state.geometry,
+        core_profiles=sim_state.core_profiles,
+        models=step_fn.solver.models,
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_transition_state=sim_state.pedestal_transition_state,
+        model_state=sim_state.model_state,
     )
     initial_right_boundary = jnp.array(0.0)
     x_0 = cell_variable.CellVariable(
@@ -441,11 +418,6 @@ class FVMTest(parameterized.TestCase):
     # Create a system with diffusive transport and no sources. When initialized
     # flat, residual should remain zero unless boundary conditions change.
     num_cells = 4
-    source_config = default_sources.get_default_source_config()
-    source_config['ei_exchange']['Qei_multiplier'] = 0.0
-    source_config['generic_heat']['P_total'] = 0.0
-    source_config['fusion']['mode'] = source_runtime_params.Mode.ZERO
-    source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
@@ -453,7 +425,7 @@ class FVMTest(parameterized.TestCase):
             plasma_composition=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
-            sources=source_config,
+            sources=dict(),
             solver=dict(use_predictor_corrector=False, theta_implicit=0.0),
             transport=dict(
                 core_transport_models=dict(
@@ -464,10 +436,9 @@ class FVMTest(parameterized.TestCase):
             time_step_calculator=dict(),
         )
     )
-    runtime_params_theta0 = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
-            t=torax_config.numerics.t_initial,
-        )
+    step_fn = run_simulation.make_step_fn(torax_config)
+    runtime_params_theta0 = step_fn.runtime_params_provider(
+        t=torax_config.numerics.t_initial
     )
     runtime_params_theta05 = dataclasses.replace(
         runtime_params_theta0,
@@ -475,35 +446,29 @@ class FVMTest(parameterized.TestCase):
             runtime_params_theta0.solver, theta_implicit=0.5
         ),
     )
-
-    models = torax_config.build_models()
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    initial_core_profiles = initialization.initial_core_profiles(
-        runtime_params_theta0,
-        geo,
-        source_models=models.source_models,
-        neoclassical_model=models.neoclassical_model,
-    )
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    geo = step_fn.geometry_provider(torax_config.numerics.t_initial)
+    sim_state = initial_state._get_initial_state(
         runtime_params=runtime_params_theta0,
         geo=geo,
-        core_profiles=initial_core_profiles,
-        source_models=models.source_models,
-        explicit=True,
+        step_fn=step_fn,
     )
 
     dt = jnp.array(1.0)
     evolving_names = tuple(['T_i'])
+    explicit_source_profiles = source_profile_builders.build_all_zero_profiles(
+        geo
+    )
 
     coeffs_old = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params_theta05,
-        geo=geo,
-        core_profiles=initial_core_profiles,
-        models=models,
+        geo=sim_state.geometry,
+        core_profiles=sim_state.core_profiles,
+        models=step_fn.solver.models,
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_transition_state=sim_state.pedestal_transition_state,
+        model_state=sim_state.model_state,
     )
 
     initial_right_boundary = jnp.array(0.0)
@@ -513,14 +478,8 @@ class FVMTest(parameterized.TestCase):
         right_face_grad_constraint=None,
         right_face_constraint=initial_right_boundary,
     )
-    core_profiles_t_plus_dt = initialization.initial_core_profiles(
-        runtime_params=runtime_params_theta05,
-        geo=geo,
-        source_models=models.source_models,
-        neoclassical_model=models.neoclassical_model,
-    )
     core_profiles_t_plus_dt = dataclasses.replace(
-        core_profiles_t_plus_dt,
+        sim_state.core_profiles,
         T_i=x_0,
     )
 
@@ -531,16 +490,17 @@ class FVMTest(parameterized.TestCase):
       residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
           runtime_params_t_plus_dt=runtime_params_theta05,
-          geo_t_plus_dt=geo,
+          geo_t_plus_dt=sim_state.geometry,
           x_old=(x_0,),
           x_new_guess_vec=x_0.value,
+          core_profiles_t=sim_state.core_profiles,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          core_profiles_t=initial_core_profiles,
-          models=models,
+          models=step_fn.solver.models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          pedestal_transition_state=sim_state.pedestal_transition_state,
+          model_state=sim_state.model_state,
       )
       np.testing.assert_allclose(residual, 0.0)
     with self.subTest('updated_boundary_conditions'):
@@ -551,42 +511,44 @@ class FVMTest(parameterized.TestCase):
       residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
           runtime_params_t_plus_dt=runtime_params_theta0,
-          geo_t_plus_dt=geo,
+          geo_t_plus_dt=sim_state.geometry,
           x_old=(x_0,),
           x_new_guess_vec=x_0.value,
+          core_profiles_t=sim_state.core_profiles,
           core_profiles_t_plus_dt=dataclasses.replace(
               core_profiles_t_plus_dt,
               T_i=dataclasses.replace(
                   x_0, right_face_constraint=final_right_boundary
               ),
           ),
-          core_profiles_t=initial_core_profiles,
           evolving_names=evolving_names,
-          models=models,
+          models=step_fn.solver.models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          pedestal_transition_state=sim_state.pedestal_transition_state,
+          model_state=sim_state.model_state,
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_implicit > 0, the residual should be non-zero.
       residual = residual_and_loss.theta_method_block_residual(
           dt=dt,
           runtime_params_t_plus_dt=runtime_params_theta05,
-          geo_t_plus_dt=geo,
+          geo_t_plus_dt=sim_state.geometry,
           x_old=(x_0,),
+          core_profiles_t=sim_state.core_profiles,
           core_profiles_t_plus_dt=dataclasses.replace(
               core_profiles_t_plus_dt,
               T_i=dataclasses.replace(
                   x_0, right_face_constraint=final_right_boundary
               ),
           ),
-          core_profiles_t=initial_core_profiles,
           x_new_guess_vec=x_0.value,
-          models=models,
+          models=step_fn.solver.models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          pedestal_transition_state=sim_state.pedestal_transition_state,
+          model_state=sim_state.model_state,
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
 

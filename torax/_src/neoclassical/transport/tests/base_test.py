@@ -17,13 +17,12 @@ from typing import Annotated, Literal
 from absl.testing import absltest
 import numpy as np
 from torax._src import state
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import base as neoclassical_transport_base
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -59,19 +58,8 @@ class NeoclassicalTransportTest(absltest.TestCase):
         }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+    core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
         torax_config
-    )(t=torax_config.numerics.t_initial)
-    geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial,
-    )
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models,
-        neoclassical_model,
     )
     neoclassical_transport_model = (
         torax_config.neoclassical.transport.build_model()
