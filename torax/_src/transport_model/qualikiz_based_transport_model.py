@@ -443,7 +443,14 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       v_ExB_toroidal = rotation_output.v_ExB_toroidal
 
     def _calc_gamma_E_SI(v_ExB_component):
-      value_face = v_ExB_component * q / (rmid_face + constants.eps)
+      # v_ExB ~ r near the magnetic axis, so v_ExB * q / r tends to a finite
+      # limit there. Evaluating it on axis (r = 0) is ill-defined, so use the
+      # first off-axis face value. The division is restricted to off-axis faces
+      # to keep the derivatives finite.
+      value_face_off_axis = v_ExB_component[1:] * q[1:] / rmid_face[1:]
+      value_face = jnp.concatenate(
+          [value_face_off_axis[:1], value_face_off_axis]
+      )
       cv = cell_variable.CellVariable(
           value=geometry.face_to_cell(value_face),
           face_centers=geo.rho_face_norm,

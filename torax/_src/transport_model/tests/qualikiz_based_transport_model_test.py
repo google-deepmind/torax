@@ -179,6 +179,41 @@ class QualikizTransportModelTest(parameterized.TestCase):
     for key in scalar_keys:
       self.assertEqual(getattr(qualikiz_inputs, key).shape, ())
 
+  def test_gamma_e_is_bounded_near_axis(self):
+    torax_config, model_inputs = _get_config_and_model_inputs({
+        'core_transport_models': {
+            'qualikiz_based': {
+                'model_name': 'qualikiz_based',
+                'rotation_mode': 'full_radius',
+            },
+        },
+    })
+    transport_model = (
+        torax_config.transport.build_transport_model().core_transport_models[
+            'qualikiz_based'
+        ]
+    )
+    assert isinstance(
+        transport_model,
+        qualikiz_based_transport_model.QualikizBasedTransportModel,
+    )
+    runtime_params, geo, core_profiles, _, _ = model_inputs
+    qualikiz_params = (
+        runtime_params.transport.core_transport_model_params['qualikiz_based']
+    )
+    assert isinstance(
+        qualikiz_params, qualikiz_based_transport_model.RuntimeParams
+    )
+    qualikiz_inputs = transport_model._prepare_qualikiz_inputs(
+        transport=qualikiz_params,
+        geo=geo,
+        core_profiles=core_profiles,
+    )
+
+    # Normalized ExB shear is O(0.1) for these profiles. Dividing by r on the
+    # magnetic axis previously produced values of order 1e5 near the axis.
+    self.assertLess(np.max(np.abs(qualikiz_inputs.gamma_E_GB)), 1.0)
+
   @parameterized.parameters((0.001,), (0.1,))
   def test_collisionality_max(self, max_normalized_collisionality):
     """Checks that the max collisionality is capped."""
