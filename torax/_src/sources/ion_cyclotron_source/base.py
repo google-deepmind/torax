@@ -16,15 +16,29 @@
 import dataclasses
 from typing import Annotated, ClassVar
 
+import chex
+import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import base as source_base
+from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class RuntimeParams(source_runtime_params_lib.RuntimeParams):
+  """Base runtime parameters for ICRH models."""
+
+  P_total: array_typing.FloatScalar
+  absorption_fraction: array_typing.FloatScalar
+  minority_species: str | None = dataclasses.field(metadata={'static': True})
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -96,3 +110,15 @@ class IonCyclotronSourceConfig(source_base.SourceConfigBase):
 
   def build_source(self) -> IonCyclotronSource:
     return IonCyclotronSource(model_func=self.model_func)
+
+  def build_runtime_params(
+      self,
+      t: chex.Numeric,
+  ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
+    return RuntimeParams(
+        **vars(base_params),
+        P_total=self.P_total.get_value(t),
+        absorption_fraction=self.absorption_fraction.get_value(t),
+        minority_species=self.minority_species,
+    )

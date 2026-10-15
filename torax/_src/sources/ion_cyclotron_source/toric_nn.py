@@ -305,16 +305,11 @@ def _toric_nn_predict(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(source_runtime_params_lib.RuntimeParams):
+class RuntimeParams(base.RuntimeParams):
   frequency: array_typing.FloatScalar
   minority_concentration: array_typing.FloatScalar | None
-  P_total: array_typing.FloatScalar
-  absorption_fraction: array_typing.FloatScalar
   wall_inner: float
   wall_outer: float
-  minority_species: str | None = dataclasses.field(
-      default=None, metadata={'static': True}
-  )
 
 
 def icrh_model_func(
@@ -578,7 +573,4 @@ class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
             if self.minority_concentration is not None
             else None
         ),
-        minority_species=self.minority_species,
-        P_total=self.P_total.get_value(t),
-        absorption_fraction=self.absorption_fraction.get_value(t),
     )
