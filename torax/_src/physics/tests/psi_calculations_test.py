@@ -164,19 +164,19 @@ class PsiCalculationsTest(parameterized.TestCase):
           references_getter=torax_refs.chease_references_Ip_from_runtime_params
       ),
   ])
-  def test_calc_j_total(
+  def test_calc_j_toroidal_total(
       self, references_getter: Callable[[], torax_refs.References]
   ):
     references = references_getter()
     geo = references.geometry_provider(references.config.numerics.t_initial)
     # pylint: disable=invalid-name
-    j, _, Ip_profile_face = psi_calculations.calc_j_total(
+    j, _, Ip_profile_face = psi_calculations.calc_j_toroidal_total(
         geo,
         references.psi,
         min_rho_norm=references.config.numerics.min_rho_norm,
     )
     # pylint: enable=invalid-name
-    np.testing.assert_allclose(j, references.j_total, rtol=1e-5)
+    np.testing.assert_allclose(j, references.j_toroidal_total, rtol=1e-5)
 
     if isinstance(geo, standard_geometry.StandardGeometry):
       if not geo.Ip_from_parameters:
@@ -268,17 +268,18 @@ class PsiCalculationsTest(parameterized.TestCase):
         B_0=5.0,
     ).build_geometry()
     Ip = 15e6
-    # calculate high resolution j_total consistent with total current profile
-    j_total_profile = (1 - geo.rho_hires_norm**2) ** 2
-    denom = _trapz(j_total_profile * geo.spr_hires, geo.rho_hires_norm)
+    # calculate high resolution j_toroidal_total consistent with total current
+    # profile
+    j_toroidal_total_profile = (1 - geo.rho_hires_norm**2) ** 2
+    denom = _trapz(j_toroidal_total_profile * geo.spr_hires, geo.rho_hires_norm)
     Ctot = Ip / denom
-    j_total = j_total_profile * Ctot
+    j_toroidal_total = j_toroidal_total_profile * Ctot
     psi_cell_variable = initialization.update_psi_from_j(
         Ip,
         geo,
-        j_total,
+        j_toroidal_total,
     )
-    _, _, Ip_profile_face = psi_calculations.calc_j_total(
+    _, _, Ip_profile_face = psi_calculations.calc_j_toroidal_total(
         geo,
         psi_cell_variable,
         min_rho_norm=0.01,
@@ -314,17 +315,18 @@ class PsiCalculationsTest(parameterized.TestCase):
         B_0=5.0,
     ).build_geometry()
     Ip = 15e6
-    # calculate high resolution j_total consistent with total current profile
-    j_total_profile = (1 - geo.rho_hires_norm**2) ** 2
-    denom = _trapz(j_total_profile * geo.spr_hires, geo.rho_hires_norm)
+    # calculate high resolution j_toroidal_total consistent with total current
+    # profile
+    j_toroidal_total_profile = (1 - geo.rho_hires_norm**2) ** 2
+    denom = _trapz(j_toroidal_total_profile * geo.spr_hires, geo.rho_hires_norm)
     Ctot = Ip / denom
-    j_total = j_total_profile * Ctot
+    j_toroidal_total = j_toroidal_total_profile * Ctot
     psi_cell_variable = initialization.update_psi_from_j(
         Ip,
         geo,
-        j_total,
+        j_toroidal_total,
     )
-    _, _, Ip_profile_face = psi_calculations.calc_j_total(
+    _, _, Ip_profile_face = psi_calculations.calc_j_toroidal_total(
         geo,
         psi_cell_variable,
         min_rho_norm=0.01,

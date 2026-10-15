@@ -139,7 +139,7 @@ def _calculate_new_references(
   )
   if not isinstance(geo, standard_geometry.StandardGeometry):
     external_current = sum(source_profiles.psi.values())
-    j_total_hires = (
+    j_toroidal_total_hires = (
         initialization.get_j_toroidal_total_hires_with_external_sources(
             runtime_params=runtime_params,
             geo=geo,
@@ -154,7 +154,7 @@ def _calculate_new_references(
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.Ip,
         geo,
-        j_total_hires,
+        j_toroidal_total_hires,
     )
   elif isinstance(geo, standard_geometry.StandardGeometry):
     external_current = sum(source_profiles.psi.values())
@@ -172,7 +172,7 @@ def _calculate_new_references(
   else:
     raise ValueError(f'Unsupported geometry type: {type(geo)}')
 
-  j_total, _, _ = psi_calculations.calc_j_total(
+  j_toroidal_total, _, _ = psi_calculations.calc_j_toroidal_total(
       geo,
       psi,
       min_rho_norm=runtime_params.numerics.min_rho_norm,
@@ -199,7 +199,7 @@ def _calculate_new_references(
       'psi': np.asarray(psi.value),
       'psi_face_grad': np.asarray(psi.face_grad()),
       'psidot': np.asarray(psidot),
-      'j_total': np.asarray(j_total),
+      'j_toroidal_total': np.asarray(j_toroidal_total),
       'q': np.asarray(q_face),
       's': np.asarray(s_face),
   }

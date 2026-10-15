@@ -335,22 +335,22 @@ J_PARALLEL_BOOTSTRAP: Final[OutputKey] = OutputKey(
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
 J_TOROIDAL_TOTAL: Final[OutputKey] = OutputKey(
-    "j_total",
+    "j_toroidal_total",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
 J_TOROIDAL_OHMIC: Final[OutputKey] = OutputKey(
-    "j_ohmic",
+    "j_toroidal_ohmic",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
 J_TOROIDAL_EXTERNAL: Final[OutputKey] = OutputKey(
-    "j_external",
+    "j_toroidal_external",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
 J_TOROIDAL_BOOTSTRAP: Final[OutputKey] = OutputKey(
-    "j_bootstrap",
+    "j_toroidal_bootstrap",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
@@ -530,18 +530,18 @@ FFPRIME: Final[OutputKey] = OutputKey(
 PSI_NORM: Final[OutputKey] = OutputKey(
     "psi_norm", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
 )
-J_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
-    "j_generic_current",
+J_TOROIDAL_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
+    "j_toroidal_generic_current",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
-J_ECRH: Final[OutputKey] = OutputKey(
-    "j_ecrh",
+J_TOROIDAL_ECRH: Final[OutputKey] = OutputKey(
+    "j_toroidal_ecrh",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
-J_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
-    "j_non_inductive",
+J_TOROIDAL_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
+    "j_toroidal_non_inductive",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )

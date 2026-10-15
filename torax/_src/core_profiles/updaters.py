@@ -184,10 +184,12 @@ def update_core_and_source_profiles_after_step(
       )
   )
 
-  j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
-      geo,
-      updated_core_profiles_t_plus_dt.psi,
-      runtime_params_t_plus_dt.numerics.min_rho_norm,
+  j_toroidal_total, j_toroidal_total_face, Ip_profile_face = (
+      psi_calculations.calc_j_toroidal_total(
+          geo,
+          updated_core_profiles_t_plus_dt.psi,
+          runtime_params_t_plus_dt.numerics.min_rho_norm,
+      )
   )
 
   # A wholly new core profiles object is defined as a guard against neglecting
@@ -220,8 +222,8 @@ def update_core_and_source_profiles_after_step(
       v_loop_lcfs=v_loop_lcfs,
       sigma=core_profiles_t_plus_dt.sigma,  # Not yet updated
       sigma_face=core_profiles_t_plus_dt.sigma_face,  # Not yet updated
-      j_total=j_total,
-      j_total_face=j_total_face,
+      j_toroidal_total=j_toroidal_total,
+      j_toroidal_total_face=j_toroidal_total_face,
       Ip_profile_face=Ip_profile_face,
       toroidal_angular_velocity=updated_core_profiles_t_plus_dt.toroidal_angular_velocity,
       poloidal_velocity=(

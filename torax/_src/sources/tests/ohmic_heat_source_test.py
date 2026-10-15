@@ -87,13 +87,19 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   @mock.patch.object(
       ohmic_heat_source.psi_calculations, 'calculate_psidot_from_psi_sources'
   )
-  @mock.patch.object(ohmic_heat_source.psi_calculations, 'calc_j_total')
+  @mock.patch.object(
+      ohmic_heat_source.psi_calculations, 'calc_j_toroidal_total'
+  )
   def test_ohmic_power_with_prescribed_psidot(
-      self, mock_calc_j_total, mock_calculate_psidot
+      self, mock_calc_j_toroidal_total, mock_calculate_psidot
   ):
     n_rho = 10
-    j_total_val = jnp.ones(n_rho)
-    mock_calc_j_total.return_value = (j_total_val, mock.Mock(), mock.Mock())
+    j_toroidal_total_val = jnp.ones(n_rho)
+    mock_calc_j_toroidal_total.return_value = (
+        j_toroidal_total_val,
+        mock.Mock(),
+        mock.Mock(),
+    )
 
     prescribed_psidot = jnp.full((n_rho,), 2.0)
 
@@ -128,7 +134,9 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
     # Verify result matches calculation using prescribed psidot
     expected_pohm = jnp.abs(
-        j_total_val * prescribed_psidot / (2 * jnp.pi * geo.R_major_profile)
+        j_toroidal_total_val
+        * prescribed_psidot
+        / (2 * jnp.pi * geo.R_major_profile)
     )
     np.testing.assert_allclose(np.asarray(pohm), expected_pohm)
 

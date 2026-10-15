@@ -63,7 +63,7 @@ class OhmicHeatSource(source_lib.Source):
           ' is used in an explicit source.'
       )
 
-    j_total, _, _ = psi_calculations.calc_j_total(
+    j_toroidal_total, _, _ = psi_calculations.calc_j_toroidal_total(
         geo,
         core_profiles.psi,
         runtime_params.numerics.min_rho_norm,
@@ -87,7 +87,9 @@ class OhmicHeatSource(source_lib.Source):
 
     # Ohmic power is positive regardless of the sign of voltage and current.
     # Use local major radius for accurate local power calculation
-    pohm = jnp.abs(j_total * psidot / (2 * jnp.pi * geo.R_major_profile))
+    pohm = jnp.abs(
+        j_toroidal_total * psidot / (2 * jnp.pi * geo.R_major_profile)
+    )
     return (pohm,)
 
 

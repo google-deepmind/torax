@@ -65,10 +65,10 @@ class StandardGeometry(geometry.Geometry):
       calculated from the plasma current profile in the geometry file.
     psi_from_Ip_face: Poloidal flux profile on the face grid [Wb], calculated
       from the plasma current profile in the geometry file.
-    j_total: Total toroidal current density profile on the cell grid
+    j_toroidal_total: Total toroidal current density profile on the cell grid
       [:math:`\mathrm{A/m^2}`].
-    j_total_face: Total toroidal current density profile on the face grid
-      [:math:`\mathrm{A/m^2}`].
+    j_toroidal_total_face: Total toroidal current density profile on the face
+      grid [:math:`\mathrm{A/m^2}`].
     delta_upper_face: Upper triangularity on the face grid [dimensionless]. See
       `Geometry` docstring for definition of `delta_upper_face`.
     delta_lower_face: Lower triangularity on the face grid [dimensionless]. See
@@ -100,8 +100,8 @@ class StandardGeometry(geometry.Geometry):
   psi: array_typing.FloatVectorCell
   psi_from_Ip: array_typing.FloatVectorCell
   psi_from_Ip_face: array_typing.FloatVectorFace
-  j_total: array_typing.Array
-  j_total_face: array_typing.FloatVectorFace
+  j_toroidal_total: array_typing.Array
+  j_toroidal_total_face: array_typing.FloatVectorFace
   delta_upper_face: array_typing.FloatVectorFace
   delta_lower_face: array_typing.FloatVectorFace
   # Optional parameters not present in all geometry sources.
@@ -160,8 +160,8 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   psi: interpolated_param.InterpolatedVarSingleAxis
   psi_from_Ip: interpolated_param.InterpolatedVarSingleAxis
   psi_from_Ip_face: interpolated_param.InterpolatedVarSingleAxis
-  j_total: interpolated_param.InterpolatedVarSingleAxis
-  j_total_face: interpolated_param.InterpolatedVarSingleAxis
+  j_toroidal_total: interpolated_param.InterpolatedVarSingleAxis
+  j_toroidal_total_face: interpolated_param.InterpolatedVarSingleAxis
   delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
   delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
   elongation: interpolated_param.InterpolatedVarSingleAxis
@@ -402,7 +402,7 @@ class StandardGeometryIntermediates:
     self.vpr[:] = _smooth_savgol(self.vpr, idx_limit, 1)  # pyrefly: ignore[bad-argument-type]
 
     # Warn if the input grid is too coarse, which can cause artifacts in
-    # derived quantities such as j_total.
+    # derived quantities such as j_toroidal_total.
     drho_norm = np.diff(rhon)
     max_spacing = np.max(drho_norm)
     if max_spacing > _COARSE_GRID_THRESHOLD:
@@ -410,8 +410,8 @@ class StandardGeometryIntermediates:
           logging.WARNING,
           'The input equilibrium grid is coarse (max rho_norm spacing ='
           ' %.4f > %.4f). This can create numerical artifacts in derived'
-          ' quantities such as j_total. Consider using a higher-resolution'
-          ' equilibrium file.',
+          ' quantities such as j_toroidal_total. Consider using a'
+          ' higher-resolution equilibrium file.',
           _COARSE_GRID_WARNING_INTERVAL_SEC,  # log every interval
           max_spacing,
           _COARSE_GRID_THRESHOLD,
@@ -462,13 +462,15 @@ def build_standard_geometry(
   # plasma current density
   dI_tot_drhon = np.gradient(intermediates.Ip_profile, rho_norm_intermediate)
 
-  j_total_face_bulk = dI_tot_drhon[1:] / spr[1:]
+  j_toroidal_total_face_bulk = dI_tot_drhon[1:] / spr[1:]
 
   # For now set on-axis to the same as the second grid point, due to 0/0
   # division.
-  j_total_face_axis = j_total_face_bulk[0]
+  j_toroidal_total_face_axis = j_toroidal_total_face_bulk[0]
 
-  j_total = np.concatenate([np.array([j_total_face_axis]), j_total_face_bulk])
+  j_toroidal_total = np.concatenate(
+      [np.array([j_toroidal_total_face_axis]), j_toroidal_total_face_bulk]
+  )
 
   # fill geometry structure
   # normalized grid
@@ -523,8 +525,10 @@ def build_standard_geometry(
 
   psi = rhon_interpolation_func(rho_norm, intermediates.psi)
 
-  j_total_face = rhon_interpolation_func(rho_face_norm, j_total)
-  j_total = rhon_interpolation_func(rho_norm, j_total)
+  j_toroidal_total_face = rhon_interpolation_func(
+      rho_face_norm, j_toroidal_total
+  )
+  j_toroidal_total = rhon_interpolation_func(rho_norm, j_toroidal_total)
 
   Ip_profile_face = rhon_interpolation_func(
       rho_face_norm, intermediates.Ip_profile
@@ -640,8 +644,8 @@ def build_standard_geometry(
       psi=psi,
       psi_from_Ip=psi_from_Ip,
       psi_from_Ip_face=psi_from_Ip_face,
-      j_total=j_total,
-      j_total_face=j_total_face,
+      j_toroidal_total=j_toroidal_total,
+      j_toroidal_total_face=j_toroidal_total_face,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
       elongation=elongation,
@@ -706,8 +710,8 @@ def _calculate_psi_from_Ip(
 
   Ip_profile is cubic-spline interpolated onto the transport faces, and the
   face psi gradients are obtained by inverting the finite-volume Ip relation
-  used in `psi_calculations.calc_j_total`. psi is then the cumulative sum of
-  these gradients from the axis.
+  used in `psi_calculations.calc_j_toroidal_total`. psi is then the cumulative
+  sum of these gradients from the axis.
 
   Args:
     rho_norm_intermediate: Normalized toroidal flux coordinate of the

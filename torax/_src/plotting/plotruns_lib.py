@@ -85,8 +85,8 @@ class _GridType(enum.Enum):
 
 _OPTIONAL_PROFILE_ATTRS: Final[Mapping[str, _GridType]] = (
     immutabledict.immutabledict({
-        'j_ecrh': _GridType.CELL,
-        'j_generic_current': _GridType.CELL,
+        'j_toroidal_ecrh': _GridType.CELL,
+        'j_toroidal_generic_current': _GridType.CELL,
         'p_icrh_i': _GridType.CELL,
         'p_icrh_e': _GridType.CELL,
         'p_generic_heat_i': _GridType.CELL,
@@ -349,11 +349,11 @@ def _transform_data(ds: xr.Dataset) -> xr.Dataset:
       output_keys.J_TOROIDAL_OHMIC: 1e6,  # A/m^2 to MA/m^2
       output_keys.J_TOROIDAL_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
       output_keys.J_TOROIDAL_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
-      'j_generic_current': 1e6,  # A/m^2 to MA/m^2
+      output_keys.J_TOROIDAL_GENERIC_CURRENT: 1e6,  # A/m^2 to MA/m^2
       output_keys.I_BOOTSTRAP: 1e6,  # A to MA
       output_keys.IP_PROFILE: 1e6,  # A to MA
       output_keys.IP: 1e6,  # A to MA
-      'j_ecrh': 1e6,  # A/m^2 to MA/m^2
+      output_keys.J_TOROIDAL_ECRH: 1e6,  # A/m^2 to MA/m^2
       'p_icrh_i': 1e6,  # W/m^3 to MW/m^3
       'p_icrh_e': 1e6,  # W/m^3 to MW/m^3
       'p_generic_heat_i': 1e6,  # W/m^3 to MW/m^3
