@@ -108,27 +108,6 @@ def calc_bremsstrahlung(
   return P_brem_total, P_brem_profile_cell  # pyrefly: ignore[bad-return]
 
 
-def bremsstrahlung_model_func(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[jt.Float[jax.Array, ''], ...]:
-  """Model function for the Bremsstrahlung heat sink."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-  _, P_brem_profile = calc_bremsstrahlung(
-      core_profiles,
-      geo,
-      use_relativistic_correction=source_params.use_relativistic_correction,
-      exclude_impurity_bremsstrahlung=source_params.exclude_impurity_bremsstrahlung,
-  )
-  # As a sink, the power is negative.
-  return (-1.0 * P_brem_profile,)
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
@@ -137,7 +116,28 @@ class BremsstrahlungHeatSink(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = bremsstrahlung_model_func  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    del calculated_source_profiles, conductivity  # Unused.
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    assert isinstance(source_params, RuntimeParams)
+    _, P_brem_profile = calc_bremsstrahlung(
+        core_profiles,
+        geo,
+        use_relativistic_correction=source_params.use_relativistic_correction,
+        exclude_impurity_bremsstrahlung=(
+            source_params.exclude_impurity_bremsstrahlung
+        ),
+    )
+    # As a sink, the power is negative.
+    return (-1.0 * P_brem_profile,)
 
 
 class BremsstrahlungHeatSinkConfig(base.SourceConfigBase):
@@ -154,10 +154,6 @@ class BremsstrahlungHeatSinkConfig(base.SourceConfigBase):
   use_relativistic_correction: bool = False
   exclude_impurity_bremsstrahlung: bool = False
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return bremsstrahlung_model_func  # pyrefly: ignore[bad-return]
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -170,4 +166,4 @@ class BremsstrahlungHeatSinkConfig(base.SourceConfigBase):
     )
 
   def build_source(self) -> BremsstrahlungHeatSink:
-    return BremsstrahlungHeatSink(model_func=self.model_func)
+    return BremsstrahlungHeatSink()
