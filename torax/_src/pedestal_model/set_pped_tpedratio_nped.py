@@ -57,7 +57,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalModelOutput:
+  ) -> pedestal_model_output.PedestalStructure:
     assert isinstance(runtime_params.pedestal, RuntimeParams)
 
     # Convert n_e_ped to reference units.
@@ -123,7 +123,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # Calculate T_i_ped
     T_i_ped = temperature_ratio * T_e_ped
 
-    return pedestal_model_output.PedestalModelOutput(
+    return pedestal_model_output.PedestalStructure(
         n_e_ped=n_e_ped,
         T_i_ped=T_i_ped,
         T_e_ped=T_e_ped,

@@ -69,8 +69,8 @@ class FixedPedestalModel(pedestal_model_lib.PedestalModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output_lib.PedestalModelOutput:
-    return pedestal_model_output_lib.PedestalModelOutput(
+  ) -> pedestal_model_output_lib.PedestalStructure:
+    return pedestal_model_output_lib.PedestalStructure(
         rho_norm_ped_top=jnp.array(0.9),
         T_i_ped=jnp.array(5.0),
         T_e_ped=jnp.array(5.0),

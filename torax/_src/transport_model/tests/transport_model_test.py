@@ -101,7 +101,7 @@ def _make_transition_state(
     ),
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
   output = mock.create_autospec(
-      pedestal_model_output_lib.PedestalModelOutput,
+      pedestal_model_output_lib.PedestalStructure,
       instance=True,
       rho_norm_ped_top=rho_norm_ped_top,
   )

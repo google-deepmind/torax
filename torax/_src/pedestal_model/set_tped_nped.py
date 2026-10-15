@@ -53,7 +53,7 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalModelOutput:
+  ) -> pedestal_model_output.PedestalStructure:
     pedestal_params = runtime_params.pedestal
     assert isinstance(pedestal_params, RuntimeParams)
 
@@ -70,7 +70,7 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         pedestal_params.n_e_ped,
     )
 
-    return pedestal_model_output.PedestalModelOutput(
+    return pedestal_model_output.PedestalStructure(
         n_e_ped=n_e_ped,
         T_i_ped=pedestal_params.T_i_ped,
         T_e_ped=pedestal_params.T_e_ped,

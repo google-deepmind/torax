@@ -36,5 +36,5 @@ class NoPedestal(pedestal_model.PedestalModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalModelOutput:
-    return pedestal_model_output.PedestalModelOutput.no_pedestal()
+  ) -> pedestal_model_output.PedestalStructure:
+    return pedestal_model_output.PedestalStructure.no_pedestal()

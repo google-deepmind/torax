@@ -37,7 +37,7 @@ class ProfileValueSaturationModel(base.SaturationModel):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_output: pedestal_model_output.PedestalModelOutput,
+      pedestal_output: pedestal_model_output.PedestalStructure,
   ) -> pedestal_model_output.TransportMultipliers:
     """Calculates transport increase multipliers."""
     # Get the current profile values at the pedestal top.

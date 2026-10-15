@@ -85,7 +85,7 @@ class BuilderTest(absltest.TestCase):
       confinement_mode: pedestal_runtime_params_lib.ConfinementMode,
       T_e_ped: float = 2.0,
   ) -> pedestal_transition_state.PedestalTransitionState:
-    output = pedestal_model_output.PedestalModelOutput(
+    output = pedestal_model_output.PedestalStructure(
         T_i_ped=2.0,
         T_e_ped=T_e_ped,
         n_e_ped=1e19,

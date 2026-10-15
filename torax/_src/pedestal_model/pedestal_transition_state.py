@@ -63,8 +63,8 @@ class PedestalTransitionState:
   T_i_ped_L_mode: array_typing.FloatScalar
   T_e_ped_L_mode: array_typing.FloatScalar
   n_e_ped_L_mode: array_typing.FloatScalar
-  pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput
-  previous_pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput
+  pedestal_model_output: pedestal_model_output_lib.PedestalStructure
+  previous_pedestal_model_output: pedestal_model_output_lib.PedestalStructure
 
   @classmethod
   def empty(
@@ -83,10 +83,10 @@ class PedestalTransitionState:
         T_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         pedestal_model_output=(
-            pedestal_model_output_lib.PedestalModelOutput.no_pedestal()
+            pedestal_model_output_lib.PedestalStructure.no_pedestal()
         ),
         previous_pedestal_model_output=(
-            pedestal_model_output_lib.PedestalModelOutput.no_pedestal()
+            pedestal_model_output_lib.PedestalStructure.no_pedestal()
         ),
     )
 
@@ -121,7 +121,7 @@ class PedestalTransitionState:
   def _apply_transition_ramp_scaling(
       self,
       ramp_fraction: array_typing.FloatScalar,
-  ) -> pedestal_model_output_lib.PedestalModelOutput:
+  ) -> pedestal_model_output_lib.PedestalStructure:
     """Applies ramp scaling to pedestal model output during transitions.
 
     During an L-H transition, linearly ramps from L-mode values to the H-mode
@@ -182,7 +182,7 @@ class PedestalTransitionState:
       self,
       t: array_typing.FloatScalar,
       transition_time_width: array_typing.FloatScalar,
-  ) -> pedestal_model_output_lib.PedestalModelOutput:
+  ) -> pedestal_model_output_lib.PedestalStructure:
     """Returns the pedestal model output, scaled by the ramp fraction during transitions."""
     ramp_fraction = self._compute_ramp_fraction(
         t=t,

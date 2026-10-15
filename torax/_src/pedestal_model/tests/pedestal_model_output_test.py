@@ -31,7 +31,7 @@ from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 # pylint: disable=protected-access
 
 
-class PedestalModelOutputTest(parameterized.TestCase):
+class PedestalStructureTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -39,7 +39,7 @@ class PedestalModelOutputTest(parameterized.TestCase):
     self.geo.rho_face_norm = jnp.linspace(0, 1, 10)
     self.geo.rho = jnp.linspace(0, 1, 9)
     self.geo.rho_norm = jnp.linspace(0, 1, 9)
-    self.pedestal_model_output = pedestal_model_output.PedestalModelOutput(
+    self.pedestal_model_output = pedestal_model_output.PedestalStructure(
         rho_norm_ped_top=0.99,
         T_i_ped=1.0,
         T_e_ped=1.1,
@@ -323,7 +323,7 @@ class PedestalModelOutputTest(parameterized.TestCase):
 
   def test_modify_core_transport_smooths_across_core_and_pedestal(self):
     n_face = self.geo.rho_face_norm.shape[0]
-    ped_output = pedestal_model_output.PedestalModelOutput(
+    ped_output = pedestal_model_output.PedestalStructure(
         rho_norm_ped_top=0.7,
         T_i_ped=1.0,
         T_e_ped=1.1,
@@ -507,7 +507,7 @@ class PedestalModelOutputTest(parameterized.TestCase):
     geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
     rho_ped_top = float(geo.rho_norm[22])
     core_profiles = _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
-    ped_output = pedestal_model_output.PedestalModelOutput(
+    ped_output = pedestal_model_output.PedestalStructure(
         rho_norm_ped_top=rho_ped_top,
         T_i_ped=5.0,
         T_e_ped=4.0,
@@ -571,7 +571,7 @@ class PedestalModelOutputTest(parameterized.TestCase):
 
   def test_tanh_ibc_no_pedestal_grad_is_finite(self):
     geo = circular_geometry.CircularConfig().build_geometry()
-    no_ped = pedestal_model_output.PedestalModelOutput.no_pedestal()
+    no_ped = pedestal_model_output.PedestalStructure.no_pedestal()
 
     def _sum_ti(psi):
       ibc = no_ped.to_internal_boundary_conditions(
@@ -660,7 +660,7 @@ def _mtanh_ibc(
     core_profiles: state.CoreProfiles,
 ):
   """Returns the MTANH internal boundary conditions for T_i_ped = 4."""
-  ped_out = pedestal_model_output.PedestalModelOutput(
+  ped_out = pedestal_model_output.PedestalStructure(
       rho_norm_ped_top=rho_norm_ped_top, T_i_ped=4.0, T_e_ped=4.0, n_e_ped=1e20
   )
   return ped_out.to_internal_boundary_conditions(

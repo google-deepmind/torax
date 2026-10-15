@@ -70,7 +70,7 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
 
     # Construct a pedestal output that is asking for a pedestal with
     # target temperature.
-    pedestal_output = pedestal_model_output.PedestalModelOutput(
+    pedestal_output = pedestal_model_output.PedestalStructure(
         rho_norm_ped_top=self.geo.rho_face[ped_top_idx],
         T_i_ped=1.0,
         T_e_ped=current_T_e_ped * T_target_over_T_current,

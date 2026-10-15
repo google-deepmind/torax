@@ -205,8 +205,8 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i_ped_L_mode=jnp.array(0.5),
         T_e_ped_L_mode=jnp.array(0.5),
         n_e_ped_L_mode=jnp.array(0.5e19),
-        pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput.no_pedestal(),
-        previous_pedestal_model_output=pedestal_model_output_lib.PedestalModelOutput.no_pedestal(),
+        pedestal_model_output=pedestal_model_output_lib.PedestalStructure.no_pedestal(),
+        previous_pedestal_model_output=pedestal_model_output_lib.PedestalStructure.no_pedestal(),
     )
 
     target_P_SOL = P_LH * p_sol_factor

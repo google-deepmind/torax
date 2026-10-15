@@ -33,7 +33,7 @@ class SaturationModel(static_dataclass.StaticDataclass, abc.ABC):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_output: pedestal_model_output.PedestalModelOutput,
+      pedestal_output: pedestal_model_output.PedestalStructure,
   ) -> pedestal_model_output.TransportMultipliers:
     """Calculates the transport increase multipliers.
 

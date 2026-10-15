@@ -72,7 +72,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     self.runtime_params.pedestal.mode = None
 
     # Mock pedestal transition state.
-    self.pedestal_output = pedestal_model_output_lib.PedestalModelOutput(
+    self.pedestal_output = pedestal_model_output_lib.PedestalStructure(
         rho_norm_ped_top=jnp.asarray(0.7),
         T_i_ped=jnp.asarray(4.0),
         T_e_ped=jnp.asarray(4.0),
@@ -230,7 +230,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         state.CoreTransport, instance=True
     )
     mock_ped_output = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput, instance=True
+        pedestal_model_output_lib.PedestalStructure, instance=True
     )
     mock_ped_output.modify_core_transport.return_value = mock_modified_transport
     self.pedestal_state.pedestal_model_output = mock_ped_output
@@ -254,7 +254,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
     )
     mock_ped_output = mock.create_autospec(
-        pedestal_model_output_lib.PedestalModelOutput, instance=True
+        pedestal_model_output_lib.PedestalStructure, instance=True
     )
     self.pedestal_state.pedestal_model_output = mock_ped_output
 

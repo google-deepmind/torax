@@ -52,7 +52,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalModelOutput:
+  ) -> pedestal_model_output.PedestalStructure:
     pedestal_output = self._call_implementation(
         runtime_params,
         geo,
@@ -211,7 +211,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-      pedestal_output: pedestal_model_output.PedestalModelOutput,
+      pedestal_output: pedestal_model_output.PedestalStructure,
   ) -> pedestal_model_output.TransportMultipliers:
     """Computes transport multipliers from formation and saturation models."""
 
@@ -241,7 +241,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalModelOutput:
+  ) -> pedestal_model_output.PedestalStructure:
     """Calculate the pedestal properties."""
 
 

@@ -35,8 +35,8 @@ class FakePedestalModel(pedestal.PedestalModel):
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal.PedestalModelOutput:
-    return pedestal.PedestalModelOutput(
+  ) -> pedestal.PedestalStructure:
+    return pedestal.PedestalStructure(
         rho_norm_ped_top=jnp.array(0.9),
         T_i_ped=jnp.array(5.0),
         T_e_ped=jnp.array(5.0),

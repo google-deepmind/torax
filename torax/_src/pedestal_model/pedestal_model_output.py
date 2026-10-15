@@ -70,7 +70,7 @@ def _pedestal_cell_mask(
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class PedestalModelOutput:
+class PedestalStructure:
   """Output of a PedestalModel.
 
   Attributes:
@@ -93,7 +93,7 @@ class PedestalModelOutput:
 
   @classmethod
   def no_pedestal(cls) -> Self:
-    """Returns a PedestalModelOutput representing an inactive or absent pedestal.
+    """Returns a PedestalStructure representing an inactive or absent pedestal.
 
     Uses `rho_norm_ped_top=jnp.inf`, `0.0` pedestal values, and default `1.0`
     transport multipliers so that radial masks are False while maintaining a
@@ -352,3 +352,7 @@ class PedestalModelOutput:
         neoclassical=core_transport.neoclassical,
         pereverzev=core_transport.pereverzev,
     )
+
+
+# Temporary alias pending caller migration.
+PedestalModelOutput = PedestalStructure
