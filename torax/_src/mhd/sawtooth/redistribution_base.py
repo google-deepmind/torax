@@ -42,7 +42,7 @@ class RedistributionModel(static_dataclass.StaticDataclass, abc.ABC):
     """Returns a redistributed core_profiles if sawtooth has been triggered."""
 
 
-class RedistributionConfig(torax_pydantic.BaseModelFrozen):
+class RedistributionConfig(torax_pydantic.ConfigBase):
   """Base config for all redistribution models.
 
   Attributes:

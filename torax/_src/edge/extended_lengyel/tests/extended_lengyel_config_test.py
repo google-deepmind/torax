@@ -16,21 +16,21 @@ import re
 from absl.testing import absltest
 import numpy as np
 import pydantic
+from torax._src.edge.extended_lengyel import config as extended_lengyel_config
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
-from torax._src.edge.extended_lengyel import pydantic_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
 
 # pylint: disable=invalid-name
-class ExtendedLengyelPydanticModelTest(absltest.TestCase):
+class ExtendedLengyelConfigTest(absltest.TestCase):
 
   def test_extended_lengyel_defaults(self):
     """Checks default values for the extended lengyel config."""
-    config = pydantic_model.ExtendedLengyelConfig.from_dict({})
+    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
     self.assertEqual(config.model_name, 'extended_lengyel')
     self.assertEqual(
         config.computation_mode, extended_lengyel_enums.ComputationMode.FORWARD
@@ -41,7 +41,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
 
   def test_initial_guess_config_defaults(self):
     """Checks default values for the initial guess config."""
-    config = pydantic_model.ExtendedLengyelConfig.from_dict({})
+    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
     self.assertEqual(
         config.initial_guess.alpha_t.get_value(0.0),
         extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT,
@@ -66,13 +66,13 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
 
   def test_fixed_point_iterations_default(self):
     # Default solver_mode is HYBRID
-    config_hybrid = pydantic_model.ExtendedLengyelConfig.from_dict({})
+    config_hybrid = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
     self.assertEqual(
         config_hybrid.fixed_point_iterations,
         extended_lengyel_defaults.HYBRID_FIXED_POINT_ITERATIONS,
     )
     # Explicitly set solver_mode to FIXED_POINT
-    config_fixed = pydantic_model.ExtendedLengyelConfig.from_dict({
+    config_fixed = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
     })
     self.assertEqual(
@@ -80,27 +80,27 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         extended_lengyel_defaults.FIXED_POINT_ITERATIONS,
     )
     # User can override
-    config_override = pydantic_model.ExtendedLengyelConfig.from_dict({
+    config_override = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'fixed_point_iterations': 100,
     })
     self.assertEqual(config_override.fixed_point_iterations, 100)
 
   def test_fixed_point_relaxation_factor(self):
-    config = pydantic_model.ExtendedLengyelConfig.from_dict({})
+    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
     self.assertEqual(
         config.fixed_point_relaxation_factor,
         extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR,
     )
-    config_override = pydantic_model.ExtendedLengyelConfig.from_dict(
+    config_override = extended_lengyel_config.ExtendedLengyelConfig.from_dict(
         {'fixed_point_relaxation_factor': 0.6}
     )
     self.assertEqual(config_override.fixed_point_relaxation_factor, 0.6)
     with self.assertRaises(ValueError):
-      pydantic_model.ExtendedLengyelConfig.from_dict(
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict(
           {'fixed_point_relaxation_factor': 0.0}
       )
     with self.assertRaises(ValueError):
-      pydantic_model.ExtendedLengyelConfig.from_dict(
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict(
           {'fixed_point_relaxation_factor': 1.1}
       )
 
@@ -133,10 +133,12 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     self.assertIsNotNone(torax_config.edge)
     self.assertIsInstance(
-        torax_config.edge, pydantic_model.ExtendedLengyelConfig
+        torax_config.edge, extended_lengyel_config.ExtendedLengyelConfig
     )
     # Extra assert to make pytype happy.
-    assert isinstance(torax_config.edge, pydantic_model.ExtendedLengyelConfig)
+    assert isinstance(
+        torax_config.edge, extended_lengyel_config.ExtendedLengyelConfig
+    )
     self.assertEqual(
         torax_config.edge.computation_mode,
         extended_lengyel_enums.ComputationMode.INVERSE,
@@ -154,7 +156,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     self.assertIsNone(torax_config.edge)
 
   def test_enrichment_factor_key_validation_valid(self):
-    pydantic_model.ExtendedLengyelConfig.from_dict({
+    extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'use_enrichment_model': False,
         'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
         'T_e_target': 10.0,
@@ -168,7 +170,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         ValueError,
         'enrichment_factor is missing keys',
     ):
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'use_enrichment_model': False,
           'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
           'T_e_target': 10.0,
@@ -182,7 +184,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         ValueError,
         'enrichment_factor has extra keys',
     ):
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'use_enrichment_model': False,
           'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
           'T_e_target': 10.0,
@@ -192,7 +194,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
       })
 
   def test_computation_mode_forward_valid_config(self):
-    pydantic_model.ExtendedLengyelConfig.from_dict({
+    extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'computation_mode': 'forward',
         'T_e_target': None,
         'seed_impurity_weights': {},
@@ -203,7 +205,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         ValueError,
         'T_e_target must not be provided for forward computation mode.',
     ):
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'computation_mode': 'forward',
           'T_e_target': 10.0,
       })
@@ -214,7 +216,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'seed_impurity_weights must not be provided for forward computation'
         ' mode.',
     ):
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'use_enrichment_model': False,
           'computation_mode': 'forward',
           'seed_impurity_weights': {'N': 1.0},
@@ -223,7 +225,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
 
   def test_computation_mode_inverse_valid_config(self):
     # This should not raise an error.
-    pydantic_model.ExtendedLengyelConfig.from_dict({
+    extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'use_enrichment_model': False,
         'computation_mode': 'inverse',
         'T_e_target': 10.0,
@@ -236,7 +238,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         ValueError,
         'T_e_target must be provided for inverse computation mode.',
     ):
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'use_enrichment_model': False,
           'computation_mode': 'inverse',
           'T_e_target': None,
@@ -249,7 +251,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         ValueError,
         'seed_impurity_weights must be provided for inverse computation mode.',
     ):
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'use_enrichment_model': False,
           'computation_mode': 'inverse',
           'T_e_target': 10.0,
@@ -273,7 +275,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
             ValueError,
             'The sum of seed_impurity_weights must be positive',
         ):
-          pydantic_model.ExtendedLengyelConfig.from_dict({
+          extended_lengyel_config.ExtendedLengyelConfig.from_dict({
               'use_enrichment_model': False,
               'computation_mode': 'inverse',
               'T_e_target': 10.0,
@@ -296,7 +298,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
             'without a non-coronal Mavrin cooling rate fit.*'
             + re.escape(str(unsupported)),
         ):
-          pydantic_model.ExtendedLengyelConfig.from_dict({
+          extended_lengyel_config.ExtendedLengyelConfig.from_dict({
               'use_enrichment_model': False,
               'computation_mode': 'inverse',
               'T_e_target': 10.0,
@@ -306,7 +308,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
 
   def test_computation_mode_inverse_allows_seed_species_handover(self):
     # The total seeded weight stays positive while species are swapped.
-    pydantic_model.ExtendedLengyelConfig.from_dict({
+    extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'use_enrichment_model': False,
         'computation_mode': 'inverse',
         'T_e_target': 10.0,
@@ -322,7 +324,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         ValueError,
         'seed_impurity_weights must be provided for inverse computation mode.',
     ):
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'use_enrichment_model': False,
           'computation_mode': 'inverse',
           'T_e_target': 10.0,
@@ -332,7 +334,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
 
   def test_warning_for_unused_enrichment_factor(self):
     with self.assertLogs(level='WARNING') as cm:
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'use_enrichment_model': True,
           'enrichment_factor': {'N': 1.0},
           # Other required fields for validation to pass
@@ -351,7 +353,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'enrichment_factor must be provided when use_enrichment_model is'
         ' False.',
     ):
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'use_enrichment_model': False,
           'enrichment_factor': None,
           # Other required fields for validation to pass
@@ -361,7 +363,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
       })
 
   def test_build_runtime_params_with_enrichment_model(self):
-    config = pydantic_model.ExtendedLengyelConfig.from_dict({
+    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'use_enrichment_model': True,
         'enrichment_factor': None,
         'enrichment_model_multiplier': 2.0,
@@ -375,7 +377,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     self.assertIsNone(runtime_params.enrichment_factor)
 
   def test_build_runtime_params_without_enrichment_model(self):
-    config = pydantic_model.ExtendedLengyelConfig.from_dict({
+    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'use_enrichment_model': False,
         'enrichment_factor': {'N': 2.5, 'He4': 3.5},
         # Other required fields
@@ -393,7 +395,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     np.testing.assert_allclose(runtime_params.enrichment_factor['He4'], 3.5)
 
   def test_optional_params_are_none_in_runtime_params_if_not_provided(self):
-    config = pydantic_model.ExtendedLengyelConfig.from_dict({})
+    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
     runtime_params = config.build_runtime_params(t=0.0)
     self.assertIsNone(runtime_params.connection_length_target)
     self.assertIsNone(runtime_params.connection_length_divertor)
@@ -450,7 +452,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
-  def test_run_standalone_from_pydantic_config(self):
+  def test_run_standalone_from_config(self):
     """Tests that standalone can be run from a pydantic config."""
     # This test is based on
     # extended_lengyel_standalone_test.test_run_extended_lengyel_model_inverse_mode_fixed_point
@@ -502,7 +504,9 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         'average_ion_mass': 2.0,
     }
     # Build runtime params from config
-    config = pydantic_model.ExtendedLengyelConfig.from_dict(config_dict_inputs)
+    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict(
+        config_dict_inputs
+    )
     runtime_params = config.build_runtime_params(t=0.0)
     # Combine dynamic inputs and runtime params to call standalone function
     runtime_params_dict = dataclasses.asdict(runtime_params)
@@ -553,25 +557,31 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         ValueError,
         'greater than or equal to 2',
     ):
-      pydantic_model.ExtendedLengyelConfig.from_dict({
+      extended_lengyel_config.ExtendedLengyelConfig.from_dict({
           'multistart_num_guesses': 1,
       })
 
   def test_update_electron_density_default_and_explicit_false_valid(self):
     with self.subTest('default'):
-      config_default = pydantic_model.ExtendedLengyelConfig.from_dict({})
+      config_default = (
+          extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
+      )
       self.assertFalse(config_default.update_n_e.value.any())
 
     with self.subTest('explicit_false'):
-      config_explicit_false = pydantic_model.ExtendedLengyelConfig.from_dict({
-          'update_n_e': False,
-      })
+      config_explicit_false = (
+          extended_lengyel_config.ExtendedLengyelConfig.from_dict({
+              'update_n_e': False,
+          })
+      )
       self.assertFalse(config_explicit_false.update_n_e.value.any())
 
   def test_update_electron_density_time_varying_false_valid(self):
-    config_time_varying_false = pydantic_model.ExtendedLengyelConfig.from_dict({
-        'update_n_e': {0.0: False, 1.0: False},
-    })
+    config_time_varying_false = (
+        extended_lengyel_config.ExtendedLengyelConfig.from_dict({
+            'update_n_e': {0.0: False, 1.0: False},
+        })
+    )
     self.assertFalse(config_time_varying_false.update_n_e.value.any())
 
   def test_update_electron_density_scalar_and_time_varying_true_raises(self):
@@ -582,7 +592,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
           " 'extended_lengyel' does not support the 'n_e'"
           ' boundary condition.',
       ):
-        pydantic_model.ExtendedLengyelConfig.from_dict({
+        extended_lengyel_config.ExtendedLengyelConfig.from_dict({
             'update_n_e': True,
         })
 
@@ -593,7 +603,7 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
           " 'extended_lengyel' does not support the 'n_e'"
           ' boundary condition.',
       ):
-        pydantic_model.ExtendedLengyelConfig.from_dict({
+        extended_lengyel_config.ExtendedLengyelConfig.from_dict({
             'update_n_e': {0.0: False, 1.0: True},
         })
 

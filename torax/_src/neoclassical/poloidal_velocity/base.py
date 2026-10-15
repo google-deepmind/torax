@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for neoclassical poloidal velocity models."""
+
 from __future__ import annotations
 
 import abc
 import dataclasses
+
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -60,7 +62,7 @@ class PoloidalVelocityModel(abc.ABC):
     """Calculates neoclassical poloidal velocity."""
 
 
-class PoloidalVelocityModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class PoloidalVelocityModelConfig(torax_pydantic.ConfigBase):
   """Base class for poloidal velocity model configs."""
 
   poloidal_velocity_multiplier: array_typing.FloatScalar = 1.0

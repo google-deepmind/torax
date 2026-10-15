@@ -18,13 +18,13 @@ import functools
 from typing import Annotated, TypeAlias
 
 import pydantic
+from torax._src.torax_pydantic import config_base
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
 
-TIME_INVARIANT = model_base.TIME_INVARIANT
-JAX_STATIC = model_base.JAX_STATIC
+TIME_INVARIANT = config_base.TIME_INVARIANT
+JAX_STATIC = config_base.JAX_STATIC
 
 # Physical units.
 # keep-sorted start
@@ -47,7 +47,7 @@ NumpyArray = pydantic_types.NumpyArray
 NumpyArray1D = pydantic_types.NumpyArray1D
 NumpyArray1DSorted = pydantic_types.NumpyArray1DSorted
 
-BaseModelFrozen = model_base.BaseModelFrozen
+ConfigBase = config_base.ConfigBase
 
 TimeVaryingScalar = interpolated_param_1d.TimeVaryingScalar
 TimeVaryingArray = interpolated_param_2d.TimeVaryingArray

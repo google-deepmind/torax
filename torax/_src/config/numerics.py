@@ -67,7 +67,7 @@ class RuntimeParams:
     return tuple(evolving_names)
 
 
-class Numerics(torax_pydantic.BaseModelFrozen):
+class Numerics(torax_pydantic.ConfigBase):
   """Generic numeric parameters for the simulation.
 
   The `from_dict(...)` method can accept a dictionary defined by

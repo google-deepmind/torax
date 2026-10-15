@@ -406,7 +406,7 @@ except ImportError:
   ]
 
 
-class SmoothingZone(torax_pydantic.BaseModelFrozen):
+class SmoothingZone(torax_pydantic.ConfigBase):
   """Defines a radial zone with a specific smoothing width."""
 
   rho_min: torax_pydantic.UnitInterval
@@ -420,7 +420,7 @@ class SmoothingZone(torax_pydantic.BaseModelFrozen):
     return self
 
 
-class TransportModel(torax_pydantic.BaseModelFrozen):
+class TransportModel(torax_pydantic.ConfigBase):
   """Model for the TransportModel.
 
   Attributes:

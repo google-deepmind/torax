@@ -14,7 +14,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.neoclassical import config as neoclassical_config
 from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.test_utils import default_sources
 
@@ -27,7 +27,7 @@ class SourceModelsTest(parameterized.TestCase):
         default_sources.get_default_source_config()
     )
     self.default_neoclassical_config = (
-        neoclassical_pydantic_model.AnalyticalNeoclassicalConfig.from_dict({})
+        neoclassical_config.AnalyticalNeoclassicalConfig.from_dict({})
     )
     self.default_source_model = self.default_sources_config.build_models()
 

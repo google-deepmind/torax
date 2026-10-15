@@ -79,7 +79,7 @@ class RuntimeParams:
     return calculate_fractions_from_ratios(self.n_e_ratios_face)  # pyrefly: ignore[bad-return]
 
 
-class ElectronDensityRatios(torax_pydantic.BaseModelFrozen):
+class ElectronDensityRatios(torax_pydantic.ConfigBase):
   """Impurity content defined by ratios of impurity to electron density.
 
   Attributes:
