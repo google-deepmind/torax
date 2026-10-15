@@ -31,11 +31,9 @@ class ExBRotationOutput:
 
   Attributes:
     v_ExB: Total ExB velocity profile on the face grid [m/s].
-    v_ExB_poloidal_and_pressure: v_ExB from poloidal rotation + pressure
-      gradient contributions:
-      (dpi/dr / (Zi * e * ni) + v_theta * B_phi) / B_total.
-    v_ExB_toroidal: v_ExB from toroidal velocity contribution:
-      -v_phi * B_theta / B_total.
+    v_ExB_poloidal_and_pressure: v_ExB from poloidal rotation and pressure
+      gradient contributions [m/s].
+    v_ExB_toroidal: v_ExB from toroidal velocity contribution [m/s].
     Er: Total radial electric field on the face grid [V/m].
   """
 
@@ -62,12 +60,17 @@ def _calculate_radial_electric_field(
 ]:
   """Calculates the radial electric field Er with separate components.
 
-  Er = (1 / (Zi * e * ni)) * dpi/dr - v_phi * B_theta + v_theta * B_phi
+  Er = (1 / (Zi * e * ni)) * dpi/dr + v_phi * B_theta - v_theta * B_phi
+
+  This is the main-ion radial force balance in right-handed (r, theta, phi)
+  coordinates, see e.g. K. H. Burrell, "Effects of E x B velocity shear and
+  magnetic shear on turbulence and transport in magnetic confinement devices",
+  Phys. Plasmas 4, 1499 (1997), https://doi.org/10.1063/1.872367.
 
   We split Er into:
-  - Er_poloidal_and_pressure: (1 / (Zi * e * ni)) * dpi/dr + v_theta * B_phi
+  - Er_poloidal_and_pressure: (1 / (Zi * e * ni)) * dpi/dr - v_theta * B_phi
     This contribution is from the pressure gradient and poloidal rotation.
-  - Er_toroidal: -v_phi * B_theta
+  - Er_toroidal: v_phi * B_theta
     This contribution is from toroidal velocity.
 
   Args:
@@ -95,14 +98,13 @@ def _calculate_radial_electric_field(
   denominator = Z_i_face * constants.CONSTANTS.q_e * n_i.face_value()
 
   Er_poloidal_and_pressure = (
-      math_utils.safe_divide(
-          num=jnp.array(1.0), denom=denominator, eps=1e-7
-      ) * dpi_dr
-      + poloidal_velocity.face_value() * B_tor_face
+      math_utils.safe_divide(num=jnp.array(1.0), denom=denominator, eps=1e-7)
+      * dpi_dr
+      - poloidal_velocity.face_value() * B_tor_face
   )
 
   Er_toroidal = (
-      -toroidal_angular_velocity.face_value()
+      toroidal_angular_velocity.face_value()
       * geo.R_major_profile_face
       * B_pol_face
   )
