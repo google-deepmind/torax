@@ -262,6 +262,9 @@ Physical Parameters
 ``seed_impurity_weights`` (dict[str, **time-varying-scalar**] | None [default = None])
   Relative weights of seeded impurity species (e.g., ``{'N': 0.95, 'Ar': 0.05}``).
   Required if ``computation_mode='inverse'``. Must be ``None`` in forward mode.
+  In inverse mode, the sum of the weights must be non-negligible (at least
+  ``1e-7``) at all times, and all seeded species must have a non-coronal Mavrin
+  cooling rate fit (He, Li, Be, C, N, O, Ne, Ar).
 
 ``fixed_impurity_concentrations`` (dict[str, **time-varying-scalar**] [default = {}])
   Fixed background impurity concentrations at the edge (:math:`n_z/n_e`).

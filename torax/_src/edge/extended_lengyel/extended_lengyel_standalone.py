@@ -26,6 +26,7 @@ from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src.edge import base
+from torax._src.edge.extended_lengyel import collisional_radiative_models
 from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
@@ -1349,6 +1350,19 @@ def _validate_inputs_for_computation_mode(
     if not seed_impurity_weights:
       raise ValueError(
           'Seed impurity weights must be provided for inverse computation.'
+      )
+    unsupported_seed_impurities = sorted(
+        ion_symbol
+        for ion_symbol in seed_impurity_weights
+        if not collisional_radiative_models.has_noncoronal_cooling_rate(
+            ion_symbol
+        )
+    )
+    if unsupported_seed_impurities:
+      raise ValueError(
+          'Seed impurity weights contain species without a non-coronal Mavrin'
+          ' cooling rate fit, which the edge model treats as non-radiating:'
+          f' {unsupported_seed_impurities}.'
       )
   else:
     raise ValueError(f'Unknown computation mode: {computation_mode}')

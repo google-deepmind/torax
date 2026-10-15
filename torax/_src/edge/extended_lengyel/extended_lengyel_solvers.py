@@ -28,11 +28,21 @@ from torax._src.solver import jax_root_finding
 # pylint: disable=invalid-name
 
 # Scale factors for physics calculations to avoid numerical issues in fp32.
-_LINT_SCALE_FACTOR = 1e30
-_DENSITY_SCALE_FACTOR = 1e-20
-
-# _LINT_SCALE_FACTOR * _DENSITY_SCALE_FACTOR**2
-_LINT_K_INVERSE_SCALE_FACTOR = 1e-10
+# Defined via integer base-10 exponents so that derived scale factors are
+# computed from exact integer arithmetic rather than products of extreme floats.
+_LINT_SCALE_EXPONENT = 30
+_DENSITY_SCALE_EXPONENT = -20
+_HEAT_FLUX_SCALE_EXPONENT = -5
+_LINT_SCALE_FACTOR = 10.0**_LINT_SCALE_EXPONENT
+_DENSITY_SCALE_FACTOR = 10.0**_DENSITY_SCALE_EXPONENT
+_HEAT_FLUX_SCALE_FACTOR = 10.0**_HEAT_FLUX_SCALE_EXPONENT
+# Converts k * L_INT (with scaled density and L_INT) into the units of the
+# scaled squared heat flux. Equal to 1.0 for the current choice of exponents.
+_LINT_K_INVERSE_SCALE_FACTOR = 10.0 ** (
+    _LINT_SCALE_EXPONENT
+    + 2 * _DENSITY_SCALE_EXPONENT
+    - 2 * _HEAT_FLUX_SCALE_EXPONENT
+)
 
 # scale factors for residuals
 _KAPPA_SCALE_FACTOR = 1e-3
@@ -668,8 +678,10 @@ def _solve_for_c_z_prefactor(
   Lf_div_u = Lf_cc_u - Lf_cc_div
 
   # Define shorthand variables for clarity, matching the paper's notation.
-  qu = sol_model.state.q_parallel
-  qcc = sol_model.parallel_heat_flux_at_cc_interface
+  # Heat fluxes are scaled so that squared heat fluxes and k * L_INT share
+  # units (see _LINT_K_INVERSE_SCALE_FACTOR) and stay well within fp32 range.
+  qu = sol_model.state.q_parallel * _HEAT_FLUX_SCALE_FACTOR
+  qcc = sol_model.parallel_heat_flux_at_cc_interface * _HEAT_FLUX_SCALE_FACTOR
   b = sol_model.params.divertor_broadening_factor
   # `k` is a lumped parameter from the Lengyel model derivation.
   # See Eq. 33 in Body et al. 2025.
@@ -689,13 +701,14 @@ def _solve_for_c_z_prefactor(
   # Calculate the squared parallel heat flux at the divertor entrance.
   # This formula is derived by combining the Lengyel equations for the region
   # above and below the divertor entrance. See Eq. 40 in Body et al. 2025.
+  # The scaled seeded L_INT terms (Ls_*) are O(1-10) for typical SOL conditions
+  # and strictly positive since inverse mode requires a positive total seeded
+  # impurity weight and only seeded species with a non-coronal cooling rate
+  # fit (validated in the config), so the divisions are safe.
   q_div_squared = (
-      Ls_div_u
-      / _LINT_SCALE_FACTOR
-      * (qcc**2 + k * Lf_cc_div / _LINT_K_INVERSE_SCALE_FACTOR)
-      + (Ls_cc_div / _LINT_SCALE_FACTOR)
-      * (qu**2 - k * Lf_div_u / _LINT_K_INVERSE_SCALE_FACTOR)
-  ) / (Ls_div_u / _LINT_SCALE_FACTOR / b**2 + Ls_cc_div / _LINT_SCALE_FACTOR)
+      Ls_div_u * (qcc**2 + k * Lf_cc_div / _LINT_K_INVERSE_SCALE_FACTOR)
+      + Ls_cc_div * (qu**2 - k * Lf_div_u / _LINT_K_INVERSE_SCALE_FACTOR)
+  ) / (Ls_div_u / b**2 + Ls_cc_div)
 
   # Calculate the required seeded impurity concentration `c_z`.
   # See Eq. 42 in Body et al. 2025.
@@ -764,7 +777,9 @@ def _solve_for_qcc(
   Lint_div_u = Lint_cc_u - Lint_cc_div
 
   # Define shorthand variables for clarity, matching the paper's notation.
-  qu = sol_model.state.q_parallel
+  # The heat flux is scaled so that squared heat fluxes and k * L_INT share
+  # units (see _LINT_K_INVERSE_SCALE_FACTOR) and stay well within fp32 range.
+  qu = sol_model.state.q_parallel * _HEAT_FLUX_SCALE_FACTOR
   b = sol_model.params.divertor_broadening_factor
   # `k` is a lumped parameter from the Lengyel model derivation.
   # See Eq. 33 in Body et al. 2025.
@@ -788,7 +803,7 @@ def _solve_for_qcc(
 
   # Check for unphysical result.
   status = jnp.where(
-      qcc_squared <= constants.CONSTANTS.eps,
+      qcc_squared <= 0.0,
       PhysicsOutcome.Q_CC_SQUARED_NEGATIVE,
       PhysicsOutcome.SUCCESS,
   )
@@ -797,16 +812,15 @@ def _solve_for_qcc(
   # We scale inputs to smooth_sqrt by qu^2 + epsilon so that the dimensionless
   # argument is order 1 (or 0), allowing a fixed dimensionless epsilon to be
   # effective. This prevents vanishing gradients for deep negative excursions.
-  # TODO(b/512078510): Pick a reasonable eps value for safe_divide here.
   qcc_norm = math_utils.smooth_sqrt(
       math_utils.safe_divide(
           num=qcc_squared,
           denom=qu**2,
-          eps=1e-7,
+          eps=constants.CONSTANTS.eps,
       ),
       epsilon=1e-3,
   )
 
-  qcc = qcc_norm * jnp.sqrt(qu**2)
+  qcc = qcc_norm * jnp.abs(sol_model.state.q_parallel)
 
   return qcc, status

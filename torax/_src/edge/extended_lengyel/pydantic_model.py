@@ -18,7 +18,9 @@ import logging
 from typing import Annotated, Any, Literal, Mapping, Self
 import chex
 import pydantic
+from torax._src import constants
 from torax._src.edge import base
+from torax._src.edge.extended_lengyel import collisional_radiative_models
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_model
@@ -353,6 +355,37 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
             'seed_impurity_weights must be provided for inverse computation'
             ' mode.'
         )
+      unsupported_seed_impurities = sorted(
+          ion_symbol
+          for ion_symbol in self.seed_impurity_weights
+          if not collisional_radiative_models.has_noncoronal_cooling_rate(
+              ion_symbol
+          )
+      )
+      if unsupported_seed_impurities:
+        raise ValueError(
+            'seed_impurity_weights contains species without a non-coronal'
+            ' Mavrin cooling rate fit, which the edge model treats as'
+            f' non-radiating: {unsupported_seed_impurities}.'
+        )
+      # The total seeded weight is piecewise linear (or piecewise constant) on
+      # the union of all time knots, so checking the knots covers all times.
+      knot_times = sorted(
+          set().union(
+              *(w.time.tolist() for w in self.seed_impurity_weights.values())
+          )
+      )
+      for t in knot_times:
+        total_weight = sum(
+            float(weight.get_value(t))
+            for weight in self.seed_impurity_weights.values()
+        )
+        if total_weight < constants.CONSTANTS.eps:
+          raise ValueError(
+              'The sum of seed_impurity_weights must be positive (>='
+              f' {constants.CONSTANTS.eps}) at all times for inverse'
+              f' computation mode, but it is {total_weight} at t={t}.'
+          )
       if self.fixed_impurity_concentrations:
         overlap = set(self.seed_impurity_weights.keys()) & set(
             self.fixed_impurity_concentrations.keys()

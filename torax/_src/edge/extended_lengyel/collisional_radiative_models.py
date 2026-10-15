@@ -26,6 +26,7 @@ from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import mavrin_2017_charge_states_data
+from torax._src.physics.radiation import mavrin_noncoronal_cooling_rate
 from torax._src.physics.radiation import radiation
 
 # pylint: disable=invalid-name
@@ -164,6 +165,21 @@ def _calculate_L_INT(
   Lint = jax.scipy.integrate.trapezoid(y=Lz_sqrt_Te, x=electron_temp_ev)
 
   return Lint
+
+
+def has_noncoronal_cooling_rate(ion_symbol: str) -> bool:
+  """Returns whether a non-coronal Mavrin cooling rate fit exists for a species.
+
+  Species without a fit are treated as non-radiating (Lz = 0) when calculating
+  L_INT.
+
+  Args:
+    ion_symbol: The impurity species.
+  """
+  # Alias He3 and He4 to He as they are chemically identical
+  if ion_symbol in ('He3', 'He4'):
+    ion_symbol = 'He'
+  return ion_symbol in mavrin_noncoronal_cooling_rate.COEFFS
 
 
 # TODO(b/446608829). Modify intent of this function to only be used for

@@ -558,6 +558,15 @@ class ExtendedLengyelTest(parameterized.TestCase):
           T_e_target=10.0,
           seed_impurity_weights={},
       )
+    with self.assertRaisesRegex(
+        ValueError,
+        r"without a non-coronal Mavrin cooling rate fit.*\['W'\]",
+    ):
+      extended_lengyel_standalone._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
+          T_e_target=10.0,
+          seed_impurity_weights={'N': 1.0, 'W': 0.1},
+      )
 
   @parameterized.named_parameters(
       ('low_ip', {'plasma_current': 2.0e6, 'power_crossing_separatrix': 10e6}),
