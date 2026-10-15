@@ -581,8 +581,8 @@ def _iterate_psi_and_sources(
         runtime_params,
         geo,
         source_profiles.bootstrap_current,
-        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(  # pyrefly: ignore[bad-argument-type]
-            sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
+        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
+            sum(source_profiles.psi.values(), start=jnp.zeros_like(geo.rho)),
             geo,
             runtime_params.numerics.min_rho_norm,
         ),
@@ -621,7 +621,7 @@ def get_j_toroidal_total_hires_with_external_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
-    j_toroidal_external: jax.Array,
+    j_toroidal_external: array_typing.FloatVectorCell,
 ) -> jax.Array:
   """Calculates j_total hires when the Ohmic current is given by a formula."""
   # Convert bootstrap current density to toroidal, and calculate high-resolution

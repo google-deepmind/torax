@@ -33,8 +33,9 @@ from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
-
 # pylint: disable=invalid-name
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
@@ -47,52 +48,6 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   use_absolute_current: bool
 
 
-def calculate_generic_current(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    unused_state: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
-  """Calculates the external parallel current density profile on the cell grid."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-  I_generic = _calculate_I_generic(
-      runtime_params,
-      source_params,
-  )
-  # form of external current on cell grid
-  generic_current_form = jnp.exp(
-      -((geo.rho_norm - source_params.gaussian_location) ** 2)
-      / (2 * source_params.gaussian_width**2)
-  )
-
-  Cext = I_generic / math_utils.area_integration(generic_current_form, geo)
-  j_tor = Cext * generic_current_form
-
-  return (
-      psi_calculations.j_toroidal_to_j_parallel(
-          j_tor, geo, runtime_params.numerics.min_rho_norm
-      ),
-  )
-
-
-def _calculate_I_generic(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    source_params: RuntimeParams,
-) -> chex.Numeric:
-  """Calculates the total value of external current."""
-  return jnp.where(
-      source_params.use_absolute_current,
-      source_params.I_generic,
-      (
-          runtime_params.profile_conditions.Ip
-          * source_params.fraction_of_total_current
-      ),
-  )
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
@@ -101,7 +56,42 @@ class GenericCurrentSource(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.PSI,
   )
-  model_func: source.SourceProfileFunction = calculate_generic_current  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    """Calculates the external parallel current density profile on the cell grid."""
+    del core_profiles, calculated_source_profiles, conductivity
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    assert isinstance(source_params, RuntimeParams)
+
+    I_generic = jnp.where(
+        source_params.use_absolute_current,
+        source_params.I_generic,
+        (
+            runtime_params.profile_conditions.Ip
+            * source_params.fraction_of_total_current
+        ),
+    )
+    # form of external current on cell grid
+    generic_current_form = jnp.exp(
+        -((geo.rho_norm - source_params.gaussian_location) ** 2)
+        / (2 * source_params.gaussian_width**2)
+    )
+
+    Cext = I_generic / math_utils.area_integration(generic_current_form, geo)
+    j_tor = Cext * generic_current_form
+
+    return (
+        psi_calculations.j_toroidal_to_j_parallel(
+            j_tor, geo, runtime_params.numerics.min_rho_norm
+        ),
+    )
 
 
 class GenericCurrentSourceConfig(source_base.SourceConfigBase):
@@ -134,10 +124,6 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
   )
   use_absolute_current: bool = False
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return calculate_generic_current  # pyrefly: ignore[bad-return]
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -153,4 +139,4 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
     )
 
   def build_source(self) -> GenericCurrentSource:
-    return GenericCurrentSource(model_func=self.model_func)
+    return GenericCurrentSource()
