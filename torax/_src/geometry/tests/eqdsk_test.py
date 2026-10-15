@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections.abc import Callable
 import dataclasses
 from unittest import mock
 
@@ -308,6 +309,106 @@ class EqdskGeometryTest(parameterized.TestCase):
           geometry_file='iterhybrid_cocos11.eqdsk',
           cocos=11,
           target_psi_grid_resolution=0,
+      )
+
+  def test_flux_surface_quantities_are_invariant_to_contour_seam(self):
+    # Moving the start/end vertex of each closed contour must not change any
+    # geometry quantity, since a closed flux surface has no preferred start.
+    reference = _build_iterhybrid_geometry()
+    shifted_seam = _build_iterhybrid_geometry_with_contours(
+        lambda contours: [_shift_closed_contour_seam(c, 10) for c in contours]
+    )
+    _assert_geometries_close(shifted_seam, reference)
+
+  @parameterized.parameters(8, 64)
+  def test_closed_line_elements_sum_to_polygon_perimeter(self, n_points):
+    radius = 0.5
+    theta = np.linspace(0.0, 2 * np.pi, n_points, endpoint=False)
+    r = 6.2 + radius * np.cos(theta)
+    z = 0.3 + radius * np.sin(theta)
+
+    dl = eqdsk._line_elements(r, z, closed=True)
+
+    # Perimeter of a regular n-gon inscribed in a circle of this radius.
+    polygon_perimeter = 2 * n_points * radius * np.sin(np.pi / n_points)
+    np.testing.assert_allclose(np.sum(dl), polygon_perimeter, rtol=1e-12)
+
+  def test_open_line_elements_sum_to_polyline_length(self):
+    # Two segments of length 3 and 4. Each end vertex gets half of its single
+    # segment and the middle vertex gets half of each.
+    r = np.array([0.0, 3.0, 3.0])
+    z = np.array([0.0, 0.0, 4.0])
+
+    dl = eqdsk._line_elements(r, z, closed=False)
+
+    np.testing.assert_allclose(dl, [1.5, 3.5, 2.0])
+
+
+def _shift_closed_contour_seam(contour: np.ndarray, shift: int) -> np.ndarray:
+  """Returns a closed contour that starts `shift` vertices later.
+
+  The contour traces the same loop, but its first (and repeated last) vertex is
+  a different point on the loop.
+
+  Args:
+    contour: Closed contour from contourpy, with its first vertex repeated at
+      the end.
+    shift: Number of vertices by which to move the start of the contour.
+
+  Returns:
+    Closed contour with the start/end vertex shifted by `shift` positions.
+  """
+  if not eqdsk._is_closed(contour):
+    return contour
+  rolled = np.roll(contour[:-1], shift, axis=0)
+  return np.vstack([rolled, rolled[:1]])
+
+
+def _build_iterhybrid_geometry():
+  return eqdsk.EQDSKConfig(
+      geometry_file='iterhybrid_cocos11.eqdsk', cocos=11
+  ).build_geometry()
+
+
+def _build_iterhybrid_geometry_with_contours(
+    transform_contours: Callable[[list[np.ndarray]], list[np.ndarray]],
+):
+  """Builds the ITER hybrid EQDSK geometry with modified contourpy output.
+
+  Args:
+    transform_contours: Applied to the list of contour lines that contourpy
+      returns for each psi level, before the geometry code sees them.
+
+  Returns:
+    The constructed StandardGeometry for the ITER hybrid EQDSK equilibrium.
+  """
+  original_contour_generator = eqdsk.contourpy.contour_generator
+
+  def _contour_generator(*args, **kwargs):
+    generator = original_contour_generator(*args, **kwargs)
+    return mock.Mock(
+        create_contour=lambda level: transform_contours(
+            generator.create_contour(level)
+        )
+    )
+
+  with mock.patch.object(
+      eqdsk.contourpy, 'contour_generator', _contour_generator
+  ):
+    return _build_iterhybrid_geometry()
+
+
+def _assert_geometries_close(actual, expected):
+  """Asserts that all array fields of two geometries agree to rounding error."""
+  for field in dataclasses.fields(expected):
+    expected_value = getattr(expected, field.name)
+    if isinstance(expected_value, array_typing.Array):
+      np.testing.assert_allclose(
+          getattr(actual, field.name),
+          expected_value,
+          rtol=1e-12,
+          atol=1e-12,
+          err_msg=field.name,
       )
 
 

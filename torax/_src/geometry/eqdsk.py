@@ -158,6 +158,61 @@ class EQDSKConfig(base.BaseGeometryConfig):
     return standard_geometry.build_standard_geometry(intermediates)
 
 
+def _is_closed(contour: np.ndarray) -> bool:
+  """Returns whether a `contourpy` contour line is a closed loop.
+
+  `contourpy` marks a closed loop by repeating its first vertex at the end, so
+  a non-degenerate closed polygon (which requires at least three distinct
+  vertices to enclose an area rather than collapsing to a point or line segment)
+  has length >= 4. Lines that run into the edge of the contouring domain are
+  open and have different first and last vertices.
+
+  Args:
+    contour: (N, 2) array of (R, Z) vertices as returned by `contourpy`.
+
+  Returns:
+    True if `contour` is a closed loop with at least three distinct vertices.
+  """
+  return len(contour) >= 4 and bool(np.allclose(contour[0], contour[-1]))
+
+
+def _line_elements(r: np.ndarray, z: np.ndarray, closed: bool) -> np.ndarray:
+  """Returns the line element dl at each vertex of a curve.
+
+  Flux-surface integrals are evaluated as sums over the curve vertices,
+  `integral(f dl) ~= sum_i f_i * dl_i`. Using the trapezoidal rule, each vertex
+  gets half the length of each segment adjacent to it, so the elements sum to
+  the total curve length.
+
+  For a closed curve the segment from the last vertex back to the first is
+  included, so every vertex has two neighbours. The result then does not depend
+  on which vertex the curve starts at, and the elements sum to the polygon
+  perimeter. For an open curve the two end vertices have only one neighbour
+  each, and the elements sum to the length of the open polyline.
+
+  Args:
+    r: R coordinates of the curve vertices. For a closed curve, the first vertex
+      must not be repeated at the end.
+    z: Z coordinates of the curve vertices, with the same convention as `r`.
+    closed: Whether the curve is a closed loop.
+
+  Returns:
+    Array of the same length as `r` with the line element at each vertex.
+  """
+  if closed:
+    # segment_lengths[i] is the distance from vertex i to vertex i + 1,
+    # wrapping around from the last vertex to the first.
+    segment_lengths = np.hypot(np.roll(r, -1) - r, np.roll(z, -1) - z)
+    # Vertex i is shared by segments i - 1 and i.
+    return 0.5 * (np.roll(segment_lengths, 1) + segment_lengths)
+  # segment_lengths[i] is the distance from vertex i to vertex i + 1; there is
+  # no segment before the first vertex or after the last one.
+  segment_lengths = np.hypot(np.diff(r), np.diff(z))
+  segment_before_vertex = np.concatenate([[0.0], segment_lengths])
+  segment_after_vertex = np.concatenate([segment_lengths, [0.0]])
+  return 0.5 * (segment_before_vertex + segment_after_vertex)
+
+
 def _construct_intermediates_from_eqdsk(
     geometry_directory: str | None,
     geometry_file: str | None,
@@ -329,6 +384,9 @@ def _construct_intermediates_from_eqdsk(
       n_surfaces,
   )
 
+  # Each entry of `surfaces` is (R vertices, Z vertices, closed), where `closed`
+  # says whether the vertices form a closed loop (without a repeated closing
+  # vertex) or an open curve.
   surfaces = []
   psi_contour_generator = contourpy.contour_generator(X, Z, masked_psi_2dgrid)
 
@@ -341,8 +399,13 @@ def _construct_intermediates_from_eqdsk(
           Possible reason is too many surfaces requested.
           Try reducing n_surfaces from the current value of {n_surfaces}.
           """)
-    x_surface, z_surface = vertices[0].T[0], vertices[0].T[1]
-    surfaces.append((x_surface, z_surface))
+    contour = vertices[0]
+    closed = _is_closed(contour)
+    if closed:
+      # Drop the repeated closing vertex so that each point on the surface
+      # appears once.
+      contour = contour[:-1]
+    surfaces.append((contour[:, 0], contour[:, 1], closed))
 
   # ------------------------------------------------------------------ #
   # ---- 3. Interpolate everything onto the new flux surface grid ---- #
@@ -388,11 +451,8 @@ def _construct_intermediates_from_eqdsk(
 
   # Compute fsa for each surface
   # Note: surfaces is from psi[1:]
-  for n, (x_surface, z_surface) in enumerate(surfaces):
-    # Define line elements on which we will integrate
-    surface_dl = np.sqrt(
-        np.gradient(x_surface) ** 2 + np.gradient(z_surface) ** 2
-    )
+  for n, (x_surface, z_surface, surface_closed) in enumerate(surfaces):
+    surface_dl = _line_elements(x_surface, z_surface, surface_closed)
 
     # Calculate gradient of psi in 2D
     surface_dpsi_x = psi_2dgrid_interpolator.ev(x_surface, z_surface, dx=1)
@@ -491,30 +551,11 @@ def _construct_intermediates_from_eqdsk(
       if len(x_surface) < _MIN_CONTOUR_POINTS_FOR_EXACT_INTEGRAL:
         trapped_fraction[n + 1] = np.nan
       else:
-        surface_B = np.sqrt(surface_B2)
-        if (
-            len(x_surface) > 1
-            and np.isclose(x_surface[0], x_surface[-1])
-            and np.isclose(z_surface[0], z_surface[-1])
-        ):
-          x_closed = x_surface[:-1]
-          z_closed = z_surface[:-1]
-          B_closed = surface_B[:-1]
-          Bpol_closed = surface_Bpol[:-1]
-        else:
-          x_closed = x_surface
-          z_closed = z_surface
-          B_closed = surface_B
-          Bpol_closed = surface_Bpol
-        segment_lengths = np.hypot(
-            np.roll(x_closed, -1) - x_closed,
-            np.roll(z_closed, -1) - z_closed,
-        )
-        dl_closed = 0.5 * (segment_lengths + np.roll(segment_lengths, 1))
         trapped_fraction[n + 1] = (
             trapped_fraction_lib.calculate_bounce_averaged_trapped_fraction(
-                B=B_closed,
-                dl_over_Bp=dl_closed / Bpol_closed,
+                B=np.sqrt(surface_B2),
+                # Same line elements as the flux-surface averages above.
+                dl_over_Bp=surface_dl / surface_Bpol,
             )
         )
     Ip[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
