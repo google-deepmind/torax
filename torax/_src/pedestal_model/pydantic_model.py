@@ -567,18 +567,6 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
       )
     return self
 
-  def __getattr__(self, name: str) -> Any:
-    # Temporary compatibility shim for callers reading structure fields directly
-    # on `torax_config.pedestal` (e.g. `pedestal.n_e_ped` or
-    # `pedestal.model_name`).
-    structure_model = self.__dict__.get("structure_model")
-    if (
-        structure_model is not None
-        and name in structure_model.__class__.model_fields
-    ):
-      return getattr(structure_model, name)
-    return super().__getattr__(name)  # pyrefly: ignore[missing-attribute]
-
   def build_pedestal_model(self) -> pedestal_model.PedestalModel:
     """Builds the pedestal model."""
     return pedestal_model.PedestalModel(
