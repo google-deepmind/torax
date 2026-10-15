@@ -75,11 +75,14 @@ class AdaptiveStepTest(parameterized.TestCase):
     loop_statistics = {
         'inner_solver_iterations': jnp.array(0, jax_utils.get_int_dtype()),
     }
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.sim_state.core_profiles,
         source_models=self.step_fn.solver.models.source_models,
+        source_states=self.step_fn.solver.models.source_models.initial_state(
+            self.runtime_params
+        ),
         explicit=True,
     )
     adaptive_step_state, _ = adaptive_step.compute_state(
@@ -94,6 +97,7 @@ class AdaptiveStepTest(parameterized.TestCase):
         runtime_params_provider=self.step_fn.runtime_params_provider,
         geometry_provider=self.step_fn.geometry_provider,
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state_t=self.sim_state.model_state,
         solver=self.step_fn.solver,
     )
     self.assertIsInstance(adaptive_step_state, adaptive_step.AdaptiveStepState)
@@ -193,6 +197,7 @@ class AdaptiveStepTest(parameterized.TestCase):
             runtime_params,
             mock.ANY,
             sim_state,
+            mock.ANY,
             mock.ANY,
             mock.ANY,
             mock.ANY,

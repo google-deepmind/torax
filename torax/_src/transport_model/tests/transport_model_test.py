@@ -172,11 +172,12 @@ class TransportMaskingTest(parameterized.TestCase):
         source_models,
         neoclassical_model,
     )
-    source_profiles = source_profile_builders.build_source_profiles(
+    source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
+        source_states=source_models.initial_state(runtime_params),
         explicit=True,
     )
     # We need a pedestal model even if unused by the fixed transport
@@ -368,11 +369,13 @@ class TransportMaskingTest(parameterized.TestCase):
         torax_config.sources.build_models(),
         torax_config.neoclassical.build_model(),
     )
-    source_profiles = source_profile_builders.build_source_profiles(
+    source_models = torax_config.sources.build_models()
+    source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        source_models=torax_config.sources.build_models(),
+        source_models=source_models,
+        source_states=source_models.initial_state(runtime_params),
         explicit=True,
     )
     transition_state = (
