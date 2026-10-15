@@ -50,13 +50,13 @@ class RotationTest(absltest.TestCase):
     )
     self.assertEqual(rotation_output.v_ExB.shape, self.geo.rho_face_norm.shape)
     self.assertEqual(
-        rotation_output.Er.face_value().shape, self.geo.rho_face_norm.shape
+        rotation_output.Er.shape, self.geo.rho_face_norm.shape
     )
 
   def test_electric_field_is_zero_for_zero_velocities_and_constant_pressure(
       self,
   ):
-    E_r, _, _ = rotation._calculate_radial_electric_field(
+    Er, _, _ = rotation._calculate_radial_electric_field(
         pressure_total_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
@@ -73,11 +73,11 @@ class RotationTest(absltest.TestCase):
         geo=self.geo,
     )
     np.testing.assert_allclose(
-        E_r.value, np.zeros_like(self.geo.rho_norm), atol=1e-12
+        Er, np.zeros_like(self.geo.rho_face_norm), atol=1e-12
     )
 
   def test_electric_field_is_not_zero_for_toroidal_velocity(self):
-    E_r, _, _ = rotation._calculate_radial_electric_field(
+    Er, _, _ = rotation._calculate_radial_electric_field(
         pressure_total_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
@@ -93,11 +93,11 @@ class RotationTest(absltest.TestCase):
         B_tor_face=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,
     )
-    self.assertTrue(np.any(np.abs(E_r.value) > 1e-12))
+    self.assertTrue(np.any(np.abs(Er) > 1e-12))
 
   def test_electric_field_is_not_zero_for_poloidal_velocity(self):
     """Test that radial electric field is not zero for non-zero poloidal velocity."""
-    E_r, _, _ = rotation._calculate_radial_electric_field(
+    Er, _, _ = rotation._calculate_radial_electric_field(
         pressure_total_i=core_profile_helpers.make_constant_core_profile(
             geo=self.geo, value=1.0
         ),
@@ -113,11 +113,11 @@ class RotationTest(absltest.TestCase):
         B_tor_face=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,
     )
-    self.assertTrue(np.any(np.abs(E_r.value) > 1e-12))
+    self.assertTrue(np.any(np.abs(Er) > 1e-12))
 
   def test_electric_field_is_not_zero_for_non_constant_pressure(self):
     """Test that radial electric field is not zero for non-zero poloidal velocity."""
-    E_r, _, _ = rotation._calculate_radial_electric_field(
+    Er, _, _ = rotation._calculate_radial_electric_field(
         pressure_total_i=cell_variable.CellVariable(
             value=np.linspace(1.0, 2.0, self.geo.rho_norm.size),
             face_centers=self.geo.rho_face_norm,
@@ -134,12 +134,39 @@ class RotationTest(absltest.TestCase):
         B_tor_face=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,
     )
-    self.assertTrue(np.any(np.abs(E_r.value) > 1e-12))
+    self.assertTrue(np.any(np.abs(Er) > 1e-12))
+
+  def test_v_ExB_is_sum_of_components(self):
+    rotation_output = rotation.calculate_rotation(
+        psi=cell_variable.CellVariable(
+            value=np.linspace(0.1, 1.0, self.geo.rho_norm.size) ** 2,
+            face_centers=self.geo.rho_face_norm,
+        ),
+        n_i=core_profile_helpers.make_constant_core_profile(self.geo, 1.0),
+        Z_i_face=np.ones_like(self.geo.rho_face_norm),
+        toroidal_angular_velocity=cell_variable.CellVariable(
+            value=np.linspace(2.0, 1.0, self.geo.rho_norm.size),
+            face_centers=self.geo.rho_face_norm,
+        ),
+        poloidal_velocity=core_profile_helpers.make_constant_core_profile(
+            self.geo, 0.0
+        ),
+        pressure_total_i=cell_variable.CellVariable(
+            value=np.linspace(2.0, 1.0, self.geo.rho_norm.size),
+            face_centers=self.geo.rho_face_norm,
+        ),
+        geo=self.geo,
+    )
+    np.testing.assert_allclose(
+        rotation_output.v_ExB,
+        rotation_output.v_ExB_poloidal_and_pressure
+        + rotation_output.v_ExB_toroidal,
+    )
 
   def test_v_ExB_is_zero_for_zero_electric_field(self):
     """Test that v_ExB is zero for zero electric field."""
     v_ExB = rotation._calculate_v_ExB(
-        Er_face=np.zeros_like(self.geo.rho_face_norm),
+        Er=np.zeros_like(self.geo.rho_face_norm),
         B_total_face=np.ones_like(self.geo.rho_face_norm),
     )
     # v_ExB should be zero when Er is zero.
@@ -150,7 +177,7 @@ class RotationTest(absltest.TestCase):
   def test_v_ExB_is_not_zero_for_non_zero_electric_field(self):
     """Test that v_ExB is not zero for non-zero electric field."""
     v_ExB = rotation._calculate_v_ExB(
-        Er_face=np.ones_like(self.geo.rho_face_norm),
+        Er=np.ones_like(self.geo.rho_face_norm),
         B_total_face=np.ones_like(self.geo.rho_face_norm),
     )
     # v_ExB should not be zero when Er is non-zero.

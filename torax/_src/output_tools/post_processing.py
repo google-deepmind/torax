@@ -1247,7 +1247,7 @@ def make_post_processed_outputs(
       alpha_mhd_miller=alpha_mhd_miller,
       impurity_species=impurity_radiation_outputs,
       poloidal_velocity=sim_state.core_profiles.poloidal_velocity.face_value(),
-      radial_electric_field=rotation_output.Er.face_value(),
+      radial_electric_field=rotation_output.Er,
       first_step=jnp.array(False),
   )
 
