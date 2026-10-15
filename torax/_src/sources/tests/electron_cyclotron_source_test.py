@@ -60,13 +60,13 @@ def _build_plasma_state(torax_config: model_config.ToraxConfig, runtime_params):
 
 
 def _calc_ec_current(runtime_params, geo, core_profiles) -> np.ndarray:
-  _, j_parallel = electron_cyclotron_source.calc_heating_and_current(
+  source = electron_cyclotron_source.ElectronCyclotronSource()
+  _, j_parallel = source.get_value(
       runtime_params=runtime_params,
       geo=geo,
-      source_name=electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID,
       core_profiles=core_profiles,
-      unused_calculated_source_profiles=None,
-      unused_conductivity=None,
+      calculated_source_profiles=None,
+      conductivity=None,
   )
   return np.asarray(j_parallel)
 
