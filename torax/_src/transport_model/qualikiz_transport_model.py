@@ -436,9 +436,7 @@ def _extract_qualikiz_plan(
       'Ai1': np.array(core_profiles.A_impurity_face),
   }
   if transport.rotation_mode != qualikiz_based_transport_model.RotationMode.OFF:
-    scan_dict['gammaE'] = (
-        transport.rotation_multiplier * qualikiz_inputs.gamma_E_QLK
-    )
+    scan_dict['gammaE'] = qualikiz_inputs.gamma_E_QLK
     scan_dict['Machtor'] = qualikiz_inputs.mach_toroidal
 
   qualikiz_plan = qualikiz_inputtools.QuaLiKizPlan(

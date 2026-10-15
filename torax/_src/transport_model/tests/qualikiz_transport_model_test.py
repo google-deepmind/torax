@@ -49,7 +49,13 @@ class QualikizTransportModelTest(parameterized.TestCase):
     # Building the model inputs.
     config = default_configs.get_default_config_dict()
     config['transport'] = {
-        'core_transport_models': {'qualikiz': {'model_name': 'qualikiz'}},
+        'core_transport_models': {
+            'qualikiz': {
+                'model_name': 'qualikiz',
+                'rotation_mode': 'full_radius',
+                'rotation_multiplier': 2.0,
+            }
+        },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
@@ -77,22 +83,36 @@ class QualikizTransportModelTest(parameterized.TestCase):
         np.ones(num_data),
         np.ones(num_data),
     ]
-    with mock.patch.object(subprocess, 'Popen', return_value=mock_process):
-      with mock.patch.object(np, 'loadtxt', side_effect=fake_qualikiz_results):
+    with (
+        mock.patch.object(subprocess, 'Popen', return_value=mock_process),
+        mock.patch.object(np, 'loadtxt', side_effect=fake_qualikiz_results),
+        mock.patch.object(
+            qualikiz_transport_model,
+            '_extract_qualikiz_plan',
+            wraps=qualikiz_transport_model._extract_qualikiz_plan,
+        ) as extract_plan_spy,
+    ):
+      # Calling the model
+      test_model = torax_config.transport.build_transport_model()
+      model_call = jax.jit(test_model.__call__) if jit else test_model.__call__
+      two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+      model_call(
+          runtime_params,
+          geo,
+          core_profiles,
+          pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          two_point_mask,
+      )
 
-        # Calling the model
-        test_model = torax_config.transport.build_transport_model()
-        model_call = (
-            jax.jit(test_model.__call__) if jit else test_model.__call__
-        )
-        two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-        model_call(
-            runtime_params,
-            geo,
-            core_profiles,
-            pedestal_transition_state_lib.PedestalTransitionState.empty(),
-            two_point_mask,
-        )
+    # rotation_multiplier is already applied in gamma_E_QLK, so gammaE passed
+    # to QuaLiKiz must not be scaled again.
+    plan = qualikiz_transport_model._extract_qualikiz_plan(
+        **extract_plan_spy.call_args.kwargs
+    )
+    np.testing.assert_allclose(
+        plan['scan_dict']['gammaE'],
+        extract_plan_spy.call_args.kwargs['qualikiz_inputs'].gamma_E_QLK,
+    )
 
 
 if __name__ == '__main__':
