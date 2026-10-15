@@ -29,4 +29,3 @@ class ImpurityRadiationHeatSink(source_lib.Source):
 
   SOURCE_ID = "impurity_radiation"
   AFFECTED_CORE_PROFILES = (source_lib.AffectedCoreProfile.TEMP_EL,)
-  model_func: source_lib.SourceProfileFunction

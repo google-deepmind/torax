@@ -89,8 +89,8 @@ class ImpurityRadiationConstantFractionTest(
         None,
     )
 
-    impurity_radiation_sink = impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink(
-        model_func=impurity_radiation_constant_fraction.radially_constant_fraction_of_Pin  # pyrefly: ignore[bad-argument-type]
+    impurity_radiation_sink = (
+        impurity_radiation_constant_fraction.ConstantFractionImpurityRadiationHeatSink()
     )
 
     impurity_radiation_heat_sink_power_density = (

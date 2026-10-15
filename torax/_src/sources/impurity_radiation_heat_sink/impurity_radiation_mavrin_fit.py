@@ -66,54 +66,62 @@ def calculate_total_impurity_radiation(
   return effective_LZ
 
 
-def impurity_radiation_mavrin_fit(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    unused_geo: geometry.Geometry,
-    source_name: str,
-    core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.FloatVectorCell, ...]:
-  """Model function for impurity radiation heat sink."""
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class MavrinImpurityRadiationHeatSink(
+    impurity_radiation_heat_sink.ImpurityRadiationHeatSink
+):
+  """Impurity radiation heat sink based on Mavrin polynomial fit."""
 
-  # Reconstruct array from mapping for DynamicIonMixture and effective LZ
-  # calculations.
-  ion_symbols = runtime_params.plasma_composition.impurity_names
-  impurity_fractions_arr = jnp.stack(
-      [core_profiles.impurity_fractions[symbol] for symbol in ion_symbols]
-  )
-  # Calculate the total effective cooling rate coming from all impurity species.
-  effective_LZ = calculate_total_impurity_radiation(
-      ion_symbols=runtime_params.plasma_composition.impurity_names,
-      impurity_fractions=impurity_fractions_arr,
-      T_e=core_profiles.T_e.value,
-  )
-  # The impurity density must be scaled to account for the true total impurity
-  # density. This is because in an IonMixture, the impurity density is an
-  # effective density as follows:
-  # n_imp_true * sum(fraction_imp * Z_imp) = n_imp_eff * Z_imp_eff
-  # where core_profiles.Z_impurity is the effective impurity charge for the
-  # IonMixture and core_profiles.n_impurity is effective total impurity density.
-  # However, the input fractions correspond to fractions of the true total
-  # impurity density which must be scaled from the effective density as follows:
-  # n_imp_true = n_imp_eff * Z_imp_eff / <Z>
-  # It is important that the calculated radiation corresponds to the true total
-  # impurity density, not the effective one.
-  impurity_density_scaling = core_profiles.impurity_density_scaling
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
+  ) -> tuple[source_lib.SourceProfileElement, ...]:
+    del geo, calculated_source_profiles, conductivity
+    # Reconstruct array from mapping for DynamicIonMixture and effective LZ
+    # calculations.
+    ion_symbols = runtime_params.plasma_composition.impurity_names
+    impurity_fractions_arr = jnp.stack(
+        [core_profiles.impurity_fractions[symbol] for symbol in ion_symbols]
+    )
+    # Calculate the total effective cooling rate coming from all impurity
+    # species.
+    effective_LZ = calculate_total_impurity_radiation(
+        ion_symbols=runtime_params.plasma_composition.impurity_names,
+        impurity_fractions=impurity_fractions_arr,
+        T_e=core_profiles.T_e.value,
+    )
+    # The impurity density must be scaled to account for the true total impurity
+    # density. This is because in an IonMixture, the impurity density is an
+    # effective density as follows:
+    # n_imp_true * sum(fraction_imp * Z_imp) = n_imp_eff * Z_imp_eff
+    # where core_profiles.Z_impurity is the effective impurity charge for the
+    # IonMixture and core_profiles.n_impurity is effective total impurity
+    # density.
+    # However, the input fractions correspond to fractions of the true total
+    # impurity density which must be scaled from the effective density as
+    # follows:
+    # n_imp_true = n_imp_eff * Z_imp_eff / <Z>
+    # It is important that the calculated radiation corresponds to the true
+    # total impurity density, not the effective one.
+    impurity_density_scaling = core_profiles.impurity_density_scaling
 
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-  radiation_profile = (
-      effective_LZ
-      * core_profiles.n_e.value
-      * core_profiles.n_impurity.value
-      * impurity_density_scaling
-      * source_params.radiation_multiplier
-  )
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    assert isinstance(source_params, RuntimeParams)
+    radiation_profile = (
+        effective_LZ
+        * core_profiles.n_e.value
+        * core_profiles.n_impurity.value
+        * impurity_density_scaling
+        * source_params.radiation_multiplier
+    )
 
-  # The impurity radiation heat sink is a negative source, so we return a
-  # negative profile.
-  return (-radiation_profile,)
+    # The impurity radiation heat sink is a negative source, so we return a
+    # negative profile.
+    return (-radiation_profile,)
 
 
 @jax.tree_util.register_dataclass
@@ -134,10 +142,6 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceConfigBase):
   )
   radiation_multiplier: float = 1.0
 
-  @property
-  def model_func(self) -> source_lib.SourceProfileFunction:
-    return impurity_radiation_mavrin_fit  # pyrefly: ignore[bad-return]
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -148,9 +152,5 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceConfigBase):
         radiation_multiplier=self.radiation_multiplier,
     )
 
-  def build_source(
-      self,
-  ) -> impurity_radiation_heat_sink.ImpurityRadiationHeatSink:
-    return impurity_radiation_heat_sink.ImpurityRadiationHeatSink(
-        model_func=self.model_func
-    )
+  def build_source(self) -> MavrinImpurityRadiationHeatSink:
+    return MavrinImpurityRadiationHeatSink()
