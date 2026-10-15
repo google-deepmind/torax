@@ -20,10 +20,10 @@ import chex
 import pydantic
 from torax._src import constants
 from torax._src.edge import base
-from torax._src.edge.extended_lengyel import collisional_radiative_models
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_model
+from torax._src.physics.radiation import radiation
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -358,8 +358,8 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       unsupported_seed_impurities = sorted(
           ion_symbol
           for ion_symbol in self.seed_impurity_weights
-          if not collisional_radiative_models.has_noncoronal_cooling_rate(
-              ion_symbol
+          if not radiation.has_mavrin_cooling_rate(
+              ion_symbol, radiation.MavrinModelType.NONCORONAL
           )
       )
       if unsupported_seed_impurities:
