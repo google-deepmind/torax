@@ -13,6 +13,7 @@
 # limitations under the License.
 """Solver methods for the extended Lengyel model."""
 
+import copy
 import dataclasses
 import enum
 import functools
@@ -148,35 +149,51 @@ def inverse_mode_fixed_point_solver(
 def forward_mode_fixed_point_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     iterations: int = extended_lengyel_defaults.FIXED_POINT_ITERATIONS,
+    relaxation_factor: float = (
+        extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR
+    ),
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the fixed-point iterative solver for the forward mode."""
-
-  # Relaxation function needed for fixed point iteration in forward mode for
-  # stability.
-  def _relax(new_value, prev_value, relaxation_factor=0.4):
-    return relaxation_factor * new_value + (1 - relaxation_factor) * prev_value
 
   def body_fun(i, carry):
 
     current_sol_model, _ = carry
 
-    # Store current values for the next relaxation step
-    prev_sol_model = current_sol_model
+    # Store previous state values for under-relaxation after the first step.
+    prev_state = copy.copy(current_sol_model.state)
 
-    # Update q_parallel based on the current separatrix temperature and alpha_t.
+    # Relaxation function needed for fixed point iteration in forward mode for
+    # stability. Applied only after the first iteration (i > 0).
+    def _relax(new_value, prev_value):
+      return jnp.where(
+          i > 0,
+          relaxation_factor * new_value
+          + (1.0 - relaxation_factor) * prev_value,
+          new_value,
+      )
+
+    # Update state variables in-place (with relaxation) in causal Gauss-Seidel /
+    # SOR order: q_parallel -> (q_cc) -> T_e_target -> kappa_e -> alpha_t.
+    #
+    # Each step updates current_sol_model.state immediately so downstream
+    # properties (T_e_separatrix, divertor_entrance_electron_temp,
+    # divertor_Z_eff, Z_eff_separatrix) use the latest relaxed values:
+    #
+    # 1. q_parallel is updated first from upstream power and alpha_t so that
+    #    _solve_for_qcc and calc_T_e_target have a consistent heat flux.
+    # 2. T_e_target is updated from q_cc and sets the downstream temperature
+    #    profile used by divertor_Z_eff (which does not depend on alpha_t).
+    # 3. kappa_e is updated from divertor_Z_eff before alpha_t because
+    #    T_e_separatrix and Z_eff_separatrix depend on kappa_e.
+    # 4. alpha_t is updated last and feeds directly into calc_q_parallel on the
+    #    next iteration.
     new_q_parallel = divertor_sol_1d_lib.calc_q_parallel(
         params=current_sol_model.params,
         T_e_separatrix=current_sol_model.T_e_separatrix,
         alpha_t=current_sol_model.state.alpha_t,
     )
-
-    # Relax q_parallel for stability.
-    # No relaxation for the first iteration (i=0), since we don't have a
-    # previous q_parallel to relax with.
-    current_sol_model.state.q_parallel = jax.lax.cond(
-        i > 0,
-        lambda: _relax(new_q_parallel, prev_sol_model.state.q_parallel),
-        lambda: new_q_parallel,
+    current_sol_model.state.q_parallel = _relax(
+        new_q_parallel, prev_state.q_parallel
     )
 
     # Calculate heat flux at the cc-interface for fixed impurity concentrations.
@@ -184,12 +201,15 @@ def forward_mode_fixed_point_solver(
 
     # Calculate new target electron temperature with forward two-point model.
     # Clip to small positive value to avoid NaNs.
-    current_sol_model.state.T_e_target = jnp.maximum(
+    new_T_e_target = jnp.maximum(
         divertor_sol_1d_lib.calc_T_e_target(
             sol_model=current_sol_model,
             parallel_heat_flux_at_cc_interface=new_q_cc,
         ),
         constants.CONSTANTS.eps,
+    )
+    current_sol_model.state.T_e_target = _relax(
+        new_T_e_target, prev_state.T_e_target
     )
 
     # Update kappa_e and alpha_t for the next iteration.
@@ -197,33 +217,13 @@ def forward_mode_fixed_point_solver(
         current_sol_model.divertor_Z_eff
     )
 
-    current_sol_model.state.alpha_t = divertor_sol_1d_lib.calc_alpha_t(
+    new_alpha_t = divertor_sol_1d_lib.calc_alpha_t(
         params=current_sol_model.params,
         T_e_separatrix=current_sol_model.T_e_separatrix,
         Z_eff_separatrix=current_sol_model.Z_eff_separatrix,
     )
+    current_sol_model.state.alpha_t = _relax(new_alpha_t, prev_state.alpha_t)
 
-    # Relaxation step after the first iteration
-    current_sol_model = jax.lax.cond(
-        i > 0,
-        lambda sol_model: dataclasses.replace(
-            sol_model,
-            state=dataclasses.replace(
-                sol_model.state,
-                T_e_target=_relax(
-                    sol_model.state.T_e_target,
-                    prev_sol_model.state.T_e_target,
-                ),
-                alpha_t=_relax(
-                    sol_model.state.alpha_t, prev_sol_model.state.alpha_t
-                ),
-            ),
-        ),
-        lambda sol_model: sol_model,
-        current_sol_model,
-    )
-
-    # Returning the updated-in-place current_sol_model.
     return current_sol_model, physics_outcome
 
   final_sol_model, physics_outcome = jax.lax.fori_loop(
@@ -414,12 +414,16 @@ def forward_mode_hybrid_solver(
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
     newton_raphson_tau_min: float = extended_lengyel_defaults.NEWTON_RAPHSON_TAU_MIN,
+    fixed_point_relaxation_factor: float = (
+        extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR
+    ),
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the hybrid solver for the forward mode."""
 
   intermediate_sol_model, _ = forward_mode_fixed_point_solver(
       initial_sol_model=initial_sol_model,
       iterations=fixed_point_iterations,
+      relaxation_factor=fixed_point_relaxation_factor,
   )
 
   # Safety Catch: Detect if fixed-point "sabotaged" the initial guess.

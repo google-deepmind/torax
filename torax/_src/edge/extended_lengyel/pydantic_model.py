@@ -117,6 +117,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       torax_pydantic.ValidatedDefault(True)
   )
   fixed_point_iterations: pydantic.PositiveInt | None = None
+  fixed_point_relaxation_factor: Annotated[
+      float, pydantic.Field(gt=0.0, le=1.0)
+  ] = extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR
   newton_raphson_iterations: pydantic.PositiveInt = (
       extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS
   )
@@ -404,6 +407,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         impurity_sot=self.impurity_sot,
         diverted=_get_optional_value(self.diverted, t),
         fixed_point_iterations=self.fixed_point_iterations,  # pyrefly: ignore[bad-argument-type]
+        fixed_point_relaxation_factor=self.fixed_point_relaxation_factor,
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,
         multistart_num_guesses=self.multistart_num_guesses,

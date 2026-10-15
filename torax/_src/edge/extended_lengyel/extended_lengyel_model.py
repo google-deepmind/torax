@@ -76,6 +76,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
       dataclasses.field(metadata={'static': True})
   )
   fixed_point_iterations: int
+  fixed_point_relaxation_factor: float
   newton_raphson_iterations: int
   newton_raphson_tol: float
   # Number of guesses for forward mode multistart solver.
@@ -292,6 +293,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         n_e_n_i_ratio_target=edge_params.n_e_n_i_ratio_target,
         mach_target=edge_params.mach_target,
         fixed_point_iterations=edge_params.fixed_point_iterations,
+        fixed_point_relaxation_factor=edge_params.fixed_point_relaxation_factor,
         newton_raphson_iterations=edge_params.newton_raphson_iterations,
         newton_raphson_tol=edge_params.newton_raphson_tol,
         multistart_num_guesses=edge_params.multistart_num_guesses,

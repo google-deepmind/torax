@@ -242,6 +242,10 @@ Control Parameters
   Number of iterations for the fixed-point solver. If None, defaults to 25
   (fixed-point mode) or 5 (hybrid mode).
 
+``fixed_point_relaxation_factor`` (float [default = 0.5])
+  Under-relaxation factor in ``(0, 1]`` for forward-mode fixed-point
+  iterations.
+
 ``newton_raphson_iterations`` (int [default = 30])
   Maximum number of iterations for the Newton-Raphson solver.
 

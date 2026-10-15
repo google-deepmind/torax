@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
@@ -374,6 +375,59 @@ class ExtendedLengyelSolverForwardTest(absltest.TestCase):
         2.34,
         rtol=1e-3,
     )
+
+  def test_forward_fixed_point_converges_in_attached_regime(self):
+    # In high-power attached regimes with weak impurity radiation, the unrelaxed
+    # fixed-point map for T_e_target has |d ln F / d ln T_t| > 1 and enters a
+    # period-2 limit cycle without under-relaxation.
+    params = dataclasses.replace(
+        self.params,
+        power_crossing_separatrix=25.0e6,
+        fixed_impurity_concentrations={'He': 0.01},
+    )
+    initial_sol_model = divertor_sol_1d.DivertorSOL1D(
+        params=params,
+        state=divertor_sol_1d.ExtendedLengyelState(
+            q_parallel=jnp.array(5.0e8),
+            c_z_prefactor=jnp.array(0.0),
+            kappa_e=jnp.array(1900.0),
+            alpha_t=jnp.array(0.1),
+            T_e_target=jnp.array(100.0),
+        ),
+    )
+
+    newton_sol, newton_status = (
+        extended_lengyel_solvers.forward_mode_newton_solver(
+            initial_sol_model=initial_sol_model,
+        )
+    )
+    assert isinstance(
+        newton_status.numerics_outcome, jax_root_finding.RootMetadata
+    )
+    self.assertEqual(newton_status.numerics_outcome.error, 0)
+
+    with self.subTest('unrelaxed_fails_to_converge'):
+      unrelaxed_sol, _ = (
+          extended_lengyel_solvers.forward_mode_fixed_point_solver(
+              initial_sol_model=initial_sol_model,
+              relaxation_factor=1.0,
+          )
+      )
+      self.assertGreater(
+          jnp.abs(unrelaxed_sol.state.T_e_target - newton_sol.state.T_e_target)
+          / newton_sol.state.T_e_target,
+          0.5,
+      )
+
+    with self.subTest('relaxed_converges'):
+      relaxed_sol, _ = extended_lengyel_solvers.forward_mode_fixed_point_solver(
+          initial_sol_model=initial_sol_model,
+      )
+      np.testing.assert_allclose(
+          relaxed_sol.state.T_e_target,
+          newton_sol.state.T_e_target,
+          rtol=1e-2,
+      )
 
 
 if __name__ == '__main__':

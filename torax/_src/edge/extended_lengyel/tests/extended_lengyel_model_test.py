@@ -958,6 +958,7 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
         'update_electron_density': False,
         'update_impurities': True,
         'fixed_point_iterations': 1,
+        'fixed_point_relaxation_factor': 0.5,
         'newton_raphson_iterations': 1,
         'newton_raphson_tol': 1e-5,
         'multistart_num_guesses': 10,

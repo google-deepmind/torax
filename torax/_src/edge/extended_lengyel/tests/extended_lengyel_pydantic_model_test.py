@@ -84,6 +84,21 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     )
     self.assertEqual(config_override.fixed_point_iterations, 100)
 
+  def test_fixed_point_relaxation_factor(self):
+    config = pydantic_model.ExtendedLengyelConfig()
+    self.assertEqual(
+        config.fixed_point_relaxation_factor,
+        extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR,
+    )
+    config_override = pydantic_model.ExtendedLengyelConfig(
+        fixed_point_relaxation_factor=0.6
+    )
+    self.assertEqual(config_override.fixed_point_relaxation_factor, 0.6)
+    with self.assertRaises(ValueError):
+      pydantic_model.ExtendedLengyelConfig(fixed_point_relaxation_factor=0.0)
+    with self.assertRaises(ValueError):
+      pydantic_model.ExtendedLengyelConfig(fixed_point_relaxation_factor=1.1)
+
   def test_torax_config_integration(self):
     """Ensures ToraxConfig can parse the new edge field."""
     config_dict = default_configs.get_default_config_dict()

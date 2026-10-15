@@ -658,6 +658,9 @@ def run_extended_lengyel_standalone(
     mach_target: array_typing.FloatScalar = extended_lengyel_defaults.MACH_TARGET,
     toroidal_flux_expansion: array_typing.FloatScalar = extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
     fixed_point_iterations: int | None = None,
+    fixed_point_relaxation_factor: float = (
+        extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR
+    ),
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
     multistart_num_guesses: int = extended_lengyel_defaults.MULTISTART_NUM_GUESSES,
@@ -724,6 +727,8 @@ def run_extended_lengyel_standalone(
       then a default value is used based on the solver mode: different defaults
       for hybrid and fixed-step solvers. For Newton-Raphson, this argument is
       ignored and remains None if inputted as None.
+    fixed_point_relaxation_factor: Under-relaxation factor in (0, 1] for
+      forward-mode fixed-point iterations.
     newton_raphson_iterations: Number of iterations for Newton-Raphson solver.
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
     multistart_num_guesses: Number of initial guesses for multistart solver.
@@ -807,6 +812,7 @@ def run_extended_lengyel_standalone(
         initial_sol_model=initial_sol_model,
         solver_mode=solver_mode,
         fixed_point_iterations=fixed_point_iterations,
+        fixed_point_relaxation_factor=fixed_point_relaxation_factor,
         newton_raphson_iterations=newton_raphson_iterations,
         newton_raphson_tol=newton_raphson_tol,
         diverted=diverted,
@@ -823,6 +829,7 @@ def run_extended_lengyel_standalone(
         computation_mode=computation_mode,
         solver_mode=solver_mode,
         fixed_point_iterations=fixed_point_iterations,
+        fixed_point_relaxation_factor=fixed_point_relaxation_factor,
         newton_raphson_iterations=newton_raphson_iterations,
         newton_raphson_tol=newton_raphson_tol,
         diverted=diverted,
@@ -1004,6 +1011,7 @@ def _execute_solver(
     computation_mode: extended_lengyel_enums.ComputationMode,
     solver_mode: extended_lengyel_enums.SolverMode,
     fixed_point_iterations: int,
+    fixed_point_relaxation_factor: float,
     newton_raphson_iterations: int,
     newton_raphson_tol: float,
 ) -> tuple[
@@ -1027,6 +1035,7 @@ def _execute_solver(
       return extended_lengyel_solvers.forward_mode_fixed_point_solver(
           initial_sol_model=sol_model_input,
           iterations=fixed_point_iterations,
+          relaxation_factor=fixed_point_relaxation_factor,
       )
     case (
         extended_lengyel_enums.ComputationMode.INVERSE,
@@ -1065,6 +1074,7 @@ def _execute_solver(
           fixed_point_iterations=fixed_point_iterations,
           newton_raphson_iterations=newton_raphson_iterations,
           newton_raphson_tol=newton_raphson_tol,
+          fixed_point_relaxation_factor=fixed_point_relaxation_factor,
       )
     case _:
       raise ValueError(
@@ -1077,6 +1087,7 @@ def _run_forward_mode_multistart(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     solver_mode: extended_lengyel_enums.SolverMode,
     fixed_point_iterations: int,
+    fixed_point_relaxation_factor: float,
     newton_raphson_iterations: int,
     newton_raphson_tol: float,
     diverted: bool,
@@ -1123,6 +1134,7 @@ def _run_forward_mode_multistart(
         extended_lengyel_enums.ComputationMode.FORWARD,
         solver_mode,
         fixed_point_iterations,
+        fixed_point_relaxation_factor,
         newton_raphson_iterations,
         newton_raphson_tol,
     )
@@ -1276,6 +1288,7 @@ def _run_single_solver(
     computation_mode: extended_lengyel_enums.ComputationMode,
     solver_mode: extended_lengyel_enums.SolverMode,
     fixed_point_iterations: int,
+    fixed_point_relaxation_factor: float,
     newton_raphson_iterations: int,
     newton_raphson_tol: float,
     diverted: bool,
@@ -1292,6 +1305,7 @@ def _run_single_solver(
       computation_mode,
       solver_mode,
       fixed_point_iterations,
+      fixed_point_relaxation_factor,
       newton_raphson_iterations,
       newton_raphson_tol,
   )
