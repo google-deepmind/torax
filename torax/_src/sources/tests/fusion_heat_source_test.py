@@ -15,12 +15,17 @@ from typing import Callable, Mapping
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import numpy as np
 from torax._src import constants
+from torax._src import math_utils
 from torax._src.core_profiles import initialization
 from torax._src.sources import fusion_heat_source
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import torax_refs
+
+
+# pylint: disable=invalid-name
 
 
 class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
@@ -29,6 +34,31 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   source_name = fusion_heat_source.FusionHeatSource.SOURCE_ID
   source_config_class = fusion_heat_source.FusionHeatSourceConfig
   needs_source_models = True
+
+  def _calculate_torax_fusion_power(
+      self,
+      source_models,
+      runtime_params,
+      geo,
+      core_profiles,
+  ):
+    """Calculates total DT fusion power [MW] from the fusion source profiles."""
+    source = source_models.standard_sources[self.source_name]
+    Pfus_i, Pfus_e = source.get_value(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        calculated_source_profiles=None,
+        conductivity=None,
+    )
+    assert isinstance(Pfus_i, jax.Array)
+    assert isinstance(Pfus_e, jax.Array)
+    # Total fusion power to charged particles (alphas) is Pfus_i + Pfus_e.
+    # Total DT fusion power includes neutrons: P_total = P_alpha / (3.5 / 17.6).
+    torax_alpha_power = (
+        math_utils.volume_integration(Pfus_i + Pfus_e, geo) / 1e6
+    )
+    return torax_alpha_power / (3.5 / 17.6)
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -53,10 +83,8 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         neoclassical_model=neoclassical_model,
     )
 
-    torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(
-        geo,
-        core_profiles,
-        runtime_params,
+    torax_fusion_power = self._calculate_torax_fusion_power(
+        source_models, runtime_params, geo, core_profiles
     )
 
     reference_fusion_power = reference_calc_fusion(geo, core_profiles)
@@ -92,10 +120,8 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         neoclassical_model=neoclassical_model,
     )
 
-    torax_fusion_power, _, _ = fusion_heat_source.calc_fusion(
-        geo,
-        core_profiles,
-        runtime_params_t,
+    torax_fusion_power = self._calculate_torax_fusion_power(
+        source_models, runtime_params_t, geo, core_profiles
     )
 
     reference_fusion_power = reference_calc_fusion(geo, core_profiles)
@@ -137,7 +163,8 @@ def reference_calc_fusion(geo, core_profiles):
   )  # units of m^3/s
 
   Pfus = Efus * 0.25 * core_profiles.n_i.face_value() ** 2 * sigmav  # [W/m^3]
-  P_total = np.trapezoid(Pfus * geo.vpr_face, geo.rho_face_norm) / 1e6  # [MW]
+  Pfus_cell = 0.5 * (Pfus[:-1] + Pfus[1:])
+  P_total = math_utils.volume_integration(Pfus_cell, geo) / 1e6  # [MW]
 
   return P_total
 
