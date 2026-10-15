@@ -466,7 +466,7 @@ class GeometryTest(parameterized.TestCase):
 
 
 class PsiFromIpTest(absltest.TestCase):
-  """Tests j_total derived from psi_from_Ip on a mesh finer than the equilibrium."""
+  """Tests j_toroidal_total derived from psi_from_Ip on a mesh finer than the equilibrium."""
 
   @classmethod
   def setUpClass(cls):
@@ -485,11 +485,11 @@ class PsiFromIpTest(absltest.TestCase):
         right_face_constraint=geo.psi_from_Ip_face[-1],
         right_face_grad_constraint=None,
     )
-    j_total, _, ip_profile_face = psi_calculations.calc_j_total(
-        geo, psi, min_rho_norm=0.0
+    j_toroidal_total, _, ip_profile_face = (
+        psi_calculations.calc_j_toroidal_total(geo, psi, min_rho_norm=0.0)
     )
     cls.geo = geo
-    cls.j_total = np.asarray(j_total)
+    cls.j_toroidal_total = np.asarray(j_toroidal_total)
     cls.ip_profile_face = np.asarray(ip_profile_face)
 
   def test_lcfs_ip_matches_equilibrium_ip(self):
@@ -497,15 +497,17 @@ class PsiFromIpTest(absltest.TestCase):
         self.ip_profile_face[-1], self.geo.Ip_profile_face[-1], rtol=1e-12
     )
 
-  def test_bulk_j_total_has_no_spikes_at_equilibrium_knots(self):
+  def test_bulk_j_toroidal_total_has_no_spikes_at_equilibrium_knots(self):
     bulk = slice(2, -1)
     max_rel_err = np.max(
-        np.abs(self.j_total[bulk] - self.geo.j_total[bulk])
-    ) / np.max(np.abs(self.geo.j_total))
+        np.abs(self.j_toroidal_total[bulk] - self.geo.j_toroidal_total[bulk])
+    ) / np.max(np.abs(self.geo.j_toroidal_total))
     self.assertLess(max_rel_err, 0.06)
 
-  def test_edge_j_total_matches_equilibrium(self):
-    np.testing.assert_allclose(self.j_total[-1], self.geo.j_total[-1], rtol=0.5)
+  def test_edge_j_toroidal_total_matches_equilibrium(self):
+    np.testing.assert_allclose(
+        self.j_toroidal_total[-1], self.geo.j_toroidal_total[-1], rtol=0.5
+    )
 
 
 if __name__ == '__main__':

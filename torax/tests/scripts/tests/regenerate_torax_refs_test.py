@@ -91,7 +91,14 @@ class RegenerateRefsTest(parameterized.TestCase):
     self.assertIn('circular_references', data)
     case_data = data['circular_references']
     self.assertIsInstance(case_data, dict)
-    expected_keys = {'psi', 'psi_face_grad', 'psidot', 'j_total', 'q', 's'}
+    expected_keys = {
+        'psi',
+        'psi_face_grad',
+        'psidot',
+        'j_toroidal_total',
+        'q',
+        's',
+    }
     self.assertContainsSubset(expected_keys, case_data.keys())
     self.assertIsInstance(case_data['psi'], list)  # Check for NumPy conversion
 
@@ -116,7 +123,7 @@ class RegenerateRefsTest(parameterized.TestCase):
       self.assertIn('circular_references.psi', log_output)
       self.assertIn('circular_references.psi_face_grad', log_output)
       self.assertIn('circular_references.psidot', log_output)
-      self.assertIn('circular_references.j_total', log_output)
+      self.assertIn('circular_references.j_toroidal_total', log_output)
       self.assertIn('circular_references.q', log_output)
       self.assertIn('circular_references.s', log_output)
 
@@ -141,7 +148,7 @@ class RegenerateRefsTest(parameterized.TestCase):
         'psi': np.ones(_LEN).tolist(),
         'psi_face_grad': np.ones(_LEN + 1).tolist(),
         'psidot': np.ones(_LEN).tolist(),
-        'j_total': np.ones(_LEN).tolist(),
+        'j_toroidal_total': np.ones(_LEN).tolist(),
         'q': np.ones(_LEN + 1).tolist(),
         's': np.ones(_LEN + 1).tolist(),
     }

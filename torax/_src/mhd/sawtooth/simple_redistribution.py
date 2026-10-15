@@ -170,7 +170,7 @@ class SimpleRedistribution(
         redistribution_mask,
         redistribution_params.flattening_factor,
         core_profiles_t.psi,
-        core_profiles_t.j_total,
+        core_profiles_t.j_toroidal_total,
         core_profiles_t.Ip_profile_face[-1],
         geo,
     )
