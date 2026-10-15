@@ -69,6 +69,16 @@ class QeiSource(source.Source):
         lambda: source_profiles.QeiInfo.zeros(geo),
     )
 
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    raise NotImplementedError('Call get_qei() instead.')
+
   def get_value(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -76,7 +86,7 @@ class QeiSource(source.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[array_typing.FloatVectorCell, ...]:
+  ) -> tuple[source.SourceProfileElement, ...]:
     raise NotImplementedError('Call get_qei() instead.')
 
   def get_source_profile_for_affected_core_profile(
@@ -148,12 +158,6 @@ class QeiSourceConfig(base.SourceConfigBase):
 
   Qei_multiplier: float = 1.0
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    raise NotImplementedError(
-        'QeiSource does not use a 1D model_func; call get_qei() instead.'
-    )
-
   def build_runtime_params(
       self,
       t: chex.Numeric,
@@ -165,4 +169,4 @@ class QeiSourceConfig(base.SourceConfigBase):
     )
 
   def build_source(self) -> QeiSource:
-    return QeiSource(model_func=None)
+    return QeiSource()
