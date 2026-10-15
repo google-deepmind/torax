@@ -432,8 +432,8 @@ class SimTest(sim_test_case.SimTestCase):
           [np.all(profile == first_profile) for profile in profile_history]  # pyrefly: ignore[not-iterable]
       ):
         for i in range(1, len(profile_history)):  # pyrefly: ignore[bad-argument-type]
-          # Most profiles should be == but j_total, q_face, and s_face can be
-          # merely allclose because they are recalculated on each step.
+          # Most profiles should be == but j_toroidal_total, q_face, and s_face
+          # can be merely allclose because they are recalculated on each step.
           if not np.allclose(profile_history[i], first_profile):  # pyrefly: ignore[bad-index]
             msg = (
                 # pyrefly: ignore[bad-index]

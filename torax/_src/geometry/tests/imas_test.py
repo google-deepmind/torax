@@ -225,21 +225,21 @@ class OffAxisGridIMASGeometryTest(parameterized.TestCase):
         imas_filepath=self._IMAS_FILEPATH, n_rho=n_rho
     ).build_geometry()
 
-  def _assert_near_axis_matches_ids(self, geo, j_total):
+  def _assert_near_axis_matches_ids(self, geo, j_toroidal_total):
     near_axis = geo.rho_norm < 0.05
     np.testing.assert_allclose(
-        np.abs(np.asarray(j_total)[near_axis]),
+        np.abs(np.asarray(j_toroidal_total)[near_axis]),
         np.interp(geo.rho_norm[near_axis], self.rho_norm_ids, self.j_phi_ids),
         rtol=1e-2,
     )
 
   @parameterized.parameters(200, 400)
-  def test_near_axis_j_total_matches_ids(self, n_rho):
+  def test_near_axis_j_toroidal_total_matches_ids(self, n_rho):
     geo = self._build_geometry(n_rho)
-    self._assert_near_axis_matches_ids(geo, geo.j_total)
+    self._assert_near_axis_matches_ids(geo, geo.j_toroidal_total)
 
   @parameterized.parameters(200, 400)
-  def test_near_axis_j_total_from_psi_from_ip_matches_ids(self, n_rho):
+  def test_near_axis_j_toroidal_total_from_psi_from_ip_matches_ids(self, n_rho):
     geo = self._build_geometry(n_rho)
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
@@ -247,8 +247,10 @@ class OffAxisGridIMASGeometryTest(parameterized.TestCase):
         right_face_constraint=geo.psi_from_Ip_face[-1],
         right_face_grad_constraint=None,
     )
-    j_total, _, _ = psi_calculations.calc_j_total(geo, psi, min_rho_norm=0.0)
-    self._assert_near_axis_matches_ids(geo, j_total)
+    j_toroidal_total, _, _ = psi_calculations.calc_j_toroidal_total(
+        geo, psi, min_rho_norm=0.0
+    )
+    self._assert_near_axis_matches_ids(geo, j_toroidal_total)
 
 
 if __name__ == '__main__':

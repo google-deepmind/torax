@@ -164,6 +164,20 @@ These are called out in the list of profiles below, and generally relate to:
 
 * ``geometry`` profiles which are only output for non ``circular`` geometries.
 
+For current density profiles, TORAX outputs both parallel (``j_parallel_*``) and
+toroidal (``j_toroidal_*``) current densities:
+
+* ``j_parallel_*`` is the flux-surface-averaged parallel current density
+  normalized by the magnetic field at the magnetic axis,
+  :math:`j_\parallel \equiv \frac{\langle \mathbf{j} \cdot \mathbf{B} \rangle}{B_0}`.
+
+* ``j_toroidal_*`` is the flux-surface-averaged toroidal current density (the
+  radial derivative of enclosed toroidal plasma current :math:`I` with respect
+  to poloidal cross-sectional area :math:`S`),
+  :math:`j_{\mathrm{toroidal}} \equiv \frac{\partial I}{\partial S} = \frac{\langle j_\phi / R \rangle}{\langle 1 / R \rangle}`,
+  where :math:`j_\phi` is the local toroidal current density and :math:`R` is
+  the major radius.
+
 ``area`` (time, rho_norm)
   Poloidal cross-sectional area of each flux surface [:math:`m^2`].
 
@@ -254,28 +268,6 @@ These are called out in the list of profiles below, and generally relate to:
 ``Ip_profile`` (time, rho_face_norm)
   Total cumulative current profile [:math:`A`].
 
-``j_bootstrap`` (time, rho_norm)
-  Toroidal bootstrap current density [:math:`A/m^2`].
-
-``j_ecrh`` (time, rho_cell_norm)
-  Toroidal electron cyclotron heating current density [:math:`A/m^2`]. Only output if
-  ``ecrh`` source is active.
-
-``j_external`` (time, rho_cell_norm)
-  Total toroidal external current density (including generic and ECRH current)
-  [:math:`A/m^2`].
-
-``j_generic_current`` (time, rho_cell_norm)
-  Toroidal generic external non-inductive current density [:math:`A/m^2`]. Only output if
-  ``generic_current`` source is active.
-
-``j_non_inductive`` (time, rho_cell_norm)
-  Total toroidal non-inductive current density (including bootstrap and external)
-  [:math:`A/m^2`].
-
-``j_ohmic`` (time, rho_cell_norm)
-  Toroidal ohmic current density [:math:`A/m^2`].
-
 ``j_parallel_bootstrap`` (time, rho_norm)
   Parallel bootstrap current density [:math:`A/m^2`].
 
@@ -299,10 +291,36 @@ These are called out in the list of profiles below, and generally relate to:
   Parallel Ohmic current density [:math:`A/m^2`].
 
 ``j_parallel_total`` (time, rho_cell_norm)
-  Total parallel current density [:math:`A/m^2`].
+  Total parallel current density
+  :math:`j_\parallel \equiv \frac{\langle \mathbf{j} \cdot \mathbf{B} \rangle}{B_0}`
+  [:math:`A/m^2`].
 
-``j_total`` (time, rho_norm)
-  Total toroidal current density [:math:`A/m^2`].
+``j_toroidal_bootstrap`` (time, rho_norm)
+  Toroidal bootstrap current density [:math:`A/m^2`].
+
+``j_toroidal_ecrh`` (time, rho_cell_norm)
+  Toroidal electron cyclotron heating current density [:math:`A/m^2`]. Only output if
+  ``ecrh`` source is active.
+
+``j_toroidal_external`` (time, rho_cell_norm)
+  Total toroidal external current density (including generic and ECRH current)
+  [:math:`A/m^2`].
+
+``j_toroidal_generic_current`` (time, rho_cell_norm)
+  Toroidal generic external non-inductive current density [:math:`A/m^2`]. Only output if
+  ``generic_current`` source is active.
+
+``j_toroidal_non_inductive`` (time, rho_cell_norm)
+  Total toroidal non-inductive current density (including bootstrap and external)
+  [:math:`A/m^2`].
+
+``j_toroidal_ohmic`` (time, rho_cell_norm)
+  Toroidal ohmic current density [:math:`A/m^2`].
+
+``j_toroidal_total`` (time, rho_norm)
+  Total toroidal current density
+  :math:`j_{\mathrm{toroidal}} \equiv \frac{\partial I}{\partial S} = \frac{\langle j_\phi / R \rangle}{\langle 1 / R \rangle}`
+  [:math:`A/m^2`].
 
 ``magnetic_shear`` (time, rho_face_norm)
   Magnetic shear [dimensionless], defined as

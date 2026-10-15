@@ -56,13 +56,13 @@ class BootstrapCurrent:
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
     """Converts bootstrap current profiles into an OutputVar mapping."""
-    j_bootstrap = output_grid_context.extend_cell_grid_to_boundaries(
+    j_parallel_bootstrap = output_grid_context.extend_cell_grid_to_boundaries(
         self.j_parallel_bootstrap,
         self.j_parallel_bootstrap_face,
     )
     return {
         output_keys.J_PARALLEL_BOOTSTRAP: context.pack(
-            output_keys.J_PARALLEL_BOOTSTRAP, j_bootstrap
+            output_keys.J_PARALLEL_BOOTSTRAP, j_parallel_bootstrap
         ),
     }
 
