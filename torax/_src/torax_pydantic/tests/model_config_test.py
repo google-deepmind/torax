@@ -77,12 +77,9 @@ class ConfigTest(parameterized.TestCase):
     )
     with self.subTest("pedestal_model_set"):
       pedestal_dict = config_dict["pedestal"]
-      if "structure_model" in pedestal_dict:
-        expected_model_name = pedestal_dict["structure_model"].get(
-            "model_name", "no_pedestal"
-        )
-      else:
-        expected_model_name = pedestal_dict.get("model_name", "no_pedestal")
+      expected_model_name = pedestal_dict.get("structure_model", {}).get(
+          "model_name", "no_pedestal"
+      )
       self.assertEqual(
           config_pydantic.pedestal.structure_model.model_name,
           expected_model_name,
@@ -283,9 +280,13 @@ class ConfigTest(parameterized.TestCase):
           [0.0, 0.1, 0.3, 0.6, 0.9, 1.0]
       )
     if use_pedestal:
-      config_dict["pedestal"] = {"model_name": "set_T_ped_n_ped"}
+      config_dict["pedestal"] = {
+          "structure_model": {"model_name": "set_T_ped_n_ped"}
+      }
     else:
-      config_dict["pedestal"] = {"model_name": "no_pedestal"}
+      config_dict["pedestal"] = {
+          "structure_model": {"model_name": "no_pedestal"}
+      }
 
     warning_snippet = "Config has both a pedestal model and a non-uniform grid."
     self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
@@ -823,7 +824,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
   def test_adaptive_transport_with_internal_boundary_conditions_raises(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
-        "model_name": "set_T_ped_n_ped",
+        "structure_model": {"model_name": "set_T_ped_n_ped"},
         "mode": "ADAPTIVE_TRANSPORT",
         "formation_model": {"model_name": "martin_scaling"},
     }
@@ -841,7 +842,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
   def test_adaptive_transport_without_internal_boundary_conditions_passes(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
-        "model_name": "set_T_ped_n_ped",
+        "structure_model": {"model_name": "set_T_ped_n_ped"},
         "mode": "ADAPTIVE_TRANSPORT",
         "formation_model": {"model_name": "martin_scaling"},
     }

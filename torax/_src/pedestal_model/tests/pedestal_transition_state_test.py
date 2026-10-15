@@ -228,17 +228,19 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     super().setUp()
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
         'formation_model': {
             'model_name': 'martin_scaling',
             'P_LH_hysteresis_factor': _HYSTERESIS,
         },
         'transition_time_width': _TRANSITION_WIDTH,
-        'T_i_ped': 4.5,
-        'T_e_ped': 4.5,
-        'n_e_ped': 0.62e20,
-        'rho_norm_ped_top': 0.9,
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'T_i_ped': 4.5,
+            'T_e_ped': 4.5,
+            'n_e_ped': 0.62e20,
+            'rho_norm_ped_top': 0.9,
+        },
     }
     config['sources'] = {
         'generic_heat': {
@@ -775,17 +777,19 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     # No pedestal until t=1.0, linear ramp over [1.0, 2.0], H-mode for t >= 2.0.
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
         'transition_time_width': 1.0,
         'formation_model': {
             'model_name': 'prescribed',
             'pedestal_active': {0.0: False, 1.0: True},
         },
-        'T_i_ped': 5.0,
-        'T_e_ped': 5.0,
-        'n_e_ped': 0.7e20,
-        'rho_norm_ped_top': 0.9,
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'T_i_ped': 5.0,
+            'T_e_ped': 5.0,
+            'n_e_ped': 0.7e20,
+            'rho_norm_ped_top': 0.9,
+        },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -889,7 +893,7 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
     super().setUp()
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
+        'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'ADAPTIVE_TRANSPORT',
         'formation_model': {
             'model_name': 'martin_scaling',

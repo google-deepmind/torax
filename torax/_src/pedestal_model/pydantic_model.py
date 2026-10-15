@@ -510,17 +510,6 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
     configurable_data = copy.deepcopy(data)
-    if "structure_model" not in configurable_data:
-      # Temporary compatibility shim for flat pedestal dicts pending caller
-      # migration: any unknown key is moved into `structure_model`.
-      structure_fields = {
-          k: configurable_data.pop(k)
-          for k in list(configurable_data.keys())
-          if k not in cls.model_fields
-      }
-      if structure_fields:
-        structure_fields.setdefault("model_name", "no_pedestal")
-        configurable_data["structure_model"] = structure_fields
     if (
         isinstance(configurable_data.get("formation_model"), dict)
         and "model_name" not in configurable_data["formation_model"]

@@ -19,22 +19,18 @@ model.
 """
 
 # pylint: disable=g-importing-member
-from torax._src.pedestal_model.pedestal_model import PedestalModel
 from torax._src.pedestal_model.pedestal_model import PedestalStructureModel
 from torax._src.pedestal_model.pedestal_model_output import PedestalStructure
 from torax._src.pedestal_model.pydantic_model import BaseStructure
-from torax._src.pedestal_model.register_model import register_pedestal_model
 from torax._src.pedestal_model.register_model import register_pedestal_structure_model
 from torax._src.pedestal_model.runtime_params import RuntimeParams
 from torax._src.pedestal_model.runtime_params import StructureRuntimeParams
 
 __all__ = [
     'BaseStructure',
-    'PedestalModel',
     'PedestalStructure',
     'PedestalStructureModel',
     'RuntimeParams',
     'StructureRuntimeParams',
-    'register_pedestal_model',
     'register_pedestal_structure_model',
 ]

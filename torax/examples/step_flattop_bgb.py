@@ -104,11 +104,13 @@ CONFIG = {
         "trapped_fraction_source": "EXACT",
     },
     "pedestal": {
-        "model_name": "set_T_ped_n_ped",
-        "rho_norm_ped_top": 0.95,
-        "T_i_ped": 4.0,  # [keV]
-        "T_e_ped": 5.0,  # [keV]
-        "n_e_ped": 6e19,  # [m^-3]
+        "structure_model": {
+            "model_name": "set_T_ped_n_ped",
+            "rho_norm_ped_top": 0.95,
+            "T_i_ped": 4.0,  # [keV]
+            "T_e_ped": 5.0,  # [keV]
+            "n_e_ped": 6e19,  # [m^-3]
+        },
     },
     "sources": {
         # Physics-based sources

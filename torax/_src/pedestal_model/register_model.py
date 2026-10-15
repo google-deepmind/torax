@@ -35,7 +35,3 @@ def register_pedestal_structure_model(
   )
   pydantic_model.Pedestal.model_rebuild(force=True)
   model_config.ToraxConfig.model_rebuild(force=True)
-
-
-# Temporary alias pending caller migration.
-register_pedestal_model = register_pedestal_structure_model

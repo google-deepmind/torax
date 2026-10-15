@@ -54,12 +54,14 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         n_e_ped /= 1e20
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
-        'T_i_ped': T_i_ped,
-        'T_e_ped': T_e_ped,
-        'rho_norm_ped_top': rho_norm_ped_top,
-        'n_e_ped': n_e_ped,
-        'n_e_ped_is_fGW': n_e_ped_is_fGW,
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'T_i_ped': T_i_ped,
+            'T_e_ped': T_e_ped,
+            'rho_norm_ped_top': rho_norm_ped_top,
+            'n_e_ped': n_e_ped,
+            'n_e_ped_is_fGW': n_e_ped_is_fGW,
+        }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(

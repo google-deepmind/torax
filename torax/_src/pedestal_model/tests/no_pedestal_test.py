@@ -26,7 +26,7 @@ class NoPedestalTest(absltest.TestCase):
   def test_build_and_call_model(self):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'no_pedestal',
+        'structure_model': {'model_name': 'no_pedestal'},
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(

@@ -65,13 +65,15 @@ CONFIG = {
         'generic_current': {},
     },
     'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'T_i_ped': {0: 2, 4: 2, 6: 5, 8: 4},
+            'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
+        },
         'formation_model': {
             'model_name': 'prescribed',
             'pedestal_active': ({0: False, 4: True}, 'STEP'),
         },
-        'T_i_ped': {0: 2, 4: 2, 6: 5, 8: 4},
-        'T_e_ped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
     'transport': {
         'core_transport_models': {

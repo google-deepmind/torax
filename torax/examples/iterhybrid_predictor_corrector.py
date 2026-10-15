@@ -14,7 +14,6 @@
 
 """ITER hybrid scenario based (roughly) on van Mulders NF 2021."""
 
-
 CONFIG = {
     'plasma_composition': {
         'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
@@ -129,11 +128,13 @@ CONFIG = {
         },
     },
     'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
-        'T_i_ped': 4.5,  # ion pedestal top temperature in keV for T_i
-        'T_e_ped': 4.5,  # electron pedestal top temperature in keV for T_e
-        'n_e_ped': 0.62e20,  # pedestal top electron density in m^-3
-        'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'T_i_ped': 4.5,  # ion pedestal top temperature in keV for T_i
+            'T_e_ped': 4.5,  # electron pedestal top temperature in keV for T_e
+            'n_e_ped': 0.62e20,  # pedestal top electron density in m^-3
+            'rho_norm_ped_top': 0.9,  # ped top location in normalized radius
+        },
     },
     'transport': {
         'core_transport_models': {

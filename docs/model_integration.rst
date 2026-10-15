@@ -127,21 +127,27 @@ Once registered, the model can be used in a TORAX config under
     torax.run_simulation(torax_config)
 
 
-Registering a custom pedestal model
-=====================================
+Registering a custom pedestal structure model
+=============================================
 
-To integrate a custom pedestal model, you need to:
+The TORAX ``PedestalModel`` is composed of three sub-models: a
+``PedestalStructureModel`` (which computes the H-mode target pedestal-top width,
+temperatures, and density), a ``FormationModel``, and a ``SaturationModel``.
+To integrate a custom pedestal structure model (for example, an external neural
+network surrogate such as
+`epednn-mit <https://github.com/aaronkho/epednn_mit>`_), you need to:
 
-1. Define a pedestal model class that implements the physics.
+1. Define a pedestal structure model class that implements the physics.
 2. Define a pydantic config class for your model.
 3. Register the config class with TORAX.
 
-Step 1: Implement the pedestal model
---------------------------------------
+Step 1: Implement the pedestal structure model
+----------------------------------------------
 
-Create a frozen dataclass that inherits from ``torax.pedestal.PedestalModel``
-and implements the ``_call_implementation`` method. This method must return a
-``torax.pedestal.PedestalModelOutput`` with the pedestal properties.
+Create a frozen dataclass that inherits from
+``torax.pedestal.PedestalStructureModel`` and implements the ``__call__``
+method. This method must return a ``torax.pedestal.PedestalStructure`` with the
+H-mode target pedestal-top properties.
 
 .. code-block:: python
 
@@ -151,18 +157,18 @@ and implements the ``_call_implementation`` method. This method must return a
     from torax import pedestal
 
     @dataclasses.dataclass(frozen=True, eq=False)
-    class MyPedestalModel(pedestal.PedestalModel):
-      """Custom pedestal model."""
+    class MyPedestalStructureModel(pedestal.PedestalStructureModel):
+      """Custom pedestal structure model."""
 
-      def _call_implementation(
+      def __call__(
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
           pedestal_transition_state: pedestal.PedestalTransitionState,
-      ) -> pedestal.PedestalModelOutput:
-        # Implement your pedestal model here.
-        return pedestal.PedestalModelOutput(
+      ) -> pedestal.PedestalStructure:
+        # Implement your pedestal structure model here.
+        return pedestal.PedestalStructure(
             rho_norm_ped_top=jnp.array(0.9),
             T_i_ped=jnp.array(5.0),
             T_e_ped=jnp.array(5.0),
@@ -174,12 +180,14 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.pedestal.BasePedestal`` and implements the ``build_pedestal_model``
+``torax.pedestal.BaseStructure`` and implements the ``build_structure_model``
 method. The config class must have a ``model_name`` field with a unique
 ``Literal`` type.
 
 You may also override ``build_runtime_params`` if your model requires
-additional runtime parameters beyond the base pedestal parameters.
+additional runtime parameters. Your runtime parameters class should inherit
+from ``torax.pedestal.StructureRuntimeParams`` and will be available at
+``runtime_params.pedestal.structure``.
 
 .. code-block:: python
 
@@ -187,28 +195,24 @@ additional runtime parameters beyond the base pedestal parameters.
 
     @jax.tree_util.register_dataclass
     @dataclasses.dataclass(frozen=True)
-    class MyPedestalRuntimeParams(pedestal.RuntimeParams):
-      """Runtime parameters for MyPedestalModel."""
+    class MyStructureRuntimeParams(pedestal.StructureRuntimeParams):
+      """Runtime parameters for MyPedestalStructureModel."""
 
       T_ped: torax.FloatScalar
 
-    class MyPedestalConfig(pedestal.BasePedestal):
-      """Pydantic config for MyPedestalModel."""
+    class MyStructureConfig(pedestal.BaseStructure):
+      """Pydantic config for MyPedestalStructureModel."""
 
       model_name: Annotated[
           Literal['my_pedestal'], torax.JAX_STATIC
       ] = 'my_pedestal'
       T_ped: torax.TimeVaryingScalar = torax.ValidatedDefault(5.0)
 
-      def build_pedestal_model(self) -> MyPedestalModel:
-        # Pass through formation_model and saturation_model required by PedestalModel.
-        return MyPedestalModel(
-            formation_model=self.formation_model.build_formation_model(),
-            saturation_model=self.saturation_model.build_saturation_model(),
-        )
+      def build_structure_model(self) -> MyPedestalStructureModel:
+        return MyPedestalStructureModel()
 
-      def build_runtime_params(self, t) -> MyPedestalRuntimeParams:
-        return MyPedestalRuntimeParams(
+      def build_runtime_params(self, t) -> MyStructureRuntimeParams:
+        return MyStructureRuntimeParams(
             **vars(super().build_runtime_params(t)),
             T_ped=self.T_ped.get_value(t),
         )
@@ -217,25 +221,29 @@ additional runtime parameters beyond the base pedestal parameters.
 Step 3: Register the model
 ---------------------------
 
-Call ``torax.pedestal.register_pedestal_model`` with your pydantic config
-class. This must be done at module level, before any TORAX config is built.
+Call ``torax.pedestal.register_pedestal_structure_model`` with your pydantic
+config class. This must be done at module level, before any TORAX config is
+built.
 
 .. code-block:: python
 
-    pedestal.register_pedestal_model(MyPedestalConfig)
+    pedestal.register_pedestal_structure_model(MyStructureConfig)
 
 
 Using the registered model
 ---------------------------
 
-Once registered, the model can be used in a TORAX config:
+Once registered, the model can be used inside ``structure_model`` in a TORAX
+config:
 
 .. code-block:: python
 
     config = {
         ...
         'pedestal': {
-            'model_name': 'my_pedestal',
+            'structure_model': {
+                'model_name': 'my_pedestal',
+            },
         },
         ...
     }

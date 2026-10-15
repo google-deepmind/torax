@@ -49,16 +49,18 @@ class StepFunctionProcessingTest(parameterized.TestCase):
     config['numerics'] = {'fixed_dt': 1.0, 't_initial': 0.0, 't_final': 2.0}
     config['time_step_calculator'] = {'calculator_type': 'fixed'}
     config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
         'explicit_pedestal': explicit_pedestal,
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'T_i_ped': 4.5,
+            'T_e_ped': 4.5,
+            'n_e_ped': 0.62e20,
+            'rho_norm_ped_top': 0.9,
+        },
         'formation_model': {
             'model_name': 'prescribed',
             'pedestal_active': ({0.0: False, 0.5: True}, 'STEP'),
         },
-        'T_i_ped': 4.5,
-        'T_e_ped': 4.5,
-        'n_e_ped': 0.62e20,
-        'rho_norm_ped_top': 0.9,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     step_fn = run_simulation.make_step_fn(torax_config)
@@ -89,7 +91,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
   def test_prescribed_formation_adaptive_transport_L_to_H_and_H_to_L(self):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
+        'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'ADAPTIVE_TRANSPORT',
         'formation_model': {
             'model_name': 'prescribed',

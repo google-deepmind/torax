@@ -82,12 +82,14 @@ CONFIG['transport'] = {
 
 # Set pedestal to adaptive transport mode
 CONFIG['pedestal'] = {
-    'model_name': 'set_T_ped_n_ped',
     'mode': 'ADAPTIVE_TRANSPORT',
-    'T_i_ped': 4.5,
-    'T_e_ped': 4.5,
-    'n_e_ped': 0.62e20,
-    'rho_norm_ped_top': 0.9,
+    'structure_model': {
+        'model_name': 'set_T_ped_n_ped',
+        'T_i_ped': 4.5,
+        'T_e_ped': 4.5,
+        'n_e_ped': 0.62e20,
+        'rho_norm_ped_top': 0.9,
+    },
     'formation_model': {
         'model_name': 'martin_scaling',
         'sharpness': 10.0,

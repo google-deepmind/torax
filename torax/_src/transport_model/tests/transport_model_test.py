@@ -441,7 +441,9 @@ class TransportModelTest(parameterized.TestCase):
             'pedestal_prescribed': {'model_name': 'prescribed', 'chi_i': 0.1}
         },
     }
-    config['pedestal'] = {'model_name': 'set_T_ped_n_ped'}
+    config['pedestal'] = {
+        'structure_model': {'model_name': 'set_T_ped_n_ped'}
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -501,7 +503,9 @@ class TransportModelTest(parameterized.TestCase):
         },
         'chi_min': 1.0,
     }
-    config['pedestal'] = {'model_name': 'set_T_ped_n_ped'}
+    config['pedestal'] = {
+        'structure_model': {'model_name': 'set_T_ped_n_ped'}
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -625,7 +629,7 @@ class TransportModelTest(parameterized.TestCase):
         },
     }
     config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
+        'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
     }
     torax_config = model_config.ToraxConfig.from_dict(config)

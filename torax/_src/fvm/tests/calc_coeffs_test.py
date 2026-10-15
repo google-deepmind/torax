@@ -52,7 +52,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             profile_conditions=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(
-                model_name='set_T_ped_n_ped',
+                structure_model=dict(model_name='set_T_ped_n_ped'),
                 formation_model=dict(
                     model_name='prescribed',
                     pedestal_active=pedestal_active,
@@ -125,7 +125,9 @@ class CalcCoeffsTest(parameterized.TestCase):
         'plasma_composition': {},
     }
     torax_config_with_pedestal = copy.deepcopy(torax_config)
-    torax_config_with_pedestal['pedestal'] = {'model_name': 'set_T_ped_n_ped'}
+    torax_config_with_pedestal['pedestal'] = {
+        'structure_model': {'model_name': 'set_T_ped_n_ped'}
+    }
 
     with self.subTest('same_coeffs_callback_hash_equal'):
       self.assertEqual(

@@ -909,14 +909,16 @@ fields.
 
 pedestal
 --------
-In TORAX we aim to support different models for computing the pedestal width,
-and electron density, ion temperature and electron temperature at the pedestal
-top.
+The ``pedestal`` dictionary configures the pedestal model, which is composed of
+three sub-models:
 
-``model_name`` (str [default = 'no_pedestal'])
-  The model can be configured by setting the ``model_name`` key in the
-  ``pedestal`` section of the configuration. If this field is not set, then
-  the default model is ``no_pedestal``.
+* ``structure_model``: computes the H-mode target pedestal width
+  (``rho_norm_ped_top``) and pedestal-top electron density, ion temperature,
+  and electron temperature.
+* ``formation_model``: determines when L-H and H-L transitions occur (and in
+  ``'ADAPTIVE_TRANSPORT'`` mode, the transport decrease multiplier).
+* ``saturation_model``: determines how transport scales in the pedestal region
+  relative to the H-mode target values in ``'ADAPTIVE_TRANSPORT'`` mode.
 
 ``mode`` (str [default = 'INTERNAL_BOUNDARY_CONDITION'])
   Defines how the pedestal is generated. Options:
@@ -924,7 +926,8 @@ top.
   * ``'INTERNAL_BOUNDARY_CONDITION'``: Sets the pedestal top value by directly
     modifying the state equations to set Dirichlet internal boundary
     conditions at a cell grid point corresponding to the pedestal top, or for a
-    profile (see ``pedestal_profile_form``). This is the default mode.
+    profile (see ``structure_model.pedestal_profile_form``). This is the
+    default mode.
   * ``'ADAPTIVE_TRANSPORT'``: Sets the pedestal by modifying the transport
     coefficients in the pedestal region, allowing the pedestal to
     self-consistently evolve. Transport coefficients are scaled to allow the
@@ -957,30 +960,6 @@ top.
   implicitly with current profiles regardless of this setting, since the
   saturation model's profile-based feedback loop requires implicit coupling.
 
-``pedestal_profile_form`` (**str** [default = ``"SET_AT_PED_TOP"``])
-   Controls the shape of internal boundary conditions in the pedestal region.
-   Options:
-
-   - ``"SET_AT_PED_TOP"``: Pedestal values are pinned at a single grid cell
-     nearest to ``rho_norm_ped_top``.
-   - ``"MTANH"``: A smooth modified-tanh (mtanh) profile is applied across the
-     pedestal region from the pedestal top to the separatrix, following the mtanh
-     parameterization of `Snyder et al., Nucl. Fusion 44 (2004) 320
-     <https://doi.org/10.1088/0029-5515/44/2/014>`_.
-     For simplicity, the core polynomial part of the full mtanh is neglected;
-     only the tanh component is used in the pedestal region.
-     The mtanh width :math:`\Delta` is derived on-the-fly from
-     ``rho_norm_ped_top`` via the :math:`\psi_N(\rho)` mapping in core profiles:
-
-     .. math::
-
-        f(\psi) = f_{\text{sep}} + a_0 \left[\tanh(1) - \tanh\!\left(\frac{2(\psi - \psi_{\text{mid}})}{\Delta}\right)\right]
-
-     where :math:`\psi_{\text{top}} = \psi_N(\rho_{\text{ped,top}})`,
-     :math:`\Delta = (1 - \psi_{\text{top}}) / 1.5`,
-     :math:`\psi_{\text{mid}} = 1 - \Delta/2`, and
-     :math:`a_0 = (f_{\text{top}} - f_{\text{sep}}) / (\tanh(1) + \tanh(2))`.
-
 ``initial_confinement_mode`` (**str | None** [default = ``None``])
   Optional explicit initial confinement mode (``'L_MODE'`` or ``'H_MODE'``) at
   :math:`t_{\text{initial}}`. When ``None`` (default), the initial mode is
@@ -992,6 +971,48 @@ top.
   :math:`n_e`) at :math:`t_{\text{initial}}` to seed the L-mode pedestal-top
   baselines when the simulation starts directly in H-mode without prior L-mode
   profile data. Must be positive.
+
+``structure_model`` (dict [default = ``{'model_name': 'no_pedestal'}``])
+  Configuration for the pedestal structure model, which computes the H-mode
+  target pedestal-top temperature, density, radial location, and profile form.
+  Custom models (such as
+  `epednn-mit <https://github.com/aaronkho/epednn_mit>`_) can also be registered
+  via ``torax.pedestal.register_pedestal_structure_model`` (see
+  :ref:`model-integration`). All structure models share the following parameter:
+
+  * ``pedestal_profile_form`` (**str** [default = ``"SET_AT_PED_TOP"``]):
+    Controls the shape of internal boundary conditions in the pedestal region.
+    Options:
+
+    * ``"SET_AT_PED_TOP"``: Pedestal values are pinned at a single grid cell
+      nearest to ``rho_norm_ped_top``.
+    * ``"MTANH"``: A smooth modified-tanh (mtanh) profile is applied across the
+      pedestal region from the pedestal top to the separatrix, following the mtanh
+      parameterization of `Snyder et al., Nucl. Fusion 44 (2004) 320
+      <https://doi.org/10.1088/0029-5515/44/2/014>`_.
+      For simplicity, the core polynomial part of the full mtanh is neglected;
+      only the tanh component is used in the pedestal region.
+      The mtanh width :math:`\Delta` is derived on-the-fly from
+      ``rho_norm_ped_top`` via the :math:`\psi_N(\rho)` mapping in core profiles:
+
+      .. math::
+
+         f(\psi) = f_{\text{sep}} + a_0 \left[\tanh(1) - \tanh\!\left(\frac{2(\psi - \psi_{\text{mid}})}{\Delta}\right)\right]
+
+      where :math:`\psi_{\text{top}} = \psi_N(\rho_{\text{ped,top}})`,
+      :math:`\Delta = (1 - \psi_{\text{top}}) / 1.5`,
+      :math:`\psi_{\text{mid}} = 1 - \Delta/2`, and
+      :math:`a_0 = (f_{\text{top}} - f_{\text{sep}}) / (\tanh(1) + \tanh(2))`.
+
+  The ``model_name`` key inside ``structure_model`` selects the built-in or
+  registered model:
+
+  * ``'no_pedestal'`` (default): Disables the pedestal across the entire
+    ``PedestalModel`` regardless of ``formation_model`` or ``saturation_model``.
+  * ``'set_T_ped_n_ped'``: Directly specify the pedestal width, electron
+    density, ion temperature, and electron temperature (see below).
+  * ``'set_P_ped_n_ped'``: Specify the pedestal width, electron density, total
+    pedestal pressure, and ion-to-electron temperature ratio (see below).
 
 ``formation_model`` (dict)
   Configuration for the pedestal formation model, which determines when L-H
@@ -1094,7 +1115,8 @@ top.
   Minimum effective particle pinch velocity from the core transport model
   allowed in the pedestal region [m/s].
 
-The following ``model_name`` options are currently supported:
+The following ``structure_model`` ``model_name`` options are built into
+TORAX:
 
 no_pedestal
 ^^^^^^^^^^^
@@ -1679,10 +1701,12 @@ Examples:
       },
   },
   'pedestal': {
-      'model_name': 'set_T_ped_n_ped',
-      'rho_norm_ped_top': 0.9,
-      'n_e_ped': 0.8,
-      'n_e_ped_is_fGW': True,
+      'structure_model': {
+          'model_name': 'set_T_ped_n_ped',
+          'rho_norm_ped_top': 0.9,
+          'n_e_ped': 0.8,
+          'n_e_ped_is_fGW': True,
+      },
   },
   ...
 
@@ -3205,12 +3229,14 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'ITG_flux_ratio_correction': 1,
       },
       'pedestal': {
-          'model_name': 'set_T_ped_n_ped',
-          'T_i_ped': 1.0,
-          'T_e_ped': 1.0,
-          'n_e_ped': {0: 0.3, 80: 0.7},
-          'rho_norm_ped_top': 0.95,
-          'n_e_ped_is_fGW': True,
+          'structure_model': {
+              'model_name': 'set_T_ped_n_ped',
+              'T_i_ped': 1.0,
+              'T_e_ped': 1.0,
+              'n_e_ped': {0: 0.3, 80: 0.7},
+              'rho_norm_ped_top': 0.95,
+              'n_e_ped_is_fGW': True,
+          },
       },
       'solver': {
           'solver_type': 'newton_raphson',
