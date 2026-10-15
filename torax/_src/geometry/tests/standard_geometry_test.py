@@ -434,6 +434,36 @@ class GeometryTest(parameterized.TestCase):
       self.assertNotIn(key, out_none)
     self.assertNotIn(output_keys.DIVERTED, out_none)
 
+  @parameterized.named_parameters(
+      (
+          'chease',
+          {
+              'geometry_type': 'chease',
+              'geometry_file': 'iterhybrid.mat2cols',
+              'n_rho': 400,
+          },
+      ),
+      (
+          'eqdsk',
+          {
+              'geometry_type': 'eqdsk',
+              'geometry_file': 'iterhybrid_cocos02.eqdsk',
+              'cocos': 2,
+              'n_rho': 400,
+          },
+      ),
+  )
+  def test_g1_over_vpr2_bounded_near_axis(self, geo_config):
+    # On a mesh finer than the equilibrium grid, g1/vpr^2 (~<|grad rho|^2>)
+    # must stay close to its on-axis value 1/rho_b^2 rather than diverge.
+    geo = geometry_pydantic_model.Geometry.from_dict(geo_config).build_provider(
+        0.0
+    )
+    near_axis = geo.rho_face_norm < 0.1
+    normalized = np.asarray(geo.g1_over_vpr2_face)[near_axis] * geo.rho_b**2
+    np.testing.assert_array_less(normalized, 1.5)
+    np.testing.assert_array_less(0.5, normalized)
+
 
 class PsiFromIpTest(absltest.TestCase):
   """Tests j_total derived from psi_from_Ip on a mesh finer than the equilibrium."""

@@ -19,6 +19,7 @@ CHEASE, FBT, etc.
 """
 
 import dataclasses
+import functools
 
 from absl import logging
 import chex
@@ -542,11 +543,23 @@ def build_standard_geometry(
   g0_face = rhon_interpolation_func(rho_face_norm, g0)
   g0 = rhon_interpolation_func(rho_norm, g0)
 
-  g1_face = rhon_interpolation_func(rho_face_norm, g1)
-  g1 = rhon_interpolation_func(rho_norm, g1)
+  # g1 and g2 go like rho_norm^2 near the axis, while vpr goes like rho_norm:
+  # flux surfaces near the axis are nested ellipses of minor radius r, so both
+  # the volume and the toroidal flux go like r^2, i.e. V ~ rho_norm^2 and
+  # vpr = dV/drho_norm ~ rho_norm, while |grad rho_norm| tends to a constant.
+  # Linear interpolation within the first equilibrium interval would make
+  # g1/vpr^2 and g2/vpr^2 diverge like 1/rho_norm there, so keep these ratios
+  # constant in that interval instead.
+  interp_near_axis = functools.partial(
+      _interpolate_rho_norm_squared_near_axis,
+      rho_norm_intermediate=rho_norm_intermediate,
+      vpr_intermediate=intermediates.vpr,
+  )
+  g1_face = interp_near_axis(rho_face_norm, g1, vpr_face)
+  g1 = interp_near_axis(rho_norm, g1, vpr)
 
-  g2_face = rhon_interpolation_func(rho_face_norm, g2)
-  g2 = rhon_interpolation_func(rho_norm, g2)
+  g2_face = interp_near_axis(rho_face_norm, g2, vpr_face)
+  g2 = interp_near_axis(rho_norm, g2, vpr)
 
   g3_face = rhon_interpolation_func(rho_face_norm, g3)
   g3 = rhon_interpolation_func(rho_norm, g3)
@@ -649,6 +662,34 @@ def build_standard_geometry(
       R_target=intermediates.R_target,
       B_pol_OMP=intermediates.B_pol_OMP,
   )
+
+
+def _interpolate_rho_norm_squared_near_axis(
+    rho_norm: array_typing.Array,
+    y_intermediate: array_typing.Array,
+    vpr: array_typing.Array,
+    rho_norm_intermediate: array_typing.Array,
+    vpr_intermediate: array_typing.Array,
+) -> np.ndarray:
+  """Linearly interpolates a quantity that goes like rho_norm^2 on axis.
+
+  Within the first equilibrium interval, y / vpr^2 is held at its value at the
+  first off-axis equilibrium point, since vpr goes like rho_norm there.
+
+  Args:
+    rho_norm: rho_norm values to interpolate to.
+    y_intermediate: Quantity on the equilibrium grid.
+    vpr: vpr at rho_norm.
+    rho_norm_intermediate: rho_norm of the equilibrium grid.
+    vpr_intermediate: vpr on the equilibrium grid.
+
+  Returns:
+    The quantity at rho_norm.
+  """
+  y = np.interp(rho_norm, rho_norm_intermediate, y_intermediate)
+  first_interval = rho_norm < rho_norm_intermediate[1]
+  y_over_vpr2 = y_intermediate[1] / vpr_intermediate[1] ** 2
+  return np.where(first_interval, y_over_vpr2 * vpr**2, y)
 
 
 def _calculate_psi_from_Ip(
