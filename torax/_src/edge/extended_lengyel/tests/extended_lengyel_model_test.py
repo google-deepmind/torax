@@ -504,11 +504,19 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
           'nr_not_converged',
           1,  # error code: 1 = not converged
           extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+          True,
       ),
       (
           'bad_physics_outcome',
           0,  # error code: 0 = converged
           extended_lengyel_solvers.PhysicsOutcome.Q_CC_SQUARED_NEGATIVE,
+          True,
+      ),
+      (
+          'not_valid_for_core_update',
+          0,  # error code: 0 = converged
+          extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+          False,
       ),
   )
   @mock.patch.object(
@@ -518,9 +526,10 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
       self,
       nr_error_code,
       physics_outcome,
+      valid_for_core_update,
       mock_run_standalone,
   ):
-    """Tests that initial guess falls back to defaults when previous solver failed."""
+    """Tests that initial guess falls back to defaults when previous outputs are not viable, while CORE enrichment uses previous enrichment."""
     # Create RootMetadata inside the test to avoid JAX calls at module load.
     numerics_outcome = jax_root_finding.RootMetadata(
         iterations=jnp.array(30),
@@ -582,7 +591,8 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
             physics_outcome=physics_outcome,
             numerics_outcome=numerics_outcome,
         ),
-        calculated_enrichment={},
+        calculated_enrichment={'He': jnp.array(99.0)},
+        valid_for_core_update=jnp.array(valid_for_core_update),
     )
 
     edge_config = pydantic_model.ExtendedLengyelConfig(
@@ -596,8 +606,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         angle_of_incidence_target=1.0,
         toroidal_flux_expansion=1.0,
         ratio_bpol_omp_to_bpol_avg=1.0,
-        use_enrichment_model=False,
-        enrichment_factor={'He': 1.0},
+        use_enrichment_model=True,
         diverted=True,
         initial_guess=pydantic_model.InitialGuessConfig(
             use_previous_step_as_guess=True,
@@ -631,6 +640,20 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     _, kwargs = mock_run_standalone.call_args
     passed_initial_guess = kwargs['initial_guess']
+    passed_fixed_impurities = kwargs['fixed_impurity_concentrations']
+
+    # CORE enrichment uses previous divertor neutral pressure even when
+    # previous outputs are not viable for initial guess.
+    expected_enrichment = extended_lengyel_formulas.calc_enrichment_kallenbach(
+        bad_previous_outputs.pressure_neutral_divertor,
+        'He',
+        edge_params.enrichment_model_multiplier,
+    )
+    np.testing.assert_allclose(
+        passed_fixed_impurities['He'],
+        0.01 * expected_enrichment,
+        rtol=1e-5,
+    )
 
     # These should NOT be the bad previous values (0.99 and 9999.0)
     # but should be the defaults (0.1 and 2390.0)
@@ -715,6 +738,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     }
 
     previous_enrichment = 3.5
+    previous_pressure = 2.5
     if provide_previous_outputs:
       previous_edge_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
           T_e_right_bc=jnp.array(0.1),
@@ -725,7 +749,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
           q_perpendicular_target=jnp.array(1e6),
           T_e_separatrix=jnp.array(0.1),
           T_e_target=jnp.array(3.5),
-          pressure_neutral_divertor=jnp.array(1.0),
+          pressure_neutral_divertor=jnp.array(previous_pressure),
           alpha_t=jnp.array(0.42),
           kappa_e=jnp.array(2500.0),
           c_z_prefactor=jnp.array(0.0),
@@ -778,7 +802,14 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         and use_enrichment_model
         and provide_previous_outputs
     ):
-      expected_concentration = core_lcfs_ratio * previous_enrichment
+      expected_enrichment = (
+          extended_lengyel_formulas.calc_enrichment_kallenbach(
+              previous_pressure,
+              'Ne',
+              runtime_params.edge.enrichment_model_multiplier,
+          )
+      )
+      expected_concentration = core_lcfs_ratio * expected_enrichment
       self.assertIsNone(runtime_params.edge.enrichment_factor)
     elif (
         impurity_sot == extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
@@ -804,6 +835,110 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     np.testing.assert_allclose(
         kwargs['fixed_impurity_concentrations']['Ne'],
         expected_concentration,
+        rtol=1e-5,
+    )
+
+  @mock.patch.object(
+      extended_lengyel_standalone, 'run_extended_lengyel_standalone'
+  )
+  def test_transition_from_limited_to_diverted_evaluates_kallenbach(
+      self, mock_run_standalone
+  ):
+    """Transitioning from limited to diverted evaluates Kallenbach immediately."""
+    n_rho = 10
+    geo = chease.CheaseConfig(n_rho=n_rho).build_geometry()
+
+    mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
+    for attr in ['n_e', 'n_i', 'n_impurity']:
+      m = mock.MagicMock(spec=cell_variable.CellVariable)
+      m.face_value.return_value = np.ones(n_rho + 1) * 1e19
+      setattr(mock_core_profiles, attr, m)
+    mock_psi = mock.MagicMock(spec=cell_variable.CellVariable)
+    mock_psi.face_value.return_value = np.linspace(0.0, 1.0, n_rho + 1)
+    mock_core_profiles.psi = mock_psi
+    _set_psi_norm_face(mock_core_profiles)
+    mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
+    mock_core_profiles.A_i = np.array(2.0)
+    mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
+    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+
+    mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
+    mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
+
+    core_lcfs_ratio = 0.02
+    impurity_params = mock.MagicMock(spec=electron_density_ratios.RuntimeParams)
+    impurity_params.n_e_ratios = {'Ne': np.array(core_lcfs_ratio)}
+    impurity_params.n_e_ratios_face = {
+        'Ne': np.ones(n_rho + 1) * core_lcfs_ratio
+    }
+
+    # Outputs from a previous limited step have pressure_neutral_divertor = 1.0
+    # and calculated_enrichment = 1.0.
+    previous_edge_outputs = extended_lengyel_standalone.ExtendedLengyelOutputs(
+        T_e_right_bc=jnp.array(0.1),
+        T_i_right_bc=jnp.array(0.1),
+        impurity_right_bc={},
+        n_e_right_bc=jnp.array(jnp.nan),
+        q_parallel=jnp.array(1e8),
+        q_perpendicular_target=jnp.array(1e6),
+        T_e_separatrix=jnp.array(0.1),
+        T_e_target=jnp.array(3.5),
+        pressure_neutral_divertor=jnp.array(
+            extended_lengyel_defaults.INITIAL_PRESSURE_NEUTRAL_DIVERTOR
+        ),
+        alpha_t=jnp.array(0.42),
+        kappa_e=jnp.array(2500.0),
+        c_z_prefactor=jnp.array(0.0),
+        Z_eff_separatrix=jnp.array(1.5),
+        seed_impurity_concentrations={},
+        calculated_enrichment={'Ne': jnp.array(1.0)},
+        solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
+            physics_outcome=extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
+            numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
+        ),
+    )
+
+    edge_config = pydantic_model.ExtendedLengyelConfig(
+        model_name='extended_lengyel',
+        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
+        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+        use_enrichment_model=True,
+        diverted=True,
+        fixed_impurity_concentrations={'Ne': 0.05},
+        seed_impurity_weights={},
+        connection_length_target=10.0,
+        connection_length_divertor=2.0,
+        toroidal_flux_expansion=1.0,
+        angle_of_incidence_target=1.0,
+        ratio_bpol_omp_to_bpol_avg=1.0,
+    )
+    runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
+    runtime_params.edge = edge_config.build_runtime_params(t=0.0)
+    mock_pc = mock.MagicMock(spec=plasma_composition_lib.RuntimeParams)
+    mock_pc.impurity = impurity_params
+    runtime_params.plasma_composition = mock_pc
+
+    model = extended_lengyel_model.ExtendedLengyelModel()
+    model(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=mock_core_profiles,
+        core_sources=mock_core_sources,
+        previous_edge_outputs=previous_edge_outputs,
+    )
+
+    _, kwargs = mock_run_standalone.call_args
+    expected_enrichment = extended_lengyel_formulas.calc_enrichment_kallenbach(
+        extended_lengyel_defaults.INITIAL_PRESSURE_NEUTRAL_DIVERTOR,
+        'Ne',
+        runtime_params.edge.enrichment_model_multiplier,
+    )
+    # Ensure expected enrichment from Kallenbach is strictly distinct from the
+    # 1.0 limited enrichment.
+    self.assertNotEqual(float(expected_enrichment), 1.0)
+    np.testing.assert_allclose(
+        kwargs['fixed_impurity_concentrations']['Ne'],
+        core_lcfs_ratio * expected_enrichment,
         rtol=1e-5,
     )
 
@@ -1499,7 +1634,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
       )
 
   def test_use_model_limited(self):
-    """Enrichment is 1.0 for limited geometry when using model."""
+    """Enrichment is 1.0 for limited geometry and core BCs are not updated."""
     self.torax_config.update_fields({
         'edge.use_enrichment_model': True,
         'edge.diverted': False,
@@ -1508,6 +1643,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         self.torax_config
     ).simulation_output_to_xr()
     calculated_enrichment = outputs.edge.calculated_enrichment.values[0]
+    edge_impurity_bc = outputs.edge.impurity_right_bc.sel(impurity='Ne').values
     core_impurity_value = outputs.profiles.n_impurity.values[:, -1]
     for i in range(len(calculated_enrichment)):
       if i == 0:
@@ -1515,13 +1651,19 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
       # Physics model sets 1.0 for limited
       self.assertEqual(calculated_enrichment[i], 1.0)
       np.testing.assert_allclose(
+          edge_impurity_bc[i],
+          self._EDGE_NE_VALUE / self._N_E_VALUE,
+          rtol=1e-4,
+      )
+      # Core impurity boundary condition is retained when diverted=False
+      np.testing.assert_allclose(
           core_impurity_value[i],
-          self._EDGE_NE_VALUE,
-          rtol=1e-5,
+          0.01 * self._N_E_VALUE,
+          rtol=1e-3,
       )
 
   def test_no_model_limited(self):
-    """Enrichment from config for limited geometry."""
+    """Enrichment from config for limited geometry and core BCs are not updated."""
     self.torax_config.update_fields({
         'edge.use_enrichment_model': False,
         'edge.diverted': False,
@@ -1529,15 +1671,21 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     outputs = run_simulation.run_simulation(
         self.torax_config
     ).simulation_output_to_xr()
+    edge_impurity_bc = outputs.edge.impurity_right_bc.sel(impurity='Ne').values
     core_impurity_value = outputs.profiles.n_impurity.values[:, -1]
     for i in range(len(core_impurity_value)):
       if i == 0:
         continue
-      # Takes enrichment factor from config.
+      np.testing.assert_allclose(
+          edge_impurity_bc[i],
+          (self._EDGE_NE_VALUE / self._N_E_VALUE) / self._CONFIG_ENRICHMENT,
+          rtol=1e-4,
+      )
+      # Core impurity boundary condition is retained when diverted=False
       np.testing.assert_allclose(
           core_impurity_value[i],
-          self._EDGE_NE_VALUE / self._CONFIG_ENRICHMENT,
-          rtol=1e-5,
+          0.01 * self._N_E_VALUE,
+          rtol=1e-3,
       )
 
   def _make_mock_core_profiles_and_sources(self, n_rho: int):

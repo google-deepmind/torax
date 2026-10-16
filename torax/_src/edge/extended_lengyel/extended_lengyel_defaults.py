@@ -66,6 +66,9 @@ DEFAULT_KAPPA_E_INIT: Final[float] = 1800.0
 DEFAULT_C_Z_PREFACTOR_INIT: Final[float] = 1e-4
 DEFAULT_T_E_SEPARATRIX_INIT: Final[float] = 200.0  # eV
 DEFAULT_T_E_TARGET_INIT_FORWARD: Final[float] = 100.0  # eV
+# Initial divertor neutral pressure used before divertor formation or at
+# initial step.
+INITIAL_PRESSURE_NEUTRAL_DIVERTOR: Final[float] = 1.0  # Pa
 
 
 @dataclasses.dataclass(frozen=True)

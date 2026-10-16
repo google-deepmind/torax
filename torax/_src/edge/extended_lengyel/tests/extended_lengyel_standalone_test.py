@@ -942,6 +942,48 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
           solver_mode=extended_lengyel_enums.SolverMode.FIXED_POINT,
       )
 
+  def test_pressure_neutral_divertor_calculated_when_limited(self):
+    inputs = {
+        'T_e_target': 2.34,
+        'power_crossing_separatrix': 5.5e6,
+        'separatrix_electron_density': 3.3e19,
+        'main_ion_charge': 1.0,
+        'mean_ion_charge_state': 1.0,
+        'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
+        'fixed_impurity_concentrations': {'He': 0.01},
+        'magnetic_field_on_axis': 2.5,
+        'plasma_current': 1.0e6,
+        'connection_length_target': 20.0,
+        'connection_length_divertor': 5.0,
+        'major_radius': 1.65,
+        'minor_radius': 0.5,
+        'elongation_psi95': 1.6,
+        'triangularity_psi95': 0.3,
+        'average_ion_mass': 2.0,
+        'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+        'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
+        'diverted': False,
+    }
+    outputs_limited = (
+        extended_lengyel_standalone.run_extended_lengyel_standalone(**inputs)
+    )
+    diverted_inputs = {**inputs, 'diverted': True}
+    outputs_diverted = (
+        extended_lengyel_standalone.run_extended_lengyel_standalone(
+            **diverted_inputs
+        )
+    )
+    self.assertGreater(outputs_limited.pressure_neutral_divertor, 0.0)
+    np.testing.assert_allclose(
+        outputs_limited.pressure_neutral_divertor,
+        outputs_diverted.pressure_neutral_divertor,
+    )
+    for species in ['N', 'Ar', 'He']:
+      np.testing.assert_allclose(
+          outputs_limited.calculated_enrichment[species],
+          1.0,
+      )
+
 
 if __name__ == '__main__':
   absltest.main()

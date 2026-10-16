@@ -88,6 +88,45 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
     updated = updaters.update_runtime_params(params, None)
     self.assertIs(updated, params)
 
+  def test_invalid_for_core_update_skips_all_updates(self):
+    params = self._with_edge_flags(
+        update_electron_temperature=True,
+        update_ion_temperature=True,
+        update_electron_density=True,
+        update_impurities=True,
+    )
+    invalid_outputs = dataclasses.replace(
+        self.edge_outputs, valid_for_core_update=jnp.array(False)
+    )
+    updated = updaters.update_runtime_params(params, invalid_outputs)
+
+    np.testing.assert_allclose(
+        updated.profile_conditions.T_e_right_bc,
+        params.profile_conditions.T_e_right_bc,
+    )
+    np.testing.assert_allclose(
+        updated.profile_conditions.T_i_right_bc,
+        params.profile_conditions.T_i_right_bc,
+    )
+    np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 0.5)
+    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_fGW)
+    assert isinstance(
+        updated.plasma_composition.impurity,
+        electron_density_ratios.RuntimeParams,
+    )
+    assert isinstance(
+        params.plasma_composition.impurity,
+        electron_density_ratios.RuntimeParams,
+    )
+    np.testing.assert_allclose(
+        updated.plasma_composition.impurity.n_e_ratios['N'],
+        params.plasma_composition.impurity.n_e_ratios['N'],
+    )
+    np.testing.assert_allclose(
+        updated.plasma_composition.impurity.n_e_ratios_face['N'],
+        params.plasma_composition.impurity.n_e_ratios_face['N'],
+    )
+
   def test_update_electron_temperature(self):
     params = self._with_edge_flags(update_electron_temperature=True)
     updated = updaters.update_runtime_params(params, self.edge_outputs)

@@ -271,7 +271,12 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     # This ensures all relevant output fields are handled.
     fields_to_compress = {}
     for field in dataclasses.fields(roots):
-      if field.name in ['roots', 'multiple_roots_found', 'solver_status']:
+      if field.name in [
+          'roots',
+          'multiple_roots_found',
+          'solver_status',
+          'valid_for_core_update',
+      ]:
         continue  # Skip recursive field and internal flags
       value = getattr(roots, field.name)
       if isinstance(value, (jax.Array, np.ndarray)):
@@ -439,6 +444,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     output_args['impurity_right_bc'] = new_impurity_right_bc
     output_args['roots'] = None
     output_args['multiple_roots_found'] = None
+    output_args['valid_for_core_update'] = self.valid_for_core_update
 
     return self.__class__(**output_args)
 
@@ -557,6 +563,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
           ROOTS,
           MULTIPLE_ROOTS_FOUND,
           'solver_status',
+          'valid_for_core_update',
       ):
         continue
 
@@ -1281,6 +1288,7 @@ def _build_extended_lengyel_outputs(
       calculated_enrichment=calculated_enrichment,
       roots=None,
       multiple_roots_found=multiple_roots_found,
+      valid_for_core_update=jnp.asarray(diverted, dtype=jnp.bool_),
   )
 
 

@@ -29,6 +29,7 @@ from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
+from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
@@ -154,6 +155,11 @@ class ExtendedLengyelModel(base.EdgeModel):
     assert isinstance(
         geo, standard_geometry.StandardGeometry
     ), 'Geometry must be of type StandardGeometry'
+    if previous_edge_outputs is not None:
+      assert isinstance(
+          previous_edge_outputs,
+          extended_lengyel_standalone.ExtendedLengyelOutputs,
+      )
 
     # Determine diverted status. For FBT geometries, this is provided by the
     # geometry object. For other types, it must be provided in the config.
@@ -231,16 +237,23 @@ class ExtendedLengyelModel(base.EdgeModel):
         # Calculate edge concentration: c_edge = c_core_lcfs * enrichment_factor
         if edge_params.use_enrichment_model:
           if previous_edge_outputs is not None:
-            assert isinstance(
-                previous_edge_outputs,
-                extended_lengyel_standalone.ExtendedLengyelOutputs,
+            pressure_neutral_divertor = (
+                previous_edge_outputs.pressure_neutral_divertor
             )
-            enrichment = previous_edge_outputs.calculated_enrichment[species]
           else:
-            # For initial timestep when previous_edge_outputs is None
-            enrichment = extended_lengyel_formulas.calc_enrichment_kallenbach(
-                1.0, species, edge_params.enrichment_model_multiplier
+            pressure_neutral_divertor = (
+                extended_lengyel_defaults.INITIAL_PRESSURE_NEUTRAL_DIVERTOR
             )
+
+          enrichment = jnp.where(
+              diverted,
+              extended_lengyel_formulas.calc_enrichment_kallenbach(
+                  pressure_neutral_divertor=pressure_neutral_divertor,
+                  ion_symbol=species,
+                  enrichment_multiplier=edge_params.enrichment_model_multiplier,
+              ),
+              1.0,  # Limited geometry: no divertor enrichment.
+          )
         elif edge_params.enrichment_factor is not None:
           enrichment = edge_params.enrichment_factor[species]
         else:
@@ -458,22 +471,57 @@ def _get_diverted(
   return jnp.where(is_fbt, safe_fbt_diverted, safe_params_diverted)
 
 
+def _is_viable_previous_outputs(
+    previous_edge_outputs: (
+        extended_lengyel_standalone.ExtendedLengyelOutputs | None
+    ),
+) -> jax.Array:
+  """Returns whether previous_edge_outputs is usable as a warm start."""
+  if previous_edge_outputs is None:
+    return jnp.array(False, dtype=jnp.bool_)
+  # Check if previous solver had a "bad" Physics outcome. If so, do not use
+  # it. Note that a "bad" PhysicsOutcome is not necessarily an error; it can
+  # be a valid physical state (e.g., detachment). However, if reattaching,
+  # then it's better not to start from such a cold state.
+  bad_physics = (
+      previous_edge_outputs.solver_status.physics_outcome
+      != extended_lengyel_solvers.PhysicsOutcome.SUCCESS
+  )
+  # Numerics outcome: for NR solver, error=1 means not converged.
+  # For fixed-point solver, it's always SUCCESS.
+  numerics_outcome = previous_edge_outputs.solver_status.numerics_outcome
+  if isinstance(numerics_outcome, jax_root_finding.RootMetadata):
+    # NR error code: 0=fine, 1=not converged, 2=coarse (acceptable).
+    bad_numerics = numerics_outcome.error == 1
+  else:
+    # Fixed-point always succeeds
+    bad_numerics = False
+  return jnp.logical_and(
+      previous_edge_outputs.valid_for_core_update,
+      jnp.logical_not(jnp.logical_or(bad_physics, bad_numerics)),
+  )
+
+
 def _get_initial_guess(
     edge_params: RuntimeParams,
-    previous_edge_outputs: base.EdgeModelOutputs | None = None,
+    previous_edge_outputs: (
+        extended_lengyel_standalone.ExtendedLengyelOutputs | None
+    ) = None,
 ) -> divertor_sol_1d_lib.ExtendedLengyelInitialGuess:
   """Resolves the initial guess for the solver state variables.
 
   Priorities:
-  1. Previous simulation state (warm start), if available, enabled, and the
-     previous solver had a good outcome (converged and no physics errors).
+  1. Previous simulation state (warm start), if available, enabled, valid for
+     core updates, and the previous solver had a good outcome (converged and no
+     physics errors).
   2. Configuration overrides (if provided).
   3. Physics-based defaults.
 
   Note: If the previous solver had a bad outcome (Newton-Raphson error=1, or
-  physics_outcome != SUCCESS), the previous outputs are NOT used as a warm
-  start. This prevents the solver from inheriting a bad state that can drag
-  it into cold root basins in subsequent time steps.
+  physics_outcome != SUCCESS), or was not valid for core updates (e.g.,
+  diverted=False), the previous outputs are NOT used as a warm start. This
+  prevents the solver from inheriting a bad state that can drag it into cold
+  root basins in subsequent time steps.
 
   Args:
     edge_params: Runtime parameters for the edge model.
@@ -484,42 +532,9 @@ def _get_initial_guess(
   """
   initial_guess = edge_params.initial_guess
 
-  # Check if we have valid previous outputs for warm start.
-  # `has_previous` is a Python bool for attribute access safety.
-  # `viable_previous` is a JAX bool for solver status, used in jnp.where.
-  has_previous = previous_edge_outputs is not None
-
-  # Default: usable if exists.
-  viable_previous = jnp.array(True, dtype=jnp.bool_)
-  if has_previous:
-    assert isinstance(
-        previous_edge_outputs,
-        extended_lengyel_standalone.ExtendedLengyelOutputs,
-    )
-    # Check if previous solver had a "bad" Physics outcome. If so, do not use
-    # it. Note that a "bad" PhysicsOutcome is not necessarily an error; it can
-    # be a valid physical state (e.g., detachment). However, if reattaching,
-    # then it's better not to start from such a cold state.
-    bad_physics = (
-        previous_edge_outputs.solver_status.physics_outcome
-        != extended_lengyel_solvers.PhysicsOutcome.SUCCESS
-    )
-    # Numerics outcome: for NR solver, error=1 means not converged.
-    # For fixed-point solver, it's always SUCCESS.
-    numerics_outcome = previous_edge_outputs.solver_status.numerics_outcome
-    if isinstance(numerics_outcome, jax_root_finding.RootMetadata):
-      # NR error code: 0=fine, 1=not converged, 2=coarse (acceptable).
-      bad_numerics = numerics_outcome.error == 1
-    else:
-      # Fixed-point always succeeds
-      bad_numerics = False
-    viable_previous = jnp.logical_not(jnp.logical_or(bad_physics, bad_numerics))
-
-  # Warm start logic: use previous only if enabled AND we have previous outputs
-  # AND those previous outputs are usable (good solver outcome).
   use_previous = jnp.logical_and(
-      initial_guess.use_previous_step_as_guess and has_previous,
-      viable_previous,
+      initial_guess.use_previous_step_as_guess,
+      _is_viable_previous_outputs(previous_edge_outputs),
   )
 
   # When previous_val is None (no previous outputs), we use 0.0 as a safe
@@ -530,6 +545,7 @@ def _get_initial_guess(
     return jnp.where(use_previous, safe_previous, config_val)
 
   # Resolve common variables
+  has_previous = previous_edge_outputs is not None
   alpha_t = _resolve(
       previous_edge_outputs.alpha_t if has_previous else None,
       initial_guess.alpha_t,
