@@ -159,9 +159,11 @@ See the |sources| subpackage for all implementations.
 transport
 ^^^^^^^^^
 
-A TORAX |TransportModel| computes the heat and particle turbulent transport
-coefficients. |TransportModel| is an abstract class, and TORAX provides several
-implementations, including |QLKNN|.
+The TORAX |TransportModel| combines one or more component transport models
+across the core and pedestal domains to compute the heat and particle turbulent
+transport coefficients. Each component model inherits from the abstract
+``ComponentTransportModel`` class, and TORAX provides several implementations,
+including |QLKNN|.
 
 See the |transport_model| subpackage for all implementations.
 
@@ -169,10 +171,20 @@ pedestal
 ^^^^^^^^
 
 A TORAX |PedestalModel| imposes the plasma temperature and density at a desired
-internal location. This is intended to correspond to the top of the H-mode
-pedestal. The operation of the pedestal is controlled by a time-dependent
-configuration attribute. |PedestalModel| is an abstract class, and TORAX
-currently provides two simple implementations.
+internal location (or via adaptive transport in the pedestal region)
+corresponding to the H-mode pedestal. |PedestalModel| is composed of three
+modular sub-models:
+
+* ``PedestalStructureModel``: computes the H-mode target pedestal-top values
+  (temperature, density, and radial location). TORAX provides two built-in
+  implementations (``SetTemperatureDensityPedestalModel`` and
+  ``SetPressureTemperatureRatioAndDensityPedestalModel``, plus ``NoPedestal``
+  for when the pedestal is disabled), and supports registering external models
+  such as `epednn-mit <https://github.com/aaronkho/epednn_mit>`_.
+* ``FormationModel``: controls L-H and H-L transitions (either via a prescribed
+  schedule or a power-scaling law).
+* ``SaturationModel``: controls how transport scales in the pedestal region
+  relative to the target values in ``ADAPTIVE_TRANSPORT`` mode.
 
 See the |pedestal_model| modules for all implementations.
 

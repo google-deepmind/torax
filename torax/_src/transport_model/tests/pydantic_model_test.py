@@ -11,11 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 from fusion_surrogates.qlknn.models import registry
 import jax
+from jax import numpy as jnp
 import pydantic
 from torax._src import jax_utils
 from torax._src.geometry import circular_geometry
@@ -463,6 +466,81 @@ class TransportModelValidationTest(parameterized.TestCase):
       transport_pydantic_model.TransportModel(
           core_transport_models={'inner': {'chi_i': 1.0}}
       )
+
+  def test_invalid_pedestal_model_rho_range_fails(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        r'rho_min and rho_max not supported',
+    ):
+      transport_pydantic_model.TransportModel(
+          pedestal_transport_models={
+              'p1': transport_pydantic_model.PrescribedTransportModel(
+                  rho_min=0.1
+              )
+          }
+      )
+
+  def test_smoothing_zones_config(self):
+    zone = transport_pydantic_model.SmoothingZone(
+        rho_min=0.2, rho_max=0.8, smoothing_width=0.05
+    )
+    config = transport_pydantic_model.TransportModel(
+        smoothing_zones=[zone],
+    )
+    self.assertIsInstance(config, transport_pydantic_model.TransportModel)
+
+  def test_negative_smoothing_zone_width_fails(self):
+    with self.assertRaises(pydantic.ValidationError):
+      transport_pydantic_model.SmoothingZone(
+          rho_min=0.2, rho_max=0.8, smoothing_width=-0.05
+      )
+
+  def test_inverted_smoothing_zone_fails(self):
+    with self.assertRaises(pydantic.ValidationError):
+      transport_pydantic_model.SmoothingZone(
+          rho_min=0.8, rho_max=0.2, smoothing_width=0.05
+      )
+
+  def test_equal_bounds_smoothing_zone_fails(self):
+    with self.assertRaises(pydantic.ValidationError):
+      transport_pydantic_model.SmoothingZone(
+          rho_min=0.5, rho_max=0.5, smoothing_width=0.05
+      )
+
+  def test_cgm_zero_chi_e_i_ratio_fails(self):
+    with self.assertRaises(pydantic.ValidationError):
+      transport_pydantic_model.CriticalGradientTransportModel(chi_e_i_ratio=0.0)
+
+  def test_critical_gradient_grad_finite_below_threshold(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    transport_config = transport_pydantic_model.CriticalGradientTransportModel()
+    torax_pydantic.set_grid(transport_config, geo.torax_mesh)
+    t_params = transport_config.build_runtime_params(t=0.0)
+    model = transport_config.build_transport_model()
+    n_face = geo.rho_face_norm.shape[0]
+    ones = jnp.ones(n_face)
+
+    runtime_params = mock.MagicMock()
+    runtime_params.plasma_composition.main_ion.A_avg = 2.0
+
+    def loss(ti_grad):
+      core_profiles = mock.MagicMock()
+      core_profiles.q_face = 1.5 * ones
+      core_profiles.s_face = ones
+      core_profiles.T_e.face_value.return_value = ones
+      core_profiles.T_i.face_value.return_value = ones
+      core_profiles.T_i.face_grad.return_value = ti_grad
+      coeffs = model.call_implementation(
+          transport_runtime_params=t_params,
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          two_point_mask=jnp.zeros(n_face, dtype=bool),
+      )
+      return jnp.sum(coeffs.chi_face_ion)
+
+    grad = jax.grad(loss)(jnp.zeros(n_face))
+    self.assertTrue(jnp.all(jnp.isfinite(grad)))
 
 
 if __name__ == '__main__':

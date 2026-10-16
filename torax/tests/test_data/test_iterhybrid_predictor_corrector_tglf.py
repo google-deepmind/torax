@@ -18,16 +18,14 @@ import copy
 
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
-# Internal import.
-
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['transport'] = {
     'core_transport_models': {
         'tglf': {
             'model_name': 'tglf',
-            # TGLF params
-            'tglf_exec_path': '~/gacode/tglf/bin/tglf',
+            'n_cores_per_process': 1,
+            'n_processes': 16,
             'DV_effective': True,
             'rho_min': 0.15,
             'rho_max': 0.95,

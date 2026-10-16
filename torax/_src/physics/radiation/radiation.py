@@ -40,6 +40,40 @@ class MavrinModelType(enum.StrEnum):
   NONCORONAL = 'noncoronal'
 
 
+def _resolve_mavrin_symbol(ion_symbol: str) -> str:
+  """Returns the symbol used to look up Mavrin fit data for a species."""
+  # Alias He3 and He4 to He as they are chemically identical
+  if ion_symbol in ('He3', 'He4'):
+    return 'He'
+  return ion_symbol
+
+
+def has_mavrin_cooling_rate(
+    ion_symbol: str, model_type: MavrinModelType
+) -> bool:
+  """Returns whether a Mavrin cooling rate fit exists for a species.
+
+  For species without a noncoronal fit, `calculate_mavrin_cooling_rate` returns
+  zero cooling in the noncoronal model.
+
+  Args:
+    ion_symbol: Ion symbol of the impurity species.
+    model_type: The Mavrin model type.
+  """
+  match model_type:
+    case MavrinModelType.CORONAL:
+      coeffs = mavrin_coronal_cooling_rate.COEFFS
+    case MavrinModelType.NONCORONAL:
+      coeffs = mavrin_noncoronal_cooling_rate.COEFFS
+    case _:
+      allowed_models = ', '.join([v.name for v in MavrinModelType])
+      raise ValueError(
+          f'Invalid model type: {model_type}. Allowed models are:'
+          f' {allowed_models}'
+      )
+  return _resolve_mavrin_symbol(ion_symbol) in coeffs
+
+
 @jax.jit(
     static_argnames=[
         'ion_symbol',
@@ -82,11 +116,7 @@ def calculate_cooling_rate(
         f' {constants.ION_SYMBOLS}'
     )
 
-  # Alias He3 and He4 to He as they are chemically identical
-  if ion_symbol in ('He3', 'He4'):
-    ion_symbol_lookup = 'He'
-  else:
-    ion_symbol_lookup = ion_symbol
+  ion_symbol_lookup = _resolve_mavrin_symbol(ion_symbol)
 
   # H, D, T are fully ionized and have negligible cooling rates.
   if ion_symbol in constants.HYDROGENIC_IONS:
@@ -101,7 +131,9 @@ def calculate_cooling_rate(
   )
 
   # Cooling rate in the noncoronal regime
-  if ion_symbol_lookup not in mavrin_noncoronal_cooling_rate.COEFFS.keys():
+  if not has_mavrin_cooling_rate(
+      ion_symbol_lookup, MavrinModelType.NONCORONAL
+  ):
     # For ions that do not have a noncoronal model, we linearly extrapolate
     # from (T_e_min_coronal, LZ_min_coronal) to (0, 0).
     noncoronal_cooling_rate = (
@@ -139,11 +171,11 @@ def calculate_cooling_rate(
   # Smoothly transition between the noncoronal and coronal models based on the
   # minimum temperature of the coronal model.
   return math_utils.smoothstep_transition(
-      T_e,  # pyrefly: ignore[bad-argument-type]
+      T_e,
       smoothing_start=T_e_min_coronal / 1.5,
       smoothing_end=T_e_min_coronal * 1.5,
-      y_left=noncoronal_cooling_rate,  # pyrefly: ignore[bad-argument-type]
-      y_right=coronal_cooling_rate,  # pyrefly: ignore[bad-argument-type]
+      y_left=noncoronal_cooling_rate,
+      y_right=coronal_cooling_rate,
       log_scale=True,
   )
 
@@ -155,9 +187,7 @@ def calculate_mavrin_cooling_rate(
     ne_tau: array_typing.FloatScalar = _NE_TAU_CORONAL_LIMIT,
 ) -> array_typing.FloatVector:
   """Compute the cooling rate for a single impurity species using Mavrin fits."""
-  # Alias He3 and He4 to He as they are chemically identical
-  if ion_symbol in ('He3', 'He4'):
-    ion_symbol = 'He'
+  ion_symbol = _resolve_mavrin_symbol(ion_symbol)
 
   match model_type:
     case MavrinModelType.CORONAL:
@@ -171,9 +201,8 @@ def calculate_mavrin_cooling_rate(
           f' {allowed_models}'
       )
 
-  if (
-      model_type is MavrinModelType.NONCORONAL
-      and ion_symbol not in cooling_rate_module.COEFFS.keys()
+  if model_type is MavrinModelType.NONCORONAL and not has_mavrin_cooling_rate(
+      ion_symbol, model_type
   ):
     # If the ion is not supported by the edge radiation model, we assume it
     # negligibly contributes to the edge physics (radiation or Z_eff/dilution in

@@ -14,25 +14,27 @@ tensors for the neural network.
 
 .. code-block:: python
 
-    class MyCustomSurrogateTransportModel(TransportModel):
+    class MyCustomSurrogateTransportModel(transport.ComponentTransportModel):
       ...
-      def _call_implementation(
+      def call_implementation(
           self,
-          runtime_params: runtime_params_slice.RuntimeParams,
-          geo: geometry.Geometry,
-          core_profiles: state.CoreProfiles,
-      ) -> TurbulentTransport:
+          transport_runtime_params: transport.ComponentRuntimeParams,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          two_point_mask: jax.Array,
+      ) -> transport.TransportCoeffs:
         input_tensor = self._prepare_input(runtime_params, geo, core_profiles)
 
         output_tensor = self._call_surrogate_model(input_tensor)
 
         chi_i, chi_e, d_e, v_e = self._parse_output(output_tensor)
 
-        return TurbulentTransport(
+        return transport.TransportCoeffs(
             chi_face_ion=chi_i,
-            chi_face_electron=chi_e,
-            d_e=d_e,
-            v_e=v_e,
+            chi_face_el=chi_e,
+            d_face_el=d_e,
+            v_face_el=v_e,
         )
 
 In this guide, we explore a few options for how you could make the
@@ -261,8 +263,8 @@ Best practices
 weights loaded once only, on the first call to the function. The loaded model
 should be cached and reused for subsequent calls.
 
-For example, in the ``_combined`` function of the QLKNN transport model (the
-function that actually evaluates this model), we have:
+For example, in the ``call_implementation`` function of the QLKNN transport
+model (the function that actually evaluates this model), we have:
 
 .. code-block:: python
 

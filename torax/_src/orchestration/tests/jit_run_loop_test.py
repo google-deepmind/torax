@@ -42,9 +42,7 @@ class JitRunLoopTest(absltest.TestCase):
     Ip_new_times = jnp.array([start_time, mid_time, end_time])
 
     @jax.jit
-    def fun(
-        Ip_override_values: jax.Array,
-    ):
+    def fun(Ip_override_values: jax.Array):
       Ip_overrides = torax_experimental.TimeVaryingScalarUpdate(
           time=Ip_new_times,
           value=Ip_override_values,
@@ -52,12 +50,13 @@ class JitRunLoopTest(absltest.TestCase):
       runtime_overrides = runtime_params_provider.update_provider_from_mapping(
           {'profile_conditions.Ip': Ip_overrides}
       )
-      _, post_processed_outputs, final_i = jit_run_loop.run_loop_jit(
+      states, post_processed_outputs, final_i = jit_run_loop.run_loop_jit(
           step_fn=step_fn,
           max_steps=200,
           runtime_params_overrides=runtime_overrides,
       )
-      return post_processed_outputs.Q_fusion[final_i]
+      error_states = states.solver_numeric_outputs.solver_error_state
+      return post_processed_outputs.Q_fusion[final_i], (error_states, final_i)
 
     original_values = runtime_params_provider.profile_conditions.Ip.value
     start_Ip = original_values[0]
@@ -65,20 +64,28 @@ class JitRunLoopTest(absltest.TestCase):
     mid_Ip = (start_Ip + end_Ip) / 2
     Ip_new_values = jnp.array([start_Ip, mid_Ip, end_Ip])
 
-    # Use value-and-grad to avoid compiling twice.
-    grad_fn = jax.jit(jax.value_and_grad(fun))
-    _, grad_vjp = grad_fn(Ip_new_values)
+    grad_vjp, aux = jax.jit(jax.grad(fun, has_aux=True))(Ip_new_values)
 
     # jax.test_util.check_grads could be used here, but its very slow.
-    eps = 1e-6
+    # Scale the step to the Ip magnitude (~1e7 A): an absolute step of O(1e-6)
+    # A changes Q_fusion by ~1e-13 relative, which is dominated by roundoff.
     index = 1
+    eps = 1e-6 * Ip_new_values[index]
     eps_vec = jax.nn.one_hot(index, len(Ip_new_values), dtype=jnp.float64) * eps
-    grad_diff = (
-        grad_fn(Ip_new_values + eps_vec)[0]
-        - grad_fn(Ip_new_values - eps_vec)[0]
-    ) / (2 * eps)
+    Q_plus, aux_plus = fun(Ip_new_values + eps_vec)
+    Q_minus, aux_minus = fun(Ip_new_values - eps_vec)
+    grad_diff = (Q_plus - Q_minus) / (2 * eps)
 
-    chex.assert_trees_all_close(grad_diff, grad_vjp[index], atol=5e-9)
+    # Gradients through the Newton-Raphson solver use implicit differentiation
+    # (jax.lax.custom_root), which is only valid at a converged root, so every
+    # step must converge to full tolerance (solver_error_state == 0).
+    for error_states, final_i in (aux, aux_plus, aux_minus):
+      chex.assert_trees_all_equal(
+          error_states[: final_i + 1],
+          jnp.zeros_like(error_states[: final_i + 1]),
+      )
+
+    chex.assert_trees_all_close(grad_diff, grad_vjp[index], rtol=1e-3)
 
 
 if __name__ == '__main__':

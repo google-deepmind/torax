@@ -14,7 +14,8 @@
 
 """Utilities to help with testing sources."""
 
-from typing import ClassVar, Type
+from collections.abc import Mapping
+from typing import Any, ClassVar, Type
 
 from absl.testing import parameterized
 import chex
@@ -43,9 +44,10 @@ class SourceTestCase(parameterized.TestCase):
   """
 
   source_name: ClassVar[str]
-  source_config_class: ClassVar[Type[base.SourceModelBase]]
+  source_config_class: ClassVar[Type[base.SourceConfigBase]]
   needs_source_models: ClassVar[bool] = False
   model_name: ClassVar[str | None] = None
+  extra_source_config_kwargs: ClassVar[Mapping[str, Any]] = {}
 
   def setUp(self):
     super().setUp()
@@ -55,7 +57,9 @@ class SourceTestCase(parameterized.TestCase):
     self._needs_source_models = self.needs_source_models
 
   def test_build_runtime_params(self):
-    source = self._source_config_class.from_dict({})
+    source = self._source_config_class.from_dict(
+        dict(self.extra_source_config_kwargs)
+    )
     self.assertIsInstance(source, self._source_config_class)
     mesh = torax_pydantic.Grid1D(
         face_centers=interpolated_param_2d.get_face_centers(nx=4)
@@ -76,9 +80,11 @@ class SourceTestCase(parameterized.TestCase):
       self, mode: runtime_params_lib.Mode, is_explicit: bool
   ):
     """Tests that the runtime params builds runtime params."""
-    source_config = self._source_config_class.from_dict(
-        {'mode': mode, 'is_explicit': is_explicit}
-    )
+    source_config = self._source_config_class.from_dict({
+        'mode': mode,
+        'is_explicit': is_explicit,
+        **self.extra_source_config_kwargs,
+    })
     mesh = torax_pydantic.Grid1D(
         face_centers=interpolated_param_2d.get_face_centers(nx=4)
     )

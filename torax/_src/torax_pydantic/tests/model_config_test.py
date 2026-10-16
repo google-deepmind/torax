@@ -76,11 +76,13 @@ class ConfigTest(parameterized.TestCase):
         config_dict["time_step_calculator"]["calculator_type"],
     )
     with self.subTest("pedestal_model_set"):
+      pedestal_dict = config_dict["pedestal"]
+      expected_model_name = pedestal_dict.get("structure_model", {}).get(
+          "model_name", "no_pedestal"
+      )
       self.assertEqual(
-          config_pydantic.pedestal.model_name,
-          config_dict["pedestal"]["model_name"]
-          if "model_name" in config_dict["pedestal"]
-          else "no_pedestal",
+          config_pydantic.pedestal.structure_model.model_name,
+          expected_model_name,
       )
     with self.subTest("transport_model_set"):
       self.assertNotEmpty(
@@ -118,9 +120,9 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
 
-    new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pytype: disable=attribute-error
+    new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pyrefly: ignore[missing-attribute]
     new_hires_factor = (
-        config_pydantic.geometry.geometry_configs.config.hires_factor * 2  # pytype: disable=attribute-error
+        config_pydantic.geometry.geometry_configs.config.hires_factor * 2  # pyrefly: ignore[missing-attribute]
     )
 
     # Check that the caches are invalidated.
@@ -133,11 +135,11 @@ class ConfigTest(parameterized.TestCase):
     })
 
     self.assertEqual(
-        config_pydantic.geometry.geometry_configs.config.n_rho,  # pytype: disable=attribute-error
+        config_pydantic.geometry.geometry_configs.config.n_rho,  # pyrefly: ignore[missing-attribute]
         new_n_rho,
     )
     self.assertEqual(
-        config_pydantic.geometry.geometry_configs.config.hires_factor,  # pytype: disable=attribute-error
+        config_pydantic.geometry.geometry_configs.config.hires_factor,  # pyrefly: ignore[missing-attribute]
         new_hires_factor,
     )
 
@@ -158,7 +160,7 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
 
-    new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pytype: disable=attribute-error
+    new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pyrefly: ignore[missing-attribute]
 
     config_pydantic.update_fields({
         "geometry": {
@@ -168,7 +170,7 @@ class ConfigTest(parameterized.TestCase):
     })
 
     self.assertEqual(
-        config_pydantic.geometry.geometry_configs.config.n_rho,  # pytype: disable=attribute-error
+        config_pydantic.geometry.geometry_configs.config.n_rho,  # pyrefly: ignore[missing-attribute]
         new_n_rho,
     )
 
@@ -278,9 +280,13 @@ class ConfigTest(parameterized.TestCase):
           [0.0, 0.1, 0.3, 0.6, 0.9, 1.0]
       )
     if use_pedestal:
-      config_dict["pedestal"] = {"model_name": "set_T_ped_n_ped"}
+      config_dict["pedestal"] = {
+          "structure_model": {"model_name": "set_T_ped_n_ped"}
+      }
     else:
-      config_dict["pedestal"] = {"model_name": "no_pedestal"}
+      config_dict["pedestal"] = {
+          "structure_model": {"model_name": "no_pedestal"}
+      }
 
     warning_snippet = "Config has both a pedestal model and a non-uniform grid."
     self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
@@ -446,19 +452,31 @@ class ConfigTest(parameterized.TestCase):
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
-  def test_validate_toric_nn_requires_he3(self):
-    """Tests that ToricNN model requires He3 in plasma composition."""
+  @parameterized.named_parameters(
+      (
+          "toric_nn",
+          {"model_name": "toric_nn", "model_path": "/tmp/dummy_path.json"},
+          "He3",
+      ),
+      (
+          "scaled_profile",
+          {"model_name": "scaled_profile"},
+          "Li",
+      ),
+  )
+  def test_validate_icrh_requires_minority_species_in_composition(
+      self, icrh_kwargs, minority_species
+  ):
+    """Tests that ICRH models require minority_species in plasma composition."""
     config_dict = default_configs.get_default_config_dict()
     config_dict["sources"] = {
         "icrh": {
-            "model_name": "toric_nn",
-            "model_path": "/tmp/dummy_path.json",
+            **icrh_kwargs,
+            "minority_species": minority_species,
         }
     }
 
-    # Case 1: He3 is missing (default config often doesn't have it)
-    # Default plasma composition usually has D and T.
-    # This should be VALID in V1 mode (minority_species is None)
+    # Case 1: minority_species is missing -> INVALID
     config_dict["plasma_composition"] = {
         "main_ion": {"D": 0.5, "T": 0.5},
         "impurity": {
@@ -466,18 +484,21 @@ class ConfigTest(parameterized.TestCase):
             "species": {"Ne": 0.01},
         },
     }
-    model_config.ToraxConfig.from_dict(config_dict)
-
-    # Case 1b: He3 missing AND minority_species set -> INVALID
-    config_dict["sources"]["icrh"]["minority_species"] = "He3"
     with self.assertRaisesRegex(
-        ValueError, 'The ToricNN ICRH model requires "He3" to be present'
+        ValueError,
+        f'The ICRH source requires "{minority_species}" to be present',
     ):
       model_config.ToraxConfig.from_dict(config_dict)
 
-    # Case 2: He3 is present as main ion -> Valid
+    # Case 1b: minority_species is missing in ZERO or PRESCRIBED mode -> Valid
+    for mode in ("ZERO", "PRESCRIBED"):
+      non_model_config = copy.deepcopy(config_dict)
+      non_model_config["sources"]["icrh"]["mode"] = mode
+      model_config.ToraxConfig.from_dict(non_model_config)  # Should not raise
+
+    # Case 2: minority_species is present as main ion -> Valid
     config_dict["plasma_composition"] = {
-        "main_ion": {"D": 0.47, "T": 0.5, "He3": 0.03},
+        "main_ion": {"D": 0.47, "T": 0.5, minority_species: 0.03},
         "impurity": {
             "impurity_mode": "n_e_ratios",
             "species": {"Ne": 0.01},
@@ -485,12 +506,12 @@ class ConfigTest(parameterized.TestCase):
     }
     model_config.ToraxConfig.from_dict(config_dict)  # Should not raise
 
-    # Case 3: He3 is present as impurity -> Valid
+    # Case 3: minority_species is present as impurity -> Valid
     config_dict["plasma_composition"] = {
         "main_ion": {"D": 0.5, "T": 0.5},
         "impurity": {
             "impurity_mode": "n_e_ratios",
-            "species": {"He3": 0.03},
+            "species": {minority_species: 0.03},
         },
     }
     model_config.ToraxConfig.from_dict(config_dict)  # Should not raise
@@ -512,11 +533,11 @@ class ConfigTest(parameterized.TestCase):
 
     torax_config_restored = model_config.ToraxConfig.from_dict(dumped)
     assert (
-        torax_config_restored.geometry.geometry_configs.config.eqdsk_object  # pytype: disable=attribute-error
+        torax_config_restored.geometry.geometry_configs.config.eqdsk_object  # pyrefly: ignore[missing-attribute]
         is not None
     )
     self.assertIsInstance(
-        torax_config_restored.geometry.geometry_configs.config.eqdsk_object,  # pytype: disable=attribute-error
+        torax_config_restored.geometry.geometry_configs.config.eqdsk_object,  # pyrefly: ignore[missing-attribute]
         eqdsk_lib.EQDSKInterface,
     )
     provider = torax_config_restored.geometry.build_provider
@@ -803,8 +824,9 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
   def test_adaptive_transport_with_internal_boundary_conditions_raises(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
-        "model_name": "set_T_ped_n_ped",
+        "structure_model": {"model_name": "set_T_ped_n_ped"},
         "mode": "ADAPTIVE_TRANSPORT",
+        "formation_model": {"model_name": "martin_scaling"},
     }
     config_dict["profile_conditions"]["internal_boundary_conditions"] = {
         "model_name": "prescribed",
@@ -820,8 +842,9 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
   def test_adaptive_transport_without_internal_boundary_conditions_passes(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
-        "model_name": "set_T_ped_n_ped",
+        "structure_model": {"model_name": "set_T_ped_n_ped"},
         "mode": "ADAPTIVE_TRANSPORT",
+        "formation_model": {"model_name": "martin_scaling"},
     }
     # Should not raise when internal_boundary_conditions is default/empty
     model_config.ToraxConfig.from_dict(config_dict)

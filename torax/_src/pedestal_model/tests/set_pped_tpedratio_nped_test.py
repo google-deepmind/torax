@@ -53,12 +53,13 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         n_e_ped /= 1e20
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'set_P_ped_n_ped',
-        'set_pedestal': True,
-        'n_e_ped': n_e_ped,
-        'n_e_ped_is_fGW': n_e_ped_is_fGW,
-        'rho_norm_ped_top': rho_norm_ped_top,
-        'T_i_T_e_ratio': T_i_T_e_ratio,
+        'structure_model': {
+            'model_name': 'set_P_ped_n_ped',
+            'n_e_ped': n_e_ped,
+            'n_e_ped_is_fGW': n_e_ped_is_fGW,
+            'rho_norm_ped_top': rho_norm_ped_top,
+            'T_i_T_e_ratio': T_i_T_e_ratio,
+        }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = (
@@ -91,7 +92,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     if isinstance(rho_norm_ped_top, (float, int)):
@@ -130,14 +131,15 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
   def test_pedestal_pressure_multiplier(self):
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'set_P_ped_n_ped',
-        'set_pedestal': True,
-        'n_e_ped': 0.7e20,
-        'n_e_ped_is_fGW': False,
-        'rho_norm_ped_top': 0.91,
-        'T_i_T_e_ratio': 1.0,
-        'P_ped': 1e5,
-        'P_ped_multiplier': 1.0,
+        'structure_model': {
+            'model_name': 'set_P_ped_n_ped',
+            'n_e_ped': 0.7e20,
+            'n_e_ped_is_fGW': False,
+            'rho_norm_ped_top': 0.91,
+            'T_i_T_e_ratio': 1.0,
+            'P_ped': 1e5,
+            'P_ped_multiplier': 1.0,
+        }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -167,11 +169,11 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     # Modify multiplier to 1.5
-    config['pedestal']['P_ped_multiplier'] = 1.5
+    config['pedestal']['structure_model']['P_ped_multiplier'] = 1.5
     torax_config_2 = model_config.ToraxConfig.from_dict(config)
     provider_2 = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config_2
@@ -182,7 +184,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     np.testing.assert_allclose(output_2.T_e_ped, output_1.T_e_ped * 1.5)

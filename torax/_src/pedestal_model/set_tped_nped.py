@@ -31,7 +31,7 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(pedestal_runtime_params_lib.RuntimeParams):
+class RuntimeParams(pedestal_runtime_params_lib.StructureRuntimeParams):
   """Runtime params for the SetTemperatureDensityPedestalModel."""
 
   n_e_ped: array_typing.FloatScalar
@@ -39,23 +39,25 @@ class RuntimeParams(pedestal_runtime_params_lib.RuntimeParams):
   T_e_ped: array_typing.FloatScalar
   rho_norm_ped_top: array_typing.FloatScalar
   n_e_ped_is_fGW: array_typing.BoolScalar
-  # TODO(b/517487852): Add pedestal height multiplier.
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
-  """A basic version of the pedestal model that uses direct specification."""
+class SetTemperatureDensityPedestalModel(
+    pedestal_model.PedestalStructureModel
+):
+  """Pedestal structure model using direct temperature and density targets."""
 
   @override
-  def _call_implementation(
+  def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalModelOutput:
-    pedestal_params = runtime_params.pedestal
-    assert isinstance(pedestal_params, RuntimeParams)
+  ) -> pedestal_model_output.PedestalStructure:
+    del core_profiles, pedestal_transition_state
+    structure_params = runtime_params.pedestal.structure
+    assert isinstance(structure_params, RuntimeParams)
 
     # Calculate n_e_ped in m^-3, potentially converting from nGW.
     nGW = (
@@ -65,14 +67,14 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         * 1e20
     )
     n_e_ped = jnp.where(
-        pedestal_params.n_e_ped_is_fGW,
-        pedestal_params.n_e_ped * nGW,
-        pedestal_params.n_e_ped,
+        structure_params.n_e_ped_is_fGW,
+        structure_params.n_e_ped * nGW,
+        structure_params.n_e_ped,
     )
 
-    return pedestal_model_output.PedestalModelOutput(
+    return pedestal_model_output.PedestalStructure(
         n_e_ped=n_e_ped,
-        T_i_ped=pedestal_params.T_i_ped,
-        T_e_ped=pedestal_params.T_e_ped,
-        rho_norm_ped_top=pedestal_params.rho_norm_ped_top,
+        T_i_ped=structure_params.T_i_ped,
+        T_e_ped=structure_params.T_e_ped,
+        rho_norm_ped_top=structure_params.rho_norm_ped_top,
     )

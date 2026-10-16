@@ -29,6 +29,7 @@ from typing import TypeAlias
 
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import tridiagonal
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
@@ -39,11 +40,31 @@ AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
 
+def _make_pereverzev_terms(
+    d_pereverzev_face: array_typing.FloatVectorFace,
+    v_pereverzev_face: array_typing.FloatVectorFace,
+    var: cell_variable.CellVariable,
+) -> tuple[tridiagonal.TriDiagonal, array_typing.FloatVectorCell]:
+  """Makes the Pereverzev-Corrigan diffusion and counter-convection terms."""
+  diff_mat, diff_forcing = diffusion_terms.make_diffusion_terms(
+      d_pereverzev_face, var
+  )
+  # Evaluate Pereverzev counter-convection at zero Péclet (`d_face = inf`,
+  # central 0.5/0.5 weights matching `_midpoint_face_value`) so
+  # `v_pereverzev_face * x_mid` cancels `d_pereverzev_face * dx/dr` when
+  # stationary. Since `v_per = d_per * (x_+ - x_-) / (dc * x_mid)`, combined
+  # entries `(d_per / dc) -/+ 0.5 * v_per` stay strictly positive.
+  conv_mat, conv_forcing = convection_terms.make_convection_terms(
+      v_pereverzev_face,
+      jnp.full_like(v_pereverzev_face, jnp.inf),
+      var,
+  )
+  return diff_mat + conv_mat, diff_forcing + conv_forcing
+
+
 def calc_c(
     x: tuple[cell_variable.CellVariable, ...],
     coeffs: Block1DCoeffs,
-    convection_dirichlet_mode: str = 'ghost',
-    convection_neumann_mode: str = 'ghost',
 ) -> tuple[tridiagonal.BlockTriDiagonal, jax.Array]:
   """Calculate banded blocks and vector c such that F = C x + c.
 
@@ -54,10 +75,6 @@ def calc_c(
     x: Tuple containing CellVariables for each channel. This function uses only
       their shape and their boundary conditions, not their values.
     coeffs: Coefficients defining the differential equation.
-    convection_dirichlet_mode: See docstring of the `convection_terms` function,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See docstring of the `convection_terms` function,
-      `neumann_mode` argument.
 
   Returns:
     A tuple of (c_matrix, c_forcing) where:
@@ -68,6 +85,8 @@ def calc_c(
 
   d_face = coeffs.d_face
   v_face = coeffs.v_face
+  d_pereverzev_face = coeffs.d_pereverzev_face
+  v_pereverzev_face = coeffs.v_pereverzev_face
   source_mat_cell = coeffs.source_mat_cell
   source_cell = coeffs.source_cell
 
@@ -88,18 +107,20 @@ def calc_c(
       diff_mat_i, diff_forcing_i = diffusion_terms.make_diffusion_terms(
           d_face[i], x[i]
       )
-      d_face_i = (
-          jnp.zeros_like(v_face[i]) if d_face[i] is None else d_face[i]
-      )
       conv_mat_i, conv_forcing_i = convection_terms.make_convection_terms(
           v_face[i],
-          d_face_i,
+          d_face[i],
           x[i],
-          dirichlet_mode=convection_dirichlet_mode,
-          neumann_mode=convection_neumann_mode,
       )
-      channel_mats.append(diff_mat_i + conv_mat_i)
+      mat_i = diff_mat_i + conv_mat_i
       forcing_i = diff_forcing_i + conv_forcing_i
+      if d_pereverzev_face is not None and v_pereverzev_face is not None:
+        per_mat_i, per_forcing_i = _make_pereverzev_terms(
+            d_pereverzev_face[i], v_pereverzev_face[i], x[i]
+        )
+        mat_i = mat_i + per_mat_i
+        forcing_i = forcing_i + per_forcing_i
+      channel_mats.append(mat_i)
     elif d_face is not None:
       diff_mat_i, diff_forcing_i = diffusion_terms.make_diffusion_terms(
           d_face[i], x[i]
@@ -111,8 +132,6 @@ def calc_c(
           v_face[i],
           jnp.zeros_like(v_face[i]),
           x[i],
-          dirichlet_mode=convection_dirichlet_mode,
-          neumann_mode=convection_neumann_mode,
       )
       channel_mats.append(conv_mat_i)
       forcing_i = conv_forcing_i

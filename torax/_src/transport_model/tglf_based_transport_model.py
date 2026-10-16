@@ -13,11 +13,14 @@
 # limitations under the License.
 """Base class and utils for TGLF-based models."""
 
+import abc
 import dataclasses
-from typing import override
+from typing import Annotated
 
+import chex
 import jax
 from jax import numpy as jnp
+import pydantic
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
@@ -27,25 +30,59 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
-from torax._src.transport_model import quasilinear_transport_model
+from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import component
+from torax._src.transport_model import pydantic_model_base
+from torax._src.transport_model import quasilinear_utils
+from torax._src.transport_model import runtime_params as transport_runtime_params
 from torax._src.transport_model import transport_coeffs
 
 
+# pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(quasilinear_transport_model.RuntimeParams):
+class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
   """Shared parameters for TGLF-based models."""
 
+  DV_effective: bool = dataclasses.field(metadata={"static": True})
+  An_min: float
+  DV_effective_smooth_width: float
   use_rotation: bool = dataclasses.field(metadata={"static": True})
   rotation_multiplier: float
   collisionality_multiplier: float
   max_normalized_collisionality: float
 
 
-# pylint: disable=invalid-name
+class TGLFBasedTransportModelConfig(
+    pydantic_model_base.ComponentTransportBase, abc.ABC
+):
+  """Base config for TGLF-family transport models."""
+
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.001
+  use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
+  collisionality_multiplier: float = 1.0
+  max_normalized_collisionality: pydantic.PositiveFloat = float("inf")
+
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
+    return RuntimeParams(
+        DV_effective=self.DV_effective,
+        An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
+        use_rotation=self.use_rotation,
+        rotation_multiplier=self.rotation_multiplier,
+        collisionality_multiplier=self.collisionality_multiplier,
+        max_normalized_collisionality=self.max_normalized_collisionality,
+        **vars(base_params),
+    )
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
+class TGLFInputs:
   r"""Dimensionless inputs to TGLF-based models.
 
   See https://gacode.io/tglf/tglf_table.html for definitions.
@@ -58,10 +95,18 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
     RLTS_3 = lref / ltimp.
 
   Attributes:
+    ZS_1: Charge of electrons (species 1).
+    MASS_1: Ratio of electron mass to deuterium mass.
+    TAUS_1: Ratio of electron temperature to electron temperature (species 1).
+    AS_1: Ratio of electron density to electron density (species 1).
+    ZS_2: Charge of main ion (species 2).
+    MASS_2: Ratio of main ion mass to deuterium mass.
     TAUS_2: Ratio of ion temperature to electron temperature (species 2).
+    AS_2: Ratio of main ion density to electron density.
+    ZS_3: Charge of impurity (species 3).
+    MASS_3: Ratio of impurity mass to deuterium mass.
     TAUS_3: Ratio of impurity temperature to electron temperature (species 3).
       As TORAX does not track impurity temp separately, set to T_i / T_e.
-    AS_2: Ratio of main ion density to electron density.
     AS_3: Ratio of impurity density to electron density.
     RLNS_1: Electron density gradient normalisation.
     RLNS_2: Main ion density gradient normalisation.
@@ -130,14 +175,12 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   GAMMA_GB: array_typing.FloatVectorFace
 
 
-class TGLFBasedTransportModel(
-    quasilinear_transport_model.QuasilinearTransportModel
-):
+class TGLFBasedTransportModel(component.ComponentTransportModel):
   """Base class for TGLF-based transport models."""
 
   def _prepare_tglf_inputs(
       self,
-      transport: RuntimeParams,  # pylint: disable=unused-argument
+      transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace | None = None,
@@ -206,14 +249,18 @@ class TGLFBasedTransportModel(
     c_s = (T_e_J / m_D) ** 0.5  # T_e [J], m_D [kg], gives c_s in [m/s]
     a = geo.a_minor  # Device minor radius at LCFS [m]
     r = geo.r_mid_face  # Flux surface centroid minor radius [m]
-    # r is zero on axis, so use safe_divide to avoid division by zero.
+    # On the magnetic axis (index 0), both r and dpsi/dr vanish (0/0), so use
+    # the first off-axis face ratio
     # Use face_grad to correctly handle constraints on the psi CellVariable.
-    B_unit = math_utils.safe_divide(
-        num=core_profiles.q_face
-        * core_profiles.psi.face_grad(x=geo.r_mid, x_left=r[0], x_right=r[-1]),
-        denom=(2 * jnp.pi * r),  # Note: psi_TGLF is psi_TORAX/2π
-        eps=1e-7,
+    dpsi_dr = core_profiles.psi.face_grad(
+        x=geo.r_mid, x_left=r[0], x_right=r[-1]
     )
+    dpsi_dr_over_r = jnp.concatenate([
+        dpsi_dr[1:2] / r[1:2],
+        dpsi_dr[1:] / r[1:],
+    ])
+    # Note: psi_TGLF is psi_TORAX/2π
+    B_unit = core_profiles.q_face * dpsi_dr_over_r / (2 * jnp.pi)
 
     # Mass profiles.
     n_faces = len(geo.rho_face_norm)
@@ -229,7 +276,7 @@ class TGLFBasedTransportModel(
     # avoid being swamped by the eps in the denominator.
     rho_s = (
         math_utils.safe_divide(
-            num=m_D * c_s,  # pyrefly: ignore[bad-argument-type]
+            num=m_D * c_s,
             denom=B_unit,
             eps=1e-7,
         )
@@ -265,12 +312,14 @@ class TGLFBasedTransportModel(
     )
 
     # Dimensionless gradients
-    normalized_log_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
-        core_profiles=core_profiles,
-        radial_coordinate=geo.r_mid,  # On the cell grid  # pyrefly: ignore[bad-argument-type]
-        radial_face_coordinate=geo.r_mid_face,  # pyrefly: ignore[bad-argument-type]
-        reference_length=a,  # pyrefly: ignore[bad-argument-type]
-        two_point_mask=two_point_mask,
+    normalized_log_gradients = (
+        quasilinear_utils.NormalizedLogarithmicGradients.from_profiles(
+            core_profiles=core_profiles,
+            radial_coordinate=geo.r_mid,  # On the cell grid
+            radial_face_coordinate=geo.r_mid_face,
+            reference_length=a,
+            two_point_mask=two_point_mask,
+        )
     )
 
     # Dimensionless electron-electron collision frequency = nu_ee / (c_s/a)
@@ -363,16 +412,16 @@ class TGLFBasedTransportModel(
     # centroid major radius and 'rmin' the flux surface centroid minor radius
     # https://gacode.io/tglf/tglf_list.html#tglf-drmajdx-loc
     r_major = (geo.R_in_face + geo.R_out_face) / 2
-    dr_major = jnp.gradient(r_major, r)
+    dr_major = jnp.asarray(jnp.gradient(r_major, r))
 
     # Dimensionless elongation shear = r/kappa dkappa/dr
     # https://gacode.io/tglf/tglf_list.html#tglf-s-kappa-loc
     kappa = geo.elongation_face
-    kappa_shear = r / kappa * jnp.gradient(kappa, r)
+    kappa_shear = r / kappa * jnp.asarray(jnp.gradient(kappa, r))
 
     # Dimensionless triangularity shear = r ddelta/dr
     # https://gacode.io/tglf/tglf_list.html#tglf-s-delta-loc
-    delta_shear = r * jnp.gradient(geo.delta_face, r)
+    delta_shear = r * jnp.asarray(jnp.gradient(geo.delta_face, r))
 
     # Output normalisations
     # https://gacode.io/tglf/tglf_table.html#id7
@@ -381,9 +430,12 @@ class TGLFBasedTransportModel(
     Q_GB = n_e * T_e_J * GB  # [W/m^2]
     Gamma_GB = n_e * GB
 
-    # Normalized toroidal ExB velocity Doppler shift gradient.
-    # Calculated on the face grid.
+    # Normalized ExB shear rate, on the face grid.
     # https://gacode.io/tglf/tglf_list.html#vexb-shear
+    # VEXB_SHEAR = -sign(I_p) (r / |q|) d(omega_0)/dr (a / c_s), where GACODE
+    # normalizes rotation to B_pol (https://gacode.io/rotation.html):
+    #   omega_0 = -dPhi/dpsi = E_r / (R B_pol).
+    # For pure toroidal rotation, omega_0 is the toroidal angular velocity.
     def _get_v_ExB_shear(
         core_profiles: state.CoreProfiles,
         geo: geometry.Geometry,
@@ -397,12 +449,22 @@ class TGLFBasedTransportModel(
           pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
       )
-      v_ExB = rotation_output.v_ExB
-      value_face = v_ExB / geo.R_major_profile_face
+      # On the magnetic axis (index 0), both E_r and B_pol vanish (0/0), so
+      # evaluate omega_0 on the off-axis faces [1:] and reuse the first
+      # off-axis face value on axis.
+      B_pol_off_axis = jnp.sqrt(
+          psi_calculations.calc_bpol_squared(geo, core_profiles.psi)[1:]
+      )
+      R_B_pol_off_axis = jnp.maximum(
+          geo.R_major_profile_face[1:] * B_pol_off_axis,
+          constants.CONSTANTS.eps,
+      )
+      omega_0_off_axis = rotation_output.Er[1:] / R_B_pol_off_axis
+      omega_0_face = jnp.concatenate([omega_0_off_axis[:1], omega_0_off_axis])
       cv = cell_variable.CellVariable(
-          value=geometry.face_to_cell(value_face),
+          value=geometry.face_to_cell(omega_0_face),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=value_face[-1],
+          right_face_constraint=omega_0_face[-1],
           right_face_grad_constraint=None,
           left_face_constraint=None,
           left_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -427,10 +489,10 @@ class TGLFBasedTransportModel(
       v_ExB_shear = jnp.zeros_like(core_profiles.q_face)
 
     smag = psi_calculations.calc_s_rmid(geo, core_profiles.psi)
-    lref_over_lti = quasilinear_transport_model.apply_fast_ion_stabilization(
+    lref_over_lti = quasilinear_utils.apply_fast_ion_stabilization(
         core_profiles=core_profiles,
         smag=smag,
-        q=core_profiles.q_face,  # pyrefly: ignore[bad-argument-type]
+        q=jnp.asarray(core_profiles.q_face),
         normalized_logarithmic_gradients=normalized_log_gradients,
         transport=transport,
     )
@@ -445,30 +507,18 @@ class TGLFBasedTransportModel(
     T_imp_over_T_e = T_i_over_T_e
 
     return TGLFInputs(
-        # From QuasilinearInputs
-        # chiGB is unused as TGLF denormalizes differently from QuaLiKiz, using
-        # Q_GB and Gamma_GB instead.
-        chiGB=jnp.zeros(n_faces),  # unused
-        Rmin=geo.a_minor,
-        Rmaj=geo.R_major,
-        lref_over_lti=lref_over_lti,
-        lref_over_lte=normalized_log_gradients.lref_over_lte,
-        lref_over_lne=normalized_log_gradients.lref_over_lne,
-        lref_over_lni0=normalized_log_gradients.lref_over_lni0,
-        lref_over_lni1=normalized_log_gradients.lref_over_lni1,
-        # From TGLFInputs
         ZS_1=Z_e_face,
         MASS_1=m_e_over_m_D,
         TAUS_1=T_e_over_T_e,
         AS_1=n_e_over_n_e,
         ZS_2=core_profiles.Z_i_face,
         MASS_2=m_i_over_m_D,
-        TAUS_2=T_i_over_T_e,  # pyrefly: ignore[bad-argument-type]
-        AS_2=n_i_over_n_e,  # pyrefly: ignore[bad-argument-type]
+        TAUS_2=T_i_over_T_e,
+        AS_2=n_i_over_n_e,
         ZS_3=core_profiles.Z_impurity_face,
         MASS_3=m_imp_over_m_D,
-        TAUS_3=T_imp_over_T_e,  # pyrefly: ignore[bad-argument-type]
-        AS_3=n_impurity_over_n_e,  # pyrefly: ignore[bad-argument-type]
+        TAUS_3=T_imp_over_T_e,
+        AS_3=n_impurity_over_n_e,
         RLNS_1=normalized_log_gradients.lref_over_lne,
         RLNS_2=normalized_log_gradients.lref_over_lni0,
         RLNS_3=normalized_log_gradients.lref_over_lni1,
@@ -477,25 +527,24 @@ class TGLFBasedTransportModel(
         RLTS_3=lref_over_lti,
         RMIN_LOC=r / a,
         RMAJ_LOC=r_major / a,
-        DRMAJDX_LOC=dr_major,  # pyrefly: ignore[bad-argument-type]
+        DRMAJDX_LOC=dr_major,
         Q_LOC=core_profiles.q_face,
-        Q_PRIME_LOC=q_prime,  # pyrefly: ignore[bad-argument-type]
+        Q_PRIME_LOC=q_prime,
         XNUE=normalized_nu_ee,
-        DEBYE=normalized_debye,  # pyrefly: ignore[bad-argument-type]
+        DEBYE=normalized_debye,
         KAPPA_LOC=kappa,
-        S_KAPPA_LOC=kappa_shear,  # pyrefly: ignore[bad-argument-type]
+        S_KAPPA_LOC=kappa_shear,
         DELTA_LOC=geo.delta_face,
-        S_DELTA_LOC=delta_shear,  # pyrefly: ignore[bad-argument-type]
-        BETAE=beta_e,  # pyrefly: ignore[bad-argument-type]
-        P_PRIME_LOC=p_prime,  # pyrefly: ignore[bad-argument-type]
+        S_DELTA_LOC=delta_shear,
+        BETAE=beta_e,
+        P_PRIME_LOC=p_prime,
         ZEFF=core_profiles.Z_eff_face,
-        Q_GB=Q_GB,  # pyrefly: ignore[bad-argument-type]
-        GAMMA_GB=Gamma_GB,  # pyrefly: ignore[bad-argument-type]
+        Q_GB=Q_GB,
+        GAMMA_GB=Gamma_GB,
         VEXB_SHEAR=v_ExB_shear,
     )
 
-  @override
-  def _make_core_transport(  # pyrefly: ignore[bad-override]
+  def _make_transport_coeffs(
       self,
       electron_heat_flux_GB: jax.Array,
       ion_heat_flux_GB: jax.Array,
@@ -542,7 +591,7 @@ class TGLFBasedTransportModel(
     )
 
     if transport.DV_effective:
-      d_face_el, v_face_el = quasilinear_transport_model.calculate_dv_effective(
+      d_face_el, v_face_el = quasilinear_utils.calculate_dv_effective(
           particle_flux_SI=Gamma_e,
           normalized_particle_flux=electron_particle_flux_GB,
           n_e=core_profiles.n_e,
@@ -556,12 +605,13 @@ class TGLFBasedTransportModel(
       # Scaled D approach. Scale electron diffusivity to electron heat
       # conductivity (this has some physical motivations),
       # and set convection to then match total particle transport.
-      # TODO(b/567403838): Create a helper function, calculate_d_scaled.
-      dn_e_drhon = core_profiles.n_e.face_grad(two_point_mask=two_point_mask)
-      d_face_el = chi_e
-      v_face_el = (
-          Gamma_e + d_face_el * dn_e_drhon * geo.g1_over_vpr2_face * geo.rho_b
-      ) / (core_profiles.n_e.face_value() * geo.g0_over_vpr_face * geo.rho_b)
+      d_face_el, v_face_el = quasilinear_utils.calculate_d_scaled(
+          particle_flux_SI=Gamma_e,
+          chi_face_el=chi_e,
+          n_e=core_profiles.n_e,
+          geo=geo,
+          two_point_mask=two_point_mask,
+      )
 
     return transport_coeffs.TransportCoeffs(
         chi_face_ion=chi_i,

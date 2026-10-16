@@ -52,8 +52,5 @@ class ZerosModelConfig(base.BootstrapCurrentModelConfig):
 
   model_name: Annotated[Literal['zeros'], torax_pydantic.JAX_STATIC] = 'zeros'
 
-  def build_runtime_params(self) -> bootstrap_runtime_params.RuntimeParams:
-    return bootstrap_runtime_params.RuntimeParams()
-
   def build_model(self) -> ZerosModel:
     return ZerosModel()

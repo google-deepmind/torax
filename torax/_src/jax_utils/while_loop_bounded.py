@@ -154,18 +154,41 @@ def _while_loop_bounded_while_loop[State](
   cond_aux_flat, cond_aux_tree = jax.tree.flatten(cond_aux)
   body_aux_flat, body_aux_tree = jax.tree.flatten(body_aux)
 
+  def fwd(init_val_flat, cond_consts_flat, body_consts_flat):
+    return _while_loop_bounded_while_loop_fwd(
+        converted_cond_fun,
+        converted_body_fun,
+        init_val_flat,
+        max_steps,
+        cond_consts_flat,
+        body_consts_flat,
+        init_val_tree,
+        cond_aux_tree,
+        body_aux_tree,
+    )
+
+  def bwd(res, g):
+    return _while_loop_bounded_while_loop_bwd(
+        converted_cond_fun,
+        converted_body_fun,
+        max_steps,
+        res,
+        g,
+        init_val_tree,
+        cond_aux_tree,
+        body_aux_tree,
+    )
+
+  args = (init_val_flat, cond_aux_flat, body_aux_flat)
+  in_avals = jax.tree.map(jax.typeof, args)
+  init_val_avals = in_avals[0]
+  out_aval = (
+      init_val_avals,
+      jax.core.ShapedArray(shape=(), dtype=_WHILE_LOOP_COUNT_DTYPE),
+      [_add_axis(x, max_steps) for x in init_val_avals],
+  )
   final_state_flat, final_step_idx, history_final_flat = (
-      WhileLoopBoundedWhileLoop(
-          cond_fun=converted_cond_fun,
-          body_fun=converted_body_fun,
-          init_val_avals=tuple(jax.typeof(x) for x in init_val_flat),
-          max_steps=max_steps,
-          cond_aux_avals=tuple(jax.typeof(x) for x in cond_aux_flat),
-          body_aux_avals=tuple(jax.typeof(x) for x in body_aux_flat),
-          init_val_tree=init_val_tree,
-          cond_aux_tree=cond_aux_tree,
-          body_aux_tree=body_aux_tree,
-      )(init_val_flat, cond_aux_flat, body_aux_flat)
+      WhileLoopBoundedWhileLoop(fwd, bwd, in_avals, out_aval)(*args)
   )
 
   final_state = jax.tree.unflatten(init_val_tree, final_state_flat)
@@ -175,104 +198,71 @@ def _while_loop_bounded_while_loop[State](
 
 class WhileLoopBoundedWhileLoop(HiPrim):  # pyrefly: ignore[invalid-inheritance]
   """A bounded differentiable while_loop using jax.lax.while_loop."""
+  fwd: Any
+  bwd: Any
 
-  def __init__(
-      self,
-      cond_fun: Callable[..., BooleanNumeric],
-      body_fun: Callable[..., PyTree],
-      init_val_avals: tuple[jax.core.ShapedArray, ...],
-      max_steps: int,
-      cond_aux_avals: tuple[jax.core.ShapedArray, ...],
-      body_aux_avals: tuple[jax.core.ShapedArray, ...],
-      init_val_tree: PyTree,
-      cond_aux_tree: PyTree,
-      body_aux_tree: PyTree,
-  ):
-    """Initializes the hijax primitive."""
-    self.in_avals = (
-        list(init_val_avals),
-        list(cond_aux_avals),
-        list(body_aux_avals),
-    )
-
-    history_state_avals = [_add_axis(x, max_steps) for x in init_val_avals]
-    count_type = jax.core.ShapedArray(shape=(), dtype=_WHILE_LOOP_COUNT_DTYPE)
-    self.out_aval = (list(init_val_avals), count_type, history_state_avals)
-    # Static parameters.
-    self.params = dict(
-        cond_fun=cond_fun,
-        body_fun=body_fun,
-        max_steps=max_steps,
-        init_val_tree=init_val_tree,
-        cond_aux_tree=cond_aux_tree,
-        body_aux_tree=body_aux_tree,
-    )
+  def __init__(self, fwd, bwd, in_avals, out_aval):
+    self.in_avals, self.out_aval = in_avals, out_aval
+    self.params = dict(fwd=fwd, bwd=bwd)
     super().__init__()
 
-  # Implementation, used for evaluation and lowering (e.g. under jit).
   def expand(self, *args):
-    init_val_flat, cond_aux_flat, body_aux_flat = args
-    return _while_loop_bounded_while_loop_fwd(
-        self.params['cond_fun'],
-        self.params['body_fun'],
-        init_val_flat,
-        self.params['max_steps'],
-        cond_aux_flat,
-        body_aux_flat,
-        self.params['init_val_tree'],
-        self.params['cond_aux_tree'],
-        self.params['body_aux_tree'],
-    )[0]
+    return self.fwd(*args)[0]
 
-  # Reverse-mode: forward pass returns (primal_out, residuals).
-  def vjp_fwd(self, nzs_in, /, *args):
-    del nzs_in
-    init_val_flat, cond_consts_flat, body_consts_flat = args
-    return _while_loop_bounded_while_loop_fwd(
-        self.params['cond_fun'],
-        self.params['body_fun'],
-        init_val_flat,
-        self.params['max_steps'],
-        cond_consts_flat,
-        body_consts_flat,
-        self.params['init_val_tree'],
-        self.params['cond_aux_tree'],
-        self.params['body_aux_tree'],
-    )
+  def vjp_fwd(self, _nzs_in, /, *args):
+    return self.fwd(*args)
 
-  # Reverse-mode: backward pass maps (residuals, output cotangent) to a tuple
-  # of input cotangents.
   def vjp_bwd_retval(self, res, g):
-    return _while_loop_bounded_while_loop_bwd(
-        self.params['cond_fun'],
-        self.params['body_fun'],
-        self.params['max_steps'],
-        res,
-        _instantiate_zeros(g),
-        self.params['init_val_tree'],
-        self.params['cond_aux_tree'],
-        self.params['body_aux_tree'],
-    )
+    return self.bwd(res, _instantiate_zeros(g))
 
   def jvp(self, primals, tangents):
-    tangents = _instantiate_zeros(tangents)
-    return jax.jvp(fun=self.expand, primals=primals, tangents=tangents)
+    return jax.jvp(self.expand, primals, _instantiate_zeros(tangents))
 
-  def batch_dim_rule(self, axis_data, in_dims):
-    del axis_data
-    init_val_dims, cond_aux_dims, body_aux_dims = in_dims
-    all_dims = list(init_val_dims) + list(cond_aux_dims) + list(body_aux_dims)
-    is_batched = any(d is not None for d in all_dims)
-    if not is_batched:
-      return (list(init_val_dims), None, list(init_val_dims))
-    out_state_dims = [d if d is not None else 0 for d in init_val_dims]
-    out_count_dim = 0
-    out_history_dims = [d if d is not None else 0 for d in init_val_dims]
-    return (out_state_dims, out_count_dim, out_history_dims)
+  def batch(self, axis_data, args, dims):
+    if not jax.tree.leaves(dims):
+      return self(*args), jax.tree.map(lambda _: None, self.out_aval)  # pyrefly: ignore[not-callable]
+    args = _bdims_at_front(axis_data, args, dims)
+    in_avals = jax.tree.map(jax.typeof, args)
+    out_dims = jax.tree.map(lambda _: 0, self.out_aval)
+    out_aval = _unmap_avals(axis_data, self.out_aval, out_dims)
+    fwd = _vmap_rule(axis_data, self.fwd, 0, 0)
+    bwd = _vmap_rule(axis_data, self.bwd, 0, 0)
+    prim = WhileLoopBoundedWhileLoop(fwd, bwd, in_avals, out_aval)
+    return prim(*args), out_dims
 
 
 def _add_axis(x: jax.core.ShapedArray, size: int) -> jax.core.ShapedArray:
   return jax.core.ShapedArray(shape=(size,) + x.shape, dtype=x.dtype)
+
+
+if hasattr(hijax, 'vmap_rule'):
+  _bdims_at_front = hijax.bdims_at_front
+  _unmap_avals = hijax.unmap_avals
+  _vmap_rule = hijax.vmap_rule
+else:  # TODO(b/401588349): remove after jax 0.12.0 release
+
+  def _bdims_at_front(axis_data, args, dims):
+    return jax.tree.map(
+        lambda x, d: jnp.moveaxis(x, d, 0)
+        if d is not None
+        else jnp.broadcast_to(x, (axis_data.size, *x.shape)),
+        args,
+        dims,
+    )
+
+  def _unmap_avals(axis_data, avals, dims):
+    del dims
+    return jax.tree.map(lambda a: _add_axis(a, axis_data.size), avals)
+
+  def _vmap_rule(axis_data, f, in_axes, out_axes):
+    return jax.vmap(
+        f,
+        in_axes=in_axes,
+        out_axes=out_axes,
+        axis_name=axis_data.name,
+        axis_size=axis_data.size,
+        spmd_axis_name=axis_data.spmd_name or axis_data.explicit_mesh_axis,
+    )
 
 
 def _instantiate_zeros(g: PyTree) -> PyTree:

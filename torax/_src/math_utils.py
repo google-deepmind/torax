@@ -94,7 +94,7 @@ def cell_to_face(
       cell_centers=geo.rho_norm,
   )
   # Linearly extrapolate to get left value.
-  left = cell_values[0] - (inner_face_values[0] - cell_values[0])  # pyrefly: ignore[bad-index]
+  left = cell_values[0] - (inner_face_values[0] - cell_values[0])
   face_values_without_right = jnp.concatenate([left[None], inner_face_values])
   # Use the last cell width for the rightmost face calculation
   last_drho = geo.drho_norm[-1]
@@ -306,18 +306,19 @@ def cumulative_volume_integration(
 def safe_divide(
     *, num: chex.Array, denom: chex.Array, eps: float
 ) -> chex.Array:
-  """Divides y by x, adding eps to the denominator for numerical stability.
+  """Divides num by denom with a sign-preserving epsilon offset.
 
   Args:
     num: Numerator.
     denom: Denominator.
-    eps: Small value added to the denominator to prevent division by zero.
-      Choose a value that is small relative to the expected magnitude of x.
+    eps: Small positive value added to the denominator magnitude to prevent
+      division by zero. Choose a value small relative to denom.
 
   Returns:
-    num / (denom + eps).
+    num / (denom + sign(denom) * eps).
   """
-  return num / (denom + eps)
+  safe_denom = denom + jnp.where(denom >= 0, eps, -eps)
+  return num / safe_denom
 
 
 @jax.jit
@@ -432,3 +433,61 @@ def smoothstep_transition(
   # Smoothstep function (https://en.wikipedia.org/wiki/Smoothstep)
   w = 3.0 * t**2 - 2.0 * t**3
   return w * y_right + (1 - w) * y_left
+
+
+def gaussian_smoothing_matrix(
+    rho_face_norm: array_typing.FloatVectorFace,
+    smoothing_width: array_typing.FloatVectorFace | array_typing.FloatScalar,
+    active: array_typing.BoolVectorFace,
+    lower_cutoff: float = 0.0,
+) -> jax.Array:
+  """Returns a row-normalized Gaussian smoothing matrix on the face grid.
+
+  Row i averages face values j with weights
+  exp(-ln(2) (rho_i - rho_j)^2 / w_i^2) * face_width_j, where w_i is the
+  kernel half width at half maximum for row i. Only active faces are smoothed
+  and used as sources. Inactive rows and rows with vanishing width (<= eps) are
+  left unchanged.
+
+  Args:
+    rho_face_norm: Face grid.
+    smoothing_width: Kernel half width at half maximum. Can be a profile.
+    active: Boolean mask of the faces taking part in the smoothing.
+    lower_cutoff: Kernel values below this are set to zero before normalization,
+      which limits the range of the convolution independently of grid
+      resolution.
+
+  Returns:
+    The smoothing matrix, with rows summing to 1.
+  """
+  # Kernel matrix with variable width (width_i for each destination row i).
+  # Rows with width <= eps are left unchanged (identity, see below); a
+  # placeholder width there keeps the kernel and its gradient finite.
+  width = jnp.broadcast_to(smoothing_width, rho_face_norm.shape)[:, jnp.newaxis]
+  has_width = width > constants.CONSTANTS.eps
+  safe_width = jnp.where(has_width, width, 1.0)
+  r_diff = rho_face_norm[:, jnp.newaxis] - rho_face_norm
+  kernel = jnp.exp(-jnp.log(2) * (r_diff / safe_width) ** 2)
+
+  # Clip Gaussian weights below lower_cutoff before normalization so that the
+  # convolution is independent of grid resolution.
+  kernel = jnp.where(kernel < lower_cutoff, 0.0, kernel)
+
+  # Weight columns by face widths so each source face contributes in
+  # proportion to the interval it represents on non-uniform grids. Full widths
+  # at the endpoints keep uniform grids identical to an unweighted average.
+  dr = jnp.diff(rho_face_norm)
+  face_widths = jnp.concatenate([dr[:1], 0.5 * (dr[1:] + dr[:-1]), dr[-1:]])
+  kernel = kernel * face_widths[jnp.newaxis, :]
+
+  # Zero out inactive columns (sources) and replace inactive or vanishing-width
+  # rows (destinations) with the identity so smoothing is a no-op there.
+  kernel = jnp.where(active[jnp.newaxis, :], kernel, 0.0)
+  kernel = jnp.where(
+      active[:, jnp.newaxis] & has_width,
+      kernel,
+      jnp.eye(rho_face_norm.shape[0]),
+  )
+
+  # Row-normalize so active rows sum to 1.
+  return kernel / jnp.sum(kernel, axis=1, keepdims=True)

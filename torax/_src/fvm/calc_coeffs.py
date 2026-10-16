@@ -15,7 +15,6 @@
 """Calculates Block1DCoeffs for a time step."""
 
 import dataclasses
-from typing import Self
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
@@ -34,6 +33,7 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
+from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 
 # pylint: disable=invalid-name
@@ -54,7 +54,9 @@ class CoeffsCallback:
         self.evolving_names,
     ))
 
-  def __eq__(self, other: Self) -> bool:  # pyrefly: ignore[bad-override]
+  def __eq__(self, other: object) -> bool:
+    if not isinstance(other, type(self)):
+      return False
     return (
         self.models == other.models
         and self.evolving_names == other.evolving_names
@@ -284,7 +286,7 @@ def _calc_coeffs_full(
   # for ADAPTIVE_TRANSPORT mode, transport multipliers must still be
   # re-evaluated implicitly with current profiles (the saturation model's
   # feedback loop requires it). We call formation + saturation directly to
-  # avoid re-running _call_implementation (the expensive pedestal physics).
+  # avoid re-running the structure model (the expensive pedestal physics).
   # TODO(b/434175938): V2: Consider having pedestal_model return an updated
   # PedestalTransitionState directly, avoiding the fragile manual
   # dataclasses.replace at every call site.
@@ -323,15 +325,13 @@ def _calc_coeffs_full(
         ),
     )
 
-  internal_boundary_conditions = (
-      internal_boundary_conditions_builder.build_internal_boundary_conditions(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
-          internal_boundary_condition_model=models.internal_boundary_condition_model,
-          source_profiles=merged_source_profiles,
-      )
+  internal_boundary_conditions = internal_boundary_conditions_builder.build_internal_boundary_conditions(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      pedestal_transition_state=pedestal_transition_state,
+      internal_boundary_condition_model=models.internal_boundary_condition_model,
+      source_profiles=merged_source_profiles,
   )
 
   # Compute transport coefficients.
@@ -354,6 +354,12 @@ def _calc_coeffs_full(
   d_face_psi = geo.g2g3_over_rhon_face
   v_face_psi = jnp.zeros_like(d_face_psi)
 
+  # Physical transport excludes Pereverzev-Corrigan stabilization terms.
+  physical_transport = transport_coeffs_lib.sum_transport_coeffs(
+      transport_coefficients.turbulent.total,
+      transport_coefficients.neoclassical,
+  )
+
   # Convert to "full" coefficients, i.e. the entire coefficient preceding the
   # gradient term (dT/dr, dn/dr, etc.) in each equation.
   # Heat equations
@@ -361,61 +367,76 @@ def _calc_coeffs_full(
       geo.g1_over_vpr_face
       * core_profiles.n_i.face_value()
       * consts.keV_to_J
-      * transport_coefficients.total.chi_face_ion
+      * physical_transport.chi_face_ion
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
       * core_profiles.n_e.face_value()
       * consts.keV_to_J
-      * transport_coefficients.total.chi_face_el
+      * physical_transport.chi_face_el
   )
-  # PereverzevTransport convection terms are already "full" coefficients, and
-  # no heat convection terms come from other models.
-  if transport_coefficients.pereverzev is not None:
-    full_v_heat_face_ion = (
-        transport_coefficients.pereverzev.full_v_heat_face_ion
-    )
-    full_v_heat_face_el = (
-        transport_coefficients.pereverzev.full_v_heat_face_el
-    )
-  else:
-    full_v_heat_face_ion = jnp.zeros_like(geo.rho_face)
-    full_v_heat_face_el = jnp.zeros_like(geo.rho_face)
 
   # Particle equations
-  full_d_face_el = (
-      geo.g1_over_vpr_face * transport_coefficients.total.d_face_el
-  )
-  full_v_face_el = geo.g0_face * transport_coefficients.total.v_face_el
+  full_d_face_el = geo.g1_over_vpr_face * physical_transport.d_face_el
+  full_v_face_el = geo.g0_face * physical_transport.v_face_el
 
   # Add Phi_b_dot terms to convection equations.
-  # Psi equation doesn't include Phi_b_dot term.
+  # Note:
+  # - Psi equation has no Phi_b_dot term.
+  # - Convection in the heat equations is solely due to Phi_b_dot, with no
+  #   contribution from TransportCoefficients.
+  phib_dot_factor = geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
   # Heat equations
-  full_v_heat_face_ion += (
-      -3.0
-      / 4.0
-      * geo.Phi_b_dot
-      / geo.Phi_b
-      * geo.rho_face_norm
-      * geo.vpr_face
-      * core_profiles.n_i.face_value()
-      * consts.keV_to_J
+  full_v_heat_face_ion = (
+      -0.75 * phib_dot_factor * core_profiles.n_i.face_value() * consts.keV_to_J
   )
-  full_v_heat_face_el += (
-      -3.0
-      / 4.0
-      * geo.Phi_b_dot
-      / geo.Phi_b
-      * geo.rho_face_norm
-      * geo.vpr_face
-      * core_profiles.n_e.face_value()
-      * consts.keV_to_J
+  full_v_heat_face_el = (
+      -0.75 * phib_dot_factor * core_profiles.n_e.face_value() * consts.keV_to_J
   )
-
   # Particle equations
-  full_v_face_el += (
-      -1.0 / 2.0 * geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
-  )
+  full_v_face_el -= 0.5 * phib_dot_factor
+
+  # Keep Pereverzev-Corrigan terms separate from physical convection so they
+  # use central 0.5/0.5 zero-Péclet face weights rather than upwinding,
+  # canceling the added Pereverzev diffusion in `discrete_system.py`.
+  per = transport_coefficients.pereverzev
+  if per is not None:
+    d_per_ion_heat = (
+        geo.g1_over_vpr_face
+        * core_profiles.n_i.face_value()
+        * consts.keV_to_J
+        * per.chi_face_ion
+    )
+    d_per_el_heat = (
+        geo.g1_over_vpr_face
+        * core_profiles.n_e.face_value()
+        * consts.keV_to_J
+        * per.chi_face_el
+    )
+    v_per_el_heat = per.full_v_heat_face_el
+    v_per_ion_heat = per.full_v_heat_face_ion
+
+    d_per_el_particle = geo.g1_over_vpr_face * per.d_face_el
+    v_per_el_particle = geo.g0_face * per.v_face_el
+    # Pereverzev-Corrigan is not applied to psi.
+    zero_face = jnp.zeros_like(geo.rho_face)
+    var_to_d_per_face = {
+        'T_i': d_per_ion_heat,
+        'T_e': d_per_el_heat,
+        'psi': zero_face,
+        'n_e': d_per_el_particle,
+    }
+    var_to_v_per_face = {
+        'T_i': v_per_ion_heat,
+        'T_e': v_per_el_heat,
+        'psi': zero_face,
+        'n_e': v_per_el_particle,
+    }
+    d_pereverzev_face = tuple(var_to_d_per_face[var] for var in evolving_names)
+    v_pereverzev_face = tuple(var_to_v_per_face[var] for var in evolving_names)
+  else:
+    d_pereverzev_face = None
+    v_pereverzev_face = None
 
   # --- Source terms --- #
   # Construct the source vectors
@@ -441,16 +462,20 @@ def _calc_coeffs_full(
 
   # Add effective Phi_b_dot terms
   # Heat equations
-  d_vpr53_rhon_n_e_drhon = jnp.gradient(
-      geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_e.value,
-      geo.rho_norm,
+  d_vpr53_rhon_n_e_drhon = jnp.asarray(
+      jnp.gradient(
+          geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_e.value,
+          geo.rho_norm,
+      )
   )
-  d_vpr53_rhon_n_i_drhon = jnp.gradient(
-      geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_i.value,
-      geo.rho_norm,
+  d_vpr53_rhon_n_i_drhon = jnp.asarray(
+      jnp.gradient(
+          geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_i.value,
+          geo.rho_norm,
+      )
   )
   source_i += (
-      3.0  # pyrefly: ignore[unsupported-operation]
+      3.0
       / 4.0
       * geo.vpr ** (-2.0 / 3.0)
       * d_vpr53_rhon_n_i_drhon
@@ -460,7 +485,7 @@ def _calc_coeffs_full(
       * consts.keV_to_J
   )
   source_e += (
-      3.0  # pyrefly: ignore[unsupported-operation]
+      3.0
       / 4.0
       * geo.vpr ** (-2.0 / 3.0)
       * d_vpr53_rhon_n_e_drhon
@@ -471,9 +496,11 @@ def _calc_coeffs_full(
   )
 
   # Particle equations
-  d_vpr_rhon_drhon = jnp.gradient(geo.vpr * geo.rho_norm, geo.rho_norm)
+  d_vpr_rhon_drhon = jnp.asarray(
+      jnp.gradient(geo.vpr * geo.rho_norm, geo.rho_norm)
+  )
   source_n_e += (
-      1.0  # pyrefly: ignore[unsupported-operation]
+      1.0
       / 2.0
       * d_vpr_rhon_drhon
       * geo.Phi_b_dot
@@ -525,7 +552,7 @@ def _calc_coeffs_full(
       'psi': v_face_psi,
       'n_e': full_v_face_el,
   }
-  v_face = tuple(var_to_v_face.get(var) for var in evolving_names)
+  v_face = tuple(var_to_v_face[var] for var in evolving_names)
 
   # d maps (row var, col var) to the coefficient for that block of the matrix
   # (Can't use a descriptive name or the nested comprehension to build the
@@ -562,16 +589,18 @@ def _calc_coeffs_full(
   )
 
   coeffs = block_1d_coeffs.Block1DCoeffs(
-      transient_out_cell=transient_out_cell,  # pyrefly: ignore[bad-argument-type]
-      transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
-      d_face=d_face,  # pyrefly: ignore[bad-argument-type]
-      v_face=v_face,  # pyrefly: ignore[bad-argument-type]
-      source_mat_cell=source_mat_cell,  # pyrefly: ignore[bad-argument-type]
-      source_cell=source_cell,  # pyrefly: ignore[bad-argument-type]
-      internal_boundary_condition_mask=internal_boundary_condition_mask,  # pyrefly: ignore[bad-argument-type]
+      transient_out_cell=transient_out_cell,
+      transient_in_cell=transient_in_cell,
+      d_face=d_face,
+      v_face=v_face,
+      d_pereverzev_face=d_pereverzev_face,
+      v_pereverzev_face=v_pereverzev_face,
+      source_mat_cell=source_mat_cell,
+      source_cell=source_cell,
+      internal_boundary_condition_mask=internal_boundary_condition_mask,
       internal_boundary_condition_target_vec=(
           internal_boundary_condition_target_vec
-      ),  # pyrefly: ignore[bad-argument-type]
+      ),
   )
 
   return coeffs
@@ -604,6 +633,6 @@ def _calc_coeffs_reduced(
   transient_in_cell = tuple(var_to_tic[var] for var in evolving_names)
 
   coeffs = block_1d_coeffs.Block1DCoeffs(
-      transient_in_cell=transient_in_cell,  # pyrefly: ignore[bad-argument-type]
+      transient_in_cell=transient_in_cell,
   )
   return coeffs

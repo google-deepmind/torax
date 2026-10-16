@@ -28,7 +28,6 @@ from torax._src.pedestal_model import pedestal_model_output as pedestal_model_ou
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import register_model
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -37,22 +36,25 @@ from torax._src.torax_pydantic import torax_pydantic
 class RegisterPedestalModelTest(absltest.TestCase):
 
   def test_registered_model_in_config(self):
-    register_model.register_pedestal_model(FixedPedestalConfig)
+    register_model.register_pedestal_structure_model(FixedPedestalConfig)
 
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'fixed_pedestal',
-        'set_pedestal': True,
+        'structure_model': {
+            'model_name': 'fixed_pedestal',
+        },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    self.assertIsInstance(pedestal_model, FixedPedestalModel)
+    self.assertIsInstance(
+        pedestal_model.structure_model, FixedPedestalModel
+    )
 
   def test_dynamic_registration_updates_discriminator(self):
-    register_model.register_pedestal_model(FixedPedestalConfig)
+    register_model.register_pedestal_structure_model(FixedPedestalConfig)
 
     config = default_configs.get_default_config_dict()
-    config['pedestal'] = {'model_name': 'invalid_name'}
+    config['pedestal'] = {'structure_model': {'model_name': 'invalid_name'}}
     with self.assertRaisesRegex(
         pydantic.ValidationError,
         r"Input tag 'invalid_name' found using 'model_name' does not match any"
@@ -62,17 +64,18 @@ class RegisterPedestalModelTest(absltest.TestCase):
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class FixedPedestalModel(pedestal_model_lib.PedestalModel):
-  """Fixed PedestalModel for testing purposes."""
+class FixedPedestalModel(pedestal_model_lib.PedestalStructureModel):
+  """Fixed PedestalStructureModel for testing purposes."""
 
-  def _call_implementation(
+  def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output_lib.PedestalModelOutput:
-    return pedestal_model_output_lib.PedestalModelOutput(
+  ) -> pedestal_model_output_lib.PedestalStructure:
+    del runtime_params, geo, core_profiles, pedestal_transition_state
+    return pedestal_model_output_lib.PedestalStructure(
         rho_norm_ped_top=jnp.array(0.9),
         T_i_ped=jnp.array(5.0),
         T_e_ped=jnp.array(5.0),
@@ -80,42 +83,17 @@ class FixedPedestalModel(pedestal_model_lib.PedestalModel):
     )
 
 
-class FixedPedestalConfig(pedestal_pydantic_model.BasePedestal):
-  """Fixed pedestal config for testing."""
+class FixedPedestalConfig(pedestal_pydantic_model.BaseStructure):
+  """Fixed pedestal structure config for testing."""
 
   model_name: Annotated[
       Literal['fixed_pedestal'], torax_pydantic.JAX_STATIC
   ] = 'fixed_pedestal'
 
-  def build_pedestal_model(
+  def build_structure_model(
       self,
   ) -> FixedPedestalModel:
-    return FixedPedestalModel(
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
-    )
-
-  def build_runtime_params(
-      self,
-      t,
-  ) -> pedestal_runtime_params_lib.RuntimeParams:
-    return pedestal_runtime_params_lib.RuntimeParams(
-        set_pedestal=self.set_pedestal.get_value(t),
-        mode=self.mode,
-        use_formation_model_with_internal_boundary_condition=self.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=self.transition_time_width.get_value(t),
-        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
-        include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
-        explicit_pedestal=True,
-        pedestal_profile_form=pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP,
-        formation=self.formation_model.build_runtime_params(t),
-        saturation=self.saturation_model.build_runtime_params(t),
-        chi_max=self.chi_max,  # pyrefly: ignore[bad-argument-type]
-        D_e_max=self.D_e_max,  # pyrefly: ignore[bad-argument-type]
-        V_e_max=self.V_e_max,  # pyrefly: ignore[bad-argument-type]
-        V_e_min=self.V_e_min,  # pyrefly: ignore[bad-argument-type]
-        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width,  # pyrefly: ignore[bad-argument-type]
-    )
+    return FixedPedestalModel()
 
 
 if __name__ == '__main__':

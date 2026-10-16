@@ -116,6 +116,10 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         extended_lengyel_standalone.T_E_TARGET, edge_dataset.data_vars
     )
     self.assertIn(extended_lengyel_standalone.ALPHA_T, edge_dataset.data_vars)
+    self.assertIn(extended_lengyel_standalone.KAPPA_E, edge_dataset.data_vars)
+    self.assertIn(
+        extended_lengyel_standalone.C_Z_PREFACTOR, edge_dataset.data_vars
+    )
     self.assertIn(
         extended_lengyel_standalone.Z_EFF_SEPARATRIX, edge_dataset.data_vars
     )
@@ -140,10 +144,34 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         np.array([0.5]),
     )
     np.testing.assert_allclose(
+        edge_dataset[extended_lengyel_standalone.KAPPA_E].values,
+        np.array([0.1]),
+    )
+    self.assertEqual(
+        edge_dataset[extended_lengyel_standalone.KAPPA_E].attrs.get('units'),
+        output_keys.Units.W_PER_M_EV35,
+    )
+    np.testing.assert_allclose(
+        edge_dataset[extended_lengyel_standalone.C_Z_PREFACTOR].values,
+        np.array([1.0]),
+    )
+    self.assertEqual(
+        edge_dataset[extended_lengyel_standalone.C_Z_PREFACTOR].attrs.get(
+            'units'
+        ),
+        output_keys.Units.DIMENSIONLESS,
+    )
+    np.testing.assert_allclose(
         edge_dataset[extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS]
         .sel(seed_impurity='Ar')
         .values,
         np.array([0.01]),
+    )
+    self.assertEqual(
+        edge_dataset[
+            extended_lengyel_standalone.SEED_IMPURITY_CONCENTRATIONS
+        ].attrs.get('units'),
+        output_keys.Units.DIMENSIONLESS,
     )
     np.testing.assert_allclose(
         edge_dataset[output_keys.T_E_RIGHT_BC].values,
@@ -245,7 +273,7 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
         Z_eff_separatrix=jnp.ones((num_roots,)) * 1.5,
         seed_impurity_concentrations={'Ne': jnp.ones((num_roots,)) * 0.01},
         solver_status=extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-            physics_outcome=jnp.array([  # pyrefly: ignore[bad-argument-type]
+            physics_outcome=jnp.array([
                 extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
                 extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
                 extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
@@ -284,6 +312,27 @@ class ExtendedLengyelOutputTest(parameterized.TestCase):
     root_values = roots_Te.values
     self.assertEqual(root_values.shape, (1, 3))
     np.testing.assert_allclose(root_values[0], [10.0, 50.0, 100.0])
+
+    self.assertIn(extended_lengyel_standalone.KAPPA_E, roots_dataset.data_vars)
+    roots_kappa_e = roots_dataset[extended_lengyel_standalone.KAPPA_E]
+    self.assertIn(extended_lengyel_standalone.N_ROOTS, roots_kappa_e.dims)
+    self.assertEqual(
+        roots_kappa_e.attrs.get('units'), output_keys.Units.W_PER_M_EV35
+    )
+    np.testing.assert_allclose(roots_kappa_e.values[0], [0.1, 0.1, 0.1])
+
+    self.assertIn(
+        extended_lengyel_standalone.C_Z_PREFACTOR, roots_dataset.data_vars
+    )
+    roots_c_z_prefactor = roots_dataset[
+        extended_lengyel_standalone.C_Z_PREFACTOR
+    ]
+    self.assertIn(extended_lengyel_standalone.N_ROOTS, roots_c_z_prefactor.dims)
+    self.assertEqual(
+        roots_c_z_prefactor.attrs.get('units'),
+        output_keys.Units.DIMENSIONLESS,
+    )
+    np.testing.assert_allclose(roots_c_z_prefactor.values[0], [1.0, 1.0, 1.0])
 
     # Verify standalone edge dataset coordinates contain time but not spatial
     # radial grids.

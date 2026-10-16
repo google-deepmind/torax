@@ -471,7 +471,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
 
     # Get the original, non-JITted function to avoid issues with mocking.
     run_standalone_nojit = (
-        extended_lengyel_standalone.run_extended_lengyel_standalone.__wrapped__  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
+        extended_lengyel_standalone.run_extended_lengyel_standalone.__wrapped__  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
     )
 
     # Case 1: FIXED_POINT, default iterations
@@ -557,6 +557,15 @@ class ExtendedLengyelTest(parameterized.TestCase):
           computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
           T_e_target=10.0,
           seed_impurity_weights={},
+      )
+    with self.assertRaisesRegex(
+        ValueError,
+        r"without a non-coronal Mavrin cooling rate fit.*\['W'\]",
+    ):
+      extended_lengyel_standalone._validate_inputs_for_computation_mode(
+          computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
+          T_e_target=10.0,
+          seed_impurity_weights={'N': 1.0, 'W': 0.1},
       )
 
   @parameterized.named_parameters(
@@ -703,7 +712,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     # Create fake roots array (shape: [num_guesses, ...])
 
     roots_solver_status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-        physics_outcome=jnp.array([  # pytype: disable=wrong-arg-types  # pylint: disable=g-blanket-type-suppression
+        physics_outcome=jnp.array([  # pylint: disable=g-blanket-type-suppression
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
@@ -766,7 +775,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
 
     self.assertIsNotNone(unique.solver_status.physics_outcome)
     physics_outcome = unique.solver_status.physics_outcome
-    self.assertEqual(physics_outcome.shape, (2,))  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
+    self.assertEqual(physics_outcome.shape, (2,))  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
 
   def test_get_unique_roots_time_dependent(self):
     # Shape: [time, num_guesses]
@@ -776,7 +785,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     Te_data = [[5.0, 10.0, 10.000001], [20.0, 20.0, 20.000001]]
 
     roots_solver_status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-        physics_outcome=jnp.zeros((2, 3), dtype=jnp.int32),  # pytype: disable=wrong-arg-types  # pylint: disable=g-blanket-type-suppression
+        physics_outcome=jnp.zeros((2, 3), dtype=jnp.int32),  # pylint: disable=g-blanket-type-suppression
         numerics_outcome=extended_lengyel_solvers.FixedPointOutcome.SUCCESS,
     )
 
@@ -837,8 +846,8 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     self.assertIsNotNone(unique)
 
     physics_outcome = unique.solver_status.physics_outcome
-    self.assertEqual(physics_outcome.shape, (2, 2))  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
-    self.assertEqual(physics_outcome[1, 1], -1)  # pytype: disable=unsupported-operands  # pylint: disable=g-blanket-type-suppression
+    self.assertEqual(physics_outcome.shape, (2, 2))  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
+    self.assertEqual(physics_outcome[1, 1], -1)  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[bad-index]
 
   def test_get_unique_roots_keeps_error_roots(self):
     """Test that roots with solver error=1 are kept in deduplicated output."""
@@ -849,7 +858,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
         last_tau=jnp.array([0.5, 0.5, 0.5]),
     )
     roots_solver_status = extended_lengyel_solvers.ExtendedLengyelSolverStatus(
-        physics_outcome=jnp.array([  # pytype: disable=wrong-arg-types  # pylint: disable=g-blanket-type-suppression
+        physics_outcome=jnp.array([  # pylint: disable=g-blanket-type-suppression
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
             extended_lengyel_solvers.PhysicsOutcome.SUCCESS,
@@ -901,7 +910,7 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
     self.assertEqual(unique.T_e_target.shape, (3,))
     np.testing.assert_allclose(unique.T_e_target, [5.0, 15.0, 25.0], atol=1e-4)
     numerics = unique.solver_status.numerics_outcome
-    np.testing.assert_array_equal(numerics.error, [0, 1, 0])  # pytype: disable=attribute-error  # pylint: disable=g-blanket-type-suppression
+    np.testing.assert_array_equal(numerics.error, [0, 1, 0])  # pylint: disable=g-blanket-type-suppression  # pyrefly: ignore[missing-attribute]
 
   def test_run_extended_lengyel_raises_when_no_enrichment_factor_and_no_model(
       self,
@@ -931,6 +940,48 @@ class ExtendedLengyelUniqueRootsTest(parameterized.TestCase):
           average_ion_mass=2.0,
           computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
           solver_mode=extended_lengyel_enums.SolverMode.FIXED_POINT,
+      )
+
+  def test_pressure_neutral_divertor_calculated_when_limited(self):
+    inputs = {
+        'T_e_target': 2.34,
+        'power_crossing_separatrix': 5.5e6,
+        'separatrix_electron_density': 3.3e19,
+        'main_ion_charge': 1.0,
+        'mean_ion_charge_state': 1.0,
+        'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
+        'fixed_impurity_concentrations': {'He': 0.01},
+        'magnetic_field_on_axis': 2.5,
+        'plasma_current': 1.0e6,
+        'connection_length_target': 20.0,
+        'connection_length_divertor': 5.0,
+        'major_radius': 1.65,
+        'minor_radius': 0.5,
+        'elongation_psi95': 1.6,
+        'triangularity_psi95': 0.3,
+        'average_ion_mass': 2.0,
+        'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+        'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
+        'diverted': False,
+    }
+    outputs_limited = (
+        extended_lengyel_standalone.run_extended_lengyel_standalone(**inputs)
+    )
+    diverted_inputs = {**inputs, 'diverted': True}
+    outputs_diverted = (
+        extended_lengyel_standalone.run_extended_lengyel_standalone(
+            **diverted_inputs
+        )
+    )
+    self.assertGreater(outputs_limited.pressure_neutral_divertor, 0.0)
+    np.testing.assert_allclose(
+        outputs_limited.pressure_neutral_divertor,
+        outputs_diverted.pressure_neutral_divertor,
+    )
+    for species in ['N', 'Ar', 'He']:
+      np.testing.assert_allclose(
+          outputs_limited.calculated_enrichment[species],
+          1.0,
       )
 
 

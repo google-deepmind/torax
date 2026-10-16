@@ -61,7 +61,7 @@ def compute_neoclassical_intermediates(
       Z_eff=core_profiles.Z_eff_face,
       log_lambda_ei=log_lambda_ei,
   )
-  nu_i_star = _calculate_nu_i_star(
+  nu_i_star = calculate_nu_i_star(
       q=core_profiles.q_face,
       geo=geo,
       n_i=core_profiles.n_i.face_value(),
@@ -120,7 +120,7 @@ def _calculate_nu_e_star(
   )
 
 
-def _calculate_nu_i_star(
+def calculate_nu_i_star(
     q: array_typing.FloatVectorFace,
     geo: geometry_lib.Geometry,
     n_i: array_typing.FloatVectorFace,
@@ -199,4 +199,3 @@ def _calculate_neoclassical_k_neo(
 
 # TODO(b/381199010): Implement alternative Sauter-based k_neo calculation.
 # See Sauter (1999) Eq. 17a-17b
-

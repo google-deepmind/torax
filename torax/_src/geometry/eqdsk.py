@@ -21,6 +21,7 @@ import contourpy
 import eqdsk
 import eqdsk.file
 import eqdsk.tools
+from jax import numpy as jnp
 import numpy as np
 import numpy.typing as npt
 import pydantic
@@ -70,6 +71,12 @@ class EQDSKConfig(base.BaseGeometryConfig):
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
       used for the contour defining geometry terms at the LCFS on the TORAX
       grid. Needed to avoid divergent integrations in diverted geometries.
+    target_psi_grid_resolution: Desired minimum number of grid points along the
+      R and Z dimensions of the 2D psi grid before generating flux surface
+      contours. If set, the integer refinement factor is calculated dynamically
+      as `ceil(target / min_dim)`, where `target = target_psi_grid_resolution`
+      and `min_dim = min(nx, nz)`, refining both dimensions uniformly. If None,
+      no refinement is performed.
   """
 
   @property
@@ -93,6 +100,7 @@ class EQDSKConfig(base.BaseGeometryConfig):
   Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
+  target_psi_grid_resolution: Annotated[int | None, pydantic.Field(ge=1)] = 128
 
   @pydantic.field_validator('eqdsk_object', mode='before')
   @classmethod
@@ -145,8 +153,135 @@ class EQDSKConfig(base.BaseGeometryConfig):
         n_surfaces=self.n_surfaces,
         last_surface_factor=self.last_surface_factor,
         trapped_fraction_source=self.trapped_fraction_source,
+        target_psi_grid_resolution=self.target_psi_grid_resolution,
     )
     return standard_geometry.build_standard_geometry(intermediates)
+
+
+def _is_closed(contour: np.ndarray) -> bool:
+  """Returns whether a `contourpy` contour line is a closed loop.
+
+  `contourpy` marks a closed loop by repeating its first vertex at the end, so
+  a non-degenerate closed polygon (which requires at least three distinct
+  vertices to enclose an area rather than collapsing to a point or line segment)
+  has length >= 4. Lines that run into the edge of the contouring domain are
+  open and have different first and last vertices.
+
+  Args:
+    contour: (N, 2) array of (R, Z) vertices as returned by `contourpy`.
+
+  Returns:
+    True if `contour` is a closed loop with at least three distinct vertices.
+  """
+  return len(contour) >= 4 and np.array_equal(contour[0], contour[-1])
+
+
+def _encloses_point(polygon: np.ndarray, r: float, z: float) -> bool:
+  """Returns whether a polygon encloses the point (r, z).
+
+  Uses the standard ray-casting (even-odd) test: cast a horizontal ray from
+  (r, z) and count how many polygon edges it crosses. The point is inside if and
+  only if the count is odd.
+
+  Args:
+    polygon: (N, 2) array of (R, Z) vertices. The polygon is implicitly closed
+      (the last vertex connects back to the first), so the first vertex must not
+      be repeated at the end.
+    r: R coordinate of the point.
+    z: Z coordinate of the point.
+
+  Returns:
+    True if `(r, z)` lies strictly inside `polygon`.
+  """
+  # Edge i runs from vertex i, (r_start, z_start), to vertex i + 1,
+  # (r_end, z_end), wrapping around from the last vertex to the first.
+  r_start, z_start = polygon[:, 0], polygon[:, 1]
+  r_end, z_end = np.roll(r_start, -1), np.roll(z_start, -1)
+
+  # An edge can only cross the ray if its endpoints lie on opposite sides of
+  # the horizontal line through z. The half-open comparison (> z) counts a
+  # vertex lying exactly at height z on one side only, so it is never counted
+  # twice.
+  straddles_ray = (z_start > z) != (z_end > z)
+
+  # R coordinate where each straddling edge crosses the horizontal line through
+  # z. Non-straddling edges (including horizontal edges with z_end == z_start)
+  # are replaced by a unit denominator and masked out below.
+  dz = np.where(straddles_ray, z_end - z_start, 1.0)
+  r_crossing = r_start + (r_end - r_start) * (z - z_start) / dz
+
+  # The ray extends to the right, so only crossings to the right of r count.
+  crosses_ray = straddles_ray & (r < r_crossing)
+  return bool(np.sum(crosses_ray) % 2 == 1)
+
+
+def _select_contour_enclosing_magnetic_axis(
+    contours: list[np.ndarray], r_axis: float, z_axis: float
+) -> np.ndarray | None:
+  """Selects the closed contour that encloses the magnetic axis.
+
+  Contours are only computed inside the bounding box of the LCFS, not inside
+  the LCFS itself. A single psi level can therefore produce several contour
+  lines: the closed flux surface around the magnetic axis, plus pieces outside
+  the plasma that lie inside the box (e.g. in the private-flux region below
+  the X-point). The returned flux surface is the closed contour enclosing the
+  magnetic axis.
+
+  Args:
+    contours: Contour lines from `contourpy` at a single psi level, each an
+      (N, 2) array of (R, Z) vertices. Closed lines repeat their first vertex at
+      the end.
+    r_axis: R coordinate of the magnetic axis.
+    z_axis: Z coordinate of the magnetic axis.
+
+  Returns:
+    (N, 2) array of (R, Z) vertices of the closed flux surface with its
+    repeated closing vertex removed, or None if no closed contour encloses the
+    magnetic axis.
+
+  Raises:
+    ValueError: If more than one closed contour encloses the magnetic axis.
+  """
+  enclosing_contours = [
+      contour[:-1]
+      for contour in contours
+      if _is_closed(contour) and _encloses_point(contour[:-1], r_axis, z_axis)
+  ]
+  if len(enclosing_contours) > 1:
+    raise ValueError(
+        f'Expected at most one closed contour enclosing the magnetic axis'
+        f' (R={r_axis}, Z={z_axis}), but found {len(enclosing_contours)}.'
+    )
+  return enclosing_contours[0] if enclosing_contours else None
+
+
+def _line_elements(r: np.ndarray, z: np.ndarray) -> np.ndarray:
+  """Returns the line element dl at each vertex of a closed curve.
+
+  Flux-surface integrals are evaluated as sums over the curve vertices,
+  `integral(f dl) ~= sum_i f_i * dl_i`. On each straight segment of length `L_i`
+  between vertex `i` and vertex `i + 1` (with the last vertex connected back to
+  the first), the trapezoidal rule approximates the segment integral as
+  `0.5 * L_i * (f_i + f_{i+1})`. Summing over all segments collects a weight
+  `dl_i = 0.5 * (L_{i-1} + L_i)` at each vertex `i` (half the length of the
+  segment before it plus half the length of the segment after it). The result
+  does not depend on which vertex the curve starts at, and `sum_i dl_i` equals
+  the polygon perimeter.
+
+  Args:
+    r: R coordinates of the closed curve vertices, without repeating the first
+      vertex at the end.
+    z: Z coordinates of the closed curve vertices, with the same convention as
+      `r`.
+
+  Returns:
+    Array of the same length as `r` with the line element at each vertex.
+  """
+  # segment_lengths[i] is the distance from vertex i to vertex i + 1,
+  # wrapping around from the last vertex to the first.
+  segment_lengths = np.hypot(np.roll(r, -1) - r, np.roll(z, -1) - z)
+  # Vertex i is shared by segments i - 1 and i.
+  return 0.5 * (np.roll(segment_lengths, 1) + segment_lengths)
 
 
 def _construct_intermediates_from_eqdsk(
@@ -162,6 +297,7 @@ def _construct_intermediates_from_eqdsk(
     trapped_fraction_source: (
         trapped_fraction_lib.TrappedFractionSource
     ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
+    target_psi_grid_resolution: int | None = None,
 ) -> standard_geometry.StandardGeometryIntermediates:
   """Constructs a StandardGeometryIntermediates from EQDSK.
 
@@ -190,6 +326,11 @@ def _construct_intermediates_from_eqdsk(
       1-8 or 11-18 inclusive.
     trapped_fraction_source: Selects how the effective trapped particle fraction
       is computed; see `trapped_fraction.TrappedFractionSource`.
+    target_psi_grid_resolution: Desired minimum number of grid points along the
+      R and Z dimensions of the 2D psi grid before generating flux surface
+      contours. If set, the grid is refined by `ceil(target / min_dim)`, where
+      `target = target_psi_grid_resolution` and `min_dim = min(nx, nz)`,
+      refining both dimensions uniformly. If None, no refinement is performed.
 
   Returns:
     A StandardGeometryIntermediates instance based on the input file or object.
@@ -244,8 +385,8 @@ def _construct_intermediates_from_eqdsk(
 
   # See EQDSKInterface in https://github.com/Fusion-Power-Plant-Framework/eqdsk
   B_0 = eq_dict['bcentre'] * eq_dict['xcentre'] / R_major
-  Raxis = eq_dict['xmag']
-  Zaxis = eq_dict['zmag']
+  Raxis = float(eq_dict['xmag'])
+  Zaxis = float(eq_dict['zmag'])
   Btor_axis = eq_dict['fpol'][0] / eq_dict['xmag']
 
   # 1D psi grid, with psi(axis) = 0
@@ -253,20 +394,46 @@ def _construct_intermediates_from_eqdsk(
       0.0, eq_dict['psibdry'] - eq_dict['psimag'], eq_dict['nx']
   )
 
-  # 2D X-Z grid
-  X_1D = np.linspace(
+  # 2D psi grid, with psi(axis) = 0
+  psi_2dgrid = eq_dict['psi'] - eq_dict['psimag']
+
+  # Spline interpolator of 2D psi field defined on raw EQDSK X-Z grid
+  raw_X_1D = np.linspace(
       eq_dict['xgrid1'], eq_dict['xgrid1'] + eq_dict['xdim'], eq_dict['nx']
   )
-  Z_1D = np.linspace(
+  raw_Z_1D = np.linspace(
       eq_dict['zmid'] - eq_dict['zdim'] / 2,
       eq_dict['zmid'] + eq_dict['zdim'] / 2,
       eq_dict['nz'],
   )
+  psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
+      raw_X_1D, raw_Z_1D, psi_2dgrid, kx=3, ky=3, s=0
+  )
+
+  # Optionally refine the 2D psi grid.
+  if target_psi_grid_resolution is not None:
+    # Convert target resolution to refinement factor.
+    min_resolution = min(eq_dict['nx'], eq_dict['nz'])
+    refinement_factor = int(
+        jnp.ceil(target_psi_grid_resolution / min_resolution)
+    )
+  else:
+    # No refinement.
+    refinement_factor = 1
+
+  # 2D X-Z grid
+  if refinement_factor > 1:
+    nx = (eq_dict['nx'] - 1) * refinement_factor + 1
+    nz = (eq_dict['nz'] - 1) * refinement_factor + 1
+    X_1D = np.linspace(raw_X_1D[0], raw_X_1D[-1], nx)
+    Z_1D = np.linspace(raw_Z_1D[0], raw_Z_1D[-1], nz)
+    psi_2dgrid = psi_2dgrid_interpolator(X_1D, Z_1D)
+  else:
+    X_1D = raw_X_1D
+    Z_1D = raw_Z_1D
+
   X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
   Xlcfs, Zlcfs = eq_dict['xbdry'], eq_dict['zbdry']
-
-  # 2D psi grid, with psi(axis) = 0
-  psi_2dgrid = eq_dict['psi'] - eq_dict['psimag']
 
   # Mask for the region inside the LCFS
   # i.e. Xlcfs.min() < X < Xlcfs.max() and Zlcfs.min() < Z < Zlcfs.max()
@@ -288,30 +455,40 @@ def _construct_intermediates_from_eqdsk(
       n_surfaces,
   )
 
+  # Each entry of `surfaces` is (R vertices, Z vertices) for a closed flux
+  # surface around the magnetic axis, without a repeated closing vertex.
   surfaces = []
+  # psi values for which no closed contour around the magnetic axis was found.
+  psi_without_closed_surface = []
   psi_contour_generator = contourpy.contour_generator(X, Z, masked_psi_2dgrid)
 
   # Skip magnetic axis since no contour is defined there.
   for _, _psi in enumerate(psi_on_flux_surfaces[1:]):
-    vertices = psi_contour_generator.create_contour(_psi)
-    if not vertices:
+    contours = psi_contour_generator.create_contour(_psi)
+    if not contours:
       raise ValueError(f"""
           Valid contour not found for EQDSK geometry for psi value {_psi}.
           Possible reason is too many surfaces requested.
           Try reducing n_surfaces from the current value of {n_surfaces}.
           """)
-    x_surface, z_surface = vertices[0].T[0], vertices[0].T[1]
-    surfaces.append((x_surface, z_surface))
+    contour = _select_contour_enclosing_magnetic_axis(contours, Raxis, Zaxis)
+    if contour is None:
+      psi_without_closed_surface.append(_psi)
+      continue
+    surfaces.append((contour[:, 0], contour[:, 1]))
+  if psi_without_closed_surface:
+    raise ValueError(
+        'No closed contour enclosing the magnetic axis found for'
+        f' {len(psi_without_closed_surface)} EQDSK flux surface(s), psi in'
+        f' [{min(psi_without_closed_surface)},'
+        f' {max(psi_without_closed_surface)}]. Consider increasing'
+        ' target_psi_grid_resolution, or reducing last_surface_factor or'
+        ' n_surfaces.'
+    )
 
   # ------------------------------------------------------------------ #
   # ---- 3. Interpolate everything onto the new flux surface grid ---- #
   # ------------------------------------------------------------------ #
-  # Spline interpolator of 2D psi field defined on X-Z grid
-  # This will later be evaluated on each flux surface
-  psi_2dgrid_interpolator = scipy.interpolate.RectBivariateSpline(
-      X_1D, Z_1D, psi_2dgrid, kx=3, ky=3, s=0
-  )
-
   # Interpolate safety factor onto new flux-surface grid
   q_interpolator = scipy.interpolate.interp1d(
       psi_1dgrid, eq_dict['qpsi'], kind='cubic'
@@ -354,10 +531,7 @@ def _construct_intermediates_from_eqdsk(
   # Compute fsa for each surface
   # Note: surfaces is from psi[1:]
   for n, (x_surface, z_surface) in enumerate(surfaces):
-    # Define line elements on which we will integrate
-    surface_dl = np.sqrt(
-        np.gradient(x_surface) ** 2 + np.gradient(z_surface) ** 2
-    )
+    surface_dl = _line_elements(x_surface, z_surface)
 
     # Calculate gradient of psi in 2D
     surface_dpsi_x = psi_2dgrid_interpolator.ev(x_surface, z_surface, dx=1)
@@ -456,30 +630,11 @@ def _construct_intermediates_from_eqdsk(
       if len(x_surface) < _MIN_CONTOUR_POINTS_FOR_EXACT_INTEGRAL:
         trapped_fraction[n + 1] = np.nan
       else:
-        surface_B = np.sqrt(surface_B2)
-        if (
-            len(x_surface) > 1
-            and np.isclose(x_surface[0], x_surface[-1])
-            and np.isclose(z_surface[0], z_surface[-1])
-        ):
-          x_closed = x_surface[:-1]
-          z_closed = z_surface[:-1]
-          B_closed = surface_B[:-1]
-          Bpol_closed = surface_Bpol[:-1]
-        else:
-          x_closed = x_surface
-          z_closed = z_surface
-          B_closed = surface_B
-          Bpol_closed = surface_Bpol
-        segment_lengths = np.hypot(
-            np.roll(x_closed, -1) - x_closed,
-            np.roll(z_closed, -1) - z_closed,
-        )
-        dl_closed = 0.5 * (segment_lengths + np.roll(segment_lengths, 1))
         trapped_fraction[n + 1] = (
             trapped_fraction_lib.calculate_bounce_averaged_trapped_fraction(
-                B=B_closed,
-                dl_over_Bp=dl_closed / Bpol_closed,
+                B=np.sqrt(surface_B2),
+                # Same line elements as the flux-surface averages above.
+                dl_over_Bp=surface_dl / surface_Bpol,
             )
         )
     Ip[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0

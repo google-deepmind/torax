@@ -23,6 +23,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -138,10 +140,6 @@ class Geometry:
       [:math:`\mathrm{T}^{2}`].
     gm5_face: Flux surface averaged :math:`\langle B^2 \rangle` on the face grid
       [:math:`\mathrm{T}^{2}`].
-    gm9: Flux surface averaged :math:`\langle 1 / R \rangle` on cell grid
-      [:math:`\mathrm{m}^{-1}`].
-    gm9_face: Flux surface averaged :math:`\langle 1 / R \rangle` on face grid
-      [:math:`\mathrm{m}^{-1}`].
     g2g3_over_rhon: Ratio of g2g3 to the normalized toroidal flux coordinate
       rho_norm on cell grid [dimensionless].
     g2g3_over_rhon_face: Ratio of g2g3 to the normalized toroidal flux
@@ -392,6 +390,65 @@ class Geometry:
       return z_magnetic_axis
     else:
       raise ValueError('Geometry does not have a z magnetic axis.')
+
+  def to_output_dict(
+      self, context: output_grid_context.OutputGridContext
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Serializes stacked Geometry into a dictionary of OutputVar tuples."""
+    extend = output_grid_context.extend_cell_grid_to_boundaries
+    extended_vars = (
+        (output_keys.PHI, self.Phi, self.Phi_face),
+        (output_keys.VOLUME, self.volume, self.volume_face),
+        (output_keys.AREA, self.area, self.area_face),
+        (output_keys.VPR, self.vpr, self.vpr_face),
+        (output_keys.SPR, self.spr, self.spr_face),
+        (output_keys.ELONGATION, self.elongation, self.elongation_face),
+        (output_keys.G0, self.g0, self.g0_face),
+        (output_keys.G1, self.g1, self.g1_face),
+        (output_keys.G2, self.g2, self.g2_face),
+        (output_keys.G3, self.g3, self.g3_face),
+        (output_keys.GM4, self.gm4, self.gm4_face),
+        (output_keys.GM5, self.gm5, self.gm5_face),
+        (
+            output_keys.G2G3_OVER_RHON,
+            self.g2g3_over_rhon,
+            self.g2g3_over_rhon_face,
+        ),
+        (output_keys.TFF, self.F, self.F_face),
+        (output_keys.R_IN, self.R_in, self.R_in_face),
+        (output_keys.R_OUT, self.R_out, self.R_out_face),
+        (output_keys.R_MID, self.r_mid, self.r_mid_face),
+        (output_keys.EPSILON, self.epsilon, self.epsilon_face),
+        (output_keys.G1_OVER_VPR, self.g1_over_vpr, self.g1_over_vpr_face),
+        (output_keys.G1_OVER_VPR2, self.g1_over_vpr2, self.g1_over_vpr2_face),
+        (output_keys.GM9, self.gm9, self.gm9_face),
+        (
+            output_keys.R_MAJOR_PROFILE,
+            self.R_major_profile,
+            self.R_major_profile_face,
+        ),
+    )
+    output_dict: dict[str, output_grid_context.OutputVar] = {
+        key: context.pack(key, extend(cell_val, face_val))
+        for key, cell_val, face_val in extended_vars
+    }
+    vars_to_pack = [
+        (output_keys.DELTA, self.delta_face),
+        (output_keys.TRAPPED_FRACTION, self.trapped_fraction_face),
+        (output_keys.G0_OVER_VPR, self.g0_over_vpr_face),
+        (output_keys.R_MAJOR, self.R_major),
+        (output_keys.A_MINOR, self.a_minor),
+        (output_keys.B_0, self.B_0),
+        (output_keys.PHI_B_DOT, self.Phi_b_dot),
+        (output_keys.RHO_B, self.rho_b),
+        (output_keys.PHI_B, self.Phi_b),
+    ]
+    if self._z_magnetic_axis is not None:
+      vars_to_pack.append((output_keys.Z_MAGNETIC_AXIS, self._z_magnetic_axis))
+    for key, val in vars_to_pack:
+      output_dict[key] = context.pack(key, val)
+
+    return output_dict
 
 
 def stack_geometries[GeometryT: Geometry](

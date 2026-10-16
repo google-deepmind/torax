@@ -22,22 +22,22 @@ import jax.numpy as jnp
 import torax
 from torax import pedestal
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.test_utils import default_configs
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class FakePedestalModel(pedestal.PedestalModel):
-  """Fake pedestal model that returns fixed values."""
+class FakePedestalModel(pedestal.PedestalStructureModel):
+  """Fake pedestal structure model that returns fixed values."""
 
-  def _call_implementation(
+  def __call__(
       self,
       runtime_params: torax.RuntimeParams,
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal.PedestalModelOutput:
-    return pedestal.PedestalModelOutput(
+  ) -> pedestal.PedestalStructure:
+    del runtime_params, geo, core_profiles, pedestal_transition_state
+    return pedestal.PedestalStructure(
         rho_norm_ped_top=jnp.array(0.9),
         T_i_ped=jnp.array(5.0),
         T_e_ped=jnp.array(5.0),
@@ -45,45 +45,18 @@ class FakePedestalModel(pedestal.PedestalModel):
     )
 
 
-class FakePedestalPydantic(pedestal.BasePedestal):
-  """Fake pedestal model pydantic config."""
+class FakePedestalPydantic(pedestal.BaseStructure):
+  """Fake pedestal structure model pydantic config."""
 
   model_name: Annotated[Literal['fake_pedestal'], torax.JAX_STATIC] = (
       'fake_pedestal'
   )
 
-  def build_pedestal_model(self) -> FakePedestalModel:
-    return FakePedestalModel(
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
-    )
-
-  def build_runtime_params(
-      self,
-      t,
-  ) -> pedestal.RuntimeParams:
-    return pedestal.RuntimeParams(
-        set_pedestal=self.set_pedestal.get_value(t),
-        mode=self.mode,
-        formation=self.formation_model.build_runtime_params(t),
-        saturation=self.saturation_model.build_runtime_params(t),
-        chi_max=self.chi_max.get_value(t),
-        D_e_max=self.D_e_max.get_value(t),
-        V_e_max=self.V_e_max.get_value(t),
-        V_e_min=self.V_e_min.get_value(t),
-        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
-            t
-        ),
-        use_formation_model_with_internal_boundary_condition=self.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=self.transition_time_width.get_value(t),
-        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
-        include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
-        explicit_pedestal=True,
-        pedestal_profile_form=pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP,
-    )
+  def build_structure_model(self) -> FakePedestalModel:
+    return FakePedestalModel()
 
 
-pedestal.register_pedestal_model(FakePedestalPydantic)
+pedestal.register_pedestal_structure_model(FakePedestalPydantic)
 
 
 class PedestalTest(absltest.TestCase):
@@ -92,8 +65,9 @@ class PedestalTest(absltest.TestCase):
     """Tests that the fake pedestal model can be used in a simulation."""
     config = default_configs.get_default_config_dict()
     config['pedestal'] = {
-        'model_name': 'fake_pedestal',
-        'set_pedestal': True,
+        'structure_model': {
+            'model_name': 'fake_pedestal',
+        },
     }
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)

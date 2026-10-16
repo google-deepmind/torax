@@ -248,8 +248,8 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     if not np.any(sign_change):
       return subintervals
 
-    t_cross = t_i + dt * (-v_i[sign_change]) / (  # pyrefly: ignore[bad-index]
-        v_next[sign_change] - v_i[sign_change]  # pyrefly: ignore[bad-index]
+    t_cross = t_i + dt * (-v_i[sign_change]) / (
+        v_next[sign_change] - v_i[sign_change]
     )
 
     # Points nonpositive at t_i are nonpositive on [t_i, t_cross].
@@ -489,7 +489,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
             data[1]['rho_interpolation_mode'].upper()
         ]
         # First element in tuple assumed to be the input.
-        data = data[0]  # pyrefly: ignore[bad-assignment]
+        data = data[0]
 
     if isinstance(data, xr.DataArray):
       value = _load_from_arrays(data)
@@ -790,13 +790,13 @@ def _load_from_primitives(
   ):
     primitive_values = {0.0: primitive_values}  # pyrefly: ignore[bad-assignment]
 
-  if len(set(primitive_values.keys())) != len(primitive_values):  # pyrefly: ignore[bad-argument-type, missing-attribute]
+  if len(set(primitive_values.keys())) != len(primitive_values):
     raise ValueError('Indicies in values mapping must be unique.')
   if not primitive_values:
     raise ValueError('Values mapping must not be empty.')
 
   loaded_values = {}
-  for t, v in primitive_values.items():  # pyrefly: ignore[missing-attribute]
+  for t, v in primitive_values.items():
     x, y, _, _ = interpolated_param.convert_input_to_xs_ys(v)
     loaded_values[t] = (x, y)
 
@@ -829,7 +829,7 @@ def _load_from_arrays(
 
   if len(arrays) == 2:
     # Shortcut for initial condition profile.
-    rho_norm, values = arrays  # pytype: disable=bad-unpacking
+    rho_norm, values = arrays
     return {
         0.0: (
             np.asarray(rho_norm, dtype=jax_utils.get_np_dtype()),

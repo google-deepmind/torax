@@ -20,23 +20,66 @@ Builds the convection terms of the discrete matrix equation.
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import tridiagonal
 from torax._src.fvm import cell_variable
 
 
-# TODO(b/469726859): Once non-uniform grid is supported add in testing.
+# Below this |Péclet number|, `_peclet_to_alpha` uses its Taylor expansion
+# instead of the exponential form, avoiding cancellation error near p = 0.
+_SMALL_PECLET = 0.1
+# |Péclet number| at which `expm1` is clipped to avoid overflow; beyond this the
+# weights equal the upwind limits to machine precision.
+_LARGE_PECLET = 40.0
+
+
+def _peclet_to_alpha(p):
+  """Face interpolation weight for the exponential convection-diffusion scheme.
+
+  Computes `alpha(p) = ((p - 1) * exp(p) + 1) / (p * (exp(p) - 1))`
+  (Scharfetter & Gummel 1969; Patankar 1980 Section 5), which reproduces the
+  exact local steady solution with constant coefficients and zero source. See
+  also the FiPy discussion of convection schemes (`ExponentialConvectionTerm`):
+  https://www.ctcms.nist.gov/fipy/documentation/numerical/scheme.html
+
+  Uses the degree-7 Bernoulli Taylor expansion for `|p| < 0.1` (full accuracy
+  in both float32 and float64) and clips `|p|` at 40 in `expm1` so large `|p|`
+  matches the upwind limits `1 - 1 / p` (`p >> 1`) and `-1 / p` (`p << -1`)
+  without overflow or NaN gradients.
+
+  Args:
+    p: Face Péclet number array.
+
+  Returns:
+    Face interpolation weight `alpha` in `[0, 1]`.
+  """
+  is_small = jnp.abs(p) < _SMALL_PECLET
+  # Exponential branch for |p| >= _SMALL_PECLET. Masked entries get the
+  # placeholder _SMALL_PECLET so that neither 1 / p nor expm1 is evaluated at 0.
+  p_safe = jnp.where(is_small, _SMALL_PECLET, p)
+  p_clipped = jnp.clip(p_safe, -_LARGE_PECLET, _LARGE_PECLET)
+  alpha_exp = 1.0 - 1.0 / p_safe + 1.0 / jnp.expm1(p_clipped)
+  # Taylor expansion for |p| < _SMALL_PECLET. Masked entries use 0 so that the
+  # polynomial cannot overflow (or produce NaN gradients) at large |p|.
+  p_small = jnp.where(is_small, p, 0.0)
+  p2 = p_small * p_small
+  alpha_series = 0.5 + p_small * (
+      1.0 / 12.0 - p2 * (1.0 / 720.0 - p2 * (1.0 / 30240.0 - p2 / 1209600.0))
+  )
+  return jnp.where(is_small, alpha_series, alpha_exp)
+
+
 def make_convection_terms(
-    v_face: jax.Array,
-    d_face: jax.Array,
+    v_face: array_typing.FloatVectorFace,
+    d_face: array_typing.FloatVectorFace,
     var: cell_variable.CellVariable,
-    dirichlet_mode: str = 'ghost',
-    neumann_mode: str = 'ghost',
 ) -> tuple[tridiagonal.TriDiagonal, jax.Array]:
   """Makes the terms of the matrix equation derived from the convection term.
 
   The convection term of the differential equation is of the form
-  - (partial / partial r) v u
+  - (partial / partial r) v u, discretized with ghost-cell boundary conditions
+  consistent with `make_diffusion_terms`.
 
   Args:
     v_face: Convection coefficient on faces.
@@ -44,27 +87,11 @@ def make_convection_terms(
       to diffusion is used to weight the contribution of neighboring cells when
       calculating face values of u.
     var: CellVariable to define mesh and boundary conditions.
-    dirichlet_mode: The strategy to use to handle Dirichlet boundary conditions.
-      The default is 'ghost', which has superior stability. 'ghost' -> Boundary
-      face values are inferred by constructing a ghost cell then alpha weighting
-      cells 'direct' -> Boundary face values are read directly from constraints
-      'semi-implicit' -> Matches FiPy. Boundary face values are alpha weighted
-      with the constraint value specifying the value of the "other" cell:
-      x_{boundary_face} = alpha x_{last_cell} + (1 - alpha) BC
-    neumann_mode: Which strategy to use to handle Neumann boundary conditions.
-      The default is `ghost`, which has superior stability. 'ghost' -> Boundary
-      face values are inferred by constructing a ghost cell then alpha weighting
-      cells. 'semi-implicit' -> Matches FiPy. Boundary face values are alpha
-      weighted, with the (1 - alpha) weight applied to the external face value
-      rather than to a ghost cell.
 
   Returns:
     mat: Tridiagonal matrix of coefficients on u
     c: Vector of terms not dependent on u
   """
-
-  # Alpha weighting calculated using power law scheme described in
-  # https://www.ctcms.nist.gov/fipy/documentation/numerical/scheme.html
 
   # Avoid divide by zero
   eps = 1e-20
@@ -77,8 +104,8 @@ def make_convection_terms(
   ones = jnp.ones_like(v_face[1:-1])
   scale = jnp.concatenate((half, ones, half))
 
-  distance_to_left_ghost_cell_center = var.cell_widths[0]  # pyrefly: ignore[bad-index]
-  distance_to_right_ghost_cell_center = var.cell_widths[-1]  # pyrefly: ignore[bad-index]
+  distance_to_left_ghost_cell_center = var.cell_widths[0]
+  distance_to_right_ghost_cell_center = var.cell_widths[-1]
   cell_spacings = jnp.concat([
       jnp.array([distance_to_left_ghost_cell_center]),
       var.cell_spacings,
@@ -90,30 +117,8 @@ def make_convection_terms(
   left_peclet = -ratio[:-1]
   right_peclet = ratio[1:]
 
-  def peclet_to_alpha(p):
-    eps = 1e-3
-    p = jnp.where(jnp.abs(p) < eps, eps, p)
-
-    alpha_pg10 = (p - 1) / p
-    alpha_p0to10 = ((p - 1) + (1 - p / 10) ** 5) / p
-    # FiPy doc has a typo on the next line, where we use a + the doc has a
-    # -, which is clearly a mistake since it makes the function
-    # discontinuous and negative
-    alpha_pneg10to0 = ((1 + p / 10) ** 5 - 1) / p
-    alpha_plneg10 = -1 / p
-
-    alpha = 0.5 * jnp.ones_like(p)
-    alpha = jnp.where(p > 10.0, alpha_pg10, alpha)
-    alpha = jnp.where(jnp.logical_and(10.0 >= p, p > eps), alpha_p0to10, alpha)
-    alpha = jnp.where(
-        jnp.logical_and(-eps > p, p >= -10), alpha_pneg10to0, alpha
-    )
-    alpha = jnp.where(p < -10.0, alpha_plneg10, alpha)
-
-    return alpha
-
-  left_alpha = peclet_to_alpha(left_peclet)
-  right_alpha = peclet_to_alpha(right_peclet)
+  left_alpha = _peclet_to_alpha(left_peclet)
+  right_alpha = _peclet_to_alpha(right_peclet)
 
   left_v = v_face[:-1]
   right_v = v_face[1:]
@@ -143,68 +148,34 @@ def make_convection_terms(
 
   if var.left_face_constraint is not None:
     # Dirichlet condition at leftmost face
-    match dirichlet_mode:
-      case 'ghost':
-        diag_left_face = (
-            v_face[0] * (2.0 * left_alpha[0] - 1.0) - v_face[1] * right_alpha[0]
-        ) / cell_spacings[0]
-        vec_left_face = (
-            2.0 * v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
-        ) / cell_spacings[0]
-      case 'direct':
-        vec_left_face = v_face[0] * var.left_face_constraint / cell_spacings[0]
-        diag_left_face = -v_face[1] * right_alpha[0] / cell_spacings[0]
-      case 'semi-implicit':
-        vec_left_face = (
-            v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
-        ) / cell_spacings[0]
-        diag_left_face = diag[0]
-      case _:
-        raise ValueError(dirichlet_mode)
+    diag_left_face = (
+        v_face[0] * (2.0 * left_alpha[0] - 1.0) - v_face[1] * right_alpha[0]
+    ) / cell_spacings[0]
+    vec_left_face = (
+        2.0 * v_face[0] * (1.0 - left_alpha[0]) * var.left_face_constraint
+    ) / cell_spacings[0]
   else:
     # Gradient boundary condition at leftmost face
     diag_left_face = (v_face[0] - right_alpha[0] * v_face[1]) / cell_spacings[0]
     vec_left_face = (
         -v_face[0] * (1.0 - left_alpha[0]) * var.left_face_grad_constraint
     )
-    match neumann_mode:
-      case 'ghost':
-        pass  # no adjustment needed
-      case 'semi-implicit':
-        vec_left_face /= 2.0
-      case _:
-        raise ValueError(neumann_mode)
 
   diag = diag.at[0].set(diag_left_face)
   vec = vec.at[0].set(vec_left_face)
 
   if var.right_face_constraint is not None:
     # Dirichlet condition at rightmost face
-    match dirichlet_mode:
-      case 'ghost':
-        diag_right_face = (
-            v_face[-2] * left_alpha[-1]
-            + v_face[-1] * (1.0 - 2.0 * right_alpha[-1])
-        ) / cell_spacings[-1]
-        vec_right_face = (
-            -2.0
-            * v_face[-1]
-            * (1.0 - right_alpha[-1])
-            * var.right_face_constraint
-        ) / cell_spacings[-1]
-      case 'direct':
-        diag_right_face = v_face[-2] * left_alpha[-1] / cell_spacings[-1]
-        vec_right_face = (
-            -v_face[-1] * var.right_face_constraint / cell_spacings[-1]
-        )
-      case 'semi-implicit':
-        diag_right_face = diag[-1]
-        vec_right_face = (
-            -(v_face[-1] * (1.0 - right_alpha[-1]) * var.right_face_constraint)
-            / cell_spacings[-1]
-        )
-      case _:
-        raise ValueError(dirichlet_mode)
+    diag_right_face = (
+        v_face[-2] * left_alpha[-1]
+        + v_face[-1] * (1.0 - 2.0 * right_alpha[-1])
+    ) / cell_spacings[-1]
+    vec_right_face = (
+        -2.0
+        * v_face[-1]
+        * (1.0 - right_alpha[-1])
+        * var.right_face_constraint
+    ) / cell_spacings[-1]
   else:
     # Gradient boundary condition at rightmost face
     diag_right_face = (
@@ -213,13 +184,6 @@ def make_convection_terms(
     vec_right_face = (
         -v_face[-1] * (1.0 - right_alpha[-1]) * var.right_face_grad_constraint
     )
-    match neumann_mode:
-      case 'ghost':
-        pass  # no adjustment needed
-      case 'semi-implicit':
-        vec_right_face /= 2.0
-      case _:
-        raise ValueError(neumann_mode)
 
   diag = diag.at[-1].set(diag_right_face)
   above = -(1.0 - right_alpha) * right_v / var.cell_widths

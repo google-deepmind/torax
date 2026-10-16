@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for neoclassical poloidal velocity models."""
+
 from absl.testing import absltest
 import numpy as np
 from torax._src.config import build_runtime_params
@@ -27,17 +28,17 @@ _R_TOL = 1e-6
 
 # Reference values from running test code in a notebook.
 _POLOIDAL_VELOCITY_EXPECTED = np.array([
-    -1421.733825,
-    -2416.310831,
-    -3824.149187,
-    -4439.831505,
-    -4756.802744,
-    -4921.795697,
-    -4940.634034,
-    -4675.437296,
-    -3174.355174,
-    3963.140325,
-    19424.630032,
+    -1420.6983360036172,
+    -2411.93618615788,
+    -3820.091461624443,
+    -4444.251923592969,
+    -4763.566921463356,
+    -4925.105855432049,
+    -4942.76494291719,
+    -4678.5972063452045,
+    -3172.430134878813,
+    3973.1226014237845,
+    19424.63003150546,
 ])
 
 

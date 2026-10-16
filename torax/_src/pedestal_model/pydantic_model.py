@@ -16,6 +16,7 @@
 
 import abc
 import copy
+import dataclasses
 from typing import Annotated, Any, Literal, Self, TypeAlias
 import chex
 import pydantic
@@ -25,7 +26,9 @@ from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params
 from torax._src.pedestal_model import set_pped_tpedratio_nped
 from torax._src.pedestal_model import set_tped_nped
+from torax._src.pedestal_model.formation import base as formation_base
 from torax._src.pedestal_model.formation import power_scaling_formation_model
+from torax._src.pedestal_model.formation import prescribed_formation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.physics import scaling_laws
 from torax._src.torax_pydantic import torax_pydantic
@@ -33,7 +36,47 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
-class PowerScalingFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
+class BaseFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
+  """Base configuration for pedestal formation models.
+
+  Attributes:
+    base_multiplier: The base value of the transport decrease multiplier used in
+      ADAPTIVE_TRANSPORT mode when the pedestal is active. Decrease (closer to
+      0) for stronger reductions in transport once formation starts.
+    initial_confinement_mode: Optional explicit initial confinement mode
+      ('L_MODE' or 'H_MODE') at t_initial. When None (default), the initial
+      mode is inferred automatically from the formation model's transition
+      conditions at t_initial. Used to enable triggering L-H or H-L transitions
+      from a cold start.
+  """
+
+  base_multiplier: Annotated[
+      array_typing.FloatScalar, pydantic.Field(gt=0.0, le=1.0)
+  ] = 1e-6
+  initial_confinement_mode: Literal["L_MODE", "H_MODE"] | None = None
+
+  @abc.abstractmethod
+  def build_formation_model(
+      self,
+  ) -> formation_base.FormationModel:
+    """Builds the formation model."""
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.FormationRuntimeParams:
+    """Builds the runtime params."""
+    del t
+    return runtime_params.FormationRuntimeParams(
+        base_multiplier=self.base_multiplier,
+        initial_confinement_mode=(
+            runtime_params.ConfinementMode[self.initial_confinement_mode]
+            if self.initial_confinement_mode is not None
+            else None
+        ),
+    )
+
+
+class PowerScalingFormation(BaseFormation):
   """Configuration for power scaling formation model.
 
   This formation model triggers a reduction in pedestal transport when P_SOL >
@@ -56,20 +99,29 @@ class PowerScalingFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
     offset: Bias applied to the argument of the sigmoid function, setting the
       dimensionless offset of the formation window. Increase to start formation
       at a higher P_SOL.
-    base_multiplier: The base value of the transport multiplier. Increase for
-      stronger decreases in transport once formation starts.
     P_LH_prefactor: Dimensionless multiplier for P_LH. Increase to scale up
       P_LH, and therefore start the L-H transition at a higher P_SOL.
+    P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
+      checking for an H-L transition, the L-H threshold power P_LH is multiplied
+      by this factor, i.e. the back transition occurs when P_SOL < P_LH *
+      P_LH_hysteresis_factor. A value less than 1 means that the plasma must
+      lose more power to transition back to L-mode than was required to enter
+      H-mode, which is the experimentally observed behavior. Must be in [0, 1].
+    include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
+      calculation used for comparing against P_LH. When False (default), uses
+      P_heat (total auxiliary + Ohmic power - sinks) instead of P_SOL = P_heat -
+      dW/dt. Excluding dW/dt avoids unphysical dithering during transients.
   """
 
   sharpness: pydantic.PositiveFloat = 100.0
   offset: Annotated[
       array_typing.FloatScalar, pydantic.Field(ge=-10.0, le=10.0)
   ] = 0.0
-  base_multiplier: Annotated[
-      array_typing.FloatScalar, pydantic.Field(gt=0.0, le=1.0)
-  ] = 1e-6
   P_LH_prefactor: pydantic.PositiveFloat = 1.0
+  P_LH_hysteresis_factor: torax_pydantic.UnitIntervalTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.8)
+  )
+  include_dW_dt_in_P_SOL: Annotated[bool, torax_pydantic.JAX_STATIC] = False
 
   @abc.abstractmethod
   def build_formation_model(
@@ -77,11 +129,17 @@ class PowerScalingFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
   ) -> power_scaling_formation_model.PowerScalingFormationModel:
     """Builds the formation model."""
 
-  @abc.abstractmethod
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
-    """Builds the runtime params."""
+    return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
+        **vars(super().build_runtime_params(t)),
+        sharpness=self.sharpness,
+        offset=self.offset,
+        P_LH_prefactor=self.P_LH_prefactor,
+        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
+        include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
+    )
 
 
 class MartinScalingFormation(PowerScalingFormation):
@@ -101,17 +159,6 @@ class MartinScalingFormation(PowerScalingFormation):
   ) -> power_scaling_formation_model.PowerScalingFormationModel:
     return power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
-    )
-
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
-    del t
-    return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
-        sharpness=self.sharpness,
-        offset=self.offset,
-        base_multiplier=self.base_multiplier,
-        P_LH_prefactor=self.P_LH_prefactor,
     )
 
 
@@ -137,17 +184,6 @@ class DelabieScalingFormation(PowerScalingFormation):
     return power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_laws.PLHScalingLaw.DELABIE,
         divertor_configuration=self.divertor_configuration,
-    )
-
-  def build_runtime_params(
-      self, t: chex.Numeric
-  ) -> power_scaling_formation_model.PowerScalingFormationRuntimeParams:
-    del t
-    return power_scaling_formation_model.PowerScalingFormationRuntimeParams(
-        sharpness=self.sharpness,
-        offset=self.offset,
-        base_multiplier=self.base_multiplier,
-        P_LH_prefactor=self.P_LH_prefactor,
     )
 
 
@@ -208,175 +244,77 @@ class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
     )
 
 
+class PrescribedFormation(BaseFormation):
+  """Configuration for prescribed pedestal formation model.
+
+  Controls whether the pedestal is active according to a prescribed boolean
+  value or time-varying boolean schedule. In INTERNAL_BOUNDARY_CONDITION mode,
+  activates the pedestal internal boundary condition when `pedestal_active` is
+  True (with optional ramp over `transition_time_width`). In ADAPTIVE_TRANSPORT
+  mode, scales pedestal transport by `base_multiplier` when `pedestal_active` is
+  True and `1.0` when False.
+
+  Attributes:
+    pedestal_active: Whether the pedestal is active. Can be a boolean or a
+      time-varying boolean (default interpolation is STEP).
+  """
+
+  model_name: Annotated[Literal["prescribed"], torax_pydantic.JAX_STATIC] = (
+      "prescribed"
+  )
+  pedestal_active: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(True)
+  )
+
+  def build_formation_model(
+      self,
+  ) -> prescribed_formation_model.PrescribedFormationModel:
+    return prescribed_formation_model.PrescribedFormationModel()
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> prescribed_formation_model.PrescribedFormationRuntimeParams:
+    return prescribed_formation_model.PrescribedFormationRuntimeParams(
+        **vars(super().build_runtime_params(t)),
+        pedestal_active=self.pedestal_active.get_value(t),
+    )
+
+
 # For new formation and saturation models, add to these TypeAliases via Union.
 FormationConfig: TypeAlias = Annotated[
-    DelabieScalingFormation | MartinScalingFormation,
+    DelabieScalingFormation | MartinScalingFormation | PrescribedFormation,
     pydantic.Discriminator("model_name"),
 ]
 SaturationConfig: TypeAlias = ProfileValueSaturation
 
 
-class BasePedestal(torax_pydantic.BaseModelFrozen, abc.ABC):
-  """Base class for pedestal models.
+class BaseStructure(torax_pydantic.BaseModelFrozen, abc.ABC):
+  """Base configuration for pedestal structure models.
 
   Attributes:
-    set_pedestal: Whether to use the pedestal model and set the pedestal. Can be
-      time varying.
-    mode: Defines how the pedestal is generated. Set to ADAPTIVE_TRANSPORT to
-      set the pedestal by modifying the transport coefficients in the pedestal
-      region, allowing the pedestal to self-consistently evolve. Set to
-      INTERNAL_BOUNDARY_CONDITION to set the pedestal by adding a source/sink
-      term at the pedestal top, forcing the pedestal top values to be as
-      prescribed. use_formation_model_with_internal_boundary_condition: When
-      True and mode is INTERNAL_BOUNDARY_CONDITION, enables state-dependent L-H
-      transitions based on P_SOL vs P_LH comparison. When False,
-      INTERNAL_BOUNDARY_CONDITION mode always applies the prescribed pedestal
-      values (legacy behavior). Ignored when mode is ADAPTIVE_TRANSPORT.
-    transition_time_width: Duration of the L-H or H-L transition ramp [s].
-      During a transition, pedestal values are linearly interpolated between
-      L-mode baseline and H-mode target values over this time window. Only used
-      when use_formation_model_with_internal_boundary_condition is True.
-    P_LH_hysteresis_factor: Hysteresis factor for H-L back transitions. When
-      checking for an H-L transition, the L-H threshold power P_LH is multiplied
-      by this factor, i.e. the back transition occurs when P_SOL < P_LH *
-      P_LH_hysteresis_factor. A value less than 1 means that the plasma must
-      lose more power to transition back to L-mode than was required to enter
-      H-mode, which is the experimentally observed behavior. Must be in [0, 1].
-      Only applicable when use_formation_model_with_internal_boundary_condition
-      is True.
-    include_dW_dt_in_P_SOL: Whether to include the dW/dt term in the P_SOL
-      calculation used for comparing against P_LH. When False (default), uses
-      P_heat (total auxiliary + Ohmic power - sinks) instead of P_SOL = P_heat -
-      dW/dt. Excluding dW/dt avoids unphysical dithering during transients.
-    formation_model: Configuration for the pedestal formation model.
-    saturation_model: Configuration for the pedestal saturation model.
-    chi_max: Maximum effective thermal diffusion coefficient from the core
-      transport model in the pedestal region (i.e., before applying
-      ADAPTIVE_TRANSPORT) [m^2/s].
-    D_e_max: Maximum effective particle diffusion coefficient from the core
-      transport model in the pedestal region (i.e., before applying
-      ADAPTIVE_TRANSPORT) [m^2/s].
-    V_e_max: Maximum effective particle pinch velocity from the core transport
-      model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
-      [m/s].
-    V_e_min: Minimum effective particle pinch velocity from the core transport
-      model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
-      [m/s].
+    pedestal_profile_form: Controls the shape of internal boundary conditions in
+      the pedestal region (SET_AT_PED_TOP or MTANH).
   """
 
-  set_pedestal: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(False)
-  )
-  mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
-      runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
-  )
-  use_formation_model_with_internal_boundary_condition: Annotated[
-      bool, torax_pydantic.JAX_STATIC
-  ] = False
-  transition_time_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.5)
-  )
-  P_LH_hysteresis_factor: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.8)
-  )
-  include_dW_dt_in_P_SOL: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  explicit_pedestal: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   pedestal_profile_form: Annotated[
       runtime_params.PedestalProfileForm, torax_pydantic.JAX_STATIC
   ] = runtime_params.PedestalProfileForm.SET_AT_PED_TOP
-  formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
-      MartinScalingFormation()
-  )
-  saturation_model: SaturationConfig = torax_pydantic.ValidatedDefault(
-      ProfileValueSaturation()
-  )
-  # TODO(b/491895183): Do a sweep across different cases to find good default
-  # values for these parameters.
-  chi_max: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  D_e_max: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  V_e_max: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      1.0
-  )
-  V_e_min: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      -1.0
-  )
-  pedestal_top_smoothing_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.02)
-  )
-
-  @pydantic.model_validator(mode="before")
-  @classmethod
-  def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
-    configurable_data = copy.deepcopy(data)
-    if "formation_model" not in configurable_data:
-      configurable_data["formation_model"] = {"model_name": "martin_scaling"}
-    if "saturation_model" not in configurable_data:
-      configurable_data["saturation_model"] = {"model_name": "profile_value"}
-    # Set default model names.
-    if "model_name" not in configurable_data["formation_model"]:
-      configurable_data["formation_model"]["model_name"] = "martin_scaling"
-    if "model_name" not in configurable_data["saturation_model"]:
-      configurable_data["saturation_model"]["model_name"] = "profile_value"
-
-    return configurable_data
-
-  @pydantic.model_validator(mode="after")
-  def _check_source_mode(self) -> Self:
-    if (
-        self.use_formation_model_with_internal_boundary_condition
-        and self.mode != runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
-    ):
-      raise ValueError(
-          "use_formation_model_with_internal_boundary_condition can only be"
-          " True when mode is INTERNAL_BOUNDARY_CONDITION"
-      )
-    if (
-        self.use_formation_model_with_internal_boundary_condition
-        and not isinstance(
-            self.formation_model,
-            PowerScalingFormation,
-        )
-    ):
-      raise ValueError(
-          "use_formation_model_with_internal_boundary_condition can only be"
-          " True when formation_model is PowerScalingFormationModel"
-      )
-    return self
 
   @abc.abstractmethod
-  def build_pedestal_model(self) -> pedestal_model.PedestalModel:
-    """Builds the pedestal model."""
+  def build_structure_model(self) -> pedestal_model.PedestalStructureModel:
+    """Builds the pedestal structure model."""
 
   def build_runtime_params(
       self, t: chex.Numeric
-  ) -> runtime_params.RuntimeParams:
+  ) -> runtime_params.StructureRuntimeParams:
     """Builds the runtime params."""
-    return runtime_params.RuntimeParams(
-        set_pedestal=self.set_pedestal.get_value(t),
-        mode=self.mode,
-        use_formation_model_with_internal_boundary_condition=self.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=self.transition_time_width.get_value(t),
-        P_LH_hysteresis_factor=self.P_LH_hysteresis_factor.get_value(t),
-        include_dW_dt_in_P_SOL=self.include_dW_dt_in_P_SOL,
-        explicit_pedestal=self.explicit_pedestal,
+    del t
+    return runtime_params.StructureRuntimeParams(
         pedestal_profile_form=self.pedestal_profile_form,
-        formation=self.formation_model.build_runtime_params(t),
-        saturation=self.saturation_model.build_runtime_params(t),
-        chi_max=self.chi_max.get_value(t),
-        D_e_max=self.D_e_max.get_value(t),
-        V_e_max=self.V_e_max.get_value(t),
-        V_e_min=self.V_e_min.get_value(t),
-        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
-            t
-        ),
     )
 
 
-class SetPpedTpedRatioNped(BasePedestal):
+class SetPpedTpedRatioNped(BaseStructure):
   """Model for direct specification of pressure, temperature ratio, and density.
 
   Attributes:
@@ -411,49 +349,31 @@ class SetPpedTpedRatioNped(BasePedestal):
       torax_pydantic.ValidatedDefault(0.91)
   )
 
-  def build_pedestal_model(
+  def build_structure_model(
       self,
   ) -> (
       set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel
   ):
-    return set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel(
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
+    return (
+        set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel()
     )
 
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> set_pped_tpedratio_nped.RuntimeParams:
-    base_runtime_params = super().build_runtime_params(t)
     return set_pped_tpedratio_nped.RuntimeParams(
-        set_pedestal=base_runtime_params.set_pedestal,
-        mode=base_runtime_params.mode,
-        use_formation_model_with_internal_boundary_condition=base_runtime_params.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=base_runtime_params.transition_time_width,
-        P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
-        include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
-        explicit_pedestal=base_runtime_params.explicit_pedestal,
-        pedestal_profile_form=base_runtime_params.pedestal_profile_form,
+        **vars(super().build_runtime_params(t)),
         P_ped=self.P_ped.get_value(t),
         P_ped_multiplier=self.P_ped_multiplier.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
-        formation=base_runtime_params.formation,
-        saturation=base_runtime_params.saturation,
-        chi_max=self.chi_max.get_value(t),
-        D_e_max=self.D_e_max.get_value(t),
-        V_e_max=self.V_e_max.get_value(t),
-        V_e_min=self.V_e_min.get_value(t),
-        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
-            t
-        ),
     )
 
 
-class SetTpedNped(BasePedestal):
-  """A basic version of the pedestal model that uses direct specification.
+class SetTpedNped(BaseStructure):
+  """A basic version of the pedestal structure model using direct specification.
 
   Attributes:
     n_e_ped: The electron density at the pedestal [m^-3] or fGW.
@@ -478,64 +398,182 @@ class SetTpedNped(BasePedestal):
   T_e_ped: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       5.0
   )
-  # TODO(b/517487852): Add pedestal height multiplier.
   rho_norm_ped_top: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.91)
   )
 
-  def build_pedestal_model(
+  def build_structure_model(
       self,
   ) -> set_tped_nped.SetTemperatureDensityPedestalModel:
-    return set_tped_nped.SetTemperatureDensityPedestalModel(
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
-    )
+    return set_tped_nped.SetTemperatureDensityPedestalModel()
 
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> set_tped_nped.RuntimeParams:
-    base_runtime_params = super().build_runtime_params(t)
     return set_tped_nped.RuntimeParams(
-        set_pedestal=base_runtime_params.set_pedestal,
-        mode=base_runtime_params.mode,
-        use_formation_model_with_internal_boundary_condition=base_runtime_params.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=base_runtime_params.transition_time_width,
-        P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
-        include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
-        explicit_pedestal=base_runtime_params.explicit_pedestal,
-        pedestal_profile_form=base_runtime_params.pedestal_profile_form,
+        **vars(super().build_runtime_params(t)),
         n_e_ped=self.n_e_ped.get_value(t),
         n_e_ped_is_fGW=self.n_e_ped_is_fGW,
         T_i_ped=self.T_i_ped.get_value(t),
         T_e_ped=self.T_e_ped.get_value(t),
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
-        formation=base_runtime_params.formation,
-        saturation=base_runtime_params.saturation,
-        chi_max=self.chi_max.get_value(t),
-        D_e_max=self.D_e_max.get_value(t),
-        V_e_max=self.V_e_max.get_value(t),
-        V_e_min=self.V_e_min.get_value(t),
-        pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
-            t
-        ),
     )
 
 
-class NoPedestal(BasePedestal):
-  """A pedestal model for when there is no pedestal.
-
-  Note that setting `set_pedestal` to True with a NoPedestal model is the
-  equivalent of setting it to False.
-  """
+class NoPedestal(BaseStructure):
+  """A pedestal structure model for when there is no pedestal."""
 
   model_name: Annotated[Literal["no_pedestal"], torax_pydantic.JAX_STATIC] = (
       "no_pedestal"
   )
 
-  def build_pedestal_model(
+  def build_structure_model(
       self,
   ) -> no_pedestal.NoPedestal:
-    return no_pedestal.NoPedestal(
+    return no_pedestal.NoPedestal()
+
+
+StructureConfig = Annotated[
+    SetPpedTpedRatioNped | SetTpedNped | NoPedestal,
+    pydantic.Discriminator("model_name"),
+]
+
+
+class Pedestal(torax_pydantic.BaseModelFrozen):
+  """Configuration for the pedestal model.
+
+  Attributes:
+    structure_model: Configuration for the pedestal structure model (computing
+      target pedestal height, width, and profile form).
+    mode: Defines how the pedestal is generated. Set to ADAPTIVE_TRANSPORT to
+      set the pedestal by modifying the transport coefficients in the pedestal
+      region, allowing the pedestal to self-consistently evolve. Set to
+      INTERNAL_BOUNDARY_CONDITION to set the pedestal by adding a source/sink
+      term at the pedestal top, forcing the pedestal top values to be as
+      prescribed.
+    transition_time_width: Duration of the L-H or H-L transition ramp [s].
+      During a transition, pedestal values are linearly interpolated between
+      L-mode baseline and H-mode target values over this time window. Must be
+      explicitly specified in INTERNAL_BOUNDARY_CONDITION mode when using a
+      power-scaling formation model; defaults to 0.0 otherwise.
+    explicit_pedestal: When True (default), the pedestal model is evaluated once
+      per timestep before the solver and its output is frozen during the solve.
+      When False, it is re-evaluated whenever the solver recomputes the PDE
+      coefficients (e.g. each Newton-Raphson iteration or predictor-corrector
+      step). In ADAPTIVE_TRANSPORT mode, the transport multipliers are always
+      re-evaluated.
+    formation_model: Configuration for the pedestal formation model.
+    saturation_model: Configuration for the pedestal saturation model.
+    chi_max: Maximum effective thermal diffusion coefficient from the core
+      transport model in the pedestal region (i.e., before applying
+      ADAPTIVE_TRANSPORT) [m^2/s].
+    D_e_max: Maximum effective particle diffusion coefficient from the core
+      transport model in the pedestal region (i.e., before applying
+      ADAPTIVE_TRANSPORT) [m^2/s].
+    V_e_max: Maximum effective particle pinch velocity from the core transport
+      model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
+      [m/s].
+    V_e_min: Minimum effective particle pinch velocity from the core transport
+      model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
+      [m/s].
+    pedestal_top_smoothing_width: Width of the smoothing region applied to the
+      transport coefficients at the pedestal top in ADAPTIVE_TRANSPORT mode, in
+      units of rho_norm.
+    initial_L_mode_bc_multiplier: Multiplier applied to the LCFS boundary
+      condition values (`T_i`, `T_e`, `n_e` at the right face) to seed the
+      L-mode pedestal-top baselines at `t_initial` when the simulation starts
+      directly in H-mode without L-mode profile data.
+  """
+
+  structure_model: StructureConfig = torax_pydantic.ValidatedDefault(
+      NoPedestal()
+  )
+  mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
+      runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
+  )
+  transition_time_width: torax_pydantic.NonNegativeTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  explicit_pedestal: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
+      PrescribedFormation(pedestal_active=True)
+  )
+  saturation_model: SaturationConfig = torax_pydantic.ValidatedDefault(
+      ProfileValueSaturation()
+  )
+  # TODO(b/491895183): Do a sweep across different cases to find good default
+  # values for these parameters.
+  chi_max: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  D_e_max: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  V_e_max: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      1.0
+  )
+  V_e_min: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      -1.0
+  )
+  pedestal_top_smoothing_width: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.02)
+  )
+  initial_L_mode_bc_multiplier: pydantic.PositiveFloat = 2.0
+
+  @pydantic.model_validator(mode="before")
+  @classmethod
+  def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
+    configurable_data = copy.deepcopy(data)
+    if (
+        isinstance(configurable_data.get("formation_model"), dict)
+        and "model_name" not in configurable_data["formation_model"]
+    ):
+      configurable_data["formation_model"]["model_name"] = "prescribed"
+    if (
+        isinstance(configurable_data.get("saturation_model"), dict)
+        and "model_name" not in configurable_data["saturation_model"]
+    ):
+      configurable_data["saturation_model"]["model_name"] = "profile_value"
+
+    return configurable_data
+
+  @pydantic.model_validator(mode="after")
+  def _check_source_mode(self) -> Self:
+    if isinstance(self.structure_model, NoPedestal):
+      if not isinstance(self.formation_model, PrescribedFormation):
+        raise ValueError(
+            "NoPedestal cannot be used with a power-scaling formation model."
+        )
+      if self.formation_model.initial_confinement_mode == "H_MODE":
+        raise ValueError(
+            "NoPedestal cannot have initial_confinement_mode='H_MODE'."
+        )
+      return self
+
+    if (
+        "formation_model" not in self.model_fields_set
+        and self.mode == runtime_params.Mode.ADAPTIVE_TRANSPORT
+    ):
+      raise ValueError(
+          "formation_model must be explicitly specified when mode is"
+          " ADAPTIVE_TRANSPORT."
+      )
+    if (
+        self.mode == runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
+        and "transition_time_width" not in self.model_fields_set
+        and not isinstance(self.formation_model, PrescribedFormation)
+    ):
+      raise ValueError(
+          "transition_time_width must be specified when using a"
+          " power-scaling formation model in INTERNAL_BOUNDARY_CONDITION"
+          " mode."
+      )
+    return self
+
+  def build_pedestal_model(self) -> pedestal_model.PedestalModel:
+    """Builds the pedestal model."""
+    return pedestal_model.PedestalModel(
+        structure_model=self.structure_model.build_structure_model(),
         formation_model=self.formation_model.build_formation_model(),
         saturation_model=self.saturation_model.build_saturation_model(),
     )
@@ -543,18 +581,22 @@ class NoPedestal(BasePedestal):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
-    base_runtime_params = super().build_runtime_params(t)
+    """Builds the runtime params."""
+    formation_params = self.formation_model.build_runtime_params(t)
+    if isinstance(self.structure_model, NoPedestal) and isinstance(
+        formation_params,
+        prescribed_formation_model.PrescribedFormationRuntimeParams,
+    ):
+      formation_params = dataclasses.replace(
+          formation_params, pedestal_active=False
+      )
     return runtime_params.RuntimeParams(
-        set_pedestal=base_runtime_params.set_pedestal,
-        mode=base_runtime_params.mode,
-        use_formation_model_with_internal_boundary_condition=base_runtime_params.use_formation_model_with_internal_boundary_condition,
-        transition_time_width=base_runtime_params.transition_time_width,
-        P_LH_hysteresis_factor=base_runtime_params.P_LH_hysteresis_factor,
-        include_dW_dt_in_P_SOL=base_runtime_params.include_dW_dt_in_P_SOL,
-        explicit_pedestal=base_runtime_params.explicit_pedestal,
-        pedestal_profile_form=base_runtime_params.pedestal_profile_form,
-        formation=base_runtime_params.formation,
-        saturation=base_runtime_params.saturation,
+        mode=self.mode,
+        transition_time_width=self.transition_time_width.get_value(t),
+        explicit_pedestal=self.explicit_pedestal,
+        structure=self.structure_model.build_runtime_params(t),
+        formation=formation_params,
+        saturation=self.saturation_model.build_runtime_params(t),
         chi_max=self.chi_max.get_value(t),
         D_e_max=self.D_e_max.get_value(t),
         V_e_max=self.V_e_max.get_value(t),
@@ -562,10 +604,8 @@ class NoPedestal(BasePedestal):
         pedestal_top_smoothing_width=self.pedestal_top_smoothing_width.get_value(
             t
         ),
+        initial_L_mode_bc_multiplier=self.initial_L_mode_bc_multiplier,
     )
 
 
-PedestalConfig = Annotated[
-    SetPpedTpedRatioNped | SetTpedNped | NoPedestal,
-    pydantic.Discriminator("model_name"),
-]
+PedestalConfig: TypeAlias = Pedestal

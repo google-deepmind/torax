@@ -17,9 +17,10 @@
 import abc
 from collections.abc import Mapping
 import dataclasses
-from typing import Annotated, Any
+from typing import Annotated
 import chex
 import jax
+from jax import numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src import static_dataclass
@@ -39,12 +40,14 @@ def pack_impurity_mapping(
     key: output_keys.OutputKey | str,
     mapping: Mapping[str, chex.Numeric] | None,
     *,
+    context: output_grid_context.OutputGridContext,
     dim_name: str,
 ) -> dict[str, output_grid_context.OutputVar]:
   """Packs an impurity mapping into a dictionary for to_output_dict."""
   if not mapping:
     return {}
   impurities = sorted(list(mapping.keys()))
+  context.register_coord(dim_name, np.asarray(impurities))
   data_array = np.stack(
       [np.asarray(mapping[i]) for i in impurities],
       axis=0,
@@ -69,12 +72,18 @@ class EdgeModelOutputs:
     n_e_right_bc: Electron density boundary condition at LCFS [m^-3].
     impurity_right_bc: Mapping from impurity symbol to its right boundary
       condition (n_e_ratio at LCFS).
+    valid_for_core_update: Whether the edge outputs are valid for updating core
+      boundary conditions.
   """
 
   T_e_right_bc: jax.Array
   T_i_right_bc: jax.Array
   n_e_right_bc: jax.Array
   impurity_right_bc: Mapping[str, jax.Array]
+  valid_for_core_update: jax.Array = dataclasses.field(
+      default_factory=lambda: jnp.array(True, dtype=jnp.bool_),
+      kw_only=True,
+  )
 
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
@@ -95,6 +104,7 @@ class EdgeModelOutputs:
         pack_impurity_mapping(
             output_keys.IMPURITY_RIGHT_BC,
             self.impurity_right_bc,
+            context=context,
             dim_name=output_keys.IMPURITY,
         )
     )
@@ -104,14 +114,8 @@ class EdgeModelOutputs:
       self, context: output_grid_context.OutputGridContext
   ) -> xr.DataTree:
     """Builds an xr.DataTree of the edge model outputs."""
-    coords: dict[str, Any] = {output_keys.TIME: context.times}
-    if self.impurity_right_bc:
-      coords[output_keys.IMPURITY] = sorted(list(self.impurity_right_bc.keys()))
     return xr.DataTree(
-        dataset=context.build_dataset(
-            self.to_output_dict(context),
-            coords=coords,
-        )
+        dataset=context.build_dataset(self.to_output_dict(context))
     )
 
 
@@ -140,14 +144,20 @@ class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   Attributes:
     model_name: Discriminator field for Pydantic. Subclasses must override with
       a `Literal` value.
-    update_temperatures: Whether to update temperature boundary conditions.
+    update_electron_temperature: Whether to update electron temperature boundary
+      condition.
+    update_ion_temperature: Whether to update ion temperature boundary
+      condition.
     update_electron_density: Whether to update electron density boundary
       condition.
     update_impurities: Whether to update impurity concentrations in the core.
   """
 
   model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ""
-  update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
+  update_electron_temperature: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(False)
+  )
+  update_ion_temperature: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(False)
   )
   update_electron_density: torax_pydantic.TimeVaryingScalarStep = (
@@ -162,7 +172,10 @@ class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   ) -> edge_runtime_params.RuntimeParams:
     """Builds the runtime parameters for the edge model at time t."""
     return edge_runtime_params.RuntimeParams(
-        update_temperatures=self.update_temperatures.get_value(t),
+        update_electron_temperature=self.update_electron_temperature.get_value(
+            t
+        ),
+        update_ion_temperature=self.update_ion_temperature.get_value(t),
         update_electron_density=self.update_electron_density.get_value(t),
         update_impurities=self.update_impurities.get_value(t),
     )

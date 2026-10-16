@@ -37,10 +37,26 @@ class PlasmaCompositionTest(parameterized.TestCase):
       self, Z_eff: float
   ):
     with self.assertRaises(pydantic.ValidationError):
-      plasma_composition.PlasmaComposition(Z_eff=Z_eff)  # pyrefly: ignore[missing-argument]
+      plasma_composition.PlasmaComposition(Z_eff=Z_eff)
+
+  @parameterized.named_parameters(
+      ('hydrogenic_dt_with_h_unknown', {'D': 0.5, 'T': 0.5}, 'H'),
+      ('same_single_species_he4', {'He4': 1.0}, 'He4'),
+  )
+  def test_n_e_ratios_zeff_rejects_unknown_species_matching_main_ion_charge(
+      self, main_ion, unknown_species
+  ):
+    with self.assertRaisesRegex(pydantic.ValidationError, 'linearly dependent'):
+      plasma_composition.PlasmaComposition(
+          main_ion=main_ion,
+          impurity={
+              'impurity_mode': 'n_e_ratios_Z_eff',
+              'species': {unknown_species: None, 'Ne': 0.01},
+          },
+      )
 
   def test_plasma_composition_build_runtime_params_smoke_test(self):
-    pc = plasma_composition.PlasmaComposition()  # pyrefly: ignore[missing-argument]
+    pc = plasma_composition.PlasmaComposition()
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     pc.build_runtime_params(t=0.0)
@@ -52,7 +68,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
   )
   def test_zeff_accepts_float_input(self, Z_eff: float):
     geo = circular_geometry.CircularConfig().build_geometry()
-    pc = plasma_composition.PlasmaComposition(Z_eff=Z_eff)  # pyrefly: ignore[missing-argument]
+    pc = plasma_composition.PlasmaComposition(Z_eff=Z_eff)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     runtime_params = pc.build_runtime_params(t=0.0)
     # Check that the values in both Z_eff and Z_eff_face are the same
@@ -74,7 +90,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     }
 
     geo = circular_geometry.CircularConfig().build_geometry()
-    pc = plasma_composition.PlasmaComposition(Z_eff=zeff_profile)  # pyrefly: ignore[missing-argument]
+    pc = plasma_composition.PlasmaComposition(Z_eff=zeff_profile)
     torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     # Check values at t=0.0
@@ -129,7 +145,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     initial_zeff = 1.5
     updated_zeff = 2.5
     t = 0.0
-    pc = plasma_composition.PlasmaComposition(  # pyrefly: ignore[missing-argument]
+    pc = plasma_composition.PlasmaComposition(
         Z_eff=initial_zeff, A_i_override=A_override
     )
     geo = circular_geometry.CircularConfig().build_geometry()
@@ -560,7 +576,7 @@ class IonMixtureTest(parameterized.TestCase):
     mixture_params = mixture.build_runtime_params(time)
     calculated_Z = charge_states.get_average_charge_state(
         T_e=np.array([10.0]),  # Ensure that all ions in test are fully ionized
-        fractions=mixture_params.fractions,  # pyrefly: ignore[bad-argument-type]
+        fractions=mixture_params.fractions,
         Z_override=mixture_params.Z_override,
     ).Z_mixture
     np.testing.assert_allclose(calculated_Z, expected_Z)
@@ -585,7 +601,7 @@ class IonMixtureTest(parameterized.TestCase):
     mixture_params = mixture.build_runtime_params(t=0.0)
     calculated_Z = charge_states.get_average_charge_state(
         T_e=np.array([1.0]),  # arbitrary temperature, won't be used for D
-        fractions=mixture_params.fractions,  # pyrefly: ignore[bad-argument-type]
+        fractions=mixture_params.fractions,
         Z_override=mixture_params.Z_override,
     ).Z_mixture
     Z_expected = Z if Z_override is None else Z_override

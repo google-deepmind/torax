@@ -13,6 +13,7 @@
 # limitations under the License.
 """Solver methods for the extended Lengyel model."""
 
+import copy
 import dataclasses
 import enum
 import functools
@@ -27,11 +28,21 @@ from torax._src.solver import jax_root_finding
 # pylint: disable=invalid-name
 
 # Scale factors for physics calculations to avoid numerical issues in fp32.
-_LINT_SCALE_FACTOR = 1e30
-_DENSITY_SCALE_FACTOR = 1e-20
-
-# _LINT_SCALE_FACTOR * _DENSITY_SCALE_FACTOR**2
-_LINT_K_INVERSE_SCALE_FACTOR = 1e-10
+# Defined via integer base-10 exponents so that derived scale factors are
+# computed from exact integer arithmetic rather than products of extreme floats.
+_LINT_SCALE_EXPONENT = 30
+_DENSITY_SCALE_EXPONENT = -20
+_HEAT_FLUX_SCALE_EXPONENT = -5
+_LINT_SCALE_FACTOR = 10.0**_LINT_SCALE_EXPONENT
+_DENSITY_SCALE_FACTOR = 10.0**_DENSITY_SCALE_EXPONENT
+_HEAT_FLUX_SCALE_FACTOR = 10.0**_HEAT_FLUX_SCALE_EXPONENT
+# Converts k * L_INT (with scaled density and L_INT) into the units of the
+# scaled squared heat flux. Equal to 1.0 for the current choice of exponents.
+_LINT_K_INVERSE_SCALE_FACTOR = 10.0 ** (
+    _LINT_SCALE_EXPONENT
+    + 2 * _DENSITY_SCALE_EXPONENT
+    - 2 * _HEAT_FLUX_SCALE_EXPONENT
+)
 
 # scale factors for residuals
 _KAPPA_SCALE_FACTOR = 1e-3
@@ -148,35 +159,51 @@ def inverse_mode_fixed_point_solver(
 def forward_mode_fixed_point_solver(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     iterations: int = extended_lengyel_defaults.FIXED_POINT_ITERATIONS,
+    relaxation_factor: float = (
+        extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR
+    ),
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the fixed-point iterative solver for the forward mode."""
-
-  # Relaxation function needed for fixed point iteration in forward mode for
-  # stability.
-  def _relax(new_value, prev_value, relaxation_factor=0.4):
-    return relaxation_factor * new_value + (1 - relaxation_factor) * prev_value
 
   def body_fun(i, carry):
 
     current_sol_model, _ = carry
 
-    # Store current values for the next relaxation step
-    prev_sol_model = current_sol_model
+    # Store previous state values for under-relaxation after the first step.
+    prev_state = copy.copy(current_sol_model.state)
 
-    # Update q_parallel based on the current separatrix temperature and alpha_t.
+    # Relaxation function needed for fixed point iteration in forward mode for
+    # stability. Applied only after the first iteration (i > 0).
+    def _relax(new_value, prev_value):
+      return jnp.where(
+          i > 0,
+          relaxation_factor * new_value
+          + (1.0 - relaxation_factor) * prev_value,
+          new_value,
+      )
+
+    # Update state variables in-place (with relaxation) in causal Gauss-Seidel /
+    # SOR order: q_parallel -> (q_cc) -> T_e_target -> kappa_e -> alpha_t.
+    #
+    # Each step updates current_sol_model.state immediately so downstream
+    # properties (T_e_separatrix, divertor_entrance_electron_temp,
+    # divertor_Z_eff, Z_eff_separatrix) use the latest relaxed values:
+    #
+    # 1. q_parallel is updated first from upstream power and alpha_t so that
+    #    _solve_for_qcc and calc_T_e_target have a consistent heat flux.
+    # 2. T_e_target is updated from q_cc and sets the downstream temperature
+    #    profile used by divertor_Z_eff (which does not depend on alpha_t).
+    # 3. kappa_e is updated from divertor_Z_eff before alpha_t because
+    #    T_e_separatrix and Z_eff_separatrix depend on kappa_e.
+    # 4. alpha_t is updated last and feeds directly into calc_q_parallel on the
+    #    next iteration.
     new_q_parallel = divertor_sol_1d_lib.calc_q_parallel(
         params=current_sol_model.params,
         T_e_separatrix=current_sol_model.T_e_separatrix,
         alpha_t=current_sol_model.state.alpha_t,
     )
-
-    # Relax q_parallel for stability.
-    # No relaxation for the first iteration (i=0), since we don't have a
-    # previous q_parallel to relax with.
-    current_sol_model.state.q_parallel = jax.lax.cond(
-        i > 0,
-        lambda: _relax(new_q_parallel, prev_sol_model.state.q_parallel),
-        lambda: new_q_parallel,
+    current_sol_model.state.q_parallel = _relax(
+        new_q_parallel, prev_state.q_parallel
     )
 
     # Calculate heat flux at the cc-interface for fixed impurity concentrations.
@@ -184,12 +211,15 @@ def forward_mode_fixed_point_solver(
 
     # Calculate new target electron temperature with forward two-point model.
     # Clip to small positive value to avoid NaNs.
-    current_sol_model.state.T_e_target = jnp.maximum(
+    new_T_e_target = jnp.maximum(
         divertor_sol_1d_lib.calc_T_e_target(
             sol_model=current_sol_model,
             parallel_heat_flux_at_cc_interface=new_q_cc,
         ),
         constants.CONSTANTS.eps,
+    )
+    current_sol_model.state.T_e_target = _relax(
+        new_T_e_target, prev_state.T_e_target
     )
 
     # Update kappa_e and alpha_t for the next iteration.
@@ -197,33 +227,13 @@ def forward_mode_fixed_point_solver(
         current_sol_model.divertor_Z_eff
     )
 
-    current_sol_model.state.alpha_t = divertor_sol_1d_lib.calc_alpha_t(
+    new_alpha_t = divertor_sol_1d_lib.calc_alpha_t(
         params=current_sol_model.params,
         T_e_separatrix=current_sol_model.T_e_separatrix,
         Z_eff_separatrix=current_sol_model.Z_eff_separatrix,
     )
+    current_sol_model.state.alpha_t = _relax(new_alpha_t, prev_state.alpha_t)
 
-    # Relaxation step after the first iteration
-    current_sol_model = jax.lax.cond(
-        i > 0,
-        lambda sol_model: dataclasses.replace(
-            sol_model,
-            state=dataclasses.replace(
-                sol_model.state,
-                T_e_target=_relax(
-                    sol_model.state.T_e_target,
-                    prev_sol_model.state.T_e_target,
-                ),
-                alpha_t=_relax(
-                    sol_model.state.alpha_t, prev_sol_model.state.alpha_t
-                ),
-            ),
-        ),
-        lambda sol_model: sol_model,
-        current_sol_model,
-    )
-
-    # Returning the updated-in-place current_sol_model.
     return current_sol_model, physics_outcome
 
   final_sol_model, physics_outcome = jax.lax.fori_loop(
@@ -414,12 +424,16 @@ def forward_mode_hybrid_solver(
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
     newton_raphson_tau_min: float = extended_lengyel_defaults.NEWTON_RAPHSON_TAU_MIN,
+    fixed_point_relaxation_factor: float = (
+        extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR
+    ),
 ) -> tuple[divertor_sol_1d_lib.DivertorSOL1D, ExtendedLengyelSolverStatus]:
   """Runs the hybrid solver for the forward mode."""
 
   intermediate_sol_model, _ = forward_mode_fixed_point_solver(
       initial_sol_model=initial_sol_model,
       iterations=fixed_point_iterations,
+      relaxation_factor=fixed_point_relaxation_factor,
   )
 
   # Safety Catch: Detect if fixed-point "sabotaged" the initial guess.
@@ -664,8 +678,10 @@ def _solve_for_c_z_prefactor(
   Lf_div_u = Lf_cc_u - Lf_cc_div
 
   # Define shorthand variables for clarity, matching the paper's notation.
-  qu = sol_model.state.q_parallel
-  qcc = sol_model.parallel_heat_flux_at_cc_interface
+  # Heat fluxes are scaled so that squared heat fluxes and k * L_INT share
+  # units (see _LINT_K_INVERSE_SCALE_FACTOR) and stay well within fp32 range.
+  qu = sol_model.state.q_parallel * _HEAT_FLUX_SCALE_FACTOR
+  qcc = sol_model.parallel_heat_flux_at_cc_interface * _HEAT_FLUX_SCALE_FACTOR
   b = sol_model.params.divertor_broadening_factor
   # `k` is a lumped parameter from the Lengyel model derivation.
   # See Eq. 33 in Body et al. 2025.
@@ -685,13 +701,14 @@ def _solve_for_c_z_prefactor(
   # Calculate the squared parallel heat flux at the divertor entrance.
   # This formula is derived by combining the Lengyel equations for the region
   # above and below the divertor entrance. See Eq. 40 in Body et al. 2025.
+  # The scaled seeded L_INT terms (Ls_*) are O(1-10) for typical SOL conditions
+  # and strictly positive since inverse mode requires a positive total seeded
+  # impurity weight and only seeded species with a non-coronal cooling rate
+  # fit (validated in the config), so the divisions are safe.
   q_div_squared = (
-      Ls_div_u
-      / _LINT_SCALE_FACTOR
-      * (qcc**2 + k * Lf_cc_div / _LINT_K_INVERSE_SCALE_FACTOR)
-      + (Ls_cc_div / _LINT_SCALE_FACTOR)
-      * (qu**2 - k * Lf_div_u / _LINT_K_INVERSE_SCALE_FACTOR)
-  ) / (Ls_div_u / _LINT_SCALE_FACTOR / b**2 + Ls_cc_div / _LINT_SCALE_FACTOR)
+      Ls_div_u * (qcc**2 + k * Lf_cc_div / _LINT_K_INVERSE_SCALE_FACTOR)
+      + Ls_cc_div * (qu**2 - k * Lf_div_u / _LINT_K_INVERSE_SCALE_FACTOR)
+  ) / (Ls_div_u / b**2 + Ls_cc_div)
 
   # Calculate the required seeded impurity concentration `c_z`.
   # See Eq. 42 in Body et al. 2025.
@@ -760,7 +777,9 @@ def _solve_for_qcc(
   Lint_div_u = Lint_cc_u - Lint_cc_div
 
   # Define shorthand variables for clarity, matching the paper's notation.
-  qu = sol_model.state.q_parallel
+  # The heat flux is scaled so that squared heat fluxes and k * L_INT share
+  # units (see _LINT_K_INVERSE_SCALE_FACTOR) and stay well within fp32 range.
+  qu = sol_model.state.q_parallel * _HEAT_FLUX_SCALE_FACTOR
   b = sol_model.params.divertor_broadening_factor
   # `k` is a lumped parameter from the Lengyel model derivation.
   # See Eq. 33 in Body et al. 2025.
@@ -784,7 +803,7 @@ def _solve_for_qcc(
 
   # Check for unphysical result.
   status = jnp.where(
-      qcc_squared <= constants.CONSTANTS.eps,
+      qcc_squared <= 0.0,
       PhysicsOutcome.Q_CC_SQUARED_NEGATIVE,
       PhysicsOutcome.SUCCESS,
   )
@@ -793,16 +812,15 @@ def _solve_for_qcc(
   # We scale inputs to smooth_sqrt by qu^2 + epsilon so that the dimensionless
   # argument is order 1 (or 0), allowing a fixed dimensionless epsilon to be
   # effective. This prevents vanishing gradients for deep negative excursions.
-  # TODO(b/512078510): Pick a reasonable eps value for safe_divide here.
   qcc_norm = math_utils.smooth_sqrt(
-      math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
+      math_utils.safe_divide(
           num=qcc_squared,
           denom=qu**2,
-          eps=1e-7,
+          eps=constants.CONSTANTS.eps,
       ),
       epsilon=1e-3,
   )
 
-  qcc = qcc_norm * jnp.sqrt(qu**2)
+  qcc = qcc_norm * jnp.abs(sol_model.state.q_parallel)
 
   return qcc, status

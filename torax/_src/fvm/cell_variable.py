@@ -168,10 +168,10 @@ class CellVariable:
   left_face_constraint: array_typing.FloatScalar | None = None
   right_face_constraint: array_typing.FloatScalar | None = None
   left_face_grad_constraint: array_typing.FloatScalar | None = (
-      dataclasses.field(default_factory=_zero)  # pyrefly: ignore[bad-assignment]
+      dataclasses.field(default_factory=_zero)
   )
   right_face_grad_constraint: array_typing.FloatScalar | None = (
-      dataclasses.field(default_factory=_zero)  # pyrefly: ignore[bad-assignment]
+      dataclasses.field(default_factory=_zero)
   )
   # Can't make the above default values be jax zeros because that would be a
   # call to jax before absl.app.run

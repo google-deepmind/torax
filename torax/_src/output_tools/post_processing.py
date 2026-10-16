@@ -30,6 +30,8 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.output_tools import impurity_radiation
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.output_tools import safety_factor_fit
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
@@ -423,17 +425,17 @@ class PostProcessedOutputs:
         rho_q_3_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
-        j_parallel_total=jnp.zeros(geo.rho_face.shape),
+        j_parallel_total=jnp.zeros(geo.rho.shape),
         j_bootstrap=jnp.zeros(geo.rho.shape),
         j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
-        j_ohmic=jnp.zeros(geo.rho_face.shape),
-        j_parallel_ohmic=jnp.zeros(geo.rho_face.shape),
-        j_external=jnp.zeros(geo.rho_face.shape),
-        j_generic_current=jnp.zeros(geo.rho_face.shape),
-        j_ecrh=jnp.zeros(geo.rho_face.shape),
-        j_non_inductive=jnp.zeros(geo.rho_face.shape),
+        j_ohmic=jnp.zeros(geo.rho.shape),
+        j_parallel_ohmic=jnp.zeros(geo.rho.shape),
+        j_external=jnp.zeros(geo.rho.shape),
+        j_generic_current=jnp.zeros(geo.rho.shape),
+        j_ecrh=jnp.zeros(geo.rho.shape),
+        j_non_inductive=jnp.zeros(geo.rho.shape),
         j_parallel_external=jnp.zeros(geo.rho.shape),
-        j_parallel_non_inductive=jnp.zeros(geo.rho_face.shape),
+        j_parallel_non_inductive=jnp.zeros(geo.rho.shape),
         I_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_non_inductive=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         f_non_inductive=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -474,6 +476,191 @@ class PostProcessedOutputs:
       return state.SimError.NAN_DETECTED
     else:
       return state.SimError.NO_ERROR
+
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts post-processed outputs into an OutputVar mapping."""
+    out_dict: dict[str, output_grid_context.OutputVar] = {}
+
+    # 1. Profiles on the face grid (FACE)
+    face_vars = {
+        output_keys.PPRIME: self.pprime,
+        output_keys.FFPRIME: self.FFprime,
+        output_keys.PSI_NORM: self.psi_norm,
+        output_keys.POLOIDAL_VELOCITY: self.poloidal_velocity,
+        output_keys.RADIAL_ELECTRIC_FIELD: self.radial_electric_field,
+        output_keys.BETA_POL_PROFILE: self.beta_pol_profile,
+        output_keys.BETA_POL_PRIME: self.beta_pol_prime,
+        output_keys.ALPHA_MHD: self.alpha_mhd,
+        output_keys.ALPHA_MHD_MILLER: self.alpha_mhd_miller,
+    }
+    for key, face_data in face_vars.items():
+      out_dict[key] = context.pack(key, face_data)
+
+    # 2. Profiles on the cell grid (CELL)
+    cell_vars = {
+        output_keys.J_PARALLEL_TOTAL: self.j_parallel_total,
+        output_keys.J_TOROIDAL_EXTERNAL: self.j_external,
+        output_keys.J_PARALLEL_EXTERNAL: self.j_parallel_external,
+        output_keys.J_TOROIDAL_OHMIC: self.j_ohmic,
+        output_keys.J_PARALLEL_OHMIC: self.j_parallel_ohmic,
+        output_keys.J_GENERIC_CURRENT: self.j_generic_current,
+        output_keys.J_ECRH: self.j_ecrh,
+        output_keys.J_NON_INDUCTIVE: self.j_non_inductive,
+        output_keys.J_PARALLEL_NON_INDUCTIVE: self.j_parallel_non_inductive,
+    }
+    for key, cell_data in cell_vars.items():
+      out_dict[key] = context.pack(key, cell_data)
+
+    # 3. Profiles extended across boundaries (CELL_PLUS_BOUNDARIES)
+    extended_j_bootstrap = output_grid_context.extend_cell_grid_to_boundaries(
+        self.j_bootstrap, self.j_bootstrap_face
+    )
+    out_dict[output_keys.J_TOROIDAL_BOOTSTRAP] = context.pack(
+        output_keys.J_TOROIDAL_BOOTSTRAP, extended_j_bootstrap
+    )
+
+    # 4. Scalars (SCALAR)
+    scalar_vars = {
+        # Stored energy and confinement
+        output_keys.W_THERMAL_I: self.W_thermal_i,
+        output_keys.W_THERMAL_E: self.W_thermal_e,
+        output_keys.W_THERMAL_TOTAL: self.W_thermal_total,
+        output_keys.TAU_E: self.tau_E,
+        output_keys.H89P: self.H89P,
+        output_keys.H98: self.H98,
+        output_keys.H97L: self.H97L,
+        output_keys.H20: self.H20,
+        output_keys.W_POL: self.W_pol,
+        output_keys.LI3: self.li3,
+        output_keys.DW_THERMAL_DT: self.dW_thermal_dt,
+        output_keys.DW_THERMAL_DT_SMOOTHED: self.dW_thermal_dt_smoothed,
+        output_keys.DW_THERMAL_I_DT_SMOOTHED: self.dW_thermal_i_dt_smoothed,
+        output_keys.DW_THERMAL_E_DT_SMOOTHED: self.dW_thermal_e_dt_smoothed,
+        # Integrated powers
+        output_keys.P_SOL_I: self.P_SOL_i,
+        output_keys.P_SOL_E: self.P_SOL_e,
+        output_keys.P_SOL_TOTAL: self.P_SOL_total,
+        output_keys.P_AUX_I: self.P_aux_i,
+        output_keys.P_AUX_E: self.P_aux_e,
+        output_keys.P_AUX_TOTAL: self.P_aux_total,
+        output_keys.P_EXTERNAL_INJECTED: self.P_external_injected,
+        output_keys.P_EXTERNAL_TOTAL: self.P_external_total,
+        output_keys.P_HEAT_I: self.P_heat_i,
+        output_keys.P_HEAT_E: self.P_heat_e,
+        output_keys.P_HEAT_TOTAL: self.P_heat_total,
+        output_keys.P_EI_EXCHANGE_I: self.P_ei_exchange_i,
+        output_keys.P_EI_EXCHANGE_E: self.P_ei_exchange_e,
+        output_keys.P_AUX_GENERIC_I: self.P_aux_generic_i,
+        output_keys.P_AUX_GENERIC_E: self.P_aux_generic_e,
+        output_keys.P_AUX_GENERIC_TOTAL: self.P_aux_generic_total,
+        output_keys.P_ALPHA_I: self.P_alpha_i,
+        output_keys.P_ALPHA_E: self.P_alpha_e,
+        output_keys.P_ALPHA_TOTAL: self.P_alpha_total,
+        output_keys.P_OHMIC_E: self.P_ohmic_e,
+        output_keys.P_BREMSSTRAHLUNG_E: self.P_bremsstrahlung_e,
+        output_keys.P_CYCLOTRON_E: self.P_cyclotron_e,
+        output_keys.P_ECRH_E: self.P_ecrh_e,
+        output_keys.P_RADIATION_E: self.P_radiation_e,
+        output_keys.P_FUSION: self.P_fusion,
+        output_keys.P_ICRH_E: self.P_icrh_e,
+        output_keys.P_ICRH_I: self.P_icrh_i,
+        output_keys.P_ICRH_TOTAL: self.P_icrh_total,
+        # L-H transition thresholds
+        output_keys.P_LH_HIGH_DENSITY: self.P_LH_high_density,
+        output_keys.P_LH_MIN: self.P_LH_min,
+        output_keys.P_LH_LOW_DENSITY: self.P_LH_low_density,
+        output_keys.P_LH: self.P_LH,
+        output_keys.N_E_MIN_P_LH: self.n_e_min_P_LH,
+        output_keys.P_LH_DELABIE_HIGH_DENSITY: self.P_LH_delabie_high_density,
+        output_keys.P_LH_DELABIE_MIN: self.P_LH_delabie_min,
+        output_keys.P_LH_DELABIE_LOW_DENSITY: self.P_LH_delabie_low_density,
+        output_keys.P_LH_DELABIE: self.P_LH_delabie,
+        # Integrated energies
+        output_keys.E_FUSION: self.E_fusion,
+        output_keys.E_AUX_TOTAL: self.E_aux_total,
+        output_keys.E_OHMIC_E: self.E_ohmic_e,
+        output_keys.E_EXTERNAL_INJECTED: self.E_external_injected,
+        output_keys.E_EXTERNAL_TOTAL: self.E_external_total,
+        # Volume and line averages
+        output_keys.T_E_VOLUME_AVG: self.T_e_volume_avg,
+        output_keys.T_I_VOLUME_AVG: self.T_i_volume_avg,
+        output_keys.N_E_VOLUME_AVG: self.n_e_volume_avg,
+        output_keys.N_I_VOLUME_AVG: self.n_i_volume_avg,
+        output_keys.N_E_LINE_AVG: self.n_e_line_avg,
+        output_keys.N_I_LINE_AVG: self.n_i_line_avg,
+        output_keys.FGW_N_E_VOLUME_AVG: self.fgw_n_e_volume_avg,
+        output_keys.FGW_N_E_LINE_AVG: self.fgw_n_e_line_avg,
+        # q-profile derived scalars
+        output_keys.Q_FUSION: self.Q_fusion,
+        output_keys.Q95: self.q95,
+        output_keys.Q_MIN: self.q_min,
+        output_keys.RHO_Q_MIN: self.rho_q_min,
+        output_keys.RHO_Q_3_2_FIRST: self.rho_q_3_2_first,
+        output_keys.RHO_Q_2_1_FIRST: self.rho_q_2_1_first,
+        output_keys.RHO_Q_3_1_FIRST: self.rho_q_3_1_first,
+        output_keys.RHO_Q_3_2_SECOND: self.rho_q_3_2_second,
+        output_keys.RHO_Q_2_1_SECOND: self.rho_q_2_1_second,
+        output_keys.RHO_Q_3_1_SECOND: self.rho_q_3_1_second,
+        # Integrated currents and fractions
+        output_keys.I_BOOTSTRAP: self.I_bootstrap,
+        output_keys.I_EXTERNAL: self.I_external,
+        output_keys.I_ECRH: self.I_ecrh,
+        output_keys.I_AUX_GENERIC: self.I_aux_generic,
+        output_keys.I_NON_INDUCTIVE: self.I_non_inductive,
+        output_keys.F_NON_INDUCTIVE: self.f_non_inductive,
+        output_keys.F_BOOTSTRAP: self.f_bootstrap,
+        # Integrated particle sources
+        output_keys.S_GAS_PUFF: self.S_gas_puff,
+        output_keys.S_PELLET: self.S_pellet,
+        output_keys.S_GENERIC_PARTICLE: self.S_generic_particle,
+        output_keys.S_TOTAL: self.S_total,
+        # Plasma beta
+        output_keys.BETA_TOR: self.beta_tor,
+        output_keys.BETA_POL: self.beta_pol,
+        output_keys.BETA_N: self.beta_N,
+    }
+    for key, scalar_data in scalar_vars.items():
+      out_dict[key] = context.pack(key, scalar_data)
+
+    # 5. Multi-dimensional impurity radiation outputs
+    if self.impurity_species:
+      context.register_coord(
+          impurity_radiation.IMPURITY_DIM,
+          np.asarray(list(self.impurity_species.keys())),
+      )
+      radiation_data = []
+      n_impurity_data = []
+      z_impurity_data = []
+      for symbol in self.impurity_species:
+        species_output = self.impurity_species[symbol]
+        radiation_data.append(species_output.radiation)
+        n_impurity_data.append(species_output.n_impurity)
+        z_impurity_data.append(species_output.Z_impurity)
+      rad_dims = (
+          impurity_radiation.IMPURITY_DIM,
+          output_keys.TIME,
+          output_keys.RHO_CELL_NORM,
+      )
+      out_dict[output_keys.RADIATION_IMPURITY_SPECIES] = (
+          rad_dims,
+          np.stack(radiation_data, axis=0),
+          output_keys.get_units(output_keys.RADIATION_IMPURITY_SPECIES),
+      )
+      out_dict[output_keys.N_IMPURITY_SPECIES] = (
+          rad_dims,
+          np.stack(n_impurity_data, axis=0),
+          output_keys.get_units(output_keys.N_IMPURITY_SPECIES),
+      )
+      out_dict[output_keys.Z_IMPURITY_SPECIES] = (
+          rad_dims,
+          np.stack(z_impurity_data, axis=0),
+          output_keys.get_units(output_keys.Z_IMPURITY_SPECIES),
+      )
+
+    return out_dict
 
 
 # TODO(b/376010694): use the various SOURCE_NAMES for the keys.
@@ -697,8 +884,7 @@ def make_post_processed_outputs(
       sim_state.core_profiles, sim_state.geometry
   )
   # Calculate normalized poloidal flux.
-  psi_face = sim_state.core_profiles.psi.face_value()
-  psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])  # pyrefly: ignore[bad-index]
+  psi_norm_face = sim_state.core_profiles.psi_norm_face
   integrated_sources = _calculate_integrated_sources(
       sim_state.geometry,
       sim_state.core_sources,
@@ -839,24 +1025,24 @@ def make_post_processed_outputs(
 
   # Calculate te and ti volume average [keV]
   te_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.T_e.value, sim_state.geometry
   )
   ti_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.T_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.T_i.value, sim_state.geometry
   )
 
   # Calculate n_e and n_i (main ion) volume and line averages in m^-3
   n_e_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   n_i_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   n_e_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_e.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_e.value, sim_state.geometry
   )
   n_i_line_avg = math_utils.line_average(
-      sim_state.core_profiles.n_i.value, sim_state.geometry  # pyrefly: ignore[bad-argument-type]
+      sim_state.core_profiles.n_i.value, sim_state.geometry
   )
   fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
       n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
@@ -923,7 +1109,7 @@ def make_post_processed_outputs(
       runtime_params.numerics.min_rho_norm,
   )
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-      j_parallel_external,  # pyrefly: ignore[bad-argument-type]
+      j_parallel_external,
       sim_state.geometry,
       runtime_params.numerics.min_rho_norm,
   )
@@ -1038,17 +1224,17 @@ def make_post_processed_outputs(
       j_ecrh=j_toroidal_sources['j_ecrh'],
       j_generic_current=j_toroidal_sources['j_generic_current'],
       j_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
-      j_parallel_external=j_parallel_external,  # pyrefly: ignore[bad-argument-type]
+      j_parallel_external=j_parallel_external,
       j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
       I_external=I_external,
       I_non_inductive=I_non_inductive,
-      f_non_inductive=math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
-          num=I_non_inductive,  # pyrefly: ignore[bad-argument-type]
+      f_non_inductive=math_utils.safe_divide(
+          num=I_non_inductive,
           denom=sim_state.core_profiles.Ip_profile_face[-1],
           eps=1e-7,
       ),
-      f_bootstrap=math_utils.safe_divide(  # pyrefly: ignore[bad-argument-type]
-          num=I_bootstrap,  # pyrefly: ignore[bad-argument-type]
+      f_bootstrap=math_utils.safe_divide(
+          num=I_bootstrap,
           denom=sim_state.core_profiles.Ip_profile_face[-1],
           eps=1e-7,
       ),
@@ -1060,8 +1246,8 @@ def make_post_processed_outputs(
       alpha_mhd=alpha_mhd,
       alpha_mhd_miller=alpha_mhd_miller,
       impurity_species=impurity_radiation_outputs,
-      poloidal_velocity=sim_state.core_profiles.poloidal_velocity.face_value(),  # pyrefly: ignore[bad-argument-type]
-      radial_electric_field=rotation_output.Er.face_value(),  # pyrefly: ignore[bad-argument-type]
+      poloidal_velocity=sim_state.core_profiles.poloidal_velocity.face_value(),
+      radial_electric_field=rotation_output.Er,
       first_step=jnp.array(False),
   )
 

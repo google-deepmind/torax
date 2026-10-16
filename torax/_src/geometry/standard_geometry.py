@@ -19,6 +19,7 @@ CHEASE, FBT, etc.
 """
 
 import dataclasses
+import functools
 
 from absl import logging
 import chex
@@ -32,6 +33,8 @@ from torax._src import interpolated_param
 from torax._src import jax_utils
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -109,6 +112,42 @@ class StandardGeometry(geometry.Geometry):
   R_target: array_typing.FloatScalar | None
   B_pol_OMP: array_typing.FloatScalar | None
   diverted: array_typing.BoolScalar | None
+
+  def to_output_dict(
+      self, context: output_grid_context.OutputGridContext
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Serializes stacked StandardGeometry into a flat dictionary of OutputVar tuples."""
+    output_dict = super().to_output_dict(context)
+    vars_to_pack: dict[output_keys.OutputKey, chex.Numeric] = {
+        output_keys.IP_PROFILE_FROM_GEO: self.Ip_profile_face,
+        output_keys.PSI_FROM_GEO: self.psi,
+        output_keys.PSI_FROM_IP: (
+            output_grid_context.extend_cell_grid_to_boundaries(
+                self.psi_from_Ip, self.psi_from_Ip_face
+            )
+        ),
+        output_keys.DELTA_UPPER: self.delta_upper_face,
+        output_keys.DELTA_LOWER: self.delta_lower_face,
+    }
+    optional_scalars = (
+        (output_keys.CONNECTION_LENGTH_TARGET, self.connection_length_target),
+        (
+            output_keys.CONNECTION_LENGTH_DIVERTOR,
+            self.connection_length_divertor,
+        ),
+        (output_keys.ANGLE_OF_INCIDENCE_TARGET, self.angle_of_incidence_target),
+        (output_keys.R_OMP, self.R_OMP),
+        (output_keys.R_TARGET, self.R_target),
+        (output_keys.B_POL_OMP, self.B_pol_OMP),
+        (output_keys.DIVERTED, self.diverted),
+    )
+    for key, value in optional_scalars:
+      if value is not None:
+        vars_to_pack[key] = value
+
+    for key, val in vars_to_pack.items():
+      output_dict[key] = context.pack(key, val)
+    return output_dict
 
 
 @jax.tree_util.register_dataclass
@@ -408,32 +447,6 @@ def build_standard_geometry(
   g2g3_over_rhon = g2[1:] * g3[1:] / rho_norm_intermediate[1:]
   g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
 
-  # make an alternative initial psi, self-consistent with numerical geometry
-  # Ip profile. Needed since input psi profile may have noisy second derivatives
-  dpsidrhon = (
-      intermediates.Ip_profile[1:]
-      * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediates.Phi[-1])
-      / (g2g3_over_rhon[1:] * intermediates.F[1:])
-  )
-  dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
-  psi_from_Ip = scipy.integrate.cumulative_trapezoid(
-      y=dpsidrhon,
-      x=rho_norm_intermediate,
-      initial=0.0,
-  )
-  # `initial` can only be zero or None, so add psi_axis afterwards.
-  psi_from_Ip += intermediates.psi[0]
-
-  # set Ip-consistent psi derivative boundary condition (although will be
-  # replaced later with an fvm constraint)
-  psi_from_Ip[-1] = psi_from_Ip[-2] + (
-      16 * constants.CONSTANTS.mu_0 * np.pi**3 * intermediates.Phi[-1]
-  ) * intermediates.Ip_profile[-1] / (
-      g2g3_over_rhon[-1] * intermediates.F[-1]
-  ) * (
-      rho_norm_intermediate[-1] - rho_norm_intermediate[-2]
-  )
-
   # dV/drhon, dS/drhon
   vpr = intermediates.vpr
   spr = vpr * intermediates.flux_surf_avg_1_over_R / (2 * np.pi)
@@ -509,8 +522,6 @@ def build_standard_geometry(
   F_hires = rhon_interpolation_func(rho_hires_norm, intermediates.F)
 
   psi = rhon_interpolation_func(rho_norm, intermediates.psi)
-  psi_from_Ip_face = rhon_interpolation_func(rho_face_norm, psi_from_Ip)
-  psi_from_Ip = rhon_interpolation_func(rho_norm, psi_from_Ip)
 
   j_total_face = rhon_interpolation_func(rho_face_norm, j_total)
   j_total = rhon_interpolation_func(rho_norm, j_total)
@@ -532,11 +543,23 @@ def build_standard_geometry(
   g0_face = rhon_interpolation_func(rho_face_norm, g0)
   g0 = rhon_interpolation_func(rho_norm, g0)
 
-  g1_face = rhon_interpolation_func(rho_face_norm, g1)
-  g1 = rhon_interpolation_func(rho_norm, g1)
+  # g1 and g2 go like rho_norm^2 near the axis, while vpr goes like rho_norm:
+  # flux surfaces near the axis are nested ellipses of minor radius r, so both
+  # the volume and the toroidal flux go like r^2, i.e. V ~ rho_norm^2 and
+  # vpr = dV/drho_norm ~ rho_norm, while |grad rho_norm| tends to a constant.
+  # Linear interpolation within the first equilibrium interval would make
+  # g1/vpr^2 and g2/vpr^2 diverge like 1/rho_norm there, so keep these ratios
+  # constant in that interval instead.
+  interp_near_axis = functools.partial(
+      _interpolate_rho_norm_squared_near_axis,
+      rho_norm_intermediate=rho_norm_intermediate,
+      vpr_intermediate=intermediates.vpr,
+  )
+  g1_face = interp_near_axis(rho_face_norm, g1, vpr_face)
+  g1 = interp_near_axis(rho_norm, g1, vpr)
 
-  g2_face = rhon_interpolation_func(rho_face_norm, g2)
-  g2 = rhon_interpolation_func(rho_norm, g2)
+  g2_face = interp_near_axis(rho_face_norm, g2, vpr_face)
+  g2 = interp_near_axis(rho_norm, g2, vpr)
 
   g3_face = rhon_interpolation_func(rho_face_norm, g3)
   g3 = rhon_interpolation_func(rho_norm, g3)
@@ -544,6 +567,18 @@ def build_standard_geometry(
   g2g3_over_rhon_face = rhon_interpolation_func(rho_face_norm, g2g3_over_rhon)
   g2g3_over_rhon_hires = rhon_interpolation_func(rho_hires_norm, g2g3_over_rhon)
   g2g3_over_rhon = rhon_interpolation_func(rho_norm, g2g3_over_rhon)
+
+  # Alternative initial psi, consistent with the equilibrium Ip profile.
+  psi_from_Ip, psi_from_Ip_face = _calculate_psi_from_Ip(
+      rho_norm_intermediate=rho_norm_intermediate,
+      Ip_profile=intermediates.Ip_profile,
+      psi_axis=intermediates.psi[0],
+      Phi_b=intermediates.Phi[-1],
+      rho_norm=rho_norm,
+      rho_face_norm=rho_face_norm,
+      g2g3_over_rhon_face=g2g3_over_rhon_face,
+      F_face=F_face,
+  )
 
   gm4 = rhon_interpolation_func(rho_norm, intermediates.flux_surf_avg_1_over_B2)
   gm4_face = rhon_interpolation_func(
@@ -627,6 +662,89 @@ def build_standard_geometry(
       R_target=intermediates.R_target,
       B_pol_OMP=intermediates.B_pol_OMP,
   )
+
+
+def _interpolate_rho_norm_squared_near_axis(
+    rho_norm: array_typing.Array,
+    y_intermediate: array_typing.Array,
+    vpr: array_typing.Array,
+    rho_norm_intermediate: array_typing.Array,
+    vpr_intermediate: array_typing.Array,
+) -> np.ndarray:
+  """Linearly interpolates a quantity that goes like rho_norm^2 on axis.
+
+  Within the first equilibrium interval, y / vpr^2 is held at its value at the
+  first off-axis equilibrium point, since vpr goes like rho_norm there.
+
+  Args:
+    rho_norm: rho_norm values to interpolate to.
+    y_intermediate: Quantity on the equilibrium grid.
+    vpr: vpr at rho_norm.
+    rho_norm_intermediate: rho_norm of the equilibrium grid.
+    vpr_intermediate: vpr on the equilibrium grid.
+
+  Returns:
+    The quantity at rho_norm.
+  """
+  y = np.interp(rho_norm, rho_norm_intermediate, y_intermediate)
+  first_interval = rho_norm < rho_norm_intermediate[1]
+  y_over_vpr2 = y_intermediate[1] / vpr_intermediate[1] ** 2
+  return np.where(first_interval, y_over_vpr2 * vpr**2, y)
+
+
+def _calculate_psi_from_Ip(
+    rho_norm_intermediate: array_typing.Array,
+    Ip_profile: array_typing.Array,
+    psi_axis: array_typing.FloatScalar,
+    Phi_b: array_typing.FloatScalar,
+    rho_norm: array_typing.Array,
+    rho_face_norm: array_typing.Array,
+    g2g3_over_rhon_face: array_typing.Array,
+    F_face: array_typing.Array,
+) -> tuple[np.ndarray, np.ndarray]:
+  """Returns psi on the cell and face grids, consistent with Ip_profile.
+
+  Ip_profile is cubic-spline interpolated onto the transport faces, and the
+  face psi gradients are obtained by inverting the finite-volume Ip relation
+  used in `psi_calculations.calc_j_total`. psi is then the cumulative sum of
+  these gradients from the axis.
+
+  Args:
+    rho_norm_intermediate: Normalized toroidal flux coordinate of the
+      equilibrium grid.
+    Ip_profile: Enclosed plasma current on the equilibrium grid [A].
+    psi_axis: Poloidal flux on the magnetic axis [Wb].
+    Phi_b: Toroidal flux at the LCFS [Wb].
+    rho_norm: Cell centers of the transport mesh.
+    rho_face_norm: Face centers of the transport mesh.
+    g2g3_over_rhon_face: g2g3_over_rhon on the transport faces.
+    F_face: F on the transport faces.
+
+  Returns:
+    psi_from_Ip on the cell and face grids [Wb].
+  """
+  Ip_face = scipy.interpolate.CubicSpline(rho_norm_intermediate, Ip_profile)(
+      rho_face_norm
+  )
+  dpsi_drhon_face = np.zeros_like(rho_face_norm)
+  dpsi_drhon_face[1:] = (
+      Ip_face[1:]
+      * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * Phi_b)
+      / (g2g3_over_rhon_face[1:] * F_face[1:])
+  )
+  # dpsi/drho_norm is linear in rho_norm near the axis.
+  psi_first_cell = (
+      psi_axis + 0.5 * dpsi_drhon_face[1] * rho_norm[0] ** 2 / rho_face_norm[1]
+  )
+  psi = psi_first_cell + np.concatenate(
+      [np.zeros(1), np.cumsum(dpsi_drhon_face[1:-1] * np.diff(rho_norm))]
+  )
+  psi_face = np.interp(rho_face_norm, rho_norm, psi)
+  psi_face[0] = psi_axis
+  psi_face[-1] = psi[-1] + dpsi_drhon_face[-1] * (
+      rho_face_norm[-1] - rho_norm[-1]
+  )
+  return psi, psi_face
 
 
 # TODO(b/401502047): Investigate how window_length should depend on the

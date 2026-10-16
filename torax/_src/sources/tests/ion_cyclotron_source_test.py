@@ -13,12 +13,13 @@
 # limitations under the License.
 """Tests for global ion_cyclotron_source infrastructure (model-agnostic)."""
 
+import dataclasses
+
 from absl.testing import absltest
 import jax
 import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.physics import fast_ion as fast_ion_lib
-from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.tests import test_lib
@@ -27,28 +28,28 @@ from torax._src.sources.tests import test_lib
 jax.config.update('jax_enable_x64', True)
 
 
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class _DummySource(icrh_base.IonCyclotronSource):
+
+  def _get_model_value(self, *args, **kwargs):
+    return ()
+
+
 class _DummyConfig(icrh_base.IonCyclotronSourceConfig):
 
-  def build_runtime_params(self, t):
-    return runtime_params_lib.RuntimeParams(
-        prescribed_values=(),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
-    )
-
-  @property
-  def model_func(self):
-    return lambda *args, **kwargs: None
+  def build_source(self) -> _DummySource:
+    return _DummySource()
 
 
 class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
   """Tests for model-agnostic IonCyclotronSource infrastructure."""
 
-  source_name = icrh_base.IonCyclotronSource.SOURCE_NAME
+  source_name = icrh_base.IonCyclotronSource.SOURCE_ID
   source_config_class = _DummyConfig
+  extra_source_config_kwargs = {'minority_species': 'He3'}
 
   def test_source_name(self):
-    self.assertEqual(icrh_base.IonCyclotronSource.SOURCE_NAME, 'icrh')
+    self.assertEqual(icrh_base.IonCyclotronSource.SOURCE_ID, 'icrh')
 
   def test_affected_core_profiles(self):
     expected = (
@@ -60,13 +61,10 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
         icrh_base.IonCyclotronSource.AFFECTED_CORE_PROFILES, expected
     )
 
-  def test_default_model_function_name(self):
-    self.assertEqual(icrh_base.DEFAULT_MODEL_FUNCTION_NAME, 'toric_nn')
-
-  def test_build_fast_ions_all_zeros(self):
-    """build_fast_ions with no input returns zeros for all species."""
+  def test_zero_fast_ions(self):
+    """IonCyclotronSource.zero_fast_ions returns all-zero fast ions."""
     geo = circular_geometry.CircularConfig().build_geometry()
-    fast_ions = icrh_base.build_fast_ions(source_name='icrh', geo=geo)
+    fast_ions = icrh_base.IonCyclotronSource.zero_fast_ions(geo)
     self.assertLen(fast_ions, len(fast_ion_lib.FAST_ION_SPECIES))
     for fi, species in zip(fast_ions, fast_ion_lib.FAST_ION_SPECIES):
       self.assertEqual(fi.species, species)
@@ -74,24 +72,15 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
       np.testing.assert_allclose(fi.n.value, 0.0, atol=1e-15)
       np.testing.assert_allclose(fi.T.value, 0.0, atol=1e-15)
 
-  def test_zero_fast_ions(self):
-    """IonCyclotronSource.zero_fast_ions returns all-zero fast ions."""
-    geo = circular_geometry.CircularConfig().build_geometry()
-    fast_ions = icrh_base.IonCyclotronSource.zero_fast_ions(geo)
-    self.assertLen(fast_ions, len(fast_ion_lib.FAST_ION_SPECIES))
-    for fi in fast_ions:
-      np.testing.assert_allclose(fi.n.value, 0.0, atol=1e-15)
-      np.testing.assert_allclose(fi.T.value, 0.0, atol=1e-15)
-
   def test_build_source_returns_correct_type(self):
     """IonCyclotronSourceConfig.build_source returns IonCyclotronSource."""
-    config = _DummyConfig()
+    config = _DummyConfig(minority_species='He3')
     source = config.build_source()
     self.assertIsInstance(source, icrh_base.IonCyclotronSource)
 
   def test_config_default_values(self):
     """Verify default config values are correct."""
-    config = _DummyConfig()
+    config = _DummyConfig(minority_species='He3')
     np.testing.assert_allclose(config.P_total.get_value(0.0), 10e6)
     np.testing.assert_allclose(
         config.absorption_fraction.get_value(0.0), 1.0

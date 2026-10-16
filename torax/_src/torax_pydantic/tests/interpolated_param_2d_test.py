@@ -419,7 +419,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       y: interpolated_param_2d.TimeVaryingArray
 
     class Test2(model_base.BaseModelFrozen):
-      x: Test1  # pytype: disable=invalid-annotation
+      x: Test1
       y: interpolated_param_2d.TimeVaryingArray
       z: int
 
@@ -433,10 +433,10 @@ class InterpolatedParam2dTest(parameterized.TestCase):
 
     with self.subTest('set_grid_success'):
       interpolated_param_2d.set_grid(m2, grid)
-      chex.assert_trees_all_equal(m2.x.y.grid.face_centers, grid.face_centers)  # pytype: disable=attribute-error
-      chex.assert_trees_all_equal(m2.x.y.grid.cell_centers, grid.cell_centers)  # pytype: disable=attribute-error
-      chex.assert_trees_all_equal(m2.y.grid.face_centers, grid.face_centers)  # pytype: disable=attribute-error
-      chex.assert_trees_all_equal(m2.y.grid.cell_centers, grid.cell_centers)  # pytype: disable=attribute-error
+      chex.assert_trees_all_equal(m2.x.y.grid.face_centers, grid.face_centers)  # pyrefly: ignore[missing-attribute]
+      chex.assert_trees_all_equal(m2.x.y.grid.cell_centers, grid.cell_centers)  # pyrefly: ignore[missing-attribute]
+      chex.assert_trees_all_equal(m2.y.grid.face_centers, grid.face_centers)  # pyrefly: ignore[missing-attribute]
+      chex.assert_trees_all_equal(m2.y.grid.cell_centers, grid.cell_centers)  # pyrefly: ignore[missing-attribute]
 
     with self.subTest('set_grid_already_set'):
       with self.assertRaisesRegex(RuntimeError, '`grid` is already set'):
@@ -446,7 +446,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       face_centers = grid.face_centers**2
       grid._update_fields({'face_centers': face_centers})
       interpolated_param_2d.set_grid(m2, grid, mode='force')
-      chex.assert_trees_all_equal(m2.y.grid.face_centers, grid.face_centers)  # pytype: disable=attribute-error
+      chex.assert_trees_all_equal(m2.y.grid.face_centers, grid.face_centers)  # pyrefly: ignore[missing-attribute]
       # Ensure that setting the grid does not re-use the grid object.
       self.assertTrue(m2._has_unique_submodels)
 

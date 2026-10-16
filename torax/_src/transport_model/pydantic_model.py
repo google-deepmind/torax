@@ -15,7 +15,6 @@
 """Pydantic config for Transport models."""
 
 import copy
-import dataclasses
 from typing import Annotated, Any, Literal, Mapping, Self, Sequence
 from absl import logging
 import chex
@@ -33,6 +32,7 @@ from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params
+from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import tglfnn_ukaea_transport_model
 from torax._src.transport_model import transport_model
 from torax._src.transport_model.tglf import tglf_transport_model
@@ -67,7 +67,9 @@ def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
 
 
 # pylint: disable=invalid-name
-class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
+class QLKNNTransportModel(
+    qualikiz_based_transport_model.QualikizBasedTransportModelConfig
+):
   """Model for the QLKNN transport model.
 
   To determine which model to load, TORAX uses the following logic:
@@ -96,27 +98,6 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
       training set boundaries.
     clip_margin: Margin to clip inputs within desired margin of the QLKNN
       training set boundaries.
-    collisionality_multiplier: Collisionality multiplier.
-    max_normalized_collisionality: Maximum normalized collisionality passed to
-      the model. Acts as a ceiling to mitigate unreliable transport predictions
-      at high collisionality. Default is inf (no capping).
-    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
-      for no slab modes.
-    smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
-      impact of alpha.
-    q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
-      are sawteeth.
-    DV_effective: Effective D / effective V approach for particle transport.
-    An_min: Minimum |R/Lne| below which effective V is used instead of effective
-      D.
-    DV_effective_smooth_width: Particle flux width in dimensionless
-      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
-      transport transitions smoothly from effective V to effective D. If 0.0,
-      uses a sharp step transition. Note that QuaLiKiz normalizes with major
-      radius R_major rather than minor radius a, so the default (0.01) is chosen
-      to be consistent in SI units with TGLF (0.001).
-    rotation_multiplier: Multiplier for rotation.
-    rotation_mode: Mode for rotation, either HALF_RADIUS, FULL_RADIUS or OFF.
     shear_suppression_alpha: Alpha parameter for Waltz rule applied to
       poloidal/pressure contributions. Larger values increase the suppression
       effect.
@@ -132,18 +113,6 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
   ETG_correction_factor: float = 1.0 / 3.0
   clip_inputs: bool = False
   clip_margin: float = 0.95
-  collisionality_multiplier: float = 1.0
-  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
-  avoid_big_negative_s: bool = True
-  smag_alpha_correction: bool = True
-  q_sawtooth_proxy: bool = True
-  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  An_min: pydantic.PositiveFloat = 0.05
-  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
-  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
-  rotation_mode: Annotated[
-      qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
-  ] = qualikiz_based_transport_model.RotationMode.OFF
   shear_suppression_alpha: pydantic.NonNegativeFloat = 1.0
   output_mode_contributions: Annotated[bool, torax_pydantic.JAX_STATIC] = False
 
@@ -186,7 +155,7 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> qlknn_transport_model.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return qlknn_transport_model.RuntimeParams(
         include_ITG=self.include_ITG,
         include_TEM=self.include_TEM,
@@ -195,42 +164,20 @@ class QLKNNTransportModel(pydantic_model_base.ComponentTransportBase):
         ETG_correction_factor=self.ETG_correction_factor,
         clip_inputs=self.clip_inputs,
         clip_margin=self.clip_margin,
-        collisionality_multiplier=self.collisionality_multiplier,
-        max_normalized_collisionality=self.max_normalized_collisionality,
-        avoid_big_negative_s=self.avoid_big_negative_s,
-        smag_alpha_correction=self.smag_alpha_correction,
-        q_sawtooth_proxy=self.q_sawtooth_proxy,
-        DV_effective=self.DV_effective,
-        An_min=self.An_min,
-        DV_effective_smooth_width=self.DV_effective_smooth_width,
-        rotation_multiplier=self.rotation_multiplier,
-        rotation_mode=self.rotation_mode,
         shear_suppression_alpha=self.shear_suppression_alpha,
         output_mode_contributions=self.output_mode_contributions,
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
-class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
+class TGLFNNukaeaTransportModel(
+    tglf_based_transport_model.TGLFBasedTransportModelConfig
+):
   """Model for the TGLFNN-ukaea transport model.
 
   Attributes:
     model_name: The transport model to use. Hardcoded to 'tglfnn-ukaea'.
     machine: The machine type to use. Either 'step' or 'multimachine'.
-    rotation_multiplier: Multiplier for rotation.
-    use_rotation: Whether to use rotation shear in the model.
-    DV_effective: Effective D / effective V approach for particle transport.
-    An_min: Minimum |R/Lne| below which effective V is used instead of effective
-      D.
-    DV_effective_smooth_width: Particle flux width in dimensionless
-      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
-      transport transitions smoothly from effective V to effective D. If 0.0,
-      uses a sharp step transition. Note that TGLF normalizes with minor radius
-      a rather than R_major, so the default (0.001) is chosen to be consistent
-      in SI units with QuaLiKiz (0.01).
-    collisionality_multiplier: Collisionality multiplier.
-    max_normalized_collisionality: Maximum normalized collisionality passed to
-      the model.
   """
 
   model_name: Annotated[Literal['tglfnn-ukaea'], torax_pydantic.JAX_STATIC] = (
@@ -239,14 +186,6 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
   machine: Annotated[
       Literal['step', 'multimachine'], torax_pydantic.JAX_STATIC
   ] = 'multimachine'
-  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
-  use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  # Quasilinear transport options
-  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  An_min: pydantic.PositiveFloat = 0.05
-  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.001
-  collisionality_multiplier: float = 1.0
-  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
 
   def build_transport_model(
       self,
@@ -258,17 +197,9 @@ class TGLFNNukaeaTransportModel(pydantic_model_base.ComponentTransportBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> tglfnn_ukaea_transport_model.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return tglfnn_ukaea_transport_model.RuntimeParams(
-        DV_effective=self.DV_effective,
-        An_min=self.An_min,
-        DV_effective_smooth_width=self.DV_effective_smooth_width,
-        rotation_multiplier=self.rotation_multiplier,
-        use_rotation=self.use_rotation,
-        collisionality_multiplier=self.collisionality_multiplier,
-        max_normalized_collisionality=self.max_normalized_collisionality,
-        # From base
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
@@ -301,13 +232,13 @@ class PrescribedTransportModel(pydantic_model_base.ComponentTransportBase):
     return prescribed.PrescribedTransportModel()
 
   def build_runtime_params(self, t: chex.Numeric) -> prescribed.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return prescribed.RuntimeParams(
         chi_i=self.chi_i.get_value(t, 'face'),
         chi_e=self.chi_e.get_value(t, 'face'),
         D_e=self.D_e.get_value(t, 'face'),
         V_e=self.V_e.get_value(t, 'face'),
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
@@ -331,7 +262,7 @@ class CriticalGradientTransportModel(
   model_name: Annotated[Literal['CGM'], torax_pydantic.JAX_STATIC] = 'CGM'
   alpha: float = 2.0
   chi_stiff: float = 2.0
-  chi_e_i_ratio: torax_pydantic.NonNegativeTimeVaryingScalar = (
+  chi_e_i_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(2.0)
   )
   chi_D_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
@@ -349,14 +280,14 @@ class CriticalGradientTransportModel(
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> critical_gradient.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return critical_gradient.RuntimeParams(
         alpha=self.alpha,
         chi_stiff=self.chi_stiff,
         chi_e_i_ratio=self.chi_e_i_ratio.get_value(t),
         chi_D_ratio=self.chi_D_ratio.get_value(t),
         VR_D_ratio=self.VR_D_ratio.get_value(t),
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
@@ -428,7 +359,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.ComponentTransportBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> bohm_gyrobohm.RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return bohm_gyrobohm.RuntimeParams(
         chi_e_bohm_coeff=self.chi_e_bohm_coeff.get_value(t),
         chi_e_gyrobohm_coeff=self.chi_e_gyrobohm_coeff.get_value(t),
@@ -441,7 +372,7 @@ class BohmGyroBohmTransportModel(pydantic_model_base.ComponentTransportBase):
         D_face_c1=self.D_face_c1.get_value(t),
         D_face_c2=self.D_face_c2.get_value(t),
         V_face_coeff=self.V_face_coeff.get_value(t),
-        **base_kwargs,
+        **vars(base_params),
     )
 
 
@@ -480,6 +411,12 @@ class SmoothingZone(torax_pydantic.BaseModelFrozen):
   rho_min: torax_pydantic.UnitInterval
   rho_max: torax_pydantic.UnitInterval
   smoothing_width: pydantic.NonNegativeFloat
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.rho_max <= self.rho_min:
+      raise ValueError('rho_max must be greater than rho_min.')
+    return self
 
 
 class TransportModel(torax_pydantic.BaseModelFrozen):
@@ -520,12 +457,12 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
       str, ComponentTransportModelConfig
   ] = pydantic.Field(
       default_factory=dict
-  )  # pyrefly: ignore[invalid-annotation]
+  )
   pedestal_transport_models: dict[
       str, ComponentTransportModelConfig
   ] = pydantic.Field(
       default_factory=dict
-  )  # pyrefly: ignore[invalid-annotation]
+  )
   smoothing_zones: Sequence[SmoothingZone] = pydantic.Field(
       default_factory=list
   )

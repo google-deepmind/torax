@@ -19,6 +19,7 @@ import typing
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pydantic
@@ -47,13 +48,38 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         Ti_Te_ratio=1.0,
     )
     self.assertFalse(ibc_config.n_e_is_fGW)
+    self.assertIsNone(ibc_config.n_e_edge_multiplier)
     self.assertEqual(ibc_config.mode, beta_poloidal_prime.Mode.CONSTANT)
     self.assertIsNone(ibc_config.P_SOL_scaling)
-    self.assertEqual(ibc_config.beta_poloidal_prime_min.get_value(0.0), 0.1)
+    self.assertEqual(ibc_config.beta_poloidal_prime_min.get_value(0.0), 0.2)
 
   def test_missing_required_params_raises(self):
     with self.assertRaises(pydantic.ValidationError):
       pydantic_model.BetaPoloidalPrimeIBC.model_validate({})
+
+  def test_missing_n_e_edge_and_multiplier_raises(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        "Exactly one of 'n_e_edge' or 'n_e_edge_multiplier' must be provided",
+    ):
+      pydantic_model.BetaPoloidalPrimeIBC(
+          rho_norm_edge=0.85,
+          beta_poloidal_prime=1.5,
+          Ti_Te_ratio=1.0,
+      )
+
+  def test_both_n_e_edge_and_multiplier_raises(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        "Exactly one of 'n_e_edge' or 'n_e_edge_multiplier' must be provided",
+    ):
+      pydantic_model.BetaPoloidalPrimeIBC(
+          rho_norm_edge=0.85,
+          n_e_edge=2.0e19,
+          n_e_edge_multiplier=1.5,
+          beta_poloidal_prime=1.5,
+          Ti_Te_ratio=1.0,
+      )
 
   def test_power_dependent_without_p_sol_scaling_raises(self):
     with self.assertRaisesRegex(
@@ -70,13 +96,14 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
   def _setup_model_and_profiles(
       self,
       rho_norm_edge: float = 0.7,
-      n_e_edge: float = 2.5e19,
+      n_e_edge: float | None = 2.5e19,
+      n_e_edge_multiplier: float | None = None,
       beta_poloidal_prime_val: float = 1.5,
       ti_te_ratio: float = 1.2,
       n_e_is_fGW: bool = False,
       Ip: float = 5e6,
       mode: beta_poloidal_prime.Mode = beta_poloidal_prime.Mode.CONSTANT,
-      beta_poloidal_prime_min: float = 0.1,
+      beta_poloidal_prime_min: float = 0.2,
       P_SOL_scaling: float | None = None,
       source_profiles: source_profiles_lib.SourceProfiles | None = None,
   ):
@@ -95,6 +122,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         mode=mode,
         rho_norm_edge=rho_norm_edge,
         n_e_edge=n_e_edge,
+        n_e_edge_multiplier=n_e_edge_multiplier,
         beta_poloidal_prime=beta_poloidal_prime_val,
         beta_poloidal_prime_min=beta_poloidal_prime_min,
         P_SOL_scaling=P_SOL_scaling,
@@ -133,7 +161,8 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('zero_p_sol_equals_min', 0.0, 0.2, 1.8, 10.0e6),
-      ('intermediate_p_sol_tanh_scaling', 10.0e6, 0.2, 1.8, 10.0e6),
+      ('intermediate_p_sol_half_scaling', 5.0e6, 0.2, 1.8, 10.0e6),
+      ('intermediate_p_sol_at_scaling', 10.0e6, 0.2, 1.8, 10.0e6),
       ('high_p_sol_saturates_at_max', 100.0e6, 0.2, 1.8, 10.0e6),
   )
   def test_power_dependent_matches_expected_effective_beta_poloidal_prime(
@@ -178,9 +207,14 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         'Ti_Te_ratio': 1.2,
     })
 
-    expected_beta_poloidal_prime = beta_poloidal_prime_min + (
-        beta_poloidal_prime_max - beta_poloidal_prime_min
-    ) * np.tanh(max(P_total, 0.0) / P_SOL_scaling)
+    expected_beta_poloidal_prime = float(
+        beta_poloidal_prime._calculate_power_dependent_beta_poloidal_prime(
+            P_SOL=P_total,
+            P_SOL_scaling=P_SOL_scaling,
+            beta_poloidal_prime_min=beta_poloidal_prime_min,
+            beta_poloidal_prime=beta_poloidal_prime_max,
+        )
+    )
     ibc_constant_equiv = _build_ibc_from_config({
         'model_name': 'beta_poloidal_prime',
         'mode': 'constant',
@@ -215,6 +249,60 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(ibc_power_dep.T_e, ibc_min_constant.T_e)
     np.testing.assert_allclose(ibc_power_dep.T_i, ibc_min_constant.T_i)
+
+  @parameterized.parameters(-1.0e6, 0.0, 1.0e-20, 1.0, 1.0e6)
+  def test_power_dependent_gradients_finite(self, q_val: float):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        T_i=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+        T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
+        n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+        n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
+        Ip_profile_face=jnp.linspace(0.0, 5e6, geo.rho_face.shape[0]),
+    )
+    model = beta_poloidal_prime.BetaPoloidalPrimeIBCModel()
+
+    def _loss(q_density: jax.Array, p_sol_scaling: jax.Array) -> jax.Array:
+      ibc_rp = beta_poloidal_prime.RuntimeParams(
+          rho_norm_edge=jnp.asarray(0.7),
+          beta_poloidal_prime=jnp.asarray(1.8),
+          Ti_Te_ratio=jnp.asarray(1.2),
+          n_e_edge=jnp.asarray(2.5e19),
+          n_e_edge_multiplier=None,
+          n_e_is_fGW=False,
+          mode=beta_poloidal_prime.Mode.POWER_DEPENDENT,
+          beta_poloidal_prime_min=jnp.asarray(0.2),
+          P_SOL_scaling=p_sol_scaling,
+      )
+
+      class _MockProfileConditions:
+        internal_boundary_conditions = ibc_rp
+        Ip = 5e6
+
+      class _MockRuntimeParams:
+        profile_conditions = _MockProfileConditions()
+
+      mock_rp = typing.cast(
+          runtime_params_lib.RuntimeParams, _MockRuntimeParams()
+      )
+      sources = mock.create_autospec(
+          source_profiles_lib.SourceProfiles,
+          instance=True,
+          T_e={'radiation': jnp.full_like(geo.rho_norm, q_density)},
+          T_i={},
+      )
+      out = model(mock_rp, geo, core_profiles, source_profiles=sources)
+      return jnp.sum(out.T_e)
+
+    grads = jax.grad(_loss, argnums=(0, 1))(
+        jnp.asarray(q_val), jnp.asarray(10.0e6)
+    )
+    for g in grads:
+      self.assertTrue(np.all(np.isfinite(g)))
+      if q_val < 0.0:
+        np.testing.assert_allclose(g, 0.0)
 
   def test_evaluates_profiles_in_edge_cells_only(self):
     geo, _, ibc_out = self._setup_model_and_profiles(rho_norm_edge=0.7)
@@ -262,21 +350,42 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     np.testing.assert_allclose(ibc_out_fgw.T_e, ibc_out_abs.T_e)
     np.testing.assert_allclose(ibc_out_fgw.T_i, ibc_out_abs.T_i)
 
-  @parameterized.parameters(False, True)
-  def test_solver_step_reconstructs_beta_poloidal_prime(self, n_e_is_fGW: bool):
+  def test_n_e_edge_multiplier_matches_equivalent_n_e_edge(self):
+    multiplier = 1.5
+    _, core_profiles, ibc_out_mult = self._setup_model_and_profiles(
+        rho_norm_edge=0.7,
+        n_e_edge=None,
+        n_e_edge_multiplier=multiplier,
+    )
+    n_e_sep = core_profiles.n_e.right_face_value.item()
+    _, _, ibc_out_val = self._setup_model_and_profiles(
+        rho_norm_edge=0.7,
+        n_e_edge=multiplier * n_e_sep,
+        n_e_edge_multiplier=None,
+    )
+    np.testing.assert_allclose(ibc_out_mult.n_e, ibc_out_val.n_e)
+    np.testing.assert_allclose(ibc_out_mult.T_e, ibc_out_val.T_e)
+    np.testing.assert_allclose(ibc_out_mult.T_i, ibc_out_val.T_i)
+
+  @parameterized.named_parameters(
+      ('value_m3', {'n_e_edge': 2.0e19, 'n_e_is_fGW': False}),
+      ('value_fgw', {'n_e_edge': 0.3, 'n_e_is_fGW': True}),
+      ('multiplier', {'n_e_edge_multiplier': 1.5}),
+  )
+  def test_solver_step_reconstructs_beta_poloidal_prime(
+      self, n_e_edge_kwargs: dict[str, typing.Any]
+  ):
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 25}
     config_dict['numerics']['evolve_density'] = True
     rho_norm_edge = 0.8
     target_beta_pol_prime = 1.5
-    n_e_edge = 0.3 if n_e_is_fGW else 2.0e19
     config_dict['profile_conditions']['internal_boundary_conditions'] = {
         'model_name': 'beta_poloidal_prime',
         'rho_norm_edge': rho_norm_edge,
-        'n_e_edge': n_e_edge,
-        'n_e_is_fGW': n_e_is_fGW,
         'beta_poloidal_prime': target_beta_pol_prime,
         'Ti_Te_ratio': 1.0,
+        **n_e_edge_kwargs,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     sim_state, post_processed_outputs, step_fn = (

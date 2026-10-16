@@ -18,7 +18,6 @@ ITER hybrid scenario based (roughly) on van Mulders Nucl. Fusion 2021.
 With Newton-Raphson solver and adaptive timestep (backtracking)
 """
 
-
 CONFIG = {
     'plasma_composition': {
         'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
@@ -139,14 +138,15 @@ CONFIG = {
         },
     },
     'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-        'T_i_ped': 1.0,  # ion pedestal top temperature in keV for T_i
-        'T_e_ped': 1.0,  # electron pedestal top temperature in keV for T_e
-        'n_e_ped_is_fGW': True,
-        # pedestal top electron density in units of fGW
-        'n_e_ped': {0: 0.3, 80: 0.7},
-        'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'T_i_ped': 1.0,  # ion pedestal top temperature in keV for T_i
+            'T_e_ped': 1.0,  # electron pedestal top temperature in keV for T_e
+            'n_e_ped_is_fGW': True,
+            # pedestal top electron density in units of fGW
+            'n_e_ped': {0: 0.3, 80: 0.7},
+            'rho_norm_ped_top': 0.9,  # ped top location in normalized radius
+        },
     },
     'transport': {
         'core_transport_models': {
@@ -170,14 +170,6 @@ CONFIG = {
                 'An_min': 0.05,
                 'ITG_flux_ratio_correction': 1,
             },
-            'outer_patch': {
-                'model_name': 'prescribed',
-                'rho_min': 0.9,
-                'chi_i': 2.0,
-                'chi_e': 2.0,
-                'D_e': 0.1,
-                'V_e': 0.0,
-            },
         },
         'chi_min': 0.05,
         'chi_max': 100,
@@ -196,7 +188,7 @@ CONFIG = {
     'solver': {
         'solver_type': 'newton_raphson',
         'use_predictor_corrector': True,
-        'n_corrector_steps': 10,
+        'n_corrector_steps': 5,
         # (deliberately) large heat conductivity for Pereverzev rule
         'chi_pereverzev': 30,
         # (deliberately) large particle diffusion for Pereverzev rule

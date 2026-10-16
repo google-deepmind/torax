@@ -50,15 +50,10 @@ class InitialGuessRuntimeParams:
   """Runtime parameters for the initial guess."""
 
   alpha_t: array_typing.FloatScalar
-  alpha_t_provided: array_typing.BoolScalar
   kappa_e: array_typing.FloatScalar
-  kappa_e_provided: array_typing.BoolScalar
   T_e_separatrix: array_typing.FloatScalar
-  T_e_separatrix_provided: array_typing.BoolScalar
   T_e_target: array_typing.FloatScalar
-  T_e_target_provided: array_typing.BoolScalar
   c_z_prefactor: array_typing.FloatScalar
-  c_z_prefactor_provided: array_typing.BoolScalar
   use_previous_step_as_guess: bool = dataclasses.field(
       metadata={'static': True}
   )
@@ -82,6 +77,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
       dataclasses.field(metadata={'static': True})
   )
   fixed_point_iterations: int
+  fixed_point_relaxation_factor: float
   newton_raphson_iterations: int
   newton_raphson_tol: float
   # Number of guesses for forward mode multistart solver.
@@ -159,6 +155,11 @@ class ExtendedLengyelModel(base.EdgeModel):
     assert isinstance(
         geo, standard_geometry.StandardGeometry
     ), 'Geometry must be of type StandardGeometry'
+    if previous_edge_outputs is not None:
+      assert isinstance(
+          previous_edge_outputs,
+          extended_lengyel_standalone.ExtendedLengyelOutputs,
+      )
 
     # Determine diverted status. For FBT geometries, this is provided by the
     # geometry object. For other types, it must be provided in the config.
@@ -174,8 +175,7 @@ class ExtendedLengyelModel(base.EdgeModel):
 
     # Calculate normalized poloidal flux (psi_norm) on the face grid.
     # Used to interpolate geometry quantities at psi_norm = 0.95.
-    psi_face = jnp.asarray(core_profiles.psi.face_value())
-    psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+    psi_norm_face = core_profiles.psi_norm_face
 
     # Interpolate elongation and triangularity at psi_norm = 0.95
     elongation_psi95 = jnp.interp(0.95, psi_norm_face, geo.elongation_face)
@@ -237,16 +237,23 @@ class ExtendedLengyelModel(base.EdgeModel):
         # Calculate edge concentration: c_edge = c_core_lcfs * enrichment_factor
         if edge_params.use_enrichment_model:
           if previous_edge_outputs is not None:
-            assert isinstance(
-                previous_edge_outputs,
-                extended_lengyel_standalone.ExtendedLengyelOutputs,
+            pressure_neutral_divertor = (
+                previous_edge_outputs.pressure_neutral_divertor
             )
-            enrichment = previous_edge_outputs.calculated_enrichment[species]
           else:
-            # For initial timestep when previous_edge_outputs is None
-            enrichment = extended_lengyel_formulas.calc_enrichment_kallenbach(
-                1.0, species, edge_params.enrichment_model_multiplier
+            pressure_neutral_divertor = (
+                extended_lengyel_defaults.INITIAL_PRESSURE_NEUTRAL_DIVERTOR
             )
+
+          enrichment = jnp.where(
+              diverted,
+              extended_lengyel_formulas.calc_enrichment_kallenbach(
+                  pressure_neutral_divertor=pressure_neutral_divertor,
+                  ion_symbol=species,
+                  enrichment_multiplier=edge_params.enrichment_model_multiplier,
+              ),
+              1.0,  # Limited geometry: no divertor enrichment.
+          )
         elif edge_params.enrichment_factor is not None:
           enrichment = edge_params.enrichment_factor[species]
         else:
@@ -299,6 +306,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         n_e_n_i_ratio_target=edge_params.n_e_n_i_ratio_target,
         mach_target=edge_params.mach_target,
         fixed_point_iterations=edge_params.fixed_point_iterations,
+        fixed_point_relaxation_factor=edge_params.fixed_point_relaxation_factor,
         newton_raphson_iterations=edge_params.newton_raphson_iterations,
         newton_raphson_tol=edge_params.newton_raphson_tol,
         multistart_num_guesses=edge_params.multistart_num_guesses,
@@ -463,22 +471,57 @@ def _get_diverted(
   return jnp.where(is_fbt, safe_fbt_diverted, safe_params_diverted)
 
 
+def _is_viable_previous_outputs(
+    previous_edge_outputs: (
+        extended_lengyel_standalone.ExtendedLengyelOutputs | None
+    ),
+) -> jax.Array:
+  """Returns whether previous_edge_outputs is usable as a warm start."""
+  if previous_edge_outputs is None:
+    return jnp.array(False, dtype=jnp.bool_)
+  # Check if previous solver had a "bad" Physics outcome. If so, do not use
+  # it. Note that a "bad" PhysicsOutcome is not necessarily an error; it can
+  # be a valid physical state (e.g., detachment). However, if reattaching,
+  # then it's better not to start from such a cold state.
+  bad_physics = (
+      previous_edge_outputs.solver_status.physics_outcome
+      != extended_lengyel_solvers.PhysicsOutcome.SUCCESS
+  )
+  # Numerics outcome: for NR solver, error=1 means not converged.
+  # For fixed-point solver, it's always SUCCESS.
+  numerics_outcome = previous_edge_outputs.solver_status.numerics_outcome
+  if isinstance(numerics_outcome, jax_root_finding.RootMetadata):
+    # NR error code: 0=fine, 1=not converged, 2=coarse (acceptable).
+    bad_numerics = numerics_outcome.error == 1
+  else:
+    # Fixed-point always succeeds
+    bad_numerics = False
+  return jnp.logical_and(
+      previous_edge_outputs.valid_for_core_update,
+      jnp.logical_not(jnp.logical_or(bad_physics, bad_numerics)),
+  )
+
+
 def _get_initial_guess(
     edge_params: RuntimeParams,
-    previous_edge_outputs: base.EdgeModelOutputs | None = None,
+    previous_edge_outputs: (
+        extended_lengyel_standalone.ExtendedLengyelOutputs | None
+    ) = None,
 ) -> divertor_sol_1d_lib.ExtendedLengyelInitialGuess:
   """Resolves the initial guess for the solver state variables.
 
   Priorities:
-  1. Previous simulation state (warm start), if available, enabled, and the
-     previous solver had a good outcome (converged and no physics errors).
+  1. Previous simulation state (warm start), if available, enabled, valid for
+     core updates, and the previous solver had a good outcome (converged and no
+     physics errors).
   2. Configuration overrides (if provided).
   3. Physics-based defaults.
 
   Note: If the previous solver had a bad outcome (Newton-Raphson error=1, or
-  physics_outcome != SUCCESS), the previous outputs are NOT used as a warm
-  start. This prevents the solver from inheriting a bad state that can drag
-  it into cold root basins in subsequent time steps.
+  physics_outcome != SUCCESS), or was not valid for core updates (e.g.,
+  diverted=False), the previous outputs are NOT used as a warm start. This
+  prevents the solver from inheriting a bad state that can drag it into cold
+  root basins in subsequent time steps.
 
   Args:
     edge_params: Runtime parameters for the edge model.
@@ -489,96 +532,33 @@ def _get_initial_guess(
   """
   initial_guess = edge_params.initial_guess
 
-  # Check if we have valid previous outputs for warm start.
-  # `has_previous` is a Python bool for attribute access safety.
-  # `viable_previous` is a JAX bool for solver status, used in jnp.where.
-  has_previous = previous_edge_outputs is not None
-
-  # Default: usable if exists.
-  viable_previous = jnp.array(True, dtype=jnp.bool_)
-  if has_previous:
-    assert isinstance(
-        previous_edge_outputs,
-        extended_lengyel_standalone.ExtendedLengyelOutputs,
-    )
-    # Check if previous solver had a "bad" Physics outcome. If so, do not use
-    # it. Note that a "bad" PhysicsOutcome is not necessarily an error; it can
-    # be a valid physical state (e.g., detachment). However, if reattaching,
-    # then it's better not to start from such a cold state.
-    bad_physics = (
-        previous_edge_outputs.solver_status.physics_outcome
-        != extended_lengyel_solvers.PhysicsOutcome.SUCCESS
-    )
-    # Numerics outcome: for NR solver, error=1 means not converged.
-    # For fixed-point solver, it's always SUCCESS.
-    numerics_outcome = previous_edge_outputs.solver_status.numerics_outcome
-    if isinstance(numerics_outcome, jax_root_finding.RootMetadata):
-      # NR error code: 0=fine, 1=not converged, 2=coarse (acceptable).
-      bad_numerics = numerics_outcome.error == 1
-    else:
-      # Fixed-point always succeeds
-      bad_numerics = False
-    viable_previous = jnp.logical_not(jnp.logical_or(bad_physics, bad_numerics))
-
-  # Warm start logic: use previous only if enabled AND we have previous outputs
-  # AND those previous outputs are usable (good solver outcome).
-  use_previous = (
-      initial_guess.use_previous_step_as_guess
-      and has_previous
-      and viable_previous
+  use_previous = jnp.logical_and(
+      initial_guess.use_previous_step_as_guess,
+      _is_viable_previous_outputs(previous_edge_outputs),
   )
 
-  # Defaults
-  alpha_t_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT,
-      dtype=jax_utils.get_dtype(),
-  )
-  kappa_e_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT,
-      dtype=jax_utils.get_dtype(),
-  )
-  T_e_separatrix_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT,
-      dtype=jax_utils.get_dtype(),
-  )
-  T_e_target_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD,
-      dtype=jax_utils.get_dtype(),
-  )
-  c_z_default = jnp.array(
-      extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT,
-      dtype=jax_utils.get_dtype(),
-  )
-
-  # Helper for priority resolution: Previous > Config > Default
   # When previous_val is None (no previous outputs), we use 0.0 as a safe
   # placeholder. This value is never selected because use_previous is False
   # when there are no previous outputs.
-  def _resolve(previous_val, config_val, config_provided, default_val):
+  def _resolve(previous_val, config_val):
     safe_previous = previous_val if previous_val is not None else 0.0
-    val_config_or_default = jnp.where(config_provided, config_val, default_val)
-    return jnp.where(use_previous, safe_previous, val_config_or_default)
+    return jnp.where(use_previous, safe_previous, config_val)
 
   # Resolve common variables
+  has_previous = previous_edge_outputs is not None
   alpha_t = _resolve(
       previous_edge_outputs.alpha_t if has_previous else None,
       initial_guess.alpha_t,
-      initial_guess.alpha_t_provided,
-      alpha_t_default,
   )
   kappa_e = _resolve(
       previous_edge_outputs.kappa_e if has_previous else None,
       initial_guess.kappa_e,
-      initial_guess.kappa_e_provided,
-      kappa_e_default,
   )
 
   # T_e_separatrix: convert previous value from keV to eV
   T_e_separatrix = _resolve(
       previous_edge_outputs.T_e_separatrix * 1e3 if has_previous else None,
       initial_guess.T_e_separatrix,
-      initial_guess.T_e_separatrix_provided,
-      T_e_separatrix_default,
   )
 
   # Resolve mode-specific variables
@@ -589,8 +569,6 @@ def _get_initial_guess(
     T_e_target = _resolve(
         previous_edge_outputs.T_e_target if has_previous else None,
         initial_guess.T_e_target,
-        initial_guess.T_e_target_provided,
-        T_e_target_default,
     )
     return divertor_sol_1d_lib.ForwardInitialGuess(
         alpha_t=alpha_t,
@@ -602,8 +580,6 @@ def _get_initial_guess(
     c_z_prefactor = _resolve(
         previous_edge_outputs.c_z_prefactor if has_previous else None,
         initial_guess.c_z_prefactor,
-        initial_guess.c_z_prefactor_provided,
-        c_z_default,
     )
     return divertor_sol_1d_lib.InverseInitialGuess(
         alpha_t=alpha_t,

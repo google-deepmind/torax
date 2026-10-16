@@ -148,6 +148,17 @@ class RadiationTest(parameterized.TestCase):
     )
 
   @parameterized.named_parameters(
+      ('He3_noncoronal', 'He3', radiation.MavrinModelType.NONCORONAL, True),
+      ('W_noncoronal', 'W', radiation.MavrinModelType.NONCORONAL, False),
+      ('W_coronal', 'W', radiation.MavrinModelType.CORONAL, True),
+      ('fake_coronal', 'Xx', radiation.MavrinModelType.CORONAL, False),
+  )
+  def test_has_mavrin_cooling_rate(self, ion_symbol, model_type, expected):
+    self.assertEqual(
+        radiation.has_mavrin_cooling_rate(ion_symbol, model_type), expected
+    )
+
+  @parameterized.named_parameters(
       dict(
           testcase_name='Helium',
           ion_symbol='He',

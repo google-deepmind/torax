@@ -211,7 +211,7 @@ class StaticDataclassTest(absltest.TestCase):
       class NotADataclass(static_dataclass.StaticDataclass):
         z: int
 
-      NotADataclass(z=1)  # pytype: disable=wrong-keyword-args
+      NotADataclass(z=1)  # pyrefly: ignore[unexpected-keyword]
 
   def test_field_hashes_by_id(self):
 

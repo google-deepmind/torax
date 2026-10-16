@@ -128,7 +128,7 @@ class OutputKeysTest(parameterized.TestCase):
           case output_keys.RHO_NORM:
             actual_grid = output_keys.GridType.CELL_PLUS_BOUNDARIES
           case _:
-            if group_node.path.startswith("/numerics"):
+            if not data_array.dims:
               actual_grid = output_keys.GridType.NOT_APPLICABLE
             else:
               actual_grid = output_keys.GridType.SCALAR

@@ -64,10 +64,11 @@ CONFIG = {
         'ei_exchange': {},
     },
     'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-        'n_e_ped': 0.8,
-        'n_e_ped_is_fGW': True,
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'n_e_ped': 0.8,
+            'n_e_ped_is_fGW': True,
+        },
     },
     'transport': {
         'core_transport_models': {

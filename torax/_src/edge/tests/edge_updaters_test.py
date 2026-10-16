@@ -63,14 +63,16 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
   def _with_edge_flags(
       self,
       *,
-      update_temperatures: bool = False,
+      update_electron_temperature: bool = False,
+      update_ion_temperature: bool = False,
       update_electron_density: bool = False,
       update_impurities: bool = False,
   ):
     return dataclasses.replace(
         self.runtime_params,
         edge=edge_runtime_params.RuntimeParams(
-            update_temperatures=update_temperatures,
+            update_electron_temperature=update_electron_temperature,
+            update_ion_temperature=update_ion_temperature,
             update_electron_density=update_electron_density,
             update_impurities=update_impurities,
         ),
@@ -78,23 +80,36 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
 
   def test_none_edge_outputs_is_noop(self):
     params = self._with_edge_flags(
-        update_temperatures=True,
+        update_electron_temperature=True,
+        update_ion_temperature=True,
         update_electron_density=True,
         update_impurities=True,
     )
     updated = updaters.update_runtime_params(params, None)
     self.assertIs(updated, params)
 
-  def test_update_temperatures(self):
-    params = self._with_edge_flags(update_temperatures=True)
-    updated = updaters.update_runtime_params(params, self.edge_outputs)
+  def test_invalid_for_core_update_skips_all_updates(self):
+    params = self._with_edge_flags(
+        update_electron_temperature=True,
+        update_ion_temperature=True,
+        update_electron_density=True,
+        update_impurities=True,
+    )
+    invalid_outputs = dataclasses.replace(
+        self.edge_outputs, valid_for_core_update=jnp.array(False)
+    )
+    updated = updaters.update_runtime_params(params, invalid_outputs)
 
-    np.testing.assert_allclose(updated.profile_conditions.T_e_right_bc, 0.123)
-    np.testing.assert_allclose(updated.profile_conditions.T_i_right_bc, 0.456)
-    # Density boundary conditions remain unchanged.
+    np.testing.assert_allclose(
+        updated.profile_conditions.T_e_right_bc,
+        params.profile_conditions.T_e_right_bc,
+    )
+    np.testing.assert_allclose(
+        updated.profile_conditions.T_i_right_bc,
+        params.profile_conditions.T_i_right_bc,
+    )
     np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 0.5)
     self.assertTrue(updated.profile_conditions.n_e_right_bc_is_fGW)
-    # Impurity conditions remain unchanged.
     assert isinstance(
         updated.plasma_composition.impurity,
         electron_density_ratios.RuntimeParams,
@@ -112,17 +127,62 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         params.plasma_composition.impurity.n_e_ratios_face['N'],
     )
 
+  def test_update_electron_temperature(self):
+    params = self._with_edge_flags(update_electron_temperature=True)
+    updated = updaters.update_runtime_params(params, self.edge_outputs)
+
+    # Electron temperature boundary condition is updated.
+    np.testing.assert_allclose(updated.profile_conditions.T_e_right_bc, 0.123)
+    # Ion temperature boundary condition remains unchanged.
+    np.testing.assert_allclose(
+        updated.profile_conditions.T_i_right_bc,
+        params.profile_conditions.T_i_right_bc,
+    )
+    # Density boundary conditions remain unchanged.
+    np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 0.5)
+    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_fGW)
+    # Impurity conditions remain unchanged.
+    assert isinstance(
+        updated.plasma_composition.impurity,
+        electron_density_ratios.RuntimeParams,
+    )
+    assert isinstance(
+        params.plasma_composition.impurity,
+        electron_density_ratios.RuntimeParams,
+    )
+
+  def test_update_ion_temperature(self):
+    params = self._with_edge_flags(update_ion_temperature=True)
+    updated = updaters.update_runtime_params(params, self.edge_outputs)
+
+    # Electron temperature boundary condition remains unchanged.
+    np.testing.assert_allclose(
+        updated.profile_conditions.T_e_right_bc,
+        params.profile_conditions.T_e_right_bc,
+    )
+    # Ion temperature boundary condition is updated.
+    np.testing.assert_allclose(updated.profile_conditions.T_i_right_bc, 0.456)
+    # Density boundary conditions remain unchanged.
+    np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 0.5)
+    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_fGW)
+    # Impurity conditions remain unchanged.
+    assert isinstance(
+        updated.plasma_composition.impurity,
+        electron_density_ratios.RuntimeParams,
+    )
+
   def test_update_electron_density(self):
     params = self._with_edge_flags(update_electron_density=True)
     updated = updaters.update_runtime_params(params, self.edge_outputs)
 
     np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 3.45e19)
     self.assertFalse(updated.profile_conditions.n_e_right_bc_is_fGW)
-    # Temperature boundary conditions remain unchanged.
+    # Electron temperature boundary condition remains unchanged.
     np.testing.assert_allclose(
         updated.profile_conditions.T_e_right_bc,
         params.profile_conditions.T_e_right_bc,
     )
+    # Ion temperature boundary condition remains unchanged.
     np.testing.assert_allclose(
         updated.profile_conditions.T_i_right_bc,
         params.profile_conditions.T_i_right_bc,

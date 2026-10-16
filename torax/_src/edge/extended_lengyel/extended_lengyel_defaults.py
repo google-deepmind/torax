@@ -39,10 +39,12 @@ N_E_N_I_RATIO_TARGET: Final[float] = 1.0
 MACH_TARGET: Final[float] = 1.0
 TOROIDAL_FLUX_EXPANSION: Final[float] = 1.0
 FIXED_POINT_ITERATIONS: Final[int] = 25
+FIXED_POINT_RELAXATION_FACTOR: Final[float] = 0.5
 NEWTON_RAPHSON_ITERATIONS: Final[int] = 50
 NEWTON_RAPHSON_TOL: Final[float] = 1e-5
 HYBRID_FIXED_POINT_ITERATIONS: Final[int] = 5
 NEWTON_RAPHSON_TAU_MIN: Final[float] = 1e-4
+L_INT_INTEGRATION_RESOLUTION: Final[int] = 100
 
 # Multistart Solver
 # Number of guesses to use for the multistart solver in forward mode.
@@ -64,6 +66,9 @@ DEFAULT_KAPPA_E_INIT: Final[float] = 1800.0
 DEFAULT_C_Z_PREFACTOR_INIT: Final[float] = 1e-4
 DEFAULT_T_E_SEPARATRIX_INIT: Final[float] = 200.0  # eV
 DEFAULT_T_E_TARGET_INIT_FORWARD: Final[float] = 100.0  # eV
+# Initial divertor neutral pressure used before divertor formation or at
+# initial step.
+INITIAL_PRESSURE_NEUTRAL_DIVERTOR: Final[float] = 1.0  # Pa
 
 
 @dataclasses.dataclass(frozen=True)

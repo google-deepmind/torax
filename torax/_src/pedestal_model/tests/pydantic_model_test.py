@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -18,64 +20,241 @@ import pydantic
 from torax._src import jax_utils
 from torax._src.pedestal_model import pydantic_model
 from torax._src.pedestal_model import runtime_params
+from torax._src.pedestal_model.formation import power_scaling_formation_model
+from torax._src.pedestal_model.formation import prescribed_formation_model
 
 
 class PedestalModelPydanticTest(parameterized.TestCase):
 
   @parameterized.parameters(
-      pydantic_model.SetPpedTpedRatioNped,
-      pydantic_model.SetTpedNped,
-      pydantic_model.NoPedestal,
+      "set_P_ped_n_ped",
+      "set_T_ped_n_ped",
   )
   def test_build_and_call_model(
-      self, pydantic_model_class: type[pydantic_model.BasePedestal]
+      self, model_name: str
   ):
-    pedestal_model = pydantic_model_class.from_dict({})
+    pedestal_model = pydantic_model.Pedestal.from_dict(
+        {"structure_model": {"model_name": model_name}}
+    )
 
     @jax.jit
-    def f(x: pydantic_model.BasePedestal):
+    def f(x: pydantic_model.Pedestal):
       return x.build_runtime_params(t=0.0)
 
     with self.subTest("first_jit_compiles_and_returns_expected_value"):
       output = f(pedestal_model)
       self.assertIsInstance(output, pydantic_model.runtime_params.RuntimeParams)
-      self.assertFalse(output.set_pedestal)
+      self.assertIsInstance(
+          output.structure,
+          pydantic_model.runtime_params.StructureRuntimeParams,
+      )
+      self.assertIsInstance(
+          output.formation,
+          prescribed_formation_model.PrescribedFormationRuntimeParams,
+      )
+      self.assertTrue(output.formation.pedestal_active)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
     with self.subTest("second_jit_updates_value_without_recompile"):
-      pedestal_model._update_fields({"set_pedestal": True})
+      pedestal_model._update_fields({"formation_model.pedestal_active": False})
       output = f(pedestal_model)
-      self.assertTrue(output.set_pedestal)
+      self.assertIsInstance(
+          output.formation,
+          prescribed_formation_model.PrescribedFormationRuntimeParams,
+      )
+      self.assertFalse(output.formation.pedestal_active)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
-  def test_source_mode_validation(self):
-    with self.subTest("allow_internal_boundary_condition"):
-      pydantic_model.SetTpedNped.from_dict(
-          {"use_formation_model_with_internal_boundary_condition": True}
-      )
+  def test_no_pedestal_always_inactive(self):
+    pedestal_model = pydantic_model.Pedestal.from_dict({})
+    output = jax.jit(lambda x: x.build_runtime_params(t=0.0))(pedestal_model)
+    self.assertIsInstance(
+        output.formation,
+        prescribed_formation_model.PrescribedFormationRuntimeParams,
+    )
+    self.assertFalse(output.formation.pedestal_active)
+    with self.assertRaises(pydantic.ValidationError):
+      pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "no_pedestal"},
+          "formation_model": {
+              "model_name": "martin_scaling",
+          },
+      })
+    with self.assertRaises(pydantic.ValidationError):
+      pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "no_pedestal"},
+          "formation_model": {"initial_confinement_mode": "H_MODE"},
+      })
 
-    with self.subTest("disallow_adaptive_transport"):
-      with self.assertRaisesRegex(
-          ValueError,
-          "use_formation_model_with_internal_boundary_condition can only be"
-          " True when mode is INTERNAL_BOUNDARY_CONDITION",
-      ):
-        pydantic_model.SetTpedNped.from_dict({
-            "use_formation_model_with_internal_boundary_condition": True,
-            "mode": runtime_params.Mode.ADAPTIVE_TRANSPORT,
-        })
+  def test_update_structure_model_from_no_pedestal_activates_pedestal(self):
+    pedestal_model = pydantic_model.Pedestal.from_dict({})
+    formation_before = pedestal_model.build_runtime_params(t=0.0).formation
+    self.assertIsInstance(
+        formation_before,
+        prescribed_formation_model.PrescribedFormationRuntimeParams,
+    )
+    self.assertFalse(bool(formation_before.pedestal_active))
+    pedestal_model._update_fields({
+        "structure_model": pydantic_model.SetTpedNped(
+            T_i_ped=4.5, T_e_ped=4.5, n_e_ped=0.7e20
+        )
+    })
+    formation_after = pedestal_model.build_runtime_params(t=0.0).formation
+    self.assertIsInstance(
+        formation_after,
+        prescribed_formation_model.PrescribedFormationRuntimeParams,
+    )
+    self.assertTrue(bool(formation_after.pedestal_active))
+
+  def test_power_scaling_with_internal_boundary_condition(self):
+    pedestal = pydantic_model.Pedestal.from_dict({
+        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "formation_model": {
+            "model_name": "martin_scaling",
+            "P_LH_hysteresis_factor": 0.7,
+            "include_dW_dt_in_P_SOL": True,
+        },
+        "transition_time_width": 0.5,
+    })
+    self.assertIsInstance(
+        pedestal.formation_model, pydantic_model.MartinScalingFormation
+    )
+    self.assertEqual(
+        pedestal.mode, runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
+    )
+    formation_params = pedestal.build_runtime_params(t=0.0).formation
+    self.assertIsInstance(
+        formation_params,
+        power_scaling_formation_model.PowerScalingFormationRuntimeParams,
+    )
+    self.assertEqual(formation_params.P_LH_hysteresis_factor, 0.7)
+    self.assertTrue(formation_params.include_dW_dt_in_P_SOL)
+
+  def test_prescribed_formation_with_adaptive_transport(self):
+    pedestal_model = pydantic_model.Pedestal.from_dict({
+        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "mode": runtime_params.Mode.ADAPTIVE_TRANSPORT,
+        "formation_model": {
+            "model_name": "prescribed",
+            "pedestal_active": {0.0: False, 2.0: True},
+            "base_multiplier": 1e-4,
+        },
+    })
+    formation_model = pedestal_model.formation_model.build_formation_model()
+    params_t0 = pedestal_model.build_runtime_params(t=1.0)
+    params_t2 = pedestal_model.build_runtime_params(t=2.5)
+    self.assertIsInstance(
+        params_t0.formation,
+        prescribed_formation_model.PrescribedFormationRuntimeParams,
+    )
+    self.assertIsInstance(
+        params_t2.formation,
+        prescribed_formation_model.PrescribedFormationRuntimeParams,
+    )
+    self.assertFalse(bool(params_t0.formation.pedestal_active))
+    self.assertTrue(bool(params_t2.formation.pedestal_active))
+    self.assertEqual(params_t0.formation.base_multiplier, 1e-4)
+
+    # Verify PrescribedFormationModel.__call__ and transition conditions.
+    dummy_rp_t0 = mock.Mock(pedestal=params_t0)
+    dummy_rp_t2 = mock.Mock(pedestal=params_t2)
+    mult_t0 = formation_model(
+        dummy_rp_t0, mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()
+    )
+    mult_t2 = formation_model(
+        dummy_rp_t2, mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()
+    )
+    self.assertEqual(float(mult_t0.chi_e_multiplier), 1.0)
+    self.assertAlmostEqual(float(mult_t2.chi_e_multiplier), 1e-4)
+
+    trigger_l_to_h_0, trigger_h_to_l_0 = (
+        formation_model.evaluate_transition_conditions(
+            dummy_rp_t0, mock.Mock(), mock.Mock(), mock.Mock()
+        )
+    )
+    trigger_l_to_h_2, trigger_h_to_l_2 = (
+        formation_model.evaluate_transition_conditions(
+            dummy_rp_t2, mock.Mock(), mock.Mock(), mock.Mock()
+        )
+    )
+    self.assertEqual(
+        (bool(trigger_l_to_h_0), bool(trigger_h_to_l_0)), (False, True)
+    )
+    self.assertEqual(
+        (bool(trigger_l_to_h_2), bool(trigger_h_to_l_2)), (True, False)
+    )
 
   def test_transition_time_width_validation(self):
     with self.subTest("allow_positive_values"):
-      pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.5})
+      pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "transition_time_width": 0.5,
+      })
 
-    with self.subTest("disallow_zero_values"):
-      with self.assertRaises(ValueError):
-        pydantic_model.SetTpedNped.from_dict({"transition_time_width": 0.0})
+    with self.subTest("allow_zero_values"):
+      pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "transition_time_width": 0.0,
+      })
 
     with self.subTest("disallow_negative_values"):
       with self.assertRaises(ValueError):
-        pydantic_model.SetTpedNped.from_dict({"transition_time_width": -1.0})
+        pydantic_model.Pedestal.from_dict({
+            "structure_model": {"model_name": "set_T_ped_n_ped"},
+            "transition_time_width": -1.0,
+        })
+
+    with self.subTest("required_for_scaling_in_ibc_mode"):
+      with self.assertRaisesRegex(
+          ValueError,
+          "transition_time_width must be specified when using a"
+          " power-scaling formation model in INTERNAL_BOUNDARY_CONDITION"
+          " mode",
+      ):
+        pydantic_model.Pedestal.from_dict({
+            "structure_model": {"model_name": "set_T_ped_n_ped"},
+            "mode": "INTERNAL_BOUNDARY_CONDITION",
+            "formation_model": {"model_name": "martin_scaling"},
+        })
+      ped = pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "mode": "INTERNAL_BOUNDARY_CONDITION",
+          "formation_model": {"model_name": "martin_scaling"},
+          "transition_time_width": 0.5,
+      })
+      self.assertEqual(
+          ped.build_runtime_params(t=0.0).transition_time_width, 0.5
+      )
+
+    with self.subTest("optional_for_scaling_in_adaptive_transport_mode"):
+      ped = pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "mode": "ADAPTIVE_TRANSPORT",
+          "formation_model": {"model_name": "martin_scaling"},
+      })
+      self.assertEqual(
+          ped.build_runtime_params(t=0.0).transition_time_width, 0.0
+      )
+
+  def test_formation_model_required_when_needed(self):
+    with self.subTest("required_in_adaptive_transport_mode"):
+      with self.assertRaisesRegex(
+          ValueError,
+          "formation_model must be explicitly specified",
+      ):
+        pydantic_model.Pedestal.from_dict({
+            "structure_model": {"model_name": "set_T_ped_n_ped"},
+            "mode": "ADAPTIVE_TRANSPORT",
+        })
+
+    with self.subTest("formation_dict_without_model_name_in_ibc_mode"):
+      pedestal = pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "formation_model": {"pedestal_active": False},
+      })
+      self.assertIsInstance(
+          pedestal.formation_model, pydantic_model.PrescribedFormation
+      )
 
   def test_invalid_model_name_error_message(self):
     with self.assertRaisesRegex(
@@ -84,7 +263,7 @@ class PedestalModelPydanticTest(parameterized.TestCase):
         r" of the expected tags",
     ):
       pydantic.TypeAdapter(pydantic_model.PedestalConfig).validate_python(
-          {"model_name": "invalid_model"}
+          {"structure_model": {"model_name": "invalid_model"}}
       )
 
   def test_missing_model_name_error_message(self):
@@ -93,7 +272,7 @@ class PedestalModelPydanticTest(parameterized.TestCase):
         r"Unable to extract tag using discriminator 'model_name'",
     ):
       pydantic.TypeAdapter(pydantic_model.PedestalConfig).validate_python(
-          {"n_e_ped": 0.7e20}
+          {"structure_model": {"n_e_ped": 0.7e20}}
       )
 
   def test_invalid_formation_model_error_message(self):
@@ -102,9 +281,40 @@ class PedestalModelPydanticTest(parameterized.TestCase):
         r"Input tag 'invalid_formation' found using 'model_name' does not match"
         r" any of the expected tags",
     ):
-      pydantic_model.SetTpedNped.from_dict(
-          {"formation_model": {"model_name": "invalid_formation"}}
-      )
+      pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "formation_model": {"model_name": "invalid_formation"},
+      })
+
+  def test_initial_confinement_mode_and_bc_multiplier_validation(self):
+    default_ped = pydantic_model.Pedestal.from_dict(
+        {"structure_model": {"model_name": "set_T_ped_n_ped"}}
+    )
+    self.assertIsNone(default_ped.formation_model.initial_confinement_mode)
+    self.assertEqual(default_ped.initial_L_mode_bc_multiplier, 2.0)
+
+    custom_ped = pydantic_model.Pedestal.from_dict({
+        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "formation_model": {"initial_confinement_mode": "L_MODE"},
+        "initial_L_mode_bc_multiplier": 3.5,
+    })
+    params = custom_ped.build_runtime_params(t=0.0)
+    self.assertEqual(
+        params.formation.initial_confinement_mode,
+        runtime_params.ConfinementMode.L_MODE,
+    )
+    self.assertEqual(params.initial_L_mode_bc_multiplier, 3.5)
+
+    with self.assertRaises(pydantic.ValidationError):
+      pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "formation_model": {"initial_confinement_mode": "invalid_mode"},
+      })
+    with self.assertRaises(pydantic.ValidationError):
+      pydantic_model.Pedestal.from_dict({
+          "structure_model": {"model_name": "set_T_ped_n_ped"},
+          "initial_L_mode_bc_multiplier": 0.0,
+      })
 
 
 if __name__ == "__main__":

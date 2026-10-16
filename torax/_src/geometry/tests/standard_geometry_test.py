@@ -18,11 +18,15 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+from torax._src.fvm import cell_variable
 from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import get_example_L_LY_data
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
+from torax._src.physics import psi_calculations
 from torax._src.torax_pydantic import interpolated_param_2d
 
 # pylint: disable=invalid-name
@@ -335,6 +339,173 @@ class GeometryTest(parameterized.TestCase):
     trimmed = ratio[3:]
     np.testing.assert_array_less(trimmed, 1.0 + 1e-10)
     np.testing.assert_array_less(0.5, trimmed)
+
+  def test_to_output_dict(self):
+    # Test with optional scalars present
+    inter0 = self._make_intermediates(
+        connection_length_target=np.array(10.0),
+        connection_length_divertor=np.array(5.0),
+        angle_of_incidence_target=np.array(1.5),
+        R_OMP=np.array(6.5),
+        R_target=np.array(5.5),
+        B_pol_OMP=np.array(0.8),
+        diverted=np.array(True),
+    )
+    inter1 = self._make_intermediates(
+        connection_length_target=np.array(12.0),
+        connection_length_divertor=np.array(6.0),
+        angle_of_incidence_target=np.array(1.8),
+        R_OMP=np.array(6.6),
+        R_target=np.array(5.6),
+        B_pol_OMP=np.array(0.9),
+        diverted=np.array(True),
+    )
+    geo0 = standard_geometry.build_standard_geometry(inter0)
+    geo1 = standard_geometry.build_standard_geometry(inter1)
+    stacked_geo = geometry.stack_geometries([geo0, geo1])
+
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=stacked_geo.rho_face_norm,
+        rho_cell_norm=stacked_geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], stacked_geo.rho_norm, [1.0]]
+        ),
+    )
+
+    out = stacked_geo.to_output_dict(context)
+
+    # StandardGeometry profiles
+    self.assertIn(output_keys.IP_PROFILE_FROM_GEO, out)
+    dims, _, attrs = out[output_keys.IP_PROFILE_FROM_GEO]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.AMPERE})
+
+    self.assertIn(output_keys.PSI_FROM_GEO, out)
+    dims, _, attrs = out[output_keys.PSI_FROM_GEO]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_CELL_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.WEBER})
+
+    self.assertIn(output_keys.PSI_FROM_IP, out)
+    dims, _, attrs = out[output_keys.PSI_FROM_IP]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.WEBER})
+
+    self.assertIn(output_keys.DELTA_UPPER, out)
+    dims, _, attrs = out[output_keys.DELTA_UPPER]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.DIMENSIONLESS})
+
+    self.assertIn(output_keys.DELTA_LOWER, out)
+    dims, _, attrs = out[output_keys.DELTA_LOWER]
+    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+    self.assertEqual(attrs, {'units': output_keys.Units.DIMENSIONLESS})
+
+    # Optional scalars present
+    optional_keys = [
+        (output_keys.CONNECTION_LENGTH_TARGET, output_keys.Units.METER),
+        (output_keys.CONNECTION_LENGTH_DIVERTOR, output_keys.Units.METER),
+        (output_keys.ANGLE_OF_INCIDENCE_TARGET, output_keys.Units.DEGREE),
+        (output_keys.R_OMP, output_keys.Units.METER),
+        (output_keys.R_TARGET, output_keys.Units.METER),
+        (output_keys.B_POL_OMP, output_keys.Units.TESLA),
+    ]
+    for key, expected_unit in optional_keys:
+      self.assertIn(key, out)
+      dims, _, attrs = out[key]
+      self.assertEqual(dims, (output_keys.TIME,))
+      self.assertEqual(attrs, {'units': expected_unit})
+
+    self.assertIn(output_keys.DIVERTED, out)
+    dims, _, attrs = out[output_keys.DIVERTED]
+    self.assertEqual(dims, (output_keys.TIME,))
+    self.assertEqual(attrs, {})
+
+    # Test with optional scalars None
+    inter_none0 = self._make_intermediates()
+    inter_none1 = self._make_intermediates()
+    geo_none0 = standard_geometry.build_standard_geometry(inter_none0)
+    geo_none1 = standard_geometry.build_standard_geometry(inter_none1)
+    stacked_geo_none = geometry.stack_geometries([geo_none0, geo_none1])
+    out_none = stacked_geo_none.to_output_dict(context)
+
+    for key, _ in optional_keys:
+      self.assertNotIn(key, out_none)
+    self.assertNotIn(output_keys.DIVERTED, out_none)
+
+  @parameterized.named_parameters(
+      (
+          'chease',
+          {
+              'geometry_type': 'chease',
+              'geometry_file': 'iterhybrid.mat2cols',
+              'n_rho': 400,
+          },
+      ),
+      (
+          'eqdsk',
+          {
+              'geometry_type': 'eqdsk',
+              'geometry_file': 'iterhybrid_cocos02.eqdsk',
+              'cocos': 2,
+              'n_rho': 400,
+          },
+      ),
+  )
+  def test_g1_over_vpr2_bounded_near_axis(self, geo_config):
+    # On a mesh finer than the equilibrium grid, g1/vpr^2 (~<|grad rho|^2>)
+    # must stay close to its on-axis value 1/rho_b^2 rather than diverge.
+    geo = geometry_pydantic_model.Geometry.from_dict(geo_config).build_provider(
+        0.0
+    )
+    near_axis = geo.rho_face_norm < 0.1
+    normalized = np.asarray(geo.g1_over_vpr2_face)[near_axis] * geo.rho_b**2
+    np.testing.assert_array_less(normalized, 1.5)
+    np.testing.assert_array_less(0.5, normalized)
+
+
+class PsiFromIpTest(absltest.TestCase):
+  """Tests j_total derived from psi_from_Ip on a mesh finer than the equilibrium."""
+
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    geo = geometry_pydantic_model.Geometry.from_dict({
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+        'n_rho': 400,
+    }).build_provider(0.0)
+    assert isinstance(geo, standard_geometry.StandardGeometry)
+    # LCFS psi value constraint (as with the V_loop boundary condition), so the
+    # edge gradient also comes from the psi_from_Ip interpolation.
+    psi = cell_variable.CellVariable(
+        value=geo.psi_from_Ip,
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=geo.psi_from_Ip_face[-1],
+        right_face_grad_constraint=None,
+    )
+    j_total, _, ip_profile_face = psi_calculations.calc_j_total(
+        geo, psi, min_rho_norm=0.0
+    )
+    cls.geo = geo
+    cls.j_total = np.asarray(j_total)
+    cls.ip_profile_face = np.asarray(ip_profile_face)
+
+  def test_lcfs_ip_matches_equilibrium_ip(self):
+    np.testing.assert_allclose(
+        self.ip_profile_face[-1], self.geo.Ip_profile_face[-1], rtol=1e-12
+    )
+
+  def test_bulk_j_total_has_no_spikes_at_equilibrium_knots(self):
+    bulk = slice(2, -1)
+    max_rel_err = np.max(
+        np.abs(self.j_total[bulk] - self.geo.j_total[bulk])
+    ) / np.max(np.abs(self.geo.j_total))
+    self.assertLess(max_rel_err, 0.06)
+
+  def test_edge_j_total_matches_equilibrium(self):
+    np.testing.assert_allclose(self.j_total[-1], self.geo.j_total[-1], rtol=0.5)
 
 
 if __name__ == '__main__':

@@ -14,11 +14,9 @@
 
 """Module containing functions for saving and loading simulation output."""
 
-from collections.abc import Hashable, Sequence
+from collections.abc import Sequence
 import dataclasses
-import inspect
 import itertools
-from typing import Any
 
 import os
 
@@ -31,7 +29,6 @@ from torax._src import state
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
-from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
@@ -41,28 +38,6 @@ from torax._src.torax_pydantic import model_config
 import xarray as xr
 
 # Internal import.
-
-# pylint: disable=invalid-name
-
-# Geometry field names excluded from direct output serialization.
-_EXCLUDED_GEOMETRY_FIELDS = frozenset({
-    "geometry_type",
-    "Ip_from_parameters",
-    "j_total",  # Already in core_profiles output.
-})
-
-# Geometry property names excluded because they are coordinates at the top
-# DataTree level, or are not interesting to save.
-# TODO(b/338033916): consolidate on either rho or rho_cell naming for cell grid
-_EXCLUDED_GEOMETRY_PROPERTIES = frozenset({
-    output_keys.RHO_FACE,
-    output_keys.RHO_CELL,
-    output_keys.RHO_CELL_NORM,
-    output_keys.RHO_FACE_NORM,
-    "rho",
-    "rho_norm",
-    "q_correction_factor",
-})
 
 
 def load_state_file(filepath: str) -> xr.DataTree:
@@ -109,11 +84,6 @@ def concat_datatrees(
     return ds
 
   return xr.map_over_datasets(_concat_datasets, tree1, tree2)
-
-
-extend_cell_grid_to_boundaries = (
-    output_grid_context.extend_cell_grid_to_boundaries
-)
 
 
 def stitch_state_files(
@@ -182,25 +152,25 @@ class StateHistory:
     self._geometries = [state.geometry for state in state_history]
     self._stacked_geometry = geometry_lib.stack_geometries(self.geometries)
     stack = lambda *ys: np.stack(ys)
-    self._stacked_core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
+    self._stacked_core_profiles: state.CoreProfiles = jax.tree.map(
         stack, *self._core_profiles
     )
     self._stacked_core_sources: source_profiles_lib.SourceProfiles = (
-        jax.tree_util.tree_map(stack, *self._core_sources)
+        jax.tree.map(stack, *self._core_sources)
     )
-    self._stacked_core_transport: state.CoreTransport = jax.tree_util.tree_map(
+    self._stacked_core_transport: state.CoreTransport = jax.tree.map(
         stack, *self._transport
     )
     self._stacked_post_processed_outputs: (
         post_processing.PostProcessedOutputs
-    ) = jax.tree_util.tree_map(stack, *post_processed_outputs_history)
+    ) = jax.tree.map(stack, *post_processed_outputs_history)
     self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
-        jax.tree_util.tree_map(stack, *self._solver_numeric_outputs)
+        jax.tree.map(stack, *self._solver_numeric_outputs)
     )
     # If self._edge_outputs is a list of Nones, stacked_edge_outputs will just
-    # be None, since jax.tree_util.tree_map treats None as a node with no leaves
-    self._stacked_edge_outputs: edge_base.EdgeModelOutputs = (
-        jax.tree_util.tree_map(stack, *self._edge_outputs)
+    # be None, since jax.tree.map treats None as a node with no leaves.
+    self._stacked_edge_outputs: edge_base.EdgeModelOutputs = jax.tree.map(
+        stack, *self._edge_outputs
     )
 
     self._times = np.array([state.t for state in state_history])
@@ -298,8 +268,6 @@ class StateHistory:
         - scalars: Contains data variables for scalars.
         - edge: Contains data variables for the edge model, if one is active.
     """
-    # Cleanup structure by excluding QeiInfo from core_sources altogether.
-    # Add attribute to dataset variables with explanation of contents + units.
 
     time = xr.DataArray(
         self.times,
@@ -333,7 +301,7 @@ class StateHistory:
         output_keys.RHO_NORM: rho_norm,
     }
 
-    # Update dict with flattened StateHistory dataclass containers
+    # Update dict with flattened StateHistory dataclass containers.
     all_core_data = [
         self._save_core_profiles(),
         self._save_core_transport(),
@@ -348,33 +316,32 @@ class StateHistory:
       else:
         raise ValueError(f"Duplicate key: {key}")
 
-    # Determine simulation status based on error state
+    # Determine simulation status based on error state.
     sim_status = (
         state.SimStatus.COMPLETED
         if self.sim_error is state.SimError.NO_ERROR
         else state.SimStatus.ERROR
     )
 
-    numerics_dict = {
-        output_keys.SIM_STATUS: sim_status.value,
-        output_keys.SIM_ERROR: self.sim_error.value,
-        output_keys.SAWTOOTH_CRASH: xr.DataArray(
-            self._stacked_solver_numeric_outputs.sawtooth_crash,
-            dims=[output_keys.TIME],
-            name=output_keys.SAWTOOTH_CRASH,
+    numerics_vars: dict[str, output_grid_context.OutputVar] = {
+        output_keys.SIM_STATUS: (
+            (),
+            np.asarray(sim_status.value),
+            output_keys.get_units(output_keys.SIM_STATUS),
         ),
-        output_keys.OUTER_SOLVER_ITERATIONS: xr.DataArray(
-            self._stacked_solver_numeric_outputs.outer_solver_iterations,
-            dims=[output_keys.TIME],
-            name=output_keys.OUTER_SOLVER_ITERATIONS,
-        ),
-        output_keys.INNER_SOLVER_ITERATIONS: xr.DataArray(
-            self._stacked_solver_numeric_outputs.inner_solver_iterations,
-            dims=[output_keys.TIME],
-            name=output_keys.INNER_SOLVER_ITERATIONS,
+        output_keys.SIM_ERROR: (
+            (),
+            np.asarray(self.sim_error.value),
+            output_keys.get_units(output_keys.SIM_ERROR),
         ),
     }
-    numerics = xr.Dataset(numerics_dict)
+    # Populate solver numeric variables from stacked solver outputs.
+    numerics_vars.update(
+        self._stacked_solver_numeric_outputs.to_output_dict(
+            self._output_grid_context
+        )
+    )
+    numerics = self._output_grid_context.build_dataset(numerics_vars)
 
     spatial_coords = {
         output_keys.RHO_FACE_NORM,
@@ -382,30 +349,18 @@ class StateHistory:
         output_keys.RHO_NORM,
     }
 
-    def _get_dims(
-        var: xr.DataArray | output_grid_context.OutputVar,
-    ) -> Sequence[Hashable]:
-      if isinstance(var, xr.DataArray):
-        return var.dims
-      # Otherwise var is an OutputVar 3-tuple: (dims, data, attrs).
-      return var[0]
     profiles_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and any(d in spatial_coords for d in _get_dims(v))
+        if any(d in spatial_coords for d in v[0])
     }
-    profiles = xr.Dataset(profiles_dict)
+    profiles = self._output_grid_context.build_dataset(profiles_dict)
     scalars_dict = {
         k: v
         for k, v in flattened_all_core_data.items()
-        if v is not None and not any(d in spatial_coords for d in _get_dims(v))
+        if not any(d in spatial_coords for d in v[0])
     }
-    scalars_coords: dict[Hashable, Any] = {output_keys.TIME: time}
-    if self._stacked_core_profiles.main_ion_fractions:
-      scalars_coords[output_keys.MAIN_ION] = sorted(
-          self._stacked_core_profiles.main_ion_fractions
-      )
-    scalars = xr.Dataset(scalars_dict, coords=scalars_coords)
+    scalars = self._output_grid_context.build_dataset(scalars_dict)
     children = {
         output_keys.PROFILES: xr.DataTree(dataset=profiles),
         output_keys.NUMERICS: xr.DataTree(dataset=numerics),
@@ -439,53 +394,6 @@ class StateHistory:
 
     return data_tree
 
-  def _pack_into_data_array(
-      self,
-      name: str,
-      data: array_typing.Array | None,
-  ) -> xr.DataArray | None:
-    """Packs the data into an xr.DataArray."""
-    if data is None:
-      return None
-
-    is_face_var = lambda x: x.ndim == 2 and x.shape == (
-        len(self.times),
-        len(self.rho_face_norm),
-    )
-    is_cell_var = lambda x: x.ndim == 2 and x.shape == (
-        len(self.times),
-        len(self.rho_cell_norm),
-    )
-    is_cell_plus_boundaries_var = lambda x: x.ndim == 2 and x.shape == (
-        len(self.times),
-        len(self.rho_norm),
-    )
-    is_scalar = lambda x: x.ndim == 1 and x.shape == (len(self.times),)
-    is_constant = lambda x: x.ndim == 0
-
-    match data:
-      case data if is_face_var(data):
-        dims = [output_keys.TIME, output_keys.RHO_FACE_NORM]
-      case data if is_cell_var(data):
-        dims = [output_keys.TIME, output_keys.RHO_CELL_NORM]
-      case data if is_scalar(data):
-        dims = [output_keys.TIME]
-      case data if is_constant(data):
-        dims = []
-      case data if is_cell_plus_boundaries_var(data):
-        dims = [output_keys.TIME, output_keys.RHO_NORM]
-      case _:
-        logging.warning(
-            "Unsupported data shape for %s: %s. Skipping persisting.",
-            name,
-            data.shape,  # type: ignore[attr-defined]
-        )
-        return None
-
-    return xr.DataArray(
-        data, dims=dims, name=name, attrs=output_keys.get_units(name)
-    )
-
   def _save_core_profiles(
       self,
   ) -> dict[str, output_grid_context.OutputVar]:
@@ -512,145 +420,17 @@ class StateHistory:
 
   def _save_post_processed_outputs(
       self,
-  ) -> dict[str, xr.DataArray | None]:
+  ) -> dict[str, output_grid_context.OutputVar]:
     """Saves the post processed outputs to a dict."""
-    xr_dict = {}
-
-    pp_field_names = {
-        f.name for f in dataclasses.fields(self._stacked_post_processed_outputs)
-    }
-
-    for field in dataclasses.fields(self._stacked_post_processed_outputs):
-      attr_name = field.name
-      if attr_name == "first_step":
-        continue
-
-      # The impurity_radiation is structured differently and handled separately.
-      if attr_name == "impurity_species":
-        continue
-
-      # Skip _face attributes if cell counterpart exists
-      if attr_name.endswith("_face") and (
-          attr_name.removesuffix("_face") in pp_field_names
-      ):
-        continue
-
-      attr_value = getattr(self._stacked_post_processed_outputs, attr_name)
-
-      # Check if a corresponding face variable exists to extend the grid.
-      face_attr_name = f"{attr_name}_face"
-
-      if hasattr(attr_value, "cell_plus_boundaries"):
-        # Handles stacked CellVariable-like objects.
-        data_to_save = attr_value.cell_plus_boundaries()
-      elif face_attr_name in pp_field_names:
-        face_value = getattr(
-            self._stacked_post_processed_outputs, face_attr_name
-        )
-        data_to_save = extend_cell_grid_to_boundaries(attr_value, face_value)
-      else:
-        data_to_save = attr_value
-      xr_dict[attr_name] = self._pack_into_data_array(attr_name, data_to_save)
-
-    if self._stacked_post_processed_outputs.impurity_species:
-      radiation_outputs = (
-          impurity_radiation.construct_xarray_for_radiation_output(
-              self._stacked_post_processed_outputs.impurity_species,
-              self.times,  # pyrefly: ignore[bad-argument-type]
-              self.rho_cell_norm,  # pyrefly: ignore[bad-argument-type]
-              output_keys.TIME,
-              output_keys.RHO_CELL_NORM,
-          )
-      )
-      for key, value in radiation_outputs.items():
-        xr_dict[key] = value
-
-    return xr_dict
+    return self._stacked_post_processed_outputs.to_output_dict(
+        self._output_grid_context
+    )
 
   def _save_geometry(
       self,
-  ) -> dict[str, xr.DataArray]:
-    """Save geometry to a dict. We skip over hires and non-array quantities."""
-    xr_dict = {}
-    geometry_attributes = dataclasses.asdict(self._stacked_geometry)
-
-    # Get the variables from dataclass fields.
-    for field_name, data in geometry_attributes.items():
-      if (
-          "hires" in field_name
-          or (
-              field_name.endswith("_face")
-              and field_name.removesuffix("_face") in geometry_attributes
-          )
-          or field_name in _EXCLUDED_GEOMETRY_FIELDS
-          or not isinstance(data, array_typing.Array)
-      ):
-        continue
-      if f"{field_name}_face" in geometry_attributes:
-        data = extend_cell_grid_to_boundaries(
-            data, geometry_attributes[f"{field_name}_face"]
-        )
-      # Remap to avoid outputting _face suffix in output.
-      if field_name.endswith("_face"):
-        field_name = field_name.removesuffix("_face")
-      if field_name == "Ip_profile":
-        # Ip_profile exists in core profiles so rename to avoid duplicate.
-        field_name = output_keys.IP_PROFILE_FROM_GEO
-      if field_name == "psi":
-        # Psi also exists in core profiles so rename to avoid duplicate.
-        field_name = output_keys.PSI_FROM_GEO
-      if field_name == "_z_magnetic_axis":
-        # This logic only reached if not None. Avoid leading underscore.
-        field_name = output_keys.Z_MAGNETIC_AXIS
-      data_array = self._pack_into_data_array(
-          field_name,
-          data,  # pyrefly: ignore[bad-argument-type]
-      )
-      if data_array is not None:
-        xr_dict[field_name] = data_array
-
-    # Get variables from property methods
-    geometry_properties = inspect.getmembers(type(self._stacked_geometry))
-    property_names = set([name for name, _ in geometry_properties])
-
-    for name, value in geometry_properties:
-      # Skip over saving any variables that are named *_face.
-      if (
-          name.endswith("_face")
-          and name.removesuffix("_face") in property_names
-      ):
-        continue
-      if name in _EXCLUDED_GEOMETRY_PROPERTIES:
-        continue
-      if isinstance(value, property):
-        property_data = value.fget(self._stacked_geometry)  # pyrefly: ignore[not-callable]
-        # TODO(b/434175938): Remove this once we move to V2.
-        if name == "drho":
-          is_uniform = np.all(
-              np.isclose(property_data[:, 0][..., None], property_data)
-          )
-          if is_uniform:
-            property_data = property_data[:, 0]
-        elif name == "drho_norm":
-          is_uniform = all(np.isclose(property_data, property_data[0]))
-          if is_uniform:
-            property_data = property_data[0]
-        # Check if there is a corresponding face variable for this property.
-        # If so, extend the data to the cell+boundaries grid.
-        if f"{name}_face" in property_names:
-          face_data = getattr(self._stacked_geometry, f"{name}_face")
-          property_data = extend_cell_grid_to_boundaries(
-              property_data, face_data
-          )
-        # Remap to avoid outputting _face suffix in output. Done only for
-        # _face variables with no corresponding non-face variable.
-        if name.endswith("_face"):
-          name = name.removesuffix("_face")
-        data_array = self._pack_into_data_array(name, property_data)  # pyrefly: ignore[bad-argument-type]
-        if data_array is not None:
-          xr_dict[name] = data_array
-
-    return xr_dict
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Saves the geometry to a dict."""
+    return self._stacked_geometry.to_output_dict(self._output_grid_context)
 
   def _save_edge_outputs(self) -> xr.DataTree:
     """Saves the edge outputs to a DataTree."""

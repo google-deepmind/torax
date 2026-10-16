@@ -38,8 +38,8 @@ from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_mode
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
 from torax._src.solver import pydantic_model as solver_pydantic_model
-from torax._src.sources import pydantic_model as sources_pydantic_model
-from torax._src.sources.ion_cyclotron_source import toric_nn
+from torax._src.sources import pydantic_config as sources_pydantic_config
+from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
@@ -73,7 +73,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   numerics: numerics_lib.Numerics
   plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
-  sources: sources_pydantic_model.Sources
+  sources: sources_pydantic_config.Sources
   neoclassical: neoclassical_pydantic_model.NeoclassicalConfig = (
       pydantic.Field()
   )
@@ -126,11 +126,6 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         and 'model_name' not in configurable_data['neoclassical']
     ):
       configurable_data['neoclassical']['model_name'] = 'analytical'
-    if (
-        isinstance(configurable_data['pedestal'], dict)
-        and 'model_name' not in configurable_data['pedestal']
-    ):
-      configurable_data['pedestal']['model_name'] = 'no_pedestal'
     if (
         isinstance(configurable_data['transport'], dict)
         and 'core_transport_models' not in configurable_data['transport']
@@ -206,7 +201,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @pydantic.model_validator(mode='after')
   def _check_pedestal_with_non_uniform_grid(self) -> Self:
     """Warns if a pedestal and non-uniform grid are used."""
-    if self.pedestal.model_name != 'no_pedestal':
+    if self.pedestal.structure_model.model_name != 'no_pedestal':
       face_centers = self.geometry.get_face_centers()
       is_uniform = np.all(
           np.isclose(np.diff(face_centers), np.diff(face_centers)[0])
@@ -483,32 +478,22 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return version.TORAX_VERSION
 
   @pydantic.model_validator(mode='after')
-  def _validate_toric_nn_he3_presence(self) -> Self:
-    """Validates that He3 is present in plasma composition if ToricNN is used.
-
-    The ToricNN model currently only supports He3 minority heating, so He3 must
-    be present in the plasma composition (either as main ion or impurity) if
-    ToricNN is the selected ICRH model.
-
-    For backwards compatibility, this validator is not run if minority_species
-    is not set.
-    """
+  def _validate_icrh_minority_species_presence(self) -> Self:
+    """Validates that ICRH minority species is present in plasma composition."""
     if (
-        isinstance(
-            self.sources.icrh,
-            toric_nn.ToricNNIonCyclotronSourceConfig,
-        )
-        and self.sources.icrh.minority_species is not None
+        self.sources.icrh is not None
+        and self.sources.icrh.mode
+        == sources_runtime_params_lib.Mode.MODEL_BASED
     ):
-      he3_present = (
-          'He3' in self.plasma_composition.get_main_ion_names()
-          or 'He3' in self.plasma_composition.get_impurity_names()
+      minority = self.sources.icrh.minority_species
+      minority_present = (
+          minority in self.plasma_composition.get_main_ion_names()
+          or minority in self.plasma_composition.get_impurity_names()
       )
-      if not he3_present:
+      if not minority_present:
         raise ValueError(
-            'The ToricNN ICRH model requires "He3" to be present in the '
+            f'The ICRH source requires "{minority}" to be present in the '
             'plasma composition (either as main ion or impurity).'
-            ' Currently, ToricNN only supports He3 minority heating.'
         )
     return self
 

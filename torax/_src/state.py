@@ -170,6 +170,51 @@ class CoreProfiles:
     """Scaling factor for impurity density on face grid: n_imp_true / n_imp_eff."""
     return self.Z_impurity_face / self.charge_state_info_face.Z_avg
 
+  def get_species_concentration(
+      self,
+      species: str,
+  ) -> array_typing.FloatVectorCell:
+    """Extracts species fractional concentration relative to electron density.
+
+    Args:
+      species: Symbol of the ion species (e.g., 'He3', 'D', 'T', 'Ne').
+
+    Returns:
+      Species fractional concentration relative to electron density (n_s / n_e).
+
+    Raises:
+      ValueError: If species is not found in main_ion_fractions or
+        impurity_fractions.
+    """
+    if species in self.main_ion_fractions:
+      fraction = self.main_ion_fractions[species]
+      return jnp.divide(self.n_i.value * fraction, self.n_e.value)
+
+    if species in self.impurity_fractions:
+      fraction = self.impurity_fractions[species]
+      n_imp_species = (
+          fraction * self.n_impurity.value * self.impurity_density_scaling
+      )
+      return jnp.divide(n_imp_species, self.n_e.value)
+
+    raise ValueError(
+        f"Species {species} not found."
+        f" Available main ions: {tuple(self.main_ion_fractions.keys())},"
+        f" impurities: {tuple(self.impurity_fractions.keys())}"
+    )
+
+  @functools.cached_property
+  def psi_norm(self) -> array_typing.FloatVectorCell:
+    """Normalized poloidal flux on the cell grid."""
+    psi_face = self.psi.face_value()
+    return (self.psi.value - psi_face[0]) / (psi_face[-1] - psi_face[0])
+
+  @functools.cached_property
+  def psi_norm_face(self) -> array_typing.FloatVectorFace:
+    """Normalized poloidal flux on the face grid."""
+    psi_face = self.psi.face_value()
+    return (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+
   @functools.cached_property
   def pressure_thermal_e(self) -> cell_variable.CellVariable:
     """Electron thermal pressure [Pa]."""
@@ -195,17 +240,31 @@ class CoreProfiles:
     n_impurity_thermal_right = self.n_impurity.right_face_constraint
     for fast_ion in self.fast_ions:
       if fast_ion.species in self.impurity_fractions:
-        n_impurity_thermal_value -= fast_ion.n.value  # pyrefly: ignore[unsupported-operation]
+        n_impurity_thermal_value -= fast_ion.n.value
         if (
             n_impurity_thermal_right is not None
             and fast_ion.n.right_face_constraint is not None
         ):
-          n_impurity_thermal_right -= fast_ion.n.right_face_constraint  # pyrefly: ignore[unsupported-operation]
+          n_impurity_thermal_right -= fast_ion.n.right_face_constraint
     return cell_variable.CellVariable(
         value=n_impurity_thermal_value,
         face_centers=self.n_impurity.face_centers,
         right_face_constraint=n_impurity_thermal_right,
         right_face_grad_constraint=None,
+    )
+
+  @functools.cached_property
+  def n_i_total_thermal_face(self) -> array_typing.FloatVectorFace:
+    """Total thermal ion particle density (main ions + impurities) [m^-3].
+
+    On the face grid. The bundled impurity density (charge Z_impurity =
+    <Z^2>/<Z>) is rescaled to the true impurity particle density with
+    `impurity_density_scaling_face` before being summed with the main ions.
+    """
+    return (
+        self.n_i.face_value()
+        + self.n_impurity_thermal.face_value()
+        * self.impurity_density_scaling_face
     )
 
   @functools.cached_property
@@ -340,7 +399,6 @@ class CoreProfiles:
     """Converts core profiles into an OutputVar mapping."""
     out_dict = {}
 
-    # 1. Standard CellVariable profiles (CELL_PLUS_BOUNDARIES)
     cell_vars = {
         output_keys.T_I: self.T_i.cell_plus_boundaries(),
         output_keys.T_E: self.T_e.cell_plus_boundaries(),
@@ -374,10 +432,10 @@ class CoreProfiles:
     for key, cell_val in cell_vars.items():
       out_dict[key] = context.pack(key, cell_val)
 
-    # 2. Combined Cell + Face profiles (CELL_PLUS_BOUNDARIES)
     cell_face_pairs = [
         (output_keys.Z_I, self.Z_i, self.Z_i_face),
         (output_keys.Z_IMPURITY, self.Z_impurity, self.Z_impurity_face),
+        (output_keys.A_IMPURITY, self.A_impurity, self.A_impurity_face),
         (output_keys.Z_EFF, self.Z_eff, self.Z_eff_face),
         (output_keys.SIGMA_PARALLEL, self.sigma, self.sigma_face),
         (output_keys.J_TOROIDAL_TOTAL, self.j_total, self.j_total_face),
@@ -388,30 +446,6 @@ class CoreProfiles:
       )
       out_dict[key] = context.pack(key, extended_data)
 
-    # TODO(b/434175938): Special handling for A_impurity for backward
-    # compatibility with V1 API for default 'fractions' impurity mode where
-    # A_impurity was a scalar.
-    # Check if A_impurity is constant across the radial dimension for all
-    # time steps. Slicing is required to avoid broadcasting errors.
-    is_constant = np.all(self.A_impurity == self.A_impurity[..., 0:1], axis=-1)
-    if np.all(is_constant):
-      out_dict[output_keys.A_IMPURITY] = context.pack(
-          output_keys.A_IMPURITY, self.A_impurity[..., 0]
-      )
-    else:
-      extended_a_impurity = (
-          output_grid_context.extend_cell_grid_to_boundaries(
-              self.A_impurity, self.A_impurity_face
-          )
-      )
-      a_imp_key = output_keys.OutputKey(
-          output_keys.A_IMPURITY,
-          units=output_keys.A_IMPURITY.units,
-          grid_type=output_keys.GridType.CELL_PLUS_BOUNDARIES,
-      )
-      out_dict[a_imp_key] = context.pack(a_imp_key, extended_a_impurity)
-
-    # 3. Face-only profiles (FACE)
     face_vars = {
         output_keys.Q: self.q_face,
         output_keys.MAGNETIC_SHEAR: self.s_face,
@@ -420,7 +454,6 @@ class CoreProfiles:
     for key, face_data in face_vars.items():
       out_dict[key] = context.pack(key, face_data)
 
-    # 4. Scalars (SCALAR)
     scalar_vars = {
         output_keys.V_LOOP_LCFS: self.v_loop_lcfs,
         output_keys.A_I: self.A_i,
@@ -429,9 +462,9 @@ class CoreProfiles:
     for key, scalar_data in scalar_vars.items():
       out_dict[key] = context.pack(key, scalar_data)
 
-    # 5. Multi-dimensional collections: main_ion_fractions
     if self.main_ion_fractions:
-      main_ions = sorted(self.main_ion_fractions)
+      main_ions = np.asarray(sorted(self.main_ion_fractions.keys()))
+      context.register_coord(output_keys.MAIN_ION, main_ions)
       data = np.stack(
           [self.main_ion_fractions[ion] for ion in main_ions],
           axis=0,
@@ -442,7 +475,6 @@ class CoreProfiles:
           output_keys.get_units(output_keys.MAIN_ION_FRACTIONS),
       )
 
-    # 6. Fast ions (CELL_PLUS_BOUNDARIES)
     for fi in self.fast_ions:
       source_key = f"{fi.source}_{fi.species}"
       n_key = output_keys.OutputKey(
@@ -536,6 +568,25 @@ class SolverNumericOutputs:
   solver_error_state: array_typing.IntScalar
   inner_solver_iterations: array_typing.IntScalar
   sawtooth_crash: array_typing.BoolScalar
+
+  def to_output_dict(
+      self, context: output_grid_context.OutputGridContext
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Serializes stacked SolverNumericOutputs into a dictionary of OutputVar tuples."""
+    return {
+        output_keys.OUTER_SOLVER_ITERATIONS: context.pack(
+            output_keys.OUTER_SOLVER_ITERATIONS, self.outer_solver_iterations
+        ),
+        output_keys.INNER_SOLVER_ITERATIONS: context.pack(
+            output_keys.INNER_SOLVER_ITERATIONS, self.inner_solver_iterations
+        ),
+        output_keys.SOLVER_ERROR_STATE: context.pack(
+            output_keys.SOLVER_ERROR_STATE, self.solver_error_state
+        ),
+        output_keys.SAWTOOTH_CRASH: context.pack(
+            output_keys.SAWTOOTH_CRASH, self.sawtooth_crash
+        ),
+    }
 
 
 # TODO(b/434175938): change to StrEnum

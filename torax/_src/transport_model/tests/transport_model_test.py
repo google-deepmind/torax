@@ -96,16 +96,47 @@ def setUpModule():
 
 def _make_transition_state(
     rho_norm_ped_top: float = 1.0,
+    confinement_mode: pedestal_runtime_params_lib.ConfinementMode = (
+        pedestal_runtime_params_lib.ConfinementMode.L_MODE
+    ),
 ) -> pedestal_transition_state_lib.PedestalTransitionState:
   output = mock.create_autospec(
-      pedestal_model_output_lib.PedestalModelOutput,
+      pedestal_model_output_lib.PedestalStructure,
       instance=True,
       rho_norm_ped_top=rho_norm_ped_top,
   )
   return dataclasses.replace(
-      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+      pedestal_transition_state_lib.PedestalTransitionState.empty(
+          confinement_mode=confinement_mode
+      ),
       pedestal_model_output=output,
   )
+
+
+def _build_smoothing_matrix_for_n_rho(
+    n_rho: int,
+) -> tuple[array_typing.Array, array_typing.Array]:
+  """Returns the transport smoothing matrix and face grid for a circular geo."""
+  config = default_configs.get_default_config_dict()
+  config['geometry'] = {'geometry_type': 'circular', 'n_rho': n_rho}
+  config['transport'] = {
+      'smoothing_width': 0.1,
+      'core_transport_models': {
+          'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
+      },
+  }
+  torax_config = model_config.ToraxConfig.from_dict(config)
+  runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+      torax_config
+  )(t=torax_config.numerics.t_initial)
+  geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
+  matrix = transport_model._build_smoothing_matrix(
+      runtime_params.transport,
+      runtime_params,
+      geo,
+      _make_transition_state(rho_norm_ped_top=1.0),
+  )
+  return matrix, geo.rho_face_norm
 
 
 class TransportMaskingTest(parameterized.TestCase):
@@ -151,7 +182,7 @@ class TransportMaskingTest(parameterized.TestCase):
     # We need a pedestal model even if unused by the fixed transport
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     transition_state = (
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+        pedestal_transition_state_lib.PedestalTransitionState.empty()
     )
     pedestal_model_outputs = pedestal_model(
         runtime_params,
@@ -345,7 +376,7 @@ class TransportMaskingTest(parameterized.TestCase):
         explicit=True,
     )
     transition_state = (
-        pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+        pedestal_transition_state_lib.PedestalTransitionState.empty()
     )
     pedestal_outputs = pedestal_model(
         runtime_params,
@@ -383,7 +414,7 @@ class TransportMaskingTest(parameterized.TestCase):
     np.testing.assert_allclose(model_output.chi_face_ion, expected_raw_chi_i)
 
 
-class TransportModelTest(absltest.TestCase):
+class TransportModelTest(parameterized.TestCase):
 
   def test_combining(self):
     config = default_configs.get_default_config_dict()
@@ -410,7 +441,9 @@ class TransportModelTest(absltest.TestCase):
             'pedestal_prescribed': {'model_name': 'prescribed', 'chi_i': 0.1}
         },
     }
-    config['pedestal'] = {'set_pedestal': True}
+    config['pedestal'] = {
+        'structure_model': {'model_name': 'set_T_ped_n_ped'}
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -429,7 +462,10 @@ class TransportModelTest(absltest.TestCase):
         source_models,
         neoclassical_model,
     )
-    transition_state = _make_transition_state(rho_norm_ped_top=0.91)
+    transition_state = _make_transition_state(
+        rho_norm_ped_top=0.91,
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+    )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
@@ -467,7 +503,9 @@ class TransportModelTest(absltest.TestCase):
         },
         'chi_min': 1.0,
     }
-    config['pedestal'] = {'set_pedestal': True}
+    config['pedestal'] = {
+        'structure_model': {'model_name': 'set_T_ped_n_ped'}
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
@@ -486,7 +524,10 @@ class TransportModelTest(absltest.TestCase):
         source_models,
         neoclassical_model,
     )
-    transition_state = _make_transition_state(rho_norm_ped_top=0.91)
+    transition_state = _make_transition_state(
+        rho_norm_ped_top=0.91,
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+    )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     coeffs = model(
@@ -588,7 +629,7 @@ class TransportModelTest(absltest.TestCase):
         },
     }
     config['pedestal'] = {
-        'set_pedestal': True,
+        'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
@@ -598,7 +639,10 @@ class TransportModelTest(absltest.TestCase):
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
     )
-    transition_state = _make_transition_state(rho_norm_ped_top=0.8)
+    transition_state = _make_transition_state(
+        rho_norm_ped_top=0.8,
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+    )
     matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
         runtime_params,
@@ -1006,10 +1050,6 @@ class TransportModelTest(absltest.TestCase):
 
     runtime_params = mock.Mock()
     runtime_params.transport = combined_params
-    runtime_params.pedestal.set_pedestal = False
-    runtime_params.pedestal.use_formation_model_with_internal_boundary_condition = (
-        False
-    )
     runtime_params.pedestal.mode = (
         pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
     )
@@ -1053,90 +1093,29 @@ class TransportModelTest(absltest.TestCase):
     np.testing.assert_allclose(
         coeffs.total.chi_face_el, mock_coeffs.chi_face_el
     )
-    np.testing.assert_allclose(
-        coeffs.total.d_face_el, mock_coeffs.d_face_el
-    )
-    np.testing.assert_allclose(
-        coeffs.total.v_face_el, mock_coeffs.v_face_el
-    )
+    np.testing.assert_allclose(coeffs.total.d_face_el, mock_coeffs.d_face_el)
+    np.testing.assert_allclose(coeffs.total.v_face_el, mock_coeffs.v_face_el)
 
   def test_pedestal_transition_state_internal_boundary_condition_masking(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    model, runtime_params, geo = self._build_model_and_params({
         'core_transport_models': {
-            'prescribed': {
-                'model_name': 'prescribed',
-                'chi_i': 2.0,
-                'chi_e': 2.0,
-                'D_e': 2.0,
-                'V_e': 2.0,
-            }
+            'prescribed': {'model_name': 'prescribed', 'chi_i': 2.0}
         },
         'pedestal_transport_models': {
-            'prescribed': {
-                'model_name': 'prescribed',
-                'chi_i': 0.5,
-                'chi_e': 0.5,
-                'D_e': 0.5,
-                'V_e': 0.5,
-            }
+            'prescribed': {'model_name': 'prescribed', 'chi_i': 0.5}
         },
-    }
-    config['pedestal'] = {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-        'mode': 'INTERNAL_BOUNDARY_CONDITION',
-        'use_formation_model_with_internal_boundary_condition': True,
-        'rho_norm_ped_top': 0.8,
-        'T_i_ped': 4.0,
-        'T_e_ped': 4.0,
-        'n_e_ped': 0.6e20,
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    runtime_params, geo = (
-        build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=torax_config.numerics.t_initial,
-            runtime_params_provider=(
-                build_runtime_params.RuntimeParamsProvider.from_config(
-                    torax_config
-                )
-            ),
-            geometry_provider=torax_config.geometry.build_provider,
-            is_initialization=True,
-        )
-    )
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
-    )
-    pedestal_output = pedestal_model_output_lib.PedestalModelOutput(
-        rho_norm_ped_top=jnp.asarray(0.8),
-        T_i_ped=jnp.asarray(4.0),
-        T_e_ped=jnp.asarray(4.0),
-        n_e_ped=jnp.asarray(0.6e20),
-    )
-    combined_model = torax_config.transport.build_transport_model()
+    })
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    ped_mask = geo.rho_face_norm >= pedestal_output.rho_norm_ped_top
+    ped_mask = geo.rho_face_norm >= 0.8
 
-    l_mode_state = pedestal_transition_state_lib.PedestalTransitionState(
-        confinement_mode=pedestal_transition_state_lib.ConfinementMode.L_MODE,
-        transition_start_time=jnp.asarray(0.0),
-        T_i_ped_L_mode=jnp.asarray(1.0),
-        T_e_ped_L_mode=jnp.asarray(1.0),
-        n_e_ped_L_mode=jnp.asarray(1e19),
-        pedestal_model_output=pedestal_output,
-        previous_pedestal_model_output=pedestal_output,
-    )
-    l_mode_coeffs = combined_model(
+    l_mode_coeffs = model(
         runtime_params,
         geo,
-        core_profiles,
-        l_mode_state,
+        mock.ANY,
+        _make_transition_state(
+            rho_norm_ped_top=0.8,
+            confinement_mode=pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+        ),
         two_point_mask,
     )
     np.testing.assert_allclose(
@@ -1148,25 +1127,203 @@ class TransportModelTest(absltest.TestCase):
         np.zeros_like(geo.rho_face_norm),
     )
 
-    h_mode_state = dataclasses.replace(
-        l_mode_state,
-        confinement_mode=pedestal_transition_state_lib.ConfinementMode.H_MODE,
-    )
-    h_mode_coeffs = combined_model(
-        runtime_params,
-        geo,
-        core_profiles,
-        h_mode_state,
-        two_point_mask,
-    )
+    for active_mode in (
+        pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+        pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
+        pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
+    ):
+      with self.subTest(confinement_mode=active_mode.name):
+        active_coeffs = model(
+            runtime_params,
+            geo,
+            mock.ANY,
+            _make_transition_state(
+                rho_norm_ped_top=0.8,
+                confinement_mode=active_mode,
+            ),
+            two_point_mask,
+        )
+        np.testing.assert_allclose(
+            active_coeffs.core.chi_face_ion,
+            np.where(ped_mask, 0.0, 2.0),
+        )
+        np.testing.assert_allclose(
+            active_coeffs.pedestal.chi_face_ion,
+            np.where(ped_mask, 0.5, 0.0),
+        )
+
+  @parameterized.parameters(50, 200, 500)
+  def test_build_smoothing_matrix_fine_grid_is_finite_and_normalized(
+      self, n_rho: int
+  ):
+    matrix, _ = _build_smoothing_matrix_for_n_rho(n_rho)
+    with self.subTest('no_nan'):
+      self.assertFalse(np.any(np.isnan(matrix)))
+    with self.subTest('rows_normalized'):
+      np.testing.assert_allclose(np.sum(matrix, axis=1), 1.0, atol=1e-6)
+
+  @parameterized.named_parameters(
+      dict(testcase_name='n_rho_200', n_rho=200, atol=2e-3),
+      dict(testcase_name='n_rho_50', n_rho=50, atol=1e-2),
+  )
+  def test_build_smoothing_matrix_resolution_invariant(
+      self, n_rho: int, atol: float
+  ):
+    rho_common = np.linspace(0.0, 1.0, 201)
+
+    def _smoothed_on_common_grid(n: int) -> np.ndarray:
+      matrix, rho_face_norm = _build_smoothing_matrix_for_n_rho(n)
+      smooth_profile = 1.0 + 4.0 * jnp.exp(
+          -(((rho_face_norm - 0.5) / 0.15) ** 2)
+      )
+      return np.interp(
+          rho_common, rho_face_norm, jnp.dot(matrix, smooth_profile)
+      )
+
     np.testing.assert_allclose(
-        h_mode_coeffs.core.chi_face_ion,
-        np.where(ped_mask, 0.0, 2.0),
+        _smoothed_on_common_grid(n_rho),
+        _smoothed_on_common_grid(500),
+        atol=atol,
     )
-    np.testing.assert_allclose(
-        h_mode_coeffs.pedestal.chi_face_ion,
-        np.where(ped_mask, 0.5, 0.0),
+
+  def test_add_mode_nan_outside_active_region_does_not_contaminate_accumulators(
+      self,
+  ):
+    """Tests that in ADD mode, NaNs do not contaminate accumulators."""
+    geo = mock.Mock(spec=geometry.Geometry)
+    geo.rho_face_norm = jnp.linspace(0.0, 1.0, 11, dtype=jax_utils.get_dtype())
+
+    # Model 1: OVERWRITE mode on outer half (rho > 0.5), sets values and locks
+    # all channels on rho > 0.5.
+    model_1 = mock.MagicMock(spec=component.ComponentTransportModel)
+    model_1_coeffs = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.full_like(geo.rho_face_norm, 10.0),
+        chi_face_el=jnp.full_like(geo.rho_face_norm, 1.0),
+        d_face_el=jnp.full_like(geo.rho_face_norm, 1.0),
+        v_face_el=jnp.full_like(geo.rho_face_norm, -1.0),
     )
+    model_1.return_value = model_1_coeffs
+    params_1 = mock.Mock()
+    params_1.disable_chi_i = False
+    params_1.disable_chi_e = False
+    params_1.disable_D_e = False
+    params_1.disable_V_e = False
+    params_1.merge_mode = enums.MergeMode.OVERWRITE
+    params_1.rho_min = 0.5
+    params_1.rho_max = 1.0
+
+    # Model 2: ADD mode.
+    # - Active on inner region: rho_min = 0.0, rho_max = 0.4.
+    # - NaNs outside [rho_min, rho_max] (rho > 0.4) for chi_e and d_e.
+    # - disable_V_e = True, with NaNs everywhere in v_face_el
+    #   (disabled channel).
+    model_2 = mock.MagicMock(spec=component.ComponentTransportModel)
+    nan_outside_domain = jnp.where(geo.rho_face_norm <= 0.4, 2.0, jnp.nan)
+    model_2_coeffs = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.zeros_like(geo.rho_face_norm),
+        chi_face_el=nan_outside_domain,
+        d_face_el=nan_outside_domain,
+        v_face_el=jnp.full_like(geo.rho_face_norm, jnp.nan),
+    )
+    model_2.return_value = model_2_coeffs
+    params_2 = mock.Mock()
+    params_2.disable_chi_i = True
+    params_2.disable_chi_e = False
+    params_2.disable_D_e = False
+    params_2.disable_V_e = True
+    params_2.merge_mode = enums.MergeMode.ADD
+    params_2.rho_min = 0.0
+    params_2.rho_max = 0.4
+
+    # Model 3: ADD mode across entire domain [0.0, 1.0].
+    # - NaNs on rho > 0.5 for chi_i, where channel is active for Model 3 but
+    #   locked by Model 1 (locked channel).
+    model_3 = mock.MagicMock(spec=component.ComponentTransportModel)
+    nan_in_locked_region = jnp.where(geo.rho_face_norm <= 0.5, 2.0, jnp.nan)
+    model_3_coeffs = transport_coeffs.TransportCoeffs(
+        chi_face_ion=nan_in_locked_region,
+        chi_face_el=jnp.zeros_like(geo.rho_face_norm),
+        d_face_el=jnp.zeros_like(geo.rho_face_norm),
+        v_face_el=jnp.zeros_like(geo.rho_face_norm),
+    )
+    model_3.return_value = model_3_coeffs
+    params_3 = mock.Mock()
+    params_3.disable_chi_i = False
+    params_3.disable_chi_e = True
+    params_3.disable_D_e = True
+    params_3.disable_V_e = True
+    params_3.merge_mode = enums.MergeMode.ADD
+    params_3.rho_min = 0.0
+    params_3.rho_max = 1.0
+
+    combined_model = transport_model.TransportModel(
+        core_transport_models={
+            'model_1': model_1,
+            'model_2': model_2,
+            'model_3': model_3,
+        },
+        pedestal_transport_models={},
+    )
+    combined_params = mock.create_autospec(
+        transport_runtime_params_lib.RuntimeParams, instance=True
+    )
+    combined_params.core_transport_model_params = {
+        'model_1': params_1,
+        'model_2': params_2,
+        'model_3': params_3,
+    }
+    combined_params.pedestal_transport_model_params = {}
+    combined_params.chi_min = 0.0
+    combined_params.chi_max = 100.0
+    combined_params.D_e_min = 0.0
+    combined_params.D_e_max = 100.0
+    combined_params.V_e_min = -100.0
+    combined_params.V_e_max = 100.0
+    combined_params.smoothing_width = 0.0
+    combined_params.pedestal_smoothing_width = 0.0
+    combined_params.smoothing_zones = ()
+
+    runtime_params = mock.Mock()
+    runtime_params.transport = combined_params
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    core_profiles = mock.Mock()
+
+    accumulated_coeffs, _ = combined_model._combine(
+        models=combined_model.core_transport_models,
+        params_map=combined_params.core_transport_model_params,
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
+    )
+
+    # Verify no NaNs in any accumulated channel.
+    self.assertFalse(jnp.any(jnp.isnan(accumulated_coeffs.chi_face_ion)))
+    self.assertFalse(jnp.any(jnp.isnan(accumulated_coeffs.chi_face_el)))
+    self.assertFalse(jnp.any(jnp.isnan(accumulated_coeffs.d_face_el)))
+    self.assertFalse(jnp.any(jnp.isnan(accumulated_coeffs.v_face_el)))
+
+    # Verify exact values:
+    # 1. chi_face_ion: Model 3 adds 2.0 for rho <= 0.5. Model 1 overwrote and
+    # locked rho > 0.5 to 10.0; NaNs in Model 3 for rho > 0.5 are locked out.
+    expected_chi_i = jnp.where(geo.rho_face_norm <= 0.5, 2.0, 10.0)
+    np.testing.assert_allclose(accumulated_coeffs.chi_face_ion, expected_chi_i)
+
+    # 2. chi_face_el & d_face_el: Model 2 adds 2.0 for rho <= 0.4.
+    # NaNs in Model 2 for rho > 0.4 are outside [rho_min, rho_max].
+    # Model 1 sets 1.0 for rho > 0.5. Region 0.4 < rho <= 0.5 has 0.0.
+    expected_chi_e = jnp.where(
+        geo.rho_face_norm <= 0.4,
+        2.0,
+        jnp.where(geo.rho_face_norm > 0.5, 1.0, 0.0),
+    )
+    np.testing.assert_allclose(accumulated_coeffs.chi_face_el, expected_chi_e)
+    np.testing.assert_allclose(accumulated_coeffs.d_face_el, expected_chi_e)
+
+    # 3. v_face_el: Model 2 has disable_V_e = True (disabled channel) with NaNs.
+    # Model 1 sets -1.0 for rho > 0.5.
+    expected_v_e = jnp.where(geo.rho_face_norm > 0.5, -1.0, 0.0)
+    np.testing.assert_allclose(accumulated_coeffs.v_face_el, expected_v_e)
 
 
 if __name__ == '__main__':

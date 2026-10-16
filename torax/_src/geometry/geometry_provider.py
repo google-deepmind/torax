@@ -246,7 +246,7 @@ class TimeDependentGeometryProvider:
       else:
         # For None attributes.
         kwargs[attr.name] = provider_attr
-    return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
+    return geometry_class(**kwargs)  # pyrefly: ignore[missing-argument]
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""

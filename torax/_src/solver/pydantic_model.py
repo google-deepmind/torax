@@ -40,10 +40,6 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
       linear solver. If False, compilation is faster.
     n_corrector_steps: The number of corrector steps for the predictor-corrector
       linear solver. 0 means a pure linear solve with no corrector steps.
-    convection_dirichlet_mode: See `fvm.convection_terms` docstring,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See `fvm.convection_terms` docstring,
-      `neumann_mode` argument.
     use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
       the nonlinear solver for the optional initial guess from the linear solver
     implicit_solver_type: The tridiagonal solver algorithm to use for the
@@ -68,12 +64,6 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   n_corrector_steps: Annotated[
       pydantic.PositiveInt, torax_pydantic.JAX_STATIC
   ] = 10
-  convection_dirichlet_mode: Annotated[
-      Literal['ghost', 'direct', 'semi-implicit'], torax_pydantic.JAX_STATIC
-  ] = 'ghost'
-  convection_neumann_mode: Annotated[
-      Literal['ghost', 'semi-implicit'], torax_pydantic.JAX_STATIC
-  ] = 'ghost'
   use_pereverzev: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   implicit_solver_type: Annotated[
       tridiagonal.SolverType, torax_pydantic.JAX_STATIC
@@ -91,10 +81,24 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   )
   delta_reduction_factor: float = 0.5
 
-  @property
-  @abc.abstractmethod
+  @functools.cached_property
   def build_runtime_params(self) -> runtime_params.RuntimeParams:
     """Builds runtime params from the config."""
+    return runtime_params.RuntimeParams(
+        theta_implicit=self.theta_implicit,
+        use_pereverzev=self.use_pereverzev,
+        use_predictor_corrector=self.use_predictor_corrector,
+        implicit_solver_type=self.implicit_solver_type,
+        chi_pereverzev=self.chi_pereverzev,
+        D_pereverzev=self.D_pereverzev,
+        n_corrector_steps=self.n_corrector_steps,
+        fixed_point_atol=self.fixed_point_atol,
+        fixed_point_rtol=self.fixed_point_rtol,
+        fixed_point_termination_criterion=self.fixed_point_termination_criterion,
+        fixed_point_sufficient_decrease=self.fixed_point_sufficient_decrease,
+        fixed_point_use_backtracking=self.fixed_point_use_backtracking,
+        delta_reduction_factor=self.delta_reduction_factor,
+    )
 
   @abc.abstractmethod
   def build_solver(
@@ -114,26 +118,6 @@ class LinearThetaMethod(BaseSolver):
   solver_type: Annotated[Literal['linear'], torax_pydantic.JAX_STATIC] = (
       'linear'
   )
-
-  @functools.cached_property
-  def build_runtime_params(self) -> runtime_params.RuntimeParams:
-    return runtime_params.RuntimeParams(
-        theta_implicit=self.theta_implicit,
-        convection_dirichlet_mode=self.convection_dirichlet_mode,
-        convection_neumann_mode=self.convection_neumann_mode,
-        use_pereverzev=self.use_pereverzev,
-        use_predictor_corrector=self.use_predictor_corrector,
-        implicit_solver_type=self.implicit_solver_type,
-        chi_pereverzev=self.chi_pereverzev,
-        D_pereverzev=self.D_pereverzev,
-        n_corrector_steps=self.n_corrector_steps,
-        fixed_point_atol=self.fixed_point_atol,
-        fixed_point_rtol=self.fixed_point_rtol,
-        fixed_point_termination_criterion=self.fixed_point_termination_criterion,
-        fixed_point_sufficient_decrease=self.fixed_point_sufficient_decrease,
-        fixed_point_use_backtracking=self.fixed_point_use_backtracking,
-        delta_reduction_factor=self.delta_reduction_factor,
-    )
 
   def build_solver(
       self,
@@ -187,30 +171,17 @@ class NewtonRaphsonThetaMethod(BaseSolver):
   def build_runtime_params(
       self,
   ) -> nonlinear_theta_method.NewtonRaphsonRuntimeParams:
+    base_params = super().build_runtime_params
     return nonlinear_theta_method.NewtonRaphsonRuntimeParams(
-        theta_implicit=self.theta_implicit,
-        convection_dirichlet_mode=self.convection_dirichlet_mode,
-        convection_neumann_mode=self.convection_neumann_mode,
-        use_pereverzev=self.use_pereverzev,
-        use_predictor_corrector=self.use_predictor_corrector,
-        implicit_solver_type=self.implicit_solver_type,
-        chi_pereverzev=self.chi_pereverzev,
-        D_pereverzev=self.D_pereverzev,
+        **vars(base_params),
         maxiter=self.n_max_iterations,
         residual_tol=self.residual_tol,
         residual_coarse_tol=self.residual_coarse_tol,
-        n_corrector_steps=self.n_corrector_steps,
-        delta_reduction_factor=self.delta_reduction_factor,
         tau_min=self.tau_min,
         initial_guess_mode=self.initial_guess_mode.value,  # pyrefly: ignore[bad-argument-type]
         log_iterations=self.log_iterations,
         vmap_linesearch=self.vmap_linesearch,
         max_linesearch_steps=self.max_linesearch_steps,
-        fixed_point_atol=self.fixed_point_atol,
-        fixed_point_rtol=self.fixed_point_rtol,
-        fixed_point_termination_criterion=self.fixed_point_termination_criterion,
-        fixed_point_sufficient_decrease=self.fixed_point_sufficient_decrease,
-        fixed_point_use_backtracking=self.fixed_point_use_backtracking,
     )
 
   def build_solver(
@@ -245,25 +216,12 @@ class OptimizerThetaMethod(BaseSolver):
   def build_runtime_params(
       self,
   ) -> nonlinear_theta_method.OptimizerRuntimeParams:
+    base_params = super().build_runtime_params
     return nonlinear_theta_method.OptimizerRuntimeParams(
-        theta_implicit=self.theta_implicit,
-        convection_dirichlet_mode=self.convection_dirichlet_mode,
-        convection_neumann_mode=self.convection_neumann_mode,
-        use_pereverzev=self.use_pereverzev,
-        use_predictor_corrector=self.use_predictor_corrector,
-        implicit_solver_type=self.implicit_solver_type,
-        chi_pereverzev=self.chi_pereverzev,
-        D_pereverzev=self.D_pereverzev,
+        **vars(base_params),
         n_max_iterations=self.n_max_iterations,
         loss_tol=self.loss_tol,
-        n_corrector_steps=self.n_corrector_steps,
         initial_guess_mode=self.initial_guess_mode.value,  # pyrefly: ignore[bad-argument-type]
-        fixed_point_atol=self.fixed_point_atol,
-        fixed_point_rtol=self.fixed_point_rtol,
-        fixed_point_termination_criterion=self.fixed_point_termination_criterion,
-        fixed_point_sufficient_decrease=self.fixed_point_sufficient_decrease,
-        fixed_point_use_backtracking=self.fixed_point_use_backtracking,
-        delta_reduction_factor=self.delta_reduction_factor,
     )
 
   def build_solver(

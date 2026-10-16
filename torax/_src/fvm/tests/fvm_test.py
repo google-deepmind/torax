@@ -17,6 +17,7 @@ import dataclasses
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
@@ -24,6 +25,8 @@ from torax._src.core_profiles import initialization
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
+from torax._src.fvm import convection_terms
+from torax._src.fvm import diffusion_terms
 from torax._src.fvm import implicit_solve_block
 from torax._src.fvm import residual_and_loss
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
@@ -263,7 +266,7 @@ class FVMTest(parameterized.TestCase):
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     # dt well under the explicit stability limit for dx=1 and chi=1
     dt = jnp.array(0.2)
@@ -297,7 +300,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
       )
 
       residual = residual_and_loss.theta_method_block_residual(
@@ -312,7 +315,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
       )
 
       np.testing.assert_allclose(loss, 0.0, atol=1e-7)
@@ -378,7 +381,7 @@ class FVMTest(parameterized.TestCase):
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     initial_right_boundary = jnp.array(0.0)
     x_0 = cell_variable.CellVariable(
@@ -500,7 +503,7 @@ class FVMTest(parameterized.TestCase):
         explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     initial_right_boundary = jnp.array(0.0)
@@ -537,7 +540,7 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
       )
       np.testing.assert_allclose(residual, 0.0)
     with self.subTest('updated_boundary_conditions'):
@@ -562,7 +565,7 @@ class FVMTest(parameterized.TestCase):
           models=models,
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_implicit > 0, the residual should be non-zero.
@@ -583,9 +586,175 @@ class FVMTest(parameterized.TestCase):
           explicit_source_profiles=explicit_source_profiles,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
-          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+          pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
+
+
+def _ghost_extended_values(
+    u: jax.Array | np.ndarray,
+    cell_widths: np.ndarray,
+    bc_kwargs: dict[str, float | None],
+) -> jax.Array:
+  """Returns `u` padded with mirrored ghost-cell values at both edges."""
+  left_value = bc_kwargs['left_face_constraint']
+  left_grad = bc_kwargs['left_face_grad_constraint']
+  right_value = bc_kwargs['right_face_constraint']
+  right_grad = bc_kwargs['right_face_grad_constraint']
+  if left_value is not None:
+    u_left = 2.0 * left_value - u[0]
+  else:
+    assert left_grad is not None
+    u_left = u[0] - cell_widths[0] * left_grad
+  if right_value is not None:
+    u_right = 2.0 * right_value - u[-1]
+  else:
+    assert right_grad is not None
+    u_right = u[-1] + cell_widths[-1] * right_grad
+  return jnp.concatenate([jnp.array([u_left]), u, jnp.array([u_right])])
+
+
+# Boundary conditions consistent with the linear profile u(x) = 1 + 3x.
+_NON_UNIFORM_GRID_BCS = (
+    dict(
+        testcase_name='dirichlet',
+        bc_kwargs=dict(
+            left_face_constraint=1.0,
+            left_face_grad_constraint=None,
+            right_face_constraint=5.2,
+            right_face_grad_constraint=None,
+        ),
+    ),
+    dict(
+        testcase_name='neumann',
+        bc_kwargs=dict(
+            left_face_constraint=None,
+            left_face_grad_constraint=3.0,
+            right_face_constraint=None,
+            right_face_grad_constraint=3.0,
+        ),
+    ),
+)
+
+
+class NonUniformGridTermsTest(parameterized.TestCase):
+  """Tests diffusion and convection terms on an asymmetric non-uniform mesh."""
+
+  # Cell widths (0.2, 0.4, 0.8) and center spacings (0.3, 0.6) are distinct.
+  # NumPy (not JAX) arrays: class attributes are evaluated at import time.
+  _FACE_CENTERS = np.array([0.0, 0.2, 0.6, 1.4])
+  # Linear profile u(x) = 1 + 3x evaluated at the cell centers (0.1, 0.4, 1.0).
+  _U_LINEAR = np.array([1.3, 2.2, 4.0])
+  # Arbitrary non-linear cell values.
+  _U = np.array([1.2, -0.5, 2.3])
+
+  def setUp(self):
+    super().setUp()
+    self.cell_widths = np.diff(self._FACE_CENTERS)
+    cell_centers = 0.5 * (self._FACE_CENTERS[1:] + self._FACE_CENTERS[:-1])
+    self.center_spacings = np.diff(cell_centers)
+
+  def _make_var(
+      self, value: np.ndarray, bc_kwargs: dict[str, float | None]
+  ) -> cell_variable.CellVariable:
+    return cell_variable.CellVariable(
+        value=jnp.asarray(value),
+        face_centers=self._FACE_CENTERS,
+        **{
+            k: None if v is None else jnp.asarray(v)
+            for k, v in bc_kwargs.items()
+        },
+    )
+
+  @parameterized.named_parameters(*_NON_UNIFORM_GRID_BCS)
+  def test_diffusion_terms(self, bc_kwargs: dict[str, float | None]):
+    with self.subTest('linear_profile_zero_divergence'):
+      linear_var = self._make_var(self._U_LINEAR, bc_kwargs)
+      mat, vec = diffusion_terms.make_diffusion_terms(
+          d_face=jnp.full(4, 2.5), var=linear_var
+      )
+      np.testing.assert_allclose(
+          mat.matvec(linear_var.value) + vec, 0.0, atol=1e-13
+      )
+
+    with self.subTest('flux_balance'):
+      var = self._make_var(self._U, bc_kwargs)
+      d_face = jnp.array([1.5, 2.0, 0.8, 3.0])
+      mat, vec = diffusion_terms.make_diffusion_terms(d_face=d_face, var=var)
+      u_ext = _ghost_extended_values(var.value, self.cell_widths, bc_kwargs)
+      # Ghost cells mirror the boundary cells, so the distance between a ghost
+      # cell center and its neighbor is the boundary cell width.
+      face_spacings = np.concatenate([
+          self.cell_widths[:1],
+          self.center_spacings,
+          self.cell_widths[-1:],
+      ])
+      face_flux = d_face * jnp.diff(u_ext) / face_spacings
+      np.testing.assert_allclose(
+          mat.matvec(var.value) + vec,
+          jnp.diff(face_flux) / self.cell_widths,
+          atol=1e-13,
+      )
+
+  @parameterized.named_parameters(*_NON_UNIFORM_GRID_BCS)
+  def test_convection_terms(self, bc_kwargs: dict[str, float | None]):
+    var = self._make_var(self._U, bc_kwargs)
+    u = var.value
+    v_face = jnp.array([0.7, -1.3, 0.9, -0.4])
+    d_face = jnp.array([1.0, 1.1, 0.3, 2.0])
+    # Péclet numbers use center-to-center spacings in the interior and the
+    # cell-center-to-face half-width at the boundaries.
+    peclet_spacings = np.concatenate([
+        0.5 * self.cell_widths[:1],
+        self.center_spacings,
+        0.5 * self.cell_widths[-1:],
+    ])
+    peclet = peclet_spacings * v_face / d_face
+    # The face Péclet numbers (0.07, -0.35, 1.8, -0.08) straddle the series
+    # threshold, so both branches of `_peclet_to_alpha` are exercised.
+    abs_peclet = np.abs(np.asarray(peclet))
+    self.assertTrue(np.any(abs_peclet < convection_terms._SMALL_PECLET))
+    self.assertTrue(np.any(abs_peclet >= convection_terms._SMALL_PECLET))
+
+    with self.subTest('flux_assembly'):
+      mat, vec = convection_terms.make_convection_terms(v_face, d_face, var)
+      u_ext = _ghost_extended_values(u, self.cell_widths, bc_kwargs)
+      alpha = convection_terms._peclet_to_alpha(peclet)
+      face_flux = v_face * (alpha * u_ext[:-1] + (1.0 - alpha) * u_ext[1:])
+      np.testing.assert_allclose(
+          mat.matvec(u) + vec,
+          -jnp.diff(face_flux) / self.cell_widths,
+          atol=1e-13,
+      )
+
+    with self.subTest('conservation'):
+      # With zero velocity on the boundary faces, the interior face fluxes
+      # must cancel in the volume-weighted sum regardless of face weighting.
+      v_face_closed = v_face.at[0].set(0.0).at[-1].set(0.0)
+      mat, vec = convection_terms.make_convection_terms(
+          v_face_closed, d_face, var
+      )
+      np.testing.assert_allclose(
+          jnp.sum(self.cell_widths * (mat.matvec(u) + vec)), 0.0, atol=1e-13
+      )
+
+    with self.subTest('zero_peclet_arithmetic_mean_face_values'):
+      # Pereverzev counter-convection relies on `d_face=inf` giving exactly
+      # the arithmetic-mean interior face values and the CellVariable boundary
+      # face values (see `pereverzev._midpoint_face_value`).
+      mat, vec = convection_terms.make_convection_terms(
+          v_face, jnp.full_like(v_face, jnp.inf), var
+      )
+      u_face = jnp.concatenate([
+          var.left_face_value,
+          0.5 * (u[:-1] + u[1:]),
+          var.right_face_value,
+      ])
+      np.testing.assert_allclose(
+          mat.matvec(u) + vec,
+          -jnp.diff(v_face * u_face) / self.cell_widths,
+          atol=1e-13,
+      )
 
 
 class Block1DCoeffsTest(parameterized.TestCase):

@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dataclasses
+import re
 from absl.testing import absltest
 import numpy as np
+import pydantic
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
@@ -40,34 +42,27 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_initial_guess_config_defaults(self):
     """Checks default values for the initial guess config."""
     config = pydantic_model.ExtendedLengyelConfig()
-    self.assertIsNone(config.initial_guess.alpha_t)
-    self.assertIsNone(config.initial_guess.kappa_e)
-    self.assertIsNone(config.initial_guess.T_e_separatrix)
-    self.assertIsNone(config.initial_guess.T_e_target)
-    self.assertIsNone(config.initial_guess.c_z_prefactor)
-    self.assertTrue(config.initial_guess.use_previous_step_as_guess)
-
-  def test_initial_guess_runtime_params(self):
-    """Tests that initial guess parameters are correctly built."""
-    config = pydantic_model.ExtendedLengyelConfig(
-        initial_guess=pydantic_model.InitialGuessConfig(
-            alpha_t=0.5,
-            T_e_target=5.0,
-        )
+    self.assertEqual(
+        config.initial_guess.alpha_t.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT,
     )
-    runtime_params = config.build_runtime_params(t=0.0)
-
-    self.assertEqual(runtime_params.initial_guess.alpha_t, 0.5)
-    self.assertTrue(runtime_params.initial_guess.alpha_t_provided)
-
-    self.assertEqual(runtime_params.initial_guess.T_e_target, 5.0)
-    self.assertTrue(runtime_params.initial_guess.T_e_target_provided)
-
-    # Check default/non-provided values
-    self.assertEqual(runtime_params.initial_guess.kappa_e, 0.0)
-    self.assertFalse(runtime_params.initial_guess.kappa_e_provided)
-
-    self.assertTrue(runtime_params.initial_guess.use_previous_step_as_guess)
+    self.assertEqual(
+        config.initial_guess.kappa_e.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT,
+    )
+    self.assertEqual(
+        config.initial_guess.T_e_separatrix.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT,
+    )
+    self.assertEqual(
+        config.initial_guess.T_e_target.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD,
+    )
+    self.assertEqual(
+        config.initial_guess.c_z_prefactor.get_value(0.0),
+        extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT,
+    )
+    self.assertTrue(config.initial_guess.use_previous_step_as_guess)
 
   def test_fixed_point_iterations_default(self):
     # Default solver_mode is HYBRID
@@ -89,6 +84,21 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
         fixed_point_iterations=100
     )
     self.assertEqual(config_override.fixed_point_iterations, 100)
+
+  def test_fixed_point_relaxation_factor(self):
+    config = pydantic_model.ExtendedLengyelConfig()
+    self.assertEqual(
+        config.fixed_point_relaxation_factor,
+        extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR,
+    )
+    config_override = pydantic_model.ExtendedLengyelConfig(
+        fixed_point_relaxation_factor=0.6
+    )
+    self.assertEqual(config_override.fixed_point_relaxation_factor, 0.6)
+    with self.assertRaises(ValueError):
+      pydantic_model.ExtendedLengyelConfig(fixed_point_relaxation_factor=0.0)
+    with self.assertRaises(ValueError):
+      pydantic_model.ExtendedLengyelConfig(fixed_point_relaxation_factor=1.1)
 
   def test_torax_config_integration(self):
     """Ensures ToraxConfig can parse the new edge field."""
@@ -242,6 +252,66 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
           seed_impurity_weights={},
           enrichment_factor={},
       )
+
+  def test_computation_mode_inverse_raises_on_zero_total_seed_weight(self):
+    cases = {
+        'constant_zero': {'N': 0.0, 'Ar': 0.0},
+        'near_zero': {'N': 1e-9, 'Ar': 0.0},
+        'zero_at_one_time': {'N': {0.0: 1.0, 1.0: 0.0}, 'Ar': 0.0},
+        'zero_over_interval_between_species': {
+            'N': {0.0: 1.0, 1.0: 0.0},
+            'Ar': {0.0: 0.0, 2.0: 0.0, 3.0: 1.0},
+        },
+    }
+    for name, seed_impurity_weights in cases.items():
+      with self.subTest(name):
+        with self.assertRaisesRegex(
+            ValueError,
+            'The sum of seed_impurity_weights must be positive',
+        ):
+          pydantic_model.ExtendedLengyelConfig(
+              use_enrichment_model=False,
+              computation_mode='inverse',
+              T_e_target=10.0,
+              seed_impurity_weights=seed_impurity_weights,
+              enrichment_factor={'N': 1.0, 'Ar': 1.0},
+          )
+
+  def test_computation_mode_inverse_raises_on_unsupported_seed_impurity(self):
+    # W is a real species that is reachable from a full ToraxConfig, but has
+    # no Mavrin fit. 'Xx' is a fake symbol that can never be supported.
+    cases = {
+        'only_unsupported': ({'W': 1.0}, ['W']),
+        'mixed': ({'N': 1.0, 'W': 0.1}, ['W']),
+        'fake_symbol': ({'Xx': 1.0}, ['Xx']),
+    }
+    for name, (seed_impurity_weights, unsupported) in cases.items():
+      with self.subTest(name):
+        with self.assertRaisesRegex(
+            ValueError,
+            'without a non-coronal Mavrin cooling rate fit.*'
+            + re.escape(str(unsupported)),
+        ):
+          pydantic_model.ExtendedLengyelConfig(
+              use_enrichment_model=False,
+              computation_mode='inverse',
+              T_e_target=10.0,
+              seed_impurity_weights=seed_impurity_weights,
+              enrichment_factor={key: 1.0 for key in seed_impurity_weights},
+          )
+
+  def test_computation_mode_inverse_allows_seed_species_handover(self):
+    # The total seeded weight stays positive while species are swapped.
+    pydantic_model.ExtendedLengyelConfig(
+        use_enrichment_model=False,
+        computation_mode='inverse',
+        T_e_target=10.0,
+        seed_impurity_weights={
+            'N': {0.0: 1.0, 1.0: 0.0},
+            'Ar': {0.0: 0.0, 1.0: 1.0},
+        },
+        enrichment_factor={'N': 1.0, 'Ar': 1.0},
+    )
 
   def test_computation_mode_inverse_raises_on_none_seed_impurities(self):
     with self.assertRaisesRegex(
@@ -433,7 +503,8 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     # Combine dynamic inputs and runtime params to call standalone function
     runtime_params_dict = dataclasses.asdict(runtime_params)
     runtime_params_dict.pop('enrichment_factor')
-    runtime_params_dict.pop('update_temperatures')
+    runtime_params_dict.pop('update_electron_temperature')
+    runtime_params_dict.pop('update_ion_temperature')
     runtime_params_dict.pop('update_electron_density')
     runtime_params_dict.pop('update_impurities')
     runtime_params_dict.pop('use_enrichment_model')
@@ -480,28 +551,43 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     ):
       pydantic_model.ExtendedLengyelConfig(multistart_num_guesses=1)
 
-  def test_update_temperatures_time_varying(self):
-    config = pydantic_model.ExtendedLengyelConfig(
-        use_enrichment_model=False,
-        computation_mode='inverse',
-        T_e_target=10.0,
-        seed_impurity_weights={'N': 1.0},
-        enrichment_factor={'N': 1.0},
-        update_temperatures={0.0: False, 1.0: True},
+  def test_update_electron_density_default_and_explicit_false_valid(self):
+    with self.subTest('default'):
+      config_default = pydantic_model.ExtendedLengyelConfig()
+      self.assertFalse(config_default.update_electron_density.value.any())
+
+    with self.subTest('explicit_false'):
+      config_explicit_false = pydantic_model.ExtendedLengyelConfig(
+          update_electron_density=False
+      )
+      self.assertFalse(
+          config_explicit_false.update_electron_density.value.any()
+      )
+
+  def test_update_electron_density_time_varying_false_valid(self):
+    config_time_varying_false = pydantic_model.ExtendedLengyelConfig(
+        update_electron_density={0.0: False, 1.0: False}
     )
-    # Check that before the step the value is False.
-    runtime_params_before = config.build_runtime_params(t=0.9)
-    self.assertFalse(runtime_params_before.update_temperatures)
+    self.assertFalse(
+        config_time_varying_false.update_electron_density.value.any()
+    )
 
-    # STEP interpolation uses left-open intervals: for x in (x_k, x_k+1],
-    # the output is y_k+1. At t=1.0 we are still in the first interval so
-    # the value has not yet switched. See b/454891040.
-    runtime_params_at = config.build_runtime_params(t=1.0)
-    self.assertFalse(runtime_params_at.update_temperatures)
+  def test_update_electron_density_scalar_and_time_varying_true_raises(self):
+    with self.subTest('scalar_true'):
+      with self.assertRaisesRegex(
+          pydantic.ValidationError,
+          'ExtendedLengyelConfig does not support update_electron_density.',
+      ):
+        pydantic_model.ExtendedLengyelConfig(update_electron_density=True)
 
-    # Just past the breakpoint the value switches to True.
-    runtime_params_after = config.build_runtime_params(t=1.01)
-    self.assertTrue(runtime_params_after.update_temperatures)
+    with self.subTest('time_varying_true'):
+      with self.assertRaisesRegex(
+          pydantic.ValidationError,
+          'ExtendedLengyelConfig does not support update_electron_density.',
+      ):
+        pydantic_model.ExtendedLengyelConfig(
+            update_electron_density={0.0: False, 1.0: True}
+        )
 
 
 if __name__ == '__main__':

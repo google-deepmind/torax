@@ -217,7 +217,7 @@ def update_psi_from_j(
   assert y.ndim == 1
   assert geo.rho_hires.ndim == 1
   Ip_profile = math_utils.cumulative_trapezoid(
-      y=y, x=geo.rho_hires_norm, initial=0.0  # pyrefly: ignore[bad-argument-type]
+      y=y, x=geo.rho_hires_norm, initial=0.0
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
@@ -229,7 +229,7 @@ def update_psi_from_j(
 
   # psi on hires cell grid
   psi_hires = math_utils.cumulative_trapezoid(
-      y=dpsi_drhon_hires, x=geo.rho_hires_norm, initial=0.0  # pyrefly: ignore[bad-argument-type]
+      y=dpsi_drhon_hires, x=geo.rho_hires_norm, initial=0.0
   )
 
   psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
@@ -521,7 +521,7 @@ def _calculate_all_psi_dependent_profiles(
     psidot_value = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=psi_sources,
         sigma=neoclassical_outputs.conductivity.sigma,
-        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,  # pyrefly: ignore[bad-argument-type]
+        resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
         psi=psi,
         geo=geo,
     )
@@ -537,7 +537,7 @@ def _calculate_all_psi_dependent_profiles(
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=psidot_value,
-      right_face_constraint=v_loop_lcfs,  # pyrefly: ignore[bad-argument-type]
+      right_face_constraint=v_loop_lcfs,
       right_face_grad_constraint=None,
   )
   core_profiles = dataclasses.replace(
@@ -581,8 +581,8 @@ def _iterate_psi_and_sources(
         runtime_params,
         geo,
         source_profiles.bootstrap_current,
-        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(  # pyrefly: ignore[bad-argument-type]
-            sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
+        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
+            sum(source_profiles.psi.values(), start=jnp.zeros_like(geo.rho)),
             geo,
             runtime_params.numerics.min_rho_norm,
         ),
@@ -621,7 +621,7 @@ def get_j_toroidal_total_hires_with_external_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
-    j_toroidal_external: jax.Array,
+    j_toroidal_external: array_typing.FloatVectorCell,
 ) -> jax.Array:
   """Calculates j_total hires when the Ohmic current is given by a formula."""
   # Convert bootstrap current density to toroidal, and calculate high-resolution
@@ -631,8 +631,13 @@ def get_j_toroidal_total_hires_with_external_sources(
       geo,
       runtime_params.numerics.min_rho_norm,
   )
+  j_toroidal_bootstrap_face = math_utils.cell_to_face(
+      j_toroidal_bootstrap,
+      geo,
+      preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
+  )
   j_toroidal_bootstrap_hires = jnp.interp(
-      geo.rho_hires, geo.rho_face, bootstrap_current.j_parallel_bootstrap_face
+      geo.rho_hires, geo.rho_face, j_toroidal_bootstrap_face
   )
 
   # Calculate high-resolution version of external (eg ECCD) current density

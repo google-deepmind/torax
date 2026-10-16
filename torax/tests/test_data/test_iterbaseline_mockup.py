@@ -14,7 +14,6 @@
 
 """ITER baseline approximately based on Mantica PPCF 2021."""
 
-
 CONFIG = {
     'plasma_composition': {
         # physical inputs
@@ -134,13 +133,14 @@ CONFIG = {
         },
     },
     'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-        'T_i_ped': 5,  # ion pedestal top temperature in keV for T_i and T_e
-        # electron pedestal top temperature in keV for T_i and T_e
-        'T_e_ped': 5,
-        'n_e_ped': 0.68e20,  # pedestal top electron density in m^-3
-        'rho_norm_ped_top': 0.93,  # set ped top location in normalized radius
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'T_i_ped': 5,  # ion pedestal top temperature in keV for T_i and T_e
+            # electron pedestal top temperature in keV for T_i and T_e
+            'T_e_ped': 5,
+            'n_e_ped': 0.68e20,  # pedestal top electron density in m^-3
+            'rho_norm_ped_top': 0.93,  # ped top location in normalized radius
+        },
     },
     'transport': {
         'core_transport_models': {

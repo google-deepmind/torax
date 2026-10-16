@@ -44,8 +44,7 @@ CONFIG = {
         'generic_current': {},
     },
     'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
+        'structure_model': {'model_name': 'set_T_ped_n_ped'},
     },
     'transport': {
         'core_transport_models': {

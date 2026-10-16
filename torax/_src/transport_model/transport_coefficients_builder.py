@@ -33,7 +33,8 @@ from torax._src.transport_model import transport_model as transport_model_lib
     static_argnames=(
         'transport_model',
         'use_pereverzev',
-    )
+    ),
+    inline=jax.Inline.XLA_LATE,
 )
 def calculate_all_transport_coeffs(
     transport_model: transport_model_lib.TransportModel,
@@ -57,13 +58,10 @@ def calculate_all_transport_coeffs(
   )
 
   if use_pereverzev:
-    pereverzev_transport_coeffs = (
-        pereverzev_lib.calculate_pereverzev_transport(
-            runtime_params,
-            geo,
-            core_profiles,
-            two_point_mask,
-        )
+    pereverzev_transport_coeffs = pereverzev_lib.calculate_pereverzev_transport(
+        runtime_params,
+        geo,
+        core_profiles,
     )
     # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
     # coefficients in the pedestal region to zero.
@@ -73,7 +71,7 @@ def calculate_all_transport_coeffs(
         geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top,
         False,
     )
-    pereverzev_transport_coeffs = jax.tree_util.tree_map(
+    pereverzev_transport_coeffs = jax.tree.map(
         lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
         pereverzev_transport_coeffs,
     )

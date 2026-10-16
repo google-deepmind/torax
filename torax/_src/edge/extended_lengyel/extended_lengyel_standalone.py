@@ -33,6 +33,7 @@ from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
+from torax._src.physics.radiation import radiation
 from torax._src.solver import jax_root_finding
 import xarray as xr
 
@@ -114,6 +115,16 @@ ALPHA_T = output_keys.OutputKey(
     units=output_keys.Units.DIMENSIONLESS,
     grid_type=output_keys.GridType.SCALAR,
 )
+KAPPA_E = output_keys.OutputKey(
+    'kappa_e',
+    units=output_keys.Units.W_PER_M_EV35,
+    grid_type=output_keys.GridType.SCALAR,
+)
+C_Z_PREFACTOR = output_keys.OutputKey(
+    'c_z_prefactor',
+    units=output_keys.Units.DIMENSIONLESS,
+    grid_type=output_keys.GridType.SCALAR,
+)
 Z_EFF_SEPARATRIX = output_keys.OutputKey(
     'Z_eff_separatrix',
     units=output_keys.Units.DIMENSIONLESS,
@@ -161,7 +172,7 @@ N_ROOTS = output_keys.OutputKey(
 )
 SEED_IMPURITY_CONCENTRATIONS = output_keys.OutputKey(
     'seed_impurity_concentrations',
-    units=output_keys.Units.INVERSE_CUBIC_METER,
+    units=output_keys.Units.DIMENSIONLESS,
     grid_type=output_keys.GridType.NOT_APPLICABLE,
 )
 CALCULATED_ENRICHMENT = output_keys.OutputKey(
@@ -189,6 +200,8 @@ _EXTENDED_LENGYEL_KEYS: dict[str, output_keys.OutputKey] = {
         T_E_TARGET,
         PRESSURE_NEUTRAL_DIVERTOR,
         ALPHA_T,
+        KAPPA_E,
+        C_Z_PREFACTOR,
         Z_EFF_SEPARATRIX,
         MULTIPLE_ROOTS_FOUND,
         SOLVER_PHYSICS_OUTCOME,
@@ -217,10 +230,10 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     T_e_separatrix: Electron temperature at the separatrix [keV].
     T_e_target: Electron temperature at sheath entrance [eV].
     pressure_neutral_divertor: Neutral pressure in the divertor [Pa].
-    alpha_t: Turbulence broadening factor alpha_t.
+    alpha_t: Turbulence broadening factor alpha_t [dimensionless].
     kappa_e: Electron heat conductivity prefactor [W/(m*eV^3.5)].
     c_z_prefactor: Impurity concentration prefactor [dimensionless].
-    Z_eff_separatrix: Z_eff at the separatrix.
+    Z_eff_separatrix: Z_eff at the separatrix [dimensionless].
     seed_impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
     solver_status: Status of the solver.
     calculated_enrichment: A mapping from ion symbol to its enrichment factor as
@@ -270,7 +283,12 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     # This ensures all relevant output fields are handled.
     fields_to_compress = {}
     for field in dataclasses.fields(roots):
-      if field.name in ['roots', 'multiple_roots_found', 'solver_status']:
+      if field.name in [
+          'roots',
+          'multiple_roots_found',
+          'solver_status',
+          'valid_for_core_update',
+      ]:
         continue  # Skip recursive field and internal flags
       value = getattr(roots, field.name)
       if isinstance(value, (jax.Array, np.ndarray)):
@@ -438,21 +456,22 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     output_args['impurity_right_bc'] = new_impurity_right_bc
     output_args['roots'] = None
     output_args['multiple_roots_found'] = None
+    output_args['valid_for_core_update'] = self.valid_for_core_update
 
     return self.__class__(**output_args)
 
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
-  ) -> dict[str, Any]:
+  ) -> dict[str, output_grid_context.OutputVar]:
     """Extends base edge output dictionary with Extended Lengyel variables."""
     out_dict = super().to_output_dict(context)
 
     # 1. Scalar variables
     scalars: dict[str, output_grid_context.OutputVar] = {
         ALPHA_T: context.pack(ALPHA_T, self.alpha_t),
-        Z_EFF_SEPARATRIX: context.pack(
-            Z_EFF_SEPARATRIX, self.Z_eff_separatrix
-        ),
+        KAPPA_E: context.pack(KAPPA_E, self.kappa_e),
+        C_Z_PREFACTOR: context.pack(C_Z_PREFACTOR, self.c_z_prefactor),
+        Z_EFF_SEPARATRIX: context.pack(Z_EFF_SEPARATRIX, self.Z_eff_separatrix),
     }
     if self.solver_status.physics_outcome is not None:
       scalars[SOLVER_PHYSICS_OUTCOME] = context.pack(
@@ -491,6 +510,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         base.pack_impurity_mapping(
             SEED_IMPURITY_CONCENTRATIONS,
             self.seed_impurity_concentrations,
+            context=context,
             dim_name=SEED_IMPURITY,
         )
     )
@@ -498,6 +518,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
         base.pack_impurity_mapping(
             CALCULATED_ENRICHMENT,
             self.calculated_enrichment,
+            context=context,
             dim_name=ENRICHMENT_IMPURITY,
         )
     )
@@ -554,6 +575,7 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
           ROOTS,
           MULTIPLE_ROOTS_FOUND,
           'solver_status',
+          'valid_for_core_update',
       ):
         continue
 
@@ -583,27 +605,14 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
       self, context: output_grid_context.OutputGridContext
   ) -> xr.DataTree:
     """Builds the xr.DataTree for the 'edge' node, with optional roots subtree."""
-    coords: dict[str, Any] = {output_keys.TIME: context.times}
-    if self.seed_impurity_concentrations:
-      coords[SEED_IMPURITY] = sorted(
-          list(self.seed_impurity_concentrations.keys())
-      )
-    if self.calculated_enrichment:
-      coords[ENRICHMENT_IMPURITY] = sorted(
-          list(self.calculated_enrichment.keys())
-      )
-    if self.impurity_right_bc:
-      coords[output_keys.IMPURITY] = sorted(list(self.impurity_right_bc.keys()))
-    edge_dataset = context.build_dataset(
-        self.to_output_dict(context), coords=coords
-    )
+    edge_dataset = context.build_dataset(self.to_output_dict(context))
     children = {}
     if self.roots is not None:
       roots_dict = self._process_roots_output(context)
       if roots_dict:
         children[ROOTS] = xr.DataTree(
-            dataset=context.build_dataset(
-                roots_dict, coords={output_keys.TIME: context.times}
+            dataset=xr.Dataset(
+                data_vars=roots_dict, coords={output_keys.TIME: context.times}
             )
         )
     return xr.DataTree(children=children, dataset=edge_dataset)
@@ -669,6 +678,9 @@ def run_extended_lengyel_standalone(
     mach_target: array_typing.FloatScalar = extended_lengyel_defaults.MACH_TARGET,
     toroidal_flux_expansion: array_typing.FloatScalar = extended_lengyel_defaults.TOROIDAL_FLUX_EXPANSION,
     fixed_point_iterations: int | None = None,
+    fixed_point_relaxation_factor: float = (
+        extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR
+    ),
     newton_raphson_iterations: int = extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS,
     newton_raphson_tol: float = extended_lengyel_defaults.NEWTON_RAPHSON_TOL,
     multistart_num_guesses: int = extended_lengyel_defaults.MULTISTART_NUM_GUESSES,
@@ -735,6 +747,8 @@ def run_extended_lengyel_standalone(
       then a default value is used based on the solver mode: different defaults
       for hybrid and fixed-step solvers. For Newton-Raphson, this argument is
       ignored and remains None if inputted as None.
+    fixed_point_relaxation_factor: Under-relaxation factor in (0, 1] for
+      forward-mode fixed-point iterations.
     newton_raphson_iterations: Number of iterations for Newton-Raphson solver.
     newton_raphson_tol: Tolerance for Newton-Raphson solver.
     multistart_num_guesses: Number of initial guesses for multistart solver.
@@ -818,6 +832,7 @@ def run_extended_lengyel_standalone(
         initial_sol_model=initial_sol_model,
         solver_mode=solver_mode,
         fixed_point_iterations=fixed_point_iterations,
+        fixed_point_relaxation_factor=fixed_point_relaxation_factor,
         newton_raphson_iterations=newton_raphson_iterations,
         newton_raphson_tol=newton_raphson_tol,
         diverted=diverted,
@@ -834,6 +849,7 @@ def run_extended_lengyel_standalone(
         computation_mode=computation_mode,
         solver_mode=solver_mode,
         fixed_point_iterations=fixed_point_iterations,
+        fixed_point_relaxation_factor=fixed_point_relaxation_factor,
         newton_raphson_iterations=newton_raphson_iterations,
         newton_raphson_tol=newton_raphson_tol,
         diverted=diverted,
@@ -1015,6 +1031,7 @@ def _execute_solver(
     computation_mode: extended_lengyel_enums.ComputationMode,
     solver_mode: extended_lengyel_enums.SolverMode,
     fixed_point_iterations: int,
+    fixed_point_relaxation_factor: float,
     newton_raphson_iterations: int,
     newton_raphson_tol: float,
 ) -> tuple[
@@ -1038,6 +1055,7 @@ def _execute_solver(
       return extended_lengyel_solvers.forward_mode_fixed_point_solver(
           initial_sol_model=sol_model_input,
           iterations=fixed_point_iterations,
+          relaxation_factor=fixed_point_relaxation_factor,
       )
     case (
         extended_lengyel_enums.ComputationMode.INVERSE,
@@ -1076,6 +1094,7 @@ def _execute_solver(
           fixed_point_iterations=fixed_point_iterations,
           newton_raphson_iterations=newton_raphson_iterations,
           newton_raphson_tol=newton_raphson_tol,
+          fixed_point_relaxation_factor=fixed_point_relaxation_factor,
       )
     case _:
       raise ValueError(
@@ -1088,6 +1107,7 @@ def _run_forward_mode_multistart(
     initial_sol_model: divertor_sol_1d_lib.DivertorSOL1D,
     solver_mode: extended_lengyel_enums.SolverMode,
     fixed_point_iterations: int,
+    fixed_point_relaxation_factor: float,
     newton_raphson_iterations: int,
     newton_raphson_tol: float,
     diverted: bool,
@@ -1134,6 +1154,7 @@ def _run_forward_mode_multistart(
         extended_lengyel_enums.ComputationMode.FORWARD,
         solver_mode,
         fixed_point_iterations,
+        fixed_point_relaxation_factor,
         newton_raphson_iterations,
         newton_raphson_tol,
     )
@@ -1253,7 +1274,9 @@ def _build_extended_lengyel_outputs(
 
   T_e_separatrix_keV = sol_model.T_e_separatrix / 1e3
   T_e_right_bc = T_e_separatrix_keV
-  T_i_right_bc = T_e_separatrix_keV * sol_model.params.T_i_T_e_ratio_target
+  T_i_right_bc = (
+      T_e_separatrix_keV * sol_model.params.T_i_T_e_ratio_separatrix
+  )
 
   return ExtendedLengyelOutputs(
       T_e_right_bc=T_e_right_bc,
@@ -1277,6 +1300,7 @@ def _build_extended_lengyel_outputs(
       calculated_enrichment=calculated_enrichment,
       roots=None,
       multiple_roots_found=multiple_roots_found,
+      valid_for_core_update=jnp.asarray(diverted, dtype=jnp.bool_),
   )
 
 
@@ -1285,6 +1309,7 @@ def _run_single_solver(
     computation_mode: extended_lengyel_enums.ComputationMode,
     solver_mode: extended_lengyel_enums.SolverMode,
     fixed_point_iterations: int,
+    fixed_point_relaxation_factor: float,
     newton_raphson_iterations: int,
     newton_raphson_tol: float,
     diverted: bool,
@@ -1301,6 +1326,7 @@ def _run_single_solver(
       computation_mode,
       solver_mode,
       fixed_point_iterations,
+      fixed_point_relaxation_factor,
       newton_raphson_iterations,
       newton_raphson_tol,
   )
@@ -1345,6 +1371,19 @@ def _validate_inputs_for_computation_mode(
       raise ValueError(
           'Seed impurity weights must be provided for inverse computation.'
       )
+    unsupported_seed_impurities = sorted(
+        ion_symbol
+        for ion_symbol in seed_impurity_weights
+        if not radiation.has_mavrin_cooling_rate(
+            ion_symbol, radiation.MavrinModelType.NONCORONAL
+        )
+    )
+    if unsupported_seed_impurities:
+      raise ValueError(
+          'Seed impurity weights contain species without a non-coronal Mavrin'
+          ' cooling rate fit, which the edge model treats as non-radiating:'
+          f' {unsupported_seed_impurities}.'
+      )
   else:
     raise ValueError(f'Unknown computation mode: {computation_mode}')
 
@@ -1354,7 +1393,7 @@ def _calc_post_processed_outputs(
 ) -> tuple[jax.Array, jax.Array]:
   """Calculates post-processed outputs for the extended Lengyel model."""
   sound_speed_at_target = jnp.sqrt(
-      2.0
+      (1.0 + sol_model.params.T_i_T_e_ratio_target)
       * sol_model.state.T_e_target
       * constants.CONSTANTS.eV_to_J
       / (sol_model.params.average_ion_mass * constants.CONSTANTS.m_amu)

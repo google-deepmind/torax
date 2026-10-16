@@ -112,12 +112,12 @@ def calc_q_face(
   """Calculates the q-profile on the face grid given poloidal flux (psi)."""
   # iota is standard terminology for 1/q
   inv_iota = jnp.abs(
-      (2 * geo.Phi_b * geo.rho_face_norm[1:]) / psi.face_grad()[1:]  # pyrefly: ignore[bad-index]
+      (2 * geo.Phi_b * geo.rho_face_norm[1:]) / psi.face_grad()[1:]
   )
 
   # Use L'Hôpital's rule to calculate iota on-axis, with psi_face_grad()[0]=0.
   inv_iota0 = jnp.expand_dims(
-      jnp.abs((2 * geo.Phi_b * geo.drho_norm[0]) / psi.face_grad()[1]), 0  # pyrefly: ignore[bad-index]
+      jnp.abs((2 * geo.Phi_b * geo.drho_norm[0]) / psi.face_grad()[1]), 0
   )
 
   q_face = jnp.concatenate([inv_iota0, inv_iota])
@@ -196,12 +196,12 @@ def calc_s_face(
 
   # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
   # the s calculation.
-  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))  # pyrefly: ignore[bad-index]
+  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
 
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0  # pyrefly: ignore[bad-index]
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
@@ -233,12 +233,12 @@ def calc_s_rmid(
 
   # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
   # the s calculation.
-  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))  # pyrefly: ignore[bad-index]
+  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
 
   # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
   # Using expand_dims to make it compatible with jnp.concatenate
   iota_scaled0 = jnp.expand_dims(
-      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0  # pyrefly: ignore[bad-index]
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm[0]), axis=0
   )
 
   iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
@@ -268,7 +268,7 @@ def calc_bpol_squared(
     bpol2_face: Square of poloidal magnetic field, on the face grid.
   """
   bpol2_bulk = (
-      (psi.face_grad()[1:] / (2 * jnp.pi)) ** 2  # pyrefly: ignore[bad-index]
+      (psi.face_grad()[1:] / (2 * jnp.pi)) ** 2
       * geo.g2_face[1:]
       / geo.vpr_face[1:] ** 2
   )
@@ -389,8 +389,8 @@ def calculate_v_loop_lcfs_from_psi(
   Returns:
     The updated v_loop_lcfs for the next timestep.
   """
-  psi_lcfs_t = psi_t.face_value()[-1]  # pyrefly: ignore[bad-index]
-  psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]  # pyrefly: ignore[bad-index]
+  psi_lcfs_t = psi_t.face_value()[-1]
+  psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]
   v_loop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt
   return v_loop_lcfs_t_plus_dt
 
@@ -399,7 +399,7 @@ def calculate_psidot_from_psi_sources(
     *,
     psi_sources: array_typing.FloatVector,
     sigma: array_typing.FloatVector,
-    resistivity_multiplier: float,
+    resistivity_multiplier: array_typing.FloatScalar,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,
 ) -> jax.Array:
@@ -445,7 +445,7 @@ def calculate_psidot_from_psi_sources(
   c_mat = diffusion_mat + conv_mat
   c = diffusion_vec + conv_vec + psi_sources
 
-  return (c_mat.matvec(psi.value) + c) / toc_psi  # pyrefly: ignore[bad-argument-type, bad-return]
+  return (c_mat.matvec(psi.value) + c) / toc_psi  # pyrefly: ignore[bad-return]
 
 
 def j_toroidal_to_j_parallel(

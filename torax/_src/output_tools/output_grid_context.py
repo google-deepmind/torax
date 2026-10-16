@@ -96,14 +96,30 @@ class OutputGridContext:
 
     return (dims, data_array, output_keys.get_units(key))
 
+  def register_coord(self, name: str, values: np.ndarray) -> None:
+    """Registers a coordinate array for a dimension name."""
+    if name in self.coords:
+      if not np.array_equal(self.coords[name], values):
+        raise ValueError(
+            f"Conflicting coordinate values registered for dimension '{name}'."
+        )
+    else:
+      self.coords[name] = values
+
   def build_dataset(
       self,
       data_vars: Mapping[str, OutputVar],
-      coords: Mapping[str, Any] | None = None,
   ) -> xr.Dataset:
-    """Builds an xr.Dataset from a mapping of variables and coordinates in one fast step."""
-    if coords is None:
-      coords = self.coords
+    """Builds an xr.Dataset from a mapping of variables in one fast step."""
+    used_dims = set()
+    for dims, _, _ in data_vars.values():
+      used_dims.update(dims)
+    coords = {}
+    for dim in used_dims:
+      if dim in self.coords:
+        coords[dim] = self.coords[dim]
+      else:
+        raise KeyError(f"Missing coordinate array for dimension '{dim}'.")
     return xr.Dataset(data_vars=data_vars, coords=coords)
 
 

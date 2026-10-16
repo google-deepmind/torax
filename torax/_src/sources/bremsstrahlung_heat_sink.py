@@ -16,7 +16,7 @@
 
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
-from typing import Annotated, ClassVar, Final, Literal
+from typing import Annotated, ClassVar, Literal
 import chex
 import jax
 from jax import numpy as jnp
@@ -31,11 +31,6 @@ from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
-
-# Default value for the model function to be used for the Bremsstrahlung heat
-# sink. This is also used as an identifier for the model function in the default
-# source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'wesson'
 
 
 @jax.tree_util.register_dataclass
@@ -113,39 +108,39 @@ def calc_bremsstrahlung(
   return P_brem_total, P_brem_profile_cell  # pyrefly: ignore[bad-return]
 
 
-def bremsstrahlung_model_func(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[jt.Float[jax.Array, ''], ...]:
-  """Model function for the Bremsstrahlung heat sink."""
-  source_params = runtime_params.sources[source_name]
-  assert isinstance(source_params, RuntimeParams)
-  _, P_brem_profile = calc_bremsstrahlung(
-      core_profiles,
-      geo,
-      use_relativistic_correction=source_params.use_relativistic_correction,
-      exclude_impurity_bremsstrahlung=source_params.exclude_impurity_bremsstrahlung,
-  )
-  # As a sink, the power is negative.
-  return (-1.0 * P_brem_profile,)
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
 
-  SOURCE_NAME: ClassVar[str] = 'bremsstrahlung'
+  SOURCE_ID: ClassVar[str] = 'bremsstrahlung'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_EL,
   )
-  model_func: source.SourceProfileFunction = bremsstrahlung_model_func  # pyrefly: ignore[bad-assignment]
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
+  ) -> tuple[source.SourceProfileElement, ...]:
+    del calculated_source_profiles, conductivity  # Unused.
+    source_params = runtime_params.sources[self.SOURCE_ID]
+    assert isinstance(source_params, RuntimeParams)
+    _, P_brem_profile = calc_bremsstrahlung(
+        core_profiles,
+        geo,
+        use_relativistic_correction=source_params.use_relativistic_correction,
+        exclude_impurity_bremsstrahlung=(
+            source_params.exclude_impurity_bremsstrahlung
+        ),
+    )
+    # As a sink, the power is negative.
+    return (-1.0 * P_brem_profile,)
 
 
-class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
+class BremsstrahlungHeatSinkConfig(base.SourceConfigBase):
   """Bremsstrahlung heat sink for electron heat equation.
 
   Attributes:
@@ -158,27 +153,17 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
   model_name: Annotated[Literal['wesson'], torax_pydantic.JAX_STATIC] = 'wesson'
   use_relativistic_correction: bool = False
   exclude_impurity_bremsstrahlung: bool = False
-  mode: Annotated[
-      sources_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC
-  ] = sources_runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return bremsstrahlung_model_func  # pyrefly: ignore[bad-return]
 
   def build_runtime_params(
       self,
       t: chex.Numeric,
   ) -> 'RuntimeParams':
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
+        **vars(base_params),
         use_relativistic_correction=self.use_relativistic_correction,
         exclude_impurity_bremsstrahlung=self.exclude_impurity_bremsstrahlung,
     )
 
   def build_source(self) -> BremsstrahlungHeatSink:
-    return BremsstrahlungHeatSink(model_func=self.model_func)
+    return BremsstrahlungHeatSink()

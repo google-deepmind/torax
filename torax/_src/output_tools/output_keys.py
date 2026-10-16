@@ -64,6 +64,7 @@ class Units(enum.StrEnum):
   KEV = "keV"
   EV = "eV"
   AMU = "amu"
+  DEGREE = "deg"
   # Composite / derived.
   INVERSE_METER = "m^-1"
   SQUARE_METER = "m^2"
@@ -80,6 +81,7 @@ class Units(enum.StrEnum):
   WATT_PER_SQUARE_METER = "W/m^2"
   WATT_PER_CUBIC_METER = "W/m^3"
   MW_PER_CUBIC_METER = "MW/m^3"
+  W_PER_M_EV35 = "W/(m*eV^3.5)"
   PASCAL_PER_WEBER = "Pa/Wb"
   WEBER_PER_SECOND = "Wb/s"
   TESLA_METER = "T m"
@@ -249,7 +251,9 @@ A_I: Final[OutputKey] = OutputKey(
     "A_i", units=Units.AMU, grid_type=GridType.SCALAR
 )
 A_IMPURITY: Final[OutputKey] = OutputKey(
-    "A_impurity", units=Units.AMU, grid_type=GridType.SCALAR
+    "A_impurity",
+    units=Units.AMU,
+    grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
 Z_I: Final[OutputKey] = OutputKey(
     "Z_i", units=Units.DIMENSIONLESS, grid_type=GridType.CELL_PLUS_BOUNDARIES
@@ -511,12 +515,6 @@ RHO_NORM: Final[OutputKey] = OutputKey(
     units=Units.DIMENSIONLESS,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
-RHO_FACE: Final[OutputKey] = OutputKey(
-    "rho_face", units=Units.METER, grid_type=GridType.FACE
-)
-RHO_CELL: Final[OutputKey] = OutputKey(
-    "rho_cell", units=Units.METER, grid_type=GridType.CELL
-)
 TIME: Final[OutputKey] = OutputKey(
     "time", units=Units.SECOND, grid_type=GridType.SCALAR
 )
@@ -538,18 +536,8 @@ J_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
-J_PARALLEL_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
-    "j_parallel_generic_current",
-    units=Units.AMPERE_PER_SQUARE_METER,
-    grid_type=GridType.CELL,
-)
 J_ECRH: Final[OutputKey] = OutputKey(
     "j_ecrh",
-    units=Units.AMPERE_PER_SQUARE_METER,
-    grid_type=GridType.CELL,
-)
-J_PARALLEL_ECRH: Final[OutputKey] = OutputKey(
-    "j_parallel_ecrh",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
@@ -941,22 +929,25 @@ SIM_STATUS: Final[OutputKey] = OutputKey(
 SIM_ERROR: Final[OutputKey] = OutputKey(
     "sim_error", units=Units.NOT_APPLICABLE, grid_type=GridType.NOT_APPLICABLE
 )
+SOLVER_ERROR_STATE: Final[OutputKey] = OutputKey(
+    "solver_error_state",
+    units=Units.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
+)
 OUTER_SOLVER_ITERATIONS: Final[OutputKey] = OutputKey(
     "outer_solver_iterations",
     units=Units.NOT_APPLICABLE,
-    grid_type=GridType.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
 )
 INNER_SOLVER_ITERATIONS: Final[OutputKey] = OutputKey(
     "inner_solver_iterations",
     units=Units.NOT_APPLICABLE,
-    grid_type=GridType.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
 )
-# Boolean array indicating whether the state corresponds to a
-# post-sawtooth-crash state.
 SAWTOOTH_CRASH: Final[OutputKey] = OutputKey(
     "sawtooth_crash",
     units=Units.NOT_APPLICABLE,
-    grid_type=GridType.NOT_APPLICABLE,
+    grid_type=GridType.SCALAR,
 )
 
 # ---------------------------------------------------------------------------
@@ -987,11 +978,32 @@ PHI_B_DOT: Final[OutputKey] = OutputKey(
 RHO_B: Final[OutputKey] = OutputKey(
     "rho_b", units=Units.METER, grid_type=GridType.SCALAR
 )
-DRHO: Final[OutputKey] = OutputKey(
-    "drho", units=Units.METER, grid_type=GridType.SCALAR
+CONNECTION_LENGTH_TARGET: Final[OutputKey] = OutputKey(
+    "connection_length_target",
+    units=Units.METER,
+    grid_type=GridType.SCALAR,
 )
-DRHO_NORM: Final[OutputKey] = OutputKey(
-    "drho_norm", units=Units.DIMENSIONLESS, grid_type=GridType.SCALAR
+CONNECTION_LENGTH_DIVERTOR: Final[OutputKey] = OutputKey(
+    "connection_length_divertor",
+    units=Units.METER,
+    grid_type=GridType.SCALAR,
+)
+ANGLE_OF_INCIDENCE_TARGET: Final[OutputKey] = OutputKey(
+    "angle_of_incidence_target",
+    units=Units.DEGREE,
+    grid_type=GridType.SCALAR,
+)
+R_OMP: Final[OutputKey] = OutputKey(
+    "R_OMP", units=Units.METER, grid_type=GridType.SCALAR
+)
+R_TARGET: Final[OutputKey] = OutputKey(
+    "R_target", units=Units.METER, grid_type=GridType.SCALAR
+)
+B_POL_OMP: Final[OutputKey] = OutputKey(
+    "B_pol_OMP", units=Units.TESLA, grid_type=GridType.SCALAR
+)
+DIVERTED: Final[OutputKey] = OutputKey(
+    "diverted", units=Units.NOT_APPLICABLE, grid_type=GridType.SCALAR
 )
 
 # ---------------------------------------------------------------------------

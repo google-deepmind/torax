@@ -27,6 +27,7 @@ from torax._src.core_profiles import initialization
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import plasma_composition
+from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output_grid_context
@@ -131,6 +132,47 @@ class InitialStatesTest(parameterized.TestCase):
           ),
       )
       self.assertFalse(new_core_profiles.negative_temperature_or_density())
+
+  def test_get_species_concentration(self):
+    config = default_configs.get_default_config_dict()
+    config['plasma_composition'] = {
+        'main_ion': {'D': 0.48, 'T': 0.48, 'He3': 0.04},
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'Ne': 0.01},
+        },
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    runtime_params = provider(t=0.0)
+    geo = torax_config.geometry.build_provider(t=0.0)
+    source_models = torax_config.sources.build_models()
+    neoclassical_model = torax_config.neoclassical.build_model()
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        source_models=source_models,
+        neoclassical_model=neoclassical_model,
+    )
+
+    with self.subTest('main ion species'):
+      he3_conc = core_profiles.get_species_concentration('He3')
+      self.assertEqual(he3_conc.shape, geo.rho_norm.shape)
+      np.testing.assert_allclose(
+          he3_conc,
+          core_profiles.n_i.value * 0.04 / core_profiles.n_e.value,
+      )
+
+    with self.subTest('impurity species'):
+      ne_conc = core_profiles.get_species_concentration('Ne')
+      self.assertEqual(ne_conc.shape, geo.rho_norm.shape)
+      np.testing.assert_allclose(ne_conc, 0.01)
+
+    with self.subTest('unknown species raises ValueError'):
+      with self.assertRaisesRegex(ValueError, 'Species W not found'):
+        core_profiles.get_species_concentration('W')
 
 
 class CoreProfilesTemperatureCheckTest(parameterized.TestCase):
@@ -367,6 +409,40 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         8.75e20 * constants.CONSTANTS.keV_to_J,
     )
 
+  def test_psi_norm_face_spans_zero_to_one(self):
+    psi = cell_variable.CellVariable(
+        value=1.0 + self.geo.rho_norm**2,
+        face_centers=self.geo.rho_face_norm,
+        right_face_grad_constraint=jnp.array(2.0),
+    )
+    core_profiles = dataclasses.replace(self.core_profiles, psi=psi)
+    np.testing.assert_allclose(
+        [core_profiles.psi_norm_face[0], core_profiles.psi_norm_face[-1]],
+        [0.0, 1.0],
+    )
+
+  def test_n_i_total_thermal_face_rescales_impurity_density(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    base_core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
+    # Bundled impurity charge <Z^2>/<Z> = 3 and <Z> = 2, so the true impurity
+    # particle density is 1.5x the bundled one.
+    core_profiles = dataclasses.replace(
+        base_core_profiles,
+        n_i=core_profile_helpers.make_constant_core_profile(geo, 2.5e20),
+        n_impurity=core_profile_helpers.make_constant_core_profile(
+            geo, 0.25e20
+        ),
+        Z_impurity_face=jnp.full_like(geo.rho_face, 3.0),
+        charge_state_info_face=dataclasses.replace(
+            base_core_profiles.charge_state_info_face,
+            Z_avg=jnp.full_like(geo.rho_face, 2.0),
+        ),
+    )
+
+    np.testing.assert_allclose(
+        core_profiles.n_i_total_thermal_face, 2.5e20 + 1.5 * 0.25e20
+    )
+
   def test_thermal_densities_with_fast_ions(self):
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
     base_core_profiles = core_profile_helpers.make_zero_core_profiles(geo)
@@ -458,7 +534,6 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     )
     out_dict = stacked_profiles.to_output_dict(context)
 
-    # 1. Cell + boundary profiles (CELL_PLUS_BOUNDARIES)
     cell_plus_boundaries_keys = (
         output_keys.T_I,
         output_keys.T_E,
@@ -476,6 +551,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         output_keys.PRESSURE_TOTAL,
         output_keys.Z_I,
         output_keys.Z_IMPURITY,
+        output_keys.A_IMPURITY,
         output_keys.Z_EFF,
         output_keys.SIGMA_PARALLEL,
         output_keys.J_TOROIDAL_TOTAL,
@@ -487,7 +563,6 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
       self.assertEqual(data.shape, (2, len(rho_cell_plus_boundaries)))
       self.assertIn('units', attrs)
 
-    # 2. Face profiles
     face_keys = (
         output_keys.Q,
         output_keys.MAGNETIC_SHEAR,
@@ -499,12 +574,10 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
       self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
       self.assertEqual(data.shape, (2, len(geo.rho_face_norm)))
 
-    # 3. Scalars
     scalar_keys = (
         output_keys.V_LOOP_LCFS,
         output_keys.A_I,
         output_keys.IP,
-        output_keys.A_IMPURITY,
     )
     for key in scalar_keys:
       self.assertIn(key, out_dict)
@@ -512,7 +585,6 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
       self.assertEqual(dims, (output_keys.TIME,))
       self.assertEqual(data.shape, (2,))
 
-    # 4. Multi-dimensional: main_ion_fractions
     self.assertIn(output_keys.MAIN_ION_FRACTIONS, out_dict)
     dims, data, attrs = out_dict[output_keys.MAIN_ION_FRACTIONS]
     self.assertEqual(
@@ -586,6 +658,12 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_NORM))
     self.assertEqual(data.shape, (2, len(rho_cell_plus_boundaries)))
     self.assertEqual(attrs['units'], 'amu')
+    expected_extended = output_grid_context.extend_cell_grid_to_boundaries(
+        profiles.A_impurity, profiles.A_impurity_face
+    )
+    np.testing.assert_allclose(
+        data, np.stack([expected_extended, expected_extended])
+    )
 
 
 class CoreTransportTest(parameterized.TestCase):
@@ -672,6 +750,54 @@ class CoreTransportTest(parameterized.TestCase):
     core_transport = state.CoreTransport.zeros(geo)
     chi_max = core_transport.total.chi_max(geo)
     self.assertEqual(chi_max.shape, ())
+
+
+class SolverNumericOutputsTest(parameterized.TestCase):
+
+  def test_solver_numeric_outputs_to_output_dict(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    times = np.array([0.0, 1.0])
+    context = output_grid_context.OutputGridContext(
+        times=times,
+        rho_face_norm=geo.rho_face_norm,
+        rho_cell_norm=geo.rho_norm,
+        rho_cell_plus_boundaries_norm=np.concatenate(
+            [[0.0], geo.rho_norm, [1.0]]
+        ),
+    )
+    solver_numeric_outputs = state.SolverNumericOutputs(
+        outer_solver_iterations=np.array([3, 4]),
+        inner_solver_iterations=np.array([10, 12]),
+        solver_error_state=np.array([0, 0]),
+        sawtooth_crash=np.array([False, True]),
+    )
+    out_dict = solver_numeric_outputs.to_output_dict(context)
+
+    expected_keys = {
+        output_keys.OUTER_SOLVER_ITERATIONS,
+        output_keys.INNER_SOLVER_ITERATIONS,
+        output_keys.SOLVER_ERROR_STATE,
+        output_keys.SAWTOOTH_CRASH,
+    }
+    self.assertEqual(out_dict.keys(), expected_keys)
+
+    for key in expected_keys:
+      dims, _, attrs = out_dict[key]
+      self.assertEqual(dims, (output_keys.TIME,))
+      self.assertEqual(attrs, {})
+
+    np.testing.assert_array_equal(
+        out_dict[output_keys.OUTER_SOLVER_ITERATIONS][1], np.array([3, 4])
+    )
+    np.testing.assert_array_equal(
+        out_dict[output_keys.INNER_SOLVER_ITERATIONS][1], np.array([10, 12])
+    )
+    np.testing.assert_array_equal(
+        out_dict[output_keys.SOLVER_ERROR_STATE][1], np.array([0, 0])
+    )
+    np.testing.assert_array_equal(
+        out_dict[output_keys.SAWTOOTH_CRASH][1], np.array([False, True])
+    )
 
 
 if __name__ == '__main__':

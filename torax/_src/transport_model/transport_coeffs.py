@@ -15,7 +15,7 @@
 """Transport coefficient data structures."""
 
 import dataclasses
-from typing import Any, Mapping, Self
+from typing import Mapping, Self
 
 import jax
 from jax import numpy as jnp
@@ -168,16 +168,12 @@ class TurbulentTransport:
       context: output_grid_context.OutputGridContext,
   ) -> xr.DataTree:
     """Builds an xr.DataTree of the per-model turbulent transport outputs."""
-    face_coords: Mapping[str, Any] = {
-        output_keys.TIME: context.times,
-        output_keys.RHO_FACE_NORM: context.coords[output_keys.RHO_FACE_NORM],
-    }
     children = {}
     if self.core_components:
       core_children = {
           model_name: xr.DataTree(
               dataset=context.build_dataset(
-                  model_output.to_output_dict(context), coords=face_coords
+                  model_output.to_output_dict(context)
               )
           )
           for model_name, model_output in self.core_components.items()
@@ -187,7 +183,7 @@ class TurbulentTransport:
       pedestal_children = {
           model_name: xr.DataTree(
               dataset=context.build_dataset(
-                  model_output.to_output_dict(context), coords=face_coords
+                  model_output.to_output_dict(context)
               )
           )
           for model_name, model_output in self.pedestal_components.items()

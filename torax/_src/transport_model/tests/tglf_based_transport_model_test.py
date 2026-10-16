@@ -17,22 +17,23 @@ from typing import Annotated, Any, Literal
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax.numpy as jnp
 import numpy as np
+import pydantic
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
+from torax._src.transport_model import runtime_params as transport_params
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model.tglf import tglf2py
@@ -68,7 +69,7 @@ def _get_config_and_model_inputs(
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
   transition_state = (
-      pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode()
+      pedestal_transition_state_lib.PedestalTransitionState.empty()
   )
   pedestal_model_outputs = pedestal_model(
       runtime_params,
@@ -149,12 +150,8 @@ class TGLFTransportModelTest(parameterized.TestCase):
         core_profiles=core_profiles,
     )
     expected_length = geo.rho_face_norm.shape[0]
-    scalar_keys = ["Rmin", "Rmaj"]  # Inherited from QuasilinearInputs
     for key in tglf_inputs.__dict__.keys():
-      if key in scalar_keys:
-        self.assertEqual(getattr(tglf_inputs, key).shape, ())
-      else:
-        self.assertEqual(getattr(tglf_inputs, key).shape, (expected_length,))
+      self.assertEqual(getattr(tglf_inputs, key).shape, (expected_length,))
 
   def test_max_normalized_collisionality_caps_xnue(self):
     """Tests that max_normalized_collisionality clamps XNUE."""
@@ -225,6 +222,45 @@ class TGLFTransportModelTest(parameterized.TestCase):
         uncapped.XNUE[~above_cap],
     )
 
+  def test_vexb_shear_is_invariant_to_rigid_toroidal_rotation(self):
+    # GACODE normalizes rotation to B_pol, so rigid toroidal rotation maps onto
+    # a constant omega_0 = E_r / (R B_pol) and adds no ExB shear.
+    _, (_, geo, core_profiles, _, _) = _get_config_and_model_inputs({
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+            },
+        },
+    })
+    tglf_config = TGLFBasedTransportModelConfig()
+    transport_model = tglf_config.build_transport_model()
+    tglf_params = tglf_config.build_runtime_params(t=0.0)
+    omega = 1e5  # [rad/s]
+    rigidly_rotating_core_profiles = dataclasses.replace(
+        core_profiles,
+        toroidal_angular_velocity=cell_variable.CellVariable(
+            value=jnp.full_like(geo.rho_norm, omega),
+            face_centers=geo.rho_face_norm,
+            right_face_constraint=jnp.array(omega),
+            right_face_grad_constraint=None,
+        ),
+    )
+
+    reference = transport_model._prepare_tglf_inputs(
+        transport=tglf_params,
+        geo=geo,
+        core_profiles=core_profiles,
+    )
+    rotating = transport_model._prepare_tglf_inputs(
+        transport=tglf_params,
+        geo=geo,
+        core_profiles=rigidly_rotating_core_profiles,
+    )
+
+    np.testing.assert_allclose(
+        rotating.VEXB_SHEAR, reference.VEXB_SHEAR, rtol=1e-6, atol=1e-10
+    )
+
   def test_tglf_based_transport_model_dv_effective(self):
     """Tests that DV_effective switches between effective D/V and scaled D."""
     torax_config_false, model_inputs_false = _get_config_and_model_inputs({
@@ -283,9 +319,9 @@ class FakeTGLFBasedTransportModel(
 
   # pylint: enable=invalid-name
 
-  def call_implementation(  # pyrefly: ignore[bad-override]
+  def call_implementation(
       self,
-      transport_runtime_params: tglf_based_transport_model.RuntimeParams,
+      transport_runtime_params: transport_params.ComponentRuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -303,7 +339,7 @@ class FakeTGLFBasedTransportModel(
         core_profiles=core_profiles,
         two_point_mask=two_point_mask,
     )
-    return self._make_core_transport(
+    return self._make_transport_coeffs(
         ion_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.4,
         electron_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.5,
         electron_particle_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 1.6,
@@ -317,35 +353,21 @@ class FakeTGLFBasedTransportModel(
 
 # pylint: disable=invalid-name
 class TGLFBasedTransportModelConfig(
-    transport_pydantic_model_base.ComponentTransportBase
+    tglf_based_transport_model.TGLFBasedTransportModelConfig
 ):
   """Model for testing the TGLF-based transport model."""
 
   model_name: Annotated[Literal["tglf_based"], torax_pydantic.JAX_STATIC] = (
       "tglf_based"
   )
-  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  max_normalized_collisionality: float = float("inf")
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
+  use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = True
 
   # pylint: disable=undefined-variable
   def build_transport_model(
       self,
   ) -> FakeTGLFBasedTransportModel:
     return FakeTGLFBasedTransportModel()
-
-  def build_runtime_params(self, t: chex.Numeric):
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
-    return tglf_based_transport_model.RuntimeParams(
-        # DV_effective and An_min are inherited from QuasilinearTransportModel
-        DV_effective=self.DV_effective,
-        An_min=0.05,
-        DV_effective_smooth_width=0.01,
-        use_rotation=True,
-        rotation_multiplier=1.0,
-        collisionality_multiplier=1.0,
-        max_normalized_collisionality=self.max_normalized_collisionality,
-        **base_kwargs,
-    )
 
 
 # pylint: enable=undefined-variable

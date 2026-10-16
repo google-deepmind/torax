@@ -13,11 +13,13 @@
 # limitations under the License.
 """Base infrastructure for ion-cyclotron resonance heating (ICRH) sources."""
 
-from collections.abc import Sequence
 import dataclasses
 from typing import Annotated, ClassVar
 
+import chex
+import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import fast_ion as fast_ion_lib
@@ -28,67 +30,22 @@ from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
-# Default value for the model function to be used for the ion cyclotron
-# source. This is also used as an identifier for the model function in
-# the default source config for Pydantic to "discriminate" against.
-DEFAULT_MODEL_FUNCTION_NAME: str = 'toric_nn'
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class RuntimeParams(source_runtime_params_lib.RuntimeParams):
+  """Base runtime parameters for ICRH models."""
 
-def build_fast_ions(
-    source_name: str,
-    geo: geometry.Geometry,
-    fast_ions: Sequence[fast_ion_lib.FastIon] = (),
-) -> tuple[fast_ion_lib.FastIon, ...]:
-  """Builds a complete FastIon tuple for all supported species.
-
-  Takes a list of computed FastIon objects (for a subset of species) and
-  produces a full tuple covering all species in
-  ``fast_ion_lib.FAST_ION_SPECIES``.
-  Species not present in the input list are filled with zero density and
-  temperature.
-
-  Args:
-    source_name: The name of the source.
-    geo: Geometry.
-    fast_ions: Computed FastIon objects for a subset of species.
-
-  Returns:
-    Tuple of FastIon objects, one per species in
-    ``fast_ion_lib.FAST_ION_SPECIES``, in order.
-  """
-  computed = {fi.species: fi for fi in fast_ions}
-  zeros = jnp.zeros_like(geo.rho)
-  result = []
-  for species in fast_ion_lib.FAST_ION_SPECIES:
-    if species in computed:
-      result.append(computed[species])
-    else:
-      result.append(
-          fast_ion_lib.FastIon(
-              species=species,
-              source=source_name,
-              n=cell_variable.CellVariable(
-                  value=zeros,
-                  face_centers=geo.rho_face_norm,
-                  right_face_grad_constraint=None,
-                  right_face_constraint=jnp.zeros(()),
-              ),
-              T=cell_variable.CellVariable(
-                  value=zeros,
-                  face_centers=geo.rho_face_norm,
-                  right_face_grad_constraint=None,
-                  right_face_constraint=jnp.zeros(()),
-              ),
-          )
-      )
-  return tuple(result)
+  P_total: array_typing.FloatScalar
+  absorption_fraction: array_typing.FloatScalar
+  minority_species: str = dataclasses.field(metadata={'static': True})
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source."""
 
-  SOURCE_NAME: ClassVar[str] = 'icrh'
+  SOURCE_ID: ClassVar[str] = 'icrh'
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
@@ -100,10 +57,29 @@ class IonCyclotronSource(source.Source):
       cls,
       geo: geometry.Geometry,
   ) -> tuple[fast_ion_lib.FastIon, ...]:
-    return build_fast_ions(source_name=cls.SOURCE_NAME, geo=geo)
+    zeros = jnp.zeros_like(geo.rho)
+    return tuple(
+        fast_ion_lib.FastIon(
+            species=species,
+            source=cls.SOURCE_ID,
+            n=cell_variable.CellVariable(
+                value=zeros,
+                face_centers=geo.rho_face_norm,
+                right_face_grad_constraint=None,
+                right_face_constraint=jnp.zeros(()),
+            ),
+            T=cell_variable.CellVariable(
+                value=zeros,
+                face_centers=geo.rho_face_norm,
+                right_face_grad_constraint=None,
+                right_face_constraint=jnp.zeros(()),
+            ),
+        )
+        for species in fast_ion_lib.FAST_ION_SPECIES
+    )
 
 
-class IonCyclotronSourceConfig(source_base.SourceModelBase):
+class IonCyclotronSourceConfig(source_base.SourceConfigBase):
   """Base configuration for IonCyclotronSource.
 
   This base class contains fields common to all ICRH model implementations.
@@ -115,10 +91,10 @@ class IonCyclotronSourceConfig(source_base.SourceModelBase):
       a `Literal` value.
     P_total: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
+    minority_species: Symbol of the minority species (e.g., 'He3'). The
+      minority concentration is extracted from plasma_composition. The species
+      can be either a main ion or an impurity.
     mode: Defines how the source values are computed.
-    minority_species: Optional symbol of the minority species (e.g., 'He3').
-      When specified, the minority concentration is extracted from
-      plasma_composition. The species can be either a main ion or an impurity.
   """
 
   model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''
@@ -129,11 +105,16 @@ class IonCyclotronSourceConfig(source_base.SourceModelBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  mode: Annotated[source_runtime_params_lib.Mode, torax_pydantic.JAX_STATIC] = (
-      source_runtime_params_lib.Mode.MODEL_BASED
-  )
-  # TODO(b/434175938): Make minority_species a required field in V2.
-  minority_species: Annotated[str | None, torax_pydantic.JAX_STATIC] = None
+  minority_species: Annotated[str, torax_pydantic.JAX_STATIC]
 
-  def build_source(self) -> IonCyclotronSource:
-    return IonCyclotronSource(model_func=self.model_func)
+  def build_runtime_params(
+      self,
+      t: chex.Numeric,
+  ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
+    return RuntimeParams(
+        **vars(base_params),
+        P_total=self.P_total.get_value(t),
+        absorption_fraction=self.absorption_fraction.get_value(t),
+        minority_species=self.minority_species,
+    )

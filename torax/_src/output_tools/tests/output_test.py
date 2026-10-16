@@ -154,7 +154,7 @@ class StateHistoryTest(parameterized.TestCase):
         time_step_calculator_state=(
             models.time_step_calculator.initial_state(runtime_params)
         ),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     sim_error = state.SimError.NO_ERROR
     previous_post_processed_outputs = (
@@ -520,14 +520,10 @@ class StateHistoryTest(parameterized.TestCase):
     ).simulation_output_to_xr()
 
     self.assertIn(
-        impurity_radiation.RADIATION_OUTPUT_NAME, output_xr.profiles.data_vars
+        output_keys.RADIATION_IMPURITY_SPECIES, output_xr.profiles.data_vars
     )
-    self.assertIn(
-        impurity_radiation.DENSITY_OUTPUT_NAME, output_xr.profiles.data_vars
-    )
-    self.assertIn(
-        impurity_radiation.Z_OUTPUT_NAME, output_xr.profiles.data_vars
-    )
+    self.assertIn(output_keys.N_IMPURITY_SPECIES, output_xr.profiles.data_vars)
+    self.assertIn(output_keys.Z_IMPURITY_SPECIES, output_xr.profiles.data_vars)
     total_impurity_from_species = (
         output_xr.profiles.radiation_impurity_species.sel(
             impurity_symbol='Ne'
@@ -604,10 +600,12 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn(output_keys.IMPURITY_RIGHT_BC, edge_dataset.data_vars)
 
   def test_pack_impurity_mapping(self):
+    context = self.history._output_grid_context
     self.assertEqual(
         edge_base.pack_impurity_mapping(
             output_keys.IMPURITY_RIGHT_BC,
             {},
+            context=context,
             dim_name=output_keys.IMPURITY,
         ),
         {},
@@ -616,6 +614,7 @@ class StateHistoryTest(parameterized.TestCase):
         edge_base.pack_impurity_mapping(
             output_keys.IMPURITY_RIGHT_BC,
             None,
+            context=context,
             dim_name=output_keys.IMPURITY,
         ),
         {},
@@ -623,9 +622,14 @@ class StateHistoryTest(parameterized.TestCase):
     res = edge_base.pack_impurity_mapping(
         output_keys.IMPURITY_RIGHT_BC,
         {'Ar': jnp.array([0.01])},
+        context=context,
         dim_name=output_keys.IMPURITY,
     )
     self.assertIn(str(output_keys.IMPURITY_RIGHT_BC), res)
+    self.assertEqual(
+        list(context.coords[output_keys.IMPURITY]),
+        ['Ar'],
+    )
 
   def test_status_attribute_completed(self):
     """Test that status attribute is set to 'completed' for successful runs."""
@@ -638,6 +642,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertEqual(
         output_xr.numerics.sim_error, state.SimError.NO_ERROR.value
     )
+    self.assertIn(output_keys.SOLVER_ERROR_STATE, output_xr.numerics)
 
   def test_status_attribute_error(self):
     """Test that status attribute is set to 'error' when sim has errors."""
@@ -910,7 +915,9 @@ class StateHistoryTest(parameterized.TestCase):
         output_keys.SIM_ERROR,
         output_keys.OUTER_SOLVER_ITERATIONS,
         output_keys.INNER_SOLVER_ITERATIONS,
+        output_keys.SOLVER_ERROR_STATE,
         output_keys.SAWTOOTH_CRASH,
+        output_keys.DIVERTED,
         extended_lengyel_standalone.SOLVER_PHYSICS_OUTCOME,
         extended_lengyel_standalone.SOLVER_ITERATIONS,
         extended_lengyel_standalone.SOLVER_RESIDUAL,

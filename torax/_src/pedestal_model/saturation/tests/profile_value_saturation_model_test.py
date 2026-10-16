@@ -66,11 +66,11 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
 
     # For this test, we put the pedestal top at the last grid point.
     ped_top_idx = -1
-    current_T_e_ped = self.core_profiles.T_e.face_value()[ped_top_idx]  # pyrefly: ignore[bad-index]
+    current_T_e_ped = self.core_profiles.T_e.face_value()[ped_top_idx]
 
     # Construct a pedestal output that is asking for a pedestal with
     # target temperature.
-    pedestal_output = pedestal_model_output.PedestalModelOutput(
+    pedestal_output = pedestal_model_output.PedestalStructure(
         rho_norm_ped_top=self.geo.rho_face[ped_top_idx],
         T_i_ped=1.0,
         T_e_ped=current_T_e_ped * T_target_over_T_current,
@@ -87,11 +87,11 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
     if T_target_over_T_current > 1.0:
       # If the target temperature is above the current temperature, we expect
       # the multiplier to be equal to 1.0 - the pedestal is not saturated.
-      np.testing.assert_allclose(transport_multipliers.chi_e_multiplier, 1.0)  # pyrefly: ignore[missing-attribute]
+      np.testing.assert_allclose(transport_multipliers.chi_e_multiplier, 1.0)
     else:
       # If the target temperature is below the current temperature, we expect
       # the multiplier to be greater than 1.0 - the pedestal is saturated.
-      self.assertGreater(transport_multipliers.chi_e_multiplier, 1.0)  # pyrefly: ignore[missing-attribute]
+      self.assertGreater(transport_multipliers.chi_e_multiplier, 1.0)
 
 
 if __name__ == '__main__':

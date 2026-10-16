@@ -14,17 +14,16 @@
 
 """Pydantic configs for all edge models, currently only extended_lengyel."""
 
-import dataclasses
 import logging
 from typing import Annotated, Any, Literal, Mapping, Self
 import chex
-import jax.numpy as jnp
 import pydantic
-from torax._src import array_typing
+from torax._src import constants
 from torax._src.edge import base
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_model
+from torax._src.physics.radiation import radiation
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -45,16 +44,47 @@ class InitialGuessConfig(torax_pydantic.BaseModelFrozen):
     c_z_prefactor: Impurity concentration prefactor [dimensionless]. Only used
       in Inverse computation mode.
     use_previous_step_as_guess: If True, use the converged state from the
-      previous time step as the initial guess for the current step. Overridden
-      by any explicit values provided above.
+      previous time step as the initial guess for the current step.
   """
 
-  alpha_t: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  kappa_e: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  T_e_separatrix: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  T_e_target: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  c_z_prefactor: torax_pydantic.NonNegativeTimeVaryingScalar | None = None
+  alpha_t: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT
+      )
+  )
+  kappa_e: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT
+      )
+  )
+  T_e_separatrix: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT
+      )
+  )
+  T_e_target: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD
+      )
+  )
+  c_z_prefactor: torax_pydantic.NonNegativeTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(
+          extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT
+      )
+  )
   use_previous_step_as_guess: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+
+  def build_runtime_params(
+      self, t: chex.Numeric
+  ) -> extended_lengyel_model.InitialGuessRuntimeParams:
+    return extended_lengyel_model.InitialGuessRuntimeParams(
+        alpha_t=self.alpha_t.get_value(t),
+        kappa_e=self.kappa_e.get_value(t),
+        T_e_separatrix=self.T_e_separatrix.get_value(t),
+        T_e_target=self.T_e_target.get_value(t),
+        c_z_prefactor=self.c_z_prefactor.get_value(t),
+        use_previous_step_as_guess=self.use_previous_step_as_guess,
+    )
 
 
 class ExtendedLengyelConfig(base.EdgeModelConfig):
@@ -76,7 +106,10 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   ] = extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
   # Flags allowing user to test simulation sensitivity to boundary condition
   # updates, while still providing edge model outputs even if not used.
-  update_temperatures: torax_pydantic.TimeVaryingScalarStep = (
+  update_electron_temperature: torax_pydantic.TimeVaryingScalarStep = (
+      torax_pydantic.ValidatedDefault(True)
+  )
+  update_ion_temperature: torax_pydantic.TimeVaryingScalarStep = (
       torax_pydantic.ValidatedDefault(True)
   )
   update_electron_density: torax_pydantic.TimeVaryingScalarStep = (
@@ -86,6 +119,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       torax_pydantic.ValidatedDefault(True)
   )
   fixed_point_iterations: pydantic.PositiveInt | None = None
+  fixed_point_relaxation_factor: Annotated[
+      float, pydantic.Field(gt=0.0, le=1.0)
+  ] = extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR
   newton_raphson_iterations: pydantic.PositiveInt = (
       extended_lengyel_defaults.NEWTON_RAPHSON_ITERATIONS
   )
@@ -201,7 +237,9 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   enrichment_model_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  initial_guess: InitialGuessConfig = InitialGuessConfig()
+  initial_guess: InitialGuessConfig = pydantic.Field(
+      default_factory=InitialGuessConfig
+  )
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -221,6 +259,14 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
               extended_lengyel_defaults.FIXED_POINT_ITERATIONS
           )
     return data
+
+  @pydantic.model_validator(mode='after')
+  def _validate_update_electron_density(self) -> Self:
+    if self.update_electron_density.value.any():
+      raise ValueError(
+          'ExtendedLengyelConfig does not support update_electron_density.'
+      )
+    return self
 
   @pydantic.model_validator(mode='after')
   def _log_warning_for_unused_enrichment_factor(
@@ -309,6 +355,37 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
             'seed_impurity_weights must be provided for inverse computation'
             ' mode.'
         )
+      unsupported_seed_impurities = sorted(
+          ion_symbol
+          for ion_symbol in self.seed_impurity_weights
+          if not radiation.has_mavrin_cooling_rate(
+              ion_symbol, radiation.MavrinModelType.NONCORONAL
+          )
+      )
+      if unsupported_seed_impurities:
+        raise ValueError(
+            'seed_impurity_weights contains species without a non-coronal'
+            ' Mavrin cooling rate fit, which the edge model treats as'
+            f' non-radiating: {unsupported_seed_impurities}.'
+        )
+      # The total seeded weight is piecewise linear (or piecewise constant) on
+      # the union of all time knots, so checking the knots covers all times.
+      knot_times = sorted(
+          set().union(
+              *(w.time.tolist() for w in self.seed_impurity_weights.values())
+          )
+      )
+      for t in knot_times:
+        total_weight = sum(
+            float(weight.get_value(t))
+            for weight in self.seed_impurity_weights.values()
+        )
+        if total_weight < constants.CONSTANTS.eps:
+          raise ValueError(
+              'The sum of seed_impurity_weights must be positive (>='
+              f' {constants.CONSTANTS.eps}) at all times for inverse'
+              f' computation mode, but it is {total_weight} at t={t}.'
+          )
       if self.fixed_impurity_concentrations:
         overlap = set(self.seed_impurity_weights.keys()) & set(
             self.fixed_impurity_concentrations.keys()
@@ -354,53 +431,16 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
           k: v.get_value(t) for k, v in self.enrichment_factor.items()
       }
 
-    # TODO(b/323504363): b/446608829 - Simplify design and avoid the "provided" flags.
-    def _get_value_and_flag(
-        param: torax_pydantic.TimeVaryingScalar | None,
-        default: float = 0.0,
-    ) -> tuple[array_typing.FloatScalar, array_typing.BoolScalar]:
-      if param is not None:
-        return param.get_value(t), jnp.array(True, dtype=jnp.bool_)
-      # Default is an arbitrary value, only used such that we have consistent
-      # typing in a jnp.where in extended_lengyel_model when choosing between
-      # defaults or provided values.
-      return jnp.array(default), jnp.array(False, dtype=jnp.bool_)
-
-    alpha_t, alpha_t_provided = _get_value_and_flag(self.initial_guess.alpha_t)
-    kappa_e, kappa_e_provided = _get_value_and_flag(self.initial_guess.kappa_e)
-    T_e_separatrix, T_e_separatrix_provided = _get_value_and_flag(
-        self.initial_guess.T_e_separatrix
-    )
-    T_e_target_guess, T_e_target_provided = _get_value_and_flag(
-        self.initial_guess.T_e_target
-    )
-    c_z_prefactor, c_z_prefactor_provided = _get_value_and_flag(
-        self.initial_guess.c_z_prefactor
-    )
-
-    initial_guess_params = extended_lengyel_model.InitialGuessRuntimeParams(
-        alpha_t=alpha_t,
-        alpha_t_provided=alpha_t_provided,
-        kappa_e=kappa_e,
-        kappa_e_provided=kappa_e_provided,
-        T_e_separatrix=T_e_separatrix,
-        T_e_separatrix_provided=T_e_separatrix_provided,
-        T_e_target=T_e_target_guess,
-        T_e_target_provided=T_e_target_provided,
-        c_z_prefactor=c_z_prefactor,
-        c_z_prefactor_provided=c_z_prefactor_provided,
-        use_previous_step_as_guess=self.initial_guess.use_previous_step_as_guess,
-    )
-
     base_params = super().build_runtime_params(t)
 
     return extended_lengyel_model.RuntimeParams(
-        **dataclasses.asdict(base_params),
+        **vars(base_params),
         computation_mode=self.computation_mode,
         solver_mode=self.solver_mode,
         impurity_sot=self.impurity_sot,
         diverted=_get_optional_value(self.diverted, t),
         fixed_point_iterations=self.fixed_point_iterations,  # pyrefly: ignore[bad-argument-type]
+        fixed_point_relaxation_factor=self.fixed_point_relaxation_factor,
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,
         multistart_num_guesses=self.multistart_num_guesses,
@@ -444,7 +484,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         T_e_target=_get_optional_value(self.T_e_target, t),
         use_enrichment_model=self.use_enrichment_model,
         enrichment_model_multiplier=enrichment_model_multiplier,
-        initial_guess=initial_guess_params,
+        initial_guess=self.initial_guess.build_runtime_params(t),
     )
 
   def build_edge_model(self) -> extended_lengyel_model.ExtendedLengyelModel:

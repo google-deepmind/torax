@@ -33,7 +33,7 @@ from torax._src.physics import formulas
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(pedestal_runtime_params_lib.RuntimeParams):
+class RuntimeParams(pedestal_runtime_params_lib.StructureRuntimeParams):
   """Runtime params for the SetPressureTemperatureRatioAndDensityPedestalModel."""
 
   P_ped: array_typing.FloatScalar
@@ -46,19 +46,21 @@ class RuntimeParams(pedestal_runtime_params_lib.RuntimeParams):
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class SetPressureTemperatureRatioAndDensityPedestalModel(
-    pedestal_model.PedestalModel
+    pedestal_model.PedestalStructureModel
 ):
-  """Pedestal model with specification of pressure, temp ratio, and density."""
+  """Pedestal structure model specifying pressure, temp ratio, and density."""
 
   @override
-  def _call_implementation(
+  def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalModelOutput:
-    assert isinstance(runtime_params.pedestal, RuntimeParams)
+  ) -> pedestal_model_output.PedestalStructure:
+    del pedestal_transition_state
+    structure_params = runtime_params.pedestal.structure
+    assert isinstance(structure_params, RuntimeParams)
 
     # Convert n_e_ped to reference units.
     # Ip in MA. a_minor in m. nGW in m^-3.
@@ -69,17 +71,17 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         * 1e20
     )
     n_e_ped = jnp.where(
-        runtime_params.pedestal.n_e_ped_is_fGW,
-        runtime_params.pedestal.n_e_ped * nGW,
-        runtime_params.pedestal.n_e_ped,
+        structure_params.n_e_ped_is_fGW,
+        structure_params.n_e_ped * nGW,
+        structure_params.n_e_ped,
     )
 
     # Calculate T_e_ped.
-    temperature_ratio = runtime_params.pedestal.T_i_T_e_ratio
+    temperature_ratio = structure_params.T_i_T_e_ratio
     Z_impurity = core_profiles.Z_impurity
     Z_i = core_profiles.Z_i
     # Find the value of Z_eff at the pedestal top.
-    rho_norm_ped_top = runtime_params.pedestal.rho_norm_ped_top
+    rho_norm_ped_top = structure_params.rho_norm_ped_top
     Z_eff = core_profiles.Z_eff
 
     ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
@@ -108,8 +110,8 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # P = T_e*n_e + T_i*n_i + T_i*n_imp.
     T_e_ped = (
         (
-            runtime_params.pedestal.P_ped
-            * runtime_params.pedestal.P_ped_multiplier
+            structure_params.P_ped
+            * structure_params.P_ped_multiplier
         )
         / (
             n_e_ped  # Electron pressure contribution.
@@ -123,9 +125,9 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # Calculate T_i_ped
     T_i_ped = temperature_ratio * T_e_ped
 
-    return pedestal_model_output.PedestalModelOutput(
+    return pedestal_model_output.PedestalStructure(
         n_e_ped=n_e_ped,
         T_i_ped=T_i_ped,
         T_e_ped=T_e_ped,
-        rho_norm_ped_top=runtime_params.pedestal.rho_norm_ped_top,
+        rho_norm_ped_top=structure_params.rho_norm_ped_top,
     )

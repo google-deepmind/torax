@@ -25,8 +25,12 @@ from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 
+# Sources that depend on the output of other sources (e.g.
+# ConstantFractionImpurityRadiationHeatSink, which scales with total input
+# heating power) and therefore must be calculated last in
+# build_standard_source_profiles after all other heat sources are computed.
 _FINAL_SOURCES = frozenset(
-    [impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME]
+    [impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_ID]
 )
 
 
@@ -141,7 +145,7 @@ def build_standard_source_profiles(
       _update_standard_source_profiles(
           calculated_source_profiles,
           source_name,
-          source.affected_core_profiles,
+          source.AFFECTED_CORE_PROFILES,
           value,
       )
 

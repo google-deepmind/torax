@@ -200,24 +200,14 @@ def calc_fieldline_pitch_at_omp(
     ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar,
 ) -> jax.Array:
   """Calculates the fieldline pitch at the outboard midplane."""
-  consts = constants.CONSTANTS
-
-  # Calibrated shape factor for calculating flux surface circumference.
-  # Body NF 2025 Eq 56.
-  shaping_factor = jnp.sqrt(
-      (
-          1.0
-          + elongation_psi95**2
-          * (1.0 + 2.0 * triangularity_psi95**2 - 1.2 * triangularity_psi95**3)
-      )
-      / 2.0
+  shaping_factor = calc_shaping_factor(
+      elongation_psi95=elongation_psi95,
+      triangularity_psi95=triangularity_psi95,
   )
-
-  # Body NF 2025 Eq 52. Note the paper equation has a typo. Using minor radius
-  # is correct.
-  poloidal_circumference = 2.0 * jnp.pi * minor_radius * shaping_factor
-  separatrix_average_poloidal_field = (
-      consts.mu_0 * plasma_current / poloidal_circumference
+  separatrix_average_poloidal_field = calc_separatrix_average_poloidal_field(
+      plasma_current=plasma_current,
+      minor_radius=minor_radius,
+      shaping_factor=shaping_factor,
   )
 
   upstream_poloidal_field = (
@@ -272,11 +262,12 @@ def calc_Z_eff(
   # Initializations
   Z_eff = 0.0
   dilution_factor = 0.0
+  T_e_1d = jnp.atleast_1d(jnp.asarray(T_e))
   # Contribution from seeded impurities, with n_e_ratio = c_z*weight.
   for key, weight in seed_impurity_weights.items():
     Z_impurity_per_species = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            T_e=jnp.array([T_e]),
+            T_e=T_e_1d,
             ne_tau=ne_tau,
             ion_symbol=key,
         )
@@ -287,7 +278,7 @@ def calc_Z_eff(
   for key, concentration in fixed_impurity_concentrations.items():
     Z_impurity_per_species = (
         collisional_radiative_models.calculate_mavrin_noncoronal_charge_state(
-            T_e=jnp.array([T_e]),
+            T_e=T_e_1d,
             ne_tau=ne_tau,
             ion_symbol=key,
         )

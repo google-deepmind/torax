@@ -25,8 +25,8 @@ from torax._src.torax_pydantic import model_config
 from torax.experimental import gas_puff_feedback_source
 
 # Register the experimental source model
-register_model.register_source_model_config(
-    gas_puff_feedback_source.GasPuffFeedbackSourceConfig, 'gas_puff'
+register_model.register_source_config(
+    gas_puff_feedback_source.GasPuffFeedbackSourceConfig
 )
 
 
@@ -34,7 +34,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GasPuffFeedbackSource."""
 
   source_config_class = gas_puff_feedback_source.GasPuffFeedbackSourceConfig
-  source_name = gas_puff_source.GasPuffSource.SOURCE_NAME
+  source_name = gas_puff_source.GasPuffSource.SOURCE_ID
 
   def test_feedback_mode(self):
     """Tests calc_puff_feedback_source with real objects."""
@@ -64,7 +64,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
         neoclassical_model=neoclassical_model,
     )
 
-    initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)  # pyrefly: ignore[bad-argument-type]
+    initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)
 
     # Rebuild with specific requested value
     config['sources']['gas_puff']['model_name'] = 'feedback'
@@ -85,14 +85,15 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     )
     chex.assert_trees_all_close(gas_puff_params.feedback_gain, 10.0)
 
-    profile = gas_puff_feedback_source.calc_puff_feedback_source(
+    source = source_models.standard_sources['gas_puff']
+    profile = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
-        source_name='gas_puff',
         core_profiles=core_profiles,
-        unused_calculated_source_profiles=None,
-        unused_conductivity=None,
+        calculated_source_profiles=None,
+        conductivity=None,
     )[0]
+    assert isinstance(profile, chex.Array)
 
     total_particles = math_utils.volume_integration(profile, geo)
 

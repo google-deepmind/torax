@@ -15,6 +15,7 @@
 import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 import numpy as np
 import scipy
@@ -26,6 +27,8 @@ from torax._src.core_profiles import initialization
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
+from torax._src.output_tools import output_grid_context
+from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -58,12 +61,12 @@ class PostProcessingTest(parameterized.TestCase):
             self.geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
-        T_i={  # pyrefly: ignore[bad-argument-type]
+        T_i={
             'fusion': ones,  # pyrefly: ignore[bad-assignment]
             'generic_heat': 2 * ones,  # pyrefly: ignore[bad-assignment]
             'icrh': 3 * ones,  # pyrefly: ignore[bad-assignment]
         },
-        T_e={  # pyrefly: ignore[bad-argument-type]
+        T_e={
             'bremsstrahlung': -ones,  # pyrefly: ignore[bad-assignment]
             'cyclotron_radiation': -2 * ones,  # pyrefly: ignore[bad-assignment]
             'impurity_radiation': -3 * ones,  # pyrefly: ignore[bad-assignment]
@@ -73,7 +76,7 @@ class PostProcessingTest(parameterized.TestCase):
             'ecrh': 7 * ones,  # pyrefly: ignore[bad-assignment]
             'icrh': 1.5 * ones,  # pyrefly: ignore[bad-assignment]
         },
-        psi={  # pyrefly: ignore[bad-argument-type]
+        psi={
             'generic_current': 2 * ones,  # pyrefly: ignore[bad-assignment]
             'ecrh': 2 * ones,  # pyrefly: ignore[bad-assignment]
         },
@@ -228,7 +231,7 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
@@ -246,8 +249,8 @@ class PostProcessingTest(parameterized.TestCase):
     # Setup non-zero bootstrap current
     ones = np.ones_like(self.geo.rho)
     bootstrap_current = bootstrap_current_base.BootstrapCurrent(
-        j_parallel_bootstrap=1.0 * ones,  # pyrefly: ignore[bad-argument-type]
-        j_parallel_bootstrap_face=1.0 * np.ones_like(self.geo.rho_face),  # pyrefly: ignore[bad-argument-type]
+        j_parallel_bootstrap=1.0 * ones,
+        j_parallel_bootstrap_face=1.0 * np.ones_like(self.geo.rho_face),
     )
 
     # Source profiles with parallel currents (normalized <j.B>/B0)
@@ -276,7 +279,7 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
     )
 
     outputs = post_processing.make_post_processed_outputs(
@@ -327,6 +330,92 @@ class PostProcessingTest(parameterized.TestCase):
         math_utils.safe_divide(num=outputs.I_bootstrap, denom=ip, eps=1e-7),
         rtol=1e-5,
     )
+
+  def test_to_output_dict(self):
+    """Tests that to_output_dict produces the expected OutputVar mappings."""
+    pp = post_processing.PostProcessedOutputs.zeros(self.geo)
+    impurity_output = post_processing.impurity_radiation.ImpuritySpeciesOutput(
+        radiation=jnp.ones_like(self.geo.rho),
+        n_impurity=2.0 * jnp.ones_like(self.geo.rho),
+        Z_impurity=6.0 * jnp.ones_like(self.geo.rho),
+    )
+    pp = dataclasses.replace(pp, impurity_species={'C': impurity_output})
+    stacked_pp = jax.tree.map(lambda x: np.stack([x]), pp)
+    context = output_grid_context.OutputGridContext(
+        times=np.array([0.0]),
+        rho_face_norm=np.array(self.geo.rho_face_norm),
+        rho_cell_norm=np.array(self.geo.rho_norm),
+        rho_cell_plus_boundaries_norm=output_grid_context.extend_cell_grid_to_boundaries(
+            self.geo.rho_norm, self.geo.rho_face_norm
+        ),
+    )
+    out_dict = stacked_pp.to_output_dict(context)
+
+    with self.subTest('pprime'):
+      self.assertIn(output_keys.PPRIME, out_dict)
+      dims, _, attrs = out_dict[output_keys.PPRIME]
+      self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+      self.assertEqual(attrs, output_keys.get_units(output_keys.PPRIME))
+
+    with self.subTest('alpha_mhd'):
+      self.assertIn(output_keys.ALPHA_MHD, out_dict)
+      dims, _, attrs = out_dict[output_keys.ALPHA_MHD]
+      self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+      self.assertEqual(attrs, output_keys.get_units(output_keys.ALPHA_MHD))
+
+    with self.subTest('alpha_mhd_miller'):
+      self.assertIn(output_keys.ALPHA_MHD_MILLER, out_dict)
+      dims, _, attrs = out_dict[output_keys.ALPHA_MHD_MILLER]
+      self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
+      self.assertEqual(
+          attrs, output_keys.get_units(output_keys.ALPHA_MHD_MILLER)
+      )
+
+    with self.subTest('j_toroidal_ohmic'):
+      self.assertIn(output_keys.J_TOROIDAL_OHMIC, out_dict)
+      dims, _, attrs = out_dict[output_keys.J_TOROIDAL_OHMIC]
+      self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_CELL_NORM))
+      self.assertEqual(
+          attrs, output_keys.get_units(output_keys.J_TOROIDAL_OHMIC)
+      )
+
+    with self.subTest('j_toroidal_bootstrap'):
+      self.assertIn(output_keys.J_TOROIDAL_BOOTSTRAP, out_dict)
+      dims, _, attrs = out_dict[output_keys.J_TOROIDAL_BOOTSTRAP]
+      self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_NORM))
+      self.assertEqual(
+          attrs, output_keys.get_units(output_keys.J_TOROIDAL_BOOTSTRAP)
+      )
+
+    with self.subTest('w_thermal_total'):
+      self.assertIn(output_keys.W_THERMAL_TOTAL, out_dict)
+      dims, _, attrs = out_dict[output_keys.W_THERMAL_TOTAL]
+      self.assertEqual(dims, (output_keys.TIME,))
+      self.assertEqual(
+          attrs, output_keys.get_units(output_keys.W_THERMAL_TOTAL)
+      )
+
+    with self.subTest('impurity_radiation'):
+      self.assertIn(output_keys.RADIATION_IMPURITY_SPECIES, out_dict)
+      dims, data, attrs = out_dict[output_keys.RADIATION_IMPURITY_SPECIES]
+      self.assertEqual(
+          dims,
+          (
+              post_processing.impurity_radiation.IMPURITY_DIM,
+              output_keys.TIME,
+              output_keys.RHO_CELL_NORM,
+          ),
+      )
+      self.assertEqual(data.shape, (1, 1, len(self.geo.rho)))
+      self.assertEqual(
+          attrs, output_keys.get_units(output_keys.RADIATION_IMPURITY_SPECIES)
+      )
+      self.assertIn(output_keys.N_IMPURITY_SPECIES, out_dict)
+      self.assertIn(output_keys.Z_IMPURITY_SPECIES, out_dict)
+      np.testing.assert_array_equal(
+          context.coords[post_processing.impurity_radiation.IMPURITY_DIM],
+          np.array(['C']),
+      )
 
 
 class PostProcessingSimTest(sim_test_case.SimTestCase):

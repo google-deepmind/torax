@@ -13,7 +13,7 @@
 # limitations under the License.
 import copy
 import dataclasses
-from typing import Literal
+from typing import ClassVar, Literal
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -41,82 +41,70 @@ class RuntimeParams(source_runtime_params.RuntimeParams):
   b: bool
 
 
-def double_gas_puff_source(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-    source_name: str,
-    unused_state: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_conductivity: conductivity_base.Conductivity | None,
-) -> tuple[array_typing.Array, ...]:
-  """Calculates external source term for n from puffs."""
-  output = gas_puff_source_lib.calc_puff_source(
-      runtime_params,
-      geo,
-      source_name,
-      unused_state,
-      unused_calculated_source_profiles,
-      unused_conductivity,
-  )
-  return 2 * output
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
+  """Calculates double external source term for n from puffs."""
+
+  def _get_model_value(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+      conductivity: conductivity_base.Conductivity | None,
+  ) -> tuple[source_lib.SourceProfileElement, ...]:
+    output = super()._get_model_value(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        calculated_source_profiles=calculated_source_profiles,
+        conductivity=conductivity,
+    )
+    return tuple(2 * x for x in output)
 
 
-class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
+class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceConfigBase):
   """New source model config."""
 
-  model_name: Literal['test_model_function'] = 'test_model_function'
+  model_name: Literal['test_model'] = 'test_model'
   a: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1.0)
   b: bool = False
 
-  @property
-  def model_func(self) -> source_lib.SourceProfileFunction:
-    return double_gas_puff_source  # pyrefly: ignore[bad-return]
-
   def build_source(self) -> source_lib.Source:
-    return gas_puff_source_lib.GasPuffSource(model_func=self.model_func)
+    return DoubleGasPuffSource()
 
   def build_runtime_params(
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
+        **vars(base_params),
         a=self.a.get_value(t),
         b=self.b,
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
     )
 
 
 class DuplicateGasPuffSourceModelConfig(
-    source_base_pydantic_model.SourceModelBase
+    source_base_pydantic_model.SourceConfigBase
 ):
   # Name that is already registered.
   model_name: Literal['exponential'] = 'exponential'
   a: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(1.0)
   b: bool = False
 
-  @property
-  def model_func(self) -> source_lib.SourceProfileFunction:
-    return double_gas_puff_source  # pyrefly: ignore[bad-return]
-
   def build_source(self) -> source_lib.Source:
-    return gas_puff_source_lib.GasPuffSource(model_func=self.model_func)
+    return DoubleGasPuffSource()
 
   def build_runtime_params(
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
+        **vars(base_params),
         a=self.a.get_value(t),
         b=self.b,
-        prescribed_values=tuple(
-            [v.get_value(t) for v in self.prescribed_values]
-        ),
-        mode=self.mode,
-        is_explicit=self.is_explicit,
     )
 
 
@@ -127,10 +115,8 @@ class RegisterConfigTest(parameterized.TestCase):
     test_config_path = 'tests/test_data/' + config_name
     config_module = config_loader.import_module(test_config_path)
     config = copy.deepcopy(config_module['CONFIG'])
-    # Register the new source model config against the gas puff source.
-    register_model.register_source_model_config(
-        NewGasPuffSourceModelConfig, 'gas_puff'
-    )
+    # Register the new source model config (inferring source_name='gas_puff').
+    register_model.register_source_config(NewGasPuffSourceModelConfig)
 
     # Load the original config and check the gas puff source is expected type.
     config_pydantic = model_config.ToraxConfig.from_dict(config)
@@ -146,7 +132,7 @@ class RegisterConfigTest(parameterized.TestCase):
     # Now modify the original config to use the new config.
     del config['sources']['gas_puff']
     config['sources']['gas_puff'] = {
-        'model_name': 'test_model_function',  # new registered name.
+        'model_name': 'test_model',  # new registered name.
         'a': 2.0,
     }
     config_pydantic = model_config.ToraxConfig.from_dict(config)
@@ -160,30 +146,43 @@ class RegisterConfigTest(parameterized.TestCase):
     self.assertEqual(new_runtime_params.b, False)
 
   def test_error_thrown_if_model_name_is_already_registered(self):
-    with self.assertRaises(ValueError):
-      register_model.register_source_model_config(
-          DuplicateGasPuffSourceModelConfig, 'gas_puff'
-      )
+    with self.assertRaisesRegex(
+        TypeError,
+        "Value 'exponential' for discriminator 'model_name' mapped to multiple"
+        ' choices',
+    ):
+      register_model.register_source_config(DuplicateGasPuffSourceModelConfig)
 
-  @parameterized.parameters('qei', 'j_bootstrap')
-  def test_error_thrown_if_using_special_source(self, special_source):
+  def test_error_thrown_if_using_special_source(self):
+    class SpecialSource(gas_puff_source_lib.GasPuffSource):
+      SOURCE_ID: ClassVar[str] = 'ei_exchange'
+
+    class SpecialSourceModelConfig(NewGasPuffSourceModelConfig):
+
+      def build_source(self) -> source_lib.Source:
+        return SpecialSource()
+
     with self.assertRaisesRegex(
         ValueError,
-        'Cannot register a new source model config for the qei or j_bootstrap'
-        ' sources.',
+        'Cannot register a new source model config for the ei_exchange'
+        ' source.',
     ):
-      register_model.register_source_model_config(
-          NewGasPuffSourceModelConfig, special_source
-      )
+      register_model.register_source_config(SpecialSourceModelConfig)
 
   def test_error_thrown_if_source_not_supported(self):
+    class UnsupportedSource(gas_puff_source_lib.GasPuffSource):
+      SOURCE_ID: ClassVar[str] = 'foo_source'
+
+    class UnsupportedSourceModelConfig(NewGasPuffSourceModelConfig):
+
+      def build_source(self) -> source_lib.Source:
+        return UnsupportedSource()
+
     with self.assertRaisesRegex(
         ValueError,
         'The source name foo_source is not supported.',
     ):
-      register_model.register_source_model_config(
-          NewGasPuffSourceModelConfig, 'foo_source'
-      )
+      register_model.register_source_config(UnsupportedSourceModelConfig)
 
 
 if __name__ == '__main__':

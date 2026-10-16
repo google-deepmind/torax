@@ -58,14 +58,11 @@ class TimeStepCalculatorTest(parameterized.TestCase):
         fixed_time_step_calculator.FixedTimeStepCalculator()
     )
     config_dict = default_configs.get_default_config_dict()
-    # TODO(b/454891040): Change the value at the boundary for the STEP
-    # interpolation mode.
-    epsilon = 1e-5
     config_dict['numerics'] = {
         'fixed_dt': {
             0.0: 2.0,
-            2.0 - epsilon: 1.0,
-            4.0 - epsilon: 2.0,
+            2.0: 1.0,
+            4.0: 2.0,
         },
         't_initial': t,
         't_final': 5.0,

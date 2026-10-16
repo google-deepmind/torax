@@ -21,10 +21,11 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 CONFIG['pedestal'] = {
-    'model_name': 'set_P_ped_n_ped',
-    'set_pedestal': True,
-    'T_i_T_e_ratio': 1.0,
-    'P_ped': 89300.0,
-    'n_e_ped': 0.62e20,
-    'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
+    'structure_model': {
+        'model_name': 'set_P_ped_n_ped',
+        'T_i_T_e_ratio': 1.0,
+        'P_ped': 89300.0,
+        'n_e_ped': 0.62e20,
+        'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
+    },
 }

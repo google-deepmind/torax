@@ -138,7 +138,7 @@ def assert_rank(
 ) -> None:
   """Wrapper around chex.assert_rank that supports jax.stages.ArgInfo."""
   if isinstance(inputs, jax.stages.ArgInfo):
-    chex.assert_rank(inputs.shape, rank)  # pytype: disable=attribute-error
+    chex.assert_rank(inputs.shape, rank)
   else:
     chex.assert_rank(inputs, rank)
 

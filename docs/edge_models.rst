@@ -199,8 +199,12 @@ the following common configuration parameters:
   built-in extended Lengyel model, or the registered model name for a custom
   edge model.
 
-``update_temperatures`` (bool [default = False])
-  If True, update core temperature boundary conditions based on edge model
+``update_electron_temperature`` (bool [default = False])
+  If True, update core electron temperature boundary condition based on edge
+  model results.
+
+``update_ion_temperature`` (bool [default = False])
+  If True, update core ion temperature boundary condition based on edge model
   results.
 
 ``update_electron_density`` (bool [default = False])
@@ -238,6 +242,10 @@ Control Parameters
   Number of iterations for the fixed-point solver. If None, defaults to 25
   (fixed-point mode) or 5 (hybrid mode).
 
+``fixed_point_relaxation_factor`` (float [default = 0.5])
+  Under-relaxation factor in ``(0, 1]`` for forward-mode fixed-point
+  iterations.
+
 ``newton_raphson_iterations`` (int [default = 30])
   Maximum number of iterations for the Newton-Raphson solver.
 
@@ -254,6 +262,9 @@ Physical Parameters
 ``seed_impurity_weights`` (dict[str, **time-varying-scalar**] | None [default = None])
   Relative weights of seeded impurity species (e.g., ``{'N': 0.95, 'Ar': 0.05}``).
   Required if ``computation_mode='inverse'``. Must be ``None`` in forward mode.
+  In inverse mode, the sum of the weights must be non-negligible (at least
+  ``1e-7``) at all times, and all seeded species must have a non-coronal Mavrin
+  cooling rate fit (He, Li, Be, C, N, O, Ne, Ar).
 
 ``fixed_impurity_concentrations`` (dict[str, **time-varying-scalar**] [default = {}])
   Fixed background impurity concentrations at the edge (:math:`n_z/n_e`).

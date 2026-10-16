@@ -80,8 +80,8 @@ Currently, two interpolation modes are supported:
 
 * ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series
   (default).
-* ``'STEP'``: stepwise change in values following each traversal above a time
-  value in the time-series.
+* ``'STEP'``: stepwise change in values at each time value in the time-series
+  (for :math:`t \in [t_k, t_{k+1})`, the value is :math:`y_k`).
 
 The interpolation method can be specified by giving a tuple of the form
 ``(inputs, interpolation_mode)``, where ``inputs`` is one of the input
@@ -224,8 +224,8 @@ Currently two interpolation modes are supported as for **time-varying-scalar**:
 
 * ``'PIECEWISE_LINEAR'``: linear interpolation of the input time-series
   (default).
-* ``'STEP'``: stepwise change in values following each traversal above a time
-  value in the time-series.
+* ``'STEP'``: stepwise change in values at each time value in the time-series
+  (for :math:`t \in [t_k, t_{k+1})`, the value is :math:`y_k`).
 
 
 .. _config_details:
@@ -459,28 +459,40 @@ time-dependence of temperature, density, and current.
          smoothly with the net heating power crossing the separatrix
          :math:`P_{\text{SOL}}` according to
          :math:`\beta_{pol,\text{eff}}' = \beta_{pol,\text{min}}' +
-         (\beta_{pol}' - \beta_{pol,\text{min}}') \tanh(\max(P_{\text{SOL}}, 0)
-         / P_{\text{SOL,scaling}})`.
+         (\beta_{pol}' - \beta_{pol,\text{min}}') y(x)`, where
+         :math:`x = \max(P_{\text{SOL}}, 0) / P_{\text{SOL,scaling}}`,
+         :math:`z_1 = (x^2 + 0.3 x) / 1.3`, and
+         :math:`y = (z_1^{\alpha} + 1)^{1/\alpha}` with :math:`\alpha = -15`.
      - ``rho_norm_edge`` (**time-varying-scalar**): Edge normalized toroidal
        flux coordinate :math:`\hat{\rho}_{\text{edge}}` bounding the constrained
        edge region.
-     - ``n_e_edge`` (**time-varying-scalar**): Prescribed electron density at
-       the edge boundary :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}`
-       if ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+     - ``n_e_edge`` (**time-varying-scalar** | None [default = None]):
+       Prescribed electron density at the edge boundary
+       :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}` if
+       ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+       Mutually exclusive with ``n_e_edge_multiplier`` (exactly one must be
+       provided).
+     - ``n_e_edge_multiplier`` (**time-varying-scalar** | None [default =
+       None]): Multiplier applied to the right boundary condition density
+       (``n_e_right_bc``) to set the electron density at
+       :math:`\hat{\rho}_{\text{edge}}` [dimensionless]. Mutually exclusive
+       with ``n_e_edge`` (exactly one must be provided).
      - ``n_e_is_fGW`` (bool [default = False]): If True, ``n_e_edge`` is
        interpreted as a Greenwald fraction (dimensionless) instead of absolute
        density (:math:`\text{m}^{-3}`).
      - ``beta_poloidal_prime`` (**time-varying-scalar**): Prescribed normalized
        poloidal beta gradient :math:`\beta_{pol}' > 0` [dimensionless] (serves
        as the high-power asymptotic value when ``mode = 'power_dependent'``).
-     - ``beta_poloidal_prime_min`` (**time-varying-scalar** [default = 0.1]):
+     - ``beta_poloidal_prime_min`` (**time-varying-scalar** [default = 0.2]):
        Minimum normalized poloidal beta gradient :math:`\beta_{pol,\text{min}}'
        \ge 0` at :math:`P_{\text{SOL}} \le 0` when
        ``mode = 'power_dependent'`` [dimensionless].
      - ``P_SOL_scaling`` (**time-varying-scalar** | None [default = None]):
        Characteristic power crossing the separatrix :math:`P_{\text{SOL,scaling}}
-       > 0` [W] for the ``tanh`` transition when ``mode = 'power_dependent'``
-       (required when ``mode = 'power_dependent'``).
+       > 0` [W] for the power transition when ``mode = 'power_dependent'``
+       (required when ``mode = 'power_dependent'``). ``P_SOL_scaling`` sets the
+       knee of the power scaling curve, so that a scaled :math:`P_{\text{SOL}}`
+       of 1 is approximately where ``beta_poloidal_prime`` saturates.
      - ``Ti_Te_ratio`` (**time-varying-scalar**): Prescribed ratio
        :math:`T_i / T_e` in the edge region [dimensionless].
 
@@ -569,17 +581,13 @@ equations being solved, constant numerical variables.
   known transitions (e.g. ramp-up, ramp-down, and/or LH transitions) and a
   different granularity of simulation is required for each phase. Note that the
   default interpolation mode for `fixed_dt` has been internally imposed as
-  `'STEP'`. Also note that the `'STEP'` interpolation changes value AFTER the
-  boundary, so you may want to move the boundaries by a small epsilon to change
-  dt at the prescribed value. The need for this epsilon will go away in the
-  near future with the release of v2.0.
+  `'STEP'`.
   E.g.:
 
   .. code-block:: python
 
     # Setting a higher time resolution between 5s and 10s.
-    epsilon = 1e-5
-    'fixed_dt': {0.0: 1e-1, 5.0 - epsilon: 1e-2, 10.0 - epsilon: 1e-1}
+    'fixed_dt': {0.0: 1e-1, 5.0: 1e-2, 10.0: 1e-1}
 
 ``adaptive_dt`` (bool [default = True])
   If True, then if a nonlinear solver does not converge for a given timestep,
@@ -901,21 +909,16 @@ fields.
 
 pedestal
 --------
-In TORAX we aim to support different models for computing the pedestal width,
-and electron density, ion temperature and electron temperature at the pedestal
-top. These models will only be used if the ``set_pedestal`` flag is set to True.
+The ``pedestal`` dictionary configures the pedestal model, which is composed of
+three sub-models:
 
-``model_name`` (str [default = 'no_pedestal'])
-  The model can be configured by setting the ``model_name`` key in the
-  ``pedestal`` section of the configuration. If this field is not set, then
-  the default model is ``no_pedestal``.
-
-``set_pedestal`` (**time-varying-scalar** [default = False])
-  If True use the configured pedestal model to set internal boundary conditions.
-  Do not set internal boundary conditions if False. Internal boundary conditions
-  are set using an adaptive localized source term. While a common use-case is to
-  mock up a pedestal, this feature can also be used for L-mode modeling with a
-  desired internal boundary condition below :math:`\hat{\rho}=1`.
+* ``structure_model``: computes the H-mode target pedestal width
+  (``rho_norm_ped_top``) and pedestal-top electron density, ion temperature,
+  and electron temperature.
+* ``formation_model``: determines when L-H and H-L transitions occur (and in
+  ``'ADAPTIVE_TRANSPORT'`` mode, the transport decrease multiplier).
+* ``saturation_model``: determines how transport scales in the pedestal region
+  relative to the H-mode target values in ``'ADAPTIVE_TRANSPORT'`` mode.
 
 ``mode`` (str [default = 'INTERNAL_BOUNDARY_CONDITION'])
   Defines how the pedestal is generated. Options:
@@ -923,45 +926,28 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   * ``'INTERNAL_BOUNDARY_CONDITION'``: Sets the pedestal top value by directly
     modifying the state equations to set Dirichlet internal boundary
     conditions at a cell grid point corresponding to the pedestal top, or for a
-    profile (see ``pedestal_profile_form``). This is the default mode whenever
-    ``set_pedestal`` is True.
+    profile (see ``structure_model.pedestal_profile_form``). This is the
+    default mode.
   * ``'ADAPTIVE_TRANSPORT'``: Sets the pedestal by modifying the transport
     coefficients in the pedestal region, allowing the pedestal to
     self-consistently evolve. Transport coefficients are scaled to allow the
     temperature and density to evolve towards the prescribed pedestal values.
 
-``use_formation_model_with_internal_boundary_condition`` (bool [default = False])
-  Only applicable when ``mode`` is ``'INTERNAL_BOUNDARY_CONDITION'``. When True, enables
-  state-dependent L-H and H-L transitions based on comparison of the power
-  crossing the separatrix (:math:`P_{SOL}`) with the L-H power threshold
-  (:math:`P_{LH}`), as determined by the formation model. Pedestal values are
-  ramped over the ``transition_time_width`` during transitions. When False,
-  ``INTERNAL_BOUNDARY_CONDITION`` mode always applies the prescribed pedestal values
-  (legacy behavior). Raises an error if set to True when ``mode`` is not
-  ``'INTERNAL_BOUNDARY_CONDITION'``.
-
-``transition_time_width`` (**time-varying-scalar** [default = 0.5])
-  Duration of the L-H or H-L transition ramp in seconds. During a transition,
-  pedestal values are linearly interpolated between L-mode baseline values
-  and H-mode target values over this time window. Must be strictly positive.
-  Only used when ``use_formation_model_with_internal_boundary_condition`` is True.
-
-``P_LH_hysteresis_factor`` (**time-varying-scalar** [default = 0.8])
-  Hysteresis factor for H-to-L back transitions. When checking for an H-L
-  transition, the L-H threshold power :math:`P_{LH}` is multiplied by this
-  factor, i.e. the back transition occurs when
-  :math:`P_{SOL} < P_{LH} \times` ``P_LH_hysteresis_factor``. A value less
-  than 1 means the plasma must lose more power to transition back to L-mode
-  than was required to enter H-mode, consistent with experimentally observed
-  hysteresis. Must be in [0, 1]. Currently, only used when
-  ``use_formation_model_with_internal_boundary_condition`` is True.
-
-``include_dW_dt_in_P_SOL`` (**bool** [default = False])
-  Whether to include the :math:`dW/dt` term in the :math:`P_{SOL}` calculation
-  used for comparing against :math:`P_{LH}`. When False (default), uses
-  :math:`P_{heat}` (total auxiliary heating + Ohmic power - sinks) instead of
-  :math:`P_{SOL} = P_{heat} - dW/dt`. When ``False``, avoids spurious dithering
-  during L-mode to H-mode transitions.
+``transition_time_width`` (**time-varying-scalar** [default = 0.0])
+  Duration of the L-H or H-L transition ramp in seconds for
+  ``'INTERNAL_BOUNDARY_CONDITION'`` mode. During a transition, the confinement
+  mode enters ``TRANSITIONING_TO_H_MODE`` or ``TRANSITIONING_TO_L_MODE`` and
+  pedestal values are linearly interpolated between the captured L-mode baseline
+  values and the H-mode target values (e.g. ``T_i_ped(t)``, ``T_e_ped(t)``,
+  ``n_e_ped(t)``) over this time window. Must be non-negative. Defaults to
+  ``0.0`` (immediate step transition between ``L_MODE`` and ``H_MODE``) for
+  ``'prescribed'`` formation, and must be explicitly specified when using a
+  power-scaling formation model (``'martin_scaling'`` or ``'delabie_scaling'``)
+  in ``'INTERNAL_BOUNDARY_CONDITION'`` mode. Note that if
+  ``transition_time_width > 0.0`` is used with time-varying pedestal targets,
+  those targets should represent the H-mode trajectory rather than manually
+  encoding the L-H ramp, as the ramp scaling is applied on top of the target
+  values.
 
 ``explicit_pedestal`` (**bool** [default = True])
   Controls whether the pedestal model is evaluated explicitly (once per
@@ -974,45 +960,126 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   implicitly with current profiles regardless of this setting, since the
   saturation model's profile-based feedback loop requires implicit coupling.
 
-``pedestal_profile_form`` (**str** [default = ``"SET_AT_PED_TOP"``])
-   Controls the shape of internal boundary conditions in the pedestal region.
-   Options:
+``initial_L_mode_bc_multiplier`` (**float** [default = 2.0])
+  Multiplier applied to the LCFS right-boundary values (:math:`T_i`, :math:`T_e`,
+  :math:`n_e`) at :math:`t_{\text{initial}}` to seed the L-mode pedestal-top
+  baselines when the simulation starts directly in H-mode without prior L-mode
+  profile data. Must be positive.
 
-   - ``"SET_AT_PED_TOP"``: Pedestal values are pinned at a single grid cell
-     nearest to ``rho_norm_ped_top``.
-   - ``"MTANH"``: A smooth modified-tanh (mtanh) profile is applied across the
-     pedestal region from the pedestal top to the separatrix, following the mtanh
-     parameterization of `Snyder et al., Nucl. Fusion 44 (2004) 320
-     <https://doi.org/10.1088/0029-5515/44/2/014>`_.
-     For simplicity, the core polynomial part of the full mtanh is neglected;
-     only the tanh component is used in the pedestal region.
-     The mtanh width :math:`\Delta` is derived on-the-fly from
-     ``rho_norm_ped_top`` via the :math:`\psi_N(\rho)` mapping in core profiles:
+``structure_model`` (dict [default = ``{'model_name': 'no_pedestal'}``])
+  Configuration for the pedestal structure model, which computes the H-mode
+  target pedestal-top temperature, density, radial location, and profile form.
+  Custom models (such as
+  `epednn-mit <https://github.com/aaronkho/epednn_mit>`_) can also be registered
+  via ``torax.pedestal.register_pedestal_structure_model`` (see
+  :ref:`model-integration`). All structure models share the following parameter:
 
-     .. math::
+  * ``pedestal_profile_form`` (**str** [default = ``"SET_AT_PED_TOP"``]):
+    Controls the shape of internal boundary conditions in the pedestal region.
+    Options:
 
-        f(\psi) = f_{\text{sep}} + a_0 \left[\tanh(1) - \tanh\!\left(\frac{2(\psi - \psi_{\text{mid}})}{\Delta}\right)\right]
+    * ``"SET_AT_PED_TOP"``: Pedestal values are pinned at a single grid cell
+      nearest to ``rho_norm_ped_top``.
+    * ``"MTANH"``: A smooth modified-tanh (mtanh) profile is applied across the
+      pedestal region from the pedestal top to the separatrix, following the mtanh
+      parameterization of `Snyder et al., Nucl. Fusion 44 (2004) 320
+      <https://doi.org/10.1088/0029-5515/44/2/014>`_.
+      For simplicity, the core polynomial part of the full mtanh is neglected;
+      only the tanh component is used in the pedestal region.
+      The mtanh width :math:`\Delta` is derived on-the-fly from
+      ``rho_norm_ped_top`` via the :math:`\psi_N(\rho)` mapping in core profiles:
 
-     where :math:`\psi_{\text{top}} = \psi_N(\rho_{\text{ped,top}})`,
-     :math:`\Delta = (1 - \psi_{\text{top}}) / 1.5`,
-     :math:`\psi_{\text{mid}} = 1 - \Delta/2`, and
-     :math:`a_0 = (f_{\text{top}} - f_{\text{sep}}) / (\tanh(1) + \tanh(2))`.
+      .. math::
+
+         f(\psi) = f_{\text{sep}} + a_0 \left[\tanh(1) - \tanh\!\left(\frac{2(\psi - \psi_{\text{mid}})}{\Delta}\right)\right]
+
+      where :math:`\psi_{\text{top}} = \psi_N(\rho_{\text{ped,top}})`,
+      :math:`\Delta = (1 - \psi_{\text{top}}) / 1.5`,
+      :math:`\psi_{\text{mid}} = 1 - \Delta/2`, and
+      :math:`a_0 = (f_{\text{top}} - f_{\text{sep}}) / (\tanh(1) + \tanh(2))`.
+
+  The ``model_name`` key inside ``structure_model`` selects the built-in or
+  registered model:
+
+  * ``'no_pedestal'`` (default): Disables the pedestal across the entire
+    ``PedestalModel`` regardless of ``formation_model`` or ``saturation_model``.
+  * ``'set_T_ped_n_ped'``: Directly specify the pedestal width, electron
+    density, ion temperature, and electron temperature (see below).
+  * ``'set_P_ped_n_ped'``: Specify the pedestal width, electron density, total
+    pedestal pressure, and ion-to-electron temperature ratio (see below).
 
 ``formation_model`` (dict)
   Configuration for the pedestal formation model, which determines when L-H
-  and H-L transitions occur. The ``model_name`` key selects the model:
+  and H-L transitions occur. Defaults to
+  ``{'model_name': 'prescribed',  'pedestal_active': True}`` in
+  ``'INTERNAL_BOUNDARY_CONDITION'`` mode, and must be explicitly
+  specified when ``mode`` is ``'ADAPTIVE_TRANSPORT'``.
+
+  .. note::
+     Transition conditions are evaluated in the pre-step phase at the **start**
+     of each timestep :math:`[t, t + dt]`. A transition condition met at
+     :math:`t_{\text{trans}}` therefore takes effect on the first timestep
+     starting at :math:`t \ge t_{\text{trans}}` (and not during an earlier step
+     that merely crosses :math:`t_{\text{trans}}`).
+
+  All formation models share the following parameters:
+
+  * ``initial_confinement_mode`` (**str | None** [default = ``None``]):
+    Optional explicit initial confinement mode (``'L_MODE'`` or ``'H_MODE'``)
+    at :math:`t_{\text{initial}}`. When ``None`` (default), the initial mode is
+    inferred automatically from the formation model's transition conditions at
+    :math:`t_{\text{initial}}` (cannot be ``'H_MODE'`` for ``'no_pedestal'``).
+  * ``base_multiplier`` (float [default = 1e-6]): The base value of the
+    transport decrease multiplier in ``'ADAPTIVE_TRANSPORT'`` mode when the
+    pedestal is active.
+
+  The ``model_name`` key selects the model:
+
+  * ``'prescribed'``: Controls pedestal activation via a prescribed boolean
+    schedule rather than a power-threshold scaling law. When
+    ``pedestal_active`` is ``True``, activates the internal boundary condition
+    in ``'INTERNAL_BOUNDARY_CONDITION'`` mode (stepping directly between
+    ``L_MODE`` and ``H_MODE`` when ``transition_time_width == 0.0``, or ramping
+    through ``TRANSITIONING_TO_H_MODE`` / ``TRANSITIONING_TO_L_MODE`` over
+    ``transition_time_width`` when ``transition_time_width > 0.0``), or applies
+    a constant transport suppression multiplier (``base_multiplier``) in
+    ``'ADAPTIVE_TRANSPORT'`` mode (while the saturation model regulates
+    transport once pedestal targets are reached). Additional parameters:
+
+    * ``pedestal_active`` (**time-varying-scalar** [default = True]): Whether
+      the pedestal is active (default interpolation is ``STEP``; evaluated at
+      step start :math:`t`).
 
   * ``'martin_scaling'``: Uses the Martin scaling law to determine the L-H
     power threshold. Additional parameters:
 
-    * ``sharpness`` (float [default = 10.0]): Controls the sharpness of the
+    * ``sharpness`` (float [default = 100.0]): Controls the sharpness of the
       transition sigmoid function.
+    * ``offset`` (float [default = 0.0]): Dimensionless offset applied to the
+      argument of the transition sigmoid function.
+    * ``P_LH_prefactor`` (float [default = 1.0]): Dimensionless multiplier
+      applied to :math:`P_{LH}`.
+    * ``P_LH_hysteresis_factor`` (**time-varying-scalar** [default = 0.8]):
+      Hysteresis factor for H-to-L back transitions. When checking for an H-L
+      transition, the L-H threshold power :math:`P_{LH}` is multiplied by this
+      factor, i.e. the back transition occurs when
+      :math:`P_{SOL} < P_{LH} \times` ``P_LH_hysteresis_factor``. A value less
+      than 1 means the plasma must lose more power to transition back to L-mode
+      than was required to enter H-mode, consistent with experimentally observed
+      hysteresis. Must be in [0, 1].
+    * ``include_dW_dt_in_P_SOL`` (**bool** [default = False]): Whether to
+      include the :math:`dW/dt` term in the :math:`P_{SOL}` calculation used for
+      comparing against :math:`P_{LH}`. When ``False`` (default), uses
+      :math:`P_{heat}` (total auxiliary heating + Ohmic power - sinks) instead
+      of :math:`P_{SOL} = P_{heat} - dW/dt`, avoiding spurious dithering during
+      L-mode to H-mode transitions.
 
   * ``'delabie_scaling'``: Uses the Delabie scaling law for the L-H power
-    threshold. Additional parameters:
+    threshold. Accepts the same parameters as ``'martin_scaling'``, plus:
 
-    * ``sharpness`` (float [default = 10.0]): Controls the sharpness of the
-      transition sigmoid function.
+    * ``divertor_configuration`` (str [default = ``'HT'``]): Divertor
+      configuration (``'HT'`` for horizontal target or ``'VT'`` for vertical
+      target).
 
 ``saturation_model`` (dict)
   Configuration for the pedestal saturation model, which determines how the
@@ -1024,8 +1091,8 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
 
     * ``steepness`` (float [default = 100.0]): Controls the steepness of the
       saturation function.
-    * ``offset`` (float [default = 0.0]): Offset for the saturation function.
-    * ``base_multiplier`` (float [default = 0.0]): Base multiplier for the
+    * ``offset`` (float [default = 0.1]): Offset for the saturation function.
+    * ``base_multiplier`` (float [default = 1e6]): Base multiplier for the
       saturation function.
 
 ``pedestal_top_smoothing_width`` (**time-varying-scalar** [default = 0.02])
@@ -1048,12 +1115,12 @@ top. These models will only be used if the ``set_pedestal`` flag is set to True.
   Minimum effective particle pinch velocity from the core transport model
   allowed in the pedestal region [m/s].
 
-The following ``model_name`` options are currently supported:
+The following ``structure_model`` ``model_name`` options are built into
+TORAX:
 
 no_pedestal
 ^^^^^^^^^^^
-No pedestal profile is set. This is the default option and the equivalent of
-setting ``set_pedestal`` to False.
+No pedestal profile is set. This is the default option.
 
 set_T_ped_n_ped
 ^^^^^^^^^^^^^^^
@@ -1065,7 +1132,7 @@ electron temperature.
   In units of reference density if ``n_e_ped_is_fGW==False``. In units of
   Greenwald fraction if ``n_e_ped_is_fGW==True``.
 
-``n_e_ped_is_fGW`` (**time-varying-scalar** [default = False])
+``n_e_ped_is_fGW`` (**bool** [default = False])
   Toggles units of ``n_e_ped``.
 
 ``T_i_ped`` (**time-varying-scalar** [default = 5.0])
@@ -1088,12 +1155,12 @@ total pressure at the pedestal and the ratio of ion to electron temperature.
 ``P_ped_multiplier`` (**time-varying-scalar** [default = 1.0])
   Multiplier for the pedestal pressure.
 
-``n_e_ped`` (**time-varying-scalar** [default = 0.7])
+``n_e_ped`` (**time-varying-scalar** [default = 0.7e20])
   Electron density at the pedestal top. In units of reference density if
   ``n_e_ped_is_fGW==False``. In units of  Greenwald fraction if
   ``n_e_ped_is_fGW==True``.
 
-``n_e_ped_is_fGW`` (**time-varying-scalar** [default = False])
+``n_e_ped_is_fGW`` (**bool** [default = False])
   Toggles units of ``n_e_ped``.
 
 ``T_i_T_e_ratio`` (**time-varying-scalar** [default = 1.0])
@@ -1114,6 +1181,23 @@ their physics validation, and numerical implementation.
 
 ``model_name`` (str [default = 'extended_lengyel'])
   Selects the edge model. Currently only ``'extended_lengyel'`` is supported.
+
+``update_electron_temperature`` (bool [default = True])
+  If ``True``, update the core solver's boundary electron temperature using the
+  value calculated by the edge model.
+
+``update_ion_temperature`` (bool [default = True])
+  If ``True``, update the core solver's boundary ion temperature using the value
+  calculated by the edge model.
+
+``update_electron_density`` (bool [default = False])
+  If ``True``, update the core solver's boundary electron density using the
+  value calculated by the edge model.
+
+``update_impurities`` (bool [default = True])
+  If ``True``, and enrichment modeling is used or enrichment factors are
+  provided, update the core solver's impurity boundary conditions based on
+  edge enrichment calculations.
 
 extended_lengyel
 ^^^^^^^^^^^^^^^^
@@ -1144,15 +1228,6 @@ control parameters.
     (``plasma_composition``).
   * ``'edge'``: Fixed impurity concentrations are taken from the
     ``fixed_impurity_concentrations`` dictionary in the edge configuration.
-
-``update_temperatures`` (bool [default = True])
-  If ``True``, update the core solver's boundary electron and ion temperatures
-  using the values calculated by the edge model.
-
-``update_impurities`` (bool [default = True])
-  If ``True``, and enrichment modeling is used or enrichment factors are
-  provided, update the core solver's impurity boundary conditions based on
-  edge enrichment calculations.
 
 **Key Physical Inputs:**
 
@@ -1350,6 +1425,23 @@ It is only recommended to change the default values if issues arise.
   Multiplication factor of the boundary poloidal flux, used for the contour
   defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
   divergent integrations in diverted geometries.
+
+``target_psi_grid_resolution`` (int | None [default = 128])
+  Desired minimum number of grid points along the R and Z dimensions of the 2D
+  psi grid before generating flux surface contours. Contours are linear between
+  grid points, so for coarse EQDSK grids the flux surfaces near the separatrix
+  can be inaccurate (e.g. underestimating the plasma current) or fail to close.
+  Refining the grid allows ``last_surface_factor`` to be closer to 1. If set,
+  the 2D (R, Z) grid is refined (using bicubic spline interpolation of psi)
+  by an integer factor calculated dynamically as:
+
+  .. code-block:: python
+
+    ceil(target_psi_grid_resolution / min(nx, nz))
+
+  refining both dimensions uniformly. If None, no refinement is performed.
+  Must be >= 1 if provided.
+
 
 Geometry dicts for IMAS geometry require one and only one of the following
 additional keys.
@@ -1609,11 +1701,12 @@ Examples:
       },
   },
   'pedestal': {
-      'model_name': 'set_T_ped_n_ped',
-      'set_pedestal': True,
-      'rho_norm_ped_top': 0.9,
-      'n_e_ped': 0.8,
-      'n_e_ped_is_fGW': True,
+      'structure_model': {
+          'model_name': 'set_T_ped_n_ped',
+          'rho_norm_ped_top': 0.9,
+          'n_e_ped': 0.8,
+          'n_e_ped_is_fGW': True,
+      },
   },
   ...
 
@@ -2051,21 +2144,11 @@ tglf
 Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
 :ref:`tglf_installation` for installation instructions.
 
-``tglf_exec_path`` (str [default = '~/tglf'])
-  Path to the TGLF executable. Deprecated, and will be ignored.
-
-``output_directory`` (str [default = '/tmp/torax_tglf_runs'])
-  Path to the directory where temporary TGLF run files are stored. Deprecated,
-  and will be ignored.
-
 ``n_processes`` (int [default = 8])
   Number of parallel TGLF calculations to run across radial faces.
 
 ``n_cores_per_process`` (int [default = 2])
   Number of cores to use for each TGLF process.
-
-``verbose`` (bool [default = False])
-  Whether to enable verbose logging (capturing stdout/stderr) for TGLF subprocesses.
 
 ``use_rotation`` (bool [default = False])
   Toggles the use of the rotation shear model.
@@ -2102,11 +2185,6 @@ Runtime parameters for the TGLF model. If you want to use TORAX with TGLF, see
 
 ``tglf_settings`` (dict [default = {}])
   Dictionary of TGLF namelist parameters to override default physics settings.
-
-``use_legacy_torax_defaults`` (bool [default = True])
-  *Deprecated.* If ``True``, use legacy TORAX defaults for TGLF parameters.
-  Otherwise, use the defaults distributed with TGLF. Note that in a future release,
-  this option will be removed and the defaults will be those distributed with TGLF.
 
 sources
 -------
@@ -2316,8 +2394,8 @@ its configuration class in Python:
   from torax._src.sources import register_model
   from torax.experimental import gas_puff_feedback_source
 
-  register_model.register_source_model_config(
-      gas_puff_feedback_source.GasPuffFeedbackSourceConfig, 'gas_puff'
+  register_model.register_source_config(
+      gas_puff_feedback_source.GasPuffFeedbackSourceConfig
   )
 
 **Common Parameters:**
@@ -2439,13 +2517,18 @@ available, selected via the ``model_name`` discriminator.
 ``absorption_fraction`` (**time-varying-scalar** [default = 1.0])
   Fraction of ``P_total`` absorbed by the plasma.
 
+``minority_species`` (str)
+  Symbol of the minority species (e.g. 'He3'). The minority concentration is
+  automatically extracted from the plasma composition.
+
 ``model_name`` (str)
   Selects the ICRH model. Available options:
 
 * ``'toric_nn'`` (default)
     Surrogate model of the TORIC ICRH spectrum solver simulation
     https://meetings.aps.org/Meeting/DPP24/Session/NP12.106.
-    This source is currently SPARC specific.
+    This source is currently SPARC specific, and presently only ``'He3'`` is
+    supported as ``minority_species``.
 
     Weights and configuration for the surrogate model are needed to use this
     source. By default these are expected to be found under
@@ -2466,18 +2549,6 @@ available, selected via the ``model_name`` discriminator.
 
     ``frequency`` (**time-varying-scalar** [default = 120e6])
       ICRF wave frequency in Hz.
-
-    ``minority_concentration`` (**time-varying-scalar** [default = 0.03])
-      Helium-3 minority fractional concentration relative to the electron
-      density. This is a deprecated legacy option, used only when
-      ``minority_species`` is not specified. It is recommended to instead set
-      ``minority_species`` to 'He3' and use the plasma composition to set the
-      minority concentration.
-
-    ``minority_species`` (str | None [default = None])
-      Symbol of the minority species (e.g. 'He3'). If specified, the minority
-      concentration is automatically extracted from the plasma composition.
-      Presently, only 'He3' is supported.
 
 * ``'scaled_profile'``
     Prescribed-profile model with magnetic-field-dependent resonance shifting.
@@ -2507,6 +2578,7 @@ available, selected via the ``model_name`` discriminator.
                 'model_name': 'scaled_profile',
                 'P_total': 25e6,
                 'absorption_fraction': 0.9,
+                'minority_species': 'He3',
                 'heat_profile_ion': {0: {0.0: 0, 0.3: 1.0, 0.6: 0.2, 1.0: 0}},
                 'heat_profile_electron': {0: {0.0: 0, 0.35: 0.8, 0.65: 0.1, 1.0: 0}},
                 'reference_B0': 12.2,
@@ -3157,13 +3229,14 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'ITG_flux_ratio_correction': 1,
       },
       'pedestal': {
-          'model_name': 'set_T_ped_n_ped',
-          'set_pedestal': True,
-          'T_i_ped': 1.0,
-          'T_e_ped': 1.0,
-          'n_e_ped': {0: 0.3, 80: 0.7},
-          'rho_norm_ped_top': 0.95,
-          'n_e_ped_is_fGW': True,
+          'structure_model': {
+              'model_name': 'set_T_ped_n_ped',
+              'T_i_ped': 1.0,
+              'T_e_ped': 1.0,
+              'n_e_ped': {0: 0.3, 80: 0.7},
+              'rho_norm_ped_top': 0.95,
+              'n_e_ped_is_fGW': True,
+          },
       },
       'solver': {
           'solver_type': 'newton_raphson',

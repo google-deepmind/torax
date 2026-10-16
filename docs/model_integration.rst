@@ -31,7 +31,7 @@ Step 1: Implement the transport model
 Create a frozen dataclass that inherits from
 ``torax.transport.ComponentTransportModel`` and implements the
 ``call_implementation`` method. This method receives the current simulation
-state and must return a ``torax.transport.TurbulentTransport`` object
+state and must return a ``torax.transport.TransportCoeffs`` object
 containing the computed transport coefficients on the face grid.
 
 .. code-block:: python
@@ -51,17 +51,17 @@ containing the computed transport coefficients on the face grid.
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-          two_point_mask: array_typing.BoolVectorFace,
-      ) -> transport.TurbulentTransport:
+          two_point_mask: jax.Array,
+      ) -> transport.TransportCoeffs:
         # Implement your transport model here.
-        # Must return a TurbulentTransport with at least the four required
+        # Must return a TransportCoeffs with at least the four required
         # fields: chi_face_ion, chi_face_el, d_face_el, v_face_el.
         chi_i = jnp.ones_like(geo.rho_face_norm) * 2.0
         chi_e = jnp.ones_like(geo.rho_face_norm) * 1.5
         d_e = jnp.ones_like(geo.rho_face_norm) * 0.5
         v_e = jnp.zeros_like(geo.rho_face_norm)
 
-        return transport.TurbulentTransport(
+        return transport.TransportCoeffs(
             chi_face_ion=chi_i,
             chi_face_el=chi_e,
             d_face_el=d_e,
@@ -127,25 +127,27 @@ Once registered, the model can be used in a TORAX config under
     torax.run_simulation(torax_config)
 
 
-Registering a custom pedestal model
-=====================================
+Registering a custom pedestal structure model
+=============================================
 
-To integrate a custom pedestal model, you need to:
+The TORAX ``PedestalModel`` is composed of three sub-models: a
+``PedestalStructureModel`` (which computes the H-mode target pedestal-top width,
+temperatures, and density), a ``FormationModel``, and a ``SaturationModel``.
+To integrate a custom pedestal structure model (for example, an external neural
+network surrogate such as
+`epednn-mit <https://github.com/aaronkho/epednn_mit>`_), you need to:
 
-1. Define a pedestal model class that implements the physics.
+1. Define a pedestal structure model class that implements the physics.
 2. Define a pydantic config class for your model.
 3. Register the config class with TORAX.
 
-Step 1: Implement the pedestal model
---------------------------------------
+Step 1: Implement the pedestal structure model
+----------------------------------------------
 
-Create a frozen dataclass that inherits from ``torax.pedestal.PedestalModel``
-and implements the ``_call_implementation`` method. This method must return a
-``torax.pedestal.PedestalModelOutput`` with the pedestal properties.
-
-The ``PedestalModel`` base class requires ``formation_model`` and
-``saturation_model`` fields (used in ``ADAPTIVE_TRANSPORT`` mode). These should
-be passed through from the pydantic config's ``build_pedestal_model`` method.
+Create a frozen dataclass that inherits from
+``torax.pedestal.PedestalStructureModel`` and implements the ``__call__``
+method. This method must return a ``torax.pedestal.PedestalStructure`` with the
+H-mode target pedestal-top properties.
 
 .. code-block:: python
 
@@ -155,19 +157,19 @@ be passed through from the pydantic config's ``build_pedestal_model`` method.
     from torax import pedestal
 
     @dataclasses.dataclass(frozen=True, eq=False)
-    class MyPedestalModel(pedestal.PedestalModel):
-      """Custom pedestal model."""
+    class MyPedestalStructureModel(pedestal.PedestalStructureModel):
+      """Custom pedestal structure model."""
 
-      def _call_implementation(
+      def __call__(
           self,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-      ) -> pedestal.PedestalModelOutput:
-        # Implement your pedestal model here.
-        return pedestal.PedestalModelOutput(
+          pedestal_transition_state: pedestal.PedestalTransitionState,
+      ) -> pedestal.PedestalStructure:
+        # Implement your pedestal structure model here.
+        return pedestal.PedestalStructure(
             rho_norm_ped_top=jnp.array(0.9),
-            rho_norm_ped_top_idx=jnp.abs(geo.rho_norm - 0.9).argmin(),
             T_i_ped=jnp.array(5.0),
             T_e_ped=jnp.array(5.0),
             n_e_ped=jnp.array(0.7e20),
@@ -178,71 +180,78 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.pedestal.BasePedestal`` and implements the ``build_pedestal_model``
+``torax.pedestal.BaseStructure`` and implements the ``build_structure_model``
 method. The config class must have a ``model_name`` field with a unique
 ``Literal`` type.
 
 You may also override ``build_runtime_params`` if your model requires
-additional runtime parameters beyond the base pedestal parameters.
+additional runtime parameters. Your runtime parameters class should inherit
+from ``torax.pedestal.StructureRuntimeParams`` and will be available at
+``runtime_params.pedestal.structure``.
+
+Continuing from Step 1 (additional imports only):
 
 .. code-block:: python
 
     from typing import Annotated, Literal
 
-    class MyPedestalConfig(pedestal.BasePedestal):
-      """Pydantic config for MyPedestalModel."""
+    import jax
+    from torax._src import array_typing
+    from torax._src.torax_pydantic import torax_pydantic
+
+    @jax.tree_util.register_dataclass
+    @dataclasses.dataclass(frozen=True)
+    class MyStructureRuntimeParams(pedestal.StructureRuntimeParams):
+      """Runtime parameters for MyPedestalStructureModel."""
+
+      T_ped: array_typing.FloatScalar
+
+    class MyStructureConfig(pedestal.BaseStructure):
+      """Pydantic config for MyPedestalStructureModel."""
 
       model_name: Annotated[
           Literal['my_pedestal'], torax.JAX_STATIC
       ] = 'my_pedestal'
+      T_ped: torax_pydantic.TimeVaryingScalar = (
+          torax_pydantic.ValidatedDefault(5.0)
+      )
 
-      def build_pedestal_model(self) -> MyPedestalModel:
-        return MyPedestalModel(
-            formation_model=self.formation_model.build_formation_model(),
-            saturation_model=self.saturation_model.build_saturation_model(),
-        )
+      def build_structure_model(self) -> MyPedestalStructureModel:
+        return MyPedestalStructureModel()
 
-      def build_runtime_params(
-          self, t,
-      ) -> pedestal.RuntimeParams:
-        return pedestal.RuntimeParams(
-            set_pedestal=self.set_pedestal.get_value(t),
-            mode=self.mode,
-            formation=self.formation_model.build_runtime_params(t),
-            saturation=self.saturation_model.build_runtime_params(t),
-            chi_max=self.chi_max.get_value(t),
-            D_e_max=self.D_e_max.get_value(t),
-            V_e_max=self.V_e_max.get_value(t),
-            V_e_min=self.V_e_min.get_value(t),
-            pedestal_top_smoothing_width=(
-                self.pedestal_top_smoothing_width.get_value(t)
-            ),
+      def build_runtime_params(self, t) -> MyStructureRuntimeParams:
+        return MyStructureRuntimeParams(
+            **vars(super().build_runtime_params(t)),
+            T_ped=self.T_ped.get_value(t),
         )
 
 
 Step 3: Register the model
 ---------------------------
 
-Call ``torax.pedestal.register_pedestal_model`` with your pydantic config
-class. This must be done at module level, before any TORAX config is built.
+Call ``torax.pedestal.register_pedestal_structure_model`` with your pydantic
+config class. This must be done at module level, before any TORAX config is
+built.
 
 .. code-block:: python
 
-    pedestal.register_pedestal_model(MyPedestalConfig)
+    pedestal.register_pedestal_structure_model(MyStructureConfig)
 
 
 Using the registered model
 ---------------------------
 
-Once registered, the model can be used in a TORAX config:
+Once registered, the model can be used inside ``structure_model`` in a TORAX
+config:
 
 .. code-block:: python
 
     config = {
         ...
         'pedestal': {
-            'model_name': 'my_pedestal',
-            'set_pedestal': True,
+            'structure_model': {
+                'model_name': 'my_pedestal',
+            },
         },
         ...
     }
@@ -256,61 +265,89 @@ Registering a custom source model
 To integrate a custom source model (e.g. a new heat source, particle source,
 or current source), you need to:
 
-1. Define a model function that computes the source profile.
-2. Define a pydantic config class for your model.
-3. Register the config class with TORAX against a specific source name.
+1. Define a custom ``Source`` subclass implementing ``_get_model_value``.
+2. Define a pydantic config class for your model that builds your source in
+   ``build_source()``.
+3. Register the config class with TORAX.
 
 Unlike transport and pedestal models, source models are registered against a
 specific *source name* (e.g. ``'gas_puff'``, ``'fusion'``, ``'generic_heat'``,
 etc.). This allows multiple source model implementations to exist for the same
-physical source. The two special sources ``'qei'`` (ion-electron heat exchange)
-and ``'j_bootstrap'`` (bootstrap current) do not support custom registration.
+physical source. The special source ``'ei_exchange'`` (ion-electron heat
+exchange) does not support custom registration.
 
-Step 1: Implement the model function
---------------------------------------
+Step 1: Implement the custom Source subclass
+--------------------------------------------
 
-Define a function that matches the ``torax.sources.SourceProfileFunction``
-protocol. This function receives the simulation state and must return a tuple
-of source profile arrays (one per affected core profile). The order of the
-profiles in the tuple must match the order of the affected core profiles for the
-source being registered against (e.g. for ``generic_heat``, the tuple must be
-(ion heat, electron heat)).
+Subclass ``torax.sources.Source`` (or an existing source class) and implement
+``_get_model_value``.
+
+When subclassing ``torax.sources.Source`` directly, you must define two class
+attributes:
+
+* ``SOURCE_ID``: The target source name (e.g. ``'generic_heat'``), matching the
+  corresponding field in the ``Sources`` config.
+* ``AFFECTED_CORE_PROFILES``: A tuple of ``torax.sources.AffectedCoreProfile``
+  values (``PSI``, ``NE``, ``TEMP_ION``, ``TEMP_EL``, or ``FAST_IONS``)
+  specifying which core profile equations the source contributes to. (If
+  ``FAST_IONS`` is included, you must also implement ``zero_fast_ions``.)
+
+If you instead subclass an existing source class (e.g.
+``GenericIonElectronHeatSource``), ``SOURCE_ID`` and ``AFFECTED_CORE_PROFILES``
+are inherited automatically.
+
+``_get_model_value`` receives the simulation state and must return a tuple of
+source profile arrays on the cell grid (one per entry in
+``AFFECTED_CORE_PROFILES``, in the same order).
 
 .. code-block:: python
 
+    import dataclasses
+    from typing import ClassVar
     import jax.numpy as jnp
     import torax
     from torax import sources
 
-    def my_heat_source(
-        runtime_params: torax.RuntimeParams,
-        geo: torax.Geometry,
-        source_name: str,
-        core_profiles: torax.CoreProfiles,
-        calculated_source_profiles: sources.SourceProfiles | None,
-        unused_conductivity,
-    ) -> tuple[jnp.ndarray, ...]:
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class MyHeatSource(sources.Source):
       """Custom heat source model."""
-      # Return a tuple with one element per affected core profile.
-      # For a source affecting TEMP_ION and TEMP_EL, return two profiles.
-      ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
-      el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
-      return (ion_heat, el_heat)
+
+      SOURCE_ID: ClassVar[str] = 'generic_heat'
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[sources.AffectedCoreProfile, ...]
+      ] = (
+          sources.AffectedCoreProfile.TEMP_ION,
+          sources.AffectedCoreProfile.TEMP_EL,
+      )
+
+      def _get_model_value(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          calculated_source_profiles: sources.SourceProfiles | None,
+          conductivity,
+      ) -> tuple[jnp.ndarray, ...]:
+        # Return a tuple with one element per affected core profile.
+        # For a source affecting TEMP_ION and TEMP_EL, return two profiles.
+        ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
+        el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
+        return (ion_heat, el_heat)
 
 
 Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.sources.SourceModelBase`` and implements three required methods:
+``torax.sources.SourceConfigBase``:
 
-- ``model_func`` (property): returns the model function.
-- ``build_source``: returns the ``Source`` instance.
-- ``build_runtime_params``: returns source-specific ``RuntimeParams``.
+- Implement ``build_source``: returns the ``Source`` instance.
+- Override ``build_runtime_params`` if your source requires custom
+  ``RuntimeParams`` fields beyond the base ``RuntimeParams``.
 
 The config class must have a ``model_name`` field with a unique ``Literal``
-type that identifies your model. This name must be different from the default
-model name for the source you are registering against.
+type that identifies your model. This name must be different from any already
+registered ``model_name`` for the source slot.
 
 .. code-block:: python
 
@@ -320,7 +357,6 @@ model name for the source you are registering against.
     import chex
     import jax
     from torax import sources
-    from torax._src.sources import generic_ion_el_heat_source as heat_source_lib
 
     @jax.tree_util.register_dataclass
     @dataclasses.dataclass(frozen=True)
@@ -328,49 +364,41 @@ model name for the source you are registering against.
       """Custom runtime params with an extra parameter."""
       scaling_factor: float
 
-    class MyHeatSourceConfig(sources.SourceModelBase):
+    class MyHeatSourceConfig(sources.SourceConfigBase):
       """Pydantic config for my custom heat source."""
 
       model_name: Literal['my_heat_model'] = 'my_heat_model'
       scaling_factor: float = 1.0
 
-      @property
-      def model_func(self) -> sources.SourceProfileFunction:
-        return my_heat_source
-
       def build_source(self) -> sources.Source:
-        return heat_source_lib.GenericIonElectronHeatSource(
-            model_func=self.model_func
-        )
+        return MyHeatSource()
 
       def build_runtime_params(
           self, t: chex.Numeric,
       ) -> MyRuntimeParams:
+        base_params = super().build_runtime_params(t)
         return MyRuntimeParams(
+            **vars(base_params),
             scaling_factor=self.scaling_factor,
-            prescribed_values=tuple(
-                [v.get_value(t) for v in self.prescribed_values]
-            ),
-            mode=self.mode,
-            is_explicit=self.is_explicit,
         )
+
 
 
 Step 3: Register the model
 ---------------------------
 
-Call ``torax.sources.register_source_model_config`` with your pydantic config
-class and the name of the source to register against. This must be done at
-module level, before any TORAX config is built.
+Call ``torax.sources.register_source_config`` with your pydantic config class.
+The target source is inferred automatically from ``build_source().SOURCE_ID``.
+This must be done at module level, before any TORAX config is built.
 
 .. code-block:: python
 
-    sources.register_source_model_config(MyHeatSourceConfig, 'generic_heat')
+    sources.register_source_config(MyHeatSourceConfig)
 
-The ``source_name`` must be one of the fields in the ``Sources`` pydantic model:
-``bremsstrahlung``, ``cyclotron_radiation``, ``ecrh``, ``fusion``, ``gas_puff``,
-``generic_current``, ``generic_heat``, ``generic_particle``, ``icrh``,
-``impurity_radiation``, ``ohmic``, or ``pellet``.
+The source's ``SOURCE_ID`` must be one of the fields in the ``Sources`` pydantic
+model: ``bremsstrahlung``, ``cyclotron_radiation``, ``ecrh``, ``fusion``,
+``gas_puff``, ``generic_current``, ``generic_heat``, ``generic_particle``,
+``icrh``, ``impurity_radiation``, ``ohmic``, or ``pellet``.
 
 If you want to register a custom implementation for a source that isn't in this
 list (for example "nbi"), please reach out to the TORAX team and we will help.
@@ -473,13 +501,13 @@ Create a pydantic config class that inherits from
 ``torax.edge.EdgeModelConfig`` and implements ``build_edge_model``.
 The config class must declare a ``model_name`` field with a unique
 ``Literal`` type identifying the model. Standard boundary condition update
-flags (``update_temperatures``, ``update_electron_density``,
-``update_impurities``) and their default runtime parameters are inherited
-automatically, or you can optionally override ``build_runtime_params`` if your
-model requires custom parameter handling. On the model Pydantic config class,
-a validator can be used if the model only supports ``update_... = True`` for a
-subset of the fields (for example, ensuring unsupported boundary updates remain
-False).
+flags (``update_electron_temperature``, ``update_ion_temperature``,
+``update_electron_density``, ``update_impurities``) and their default runtime
+parameters are inherited automatically, or you can optionally override
+``build_runtime_params`` if your model requires custom parameter handling.
+On the model Pydantic config class, a validator can be used if the model only
+supports ``update_... = True`` for a subset of the fields (for example,
+ensuring unsupported boundary updates remain ``False``).
 
 .. code-block:: python
 
@@ -650,7 +678,7 @@ Example usage in a custom model config:
     from torax import sources
     from torax._src.torax_pydantic import torax_pydantic
 
-    class MyCustomConfig(sources.SourceModelBase):
+    class MyCustomConfig(sources.SourceConfigBase):
       """Custom source config with bounded parameters."""
 
       model_name: Annotated[

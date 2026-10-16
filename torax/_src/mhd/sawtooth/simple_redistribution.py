@@ -222,9 +222,9 @@ class SimpleRedistributionConfig(redistribution_base.RedistributionConfig):
       self,
       t: chex.Numeric,
   ) -> RuntimeParams:
-    base_kwargs = dataclasses.asdict(super().build_runtime_params(t))
+    base_params = super().build_runtime_params(t)
     return RuntimeParams(
-        **base_kwargs,
+        **vars(base_params),
         mixing_radius_multiplier=self.mixing_radius_multiplier.get_value(t)
     )
 

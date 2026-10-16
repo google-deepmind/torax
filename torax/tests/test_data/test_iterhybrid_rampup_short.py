@@ -18,19 +18,17 @@ This is useful for tests that emphasize compilation time, like
 tests/persistent_cache
 """
 
-
 CONFIG = {
     'pedestal': {
-        'model_name': 'set_T_ped_n_ped',
-        'set_pedestal': True,
-        'T_i_ped': 1.0,  # ion pedestal top temperature in keV for T_i and T_e
-        'T_e_ped': (
-            1.0
-        ),  # electron pedestal top temperature in keV for T_i and T_e
-        'n_e_ped_is_fGW': True,
-        # pedestal top electron density in units of fGW
-        'n_e_ped': {0: 0.3, 80: 0.7},
-        'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
+        'structure_model': {
+            'model_name': 'set_T_ped_n_ped',
+            'T_i_ped': 1.0,  # ion pedestal top temperature in keV
+            'T_e_ped': 1.0,  # electron pedestal top temperature in keV
+            'n_e_ped_is_fGW': True,
+            # pedestal top electron density in units of fGW
+            'n_e_ped': {0: 0.3, 80: 0.7},
+            'rho_norm_ped_top': 0.9,  # ped top location in normalized radius
+        },
     },
     'plasma_composition': {
         'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)

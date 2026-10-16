@@ -23,19 +23,24 @@ from typing import Mapping
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import constants
 from torax._src import jax_utils
+from torax._src import math_utils
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
+from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
 
 MIN_SMOOTHING_WIDTH = 1e-5
+# Smoothing kernel values below this fraction of the peak are set to zero,
+# limiting the range of the convolution independently of grid resolution.
+SMOOTHING_KERNEL_LOWER_CUTOFF = 0.01
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -71,14 +76,15 @@ class TransportModel(static_dataclass.StaticDataclass):
       TurbulentTransport containing the combined 4-channel coefficients and
       individual model outputs.
     """
-    pedestal_active = _is_pedestal_active(
-        runtime_params, pedestal_transition_state
+    pedestal_active = (
+        pedestal_transition_state.confinement_mode
+        != pedestal_runtime_params_lib.ConfinementMode.L_MODE
     )
     pedestal_mask = jnp.asarray(
         pedestal_active
-        & (
-            geo.rho_face_norm
-            >= pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
+        & pedestal_model_output_lib.pedestal_face_mask(
+            geo.rho_face_norm,
+            pedestal_transition_state.pedestal_model_output.rho_norm_ped_top,
         )
     )
     core_domain_mask = jnp.where(
@@ -237,7 +243,9 @@ class TransportModel(static_dataclass.StaticDataclass):
         else:  # ADD
           # Add where active and not locked.
           condition = channel_active & ~locks[channel]
-          accumulators[channel] = accumulators[channel] + val * condition
+          accumulators[channel] = accumulators[channel] + jnp.where(
+              condition, val, 0.0
+          )
 
     return transport_coeffs.TransportCoeffs(**accumulators), model_outputs
 
@@ -281,7 +289,8 @@ class TransportModel(static_dataclass.StaticDataclass):
       smoothing_matrix: jax.Array,
   ) -> transport_coeffs.TransportCoeffs:
     """Gaussian smoothing of turbulent transport coefficients."""
-    # Iterate over fields of the CoreTransport dataclass.
+
+    # Iterate over fields of the TransportCoeffs dataclass.
     # Ignore optional fields that are made all zero in post_init.
     def smooth_single_coeff(coeff):
       return jnp.where(
@@ -291,26 +300,6 @@ class TransportModel(static_dataclass.StaticDataclass):
       )
 
     return jax.tree.map(smooth_single_coeff, input_coeffs)
-
-
-def _is_pedestal_active(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
-) -> array_typing.BoolScalar:
-  """Returns whether the pedestal model is active for transport masking."""
-  if (
-      runtime_params.pedestal.use_formation_model_with_internal_boundary_condition
-  ):
-    return jnp.asarray(
-        runtime_params.pedestal.set_pedestal
-        & (
-            pedestal_transition_state.confinement_mode
-            != pedestal_transition_state_lib.ConfinementMode.L_MODE
-        )
-    )
-  return jnp.asarray(runtime_params.pedestal.set_pedestal)
 
 
 def _build_smoothing_matrix(
@@ -342,11 +331,10 @@ def _build_smoothing_matrix(
         geo.rho_face_norm, transport_runtime_params.smoothing_width
     )
 
-  smoothing_width_profile = jax.lax.cond(
-      has_zones,
-      build_profile_from_zones,
-      build_profile_fallback,
-  )
+  if has_zones:
+    smoothing_width_profile = build_profile_from_zones()
+  else:
+    smoothing_width_profile = build_profile_fallback()
 
   # Apply pedestal mask if in INTERNAL_BOUNDARY_CONDITION mode.
   # Zeros out smoothing_width_profile for rho >= rho_ped_top to avoid bleeding
@@ -358,12 +346,20 @@ def _build_smoothing_matrix(
       pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
   )
   smoothing_width_profile = jnp.where(
-      is_ibc_active & (geo.rho_face_norm >= rho_norm_ped_top),
+      is_ibc_active
+      & pedestal_model_output_lib.pedestal_face_mask(
+          geo.rho_face_norm, rho_norm_ped_top
+      ),
       0.0,
       smoothing_width_profile,
   )
 
-  return _build_smoothing_matrix_from_profile(geo, smoothing_width_profile)
+  return math_utils.gaussian_smoothing_matrix(
+      geo.rho_face_norm,
+      smoothing_width_profile,
+      active=smoothing_width_profile > MIN_SMOOTHING_WIDTH,
+      lower_cutoff=SMOOTHING_KERNEL_LOWER_CUTOFF,
+  )
 
 
 def _build_pedestal_smoothing_matrix(
@@ -378,52 +374,15 @@ def _build_pedestal_smoothing_matrix(
       pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
   )
   smoothing_width_profile = jnp.where(
-      geo.rho_face_norm >= rho_norm_ped_top,
+      pedestal_model_output_lib.pedestal_face_mask(
+          geo.rho_face_norm, rho_norm_ped_top
+      ),
       transport_runtime_params.pedestal_smoothing_width,
       0.0,
   )
-  return _build_smoothing_matrix_from_profile(geo, smoothing_width_profile)
-
-
-def _build_smoothing_matrix_from_profile(
-    geo: geometry.Geometry,
-    smoothing_width_profile: jax.Array,
-) -> jax.Array:
-  """Builds a Gaussian convolution smoothing matrix from a width profile."""
-  # To reduce the range of the convolution, weights under lower_cutoff are
-  # clipped to zero.
-  lower_cutoff = 0.01
-  # used for eps, small number to avoid divisions by zero for sigma = 0
-  consts = constants.CONSTANTS
-
-  # 2. Kernel matrix with variable width (sigma_i for each destination row i)
-  r_diff = geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm
-  sigma = smoothing_width_profile[:, jnp.newaxis]
-
-  kernel = jnp.exp(-jnp.log(2) * r_diff**2 / (sigma**2 + consts.eps))
-
-  # 3. Dynamic active mask derivation (sigma > threshold)
-  # Derives a binary active mask vector directly from smoothing_width_profile.
-  mask = jnp.where(smoothing_width_profile > MIN_SMOOTHING_WIDTH, 1.0, 0.0)
-
-  # Zero out rows (destinations) and columns (sources) outside active mask
-  kernel = kernel * mask[:, jnp.newaxis] * mask[jnp.newaxis, :]
-
-  # Restore identity to the zero rows (so smoothing is a no-op there)
-  zero_row_mask = jnp.all(kernel == 0, axis=1)
-  kernel = jnp.where(
-      zero_row_mask[:, jnp.newaxis], jnp.eye(kernel.shape[0]), kernel
+  return math_utils.gaussian_smoothing_matrix(
+      geo.rho_face_norm,
+      smoothing_width_profile,
+      active=smoothing_width_profile > MIN_SMOOTHING_WIDTH,
+      lower_cutoff=SMOOTHING_KERNEL_LOWER_CUTOFF,
   )
-
-  # 4. Normalization
-  row_sums = jnp.sum(kernel, axis=1, keepdims=True)
-  kernel = kernel / row_sums
-
-  # 5. Remove small numbers
-  kernel = jnp.where(kernel < lower_cutoff, 0.0, kernel)
-
-  # 6. Final Normalization following removal of small numbers
-  row_sums = jnp.sum(kernel, axis=1, keepdims=True)
-  kernel = kernel / row_sums
-
-  return kernel

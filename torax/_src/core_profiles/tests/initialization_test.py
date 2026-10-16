@@ -63,22 +63,27 @@ class InitializationTest(parameterized.TestCase):
     # Turn on the external current source.
     runtime_params, geo = references.get_runtime_params_and_geo()
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
-    j_parallel_external = generic_current_source.calculate_generic_current(
+    source = generic_current_source.GenericCurrentSource()
+    j_parallel_external = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
-        source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
-        unused_state=mock.ANY,
-        unused_calculated_source_profiles=mock.ANY,
-        unused_conductivity=mock.ANY,
+        core_profiles=mock.ANY,
+        calculated_source_profiles=None,
+        conductivity=None,
     )[0]
+    assert isinstance(j_parallel_external, jax.Array)
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-        j_parallel_external, geo, runtime_params.numerics.min_rho_norm
+        j_parallel_external,
+        geo,
+        runtime_params.numerics.min_rho_norm,
     )
-    j_total_hires = initialization.get_j_toroidal_total_hires_with_external_sources(
-        bootstrap_current=bootstrap,
-        runtime_params=runtime_params,
-        geo=geo,
-        j_toroidal_external=j_toroidal_external,  # pyrefly: ignore[bad-argument-type]
+    j_total_hires = (
+        initialization.get_j_toroidal_total_hires_with_external_sources(
+            bootstrap_current=bootstrap,
+            runtime_params=runtime_params,
+            geo=geo,
+            j_toroidal_external=j_toroidal_external,
+        )
     )
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.Ip,
@@ -86,6 +91,46 @@ class InitializationTest(parameterized.TestCase):
         j_total_hires,
     ).value
     np.testing.assert_allclose(psi, references.psi.value)
+
+  def test_get_j_toroidal_total_hires_with_bootstrap_integrates_to_ip(self):
+    config = default_configs.get_default_config_dict()
+    config['geometry']['geometry_type'] = 'chease'
+    config['geometry']['n_rho'] = 100
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    runtime_params, geo = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=torax_config.numerics.t_initial,
+            runtime_params_provider=build_runtime_params.RuntimeParamsProvider.from_config(
+                torax_config
+            ),
+            geometry_provider=torax_config.geometry.build_provider,
+            is_initialization=True,
+        )
+    )
+    j_parallel_bs = 2e6 * (1.0 - geo.rho_norm**2)
+    j_parallel_bs_face = math_utils.cell_to_face(
+        j_parallel_bs,
+        geo,
+        preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
+    )
+    bootstrap = bootstrap_current_base.BootstrapCurrent(
+        j_parallel_bootstrap=j_parallel_bs,
+        j_parallel_bootstrap_face=j_parallel_bs_face,
+    )
+    j_total_hires = (
+        initialization.get_j_toroidal_total_hires_with_external_sources(
+            runtime_params=runtime_params,
+            geo=geo,
+            bootstrap_current=bootstrap,
+            j_toroidal_external=np.zeros_like(geo.rho_norm),  # pyrefly: ignore[bad-argument-type]
+        )
+    )
+    ip_hires = jax.scipy.integrate.trapezoid(
+        j_total_hires * geo.spr_hires, geo.rho_hires_norm
+    )
+    np.testing.assert_allclose(
+        ip_hires, runtime_params.profile_conditions.Ip, rtol=1e-2
+    )
 
   def test_initial_core_profiles_toroidal_angular_velocity(self):
     config = default_configs.get_default_config_dict()

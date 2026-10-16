@@ -31,18 +31,16 @@ class ExBRotationOutput:
 
   Attributes:
     v_ExB: Total ExB velocity profile on the face grid [m/s].
-    v_ExB_poloidal_and_pressure: v_ExB from poloidal rotation + pressure
-      gradient contributions:
-      (dpi/dr / (Zi * e * ni) + v_theta * B_phi) / B_total.
-    v_ExB_toroidal: v_ExB from toroidal velocity contribution:
-      -v_phi * B_theta / B_total.
-    Er: Total radial electric field as a cell variable [V/m].
+    v_ExB_poloidal_and_pressure: v_ExB from poloidal rotation and pressure
+      gradient contributions [m/s].
+    v_ExB_toroidal: v_ExB from toroidal velocity contribution [m/s].
+    Er: Total radial electric field on the face grid [V/m].
   """
 
   v_ExB: array_typing.FloatVectorFace
   v_ExB_poloidal_and_pressure: array_typing.FloatVectorFace
   v_ExB_toroidal: array_typing.FloatVectorFace
-  Er: cell_variable.CellVariable
+  Er: array_typing.FloatVectorFace
 
 
 @jax.jit
@@ -56,18 +54,23 @@ def _calculate_radial_electric_field(
     B_tor_face: array_typing.FloatVector,
     geo: geometry.Geometry,
 ) -> tuple[
-    cell_variable.CellVariable,
+    array_typing.FloatVectorFace,
     array_typing.FloatVectorFace,
     array_typing.FloatVectorFace,
 ]:
   """Calculates the radial electric field Er with separate components.
 
-  Er = (1 / (Zi * e * ni)) * dpi/dr - v_phi * B_theta + v_theta * B_phi
+  Er = (1 / (Zi * e * ni)) * dpi/dr + v_phi * B_theta - v_theta * B_phi
+
+  This is the main-ion radial force balance in right-handed (r, theta, phi)
+  coordinates, see e.g. K. H. Burrell, "Effects of E x B velocity shear and
+  magnetic shear on turbulence and transport in magnetic confinement devices",
+  Phys. Plasmas 4, 1499 (1997), https://doi.org/10.1063/1.872367.
 
   We split Er into:
-  - Er_poloidal_and_pressure: (1 / (Zi * e * ni)) * dpi/dr + v_theta * B_phi
+  - Er_poloidal_and_pressure: (1 / (Zi * e * ni)) * dpi/dr - v_theta * B_phi
     This contribution is from the pressure gradient and poloidal rotation.
-  - Er_toroidal: -v_phi * B_theta
+  - Er_toroidal: v_phi * B_theta
     This contribution is from toroidal velocity.
 
   Args:
@@ -81,10 +84,10 @@ def _calculate_radial_electric_field(
     geo: Geometry object.
 
   Returns:
-    Er: Radial electric field [V/m] as a CellVariable.
-    Er_poloidal_and_pressure_face: Er contribution from pressure gradient and
-      poloidal rotation [V/m] on face grid.
-    Er_toroidal_face: Er contribution from toroidal velocity [V/m] on face grid.
+    Er: Radial electric field [V/m] on the face grid.
+    Er_poloidal_and_pressure: Er contribution from pressure gradient and
+      poloidal rotation [V/m] on the face grid.
+    Er_toroidal: Er contribution from toroidal velocity [V/m] on the face grid.
   """
   # Calculate dpi/dr with respect to a midplane-averaged radial coordinate.
   dpi_dr = pressure_total_i.face_grad(
@@ -94,38 +97,31 @@ def _calculate_radial_electric_field(
   # Calculate Er
   denominator = Z_i_face * constants.CONSTANTS.q_e * n_i.face_value()
 
-  Er_poloidal_and_pressure_face = (
-      math_utils.safe_divide(
-          num=jnp.array(1.0), denom=denominator, eps=1e-7
-      ) * dpi_dr
-      + poloidal_velocity.face_value() * B_tor_face
+  Er_poloidal_and_pressure = (
+      math_utils.safe_divide(num=jnp.array(1.0), denom=denominator, eps=1e-7)
+      * dpi_dr
+      - poloidal_velocity.face_value() * B_tor_face
   )
 
-  Er_toroidal_face = (
-      -toroidal_angular_velocity.face_value()  # pyrefly: ignore[unsupported-operation]
+  Er_toroidal = (
+      toroidal_angular_velocity.face_value()
       * geo.R_major_profile_face
       * B_pol_face
   )
 
-  Er_face = Er_poloidal_and_pressure_face + Er_toroidal_face
+  Er = Er_poloidal_and_pressure + Er_toroidal
 
-  Er = cell_variable.CellVariable(
-      value=geometry.face_to_cell(Er_face),
-      face_centers=geo.rho_face_norm,
-      right_face_constraint=Er_face[-1],
-      right_face_grad_constraint=None,
-  )
-  return Er, Er_poloidal_and_pressure_face, Er_toroidal_face
+  return Er, Er_poloidal_and_pressure, Er_toroidal
 
 
 @jax.jit
 def _calculate_v_ExB(
-    Er_face: array_typing.FloatVectorFace,
+    Er: array_typing.FloatVectorFace,
     B_total_face: array_typing.FloatVectorFace,
 ) -> array_typing.FloatVectorFace:
   """Calculates the ExB velocity, on the face grid."""
   B_total_face = jnp.maximum(B_total_face, constants.CONSTANTS.eps)
-  return jnp.where(B_total_face > 0, Er_face / B_total_face, 0.0)
+  return jnp.where(B_total_face > 0, Er / B_total_face, 0.0)
 
 
 def calculate_rotation(
@@ -164,7 +160,7 @@ def calculate_rotation(
   B_total_squared_face = B_pol_squared_face + B_tor_face**2
   B_total_face = jnp.sqrt(B_total_squared_face)
 
-  Er, Er_poloidal_and_pressure_face, Er_toroidal_face = (
+  Er, Er_poloidal_and_pressure, Er_toroidal = (
       _calculate_radial_electric_field(
           pressure_total_i=pressure_total_i,
           toroidal_angular_velocity=toroidal_angular_velocity,
@@ -177,11 +173,11 @@ def calculate_rotation(
       )
   )
 
-  v_ExB = _calculate_v_ExB(Er.face_value(), B_total_face)  # pyrefly: ignore[bad-argument-type]
+  v_ExB = _calculate_v_ExB(Er, B_total_face)
   v_ExB_poloidal_and_pressure = _calculate_v_ExB(
-      Er_poloidal_and_pressure_face, B_total_face
+      Er_poloidal_and_pressure, B_total_face
   )
-  v_ExB_toroidal = _calculate_v_ExB(Er_toroidal_face, B_total_face)
+  v_ExB_toroidal = _calculate_v_ExB(Er_toroidal, B_total_face)
 
   return ExBRotationOutput(
       v_ExB=v_ExB,

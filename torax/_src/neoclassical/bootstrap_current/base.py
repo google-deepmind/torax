@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-import logging
 import jax
 import jax.numpy as jnp
 import pydantic
@@ -41,25 +40,6 @@ class BootstrapCurrent:
 
   j_parallel_bootstrap: array_typing.FloatVectorCell
   j_parallel_bootstrap_face: array_typing.FloatVectorFace
-
-  # TODO(b/434175938). Remove these deprecated properties in V2.
-  @property
-  def j_bootstrap(self) -> array_typing.FloatVectorCell:
-    """DEPRECATED: use j_parallel_bootstrap."""
-    logging.warning(
-        '`j_bootstrap` is deprecated, use `j_parallel_bootstrap` instead.'
-        ' `j_bootstrap` will be removed in a future version.'
-    )
-    return self.j_parallel_bootstrap
-
-  @property
-  def j_bootstrap_face(self) -> array_typing.FloatVectorFace:
-    """DEPRECATED: use `j_parallel_bootstrap_face`."""
-    logging.warning(
-        '`j_bootstrap_face` is deprecated, use `j_parallel_bootstrap_face`'
-        ' instead. `j_bootstrap_face` will be removed in a future version.'
-    )
-    return self.j_parallel_bootstrap_face
 
   @classmethod
   def zeros(cls, geometry: geometry_lib.Geometry) -> 'BootstrapCurrent':
@@ -158,9 +138,11 @@ class BootstrapCurrentModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base class for bootstrap current model configs."""
   bootstrap_multiplier: pydantic.NonNegativeFloat = 1.0
 
-  @abc.abstractmethod
   def build_runtime_params(self) -> bootstrap_runtime_params.RuntimeParams:
     """Builds runtime params."""
+    return bootstrap_runtime_params.RuntimeParams(
+        bootstrap_multiplier=self.bootstrap_multiplier
+    )
 
   @abc.abstractmethod
   def build_model(self) -> BootstrapCurrentModel:
