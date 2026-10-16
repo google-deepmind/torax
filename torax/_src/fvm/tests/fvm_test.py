@@ -221,12 +221,12 @@ class FVMTest(parameterized.TestCase):
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
-            profile_conditions=dict(),
+            profile_conditions=dict(initial_psi_source='j'),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
             solver=dict(
-                use_predictor_corrector=False, theta_implicit=theta_implicit
+                use_fixed_point=False, theta_implicit=theta_implicit
             ),
             transport=dict(
                 core_transport_models=dict(
@@ -335,11 +335,11 @@ class FVMTest(parameterized.TestCase):
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
-            profile_conditions=dict(),
+            profile_conditions=dict(initial_psi_source='j'),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
-            solver=dict(use_predictor_corrector=False, theta_implicit=1.0),
+            solver=dict(use_fixed_point=False, theta_implicit=1.0),
             transport=dict(
                 core_transport_models=dict(
                     prescribed=dict(model_name='prescribed', chi_i=1)
@@ -449,12 +449,12 @@ class FVMTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
-            profile_conditions=dict(),
+            profile_conditions=dict(initial_psi_source='j'),
             plasma_composition=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
-            solver=dict(use_predictor_corrector=False, theta_implicit=0.0),
+            solver=dict(use_fixed_point=False, theta_implicit=0.0),
             transport=dict(
                 core_transport_models=dict(
                     prescribed=dict(model_name='prescribed', chi_i=1)

@@ -259,7 +259,7 @@ class PostProcessingTest(parameterized.TestCase):
         self.source_profiles, bootstrap_current=bootstrap_current
     )
 
-    # Mock j_total (toroidal).
+    # Mock j_toroidal_total.
     # We leave core_profiles as is (from setUp), but update source_profiles.
 
     input_state = sim_state.SimState(
@@ -298,14 +298,17 @@ class PostProcessingTest(parameterized.TestCase):
     np.testing.assert_allclose(outputs.j_parallel_non_inductive, 5.0 * ones)
 
     # Check toroidal currents relation
-    # j_non_inductive should be j_bootstrap + j_external
+    # j_toroidal_non_inductive = j_toroidal_bootstrap + j_toroidal_external
     np.testing.assert_allclose(
-        outputs.j_non_inductive, outputs.j_bootstrap + outputs.j_external
+        outputs.j_toroidal_non_inductive,
+        outputs.j_toroidal_bootstrap + outputs.j_toroidal_external,
     )
 
     # Check integrated currents
-    # I_non_inductive should be I_bootstrap + area_int(j_external)
-    I_external = math_utils.area_integration(outputs.j_external, self.geo)
+    # I_non_inductive should be I_bootstrap + area_int(j_toroidal_external)
+    I_external = math_utils.area_integration(
+        outputs.j_toroidal_external, self.geo
+    )
     np.testing.assert_allclose(outputs.I_external, I_external)
 
     np.testing.assert_allclose(

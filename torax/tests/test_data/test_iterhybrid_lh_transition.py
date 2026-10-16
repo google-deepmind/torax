@@ -105,7 +105,7 @@ CONFIG['pedestal'] = {
 # L-H transition.
 CONFIG['solver'] = {
     'solver_type': 'newton_raphson',
-    'use_predictor_corrector': True,
+    'use_fixed_point': True,
     'use_pereverzev': True,
 }
 
@@ -113,11 +113,13 @@ CONFIG['solver'] = {
 CONFIG['transport']['smoothing_width'] = 0.1
 
 # Use the from_previous_dt time step calculator to speed up the simulation.
-CONFIG['time_step_calculator'] = {'calculator_type': 'from_previous_dt'}
-CONFIG['numerics']['min_dt'] = 1e-3
-CONFIG['numerics']['max_dt'] = 1.0
-CONFIG['numerics']['fixed_dt'] = 1.0
-CONFIG['numerics']['dt_reduction_factor'] = 2.0
+CONFIG['time_step_calculator'] = {
+    'calculator_type': 'from_previous_dt',
+    'min_dt': 1e-3,
+    'max_dt': 1.0,
+    'fixed_dt': 1.0,
+    'dt_reduction_factor': 2.0,
+}
 
 # Turn off resistivity multiplier, as otherwise high chi -> low temp -> high
 # resistivity becomes unstable.

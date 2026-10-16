@@ -36,10 +36,10 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   Attributes:
     theta_implicit: The theta value in the theta method 0 = explicit, 1 = fully
       implicit, 0.5 = Crank-Nicolson.
-    use_predictor_corrector: Enables use_predictor_corrector iterations with the
-      linear solver. If False, compilation is faster.
-    n_corrector_steps: The number of corrector steps for the predictor-corrector
-      linear solver. 0 means a pure linear solve with no corrector steps.
+    use_fixed_point: Enables fixed-point iterations with the linear solver. If
+      False, compilation is faster.
+    n_fixed_point_iterations: The number of iterations for the fixed-point
+      linear solver.
     use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
       the nonlinear solver for the optional initial guess from the linear solver
     implicit_solver_type: The tridiagonal solver algorithm to use for the
@@ -59,9 +59,8 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
   theta_implicit: Annotated[
       torax_pydantic.UnitInterval, torax_pydantic.JAX_STATIC
   ] = 1.0
-  # TODO(b/434175938): Rename to fixed_point.
-  use_predictor_corrector: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  n_corrector_steps: Annotated[
+  use_fixed_point: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  n_fixed_point_iterations: Annotated[
       pydantic.PositiveInt, torax_pydantic.JAX_STATIC
   ] = 10
   use_pereverzev: Annotated[bool, torax_pydantic.JAX_STATIC] = False
@@ -87,11 +86,11 @@ class BaseSolver(torax_pydantic.BaseModelFrozen, abc.ABC):
     return runtime_params.RuntimeParams(
         theta_implicit=self.theta_implicit,
         use_pereverzev=self.use_pereverzev,
-        use_predictor_corrector=self.use_predictor_corrector,
+        use_fixed_point=self.use_fixed_point,
         implicit_solver_type=self.implicit_solver_type,
         chi_pereverzev=self.chi_pereverzev,
         D_pereverzev=self.D_pereverzev,
-        n_corrector_steps=self.n_corrector_steps,
+        n_fixed_point_iterations=self.n_fixed_point_iterations,
         fixed_point_atol=self.fixed_point_atol,
         fixed_point_rtol=self.fixed_point_rtol,
         fixed_point_termination_criterion=self.fixed_point_termination_criterion,

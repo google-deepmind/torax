@@ -35,8 +35,8 @@ from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.solver import fixed_point_method
 from torax._src.solver import jax_root_finding
-from torax._src.solver import predictor_corrector_method
 from torax._src.sources import source_profiles
 
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
@@ -200,7 +200,7 @@ def newton_raphson_solve_block(
       x_new_guess = convertors.core_profiles_to_solver_x_tuple(
           core_profiles_t_plus_dt, evolving_names
       )
-      init_x_new = predictor_corrector_method.predictor_corrector_method(
+      init_x_new = fixed_point_method.fixed_point_method(
           dt=dt,
           runtime_params_t_plus_dt=runtime_params_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,

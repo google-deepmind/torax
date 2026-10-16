@@ -121,7 +121,7 @@ class StepFunctionTest(parameterized.TestCase):
 
   def test_below_min_dt(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['numerics'] = {
+    config_dict['time_step_calculator'] = {
         'min_dt': 2.0,
         'dt_reduction_factor': 2.0,
     }
@@ -148,10 +148,12 @@ class StepFunctionTest(parameterized.TestCase):
   def test_no_error_when_below_min_dt_but_solver_converged(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics'] = {
-        'min_dt': 2.0,
-        'dt_reduction_factor': 2.0,
         'exact_t_final': True,
         't_final': 5.0,
+    }
+    config_dict['time_step_calculator'] = {
+        'min_dt': 2.0,
+        'dt_reduction_factor': 2.0,
     }
     step_fn, sim_state, post_processed_outputs = (
         get_step_fn_sim_state_and_post_processed_outputs(config_dict)
@@ -178,8 +180,10 @@ class StepFunctionTest(parameterized.TestCase):
     passed_max_dt = 0.01
 
     config_dict = default_configs.get_default_config_dict()
-    config_dict['numerics']['fixed_dt'] = config_dt
-    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'fixed_dt': config_dt,
+    }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
@@ -212,8 +216,10 @@ class StepFunctionTest(parameterized.TestCase):
     passed_max_dt = 1.0
 
     config_dict = default_configs.get_default_config_dict()
-    config_dict['numerics']['fixed_dt'] = config_dt
-    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'fixed_dt': config_dt,
+    }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
@@ -245,8 +251,10 @@ class StepFunctionTest(parameterized.TestCase):
     passed_max_dt = 0.01
 
     config_dict = default_configs.get_default_config_dict()
-    config_dict['numerics']['fixed_dt'] = config_dt
-    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'fixed_dt': config_dt,
+    }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
@@ -327,8 +335,7 @@ class StepFunctionTest(parameterized.TestCase):
 
   def test_fixed_time_step_t_less_than_min_dt(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['numerics']['min_dt'] = 0.1
-    config_dict['numerics']['adaptive_dt'] = True
+    config_dict['time_step_calculator'] = {'min_dt': 0.1, 'adaptive_dt': True}
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
@@ -348,9 +355,10 @@ class StepFunctionTest(parameterized.TestCase):
             paths.test_data_dir(), 'test_iterhybrid_predictor_corrector.py'
         )
     )
-    torax_config.update_fields(
-        {'numerics.min_dt': 0.1, 'numerics.adaptive_dt': True}
-    )
+    torax_config.update_fields({
+        'time_step_calculator.min_dt': 0.1,
+        'time_step_calculator.adaptive_dt': True,
+    })
 
     requested_t = 1.0
     sim_state, post_processed_outputs, step_fn = (

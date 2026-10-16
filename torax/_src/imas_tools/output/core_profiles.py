@@ -324,7 +324,7 @@ def _fill_profiles_1d_currents(
   # Currents sign flipped due to the difference between TORAX COCOS convention
   # and IMAS one.
   # Total toroidal current density
-  j_phi = extend(cp_state.j_total, cp_state.j_total_face)
+  j_phi = extend(cp_state.j_toroidal_total, cp_state.j_toroidal_total_face)
   ids.profiles_1d[i].j_phi = -1 * j_phi
   # Parallel current densities
   j_bootstrap = extend(

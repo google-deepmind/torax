@@ -21,6 +21,7 @@ scaled from chi_e
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'geometry',
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
         'nbar': 0.85,  # initial density (Greenwald fraction units)
@@ -79,7 +80,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': True,
+        'use_fixed_point': True,
         'use_pereverzev': True,
     },
     'time_step_calculator': {

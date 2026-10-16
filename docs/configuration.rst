@@ -286,7 +286,7 @@ time-dependence of temperature, density, and current.
 ``psi`` (**time-varying-array** | None [default = None])
   If provided, the initial ``psi`` will be taken from here. Otherwise, the
   initial ``psi`` will be calculated from either the geometry or the
-  "current_profile_nu formula" dependent on the ``initial_psi_from_j`` field.
+  "current_profile_nu formula" dependent on the ``initial_psi_source`` field.
   If ``numerics.evolve_current`` is False and ``psi`` is provided here, then
   the prescribed ``psi`` for all times is taken from here.
 
@@ -357,7 +357,7 @@ time-dependence of temperature, density, and current.
 ``current_profile_nu`` (float [default = 1.0])
   Peaking factor of initial current, either total or "Ohmic":
   :math:`j = j_0(1 - r^2/a^2)^\nu` where :math:`\nu` is ``current_profile_nu``. Used if
-  ``initial_psi_from_j`` is ``True``. In that case, then this sets the
+  ``initial_psi_source`` is ``'j'``. In that case, then this sets the
   peaking factor of either the total or Ohmic initial current profile, depending
   on the ``initial_j_is_total_current`` flag.
 
@@ -367,13 +367,7 @@ time-dependence of temperature, density, and current.
   the Ohmic current is set such that the initial total non-inductive current +
   total Ohmic current equals ``Ip``
 
-``initial_psi_from_j`` (bool [default = False])
-  Toggles if the initial psi calculation is based on the "current_profile_nu"
-  current formula, or from the psi available in the numerical geometry file.
-  This setting is ignored for the ad-hoc circular geometry, which has no
-  numerical geometry.
-
-``initial_psi_mode`` (str [default = 'profile_conditions'])
+``initial_psi_source`` (str [default = 'profile_conditions'])
   Method for determining initial poloidal flux :math:`\psi`.
   Options are ``'profile_conditions'`` (uses the ``psi`` array attribute),
   ``'geometry'`` (uses :math:`\psi` from numerical geometry), or ``'j'``
@@ -562,42 +556,6 @@ equations being solved, constant numerical variables.
 ``exact_t_final`` (bool [default = True])
   If True, ensures that the simulation end time is exactly ``t_final``, by
   adapting the final ``dt`` to match.
-
-``max_dt`` (float [default = 2.0])
-  Maximum size of timesteps allowed in the simulation. This is only used with
-  the ``chi_time_step_calculator`` time_step_calculator.
-
-``min_dt`` (float [default = 1e-8])
-  Minimum timestep allowed in simulation.
-
-``chi_timestep_prefactor`` (float [default = 50.0])
-  Prefactor in front of ``chi_timestep_calculator`` base timestep
-  :math:`dt_{base}=\frac{dx^2}{2\chi}` (see :ref:`time_step_calculator`).
-
-``fixed_dt`` ( **time-varying-scalar** [default = 1e-1])
-  Timestep used for ``fixed_time_step_calculator`` (see
-  :ref:`time_step_calculator`). All values must be non-negative.
-  Specifying a time-dependent fixed_dt can be useful in cases where there are
-  known transitions (e.g. ramp-up, ramp-down, and/or LH transitions) and a
-  different granularity of simulation is required for each phase. Note that the
-  default interpolation mode for `fixed_dt` has been internally imposed as
-  `'STEP'`.
-  E.g.:
-
-  .. code-block:: python
-
-    # Setting a higher time resolution between 5s and 10s.
-    'fixed_dt': {0.0: 1e-1, 5.0: 1e-2, 10.0: 1e-1}
-
-``adaptive_dt`` (bool [default = True])
-  If True, then if a nonlinear solver does not converge for a given timestep,
-  then dt-backtracking is applied and a new Solver call is made where the
-  timestep is reduced by a factor of ``dt_reduction_factor``. This is applied
-  iteratively until either the solver converges, or ``min_dt`` is reached.
-
-``dt_reduction_factor`` (float [default = 3.0])
-  Used only if ``adaptive_dt`` is True. Factor by which the timestep is reduced
-  if a nonlinear solver does not converge for a given timestep.
 
 ``evolve_ion_heat`` (bool [default = True])
   Solve the ion heat equation in the time-dependent PDE.
@@ -1471,14 +1429,14 @@ Geometry dicts for IMAS geometry also support the following optional keys.
 
 ``slice_index`` (int [default = 0])
   Index of the time slice to load from the IMAS IDS. Used when
-  ``load_all_time_slices=False`` (the default). Ignored if ``slice_time`` is
+  ``load_all_time_slices=False``. Ignored if ``slice_time`` is
   set.
 
 ``slice_time`` (float | None [default = None])
   Time of the slice to load from the IMAS IDS, in seconds. When set, the
   slice whose time is closest to this value is selected. Overrides
   ``slice_index``. Cannot be set simultaneously with a non-zero
-  ``slice_index``. Used when ``load_all_time_slices=False`` (the default).
+  ``slice_index``. Used when ``load_all_time_slices=False``.
 
 ``explicit_convert`` (bool [default = True])
   Whether to explicitly convert the IDS to the current Data Dictionary (DD)
@@ -1488,11 +1446,11 @@ Geometry dicts for IMAS geometry also support the following optional keys.
   <https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions>`_
   for details.
 
-``load_all_time_slices`` (bool [default = False])
+``load_all_time_slices`` (bool [default = True])
   Controls how time slices are loaded from the IMAS IDS. Two modes are
   supported:
 
-  * ``False`` (default — **single time slice** mode): Only the single time
+  * ``False`` (**single time slice** mode): Only the single time
     slice selected by ``slice_time`` or ``slice_index`` is loaded. The
     resulting geometry is time-independent (a
     ``ConstantGeometryProvider``). This is analogous to the single-file
@@ -1500,7 +1458,7 @@ Geometry dicts for IMAS geometry also support the following optional keys.
     compatible with the standard ``geometry_configs`` dict for building a
     time-dependent provider from multiple individual slices.
 
-  * ``True`` (**all time slices** mode): All time slices present in the IDS
+  * ``True`` (default — **all time slices** mode): All time slices present in the IDS
     are loaded and used to build a time-dependent
     ``StandardGeometryProvider`` that interpolates geometry across them.
     This is a convenient alternative to specifying multiple entries in
@@ -1513,7 +1471,7 @@ Geometry dicts for IMAS geometry also support the following optional keys.
     ``load_all_time_slices=True`` cannot be combined with
     ``geometry_configs``. Use one or the other.
 
-**Example — single time slice (default):**
+**Example — single time slice:**
 
 .. code-block:: python
 
@@ -1521,10 +1479,11 @@ Geometry dicts for IMAS geometry also support the following optional keys.
       'geometry_type': 'imas',
       'Ip_from_parameters': True,
       'imas_filepath': '/path/to/equilibrium.nc',
+      'load_all_time_slices': False,
       'slice_index': 2,
   }
 
-**Example — all time slices from a single IMAS file:**
+**Example — all time slices from a single IMAS file (default):**
 
 .. code-block:: python
 
@@ -2720,12 +2679,11 @@ specific solver are defined in the relevant section below.
   theta value in the theta method of time discretization. 0 = explicit, 1 =
   fully implicit, 0.5 = Crank-Nicolson.
 
-``use_predictor_corrector`` (bool [default = True])
-  Enables use_predictor_corrector iterations with the linear solver.
+``use_fixed_point`` (bool [default = True])
+  Enables use_fixed_point iterations with the linear solver.
 
-``n_corrector_steps`` (int [default = 10])
-  Number of corrector steps for the predictor-corrector linear solver. 0 means a
-  pure linear solve with no corrector steps. Must be a positive integer.
+``n_fixed_point_iterations`` (int [default = 10])
+  The number of iterations for the fixed-point linear solver. Must be a positive integer.
 
 ``atol`` (float | None [default = None])
   Absolute tolerance for fixed-point iterations in the predictor-corrector solver.
@@ -2804,7 +2762,7 @@ newton_raphson
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear
-    solver. If used, is recommended to do so with the use_predictor_corrector
+    solver. If used, is recommended to do so with the use_fixed_point
     solver and several corrector steps. It is also strongly recommended to
     ``use_pereverzev=True`` if a stiff transport model like qlknn is used.
 
@@ -2859,7 +2817,7 @@ optimizer
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear
-    solver. If used, is recommended to do so with the use_predictor_corrector
+    solver. If used, is recommended to do so with the use_fixed_point
     solver and several corrector steps. It is also strongly recommended to
     use_pereverzev=True if a stiff transport model like qlknn is used.
 
@@ -2880,33 +2838,70 @@ time_step_calculator
   every timestep. Three methods are currently available:
 
 * ``'fixed'``
-    ``dt`` is equal to ``fixed_dt`` defined in :ref:`numerics_dataclass`.
-    If the Newton-Raphson solver is being used and ``adaptive_dt==True`` in the
-    ``numerics`` config dict, then in practice some steps may have lower ``dt``
-    if the solver needed to backtrack.
+    ``dt`` is equal to ``fixed_dt``.
+    If the Newton-Raphson solver is being used and ``adaptive_dt==True``, then
+    in practice some steps may have lower ``dt`` if the solver needed to
+    backtrack.
 
 * ``'chi'``
     adaptive dt method, where ``dt`` is a multiple of a base dt inspired by the
     explicit stability limit for parabolic PDEs:
     :math:`dt_{base}=\frac{dx^2}{2\chi}`, where :math:`dx` is the grid
     resolution  and :math:`\chi=max(\chi_i, \chi_e)`.
-    ``dt=chi_timestep_prefactor * dt_base``, where ``chi_timestep_prefactor`` is
-    defined in :ref:`numerics_dataclass`, and can be significantly larger than
-    unity for implicit solvers. Scaling the timestep to be :math:`\propto \chi`
-    helps protect against traversing through fast transients, if there is a
-    desire for them to be fully resolved.
+    ``dt=chi_timestep_prefactor * dt_base``, where ``chi_timestep_prefactor``
+    can be significantly larger than unity for implicit solvers. Scaling the
+    timestep to be :math:`\propto \chi` helps protect against traversing through
+    fast transients, if there is a desire for them to be fully resolved.
 
 * ``'from_previous_dt'``
     ``dt`` is equal to the previous time step duration multiplied by the
-    ``dt_reduction_factor`` defined in :ref:`numerics_dataclass`. This can speed
-     up simulations that take many dt reduction steps, as the dt is initialized
-     to a smaller value, rather than starting from max_dt every time. It can
-     also speed up simulations where a small dt is required for a short section,
-     but then a larger dt is be appropriate for the remainder of the simulation.
+    ``dt_reduction_factor``. This can speed up simulations that take many dt
+    reduction steps, as the dt is initialized to a smaller value, rather than
+    starting from max_dt every time. It can also speed up simulations where a
+    small dt is required for a short section, but then a larger dt is
+    appropriate for the remainder of the simulation.
 
 ``tolerance`` (float [default = 1e-7])
   The tolerance within the final time for which the simulation will be
   considered done.
+
+``max_dt`` (float [default = 2.0])
+  Maximum size of timesteps allowed in the simulation. This is used with the
+  ``'chi'`` and ``'from_previous_dt'`` time_step_calculators.
+
+``min_dt`` (float [default = 1e-8])
+  Minimum timestep allowed in simulation.
+
+``chi_timestep_prefactor`` (float [default = 50.0])
+  Prefactor in front of ``'chi'`` time_step_calculator base timestep
+  :math:`dt_{base}=\frac{dx^2}{2\chi}`. Only available when
+  ``calculator_type`` is ``'chi'``.
+
+``fixed_dt`` ( **time-varying-scalar** [default = 1e-1])
+  Timestep used for ``'fixed'`` and initial timestep for ``'from_previous_dt'``
+  time_step_calculators. All values must be non-negative.
+  Specifying a time-dependent fixed_dt can be useful in cases where there are
+  known transitions (e.g. ramp-up, ramp-down, and/or LH transitions) and a
+  different granularity of simulation is required for each phase. Note that the
+  default interpolation mode for `fixed_dt` has been internally imposed as
+  `'STEP'`.
+  E.g.:
+
+  .. code-block:: python
+
+    # Setting a higher time resolution between 5s and 10s.
+    'fixed_dt': {0.0: 1e-1, 5.0: 1e-2, 10.0: 1e-1}
+
+``adaptive_dt`` (bool [default = True])
+  If True, then if a nonlinear solver does not converge for a given timestep,
+  then dt-backtracking is applied and a new Solver call is made where the
+  timestep is reduced by a factor of ``dt_reduction_factor``. This is applied
+  iteratively until either the solver converges, or ``min_dt`` is reached.
+
+``dt_reduction_factor`` (float [default = 3.0])
+  Used only if ``adaptive_dt`` is True (or for ``'from_previous_dt'``). Factor
+  by which the timestep is reduced if a nonlinear solver does not converge for
+  a given timestep.
 
 neoclassical
 ------------
@@ -3200,12 +3195,10 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'numerics': {
           't_final': 80,
-          'fixed_dt': 2,
           'evolve_ion_heat': True,
           'evolve_electron_heat': True,
           'evolve_current': True,
           'evolve_density': True,
-          'dt_reduction_factor': 3,
       },
       'geometry': {
           'geometry_type': 'chease',
@@ -3267,8 +3260,8 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'solver': {
           'solver_type': 'newton_raphson',
-          'use_predictor_corrector': True,
-          'n_corrector_steps': 10,
+          'use_fixed_point': True,
+          'n_fixed_point_iterations': 10,
           'chi_pereverzev': 30,
           'D_pereverzev': 15,
           'use_pereverzev': True,
@@ -3276,5 +3269,7 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'time_step_calculator': {
           'calculator_type': 'fixed',
+          'fixed_dt': 2,
+          'dt_reduction_factor': 3,
       },
   }
