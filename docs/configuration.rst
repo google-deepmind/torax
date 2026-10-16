@@ -2953,6 +2953,12 @@ conductivity
   current diffusion timescale as well as the loop voltage and Ohmic heating.
   Useful for sensitivity studies.
 
+``neoclassical_correction`` (bool [default = True])
+  If ``True``, the Spitzer conductivity is multiplied by the neoclassical
+  trapped-particle correction of the selected model. If ``False``, the pure
+  Spitzer conductivity is used. ``conductivity_multiplier`` is applied in both
+  cases.
+
 transport
 ^^^^^^^^^
 ``model_name`` (str [default = ``'angioni_sauter'``])

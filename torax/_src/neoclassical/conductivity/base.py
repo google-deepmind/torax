@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+from typing import Annotated
 
 import jax
 import pydantic
@@ -56,14 +57,19 @@ class ConductivityModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   Attributes:
     conductivity_multiplier: Multiplication factor for the conductivity.
+    neoclassical_correction: If True, applies the neoclassical trapped-particle
+      correction to the Spitzer conductivity. If False, the Spitzer
+      conductivity is used.
   """
 
   conductivity_multiplier: pydantic.PositiveFloat = 1.0
+  neoclassical_correction: Annotated[bool, torax_pydantic.JAX_STATIC] = True
 
   def build_runtime_params(self) -> conductivity_runtime_params.RuntimeParams:
     """Builds runtime params."""
     return conductivity_runtime_params.RuntimeParams(
-        conductivity_multiplier=self.conductivity_multiplier
+        conductivity_multiplier=self.conductivity_multiplier,
+        neoclassical_correction=self.neoclassical_correction,
     )
 
   @abc.abstractmethod

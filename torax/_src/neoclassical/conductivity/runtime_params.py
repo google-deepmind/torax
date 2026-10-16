@@ -23,3 +23,6 @@ class RuntimeParams:
   """Base class for runtime params."""
 
   conductivity_multiplier: float = 1.0
+  neoclassical_correction: bool = dataclasses.field(
+      default=True, metadata={'static': True}
+  )

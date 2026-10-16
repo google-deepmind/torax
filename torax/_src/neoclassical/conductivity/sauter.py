@@ -14,6 +14,7 @@
 """Sauter conductivity model."""
 
 import dataclasses
+import functools
 from typing import Annotated, Literal
 
 import jax
@@ -28,7 +29,6 @@ from torax._src.neoclassical.formulas import sauter as sauter_formulas
 from torax._src.torax_pydantic import torax_pydantic
 
 
-# TODO(b/425750357): Add neoclassical correciton flag (default to True)
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(conductivity_runtime_params.RuntimeParams):
@@ -49,6 +49,7 @@ class SauterModel(base.ConductivityModel):
     del geometry
     return _calculate_conductivity(
         conductivity_multiplier=runtime_params.conductivity_multiplier,
+        neoclassical_correction=runtime_params.neoclassical_correction,
         Z_eff_face=core_profiles.Z_eff_face,
         T_e=core_profiles.T_e,
         f_trap=neoclassical_intermediates.f_trap,
@@ -72,10 +73,11 @@ class SauterModelConfig(base.ConductivityModelConfig):
     return SauterModel()
 
 
-@jax.jit
+@functools.partial(jax.jit, static_argnames=['neoclassical_correction'])
 def _calculate_conductivity(
     *,
     conductivity_multiplier: float,
+    neoclassical_correction: bool,
     Z_eff_face: array_typing.FloatVectorFace,
     T_e: cell_variable.CellVariable,
     f_trap: array_typing.FloatVectorFace,
@@ -97,13 +99,14 @@ def _calculate_conductivity(
       / log_lambda_ei
   )
 
-  # Neoclassical correction to spitzer conductivity
-  signeo_face = sauter_formulas.calculate_L33(
-      f_trap=f_trap,
-      nu_e_star=nu_e_star,
-      Z_eff=Z_eff_face,
-  )
-  sigma_face = conductivity_multiplier * sigsptz * signeo_face
+  sigma_face = conductivity_multiplier * sigsptz
+  if neoclassical_correction:
+    # Neoclassical (trapped-particle) correction to Spitzer conductivity
+    sigma_face *= sauter_formulas.calculate_L33(
+        f_trap=f_trap,
+        nu_e_star=nu_e_star,
+        Z_eff=Z_eff_face,
+    )
 
   sigma_cell = geometry_lib.face_to_cell(sigma_face)
 

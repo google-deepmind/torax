@@ -22,6 +22,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.conductivity import sauter
 from torax._src.neoclassical.formulas import formulas
+from torax._src.neoclassical.formulas import sauter as sauter_formulas
 
 
 class SauterTest(parameterized.TestCase):
@@ -87,6 +88,20 @@ class SauterTest(parameterized.TestCase):
     np.testing.assert_allclose(result.sigma, multiplier * reference.sigma)
     np.testing.assert_allclose(
         result.sigma_face, multiplier * reference.sigma_face
+    )
+
+  def test_neoclassical_correction_false_returns_spitzer_conductivity(self):
+    neoclassical = self._calculate_conductivity(sauter.RuntimeParams())
+    spitzer = self._calculate_conductivity(
+        sauter.RuntimeParams(neoclassical_correction=False)
+    )
+    correction = sauter_formulas.calculate_L33(
+        f_trap=self.neoclassical_intermediates.f_trap,
+        nu_e_star=self.neoclassical_intermediates.nu_e_star,
+        Z_eff=self.core_profiles.Z_eff_face,
+    )
+    np.testing.assert_allclose(
+        neoclassical.sigma_face, spitzer.sigma_face * correction
     )
 
 

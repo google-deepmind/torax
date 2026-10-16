@@ -20,6 +20,7 @@ https://doi.org/10.1063/5.0012664
 """
 
 import dataclasses
+import functools
 from typing import Annotated, Literal
 
 import jax
@@ -54,6 +55,7 @@ class RedlModel(base.ConductivityModel):
     del geometry
     return _calculate_conductivity(
         conductivity_multiplier=runtime_params.conductivity_multiplier,
+        neoclassical_correction=runtime_params.neoclassical_correction,
         Z_eff_face=core_profiles.Z_eff_face,
         T_e=core_profiles.T_e,
         f_trap=neoclassical_intermediates.f_trap,
@@ -77,10 +79,11 @@ class RedlModelConfig(base.ConductivityModelConfig):
     return RedlModel()
 
 
-@jax.jit
+@functools.partial(jax.jit, static_argnames=['neoclassical_correction'])
 def _calculate_conductivity(
     *,
     conductivity_multiplier: float,
+    neoclassical_correction: bool,
     Z_eff_face: array_typing.FloatVectorFace,
     T_e: cell_variable.CellVariable,
     f_trap: array_typing.FloatVectorFace,
@@ -91,6 +94,7 @@ def _calculate_conductivity(
   # pylint: disable=invalid-name
 
   # Spitzer conductivity
+  # TODO(b/434175938): Move Spitzer conductivity formula into formulas.py.
   NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
   sigsptz = (
       1.9012e04
@@ -100,13 +104,15 @@ def _calculate_conductivity(
       / log_lambda_ei
   )
 
-  # Neoclassical correction to Spitzer conductivity (Redl PoP 2021 Eqs. 17-18)
-  signeo_face = redl_formulas.calculate_L33(
-      f_trap=f_trap,
-      nu_e_star=nu_e_star,
-      Z_eff=Z_eff_face,
-  )
-  sigma_face = conductivity_multiplier * sigsptz * signeo_face
+  sigma_face = conductivity_multiplier * sigsptz
+  if neoclassical_correction:
+    # Neoclassical (trapped-particle) correction to Spitzer conductivity
+    # (Redl PoP 2021 Eqs. 17-18)
+    sigma_face *= redl_formulas.calculate_L33(
+        f_trap=f_trap,
+        nu_e_star=nu_e_star,
+        Z_eff=Z_eff_face,
+    )
   sigma_cell = geometry_lib.face_to_cell(sigma_face)
 
   return base.Conductivity(

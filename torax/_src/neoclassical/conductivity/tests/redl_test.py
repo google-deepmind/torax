@@ -23,6 +23,7 @@ from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.conductivity import redl
 from torax._src.neoclassical.conductivity import sauter
 from torax._src.neoclassical.formulas import formulas
+from torax._src.neoclassical.formulas import redl as redl_formulas
 
 
 class RedlConductivityTest(parameterized.TestCase):
@@ -115,6 +116,29 @@ class RedlConductivityTest(parameterized.TestCase):
     np.testing.assert_allclose(result.sigma, multiplier * reference.sigma)
     np.testing.assert_allclose(
         result.sigma_face, multiplier * reference.sigma_face
+    )
+
+  def test_neoclassical_correction_false_returns_spitzer_conductivity(self):
+    model = redl.RedlModel()
+    neoclassical = model.calculate_conductivity(
+        redl.RuntimeParams(),
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
+    )
+    spitzer = model.calculate_conductivity(
+        redl.RuntimeParams(neoclassical_correction=False),
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
+    )
+    correction = redl_formulas.calculate_L33(
+        f_trap=self.neoclassical_intermediates.f_trap,
+        nu_e_star=self.neoclassical_intermediates.nu_e_star,
+        Z_eff=self.core_profiles.Z_eff_face,
+    )
+    np.testing.assert_allclose(
+        neoclassical.sigma_face, spitzer.sigma_face * correction
     )
 
 
