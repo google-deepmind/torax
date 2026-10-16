@@ -24,6 +24,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
+from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -225,6 +226,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       pedestal_transition_state: (
           pedestal_transition_state_lib.PedestalTransitionState
       ),
+      model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,

@@ -19,10 +19,9 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.mhd.sawtooth import simple_redistribution
 from torax._src.physics import psi_calculations
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -75,17 +74,8 @@ class SimpleRedistributionTest(parameterized.TestCase):
     self.assertIsInstance(
         redistribution_model, simple_redistribution.SimpleRedistribution
     )
-    runtime_params_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
-    )
-    runtime_params_t = runtime_params_provider(t=0.0)
-    geo_t = torax_config.geometry.build_provider(t=0.0)
-
-    core_profiles_t = initialization.initial_core_profiles(
-        runtime_params=runtime_params_t,
-        geo=geo_t,
-        source_models=torax_config.sources.build_models(),
-        neoclassical_model=torax_config.neoclassical.build_model(),
+    core_profiles_t, runtime_params_t, geo_t = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
 
     # Find the q=1 surface radius to pass to the model
@@ -158,16 +148,8 @@ class MixingRadiusClampingTest(parameterized.TestCase):
     assert torax_config.mhd.sawtooth is not None
     redistribution_config = torax_config.mhd.sawtooth.redistribution_model
     redistribution_model = redistribution_config.build_redistribution_model()
-    runtime_params_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
-    )
-    runtime_params_t = runtime_params_provider(t=0.0)
-    geo_t = torax_config.geometry.build_provider(t=0.0)
-    core_profiles_t = initialization.initial_core_profiles(
-        runtime_params=runtime_params_t,
-        geo=geo_t,
-        source_models=torax_config.sources.build_models(),
-        neoclassical_model=torax_config.neoclassical.build_model(),
+    core_profiles_t, runtime_params_t, geo_t = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     rho_norm_q1 = np.interp(
         1.0,

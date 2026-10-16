@@ -20,13 +20,13 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
-from torax._src.config import build_runtime_params
+from torax._src import model_state as model_state_lib
 from torax._src.core_profiles import convertors
-from torax._src.core_profiles import initialization
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import discrete_system
 from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.sources import source_profile_builders
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import model_config
 
@@ -74,25 +74,25 @@ class CalcCoeffsTest(parameterized.TestCase):
         )
     )
     models = torax_config.build_models()
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models=models.source_models,
-        neoclassical_model=models.neoclassical_model,
-    )
+    source_states = models.source_models.initial_state(runtime_params)
     evolving_names = tuple(['T_i'])
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
         source_models=models.source_models,
+        source_states=source_states,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         explicit=True,
+    )
+    model_state = model_state_lib.ModelState(
+        pedestal=models.pedestal_model.initial_state(
+            runtime_params, geo, core_profiles, explicit_source_profiles
+        ),
+        transport=models.transport_model.initial_state(runtime_params),
+        sources=source_states,
     )
     calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
@@ -103,6 +103,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         evolving_names=evolving_names,
         use_pereverzev=False,
         pedestal_transition_state=pedestal_transition_state.PedestalTransitionState.empty(),
+        model_state=model_state,
     )
 
   def test_calc_coeffs_hash(self):
@@ -231,47 +232,47 @@ class CalcCoeffsTest(parameterized.TestCase):
     def _eval_rhs(cfg_dict):
       tcfg = model_config.ToraxConfig.from_dict(cfg_dict)
       models = tcfg.build_models()
-      rp = build_runtime_params.RuntimeParamsProvider.from_config(tcfg)(
-          t=tcfg.numerics.t_initial
-      )
-      geo = tcfg.geometry.build_provider(tcfg.numerics.t_initial)
-      cp = initialization.initial_core_profiles(
-          rp,
-          geo,
-          source_models=models.source_models,
-          neoclassical_model=models.neoclassical_model,
-      )
+      core_profiles, rp, geo = core_profile_helpers.make_initial_inputs(tcfg)
+      source_states = models.source_models.initial_state(rp)
       if use_neumann_right_bc:
-        cp = dataclasses.replace(
-            cp,
+        core_profiles = dataclasses.replace(
+            core_profiles,
             T_i=dataclasses.replace(
-                cp.T_i,
+                core_profiles.T_i,
                 right_face_constraint=None,
                 right_face_grad_constraint=jnp.array(-5.0),
             ),
             T_e=dataclasses.replace(
-                cp.T_e,
+                core_profiles.T_e,
                 right_face_constraint=None,
                 right_face_grad_constraint=jnp.array(-4.5),
             ),
             n_e=dataclasses.replace(
-                cp.n_e,
+                core_profiles.n_e,
                 right_face_constraint=None,
                 right_face_grad_constraint=jnp.array(-1.0e20),
             ),
         )
-      explicit_src = source_profile_builders.build_source_profiles(
+      explicit_src, _ = source_profile_builders.build_source_profiles(
+          source_models=models.source_models,
+          source_states=source_states,
           runtime_params=rp,
           geo=geo,
-          core_profiles=cp,
-          source_models=models.source_models,
+          core_profiles=core_profiles,
           explicit=True,
+      )
+      model_state = model_state_lib.ModelState(
+          pedestal=models.pedestal_model.initial_state(
+              rp, geo, core_profiles, explicit_src
+          ),
+          transport=models.transport_model.initial_state(rp),
+          sources=source_states,
       )
       evolving = ('T_i', 'T_e', 'n_e')
       coeffs = calc_coeffs.calc_coeffs(
           runtime_params=rp,
           geo=geo,
-          core_profiles=cp,
+          core_profiles=core_profiles,
           explicit_source_profiles=explicit_src,
           evolving_names=evolving,
           use_pereverzev=cfg_dict['solver']['use_pereverzev'],
@@ -279,8 +280,9 @@ class CalcCoeffsTest(parameterized.TestCase):
           pedestal_transition_state=(
               pedestal_transition_state.PedestalTransitionState.empty()
           ),
+          model_state=model_state,
       )
-      x_vars = (cp.T_i, cp.T_e, cp.n_e)
+      x_vars = (core_profiles.T_i, core_profiles.T_e, core_profiles.n_e)
       c_mat, c_vec = discrete_system.calc_c(x_vars, coeffs)
       x_vec = jnp.stack([v.value for v in x_vars], axis=-1)
       return np.asarray(c_mat.matvec(x_vec) + c_vec)
@@ -319,17 +321,25 @@ class CalcCoeffsTest(parameterized.TestCase):
         )
     )
     models = torax_config.build_models()
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=0.0)
-    geo = dataclasses.replace(
-        torax_config.geometry.build_provider(0.0), Phi_b_dot=2.5
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
+    geo = dataclasses.replace(geo, Phi_b_dot=2.5)
+    source_states = models.source_models.initial_state(runtime_params)
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
         source_models=models.source_models,
-        neoclassical_model=models.neoclassical_model,
+        source_states=source_states,
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        explicit=True,
+    )
+    model_state = model_state_lib.ModelState(
+        pedestal=models.pedestal_model.initial_state(
+            runtime_params, geo, core_profiles, explicit_source_profiles
+        ),
+        transport=models.transport_model.initial_state(runtime_params),
+        sources=source_states,
     )
     evolving_names = ('T_i', 'T_e', 'n_e')
     coeffs = calc_coeffs.calc_coeffs(
@@ -337,16 +347,13 @@ class CalcCoeffsTest(parameterized.TestCase):
         geo=geo,
         core_profiles=core_profiles,
         models=models,
-        explicit_source_profiles=source_profile_builders.build_source_profiles(
-            source_models=models.source_models,
-            runtime_params=runtime_params,
-            geo=geo,
-            core_profiles=core_profiles,
-            explicit=True,
-        ),
+        explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state.PedestalTransitionState.empty(),
+        pedestal_transition_state=(
+            pedestal_transition_state.PedestalTransitionState.empty()
+        ),
+        model_state=model_state,
     )
     x = convertors.core_profiles_to_solver_x_tuple(
         core_profiles, evolving_names

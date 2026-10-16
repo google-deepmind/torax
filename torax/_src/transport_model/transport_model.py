@@ -36,6 +36,7 @@ from torax._src.transport_model import component
 from torax._src.transport_model import enums
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 MIN_SMOOTHING_WIDTH = 1e-5
 # Smoothing kernel values below this fraction of the peak are set to zero,
@@ -49,6 +50,22 @@ class TransportModel(static_dataclass.StaticDataclass):
 
   core_transport_models: Mapping[str, component.ComponentTransportModel]
   pedestal_transport_models: Mapping[str, component.ComponentTransportModel]
+
+  def initial_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> transport_state_lib.TransportState:
+    """Returns the initial TransportState."""
+    return transport_state_lib.TransportState(
+        core_transport_states={
+            name: model.initial_state(runtime_params)
+            for name, model in self.core_transport_models.items()
+        },
+        pedestal_transport_states={
+            name: model.initial_state(runtime_params)
+            for name, model in self.pedestal_transport_models.items()
+        },
+    )
 
   def __call__(
       self,
