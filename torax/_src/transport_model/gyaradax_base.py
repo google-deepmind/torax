@@ -42,13 +42,14 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.physics import psi_calculations
 from torax._src.torax_pydantic import torax_pydantic
+from torax._src.transport_model import component
 from torax._src.transport_model import gyaradax_diagnostics as diag_lib
 from torax._src.transport_model import gyaradax_normalization as gb_norm
 from torax._src.transport_model import pydantic_model_base
-from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import quasilinear_utils
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
-from torax._src.transport_model.quasilinear_transport_model import QuasilinearInputs
+from torax._src.transport_model.gyaradax_normalization import QuasilinearInputs
 
 _RLT_MIN, _RLT_MAX = 0.0, 30.0
 _RLN_MIN, _RLN_MAX = -15.0, 15.0
@@ -73,8 +74,16 @@ _GRID_FLOOR = {"nkx": 85, "nky": 32}
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
-class RuntimeParams(quasilinear_transport_model.RuntimeParams):
-  """Runtime parameters for the gyaradax transport models."""
+class RuntimeParams(transport_runtime_params_lib.ComponentRuntimeParams):
+  """Runtime parameters for the gyaradax transport models.
+
+  DV_effective, An_min and DV_effective_smooth_width came from the shared
+  quasilinear base upstream removed, so they are declared here.
+  """
+
+  DV_effective: bool = dataclasses.field(metadata={"static": True})
+  An_min: float
+  DV_effective_smooth_width: float
 
 
 @lru_cache(maxsize=8)
@@ -224,7 +233,7 @@ def gyaradax_geometry_at(
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class BaseGKWGyaradaxPlugin(
-    quasilinear_transport_model.QuasilinearTransportModel
+    component.ComponentTransportModel
 ):
   """Grid, geometry and TORAX wiring shared by the gyaradax transport models."""
 
@@ -244,6 +253,73 @@ class BaseGKWGyaradaxPlugin(
   kinetic: bool = False
   diagnostics_path: str = ""
 
+
+  def _make_core_transport(
+      self,
+      qi: jax.Array,
+      qe: jax.Array,
+      pfe: jax.Array,
+      quasilinear_inputs: QuasilinearInputs,
+      transport: RuntimeParams,
+      geo: geometry_lib.Geometry,
+      core_profiles: state.CoreProfiles,
+      gradient_reference_length: array_typing.FloatScalar,
+      gyrobohm_flux_reference_length: array_typing.FloatScalar,
+      two_point_mask: array_typing.BoolVectorFace | None = None,
+  ) -> transport_coeffs.TransportCoeffs:
+    """Converts model output to TransportCoeffs.
+
+    Vendored from the shared quasilinear base upstream removed in favour of
+    per-model conversion.
+    """
+    pfe_SI = (
+        pfe
+        * core_profiles.n_e.face_value()
+        * quasilinear_inputs.chiGB
+        / gyrobohm_flux_reference_length
+    )
+    # chi[GB] = -Q[GB]/(Lref/LT); rescale when the gradient normalization
+    # length differs from the gyrobohm flux reference length
+    chi_face_ion = (
+        ((gradient_reference_length / gyrobohm_flux_reference_length) * qi)
+        / quasilinear_inputs.lref_over_lti
+    ) * quasilinear_inputs.chiGB
+    chi_face_el = (
+        ((gradient_reference_length / gyrobohm_flux_reference_length) * qe)
+        / quasilinear_inputs.lref_over_lte
+    ) * quasilinear_inputs.chiGB
+
+    if transport.DV_effective:
+      d_face_el, v_face_el = quasilinear_utils.calculate_dv_effective(
+          particle_flux_SI=pfe_SI,
+          normalized_particle_flux=pfe,
+          n_e=core_profiles.n_e,
+          geo=geo,
+          gradient_reference_length=gradient_reference_length,
+          An_min=transport.An_min,
+          DV_effective_smooth_width=transport.DV_effective_smooth_width,
+          two_point_mask=two_point_mask,
+      )
+    else:
+      # scaled D: tie electron diffusivity to electron heat conductivity and
+      # set convection to match the total particle transport
+      chex.assert_rank(pfe, 1)
+      d_face_el = chi_face_el
+      v_face_el = (
+          pfe_SI / core_profiles.n_e.face_value()
+          - quasilinear_inputs.lref_over_lne
+          * d_face_el
+          / gradient_reference_length
+          * geo.g1_over_vpr2_face
+          * geo.rho_b**2
+      ) / (geo.g0_over_vpr_face * geo.rho_b)
+
+    return transport_coeffs.TransportCoeffs(
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
+    )
   @classmethod
   def _grid_fallback(cls, cfg) -> Optional[dict]:
     """Grid metadata to use for fields the config leaves unset."""

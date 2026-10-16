@@ -84,7 +84,7 @@ def _get_config_and_model_inputs(transport: Mapping[str, Any]):
       geo,
       core_profiles,
       source_profiles,
-      pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty_L_mode(),
+      pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
   )
   del pedestal_model_outputs
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)

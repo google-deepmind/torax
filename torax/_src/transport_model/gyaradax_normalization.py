@@ -98,13 +98,33 @@ import math
 from typing import Literal
 
 import chex
+import jax
 import jax.numpy as jnp
 
+from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.transport_model.quasilinear_transport_model import calculate_chiGB
-from torax._src.transport_model.quasilinear_transport_model import NormalizedLogarithmicGradients
-from torax._src.transport_model.quasilinear_transport_model import QuasilinearInputs
+from torax._src.transport_model.quasilinear_utils import calculate_chiGB
+from torax._src.transport_model.quasilinear_utils import NormalizedLogarithmicGradients
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class QuasilinearInputs:
+  """Variables required to convert outputs to TORAX CoreTransport outputs.
+
+  Upstream removed the shared quasilinear base in favour of per-model inputs
+  (see TGLFInputs), so the gyaradax plugins carry their own copy.
+  """
+
+  chiGB: array_typing.FloatVectorFace
+  Rmin: array_typing.FloatScalar
+  Rmaj: array_typing.FloatScalar
+  lref_over_lti: array_typing.FloatVectorFace
+  lref_over_lte: array_typing.FloatVectorFace
+  lref_over_lne: array_typing.FloatVectorFace
+  lref_over_lni0: array_typing.FloatVectorFace
+  lref_over_lni1: array_typing.FloatVectorFace
 
 # (sqrt 2)^3: GKW's v_th = sqrt(2T/m) versus sqrt(T/m) in the flux reference.
 VTH_SQRT2_FLUX_FACTOR = 2.0 * math.sqrt(2.0)
