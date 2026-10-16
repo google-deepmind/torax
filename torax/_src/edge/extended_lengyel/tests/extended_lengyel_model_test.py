@@ -1117,7 +1117,7 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
         'newton_raphson_iterations': 1,
         'newton_raphson_tol': 1e-5,
         'multistart_num_guesses': 10,
-        'ne_tau': 0.0,
+        'n_e_tau': 0.0,
         'divertor_broadening_factor': 1.0,
         'ratio_bpol_omp_to_bpol_avg': 1.0,
         'sheath_heat_transmission_factor': 1.0,

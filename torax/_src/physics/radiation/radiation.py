@@ -28,9 +28,8 @@ from torax._src.physics.radiation import mavrin_noncoronal_cooling_rate
 # A. Mavrin. "Radiative Cooling Rates for Low-Z Impurities in Non-coronal
 # Equilibrium State", J Fusion Energ (2017) 36:161–172
 # DOI 10.1007/s10894-017-0136-z
-# TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
 
-_NE_TAU_CORONAL_LIMIT = 1e19
+_N_E_TAU_CORONAL_LIMIT = 1e19
 
 # pylint: disable=invalid-name
 
@@ -82,8 +81,7 @@ def has_mavrin_cooling_rate(
 def calculate_cooling_rate(
     T_e: array_typing.FloatVector,
     ion_symbol: str,
-    # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
-    ne_tau: array_typing.FloatScalar = _NE_TAU_CORONAL_LIMIT,
+    n_e_tau: array_typing.FloatScalar = _N_E_TAU_CORONAL_LIMIT,
 ) -> array_typing.FloatVector:
   """Compute the cooling rate for a single impurity species.
 
@@ -103,8 +101,8 @@ def calculate_cooling_rate(
     T_e: Electron temperature [keV]. Can be any sized array, e.g. on cell grid,
       face grid, or a single scalar.
     ion_symbol: Ion symbol of the impurity species.
-    ne_tau: Effective residence parameter [m^-3 s]. Only used for the noncoronal
-      model.
+    n_e_tau: Effective residence parameter [m^-3 s]. Only used for the
+      noncoronal model.
 
   Returns:
     Cooling rate on the same grid as T_e [W m^-3].
@@ -145,7 +143,7 @@ def calculate_cooling_rate(
     )
   else:
     noncoronal_cooling_rate_from_mavrin_fit = calculate_mavrin_cooling_rate(
-        T_e, ion_symbol_lookup, MavrinModelType.NONCORONAL, ne_tau
+        T_e, ion_symbol_lookup, MavrinModelType.NONCORONAL, n_e_tau
     )
 
     # For temperatures below the Mavrin noncoronal fit range, we extrapolate the
@@ -157,7 +155,7 @@ def calculate_cooling_rate(
         T_e_min_noncoronal,  # pyrefly: ignore[bad-argument-type]
         ion_symbol_lookup,
         MavrinModelType.NONCORONAL,
-        ne_tau,
+        n_e_tau,
     )
     extrapolated_noncoronal_cooling_rate = min_noncoronal_cooling_rate * (
         T_e / T_e_min_noncoronal
@@ -184,7 +182,7 @@ def calculate_mavrin_cooling_rate(
     T_e: array_typing.FloatVector,
     ion_symbol: str,
     model_type: MavrinModelType,
-    ne_tau: array_typing.FloatScalar = _NE_TAU_CORONAL_LIMIT,
+    n_e_tau: array_typing.FloatScalar = _N_E_TAU_CORONAL_LIMIT,
 ) -> array_typing.FloatVector:
   """Compute the cooling rate for a single impurity species using Mavrin fits."""
   ion_symbol = _resolve_mavrin_symbol(ion_symbol)
@@ -216,7 +214,7 @@ def calculate_mavrin_cooling_rate(
   T_e = jnp.clip(T_e, T_e_min, T_e_max)
 
   # Restrict residence parameter to below the coronal limit
-  ne_tau = jnp.clip(ne_tau, max=_NE_TAU_CORONAL_LIMIT)
+  n_e_tau = jnp.clip(n_e_tau, max=_N_E_TAU_CORONAL_LIMIT)
 
   # Gather coefficients for each temperature
   # If the ion has different coefficients for different temperature ranges, we
@@ -234,5 +232,5 @@ def calculate_mavrin_cooling_rate(
   )
 
   return cooling_rate_module.evaluate_polynomial_fit(
-      T_e, ne_tau / _NE_TAU_CORONAL_LIMIT, coeffs_in_range
+      T_e, n_e_tau / _N_E_TAU_CORONAL_LIMIT, coeffs_in_range
   )
