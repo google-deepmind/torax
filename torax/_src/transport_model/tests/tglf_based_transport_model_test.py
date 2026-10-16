@@ -25,6 +25,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
+from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
@@ -219,6 +220,45 @@ class TGLFTransportModelTest(parameterized.TestCase):
     np.testing.assert_allclose(
         capped.XNUE[~above_cap],
         uncapped.XNUE[~above_cap],
+    )
+
+  def test_vexb_shear_is_invariant_to_rigid_toroidal_rotation(self):
+    # GACODE normalizes rotation to B_pol, so rigid toroidal rotation maps onto
+    # a constant omega_0 = E_r / (R B_pol) and adds no ExB shear.
+    _, (_, geo, core_profiles, _, _) = _get_config_and_model_inputs({
+        "core_transport_models": {
+            "tglf_based": {
+                "model_name": "tglf_based",
+            },
+        },
+    })
+    tglf_config = TGLFBasedTransportModelConfig()
+    transport_model = tglf_config.build_transport_model()
+    tglf_params = tglf_config.build_runtime_params(t=0.0)
+    omega = 1e5  # [rad/s]
+    rigidly_rotating_core_profiles = dataclasses.replace(
+        core_profiles,
+        toroidal_angular_velocity=cell_variable.CellVariable(
+            value=jnp.full_like(geo.rho_norm, omega),
+            face_centers=geo.rho_face_norm,
+            right_face_constraint=jnp.array(omega),
+            right_face_grad_constraint=None,
+        ),
+    )
+
+    reference = transport_model._prepare_tglf_inputs(
+        transport=tglf_params,
+        geo=geo,
+        core_profiles=core_profiles,
+    )
+    rotating = transport_model._prepare_tglf_inputs(
+        transport=tglf_params,
+        geo=geo,
+        core_profiles=rigidly_rotating_core_profiles,
+    )
+
+    np.testing.assert_allclose(
+        rotating.VEXB_SHEAR, reference.VEXB_SHEAR, rtol=1e-6, atol=1e-10
     )
 
   def test_tglf_based_transport_model_dv_effective(self):

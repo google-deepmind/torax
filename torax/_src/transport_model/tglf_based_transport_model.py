@@ -430,9 +430,12 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     Q_GB = n_e * T_e_J * GB  # [W/m^2]
     Gamma_GB = n_e * GB
 
-    # Normalized toroidal ExB velocity Doppler shift gradient.
-    # Calculated on the face grid.
+    # Normalized ExB shear rate, on the face grid.
     # https://gacode.io/tglf/tglf_list.html#vexb-shear
+    # VEXB_SHEAR = -sign(I_p) (r / |q|) d(omega_0)/dr (a / c_s), where GACODE
+    # normalizes rotation to B_pol (https://gacode.io/rotation.html):
+    #   omega_0 = -dPhi/dpsi = E_r / (R B_pol).
+    # For pure toroidal rotation, omega_0 is the toroidal angular velocity.
     def _get_v_ExB_shear(
         core_profiles: state.CoreProfiles,
         geo: geometry.Geometry,
@@ -446,12 +449,22 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
           pressure_total_i=core_profiles.pressure_total_i,
           geo=geo,
       )
-      v_ExB = rotation_output.v_ExB
-      value_face = v_ExB / geo.R_major_profile_face
+      # On the magnetic axis (index 0), both E_r and B_pol vanish (0/0), so
+      # evaluate omega_0 on the off-axis faces [1:] and reuse the first
+      # off-axis face value on axis.
+      B_pol_off_axis = jnp.sqrt(
+          psi_calculations.calc_bpol_squared(geo, core_profiles.psi)[1:]
+      )
+      R_B_pol_off_axis = jnp.maximum(
+          geo.R_major_profile_face[1:] * B_pol_off_axis,
+          constants.CONSTANTS.eps,
+      )
+      omega_0_off_axis = rotation_output.Er[1:] / R_B_pol_off_axis
+      omega_0_face = jnp.concatenate([omega_0_off_axis[:1], omega_0_off_axis])
       cv = cell_variable.CellVariable(
-          value=geometry.face_to_cell(value_face),
+          value=geometry.face_to_cell(omega_0_face),
           face_centers=geo.rho_face_norm,
-          right_face_constraint=value_face[-1],
+          right_face_constraint=omega_0_face[-1],
           right_face_grad_constraint=None,
           left_face_constraint=None,
           left_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
