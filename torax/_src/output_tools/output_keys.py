@@ -81,6 +81,7 @@ class Units(enum.StrEnum):
   WATT_PER_SQUARE_METER = "W/m^2"
   WATT_PER_CUBIC_METER = "W/m^3"
   MW_PER_CUBIC_METER = "MW/m^3"
+  W_PER_M_EV35 = "W/(m*eV^3.5)"
   PASCAL_PER_WEBER = "Pa/Wb"
   WEBER_PER_SECOND = "Wb/s"
   TESLA_METER = "T m"

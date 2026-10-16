@@ -115,6 +115,16 @@ ALPHA_T = output_keys.OutputKey(
     units=output_keys.Units.DIMENSIONLESS,
     grid_type=output_keys.GridType.SCALAR,
 )
+KAPPA_E = output_keys.OutputKey(
+    'kappa_e',
+    units=output_keys.Units.W_PER_M_EV35,
+    grid_type=output_keys.GridType.SCALAR,
+)
+C_Z_PREFACTOR = output_keys.OutputKey(
+    'c_z_prefactor',
+    units=output_keys.Units.DIMENSIONLESS,
+    grid_type=output_keys.GridType.SCALAR,
+)
 Z_EFF_SEPARATRIX = output_keys.OutputKey(
     'Z_eff_separatrix',
     units=output_keys.Units.DIMENSIONLESS,
@@ -190,6 +200,8 @@ _EXTENDED_LENGYEL_KEYS: dict[str, output_keys.OutputKey] = {
         T_E_TARGET,
         PRESSURE_NEUTRAL_DIVERTOR,
         ALPHA_T,
+        KAPPA_E,
+        C_Z_PREFACTOR,
         Z_EFF_SEPARATRIX,
         MULTIPLE_ROOTS_FOUND,
         SOLVER_PHYSICS_OUTCOME,
@@ -218,10 +230,10 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
     T_e_separatrix: Electron temperature at the separatrix [keV].
     T_e_target: Electron temperature at sheath entrance [eV].
     pressure_neutral_divertor: Neutral pressure in the divertor [Pa].
-    alpha_t: Turbulence broadening factor alpha_t.
+    alpha_t: Turbulence broadening factor alpha_t [dimensionless].
     kappa_e: Electron heat conductivity prefactor [W/(m*eV^3.5)].
     c_z_prefactor: Impurity concentration prefactor [dimensionless].
-    Z_eff_separatrix: Z_eff at the separatrix.
+    Z_eff_separatrix: Z_eff at the separatrix [dimensionless].
     seed_impurity_concentrations: A mapping from ion symbol to its n_e_ratio.
     solver_status: Status of the solver.
     calculated_enrichment: A mapping from ion symbol to its enrichment factor as
@@ -450,16 +462,16 @@ class ExtendedLengyelOutputs(base.EdgeModelOutputs):
 
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
-  ) -> dict[str, Any]:
+  ) -> dict[str, output_grid_context.OutputVar]:
     """Extends base edge output dictionary with Extended Lengyel variables."""
     out_dict = super().to_output_dict(context)
 
     # 1. Scalar variables
     scalars: dict[str, output_grid_context.OutputVar] = {
         ALPHA_T: context.pack(ALPHA_T, self.alpha_t),
-        Z_EFF_SEPARATRIX: context.pack(
-            Z_EFF_SEPARATRIX, self.Z_eff_separatrix
-        ),
+        KAPPA_E: context.pack(KAPPA_E, self.kappa_e),
+        C_Z_PREFACTOR: context.pack(C_Z_PREFACTOR, self.c_z_prefactor),
+        Z_EFF_SEPARATRIX: context.pack(Z_EFF_SEPARATRIX, self.Z_eff_separatrix),
     }
     if self.solver_status.physics_outcome is not None:
       scalars[SOLVER_PHYSICS_OUTCOME] = context.pack(
