@@ -141,6 +141,34 @@ class EdgeModelOutputs:
     )
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class CombinedEdgeOutputs(EdgeModelOutputs):
+  """Outputs from a CombinedEdgeModel.
+
+  Attributes:
+    sub_models: Mapping from sub-model name to its EdgeModelOutputs.
+  """
+
+  sub_models: Mapping[str, EdgeModelOutputs] = dataclasses.field(
+      default_factory=dict
+  )
+
+  def to_xr_datatree(
+      self, context: output_grid_context.OutputGridContext
+  ) -> xr.DataTree:
+    """Builds an xr.DataTree of the combined edge model and sub-model outputs."""
+    base_tree = super().to_xr_datatree(context)
+    children = {
+        name: sub_out.to_xr_datatree(context)
+        for name, sub_out in self.sub_models.items()
+    }
+    return xr.DataTree(
+        dataset=base_tree.dataset,
+        children=children,
+    )
+
+
 @dataclasses.dataclass(frozen=True, eq=False)
 class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
   """Abstract base class for edge models."""
@@ -148,6 +176,7 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
   @abc.abstractmethod
   def __call__(
       self,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -155,6 +184,78 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       previous_edge_outputs: EdgeModelOutputs | None = None,
   ) -> EdgeModelOutputs:
     """Evaluates the edge model at the given time."""
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class CombinedEdgeModel(EdgeModel):
+  """Edge model composed of multiple sub-models.
+
+  Each boundary condition is taken from the single sub-model configured to
+  update it (if any).
+  """
+
+  sub_models: Mapping[str, EdgeModel] = dataclasses.field(default_factory=dict)
+  T_e_sub_model: str | None = None
+  T_i_sub_model: str | None = None
+  n_e_sub_model: str | None = None
+  n_impurities_sub_model: str | None = None
+
+  def __call__(
+      self,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      core_sources: source_profiles_lib.SourceProfiles,
+      previous_edge_outputs: EdgeModelOutputs | None = None,
+  ) -> CombinedEdgeOutputs:
+    """Evaluates the edge sub-models and merges their BCs."""
+    assert isinstance(
+        edge_runtime_params, edge_runtime_params_lib.CombinedRuntimeParams
+    )
+    edge_params: edge_runtime_params_lib.CombinedRuntimeParams = (
+        edge_runtime_params
+    )
+    prev_sub_outputs: Mapping[str, EdgeModelOutputs] = (
+        previous_edge_outputs.sub_models
+        if isinstance(previous_edge_outputs, CombinedEdgeOutputs)
+        else {}
+    )
+    sub_outputs = {
+        name: sub_model(
+            edge_params.sub_models[name],
+            runtime_params,
+            geo,
+            core_profiles,
+            core_sources,
+            previous_edge_outputs=prev_sub_outputs.get(name),
+        )
+        for name, sub_model in self.sub_models.items()
+    }
+
+    return CombinedEdgeOutputs(
+        T_e_right_bc=(
+            sub_outputs[self.T_e_sub_model].T_e_right_bc
+            if self.T_e_sub_model is not None
+            else None
+        ),
+        T_i_right_bc=(
+            sub_outputs[self.T_i_sub_model].T_i_right_bc
+            if self.T_i_sub_model is not None
+            else None
+        ),
+        n_e_right_bc=(
+            sub_outputs[self.n_e_sub_model].n_e_right_bc
+            if self.n_e_sub_model is not None
+            else None
+        ),
+        impurity_right_bc=(
+            sub_outputs[self.n_impurities_sub_model].impurity_right_bc
+            if self.n_impurities_sub_model is not None
+            else {}
+        ),
+        sub_models=sub_outputs,
+    )
 
 
 class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):

@@ -441,8 +441,9 @@ Step 1: Implement the edge model
 --------------------------------
 
 Create a frozen dataclass that inherits from ``torax.edge.EdgeModel`` and
-implements the ``__call__`` method. The ``__call__`` method receives the current
-runtime parameters, geometry, core profiles, and source profiles, and must
+implements the ``__call__`` method. The ``__call__``
+method receives the current edge runtime parameters, full simulation runtime
+parameters, geometry, core profiles, and source profiles, and must
 return an ``torax.edge.EdgeModelOutputs`` with the boundary conditions computed
 by the model (any boundary conditions not computed by the model should be left
 as ``None``):
@@ -466,13 +467,14 @@ as ``None``):
 
       def __call__(
           self,
+          edge_runtime_params: edge.RuntimeParams,
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
           core_sources: torax.SourceProfiles,
           previous_edge_outputs: edge.EdgeModelOutputs | None = None,
       ) -> edge.EdgeModelOutputs:
-        del runtime_params, geo, core_profiles, core_sources
+        del edge_runtime_params, runtime_params, geo, core_profiles, core_sources
         del previous_edge_outputs
         return edge.EdgeModelOutputs(
             T_i_right_bc=jnp.array(0.08),  # [keV]
@@ -531,7 +533,8 @@ This must be done at module level before any TORAX config is built.
 Using the registered model
 --------------------------
 
-Once registered, the model can be used in a TORAX config:
+Once registered, the model can be used either as a standalone edge model or as a
+sub-model inside a ``'combined'`` edge model:
 
 .. code-block:: python
 
@@ -544,6 +547,38 @@ Once registered, the model can be used in a TORAX config:
     }
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)
+
+
+Combining multiple edge sub-models
+----------------------------------
+
+Any registered ``EdgeModelConfig`` can also be used inside a ``'combined'``
+edge model under ``sub_models``. Each boundary condition is taken from the
+sub-model whose corresponding ``update_*`` flag is enabled, and at most one
+sub-model may have a given ``update_*`` flag enabled across the simulation.
+Since the ``update_*`` flags default to the sub-model's
+``supported_boundary_conditions``, set the flags to ``False`` on a sub-model for
+any boundary conditions it should not provide:
+
+.. code-block:: python
+
+    config = {
+        ...
+        'edge': {
+            'model_name': 'combined',
+            'sub_models': {
+                'temperatures': {
+                    'model_name': 'my_edge',
+                    'update_n_e': False,
+                    'update_n_impurities': False,
+                },
+                'density': {
+                    'model_name': 'my_density_edge',
+                },
+            },
+        },
+        ...
+    }
 
 
 Registering a custom neoclassical model

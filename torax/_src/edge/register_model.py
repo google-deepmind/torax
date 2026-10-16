@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Register an edge model with TORAX."""
+"""Register edge models with TORAX."""
 
+from collections.abc import Mapping
 from typing import Annotated, get_args
 from torax._src.edge import base
 from torax._src.edge import pydantic_model
@@ -24,14 +25,17 @@ def register_edge_model(
 ) -> None:
   """Registers an edge model with TORAX.
 
+  The registered model can be used both as a top-level edge model and as a
+  sub-model inside `CombinedEdgeConfig.sub_models`.
+
   Args:
     pydantic_model_class: The Pydantic model configuration class to register.
       Must inherit from `base.EdgeModelConfig` and declare a unique `model_name`
       discriminator.
   """
   edge_models, discriminator = get_args(pydantic_model.EdgeConfig)
-  new_union = edge_models | pydantic_model_class
-  new_edge_config = Annotated[new_union, discriminator]
+  new_edge_union = edge_models | pydantic_model_class
+  new_edge_config = Annotated[new_edge_union, discriminator]
   setattr(
       pydantic_model,
       'EdgeConfig',
@@ -42,4 +46,17 @@ def register_edge_model(
       'annotation',
       new_edge_config | None,
   )
+
+  sub_models, sub_discriminator = get_args(pydantic_model.SubModelConfig)
+  new_sub_union = sub_models | pydantic_model_class
+  new_sub_config = Annotated[new_sub_union, sub_discriminator]
+  setattr(
+      pydantic_model,
+      'SubModelConfig',
+      new_sub_config,
+  )
+  pydantic_model.CombinedEdgeConfig.model_fields['sub_models'].annotation = (
+      Mapping[str, new_sub_config]
+  )
+  pydantic_model.CombinedEdgeConfig.model_rebuild(force=True)
   model_config.ToraxConfig.model_rebuild(force=True)

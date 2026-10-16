@@ -241,6 +241,46 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         rtol=1e-5,
     )
 
+  def test_combined_runtime_params(self):
+    params = dataclasses.replace(
+        self.runtime_params,
+        edge=edge_runtime_params.CombinedRuntimeParams(
+            update_T_e=True,
+            update_T_i=True,
+            update_n_e=True,
+            update_n_impurities=True,
+            sub_models={
+                'te': self._with_edge_flags(update_T_e=True).edge,
+                'ti': self._with_edge_flags(update_T_i=True).edge,
+                'ne': self._with_edge_flags(update_n_e=True).edge,
+                'imp': self._with_edge_flags(update_n_impurities=True).edge,
+            },
+        ),
+    )
+    updated = updaters.update_runtime_params(params, self.edge_outputs)
+    np.testing.assert_allclose(updated.profile_conditions.T_e_right_bc, 0.123)
+    np.testing.assert_allclose(updated.profile_conditions.T_i_right_bc, 0.456)
+    np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 3.45e19)
+    updated_impurity_params = updated.plasma_composition.impurity
+    initial_impurity_params = params.plasma_composition.impurity
+    assert isinstance(
+        updated_impurity_params, electron_density_ratios.RuntimeParams
+    )
+    assert isinstance(
+        initial_impurity_params, electron_density_ratios.RuntimeParams
+    )
+    scaling_factor = _TARGET_EDGE_RATIO / _INITIAL_EDGE_RATIO
+    np.testing.assert_allclose(
+        updated_impurity_params.n_e_ratios['N'],
+        initial_impurity_params.n_e_ratios['N'] * scaling_factor,
+        rtol=1e-5,
+    )
+    np.testing.assert_allclose(
+        updated_impurity_params.n_e_ratios['Ne'],
+        initial_impurity_params.n_e_ratios['Ne'],
+        rtol=1e-5,
+    )
+
   def test_none_bc_fields_are_noop(self):
     params = self._with_edge_flags(
         update_T_e=True,

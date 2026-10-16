@@ -85,10 +85,10 @@ To address this, the solver employs a **multistart strategy**:
     the ``multiple_roots_found`` flag is set to ``True``.
 
 *   **Full Output:** The full set of found roots (from all initial guesses) is
-    available in the ``roots`` child node of the output structure (e.g.
-    ``output.edge.children['roots']``) for detailed analysis. These only include
-    distinct roots, and for which the numerics converged (i.e.
-   `` numerics_outcome.error == 0``).
+    available in the ``roots`` child node of the model's output structure (e.g.
+    ``output.edge.children['roots']``) for detailed analysis. These only
+    include distinct roots, and for which the numerics converged (i.e.
+    ``numerics_outcome.error == 0``).
 
 Impurity Handling
 -----------------
@@ -191,6 +191,12 @@ be adjusted if convergence issues arise:
 Base Edge Configuration Parameters
 ==================================
 
+An edge model can be configured either as a single model (such as
+``'extended_lengyel'``) or as a ``'combined'`` model containing a dictionary of
+``sub_models``. In a combined model, each boundary condition is provided by
+whichever sub-model has the corresponding ``update_*`` flag enabled, and at most
+one sub-model may have a given ``update_*`` flag enabled across the simulation.
+
 All edge model configurations inherit from ``EdgeModelConfig`` and support
 the following common configuration parameters. Each model declares, via its
 class-level ``supported_boundary_conditions``, which boundary conditions it can
@@ -200,7 +206,8 @@ boundary condition the model does not support.
 
 ``model_name`` (str [default = 'extended_lengyel'])
   The edge model discriminator tag. Set to ``'extended_lengyel'`` for the
-  built-in extended Lengyel model, or the registered model name for a custom
+  built-in extended Lengyel model, ``'combined'`` when combining multiple edge
+  sub-models under ``sub_models``, or the registered model name for a custom
   edge model.
 
 ``update_T_e`` (bool [default = supported_boundary_conditions.T_e])

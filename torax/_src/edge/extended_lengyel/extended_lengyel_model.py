@@ -27,7 +27,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.edge import base
-from torax._src.edge import runtime_params as edge_runtime_params
+from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.edge.extended_lengyel import divertor_sol_1d as divertor_sol_1d_lib
 from torax._src.edge.extended_lengyel import extended_lengyel_defaults
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
@@ -61,7 +61,7 @@ class InitialGuessRuntimeParams:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class RuntimeParams(edge_runtime_params.RuntimeParams):
+class RuntimeParams(edge_runtime_params_lib.RuntimeParams):
   """Runtime parameters for the extended Lengyel edge model."""
 
   # See extended_lengyel_standalone.py for documentation of these parameters.
@@ -140,6 +140,7 @@ class ExtendedLengyelModel(base.EdgeModel):
 
   def __call__(
       self,
+      edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -148,7 +149,7 @@ class ExtendedLengyelModel(base.EdgeModel):
   ) -> extended_lengyel_standalone.ExtendedLengyelOutputs:
     """Runs the extended Lengyel model using current TORAX state."""
 
-    edge_params = runtime_params.edge
+    edge_params = edge_runtime_params
     assert isinstance(
         edge_params, RuntimeParams
     ), 'Edge parameters must be of type ExtendedLengyelModel.RuntimeParams'

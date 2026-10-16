@@ -141,6 +141,24 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
       configurable_data['solver']['solver_type'] = 'linear'
     return configurable_data
 
+  def _get_extended_lengyel_configs(
+      self,
+  ) -> list[extended_lengyel_pydantic_model.ExtendedLengyelConfig]:
+    if isinstance(
+        self.edge,
+        extended_lengyel_pydantic_model.ExtendedLengyelConfig,
+    ):
+      return [self.edge]
+    if isinstance(self.edge, edge_pydantic_model.CombinedEdgeConfig):
+      return [
+          sub
+          for sub in self.edge.sub_models.values()
+          if isinstance(
+              sub, extended_lengyel_pydantic_model.ExtendedLengyelConfig
+          )
+      ]
+    return []
+
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> Self:
     core_transport_models = self.transport.core_transport_models.values()
@@ -247,19 +265,16 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _validate_extended_lengyel_and_impurity_mode(
+  def _validate_edge_and_impurity_mode(
       self,
   ) -> Self:
-    """Ensures Extended Lengyel uses n_e_ratios impurity mode."""
+    """Ensures edge models use n_e_ratios impurity mode."""
     if (
-        isinstance(
-            self.edge,
-            extended_lengyel_pydantic_model.ExtendedLengyelConfig,
-        )
+        self.edge is not None
         and self.plasma_composition.impurity.impurity_mode != 'n_e_ratios'
     ):
       raise ValueError(
-          'Extended Lengyel edge model requires'
+          'Edge models require'
           " plasma_composition.impurity_mode to be 'n_e_ratios'."
           f" Got '{self.plasma_composition.impurity.impurity_mode}'."
       )
@@ -273,12 +288,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     - For FBT geometry: `diverted` must NOT be set (it's provided by FBT).
     - For non-FBT geometry: `diverted` MUST be set if edge model is used.
     """
-    if isinstance(
-        self.edge,
-        extended_lengyel_pydantic_model.ExtendedLengyelConfig,
-    ):
+    for el_config in self._get_extended_lengyel_configs():
       is_fbt = self.geometry.geometry_type == geometry.GeometryType.FBT
-      diverted = self.edge.diverted is not None
+      diverted = el_config.diverted is not None
 
       if is_fbt and diverted:
         raise ValueError(
@@ -300,19 +312,19 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   @pydantic.model_validator(mode='after')
   def _validate_edge_core_impurity_consistency(self) -> Self:
     """Validates consistency between plasma composition and edge impurities."""
-    if isinstance(
-        self.edge,
-        extended_lengyel_pydantic_model.ExtendedLengyelConfig,
-    ):
+    # TODO(b/557540194): Generalize this validation to other edge models once
+    # `EdgeModelConfig` exposes an instance-level hook to declare its
+    # configured impurity species.
+    for el_config in self._get_extended_lengyel_configs():
       core_species = set(self.plasma_composition.impurity.species.keys())
-      edge_fixed = set(self.edge.fixed_impurity_concentrations.keys())
+      edge_fixed = set(el_config.fixed_impurity_concentrations.keys())
 
       if (
-          self.edge.computation_mode
+          el_config.computation_mode
           == extended_lengyel_enums.ComputationMode.INVERSE
       ):
-        if self.edge.seed_impurity_weights is not None:
-          edge_seed = set(self.edge.seed_impurity_weights.keys())
+        if el_config.seed_impurity_weights is not None:
+          edge_seed = set(el_config.seed_impurity_weights.keys())
         else:
           edge_seed = set()
 
@@ -352,79 +364,79 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     species, and raises an error if any time slice has a zero value at
     rho_norm=1.
     """
-    if not isinstance(
-        self.edge,
-        extended_lengyel_pydantic_model.ExtendedLengyelConfig,
-    ):
+    # TODO(b/557540194): Generalize this validation to all edge models that
+    # update impurities (`supported_boundary_conditions.n_impurities=True`).
+    # Because `supported_boundary_conditions` is a ClassVar, doing so requires
+    # an instance-level hook on `EdgeModelConfig` to declare which impurity
+    # species it populates in `impurity_right_bc`.
+    el_configs = self._get_extended_lengyel_configs()
+    if not el_configs:
       return self
     impurity = self.plasma_composition.impurity
     if not isinstance(impurity, electron_density_ratios.ElectronDensityRatios):
       return self
 
-    if (
-        self.edge.computation_mode
-        == extended_lengyel_enums.ComputationMode.INVERSE
-    ):
-      seeded_species = (
-          set(self.edge.seed_impurity_weights.keys())
-          if self.edge.seed_impurity_weights
-          else set()
-      )
-    else:
-      seeded_species = set()
+    for el_config in el_configs:
+      if (
+          el_config.computation_mode
+          == extended_lengyel_enums.ComputationMode.INVERSE
+      ):
+        seeded_species = (
+            set(el_config.seed_impurity_weights.keys())
+            if el_config.seed_impurity_weights
+            else set()
+        )
+      else:
+        seeded_species = set()
 
-    # Fixed impurities with EDGE as source of truth.
-    if (
-        self.edge.impurity_sot
-        == extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
-    ):
-      fixed_edge_species = set(self.edge.fixed_impurity_concentrations.keys())
-    else:
-      fixed_edge_species = set()
+      # Fixed impurities with EDGE as source of truth.
+      if (
+          el_config.impurity_sot
+          == extended_lengyel_enums.FixedImpuritySourceOfTruth.EDGE
+      ):
+        fixed_edge_species = set(el_config.fixed_impurity_concentrations.keys())
+      else:
+        fixed_edge_species = set()
 
-    species_to_check = seeded_species | fixed_edge_species
+      species_to_check = seeded_species | fixed_edge_species
 
-    # update_n_impurities is a TimeVaryingScalarStep (step-interpolated).
-    # We need to check its value at the same times as the species profile.
-    update_n_impurities_time = self.edge.update_n_impurities.time
-    update_n_impurities_value = self.edge.update_n_impurities.value
+      # update_n_impurities is a TimeVaryingScalarStep (step-interpolated).
+      # We need to check its value at the same times as the species profile.
+      update_n_impurities_time = el_config.update_n_impurities.time
+      update_n_impurities_value = el_config.update_n_impurities.value
 
-    for species_name, species_profile in impurity.species.items():
-      if species_name not in species_to_check:
-        continue
-      if species_profile is None:
-        continue
-      for t, (_, values) in species_profile.value.items():
-        # Sufficient to check the last rho_norm value, due to constant
-        # extrapolation to the LCFS if rho_norm=1 is not directly included.
-        if values[-1] <= 0.0:
-          # Step-interpolate update_n_impurities at time t. Only raise if
-          # the edge model would actually rescale impurities at this time.
-          # searchsorted(side='right') - 1 finds the index of the last
-          # update_n_impurities time point <= t, i.e. the step value active
-          # at time t.
-          idx = (
-              max(
-                  0,
-                  int(
-                      np.searchsorted(update_n_impurities_time, t, side='right')
-                  )
-                  - 1,
-              )
-          )
-          if not update_n_impurities_value[idx]:
-            continue
-          raise ValueError(
-              f"Impurity species '{species_name}' has a zero or negative"
-              f' n_e_ratio at rho_norm=1.0 (the LCFS) at time t={t}.'
-              ' When the extended Lengyel edge model is active, it rescales'
-              ' core impurity profiles by dividing by the LCFS value. A'
-              ' zero LCFS value means the rescaled profile will remain'
-              ' zero regardless of the edge model output, silently'
-              ' breaking edge-core coupling. Please set a small positive'
-              ' value at rho_norm=1.0 (the actual value will be overwritten'
-              ' by the edge model).'
-          )
+      for species_name, species_profile in impurity.species.items():
+        if species_name not in species_to_check:
+          continue
+        if species_profile is None:
+          continue
+        for t, (_, values) in species_profile.value.items():
+          # Sufficient to check the last rho_norm value, due to constant
+          # extrapolation to the LCFS if rho_norm=1 is not directly included.
+          if values[-1] <= 0.0:
+            # Step-interpolate update_n_impurities at time t. Only raise if
+            # the edge model would actually rescale impurities at this time.
+            # searchsorted(side='right') - 1 finds the index of the last
+            # update_n_impurities time point <= t, i.e. the step value active
+            # at time t.
+            idx = max(
+                0,
+                int(np.searchsorted(update_n_impurities_time, t, side='right'))
+                - 1,
+            )
+            if not update_n_impurities_value[idx]:
+              continue
+            raise ValueError(
+                f"Impurity species '{species_name}' has a zero or negative"
+                f' n_e_ratio at rho_norm=1.0 (the LCFS) at time t={t}.'
+                ' When the extended Lengyel edge model is active, it rescales'
+                ' core impurity profiles by dividing by the LCFS value. A'
+                ' zero LCFS value means the rescaled profile will remain'
+                ' zero regardless of the edge model output, silently'
+                ' breaking edge-core coupling. Please set a small positive'
+                ' value at rho_norm=1.0 (the actual value will be overwritten'
+                ' by the edge model).'
+            )
     return self
 
   def update_fields(self, x: Mapping[str, Any]):

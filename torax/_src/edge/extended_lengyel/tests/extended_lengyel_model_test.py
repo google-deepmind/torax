@@ -202,10 +202,14 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     # --- 3. Run Model and Assert ---
     model = edge_config.build_edge_model()
     outputs = model(
+        edge_runtime_params,
         mock_runtime_params,
         mock_geo,
         mock_core_profiles,
         mock_core_sources,
+    )
+    assert isinstance(
+        outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
     )
 
     # Expected values from standalone reference case in:
@@ -344,7 +348,13 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     # 6. Run
     model = extended_lengyel_model.ExtendedLengyelModel()
-    model(mock_runtime_params, mock_geo, mock_core_profiles, mock_core_sources)
+    model(
+        edge_params,
+        mock_runtime_params,
+        mock_geo,
+        mock_core_profiles,
+        mock_core_sources,
+    )
 
     # 7. Assert
     _, kwargs = mock_run_standalone.call_args
@@ -467,6 +477,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     # 7. Run with previous_edge_outputs
     model = extended_lengyel_model.ExtendedLengyelModel()
     model(
+        edge_params,
         mock_runtime_params,
         mock_geo,
         mock_core_profiles,
@@ -631,6 +642,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     model = extended_lengyel_model.ExtendedLengyelModel()
     model(
+        edge_params,
         mock_runtime_params,
         mock_geo,
         mock_core_profiles,
@@ -789,6 +801,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     model = extended_lengyel_model.ExtendedLengyelModel()
     model(
+        edge_runtime_params=runtime_params.edge,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock_core_profiles,
@@ -920,6 +933,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     model = extended_lengyel_model.ExtendedLengyelModel()
     model(
+        edge_runtime_params=runtime_params.edge,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock_core_profiles,
@@ -1048,7 +1062,13 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     # 6. Run
     model = extended_lengyel_model.ExtendedLengyelModel()
-    model(mock_runtime_params, mock_geo, mock_core_profiles, mock_core_sources)
+    model(
+        edge_params,
+        mock_runtime_params,
+        mock_geo,
+        mock_core_profiles,
+        mock_core_sources,
+    )
 
     # 7. Assert inputs passed to the standalone runner
     _, kwargs = mock_run_standalone.call_args
@@ -1731,9 +1751,17 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     )(t=0.0)
 
     assert self.torax_config.edge is not None
+    assert runtime_params.edge is not None
     edge_model = self.torax_config.edge.build_edge_model()
     edge_outputs = edge_model(
-        runtime_params, geo, mock_core_profiles, mock_core_sources
+        runtime_params.edge,
+        runtime_params,
+        geo,
+        mock_core_profiles,
+        mock_core_sources,
+    )
+    assert isinstance(
+        edge_outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
     )
     if impurity_sot == 'edge':
       self.assertIn('Ne', edge_outputs.impurity_right_bc)
@@ -1782,9 +1810,17 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     )(t=0.0)
 
     assert self.torax_config.edge is not None
+    assert runtime_params.edge is not None
     edge_model = self.torax_config.edge.build_edge_model()
     edge_outputs = edge_model(
-        runtime_params, geo, mock_core_profiles, mock_core_sources
+        runtime_params.edge,
+        runtime_params,
+        geo,
+        mock_core_profiles,
+        mock_core_sources,
+    )
+    assert isinstance(
+        edge_outputs, extended_lengyel_standalone.ExtendedLengyelOutputs
     )
 
     # Seeded impurity 'N' is always updated from the edge in inverse mode.

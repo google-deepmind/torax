@@ -568,7 +568,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     # with extended lengyel.
     with self.assertRaisesRegex(
         ValueError,
-        "Extended Lengyel edge model requires"
+        "Edge models require"
         " plasma_composition.impurity_mode to be 'n_e_ratios'",
     ):
       model_config.ToraxConfig.from_dict(self.config)
@@ -603,7 +603,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     # with extended lengyel.
     with self.assertRaisesRegex(
         ValueError,
-        "Extended Lengyel edge model requires"
+        "Edge models require"
         " plasma_composition.impurity_mode to be 'n_e_ratios'",
     ):
       model_config.ToraxConfig.from_dict(self.config)

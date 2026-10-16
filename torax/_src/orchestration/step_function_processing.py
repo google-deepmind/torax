@@ -89,7 +89,9 @@ def pre_step(
   # at time t to calculate new edge conditions for the next time step.
   edge_model = models.edge_model
   if edge_model is not None:
+    assert runtime_params_t.edge is not None
     edge_outputs = edge_model(
+        runtime_params_t.edge,
         runtime_params_t,
         geo_t,
         input_state.core_profiles,

@@ -126,7 +126,9 @@ def _get_initial_state(
     # PlasmaComposition.impurity_source_of_truth == CORE. All subsequent
     # calls to the edge model will use the divertor neutral pressure from a
     # previous calculation.
+    assert runtime_params.edge is not None
     edge_outputs = models.edge_model(
+        runtime_params.edge,
         runtime_params,
         geo,
         initial_core_profiles,
