@@ -103,7 +103,7 @@ class CoeffsCallback:
       pedestal_transition_state: State for tracking pedestal L-H and H-L
         transitions.
       allow_pereverzev: If True, then the coeffs are being called within a
-        linear solver. Thus could be either the use_predictor_corrector solver
+        linear solver. Thus could be either the use_fixed_point solver
         or as part of calculating the initial guess for the nonlinear solver. In
         either case, we allow the inclusion of Pereverzev-Corrigan terms which
         aim to stabilize the linear solver when being used with highly nonlinear

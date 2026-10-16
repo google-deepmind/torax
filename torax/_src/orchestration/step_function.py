@@ -169,7 +169,9 @@ class SimulationStepFn:
             output_state,
             post_processed_outputs,
             self._runtime_params_provider.numerics.T_min_eV,
-            bool(self._runtime_params_provider.numerics.adaptive_dt),
+            bool(
+                self._runtime_params_provider.time_step_calculator.adaptive_dt
+            ),
         )
     ):
       return state.SimError.NO_ERROR
@@ -190,7 +192,7 @@ class SimulationStepFn:
 
     # Check if reached the minimum time step last - this is often caused by
     # other errors so check those first to give more informative error messages.
-    if self._runtime_params_provider.numerics.adaptive_dt:
+    if self._runtime_params_provider.time_step_calculator.adaptive_dt:
       if output_state.solver_numeric_outputs.solver_error_state == 1:
         # If using adaptive stepping and the solver did not converge we must
         # have reached the minimum time step, so we can exit the simulation.
@@ -282,9 +284,9 @@ class SimulationStepFn:
       )
       # If adaptive dt is enabled, take the adaptive step if the max_dt is
       # greater than the min_dt, otherwise take the fixed step.
-      if runtime_params_provider.numerics.adaptive_dt:
+      if runtime_params_provider.time_step_calculator.adaptive_dt:
         return jax.lax.cond(
-            max_dt > runtime_params_t.numerics.min_dt,
+            max_dt > runtime_params_t.time_step_calculator.min_dt,
             self._adaptive_step,
             self._fixed_step,
             *step_args,
@@ -343,7 +345,7 @@ class SimulationStepFn:
       # and an error will be raised when the state is checked. Here we set a
       # the bool min_dt_reached to True to indicate that we should exit the
       # simulation.
-      if self.runtime_params_provider.numerics.adaptive_dt:
+      if self.runtime_params_provider.time_step_calculator.adaptive_dt:
         exit_min_dt = prev_state.solver_numeric_outputs.solver_error_state == 1
       else:
         exit_min_dt = False

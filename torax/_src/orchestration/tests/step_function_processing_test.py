@@ -46,8 +46,11 @@ class StepFunctionProcessingTest(parameterized.TestCase):
       explicit_pedestal: bool,
   ):
     config = default_configs.get_default_config_dict()
-    config['numerics'] = {'fixed_dt': 1.0, 't_initial': 0.0, 't_final': 2.0}
-    config['time_step_calculator'] = {'calculator_type': 'fixed'}
+    config['numerics'] = {'t_initial': 0.0, 't_final': 2.0}
+    config['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'fixed_dt': 1.0,
+    }
     config['pedestal'] = {
         'explicit_pedestal': explicit_pedestal,
         'structure_model': {

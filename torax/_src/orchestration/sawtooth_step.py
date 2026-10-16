@@ -136,14 +136,11 @@ def sawtooth_step(
     # Following the sawtooth redistribution, the PDE will take over the
     # energy evolution and the physical dW/dt corresponding to the new profile
     # distribution will be calculated.
-    # This must be done here and not in the sawtooth model since the Solver
-    # API does not include the post-processed outputs.
     x_evolved = _evolve_x_after_sawtooth(
         x_redistributed=x_candidate,
         runtime_params_t_plus_crash_dt=runtime_params_t_plus_crash_dt,
         core_profiles_redistributed=core_profiles_t_plus_crash_dt,
         geo_t_plus_crash_dt=geo_t_plus_crash_dt,
-        previous_post_processed_outputs=input_post_processed_outputs,
         evolving_names=runtime_params_t.numerics.evolving_names,
         dt_crash=dt_crash,  # pyrefly: ignore[bad-argument-type]
     )
@@ -181,7 +178,6 @@ def _evolve_x_after_sawtooth(
     runtime_params_t_plus_crash_dt: runtime_params_lib.RuntimeParams,
     core_profiles_redistributed: state.CoreProfiles,
     geo_t_plus_crash_dt: geometry.Geometry,
-    previous_post_processed_outputs: post_processing.PostProcessedOutputs,
     evolving_names: tuple[str, ...],
     dt_crash: jax.Array,
 ) -> tuple[cell_variable.CellVariable, ...]:
@@ -213,8 +209,12 @@ def _evolve_x_after_sawtooth(
       geo_t_plus_crash_dt,
   )
 
+  assert core_profiles_redistributed.internal_plasma_energy is not None
   # Update temperatures to maintain constant dW/dt over the sawtooth period.
-  dW_target = previous_post_processed_outputs.dW_thermal_dt * dt_crash
+  dW_target = (
+      core_profiles_redistributed.internal_plasma_energy.dW_thermal_dt
+      * dt_crash
+  )
 
   factor = 1 + dW_target / W_thermal_tot
 

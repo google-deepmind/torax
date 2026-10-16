@@ -49,6 +49,7 @@ class InitialStatesTest(parameterized.TestCase):
     # Boundary conditions can be time-dependent, but when creating the initial
     # core profiles, we want to grab the boundary condition params at time 0.
     config['profile_conditions'] = {
+        'initial_psi_source': 'j',
         'T_i_right_bc': 27.7,
         'T_e_right_bc': {0.0: 42.0, 1.0: 0.001},
         'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
@@ -232,11 +233,12 @@ class ImpurityFractionsTest(parameterized.TestCase):
     self.base_config_dict = {
         'profile_conditions': {
             'Ip': 15.0e6,
+            'initial_psi_source': 'j',
             'T_i': {0: {0: 15.0, 1: 1.0}},
             'T_e': {0: {0: 15.0, 1: 1.0}},
             'n_e': {0: {0: 1.2e20, 1: 0.8e20}},
         },
-        'numerics': {'t_final': 5.0, 'fixed_dt': 1.0},
+        'numerics': {'t_final': 5.0},
         'geometry': {'geometry_type': 'circular'},
         'sources': {},
         'transport': {
@@ -245,7 +247,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
             },
         },
         'solver': {'solver_type': 'linear'},
-        'time_step_calculator': {'calculator_type': 'fixed'},
+        'time_step_calculator': {'calculator_type': 'fixed', 'fixed_dt': 1.0},
         'pedestal': {},
     }
 
@@ -432,10 +434,10 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         n_impurity=core_profile_helpers.make_constant_core_profile(
             geo, 0.25e20
         ),
-        Z_impurity_face=jnp.full_like(geo.rho_face, 3.0),
         charge_state_info_face=dataclasses.replace(
             base_core_profiles.charge_state_info_face,
             Z_avg=jnp.full_like(geo.rho_face, 2.0),
+            Z2_avg=jnp.full_like(geo.rho_face, 6.0),
         ),
     )
 
@@ -515,7 +517,19 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
   def test_core_profiles_to_output_dict_keys_and_shapes(self):
     """Tests CoreProfiles.to_output_dict produces all keys with valid shapes."""
     geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
-    profiles_t0 = core_profile_helpers.make_zero_core_profiles(geo)
+    energy_state = state.PlasmaInternalEnergy(
+        W_thermal_i=jnp.array(1.0),
+        W_thermal_e=jnp.array(2.0),
+        W_thermal_total=jnp.array(3.0),
+        dW_thermal_i_dt=jnp.array(0.1),
+        dW_thermal_e_dt=jnp.array(0.2),
+        dW_thermal_i_dt_smoothed=jnp.array(0.1),
+        dW_thermal_e_dt_smoothed=jnp.array(0.2),
+    )
+    profiles_t0 = dataclasses.replace(
+        core_profile_helpers.make_zero_core_profiles(geo),
+        internal_plasma_energy=energy_state,
+    )
     profiles_t1 = dataclasses.replace(
         profiles_t0,
         T_i=core_profile_helpers.make_constant_core_profile(geo, 5.0),
@@ -578,6 +592,13 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         output_keys.V_LOOP_LCFS,
         output_keys.A_I,
         output_keys.IP,
+        output_keys.W_THERMAL_I,
+        output_keys.W_THERMAL_E,
+        output_keys.W_THERMAL_TOTAL,
+        output_keys.DW_THERMAL_DT,
+        output_keys.DW_THERMAL_DT_SMOOTHED,
+        output_keys.DW_THERMAL_I_DT_SMOOTHED,
+        output_keys.DW_THERMAL_E_DT_SMOOTHED,
     )
     for key in scalar_keys:
       self.assertIn(key, out_dict)

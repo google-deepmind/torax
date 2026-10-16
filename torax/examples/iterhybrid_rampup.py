@@ -30,6 +30,7 @@ CONFIG = {
     },
     'profile_conditions': {
         'Ip': {0: 3e6, 80: 10.5e6},  # Total plasma current [A]
+        'initial_psi_source': 'geometry',
         # Boundary and initial conditions for T and n
         'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
         'T_i_right_bc': 0.1,
@@ -44,18 +45,12 @@ CONFIG = {
     },
     'numerics': {
         't_final': 80,  # Simulated plasma duration [s]
-        'fixed_dt': 2,
         # Shortens the current diffusion timescale (psi equation only)
         'current_diffusion_time_reduction_factor': 1,
         'evolve_ion_heat': True,
         'evolve_electron_heat': True,
         'evolve_current': True,
         'evolve_density': True,
-        'max_dt': 0.5,
-        # Multiplier in front of the base timestep dt=dx^2/(2*chi). Can
-        # likely be increased further beyond this default
-        'chi_timestep_prefactor': 30,
-        'dt_reduction_factor': 3,
     },
     'geometry': {
         'geometry_type': 'chease',
@@ -179,8 +174,8 @@ CONFIG = {
         # TODO(b/515255142): Improve the warm-start predictor-corrector so that
         # it can be re-enabled.
         'initial_guess_mode': 'x_old',
-        'use_predictor_corrector': True,
-        'n_corrector_steps': 5,
+        'use_fixed_point': True,
+        'n_fixed_point_iterations': 5,
         # (Deliberately) large heat conductivity and particle diffusion for
         # Pereverzev rule
         'chi_pereverzev': 30,
@@ -191,5 +186,8 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'fixed',
+        'fixed_dt': 2,
+        'max_dt': 0.5,
+        'dt_reduction_factor': 3,
     },
 }

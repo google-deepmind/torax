@@ -48,7 +48,7 @@ CONFIG["geometry"] = {
 # Dump all profile_conditions from the first IDS loaded.
 CONFIG["profile_conditions"] = {
     **imas_data1,
-    "initial_psi_mode": "geometry",
+    "initial_psi_source": "geometry",
 }
 # Load just a specific key from the other IDS: impurity species dict.
 CONFIG["plasma_composition"] = {

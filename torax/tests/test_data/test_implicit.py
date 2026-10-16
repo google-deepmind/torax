@@ -17,9 +17,10 @@
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'j',
         'n_e_right_bc': 0.5e20,
     },
-    'numerics': {'t_final': 1, 'chi_timestep_prefactor': 9.0},
+    'numerics': {'t_final': 1},
     'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
@@ -42,11 +43,12 @@ CONFIG = {
     'transport': {},
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'theta_implicit': 1.0,
         'use_pereverzev': False,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        'chi_timestep_prefactor': 9.0,
     },
 }

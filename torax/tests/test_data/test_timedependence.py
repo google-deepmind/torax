@@ -22,6 +22,7 @@ and an LH transition.
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'geometry',
         'T_i': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'Ip': {0: 5e6, 4: 15e6, 6: 12e6, 8: 12e6},
@@ -41,8 +42,6 @@ CONFIG = {
         'evolve_current': True,
         # to shorten current diffusion time for the test
         'current_diffusion_time_reduction_factor': 50,
-        'chi_timestep_prefactor': 150,
-        'max_dt': 0.5,
         't_final': 10,
     },
     'plasma_composition': {},
@@ -100,10 +99,12 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'use_pereverzev': True,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        'chi_timestep_prefactor': 150,
+        'max_dt': 0.5,
     },
 }

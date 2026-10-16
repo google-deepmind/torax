@@ -25,6 +25,7 @@ CONFIG = {
     },
     'profile_conditions': {
         'Ip': 10.5e6,  # total plasma current in A
+        'initial_psi_source': 'geometry',
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 15.0, 1.0: 0.2}},
@@ -48,11 +49,6 @@ CONFIG = {
         'evolve_electron_heat': True,
         'evolve_current': True,
         'evolve_density': True,
-        'max_dt': 0.5,
-        # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
-        # likely be increased further beyond this default.
-        'chi_timestep_prefactor': 50,
-        'dt_reduction_factor': 3,
     },
     'geometry': {
         'geometry_type': 'chease',
@@ -182,8 +178,8 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': True,
-        'n_corrector_steps': 2,
+        'use_fixed_point': True,
+        'n_fixed_point_iterations': 2,
         # (deliberately) large heat conductivity for Pereverzev rule
         'chi_pereverzev': 30,
         # (deliberately) large particle diffusion for Pereverzev rule
@@ -192,5 +188,10 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        'max_dt': 0.5,
+        # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
+        # likely be increased further beyond this default.
+        'chi_timestep_prefactor': 50,
+        'dt_reduction_factor': 3,
     },
 }

@@ -88,7 +88,7 @@ def torax_state_to_imas_equilibrium(
   except ValueError as e:
     logging.warning(e)
   eq.global_quantities.ip = -1 * geometry.Ip_profile_face[-1]
-  eq.profiles_1d.j_phi = -1 * core_profiles.j_total_face
+  eq.profiles_1d.j_phi = -1 * core_profiles.j_toroidal_total_face
   eq.profiles_1d.volume = geometry.volume_face
   eq.profiles_1d.area = geometry.area_face
   eq.global_quantities.volume = geometry.volume_face[-1]
