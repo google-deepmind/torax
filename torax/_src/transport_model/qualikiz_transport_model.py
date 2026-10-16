@@ -239,7 +239,7 @@ class QualikizTransportModel(
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      two_point_mask: array_typing.BoolVectorFace | None = None,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     """Extracts QuaLiKiz run data from runpath."""
 

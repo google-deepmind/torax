@@ -137,7 +137,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
-    runtime_params, geo, core_profiles, _, _ = model_inputs
+    runtime_params, geo, core_profiles, _, two_point_mask = model_inputs
     tglf_params = (
         runtime_params.transport.core_transport_model_params["tglf_based"]
     )
@@ -148,6 +148,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=tglf_params,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
     expected_length = geo.rho_face_norm.shape[0]
     for key in tglf_inputs.__dict__.keys():
@@ -181,7 +182,7 @@ class TGLFTransportModelTest(parameterized.TestCase):
     assert isinstance(
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
-    runtime_uncapped, geo, core_profiles, _, _ = uncapped_inputs
+    runtime_uncapped, geo, core_profiles, _, two_point_mask = uncapped_inputs
     runtime_capped, _, _, _, _ = capped_inputs
 
     tglf_params_uncapped = (
@@ -201,11 +202,13 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=tglf_params_uncapped,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
     capped = transport_model._prepare_tglf_inputs(
         transport=tglf_params_capped,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
 
     # Precondition: some uncapped values must exceed the cap.
@@ -225,13 +228,15 @@ class TGLFTransportModelTest(parameterized.TestCase):
   def test_vexb_shear_is_invariant_to_rigid_toroidal_rotation(self):
     # GACODE normalizes rotation to B_pol, so rigid toroidal rotation maps onto
     # a constant omega_0 = E_r / (R B_pol) and adds no ExB shear.
-    _, (_, geo, core_profiles, _, _) = _get_config_and_model_inputs({
-        "core_transport_models": {
-            "tglf_based": {
-                "model_name": "tglf_based",
+    _, (_, geo, core_profiles, _, two_point_mask) = (
+        _get_config_and_model_inputs({
+            "core_transport_models": {
+                "tglf_based": {
+                    "model_name": "tglf_based",
+                },
             },
-        },
-    })
+        })
+    )
     tglf_config = TGLFBasedTransportModelConfig()
     transport_model = tglf_config.build_transport_model()
     tglf_params = tglf_config.build_runtime_params(t=0.0)
@@ -250,11 +255,13 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport=tglf_params,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
     rotating = transport_model._prepare_tglf_inputs(
         transport=tglf_params,
         geo=geo,
         core_profiles=rigidly_rotating_core_profiles,
+        two_point_mask=two_point_mask,
     )
 
     np.testing.assert_allclose(

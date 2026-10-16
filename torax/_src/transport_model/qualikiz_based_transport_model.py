@@ -283,7 +283,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      two_point_mask: array_typing.BoolVectorFace | None = None,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     """Converts model output to TransportCoeffs."""
     # Convert the electron particle flux from GB (pfe) to SI units.
@@ -346,7 +346,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      two_point_mask: array_typing.BoolVectorFace | None = None,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> QualikizInputs:
     """Constructs a `QualikizInputs` object from the TORAX state.
 
@@ -364,8 +364,8 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       transport: Runtime parameters for the QuaLiKiz-based transport model.
       geo: Torus geometry.
       core_profiles: Core plasma profiles.
-      two_point_mask: Optional boolean face mask indicating where face gradients
-        are calculated with 2-point central differences instead of 3-point.
+      two_point_mask: Boolean face mask indicating where face gradients are
+        calculated with 2-point central differences instead of 3-point.
 
     Returns:
       A `QualikizInputs` dataclass on the face grid.
@@ -478,7 +478,10 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       v_ExB_poloidal_and_pressure = rotation_output.v_ExB_poloidal_and_pressure
       v_ExB_toroidal = rotation_output.v_ExB_toroidal
 
-    def _calc_gamma_E_SI(v_ExB_component):
+    def _calc_gamma_E_SI(
+        v_ExB_component,
+        two_point_mask: array_typing.BoolVectorFace,
+    ):
       # v_ExB ~ r near the magnetic axis, so v_ExB * q / r tends to a finite
       # limit there. Evaluating it on axis (r = 0) is ill-defined, so use the
       # first off-axis face value. The division is restricted to off-axis faces
@@ -498,7 +501,12 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       gamma_E_SI = (
           rmid_face
           / q
-          * cv.face_grad(x=rmid, x_left=rmid_face[0], x_right=rmid_face[-1])
+          * cv.face_grad(
+              x=rmid,
+              x_left=rmid_face[0],
+              x_right=rmid_face[-1],
+              two_point_mask=two_point_mask,
+          )
       )
       axis_ramp = jnp.minimum(
           (geo.rho_face_norm / 0.1) ** 2,
@@ -507,11 +515,15 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       gamma_E_SI = gamma_E_SI * axis_ramp
       return gamma_E_SI * transport.rotation_multiplier
 
-    gamma_E_SI = _calc_gamma_E_SI(v_ExB)
+    gamma_E_SI = _calc_gamma_E_SI(v_ExB, two_point_mask=two_point_mask)
     gamma_E_SI_poloidal_and_pressure = _calc_gamma_E_SI(
-        v_ExB_poloidal_and_pressure
+        v_ExB_poloidal_and_pressure,
+        two_point_mask=two_point_mask,
     )
-    gamma_E_SI_toroidal = _calc_gamma_E_SI(v_ExB_toroidal)
+    gamma_E_SI_toroidal = _calc_gamma_E_SI(
+        v_ExB_toroidal,
+        two_point_mask=two_point_mask,
+    )
 
     c_ref = jnp.sqrt(constants.keV_to_J / constants.m_amu)
     gamma_E_QLK = gamma_E_SI * (geo.R_major / c_ref)

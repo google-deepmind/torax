@@ -138,7 +138,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params, geo, core_profiles, _, _ = model_inputs
+    runtime_params, geo, core_profiles, _, two_point_mask = model_inputs
     qualikiz_params = (
         runtime_params.transport.core_transport_model_params['qualikiz_based']
     )
@@ -149,6 +149,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=qualikiz_params,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
 
     # 1D array qualikiz_inputs
@@ -191,7 +192,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params, geo, core_profiles, _, _ = model_inputs
+    runtime_params, geo, core_profiles, _, two_point_mask = model_inputs
     qualikiz_params = (
         runtime_params.transport.core_transport_model_params['qualikiz_based']
     )
@@ -202,6 +203,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=qualikiz_params,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
 
     # Normalized ExB shear is O(0.1) for these profiles. Dividing by r on the
@@ -238,7 +240,9 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params_uncapped, geo, core_profiles, _, _ = uncapped_inputs
+    runtime_params_uncapped, geo, core_profiles, _, two_point_mask = (
+        uncapped_inputs
+    )
     runtime_params_capped, _, _, _, _ = capped_inputs
 
     qualikiz_params_uncapped = (
@@ -262,11 +266,13 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport=qualikiz_params_uncapped,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
     capped = transport_model._prepare_qualikiz_inputs(
         transport=qualikiz_params_capped,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
 
     # Precondition: some uncapped values must exceed the cap.
@@ -355,6 +361,7 @@ class FakeQualikizBasedTransportModel(
         transport=transport_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
     )
 
 

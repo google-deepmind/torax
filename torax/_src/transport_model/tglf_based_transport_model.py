@@ -183,7 +183,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      two_point_mask: array_typing.BoolVectorFace | None = None,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> TGLFInputs:
     """Construct a TGLFInputs object from the TORAX state.
 
@@ -253,7 +253,10 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     # the first off-axis face ratio
     # Use face_grad to correctly handle constraints on the psi CellVariable.
     dpsi_dr = core_profiles.psi.face_grad(
-        x=geo.r_mid, x_left=r[0], x_right=r[-1]
+        x=geo.r_mid,
+        x_left=r[0],
+        x_right=r[-1],
+        two_point_mask=two_point_mask,
     )
     dpsi_dr_over_r = jnp.concatenate([
         dpsi_dr[1:2] / r[1:2],
@@ -439,6 +442,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     def _get_v_ExB_shear(
         core_profiles: state.CoreProfiles,
         geo: geometry.Geometry,
+        two_point_mask: array_typing.BoolVectorFace,
     ):
       rotation_output = rotation.calculate_rotation(
           psi=core_profiles.psi,
@@ -469,7 +473,12 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
           left_face_constraint=None,
           left_face_grad_constraint=jnp.array(0.0, dtype=jax_utils.get_dtype()),
       )
-      grad = cv.face_grad(x=geo.r_mid, x_left=r[0], x_right=r[-1])
+      grad = cv.face_grad(
+          x=geo.r_mid,
+          x_left=r[0],
+          x_right=r[-1],
+          two_point_mask=two_point_mask,
+      )
       v_ExB_shear = -(
           jnp.sign(core_profiles.Ip_profile_face)
           * (r / jnp.abs(core_profiles.q_face))
@@ -484,6 +493,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       v_ExB_shear = _get_v_ExB_shear(
           core_profiles,
           geo,
+          two_point_mask=two_point_mask,
       )
     else:
       v_ExB_shear = jnp.zeros_like(core_profiles.q_face)
@@ -553,7 +563,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       transport: RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      two_point_mask: array_typing.BoolVectorFace | None = None,
+      two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     # Denormalised TGLF output fluxes.
     Q_e = electron_heat_flux_GB * tglf_inputs.Q_GB  # [W/m^2]
