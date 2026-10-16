@@ -167,14 +167,11 @@ class QualikizTransportModelTest(parameterized.TestCase):
         'normni',
         'chiGB',
     ]
-    scalar_keys = ['Rmaj', 'Rmin']
     expected_vector_length = geo.rho_face_norm.shape[0]
     for key in vector_keys:
       self.assertEqual(
           getattr(qualikiz_inputs, key).shape, (expected_vector_length,)
       )
-    for key in scalar_keys:
-      self.assertEqual(getattr(qualikiz_inputs, key).shape, ())
 
   def test_gamma_e_is_bounded_near_axis(self):
     torax_config, model_inputs = _get_config_and_model_inputs({
@@ -209,7 +206,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
 
     # Normalized ExB shear is O(0.1) for these profiles. Dividing by r on the
     # magnetic axis previously produced values of order 1e5 near the axis.
-    self.assertLess(np.max(np.abs(qualikiz_inputs.gamma_E_GB)), 1.0)
+    self.assertLess(np.max(np.abs(qualikiz_inputs.gamma_E_QLK)), 1.0)
 
   @parameterized.parameters((0.001,), (0.1,))
   def test_collisionality_max(self, max_normalized_collisionality):

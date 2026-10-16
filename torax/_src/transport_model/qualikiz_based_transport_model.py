@@ -196,8 +196,6 @@ class QualikizInputs:
 
   Attributes:
     chiGB: GyroBohm diffusivity used for normalizations [m^2/s].
-    Rmin: Minor radius [m].
-    Rmaj: Major radius [m].
     lref_over_lti: Normalized ion temperature logarithmic gradient (Rmaj / LTi).
     lref_over_lte: Normalized electron temperature logarithmic gradient (Rmaj /
       LTe).
@@ -217,7 +215,6 @@ class QualikizInputs:
     normni: Ratio of main ion to electron density (n_i / n_e) on the face grid.
     alpha: MHD alpha parameter on the face grid.
     epsilon: Inverse aspect ratio (r_mid / R_major) on the face grid.
-    gamma_E_GB: GyroBohm-normalized ExB shear rate.
     gamma_E_GB_poloidal_and_pressure: GyroBohm-normalized ExB shear rate from
       poloidal velocity and diamagnetic pressure.
     gamma_E_GB_toroidal: GyroBohm-normalized ExB shear rate from toroidal
@@ -233,8 +230,6 @@ class QualikizInputs:
   """
 
   chiGB: array_typing.FloatVectorFace
-  Rmin: array_typing.FloatScalar
-  Rmaj: array_typing.FloatScalar
   lref_over_lti: array_typing.FloatVectorFace
   lref_over_lte: array_typing.FloatVectorFace
   lref_over_lne: array_typing.FloatVectorFace
@@ -249,7 +244,6 @@ class QualikizInputs:
   normni: array_typing.FloatVectorFace
   alpha: array_typing.FloatVectorFace
   epsilon: array_typing.FloatVectorFace
-  gamma_E_GB: array_typing.FloatVectorFace
   gamma_E_GB_poloidal_and_pressure: array_typing.FloatVectorFace
   gamma_E_GB_toroidal: array_typing.FloatVectorFace
   gamma_E_QLK: array_typing.FloatVectorFace
@@ -533,7 +527,6 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
         * constants.keV_to_J
         / (core_profiles.A_i * constants.m_amu)
     )
-    gamma_E_GB = gamma_E_SI * (geo.a_minor / c_sou)
     gamma_E_GB_poloidal_and_pressure = gamma_E_SI_poloidal_and_pressure * (
         geo.a_minor / c_sou
     )
@@ -553,11 +546,8 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
         log_nu_star_face=log_nu_star_face,
         normni=normni,
         chiGB=chiGB,
-        Rmaj=geo.R_major,
-        Rmin=geo.a_minor,
         alpha=alpha,
         epsilon=epsilon,
-        gamma_E_GB=gamma_E_GB,
         gamma_E_GB_poloidal_and_pressure=gamma_E_GB_poloidal_and_pressure,
         gamma_E_GB_toroidal=gamma_E_GB_toroidal,
         gamma_E_QLK=gamma_E_QLK,
