@@ -306,9 +306,14 @@ def _geometry_from_single_slice(
 
   # This Ip_profile by integration results in a minor discrepancy between this
   # term and the total Ip from IDS. ~0.1% for the standard test case.
-  Ip_profile_unscaled = scipy.integrate.cumulative_trapezoid(
+  # rhon[0] * spr[0] * jtor[0] is zero unless the grid starts off-axis, in which
+  # case Ip_axis is the current inside the first grid point assuming constant
+  # jtor there (since spr scales like rho_norm near the axis).
+  Ip_axis = 0.5 * rhon[0] * spr[0] * jtor[0]
+  Ip_bulk = scipy.integrate.cumulative_trapezoid(
       y=spr * jtor, x=rhon, initial=0.0
   )
+  Ip_profile_unscaled = Ip_axis + Ip_bulk
 
   # Because of the minor discrepancy between Ip_profile[-1] (computed by
   # integration) and global_quantities.ip, here we will scale Ip_profile such

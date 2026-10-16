@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
 import os
 from unittest import mock
 
@@ -18,9 +19,12 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+from torax._src import array_typing
 from torax._src.fvm import cell_variable
+from torax._src.geometry import chease
 from torax._src.geometry import fbt
 from torax._src.geometry import geometry
+from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.geometry import standard_geometry
@@ -506,6 +510,100 @@ class PsiFromIpTest(absltest.TestCase):
 
   def test_edge_j_total_matches_equilibrium(self):
     np.testing.assert_allclose(self.j_total[-1], self.geo.j_total[-1], rtol=0.5)
+
+
+class OffAxisGridTest(parameterized.TestCase):
+  """Compares geometries built with and without the on-axis grid point.
+
+  Finite-on-axis profiles have zero radial slope at the axis
+  (f(rho_norm) = f(0) + O(rho_norm^2)). Because `iterhybrid.mat2cols` has its
+  first off-axis point at rho_norm = 0.005 (rho_norm^2 ~ 3e-5) and stores
+  values rounded to 5 significant digits, finite-on-axis profiles at the first
+  two grid points agree to within relative O(2e-4). Profiles from the geometry
+  without the axis should therefore be equal to profiles from the geometry
+  with the axis, up to rounding.
+  """
+
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    chease_kwargs = dict(
+        geometry_directory=None,
+        geometry_file='iterhybrid.mat2cols',
+        Ip_from_parameters=True,
+        face_centers=interpolated_param_2d.get_face_centers(400),
+        R_major=6.2,
+        a_minor=2.0,
+        B_0=5.3,
+        hires_factor=4,
+    )
+    intermediates = chease._construct_intermediates_from_chease(**chease_kwargs)
+    cls.geo = standard_geometry.build_standard_geometry(intermediates)
+
+    # Drop the magnetic axis (index 0) from each CHEASE profile to simulate an
+    # equilibrium grid that starts off-axis.
+    chease_data = geometry_loader.load_geo_data(
+        None, 'iterhybrid.mat2cols', geometry_loader.GeometrySource.CHEASE
+    )
+    off_axis_chease_data = {k: v[1:] for k, v in chease_data.items()}
+    with mock.patch.object(
+        geometry_loader, 'load_geo_data', return_value=off_axis_chease_data
+    ):
+      cls.intermediates_off_axis = chease._construct_intermediates_from_chease(
+          **chease_kwargs
+      )
+    cls.geo_off_axis = standard_geometry.build_standard_geometry(
+        cls.intermediates_off_axis
+    )
+
+  @parameterized.parameters(*standard_geometry._ZERO_ON_AXIS)
+  def test_vanishes_on_axis(self, name):
+    self.assertEqual(getattr(self.intermediates_off_axis, name)[0], 0.0)
+
+  def test_midplane_radii_coincide_on_axis(self):
+    self.assertEqual(
+        self.geo_off_axis.R_in_face[0], self.geo_off_axis.R_out_face[0]
+    )
+
+  @parameterized.parameters(
+      f.name
+      for f in dataclasses.fields(standard_geometry.StandardGeometry)
+      if f.type
+      in (
+          array_typing.Array,
+          array_typing.FloatVectorFace,
+          array_typing.FloatVectorCell,
+      )
+      # Poloidal flux profiles are shifted by a constant offset psi[0] (tested
+      # below), and iterhybrid.mat2cols has a small non-zero triangularity
+      # artifact (~8.5e-3) at the axis row whereas _ZERO_ON_AXIS enforces 0.
+      and f.name
+      not in {
+          'psi',
+          'psi_from_Ip',
+          'psi_from_Ip_face',
+          'delta_face',
+          'delta_upper_face',
+          'delta_lower_face',
+      }
+  )
+  def test_matches_on_axis_grid(self, name):
+    np.testing.assert_allclose(
+        getattr(self.geo_off_axis, name),
+        getattr(self.geo, name),
+        rtol=2e-4,
+    )
+
+  def test_psi_from_ip_variation_matches_on_axis_grid(self):
+    # When the axis point is dropped, psi[0] is taken from the first off-axis
+    # point, shifting psi_from_Ip by that constant offset while preserving its
+    # radial profile (psi_from_Ip - psi_from_Ip[0]).
+    np.testing.assert_allclose(
+        self.geo_off_axis.psi_from_Ip_face
+        - self.geo_off_axis.psi_from_Ip_face[0],
+        self.geo.psi_from_Ip_face - self.geo.psi_from_Ip_face[0],
+        rtol=1e-12,
+    )
 
 
 if __name__ == '__main__':

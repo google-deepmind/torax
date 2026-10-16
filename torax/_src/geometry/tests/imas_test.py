@@ -11,15 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from unittest import mock
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax._src.fvm import cell_variable
 from torax._src.geometry import base
 from torax._src.geometry import chease
 from torax._src.geometry import eqdsk
 from torax._src.geometry import imas
 from torax._src.geometry import standard_geometry
 from torax._src.imas_tools.input import loader
+from torax._src.physics import psi_calculations
 
 # pylint: disable=invalid-name
 
@@ -195,6 +199,59 @@ class IMASGeometryTest(parameterized.TestCase):
         atol=0.05,
         rtol=0.15,
     )
+
+
+class OffAxisGridIMASGeometryTest(parameterized.TestCase):
+  """Tests an IDS whose radial grid starts off the magnetic axis (STEP).
+
+  The STEP IDS grid starts at rho_norm = 0.0033, so with large n_rho some
+  TORAX face centers end up inside the first IDS grid point (the axis face for
+  n_rho=200, and the axis and first off-axis faces for n_rho=400).
+  """
+
+  _IMAS_FILEPATH = 'STEP_SPP_001_ECHD_ftop.nc'
+
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    profiles_1d = (
+        loader.load_imas_data(cls._IMAS_FILEPATH, 'equilibrium')
+        .time_slice[0]
+        .profiles_1d
+    )
+    cls.rho_norm_ids = np.asarray(profiles_1d.rho_tor_norm)
+    cls.j_phi_ids = np.abs(np.asarray(profiles_1d.j_phi))
+
+  def _build_geometry(self, n_rho):
+    with mock.patch.object(standard_geometry, '_RHO_SMOOTHING_LIMIT', 0.0):
+      return imas.IMASConfig(
+          imas_filepath=self._IMAS_FILEPATH, n_rho=n_rho
+      ).build_geometry()
+
+  def _assert_near_axis_matches_ids(self, geo, j_total):
+    near_axis = geo.rho_norm < 0.05
+    np.testing.assert_allclose(
+        np.abs(np.asarray(j_total)[near_axis]),
+        np.interp(geo.rho_norm[near_axis], self.rho_norm_ids, self.j_phi_ids),
+        rtol=1e-2,
+    )
+
+  @parameterized.parameters(200, 400)
+  def test_near_axis_j_total_matches_ids(self, n_rho):
+    geo = self._build_geometry(n_rho)
+    self._assert_near_axis_matches_ids(geo, geo.j_total)
+
+  @parameterized.parameters(200, 400)
+  def test_near_axis_j_total_from_psi_from_ip_matches_ids(self, n_rho):
+    geo = self._build_geometry(n_rho)
+    psi = cell_variable.CellVariable(
+        value=geo.psi_from_Ip,
+        face_centers=geo.rho_face_norm,
+        right_face_constraint=geo.psi_from_Ip_face[-1],
+        right_face_grad_constraint=None,
+    )
+    j_total, _, _ = psi_calculations.calc_j_total(geo, psi, min_rho_norm=0.0)
+    self._assert_near_axis_matches_ids(geo, j_total)
 
 
 if __name__ == '__main__':

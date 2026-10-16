@@ -42,6 +42,18 @@ from torax._src.torax_pydantic import torax_pydantic
 _RHO_SMOOTHING_LIMIT = 0.1
 _COARSE_GRID_THRESHOLD = 0.02
 _COARSE_GRID_WARNING_INTERVAL_SEC = 10 * 60
+# Radial profiles that vanish on the magnetic axis.
+_ZERO_ON_AXIS = frozenset({
+    'Ip_profile',
+    'Phi',
+    'flux_surf_avg_grad_psi',
+    'flux_surf_avg_grad_psi2',
+    'flux_surf_avg_grad_psi2_over_R2',
+    'delta_upper_face',
+    'delta_lower_face',
+    'vpr',
+    'trapped_fraction',
+})
 
 
 @jax.tree_util.register_dataclass
@@ -310,6 +322,7 @@ class StandardGeometryIntermediates:
       int_dl_over_Bp, vpr, flux_surf_avg_grad_psi, flux_surf_avg_grad_psi2,
       flux_surf_avg_grad_psi2_over_R2.
     Then:
+    - If the grid does not start on the magnetic axis, the axis is prepended.
     - Edge extrapolation for a subset of attributes based on a Cubic spline fit.
     - Near-axis smoothing for a subset of attributes based on a Savitzky-Golay
       filter with an appropriate polynominal order based on the attribute.
@@ -337,11 +350,16 @@ class StandardGeometryIntermediates:
         np.abs(self.flux_surf_avg_grad_psi2_over_R2),
     )
 
+    # The geometry is built assuming that the first grid point is the magnetic
+    # axis, but some equilibria do not start exactly at the magnetic axis. For
+    # these cases, prepend rho_norm=0 to the relevant profiles.
+    if self.Phi[0] > 0.0:
+      self._prepend_magnetic_axis()
+
+    rhon = np.sqrt(self.Phi / self.Phi[-1])
+
     # Check if last flux surface is diverted and correct via spline fit if so
     if self.diverted or self.flux_surf_avg_grad_psi2_over_R2[-1] < 1e-10:
-      # Calculate rhon
-      rhon = np.sqrt(self.Phi / self.Phi[-1])
-
       # Create a lambda function for the Cubic spline fit.
       spline = lambda rho, data, x, bc_type: scipy.interpolate.CubicSpline(
           rho[:-1],
@@ -385,7 +403,6 @@ class StandardGeometryIntermediates:
       self.vpr[-1] = set_edge(self.vpr)
 
     # Near-axis smoothing of quantities with known near-axis trends with rho
-    rhon = np.sqrt(self.Phi / self.Phi[-1])
     idx_limit = np.argmin(np.abs(rhon - _RHO_SMOOTHING_LIMIT))
 
     # Bp goes like rho near-axis. So Bp2 terms are smoothed with order 2,
@@ -415,6 +432,28 @@ class StandardGeometryIntermediates:
           _COARSE_GRID_WARNING_INTERVAL_SEC,  # log every interval
           max_spacing,
           _COARSE_GRID_THRESHOLD,
+      )
+
+  def _prepend_magnetic_axis(self) -> None:
+    """Prepends the magnetic axis (rho_norm=0) to the radial profiles.
+
+    Profiles that physically vanish on axis are set to zero there, and R_in and
+    R_out are both set to the midplane center of the first flux surface. All
+    other profiles are finite on axis and held at their value on the first flux
+    surface.
+    """
+    R_axis = 0.5 * (np.asarray(self.R_in)[0] + np.asarray(self.R_out)[0])
+    axis_values = dict.fromkeys(_ZERO_ON_AXIS, 0.0)
+    axis_values['R_in'] = R_axis
+    axis_values['R_out'] = R_axis
+    for name, f in dataclasses.asdict(self).items():
+      # Skip scalar attributes (ndim != 1) and `face_centers` (which is the
+      # target TORAX mesh, not a profile from the input equilibrium).
+      if name == 'face_centers' or np.ndim(f) != 1:
+        continue
+      f = np.asarray(f)
+      object.__setattr__(
+          self, name, np.insert(f, 0, axis_values.get(name, f[0]))
       )
 
 
