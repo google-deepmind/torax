@@ -27,7 +27,7 @@ from torax._src.geometry import geometry
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.transport_model import component
-from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import quasilinear_utils
 from torax._src.transport_model import runtime_params as transport_runtime_params
 from torax._src.transport_model import transport_coeffs
 
@@ -279,12 +279,14 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     )
 
     # Dimensionless gradients
-    normalized_log_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
-        core_profiles=core_profiles,
-        radial_coordinate=geo.r_mid,  # On the cell grid
-        radial_face_coordinate=geo.r_mid_face,
-        reference_length=a,
-        two_point_mask=two_point_mask,
+    normalized_log_gradients = (
+        quasilinear_utils.NormalizedLogarithmicGradients.from_profiles(
+            core_profiles=core_profiles,
+            radial_coordinate=geo.r_mid,  # On the cell grid
+            radial_face_coordinate=geo.r_mid_face,
+            reference_length=a,
+            two_point_mask=two_point_mask,
+        )
     )
 
     # Dimensionless electron-electron collision frequency = nu_ee / (c_s/a)
@@ -441,7 +443,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       v_ExB_shear = jnp.zeros_like(core_profiles.q_face)
 
     smag = psi_calculations.calc_s_rmid(geo, core_profiles.psi)
-    lref_over_lti = quasilinear_transport_model.apply_fast_ion_stabilization(
+    lref_over_lti = quasilinear_utils.apply_fast_ion_stabilization(
         core_profiles=core_profiles,
         smag=smag,
         q=jnp.asarray(core_profiles.q_face),
@@ -543,7 +545,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
     )
 
     if transport.DV_effective:
-      d_face_el, v_face_el = quasilinear_transport_model.calculate_dv_effective(
+      d_face_el, v_face_el = quasilinear_utils.calculate_dv_effective(
           particle_flux_SI=Gamma_e,
           normalized_particle_flux=electron_particle_flux_GB,
           n_e=core_profiles.n_e,
@@ -557,7 +559,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
       # Scaled D approach. Scale electron diffusivity to electron heat
       # conductivity (this has some physical motivations),
       # and set convection to then match total particle transport.
-      d_face_el, v_face_el = quasilinear_transport_model.calculate_d_scaled(
+      d_face_el, v_face_el = quasilinear_utils.calculate_d_scaled(
           particle_flux_SI=Gamma_e,
           chi_face_el=chi_e,
           n_e=core_profiles.n_e,

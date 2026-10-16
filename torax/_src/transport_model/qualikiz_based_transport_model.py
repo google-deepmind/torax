@@ -31,7 +31,7 @@ from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.transport_model import component
-from torax._src.transport_model import quasilinear_transport_model
+from torax._src.transport_model import quasilinear_utils
 from torax._src.transport_model import runtime_params as transport_runtime_params
 from torax._src.transport_model import transport_coeffs
 
@@ -277,7 +277,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     ) * qualikiz_inputs.chiGB
 
     if transport.DV_effective:
-      d_face_el, v_face_el = quasilinear_transport_model.calculate_dv_effective(
+      d_face_el, v_face_el = quasilinear_utils.calculate_dv_effective(
           particle_flux_SI=pfe_SI,
           normalized_particle_flux=pfe,
           n_e=core_profiles.n_e,
@@ -292,7 +292,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
       # conductivity (this has some physical motivations),
       # and set convection to then match total particle transport.
       chex.assert_rank(pfe, 1)
-      d_face_el, v_face_el = quasilinear_transport_model.calculate_d_scaled(
+      d_face_el, v_face_el = quasilinear_utils.calculate_d_scaled(
           particle_flux_SI=pfe_SI,
           chi_face_el=chi_face_el,
           n_e=core_profiles.n_e,
@@ -341,19 +341,21 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     rmid = geo.r_mid
     rmid_face = geo.r_mid_face
 
-    chiGB = quasilinear_transport_model.calculate_chiGB(
+    chiGB = quasilinear_utils.calculate_chiGB(
         reference_temperature=core_profiles.T_i.face_value(),
         reference_magnetic_field=geo.B_0,
         reference_mass=core_profiles.A_i,
         reference_length=geo.a_minor,
     )
 
-    normalized_logarithmic_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
-        core_profiles=core_profiles,
-        radial_coordinate=rmid,
-        radial_face_coordinate=rmid_face,
-        reference_length=geo.R_major,
-        two_point_mask=two_point_mask,
+    normalized_logarithmic_gradients = (
+        quasilinear_utils.NormalizedLogarithmicGradients.from_profiles(
+            core_profiles=core_profiles,
+            radial_coordinate=rmid,
+            radial_face_coordinate=rmid_face,
+            reference_length=geo.R_major,
+            two_point_mask=two_point_mask,
+        )
     )
 
     q = core_profiles.q_face
@@ -416,7 +418,7 @@ class QualikizBasedTransportModel(component.ComponentTransportModel):
     )
     normni = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
 
-    lref_over_lti = quasilinear_transport_model.apply_fast_ion_stabilization(
+    lref_over_lti = quasilinear_utils.apply_fast_ion_stabilization(
         core_profiles=core_profiles,
         smag=smag,
         q=q,
