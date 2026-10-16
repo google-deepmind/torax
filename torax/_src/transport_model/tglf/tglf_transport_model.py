@@ -28,7 +28,6 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_coeffs
@@ -210,7 +209,9 @@ class TGLFTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
     )
 
 
-class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
+class TGLFTransportModelConfig(
+    tglf_based_transport_model.TGLFBasedTransportModelConfig
+):
   r"""Model for the TGLF transport model.
 
   Attributes:
@@ -218,34 +219,12 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     n_processes: Set number of parallel TGLF calculations to run.
     n_cores_per_process: Number of cores to use for each parallel TGLF
       calculation.
-    use_rotation: Toggles the use of rotation shear model.
-    rotation_multiplier: Multiplier for the input rotation shear.
-    DV_effective: Effective D / effective V approach for particle transport.
-    An_min: Minimum |R/Lne| below which effective V is used instead of effective
-      D.
-    DV_effective_smooth_width: Particle flux width in dimensionless
-      GyroBohm-normalized units (Gamma_e / Gamma_GB) over which down-gradient
-      transport transitions smoothly from effective V to effective D. If 0.0,
-      uses a sharp step transition. Note that TGLF normalizes with minor radius
-      a rather than R_major, so the default (0.001) is chosen to be consistent
-      in SI units with QuaLiKiz (0.01).
-    collisionality_multiplier: Collisionality multiplier.
-    max_normalized_collisionality: Maximum normalized collisionality passed to
-      the model. Acts as a ceiling to mitigate unreliable transport predictions
-      at high collisionality. Default is inf (no capping).
     tglf_settings: Dictionary of TGLF namelist parameters.
   """
 
   model_name: Annotated[Literal['tglf'], torax_pydantic.JAX_STATIC] = 'tglf'
   n_processes: pydantic.PositiveInt = 8
   n_cores_per_process: pydantic.PositiveInt = 2
-  use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
-  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  An_min: pydantic.PositiveFloat = 0.05
-  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.001
-  collisionality_multiplier: float = 1.0
-  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
   tglf_settings: Annotated[
       dict[str, TGLFSettingsValueTypes], torax_pydantic.JAX_STATIC
   ] = pydantic.Field(default_factory=dict)
@@ -264,13 +243,6 @@ class TGLFTransportModelConfig(pydantic_model_base.ComponentTransportBase):
     return RuntimeParams(
         n_processes=self.n_processes,
         n_cores_per_process=self.n_cores_per_process,
-        use_rotation=self.use_rotation,
-        rotation_multiplier=self.rotation_multiplier,
-        DV_effective=self.DV_effective,
-        collisionality_multiplier=self.collisionality_multiplier,
-        max_normalized_collisionality=self.max_normalized_collisionality,
-        An_min=self.An_min,
-        DV_effective_smooth_width=self.DV_effective_smooth_width,
         tglf_settings=self.tglf_settings,
         **vars(base_params),
     )

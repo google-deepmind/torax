@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class and utils for Qualikiz-based models."""
+import abc
 import dataclasses
 import enum
+from typing import Annotated
 
 import chex
 import jax
 from jax import numpy as jnp
+import pydantic
 from torax._src import array_typing
 from torax._src import constants as constants_module
 from torax._src import jax_utils
@@ -30,7 +33,9 @@ from torax._src.physics import collisions
 from torax._src.physics import formulas
 from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
+from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
+from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import quasilinear_utils
 from torax._src.transport_model import runtime_params as transport_runtime_params
 from torax._src.transport_model import transport_coeffs
@@ -147,6 +152,41 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
   q_sawtooth_proxy: bool
   rotation_multiplier: float
   rotation_mode: RotationMode = dataclasses.field(metadata={'static': True})
+
+
+class QualikizBasedTransportModelConfig(
+    pydantic_model_base.ComponentTransportBase, abc.ABC
+):
+  """Base config for Qualikiz-family transport models."""
+
+  collisionality_multiplier: float = 1.0
+  max_normalized_collisionality: pydantic.PositiveFloat = float('inf')
+  avoid_big_negative_s: bool = True
+  smag_alpha_correction: bool = True
+  q_sawtooth_proxy: bool = True
+  DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  An_min: pydantic.PositiveFloat = 0.05
+  DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
+  rotation_multiplier: pydantic.NonNegativeFloat = 1.0
+  rotation_mode: Annotated[RotationMode, torax_pydantic.JAX_STATIC] = (
+      RotationMode.OFF
+  )
+
+  def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
+    base_params = super().build_runtime_params(t)
+    return RuntimeParams(
+        collisionality_multiplier=self.collisionality_multiplier,
+        max_normalized_collisionality=self.max_normalized_collisionality,
+        avoid_big_negative_s=self.avoid_big_negative_s,
+        smag_alpha_correction=self.smag_alpha_correction,
+        q_sawtooth_proxy=self.q_sawtooth_proxy,
+        DV_effective=self.DV_effective,
+        An_min=self.An_min,
+        DV_effective_smooth_width=self.DV_effective_smooth_width,
+        rotation_multiplier=self.rotation_multiplier,
+        rotation_mode=self.rotation_mode,
+        **vars(base_params),
+    )
 
 
 @jax.tree_util.register_dataclass
