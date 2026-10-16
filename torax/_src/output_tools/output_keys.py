@@ -653,17 +653,17 @@ P_ICRH_TOTAL: Final[OutputKey] = OutputKey(
 # ---------------------------------------------------------------------------
 # Post-processed outputs: L-H transition thresholds.
 # ---------------------------------------------------------------------------
-P_LH_HIGH_DENSITY: Final[OutputKey] = OutputKey(
-    "P_LH_high_density", units=Units.WATT, grid_type=GridType.SCALAR
+P_LH_MARTIN_HIGH_DENSITY: Final[OutputKey] = OutputKey(
+    "P_LH_martin_high_density", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_LH_MIN: Final[OutputKey] = OutputKey(
-    "P_LH_min", units=Units.WATT, grid_type=GridType.SCALAR
+P_LH_MARTIN_MIN: Final[OutputKey] = OutputKey(
+    "P_LH_martin_min", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_LH_LOW_DENSITY: Final[OutputKey] = OutputKey(
-    "P_LH_low_density", units=Units.WATT, grid_type=GridType.SCALAR
+P_LH_MARTIN_LOW_DENSITY: Final[OutputKey] = OutputKey(
+    "P_LH_martin_low_density", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_LH: Final[OutputKey] = OutputKey(
-    "P_LH", units=Units.WATT, grid_type=GridType.SCALAR
+P_LH_MARTIN: Final[OutputKey] = OutputKey(
+    "P_LH_martin", units=Units.WATT, grid_type=GridType.SCALAR
 )
 N_E_MIN_P_LH: Final[OutputKey] = OutputKey(
     "n_e_min_P_LH",

@@ -734,16 +734,20 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_icrh_total`` (time)
   Total ion cyclotron resonance heating power [:math:`W`].
 
-``P_LH`` (time)
-  Calculated H-mode transition power, taken as the maximum of ``P_LH_min`` and
-  ``P_LH_high_density``. This does not include an accurate calculation for the
-  low density branch. [:math:`W`].
+``P_LH_martin`` (time)
+  Calculated H-mode transition power, taken as the maximum of
+  ``P_LH_martin_min`` and ``P_LH_martin_high_density``. This does not include an
+  accurate calculation for the low density branch. [:math:`W`].
 
-``P_LH_high_density`` (time)
+``P_LH_martin_high_density`` (time)
   H-mode transition power for the high density branch, according to the Martin
   2008 scaling law [:math:`W`].
 
-``P_LH_min`` (time)
+``P_LH_martin_low_density`` (time)
+  H-mode transition power from a heuristic extension of the Martin 2008 scaling
+  law for the low density branch [:math:`W`].
+
+``P_LH_martin_min`` (time)
   H-mode transition power at the density corresponding to the minimum transition
   power, from Ryter 2014. [:math:`W`].
 
