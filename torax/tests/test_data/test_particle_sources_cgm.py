@@ -31,7 +31,7 @@ CONFIG = {
         'evolve_electron_heat': True,
         'evolve_density': True,
         'evolve_current': True,
-        'resistivity_multiplier': 100,  # to shorten current diffusion time
+        'current_diffusion_time_reduction_factor': 100,
         't_final': 2,
     },
     'plasma_composition': {},

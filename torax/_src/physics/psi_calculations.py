@@ -353,12 +353,14 @@ def calculate_psi_value_constraint_from_v_loop(
     v_loop_lcfs_t: array_typing.FloatScalar,
     v_loop_lcfs_t_plus_dt: array_typing.FloatScalar,
     psi_lcfs_t: array_typing.FloatScalar,
+    current_diffusion_time_reduction_factor: array_typing.FloatScalar = 1.0,
 ) -> jax.Array:
   """Calculates the value constraint on the poloidal flux for the next time step from loop voltage."""
   theta_weighted_v_loop_lcfs = (
       1 - theta
   ) * v_loop_lcfs_t + theta * v_loop_lcfs_t_plus_dt
-  return psi_lcfs_t + theta_weighted_v_loop_lcfs * dt  # pyrefly: ignore[bad-return]
+  effective_dt = dt * current_diffusion_time_reduction_factor
+  return jnp.asarray(psi_lcfs_t + theta_weighted_v_loop_lcfs * effective_dt)
 
 
 # TODO(b/406173731): Find robust solution for underdetermination and solve this
@@ -367,13 +369,15 @@ def calculate_v_loop_lcfs_from_psi(
     psi_t: cell_variable.CellVariable,
     psi_t_plus_dt: cell_variable.CellVariable,
     dt: array_typing.FloatScalar,
+    current_diffusion_time_reduction_factor: array_typing.FloatScalar = 1.0,
 ) -> jax.Array:
   """Calculates the v_loop_lcfs for the next timestep.
 
   For the Ip boundary condition case, the v_loop_lcfs formula is in principle
   calculated from:
 
-  (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt =
+  (psi_lcfs_t_plus_dt - psi_lcfs_t) / (dt *
+  current_diffusion_time_reduction_factor) =
     v_loop_lcfs_t_plus_dt*theta_implicit - v_loop_lcfs_t*(1-theta_implicit)
 
   However this set of equations is underdetermined. We thus restrict this
@@ -385,13 +389,17 @@ def calculate_v_loop_lcfs_from_psi(
     psi_t: The psi CellVariable at the beginning of the timestep interval.
     psi_t_plus_dt: The updated psi CellVariable for the next timestep.
     dt: The size of the last timestep.
+    current_diffusion_time_reduction_factor: Factor dividing the transient term
+      in the psi PDE.
 
   Returns:
     The updated v_loop_lcfs for the next timestep.
   """
   psi_lcfs_t = psi_t.face_value()[-1]
   psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]
-  v_loop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt
+  v_loop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / (
+      dt * current_diffusion_time_reduction_factor
+  )
   return v_loop_lcfs_t_plus_dt
 
 
@@ -399,7 +407,6 @@ def calculate_psidot_from_psi_sources(
     *,
     psi_sources: array_typing.FloatVector,
     sigma: array_typing.FloatVector,
-    resistivity_multiplier: array_typing.FloatScalar,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,
 ) -> jax.Array:
@@ -408,9 +415,7 @@ def calculate_psidot_from_psi_sources(
   # Calculate transient term
   consts = constants.CONSTANTS
   toc_psi = (
-      1.0
-      / resistivity_multiplier
-      * geo.rho_norm
+      geo.rho_norm
       * sigma
       * consts.mu_0
       * 16

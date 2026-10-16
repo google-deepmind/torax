@@ -80,7 +80,6 @@ class OhmicHeatSource(source_lib.Source):
       psidot = psi_calculations.calculate_psidot_from_psi_sources(
           psi_sources=psi_sources,
           sigma=conductivity.sigma,
-          resistivity_multiplier=runtime_params.numerics.resistivity_multiplier,
           psi=core_profiles.psi,
           geo=geo,
       )

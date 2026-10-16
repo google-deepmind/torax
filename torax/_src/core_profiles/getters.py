@@ -214,6 +214,7 @@ def get_updated_psi(
     theta: array_typing.FloatScalar,
     only_boundary_condition: bool,
     original_psi: cell_variable.CellVariable,
+    current_diffusion_time_reduction_factor: array_typing.FloatScalar = 1.0,
 ) -> cell_variable.CellVariable:
   """Gets psi boundary conditions and maybe the prescribed profile."""
   if only_boundary_condition or profile_conditions_params.psi is None:
@@ -236,6 +237,9 @@ def get_updated_psi(
           v_loop_lcfs_t_plus_dt=profile_conditions_params.v_loop_lcfs,
           psi_lcfs_t=original_psi.right_face_constraint,  # pyrefly: ignore[bad-argument-type]
           theta=theta,
+          current_diffusion_time_reduction_factor=(
+              current_diffusion_time_reduction_factor
+          ),
       )
       if profile_conditions_params.use_v_loop_lcfs_boundary_condition
       else None

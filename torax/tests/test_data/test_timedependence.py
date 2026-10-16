@@ -40,7 +40,7 @@ CONFIG = {
     'numerics': {
         'evolve_current': True,
         # to shorten current diffusion time for the test
-        'resistivity_multiplier': 50,
+        'current_diffusion_time_reduction_factor': 50,
         'chi_timestep_prefactor': 150,
         'max_dt': 0.5,
         't_final': 10,

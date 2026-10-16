@@ -618,10 +618,11 @@ equations being solved, constant numerical variables.
   ``transport.fast_ion_stabilization``, and to allow sources like ``toric-nn``
   to provide fast ion profiles to the simulation.
 
-``resistivity_multiplier`` (**time-varying-scalar** [default = 1.0])
-  1/multiplication factor for :math:`\sigma` (conductivity) to reduce the
-  current diffusion timescale to be closer to the energy confinement timescale,
-  for testing purposes.
+``current_diffusion_time_reduction_factor`` (**positive-time-varying-scalar** [default = 1.0])
+  Factor dividing the transient term in the poloidal flux (:math:`\psi`) PDE
+  to reduce the current diffusion timescale toward the energy confinement
+  timescale, for testing purposes. Does not modify physical conductivity,
+  loop voltage, or Ohmic heating.
 
 ``dW_dt_smoothing_time_scale`` (float [default = 0.3])
   Time scale [s] for the exponential moving average smoothing of dW/dt terms

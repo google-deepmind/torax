@@ -24,7 +24,9 @@ CONFIG = {
     'profile_conditions': {
         'n_e_right_bc': 0.5e20,
         'use_v_loop_lcfs_boundary_condition': True,
-        'v_loop_lcfs': 7.5,
+        # Physical loop voltage; psi BC is accelerated by
+        # current_diffusion_time_reduction_factor.
+        'v_loop_lcfs': 0.075,
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
         'nbar': 0.85,
@@ -34,7 +36,7 @@ CONFIG = {
         'evolve_ion_heat': False,
         'evolve_electron_heat': False,
         'evolve_current': True,
-        'resistivity_multiplier': 100,  # to shorten current diffusion time
+        'current_diffusion_time_reduction_factor': 100,
         't_final': 3,
     },
     'plasma_composition': {},

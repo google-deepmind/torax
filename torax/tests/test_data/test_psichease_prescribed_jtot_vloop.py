@@ -20,4 +20,6 @@ from torax.tests.test_data import test_psichease_prescribed_jtot
 
 CONFIG = copy.deepcopy(test_psichease_prescribed_jtot.CONFIG)
 CONFIG['profile_conditions']['use_v_loop_lcfs_boundary_condition'] = True
-CONFIG['profile_conditions']['v_loop_lcfs'] = 8.6
+# Physical loop voltage; psi BC is accelerated by
+# current_diffusion_time_reduction_factor.
+CONFIG['profile_conditions']['v_loop_lcfs'] = 0.086

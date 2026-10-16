@@ -42,9 +42,8 @@ CONFIG = {
     'numerics': {
         # simulation control
         't_final': 5,  # length of simulation time in seconds
-        # 1/multiplication factor for sigma (conductivity) to reduce current
-        # diffusion timescale to be closer to heat diffusion timescale.
-        'resistivity_multiplier': 200,
+        # Shortens the current diffusion timescale (psi equation only).
+        'current_diffusion_time_reduction_factor': 200,
         'evolve_ion_heat': True,
         'evolve_electron_heat': True,
         'evolve_current': True,

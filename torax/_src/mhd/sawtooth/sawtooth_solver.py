@@ -119,7 +119,9 @@ class SawtoothSolver(solver.Solver):
       # using `updaters.update_all_core_profiles_after_step`.
       evolved_psi_redistributed_value = (
           redistributed_core_profiles.psi.value
-          + core_profiles_t.psidot.value * dt
+          + core_profiles_t.psidot.value
+          * runtime_params_t.numerics.current_diffusion_time_reduction_factor
+          * dt
       )
       evolved_core_profiles = dataclasses.replace(
           redistributed_core_profiles,

@@ -121,7 +121,7 @@ CONFIG['numerics']['dt_reduction_factor'] = 2.0
 
 # Turn off resistivity multiplier, as otherwise high chi -> low temp -> high
 # resistivity becomes unstable.
-CONFIG['numerics']['resistivity_multiplier'] = 1.0
+CONFIG['numerics']['current_diffusion_time_reduction_factor'] = 1.0
 
 # Disable density evolution. Tuning the density for the LH transition is
 # quite hard as it involves the edge boundary condition as well as the pellet

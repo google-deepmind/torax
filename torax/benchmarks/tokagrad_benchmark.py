@@ -200,7 +200,7 @@ CONFIG = {
         "evolve_electron_heat": True,
         "evolve_current": True,
         "evolve_density": True,
-        "resistivity_multiplier": 100.0,
+        "current_diffusion_time_reduction_factor": 100.0,
     },
     "geometry": {
         "geometry_type": "circular",

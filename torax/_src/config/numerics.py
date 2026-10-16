@@ -41,7 +41,7 @@ class RuntimeParams:
   chi_timestep_prefactor: float
   fixed_dt: array_typing.FloatScalar
   dt_reduction_factor: float
-  resistivity_multiplier: array_typing.FloatScalar
+  current_diffusion_time_reduction_factor: array_typing.FloatScalar
   dW_dt_smoothing_time_scale: float
   min_rho_norm: float
   evolve_ion_heat: bool = dataclasses.field(metadata={'static': True})
@@ -95,9 +95,10 @@ class Numerics(torax_pydantic.BaseModelFrozen):
       evolves over time)
     evolve_current: Solve the current equation (current evolves over time).
     evolve_density: Solve the density equation (n evolves over time).
-    resistivity_multiplier:  1/multiplication factor for sigma (conductivity) to
-      reduce current diffusion timescale to be closer to heat diffusion
-      timescale
+    current_diffusion_time_reduction_factor: Factor that divides the transient
+      term in the poloidal flux (psi) PDE to shorten the current diffusion
+      timescale without modifying physical conductivity, loop voltage, or
+      heating.
     dW_dt_smoothing_time_scale: Time scale [s] for the exponential moving
       average smoothing of dW/dt terms used in P_SOL and confinement time
       calculations. If 0.0, no smoothing is applied and raw dW/dt is used.
@@ -123,9 +124,9 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   evolve_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   evolve_density: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   enable_fast_ions: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  resistivity_multiplier: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
+  current_diffusion_time_reduction_factor: (
+      torax_pydantic.PositiveTimeVaryingScalar
+  ) = torax_pydantic.ValidatedDefault(1.0)
   dW_dt_smoothing_time_scale: pydantic.NonNegativeFloat = 0.3
   min_rho_norm: torax_pydantic.UnitInterval = 0.015
 
@@ -170,7 +171,9 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         chi_timestep_prefactor=self.chi_timestep_prefactor,
         fixed_dt=self.fixed_dt.get_value(t),
         dt_reduction_factor=self.dt_reduction_factor,
-        resistivity_multiplier=self.resistivity_multiplier.get_value(t),
+        current_diffusion_time_reduction_factor=(
+            self.current_diffusion_time_reduction_factor.get_value(t)
+        ),
         dW_dt_smoothing_time_scale=self.dW_dt_smoothing_time_scale,
         min_rho_norm=self.min_rho_norm,
         evolve_ion_heat=self.evolve_ion_heat,

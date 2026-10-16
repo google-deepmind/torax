@@ -183,7 +183,7 @@ CONFIG = {
         "dt_reduction_factor": 2.0,
         # Current diffusion time in STEP plasmas is very long, so artificially
         # boost the resistivity to decrease simulation time
-        "resistivity_multiplier": 10.0,
+        "current_diffusion_time_reduction_factor": 10.0,
         "evolve_current": True,
         "evolve_ion_heat": True,
         "evolve_electron_heat": True,

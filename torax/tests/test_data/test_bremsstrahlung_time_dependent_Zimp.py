@@ -33,7 +33,7 @@ CONFIG = {
         'nbar': 0.95,  # initial density (Greenwald fraction units)
     },
     'numerics': {
-        'resistivity_multiplier': 100,  # to shorten current diffusion time
+        'current_diffusion_time_reduction_factor': 100,
         't_final': 1,
     },
     'geometry': {

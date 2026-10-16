@@ -25,7 +25,9 @@ import numpy as np
 
 times = np.linspace(0, 3, 100)
 # 1 Hz frequency
-v_loop = 8.7 + 10 * np.sin(2 * np.pi * times)
+# Physical loop voltage; psi BC is accelerated by
+# current_diffusion_time_reduction_factor.
+v_loop = 0.087 + 0.1 * np.sin(2 * np.pi * times)
 
 
 CONFIG = {
@@ -42,7 +44,7 @@ CONFIG = {
         'evolve_ion_heat': False,
         'evolve_electron_heat': False,
         'evolve_current': True,
-        'resistivity_multiplier': 100,  # to shorten current diffusion time
+        'current_diffusion_time_reduction_factor': 100,
         't_final': 3,
     },
     'plasma_composition': {},

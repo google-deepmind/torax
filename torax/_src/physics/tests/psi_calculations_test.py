@@ -246,7 +246,6 @@ class PsiCalculationsTest(parameterized.TestCase):
     psidot_calculated = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
         sigma=conductivity.sigma,
-        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_multiplier,
         psi=references.psi,
         geo=geo,
     )
@@ -394,7 +393,10 @@ class PsiCalculationsTest(parameterized.TestCase):
         rtol=0.05,
     )
 
-  def test_update_v_loop_lcfs_from_psi(self):
+  @parameterized.parameters(1.0, 10.0)
+  def test_update_v_loop_lcfs_from_psi(
+      self, current_diffusion_time_reduction_factor
+  ):
     """Consistency check for _update_v_loop_lcfs_from_psi.
 
     Check the output inverts _calculate_psi_value_constraint_from_v_loop
@@ -415,6 +417,7 @@ class PsiCalculationsTest(parameterized.TestCase):
             v_loop_lcfs_t,
             v_loop_lcfs_t_plus_dt_expected,
             psi_lcfs_t,
+            current_diffusion_time_reduction_factor,
         )
     )
 
@@ -430,7 +433,10 @@ class PsiCalculationsTest(parameterized.TestCase):
     )
 
     v_loop_lcfs_t_plus_dt = psi_calculations.calculate_v_loop_lcfs_from_psi(
-        psi_t, psi_t_plus_dt, dt
+        psi_t,
+        psi_t_plus_dt,
+        dt,
+        current_diffusion_time_reduction_factor,
     )
 
     np.testing.assert_allclose(

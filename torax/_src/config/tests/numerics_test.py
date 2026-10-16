@@ -31,10 +31,10 @@ class NumericsTest(parameterized.TestCase):
     nums.build_runtime_params(t=0.0)
 
   def test_numerics_under_jit(self):
-    initial_resistivity_multiplier = 1.0
-    updated_resistivity_multiplier = 2.0
+    initial_multiplier = 1.0
+    updated_multiplier = 2.0
     nums = numerics.Numerics(
-        resistivity_multiplier=initial_resistivity_multiplier
+        current_diffusion_time_reduction_factor=initial_multiplier
     )
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(nums, geo.torax_mesh)
@@ -46,17 +46,17 @@ class NumericsTest(parameterized.TestCase):
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(nums)
       chex.assert_trees_all_close(
-          output.resistivity_multiplier, initial_resistivity_multiplier
+          output.current_diffusion_time_reduction_factor, initial_multiplier
       )
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
     with self.subTest('second_jit_updates_value_without_recompile'):
       nums._update_fields(
-          {'resistivity_multiplier': updated_resistivity_multiplier}
+          {'current_diffusion_time_reduction_factor': updated_multiplier}
       )
       output = f(nums)
       chex.assert_trees_all_close(
-          output.resistivity_multiplier, updated_resistivity_multiplier
+          output.current_diffusion_time_reduction_factor, updated_multiplier
       )
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 

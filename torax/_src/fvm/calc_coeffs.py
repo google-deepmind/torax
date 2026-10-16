@@ -266,7 +266,7 @@ def _calc_coeffs_full(
   tic_T_e = core_profiles.n_e.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
-      / runtime_params.numerics.resistivity_multiplier
+      / runtime_params.numerics.current_diffusion_time_reduction_factor
       * geo.rho_norm
       * neoclassical_outputs.conductivity.sigma
       * consts.mu_0
@@ -498,6 +498,7 @@ def _calc_coeffs_full(
       * geo.Phi_b
       * geo.rho_norm**2
       * neoclassical_outputs.conductivity.sigma
+      / runtime_params.numerics.current_diffusion_time_reduction_factor
       / geo.F**2
       * core_profiles.psi.grad()
   )

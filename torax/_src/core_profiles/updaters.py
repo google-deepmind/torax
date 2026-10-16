@@ -174,6 +174,9 @@ def update_core_and_source_profiles_after_step(
       updated_core_profiles_t_plus_dt.T_e,
   )
 
+  time_reduction_factor = (
+      runtime_params_t_plus_dt.numerics.current_diffusion_time_reduction_factor
+  )
   v_loop_lcfs = (
       runtime_params_t_plus_dt.profile_conditions.v_loop_lcfs  # pylint: disable=g-long-ternary
       if runtime_params_t_plus_dt.profile_conditions.use_v_loop_lcfs_boundary_condition
@@ -181,6 +184,7 @@ def update_core_and_source_profiles_after_step(
           core_profiles_t.psi,
           updated_core_profiles_t_plus_dt.psi,
           dt,
+          current_diffusion_time_reduction_factor=time_reduction_factor,
       )
   )
 
@@ -285,7 +289,6 @@ def update_core_and_source_profiles_after_step(
     psidot_value = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=psi_sources,
         sigma=intermediate_core_profiles.sigma,
-        resistivity_multiplier=runtime_params_t_plus_dt.numerics.resistivity_multiplier,
         psi=intermediate_core_profiles.psi,
         geo=geo,
     )
@@ -317,6 +320,9 @@ def provide_core_profiles_t_plus_dt(
   # only need to update the boundary condition and can get the value from the
   # previous timestep. Otherwise, we need to update the value and boundary
   # condition.
+  time_reduction_factor = (
+      runtime_params_t_plus_dt.numerics.current_diffusion_time_reduction_factor
+  )
   psi = getters.get_updated_psi(
       profile_conditions_t_plus_dt,
       geo_t_plus_dt,
@@ -324,6 +330,7 @@ def provide_core_profiles_t_plus_dt(
       theta=runtime_params_t_plus_dt.solver.theta_implicit,
       only_boundary_condition=numerics.evolve_current,
       original_psi=core_profiles_t.psi,
+      current_diffusion_time_reduction_factor=time_reduction_factor,
   )
   T_i = getters.get_updated_ion_temperature(
       profile_conditions_t_plus_dt,
