@@ -97,8 +97,6 @@ def update_core_profiles_during_step(
       main_ion_fractions=ions.main_ion_fractions,
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
-      Z_impurity=ions.Z_impurity,
-      Z_impurity_face=ions.Z_impurity_face,
       A_i=ions.A_i,
       A_impurity=ions.A_impurity,
       A_impurity_face=ions.A_impurity_face,
@@ -207,8 +205,6 @@ def update_core_and_source_profiles_after_step(
       main_ion_fractions=ions.main_ion_fractions,
       Z_i=ions.Z_i,
       Z_i_face=ions.Z_i_face,
-      Z_impurity=ions.Z_impurity,
-      Z_impurity_face=ions.Z_impurity_face,
       psidot=core_profiles_t_plus_dt.psidot,
       q_face=psi_calculations.calc_q_face(
           geo, updated_core_profiles_t_plus_dt.psi

@@ -123,8 +123,6 @@ def initial_core_profiles(
       n_impurity=ions.n_impurity,
       impurity_fractions=ions.impurity_fractions,
       main_ion_fractions=ions.main_ion_fractions,
-      Z_impurity=ions.Z_impurity,
-      Z_impurity_face=ions.Z_impurity_face,
       A_impurity=ions.A_impurity,
       A_impurity_face=ions.A_impurity_face,
       Z_eff=ions.Z_eff,

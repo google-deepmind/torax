@@ -34,14 +34,14 @@ class IMASConfig(base.BaseGeometryConfig):
 
   Supports two loading modes:
 
-  1. **Single time slice** (default, ``load_all_time_slices=False``): Only a
+  1. **Single time slice** (``load_all_time_slices=False``): Only a
      single time slice is loaded, selected by ``slice_index``. Use
      ``build_geometry`` to obtain a ``StandardGeometry``. This mode is
      analogous to the single-file loading used by other geometry types (e.g.
      CHEASE, EQDSK) and is compatible with the standard time-dependent
      ``geometry_configs`` dict.
 
-  2. **All time slices** (``load_all_time_slices=True``): All time
+  2. **All time slices** (default, ``load_all_time_slices=True``): All time
     slices present in the IDS are loaded and used to build a time-dependent
     ``StandardGeometryProvider`` that interpolates across them. Use
     ``build_geometry_provider`` to obtain the provider.
@@ -81,11 +81,11 @@ class IMASConfig(base.BaseGeometryConfig):
       version. If True, an explicit conversion will be attempted. Explicit
       conversion is required when converting between major DD versions.
       https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
-    load_all_time_slices: If True, all time slices in the IDS are loaded by the
-      `Geometry` config and a time-dependent ``StandardGeometryProvider`` is
-      built via ``build_geometry_provider``. If False (default), only the single
-      time slice selected by ``slice_time`` or ``slice_index`` is loaded via
-      ``build_geometry``.
+    load_all_time_slices: If True (default), all time slices in the IDS are
+      loaded by the `Geometry` config and a time-dependent
+      ``StandardGeometryProvider`` is built via ``build_geometry_provider``. If
+      False, only the single time slice selected by ``slice_time`` or
+      ``slice_index`` is loaded via ``build_geometry``.
   """
 
   @property
@@ -111,10 +111,9 @@ class IMASConfig(base.BaseGeometryConfig):
   slice_index: pydantic.NonNegativeInt = 0
   slice_time: float | None = None
   explicit_convert: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
-  # TODO(b/434175938): Set to `True` by default when we move to V2.
   load_all_time_slices: Annotated[
       bool, torax_pydantic.TIME_INVARIANT
-  ] = False
+  ] = True
 
   @pydantic.model_validator(mode='after')
   def _validate_model(self) -> Self:

@@ -45,13 +45,19 @@ def make_zero_core_profiles(
   }
   main_ion_fractions_dict = {name: jnp.array(0.0) for name in main_ion_names}
   zero_charge_state_info = charge_states.ChargeStateInfo(
-      Z_avg=jnp.zeros_like(geo.rho),
-      Z2_avg=jnp.zeros_like(geo.rho),
+      Z_avg=jnp.ones_like(geo.rho)
+      if Z_impurity is not None
+      else jnp.zeros_like(geo.rho),
+      Z2_avg=Z_impurity if Z_impurity is not None else jnp.zeros_like(geo.rho),
       Z_per_species={name: jnp.zeros_like(geo.rho) for name in impurity_names},
   )
   zero_charge_state_info_face = charge_states.ChargeStateInfo(
-      Z_avg=jnp.zeros_like(geo.rho_face),
-      Z2_avg=jnp.zeros_like(geo.rho_face),
+      Z_avg=jnp.ones_like(geo.rho_face)
+      if Z_impurity_face is not None
+      else jnp.zeros_like(geo.rho_face),
+      Z2_avg=Z_impurity_face
+      if Z_impurity_face is not None
+      else jnp.zeros_like(geo.rho_face),
       Z_per_species={
           name: jnp.zeros_like(geo.rho_face) for name in impurity_names
       },
@@ -72,12 +78,6 @@ def make_zero_core_profiles(
       Z_i=jnp.zeros_like(geo.rho),
       Z_i_face=jnp.zeros_like(geo.rho_face),
       A_i=jnp.zeros(()),
-      Z_impurity=Z_impurity
-      if Z_impurity is not None
-      else jnp.zeros_like(geo.rho),
-      Z_impurity_face=Z_impurity_face
-      if Z_impurity_face is not None
-      else jnp.zeros_like(geo.rho_face),
       A_impurity=jnp.zeros_like(geo.rho),
       A_impurity_face=jnp.zeros_like(geo.rho_face),
       Z_eff=jnp.zeros_like(geo.rho),
