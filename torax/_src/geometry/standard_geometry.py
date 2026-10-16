@@ -324,8 +324,8 @@ class StandardGeometryIntermediates:
     Then:
     - If the grid does not start on the magnetic axis, the axis is prepended.
     - Edge extrapolation for a subset of attributes based on a Cubic spline fit.
-    - Near-axis smoothing for a subset of attributes based on a Savitzky-Golay
-      filter with an appropriate polynominal order based on the attribute.
+    - Near-axis smoothing for a subset of attributes based on an asymptotic
+      polynomial fit in rho_norm anchored at the smoothing boundary.
     """
 
     if self.psi[-1] < self.psi[0]:
@@ -402,22 +402,21 @@ class StandardGeometryIntermediates:
       self.flux_surf_avg_grad_psi2[-1] = set_edge(self.flux_surf_avg_grad_psi2)
       self.vpr[-1] = set_edge(self.vpr)
 
-    # Near-axis smoothing of quantities with known near-axis trends with rho
-    idx_limit = np.argmin(np.abs(rhon - _RHO_SMOOTHING_LIMIT))
+    # Near-axis smoothing of quantities with known near-axis trends with rho.
+    idx_limit = int(np.argmin(np.abs(rhon - _RHO_SMOOTHING_LIMIT)))
 
-    # Bp goes like rho near-axis. So Bp2 terms are smoothed with order 2,
-    # and Bp terms with order 1. vpr also goes like rho near-axis
-    self.flux_surf_avg_grad_psi2_over_R2[:] = _smooth_savgol(
-        self.flux_surf_avg_grad_psi2_over_R2, idx_limit, 2  # pyrefly: ignore[bad-argument-type]
+    # |grad(psi)| = R * Bp scales like rho_norm near the axis, so |grad(psi)|^2
+    # terms scale as rho_norm^2 + O(rho_norm^4) and |grad(psi)| scales as
+    # rho_norm + O(rho_norm^3).
+    self.flux_surf_avg_grad_psi2_over_R2[:] = _smooth_near_axis(
+        self.flux_surf_avg_grad_psi2_over_R2, rhon, idx_limit, order=2
     )
-    self.flux_surf_avg_grad_psi2[:] = _smooth_savgol(
-        self.flux_surf_avg_grad_psi2, idx_limit, 2  # pyrefly: ignore[bad-argument-type]
+    self.flux_surf_avg_grad_psi2[:] = _smooth_near_axis(
+        self.flux_surf_avg_grad_psi2, rhon, idx_limit, order=2
     )
-    self.flux_surf_avg_grad_psi[:] = _smooth_savgol(
-        self.flux_surf_avg_grad_psi, idx_limit, 1  # pyrefly: ignore[bad-argument-type]
+    self.flux_surf_avg_grad_psi[:] = _smooth_near_axis(
+        self.flux_surf_avg_grad_psi, rhon, idx_limit, order=1
     )
-    self.vpr[:] = _smooth_savgol(self.vpr, idx_limit, 1)  # pyrefly: ignore[bad-argument-type]
-
     # Warn if the input grid is too coarse, which can cause artifacts in
     # derived quantities such as j_total.
     drho_norm = np.diff(rhon)
@@ -477,10 +476,29 @@ def build_standard_geometry(
 
   # derived geometric quantities
   dV_dpsi = intermediates.int_dl_over_Bp
-  g0 = intermediates.flux_surf_avg_grad_psi * dV_dpsi  # <\nabla V>
-  g1 = intermediates.flux_surf_avg_grad_psi2 * dV_dpsi**2  # <(\nabla V)^2>
-  g2 = (
-      intermediates.flux_surf_avg_grad_psi2_over_R2 * dV_dpsi**2
+  idx_limit = int(
+      np.argmin(np.abs(rho_norm_intermediate - _RHO_SMOOTHING_LIMIT))
+  )
+  # dV/dpsi and 1/R^2 are finite on axis while |grad(psi)| scales like rho_norm,
+  # so g0 (= <|grad(V)|>) scales as rho_norm (order=1), and g1 (= <|grad(V)|^2>)
+  # and g2 (= <|grad(V)|^2 / R^2>) scale as rho_norm^2 (order=2).
+  g0 = _smooth_near_axis(
+      intermediates.flux_surf_avg_grad_psi * dV_dpsi,
+      rho_norm_intermediate,
+      idx_limit,
+      order=1,
+  )  # <\nabla V>
+  g1 = _smooth_near_axis(
+      intermediates.flux_surf_avg_grad_psi2 * dV_dpsi**2,
+      rho_norm_intermediate,
+      idx_limit,
+      order=2,
+  )  # <(\nabla V)^2>
+  g2 = _smooth_near_axis(
+      intermediates.flux_surf_avg_grad_psi2_over_R2 * dV_dpsi**2,
+      rho_norm_intermediate,
+      idx_limit,
+      order=2,
   )  # <(\nabla V)^2 / R^2>
   g3 = intermediates.flux_surf_avg_1_over_R2  # <1/R**2>
   g2g3_over_rhon = g2[1:] * g3[1:] / rho_norm_intermediate[1:]
@@ -582,13 +600,13 @@ def build_standard_geometry(
   g0_face = rhon_interpolation_func(rho_face_norm, g0)
   g0 = rhon_interpolation_func(rho_norm, g0)
 
-  # g1 and g2 go like rho_norm^2 near the axis, while vpr goes like rho_norm:
-  # flux surfaces near the axis are nested ellipses of minor radius r, so both
-  # the volume and the toroidal flux go like r^2, i.e. V ~ rho_norm^2 and
-  # vpr = dV/drho_norm ~ rho_norm, while |grad rho_norm| tends to a constant.
-  # Linear interpolation within the first equilibrium interval would make
-  # g1/vpr^2 and g2/vpr^2 diverge like 1/rho_norm there, so keep these ratios
-  # constant in that interval instead.
+  # g1 and g2 scale like rho_norm^2 near the axis, while vpr scales like
+  # rho_norm: flux surfaces near the axis are nested ellipses of minor radius r,
+  # so both the volume and the toroidal flux scale like r^2, i.e. V ~ rho_norm^2
+  # and vpr = dV/drho_norm ~ rho_norm, while |grad rho_norm| tends to a
+  # constant. Linear interpolation within the first equilibrium interval would
+  # make g1/vpr^2 and g2/vpr^2 diverge like 1/rho_norm there, so keep these
+  # ratios constant in that interval instead.
   interp_near_axis = functools.partial(
       _interpolate_rho_norm_squared_near_axis,
       rho_norm_intermediate=rho_norm_intermediate,
@@ -710,10 +728,10 @@ def _interpolate_rho_norm_squared_near_axis(
     rho_norm_intermediate: array_typing.Array,
     vpr_intermediate: array_typing.Array,
 ) -> np.ndarray:
-  """Linearly interpolates a quantity that goes like rho_norm^2 on axis.
+  """Linearly interpolates a quantity that scales like rho_norm^2 on axis.
 
   Within the first equilibrium interval, y / vpr^2 is held at its value at the
-  first off-axis equilibrium point, since vpr goes like rho_norm there.
+  first off-axis equilibrium point, since vpr scales like rho_norm there.
 
   Args:
     rho_norm: rho_norm values to interpolate to.
@@ -786,34 +804,57 @@ def _calculate_psi_from_Ip(
   return psi, psi_face
 
 
-# TODO(b/401502047): Investigate how window_length should depend on the
-# resolution of the data.
-def _smooth_savgol(
-    data: np.ndarray,
+def _smooth_near_axis(
+    data: array_typing.Array,
+    rhon: array_typing.Array,
     idx_limit: int,
-    polyorder: int,
-    window_length: int = 5,
-    preserve_first: bool = True,
+    order: int,
 ) -> np.ndarray:
-  """Smooths data using Savitzky-Golay polynomial filter.
+  """Smooths near-axis data by fitting its asymptotic functional form in rhon.
+
+  For a quantity y(rhon) with leading near-axis scaling rhon^p, dividing out
+  rhon^p gives the asymptotic ratio y(rhon) / rhon^p, which is a smooth
+  flux-surface profile (symmetric across the magnetic axis) with zero radial
+  slope at rhon = 0. Its expansion around the axis therefore contains only even
+  powers of rhon:
+
+    y(rhon) = rhon^p * (c_1 + c_2 * rhon^2 + O(rhon^4))
+
+  Enforcing C^0 continuity y(r_limit) = y_limit at
+  (r_limit, y_limit) = (rhon[idx_limit], data[idx_limit]) eliminates
+  c_1 = y_limit / r_limit^p - c_2 * r_limit^2, leaving a single free parameter
+  c_2:
+
+    y(r) = y_limit * (r / r_limit)^p + c_2 * r^p * (r^2 - r_limit^2)
+
+  which is fit by unweighted least squares on the interior points
+  0 <= k < idx_limit.
 
   Args:
-    data: 1D array of data to be smoothed.
-    idx_limit: Index up to which the smoothing is applied.
-    polyorder: Polynomial order of the Savitzky-Golay filter.
-    window_length: Window length of the Savitzky-Golay filter.
-    preserve_first: If True, the first data point is preserved, otherwise it is
-      smoothed.
+    data: 1D array of data on the equilibrium grid (with rhon[0] == 0).
+    rhon: 1D array of normalized toroidal flux coordinates.
+    idx_limit: Index up to which the near-axis fit is applied.
+    order: Leading power p of rhon on axis (1 or 2).
 
   Returns:
-    Smoothed data array. No-op if idx_limit is 0 (no smoothing).
+    Array with indices :idx_limit replaced by the anchored asymptotic fit.
+    No-op if idx_limit <= 1.
   """
-  if idx_limit == 0:
-    return data
-  smoothed_data = scipy.signal.savgol_filter(
-      data, window_length, polyorder, mode='nearest'
+  smoothed = np.array(data, copy=True)
+  if idx_limit <= 1:
+    return smoothed
+  r_limit = rhon[idx_limit]
+  y_limit = smoothed[idx_limit]
+  r_interior = np.asarray(rhon[:idx_limit])
+  y_interior = smoothed[:idx_limit]
+  leading_term = y_limit * (r_interior / r_limit) ** order
+  if idx_limit <= 2:
+    smoothed[:idx_limit] = leading_term
+    return smoothed
+  next_order_basis = (r_interior**order) * (r_interior**2 - r_limit**2)
+  # Closed form for least-squares solution for c2.
+  c2 = np.dot(next_order_basis, y_interior - leading_term) / np.dot(
+      next_order_basis, next_order_basis
   )
-  first_point = data[0] if preserve_first else smoothed_data[0]
-  return np.concatenate(
-      [np.array([first_point]), smoothed_data[1:idx_limit], data[idx_limit:]]
-  )
+  smoothed[:idx_limit] = leading_term + c2 * next_order_basis
+  return smoothed

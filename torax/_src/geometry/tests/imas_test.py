@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -223,10 +221,9 @@ class OffAxisGridIMASGeometryTest(parameterized.TestCase):
     cls.j_phi_ids = np.abs(np.asarray(profiles_1d.j_phi))
 
   def _build_geometry(self, n_rho):
-    with mock.patch.object(standard_geometry, '_RHO_SMOOTHING_LIMIT', 0.0):
-      return imas.IMASConfig(
-          imas_filepath=self._IMAS_FILEPATH, n_rho=n_rho
-      ).build_geometry()
+    return imas.IMASConfig(
+        imas_filepath=self._IMAS_FILEPATH, n_rho=n_rho
+    ).build_geometry()
 
   def _assert_near_axis_matches_ids(self, geo, j_total):
     near_axis = geo.rho_norm < 0.05

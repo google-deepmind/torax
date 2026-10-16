@@ -32,6 +32,9 @@ class JitRunLoopTest(absltest.TestCase):
     torax_config = torax.build_torax_config_from_file(
         'examples/iterhybrid_rampup.py'
     )
+    # TODO(b/574564275): Remove once examples/iterhybrid_rampup.py itself sets
+    # initial_guess_mode='x_old'.
+    torax_config.update_fields({'solver.initial_guess_mode': 'x_old'})
     step_fn = torax_experimental.make_step_fn(torax_config)
     runtime_params_provider = step_fn.runtime_params_provider
 

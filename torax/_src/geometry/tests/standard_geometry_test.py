@@ -305,6 +305,34 @@ class GeometryTest(parameterized.TestCase):
           vpr=np.linspace(0.01, 1.0, n),
       )
 
+  @parameterized.parameters(1, 2)
+  def test_smooth_near_axis_preserves_asymptotic_polynomial_on_nonuniform_grid(
+      self, order
+  ):
+    rhon = np.linspace(0.0, 1.0, 21) ** 0.5
+    data = 2.5 * rhon**order - 0.8 * rhon ** (order + 2)
+    smoothed = standard_geometry._smooth_near_axis(
+        data, rhon, idx_limit=10, order=order
+    )
+    np.testing.assert_allclose(smoothed, data, atol=1e-12)
+
+  @parameterized.parameters(1, 2)
+  def test_smooth_near_axis_suppresses_innermost_discretization_outlier(
+      self, order
+  ):
+    rhon = np.linspace(0.0, 0.2, 21)
+    exact = 3.0 * rhon**order - 0.5 * rhon ** (order + 2)
+    noisy = exact.copy()
+    noisy[1] *= 3.0
+    smoothed = standard_geometry._smooth_near_axis(
+        noisy, rhon, idx_limit=10, order=order
+    )
+    np.testing.assert_allclose(
+        smoothed[1:10] / rhon[1:10] ** order,
+        exact[1:10] / rhon[1:10] ** order,
+        rtol=3e-2,
+    )
+
   @parameterized.named_parameters(
       ('circular', {'geometry_type': 'circular'}),
       (
@@ -499,6 +527,12 @@ class PsiFromIpTest(absltest.TestCase):
   def test_lcfs_ip_matches_equilibrium_ip(self):
     np.testing.assert_allclose(
         self.ip_profile_face[-1], self.geo.Ip_profile_face[-1], rtol=1e-12
+    )
+
+  def test_near_axis_j_total_matches_equilibrium(self):
+    near_axis = self.geo.rho_norm < 0.05
+    np.testing.assert_allclose(
+        self.j_total[near_axis], self.geo.j_total[near_axis], rtol=5e-3
     )
 
   def test_bulk_j_total_has_no_spikes_at_equilibrium_knots(self):
