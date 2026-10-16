@@ -330,6 +330,15 @@ class Geometry:
     return self.g1 / self.vpr**2
 
   @property
+  def dvpr_drho_norm(self) -> array_typing.Array:
+    r"""d(vpr)/d(rho_norm) on cell grid [:math:`\mathrm{m}^3`].
+
+    Computed from differences of ``vpr_face`` across each cell, consistent with
+    the finite-volume face fluxes.
+    """
+    return jnp.diff(self.vpr_face, axis=-1) / self.drho_norm
+
+  @property
   def g0_over_vpr_face(self) -> jax.Array:
     """g0_face/vpr_face [:math:`m^{-1}`], equal to 1/rho_b on-axis."""
     # Calculate the bulk of the array (excluding the first element)

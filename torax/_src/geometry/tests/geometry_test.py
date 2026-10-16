@@ -161,6 +161,25 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(geo0_updated.Phi_b_dot, 10.0)
     np.testing.assert_allclose(geo1_updated.Phi_b_dot, 10.0)
 
+  def test_dvpr_drho_norm_is_constant_for_linear_vpr(self):
+    # With elongation_LCFS=1, circular geometry has vpr ~ rho_norm.
+    geo = circular_geometry.CircularConfig(
+        elongation_LCFS=1.0, n_rho=10
+    ).build_geometry()
+    with self.subTest('single'):
+      np.testing.assert_allclose(
+          geo.dvpr_drho_norm,
+          np.full(10, geo.vpr_face[-1]),
+          rtol=1e-12,
+      )
+    with self.subTest('stacked'):
+      stacked_geo = geometry.stack_geometries([geo, geo])
+      np.testing.assert_allclose(
+          stacked_geo.dvpr_drho_norm,
+          np.full((2, 10), geo.vpr_face[-1]),
+          rtol=1e-12,
+      )
+
   def test_geometry_eq(self):
     geo1 = circular_geometry.CircularConfig().build_geometry()
     geo2 = circular_geometry.CircularConfig().build_geometry()

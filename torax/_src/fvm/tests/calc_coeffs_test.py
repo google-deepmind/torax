@@ -19,7 +19,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
+from torax._src import constants
 from torax._src.config import build_runtime_params
+from torax._src.core_profiles import convertors
 from torax._src.core_profiles import initialization
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import discrete_system
@@ -292,6 +294,88 @@ class CalcCoeffsTest(parameterized.TestCase):
           0.0,
           atol=1e-12,
       )
+
+  def test_phi_b_dot_terms_match_analytical_rhs(self):
+    torax_config = model_config.ToraxConfig.from_dict(
+        dict(
+            numerics=dict(),
+            plasma_composition=dict(),
+            profile_conditions=dict(
+                T_i={0.0: {0.0: 5.0, 1.0: 5.0}},
+                T_e={0.0: {0.0: 5.0, 1.0: 5.0}},
+                n_e={0.0: {0.0: 1.0e20, 1.0: 1.0e20}},
+                normalize_n_e_to_nbar=False,
+            ),
+            geometry=dict(geometry_type='circular', elongation_LCFS=1.0),
+            pedestal=dict(),
+            sources=dict(ei_exchange=dict(Qei_multiplier=0.0)),
+            solver=dict(),
+            transport=dict(
+                core_transport_models=dict(
+                    prescribed=dict(model_name='prescribed', V_e=0.0)
+                ),
+            ),
+            time_step_calculator=dict(),
+        )
+    )
+    models = torax_config.build_models()
+    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )(t=0.0)
+    geo = dataclasses.replace(
+        torax_config.geometry.build_provider(0.0), Phi_b_dot=2.5
+    )
+    core_profiles = initialization.initial_core_profiles(
+        runtime_params,
+        geo,
+        source_models=models.source_models,
+        neoclassical_model=models.neoclassical_model,
+    )
+    evolving_names = ('T_i', 'T_e', 'n_e')
+    coeffs = calc_coeffs.calc_coeffs(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        models=models,
+        explicit_source_profiles=source_profile_builders.build_source_profiles(
+            source_models=models.source_models,
+            runtime_params=runtime_params,
+            geo=geo,
+            core_profiles=core_profiles,
+            explicit=True,
+        ),
+        evolving_names=evolving_names,
+        use_pereverzev=False,
+        pedestal_transition_state=pedestal_transition_state.PedestalTransitionState.empty(),
+    )
+    x = convertors.core_profiles_to_solver_x_tuple(
+        core_profiles, evolving_names
+    )
+    c_mat, c_vec = discrete_system.calc_c(x, coeffs)
+    rhs = c_mat.matvec(jnp.stack([v.value for v in x], axis=-1)) + c_vec
+
+    # With uniform profiles, diffusion vanishes and only the Phi_b_dot terms
+    # remain. For circular geometry (vpr ~ rho_norm), the heat RHS
+    # 0.75 * (Phi_b_dot / Phi_b) * vpr**(-2/3)
+    #   * d/drhon(rhon * vpr**(5/3) * n * T)
+    # reduces to 2 * (Phi_b_dot / Phi_b) * vpr * n * T and the particle RHS
+    # 0.5 * (Phi_b_dot / Phi_b) * d/drhon(rhon * vpr * n_e) to
+    # (Phi_b_dot / Phi_b) * vpr * n_e.
+    phib_dot_vpr = geo.Phi_b_dot / geo.Phi_b * geo.vpr
+    heat_prefactor = 2.0 * constants.CONSTANTS.keV_to_J
+    n_i, n_e = core_profiles.n_i.value, core_profiles.n_e.value
+    expected = {
+        'T_i': heat_prefactor * phib_dot_vpr * n_i * core_profiles.T_i.value,
+        'T_e': heat_prefactor * phib_dot_vpr * n_e * core_profiles.T_e.value,
+        'n_e': phib_dot_vpr * n_e,
+    }
+    for i, name in enumerate(evolving_names):
+      with self.subTest(name):
+        np.testing.assert_allclose(
+            rhs[:, i] * convertors.STATE_SCALING_FACTORS[name],
+            expected[name],
+            rtol=1e-10,
+        )
 
 
 if __name__ == '__main__':

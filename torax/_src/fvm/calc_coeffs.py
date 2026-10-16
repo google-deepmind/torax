@@ -387,13 +387,17 @@ def _calc_coeffs_full(
   #   contribution from TransportCoefficients.
   phib_dot_factor = geo.Phi_b_dot / geo.Phi_b * geo.rho_face_norm * geo.vpr_face
   # Heat equations
+  # The Phi_b_dot term for the heat equation is derived by splitting V'^(5/3) as
+  # V'^(2/3) * V' and using the product derivative rule to split the total
+  # Phi_b_dot proportional term into a convective term and an effective source
+  # term.
   full_v_heat_face_ion = (
       -0.75 * phib_dot_factor * core_profiles.n_i.face_value() * consts.keV_to_J
   )
   full_v_heat_face_el = (
       -0.75 * phib_dot_factor * core_profiles.n_e.face_value() * consts.keV_to_J
   )
-  # Particle equations
+  # Particle equations. No effective source term will be needed for particles.
   full_v_face_el -= 0.5 * phib_dot_factor
 
   # Keep Pereverzev-Corrigan terms separate from physical convection so they
@@ -460,52 +464,29 @@ def _calc_coeffs_full(
   source_mat_ie = qei.implicit_ie * geo.vpr
   source_mat_ei = qei.implicit_ei * geo.vpr
 
-  # Add effective Phi_b_dot terms
-  # Heat equations
-  d_vpr53_rhon_n_e_drhon = jnp.asarray(
-      jnp.gradient(
-          geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_e.value,
-          geo.rho_norm,
-      )
-  )
-  d_vpr53_rhon_n_i_drhon = jnp.asarray(
-      jnp.gradient(
-          geo.vpr ** (5.0 / 3.0) * geo.rho_norm * core_profiles.n_i.value,
-          geo.rho_norm,
-      )
-  )
+  # Add effective Phi_b_dot source terms.
+  # TODO(b/574457288): Add the missing compression term
+  # 0.5 * vpr * Phi_b_dot / Phi_b * n * T to the heat sources.
+  # Has a very minor impact on standard scenarios.
   source_i += (
-      3.0
-      / 4.0
-      * geo.vpr ** (-2.0 / 3.0)
-      * d_vpr53_rhon_n_i_drhon
+      0.5
+      * geo.rho_norm
+      * core_profiles.n_i.value
+      * geo.dvpr_drho_norm
       * geo.Phi_b_dot
       / geo.Phi_b
       * core_profiles.T_i.value
       * consts.keV_to_J
   )
   source_e += (
-      3.0
-      / 4.0
-      * geo.vpr ** (-2.0 / 3.0)
-      * d_vpr53_rhon_n_e_drhon
+      0.5
+      * geo.rho_norm
+      * core_profiles.n_e.value
+      * geo.dvpr_drho_norm
       * geo.Phi_b_dot
       / geo.Phi_b
       * core_profiles.T_e.value
       * consts.keV_to_J
-  )
-
-  # Particle equations
-  d_vpr_rhon_drhon = jnp.asarray(
-      jnp.gradient(geo.vpr * geo.rho_norm, geo.rho_norm)
-  )
-  source_n_e += (
-      1.0
-      / 2.0
-      * d_vpr_rhon_drhon
-      * geo.Phi_b_dot
-      / geo.Phi_b
-      * core_profiles.n_e.value
   )
 
   # Magnetic flux equation
