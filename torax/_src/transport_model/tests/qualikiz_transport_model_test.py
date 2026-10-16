@@ -96,13 +96,22 @@ class QualikizTransportModelTest(parameterized.TestCase):
       test_model = torax_config.transport.build_transport_model()
       model_call = jax.jit(test_model.__call__) if jit else test_model.__call__
       two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-      model_call(
+      coeffs = model_call(
           runtime_params,
           geo,
           core_profiles,
           pedestal_transition_state_lib.PedestalTransitionState.empty(),
           two_point_mask,
       )
+      expected_shape = geo.rho_face_norm.shape
+      self.assertEqual(coeffs.total.chi_face_ion.shape, expected_shape)
+      self.assertEqual(coeffs.total.chi_face_el.shape, expected_shape)
+      self.assertEqual(coeffs.total.d_face_el.shape, expected_shape)
+      self.assertEqual(coeffs.total.v_face_el.shape, expected_shape)
+      self.assertTrue(np.all(np.isfinite(coeffs.total.chi_face_ion)))
+      self.assertTrue(np.all(np.isfinite(coeffs.total.chi_face_el)))
+      self.assertTrue(np.all(np.isfinite(coeffs.total.d_face_el)))
+      self.assertTrue(np.all(np.isfinite(coeffs.total.v_face_el)))
 
     # rotation_multiplier is already applied in gamma_E_QLK, so gammaE passed
     # to QuaLiKiz must not be scaled again.

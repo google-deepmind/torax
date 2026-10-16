@@ -211,7 +211,7 @@ class PrescribedTransportModel(pydantic_model_base.ComponentTransportBase):
     chi_i: coefficient in ion heat equation diffusion term in m^2/s.
     chi_e: coefficient in electron heat equation diffusion term in m^2/s.
     D_e: diffusion coefficient in electron density equation in m^2/s.
-    V_e: convection coefficient in electron density equation in m^2/s.
+    V_e: convection coefficient in electron density equation in m/s.
   """
 
   model_name: Annotated[Literal['prescribed'], torax_pydantic.JAX_STATIC] = (
@@ -251,9 +251,10 @@ class CriticalGradientTransportModel(
     model_name: The transport model to use. Hardcoded to 'CGM'.
     alpha: Exponent of chi power law: chi ∝ (R/LTi - R/LTi_crit)^alpha.
     chi_stiff: Stiffness parameter.
-    chi_e_i_ratio: Ratio of electron to ion heat transport coefficient (ion
-      higher for ITG).
-    chi_D_ratio: Ratio of electron particle to ion heat transport coefficient.
+    chi_e_i_ratio: Ratio of ion to electron heat conductivity (ion higher for
+      ITG).
+    chi_D_ratio: Ratio of ion heat conductivity to electron particle
+      diffusivity.
     VR_D_ratio: Ratio of major radius * electron particle convection, to
       electron diffusion. Sets the value of electron particle convection in the
       model.
@@ -545,10 +546,10 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
       raise ValueError('D_e_min must be less than D_e_max.')
     if not self.V_e_min < self.V_e_max:
       raise ValueError('V_e_min must be less than V_e_max.')
-    if any([
+    if any(
         np.any(model.rho_min.value != 0.0) or np.any(model.rho_max.value != 1.0)
         for model in self.pedestal_transport_models.values()
-    ]):
+    ):
       raise ValueError(
           'rho_min and rho_max not supported for pedestal_transport_models, as '
           'their region of validity is set by the pedestal model.'

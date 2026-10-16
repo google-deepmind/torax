@@ -190,38 +190,32 @@ class QlknnTransportModelTest(parameterized.TestCase):
 
   @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
   def test_get_model_with_path(self, mock_qlknn_model_wrapper):
-    """Tests that the model is loaded from the path."""
     qlknn_transport_model.get_model(path='/my/foo.qlknn', name='bar')
     mock_qlknn_model_wrapper.assert_called_once_with('/my/foo.qlknn', 'bar')
 
   @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
   def test_get_model_with_name_only(self, mock_qlknn_model_wrapper):
-    """Tests that the model is loaded from the path."""
     qlknn_transport_model.get_model(path='', name='bar')
     mock_qlknn_model_wrapper.assert_called_once_with('', 'bar')
 
   @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
   def test_get_model_without_path_or_name(self, mock_qlknn_model_wrapper):
-    """Tests that the model is loaded from the path."""
     qlknn_transport_model.get_model(path='', name='')
     mock_qlknn_model_wrapper.assert_called_once_with('', '')
 
   @mock.patch.object(qlknn_10d, 'QLKNN10D', autospec=True)
-  def test_get_model_from_path_qlknn10d(self, mock_qlknn_qlknn10d):
-    """Tests that the model is loaded from the path."""
+  def test_get_model_from_path_qlknn10d(self, mock_qlknn_10d):
     qlknn_transport_model.get_model(path='/foo/qlknn_hyper', name='bar')
-    mock_qlknn_qlknn10d.assert_called_once_with('/foo/qlknn_hyper', 'bar')
+    mock_qlknn_10d.assert_called_once_with('/foo/qlknn_hyper', 'bar')
 
   @mock.patch.object(qlknn_10d, 'QLKNN10D', autospec=True)
-  def test_get_model_from_name_qlknn10d_fails(self, mock_qlknn_qlknn10d):
-    """Tests that the model is loaded from the path."""
+  def test_get_model_from_name_qlknn10d_fails(self, mock_qlknn_10d):
     with self.assertRaises(ValueError):
       qlknn_transport_model.get_model(path='', name='qlknn10D')
-    mock_qlknn_qlknn10d.assert_not_called()
+    mock_qlknn_10d.assert_not_called()
 
   @mock.patch.object(qlknn_model_wrapper, 'QLKNNModelWrapper', autospec=True)
   def test_get_model_caching(self, mock_qlknn_model_wrapper):
-    """Tests that the model is loaded only once."""
     qlknn_transport_model.get_model(path='', name='bar')
     qlknn_transport_model.get_model(path='', name='bar')
     qlknn_transport_model.get_model(path='', name='bar')

@@ -62,6 +62,7 @@ class QuaLiKizNDNN:
       self,
       model_config: dict[str, Any],
   ):
+    model_config = dict(model_config)
     self._model_config = model_config
 
     self._feature_names: list[str] = model_config['feature_names']
@@ -132,12 +133,11 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
     net_itgleading: ITG Qi net
     net_itgqediv: ITG Qe/Qi net
     net_temleading: TEM Qe net
-    net_temqediv: TEM Qi/Qe net
     net_etgleading: ETG Qe net
     net_temqidiv: TEM Qi/Qe net
     net_tempfediv: Tem pfe/Qe net
-    net_etgleading: ITG Qe/Qi net
     net_itgpfediv: ITG pfe/Qi net
+    net_gamma_max: Leading growth rate net
   """
 
   def __init__(self, path: str, name: str):

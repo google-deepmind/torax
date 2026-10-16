@@ -305,20 +305,6 @@ class FakeTGLFBasedTransportModel(
 ):
   """Fake TGLFBasedTransportModel for testing purposes."""
 
-  # pylint: disable=invalid-name
-  def prepare_tglf_inputs(
-      self,
-      transport: tglf_based_transport_model.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> tglf_based_transport_model.TGLFInputs:
-    """Exposing prepare_tglf_inputs for testing."""
-    return self._prepare_tglf_inputs(
-        transport, geo, core_profiles
-    )
-
-  # pylint: enable=invalid-name
-
   def call_implementation(
       self,
       transport_runtime_params: transport_params.ComponentRuntimeParams,
@@ -363,14 +349,10 @@ class TGLFBasedTransportModelConfig(
   DV_effective_smooth_width: pydantic.NonNegativeFloat = 0.01
   use_rotation: Annotated[bool, torax_pydantic.JAX_STATIC] = True
 
-  # pylint: disable=undefined-variable
   def build_transport_model(
       self,
   ) -> FakeTGLFBasedTransportModel:
     return FakeTGLFBasedTransportModel()
-
-
-# pylint: enable=undefined-variable
 
 
 if __name__ == "__main__":

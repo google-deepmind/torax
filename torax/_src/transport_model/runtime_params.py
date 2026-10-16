@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Dataclass representing runtime parameter inputs to the transport models.
-
-This is the dataclass runtime config exposed to the user. The actual model gets
-a time-interpolated version of this config via the RuntimeParams.
-"""
+"""Dataclasses representing runtime parameter inputs to the transport models."""
 
 import dataclasses
 from typing import Mapping

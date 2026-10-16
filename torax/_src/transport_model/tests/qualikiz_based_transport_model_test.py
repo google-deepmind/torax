@@ -117,7 +117,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     self.assertEqual(core_transport.total.v_face_el.shape, expected_shape)
 
   def test_qualikiz_based_transport_model_prepare_qualikiz_inputs_shapes(self):
-    """Tests that the qualikiz inputs have the expected shapes."""
+    """Tests that the Qualikiz-based inputs have the expected shapes."""
     torax_config, model_inputs = _get_config_and_model_inputs({
         'core_transport_models': {
             'qualikiz_based': {
@@ -325,20 +325,6 @@ class FakeQualikizBasedTransportModel(
 ):
   """Fake QualikizBasedTransportModel for testing purposes."""
 
-  # pylint: disable=invalid-name
-  def prepare_qualikiz_inputs(
-      self,
-      transport: qualikiz_based_transport_model.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> qualikiz_based_transport_model.QualikizInputs:
-    """Exposing prepare_qualikiz_inputs for testing."""
-    return self._prepare_qualikiz_inputs(
-        transport, geo, core_profiles
-    )
-
-  # pylint: enable=invalid-name
-
   def call_implementation(
       self,
       transport_runtime_params: (
@@ -376,7 +362,7 @@ class FakeQualikizBasedTransportModel(
 class QualikizBasedTransportModelConfig(
     qualikiz_based_transport_model.QualikizBasedTransportModelConfig
 ):
-  """Model for the Qualikiz-based transport model."""
+  """Model for testing the Qualikiz-based transport model."""
 
   model_name: Annotated[
       Literal['qualikiz_based'], torax_pydantic.JAX_STATIC
@@ -385,14 +371,10 @@ class QualikizBasedTransportModelConfig(
       qualikiz_based_transport_model.RotationMode, torax_pydantic.JAX_STATIC
   ] = qualikiz_based_transport_model.RotationMode.HALF_RADIUS
 
-  # pylint: disable=undefined-variable
   def build_transport_model(
       self,
   ) -> FakeQualikizBasedTransportModel:
     return FakeQualikizBasedTransportModel()
-
-
-# pylint: enable=undefined-variable
 
 
 if __name__ == '__main__':
