@@ -153,7 +153,7 @@ def run_loop(
     progress_bar: If True, displays a progress bar.
     max_steps: Optional maximum number of steps to take. If not provided, then
       the maximum number of steps will be determined by the numerics.t_final and
-      numerics.min_dt.
+      time_step_calculator.min_dt.
 
   Returns:
     A tuple of:
@@ -181,9 +181,11 @@ def run_loop(
     )
 
   numerics = step_fn.runtime_params_provider.numerics
+  time_step_calculator = step_fn.runtime_params_provider.time_step_calculator
   if max_steps is None:
     max_steps = int(
-        ((numerics.t_final - numerics.t_initial) / numerics.min_dt) / 1e5
+        ((numerics.t_final - numerics.t_initial) / time_step_calculator.min_dt)
+        / 1e5
     )
   states_history, post_processed_outputs_history, final_i = run_loop_jit(
       step_fn,

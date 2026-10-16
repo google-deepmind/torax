@@ -17,11 +17,11 @@
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'j',
         'n_e_right_bc': 0.5e20,
     },
     'numerics': {
         't_final': 2,
-        'fixed_dt': 2e-2,
     },
     'plasma_composition': {},
     'geometry': {
@@ -51,10 +51,11 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'use_pereverzev': True,
     },
     'time_step_calculator': {
         'calculator_type': 'fixed',
+        'fixed_dt': 2e-2,
     },
 }

@@ -20,6 +20,7 @@ Ip from parameters. implicit, T_i+T_e, no Pei, no pedestal, constant chi.
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
         'Ip': 15e6,
         'n_e_nbar_is_fGW': True,
@@ -72,7 +73,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'use_pereverzev': False,
     },
     'time_step_calculator': {

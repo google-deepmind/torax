@@ -16,7 +16,8 @@
 
 Functions:
     - calc_q: Calculates the q-profile (q).
-    - calc_j_total: Calculate flux-surface-averaged toroidal current density.
+    - calc_j_toroidal_total: Calculate flux-surface-averaged toroidal current
+      density.
     - calc_s: Calculates magnetic shear (s).
     - calc_s_rmid: Calculates magnetic shear (s), using midplane r as radial
       coordinate.
@@ -124,7 +125,7 @@ def calc_q_face(
   return q_face * geo.q_correction_factor
 
 
-def calc_j_total(
+def calc_j_toroidal_total(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
     min_rho_norm: array_typing.FloatScalar,
@@ -135,14 +136,14 @@ def calc_j_total(
 ]:
   """Calculate flux-surface-averaged toroidal current density from poloidal flux.
 
-  `j_total` (also referred to `j_tor` in TORAX) is defined as the
+  `j_toroidal_total` (also referred to `j_tor` in TORAX) is defined as the
   flux-surface-averaged toroidal current density, i.e:
 
-  j_total = dI/dS = dI/drhon / (dS/drhon) = dI/drhon / spr
+  j_toroidal_total = dI/dS = dI/drhon / (dS/drhon) = dI/drhon / spr
 
   Note that this relates to the (non-flux-function) toroidal current j_phi as:
 
-  j_total = <j_phi/R> / <1/R>
+  j_toroidal_total = <j_phi/R> / <1/R>
 
   See Felici 2011 eq. 6.20 (10.5075/epfl-thesis-5203)
 
@@ -153,8 +154,8 @@ def calc_j_total(
       extrapolated to the axis to avoid numerical artifacts.
 
   Returns:
-    j_total: total current density [A/m2] on cell grid
-    j_total_face: total current density [A/m2] on face grid
+    j_toroidal_total: total toroidal current density [A/m2] on cell grid
+    j_toroidal_total_face: total toroidal current density [A/m2] on face grid
     Ip_profile_face: cumulative total plasma current profile [A] on face grid
   """
 
@@ -172,21 +173,23 @@ def calc_j_total(
   # enclosed current at the boundaries of the cells.
   dI_drhon = jnp.diff(Ip_profile_face) / geo.drho_norm
 
-  j_total = dI_drhon / geo.spr
+  j_toroidal_total = dI_drhon / geo.spr
 
   # Extrapolate the axis values to avoid numerical artifacts.
-  j_total = _extrapolate_cell_profile_to_axis(j_total, geo, min_rho_norm)
+  j_toroidal_total = _extrapolate_cell_profile_to_axis(
+      j_toroidal_total, geo, min_rho_norm
+  )
 
   # Convert to face grid using linear interpolation in the bulk, and set right
   # edge while preserving total current. This provides a smoother profile than
   # calculating gradients directly on faces.
-  j_total_face = math_utils.cell_to_face(
-      j_total,
+  j_toroidal_total_face = math_utils.cell_to_face(
+      j_toroidal_total,
       geo,
       preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
   )
 
-  return j_total, j_total_face, Ip_profile_face
+  return j_toroidal_total, j_toroidal_total_face, Ip_profile_face
 
 
 def calc_s_face(

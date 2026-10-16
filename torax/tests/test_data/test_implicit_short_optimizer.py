@@ -16,6 +16,7 @@
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'j',
         'n_e_right_bc': 0.5e20,
     },
     'numerics': {
@@ -49,7 +50,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'optimizer',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'theta_implicit': 1.0,
     },
     'time_step_calculator': {

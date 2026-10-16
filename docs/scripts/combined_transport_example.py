@@ -27,7 +27,7 @@ def main(argv: Sequence[str]) -> None:
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
   config = {
-      'profile_conditions': {},
+      'profile_conditions': {'initial_psi_source': 'j'},
       'numerics': {},
       'plasma_composition': {},
       'geometry': {

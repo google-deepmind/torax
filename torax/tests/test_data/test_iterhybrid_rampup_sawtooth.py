@@ -19,13 +19,13 @@ from torax.tests.test_data import test_iterhybrid_rampup
 
 CONFIG = copy.deepcopy(test_iterhybrid_rampup.CONFIG)
 assert isinstance(CONFIG['profile_conditions'], dict)
-CONFIG['profile_conditions']['initial_psi_from_j'] = True
+CONFIG['profile_conditions']['initial_psi_source'] = 'j'
 CONFIG['profile_conditions']['current_profile_nu'] = 2.0
 CONFIG['sources']['generic_current']['fraction_of_total_current'] = 0.0
 CONFIG['sources']['generic_heat']['P_total'] = 0.0
 CONFIG['sources']['ohmic'] = {}
 CONFIG['numerics']['current_diffusion_time_reduction_factor'] = 10.0
-CONFIG['numerics']['fixed_dt'] = 0.5
+CONFIG['time_step_calculator']['fixed_dt'] = 0.5
 CONFIG['transport']['core_transport_models']['inner_patch']['chi_i'] = 0.2
 CONFIG['transport']['core_transport_models']['inner_patch']['chi_e'] = 0.2
 CONFIG['transport']['core_transport_models']['inner_patch']['D_e'] = 0.02
@@ -33,8 +33,8 @@ CONFIG['transport']['core_transport_models']['inner_patch']['rho_max'] = 0.15
 # Simplify numerics by switching to linear solver.
 CONFIG['solver'] = {
     'solver_type': 'linear',
-    'use_predictor_corrector': True,
-    'n_corrector_steps': 10,
+    'use_fixed_point': True,
+    'n_fixed_point_iterations': 10,
     'use_pereverzev': True,
     'chi_pereverzev': 30,
     'D_pereverzev': 15,

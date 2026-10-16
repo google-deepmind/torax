@@ -23,6 +23,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
@@ -175,9 +176,7 @@ def _get_initial_state(
       t=jnp.array(
           runtime_params.numerics.t_initial, dtype=jax_utils.get_dtype()
       ),
-      dt=jnp.array(
-          runtime_params.numerics.fixed_dt, dtype=jax_utils.get_dtype()
-      ),
+      dt=jnp.zeros((), dtype=jax_utils.get_dtype()),
       core_profiles=initial_core_profiles,
       core_sources=initial_core_sources,
       core_transport=transport_coeffs,
@@ -267,6 +266,25 @@ def get_initial_state_and_post_processed_outputs_from_file(
   )
   scalars_dataset = data_tree.children[output_keys.SCALARS].dataset
   scalars_dataset = scalars_dataset.squeeze()
+  energy_state = initial_state.core_profiles.internal_plasma_energy
+  energy_state = dataclasses.replace(  # pyrefly: ignore[bad-specialization]
+      energy_state,
+      dW_thermal_i_dt_smoothed=scalars_dataset.data_vars[
+          'dW_thermal_i_dt_smoothed'
+      ].to_numpy(),
+      dW_thermal_e_dt_smoothed=scalars_dataset.data_vars[
+          'dW_thermal_e_dt_smoothed'
+      ].to_numpy(),
+  )
+  core_profiles = dataclasses.replace(
+      initial_state.core_profiles,
+      v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
+      internal_plasma_energy=energy_state,
+  )
+  initial_state = dataclasses.replace(
+      initial_state,
+      core_profiles=core_profiles,
+  )
   post_processed_outputs = post_processing.make_post_processed_outputs(
       sim_state=initial_state,
       runtime_params=runtime_params_for_init,
@@ -283,30 +301,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
           'E_external_injected'
       ].to_numpy(),
       E_external_total=scalars_dataset.data_vars['E_external_total'].to_numpy(),
-      dW_thermal_dt_smoothed=scalars_dataset.data_vars[
-          'dW_thermal_dt_smoothed'
-      ].to_numpy(),
-      dW_thermal_i_dt_smoothed=scalars_dataset.data_vars[
-          'dW_thermal_i_dt_smoothed'
-      ].to_numpy(),
-      dW_thermal_e_dt_smoothed=scalars_dataset.data_vars[
-          'dW_thermal_e_dt_smoothed'
-      ].to_numpy(),
-  )
-  energy_state = initial_state.core_profiles.internal_plasma_energy
-  energy_state = dataclasses.replace(  # pyrefly: ignore[bad-specialization]
-      energy_state,
-      dW_thermal_i_dt_smoothed=scalars_dataset.data_vars[
-          'dW_thermal_i_dt_smoothed'
-      ].to_numpy(),
-      dW_thermal_e_dt_smoothed=scalars_dataset.data_vars[
-          'dW_thermal_e_dt_smoothed'
-      ].to_numpy(),
-  )
-  core_profiles = dataclasses.replace(
-      initial_state.core_profiles,
-      v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
-      internal_plasma_energy=energy_state,
   )
   numerics_dataset = data_tree.children[output_keys.NUMERICS].dataset
   numerics_dataset = numerics_dataset.squeeze()
@@ -320,7 +314,6 @@ def get_initial_state_and_post_processed_outputs_from_file(
   return (
       dataclasses.replace(
           initial_state,
-          core_profiles=core_profiles,
           solver_numeric_outputs=state.SolverNumericOutputs(
               sawtooth_crash=sawtooth_crash,
               solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),
@@ -387,6 +380,9 @@ def _override_initial_runtime_params_from_file(
       profiles_ds.data_vars[output_keys.PSI]
       .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
       .to_numpy()
+  )
+  runtime_params.profile_conditions.initial_psi_source = (
+      core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
   )
   # When loading from file we want ne not to have transformations.
   # Both ne and the boundary condition are given in absolute values (not fGW).

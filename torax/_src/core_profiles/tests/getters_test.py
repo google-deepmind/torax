@@ -1250,7 +1250,7 @@ class GettersTest(parameterized.TestCase):
       self, impurity_mode, species, Z_eff
   ):
     config_dict = {
-        'profile_conditions': {},
+        'profile_conditions': {'initial_psi_source': 'j'},
         'plasma_composition': {
             'main_ion': 'D',
             'impurity': {

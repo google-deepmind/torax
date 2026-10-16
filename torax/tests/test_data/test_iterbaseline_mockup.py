@@ -28,6 +28,7 @@ CONFIG = {
     },
     'profile_conditions': {
         'Ip': 15e6,  # total plasma current in A
+        'initial_psi_source': 'geometry',
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 15.0, 1.0: 0.238}},
@@ -50,10 +51,6 @@ CONFIG = {
         't_final': 10,  # length of simulation time in seconds
         # Shortens the current diffusion timescale (psi equation only).
         'current_diffusion_time_reduction_factor': 200,
-        'max_dt': 0.5,
-        # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
-        # likely be increased further beyond this default
-        'chi_timestep_prefactor': 100,
         'evolve_ion_heat': True,
         'evolve_electron_heat': True,
         'evolve_current': True,
@@ -177,12 +174,16 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'use_pereverzev': True,
         'chi_pereverzev': 20,
         'D_pereverzev': 10,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        'max_dt': 0.5,
+        # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
+        # likely be increased further beyond this default
+        'chi_timestep_prefactor': 100,
     },
 }

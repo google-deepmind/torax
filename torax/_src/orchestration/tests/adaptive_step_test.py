@@ -104,6 +104,7 @@ class AdaptiveStepTest(parameterized.TestCase):
           solver_error_state=0,
           dt=0.1,
           runtime_params_numerics_updates={},
+          runtime_params_time_step_calculator_updates={},
           sim_state_updates={},
           expected=False,
       ),
@@ -111,7 +112,8 @@ class AdaptiveStepTest(parameterized.TestCase):
           testcase_name='solver_did_not_converge_dt_not_too_small',
           solver_error_state=1,
           dt=0.05,
-          runtime_params_numerics_updates={'min_dt': 0.01},
+          runtime_params_numerics_updates={},
+          runtime_params_time_step_calculator_updates={'min_dt': 0.01},
           sim_state_updates={},
           expected=True,
       ),
@@ -119,7 +121,8 @@ class AdaptiveStepTest(parameterized.TestCase):
           testcase_name='solver_did_not_converge_dt_too_small',
           solver_error_state=1,
           dt=0.05,
-          runtime_params_numerics_updates={'min_dt': 0.1},
+          runtime_params_numerics_updates={},
+          runtime_params_time_step_calculator_updates={'min_dt': 0.1},
           sim_state_updates={},
           expected=False,
       ),
@@ -130,6 +133,8 @@ class AdaptiveStepTest(parameterized.TestCase):
           runtime_params_numerics_updates={
               'exact_t_final': True,
               't_final': 0.1,
+          },
+          runtime_params_time_step_calculator_updates={
               'min_dt': 0.2,
           },
           sim_state_updates={'t': 0.0},
@@ -140,6 +145,7 @@ class AdaptiveStepTest(parameterized.TestCase):
           solver_error_state=1,
           dt=jnp.nan,
           runtime_params_numerics_updates={},
+          runtime_params_time_step_calculator_updates={},
           sim_state_updates={},
           expected=False,
       ),
@@ -149,6 +155,7 @@ class AdaptiveStepTest(parameterized.TestCase):
       solver_error_state,
       dt,
       runtime_params_numerics_updates,
+      runtime_params_time_step_calculator_updates,
       sim_state_updates,
       expected,
   ):
@@ -164,9 +171,17 @@ class AdaptiveStepTest(parameterized.TestCase):
     runtime_params = self.runtime_params
     if runtime_params_numerics_updates:
       runtime_params = dataclasses.replace(
-          self.runtime_params,
+          runtime_params,
           numerics=dataclasses.replace(
-              self.runtime_params.numerics, **runtime_params_numerics_updates
+              runtime_params.numerics, **runtime_params_numerics_updates
+          ),
+      )
+    if runtime_params_time_step_calculator_updates:
+      runtime_params = dataclasses.replace(
+          runtime_params,
+          time_step_calculator=dataclasses.replace(
+              runtime_params.time_step_calculator,
+              **runtime_params_time_step_calculator_updates,
           ),
       )
 
