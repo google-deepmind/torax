@@ -1186,6 +1186,145 @@ class TransportModelTest(parameterized.TestCase):
         atol=atol,
     )
 
+  def test_add_mode_nan_outside_active_region_does_not_contaminate_accumulators(
+      self,
+  ):
+    """Tests that in ADD mode, NaNs do not contaminate accumulators."""
+    geo = mock.Mock(spec=geometry.Geometry)
+    geo.rho_face_norm = jnp.linspace(0.0, 1.0, 11, dtype=jax_utils.get_dtype())
+
+    # Model 1: OVERWRITE mode on outer half (rho > 0.5), sets values and locks
+    # all channels on rho > 0.5.
+    model_1 = mock.MagicMock(spec=component.ComponentTransportModel)
+    model_1_coeffs = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.full_like(geo.rho_face_norm, 10.0),
+        chi_face_el=jnp.full_like(geo.rho_face_norm, 1.0),
+        d_face_el=jnp.full_like(geo.rho_face_norm, 1.0),
+        v_face_el=jnp.full_like(geo.rho_face_norm, -1.0),
+    )
+    model_1.return_value = model_1_coeffs
+    params_1 = mock.Mock()
+    params_1.disable_chi_i = False
+    params_1.disable_chi_e = False
+    params_1.disable_D_e = False
+    params_1.disable_V_e = False
+    params_1.merge_mode = enums.MergeMode.OVERWRITE
+    params_1.rho_min = 0.5
+    params_1.rho_max = 1.0
+
+    # Model 2: ADD mode.
+    # - Active on inner region: rho_min = 0.0, rho_max = 0.4.
+    # - NaNs outside [rho_min, rho_max] (rho > 0.4) for chi_e and d_e.
+    # - disable_V_e = True, with NaNs everywhere in v_face_el
+    #   (disabled channel).
+    model_2 = mock.MagicMock(spec=component.ComponentTransportModel)
+    nan_outside_domain = jnp.where(geo.rho_face_norm <= 0.4, 2.0, jnp.nan)
+    model_2_coeffs = transport_coeffs.TransportCoeffs(
+        chi_face_ion=jnp.zeros_like(geo.rho_face_norm),
+        chi_face_el=nan_outside_domain,
+        d_face_el=nan_outside_domain,
+        v_face_el=jnp.full_like(geo.rho_face_norm, jnp.nan),
+    )
+    model_2.return_value = model_2_coeffs
+    params_2 = mock.Mock()
+    params_2.disable_chi_i = True
+    params_2.disable_chi_e = False
+    params_2.disable_D_e = False
+    params_2.disable_V_e = True
+    params_2.merge_mode = enums.MergeMode.ADD
+    params_2.rho_min = 0.0
+    params_2.rho_max = 0.4
+
+    # Model 3: ADD mode across entire domain [0.0, 1.0].
+    # - NaNs on rho > 0.5 for chi_i, where channel is active for Model 3 but
+    #   locked by Model 1 (locked channel).
+    model_3 = mock.MagicMock(spec=component.ComponentTransportModel)
+    nan_in_locked_region = jnp.where(geo.rho_face_norm <= 0.5, 2.0, jnp.nan)
+    model_3_coeffs = transport_coeffs.TransportCoeffs(
+        chi_face_ion=nan_in_locked_region,
+        chi_face_el=jnp.zeros_like(geo.rho_face_norm),
+        d_face_el=jnp.zeros_like(geo.rho_face_norm),
+        v_face_el=jnp.zeros_like(geo.rho_face_norm),
+    )
+    model_3.return_value = model_3_coeffs
+    params_3 = mock.Mock()
+    params_3.disable_chi_i = False
+    params_3.disable_chi_e = True
+    params_3.disable_D_e = True
+    params_3.disable_V_e = True
+    params_3.merge_mode = enums.MergeMode.ADD
+    params_3.rho_min = 0.0
+    params_3.rho_max = 1.0
+
+    combined_model = transport_model.TransportModel(
+        core_transport_models={
+            'model_1': model_1,
+            'model_2': model_2,
+            'model_3': model_3,
+        },
+        pedestal_transport_models={},
+    )
+    combined_params = mock.create_autospec(
+        transport_runtime_params_lib.RuntimeParams, instance=True
+    )
+    combined_params.core_transport_model_params = {
+        'model_1': params_1,
+        'model_2': params_2,
+        'model_3': params_3,
+    }
+    combined_params.pedestal_transport_model_params = {}
+    combined_params.chi_min = 0.0
+    combined_params.chi_max = 100.0
+    combined_params.D_e_min = 0.0
+    combined_params.D_e_max = 100.0
+    combined_params.V_e_min = -100.0
+    combined_params.V_e_max = 100.0
+    combined_params.smoothing_width = 0.0
+    combined_params.pedestal_smoothing_width = 0.0
+    combined_params.smoothing_zones = ()
+
+    runtime_params = mock.Mock()
+    runtime_params.transport = combined_params
+    two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+    core_profiles = mock.Mock()
+
+    accumulated_coeffs, _ = combined_model._combine(
+        models=combined_model.core_transport_models,
+        params_map=combined_params.core_transport_model_params,
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        two_point_mask=two_point_mask,
+    )
+
+    # Verify no NaNs in any accumulated channel.
+    self.assertFalse(jnp.any(jnp.isnan(accumulated_coeffs.chi_face_ion)))
+    self.assertFalse(jnp.any(jnp.isnan(accumulated_coeffs.chi_face_el)))
+    self.assertFalse(jnp.any(jnp.isnan(accumulated_coeffs.d_face_el)))
+    self.assertFalse(jnp.any(jnp.isnan(accumulated_coeffs.v_face_el)))
+
+    # Verify exact values:
+    # 1. chi_face_ion: Model 3 adds 2.0 for rho <= 0.5. Model 1 overwrote and
+    # locked rho > 0.5 to 10.0; NaNs in Model 3 for rho > 0.5 are locked out.
+    expected_chi_i = jnp.where(geo.rho_face_norm <= 0.5, 2.0, 10.0)
+    np.testing.assert_allclose(accumulated_coeffs.chi_face_ion, expected_chi_i)
+
+    # 2. chi_face_el & d_face_el: Model 2 adds 2.0 for rho <= 0.4.
+    # NaNs in Model 2 for rho > 0.4 are outside [rho_min, rho_max].
+    # Model 1 sets 1.0 for rho > 0.5. Region 0.4 < rho <= 0.5 has 0.0.
+    expected_chi_e = jnp.where(
+        geo.rho_face_norm <= 0.4,
+        2.0,
+        jnp.where(geo.rho_face_norm > 0.5, 1.0, 0.0),
+    )
+    np.testing.assert_allclose(accumulated_coeffs.chi_face_el, expected_chi_e)
+    np.testing.assert_allclose(accumulated_coeffs.d_face_el, expected_chi_e)
+
+    # 3. v_face_el: Model 2 has disable_V_e = True (disabled channel) with NaNs.
+    # Model 1 sets -1.0 for rho > 0.5.
+    expected_v_e = jnp.where(geo.rho_face_norm > 0.5, -1.0, 0.0)
+    np.testing.assert_allclose(accumulated_coeffs.v_face_el, expected_v_e)
+
 
 if __name__ == '__main__':
   absltest.main()

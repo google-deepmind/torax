@@ -243,7 +243,9 @@ class TransportModel(static_dataclass.StaticDataclass):
         else:  # ADD
           # Add where active and not locked.
           condition = channel_active & ~locks[channel]
-          accumulators[channel] = accumulators[channel] + val * condition
+          accumulators[channel] = accumulators[channel] + jnp.where(
+              condition, val, 0.0
+          )
 
     return transport_coeffs.TransportCoeffs(**accumulators), model_outputs
 
