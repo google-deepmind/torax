@@ -1187,19 +1187,19 @@ Each defaults to whether the selected model supports computing that boundary
 condition, and cannot be set to ``True`` for a boundary condition the model
 does not support. See :ref:`edge_models` for details.
 
-``update_electron_temperature`` (bool [default = model dependent])
+``update_T_e`` (bool [default = model dependent])
   If ``True``, update the core solver's boundary electron temperature using the
   value calculated by the edge model.
 
-``update_ion_temperature`` (bool [default = model dependent])
+``update_T_i`` (bool [default = model dependent])
   If ``True``, update the core solver's boundary ion temperature using the value
   calculated by the edge model.
 
-``update_electron_density`` (bool [default = model dependent])
+``update_n_e`` (bool [default = model dependent])
   If ``True``, update the core solver's boundary electron density using the
   value calculated by the edge model.
 
-``update_impurities`` (bool [default = model dependent])
+``update_n_impurities`` (bool [default = model dependent])
   If ``True``, and enrichment modeling is used or enrichment factors are
   provided, update the core solver's impurity boundary conditions based on
   edge enrichment calculations.
@@ -1216,9 +1216,9 @@ control parameters.
 
 The Extended Lengyel model computes the electron temperature, ion temperature
 and impurity boundary conditions, but not the electron density boundary
-condition. So ``update_electron_temperature``, ``update_ion_temperature`` and
-``update_impurities`` default to ``True``, and ``update_electron_density``
-defaults to ``False`` (and cannot be set to ``True``).
+condition. So ``update_T_e``, ``update_T_i`` and ``update_n_impurities`` default
+to ``True``, and ``update_n_e`` defaults to ``False`` (and cannot be set to
+``True``).
 
 **Key Control Parameters:**
 

@@ -1088,10 +1088,10 @@ class ExtendedLengyelModelValidationTest(parameterized.TestCase):
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
         'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
-        'update_electron_temperature': True,
-        'update_ion_temperature': True,
-        'update_electron_density': False,
-        'update_impurities': True,
+        'update_T_e': True,
+        'update_T_i': True,
+        'update_n_e': False,
+        'update_n_impurities': True,
         'fixed_point_iterations': 1,
         'fixed_point_relaxation_factor': 0.5,
         'newton_raphson_iterations': 1,
@@ -1341,8 +1341,8 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
   )
   def test_temperature_boundary_condition_updates(
       self,
-      update_electron_temperature,
-      update_ion_temperature,
+      update_T_e,
+      update_T_i,
       ion_to_electron_ratio,
   ):
     """Tests that boundary conditions are correctly updated based on edge model."""
@@ -1371,8 +1371,8 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
             'angle_of_incidence_target': 3.0,
             'ratio_bpol_omp_to_bpol_avg': 4.0 / 3.0,
             # Test parameters
-            'update_electron_temperature': update_electron_temperature,
-            'update_ion_temperature': update_ion_temperature,
+            'update_T_e': update_T_e,
+            'update_T_i': update_T_i,
             'T_i_T_e_ratio_separatrix': ion_to_electron_ratio,
             'T_i_T_e_ratio_target': 1.5,
             'use_enrichment_model': False,
@@ -1405,7 +1405,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
         rtol=1e-5,
     )
 
-    if update_electron_temperature:
+    if update_T_e:
       expected_Te_bc = final_edge_output.T_e_right_bc
       np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           final_state.T_e.right_face_constraint, expected_Te_bc, rtol=1e-5
@@ -1420,7 +1420,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
           final_state.T_e.right_face_constraint, initial_Te_bc, rtol=1e-5
       )
 
-    if update_ion_temperature:
+    if update_T_i:
       expected_Ti_bc = final_edge_output.T_i_right_bc
       np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           final_state.T_i.right_face_constraint, expected_Ti_bc, rtol=1e-5

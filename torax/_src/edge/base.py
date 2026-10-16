@@ -67,17 +67,16 @@ class SupportedBoundaryConditions:
   """Specifies which boundary conditions an edge model supports computing.
 
   Attributes:
-    electron_temperature: Electron temperature boundary condition
-      (T_e_right_bc).
-    ion_temperature: Ion temperature boundary condition (T_i_right_bc).
-    electron_density: Electron density boundary condition (n_e_right_bc).
-    impurities: Impurity boundary conditions (impurity_right_bc).
+    T_e: Electron temperature boundary condition (T_e_right_bc).
+    T_i: Ion temperature boundary condition (T_i_right_bc).
+    n_e: Electron density boundary condition (n_e_right_bc).
+    n_impurities: Impurity boundary conditions (impurity_right_bc).
   """
 
-  electron_temperature: bool = False
-  ion_temperature: bool = False
-  electron_density: bool = False
-  impurities: bool = False
+  T_e: bool = False
+  T_i: bool = False
+  n_e: bool = False
+  n_impurities: bool = False
 
 
 @jax.tree_util.register_dataclass
@@ -168,37 +167,30 @@ class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
     model_name: Discriminator field for Pydantic. Subclasses must override with
       a `Literal` value.
     supported_boundary_conditions: Class-level `SupportedBoundaryConditions`
-      instance whose fields (`electron_temperature`, `ion_temperature`,
-      `electron_density`, `impurities`) declare which boundary conditions the
-      subclass can compute and set the defaults for the corresponding `update_*`
-      flags below.
-    update_electron_temperature: Whether to update electron temperature boundary
-      condition. Defaults to the `electron_temperature` field of
-      `supported_boundary_conditions`
-      (`supported_boundary_conditions.electron_temperature`), and may only be
-      True if supported.
-    update_ion_temperature: Whether to update ion temperature boundary
-      condition. Defaults to the `ion_temperature` field of
-      `supported_boundary_conditions`
-      (`supported_boundary_conditions.ion_temperature`), and may only be True if
-      supported.
-    update_electron_density: Whether to update electron density boundary
-      condition. Defaults to the `electron_density` field of
-      `supported_boundary_conditions`
-      (`supported_boundary_conditions.electron_density`), and may only be True
-      if supported.
-    update_impurities: Whether to update impurity concentrations in the core.
-      Defaults to the `impurities` field of `supported_boundary_conditions`
-      (`supported_boundary_conditions.impurities`), and may only be True if
+      instance whose fields (`T_e`, `T_i`, `n_e`, `n_impurities`) declare which
+      boundary conditions the subclass can compute and set the defaults for the
+      corresponding `update_*` flags below.
+    update_T_e: Whether to update electron temperature boundary condition.
+      Defaults to the `T_e` field of `supported_boundary_conditions`
+      (`supported_boundary_conditions.T_e`), and may only be True if supported.
+    update_T_i: Whether to update ion temperature boundary condition. Defaults
+      to the `T_i` field of `supported_boundary_conditions`
+      (`supported_boundary_conditions.T_i`), and may only be True if supported.
+    update_n_e: Whether to update electron density boundary condition. Defaults
+      to the `n_e` field of `supported_boundary_conditions`
+      (`supported_boundary_conditions.n_e`), and may only be True if supported.
+    update_n_impurities: Whether to update impurity concentrations in the core.
+      Defaults to the `n_impurities` field of `supported_boundary_conditions`
+      (`supported_boundary_conditions.n_impurities`), and may only be True if
       supported.
   """
 
   model_name: Annotated[str, torax_pydantic.JAX_STATIC]
   supported_boundary_conditions: ClassVar[SupportedBoundaryConditions]
-  update_electron_temperature: torax_pydantic.TimeVaryingScalarStep
-  update_ion_temperature: torax_pydantic.TimeVaryingScalarStep
-  update_electron_density: torax_pydantic.TimeVaryingScalarStep
-  update_impurities: torax_pydantic.TimeVaryingScalarStep
+  update_T_e: torax_pydantic.TimeVaryingScalarStep
+  update_T_i: torax_pydantic.TimeVaryingScalarStep
+  update_n_e: torax_pydantic.TimeVaryingScalarStep
+  update_n_impurities: torax_pydantic.TimeVaryingScalarStep
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -235,12 +227,10 @@ class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
   ) -> edge_runtime_params_lib.RuntimeParams:
     """Builds the runtime parameters for the edge model at time t."""
     return edge_runtime_params_lib.RuntimeParams(
-        update_electron_temperature=self.update_electron_temperature.get_value(
-            t
-        ),
-        update_ion_temperature=self.update_ion_temperature.get_value(t),
-        update_electron_density=self.update_electron_density.get_value(t),
-        update_impurities=self.update_impurities.get_value(t),
+        update_T_e=self.update_T_e.get_value(t),
+        update_T_i=self.update_T_i.get_value(t),
+        update_n_e=self.update_n_e.get_value(t),
+        update_n_impurities=self.update_n_impurities.get_value(t),
     )
 
   @abc.abstractmethod

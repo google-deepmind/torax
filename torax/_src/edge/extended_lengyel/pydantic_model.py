@@ -92,10 +92,10 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
 
   supported_boundary_conditions: ClassVar[base.SupportedBoundaryConditions] = (
       base.SupportedBoundaryConditions(
-          electron_temperature=True,
-          ion_temperature=True,
-          electron_density=False,
-          impurities=True,
+          T_e=True,
+          T_i=True,
+          n_e=False,
+          n_impurities=True,
       )
   )
   model_name: Annotated[

@@ -17,6 +17,8 @@ import dataclasses
 import jax
 from torax._src import array_typing
 
+# pylint: disable=invalid-name
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -24,17 +26,14 @@ class RuntimeParams:
   """Base for edge model runtime parameters.
 
   Attributes:
-    update_electron_temperature: Whether to update electron temperature boundary
-      condition.
-    update_ion_temperature: Whether to update ion temperature boundary
-      condition.
-    update_electron_density: Whether to update electron density boundary
-      condition.
-    update_impurities: Whether to update impurity concentrations in the core.
+    update_T_e: Whether to update electron temperature boundary condition.
+    update_T_i: Whether to update ion temperature boundary condition.
+    update_n_e: Whether to update electron density boundary condition.
+    update_n_impurities: Whether to update impurity concentrations in the core.
   """
 
   # Not static to allow rapid sensitivity checking of edge-model impact.
-  update_electron_temperature: array_typing.BoolScalar
-  update_ion_temperature: array_typing.BoolScalar
-  update_electron_density: array_typing.BoolScalar
-  update_impurities: array_typing.BoolScalar
+  update_T_e: array_typing.BoolScalar
+  update_T_i: array_typing.BoolScalar
+  update_n_e: array_typing.BoolScalar
+  update_n_impurities: array_typing.BoolScalar

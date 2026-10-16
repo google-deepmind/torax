@@ -61,10 +61,10 @@ class RegisterEdgeModelTest(absltest.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
     assert torax_config.edge is not None
     runtime_params = torax_config.edge.build_runtime_params(t=0.0)
-    self.assertTrue(runtime_params.update_electron_temperature)
-    self.assertFalse(runtime_params.update_ion_temperature)
-    self.assertFalse(runtime_params.update_electron_density)
-    self.assertFalse(runtime_params.update_impurities)
+    self.assertTrue(runtime_params.update_T_e)
+    self.assertFalse(runtime_params.update_T_i)
+    self.assertFalse(runtime_params.update_n_e)
+    self.assertFalse(runtime_params.update_n_impurities)
 
   def test_error_if_update_flag_set_for_unsupported_bc(self):
     """Test that an error is raised if an unsupported BC is updated."""
@@ -77,12 +77,12 @@ class RegisterEdgeModelTest(absltest.TestCase):
     }
     config["edge"] = {
         "model_name": "dummy_te",
-        "update_ion_temperature": True,
+        "update_T_i": True,
     }
     with self.assertRaisesRegex(
         pydantic.ValidationError,
-        r"'update_ion_temperature' cannot be True because 'dummy_te' does not"
-        r" support the 'ion_temperature' boundary condition\.",
+        r"'update_T_i' cannot be True because 'dummy_te' does not"
+        r" support the 'T_i' boundary condition\.",
     ):
       model_config.ToraxConfig.from_dict(config)
 
@@ -137,10 +137,10 @@ class DummyEdgeConfig(base.EdgeModelConfig):
 
   supported_boundary_conditions: ClassVar[base.SupportedBoundaryConditions] = (
       base.SupportedBoundaryConditions(
-          electron_temperature=True,
-          ion_temperature=True,
-          electron_density=True,
-          impurities=True,
+          T_e=True,
+          T_i=True,
+          n_e=True,
+          n_impurities=True,
       )
   )
   model_name: Annotated[Literal["dummy_edge"], torax_pydantic.JAX_STATIC] = (
@@ -158,7 +158,7 @@ class DummyElectronTemperatureModel(DummyEdgeModel):
 
 class DummyElectronTemperatureConfig(base.EdgeModelConfig):
   supported_boundary_conditions: ClassVar[base.SupportedBoundaryConditions] = (
-      base.SupportedBoundaryConditions(electron_temperature=True)
+      base.SupportedBoundaryConditions(T_e=True)
   )
   model_name: Annotated[Literal["dummy_te"], torax_pydantic.JAX_STATIC] = (
       "dummy_te"

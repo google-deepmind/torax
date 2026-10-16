@@ -63,37 +63,37 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
   def _with_edge_flags(
       self,
       *,
-      update_electron_temperature: bool = False,
-      update_ion_temperature: bool = False,
-      update_electron_density: bool = False,
-      update_impurities: bool = False,
+      update_T_e: bool = False,
+      update_T_i: bool = False,
+      update_n_e: bool = False,
+      update_n_impurities: bool = False,
   ):
     return dataclasses.replace(
         self.runtime_params,
         edge=edge_runtime_params.RuntimeParams(
-            update_electron_temperature=update_electron_temperature,
-            update_ion_temperature=update_ion_temperature,
-            update_electron_density=update_electron_density,
-            update_impurities=update_impurities,
+            update_T_e=update_T_e,
+            update_T_i=update_T_i,
+            update_n_e=update_n_e,
+            update_n_impurities=update_n_impurities,
         ),
     )
 
   def test_none_edge_outputs_is_noop(self):
     params = self._with_edge_flags(
-        update_electron_temperature=True,
-        update_ion_temperature=True,
-        update_electron_density=True,
-        update_impurities=True,
+        update_T_e=True,
+        update_T_i=True,
+        update_n_e=True,
+        update_n_impurities=True,
     )
     updated = updaters.update_runtime_params(params, None)
     self.assertIs(updated, params)
 
   def test_invalid_for_core_update_skips_all_updates(self):
     params = self._with_edge_flags(
-        update_electron_temperature=True,
-        update_ion_temperature=True,
-        update_electron_density=True,
-        update_impurities=True,
+        update_T_e=True,
+        update_T_i=True,
+        update_n_e=True,
+        update_n_impurities=True,
     )
     invalid_outputs = dataclasses.replace(
         self.edge_outputs, valid_for_core_update=jnp.array(False)
@@ -127,8 +127,8 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         params.plasma_composition.impurity.n_e_ratios_face['N'],
     )
 
-  def test_update_electron_temperature(self):
-    params = self._with_edge_flags(update_electron_temperature=True)
+  def test_update_T_e(self):
+    params = self._with_edge_flags(update_T_e=True)
     updated = updaters.update_runtime_params(params, self.edge_outputs)
 
     # Electron temperature boundary condition is updated.
@@ -151,8 +151,8 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         electron_density_ratios.RuntimeParams,
     )
 
-  def test_update_ion_temperature(self):
-    params = self._with_edge_flags(update_ion_temperature=True)
+  def test_update_T_i(self):
+    params = self._with_edge_flags(update_T_i=True)
     updated = updaters.update_runtime_params(params, self.edge_outputs)
 
     # Electron temperature boundary condition remains unchanged.
@@ -171,8 +171,8 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         electron_density_ratios.RuntimeParams,
     )
 
-  def test_update_electron_density(self):
-    params = self._with_edge_flags(update_electron_density=True)
+  def test_update_n_e(self):
+    params = self._with_edge_flags(update_n_e=True)
     updated = updaters.update_runtime_params(params, self.edge_outputs)
 
     np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 3.45e19)
@@ -205,8 +205,8 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         params.plasma_composition.impurity.n_e_ratios_face['N'],
     )
 
-  def test_update_impurities_scales_profile(self):
-    params = self._with_edge_flags(update_impurities=True)
+  def test_update_n_impurities_scales_profile(self):
+    params = self._with_edge_flags(update_n_impurities=True)
     initial_impurity_params = params.plasma_composition.impurity
     assert isinstance(
         initial_impurity_params, electron_density_ratios.RuntimeParams
@@ -243,10 +243,10 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
 
   def test_none_bc_fields_are_noop(self):
     params = self._with_edge_flags(
-        update_electron_temperature=True,
-        update_ion_temperature=False,
-        update_electron_density=False,
-        update_impurities=False,
+        update_T_e=True,
+        update_T_i=False,
+        update_n_e=False,
+        update_n_impurities=False,
     )
     partial_outputs = edge_base.EdgeModelOutputs(
         T_e_right_bc=jnp.array(0.123),

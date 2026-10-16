@@ -53,9 +53,9 @@ class _CustomEdgeModelConfig(edge.EdgeModelConfig):
   )
   supported_boundary_conditions: ClassVar[edge.SupportedBoundaryConditions] = (
       edge.SupportedBoundaryConditions(
-          electron_temperature=True,
-          ion_temperature=True,
-          electron_density=True,
+          T_e=True,
+          T_i=True,
+          n_e=True,
       )
   )
 

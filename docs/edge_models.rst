@@ -203,19 +203,19 @@ boundary condition the model does not support.
   built-in extended Lengyel model, or the registered model name for a custom
   edge model.
 
-``update_electron_temperature`` (bool [default = supported_boundary_conditions.electron_temperature])
+``update_T_e`` (bool [default = supported_boundary_conditions.T_e])
   If True, update core electron temperature boundary condition based on edge
   model results.
 
-``update_ion_temperature`` (bool [default = supported_boundary_conditions.ion_temperature])
+``update_T_i`` (bool [default = supported_boundary_conditions.T_i])
   If True, update core ion temperature boundary condition based on edge model
   results.
 
-``update_electron_density`` (bool [default = supported_boundary_conditions.electron_density])
+``update_n_e`` (bool [default = supported_boundary_conditions.n_e])
   If True, update core electron density boundary condition based on edge model
   results.
 
-``update_impurities`` (bool [default = supported_boundary_conditions.impurities])
+``update_n_impurities`` (bool [default = supported_boundary_conditions.n_impurities])
   If True, update core impurity profiles based on edge model results.
 
 

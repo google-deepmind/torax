@@ -507,10 +507,10 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
     # Combine dynamic inputs and runtime params to call standalone function
     runtime_params_dict = dataclasses.asdict(runtime_params)
     runtime_params_dict.pop('enrichment_factor')
-    runtime_params_dict.pop('update_electron_temperature')
-    runtime_params_dict.pop('update_ion_temperature')
-    runtime_params_dict.pop('update_electron_density')
-    runtime_params_dict.pop('update_impurities')
+    runtime_params_dict.pop('update_T_e')
+    runtime_params_dict.pop('update_T_i')
+    runtime_params_dict.pop('update_n_e')
+    runtime_params_dict.pop('update_n_impurities')
     runtime_params_dict.pop('use_enrichment_model')
     runtime_params_dict.pop('impurity_sot')
     # Remove initial_guess as it's not in the standalone args map
@@ -560,45 +560,41 @@ class ExtendedLengyelPydanticModelTest(absltest.TestCase):
   def test_update_electron_density_default_and_explicit_false_valid(self):
     with self.subTest('default'):
       config_default = pydantic_model.ExtendedLengyelConfig.from_dict({})
-      self.assertFalse(config_default.update_electron_density.value.any())
+      self.assertFalse(config_default.update_n_e.value.any())
 
     with self.subTest('explicit_false'):
       config_explicit_false = pydantic_model.ExtendedLengyelConfig.from_dict({
-          'update_electron_density': False,
+          'update_n_e': False,
       })
-      self.assertFalse(
-          config_explicit_false.update_electron_density.value.any()
-      )
+      self.assertFalse(config_explicit_false.update_n_e.value.any())
 
   def test_update_electron_density_time_varying_false_valid(self):
     config_time_varying_false = pydantic_model.ExtendedLengyelConfig.from_dict({
-        'update_electron_density': {0.0: False, 1.0: False},
+        'update_n_e': {0.0: False, 1.0: False},
     })
-    self.assertFalse(
-        config_time_varying_false.update_electron_density.value.any()
-    )
+    self.assertFalse(config_time_varying_false.update_n_e.value.any())
 
   def test_update_electron_density_scalar_and_time_varying_true_raises(self):
     with self.subTest('scalar_true'):
       with self.assertRaisesRegex(
           pydantic.ValidationError,
-          "'update_electron_density' cannot be True because"
-          " 'extended_lengyel' does not support the 'electron_density'"
+          "'update_n_e' cannot be True because"
+          " 'extended_lengyel' does not support the 'n_e'"
           ' boundary condition.',
       ):
         pydantic_model.ExtendedLengyelConfig.from_dict({
-            'update_electron_density': True,
+            'update_n_e': True,
         })
 
     with self.subTest('time_varying_true'):
       with self.assertRaisesRegex(
           pydantic.ValidationError,
-          "'update_electron_density' cannot be True because"
-          " 'extended_lengyel' does not support the 'electron_density'"
+          "'update_n_e' cannot be True because"
+          " 'extended_lengyel' does not support the 'n_e'"
           ' boundary condition.',
       ):
         pydantic_model.ExtendedLengyelConfig.from_dict({
-            'update_electron_density': {0.0: False, 1.0: True},
+            'update_n_e': {0.0: False, 1.0: True},
         })
 
 
