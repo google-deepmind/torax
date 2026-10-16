@@ -671,19 +671,53 @@ the slowing down time itself.
 
 Ohmic power
 -----------
-The Ohmic power density, :math:`P_\mathrm{ohm}`, arising from resistive
-dissipation of the plasma current, is calculated as:
+The Ohmic power density, :math:`P_\mathrm{ohm}`, arising from collisional Joule
+dissipation of the Ohmic current, is calculated as:
 
 .. math::
 
   P_\mathrm{ohm} =
-   \frac{j_\mathrm{tor} }{2 \pi R_\mathrm{maj}}\frac{\partial \psi}{\partial t}
+   \frac{\sigma_{\parallel} \langle \mathbf{E} \cdot \mathbf{B} \rangle^2}
+   {\langle B^2 \rangle}, \qquad
+  \langle \mathbf{E} \cdot \mathbf{B} \rangle =
+   \frac{F g_3}{2\pi} \left(
+   \frac{\partial \psi}{\partial t}
+   - \frac{\hat{\rho}\dot{\Phi}_b}{2\Phi_b}\frac{\partial \psi}{\partial \hat{\rho}}
+   \right)
 
-where :math:`j_\mathrm{tor}` is the toroidal current density, and
-:math:`R_\mathrm{maj}` is the major radius. The loop voltage
+where :math:`\sigma_{\parallel}` is the neoclassical parallel conductivity,
+:math:`\langle B^2 \rangle` is the flux-surface-averaged magnetic field squared
+(``gm5``), and
 :math:`\frac{\partial \psi}{\partial t}` is calculated according to the
 :math:`\psi` equation in the :ref:`equations`. :math:`P_\mathrm{ohm}` is then
 included as a source term in the electron heat transport equation.
+
+The inductive electric field requires :math:`\partial \psi / \partial t` at
+fixed toroidal flux :math:`\Phi`, whereas the :math:`\psi` equation evolves
+:math:`\psi` at fixed :math:`\hat{\rho}`. Since
+:math:`\Phi = \Phi_b \hat{\rho}^2`, a surface at fixed :math:`\hat{\rho}`
+moves to a different :math:`\Phi` when :math:`\Phi_b` changes in time, and the
+two time derivatives differ by the grid-motion term
+:math:`\frac{\hat{\rho}\dot{\Phi}_b}{2\Phi_b}\frac{\partial \psi}{\partial
+\hat{\rho}}` subtracted above (see e.g. Pereverzev & Yushmanov, ASTRA Report
+IPP 5/98, 2002, Eqs. 27 and 44).
+
+This is the Joule dissipation of the Ohmic (inductive) current
+:math:`\mathbf{j}_\mathrm{ohm}`, defined by the flux-surface-averaged parallel
+Ohm's law :math:`\langle \mathbf{j}_\mathrm{ohm} \cdot \mathbf{B} \rangle =
+\sigma_{\parallel} \langle \mathbf{E} \cdot \mathbf{B} \rangle`
+(|hinton1976|). :math:`\mathbf{j}_\mathrm{ohm}` is field-aligned
+and divergence-free, :math:`\mathbf{j}_\mathrm{ohm} = K \mathbf{B}` with
+:math:`0 = \nabla \cdot (K \mathbf{B}) = \mathbf{B} \cdot \nabla K`, so
+:math:`K` is constant on a flux surface. Then
+:math:`P_\mathrm{ohm} = \langle \mathbf{E} \cdot \mathbf{j}_\mathrm{ohm}
+\rangle = K \langle \mathbf{E} \cdot \mathbf{B} \rangle` with
+:math:`K = \langle \mathbf{j}_\mathrm{ohm} \cdot \mathbf{B} \rangle /
+\langle B^2 \rangle`, which gives the expression above and
+:math:`P_\mathrm{ohm} \geq 0`. It excludes the power
+:math:`\langle \mathbf{E} \cdot \mathbf{j}_\mathrm{ni} \rangle`
+exchanged between the non-inductive current and the poloidal field, which is
+not collisional heating of the thermal electrons.
 
 Auxiliary Heating and Current Drive
 -----------------------------------

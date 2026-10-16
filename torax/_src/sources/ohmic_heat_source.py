@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Ohmic heat source."""
+# pylint: disable=invalid-name
 
 import dataclasses
 from typing import Annotated, ClassVar, Literal
@@ -31,8 +32,12 @@ from torax._src.torax_pydantic import torax_pydantic
 class OhmicHeatSource(source_lib.Source):
   """Ohmic heat source for electron heat equation.
 
-  Pohm = jtor * psidot /(2*pi*R_major), related to electric power formula P =
-  IV.
+  P_ohm = sigma * <E . B>^2 / <B^2>, the flux-surface-averaged collisional
+  Joule dissipation of the Ohmic (inductive) current. sigma and <E . B> are
+  those of the flux-surface-averaged parallel Ohm's law
+  <j . B> = sigma * <E . B> + <j_ni . B> solved in the psi equation; see e.g.
+  Hinton & Hazeltine, Rev. Mod. Phys. 48, 239 (1976) and Pereverzev &
+  Yushmanov, ASTRA Report IPP 5/98 (2002), Eq. (44).
   """
 
   SOURCE_ID: ClassVar[str] = 'ohmic'
@@ -63,12 +68,6 @@ class OhmicHeatSource(source_lib.Source):
           ' is used in an explicit source.'
       )
 
-    j_total, _, _ = psi_calculations.calc_j_total(
-        geo,
-        core_profiles.psi,
-        runtime_params.numerics.min_rho_norm,
-    )
-    psi_sources = calculated_source_profiles.total_psi_sources(geo)
     if (
         not runtime_params.numerics.evolve_current
         and runtime_params.profile_conditions.psidot is not None
@@ -77,6 +76,7 @@ class OhmicHeatSource(source_lib.Source):
       # prescribed value
       psidot = runtime_params.profile_conditions.psidot
     else:
+      psi_sources = calculated_source_profiles.total_psi_sources(geo)
       psidot = psi_calculations.calculate_psidot_from_psi_sources(
           psi_sources=psi_sources,
           sigma=conductivity.sigma,
@@ -84,10 +84,19 @@ class OhmicHeatSource(source_lib.Source):
           geo=geo,
       )
 
-    # Ohmic power is positive regardless of the sign of voltage and current.
-    # Use local major radius for accurate local power calculation
-    pohm = jnp.abs(j_total * psidot / (2 * jnp.pi * geo.R_major_profile))
-    return (pohm,)
+    # Joule dissipation of the Ohmic current, P_ohm = sigma <E.B>^2 / <B^2>,
+    # with <E.B> from dpsi/dt at fixed toroidal flux (psidot is at fixed
+    # rho_norm). See the "Ohmic power" section of docs/physics_models.rst.
+    psidot_fixed_phi = (
+        psidot
+        - geo.rho_norm
+        * geo.Phi_b_dot
+        / (2.0 * geo.Phi_b)
+        * core_profiles.psi.grad()
+    )
+    E_dot_B = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot_fixed_phi
+    P_ohm = conductivity.sigma * E_dot_B**2 / geo.gm5
+    return (P_ohm,)
 
 
 class OhmicHeatSourceConfig(base.SourceConfigBase):
