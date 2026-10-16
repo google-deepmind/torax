@@ -178,6 +178,7 @@ class BuilderTest(absltest.TestCase):
             numerics=dict(),
             plasma_composition=dict(),
             profile_conditions=dict(
+                initial_psi_source='j',
                 internal_boundary_conditions=dict(
                     model_name='prescribed',
                     T_e={0.0: {(0.0, 0.3): 10.0}},

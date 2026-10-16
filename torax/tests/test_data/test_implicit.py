@@ -17,6 +17,7 @@
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'j',
         'n_e_right_bc': 0.5e20,
     },
     'numerics': {'t_final': 1, 'chi_timestep_prefactor': 9.0},

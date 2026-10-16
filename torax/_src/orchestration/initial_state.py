@@ -23,6 +23,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
@@ -387,6 +388,9 @@ def _override_initial_runtime_params_from_file(
       profiles_ds.data_vars[output_keys.PSI]
       .sel(rho_norm=profiles_ds.coords[output_keys.RHO_CELL_NORM])
       .to_numpy()
+  )
+  runtime_params.profile_conditions.initial_psi_source = (
+      core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
   )
   # When loading from file we want ne not to have transformations.
   # Both ne and the boundary condition are given in absolute values (not fGW).

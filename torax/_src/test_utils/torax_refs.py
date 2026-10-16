@@ -114,6 +114,7 @@ def circular_references() -> References:
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
+          'initial_psi_source': 'j',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,
@@ -138,6 +139,7 @@ def chease_references_Ip_from_chease() -> References:
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
+          'initial_psi_source': 'geometry',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,
@@ -165,6 +167,7 @@ def chease_references_Ip_from_runtime_params() -> References:
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
+          'initial_psi_source': 'geometry',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,

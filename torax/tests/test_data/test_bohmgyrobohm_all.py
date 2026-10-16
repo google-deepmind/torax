@@ -31,6 +31,7 @@
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'j',
         'nbar': 0.8,
         'n_e_right_bc': 0.5,
         'n_e_right_bc_is_fGW': True,

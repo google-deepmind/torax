@@ -49,6 +49,7 @@ class InitialStatesTest(parameterized.TestCase):
     # Boundary conditions can be time-dependent, but when creating the initial
     # core profiles, we want to grab the boundary condition params at time 0.
     config['profile_conditions'] = {
+        'initial_psi_source': 'j',
         'T_i_right_bc': 27.7,
         'T_e_right_bc': {0.0: 42.0, 1.0: 0.001},
         'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
@@ -232,6 +233,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
     self.base_config_dict = {
         'profile_conditions': {
             'Ip': 15.0e6,
+            'initial_psi_source': 'j',
             'T_i': {0: {0: 15.0, 1: 1.0}},
             'T_e': {0: {0: 15.0, 1: 1.0}},
             'n_e': {0: {0: 1.2e20, 1: 0.8e20}},

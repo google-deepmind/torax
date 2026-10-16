@@ -221,7 +221,7 @@ class FVMTest(parameterized.TestCase):
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
-            profile_conditions=dict(),
+            profile_conditions=dict(initial_psi_source='j'),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
@@ -335,7 +335,7 @@ class FVMTest(parameterized.TestCase):
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
-            profile_conditions=dict(),
+            profile_conditions=dict(initial_psi_source='j'),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=source_config,
@@ -449,7 +449,7 @@ class FVMTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
-            profile_conditions=dict(),
+            profile_conditions=dict(initial_psi_source='j'),
             plasma_composition=dict(),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),

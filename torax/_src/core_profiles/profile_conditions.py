@@ -91,7 +91,7 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     psi: Initial values for psi. If provided, the initial psi will be taken from
       here. Otherwise, the initial psi will be calculated from either the
       geometry or the "current_profile_nu formula" dependant on the
-      `initial_psi_from_j` field.
+      `initial_psi_source` field.
     psidot: Prescribed values for the time derivative of poloidal flux (loop
       voltage). If provided, and if `evolve_current` is False, this prescribed
       `psidot` will be used instead of the internally calculated one. This is
@@ -127,17 +127,11 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
       current upon initialization, or if non-inductive current should be
       included in initial j_total calculation.
-    initial_psi_from_j: Toggles if the initial psi calculation is based on the
-      "current_profile_nu" current formula, or from the psi available in the
-      numerical geometry file. This setting is ignored for the ad-hoc circular
-      geometry, which has no numerical geometry.
-    initial_psi_mode: Mode of the initial psi value. If `PROFILE_CONDITIONS` is
-      used, then the initial psi is taken from the `psi` attribute. If
+    initial_psi_source: Source of the initial psi value. If `PROFILE_CONDITIONS`
+      is used, then the initial psi is taken from the `psi` attribute. If
       `GEOMETRY` is used, then the initial psi is taken from the geometry. If
       `J` is used, then the psi calculation is based on the `current_profile_nu`
-      current formula. For now if `PROFILE_CONDITIONS` is used, but `psi` is not
-      provided then the `initial_psi_from_j` setting will be used to match the
-      legacy behavior.
+      current formula.
   """
 
   Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
@@ -184,12 +178,9 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
   ) = torax_pydantic.ValidatedDefault(ibc_pydantic_model.NoIBC())
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  # TODO(b/434175938): Remove this before the V2 API release in place of
-  # initial_psi_source.
-  initial_psi_from_j: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  initial_psi_mode: Annotated[
-      runtime_params_lib.InitialPsiMode, torax_pydantic.JAX_STATIC
-  ] = runtime_params_lib.InitialPsiMode.PROFILE_CONDITIONS
+  initial_psi_source: Annotated[
+      runtime_params_lib.InitialPsiSource, torax_pydantic.JAX_STATIC
+  ] = runtime_params_lib.InitialPsiSource.PROFILE_CONDITIONS
   fast_ions: list[PrescribedFastIon] | None = None
 
   @pydantic.model_validator(mode='after')

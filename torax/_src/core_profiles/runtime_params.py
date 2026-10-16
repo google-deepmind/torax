@@ -50,7 +50,7 @@ class PrescribedFastIonData:
   T_right_bc: array_typing.FloatScalar
 
 
-class InitialPsiMode(enum.StrEnum):
+class InitialPsiSource(enum.StrEnum):
   """How to calculate the initial psi value."""
 
   PROFILE_CONDITIONS = 'profile_conditions'
@@ -104,9 +104,8 @@ class RuntimeParams:
   )
   current_profile_nu: float
   initial_j_is_total_current: bool = jax.tree.static()
-  initial_psi_from_j: bool = jax.tree.static()
   normalize_n_e_to_nbar: bool = jax.tree.static()
   use_v_loop_lcfs_boundary_condition: bool = jax.tree.static()
   n_e_right_bc_is_absolute: bool = jax.tree.static()
-  initial_psi_mode: InitialPsiMode = jax.tree.static()
+  initial_psi_source: InitialPsiSource = jax.tree.static()
   prescribed_fast_ions: tuple[PrescribedFastIonData, ...] = ()
