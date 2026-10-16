@@ -112,8 +112,14 @@ def run_simulation(
     torax_config: The TORAX config to use for the simulation.
     log_timestep_info: Whether to log the timestep information.
     progress_bar: Whether to show a progress bar.
-    max_steps: The maximum number of steps to take, if not provided, then the
-      simulation will run until the maximum time is reached.
+    max_steps: The maximum number of steps to take. For the non-jitted run loop,
+      if not provided, the simulation runs until `t_final` is reached. When
+      `_use_jitted_run_loop=True` and `max_steps` is not provided, `max_steps`
+      is determined automatically for `fixed_time_step_calculator` (exact step
+      count when `adaptive_dt=False`, or 10x that value when `adaptive_dt=True`;
+      can be overridden to reduce memory usage), while
+      `chi_time_step_calculator` requires `max_steps` to be explicitly specified
+      (otherwise a `ValueError` is raised).
     _use_jitted_run_loop: If True, then a jitted run loop will be used. A
       temporary private argument used for testing.
 

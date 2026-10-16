@@ -14,7 +14,8 @@
 
 """JITted run_loop for iterating over the simulation step function."""
 
-from typing import Any, TypeAlias
+import math
+from typing import Any, Final, TypeAlias
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -25,11 +26,15 @@ from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
+from torax._src.time_step_calculator import fixed_time_step_calculator
+from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 
 PyTree: TypeAlias = Any
 
 
 type Counter = jax.Array  # An integer scalar JAX array.
+
+_ADAPTIVE_DT_MAX_STEPS_MULTIPLIER: Final[int] = 10
 
 
 @jax.jit(static_argnames='max_steps')
@@ -125,6 +130,56 @@ def _unstack_pytree_history(
   return history_list
 
 
+def _get_max_steps(
+    step_fn: step_function.SimulationStepFn,
+    runtime_params_overrides: (
+        build_runtime_params.RuntimeParamsProvider | None
+    ) = None,
+) -> int:
+  """Calculates a heuristic for the maximum number of simulation steps.
+
+  Args:
+    step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
+      after one timestep.
+    runtime_params_overrides: Optional runtime params overrides to use.
+
+  Returns:
+    The maximum number of steps to pre-allocate for the JITted run loop.
+
+  Raises:
+    ValueError: If `chi_time_step_calculator` (or any non-fixed time step
+      calculator) is used, as a default `max_steps` cannot be determined
+      statically.
+  """
+  runtime_params_provider = (
+      runtime_params_overrides or step_fn.runtime_params_provider
+  )
+  calculator_type = (
+      runtime_params_provider.time_step_calculator.calculator_type
+  )
+  if (
+      not isinstance(
+          step_fn.time_step_calculator,
+          fixed_time_step_calculator.FixedTimeStepCalculator,
+      )
+      or calculator_type
+      != time_step_calculator_pydantic_model.TimeStepCalculatorType.FIXED
+  ):
+    raise ValueError(
+        'max_steps must be specified when using '
+        f'{type(step_fn.time_step_calculator).__name__} '
+        f'(calculator_type={calculator_type.value!r}). Please provide an '
+        'explicit max_steps argument.'
+    )
+
+  numerics = runtime_params_provider.numerics
+  min_fixed_dt = float(np.min(numerics.fixed_dt.value))
+  max_steps = math.ceil((numerics.t_final - numerics.t_initial) / min_fixed_dt)
+  if numerics.adaptive_dt:
+    max_steps *= _ADAPTIVE_DT_MAX_STEPS_MULTIPLIER
+  return max_steps
+
+
 def run_loop(
     step_fn: step_function.SimulationStepFn,
     runtime_params_overrides: (
@@ -151,9 +206,14 @@ def run_loop(
     log_timestep_info: If True, logs basic timestep info, like time, dt, on
       every step.
     progress_bar: If True, displays a progress bar.
-    max_steps: Optional maximum number of steps to take. If not provided, then
-      the maximum number of steps will be determined by the numerics.t_final and
-      numerics.min_dt.
+    max_steps: Optional maximum number of steps to take. When using
+      `chi_time_step_calculator`, `max_steps` must be explicitly specified or a
+      `ValueError` is raised. When using `fixed_time_step_calculator`, if not
+      provided, `max_steps` is deterministically set to
+      `ceil((t_final - t_initial) / min(fixed_dt))` when `adaptive_dt=False`, or
+      10x that value when `adaptive_dt=True`. Users can explicitly override
+      `max_steps` (e.g. to reduce pre-allocated buffer memory when
+      `adaptive_dt=True`).
 
   Returns:
     A tuple of:
@@ -180,11 +240,8 @@ def run_loop(
         'Log timestep info is not supported with the jitted run loop.'
     )
 
-  numerics = step_fn.runtime_params_provider.numerics
   if max_steps is None:
-    max_steps = int(
-        ((numerics.t_final - numerics.t_initial) / numerics.min_dt) / 1e5
-    )
+    max_steps = _get_max_steps(step_fn, runtime_params_overrides)
   states_history, post_processed_outputs_history, final_i = run_loop_jit(
       step_fn,
       max_steps,
