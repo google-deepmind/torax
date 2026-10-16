@@ -329,11 +329,10 @@ def _build_smoothing_matrix(
         geo.rho_face_norm, transport_runtime_params.smoothing_width
     )
 
-  smoothing_width_profile = jax.lax.cond(
-      has_zones,
-      build_profile_from_zones,
-      build_profile_fallback,
-  )
+  if has_zones:
+    smoothing_width_profile = build_profile_from_zones()
+  else:
+    smoothing_width_profile = build_profile_fallback()
 
   # Apply pedestal mask if in INTERNAL_BOUNDARY_CONDITION mode.
   # Zeros out smoothing_width_profile for rho >= rho_ped_top to avoid bleeding

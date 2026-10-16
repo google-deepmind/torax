@@ -91,13 +91,11 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
     s = jnp.where(q < 1, 0, s)
     q = jnp.where(q < 1, 1, q)
 
+    T_i_face = core_profiles.T_i.face_value()
     # define radial coordinate as midplane average r
     # (typical assumption for transport models developed in circular geo)
-    rmid = (geo.R_out - geo.R_in) * 0.5
-
-    T_i_face = core_profiles.T_i.face_value()
     T_i_face_grad = core_profiles.T_i.face_grad(
-        x=rmid,
+        x=geo.r_mid,
         x_left=geo.r_mid_face[0],
         x_right=geo.r_mid_face[-1],
         two_point_mask=two_point_mask,
