@@ -124,7 +124,7 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
         rlti >= rlti_crit,
         chiGB
         * transport_runtime_params.chi_stiff
-        * (rlti - rlti_crit) ** transport_runtime_params.alpha,
+        * jnp.maximum(rlti - rlti_crit, 0.0) ** transport_runtime_params.alpha,
         0.0,
     )
 

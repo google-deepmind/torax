@@ -330,7 +330,7 @@ class CriticalGradientTransportModel(
   model_name: Annotated[Literal['CGM'], torax_pydantic.JAX_STATIC] = 'CGM'
   alpha: float = 2.0
   chi_stiff: float = 2.0
-  chi_e_i_ratio: torax_pydantic.NonNegativeTimeVaryingScalar = (
+  chi_e_i_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(2.0)
   )
   chi_D_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
@@ -479,6 +479,12 @@ class SmoothingZone(torax_pydantic.BaseModelFrozen):
   rho_min: torax_pydantic.UnitInterval
   rho_max: torax_pydantic.UnitInterval
   smoothing_width: pydantic.NonNegativeFloat
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.rho_max <= self.rho_min:
+      raise ValueError('rho_max must be greater than rho_min.')
+    return self
 
 
 class TransportModel(torax_pydantic.BaseModelFrozen):
