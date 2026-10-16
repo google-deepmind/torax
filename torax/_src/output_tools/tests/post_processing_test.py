@@ -21,6 +21,7 @@ import numpy as np
 import scipy
 from torax._src import jax_utils
 from torax._src import math_utils
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
@@ -232,6 +233,20 @@ class PostProcessingTest(parameterized.TestCase):
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state_lib.ModelState(
+            pedestal=self.models.pedestal_model.initial_state(
+                self.runtime_params,
+                self.geo,
+                self.core_profiles,
+                self.source_profiles,
+            ),
+            transport=self.models.transport_model.initial_state(
+                self.runtime_params
+            ),
+            sources=self.models.source_models.initial_state(
+                self.runtime_params
+            ),
+        ),
     )
     post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=input_state,
@@ -280,6 +295,20 @@ class PostProcessingTest(parameterized.TestCase):
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state_lib.ModelState(
+            pedestal=self.models.pedestal_model.initial_state(
+                self.runtime_params,
+                self.geo,
+                self.core_profiles,
+                self.source_profiles,
+            ),
+            transport=self.models.transport_model.initial_state(
+                self.runtime_params
+            ),
+            sources=self.models.source_models.initial_state(
+                self.runtime_params
+            ),
+        ),
     )
 
     outputs = post_processing.make_post_processed_outputs(

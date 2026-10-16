@@ -19,6 +19,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -88,6 +89,7 @@ def compute_state(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
+    model_state_t: model_state_lib.ModelState,  # pylint: disable=unused-argument
     solver: solver_lib.Solver,
 ) -> tuple[AdaptiveStepState, dict[str, array_typing.IntScalar]]:
   """Computes the state for attempt i of the adaptive step."""
@@ -152,6 +154,7 @@ def cond_fun(
     unused_pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
+    unused_model_state_t: model_state_lib.ModelState,
 ) -> array_typing.BoolScalar:
   """Condition function for the adaptive step to keep stepping."""
   solver_outputs = inputs.solver_numeric_outputs
