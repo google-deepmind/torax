@@ -2947,6 +2947,12 @@ conductivity
   * ``'sauter'`` (default): Analytical conductivity model from |sauter99|.
   * ``'redl'``: Analytical conductivity model from |redl2021|.
 
+``conductivity_multiplier`` (float > 0 [default = 1.0])
+  Multiplier for the neoclassical parallel conductivity. This scales the
+  physical conductivity used throughout the simulation, so it affects the
+  current diffusion timescale as well as the loop voltage and Ohmic heating.
+  Useful for sensitivity studies.
+
 transport
 ^^^^^^^^^
 ``model_name`` (str [default = ``'angioni_sauter'``])

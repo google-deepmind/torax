@@ -14,6 +14,7 @@
 from unittest import mock
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 from torax._src import state
@@ -24,7 +25,7 @@ from torax._src.neoclassical.conductivity import sauter
 from torax._src.neoclassical.formulas import formulas
 
 
-class RedlConductivityTest(absltest.TestCase):
+class RedlConductivityTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -94,6 +95,26 @@ class RedlConductivityTest(absltest.TestCase):
     )
     self.assertFalse(
         np.allclose(redl_result.sigma_face, sauter_result.sigma_face)
+    )
+
+  @parameterized.parameters(0.5, 2.0)
+  def test_conductivity_multiplier_scales_sigma(self, multiplier):
+    model = redl.RedlModel()
+    reference = model.calculate_conductivity(
+        redl.RuntimeParams(),
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
+    )
+    result = model.calculate_conductivity(
+        redl.RuntimeParams(conductivity_multiplier=multiplier),
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
+    )
+    np.testing.assert_allclose(result.sigma, multiplier * reference.sigma)
+    np.testing.assert_allclose(
+        result.sigma_face, multiplier * reference.sigma_face
     )
 
 

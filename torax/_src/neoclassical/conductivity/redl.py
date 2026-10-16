@@ -51,8 +51,9 @@ class RedlModel(base.ConductivityModel):
       neoclassical_intermediates: formulas.NeoclassicalIntermediates,
   ) -> base.Conductivity:
     """Calculates conductivity using the Redl model."""
-    del runtime_params, geometry
+    del geometry
     return _calculate_conductivity(
+        conductivity_multiplier=runtime_params.conductivity_multiplier,
         Z_eff_face=core_profiles.Z_eff_face,
         T_e=core_profiles.T_e,
         f_trap=neoclassical_intermediates.f_trap,
@@ -79,6 +80,7 @@ class RedlModelConfig(base.ConductivityModelConfig):
 @jax.jit
 def _calculate_conductivity(
     *,
+    conductivity_multiplier: float,
     Z_eff_face: array_typing.FloatVectorFace,
     T_e: cell_variable.CellVariable,
     f_trap: array_typing.FloatVectorFace,
@@ -104,10 +106,10 @@ def _calculate_conductivity(
       nu_e_star=nu_e_star,
       Z_eff=Z_eff_face,
   )
-  sigma_face = sigsptz * signeo_face
-  sigmaneo_cell = geometry_lib.face_to_cell(sigma_face)
+  sigma_face = conductivity_multiplier * sigsptz * signeo_face
+  sigma_cell = geometry_lib.face_to_cell(sigma_face)
 
   return base.Conductivity(
-      sigma=sigmaneo_cell,
+      sigma=sigma_cell,
       sigma_face=sigma_face,
   )

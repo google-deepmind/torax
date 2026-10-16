@@ -14,7 +14,9 @@
 from unittest import mock
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import jax.numpy as jnp
+import numpy as np
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
@@ -22,48 +24,70 @@ from torax._src.neoclassical.conductivity import sauter
 from torax._src.neoclassical.formulas import formulas
 
 
-class SauterTest(absltest.TestCase):
+class SauterTest(parameterized.TestCase):
 
-  def test_sauter_conductivity_current_is_correct_shape(self):
-    n_rho = 10
-    geo = circular_geometry.CircularConfig(n_rho=n_rho).build_geometry()
-    core_profiles = mock.create_autospec(
+  def setUp(self):
+    super().setUp()
+    self.n_rho = 10
+    self.geo = circular_geometry.CircularConfig(
+        n_rho=self.n_rho
+    ).build_geometry()
+    self.core_profiles = mock.create_autospec(
         state.CoreProfiles,
         T_i=cell_variable.CellVariable(
-            value=jnp.linspace(400, 700, n_rho), face_centers=geo.rho_face_norm
+            value=jnp.linspace(400, 700, self.n_rho),
+            face_centers=self.geo.rho_face_norm,
         ),
         T_e=cell_variable.CellVariable(
-            value=jnp.linspace(4000, 7000, n_rho),
-            face_centers=geo.rho_face_norm
+            value=jnp.linspace(4000, 7000, self.n_rho),
+            face_centers=self.geo.rho_face_norm,
         ),
         psi=cell_variable.CellVariable(
-            value=jnp.linspace(9000, 4000, n_rho),
-            face_centers=geo.rho_face_norm
+            value=jnp.linspace(9000, 4000, self.n_rho),
+            face_centers=self.geo.rho_face_norm,
         ),
         n_e=cell_variable.CellVariable(
-            value=jnp.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
+            value=jnp.linspace(100, 200, self.n_rho),
+            face_centers=self.geo.rho_face_norm,
         ),
         n_i=cell_variable.CellVariable(
-            value=jnp.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
+            value=jnp.linspace(100, 200, self.n_rho),
+            face_centers=self.geo.rho_face_norm,
         ),
-        n_i_total_thermal_face=jnp.linspace(110, 230, n_rho + 1),
-        Z_i_face=jnp.linspace(1000, 2000, n_rho + 1),
-        Z_eff_face=jnp.linspace(1.0, 1.0, n_rho + 1),
-        q_face=jnp.linspace(1, 5, n_rho + 1),
+        n_i_total_thermal_face=jnp.linspace(110, 230, self.n_rho + 1),
+        Z_i_face=jnp.linspace(1000, 2000, self.n_rho + 1),
+        Z_eff_face=jnp.linspace(1.0, 1.0, self.n_rho + 1),
+        q_face=jnp.linspace(1, 5, self.n_rho + 1),
     )
-    neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
-        geo, core_profiles
+    self.neoclassical_intermediates = (
+        formulas.compute_neoclassical_intermediates(
+            self.geo, self.core_profiles
+        )
     )
 
-    model = sauter.SauterModel()
-    result = model.calculate_conductivity(
-        sauter.RuntimeParams(),
-        geo,
-        core_profiles,
-        neoclassical_intermediates,
+  def _calculate_conductivity(self, runtime_params: sauter.RuntimeParams):
+    return sauter.SauterModel().calculate_conductivity(
+        runtime_params,
+        self.geo,
+        self.core_profiles,
+        self.neoclassical_intermediates,
     )
-    self.assertEqual(result.sigma.shape, (n_rho,))
-    self.assertEqual(result.sigma_face.shape, (n_rho + 1,))
+
+  def test_sauter_conductivity_current_is_correct_shape(self):
+    result = self._calculate_conductivity(sauter.RuntimeParams())
+    self.assertEqual(result.sigma.shape, (self.n_rho,))
+    self.assertEqual(result.sigma_face.shape, (self.n_rho + 1,))
+
+  @parameterized.parameters(0.5, 2.0)
+  def test_conductivity_multiplier_scales_sigma(self, multiplier):
+    reference = self._calculate_conductivity(sauter.RuntimeParams())
+    result = self._calculate_conductivity(
+        sauter.RuntimeParams(conductivity_multiplier=multiplier)
+    )
+    np.testing.assert_allclose(result.sigma, multiplier * reference.sigma)
+    np.testing.assert_allclose(
+        result.sigma_face, multiplier * reference.sigma_face
+    )
 
 
 if __name__ == "__main__":

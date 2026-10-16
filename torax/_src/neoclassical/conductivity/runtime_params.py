@@ -21,3 +21,5 @@ import jax
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams:
   """Base class for runtime params."""
+
+  conductivity_multiplier: float = 1.0

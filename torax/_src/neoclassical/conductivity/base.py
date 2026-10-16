@@ -19,6 +19,7 @@ import abc
 import dataclasses
 
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src import state
 from torax._src.geometry import geometry as geometry_lib
@@ -51,11 +52,19 @@ class ConductivityModel(abc.ABC):
 
 
 class ConductivityModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
-  """Base class for conductivity model configs."""
+  """Base class for conductivity model configs.
+
+  Attributes:
+    conductivity_multiplier: Multiplication factor for the conductivity.
+  """
+
+  conductivity_multiplier: pydantic.PositiveFloat = 1.0
 
   def build_runtime_params(self) -> conductivity_runtime_params.RuntimeParams:
     """Builds runtime params."""
-    return conductivity_runtime_params.RuntimeParams()
+    return conductivity_runtime_params.RuntimeParams(
+        conductivity_multiplier=self.conductivity_multiplier
+    )
 
   @abc.abstractmethod
   def build_model(self) -> ConductivityModel:
