@@ -61,6 +61,8 @@ _BETA_MAX = 0.05
 _ELECTRON_MASS_RATIO = 2.72e-4
 
 # gyaradax geometry / linear-solve defaults
+# defaults only: every one of these is a config field below. nothing about
+# the linear solve should be reachable only by editing this file.
 _GKPARAMS_DT = 0.005
 _VPAR_MAX = 3.0
 _RREF = 100.0
@@ -71,6 +73,21 @@ _GRID_KEYS = ("nvpar", "nmu", "ns", "nkx", "nky", "ikxspace", "krhomax")
 # perpendicular resolution floor: 43x16 under-resolves the spectrum (ion flux
 # within ~15% but the electron channel off by ~55%), so never run below this
 _GRID_FLOOR = {"nkx": 85, "nky": 32}
+
+# the grids the calibration sets were actually run at. the bundled Cn head
+# still advertises 43x16, which is below the floor, so a named preset is the
+# honest default rather than whatever metadata a head happens to carry.
+_GRID_PRESETS = {
+    "adiabatic": dict(nvpar=32, nmu=8, ns=16, nkx=85, nky=32, ikxspace=5,
+                      krhomax=1.4),
+    "kinetic": dict(nvpar=32, nmu=12, ns=18, nkx=192, nky=32, ikxspace=16,
+                    krhomax=1.5),
+}
+
+
+def ikxspace_for_shat(shat, lo: int = 1, hi: int = 32) -> int:
+    """ikxspace = floor(6.53*|shat|), the rule the stored runs follow."""
+    return int(min(max(int(abs(float(shat)) * 6.53), lo), hi))
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
@@ -99,8 +116,9 @@ def head_grid(path: str) -> dict:
 
 
 def _resolve_grid(cfg, fallback_grid=None) -> dict:
-  """Grid resolution: explicit config wins, else `fallback_grid`."""
-  head_grid = fallback_grid or {}
+  """Grid resolution: explicit config, then grid_preset, then `fallback_grid`."""
+  preset = _GRID_PRESETS.get(getattr(cfg, "grid_preset", None) or "", {})
+  head_grid = {**(fallback_grid or {}), **preset}
   grid = {
       key: (
           getattr(cfg, key, None)
@@ -146,13 +164,13 @@ def gkparams_for_radius(
     config,
 ) -> GKParams:
   """Build a GKParams instance for a single flux-tube radius."""
-  rlt = jnp.clip(ql_inputs.lref_over_lti[rho_idx], _RLT_MIN, _RLT_MAX)
-  rln = jnp.clip(ql_inputs.lref_over_lne[rho_idx], _RLN_MIN, _RLN_MAX)
-  q = jnp.clip(core_profiles.q_face[rho_idx], _Q_MIN, _Q_MAX)
+  rlt = jnp.clip(ql_inputs.lref_over_lti[rho_idx], *config.clip_rlt)
+  rln = jnp.clip(ql_inputs.lref_over_lne[rho_idx], *config.clip_rln)
+  q = jnp.clip(core_profiles.q_face[rho_idx], *config.clip_q)
   smag_face = psi_calculations.calc_s_rmid(geo, core_profiles.psi)
-  shat = jnp.clip(smag_face[rho_idx], _SHAT_MIN, _SHAT_MAX)
+  shat = jnp.clip(smag_face[rho_idx], *config.clip_shat)
   # jnp.asarray: epsilon_face may be numpy; keeps vmap tracer indexing legal
-  eps = jnp.clip(jnp.asarray(geo.epsilon_face)[rho_idx], _EPS_MIN, _EPS_MAX)
+  eps = jnp.clip(jnp.asarray(geo.epsilon_face)[rho_idx], *config.clip_eps)
   em = bool(getattr(config, "em", False))
   if em:
     # EXPERIMENTAL: GKW beta_ref = 2 mu0 n_e T_i / B_0^2; Cn head is ES-only
@@ -163,7 +181,7 @@ def gkparams_for_radius(
     beta = jnp.clip(
         2.0 * constants.CONSTANTS.mu_0 * n_e * t_i_j / geo.B_0**2,
         0.0,
-        _BETA_MAX,
+        config.beta_max,
     )
   else:
     beta = jnp.asarray(0.0)
@@ -171,13 +189,13 @@ def gkparams_for_radius(
     # [ion, electron]; T_ref = T_i (the GKW ion reference), so tmp[0] = 1.
     # one rln for both species: the data are pure D and 2-species gyaradax
     # needs gradient quasineutrality, hence n_e and not n_i0
-    rlt_e = jnp.clip(ql_inputs.lref_over_lte[rho_idx], _RLT_MIN, _RLT_MAX)
+    rlt_e = jnp.clip(ql_inputs.lref_over_lte[rho_idx], *config.clip_rlt)
     te_ti = (
         core_profiles.T_e.face_value()[rho_idx]
         / core_profiles.T_i.face_value()[rho_idx]
     )
     tmp = jnp.stack([jnp.ones_like(te_ti), te_ti])
-    mas = jnp.array([1.0, _ELECTRON_MASS_RATIO])
+    mas = jnp.array([1.0, config.electron_mass_ratio])
     species = dict(
         rlt=jnp.stack([rlt, rlt_e]),
         rln=jnp.stack([rln, rln]),
@@ -199,7 +217,7 @@ def gkparams_for_radius(
       nlapar=em,
       non_linear=False,
       disable_per_ky_norm=True,
-      dt=_GKPARAMS_DT,
+      dt=config.gkparams_dt,
       backend=getattr(config, "backend", "jax"),
       mixed_precision=getattr(config, "mixed_precision", True),
       **species,
@@ -219,14 +237,14 @@ def gyaradax_geometry_at(
       nky=config.nky,
       nvpar=config.nvpar,
       nmu=config.nmu,
-      vpar_max=_VPAR_MAX,
-      nperiod=_NPERIOD,
+      vpar_max=config.vpar_max,
+      nperiod=config.nperiod,
       kxmax=0.0,
       krhomax=config.krhomax,
       ikxspace=config.ikxspace,
       signB=1.0,
-      Rref=_RREF,
-      geom_type=_GEOM_TYPE,
+      Rref=config.rref,
+      geom_type=config.geom_type,
       topology=topology,
   )
 
@@ -249,6 +267,21 @@ class BaseGKWGyaradaxPlugin(
   krhomax: float = 1.4
   # EXPERIMENTAL: beta + A_par flutter
   em: bool = False
+  grid_preset: str = ""
+  ikxspace_per_radius: Tuple[int, ...] = ()
+  # linear-solve configuration, defaulted to the values the scans used
+  vpar_max: float = _VPAR_MAX
+  nperiod: int = _NPERIOD
+  geom_type: str = _GEOM_TYPE
+  gkparams_dt: float = _GKPARAMS_DT
+  rref: float = _RREF
+  electron_mass_ratio: float = _ELECTRON_MASS_RATIO
+  beta_max: float = _BETA_MAX
+  clip_rlt: Tuple[float, float] = (_RLT_MIN, _RLT_MAX)
+  clip_rln: Tuple[float, float] = (_RLN_MIN, _RLN_MAX)
+  clip_q: Tuple[float, float] = (_Q_MIN, _Q_MAX)
+  clip_shat: Tuple[float, float] = (_SHAT_MIN, _SHAT_MAX)
+  clip_eps: Tuple[float, float] = (_EPS_MIN, _EPS_MAX)
   # EXPERIMENTAL: kinetic electrons; needs a Cn fitted on kinetic data
   kinetic: bool = False
   diagnostics_path: str = ""
@@ -360,6 +393,20 @@ class BaseGKWGyaradaxPlugin(
         ikxspace=int(grid["ikxspace"]),
         krhomax=float(grid["krhomax"]),
         em=getattr(cfg, "em", False),
+        grid_preset=getattr(cfg, "grid_preset", "") or "",
+        **{
+            k: v
+            for k, v in (
+                (name, getattr(cfg, name, None))
+                for name in (
+                    "vpar_max", "nperiod", "geom_type", "gkparams_dt", "rref",
+                    "electron_mass_ratio", "beta_max", "clip_rlt", "clip_rln",
+                    "clip_q", "clip_shat", "clip_eps",
+                )
+            )
+            if v is not None
+        },
+        ikxspace_per_radius=tuple(getattr(cfg, "ikxspace_per_radius", None) or ()),
         kinetic=getattr(cfg, "kinetic", False),
         diagnostics_path=getattr(cfg, "diagnostics_path", None) or "",
     )
@@ -371,6 +418,18 @@ class BaseGKWGyaradaxPlugin(
   @property
   def topology(self):
     return _get_topology_cached(self.nkx, self.nky, self.ikxspace, self.ns)
+
+  def topology_at(self, k: int):
+    """Topology for the k-th rho_match radius.
+
+    ikxspace sizes the mode connectivity, so it has to be static, while shat
+    is traced and evolves. Per-radius values are therefore fixed at build
+    time from `ikxspace_per_radius`, not re-derived from the live shear.
+    """
+    per = self.ikxspace_per_radius
+    if not per:
+      return self.topology
+    return _get_topology_cached(self.nkx, self.nky, int(per[k]), self.ns)
 
   @property
   def sink(self) -> Any:
@@ -441,7 +500,12 @@ class BaseGKWGyaradaxPlugin(
       idx = diag_lib.mark_begin(sink, idx)
       return self._per_radius_from_profiles(idx, ql_inputs, core_profiles, geo)
 
-    qi_m, qe_m, pfe_m = jax.vmap(per_radius)(match_idx)
+    if self.ikxspace_per_radius:
+      # one topology per radius, so the radii cannot share a vmap
+      out = [per_radius(match_idx[k]) for k in range(len(self.rho_match))]
+      qi_m, qe_m, pfe_m = (jnp.stack([o[i] for o in out]) for i in range(3))
+    else:
+      qi_m, qe_m, pfe_m = jax.vmap(per_radius)(match_idx)
 
     rho_face = geo.rho_face_norm
     rho_match_arr = jnp.asarray(self.rho_match)
@@ -523,6 +587,20 @@ class SolverGKWGyaradaxConfig(BaseGKWGyaradaxConfig):
       subclass's `_grid_fallback` supplies them; set explicitly to override.
     ikxspace: kx mode spacing (parallel boundary connection).
     krhomax: maximum binormal wavenumber k_theta*rho; same None semantics.
+    grid_preset: 'adiabatic' or 'kinetic' -- the grid the matching
+      calibration set was run at, used for any grid field left unset.
+      Explicit fields still win. Prefer this to inheriting a Cn head's grid.
+    vpar_max, nperiod, geom_type, gkparams_dt, rref, electron_mass_ratio:
+      the gyaradax linear-solve settings. Defaults match the scans the
+      calibration data came from; set them to run any other configuration.
+      geom_type selects the geometry model ('circ', 's-alpha', 'miller').
+    beta_max, clip_rlt, clip_rln, clip_q, clip_shat, clip_eps: the
+      safe-operating box the local parameters are clipped into.
+    ikxspace_per_radius: one ikxspace per rho_match radius, replacing the
+      single static value. ikxspace sizes the mode connectivity so it cannot
+      track the evolving shear; set it from the reference profile, e.g. with
+      ikxspace_for_shat(shat) = floor(6.53*|shat|), the rule the stored runs
+      follow. Costs one topology and one compilation per radius.
     kinetic: EXPERIMENTAL. Kinetic electrons (2 species) instead of
       adiabatic. Needs cn_override: no kinetic Cn head is bundled.
     em: EXPERIMENTAL electromagnetic tier — finite local beta and A_par
@@ -539,4 +617,21 @@ class SolverGKWGyaradaxConfig(BaseGKWGyaradaxConfig):
   ikxspace: Annotated[Optional[int], torax_pydantic.JAX_STATIC] = None
   krhomax: Annotated[Optional[float], torax_pydantic.JAX_STATIC] = None
   em: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  grid_preset: Annotated[Optional[str], torax_pydantic.JAX_STATIC] = None
+  ikxspace_per_radius: Annotated[
+      Optional[Tuple[int, ...]], torax_pydantic.JAX_STATIC
+  ] = None
+  # linear-solve configuration; None means "use the model default"
+  vpar_max: Annotated[Optional[float], torax_pydantic.JAX_STATIC] = None
+  nperiod: Annotated[Optional[int], torax_pydantic.JAX_STATIC] = None
+  geom_type: Annotated[Optional[str], torax_pydantic.JAX_STATIC] = None
+  gkparams_dt: Annotated[Optional[float], torax_pydantic.JAX_STATIC] = None
+  rref: Annotated[Optional[float], torax_pydantic.JAX_STATIC] = None
+  electron_mass_ratio: Annotated[Optional[float], torax_pydantic.JAX_STATIC] = None
+  beta_max: Annotated[Optional[float], torax_pydantic.JAX_STATIC] = None
+  clip_rlt: Annotated[Optional[Tuple[float, float]], torax_pydantic.JAX_STATIC] = None
+  clip_rln: Annotated[Optional[Tuple[float, float]], torax_pydantic.JAX_STATIC] = None
+  clip_q: Annotated[Optional[Tuple[float, float]], torax_pydantic.JAX_STATIC] = None
+  clip_shat: Annotated[Optional[Tuple[float, float]], torax_pydantic.JAX_STATIC] = None
+  clip_eps: Annotated[Optional[Tuple[float, float]], torax_pydantic.JAX_STATIC] = None
   kinetic: Annotated[bool, torax_pydantic.JAX_STATIC] = False

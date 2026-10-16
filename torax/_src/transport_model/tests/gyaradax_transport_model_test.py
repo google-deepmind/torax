@@ -211,6 +211,67 @@ class GyaradaxTransportModelTest(parameterized.TestCase):
         rtol=1e-12,
     )
 
+  def test_any_grid_is_reachable_from_config(self):
+    cfg = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict({
+        'model_name': 'gyaradax-ql',
+        'nvpar': 48, 'nmu': 12, 'ns': 18, 'nkx': 192, 'nky': 64,
+        'ikxspace': 7, 'krhomax': 1.5,
+        'vpar_max': 3.5, 'nperiod': 2, 'geom_type': 'miller',
+        'gkparams_dt': 0.0025, 'rref': 50.0,
+    })
+    m = cfg.build_transport_model()
+    for k, v in (('nvpar', 48), ('nmu', 12), ('ns', 18), ('nkx', 192),
+                 ('nky', 64), ('ikxspace', 7), ('krhomax', 1.5),
+                 ('vpar_max', 3.5), ('nperiod', 2), ('geom_type', 'miller'),
+                 ('gkparams_dt', 0.0025), ('rref', 50.0)):
+      self.assertEqual(getattr(m, k), v, k)
+
+  def test_grid_preset_supplies_unset_fields_only(self):
+    cfg = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict(
+        {'model_name': 'gyaradax-ql', 'grid_preset': 'kinetic', 'nky': 48}
+    )
+    m = cfg.build_transport_model()
+    self.assertEqual(m.nkx, 192)   # from the preset
+    self.assertEqual(m.nmu, 12)    # from the preset
+    self.assertEqual(m.nky, 48)    # explicit config still wins
+
+  def test_rule_options_reach_the_rule(self):
+    from gyaradax.quasilinear import rules as gyx_rules
+    cfg = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict({
+        'model_name': 'gyaradax-ql', 'rule': 'sat2',
+        'rule_options': {'flux_exponent': 0.58, 'kx_width_model': 'tglf'},
+    })
+    m = cfg.build_transport_model()
+    self.assertEqual(dict(m.rule_options)['flux_exponent'], 0.58)
+    # every option named must actually be a parameter of the selected rule
+    import inspect
+    sig = inspect.signature(gyx_rules.RULES['sat2'])
+    for key in dict(m.rule_options):
+      self.assertIn(key, sig.parameters, key)
+
+  def test_every_registered_rule_is_selectable(self):
+    from gyaradax.quasilinear import rules as gyx_rules
+    for name in gyx_rules.RULES:
+      cfg = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict(
+          {'model_name': 'gyaradax-ql', 'rule': name}
+      )
+      self.assertEqual(cfg.build_transport_model().rule, name)
+
+  def test_ikxspace_per_radius_is_static_and_sized(self):
+    rho = (0.35, 0.55, 0.75)
+    cfg = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict({
+        'model_name': 'gyaradax-ql', 'rho_match': rho,
+        'ikxspace_per_radius': (3, 5, 11),
+    })
+    m = cfg.build_transport_model()
+    self.assertEqual(len(m.ikxspace_per_radius), len(rho))
+    # a distinct topology per radius, not the single shared one
+    self.assertEqual(gyaradax_base.ikxspace_for_shat(1.0), 6)
+    self.assertEqual(gyaradax_base.ikxspace_for_shat(0.0), 1)
+    self.assertEqual(gyaradax_base.ikxspace_for_shat(99.0), 32)
+    for k in range(len(rho)):
+      self.assertIsNotNone(m.topology_at(k))
+
   def test_kinetic_without_cn_override_raises(self):
     config = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict(
         {'model_name': 'gyaradax-ql', 'kinetic': True}

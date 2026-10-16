@@ -42,6 +42,7 @@ class GyaradaxQLTransportModel(base_lib.BaseGKWGyaradaxPlugin):
 
   n_steps_linear: int = 2000
   rule: str = "canonical"
+  rule_options: Tuple[Tuple[str, Any], ...] = ()
   cn_calibration_path: str = "auto"
   cn_scalar: float = 1.0
   cn_override: float = -1.0
@@ -63,6 +64,7 @@ class GyaradaxQLTransportModel(base_lib.BaseGKWGyaradaxPlugin):
         **cls._base_kwargs(cfg),
         n_steps_linear=cfg.n_steps_linear,
         rule=cfg.rule,
+        rule_options=tuple(sorted((getattr(cfg, 'rule_options', None) or {}).items())),
         cn_override=(-1.0 if cfg.cn_override is None else float(cfg.cn_override)),
         cn_calibration_path=cfg.cn_calibration_path or "",
         early_stop=cfg.early_stop,
@@ -113,6 +115,7 @@ class GyaradaxQLTransportModel(base_lib.BaseGKWGyaradaxPlugin):
         (self.nvpar, self.nmu, self.ns, self.nkx, self.nky),
         cn=self._cn(params),
         rule=self.rule,
+        rule_options=dict(self.rule_options),
         n_steps_linear=self.n_steps_linear,
         early_stop=self.early_stop,
         early_stop_opts=dict(
@@ -137,6 +140,9 @@ class GyaradaxQLConfig(base_lib.SolverGKWGyaradaxConfig):
       intensity on the full linear eigenmode. Each rule has its own
       amplitude constant, so a non-default rule needs cn_override or a head
       fit for it; the bundled head is 'canonical'-only.
+    rule_options: extra keyword arguments forwarded to the selected rule,
+      so a rule's own knobs work without a plugin change -- e.g.
+      {'flux_exponent': 0.58} or {'kx_width_model': 'tglf'} for sat2.
     cn_override: amplitude constant Cn, bypassing the calibration head.
     cn_calibration_path: selects the Cn calibration head. 'auto' (default)
       uses the head bundled with gyaradax; a registry name
@@ -158,6 +164,7 @@ class GyaradaxQLConfig(base_lib.SolverGKWGyaradaxConfig):
   )
   n_steps_linear: Annotated[int, torax_pydantic.JAX_STATIC] = 2000
   rule: Annotated[str, torax_pydantic.JAX_STATIC] = "canonical"
+  rule_options: Annotated[Optional[Dict[str, Any]], torax_pydantic.JAX_STATIC] = None
   cn_override: Annotated[Optional[float], torax_pydantic.JAX_STATIC] = None
   cn_calibration_path: Annotated[Optional[str], torax_pydantic.JAX_STATIC] = (
       "auto"
