@@ -83,7 +83,7 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     with self.assertRaises(pydantic.ValidationError):
       pydantic_model.Pedestal.from_dict({
           "structure_model": {"model_name": "no_pedestal"},
-          "initial_confinement_mode": "H_MODE",
+          "formation_model": {"initial_confinement_mode": "H_MODE"},
       })
 
   def test_update_structure_model_from_no_pedestal_activates_pedestal(self):
@@ -290,17 +290,17 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     default_ped = pydantic_model.Pedestal.from_dict(
         {"structure_model": {"model_name": "set_T_ped_n_ped"}}
     )
-    self.assertIsNone(default_ped.initial_confinement_mode)
+    self.assertIsNone(default_ped.formation_model.initial_confinement_mode)
     self.assertEqual(default_ped.initial_L_mode_bc_multiplier, 2.0)
 
     custom_ped = pydantic_model.Pedestal.from_dict({
         "structure_model": {"model_name": "set_T_ped_n_ped"},
-        "initial_confinement_mode": "L_MODE",
+        "formation_model": {"initial_confinement_mode": "L_MODE"},
         "initial_L_mode_bc_multiplier": 3.5,
     })
     params = custom_ped.build_runtime_params(t=0.0)
     self.assertEqual(
-        params.initial_confinement_mode,
+        params.formation.initial_confinement_mode,
         runtime_params.ConfinementMode.L_MODE,
     )
     self.assertEqual(params.initial_L_mode_bc_multiplier, 3.5)
@@ -308,7 +308,7 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     with self.assertRaises(pydantic.ValidationError):
       pydantic_model.Pedestal.from_dict({
           "structure_model": {"model_name": "set_T_ped_n_ped"},
-          "initial_confinement_mode": "invalid_mode",
+          "formation_model": {"initial_confinement_mode": "invalid_mode"},
       })
     with self.assertRaises(pydantic.ValidationError):
       pydantic_model.Pedestal.from_dict({

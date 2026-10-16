@@ -749,7 +749,10 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
   ):
     pedestal_params = dataclasses.replace(
         self.runtime_params.pedestal,
-        initial_confinement_mode=initial_confinement_mode,
+        formation=dataclasses.replace(
+            self.runtime_params.pedestal.formation,
+            initial_confinement_mode=initial_confinement_mode,
+        ),
     )
     runtime_params = dataclasses.replace(
         self.runtime_params, pedestal=pedestal_params

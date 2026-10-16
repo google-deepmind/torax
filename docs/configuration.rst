@@ -960,12 +960,6 @@ three sub-models:
   implicitly with current profiles regardless of this setting, since the
   saturation model's profile-based feedback loop requires implicit coupling.
 
-``initial_confinement_mode`` (**str | None** [default = ``None``])
-  Optional explicit initial confinement mode (``'L_MODE'`` or ``'H_MODE'``) at
-  :math:`t_{\text{initial}}`. When ``None`` (default), the initial mode is
-  inferred automatically from the formation model's transition conditions at
-  :math:`t_{\text{initial}}` (cannot be ``'H_MODE'`` for ``'no_pedestal'``).
-
 ``initial_L_mode_bc_multiplier`` (**float** [default = 2.0])
   Multiplier applied to the LCFS right-boundary values (:math:`T_i`, :math:`T_e`,
   :math:`n_e`) at :math:`t_{\text{initial}}` to seed the L-mode pedestal-top
@@ -1028,6 +1022,17 @@ three sub-models:
      starting at :math:`t \ge t_{\text{trans}}` (and not during an earlier step
      that merely crosses :math:`t_{\text{trans}}`).
 
+  All formation models share the following parameters:
+
+  * ``initial_confinement_mode`` (**str | None** [default = ``None``]):
+    Optional explicit initial confinement mode (``'L_MODE'`` or ``'H_MODE'``)
+    at :math:`t_{\text{initial}}`. When ``None`` (default), the initial mode is
+    inferred automatically from the formation model's transition conditions at
+    :math:`t_{\text{initial}}` (cannot be ``'H_MODE'`` for ``'no_pedestal'``).
+  * ``base_multiplier`` (float [default = 1e-6]): The base value of the
+    transport decrease multiplier in ``'ADAPTIVE_TRANSPORT'`` mode when the
+    pedestal is active.
+
   The ``model_name`` key selects the model:
 
   * ``'prescribed'``: Controls pedestal activation via a prescribed boolean
@@ -1044,9 +1049,6 @@ three sub-models:
     * ``pedestal_active`` (**time-varying-scalar** [default = True]): Whether
       the pedestal is active (default interpolation is ``STEP``; evaluated at
       step start :math:`t`).
-    * ``base_multiplier`` (float [default = 1e-6]): Transport decrease
-      multiplier applied in ``ADAPTIVE_TRANSPORT`` mode when
-      ``pedestal_active`` is True.
 
   * ``'martin_scaling'``: Uses the Martin scaling law to determine the L-H
     power threshold. Additional parameters:
@@ -1055,8 +1057,6 @@ three sub-models:
       transition sigmoid function.
     * ``offset`` (float [default = 0.0]): Dimensionless offset applied to the
       argument of the transition sigmoid function.
-    * ``base_multiplier`` (float [default = 1e-6]): The base value of the
-      transport decrease multiplier in ``ADAPTIVE_TRANSPORT`` mode.
     * ``P_LH_prefactor`` (float [default = 1.0]): Dimensionless multiplier
       applied to :math:`P_{LH}`.
     * ``P_LH_hysteresis_factor`` (**time-varying-scalar** [default = 0.8]):

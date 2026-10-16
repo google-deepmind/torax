@@ -83,9 +83,9 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
     """Returns the initial confinement mode at t_initial."""
     # Allow explicit override (e.g. to trigger an L-H or H-L transition ramp
     # from initialization) before falling back to transition conditions.
-    if runtime_params.pedestal.initial_confinement_mode is not None:
+    if runtime_params.pedestal.formation.initial_confinement_mode is not None:
       return jnp.array(
-          runtime_params.pedestal.initial_confinement_mode,
+          runtime_params.pedestal.formation.initial_confinement_mode,
           dtype=jax_utils.get_int_dtype(),
       )
     trigger_l_to_h_transition, _ = self.evaluate_transition_conditions(

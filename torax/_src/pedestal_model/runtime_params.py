@@ -72,9 +72,17 @@ class StructureRuntimeParams:
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class FormationRuntimeParams:
-  """Base runtime params for pedestal formation models."""
+  """Base runtime params for pedestal formation models.
+
+  Attributes:
+    base_multiplier: Transport decrease multiplier in ADAPTIVE_TRANSPORT mode.
+    initial_confinement_mode: Optional explicit initial confinement mode
+      (L_MODE or H_MODE) at t_initial. When None, inferred from the formation
+      model's transition conditions at t_initial.
+  """
 
   base_multiplier: array_typing.FloatScalar
+  initial_confinement_mode: ConfinementMode | None
 
 
 @jax.tree_util.register_dataclass
@@ -114,9 +122,6 @@ class RuntimeParams:
     V_e_min: Minimum effective particle pinch velocity [m/s].
     pedestal_top_smoothing_width: Width of the smoothing kernel at the pedestal
       top.
-    initial_confinement_mode: Optional explicit initial confinement mode
-      (L_MODE or H_MODE) at t_initial. When None, inferred from the formation
-      model's transition conditions at t_initial.
     initial_L_mode_bc_multiplier: Multiplier applied to the LCFS boundary
       condition values (`T_i`, `T_e`, `n_e` at the right face) to seed the
       L-mode pedestal-top baselines at `t_initial` when the simulation starts
@@ -134,5 +139,4 @@ class RuntimeParams:
   V_e_max: array_typing.FloatScalar
   V_e_min: array_typing.FloatScalar
   pedestal_top_smoothing_width: array_typing.FloatScalar
-  initial_confinement_mode: ConfinementMode | None
   initial_L_mode_bc_multiplier: array_typing.FloatScalar
