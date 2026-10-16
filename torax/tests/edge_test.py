@@ -15,7 +15,7 @@
 """Testing the public API of the edge package."""
 
 import dataclasses
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 from absl.testing import absltest
 import jax.numpy as jnp
@@ -50,6 +50,13 @@ class _CustomEdgeModelConfig(edge.EdgeModelConfig):
 
   model_name: Annotated[Literal['custom_edge'], torax.JAX_STATIC] = (
       'custom_edge'
+  )
+  supported_boundary_conditions: ClassVar[edge.SupportedBoundaryConditions] = (
+      edge.SupportedBoundaryConditions(
+          electron_temperature=True,
+          ion_temperature=True,
+          electron_density=True,
+      )
   )
 
   def build_edge_model(self) -> _CustomEdgeModel:

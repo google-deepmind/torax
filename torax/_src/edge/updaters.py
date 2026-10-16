@@ -95,6 +95,8 @@ def _update_electron_temperature(
     edge_outputs: edge_base.EdgeModelOutputs,
 ) -> runtime_params_lib.RuntimeParams:
   """Updates electron temperature boundary condition based on edge outputs."""
+  if edge_outputs.T_e_right_bc is None:
+    return runtime_params
   return dataclasses.replace(
       runtime_params,
       profile_conditions=dataclasses.replace(
@@ -109,6 +111,8 @@ def _update_ion_temperature(
     edge_outputs: edge_base.EdgeModelOutputs,
 ) -> runtime_params_lib.RuntimeParams:
   """Updates ion temperature boundary condition based on edge model outputs."""
+  if edge_outputs.T_i_right_bc is None:
+    return runtime_params
   return dataclasses.replace(
       runtime_params,
       profile_conditions=dataclasses.replace(
@@ -123,6 +127,8 @@ def _update_density(
     edge_outputs: edge_base.EdgeModelOutputs,
 ) -> runtime_params_lib.RuntimeParams:
   """Updates electron density boundary condition based on edge model outputs."""
+  if edge_outputs.n_e_right_bc is None:
+    return runtime_params
   return dataclasses.replace(
       runtime_params,
       profile_conditions=dataclasses.replace(

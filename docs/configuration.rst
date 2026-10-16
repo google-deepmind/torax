@@ -1182,19 +1182,24 @@ their physics validation, and numerical implementation.
 ``model_name`` (str [default = 'extended_lengyel'])
   Selects the edge model. Currently only ``'extended_lengyel'`` is supported.
 
-``update_electron_temperature`` (bool [default = True])
+The following boundary condition update flags are common to all edge models.
+Each defaults to whether the selected model supports computing that boundary
+condition, and cannot be set to ``True`` for a boundary condition the model
+does not support. See :ref:`edge_models` for details.
+
+``update_electron_temperature`` (bool [default = model dependent])
   If ``True``, update the core solver's boundary electron temperature using the
   value calculated by the edge model.
 
-``update_ion_temperature`` (bool [default = True])
+``update_ion_temperature`` (bool [default = model dependent])
   If ``True``, update the core solver's boundary ion temperature using the value
   calculated by the edge model.
 
-``update_electron_density`` (bool [default = False])
+``update_electron_density`` (bool [default = model dependent])
   If ``True``, update the core solver's boundary electron density using the
   value calculated by the edge model.
 
-``update_impurities`` (bool [default = True])
+``update_impurities`` (bool [default = model dependent])
   If ``True``, and enrichment modeling is used or enrichment factors are
   provided, update the core solver's impurity boundary conditions based on
   edge enrichment calculations.
@@ -1208,6 +1213,12 @@ radiation.
 
 See :ref:`extended_lengyel_config` for the complete list of physical and
 control parameters.
+
+The Extended Lengyel model computes the electron temperature, ion temperature
+and impurity boundary conditions, but not the electron density boundary
+condition. So ``update_electron_temperature``, ``update_ion_temperature`` and
+``update_impurities`` default to ``True``, and ``update_electron_density``
+defaults to ``False`` (and cannot be set to ``True``).
 
 **Key Control Parameters:**
 

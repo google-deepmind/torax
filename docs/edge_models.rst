@@ -192,26 +192,30 @@ Base Edge Configuration Parameters
 ==================================
 
 All edge model configurations inherit from ``EdgeModelConfig`` and support
-the following common configuration parameters:
+the following common configuration parameters. Each model declares, via its
+class-level ``supported_boundary_conditions``, which boundary conditions it can
+compute. Each ``update_*`` flag defaults to the corresponding
+``supported_boundary_conditions`` value, and cannot be set to ``True`` for a
+boundary condition the model does not support.
 
 ``model_name`` (str [default = 'extended_lengyel'])
   The edge model discriminator tag. Set to ``'extended_lengyel'`` for the
   built-in extended Lengyel model, or the registered model name for a custom
   edge model.
 
-``update_electron_temperature`` (bool [default = False])
+``update_electron_temperature`` (bool [default = supported_boundary_conditions.electron_temperature])
   If True, update core electron temperature boundary condition based on edge
   model results.
 
-``update_ion_temperature`` (bool [default = False])
+``update_ion_temperature`` (bool [default = supported_boundary_conditions.ion_temperature])
   If True, update core ion temperature boundary condition based on edge model
   results.
 
-``update_electron_density`` (bool [default = False])
+``update_electron_density`` (bool [default = supported_boundary_conditions.electron_density])
   If True, update core electron density boundary condition based on edge model
   results.
 
-``update_impurities`` (bool [default = False])
+``update_impurities`` (bool [default = supported_boundary_conditions.impurities])
   If True, update core impurity profiles based on edge model results.
 
 

@@ -164,22 +164,22 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     # --- 2. Configure Edge Model ---
     # Provide the remaining parameters via the edge config.
-    edge_config = pydantic_model.ExtendedLengyelConfig(
-        model_name='extended_lengyel',
-        computation_mode=extended_lengyel_enums.ComputationMode.INVERSE,
-        solver_mode=extended_lengyel_enums.SolverMode.FIXED_POINT,
-        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
-        T_e_target=2.34,
-        connection_length_target=20.0,
-        connection_length_divertor=5.0,
-        angle_of_incidence_target=3.0,
-        ratio_bpol_omp_to_bpol_avg=4.0 / 3.0,
-        toroidal_flux_expansion=1.0,
-        seed_impurity_weights={'N': 1.0, 'Ar': 0.05},
-        fixed_impurity_concentrations={'He': 0.01},
-        enrichment_factor={'N': 1.0, 'Ar': 1.0, 'He': 1.0},
-        use_enrichment_model=False,
-    )
+    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+        'model_name': 'extended_lengyel',
+        'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
+        'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
+        'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+        'T_e_target': 2.34,
+        'connection_length_target': 20.0,
+        'connection_length_divertor': 5.0,
+        'angle_of_incidence_target': 3.0,
+        'ratio_bpol_omp_to_bpol_avg': 4.0 / 3.0,
+        'toroidal_flux_expansion': 1.0,
+        'seed_impurity_weights': {'N': 1.0, 'Ar': 0.05},
+        'fixed_impurity_concentrations': {'He': 0.01},
+        'enrichment_factor': {'N': 1.0, 'Ar': 1.0, 'He': 1.0},
+        'use_enrichment_model': False,
+    })
     edge_runtime_params = edge_config.build_runtime_params(t=0.0)
 
     # Mock full RuntimeParams to hold the edge params
@@ -304,24 +304,24 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     # 4. Configure Edge params
-    edge_config = pydantic_model.ExtendedLengyelConfig(
-        model_name='extended_lengyel',
-        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
-        fixed_impurity_concentrations={
+    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+        'model_name': 'extended_lengyel',
+        'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+        'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+        'fixed_impurity_concentrations': {
             'He': 0.05
         },  # Stale value, should be ignored
-        enrichment_factor={'He': enrichment},
-        seed_impurity_weights={},
+        'enrichment_factor': {'He': enrichment},
+        'seed_impurity_weights': {},
         # Other required fields
-        connection_length_target=10.0,
-        connection_length_divertor=5.0,
-        angle_of_incidence_target=1.0,
-        toroidal_flux_expansion=1.0,
-        ratio_bpol_omp_to_bpol_avg=1.0,
-        use_enrichment_model=False,
-        diverted=True,
-    )
+        'connection_length_target': 10.0,
+        'connection_length_divertor': 5.0,
+        'angle_of_incidence_target': 1.0,
+        'toroidal_flux_expansion': 1.0,
+        'ratio_bpol_omp_to_bpol_avg': 1.0,
+        'use_enrichment_model': False,
+        'diverted': True,
+    })
     edge_params = edge_config.build_runtime_params(t=0.0)
 
     # 5. Construct RuntimeParams with plasma composition
@@ -428,24 +428,24 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     )
 
     # 5. Configure Edge with use_previous_step_as_guess=True (default)
-    edge_config = pydantic_model.ExtendedLengyelConfig(
-        model_name='extended_lengyel',
-        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
-        fixed_impurity_concentrations={'He': 0.05},
-        seed_impurity_weights={},
-        connection_length_target=10.0,
-        connection_length_divertor=5.0,
-        angle_of_incidence_target=1.0,
-        toroidal_flux_expansion=1.0,
-        ratio_bpol_omp_to_bpol_avg=1.0,
-        use_enrichment_model=False,
-        enrichment_factor={'He': 1.0},
-        diverted=True,
-        initial_guess=pydantic_model.InitialGuessConfig(
-            use_previous_step_as_guess=True,
-        ),
-    )
+    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+        'model_name': 'extended_lengyel',
+        'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+        'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+        'fixed_impurity_concentrations': {'He': 0.05},
+        'seed_impurity_weights': {},
+        'connection_length_target': 10.0,
+        'connection_length_divertor': 5.0,
+        'angle_of_incidence_target': 1.0,
+        'toroidal_flux_expansion': 1.0,
+        'ratio_bpol_omp_to_bpol_avg': 1.0,
+        'use_enrichment_model': False,
+        'enrichment_factor': {'He': 1.0},
+        'diverted': True,
+        'initial_guess': {
+            'use_previous_step_as_guess': True,
+        },
+    })
     edge_params = edge_config.build_runtime_params(t=0.0)
 
     # 6. Construct RuntimeParams
@@ -595,23 +595,23 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         valid_for_core_update=jnp.array(valid_for_core_update),
     )
 
-    edge_config = pydantic_model.ExtendedLengyelConfig(
-        model_name='extended_lengyel',
-        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
-        fixed_impurity_concentrations={'He': 0.05},
-        seed_impurity_weights={},
-        connection_length_target=10.0,
-        connection_length_divertor=5.0,
-        angle_of_incidence_target=1.0,
-        toroidal_flux_expansion=1.0,
-        ratio_bpol_omp_to_bpol_avg=1.0,
-        use_enrichment_model=True,
-        diverted=True,
-        initial_guess=pydantic_model.InitialGuessConfig(
-            use_previous_step_as_guess=True,
-        ),
-    )
+    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+        'model_name': 'extended_lengyel',
+        'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+        'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+        'fixed_impurity_concentrations': {'He': 0.05},
+        'seed_impurity_weights': {},
+        'connection_length_target': 10.0,
+        'connection_length_divertor': 5.0,
+        'angle_of_incidence_target': 1.0,
+        'toroidal_flux_expansion': 1.0,
+        'ratio_bpol_omp_to_bpol_avg': 1.0,
+        'use_enrichment_model': True,
+        'diverted': True,
+        'initial_guess': {
+            'use_previous_step_as_guess': True,
+        },
+    })
     edge_params = edge_config.build_runtime_params(t=0.0)
 
     mock_runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
@@ -766,21 +766,21 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     else:
       previous_edge_outputs = None
 
-    edge_config = pydantic_model.ExtendedLengyelConfig(
-        model_name='extended_lengyel',
-        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=impurity_sot,
-        use_enrichment_model=use_enrichment_model,
-        enrichment_factor={'Ne': 2.0},
-        fixed_impurity_concentrations={'Ne': 0.05},
-        seed_impurity_weights={},
-        connection_length_target=10.0,
-        connection_length_divertor=2.0,
-        toroidal_flux_expansion=1.0,
-        angle_of_incidence_target=1.0,
-        ratio_bpol_omp_to_bpol_avg=1.0,
-        diverted=True,
-    )
+    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+        'model_name': 'extended_lengyel',
+        'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+        'impurity_sot': impurity_sot,
+        'use_enrichment_model': use_enrichment_model,
+        'enrichment_factor': {'Ne': 2.0},
+        'fixed_impurity_concentrations': {'Ne': 0.05},
+        'seed_impurity_weights': {},
+        'connection_length_target': 10.0,
+        'connection_length_divertor': 2.0,
+        'toroidal_flux_expansion': 1.0,
+        'angle_of_incidence_target': 1.0,
+        'ratio_bpol_omp_to_bpol_avg': 1.0,
+        'diverted': True,
+    })
     runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
     runtime_params.edge = edge_config.build_runtime_params(t=0.0)
     mock_pc = mock.MagicMock(spec=plasma_composition_lib.RuntimeParams)
@@ -898,20 +898,20 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         ),
     )
 
-    edge_config = pydantic_model.ExtendedLengyelConfig(
-        model_name='extended_lengyel',
-        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
-        use_enrichment_model=True,
-        diverted=True,
-        fixed_impurity_concentrations={'Ne': 0.05},
-        seed_impurity_weights={},
-        connection_length_target=10.0,
-        connection_length_divertor=2.0,
-        toroidal_flux_expansion=1.0,
-        angle_of_incidence_target=1.0,
-        ratio_bpol_omp_to_bpol_avg=1.0,
-    )
+    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+        'model_name': 'extended_lengyel',
+        'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+        'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+        'use_enrichment_model': True,
+        'diverted': True,
+        'fixed_impurity_concentrations': {'Ne': 0.05},
+        'seed_impurity_weights': {},
+        'connection_length_target': 10.0,
+        'connection_length_divertor': 2.0,
+        'toroidal_flux_expansion': 1.0,
+        'angle_of_incidence_target': 1.0,
+        'ratio_bpol_omp_to_bpol_avg': 1.0,
+    })
     runtime_params = mock.MagicMock(spec=runtime_params_lib.RuntimeParams)
     runtime_params.edge = edge_config.build_runtime_params(t=0.0)
     mock_pc = mock.MagicMock(spec=plasma_composition_lib.RuntimeParams)
@@ -1011,21 +1011,21 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
-    edge_config = pydantic_model.ExtendedLengyelConfig(
-        model_name='extended_lengyel',
-        computation_mode=extended_lengyel_enums.ComputationMode.FORWARD,
-        impurity_sot=extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
-        fixed_impurity_concentrations={'He': 0.05},
-        seed_impurity_weights={},
-        connection_length_target=10.0,
-        connection_length_divertor=5.0,
-        angle_of_incidence_target=1.0,
-        toroidal_flux_expansion=1.0,
-        ratio_bpol_omp_to_bpol_avg=1.0,
-        use_enrichment_model=True,
-        diverted=diverted,
-        divertor_broadening_factor=_CONFIG_BROADENING,
-    )
+    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+        'model_name': 'extended_lengyel',
+        'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
+        'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
+        'fixed_impurity_concentrations': {'He': 0.05},
+        'seed_impurity_weights': {},
+        'connection_length_target': 10.0,
+        'connection_length_divertor': 5.0,
+        'angle_of_incidence_target': 1.0,
+        'toroidal_flux_expansion': 1.0,
+        'ratio_bpol_omp_to_bpol_avg': 1.0,
+        'use_enrichment_model': True,
+        'diverted': diverted,
+        'divertor_broadening_factor': _CONFIG_BROADENING,
+    })
     edge_params = edge_config.build_runtime_params(t=0.0)
 
     # 5. Construct RuntimeParams
@@ -1397,6 +1397,8 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
     assert isinstance(
         final_edge_output, extended_lengyel_standalone.ExtendedLengyelOutputs
     )
+    assert final_edge_output.T_e_right_bc is not None
+    assert final_edge_output.T_i_right_bc is not None
     np.testing.assert_allclose(
         final_edge_output.T_i_right_bc,
         final_edge_output.T_e_right_bc * ion_to_electron_ratio,

@@ -15,7 +15,7 @@
 """Pydantic configs for all edge models, currently only extended_lengyel."""
 
 import logging
-from typing import Annotated, Any, Literal, Mapping, Self
+from typing import Annotated, Any, ClassVar, Literal, Mapping, Self
 import chex
 import pydantic
 from torax._src import constants
@@ -90,6 +90,14 @@ class InitialGuessConfig(torax_pydantic.BaseModelFrozen):
 class ExtendedLengyelConfig(base.EdgeModelConfig):
   """Configuration for the extended Lengyel edge model."""
 
+  supported_boundary_conditions: ClassVar[base.SupportedBoundaryConditions] = (
+      base.SupportedBoundaryConditions(
+          electron_temperature=True,
+          ion_temperature=True,
+          electron_density=False,
+          impurities=True,
+      )
+  )
   model_name: Annotated[
       Literal['extended_lengyel'], torax_pydantic.JAX_STATIC
   ] = 'extended_lengyel'
@@ -104,20 +112,6 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
       extended_lengyel_enums.FixedImpuritySourceOfTruth,
       torax_pydantic.JAX_STATIC,
   ] = extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE
-  # Flags allowing user to test simulation sensitivity to boundary condition
-  # updates, while still providing edge model outputs even if not used.
-  update_electron_temperature: torax_pydantic.TimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(True)
-  )
-  update_ion_temperature: torax_pydantic.TimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(True)
-  )
-  update_electron_density: torax_pydantic.TimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(False)
-  )
-  update_impurities: torax_pydantic.TimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(True)
-  )
   fixed_point_iterations: pydantic.PositiveInt | None = None
   fixed_point_relaxation_factor: Annotated[
       float, pydantic.Field(gt=0.0, le=1.0)
@@ -259,14 +253,6 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
               extended_lengyel_defaults.FIXED_POINT_ITERATIONS
           )
     return data
-
-  @pydantic.model_validator(mode='after')
-  def _validate_update_electron_density(self) -> Self:
-    if self.update_electron_density.value.any():
-      raise ValueError(
-          'ExtendedLengyelConfig does not support update_electron_density.'
-      )
-    return self
 
   @pydantic.model_validator(mode='after')
   def _log_warning_for_unused_enrichment_factor(

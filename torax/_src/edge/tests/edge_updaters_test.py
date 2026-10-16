@@ -241,6 +241,25 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
         rtol=1e-5,
     )
 
+  def test_none_bc_fields_are_noop(self):
+    params = self._with_edge_flags(
+        update_electron_temperature=True,
+        update_ion_temperature=False,
+        update_electron_density=False,
+        update_impurities=False,
+    )
+    partial_outputs = edge_base.EdgeModelOutputs(
+        T_e_right_bc=jnp.array(0.123),
+    )
+    updated = updaters.update_runtime_params(params, partial_outputs)
+    np.testing.assert_allclose(updated.profile_conditions.T_e_right_bc, 0.123)
+    np.testing.assert_allclose(
+        updated.profile_conditions.T_i_right_bc,
+        params.profile_conditions.T_i_right_bc,
+    )
+    np.testing.assert_allclose(updated.profile_conditions.n_e_right_bc, 0.5)
+    self.assertTrue(updated.profile_conditions.n_e_right_bc_is_fGW)
+
 
 if __name__ == '__main__':
   absltest.main()

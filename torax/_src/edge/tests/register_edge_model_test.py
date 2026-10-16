@@ -15,7 +15,7 @@
 """Tests for the edge model registration."""
 
 import dataclasses
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 from absl.testing import absltest
 import jax.numpy as jnp
@@ -46,7 +46,57 @@ class RegisterEdgeModelTest(absltest.TestCase):
     config["edge"] = {"model_name": "dummy_edge"}
     torax_config = model_config.ToraxConfig.from_dict(config)
     self.assertIsNotNone(torax_config.edge)
-    self.assertIsInstance(torax_config.edge.build_edge_model(), DummyEdgeModel)
+    edge_model = torax_config.edge.build_edge_model()
+    self.assertIsInstance(edge_model, DummyEdgeModel)
+
+  def test_update_flags_default_to_supported_boundary_conditions(self):
+    register_model.register_edge_model(DummyElectronTemperatureConfig)
+
+    config = default_configs.get_default_config_dict()
+    config["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    config["edge"] = {"model_name": "dummy_te"}
+    torax_config = model_config.ToraxConfig.from_dict(config)
+    assert torax_config.edge is not None
+    runtime_params = torax_config.edge.build_runtime_params(t=0.0)
+    self.assertTrue(runtime_params.update_electron_temperature)
+    self.assertFalse(runtime_params.update_ion_temperature)
+    self.assertFalse(runtime_params.update_electron_density)
+    self.assertFalse(runtime_params.update_impurities)
+
+  def test_error_if_update_flag_set_for_unsupported_bc(self):
+    """Test that an error is raised if an unsupported BC is updated."""
+    register_model.register_edge_model(DummyElectronTemperatureConfig)
+
+    config = default_configs.get_default_config_dict()
+    config["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    config["edge"] = {
+        "model_name": "dummy_te",
+        "update_ion_temperature": True,
+    }
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        r"'update_ion_temperature' cannot be True because 'dummy_te' does not"
+        r" support the 'ion_temperature' boundary condition\.",
+    ):
+      model_config.ToraxConfig.from_dict(config)
+
+  def test_missing_supported_boundary_conditions_raises_error(self):
+    class BadEdgeConfig(base.EdgeModelConfig):
+      model_name: Annotated[Literal["bad"], torax_pydantic.JAX_STATIC] = "bad"
+
+      def build_edge_model(self) -> DummyEdgeModel:
+        return DummyEdgeModel()
+
+    with self.assertRaisesRegex(
+        pydantic.ValidationError, "supported_boundary_conditions must be set."
+    ):
+      BadEdgeConfig.from_dict({})
 
   def test_dynamic_registration_updates_discriminator(self):
     register_model.register_edge_model(DummyEdgeConfig)
@@ -85,12 +135,37 @@ class DummyEdgeModel(base.EdgeModel):
 class DummyEdgeConfig(base.EdgeModelConfig):
   """Dummy edge model configuration for testing."""
 
+  supported_boundary_conditions: ClassVar[base.SupportedBoundaryConditions] = (
+      base.SupportedBoundaryConditions(
+          electron_temperature=True,
+          ion_temperature=True,
+          electron_density=True,
+          impurities=True,
+      )
+  )
   model_name: Annotated[Literal["dummy_edge"], torax_pydantic.JAX_STATIC] = (
       "dummy_edge"
   )
 
   def build_edge_model(self) -> DummyEdgeModel:
     return DummyEdgeModel()
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class DummyElectronTemperatureModel(DummyEdgeModel):
+  """Dummy edge model that only computes the electron temperature BC."""
+
+
+class DummyElectronTemperatureConfig(base.EdgeModelConfig):
+  supported_boundary_conditions: ClassVar[base.SupportedBoundaryConditions] = (
+      base.SupportedBoundaryConditions(electron_temperature=True)
+  )
+  model_name: Annotated[Literal["dummy_te"], torax_pydantic.JAX_STATIC] = (
+      "dummy_te"
+  )
+
+  def build_edge_model(self) -> DummyElectronTemperatureModel:
+    return DummyElectronTemperatureModel()
 
 
 if __name__ == "__main__":
