@@ -64,9 +64,7 @@ class PedestalProfileForm(enum.StrEnum):
 class StructureRuntimeParams:
   """Base runtime params for pedestal structure models."""
 
-  pedestal_profile_form: PedestalProfileForm = dataclasses.field(
-      metadata={"static": True}
-  )
+  pedestal_profile_form: PedestalProfileForm = jax.tree.static()
 
 
 @jax.tree_util.register_dataclass
@@ -129,9 +127,9 @@ class RuntimeParams:
       directly in H-mode without L-mode profile data.
   """
 
-  mode: Mode = dataclasses.field(metadata={"static": True})
+  mode: Mode = jax.tree.static()
   transition_time_width: array_typing.FloatScalar
-  explicit_pedestal: bool = dataclasses.field(metadata={"static": True})
+  explicit_pedestal: bool = jax.tree.static()
   structure: StructureRuntimeParams
   formation: FormationRuntimeParams
   saturation: SaturationRuntimeParams

@@ -50,7 +50,7 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   clip_inputs: bool
   clip_margin: float
   shear_suppression_alpha: float
-  output_mode_contributions: bool = dataclasses.field(metadata={'static': True})
+  output_mode_contributions: bool = jax.tree.static()
 
 
 _EPSILON_NN: Final[float] = (

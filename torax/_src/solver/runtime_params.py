@@ -24,22 +24,16 @@ from torax._src import tridiagonal
 class RuntimeParams:
   """Input params for the solver which can be used as compiled args."""
 
-  theta_implicit: float = dataclasses.field(metadata={'static': True})
-  use_predictor_corrector: bool = dataclasses.field(metadata={'static': True})
-  n_corrector_steps: int = dataclasses.field(metadata={'static': True})
-  use_pereverzev: bool = dataclasses.field(metadata={'static': True})
-  implicit_solver_type: tridiagonal.SolverType = dataclasses.field(
-      metadata={'static': True}
-  )
+  theta_implicit: float = jax.tree.static()
+  use_predictor_corrector: bool = jax.tree.static()
+  n_corrector_steps: int = jax.tree.static()
+  use_pereverzev: bool = jax.tree.static()
+  implicit_solver_type: tridiagonal.SolverType = jax.tree.static()
   chi_pereverzev: float
   D_pereverzev: float  # pylint: disable=invalid-name
   fixed_point_atol: float
   fixed_point_rtol: float
-  fixed_point_termination_criterion: str = dataclasses.field(
-      metadata={'static': True}
-  )
+  fixed_point_termination_criterion: str = jax.tree.static()
   fixed_point_sufficient_decrease: float
-  fixed_point_use_backtracking: bool = dataclasses.field(
-      metadata={'static': True}
-  )
+  fixed_point_use_backtracking: bool = jax.tree.static()
   delta_reduction_factor: float

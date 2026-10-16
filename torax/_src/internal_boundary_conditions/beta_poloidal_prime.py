@@ -86,10 +86,8 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
   Ti_Te_ratio: array_typing.FloatScalar
   n_e_edge: array_typing.FloatScalar | None = None
   n_e_edge_multiplier: array_typing.FloatScalar | None = None
-  n_e_is_fGW: bool = dataclasses.field(default=False, metadata={'static': True})
-  mode: Mode = dataclasses.field(
-      default=Mode.CONSTANT, metadata={'static': True}
-  )
+  n_e_is_fGW: bool = jax.tree.static(default=False)
+  mode: Mode = jax.tree.static(default=Mode.CONSTANT)
   beta_poloidal_prime_min: array_typing.FloatScalar = 0.2
   P_SOL_scaling: array_typing.FloatScalar | None = None
 

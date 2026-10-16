@@ -44,13 +44,13 @@ class RuntimeParams:
   resistivity_multiplier: array_typing.FloatScalar
   dW_dt_smoothing_time_scale: float
   min_rho_norm: float
-  evolve_ion_heat: bool = dataclasses.field(metadata={'static': True})
-  evolve_electron_heat: bool = dataclasses.field(metadata={'static': True})
-  evolve_current: bool = dataclasses.field(metadata={'static': True})
-  evolve_density: bool = dataclasses.field(metadata={'static': True})
-  exact_t_final: bool = dataclasses.field(metadata={'static': True})
-  adaptive_dt: bool = dataclasses.field(metadata={'static': True})
-  enable_fast_ions: bool = dataclasses.field(metadata={'static': True})
+  evolve_ion_heat: bool = jax.tree.static()
+  evolve_electron_heat: bool = jax.tree.static()
+  evolve_current: bool = jax.tree.static()
+  evolve_density: bool = jax.tree.static()
+  exact_t_final: bool = jax.tree.static()
+  adaptive_dt: bool = jax.tree.static()
+  enable_fast_ions: bool = jax.tree.static()
 
   @functools.cached_property
   def evolving_names(self) -> tuple[str, ...]:

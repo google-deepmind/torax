@@ -54,9 +54,7 @@ class InitialGuessRuntimeParams:
   T_e_separatrix: array_typing.FloatScalar
   T_e_target: array_typing.FloatScalar
   c_z_prefactor: array_typing.FloatScalar
-  use_previous_step_as_guess: bool = dataclasses.field(
-      metadata={'static': True}
-  )
+  use_previous_step_as_guess: bool = jax.tree.static()
 
 
 @jax.tree_util.register_dataclass
@@ -67,21 +65,17 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   # See extended_lengyel_standalone.py for documentation of these parameters.
 
   # --- Control Parameters ---
-  computation_mode: extended_lengyel_enums.ComputationMode = dataclasses.field(
-      metadata={'static': True}
-  )
-  solver_mode: extended_lengyel_enums.SolverMode = dataclasses.field(
-      metadata={'static': True}
-  )
+  computation_mode: extended_lengyel_enums.ComputationMode = jax.tree.static()
+  solver_mode: extended_lengyel_enums.SolverMode = jax.tree.static()
   impurity_sot: extended_lengyel_enums.FixedImpuritySourceOfTruth = (
-      dataclasses.field(metadata={'static': True})
+      jax.tree.static()
   )
   fixed_point_iterations: int
   fixed_point_relaxation_factor: float
   newton_raphson_iterations: int
   newton_raphson_tol: float
   # Number of guesses for forward mode multistart solver.
-  multistart_num_guesses: int = dataclasses.field(metadata={'static': True})
+  multistart_num_guesses: int = jax.tree.static()
 
   # --- Physical Parameters ---
   # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
@@ -111,7 +105,7 @@ class RuntimeParams(edge_runtime_params.RuntimeParams):
   seed_impurity_weights: Mapping[str, array_typing.FloatScalar] | None
   fixed_impurity_concentrations: Mapping[str, array_typing.FloatScalar]
   enrichment_factor: Mapping[str, array_typing.FloatScalar] | None
-  use_enrichment_model: bool = dataclasses.field(metadata={'static': True})
+  use_enrichment_model: bool = jax.tree.static()
   enrichment_model_multiplier: array_typing.FloatScalar
 
   # --- Optional parameter for inverse mode ---

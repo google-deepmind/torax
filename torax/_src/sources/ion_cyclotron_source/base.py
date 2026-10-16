@@ -38,7 +38,7 @@ class RuntimeParams(source_runtime_params_lib.RuntimeParams):
 
   P_total: array_typing.FloatScalar
   absorption_fraction: array_typing.FloatScalar
-  minority_species: str = dataclasses.field(metadata={'static': True})
+  minority_species: str = jax.tree.static()
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
