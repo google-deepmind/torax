@@ -58,8 +58,8 @@ CONFIG['sources'].pop('fusion')
 # the temperature drop
 CONFIG['solver'] = {
     'solver_type': 'newton_raphson',
-    'use_predictor_corrector': True,
-    'n_corrector_steps': 5,
+    'use_fixed_point': True,
+    'n_fixed_point_iterations': 5,
     'chi_pereverzev': 30,
     'D_pereverzev': 15,
     'use_pereverzev': True,

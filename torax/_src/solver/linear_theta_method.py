@@ -25,7 +25,7 @@ from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
-from torax._src.solver import predictor_corrector_method
+from torax._src.solver import fixed_point_method
 from torax._src.solver import solver as solver_lib
 
 
@@ -85,7 +85,7 @@ class LinearThetaMethod(solver_lib.Solver):
     # standard linear solve if
     # runtime_params_slice.predictor_corrector=False.
     # init_val is the initialization for the predictor_corrector loop.
-    x_new = predictor_corrector_method.predictor_corrector_method(
+    x_new = fixed_point_method.fixed_point_method(
         dt=dt,
         runtime_params_t_plus_dt=runtime_params_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
@@ -98,9 +98,9 @@ class LinearThetaMethod(solver_lib.Solver):
         model_state=model_state,
     )
 
-    if runtime_params_t_plus_dt.solver.use_predictor_corrector:
+    if runtime_params_t_plus_dt.solver.use_fixed_point:
       inner_solver_iterations = (
-          1 + runtime_params_t_plus_dt.solver.n_corrector_steps
+          1 + runtime_params_t_plus_dt.solver.n_fixed_point_iterations
       )
     else:
       inner_solver_iterations = 1

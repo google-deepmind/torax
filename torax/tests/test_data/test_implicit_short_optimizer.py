@@ -49,7 +49,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'optimizer',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'theta_implicit': 1.0,
     },
     'time_step_calculator': {

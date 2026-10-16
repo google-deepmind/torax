@@ -2720,12 +2720,11 @@ specific solver are defined in the relevant section below.
   theta value in the theta method of time discretization. 0 = explicit, 1 =
   fully implicit, 0.5 = Crank-Nicolson.
 
-``use_predictor_corrector`` (bool [default = True])
-  Enables use_predictor_corrector iterations with the linear solver.
+``use_fixed_point`` (bool [default = True])
+  Enables use_fixed_point iterations with the linear solver.
 
-``n_corrector_steps`` (int [default = 10])
-  Number of corrector steps for the predictor-corrector linear solver. 0 means a
-  pure linear solve with no corrector steps. Must be a positive integer.
+``n_fixed_point_iterations`` (int [default = 10])
+  The number of iterations for the fixed-point linear solver. Must be a positive integer.
 
 ``atol`` (float | None [default = None])
   Absolute tolerance for fixed-point iterations in the predictor-corrector solver.
@@ -2804,7 +2803,7 @@ newton_raphson
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear
-    solver. If used, is recommended to do so with the use_predictor_corrector
+    solver. If used, is recommended to do so with the use_fixed_point
     solver and several corrector steps. It is also strongly recommended to
     ``use_pereverzev=True`` if a stiff transport model like qlknn is used.
 
@@ -2859,7 +2858,7 @@ optimizer
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear
-    solver. If used, is recommended to do so with the use_predictor_corrector
+    solver. If used, is recommended to do so with the use_fixed_point
     solver and several corrector steps. It is also strongly recommended to
     use_pereverzev=True if a stiff transport model like qlknn is used.
 
@@ -3267,8 +3266,8 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'solver': {
           'solver_type': 'newton_raphson',
-          'use_predictor_corrector': True,
-          'n_corrector_steps': 10,
+          'use_fixed_point': True,
+          'n_fixed_point_iterations': 10,
           'chi_pereverzev': 30,
           'D_pereverzev': 15,
           'use_pereverzev': True,

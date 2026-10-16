@@ -105,7 +105,7 @@ CONFIG['pedestal'] = {
 # L-H transition.
 CONFIG['solver'] = {
     'solver_type': 'newton_raphson',
-    'use_predictor_corrector': True,
+    'use_fixed_point': True,
     'use_pereverzev': True,
 }
 

@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Carries out the predictor corrector method for the PDE solution.
+"""Carries out the fixed point method for the PDE solution.
 
 Picard iterations to approximate the nonlinear solution. If
-runtime_params_slice.solver.use_predictor_corrector is False, reverts to
+runtime_params_slice.solver.use_fixed_point is False, reverts to
 a standard linear solution.
 """
 
@@ -33,13 +33,12 @@ from torax._src.orchestration import explicit_model_outputs as explicit_model_ou
 from torax._src.solver import jax_fixed_point
 
 
-# TODO(b/434175938): Rename to fixed_point_method.
 @jax.jit(
     static_argnames=[
         'coeffs_callback',
     ],
 )
-def predictor_corrector_method(
+def fixed_point_method(
     dt: jax.Array,
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     geo_t_plus_dt: geometry.Geometry,
@@ -51,7 +50,7 @@ def predictor_corrector_method(
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     model_state: model_state_lib.ModelState,
 ) -> tuple[cell_variable.CellVariable, ...]:
-  """Predictor-corrector method.
+  """Fixed-point method.
 
   Args:
     dt: current timestep
@@ -73,8 +72,8 @@ def predictor_corrector_method(
   """
   solver_params = runtime_params_t_plus_dt.solver
 
-  # predictor-corrector loop. Will only be traversed once if not in
-  # predictor-corrector mode
+  # fixed-point loop. Will only be traversed once if not in
+  # fixed-point mode
   def loop_body(x_new_guess):
     coeffs_new = coeffs_callback(
         runtime_params_t_plus_dt,
@@ -96,11 +95,11 @@ def predictor_corrector_method(
         implicit_solver_type=solver_params.implicit_solver_type,
     )
 
-  if solver_params.use_predictor_corrector:
+  if solver_params.use_fixed_point:
     x_new = jax_fixed_point.fixed_point(
         loop_body,
         x_new_guess,
-        maxiter=solver_params.n_corrector_steps + 1,
+        maxiter=solver_params.n_fixed_point_iterations + 1,
         atol=solver_params.fixed_point_atol,
         rtol=solver_params.fixed_point_rtol,
         termination_criterion=solver_params.fixed_point_termination_criterion,

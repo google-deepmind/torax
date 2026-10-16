@@ -179,8 +179,8 @@ CONFIG = {
         # TODO(b/515255142): Improve the warm-start predictor-corrector so that
         # it can be re-enabled.
         'initial_guess_mode': 'x_old',
-        'use_predictor_corrector': True,
-        'n_corrector_steps': 5,
+        'use_fixed_point': True,
+        'n_fixed_point_iterations': 5,
         # (Deliberately) large heat conductivity and particle diffusion for
         # Pereverzev rule
         'chi_pereverzev': 30,

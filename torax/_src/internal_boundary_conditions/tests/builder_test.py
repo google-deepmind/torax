@@ -184,7 +184,7 @@ class BuilderTest(absltest.TestCase):
             geometry=dict(geometry_type='circular', n_rho=20),
             pedestal=dict(),
             sources=dict(),
-            solver=dict(use_predictor_corrector=False),
+            solver=dict(use_fixed_point=False),
             transport=dict(),
             time_step_calculator=dict(),
         )
