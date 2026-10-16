@@ -456,6 +456,12 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
       L-mode baseline and H-mode target values over this time window. Must be
       explicitly specified in INTERNAL_BOUNDARY_CONDITION mode when using a
       power-scaling formation model; defaults to 0.0 otherwise.
+    explicit_pedestal: When True (default), the pedestal model is evaluated once
+      per timestep before the solver and its output is frozen during the solve.
+      When False, it is re-evaluated whenever the solver recomputes the PDE
+      coefficients (e.g. each Newton-Raphson iteration or predictor-corrector
+      step). In ADAPTIVE_TRANSPORT mode, the transport multipliers are always
+      re-evaluated.
     formation_model: Configuration for the pedestal formation model.
     saturation_model: Configuration for the pedestal saturation model.
     chi_max: Maximum effective thermal diffusion coefficient from the core
@@ -470,6 +476,9 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
     V_e_min: Minimum effective particle pinch velocity from the core transport
       model in the pedestal region (i.e., before applying ADAPTIVE_TRANSPORT)
       [m/s].
+    pedestal_top_smoothing_width: Width of the smoothing region applied to the
+      transport coefficients at the pedestal top in ADAPTIVE_TRANSPORT mode, in
+      units of rho_norm.
     initial_L_mode_bc_multiplier: Multiplier applied to the LCFS boundary
       condition values (`T_i`, `T_e`, `n_e` at the right face) to seed the
       L-mode pedestal-top baselines at `t_initial` when the simulation starts

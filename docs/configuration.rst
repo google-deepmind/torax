@@ -1132,7 +1132,7 @@ electron temperature.
   In units of reference density if ``n_e_ped_is_fGW==False``. In units of
   Greenwald fraction if ``n_e_ped_is_fGW==True``.
 
-``n_e_ped_is_fGW`` (**time-varying-scalar** [default = False])
+``n_e_ped_is_fGW`` (**bool** [default = False])
   Toggles units of ``n_e_ped``.
 
 ``T_i_ped`` (**time-varying-scalar** [default = 5.0])
@@ -1155,12 +1155,12 @@ total pressure at the pedestal and the ratio of ion to electron temperature.
 ``P_ped_multiplier`` (**time-varying-scalar** [default = 1.0])
   Multiplier for the pedestal pressure.
 
-``n_e_ped`` (**time-varying-scalar** [default = 0.7])
+``n_e_ped`` (**time-varying-scalar** [default = 0.7e20])
   Electron density at the pedestal top. In units of reference density if
   ``n_e_ped_is_fGW==False``. In units of  Greenwald fraction if
   ``n_e_ped_is_fGW==True``.
 
-``n_e_ped_is_fGW`` (**time-varying-scalar** [default = False])
+``n_e_ped_is_fGW`` (**bool** [default = False])
   Toggles units of ``n_e_ped``.
 
 ``T_i_T_e_ratio`` (**time-varying-scalar** [default = 1.0])

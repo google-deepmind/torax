@@ -189,16 +189,22 @@ additional runtime parameters. Your runtime parameters class should inherit
 from ``torax.pedestal.StructureRuntimeParams`` and will be available at
 ``runtime_params.pedestal.structure``.
 
+Continuing from Step 1 (additional imports only):
+
 .. code-block:: python
 
     from typing import Annotated, Literal
+
+    import jax
+    from torax._src import array_typing
+    from torax._src.torax_pydantic import torax_pydantic
 
     @jax.tree_util.register_dataclass
     @dataclasses.dataclass(frozen=True)
     class MyStructureRuntimeParams(pedestal.StructureRuntimeParams):
       """Runtime parameters for MyPedestalStructureModel."""
 
-      T_ped: torax.FloatScalar
+      T_ped: array_typing.FloatScalar
 
     class MyStructureConfig(pedestal.BaseStructure):
       """Pydantic config for MyPedestalStructureModel."""
@@ -206,7 +212,9 @@ from ``torax.pedestal.StructureRuntimeParams`` and will be available at
       model_name: Annotated[
           Literal['my_pedestal'], torax.JAX_STATIC
       ] = 'my_pedestal'
-      T_ped: torax.TimeVaryingScalar = torax.ValidatedDefault(5.0)
+      T_ped: torax_pydantic.TimeVaryingScalar = (
+          torax_pydantic.ValidatedDefault(5.0)
+      )
 
       def build_structure_model(self) -> MyPedestalStructureModel:
         return MyPedestalStructureModel()

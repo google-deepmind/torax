@@ -311,12 +311,24 @@ models (``core_transport_models`` and ``pedestal_transport_models``) with
 explicit radial bounds (``rho_min``, ``rho_max``) and merge modes
 (``merge_mode: 'add'`` or ``'overwrite'``).
 
-An edge-transport-barrier, or pedestal, is set up in TORAX through internal
-boundary conditions which set a desired value (pedestal height) of
-:math:`T_e`, :math:`T_i` and :math:`n_e`, at a user-configurable location
-(pedestal width). Two different variants are available, one setting the pedestal
-pressure and temperature ratios, and the other setting the pedestal temperatures
-directly.
+An edge-transport-barrier, or pedestal, is set up in TORAX by a pedestal model
+composed of three sub-models. A structure model sets the H-mode target values of
+:math:`T_e`, :math:`T_i` and :math:`n_e` at a user-configurable pedestal-top
+location (pedestal width). Two built-in variants are available, one setting the
+pedestal pressure and temperature ratio, and the other setting the pedestal
+temperatures directly; external models such as EPED surrogates can also be
+registered (see :ref:`model-integration`). A formation model determines when
+L-H and H-L transitions occur, either from a prescribed schedule or from a
+:math:`P_{LH}` power-threshold scaling law with hysteresis. A saturation model
+increases pedestal transport once the pedestal-top values exceed their targets.
+
+The pedestal is imposed in one of two modes. In ``INTERNAL_BOUNDARY_CONDITION``
+mode, internal boundary conditions set the pedestal-top values directly (either
+at a single grid point or as an mtanh profile across the pedestal region), with
+an optional linear ramp during L-H and H-L transitions. In
+``ADAPTIVE_TRANSPORT`` mode, the turbulent transport coefficients in the
+pedestal region are scaled down by the formation model and back up by the
+saturation model, allowing the pedestal to evolve self-consistently.
 
 In L-mode discharges, edge kinetic profiles (:math:`T_i, T_e, n_e`) in the edge
 region :math:`\hat{\rho} \ge \hat{\rho}_{\text{edge}}` can optionally be
@@ -339,10 +351,7 @@ profiles at each solver iteration.
 In the TORAX roadmap, coupling to additional transport models is envisaged,
 including to additional semi-empirical models and H-mode confinement
 scaling law adaptive models, as well as more ML-surrogates of theory-based
-models, both for core turbulence and pedestal predictions. A more physically
-consistent approach for setting up the pedestal will be implemented by
-incorporating adaptive transport coefficients in the pedestal region, as opposed
-to an adaptive local source/sink term.
+models, both for core turbulence and pedestal predictions.
 
 Neoclassical physics
 ====================

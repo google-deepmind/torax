@@ -106,13 +106,14 @@ class RuntimeParams:
       During a transition, pedestal values are linearly interpolated between
       L-mode and H-mode values over this time window.
     explicit_pedestal: When True (default), the pedestal model is evaluated once
-      per timestep before the solver loop and its output (T_ped, n_ped,
-      rho_ped_top) is frozen during Newton iterations. When False, the pedestal
-      model is re-evaluated every Newton iteration, coupling pedestal physics to
-      the implicit solve. Note: for ADAPTIVE_TRANSPORT mode, transport
-      multipliers are always re-evaluated implicitly with current profiles
-      regardless of this setting, since the saturation model feedback loop
-      requires implicit coupling.
+      per timestep before the solver and its output (T_ped, n_ped, rho_ped_top)
+      is frozen during the solve. When False, the pedestal model is
+      re-evaluated whenever the solver recomputes the PDE coefficients (e.g.
+      each Newton-Raphson iteration or predictor-corrector step), coupling
+      pedestal physics to the implicit solve. Note: for ADAPTIVE_TRANSPORT mode,
+      transport multipliers are always re-evaluated implicitly with current
+      profiles regardless of this setting, since the saturation model feedback
+      loop requires implicit coupling.
     structure: Runtime params for the pedestal structure model.
     formation: Runtime params for the formation model.
     saturation: Runtime params for the saturation model.
