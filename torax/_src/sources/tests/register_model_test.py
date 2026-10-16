@@ -160,7 +160,7 @@ class RegisterConfigTest(parameterized.TestCase):
     class SpecialSourceModelConfig(NewGasPuffSourceModelConfig):
 
       def build_source(self) -> source_lib.Source:
-        return SpecialSource(model_func=self.model_func)
+        return SpecialSource()
 
     with self.assertRaisesRegex(
         ValueError,
@@ -176,7 +176,7 @@ class RegisterConfigTest(parameterized.TestCase):
     class UnsupportedSourceModelConfig(NewGasPuffSourceModelConfig):
 
       def build_source(self) -> source_lib.Source:
-        return UnsupportedSource(model_func=self.model_func)
+        return UnsupportedSource()
 
     with self.assertRaisesRegex(
         ValueError,

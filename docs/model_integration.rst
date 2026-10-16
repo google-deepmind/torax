@@ -257,8 +257,9 @@ Registering a custom source model
 To integrate a custom source model (e.g. a new heat source, particle source,
 or current source), you need to:
 
-1. Define a model function that computes the source profile.
-2. Define a pydantic config class for your model.
+1. Define a custom ``Source`` subclass implementing ``_get_model_value``.
+2. Define a pydantic config class for your model that builds your source in
+   ``build_source()``.
 3. Register the config class with TORAX.
 
 Unlike transport and pedestal models, source models are registered against a
@@ -267,36 +268,63 @@ etc.). This allows multiple source model implementations to exist for the same
 physical source. The special source ``'ei_exchange'`` (ion-electron heat
 exchange) does not support custom registration.
 
-Step 1: Implement the model function
---------------------------------------
+Step 1: Implement the custom Source subclass
+--------------------------------------------
 
-Define a function that matches the ``torax.sources.SourceProfileFunction``
-protocol. This function receives the simulation state and must return a tuple
-of source profile arrays (one per affected core profile). The order of the
-profiles in the tuple must match the order of the affected core profiles for the
-source being registered against (e.g. for ``generic_heat``, the tuple must be
-(ion heat, electron heat)).
+Subclass ``torax.sources.Source`` (or an existing source class) and implement
+``_get_model_value``.
+
+When subclassing ``torax.sources.Source`` directly, you must define two class
+attributes:
+
+* ``SOURCE_ID``: The target source name (e.g. ``'generic_heat'``), matching the
+  corresponding field in the ``Sources`` config.
+* ``AFFECTED_CORE_PROFILES``: A tuple of ``torax.sources.AffectedCoreProfile``
+  values (``PSI``, ``NE``, ``TEMP_ION``, ``TEMP_EL``, or ``FAST_IONS``)
+  specifying which core profile equations the source contributes to. (If
+  ``FAST_IONS`` is included, you must also implement ``zero_fast_ions``.)
+
+If you instead subclass an existing source class (e.g.
+``GenericIonElectronHeatSource``), ``SOURCE_ID`` and ``AFFECTED_CORE_PROFILES``
+are inherited automatically.
+
+``_get_model_value`` receives the simulation state and must return a tuple of
+source profile arrays on the cell grid (one per entry in
+``AFFECTED_CORE_PROFILES``, in the same order).
 
 .. code-block:: python
 
+    import dataclasses
+    from typing import ClassVar
     import jax.numpy as jnp
     import torax
     from torax import sources
 
-    def my_heat_source(
-        runtime_params: torax.RuntimeParams,
-        geo: torax.Geometry,
-        source_name: str,
-        core_profiles: torax.CoreProfiles,
-        calculated_source_profiles: sources.SourceProfiles | None,
-        unused_conductivity,
-    ) -> tuple[jnp.ndarray, ...]:
+    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
+    class MyHeatSource(sources.Source):
       """Custom heat source model."""
-      # Return a tuple with one element per affected core profile.
-      # For a source affecting TEMP_ION and TEMP_EL, return two profiles.
-      ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
-      el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
-      return (ion_heat, el_heat)
+
+      SOURCE_ID: ClassVar[str] = 'generic_heat'
+      AFFECTED_CORE_PROFILES: ClassVar[
+          tuple[sources.AffectedCoreProfile, ...]
+      ] = (
+          sources.AffectedCoreProfile.TEMP_ION,
+          sources.AffectedCoreProfile.TEMP_EL,
+      )
+
+      def _get_model_value(
+          self,
+          runtime_params: torax.RuntimeParams,
+          geo: torax.Geometry,
+          core_profiles: torax.CoreProfiles,
+          calculated_source_profiles: sources.SourceProfiles | None,
+          conductivity,
+      ) -> tuple[jnp.ndarray, ...]:
+        # Return a tuple with one element per affected core profile.
+        # For a source affecting TEMP_ION and TEMP_EL, return two profiles.
+        ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
+        el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
+        return (ion_heat, el_heat)
 
 
 Step 2: Define the pydantic config
@@ -305,7 +333,6 @@ Step 2: Define the pydantic config
 Create a pydantic config class that inherits from
 ``torax.sources.SourceConfigBase``:
 
-- Implement ``model_func`` (property): returns the model function.
 - Implement ``build_source``: returns the ``Source`` instance.
 - Override ``build_runtime_params`` if your source requires custom
   ``RuntimeParams`` fields beyond the base ``RuntimeParams``.
@@ -322,7 +349,6 @@ registered ``model_name`` for the source slot.
     import chex
     import jax
     from torax import sources
-    from torax._src.sources import generic_ion_el_heat_source as heat_source_lib
 
     @jax.tree_util.register_dataclass
     @dataclasses.dataclass(frozen=True)
@@ -336,14 +362,8 @@ registered ``model_name`` for the source slot.
       model_name: Literal['my_heat_model'] = 'my_heat_model'
       scaling_factor: float = 1.0
 
-      @property
-      def model_func(self) -> sources.SourceProfileFunction:
-        return my_heat_source
-
       def build_source(self) -> sources.Source:
-        return heat_source_lib.GenericIonElectronHeatSource(
-            model_func=self.model_func
-        )
+        return MyHeatSource()
 
       def build_runtime_params(
           self, t: chex.Numeric,
@@ -353,6 +373,7 @@ registered ``model_name`` for the source slot.
             **vars(base_params),
             scaling_factor=self.scaling_factor,
         )
+
 
 
 Step 3: Register the model

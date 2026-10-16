@@ -62,11 +62,6 @@ class SourceConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   def build_source(self) -> source_lib.Source:
     """Builds a source object from the model config."""
 
-  @property
-  def model_func(self) -> source_lib.SourceProfileFunction | None:
-    """Returns the model function for the source."""
-    return None
-
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:

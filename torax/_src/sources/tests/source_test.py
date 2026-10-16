@@ -38,7 +38,9 @@ class SourceTest(parameterized.TestCase):
       AFFECTED_CORE_PROFILES: ClassVar[
           tuple[source_lib.AffectedCoreProfile, ...]
       ] = (source_lib.AffectedCoreProfile.PSI,)
-      model_func = None
+
+      def _get_model_value(self, *args, **kwargs):
+        raise NotImplementedError
 
     with self.assertRaisesRegex(ValueError, 'Source ID must be set.'):
       BadSource()
@@ -48,7 +50,9 @@ class SourceTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class BadSource(source_lib.Source):
       SOURCE_ID: ClassVar[str] = 'bad'
-      model_func = None
+
+      def _get_model_value(self, *args, **kwargs):
+        raise NotImplementedError
 
     with self.assertRaisesRegex(
         ValueError, 'Affected core profiles must be set.'
@@ -224,6 +228,10 @@ class SourceTest(parameterized.TestCase):
       AFFECTED_CORE_PROFILES: ClassVar[
           tuple[source_lib.AffectedCoreProfile, ...]
       ] = (source_lib.AffectedCoreProfile.FAST_IONS,)
+      fast_ions_out: tuple[fast_ion_lib.FastIon, ...] = ()
+
+      def _get_model_value(self, *args, **kwargs):
+        return (self.fast_ions_out,)
 
       def zero_fast_ions(self, geo):
         del geo
@@ -243,9 +251,7 @@ class SourceTest(parameterized.TestCase):
         ),
     )
 
-    source = DummyFastIonSource(
-        model_func=mock.MagicMock(return_value=((computed_he3,),))
-    )
+    source = DummyFastIonSource(fast_ions_out=(computed_he3,))
     profile = source.get_value(
         runtime_params=dynamic_slice,
         geo=mock.ANY,
@@ -259,9 +265,7 @@ class SourceTest(parameterized.TestCase):
     bad_species = mock.create_autospec(
         fast_ion_lib.FastIon, instance=True, species='W'
     )
-    bad_source = DummyFastIonSource(
-        model_func=mock.MagicMock(return_value=((bad_species,),))
-    )
+    bad_source = DummyFastIonSource(fast_ions_out=(bad_species,))
     with self.assertRaisesRegex(ValueError, 'Unsupported FastIon species'):
       bad_source.get_value(
           runtime_params=dynamic_slice,
@@ -273,9 +277,7 @@ class SourceTest(parameterized.TestCase):
 
     # Duplicate species raises ValueError.
     dup_source = DummyFastIonSource(
-        model_func=mock.MagicMock(
-            return_value=((computed_he3, computed_he3),)
-        )
+        fast_ions_out=(computed_he3, computed_he3)
     )
     with self.assertRaisesRegex(ValueError, 'Duplicate FastIon species'):
       dup_source.get_value(
@@ -321,6 +323,9 @@ class SourceTest(parameterized.TestCase):
           source_lib.AffectedCoreProfile.TEMP_EL,
           source_lib.AffectedCoreProfile.FAST_IONS,
       )
+
+      def _get_model_value(self, *args, **kwargs):
+        raise NotImplementedError
 
       def zero_fast_ions(self, geo):
         del geo
