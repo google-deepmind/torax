@@ -42,8 +42,8 @@ class PrescribedFastIonData:
     T_right_bc: Right boundary condition for temperature [keV].
   """
 
-  source: str = dataclasses.field(metadata={'static': True})
-  species: str = dataclasses.field(metadata={'static': True})
+  source: str = jax.tree.static()
+  species: str = jax.tree.static()
   n: array_typing.FloatVector
   n_right_bc: array_typing.FloatScalar
   T: array_typing.FloatVector
@@ -96,25 +96,17 @@ class RuntimeParams:
   n_e_nbar_is_fGW: bool
   n_e_right_bc: array_typing.FloatScalar
   n_e_right_bc_is_fGW: bool
-  n_e_right_bc_mode: NeBoundaryConditionMode = dataclasses.field(
-      metadata={'static': True}
-  )
+  n_e_right_bc_mode: NeBoundaryConditionMode = jax.tree.static()
   n_e_right_bc_reference_rho: array_typing.FloatScalar | None
   n_e_right_bc_multiplier: array_typing.FloatScalar | None
   internal_boundary_conditions: (
       internal_boundary_conditions_lib.InternalBoundaryConditions
   )
   current_profile_nu: float
-  initial_j_is_total_current: bool = dataclasses.field(
-      metadata={'static': True}
-  )
-  initial_psi_from_j: bool = dataclasses.field(metadata={'static': True})
-  normalize_n_e_to_nbar: bool = dataclasses.field(metadata={'static': True})
-  use_v_loop_lcfs_boundary_condition: bool = dataclasses.field(
-      metadata={'static': True}
-  )
-  n_e_right_bc_is_absolute: bool = dataclasses.field(metadata={'static': True})
-  initial_psi_mode: InitialPsiMode = dataclasses.field(
-      metadata={'static': True}
-  )
+  initial_j_is_total_current: bool = jax.tree.static()
+  initial_psi_from_j: bool = jax.tree.static()
+  normalize_n_e_to_nbar: bool = jax.tree.static()
+  use_v_loop_lcfs_boundary_condition: bool = jax.tree.static()
+  n_e_right_bc_is_absolute: bool = jax.tree.static()
+  initial_psi_mode: InitialPsiMode = jax.tree.static()
   prescribed_fast_ions: tuple[PrescribedFastIonData, ...] = ()

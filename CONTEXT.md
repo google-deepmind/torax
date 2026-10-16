@@ -114,7 +114,7 @@ For build and test instructions, see
     or loop counts (e.g., `num_guesses`, `maxiter`, `grid_size`) MUST be
     explicitly marked static:
     *   In the `@jax.jit` decorator (`static_argnames`).
-    *   In dataclass fields using `metadata={'static': True}`.
+    *   In dataclass fields using `jax.tree.static()`.
     *   In Pydantic configurations using `torax_pydantic.JAX_STATIC`.
 
 *   **Distinct Xarray Dimensions:** Ensure distinct xarray dimension names

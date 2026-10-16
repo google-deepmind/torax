@@ -158,7 +158,7 @@ class TimeDependentGeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis | None
-  calcphibdot: bool = dataclasses.field(metadata={'static': True})
+  calcphibdot: bool = jax.tree.static()
 
   @classmethod
   def create_provider(

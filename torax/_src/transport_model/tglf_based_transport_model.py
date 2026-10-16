@@ -44,10 +44,10 @@ from torax._src.transport_model import transport_coeffs
 class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
   """Shared parameters for TGLF-based models."""
 
-  DV_effective: bool = dataclasses.field(metadata={"static": True})
+  DV_effective: bool = jax.tree.static()
   An_min: float
   DV_effective_smooth_width: float
-  use_rotation: bool = dataclasses.field(metadata={"static": True})
+  use_rotation: bool = jax.tree.static()
   rotation_multiplier: float
   collisionality_multiplier: float
   max_normalized_collisionality: float

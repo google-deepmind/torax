@@ -37,7 +37,7 @@ from torax._src.sources import source_profiles
 class OptimizerRuntimeParams(solver_runtime_params_lib.RuntimeParams):
   n_max_iterations: int
   loss_tol: float
-  initial_guess_mode: int = dataclasses.field(metadata={'static': True})
+  initial_guess_mode: int = jax.tree.static()
 
 
 @jax.tree_util.register_dataclass
@@ -47,10 +47,10 @@ class NewtonRaphsonRuntimeParams(solver_runtime_params_lib.RuntimeParams):
   residual_tol: float
   residual_coarse_tol: float
   tau_min: float
-  initial_guess_mode: int = dataclasses.field(metadata={'static': True})
-  log_iterations: bool = dataclasses.field(metadata={'static': True})
-  vmap_linesearch: bool = dataclasses.field(metadata={'static': True})
-  max_linesearch_steps: int = dataclasses.field(metadata={'static': True})
+  initial_guess_mode: int = jax.tree.static()
+  log_iterations: bool = jax.tree.static()
+  vmap_linesearch: bool = jax.tree.static()
+  max_linesearch_steps: int = jax.tree.static()
 
 
 class NonlinearThetaMethod(solver.Solver):

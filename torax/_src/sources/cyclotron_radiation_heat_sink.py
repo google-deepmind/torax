@@ -43,7 +43,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   wall_reflection_coeff: array_typing.FloatScalar
   beta_min: array_typing.FloatScalar
   beta_max: array_typing.FloatScalar
-  beta_grid_size: int = dataclasses.field(metadata={'static': True})
+  beta_grid_size: int = jax.tree.static()
 
 
 def _alpha_closed_form(
