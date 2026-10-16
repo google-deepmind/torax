@@ -210,8 +210,15 @@ class EqdskGeometryTest(parameterized.TestCase):
 
   def test_target_psi_grid_resolution_improves_coarse_grid_accuracy(self):
     """Tests that grid refinement recovers the fine-grid plasma current."""
+    # Use last_surface_factor=0.97 so that all contours remain closed on the
+    # unrefined stride=2 grid (at the default 0.99, the outermost two contours
+    # are clipped open by the LCFS bounding box).
     reference_Ip = (
-        eqdsk.EQDSKConfig(geometry_file='iterhybrid_cocos11.eqdsk', cocos=11)
+        eqdsk.EQDSKConfig(
+            geometry_file='iterhybrid_cocos11.eqdsk',
+            cocos=11,
+            last_surface_factor=0.97,
+        )
         .build_geometry()
         .Ip_profile_face[-1]
     )
@@ -221,6 +228,7 @@ class EqdskGeometryTest(parameterized.TestCase):
         eqdsk.EQDSKConfig(
             eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
             cocos=11,
+            last_surface_factor=0.97,
             target_psi_grid_resolution=None,
         )
         .build_geometry()
@@ -230,6 +238,7 @@ class EqdskGeometryTest(parameterized.TestCase):
         eqdsk.EQDSKConfig(
             eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
             cocos=11,
+            last_surface_factor=0.97,
             target_psi_grid_resolution=130,
         )
         .build_geometry()
@@ -243,7 +252,9 @@ class EqdskGeometryTest(parameterized.TestCase):
   def test_target_psi_grid_resolution_enables_contouring_on_coarse_grid(self):
     """Tests that grid refinement fixes contouring failures on coarse grids."""
     with self.subTest('unrefined_fails'):
-      with self.assertRaisesRegex(ValueError, 'monotonically increasing'):
+      with self.assertRaisesRegex(
+          ValueError, 'No closed contour enclosing the magnetic axis'
+      ):
         eqdsk.EQDSKConfig(
             eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=4),
             cocos=11,
@@ -327,21 +338,113 @@ class EqdskGeometryTest(parameterized.TestCase):
     r = 6.2 + radius * np.cos(theta)
     z = 0.3 + radius * np.sin(theta)
 
-    dl = eqdsk._line_elements(r, z, closed=True)
+    dl = eqdsk._line_elements(r, z)
 
     # Perimeter of a regular n-gon inscribed in a circle of this radius.
     polygon_perimeter = 2 * n_points * radius * np.sin(np.pi / n_points)
     np.testing.assert_allclose(np.sum(dl), polygon_perimeter, rtol=1e-12)
 
-  def test_open_line_elements_sum_to_polyline_length(self):
-    # Two segments of length 3 and 4. Each end vertex gets half of its single
-    # segment and the middle vertex gets half of each.
-    r = np.array([0.0, 3.0, 3.0])
-    z = np.array([0.0, 0.0, 4.0])
+  def test_coarse_grid_raises_for_open_flux_surfaces(self):
+    # On this coarsened grid at the default last_surface_factor=0.99, the
+    # outermost two contours are cut open by the LCFS bounding box.
+    with self.assertRaisesRegex(
+        ValueError,
+        r'No closed contour enclosing the magnetic axis found for 2 EQDSK flux'
+        r' surface\(s\)',
+    ):
+      eqdsk.EQDSKConfig(
+          eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
+          cocos=11,
+          target_psi_grid_resolution=None,
+      ).build_geometry()
 
-    dl = eqdsk._line_elements(r, z, closed=False)
+  def test_select_contour_enclosing_magnetic_axis_skips_other_contours(self):
+    open_contour = np.array([[6.0, 1.0], [6.5, 1.2], [7.0, 1.0], [7.5, 0.5]])
+    flux_surface = np.array([
+        [6.0, 0.0],
+        [7.0, 0.0],
+        [7.0, 1.0],
+        [6.0, 1.0],
+        [6.0, 0.0],
+    ])
 
-    np.testing.assert_allclose(dl, [1.5, 3.5, 2.0])
+    selected = eqdsk._select_contour_enclosing_magnetic_axis(
+        [open_contour, _SPURIOUS_LOOP, flux_surface], r_axis=6.5, z_axis=0.5
+    )
+
+    np.testing.assert_array_equal(selected, flux_surface[:-1])
+
+  def test_select_contour_enclosing_magnetic_axis_returns_none_when_none_match(
+      self,
+  ):
+    open_contour = np.array([[6.0, 1.0], [6.5, 1.2], [7.0, 1.0], [7.5, 0.5]])
+
+    self.assertIsNone(
+        eqdsk._select_contour_enclosing_magnetic_axis(
+            [open_contour, _SPURIOUS_LOOP], r_axis=6.4, z_axis=0.5
+        )
+    )
+
+  def test_select_contour_enclosing_magnetic_axis_raises_on_multiple_matches(
+      self,
+  ):
+    inner_loop = np.array([
+        [6.0, 0.0],
+        [7.0, 0.0],
+        [7.0, 1.0],
+        [6.0, 1.0],
+        [6.0, 0.0],
+    ])
+    outer_loop = np.array([
+        [5.5, -0.5],
+        [7.5, -0.5],
+        [7.5, 1.5],
+        [5.5, 1.5],
+        [5.5, -0.5],
+    ])
+
+    with self.assertRaisesRegex(
+        ValueError, 'Expected at most one closed contour'
+    ):
+      eqdsk._select_contour_enclosing_magnetic_axis(
+          [inner_loop, outer_loop], r_axis=6.5, z_axis=0.5
+      )
+
+  @parameterized.named_parameters(
+      ('interior', 6.3, 0.3, True),
+      ('exterior_left', 5.0, 0.5, False),
+      ('exterior_right', 8.0, 0.5, False),
+      ('ray_through_vertex', 6.3, 0.5, True),
+      ('ray_along_horizontal_edge', 5.0, 0.0, False),
+      ('non_convex_concavity_outside', 6.8, 0.5, False),
+      ('non_convex_wing_inside', 6.8, 0.8, True),
+  )
+  def test_encloses_point(self, r, z, expected):
+    # Non-convex polygon (C-shaped indentation on the right side from z=0.2 to
+    # z=0.7, plus a vertex at (6.5, 0.5) to exercise ray-vertex intersection
+    # and a horizontal bottom edge at z=0.0).
+    polygon = np.array([
+        [6.0, 0.0],
+        [7.0, 0.0],
+        [7.0, 0.2],
+        [6.5, 0.5],
+        [7.0, 0.7],
+        [7.0, 1.0],
+        [6.0, 1.0],
+    ])
+
+    self.assertEqual(eqdsk._encloses_point(polygon, r=r, z=z), expected)
+
+
+# A closed contour loop far from the plasma, standing in for a contour piece in
+# the private-flux region. contourpy repeats the first vertex at the end.
+_SPURIOUS_LOOP = np.array([
+    [1.0, -5.0],
+    [1.2, -5.0],
+    [1.2, -4.8],
+    [1.0, -4.8],
+    [1.0, -5.0],
+])
 
 
 def _shift_closed_contour_seam(contour: np.ndarray, shift: int) -> np.ndarray:

@@ -173,44 +173,115 @@ def _is_closed(contour: np.ndarray) -> bool:
   Returns:
     True if `contour` is a closed loop with at least three distinct vertices.
   """
-  return len(contour) >= 4 and bool(np.allclose(contour[0], contour[-1]))
+  return len(contour) >= 4 and np.array_equal(contour[0], contour[-1])
 
 
-def _line_elements(r: np.ndarray, z: np.ndarray, closed: bool) -> np.ndarray:
-  """Returns the line element dl at each vertex of a curve.
+def _encloses_point(polygon: np.ndarray, r: float, z: float) -> bool:
+  """Returns whether a polygon encloses the point (r, z).
 
-  Flux-surface integrals are evaluated as sums over the curve vertices,
-  `integral(f dl) ~= sum_i f_i * dl_i`. Using the trapezoidal rule, each vertex
-  gets half the length of each segment adjacent to it, so the elements sum to
-  the total curve length.
-
-  For a closed curve the segment from the last vertex back to the first is
-  included, so every vertex has two neighbours. The result then does not depend
-  on which vertex the curve starts at, and the elements sum to the polygon
-  perimeter. For an open curve the two end vertices have only one neighbour
-  each, and the elements sum to the length of the open polyline.
+  Uses the standard ray-casting (even-odd) test: cast a horizontal ray from
+  (r, z) and count how many polygon edges it crosses. The point is inside if and
+  only if the count is odd.
 
   Args:
-    r: R coordinates of the curve vertices. For a closed curve, the first vertex
-      must not be repeated at the end.
-    z: Z coordinates of the curve vertices, with the same convention as `r`.
-    closed: Whether the curve is a closed loop.
+    polygon: (N, 2) array of (R, Z) vertices. The polygon is implicitly closed
+      (the last vertex connects back to the first), so the first vertex must not
+      be repeated at the end.
+    r: R coordinate of the point.
+    z: Z coordinate of the point.
+
+  Returns:
+    True if `(r, z)` lies strictly inside `polygon`.
+  """
+  # Edge i runs from vertex i, (r_start, z_start), to vertex i + 1,
+  # (r_end, z_end), wrapping around from the last vertex to the first.
+  r_start, z_start = polygon[:, 0], polygon[:, 1]
+  r_end, z_end = np.roll(r_start, -1), np.roll(z_start, -1)
+
+  # An edge can only cross the ray if its endpoints lie on opposite sides of
+  # the horizontal line through z. The half-open comparison (> z) counts a
+  # vertex lying exactly at height z on one side only, so it is never counted
+  # twice.
+  straddles_ray = (z_start > z) != (z_end > z)
+
+  # R coordinate where each straddling edge crosses the horizontal line through
+  # z. Non-straddling edges (including horizontal edges with z_end == z_start)
+  # are replaced by a unit denominator and masked out below.
+  dz = np.where(straddles_ray, z_end - z_start, 1.0)
+  r_crossing = r_start + (r_end - r_start) * (z - z_start) / dz
+
+  # The ray extends to the right, so only crossings to the right of r count.
+  crosses_ray = straddles_ray & (r < r_crossing)
+  return bool(np.sum(crosses_ray) % 2 == 1)
+
+
+def _select_contour_enclosing_magnetic_axis(
+    contours: list[np.ndarray], r_axis: float, z_axis: float
+) -> np.ndarray | None:
+  """Selects the closed contour that encloses the magnetic axis.
+
+  Contours are only computed inside the bounding box of the LCFS, not inside
+  the LCFS itself. A single psi level can therefore produce several contour
+  lines: the closed flux surface around the magnetic axis, plus pieces outside
+  the plasma that lie inside the box (e.g. in the private-flux region below
+  the X-point). The returned flux surface is the closed contour enclosing the
+  magnetic axis.
+
+  Args:
+    contours: Contour lines from `contourpy` at a single psi level, each an
+      (N, 2) array of (R, Z) vertices. Closed lines repeat their first vertex at
+      the end.
+    r_axis: R coordinate of the magnetic axis.
+    z_axis: Z coordinate of the magnetic axis.
+
+  Returns:
+    (N, 2) array of (R, Z) vertices of the closed flux surface with its
+    repeated closing vertex removed, or None if no closed contour encloses the
+    magnetic axis.
+
+  Raises:
+    ValueError: If more than one closed contour encloses the magnetic axis.
+  """
+  enclosing_contours = [
+      contour[:-1]
+      for contour in contours
+      if _is_closed(contour) and _encloses_point(contour[:-1], r_axis, z_axis)
+  ]
+  if len(enclosing_contours) > 1:
+    raise ValueError(
+        f'Expected at most one closed contour enclosing the magnetic axis'
+        f' (R={r_axis}, Z={z_axis}), but found {len(enclosing_contours)}.'
+    )
+  return enclosing_contours[0] if enclosing_contours else None
+
+
+def _line_elements(r: np.ndarray, z: np.ndarray) -> np.ndarray:
+  """Returns the line element dl at each vertex of a closed curve.
+
+  Flux-surface integrals are evaluated as sums over the curve vertices,
+  `integral(f dl) ~= sum_i f_i * dl_i`. On each straight segment of length `L_i`
+  between vertex `i` and vertex `i + 1` (with the last vertex connected back to
+  the first), the trapezoidal rule approximates the segment integral as
+  `0.5 * L_i * (f_i + f_{i+1})`. Summing over all segments collects a weight
+  `dl_i = 0.5 * (L_{i-1} + L_i)` at each vertex `i` (half the length of the
+  segment before it plus half the length of the segment after it). The result
+  does not depend on which vertex the curve starts at, and `sum_i dl_i` equals
+  the polygon perimeter.
+
+  Args:
+    r: R coordinates of the closed curve vertices, without repeating the first
+      vertex at the end.
+    z: Z coordinates of the closed curve vertices, with the same convention as
+      `r`.
 
   Returns:
     Array of the same length as `r` with the line element at each vertex.
   """
-  if closed:
-    # segment_lengths[i] is the distance from vertex i to vertex i + 1,
-    # wrapping around from the last vertex to the first.
-    segment_lengths = np.hypot(np.roll(r, -1) - r, np.roll(z, -1) - z)
-    # Vertex i is shared by segments i - 1 and i.
-    return 0.5 * (np.roll(segment_lengths, 1) + segment_lengths)
-  # segment_lengths[i] is the distance from vertex i to vertex i + 1; there is
-  # no segment before the first vertex or after the last one.
-  segment_lengths = np.hypot(np.diff(r), np.diff(z))
-  segment_before_vertex = np.concatenate([[0.0], segment_lengths])
-  segment_after_vertex = np.concatenate([segment_lengths, [0.0]])
-  return 0.5 * (segment_before_vertex + segment_after_vertex)
+  # segment_lengths[i] is the distance from vertex i to vertex i + 1,
+  # wrapping around from the last vertex to the first.
+  segment_lengths = np.hypot(np.roll(r, -1) - r, np.roll(z, -1) - z)
+  # Vertex i is shared by segments i - 1 and i.
+  return 0.5 * (np.roll(segment_lengths, 1) + segment_lengths)
 
 
 def _construct_intermediates_from_eqdsk(
@@ -314,8 +385,8 @@ def _construct_intermediates_from_eqdsk(
 
   # See EQDSKInterface in https://github.com/Fusion-Power-Plant-Framework/eqdsk
   B_0 = eq_dict['bcentre'] * eq_dict['xcentre'] / R_major
-  Raxis = eq_dict['xmag']
-  Zaxis = eq_dict['zmag']
+  Raxis = float(eq_dict['xmag'])
+  Zaxis = float(eq_dict['zmag'])
   Btor_axis = eq_dict['fpol'][0] / eq_dict['xmag']
 
   # 1D psi grid, with psi(axis) = 0
@@ -384,28 +455,36 @@ def _construct_intermediates_from_eqdsk(
       n_surfaces,
   )
 
-  # Each entry of `surfaces` is (R vertices, Z vertices, closed), where `closed`
-  # says whether the vertices form a closed loop (without a repeated closing
-  # vertex) or an open curve.
+  # Each entry of `surfaces` is (R vertices, Z vertices) for a closed flux
+  # surface around the magnetic axis, without a repeated closing vertex.
   surfaces = []
+  # psi values for which no closed contour around the magnetic axis was found.
+  psi_without_closed_surface = []
   psi_contour_generator = contourpy.contour_generator(X, Z, masked_psi_2dgrid)
 
   # Skip magnetic axis since no contour is defined there.
   for _, _psi in enumerate(psi_on_flux_surfaces[1:]):
-    vertices = psi_contour_generator.create_contour(_psi)
-    if not vertices:
+    contours = psi_contour_generator.create_contour(_psi)
+    if not contours:
       raise ValueError(f"""
           Valid contour not found for EQDSK geometry for psi value {_psi}.
           Possible reason is too many surfaces requested.
           Try reducing n_surfaces from the current value of {n_surfaces}.
           """)
-    contour = vertices[0]
-    closed = _is_closed(contour)
-    if closed:
-      # Drop the repeated closing vertex so that each point on the surface
-      # appears once.
-      contour = contour[:-1]
-    surfaces.append((contour[:, 0], contour[:, 1], closed))
+    contour = _select_contour_enclosing_magnetic_axis(contours, Raxis, Zaxis)
+    if contour is None:
+      psi_without_closed_surface.append(_psi)
+      continue
+    surfaces.append((contour[:, 0], contour[:, 1]))
+  if psi_without_closed_surface:
+    raise ValueError(
+        'No closed contour enclosing the magnetic axis found for'
+        f' {len(psi_without_closed_surface)} EQDSK flux surface(s), psi in'
+        f' [{min(psi_without_closed_surface)},'
+        f' {max(psi_without_closed_surface)}]. Consider increasing'
+        ' target_psi_grid_resolution, or reducing last_surface_factor or'
+        ' n_surfaces.'
+    )
 
   # ------------------------------------------------------------------ #
   # ---- 3. Interpolate everything onto the new flux surface grid ---- #
@@ -451,8 +530,8 @@ def _construct_intermediates_from_eqdsk(
 
   # Compute fsa for each surface
   # Note: surfaces is from psi[1:]
-  for n, (x_surface, z_surface, surface_closed) in enumerate(surfaces):
-    surface_dl = _line_elements(x_surface, z_surface, surface_closed)
+  for n, (x_surface, z_surface) in enumerate(surfaces):
+    surface_dl = _line_elements(x_surface, z_surface)
 
     # Calculate gradient of psi in 2D
     surface_dpsi_x = psi_2dgrid_interpolator.ev(x_surface, z_surface, dx=1)
