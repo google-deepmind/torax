@@ -25,13 +25,13 @@ from jax import numpy as jnp
 import numpy as np
 import pydantic
 from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.ion_cyclotron_source import toric_nn as ion_cyclotron_source
 from torax._src.sources.tests import test_lib
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
@@ -199,27 +199,18 @@ class ToricNNTest(test_lib.SourceTestCase):
     config["sources"] = {self._source_name: {"model_path": _DUMMY_MODEL_PATH}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     self.assertIsInstance(source, source_lib.Source)
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
-    )
-    icrh_out = source.get_value(
+    icrh_out, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -238,22 +229,12 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
     ]
     self.assertIsInstance(source, source_lib.Source)
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     # Verify minority_species is set in runtime params
     icrh_params = runtime_params.sources[
@@ -264,10 +245,11 @@ class ToricNNTest(test_lib.SourceTestCase):
     # Verify He3 is in impurity composition
     self.assertIn("He3", runtime_params.plasma_composition.impurity_names)
     # Run the source and check it produces valid output
-    icrh_out = source.get_value(
+    icrh_out, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -299,27 +281,20 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
     ]
 
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=torax_config.numerics.t_initial)
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
 
     # Run the source calculation
-    icrh_out = source.get_value(
+    icrh_out, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -365,24 +340,17 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
     ]
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=torax_config.numerics.t_initial)
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
-    output = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -408,24 +376,17 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
     ]
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=torax_config.numerics.t_initial)
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
-    output = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -443,24 +404,17 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
     ]
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=torax_config.numerics.t_initial)
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
-    output = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -476,24 +430,17 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
     ]
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=torax_config.numerics.t_initial)
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
-    output = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_state=source.initial_state(runtime_params),
         calculated_source_profiles=None,
         conductivity=None,
     )
@@ -523,28 +470,21 @@ class ToricNNTest(test_lib.SourceTestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
     ]
-    runtime_params_partial = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
-            t=torax_config.numerics.t_initial
+    core_profiles, runtime_params_partial, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    (source_ion_partial, source_el_partial, fast_ions_partial), _ = (
+        source.get_value(
+            runtime_params=runtime_params_partial,
+            geo=geo,
+            core_profiles=core_profiles,
+            calculated_source_profiles=None,
+            conductivity=None,
+            source_state=source.initial_state(runtime_params_partial),
         )
-    )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params_partial,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
-    )
-    source_ion_partial, source_el_partial, fast_ions_partial = source.get_value(
-        runtime_params=runtime_params_partial,
-        geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
     )
     self.assertIsInstance(source_ion_partial, jax.Array)
     self.assertIsInstance(source_el_partial, jax.Array)
@@ -559,12 +499,13 @@ class ToricNNTest(test_lib.SourceTestCase):
             t=torax_config.numerics.t_initial
         )
     )
-    source_ion_full, source_el_full, fast_ions_full = source.get_value(
+    (source_ion_full, source_el_full, fast_ions_full), _ = source.get_value(
         runtime_params=runtime_params_full,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source.initial_state(runtime_params_full),
     )
     self.assertIsInstance(source_ion_full, jax.Array)
     self.assertIsInstance(source_el_full, jax.Array)

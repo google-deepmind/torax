@@ -18,11 +18,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.sources import bremsstrahlung_heat_sink
 from torax._src.sources.tests import test_lib
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import torax_refs
 
 # pylint: disable=invalid-name
@@ -46,14 +46,8 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   ):
     references = references_getter()
 
-    runtime_params, geo = references.get_runtime_params_and_geo()
-    source_models = references.config.sources.build_models()
-    neoclassical_model = references.config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
+        references.config
     )
 
     P_brem_total, P_brems_profile = (

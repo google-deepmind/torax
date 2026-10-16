@@ -20,6 +20,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import constants
 from torax._src import jax_utils
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
@@ -52,6 +53,7 @@ class SawtoothSolver(solver.Solver):
       pedestal_transition_state: (
           pedestal_transition_state_lib.PedestalTransitionState
       ),
+      model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
       state.SolverNumericOutputs,
@@ -78,6 +80,7 @@ class SawtoothSolver(solver.Solver):
       evolving_names: Names of evolving variables.
       pedestal_transition_state: State for tracking pedestal L-H and H-L
         transitions.
+      model_state: State of models across timesteps.
 
     Returns:
       Updated tuple of evolving CellVariables from CoreProfiles

@@ -19,6 +19,7 @@ from absl import logging
 import jax
 import jax.numpy as jnp
 from torax._src import jax_utils
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -100,22 +101,28 @@ def _get_initial_state(
 ) -> sim_state.SimState:
   """Returns the initial state to be used by run_simulation()."""
   models = step_fn.solver.models
+  initial_source_states = models.source_models.initial_state(runtime_params)
+  initial_transport_state = models.transport_model.initial_state(runtime_params)
   initial_core_profiles = initialization.initial_core_profiles(
       runtime_params,
       geo,
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
+      source_states=initial_source_states,
   )
   neoclassical_outputs = models.neoclassical_model(
       runtime_params, geo, initial_core_profiles
   )
-  initial_core_sources = source_profile_builders.get_all_source_profiles(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=initial_core_profiles,
-      source_models=models.source_models,
-      conductivity=neoclassical_outputs.conductivity,
-      bootstrap_current=neoclassical_outputs.bootstrap_current,
+  initial_core_sources, initial_source_states = (
+      source_profile_builders.get_all_source_profiles(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=initial_core_profiles,
+          source_models=models.source_models,
+          conductivity=neoclassical_outputs.conductivity,
+          bootstrap_current=neoclassical_outputs.bootstrap_current,
+          source_states=initial_source_states,
+      )
   )
 
   if models.edge_model is not None:
@@ -144,6 +151,12 @@ def _get_initial_state(
       initial_core_profiles,
       initial_core_sources,
   )
+  initial_pedestal_state = models.pedestal_model.initial_state(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=initial_core_profiles,
+      source_profiles=initial_core_sources,
+  )
 
   internal_boundary_conditions = (
       internal_boundary_conditions_builder.build_internal_boundary_conditions(
@@ -171,6 +184,12 @@ def _get_initial_state(
       )
   )
 
+  initial_model_state = model_state_lib.ModelState(
+      pedestal=initial_pedestal_state,
+      transport=initial_transport_state,
+      sources=initial_source_states,
+  )
+
   return sim_state.SimState(
       t=jnp.array(
           runtime_params.numerics.t_initial, dtype=jax_utils.get_dtype()
@@ -190,6 +209,7 @@ def _get_initial_state(
       geometry=geo,
       edge_outputs=edge_outputs,
       pedestal_transition_state=pedestal_transition_state,
+      model_state=initial_model_state,
       time_step_calculator_state=step_fn.time_step_calculator.initial_state(
           runtime_params
       ),
