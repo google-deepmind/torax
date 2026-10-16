@@ -186,6 +186,38 @@ class GyaradaxTransportModelTest(parameterized.TestCase):
     self.assertEqual(int(idx[1]), int(np.argmin(np.abs(rho_face - 0.5))))
 
 
+  def test_gkparams_for_radius_kinetic_species(self):
+    model = FakeGyaradaxTransportModel(kinetic=True)
+    ql_inputs = gb_norm.build_quasilinear_inputs(self.core_profiles, self.geo)
+    idx = self.geo.rho_face_norm.shape[0] // 2
+    params = gyaradax_base.gkparams_for_radius(
+        idx, ql_inputs, self.core_profiles, self.geo, model
+    )
+    self.assertFalse(params.adiabatic_electrons)
+    for key in ('rlt', 'rln', 'tmp', 'mas', 'de', 'signz', 'vthrat'):
+      self.assertEqual(
+          np.asarray(getattr(params, key)).shape, (2,), f'{key} is not 2-species'
+      )
+    # T_ref is T_i, so tmp = [1, Te/Ti]; electrons are negative and light
+    np.testing.assert_allclose(float(params.tmp[0]), 1.0)
+    np.testing.assert_allclose(float(params.mas[1]), 2.72e-4)
+    self.assertEqual(float(params.signz[1]), -1.0)
+    # one rln for both species: gradient quasineutrality
+    np.testing.assert_allclose(float(params.rln[0]), float(params.rln[1]))
+    # the species precompute needs vthrat = sqrt(tmp/mas) per species
+    np.testing.assert_allclose(
+        np.asarray(params.vthrat),
+        np.sqrt(np.asarray(params.tmp) / np.asarray(params.mas)),
+        rtol=1e-12,
+    )
+
+  def test_kinetic_without_cn_override_raises(self):
+    config = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict(
+        {'model_name': 'gyaradax-ql', 'kinetic': True}
+    )
+    with self.assertRaisesRegex(NotImplementedError, 'cn_override'):
+      config.build_transport_model()
+
   def test_gkparams_for_radius_clips_and_defaults(self):
     model = FakeGyaradaxTransportModel()
     ql_inputs = gb_norm.build_quasilinear_inputs(self.core_profiles, self.geo)

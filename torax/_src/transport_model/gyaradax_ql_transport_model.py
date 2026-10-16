@@ -133,9 +133,10 @@ class GyaradaxQLConfig(base_lib.SolverGKWGyaradaxConfig):
     model_name: transport model selector. Hardcoded to 'gyaradax-ql'.
     n_steps_linear: hard cap on RK4 steps per linear gyaradax run.
     rule: saturation rule, a key of gyaradax.quasilinear.rules.RULES
-      ('canonical', 'sat0_waltz', 'sat1_zonal', 'sat2_spectral',
-      'sat3_regime', 'qualikiz'). Each rule has its own amplitude constant,
-      so a non-default rule needs cn_override or a head fit for it.
+      ('canonical', 'sat0', 'sat2'). 'sat2' reproduces GACODE TGLF SAT2's
+      intensity on the full linear eigenmode. Each rule has its own
+      amplitude constant, so a non-default rule needs cn_override or a head
+      fit for it; the bundled head is 'canonical'-only.
     cn_override: amplitude constant Cn, bypassing the calibration head.
     cn_calibration_path: selects the Cn calibration head. 'auto' (default)
       uses the head bundled with gyaradax; a registry name

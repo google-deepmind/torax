@@ -56,6 +56,8 @@ _Q_MIN, _Q_MAX = 0.5, 10.0
 _SHAT_MIN, _SHAT_MAX = -3.0, 6.0
 _EPS_MIN, _EPS_MAX = 0.02, 0.5
 _BETA_MAX = 0.05
+# GKW deuterium-reference electron mass ratio, as in the kinetic configs
+_ELECTRON_MASS_RATIO = 2.72e-4
 
 # gyaradax geometry / linear-solve defaults
 _GKPARAMS_DT = 0.005
@@ -156,20 +158,42 @@ def gkparams_for_radius(
     )
   else:
     beta = jnp.asarray(0.0)
+  if bool(getattr(config, "kinetic", False)):
+    # [ion, electron]; T_ref = T_i (the GKW ion reference), so tmp[0] = 1.
+    # one rln for both species: the data are pure D and 2-species gyaradax
+    # needs gradient quasineutrality, hence n_e and not n_i0
+    rlt_e = jnp.clip(ql_inputs.lref_over_lte[rho_idx], _RLT_MIN, _RLT_MAX)
+    te_ti = (
+        core_profiles.T_e.face_value()[rho_idx]
+        / core_profiles.T_i.face_value()[rho_idx]
+    )
+    tmp = jnp.stack([jnp.ones_like(te_ti), te_ti])
+    mas = jnp.array([1.0, _ELECTRON_MASS_RATIO])
+    species = dict(
+        rlt=jnp.stack([rlt, rlt_e]),
+        rln=jnp.stack([rln, rln]),
+        tmp=tmp,
+        mas=mas,
+        de=jnp.ones(2),
+        signz=jnp.array([1.0, -1.0]),
+        # the species precompute needs vthrat per species, not as a scalar
+        vthrat=jnp.sqrt(tmp / mas),
+        adiabatic_electrons=False,
+    )
+  else:
+    species = dict(rlt=rlt, rln=rln, adiabatic_electrons=True)
   return GKParams(
-      rlt=rlt,
-      rln=rln,
       q=q,
       shat=shat,
       eps=eps,
       beta=beta,
       nlapar=em,
-      adiabatic_electrons=True,
       non_linear=False,
       disable_per_ky_norm=True,
       dt=_GKPARAMS_DT,
       backend=getattr(config, "backend", "jax"),
       mixed_precision=getattr(config, "mixed_precision", True),
+      **species,
   )
 
 
@@ -216,6 +240,8 @@ class BaseGKWGyaradaxPlugin(
   krhomax: float = 1.4
   # EXPERIMENTAL: beta + A_par flutter
   em: bool = False
+  # EXPERIMENTAL: kinetic electrons; needs a Cn fitted on kinetic data
+  kinetic: bool = False
   diagnostics_path: str = ""
 
   @classmethod
@@ -232,6 +258,11 @@ class BaseGKWGyaradaxPlugin(
     if fis is not None and float(fis.get_value(0.0)) != 0.0:
       raise NotImplementedError(
           f"{cls.__name__} does not implement fast_ion_stabilization."
+      )
+    if getattr(cfg, "kinetic", False) and getattr(cfg, "cn_override", None) is None:
+      raise NotImplementedError(
+          f"{cls.__name__} kinetic electrons need a Cn fitted on kinetic "
+          "data; no such head is bundled. Set cn_override to proceed."
       )
     grid = _resolve_grid(cfg, cls._grid_fallback(cfg))
     # warm caches outside jit: build_topology arrays must not become tracers
@@ -253,6 +284,7 @@ class BaseGKWGyaradaxPlugin(
         ikxspace=int(grid["ikxspace"]),
         krhomax=float(grid["krhomax"]),
         em=getattr(cfg, "em", False),
+        kinetic=getattr(cfg, "kinetic", False),
         diagnostics_path=getattr(cfg, "diagnostics_path", None) or "",
     )
 
@@ -415,6 +447,8 @@ class SolverGKWGyaradaxConfig(BaseGKWGyaradaxConfig):
       subclass's `_grid_fallback` supplies them; set explicitly to override.
     ikxspace: kx mode spacing (parallel boundary connection).
     krhomax: maximum binormal wavenumber k_theta*rho; same None semantics.
+    kinetic: EXPERIMENTAL. Kinetic electrons (2 species) instead of
+      adiabatic. Needs cn_override: no kinetic Cn head is bundled.
     em: EXPERIMENTAL electromagnetic tier — finite local beta and A_par
       flutter in the linear solve.
   """
@@ -429,3 +463,4 @@ class SolverGKWGyaradaxConfig(BaseGKWGyaradaxConfig):
   ikxspace: Annotated[Optional[int], torax_pydantic.JAX_STATIC] = None
   krhomax: Annotated[Optional[float], torax_pydantic.JAX_STATIC] = None
   em: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  kinetic: Annotated[bool, torax_pydantic.JAX_STATIC] = False
