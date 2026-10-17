@@ -22,8 +22,6 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import state
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import impurity_fractions
 from torax._src.core_profiles.plasma_composition import plasma_composition
@@ -55,25 +53,7 @@ class InitialStatesTest(parameterized.TestCase):
         'normalize_n_e_to_nbar': False,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    dynamic_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    dynamic_runtime_params_slice, geo = (
-        build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=torax_config.numerics.t_initial,
-            runtime_params_provider=dynamic_provider,
-            geometry_provider=torax_config.geometry.build_provider,
-            is_initialization=True,
-        )
-    )
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=dynamic_runtime_params_slice,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
-    )
+    core_profiles, _, _ = core_profile_helpers.make_initial_inputs(torax_config)
     np.testing.assert_allclose(core_profiles.T_i.right_face_constraint, 27.7)  # pyrefly: ignore[no-matching-overload]
     np.testing.assert_allclose(core_profiles.T_e.right_face_constraint, 42.0)  # pyrefly: ignore[no-matching-overload]
     np.testing.assert_allclose(core_profiles.n_e.right_face_constraint, 0.1e20)  # pyrefly: ignore[no-matching-overload]
@@ -83,25 +63,7 @@ class InitialStatesTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    dynamic_runtime_params_slice_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
-    )
-    dynamic_runtime_params_slice, geo = (
-        build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=torax_config.numerics.t_initial,
-            runtime_params_provider=dynamic_runtime_params_slice_provider,
-            geometry_provider=torax_config.geometry.build_provider,
-            is_initialization=True,
-        )
-    )
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=dynamic_runtime_params_slice,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
-    )
+    core_profiles, _, _ = core_profile_helpers.make_initial_inputs(torax_config)
     assert core_profiles.quasineutrality_satisfied()
     core_profiles = dataclasses.replace(
         core_profiles,
@@ -143,18 +105,8 @@ class InitialStatesTest(parameterized.TestCase):
         },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
         torax_config
-    )
-    runtime_params = provider(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
     )
 
     with self.subTest('main ion species'):

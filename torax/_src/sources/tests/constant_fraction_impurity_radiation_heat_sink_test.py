@@ -22,6 +22,7 @@ from torax._src.geometry import circular_geometry
 from torax._src.sources import generic_ion_el_heat_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.tests import test_lib
@@ -79,19 +80,20 @@ class ImpurityRadiationConstantFractionTest(
     heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource()
 
     geo = circular_geometry.CircularConfig().build_geometry()
-    el, ion = heat_source.get_value(
+    (el, ion), _ = heat_source.get_value(
         runtime_params,
         geo,
         mock.ANY,
         None,
         None,
+        source_state=source_state_lib.SourceState(),
     )
 
     impurity_radiation_sink = (
         impurity_radiation_constant_fraction.ConstantFractionImpurityRadiationHeatSink()
     )
 
-    impurity_radiation_heat_sink_power_density = (
+    impurity_radiation_heat_sink_power_density, _ = (
         impurity_radiation_sink.get_value(
             runtime_params=runtime_params,
             geo=geo,
@@ -107,6 +109,7 @@ class ImpurityRadiationConstantFractionTest(
                 T_i={'foo_source': ion},  # pyrefly: ignore[bad-assignment]
             ),
             conductivity=None,
+            source_state=source_state_lib.SourceState(),
         )
     )
 

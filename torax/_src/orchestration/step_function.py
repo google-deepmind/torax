@@ -22,6 +22,7 @@ import jax
 from jax import numpy as jnp
 from torax._src import constants
 from torax._src import jax_utils
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
@@ -259,6 +260,7 @@ class SimulationStepFn:
         explicit_source_profiles,
         edge_outputs,
         pedestal_transition_state,
+        model_state_t,
     ) = step_function_processing.pre_step(
         input_state=input_state,
         runtime_params_provider=runtime_params_provider,
@@ -279,6 +281,7 @@ class SimulationStepFn:
           runtime_params_provider,
           geometry_provider,
           pedestal_transition_state,
+          model_state_t,
       )
       # If adaptive dt is enabled, take the adaptive step if the max_dt is
       # greater than the min_dt, otherwise take the fixed step.
@@ -304,6 +307,7 @@ class SimulationStepFn:
           runtime_params_provider,
           geometry_provider,
           pedestal_transition_state,
+          model_state_t,
       )
 
       output_state, post_processed_outputs = jax.lax.cond(
@@ -418,6 +422,7 @@ class SimulationStepFn:
       pedestal_transition_state: (
           pedestal_transition_state_lib.PedestalTransitionState
       ),
+      model_state_t: model_state_lib.ModelState,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -449,6 +454,7 @@ class SimulationStepFn:
           input_post_processed_outputs=previous_post_processed_outputs,
           time_step_calculator_state_t=input_state.time_step_calculator_state,
           pedestal_transition_state=pedestal_transition_state,
+          model_state_t=model_state_t,
       )
 
     # If a sawtooth crash is not triggered for any reason,the input
@@ -476,6 +482,7 @@ class SimulationStepFn:
       pedestal_transition_state: (
           pedestal_transition_state_lib.PedestalTransitionState
       ),
+      model_state_t: model_state_lib.ModelState,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -517,6 +524,7 @@ class SimulationStepFn:
         runtime_params_provider,
         geometry_provider,
         pedestal_transition_state,
+        model_state_t,
     )
     assert isinstance(
         result.state, adaptive_step.AdaptiveStepState
@@ -553,6 +561,7 @@ class SimulationStepFn:
             input_post_processed_outputs=previous_post_processed_outputs,
             time_step_calculator_state_t=input_state.time_step_calculator_state,
             pedestal_transition_state=pedestal_transition_state,
+            model_state_t=model_state_t,
         )
     )
     return output_state, post_processed_outputs
@@ -571,6 +580,7 @@ class SimulationStepFn:
       pedestal_transition_state: (
           pedestal_transition_state_lib.PedestalTransitionState
       ),
+      model_state_t: model_state_lib.ModelState,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -598,8 +608,6 @@ class SimulationStepFn:
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=input_state.core_profiles,
     )
-    # The solver returned state is still "intermediate" since the CoreProfiles
-    # need to be updated by the evolved CellVariables in x_new
     x_new, solver_numeric_outputs = self._solver(
         t=input_state.t,
         dt=dt,
@@ -611,6 +619,7 @@ class SimulationStepFn:
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
         pedestal_transition_state=pedestal_transition_state,
+        model_state=model_state_t,
     )
     output_state, post_processed_outputs = (
         step_function_processing.finalize_outputs(
@@ -629,6 +638,7 @@ class SimulationStepFn:
             input_post_processed_outputs=previous_post_processed_outputs,
             time_step_calculator_state_t=input_state.time_step_calculator_state,
             pedestal_transition_state=pedestal_transition_state,
+            model_state_t=model_state_t,
         )
     )
     return output_state, post_processed_outputs

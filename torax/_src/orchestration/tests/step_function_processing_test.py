@@ -114,7 +114,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
       )
 
     with self.subTest('L_to_H_transition'):
-      _, _, _, _, state_h = step_function_processing.pre_step(
+      _, _, _, _, state_h, _ = step_function_processing.pre_step(
           input_state=dataclasses.replace(sim_state, t=jnp.array(1.5)),
           runtime_params_provider=step_fn.runtime_params_provider,
           geometry_provider=step_fn.geometry_provider,
@@ -127,7 +127,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
       )
 
     with self.subTest('H_to_L_transition'):
-      _, _, _, _, state_l = step_function_processing.pre_step(
+      _, _, _, _, state_l, _ = step_function_processing.pre_step(
           input_state=dataclasses.replace(
               sim_state, t=jnp.array(2.5), pedestal_transition_state=state_h
           ),
