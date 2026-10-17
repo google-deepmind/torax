@@ -80,7 +80,10 @@ _GRID_FLOOR = {"nkx": 85, "nky": 32}
 _GRID_PRESETS = {
     "adiabatic": dict(nvpar=32, nmu=8, ns=16, nkx=85, nky=32, ikxspace=5,
                       krhomax=1.4),
-    "kinetic": dict(nvpar=32, nmu=12, ns=18, nkx=192, nky=32, ikxspace=16,
+    # nkx is ODD: gyaradax builds a symmetric kx grid about kx = 0, so an
+    # even nkx mismatches the field shape it allocates. The stored kinetic
+    # runs are all 191.
+    "kinetic": dict(nvpar=32, nmu=12, ns=18, nkx=191, nky=32, ikxspace=16,
                     krhomax=1.5),
 }
 
@@ -132,6 +135,14 @@ def _resolve_grid(cfg, fallback_grid=None) -> dict:
     raise ValueError(
         f"gyaradax grid underspecified ({missing}): set these config fields "
         "explicitly, or select a source that carries grid metadata."
+    )
+  # gyaradax's kx grid is symmetric about kx = 0, so an even nkx mismatches
+  # the field shape it allocates -- and only fails at the first transport
+  # call, with a bare shape error deep in the solver
+  if int(grid["nkx"]) % 2 == 0:
+    raise ValueError(
+        f"gyaradax nkx must be odd (got {grid['nkx']}): the kx grid is "
+        f"symmetric about kx=0. Use {int(grid['nkx']) - 1}."
     )
   for key, floor in _GRID_FLOOR.items():
     if int(grid[key]) < floor:

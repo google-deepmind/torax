@@ -214,13 +214,13 @@ class GyaradaxTransportModelTest(parameterized.TestCase):
   def test_any_grid_is_reachable_from_config(self):
     cfg = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict({
         'model_name': 'gyaradax-ql',
-        'nvpar': 48, 'nmu': 12, 'ns': 18, 'nkx': 192, 'nky': 64,
+        'nvpar': 48, 'nmu': 12, 'ns': 18, 'nkx': 191, 'nky': 64,
         'ikxspace': 7, 'krhomax': 1.5,
         'vpar_max': 3.5, 'nperiod': 2, 'geom_type': 'miller',
         'gkparams_dt': 0.0025, 'rref': 50.0,
     })
     m = cfg.build_transport_model()
-    for k, v in (('nvpar', 48), ('nmu', 12), ('ns', 18), ('nkx', 192),
+    for k, v in (('nvpar', 48), ('nmu', 12), ('ns', 18), ('nkx', 191),
                  ('nky', 64), ('ikxspace', 7), ('krhomax', 1.5),
                  ('vpar_max', 3.5), ('nperiod', 2), ('geom_type', 'miller'),
                  ('gkparams_dt', 0.0025), ('rref', 50.0)):
@@ -231,7 +231,7 @@ class GyaradaxTransportModelTest(parameterized.TestCase):
         {'model_name': 'gyaradax-ql', 'grid_preset': 'kinetic', 'nky': 48}
     )
     m = cfg.build_transport_model()
-    self.assertEqual(m.nkx, 192)   # from the preset
+    self.assertEqual(m.nkx, 191)   # from the preset; odd by construction
     self.assertEqual(m.nmu, 12)    # from the preset
     self.assertEqual(m.nky, 48)    # explicit config still wins
 
@@ -271,6 +271,36 @@ class GyaradaxTransportModelTest(parameterized.TestCase):
     self.assertEqual(gyaradax_base.ikxspace_for_shat(99.0), 32)
     for k in range(len(rho)):
       self.assertIsNotNone(m.topology_at(k))
+
+  def test_even_nkx_is_rejected(self):
+    cfg = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict(
+        {'model_name': 'gyaradax-ql', 'nkx': 192}
+    )
+    with self.assertRaisesRegex(ValueError, 'must be odd'):
+      cfg.build_transport_model()
+
+  def test_presets_use_odd_nkx(self):
+    for name, g in gyaradax_base._GRID_PRESETS.items():
+      self.assertEqual(g['nkx'] % 2, 1, f'{name} preset has even nkx')
+
+  def test_dlnpdr_survives_vmap(self):
+    """It is evaluated per radius inside jax.vmap, so it must stay traceable."""
+    import jax
+    import jax.numpy as jnp
+    from gyaradax.quasilinear.rules import dlnpdr_tglf
+
+    def f(rlt, rln, te_ti):
+      return dlnpdr_tglf(rlt, rln, te_ti=te_ti, adiabatic=False)
+
+    rlt = jnp.array([[6.0, 4.0], [8.0, 5.0], [3.0, 2.0]])
+    rln = jnp.array([[2.0, 2.0], [1.0, 1.0], [3.0, 3.0]])
+    tt = jnp.array([1.0, 0.7, 1.3])
+    out = jax.vmap(f)(rlt, rln, tt)
+    self.assertEqual(out.shape, (3,))
+    self.assertTrue(np.all(np.isfinite(np.asarray(out))))
+    # and the clamp still holds under tracing
+    self.assertTrue(np.all(np.asarray(out) >= 4.0 - 1e-9))
+    self.assertTrue(np.all(np.asarray(out) <= 18.0 + 1e-9))
 
   def test_kinetic_without_cn_override_raises(self):
     config = gyaradax_ql_transport_model.GyaradaxQLConfig.from_dict(
