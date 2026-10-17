@@ -210,3 +210,38 @@ directly with Python:
 .. code-block:: console
 
   python torax/torax/_src/transport_model/tglf/tests/tglf2py_test.py
+
+
+(Optional) Install gyaradax
+---------------------------
+
+The ``gyaradax-ql`` and ``gyaradax-nl`` transport models are backed by
+gyaradax, a pure-JAX reimplementation of the GKW gyrokinetic solver. gyaradax
+is an optional dependency: TORAX runs without it, and these models only become
+selectable once gyaradax is importable in the same environment.
+
+Install gyaradax directly from GitHub into your TORAX virtual environment:
+
+.. code-block:: console
+
+  pip install git+https://github.com/gerkone/gyaradax
+
+or clone the repository and install it:
+
+.. code-block:: console
+
+  git clone https://github.com/gerkone/gyaradax.git
+  pip install -e gyaradax
+
+The optional calibration heads selected via ``cn_calibration_path``
+additionally require ``scikit-learn``, the default ITG saturation rule does not.
+
+Importing either transport model registers it with TORAX, so add
+
+.. code-block:: python
+
+  from torax._src.transport_model import gyaradax_ql_transport_model
+
+to your run script and then set ``model_name: 'gyaradax-ql'`` in the
+``core_transport_models`` mapping of your TORAX config. See
+:ref:`configuration` and the gyaradax entries under :ref:`physics_models`.
