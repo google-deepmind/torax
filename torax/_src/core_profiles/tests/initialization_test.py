@@ -64,13 +64,14 @@ class InitializationTest(parameterized.TestCase):
     runtime_params, geo = references.get_runtime_params_and_geo()
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
     source = generic_current_source.GenericCurrentSource()
-    j_parallel_external = source.get_value(
+    (j_parallel_external,), _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
         conductivity=None,
-    )[0]
+        source_state=source.initial_state(runtime_params),
+    )
     assert isinstance(j_parallel_external, jax.Array)
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
         j_parallel_external,
@@ -567,13 +568,14 @@ def _get_initial_state(
       neoclassical_model=neoclassical_model,
   )
   neoclassical_outputs = neoclassical_model(runtime_params, geo, core_profiles)
-  core_sources = source_profile_builders.get_all_source_profiles(
+  core_sources, _ = source_profile_builders.get_all_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
       conductivity=neoclassical_outputs.conductivity,
       bootstrap_current=neoclassical_outputs.bootstrap_current,
+      source_states=source_models.initial_state(runtime_params),
   )
   j_toroidal_total = core_profiles.j_total
   j_toroidal_total_face = core_profiles.j_total_face

@@ -17,15 +17,18 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.orchestration import sim_state
+from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles
 from torax._src.test_utils import core_profile_helpers
 from torax._src.time_step_calculator import time_step_calculator_state
+from torax._src.transport_model import transport_state as transport_state_lib
 
 # pylint: disable=invalid-name
 
@@ -98,6 +101,11 @@ class SimStateTest(parameterized.TestCase):
         ),
         time_step_calculator_state=time_step_calculator_state.TimeStepCalculatorState(),
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state=model_state_lib.ModelState(
+            pedestal=pedestal_state_lib.PedestalState(),
+            transport=transport_state_lib.TransportState(),
+            sources={},
+        ),
     )
 
   def test_has_nan_no_nan(self):

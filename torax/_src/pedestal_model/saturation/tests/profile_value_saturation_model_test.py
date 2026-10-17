@@ -14,10 +14,9 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -30,18 +29,8 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
     super().setUp()
     config = default_configs.get_default_config_dict()
     self.torax_config = model_config.ToraxConfig.from_dict(config)
-    self.provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        self.torax_config
-    )
-    self.runtime_params = self.provider(t=0.0)
-    self.geo = self.torax_config.geometry.build_provider(t=0.0)
-    self.source_models = self.torax_config.sources.build_models()
-    self.neoclassical_model = self.torax_config.neoclassical.build_model()
-    self.core_profiles = initialization.initial_core_profiles(
-        self.runtime_params,
-        self.geo,
-        self.source_models,
-        self.neoclassical_model,
+    self.core_profiles, self.runtime_params, self.geo = (
+        core_profile_helpers.make_initial_inputs(self.torax_config)
     )
 
   @parameterized.named_parameters(

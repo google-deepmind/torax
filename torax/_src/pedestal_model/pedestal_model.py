@@ -28,6 +28,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
+from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import base as formation_base
@@ -95,6 +96,17 @@ class PedestalModel(static_dataclass.StaticDataclass):
       )
 
     return pedestal_output
+
+  def initial_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      source_profiles: source_profiles_lib.SourceProfiles,
+  ) -> pedestal_state_lib.PedestalState:
+    """Returns the initial PedestalState for this model."""
+    del runtime_params, geo, core_profiles, source_profiles
+    return pedestal_state_lib.PedestalState()
 
   def initialize_transition_state(
       self,

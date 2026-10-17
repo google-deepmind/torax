@@ -22,13 +22,12 @@ import numpy as np
 import pydantic
 from torax._src import array_typing
 from torax._src import state
-from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -47,24 +46,16 @@ def _get_config_and_model_inputs(
   config["transport"] = transport
   torax_config = model_config.ToraxConfig.from_dict(config)
   source_models = torax_config.sources.build_models()
-  neoclassical_model = torax_config.neoclassical.build_model()
-  runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
+  core_profiles, runtime_params, geo = core_profile_helpers.make_initial_inputs(
       torax_config
-  )(
-      t=torax_config.numerics.t_initial,
   )
-  geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
-  core_profiles = initialization.initial_core_profiles(
-      runtime_params=runtime_params,
-      geo=geo,
-      source_models=source_models,
-      neoclassical_model=neoclassical_model,
-  )
-  source_profiles = source_profile_builders.build_source_profiles(
+  source_states = source_models.initial_state(runtime_params)
+  source_profiles, _ = source_profile_builders.build_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      source_states=source_states,
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()

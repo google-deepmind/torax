@@ -19,9 +19,9 @@ import jax
 import numpy as np
 from torax._src import constants
 from torax._src import math_utils
-from torax._src.core_profiles import initialization
 from torax._src.sources import fusion_heat_source
 from torax._src.sources.tests import test_lib
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import torax_refs
 
 
@@ -44,12 +44,13 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Calculates total DT fusion power [MW] from the fusion source profiles."""
     source = source_models.standard_sources[self.source_name]
-    Pfus_i, Pfus_e = source.get_value(
+    (Pfus_i, Pfus_e), _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source.initial_state(runtime_params),
     )
     assert isinstance(Pfus_i, jax.Array)
     assert isinstance(Pfus_e, jax.Array)
@@ -73,15 +74,10 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
     """Compare `calc_fusion` function to a reference implementation."""
     references = references_getter()
     references.config.update_fields({'sources.fusion': {}})
-    runtime_params, geo = references.get_runtime_params_and_geo()
-    source_models = references.config.sources.build_models()
-    neoclassical_model = references.config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(references.config)
     )
+    source_models = references.config.sources.build_models()
 
     torax_fusion_power = self._calculate_torax_fusion_power(
         source_models, runtime_params, geo, core_profiles
@@ -110,15 +106,10 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         'sources.fusion': {},
     })
 
-    runtime_params_t, geo = references.get_runtime_params_and_geo()
-    source_models = references.config.sources.build_models()
-    neoclassical_model = references.config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params_t,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params_t, geo = (
+        core_profile_helpers.make_initial_inputs(references.config)
     )
+    source_models = references.config.sources.build_models()
 
     torax_fusion_power = self._calculate_torax_fusion_power(
         source_models, runtime_params_t, geo, core_profiles

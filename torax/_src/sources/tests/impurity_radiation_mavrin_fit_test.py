@@ -15,8 +15,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src import constants
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.physics import charge_states
 from torax._src.physics.radiation import radiation
@@ -25,6 +23,7 @@ from torax._src.sources import source as source_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.sources.tests import test_lib
+from torax._src.test_utils import core_profile_helpers
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -42,18 +41,8 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
   def _run_source_model(self, torax_config: model_config.ToraxConfig):
     """Helper to run the impurity radiation model for a given config."""
-    provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = provider(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models,
-        neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     source = source_models.standard_sources[self._source_name]
     return source.get_value(
