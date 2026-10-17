@@ -150,6 +150,7 @@ class StateHistory:
     self._edge_outputs = [state.edge_outputs for state in state_history]
     self._transport = [state.core_transport for state in state_history]
     self._geometries = [state.geometry for state in state_history]
+    self._model_states = [state.model_state for state in state_history]
     self._stacked_geometry = geometry_lib.stack_geometries(self.geometries)
     stack = lambda *ys: np.stack(ys)
     self._stacked_core_profiles: state.CoreProfiles = jax.tree.map(

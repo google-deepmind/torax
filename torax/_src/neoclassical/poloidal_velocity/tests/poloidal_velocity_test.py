@@ -15,12 +15,11 @@
 
 from absl.testing import absltest
 import numpy as np
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import kim
 from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.neoclassical.poloidal_velocity import zeros
+from torax._src.test_utils import core_profile_helpers
 from torax._src.torax_pydantic import model_config
 
 _A_TOL = 1e-6
@@ -69,23 +68,8 @@ class PoloidalVelocityTest(absltest.TestCase):
         'pedestal': {},
         'sources': {},
     })
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    self.runtime_params, self.geo = (
-        build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=torax_config.numerics.t_initial,
-            runtime_params_provider=params_provider,
-            geometry_provider=torax_config.geometry.build_provider,
-            is_initialization=True,
-        )
-    )
-    models = torax_config.build_models()
-    self.core_profiles = initialization.initial_core_profiles(
-        self.runtime_params,
-        self.geo,
-        source_models=models.source_models,
-        neoclassical_model=models.neoclassical_model,
+    self.core_profiles, self.runtime_params, self.geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     self.neoclassical_intermediates = (
         formulas.compute_neoclassical_intermediates(

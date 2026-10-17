@@ -18,10 +18,46 @@ from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import state
+from torax._src.config import build_runtime_params
+from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
+from torax._src.torax_pydantic import model_config
+
+
+def make_initial_inputs(
+    torax_config: model_config.ToraxConfig,
+    t: float | None = None,
+) -> tuple[
+    state.CoreProfiles,
+    runtime_params_lib.RuntimeParams,
+    geometry.Geometry,
+]:
+  """Builds initial CoreProfiles, RuntimeParams, and Geometry."""
+  models = torax_config.build_models()
+  runtime_params, geo = (
+      build_runtime_params.get_consistent_runtime_params_and_geometry(
+          t=torax_config.numerics.t_initial if t is None else t,
+          runtime_params_provider=(
+              build_runtime_params.RuntimeParamsProvider.from_config(
+                  torax_config
+              )
+          ),
+          geometry_provider=torax_config.geometry.build_provider,
+          is_initialization=True,
+      )
+  )
+  core_profiles = initialization.initial_core_profiles(
+      runtime_params,
+      geo,
+      source_models=models.source_models,
+      neoclassical_model=models.neoclassical_model,
+      source_states=models.source_models.initial_state(runtime_params),
+  )
+  return core_profiles, runtime_params, geo
 
 
 # pylint: disable=invalid-name

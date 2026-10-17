@@ -21,6 +21,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import array_typing
+from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry
@@ -80,6 +81,7 @@ class SimState:
     solver_numeric_outputs: Numerical quantities related to the solver.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
+    model_state: State of models across timesteps.
     time_step_calculator_state: State for the time step calculator.
   """
 
@@ -97,6 +99,7 @@ class SimState:
   pedestal_transition_state: (
       pedestal_transition_state_lib.PedestalTransitionState
   )
+  model_state: model_state_lib.ModelState
 
   def check_for_errors(self) -> state.SimError:
     """Checks for errors in the simulation state."""
