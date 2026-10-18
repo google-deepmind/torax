@@ -142,7 +142,7 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
     rotation_mode: Defines how the rotation correction is applied.
   """
 
-  DV_effective: bool = dataclasses.field(metadata={'static': True})
+  DV_effective: bool = jax.tree.static()
   An_min: float
   DV_effective_smooth_width: float
   collisionality_multiplier: float
@@ -151,7 +151,7 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
   smag_alpha_correction: bool
   q_sawtooth_proxy: bool
   rotation_multiplier: float
-  rotation_mode: RotationMode = dataclasses.field(metadata={'static': True})
+  rotation_mode: RotationMode = jax.tree.static()
 
 
 class QualikizBasedTransportModelConfig(

@@ -42,8 +42,8 @@ _IMPURITY_MODE_NE_RATIOS_ZEFF: Final[str] = 'n_e_ratios_Z_eff'
 @dataclasses.dataclass
 class RuntimeParams:
   """Runtime parameters for the plasma composition."""
-  main_ion_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
-  impurity_names: tuple[str, ...] = dataclasses.field(metadata={'static': True})
+  main_ion_names: tuple[str, ...] = jax.tree.static()
+  impurity_names: tuple[str, ...] = jax.tree.static()
   main_ion: ion_mixture.RuntimeParams
   impurity: (
       ion_mixture.RuntimeParams

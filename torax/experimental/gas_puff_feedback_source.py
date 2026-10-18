@@ -65,7 +65,7 @@ class RuntimeParams(sources_runtime_params_lib.RuntimeParams):
   puff_decay_length: array_typing.FloatScalar
   S_feedforward: array_typing.FloatScalar
   target_average_n_e: array_typing.FloatScalar
-  average_type: AverageType = dataclasses.field(metadata={'static': True})
+  average_type: AverageType = jax.tree.static()
   feedback_gain: array_typing.FloatScalar
 
 

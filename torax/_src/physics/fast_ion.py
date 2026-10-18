@@ -37,7 +37,7 @@ class FastIon:
     T: Temperature [keV].
   """
 
-  species: str = dataclasses.field(metadata={'static': True})
-  source: str = dataclasses.field(metadata={'static': True})
+  species: str = jax.tree.static()
+  source: str = jax.tree.static()
   n: cell_variable.CellVariable
   T: cell_variable.CellVariable

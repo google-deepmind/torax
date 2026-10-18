@@ -31,7 +31,7 @@ class RuntimeParams:
 
   n_e_ratios: Mapping[str, array_typing.FloatVectorCell | None]
   n_e_ratios_face: Mapping[str, array_typing.FloatVectorFace | None]
-  unknown_species: str = dataclasses.field(metadata={'static': True})
+  unknown_species: str = jax.tree.static()
   Z_override: array_typing.FloatScalar | None = None
   A_override: array_typing.FloatVectorCell | None = None
   A_override_face: array_typing.FloatVectorFace | None = None

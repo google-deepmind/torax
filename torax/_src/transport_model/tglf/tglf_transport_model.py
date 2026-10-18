@@ -49,9 +49,7 @@ class RuntimeParams(tglf_based_transport_model.RuntimeParams):
 
   n_processes: int
   n_cores_per_process: int
-  tglf_settings: dict[str, TGLFSettingsValueTypes] = dataclasses.field(
-      metadata={'static': True}
-  )
+  tglf_settings: dict[str, TGLFSettingsValueTypes] = jax.tree.static()
 
 
 def _run_single_tglf(

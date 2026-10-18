@@ -35,11 +35,9 @@ class ComponentRuntimeParams:
   disable_D_e: array_typing.BoolScalar
   disable_V_e: array_typing.BoolScalar
   fast_ion_stabilization: array_typing.BoolScalar
-  fast_ion_stabilization_model: tuple[tuple[str, str], ...] = dataclasses.field(
-      metadata={'static': True}
-  )
+  fast_ion_stabilization_model: tuple[tuple[str, str], ...] = jax.tree.static()
   fast_ion_stabilization_multiplier: float
-  merge_mode: enums.MergeMode = dataclasses.field(metadata={'static': True})
+  merge_mode: enums.MergeMode = jax.tree.static()
 
 
 @jax.tree_util.register_dataclass

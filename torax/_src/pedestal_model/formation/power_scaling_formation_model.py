@@ -43,7 +43,7 @@ class PowerScalingFormationRuntimeParams(
   offset: array_typing.FloatScalar
   P_LH_prefactor: array_typing.FloatScalar
   P_LH_hysteresis_factor: array_typing.FloatScalar
-  include_dW_dt_in_P_SOL: bool = dataclasses.field(metadata={'static': True})
+  include_dW_dt_in_P_SOL: bool = jax.tree.static()
 
 
 @jax.jit(static_argnames=['include_dW_dt'])
