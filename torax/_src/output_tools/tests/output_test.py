@@ -262,9 +262,11 @@ class StateHistoryTest(parameterized.TestCase):
         volume_values,
         (1, len(self.geo.rho_norm) + 2),
     )
-    np.testing.assert_equal(volume_values[0, 0], self.geo.volume_face[0])
-    np.testing.assert_equal(volume_values[0, -1], self.geo.volume_face[-1])
-    np.testing.assert_equal(volume_values[0, 1:-1], self.geo.volume)
+    np.testing.assert_array_equal(volume_values[0, 0], self.geo.volume_face[0])
+    np.testing.assert_array_equal(
+        volume_values[0, -1], self.geo.volume_face[-1]
+    )
+    np.testing.assert_array_equal(volume_values[0, 1:-1], self.geo.volume)
 
   def test_state_history_saves_ion_el_source(self):
     """Tests that an ion electron source is saved correctly."""
