@@ -146,7 +146,7 @@ def run_loop(
             numerics.t_final
             - numerics.t_initial
         )
-        pbar.n = int(progress_ratio * pbar.total)
+        pbar.n = round(progress_ratio * pbar.total)
         pbar.set_description(f'Simulating (t={current_state.t:.5f})')
         pbar.refresh()
       step_count += 1
