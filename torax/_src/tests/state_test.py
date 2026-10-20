@@ -60,7 +60,7 @@ class InitialStatesTest(parameterized.TestCase):
     dynamic_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
-    dynamic_runtime_params_slice, geo = (
+    runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
             runtime_params_provider=dynamic_provider,
@@ -69,7 +69,7 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     core_profiles = initialization.initial_core_profiles(
-        runtime_params=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
@@ -85,19 +85,19 @@ class InitialStatesTest(parameterized.TestCase):
     )
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
-    dynamic_runtime_params_slice_provider = (
+    runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
-    dynamic_runtime_params_slice, geo = (
+    runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
-            runtime_params_provider=dynamic_runtime_params_slice_provider,
+            runtime_params_provider=runtime_params_provider,
             geometry_provider=torax_config.geometry.build_provider,
             is_initialization=True,
         )
     )
     core_profiles = initialization.initial_core_profiles(
-        runtime_params=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,

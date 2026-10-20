@@ -216,20 +216,20 @@ class PsiCalculationsTest(parameterized.TestCase):
     )
     source_models = references.config.sources.build_models()
     neoclassical_model = references.config.neoclassical.build_model()
-    dynamic_runtime_params_slice, geo = references.get_runtime_params_and_geo()
+    runtime_params, geo = references.get_runtime_params_and_geo()
     source_profiles = source_profiles_lib.SourceProfiles(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
     )
     initial_core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
     )
     # Updates the calculated source profiles with the standard source profiles.
     source_profile_builders.build_standard_source_profiles(
-        runtime_params=dynamic_runtime_params_slice,
+        runtime_params=runtime_params,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,
@@ -238,7 +238,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         calculated_source_profiles=source_profiles,
     )
     conductivity = neoclassical_model(
-        dynamic_runtime_params_slice,
+        runtime_params,
         geo,
         initial_core_profiles,
     ).conductivity
