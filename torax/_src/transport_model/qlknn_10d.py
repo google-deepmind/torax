@@ -108,7 +108,7 @@ class QuaLiKizNDNN:
     """Calculate the outputs given specific inputs."""
 
     inputs = (
-        self._feature_prescale_factor * inputs + self._feature_prescale_bias
+        self._feature_prescale_factor * inputs + self._feature_prescale_bias  # pyrefly: ignore[bad-assignment]
     )
     outputs = self._model.apply(self._params, inputs)
     outputs = (
