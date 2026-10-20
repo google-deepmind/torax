@@ -2817,7 +2817,12 @@ newton_raphson
 ``residual_coarse_tol`` (float [default = 1e-2])
   If the solver hits an exit criterion due to small steps or many iterations,
   but the residual is still below ``coarse_tol``, then the step is allowed to
-  successfully pass, and a warning is passed to the user.
+  successfully pass, and a warning is passed to the user. Note that
+  differentiating through the Newton-Raphson solver uses implicit
+  differentiation (``jax.lax.custom_root``), which is only valid at a converged
+  root. When taking gradients through a simulation, consider setting
+  ``residual_coarse_tol`` equal to ``residual_tol`` to disable this fallback
+  and force ``dt`` backtracking until every step converges to ``residual_tol``.
 
 ``n_max_iterations`` (int [default = 30])
   Maximum number of allowed Newton iterations. If the number of iterations

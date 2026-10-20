@@ -71,6 +71,16 @@ details on usage.
       runtime_params_overrides=new_provider,
   )
 
+Differentiating through a simulation
+====================================
 
+When taking gradients through a simulation that uses the ``newton_raphson``
+solver, derivatives through the solver step are computed via implicit
+differentiation (``jax.lax.custom_root``), which requires each step to have
+converged to a root. If the solver exits at the coarser tolerance
+``residual_coarse_tol`` without converging to ``residual_tol``, the resulting
+gradients may be inaccurate. Consider setting ``solver.residual_coarse_tol``
+equal to ``solver.residual_tol`` to disable the coarse-tolerance fallback and
+force ``dt`` backtracking until full convergence.
 
 

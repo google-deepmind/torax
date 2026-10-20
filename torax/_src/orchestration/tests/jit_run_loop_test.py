@@ -32,9 +32,11 @@ class JitRunLoopTest(absltest.TestCase):
     torax_config = torax.build_torax_config_from_file(
         'examples/iterhybrid_rampup.py'
     )
-    # TODO(b/574564275): Remove once examples/iterhybrid_rampup.py itself sets
-    # initial_guess_mode='x_old'.
-    torax_config.update_fields({'solver.initial_guess_mode': 'x_old'})
+    # TODO(b/575786554): Implement better handling of coarse-converged steps
+    # during gradient passes. For now, disable the coarse-tolerance fallback so
+    # that every step backtracks until it converges to full tolerance (required
+    # for implicit differentiation).
+    torax_config.update_fields({'solver.residual_coarse_tol': 1e-5})
     step_fn = torax_experimental.make_step_fn(torax_config)
     runtime_params_provider = step_fn.runtime_params_provider
 

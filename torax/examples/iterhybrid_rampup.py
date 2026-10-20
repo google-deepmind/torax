@@ -176,6 +176,9 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'newton_raphson',
+        # TODO(b/515255142): Improve the warm-start predictor-corrector so that
+        # it can be re-enabled.
+        'initial_guess_mode': 'x_old',
         'use_predictor_corrector': True,
         'n_corrector_steps': 5,
         # (Deliberately) large heat conductivity and particle diffusion for
