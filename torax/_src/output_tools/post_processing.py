@@ -184,8 +184,6 @@ class PostProcessedOutputs:
       source [Am^-2]
     j_ecrh: Toroidal current density from electron cyclotron heating and current
       source [Am^-2]
-    j_parallel_ecrh: Toroidal current density from electron cyclotron heating
-      and current source [Am^-2]
     j_non_inductive: Total toroidal non-inductive current density [Am^-2]
     j_parallel_non_inductive: Total parallel non-inductive current density
       [Am^-2]
