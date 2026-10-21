@@ -18,7 +18,9 @@ for interacting with the transport model or implementing a custom transport
 model.
 """
 
+# pylint: disable=g-importing-member
 from torax._src.transport_model.component import ComponentTransportModel
+from torax._src.transport_model.enums import MergeMode
 from torax._src.transport_model.pydantic_model_base import ComponentTransportBase
 from torax._src.transport_model.register_model import register_transport_model
 from torax._src.transport_model.runtime_params import ComponentRuntimeParams
@@ -30,6 +32,7 @@ __all__ = [
     'ComponentRuntimeParams',  # Runtime parameters for component models
     'ComponentTransportBase',  # Base Pydantic config for component models
     'ComponentTransportModel',  # Base class for individual transport models
+    'MergeMode',  # Mode for combining transport model outputs
     'RuntimeParams',  # Runtime parameters for transport models
     'TransportCoeffs',  # Base dataclass containing 4 main transport channels
     'TurbulentTransport',  # Combined container holding model outputs

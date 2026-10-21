@@ -74,7 +74,11 @@ class TransportTest(absltest.TestCase):
     config = default_configs.get_default_config_dict()
     config['transport'] = {
         'core_transport_models': {
-            'fake_inner': {'model_name': 'fake_api', 'rho_max': 0.5},
+            'fake_inner': {
+                'model_name': 'fake_api',
+                'rho_max': 0.5,
+                'merge_mode': transport.MergeMode.OVERWRITE,
+            },
             'fake_outer': {'model_name': 'fake_api', 'rho_min': 0.5},
         },
     }

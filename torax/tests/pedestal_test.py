@@ -21,7 +21,6 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import torax
 from torax import pedestal
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 
 
@@ -34,7 +33,7 @@ class FakePedestalModel(pedestal.PedestalStructureModel):
       runtime_params: torax.RuntimeParams,
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
+      pedestal_transition_state: pedestal.PedestalTransitionState,
   ) -> pedestal.PedestalStructure:
     del runtime_params, geo, core_profiles, pedestal_transition_state
     return pedestal.PedestalStructure(
@@ -71,6 +70,22 @@ class PedestalTest(absltest.TestCase):
     }
     torax_config = torax.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config)
+
+  def test_pedestal_api_exports(self):
+    state = pedestal.PedestalTransitionState.empty(
+        confinement_mode=pedestal.ConfinementMode.L_MODE
+    )
+    self.assertEqual(state.confinement_mode, pedestal.ConfinementMode.L_MODE)
+    torax_config = torax.ToraxConfig.from_dict(
+        default_configs.get_default_config_dict()
+    )
+    self.assertEqual(
+        torax_config.pedestal.mode, pedestal.Mode.INTERNAL_BOUNDARY_CONDITION
+    )
+    self.assertEqual(
+        FakePedestalPydantic().pedestal_profile_form,
+        pedestal.PedestalProfileForm.SET_AT_PED_TOP,
+    )
 
 
 if __name__ == '__main__':

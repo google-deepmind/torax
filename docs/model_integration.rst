@@ -669,7 +669,7 @@ Configuring time-varying parameters and physical bounds
 =======================================================
 
 When defining custom Pydantic config classes for models, TORAX provides several
-type helpers in ``torax._src.torax_pydantic`` to enforce physical constraints
+type helpers in ``torax.torax_pydantic`` to enforce physical constraints
 (such as positivity, non-negativity, intervals, or custom bounds) on
 time-varying scalars and arrays:
 
@@ -692,8 +692,9 @@ Example usage in a custom model config:
 .. code-block:: python
 
     from typing import Annotated, Literal
+    import torax
     from torax import sources
-    from torax._src.torax_pydantic import torax_pydantic
+    from torax import torax_pydantic
 
     class MyCustomConfig(sources.SourceConfigBase):
       """Custom source config with bounded parameters."""
