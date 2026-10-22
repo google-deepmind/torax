@@ -36,12 +36,12 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import linear_theta_method
-from torax._src.solver import pydantic_model as solver_pydantic_model
+from torax._src.solver import pydantic_config as solver_pydantic_config
 from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
-from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import pydantic_config_base as transport_pydantic_config_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_coeffs
@@ -161,7 +161,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     mock_run_loop.assert_called_once()
 
 
-class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
+class FakeSolverConfig(solver_pydantic_config.LinearThetaMethodConfig):
   """Fake solver config that allows us to hook into the error logic."""
 
   solver_type: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'  # pyrefly: ignore[bad-override]
@@ -290,7 +290,7 @@ class FakeTransportModel(component.ComponentTransportModel):
 
 
 class FakeTransportConfig(
-    transport_pydantic_model_base.ComponentTransportBase
+    transport_pydantic_config_base.ComponentTransportConfigBase
 ):
   """Fake transport config for a model that always returns zeros."""
 

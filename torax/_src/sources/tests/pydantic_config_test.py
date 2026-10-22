@@ -21,7 +21,7 @@ import numpy as np
 import pydantic
 from torax._src import jax_utils
 from torax._src.geometry import circular_geometry
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.neoclassical import pydantic_config as neoclassical_pydantic_config
 from torax._src.sources import base
 from torax._src.sources import fusion_heat_source
 from torax._src.sources import gas_puff_source
@@ -39,7 +39,7 @@ class PydanticConfigTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     self.neoclassical = (
-        neoclassical_pydantic_model.AnalyticalNeoclassicalConfig.from_dict({})
+        neoclassical_pydantic_config.AnalyticalNeoclassicalConfig.from_dict({})
     )
 
   @parameterized.parameters(

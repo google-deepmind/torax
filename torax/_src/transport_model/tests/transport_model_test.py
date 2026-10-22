@@ -36,7 +36,7 @@ from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
 from torax._src.transport_model import enums
-from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import pydantic_config_base as transport_pydantic_config_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
@@ -79,7 +79,7 @@ class FixedTransportModel(component.ComponentTransportModel):
 
 
 class FixedTransportConfig(
-    transport_pydantic_model_base.ComponentTransportBase
+    transport_pydantic_config_base.ComponentTransportConfigBase
 ):
   """Fixed transport config for a model that always returns fixed values."""
 

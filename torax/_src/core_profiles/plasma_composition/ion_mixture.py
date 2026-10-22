@@ -54,7 +54,7 @@ class RuntimeParams:
   Z_override: array_typing.FloatScalar | None = None
 
 
-class IonMixture(torax_pydantic.BaseModelFrozen):
+class IonMixture(torax_pydantic.ConfigBase):
   """Represents a mixture of ion species. The mixture can depend on time.
 
   Main use cases:

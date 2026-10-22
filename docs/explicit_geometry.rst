@@ -19,7 +19,7 @@ so:
   step_fn = torax_experimental.make_step_fn(torax_config)
   control_dt = 0.5
   # We can directly create a new geometry object from a config.
-  geometry_config = geometry_experimental.Geometry.from_dict({
+  geometry_config = geometry_experimental.GeometryConfig.from_dict({
       'n_rho': 25,
       'geometry_type': 'fbt',
       'Ip_from_parameters': True,
@@ -42,7 +42,7 @@ so:
     new_LY = get_LY_from_eq_code(sim_state, sim_post_processed_outputs)
     # Update the geometry setting the new LY object for the next time step.
     # We need to provide the previous LY object to create a correct phibdot term
-    geometry_config = geometry_experimental.Geometry.from_dict({
+    geometry_config = geometry_experimental.GeometryConfig.from_dict({
       'n_rho': 25,
       'geometry_type': 'fbt',
       'Ip_from_parameters': True,

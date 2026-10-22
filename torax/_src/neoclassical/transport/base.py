@@ -104,7 +104,7 @@ class NeoclassicalTransportModel(abc.ABC):
     pass
 
 
-class NeoclassicalTransportModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class NeoclassicalTransportModelConfig(torax_pydantic.ConfigBase, abc.ABC):
   """Base class for neoclassical transport model configs.
 
   Attributes:

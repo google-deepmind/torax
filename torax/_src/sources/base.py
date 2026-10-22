@@ -21,7 +21,7 @@ from torax._src.sources import source as source_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class SourceConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
+class SourceConfigBase(torax_pydantic.ConfigBase, abc.ABC):
   """Base model holding parameters common to all source model configs.
 
   Subclasses should define the `model_name` attribute as a `Literal`

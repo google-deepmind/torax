@@ -134,7 +134,7 @@ class BootstrapCurrentModel(abc.ABC):
     """Calculates bootstrap current."""
 
 
-class BootstrapCurrentModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class BootstrapCurrentModelConfig(torax_pydantic.ConfigBase, abc.ABC):
   """Base class for bootstrap current model configs."""
   bootstrap_multiplier: pydantic.NonNegativeFloat = 1.0
 

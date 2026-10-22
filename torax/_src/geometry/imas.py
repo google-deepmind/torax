@@ -26,7 +26,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class IMASConfig(base.BaseGeometryConfig):
+class IMASConfig(base.GeometryConfigBase):
   """Pydantic model for the IMAS geometry.
 
   Currently written for COCOSv17 and DDv4. Note the IMASConfig is experimental

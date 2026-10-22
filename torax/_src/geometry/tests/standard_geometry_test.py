@@ -26,7 +26,7 @@ from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import pydantic_config as geometry_pydantic_config
 from torax._src.geometry import standard_geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
@@ -360,7 +360,7 @@ class GeometryTest(parameterized.TestCase):
   )
   def test_g0_g1_cauchy_schwarz_consistency(self, geo_config):
     """Tests that g0^2 / g1 is in a physically reasonable range."""
-    geo_provider = geometry_pydantic_model.Geometry.from_dict(
+    geo_provider = geometry_pydantic_config.GeometryConfig.from_dict(
         geo_config
     ).build_provider
     geo = geo_provider(0.0)
@@ -488,9 +488,9 @@ class GeometryTest(parameterized.TestCase):
   def test_g1_over_vpr2_bounded_near_axis(self, geo_config):
     # On a mesh finer than the equilibrium grid, g1/vpr^2 (~<|grad rho|^2>)
     # must stay close to its on-axis value 1/rho_b^2 rather than diverge.
-    geo = geometry_pydantic_model.Geometry.from_dict(geo_config).build_provider(
-        0.0
-    )
+    geo = geometry_pydantic_config.GeometryConfig.from_dict(
+        geo_config
+    ).build_provider(0.0)
     near_axis = geo.rho_face_norm < 0.1
     normalized = np.asarray(geo.g1_over_vpr2_face)[near_axis] * geo.rho_b**2
     np.testing.assert_array_less(normalized, 1.5)
@@ -503,7 +503,7 @@ class PsiFromIpTest(absltest.TestCase):
   @classmethod
   def setUpClass(cls):
     super().setUpClass()
-    geo = geometry_pydantic_model.Geometry.from_dict({
+    geo = geometry_pydantic_config.GeometryConfig.from_dict({
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
         'n_rho': 400,

@@ -27,7 +27,7 @@ from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
-from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.pedestal_model import pydantic_config as pedestal_pydantic_config
 from torax._src.pedestal_model import set_tped_nped
 from torax._src.pedestal_model.formation import prescribed_formation_model
 from torax._src.test_utils import default_configs
@@ -93,7 +93,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
 
   def test_pedestal_is_time_dependent(self):
     """Tests that the pedestal runtime params are time dependent."""
-    pedestal = pedestal_pydantic_model.Pedestal.from_dict(
+    pedestal = pedestal_pydantic_config.PedestalConfig.from_dict(
         dict(
             structure_model=dict(
                 model_name='set_T_ped_n_ped',

@@ -14,14 +14,13 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
-from torax._src.neoclassical import pydantic_model
+from torax._src.neoclassical import pydantic_config
 
 
-class PydanticModelTest(parameterized.TestCase):
+class PydanticConfigTest(parameterized.TestCase):
 
   def test_default_model(self):
-    # Disable pylint check since Pydantic before validator handles default.
-    model = pydantic_model.AnalyticalNeoclassicalConfig()  # pylint: disable=missing-kwoa  # pyrefly: ignore[missing-argument]
+    model = pydantic_config.AnalyticalNeoclassicalConfig()
     self.assertEqual(model.model_name, "analytical")
     self.assertEqual(model.bootstrap_current.model_name, "zeros")
     self.assertEqual(model.conductivity.model_name, "sauter")
@@ -29,7 +28,7 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertEqual(model.poloidal_velocity.model_name, "kim")
 
   def test_default_model_from_dict(self):
-    model = pydantic_model.AnalyticalNeoclassicalConfig.from_dict({})
+    model = pydantic_config.AnalyticalNeoclassicalConfig.from_dict({})
     self.assertEqual(model.model_name, "analytical")
     self.assertEqual(model.bootstrap_current.model_name, "zeros")
     self.assertEqual(model.conductivity.model_name, "sauter")
@@ -38,40 +37,40 @@ class PydanticModelTest(parameterized.TestCase):
 
   @parameterized.parameters("zeros", "kim")
   def test_set_poloidal_velocity_model_name(self, model_name):
-    model = pydantic_model.AnalyticalNeoclassicalConfig.from_dict(
+    model = pydantic_config.AnalyticalNeoclassicalConfig.from_dict(
         {"poloidal_velocity": {"model_name": model_name}}
     )
     self.assertEqual(model.poloidal_velocity.model_name, model_name)
 
   def test_bootstrap_current_exists_is_sauter(self):
-    model = pydantic_model.AnalyticalNeoclassicalConfig.from_dict(
+    model = pydantic_config.AnalyticalNeoclassicalConfig.from_dict(
         {"bootstrap_current": {}}
     )
     self.assertEqual(model.bootstrap_current.model_name, "sauter")
 
   @parameterized.parameters("zeros", "sauter", "redl")
   def test_bootstrap_current_model_name(self, model_name):
-    model = pydantic_model.AnalyticalNeoclassicalConfig.from_dict(
+    model = pydantic_config.AnalyticalNeoclassicalConfig.from_dict(
         {"bootstrap_current": {"model_name": model_name}}
     )
     self.assertEqual(model.bootstrap_current.model_name, model_name)
 
   @parameterized.parameters("sauter", "redl")
   def test_set_conductivity_model_name(self, model_name):
-    model = pydantic_model.AnalyticalNeoclassicalConfig.from_dict(
+    model = pydantic_config.AnalyticalNeoclassicalConfig.from_dict(
         {"conductivity": {"model_name": model_name}}
     )
     self.assertEqual(model.conductivity.model_name, model_name)
 
   def test_set_transport_default_model_name(self):
-    model = pydantic_model.AnalyticalNeoclassicalConfig.from_dict(
+    model = pydantic_config.AnalyticalNeoclassicalConfig.from_dict(
         {"transport": {}}
     )
     self.assertEqual(model.transport.model_name, "angioni_sauter")
 
   @parameterized.parameters("zeros", "angioni_sauter")
   def test_set_transport_model_name(self, model_name):
-    model = pydantic_model.AnalyticalNeoclassicalConfig.from_dict(
+    model = pydantic_config.AnalyticalNeoclassicalConfig.from_dict(
         {"transport": {"model_name": model_name}}
     )
     self.assertEqual(model.transport.model_name, model_name)
@@ -83,27 +82,29 @@ class PydanticModelTest(parameterized.TestCase):
   def test_neoclassical_model_works_under_jit(
       self, bootstrap_current_model_name, transport_model_name
   ):
-    neoclassical_model = pydantic_model.AnalyticalNeoclassicalConfig.from_dict({
-        "bootstrap_current": {"model_name": bootstrap_current_model_name},
-        "transport": {"model_name": transport_model_name},
-    })
+    neoclassical_model = (
+        pydantic_config.AnalyticalNeoclassicalConfig.from_dict({
+            "bootstrap_current": {"model_name": bootstrap_current_model_name},
+            "transport": {"model_name": transport_model_name},
+        })
+    )
 
     @jax.jit
-    def f(x: pydantic_model.AnalyticalNeoclassicalConfig):
+    def f(x: pydantic_config.AnalyticalNeoclassicalConfig):
       return x.build_runtime_params()
 
     output = f(neoclassical_model)
     self.assertIsInstance(
-        output, pydantic_model.runtime_params_lib.AnalyticalRuntimeParams
+        output, pydantic_config.runtime_params_lib.AnalyticalRuntimeParams
     )
     built_model = neoclassical_model.build_model()
     self.assertIsInstance(
         built_model,
-        pydantic_model.neoclassical_model.AnalyticalNeoclassicalModel,
+        pydantic_config.neoclassical_model.AnalyticalNeoclassicalModel,
     )
     self.assertIsInstance(
         built_model,
-        pydantic_model.neoclassical_model.NeoclassicalModel,
+        pydantic_config.neoclassical_model.NeoclassicalModel,
     )
 
 

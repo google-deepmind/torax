@@ -56,7 +56,7 @@ class RuntimeParams:
 
 # TODO(b/440667088): Consider validation against duplicate species.
 @jax.tree_util.register_pytree_node_class
-class PlasmaComposition(torax_pydantic.BaseModelFrozen):
+class PlasmaComposition(torax_pydantic.ConfigBase):
   """Configuration for the plasma composition.
 
   The `from_dict(...)` method can accept a dictionary defined by

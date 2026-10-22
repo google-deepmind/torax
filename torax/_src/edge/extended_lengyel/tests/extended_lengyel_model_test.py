@@ -31,7 +31,7 @@ from torax._src.edge.extended_lengyel import extended_lengyel_formulas
 from torax._src.edge.extended_lengyel import extended_lengyel_model
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
-from torax._src.edge.extended_lengyel import pydantic_model
+from torax._src.edge.extended_lengyel import pydantic_config
 from torax._src.fvm import cell_variable
 from torax._src.geometry import chease
 from torax._src.geometry import geometry
@@ -164,7 +164,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     # --- 2. Configure Edge Model ---
     # Provide the remaining parameters via the edge config.
-    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+    edge_config = pydantic_config.ExtendedLengyelConfig.from_dict({
         'model_name': 'extended_lengyel',
         'computation_mode': extended_lengyel_enums.ComputationMode.INVERSE,
         'solver_mode': extended_lengyel_enums.SolverMode.FIXED_POINT,
@@ -308,7 +308,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
     # 4. Configure Edge params
-    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+    edge_config = pydantic_config.ExtendedLengyelConfig.from_dict({
         'model_name': 'extended_lengyel',
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
@@ -438,7 +438,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     )
 
     # 5. Configure Edge with use_previous_step_as_guess=True (default)
-    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+    edge_config = pydantic_config.ExtendedLengyelConfig.from_dict({
         'model_name': 'extended_lengyel',
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
@@ -606,7 +606,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         valid_for_core_update=jnp.array(valid_for_core_update),
     )
 
-    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+    edge_config = pydantic_config.ExtendedLengyelConfig.from_dict({
         'model_name': 'extended_lengyel',
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
@@ -778,7 +778,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     else:
       previous_edge_outputs = None
 
-    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+    edge_config = pydantic_config.ExtendedLengyelConfig.from_dict({
         'model_name': 'extended_lengyel',
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'impurity_sot': impurity_sot,
@@ -911,7 +911,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
         ),
     )
 
-    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+    edge_config = pydantic_config.ExtendedLengyelConfig.from_dict({
         'model_name': 'extended_lengyel',
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,
@@ -1025,7 +1025,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
 
-    edge_config = pydantic_model.ExtendedLengyelConfig.from_dict({
+    edge_config = pydantic_config.ExtendedLengyelConfig.from_dict({
         'model_name': 'extended_lengyel',
         'computation_mode': extended_lengyel_enums.ComputationMode.FORWARD,
         'impurity_sot': extended_lengyel_enums.FixedImpuritySourceOfTruth.CORE,

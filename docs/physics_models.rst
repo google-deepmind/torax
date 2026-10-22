@@ -296,7 +296,7 @@ nonlinearity in the PDE system. TORAX offers several transport models:
 In TORAX, individual transport models (such as QLKNN, Bohm-GyroBohm, Prescribed,
 TGLF, TGLFNN-ukaea, QuaLiKiz, and CGM) represent specific physical transport
 mechanisms and are implemented as component models (``ComponentTransportModel``,
-configured via ``ComponentTransportBase``). To simulate a full plasma discharge,
+configured via ``ComponentTransportConfigBase``). To simulate a full plasma discharge,
 TORAX combines one or more core and pedestal component models within a top-level
 ``TransportModel``.
 

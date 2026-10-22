@@ -36,7 +36,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
-class BaseFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
+class FormationConfigBase(torax_pydantic.ConfigBase, abc.ABC):
   """Base configuration for pedestal formation models.
 
   Attributes:
@@ -76,7 +76,7 @@ class BaseFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
     )
 
 
-class PowerScalingFormation(BaseFormation):
+class PowerScalingFormationConfig(FormationConfigBase):
   """Configuration for power scaling formation model.
 
   This formation model triggers a reduction in pedestal transport when P_SOL >
@@ -142,12 +142,12 @@ class PowerScalingFormation(BaseFormation):
     )
 
 
-class MartinScalingFormation(PowerScalingFormation):
+class MartinScalingFormationConfig(PowerScalingFormationConfig):
   """Configuration for Martin scaling formation model.
 
   This formation model triggers a reduction in pedestal transport when P_SOL >
   P_LH, where P_LH is calculated from the Martin scaling law. See
-  `PowerScalingFormation` for more details.
+  `PowerScalingFormationConfig` for more details.
   """
 
   model_name: Annotated[
@@ -162,12 +162,12 @@ class MartinScalingFormation(PowerScalingFormation):
     )
 
 
-class DelabieScalingFormation(PowerScalingFormation):
+class DelabieScalingFormationConfig(PowerScalingFormationConfig):
   """Configuration for Delabie scaling formation model.
 
   This formation model triggers a reduction in pedestal transport when P_SOL >
   P_LH, where P_LH is calculated from the Delabie scaling law. See
-  `PowerScalingFormation` for more details.
+  `PowerScalingFormationConfig` for more details.
   """
 
   model_name: Annotated[
@@ -187,7 +187,7 @@ class DelabieScalingFormation(PowerScalingFormation):
     )
 
 
-class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
+class ProfileValueSaturationConfig(torax_pydantic.ConfigBase):
   """Configuration for ProfileValueSaturation model.
 
   This saturation model triggers an increase in pedestal transport when the
@@ -244,7 +244,7 @@ class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
     )
 
 
-class PrescribedFormation(BaseFormation):
+class PrescribedFormationConfig(FormationConfigBase):
   """Configuration for prescribed pedestal formation model.
 
   Controls whether the pedestal is active according to a prescribed boolean
@@ -282,13 +282,15 @@ class PrescribedFormation(BaseFormation):
 
 # For new formation and saturation models, add to these TypeAliases via Union.
 FormationConfig: TypeAlias = Annotated[
-    DelabieScalingFormation | MartinScalingFormation | PrescribedFormation,
+    DelabieScalingFormationConfig
+    | MartinScalingFormationConfig
+    | PrescribedFormationConfig,
     pydantic.Discriminator("model_name"),
 ]
-SaturationConfig: TypeAlias = ProfileValueSaturation
+SaturationConfig: TypeAlias = ProfileValueSaturationConfig
 
 
-class BaseStructure(torax_pydantic.BaseModelFrozen, abc.ABC):
+class StructureConfigBase(torax_pydantic.ConfigBase, abc.ABC):
   """Base configuration for pedestal structure models.
 
   Attributes:
@@ -314,7 +316,11 @@ class BaseStructure(torax_pydantic.BaseModelFrozen, abc.ABC):
     )
 
 
-class SetPpedTpedRatioNped(BaseStructure):
+# Alias for backwards compatibility with external callers (e.g. epednn_mit).
+BaseStructure: TypeAlias = StructureConfigBase
+
+
+class SetPpedTpedRatioNpedConfig(StructureConfigBase):
   """Model for direct specification of pressure, temperature ratio, and density.
 
   Attributes:
@@ -372,7 +378,7 @@ class SetPpedTpedRatioNped(BaseStructure):
     )
 
 
-class SetTpedNped(BaseStructure):
+class SetTpedNpedConfig(StructureConfigBase):
   """A basic version of the pedestal structure model using direct specification.
 
   Attributes:
@@ -420,7 +426,7 @@ class SetTpedNped(BaseStructure):
     )
 
 
-class NoPedestal(BaseStructure):
+class NoPedestalConfig(StructureConfigBase):
   """A pedestal structure model for when there is no pedestal."""
 
   model_name: Annotated[Literal["no_pedestal"], torax_pydantic.JAX_STATIC] = (
@@ -434,12 +440,12 @@ class NoPedestal(BaseStructure):
 
 
 StructureConfig = Annotated[
-    SetPpedTpedRatioNped | SetTpedNped | NoPedestal,
+    SetPpedTpedRatioNpedConfig | SetTpedNpedConfig | NoPedestalConfig,
     pydantic.Discriminator("model_name"),
 ]
 
 
-class Pedestal(torax_pydantic.BaseModelFrozen):
+class PedestalConfig(torax_pydantic.ConfigBase):
   """Configuration for the pedestal model.
 
   Attributes:
@@ -486,7 +492,7 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
   """
 
   structure_model: StructureConfig = torax_pydantic.ValidatedDefault(
-      NoPedestal()
+      NoPedestalConfig()
   )
   mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
       runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
@@ -496,10 +502,10 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
   )
   explicit_pedestal: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   formation_model: FormationConfig = torax_pydantic.ValidatedDefault(
-      PrescribedFormation(pedestal_active=True)
+      PrescribedFormationConfig(pedestal_active=True)
   )
   saturation_model: SaturationConfig = torax_pydantic.ValidatedDefault(
-      ProfileValueSaturation()
+      ProfileValueSaturationConfig()
   )
   # TODO(b/491895183): Do a sweep across different cases to find good default
   # values for these parameters.
@@ -539,8 +545,8 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode="after")
   def _check_source_mode(self) -> Self:
-    if isinstance(self.structure_model, NoPedestal):
-      if not isinstance(self.formation_model, PrescribedFormation):
+    if isinstance(self.structure_model, NoPedestalConfig):
+      if not isinstance(self.formation_model, PrescribedFormationConfig):
         raise ValueError(
             "NoPedestal cannot be used with a power-scaling formation model."
         )
@@ -561,7 +567,7 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
     if (
         self.mode == runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
         and "transition_time_width" not in self.model_fields_set
-        and not isinstance(self.formation_model, PrescribedFormation)
+        and not isinstance(self.formation_model, PrescribedFormationConfig)
     ):
       raise ValueError(
           "transition_time_width must be specified when using a"
@@ -583,7 +589,7 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
   ) -> runtime_params.RuntimeParams:
     """Builds the runtime params."""
     formation_params = self.formation_model.build_runtime_params(t)
-    if isinstance(self.structure_model, NoPedestal) and isinstance(
+    if isinstance(self.structure_model, NoPedestalConfig) and isinstance(
         formation_params,
         prescribed_formation_model.PrescribedFormationRuntimeParams,
     ):
@@ -606,6 +612,3 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
         ),
         initial_L_mode_bc_multiplier=self.initial_L_mode_bc_multiplier,
     )
-
-
-PedestalConfig: TypeAlias = Pedestal

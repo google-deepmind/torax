@@ -52,7 +52,7 @@ class ConductivityModel(abc.ABC):
     """Calculates conductivity."""
 
 
-class ConductivityModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class ConductivityModelConfig(torax_pydantic.ConfigBase, abc.ABC):
   """Base class for conductivity model configs.
 
   Attributes:

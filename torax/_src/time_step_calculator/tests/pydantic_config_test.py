@@ -18,14 +18,14 @@ import pydantic
 from torax._src import jax_utils
 from torax._src.time_step_calculator import chi_time_step_calculator
 from torax._src.time_step_calculator import fixed_time_step_calculator
-from torax._src.time_step_calculator import pydantic_model as time_step_pydantic_model
+from torax._src.time_step_calculator import pydantic_config as time_step_pydantic_config
 
 
-class PydanticModelTest(parameterized.TestCase):
+class PydanticConfigTest(parameterized.TestCase):
 
   def test_unknown_time_step_calculator_type_raises_error(self):
     with self.assertRaises(pydantic.ValidationError):
-      time_step_pydantic_model.TimeStepCalculator.from_dict(
+      time_step_pydantic_config.TimeStepCalculatorConfig.from_dict(
           dict(calculator_type='x')
       )
 
@@ -45,7 +45,7 @@ class PydanticModelTest(parameterized.TestCase):
       self, calculator_type, expected_type
   ):
     """Builds a time step calculator from the config."""
-    time_stepper = time_step_pydantic_model.TimeStepCalculator.from_dict(
+    time_stepper = time_step_pydantic_config.TimeStepCalculatorConfig.from_dict(
         {'calculator_type': calculator_type}
     ).build_time_step_calculator()
     self.assertIsInstance(time_stepper, expected_type)
@@ -62,12 +62,12 @@ class PydanticModelTest(parameterized.TestCase):
   )
   def test_time_step_calculator_under_jit(self, calculator_type):
     """Builds a time step calculator from the config."""
-    x = time_step_pydantic_model.TimeStepCalculator.from_dict(
+    x = time_step_pydantic_config.TimeStepCalculatorConfig.from_dict(
         {'calculator_type': calculator_type, 'tolerance': 2e-5}
     )
 
     @jax.jit
-    def f(time_stepper: time_step_pydantic_model.TimeStepCalculator):
+    def f(time_stepper: time_step_pydantic_config.TimeStepCalculatorConfig):
       return time_stepper.build_runtime_params()
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):

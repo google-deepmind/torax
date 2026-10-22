@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Pydantic model for sawtooth configuration."""
+"""Pydantic config for sawtooth configuration."""
 import chex
 import pydantic
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
@@ -22,8 +22,8 @@ from torax._src.mhd.sawtooth import simple_trigger
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class SawtoothConfig(torax_pydantic.BaseModelFrozen):
-  """Pydantic model for sawtooth configuration.
+class SawtoothConfig(torax_pydantic.ConfigBase):
+  """Pydantic config for sawtooth configuration.
 
   Attributes:
     trigger_model: Configuration for the trigger model.

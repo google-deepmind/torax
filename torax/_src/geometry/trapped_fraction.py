@@ -28,7 +28,7 @@ class TrappedFractionSource(enum.StrEnum):
   """Selects how the effective trapped particle fraction is computed.
 
   Not every option is supported by every geometry source; see
-  `BaseGeometryConfig._supported_trapped_fraction_sources`.
+  `GeometryConfigBase._supported_trapped_fraction_sources`.
 
   Attributes:
     SAUTER: Uses the analytic approximation from [1]. Supported by all geometry

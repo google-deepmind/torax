@@ -258,7 +258,7 @@ class CombinedEdgeModel(EdgeModel):
     )
 
 
-class EdgeModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class EdgeModelConfig(torax_pydantic.ConfigBase, abc.ABC):
   """Base pydantic configuration for all edge models.
 
   Subclasses implement the specific model logic, and must override `model_name`

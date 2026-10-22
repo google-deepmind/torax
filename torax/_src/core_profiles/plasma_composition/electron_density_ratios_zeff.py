@@ -37,7 +37,7 @@ class RuntimeParams:
   A_override_face: array_typing.FloatVectorFace | None = None
 
 
-class ElectronDensityRatiosZeff(torax_pydantic.BaseModelFrozen):
+class ElectronDensityRatiosZeff(torax_pydantic.ConfigBase):
   """Impurity content defined by ratios, with one species constrained by Z_eff."""
 
   # Exactly one species must have a None ratio to be constrained by Z_eff.
