@@ -64,12 +64,15 @@ def pre_step(
 
   # This only computes sources set to explicit in the
   # SourceConfig.
-  explicit_source_profiles = source_profile_builders.build_source_profiles(
-      runtime_params=runtime_params_t,
-      geo=geo_t,
-      core_profiles=input_state.core_profiles,
-      source_models=models.source_models,
-      explicit=True,
+  explicit_source_profiles, source_states = (
+      source_profile_builders.build_source_profiles(
+          runtime_params=runtime_params_t,
+          geo=geo_t,
+          core_profiles=input_state.core_profiles,
+          source_models=models.source_models,
+          source_states=input_state.model_state.sources,
+          explicit=True,
+      )
   )
 
   # Update core sources with any newly calculated explicit sources.
@@ -129,13 +132,17 @@ def pre_step(
         pedestal_model_output=pedestal_model_output,
     )
 
+  model_state_t = dataclasses.replace(
+      input_state.model_state,
+      sources=source_states,
+  )
   return (
       runtime_params_t,
       geo_t,
       explicit_source_profiles,
       edge_outputs,
       pedestal_transition_state,
-      input_state.model_state,
+      model_state_t,
   )
 
 

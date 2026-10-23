@@ -234,7 +234,7 @@ def _calc_coeffs_full(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
-    model_state: model_state_lib.ModelState,  # pylint: disable=unused-argument
+    model_state: model_state_lib.ModelState,
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """See `calc_coeffs` for details."""
@@ -255,8 +255,9 @@ def _calc_coeffs_full(
   # Calculate the implicit source profiles and combine them with the explicit
   # source profiles. These are needed for the pedestal model, so are computed
   # here rather than in the source terms section.
-  merged_source_profiles = source_profile_builders.build_source_profiles(
+  merged_source_profiles, _ = source_profile_builders.build_source_profiles(
       source_models=models.source_models,
+      source_states=model_state.sources,
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,

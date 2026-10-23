@@ -108,17 +108,21 @@ def _get_initial_state(
       geo,
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
+      source_states=initial_source_states,
   )
   neoclassical_outputs = models.neoclassical_model(
       runtime_params, geo, initial_core_profiles
   )
-  initial_core_sources = source_profile_builders.get_all_source_profiles(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=initial_core_profiles,
-      source_models=models.source_models,
-      conductivity=neoclassical_outputs.conductivity,
-      bootstrap_current=neoclassical_outputs.bootstrap_current,
+  initial_core_sources, initial_source_states = (
+      source_profile_builders.get_all_source_profiles(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=initial_core_profiles,
+          source_models=models.source_models,
+          conductivity=neoclassical_outputs.conductivity,
+          bootstrap_current=neoclassical_outputs.bootstrap_current,
+          source_states=initial_source_states,
+      )
   )
 
   if models.edge_model is not None:

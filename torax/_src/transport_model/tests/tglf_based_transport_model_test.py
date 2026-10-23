@@ -60,11 +60,12 @@ def _get_config_and_model_inputs(
       source_models=source_models,
       neoclassical_model=neoclassical_model,
   )
-  source_profiles = source_profile_builders.build_source_profiles(
+  source_profiles, _ = source_profile_builders.build_source_profiles(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
+      source_states=source_models.initial_state(runtime_params),
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()

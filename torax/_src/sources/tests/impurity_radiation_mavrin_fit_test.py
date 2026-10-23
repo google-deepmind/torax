@@ -56,13 +56,15 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         neoclassical_model,
     )
     source = source_models.standard_sources[self._source_name]
-    return source.get_value(
+    (res,), _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source.initial_state(runtime_params),
     )
+    return res
 
   def test_correct_dynamic_params_built(self):
     # Source models

@@ -252,8 +252,9 @@ class FVMTest(parameterized.TestCase):
         neoclassical_model=models.neoclassical_model,
     )
     evolving_names = tuple(['T_i'])
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
         source_models=models.source_models,
+        source_states=models.source_models.initial_state(runtime_params),
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -373,11 +374,12 @@ class FVMTest(parameterized.TestCase):
         source_models=models.source_models,
         neoclassical_model=models.neoclassical_model,
     )
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=models.source_models,
+        source_states=models.source_models.initial_state(runtime_params),
         explicit=True,
     )
 
@@ -506,11 +508,12 @@ class FVMTest(parameterized.TestCase):
         source_models=models.source_models,
         neoclassical_model=models.neoclassical_model,
     )
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params_theta0,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=models.source_models,
+        source_states=models.source_models.initial_state(runtime_params_theta0),
         explicit=True,
     )
 

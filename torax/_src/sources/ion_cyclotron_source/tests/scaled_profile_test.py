@@ -65,12 +65,13 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
         source_models=source_models,
         neoclassical_model=neoclassical_model,
     )
-    output = icrh_source.get_value(
+    output, _ = icrh_source.get_value(
         runtime_params,
         geo,
         core_profiles,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=icrh_source.initial_state(runtime_params),
     )
     return output, geo
 

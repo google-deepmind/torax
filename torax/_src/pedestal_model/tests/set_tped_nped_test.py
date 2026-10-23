@@ -78,11 +78,12 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         source_models,
         neoclassical_model,
     )
-    source_profiles = source_profile_builders.build_source_profiles(
+    source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
+        source_states=source_models.initial_state(runtime_params),
         explicit=True,
     )
     pedestal_model_output = pedestal_model(

@@ -26,6 +26,7 @@ from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
+from torax._src.sources import source_state as source_state_lib
 
 
 class SourceTest(parameterized.TestCase):
@@ -78,12 +79,13 @@ class SourceTest(parameterized.TestCase):
         runtime_params_lib.RuntimeParams,
         sources=source_params,
     )
-    profile = source.get_value(
+    profile, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source_state_lib.SourceState(),
     )
     np.testing.assert_allclose(profile[0], np.zeros_like(geo.rho_norm))  # pyrefly: ignore[no-matching-overload]
 
@@ -128,12 +130,13 @@ class SourceTest(parameterized.TestCase):
     geo = mock.create_autospec(
         geometry.Geometry, rho_norm=np.array([1, 1, 1, 1])
     )
-    profile = source.get_value(
+    profile, _ = source.get_value(
         runtime_params=dynamic_slice,
         geo=geo,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source_state_lib.SourceState(),
     )
     np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         profile[0],
@@ -160,12 +163,13 @@ class SourceTest(parameterized.TestCase):
             numerics.RuntimeParams, enable_fast_ions=True
         ),
     )
-    profile = source.get_value(
+    profile, _ = source.get_value(
         runtime_params=dynamic_slice,
         geo=mock.ANY,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source_state_lib.SourceState(),
     )
     self.assertLen(profile, 2)
     np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
@@ -209,6 +213,7 @@ class SourceTest(parameterized.TestCase):
           core_profiles=mock.ANY,
           calculated_source_profiles=None,
           conductivity=None,
+          source_state=source_state_lib.SourceState(),
       )
 
   def test_fast_ions_populates_missing_species_and_validates(self):
@@ -252,12 +257,13 @@ class SourceTest(parameterized.TestCase):
     )
 
     source = DummyFastIonSource(fast_ions_out=(computed_he3,))
-    profile = source.get_value(
+    profile, _ = source.get_value(
         runtime_params=dynamic_slice,
         geo=mock.ANY,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source_state_lib.SourceState(),
     )
     self.assertEqual(profile[0], (zero_d, computed_he3))
 
@@ -273,6 +279,7 @@ class SourceTest(parameterized.TestCase):
           core_profiles=mock.ANY,
           calculated_source_profiles=None,
           conductivity=None,
+          source_state=source_state_lib.SourceState(),
       )
 
     # Duplicate species raises ValueError.
@@ -286,6 +293,7 @@ class SourceTest(parameterized.TestCase):
           core_profiles=mock.ANY,
           calculated_source_profiles=None,
           conductivity=None,
+          source_state=source_state_lib.SourceState(),
       )
 
   @parameterized.named_parameters(
@@ -346,12 +354,13 @@ class SourceTest(parameterized.TestCase):
     )
 
     source = DummyHeatingAndFastIonSource()
-    profile = source.get_value(
+    profile, _ = source.get_value(
         runtime_params=dynamic_slice,
         geo=mock.ANY,
         core_profiles=mock.ANY,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source_state_lib.SourceState(),
     )
 
     self.assertLen(profile, 3)

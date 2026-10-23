@@ -153,8 +153,9 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[SourceProfileElement, ...]:
-    """Returns the cell grid profile for this source during one time step.
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[tuple[SourceProfileElement, ...], source_state_lib.SourceState]:
+    """Returns the cell grid profile and updated state for this source.
 
     Args:
       runtime_params: Slice of the general TORAX config that can be used as
@@ -176,10 +177,12 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
         See source_profile_builders.py for more details.
       conductivity: Conductivity profile if it exists. It is only provided for
         implicit sources.
+      source_state: Cross-timestep state for this source model.
 
     Returns:
-      A tuple with one element per affected core profile. Each element is either
-      a FloatVectorCell array or, for FAST_IONS, a tuple of FastIon.
+      A tuple of (profile_elements, updated_source_state), where
+      profile_elements has one element per affected core profile (either a
+      FloatVectorCell array or, for FAST_IONS, a tuple of FastIon).
     """
     source_params = runtime_params.sources[self.SOURCE_ID]
 
@@ -239,4 +242,4 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       )
       res = res[:fast_ions_idx] + (fast_ions,) + res[fast_ions_idx + 1 :]
 
-    return res
+    return res, source_state

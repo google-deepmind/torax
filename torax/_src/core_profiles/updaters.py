@@ -264,15 +264,18 @@ def update_core_and_source_profiles_after_step(
   )
 
   # build_source_profiles calculates the union with explicit + implicit
-  total_source_profiles = source_profile_builders.build_source_profiles(
-      runtime_params=runtime_params_t_plus_dt,
-      geo=geo,
-      source_models=source_models,
-      core_profiles=intermediate_core_profiles,
-      explicit=False,
-      explicit_source_profiles=explicit_source_profiles,
-      conductivity=neoclassical_outputs.conductivity,
-      bootstrap_current=neoclassical_outputs.bootstrap_current,
+  total_source_profiles, next_source_states = (
+      source_profile_builders.build_source_profiles(
+          runtime_params=runtime_params_t_plus_dt,
+          geo=geo,
+          source_models=source_models,
+          source_states=source_states,
+          core_profiles=intermediate_core_profiles,
+          explicit=False,
+          explicit_source_profiles=explicit_source_profiles,
+          conductivity=neoclassical_outputs.conductivity,
+          bootstrap_current=neoclassical_outputs.bootstrap_current,
+      )
   )
 
   intermediate_core_profiles = dataclasses.replace(
@@ -314,7 +317,7 @@ def update_core_and_source_profiles_after_step(
   return (
       core_profiles_t_plus_dt,
       total_source_profiles,
-      dict(source_states),
+      next_source_states,
   )
 
 

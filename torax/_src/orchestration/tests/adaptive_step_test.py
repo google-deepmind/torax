@@ -75,11 +75,14 @@ class AdaptiveStepTest(parameterized.TestCase):
     loop_statistics = {
         'inner_solver_iterations': jnp.array(0, jax_utils.get_int_dtype()),
     }
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.sim_state.core_profiles,
         source_models=self.step_fn.solver.models.source_models,
+        source_states=self.step_fn.solver.models.source_models.initial_state(
+            self.runtime_params
+        ),
         explicit=True,
     )
     adaptive_step_state, _ = adaptive_step.compute_state(

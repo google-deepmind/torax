@@ -168,12 +168,13 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
     self.assertGreaterEqual(float(alpha_n), 0.0)
     self.assertGreaterEqual(float(alpha_t), 0.0)
     source = cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink()
-    (q_cycl,) = source.get_value(
+    (q_cycl,), _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source.initial_state(runtime_params),
     )
     assert isinstance(q_cycl, jax.Array)
     self.assertFalse(np.any(np.isnan(q_cycl)))

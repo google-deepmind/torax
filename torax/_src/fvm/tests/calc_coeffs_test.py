@@ -88,8 +88,9 @@ class CalcCoeffsTest(parameterized.TestCase):
         neoclassical_model=models.neoclassical_model,
     )
     evolving_names = tuple(['T_i'])
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
         source_models=models.source_models,
+        source_states=models.source_models.initial_state(runtime_params),
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -269,11 +270,12 @@ class CalcCoeffsTest(parameterized.TestCase):
                 right_face_grad_constraint=jnp.array(-1.0e20),
             ),
         )
-      explicit_src = source_profile_builders.build_source_profiles(
+      explicit_src, _ = source_profile_builders.build_source_profiles(
+          source_models=models.source_models,
+          source_states=models.source_models.initial_state(rp),
           runtime_params=rp,
           geo=geo,
           core_profiles=cp,
-          source_models=models.source_models,
           explicit=True,
       )
       model_state = model_state_lib.ModelState(
@@ -348,8 +350,10 @@ class CalcCoeffsTest(parameterized.TestCase):
         source_models=models.source_models,
         neoclassical_model=models.neoclassical_model,
     )
-    explicit_source_profiles = source_profile_builders.build_source_profiles(
+    source_states = models.source_models.initial_state(runtime_params)
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
         source_models=models.source_models,
+        source_states=source_states,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -360,7 +364,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             runtime_params, geo, core_profiles, explicit_source_profiles
         ),
         transport=models.transport_model.initial_state(runtime_params),
-        sources=models.source_models.initial_state(runtime_params),
+        sources=source_states,
     )
     evolving_names = ('T_i', 'T_e', 'n_e')
     coeffs = calc_coeffs.calc_coeffs(

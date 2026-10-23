@@ -22,6 +22,7 @@ from torax._src.core_profiles import initialization
 from torax._src.geometry import circular_geometry
 from torax._src.physics import psi_calculations
 from torax._src.sources import ohmic_heat_source
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.tests import test_lib
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
@@ -59,6 +60,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
           mock.ANY,
           calculated_source_profiles=None,
           conductivity=mock.ANY,
+          source_state=source_state_lib.SourceState(),
       )
 
   def test_raises_error_if_conductivity_is_none(self):
@@ -86,6 +88,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
           mock.ANY,
           calculated_source_profiles=mock.ANY,
           conductivity=None,
+          source_state=source_state_lib.SourceState(),
       )
 
   @parameterized.parameters(-2.0, 2.0)

@@ -140,13 +140,15 @@ class SingleProfileSourceTestCase(SourceTestCase):
       calculated_source_profiles = None
       conductivity = None
     source = source_models.standard_sources[self._source_name]
-    value = source.get_value(
+    elements, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=calculated_source_profiles,
         conductivity=conductivity,
-    )[0]
+        source_state=source.initial_state(runtime_params),
+    )
+    value = elements[0]
     chex.assert_rank(value, 1)
     self.assertEqual(value.shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
 
@@ -182,12 +184,13 @@ class MultipleProfileSourceTestCase(SourceTestCase):
         source_models=source_models,
         neoclassical_model=neoclassical_model,
     )
-    value = source.get_value(
+    value, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
         conductivity=None,
+        source_state=source.initial_state(runtime_params),
     )
     self.assertLen(value, 2)
     self.assertEqual(value[0].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
