@@ -13,19 +13,123 @@
 # limitations under the License.
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import chex
 import jax
 from jax import numpy as jnp
 import torax
 from torax._src.orchestration import jit_run_loop
+from torax._src.test_utils import default_configs
 import torax.experimental as torax_experimental
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name,protected-access
 
 jax.config.update('jax_enable_x64', True)
 
 
-class JitRunLoopTest(absltest.TestCase):
+class JitRunLoopTest(parameterized.TestCase):
+
+  @parameterized.parameters('chi', 'from_previous_dt')
+  def test_get_max_steps_non_fixed_raises_value_error(self, calculator_type):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator'] = {'calculator_type': calculator_type}
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
+    step_fn = torax_experimental.make_step_fn(torax_config)
+
+    with self.assertRaisesRegex(
+        ValueError, 'max_steps must be specified when using'
+    ):
+      jit_run_loop._get_max_steps(step_fn)
+
+    with self.assertRaisesRegex(
+        ValueError, 'max_steps must be specified when using'
+    ):
+      jit_run_loop.run_loop(step_fn)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='fixed_no_adaptive_exact_division',
+          t_initial=0.0,
+          t_final=5.0,
+          fixed_dt=0.5,
+          adaptive_dt=False,
+          expected_max_steps=10,
+      ),
+      dict(
+          testcase_name='fixed_no_adaptive_ceil_division',
+          t_initial=0.0,
+          t_final=5.0,
+          fixed_dt=2.0,
+          adaptive_dt=False,
+          expected_max_steps=3,
+      ),
+      dict(
+          testcase_name='fixed_no_adaptive_time_varying_fixed_dt',
+          t_initial=0.0,
+          t_final=5.0,
+          fixed_dt={0.0: 2.0, 2.0: 0.5},
+          adaptive_dt=False,
+          expected_max_steps=10,
+      ),
+      dict(
+          testcase_name='fixed_with_adaptive_exact_division',
+          t_initial=0.0,
+          t_final=5.0,
+          fixed_dt=0.5,
+          adaptive_dt=True,
+          expected_max_steps=100,
+      ),
+      dict(
+          testcase_name='fixed_with_adaptive_ceil_division',
+          t_initial=0.0,
+          t_final=5.0,
+          fixed_dt=2.0,
+          adaptive_dt=True,
+          expected_max_steps=30,
+      ),
+  )
+  def test_get_max_steps_fixed(
+      self,
+      t_initial,
+      t_final,
+      fixed_dt,
+      adaptive_dt,
+      expected_max_steps,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
+    config_dict['numerics'] = {
+        't_initial': t_initial,
+        't_final': t_final,
+        'fixed_dt': fixed_dt,
+        'adaptive_dt': adaptive_dt,
+    }
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
+    step_fn = torax_experimental.make_step_fn(torax_config)
+
+    self.assertEqual(jit_run_loop._get_max_steps(step_fn), expected_max_steps)
+
+  def test_run_loop_fixed_default_and_explicit_max_steps(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
+    config_dict['numerics'] = {
+        't_initial': 0.0,
+        't_final': 0.2,
+        'fixed_dt': 0.1,
+        'adaptive_dt': False,
+    }
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
+    step_fn = torax_experimental.make_step_fn(torax_config)
+
+    states_default, _, sim_error_default = jit_run_loop.run_loop(step_fn)
+    self.assertEqual(sim_error_default, torax.SimError.NO_ERROR)
+    self.assertLen(states_default, 3)
+
+    states_explicit, _, sim_error_explicit = jit_run_loop.run_loop(
+        step_fn, max_steps=5
+    )
+    self.assertEqual(sim_error_explicit, torax.SimError.NO_ERROR)
+    self.assertLen(states_explicit, 3)
 
   def test_gradient(self):
 

@@ -286,6 +286,22 @@ class JitSimTest(sim_test_case.SimTestCase):
         state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
     )
 
+  @parameterized.parameters('chi', 'from_previous_dt')
+  def test_non_fixed_without_max_steps_raises_error(self, calculator_type):
+    test_data_dir = paths.test_data_dir()
+    config_path = os.path.join(test_data_dir, 'test_implicit.py')
+    torax_config = config_loader.build_torax_config_from_file(config_path)
+    torax_config.update_fields(
+        {'time_step_calculator.calculator_type': calculator_type}
+    )
+
+    with self.assertRaisesRegex(
+        ValueError, 'max_steps must be specified when using'
+    ):
+      run_simulation.run_simulation(
+          torax_config, progress_bar=False, _use_jitted_run_loop=True
+      )
+
 
 if __name__ == '__main__':
   absltest.main()

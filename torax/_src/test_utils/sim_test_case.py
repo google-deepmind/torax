@@ -29,6 +29,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
+from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import model_config
 
 _FAILED_TEST_OUTPUT_DIR: Final[str] = '/tmp/torax_failed_sim_test_outputs/'
@@ -201,6 +202,7 @@ class SimTestCase(parameterized.TestCase):
       atol: float | None = None,
       write_output: bool = True,
       use_jitted_run_loop: bool = False,
+      max_steps: int | None = None,
   ):
     """Integration test comparing to TORAX reference output."""
     if rtol is None:
@@ -208,20 +210,29 @@ class SimTestCase(parameterized.TestCase):
     if atol is None:
       atol = _ATOL
 
+    if ref_name is None:
+      ref_name = f'{config_name[:-3]}.nc'
+
+    ref_profiles, ref_time = self._get_refs(ref_name, profiles)
+
     torax_config = self._get_torax_config(config_name)
+    if (
+        use_jitted_run_loop
+        and max_steps is None
+        and torax_config.time_step_calculator.calculator_type
+        != time_step_calculator_pydantic_model.TimeStepCalculatorType.FIXED
+    ):
+      max_steps = len(ref_time) * 2
+
     state_history = run_simulation.run_simulation(
         torax_config,
         progress_bar=False,
+        max_steps=max_steps,
         _use_jitted_run_loop=use_jitted_run_loop,
     )
     output_xr = state_history.simulation_output_to_xr()
     output_file = _FAILED_TEST_OUTPUT_DIR + config_name[:-3] + '.nc'
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
-
-    if ref_name is None:
-      ref_name = f'{config_name[:-3]}.nc'
-
-    ref_profiles, ref_time = self._get_refs(ref_name, profiles)
 
     self._check_profiles_vs_expected(
         t=output_xr.time.values,
