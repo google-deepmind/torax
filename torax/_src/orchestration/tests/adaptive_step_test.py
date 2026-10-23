@@ -94,6 +94,7 @@ class AdaptiveStepTest(parameterized.TestCase):
         runtime_params_provider=self.step_fn.runtime_params_provider,
         geometry_provider=self.step_fn.geometry_provider,
         pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        model_state_t=self.sim_state.model_state,
         solver=self.step_fn.solver,
     )
     self.assertIsInstance(adaptive_step_state, adaptive_step.AdaptiveStepState)
@@ -193,6 +194,7 @@ class AdaptiveStepTest(parameterized.TestCase):
             runtime_params,
             mock.ANY,
             sim_state,
+            mock.ANY,
             mock.ANY,
             mock.ANY,
             mock.ANY,
