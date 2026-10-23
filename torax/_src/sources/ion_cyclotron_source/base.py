@@ -20,7 +20,6 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import base as source_base
@@ -59,21 +58,12 @@ class IonCyclotronSource(source.Source):
   ) -> tuple[fast_ion_lib.FastIon, ...]:
     zeros = jnp.zeros_like(geo.rho)
     return tuple(
-        fast_ion_lib.FastIon(
+        fast_ion_lib.FastIon.from_arrays(
             species=species,
-            source=cls.SOURCE_ID,
-            n=cell_variable.CellVariable(
-                value=zeros,
-                face_centers=geo.rho_face_norm,
-                right_face_grad_constraint=None,
-                right_face_constraint=jnp.zeros(()),
-            ),
-            T=cell_variable.CellVariable(
-                value=zeros,
-                face_centers=geo.rho_face_norm,
-                right_face_grad_constraint=None,
-                right_face_constraint=jnp.zeros(()),
-            ),
+            source_name=cls.SOURCE_ID,
+            geo=geo,
+            n=zeros,
+            T=zeros,
         )
         for species in fast_ion_lib.FAST_ION_SPECIES
     )
