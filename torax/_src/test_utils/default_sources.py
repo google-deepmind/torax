@@ -23,7 +23,8 @@ def get_default_source_config() -> dict[str, Any]:
   configurations, including ITER-inspired configs, with additional changes to
   their runtime configurations on top.
 
-  To use, load the dict, update as needed, and then convert to a Sources object:
+  To use, load the dict, update as needed, and then convert to a SourcesConfig
+  object:
   .. code-block:: python
 
     sources_dict = get_default_source_config()
@@ -32,7 +33,9 @@ def get_default_source_config() -> dict[str, Any]:
     sources_dict['generic_heat']['P_total'] = 0.0
     sources_dict['fusion']['mode'] = source_runtime_params.Mode.ZERO
     sources_dict['ohmic']['mode'] = source_runtime_params.Mode.ZERO
-    default_sources = sources_pydantic_model.Sources.from_dict(sources_dict)
+    default_sources = sources_config.SourcesConfig.from_dict(
+        sources_dict
+    )
   """
   names = [
       # Current sources (for psi equation)

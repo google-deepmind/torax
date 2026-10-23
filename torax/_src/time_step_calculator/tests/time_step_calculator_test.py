@@ -17,7 +17,7 @@ from absl.testing import parameterized
 from torax._src.orchestration import run_simulation
 from torax._src.test_utils import default_configs
 from torax._src.time_step_calculator import fixed_time_step_calculator
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 
 class TimeStepCalculatorTest(parameterized.TestCase):
@@ -36,7 +36,7 @@ class TimeStepCalculatorTest(parameterized.TestCase):
         't_final': 5.0,
         'exact_t_final': exact_t_final,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     sim_state, _, step_fn = run_simulation.prepare_simulation(torax_config)
 
     runtime_params_t = step_fn.runtime_params_provider(t=t)
@@ -68,7 +68,7 @@ class TimeStepCalculatorTest(parameterized.TestCase):
         't_final': 5.0,
         'exact_t_final': exact_t_final,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     sim_state, _, step_fn = run_simulation.prepare_simulation(torax_config)
 
     runtime_params_t = step_fn.runtime_params_provider(t=t)

@@ -22,7 +22,7 @@ from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=g-import-not-at-top
 try:
@@ -57,7 +57,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
             }
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(

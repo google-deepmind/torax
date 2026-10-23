@@ -17,7 +17,7 @@ from torax._src.imas_tools.input import core_profiles
 from torax._src.imas_tools.input import loader
 from torax._src.orchestration import run_simulation
 from torax._src.test_utils import sim_test_case
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -62,7 +62,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     )
     config["geometry"]["n_rho"] = 200
     config["profile_conditions"] = core_profiles_conditions
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     # Init sim from config
     sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
@@ -176,7 +176,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
       )
       config["plasma_composition"] = plasma_composition_data
       config["plasma_composition"]["impurity"]["impurity_mode"] = "n_e_ratios"
-      torax_config = model_config.ToraxConfig.from_dict(config)
+      torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
       Ne_impurity = torax_config.plasma_composition.impurity.species["Ne"]
       self.assertIsNotNone(Ne_impurity)

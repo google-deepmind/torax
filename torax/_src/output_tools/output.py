@@ -33,8 +33,8 @@ from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import file_restart as file_restart_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 import xarray as xr
 
 # Internal import.
@@ -87,7 +87,8 @@ def concat_datatrees(
 
 
 def stitch_state_files(
-    file_restart: file_restart_pydantic_model.FileRestart, datatree: xr.DataTree
+    file_restart: file_restart_config.FileRestartConfig,
+    datatree: xr.DataTree,
 ) -> xr.DataTree:
   """Stitch a datatree to the end of a previous state file.
 
@@ -125,7 +126,7 @@ class StateHistory:
           post_processing.PostProcessedOutputs, ...
       ],
       sim_error: state.SimError,
-      torax_config: model_config.ToraxConfig,
+      torax_config: torax_config_lib.ToraxConfig,
   ):
     self._sim_error = sim_error
     self._torax_config = torax_config
@@ -188,7 +189,7 @@ class StateHistory:
     )
 
   @property
-  def torax_config(self) -> model_config.ToraxConfig:
+  def torax_config(self) -> torax_config_lib.ToraxConfig:
     """Returns the ToraxConfig used to run the simulation."""
     return self._torax_config
 

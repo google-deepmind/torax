@@ -26,7 +26,7 @@ from torax._src.config import config_loader
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -60,7 +60,7 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     unique_objects_before = get_unique_objects(config_dict, list())
     config_dict_copy = copy.deepcopy(config_dict)  # Keep a copy for comparison.
-    config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
+    config_pydantic = torax_config_lib.ToraxConfig.from_dict(config_dict)
 
     with self.subTest("original_config_dict_unchanged"):
       chex.assert_trees_all_equal(config_dict, config_dict_copy)
@@ -91,8 +91,8 @@ class ConfigTest(parameterized.TestCase):
     # The full model should always be serializable.
     config_json = config_pydantic.model_dump_json()
     with self.subTest("json_roundtrip"):
-      config_pydantic_roundtrip = model_config.ToraxConfig.model_validate_json(
-          config_json
+      config_pydantic_roundtrip = (
+          torax_config_lib.ToraxConfig.model_validate_json(config_json)
       )
       chex.assert_trees_all_equal(config_pydantic, config_pydantic_roundtrip)
 
@@ -118,7 +118,7 @@ class ConfigTest(parameterized.TestCase):
     config_dict = config_loader.import_module(
         "tests/test_data/test_iterhybrid_predictor_corrector.py",
     )["CONFIG"]
-    config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
+    config_pydantic = torax_config_lib.ToraxConfig.from_dict(config_dict)
 
     new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pyrefly: ignore[missing-attribute]
     new_hires_factor = (
@@ -158,7 +158,7 @@ class ConfigTest(parameterized.TestCase):
     config_dict = config_loader.import_module(
         "tests/test_data/test_iterhybrid_predictor_corrector.py",
     )["CONFIG"]
-    config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
+    config_pydantic = torax_config_lib.ToraxConfig.from_dict(config_dict)
 
     new_n_rho = config_pydantic.geometry.geometry_configs.config.n_rho * 2  # pyrefly: ignore[missing-attribute]
 
@@ -297,7 +297,7 @@ class ConfigTest(parameterized.TestCase):
     # Avoid assertion failure when no warnings are logged at all.
     try:
       with self.assertLogs(level=logging.WARNING) as cm:
-        model_config.ToraxConfig.from_dict(config_dict)
+        torax_config_lib.ToraxConfig.from_dict(config_dict)
         warnings = "\n".join(cm.output)
     except Exception:  # pylint: disable=broad-except
       warnings = ""
@@ -319,7 +319,7 @@ class ConfigTest(parameterized.TestCase):
         ValueError,
         "Edge models are not supported for use with CircularGeometry.",
     ):
-      model_config.ToraxConfig.from_dict(config_dict)
+      torax_config_lib.ToraxConfig.from_dict(config_dict)
 
   @parameterized.named_parameters(
       ("good_config", None, False, ""),
@@ -353,9 +353,9 @@ class ConfigTest(parameterized.TestCase):
     }
     if expect_error:
       with self.assertRaisesRegex(ValueError, error_regex):
-        model_config.ToraxConfig.from_dict(config_dict)
+        torax_config_lib.ToraxConfig.from_dict(config_dict)
     else:
-      model_config.ToraxConfig.from_dict(config_dict)
+      torax_config_lib.ToraxConfig.from_dict(config_dict)
 
   @parameterized.named_parameters(
       ("good_config", True, False, ""),
@@ -387,9 +387,9 @@ class ConfigTest(parameterized.TestCase):
     }
     if expect_error:
       with self.assertRaisesRegex(ValueError, error_regex):
-        model_config.ToraxConfig.from_dict(config_dict)
+        torax_config_lib.ToraxConfig.from_dict(config_dict)
     else:
-      model_config.ToraxConfig.from_dict(config_dict)
+      torax_config_lib.ToraxConfig.from_dict(config_dict)
 
   def test_edge_core_impurity_consistency_overlap(self):
     """Tests that overlapping fixed and seeded impurities raise an error."""
@@ -419,7 +419,7 @@ class ConfigTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, "Edge fixed and seeded impurities must be disjoint"
     ):
-      model_config.ToraxConfig.from_dict(config_dict)
+      torax_config_lib.ToraxConfig.from_dict(config_dict)
 
   def test_edge_core_impurity_consistency_mismatch(self):
     """Tests that mismatched core and edge species raise an error."""
@@ -450,7 +450,7 @@ class ConfigTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, "Mismatch between core plasma composition impurities"
     ):
-      model_config.ToraxConfig.from_dict(config_dict)
+      torax_config_lib.ToraxConfig.from_dict(config_dict)
 
   @parameterized.named_parameters(
       (
@@ -488,13 +488,14 @@ class ConfigTest(parameterized.TestCase):
         ValueError,
         f'The ICRH source requires "{minority_species}" to be present',
     ):
-      model_config.ToraxConfig.from_dict(config_dict)
+      torax_config_lib.ToraxConfig.from_dict(config_dict)
 
     # Case 1b: minority_species is missing in ZERO or PRESCRIBED mode -> Valid
     for mode in ("ZERO", "PRESCRIBED"):
       non_model_config = copy.deepcopy(config_dict)
       non_model_config["sources"]["icrh"]["mode"] = mode
-      model_config.ToraxConfig.from_dict(non_model_config)  # Should not raise
+      # Should not raise
+      torax_config_lib.ToraxConfig.from_dict(non_model_config)
 
     # Case 2: minority_species is present as main ion -> Valid
     config_dict["plasma_composition"] = {
@@ -504,7 +505,7 @@ class ConfigTest(parameterized.TestCase):
             "species": {"Ne": 0.01},
         },
     }
-    model_config.ToraxConfig.from_dict(config_dict)  # Should not raise
+    torax_config_lib.ToraxConfig.from_dict(config_dict)  # Should not raise
 
     # Case 3: minority_species is present as impurity -> Valid
     config_dict["plasma_composition"] = {
@@ -514,7 +515,7 @@ class ConfigTest(parameterized.TestCase):
             "species": {minority_species: 0.03},
         },
     }
-    model_config.ToraxConfig.from_dict(config_dict)  # Should not raise
+    torax_config_lib.ToraxConfig.from_dict(config_dict)  # Should not raise
 
   def test_torax_config_eqdsk_roundtrip(self):
     geo_dir = geometry_loader.get_geometry_dir()
@@ -528,10 +529,10 @@ class ConfigTest(parameterized.TestCase):
         "cocos": 11,
         "eqdsk_object": eqdsk_obj,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     dumped = torax_config.model_dump()
 
-    torax_config_restored = model_config.ToraxConfig.from_dict(dumped)
+    torax_config_restored = torax_config_lib.ToraxConfig.from_dict(dumped)
     assert (
         torax_config_restored.geometry.geometry_configs.config.eqdsk_object  # pyrefly: ignore[missing-attribute]
         is not None
@@ -571,7 +572,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "Edge models require"
         " plasma_composition.impurity_mode to be 'n_e_ratios'",
     ):
-      model_config.ToraxConfig.from_dict(self.config)
+      torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_inverse_mode_good_impurity_mode(self):
     self.config["edge"] = {
@@ -589,7 +590,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         }
     }
     # Should not raise
-    model_config.ToraxConfig.from_dict(self.config)
+    torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_forward_mode_bad_impurity_mode(self):
     self.config["edge"] = {
@@ -606,7 +607,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "Edge models require"
         " plasma_composition.impurity_mode to be 'n_e_ratios'",
     ):
-      model_config.ToraxConfig.from_dict(self.config)
+      torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_forward_mode_good_impurity_mode(self):
     self.config["edge"] = {
@@ -623,7 +624,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         }
     }
     # Should not raise
-    model_config.ToraxConfig.from_dict(self.config)
+    torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_zero_n_e_ratio_at_lcfs_raises_error_for_seeded_impurity(self):
     self.config["edge"] = {
@@ -645,7 +646,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         ValueError,
         "has a zero or negative n_e_ratio at rho_norm=1.0",
     ):
-      model_config.ToraxConfig.from_dict(self.config)
+      torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_positive_n_e_ratio_at_lcfs_passes_for_seeded_impurity(self):
     self.config["edge"] = {
@@ -664,7 +665,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         }
     }
     # Should not raise.
-    model_config.ToraxConfig.from_dict(self.config)
+    torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_zero_n_e_ratio_at_lcfs_passes_for_fixed_impurity_with_core_sot(self):
     self.config["edge"] = {
@@ -683,7 +684,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     }
     # Should not raise because Ne is a fixed impurity in forward mode,
     # and SoT is core.
-    model_config.ToraxConfig.from_dict(self.config)
+    torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_zero_n_e_ratio_at_lcfs_raises_error_for_fixed_impurity_with_edge_sot(
       self,
@@ -707,7 +708,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         ValueError,
         "has a zero or negative n_e_ratio at rho_norm=1.0",
     ):
-      model_config.ToraxConfig.from_dict(self.config)
+      torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_zero_n_e_ratio_at_extrapolated_lcfs_raises_error(self):
     self.config["edge"] = {
@@ -731,7 +732,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         ValueError,
         "has a zero or negative n_e_ratio at rho_norm=1.0",
     ):
-      model_config.ToraxConfig.from_dict(self.config)
+      torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_zero_n_e_ratio_at_lcfs_passes_when_update_n_impurities_false(self):
     self.config["edge"] = {
@@ -752,7 +753,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     }
     # Should not raise because update_n_impurities is False, so the edge
     # model won't rescale impurity profiles.
-    model_config.ToraxConfig.from_dict(self.config)
+    torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_zero_lcfs_passes_when_update_n_impurities_false_at_that_time(self):
     # update_n_impurities: True at t=0, False at t=5 (step interpolation).
@@ -780,7 +781,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         }
     }
     # Should not raise.
-    model_config.ToraxConfig.from_dict(self.config)
+    torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_zero_lcfs_raises_when_update_n_impurities_true_at_that_time(self):
     # update_n_impurities: False at t=0, True at t=5 (step interpolation).
@@ -809,7 +810,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         ValueError,
         "has a zero or negative n_e_ratio at rho_norm=1.0",
     ):
-      model_config.ToraxConfig.from_dict(self.config)
+      torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_zero_n_e_ratio_at_lcfs_passes_when_no_edge_model(self):
     self.config["plasma_composition"] = {
@@ -819,7 +820,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         }
     }
     # Should not raise because no edge model is active.
-    model_config.ToraxConfig.from_dict(self.config)
+    torax_config_lib.ToraxConfig.from_dict(self.config)
 
   def test_adaptive_transport_with_internal_boundary_conditions_raises(self):
     config_dict = default_configs.get_default_config_dict()
@@ -837,7 +838,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "Internal boundary conditions cannot be configured when pedestal mode"
         " is ADAPTIVE_TRANSPORT",
     ):
-      model_config.ToraxConfig.from_dict(config_dict)
+      torax_config_lib.ToraxConfig.from_dict(config_dict)
 
   def test_adaptive_transport_without_internal_boundary_conditions_passes(self):
     config_dict = default_configs.get_default_config_dict()
@@ -847,7 +848,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
         "formation_model": {"model_name": "martin_scaling"},
     }
     # Should not raise when internal_boundary_conditions is default/empty
-    model_config.ToraxConfig.from_dict(config_dict)
+    torax_config_lib.ToraxConfig.from_dict(config_dict)
 
 
 if __name__ == "__main__":

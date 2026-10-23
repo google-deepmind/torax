@@ -24,7 +24,7 @@ from typing import Any, Literal, TypeAlias
 
 from torax._src import path_utils
 from torax._src.plotting import plotruns_lib
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config
 
 ExampleConfig: TypeAlias = Literal[
     'basic_config',
@@ -123,7 +123,7 @@ def import_module(path: str | pathlib.Path) -> dict[str, Any]:
 
 def build_torax_config_from_file(
     path: str | pathlib.Path,
-) -> model_config.ToraxConfig:
+) -> torax_config.ToraxConfig:
   """Returns a ToraxConfig object from a config file.
 
   The config file is either a Python file containing a `CONFIG` dictionary, or
@@ -152,7 +152,7 @@ def build_torax_config_from_file(
             f'The file {str(path)} is an invalid Torax config file, as it does'
             ' not have a `CONFIG` variable defined.'
         )
-      return model_config.ToraxConfig.from_dict(cfg['CONFIG'])
+      return torax_config.ToraxConfig.from_dict(cfg['CONFIG'])
     case _:
       raise ValueError(f'Path {path} is not a valid Torax config file.')
 

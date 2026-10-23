@@ -28,7 +28,7 @@ from torax._src.fvm import discrete_system
 from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_sources
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 
 class CalcCoeffsTest(parameterized.TestCase):
@@ -47,7 +47,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     sources_config['generic_heat']['P_total'] = 0.0
     sources_config['fusion']['mode'] = 'ZERO'
     sources_config['ohmic']['mode'] = 'ZERO'
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = torax_config_lib.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
@@ -107,7 +107,7 @@ class CalcCoeffsTest(parameterized.TestCase):
 
   def test_calc_coeffs_hash(self):
     def create_coeffs_callback(
-        torax_config: model_config.ToraxConfig,
+        torax_config: torax_config_lib.ToraxConfig,
     ) -> calc_coeffs.CoeffsCallback:
       models = torax_config.build_models()
       evolving_names = tuple(['T_i'])
@@ -135,44 +135,46 @@ class CalcCoeffsTest(parameterized.TestCase):
       self.assertEqual(
           hash(
               create_coeffs_callback(
-                  model_config.ToraxConfig.from_dict(torax_config)
+                  torax_config_lib.ToraxConfig.from_dict(torax_config)
               )
           ),
           hash(
               create_coeffs_callback(
-                  model_config.ToraxConfig.from_dict(torax_config)
+                  torax_config_lib.ToraxConfig.from_dict(torax_config)
               )
           ),
       )
     with self.subTest('same_coeffs_callback_equal'):
       self.assertEqual(
           create_coeffs_callback(
-              model_config.ToraxConfig.from_dict(torax_config)
+              torax_config_lib.ToraxConfig.from_dict(torax_config)
           ),
           create_coeffs_callback(
-              model_config.ToraxConfig.from_dict(torax_config)
+              torax_config_lib.ToraxConfig.from_dict(torax_config)
           ),
       )
     with self.subTest('different_coeffs_callback_hash_not_equal'):
       self.assertNotEqual(
           hash(
               create_coeffs_callback(
-                  model_config.ToraxConfig.from_dict(torax_config_with_pedestal)
+                  torax_config_lib.ToraxConfig.from_dict(
+                      torax_config_with_pedestal
+                  )
               )
           ),
           hash(
               create_coeffs_callback(
-                  model_config.ToraxConfig.from_dict(torax_config)
+                  torax_config_lib.ToraxConfig.from_dict(torax_config)
               )
           ),
       )
     with self.subTest('different_coeffs_callback_not_equal'):
       self.assertNotEqual(
           create_coeffs_callback(
-              model_config.ToraxConfig.from_dict(torax_config)
+              torax_config_lib.ToraxConfig.from_dict(torax_config)
           ),
           create_coeffs_callback(
-              model_config.ToraxConfig.from_dict(torax_config_with_pedestal)
+              torax_config_lib.ToraxConfig.from_dict(torax_config_with_pedestal)
           ),
       )
 
@@ -229,7 +231,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     )
 
     def _eval_rhs(cfg_dict):
-      tcfg = model_config.ToraxConfig.from_dict(cfg_dict)
+      tcfg = torax_config_lib.ToraxConfig.from_dict(cfg_dict)
       models = tcfg.build_models()
       rp = build_runtime_params.RuntimeParamsProvider.from_config(tcfg)(
           t=tcfg.numerics.t_initial
@@ -296,7 +298,7 @@ class CalcCoeffsTest(parameterized.TestCase):
       )
 
   def test_phi_b_dot_terms_match_analytical_rhs(self):
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = torax_config_lib.ToraxConfig.from_dict(
         dict(
             numerics=dict(),
             plasma_composition=dict(),

@@ -19,7 +19,7 @@ from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config
 
 # pylint: disable=invalid-name
 
@@ -29,7 +29,7 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     config = default_configs.get_default_config_dict()
-    self.torax_config = model_config.ToraxConfig.from_dict(config)
+    self.torax_config = torax_config.ToraxConfig.from_dict(config)
     self.provider = build_runtime_params.RuntimeParamsProvider.from_config(
         self.torax_config
     )

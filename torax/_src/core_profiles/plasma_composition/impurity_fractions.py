@@ -133,7 +133,7 @@ class RuntimeParams:
   Z_override: array_typing.FloatScalar | None = None
 
 
-class ImpurityFractions(torax_pydantic.BaseModelFrozen):
+class ImpurityFractions(torax_pydantic.ConfigBase):
   """Impurity content defined by fractional abundances."""
 
   impurity_mode: Annotated[Literal['fractions'], torax_pydantic.JAX_STATIC] = (

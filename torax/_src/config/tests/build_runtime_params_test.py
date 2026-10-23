@@ -27,13 +27,13 @@ from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
-from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.pedestal_model import config as pedestal_config
 from torax._src.pedestal_model import set_tped_nped
 from torax._src.pedestal_model.formation import prescribed_formation_model
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -49,7 +49,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     """Tests that the runtime_params provider is time dependent."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {'T_i_right_bc': {0.0: 2.0, 4.0: 4.0}}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -93,7 +93,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
 
   def test_pedestal_is_time_dependent(self):
     """Tests that the pedestal runtime params are time dependent."""
-    pedestal = pedestal_pydantic_model.Pedestal.from_dict(
+    pedestal = pedestal_config.PedestalConfig.from_dict(
         dict(
             structure_model=dict(
                 model_name='set_T_ped_n_ped',
@@ -253,7 +253,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
         'nbar': nbar,
         'n_e': n_e,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     profile_condition_params = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
             t=0.0
@@ -548,7 +548,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         'n_e_right_bc_reference_rho': 0.5,
         'n_e_right_bc_multiplier': 0.8,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -589,7 +589,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         'n_e_right_bc_reference_rho': 0.5,
         'n_e_right_bc_multiplier': 0.8,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )

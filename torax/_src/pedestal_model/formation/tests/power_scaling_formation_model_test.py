@@ -26,7 +26,7 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.physics import scaling_laws
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config
 
 # pylint: disable=invalid-name
 
@@ -52,7 +52,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
             'electron_heat_fraction': 0.8,
         }
     }
-    self.torax_config = model_config.ToraxConfig.from_dict(config)
+    self.torax_config = torax_config.ToraxConfig.from_dict(config)
     self.step_fn = run_simulation.make_step_fn(self.torax_config)
     self.initial_state, self.initial_post_processed_outputs = (
         initial_state.get_initial_state_and_post_processed_outputs(self.step_fn)

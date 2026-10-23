@@ -24,8 +24,8 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import config as neoclassical_config
 from torax._src.neoclassical import neoclassical_model
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.neoclassical import register_model
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -36,7 +36,7 @@ from torax._src.neoclassical.poloidal_velocity import base as poloidal_velocity_
 from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.neoclassical.poloidal_velocity import zeros as poloidal_velocity_zeros
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
@@ -144,7 +144,7 @@ class CustomNeoclassicalModel(neoclassical_model.NeoclassicalModel):
 
 
 class CustomTopLevelNeoclassicalConfig(
-    neoclassical_pydantic_model.BaseNeoclassicalConfig
+    neoclassical_config.NeoclassicalConfigBase
 ):
   """Custom top-level neoclassical model config for testing."""
 
@@ -171,7 +171,7 @@ class RegisterNeoclassicalModelTest(absltest.TestCase):
     config['neoclassical'] = {
         'conductivity': {'model_name': 'custom_conductivity'},
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     model = torax_config.neoclassical.build_model()
     self.assertIsInstance(
         model, neoclassical_model.AnalyticalNeoclassicalModel
@@ -187,7 +187,7 @@ class RegisterNeoclassicalModelTest(absltest.TestCase):
     config['neoclassical'] = {
         'poloidal_velocity': {'model_name': 'custom_poloidal_velocity'},
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     model = torax_config.neoclassical.build_model()
     self.assertIsInstance(
         model, neoclassical_model.AnalyticalNeoclassicalModel
@@ -202,7 +202,7 @@ class RegisterNeoclassicalModelTest(absltest.TestCase):
         'model_name': 'custom_neoclassical',
         'custom_sigma': 123.0,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     self.assertIsInstance(
         torax_config.neoclassical, CustomTopLevelNeoclassicalConfig
     )
@@ -219,7 +219,7 @@ class RegisterNeoclassicalModelTest(absltest.TestCase):
         r"Input tag 'invalid_name' found using 'model_name' does not match any"
         r".*'custom_neoclassical'",
     ):
-      model_config.ToraxConfig.from_dict(config)
+      torax_config_lib.ToraxConfig.from_dict(config)
 
 
 if __name__ == '__main__':

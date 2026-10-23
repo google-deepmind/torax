@@ -18,7 +18,7 @@ from typing import Sequence
 from absl import app
 import matplotlib.pyplot as plt
 import torax
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 _FILE_PATH = '/tmp/combined_transport_example.png'
 
@@ -66,7 +66,7 @@ def main(argv: Sequence[str]) -> None:
           },
       },
   }
-  torax_config = model_config.ToraxConfig.from_dict(config)
+  torax_config = torax_config_lib.ToraxConfig.from_dict(config)
   data_tree = torax.run_simulation(torax_config).simulation_output_to_xr()
   plt.figure(figsize=(8, 2))
   plt.plot(

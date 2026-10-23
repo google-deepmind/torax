@@ -30,7 +30,7 @@ from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # Most of the checks and computations in TORAX require float64.
@@ -109,7 +109,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
       }
     else:
       config['sources'] = {self._source_name: {}}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -165,7 +165,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
       }
     else:
       config['sources'] = {self._source_name: {}}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[self._source_name]

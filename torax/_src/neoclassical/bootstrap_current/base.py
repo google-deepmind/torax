@@ -13,10 +13,12 @@
 # limitations under the License.
 
 """Base class for bootstrap current models."""
+
 from __future__ import annotations
 
 import abc
 import dataclasses
+
 import jax
 import jax.numpy as jnp
 import pydantic
@@ -134,8 +136,9 @@ class BootstrapCurrentModel(abc.ABC):
     """Calculates bootstrap current."""
 
 
-class BootstrapCurrentModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class BootstrapCurrentModelConfig(torax_pydantic.ConfigBase):
   """Base class for bootstrap current model configs."""
+
   bootstrap_multiplier: pydantic.NonNegativeFloat = 1.0
 
   def build_runtime_params(self) -> bootstrap_runtime_params.RuntimeParams:

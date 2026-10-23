@@ -24,11 +24,11 @@ import numpy as np
 import pydantic
 from torax._src.edge import base
 from torax._src.edge import runtime_params as edge_runtime_params
-from torax._src.edge.extended_lengyel import pydantic_model as extended_lengyel_pydantic_model
+from torax._src.edge.extended_lengyel import config as extended_lengyel_config
 from torax._src.torax_pydantic import torax_pydantic
 
 SubModelConfig = Annotated[
-    extended_lengyel_pydantic_model.ExtendedLengyelConfig,
+    extended_lengyel_config.ExtendedLengyelConfig,
     pydantic.Field(discriminator='model_name'),
 ]
 
@@ -127,6 +127,6 @@ class CombinedEdgeConfig(base.EdgeModelConfig):
 
 
 EdgeConfig = Annotated[
-    extended_lengyel_pydantic_model.ExtendedLengyelConfig | CombinedEdgeConfig,
+    extended_lengyel_config.ExtendedLengyelConfig | CombinedEdgeConfig,
     pydantic.Field(discriminator='model_name'),
 ]

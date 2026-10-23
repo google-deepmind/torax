@@ -35,13 +35,13 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.solver import config as solver_config
 from torax._src.solver import linear_theta_method
-from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import source_profiles
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
-from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import config_base as transport_config_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_coeffs
@@ -56,10 +56,10 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
+    torax_config_lib.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
         'solver'
     ].annotation |= FakeSolverConfig
-    model_config.ToraxConfig.model_rebuild(force=True)
+    torax_config_lib.ToraxConfig.model_rebuild(force=True)
 
   @parameterized.named_parameters(
       ('with_adaptive_dt', True, 3, 0, 2.44444444444, [2, 3], 3 + 3 + 2),
@@ -107,7 +107,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         'time_step_calculator': {'calculator_type': 'fixed'},
         'sources': {},
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     def _fake_run_loop(
         initial_state: sim_state.SimState,
@@ -161,7 +161,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     mock_run_loop.assert_called_once()
 
 
-class FakeSolverConfig(solver_pydantic_model.LinearThetaMethod):
+class FakeSolverConfig(solver_config.LinearThetaMethodConfig):
   """Fake solver config that allows us to hook into the error logic."""
 
   solver_type: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'  # pyrefly: ignore[bad-override]
@@ -290,7 +290,7 @@ class FakeTransportModel(component.ComponentTransportModel):
 
 
 class FakeTransportConfig(
-    transport_pydantic_model_base.ComponentTransportBase
+    transport_config_base.ComponentTransportConfigBase
 ):
   """Fake transport config for a model that always returns zeros."""
 

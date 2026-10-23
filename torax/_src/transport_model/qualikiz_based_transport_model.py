@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class and utils for Qualikiz-based models."""
-import abc
+
 import dataclasses
 import enum
 from typing import Annotated
@@ -35,7 +35,7 @@ from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
-from torax._src.transport_model import pydantic_model_base
+from torax._src.transport_model import config_base
 from torax._src.transport_model import quasilinear_utils
 from torax._src.transport_model import runtime_params as transport_runtime_params
 from torax._src.transport_model import transport_coeffs
@@ -112,6 +112,7 @@ class RotationMode(enum.StrEnum):
     half of the radius (rhon > 0.5).
   FULL_RADIUS: The rotation correction is applied everywhere.
   """
+
   OFF = 'off'
   HALF_RADIUS = 'half_radius'
   FULL_RADIUS = 'full_radius'
@@ -155,7 +156,7 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
 
 
 class QualikizBasedTransportModelConfig(
-    pydantic_model_base.ComponentTransportBase, abc.ABC
+    config_base.ComponentTransportConfigBase
 ):
   """Base config for Qualikiz-family transport models."""
 

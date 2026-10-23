@@ -45,7 +45,7 @@ class FakePedestalModel(pedestal.PedestalStructureModel):
     )
 
 
-class FakePedestalPydantic(pedestal.BaseStructure):
+class FakePedestalPydantic(pedestal.StructureConfigBase):
   """Fake pedestal structure model pydantic config."""
 
   model_name: Annotated[Literal['fake_pedestal'], torax.JAX_STATIC] = (

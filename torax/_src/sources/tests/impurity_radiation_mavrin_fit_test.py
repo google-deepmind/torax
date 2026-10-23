@@ -20,13 +20,13 @@ from torax._src.core_profiles import initialization
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.physics import charge_states
 from torax._src.physics.radiation import radiation
-from torax._src.sources import pydantic_config as sources_pydantic_config
+from torax._src.sources import config as sources_config
 from torax._src.sources import source as source_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.sources.tests import test_lib
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -40,7 +40,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   )
   model_name = 'mavrin_fit'
 
-  def _run_source_model(self, torax_config: model_config.ToraxConfig):
+  def _run_source_model(self, torax_config: torax_config_lib.ToraxConfig):
     """Helper to run the impurity radiation model for a given config."""
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -66,7 +66,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
   def test_correct_dynamic_params_built(self):
     # Source models
-    sources = sources_pydantic_config.Sources.from_dict({
+    sources = sources_config.SourcesConfig.from_dict({
         impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_ID: {},
     })
     # Set the grid to allows the dynamic params to be built without making the
@@ -352,7 +352,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'pedestal': {},
     }
 
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
 
     # --- 3. Call the function under test ---
     calculated_radiation = np.array(self._run_source_model(torax_config))
@@ -427,7 +427,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
             'species': n_e_ratios,
         },
     }
-    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+    torax_config_ne_ratios = torax_config_lib.ToraxConfig.from_dict(
         config_dict_ne_ratios
     )
 
@@ -441,7 +441,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         },
         'Z_eff': float(zeff),
     }
-    torax_config_fractions = model_config.ToraxConfig.from_dict(
+    torax_config_fractions = torax_config_lib.ToraxConfig.from_dict(
         config_dict_fractions
     )
 

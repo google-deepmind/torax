@@ -29,7 +29,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
 
@@ -117,7 +117,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         'n_e': {0: {0: 1.0e20, 1: 2.0e20}, 1.5: {0: 100.0e20, 1: 200.0e20}},
         'n_e_right_bc': n_e_right_bc,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -757,7 +757,7 @@ class ProfileConditionsTest(parameterized.TestCase):
             },
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )

@@ -16,14 +16,14 @@ from absl.testing import parameterized
 import jax
 import pydantic
 from torax._src import jax_utils
+from torax._src.solver import config as solver_config
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
-from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 
-class PydanticModelTest(parameterized.TestCase):
+class ConfigTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
@@ -49,7 +49,7 @@ class PydanticModelTest(parameterized.TestCase):
         'solver_type': solver_type,
         'theta_implicit': 0.5,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     solver = torax_config.solver.build_solver(
         models=torax_config.build_models(),
@@ -64,18 +64,18 @@ class PydanticModelTest(parameterized.TestCase):
         'solver_type': solver_type,
         'D_pereverzev': 0.5,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     solver = torax_config.solver
 
     @jax.jit
-    def f(solver: solver_pydantic_model.SolverConfig):
+    def f(solver: solver_config.SolverConfig):
       return solver.build_runtime_params
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(solver)
       self.assertIsInstance(
-          output, solver_pydantic_model.runtime_params.RuntimeParams
+          output, solver_config.runtime_params.RuntimeParams
       )
       self.assertEqual(output.D_pereverzev, 0.5)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
@@ -92,7 +92,7 @@ class PydanticModelTest(parameterized.TestCase):
         'solver_type': 'unknown_solver',
     }
     with self.assertRaises(pydantic.ValidationError) as cm:
-      model_config.ToraxConfig.from_dict(config)
+      torax_config_lib.ToraxConfig.from_dict(config)
     self.assertIn(
         "Input tag 'unknown_solver' found using 'solver_type'",
         str(cm.exception),

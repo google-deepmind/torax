@@ -34,7 +34,7 @@ from torax._src.sources.ion_cyclotron_source import toric_nn as ion_cyclotron_so
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # Internal import.
@@ -197,7 +197,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     """Tests that the source can provide a value by default."""
     config = self._get_default_config_dict()
     config["sources"] = {self._source_name: {"model_path": _DUMMY_MODEL_PATH}}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
@@ -236,7 +236,7 @@ class ToricNNTest(test_lib.SourceTestCase):
             "minority_species": "He3",
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
@@ -297,7 +297,7 @@ class ToricNNTest(test_lib.SourceTestCase):
             "minority_species": "He3",
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
@@ -346,7 +346,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         pydantic.ValidationError,
         'The ICRH source requires "He3" to be present',
     ):
-      model_config.ToraxConfig.from_dict(config)
+      torax_config_lib.ToraxConfig.from_dict(config)
 
   def test_invalid_minority_species_raises(self):
     with self.assertRaisesRegex(
@@ -363,7 +363,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     config["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 10e6}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
@@ -406,7 +406,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     config["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 10e6}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
@@ -441,7 +441,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     config["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 10e6}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
@@ -474,7 +474,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     config["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 0.0}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[
@@ -521,7 +521,7 @@ class ToricNNTest(test_lib.SourceTestCase):
             "absorption_fraction": absorption_fraction,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[

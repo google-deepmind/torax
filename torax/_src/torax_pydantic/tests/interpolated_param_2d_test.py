@@ -22,8 +22,8 @@ import numpy as np
 import pydantic
 from torax._src import jax_utils
 from torax._src.geometry import circular_geometry
+from torax._src.torax_pydantic import config_base
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_base
 import xarray as xr
 
 RHO_NORM = 'rho_norm'
@@ -307,7 +307,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       )
 
   def test_raises_error_when_value_is_not_positive(self):
-    class TestModel(model_base.BaseModelFrozen):
+    class TestModel(config_base.ConfigBase):
       a: interpolated_param_2d.PositiveTimeVaryingArray
 
     with self.assertRaisesRegex(pydantic.ValidationError, 'greater than 0'):
@@ -372,7 +372,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     test_model_cls = pydantic.create_model(
         'TestModel',
         a=(field_type, ...),
-        __base__=model_base.BaseModelFrozen,
+        __base__=config_base.ConfigBase,
     )
 
     if should_fail:
@@ -414,11 +414,11 @@ class InterpolatedParam2dTest(parameterized.TestCase):
 
   def test_set_grid(self):
 
-    class Test1(model_base.BaseModelFrozen):
+    class Test1(config_base.ConfigBase):
       x: float
       y: interpolated_param_2d.TimeVaryingArray
 
-    class Test2(model_base.BaseModelFrozen):
+    class Test2(config_base.ConfigBase):
       x: Test1
       y: interpolated_param_2d.TimeVaryingArray
       z: int

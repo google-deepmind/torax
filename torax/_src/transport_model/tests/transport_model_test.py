@@ -32,11 +32,11 @@ from torax._src.pedestal_model import pedestal_transition_state as pedestal_tran
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
+from torax._src.transport_model import config_base as transport_config_base
 from torax._src.transport_model import enums
-from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
@@ -79,7 +79,7 @@ class FixedTransportModel(component.ComponentTransportModel):
 
 
 class FixedTransportConfig(
-    transport_pydantic_model_base.ComponentTransportBase
+    transport_config_base.ComponentTransportConfigBase
 ):
   """Fixed transport config for a model that always returns fixed values."""
 
@@ -125,7 +125,7 @@ def _build_smoothing_matrix_for_n_rho(
           'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
       },
   }
-  torax_config = model_config.ToraxConfig.from_dict(config)
+  torax_config = torax_config_lib.ToraxConfig.from_dict(config)
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
       torax_config
   )(t=torax_config.numerics.t_initial)
@@ -157,7 +157,7 @@ class TransportMaskingTest(parameterized.TestCase):
             },
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     # Build components
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -230,7 +230,7 @@ class TransportMaskingTest(parameterized.TestCase):
         'chi_min': 0.0,
         'D_e_min': 0.0,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
@@ -272,7 +272,7 @@ class TransportMaskingTest(parameterized.TestCase):
         'chi_min': 0.0,
         'D_e_min': 0.0,
     }
-    single_torax = model_config.ToraxConfig.from_dict(single_config)
+    single_torax = torax_config_lib.ToraxConfig.from_dict(single_config)
     single_model = single_torax.transport.build_transport_model()
     single_runtime = build_runtime_params.RuntimeParamsProvider.from_config(
         single_torax
@@ -354,7 +354,7 @@ class TransportMaskingTest(parameterized.TestCase):
             },
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=0.0)
@@ -444,7 +444,7 @@ class TransportModelTest(parameterized.TestCase):
     config['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
@@ -506,7 +506,7 @@ class TransportModelTest(parameterized.TestCase):
     config['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
@@ -632,7 +632,7 @@ class TransportModelTest(parameterized.TestCase):
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)
@@ -660,7 +660,7 @@ class TransportModelTest(parameterized.TestCase):
   def test_build_pedestal_smoothing_matrix_zero_width_is_identity(self):
     config = default_configs.get_default_config_dict()
     config['transport'] = {'pedestal_smoothing_width': 0.0}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)
@@ -678,7 +678,7 @@ class TransportModelTest(parameterized.TestCase):
   def test_build_pedestal_smoothing_matrix_isolation_and_row_sums(self):
     config = default_configs.get_default_config_dict()
     config['transport'] = {'pedestal_smoothing_width': 0.05}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)
@@ -726,7 +726,7 @@ class TransportModelTest(parameterized.TestCase):
         },
         'chi_min': 0.0,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
@@ -853,7 +853,7 @@ class TransportModelTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'rho_min and rho_max not supported'
     ):
-      model_config.ToraxConfig.from_dict(config)
+      torax_config_lib.ToraxConfig.from_dict(config)
 
   def test_error_if_pedestal_model_defines_rho_max(self):
     config = default_configs.get_default_config_dict()
@@ -869,12 +869,12 @@ class TransportModelTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'rho_min and rho_max not supported'
     ):
-      model_config.ToraxConfig.from_dict(config)
+      torax_config_lib.ToraxConfig.from_dict(config)
 
   def _build_model_and_params(self, transport_config):
     config = default_configs.get_default_config_dict()
     config['transport'] = transport_config
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial

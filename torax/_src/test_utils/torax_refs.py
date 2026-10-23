@@ -29,7 +29,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -53,7 +53,7 @@ def _load_all_references():
 class References:
   """Collection of reference values useful for unit tests."""
 
-  config: model_config.ToraxConfig
+  config: torax_config_lib.ToraxConfig
   psi: cell_variable.CellVariable
   psi_face_grad: np.ndarray
   psidot: np.ndarray
@@ -81,7 +81,7 @@ class References:
 
 
 def _build_references_from_case_data(
-    case_name: str, torax_config: model_config.ToraxConfig
+    case_name: str, torax_config: torax_config_lib.ToraxConfig
 ) -> References:
   """Helper function to build a References object from a config and JSON data."""
   geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
@@ -111,7 +111,7 @@ def _build_references_from_case_data(
 
 def circular_references() -> References:
   """Reference values for circular geometry."""
-  torax_config = model_config.ToraxConfig.from_dict({
+  torax_config = torax_config_lib.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
           'current_profile_nu': 3,
@@ -135,7 +135,7 @@ def circular_references() -> References:
 
 def chease_references_Ip_from_chease() -> References:
   """Reference values for CHEASE geometry where Ip comes from the file."""
-  torax_config = model_config.ToraxConfig.from_dict({
+  torax_config = torax_config_lib.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
           'current_profile_nu': 3,
@@ -162,7 +162,7 @@ def chease_references_Ip_from_chease() -> References:
 
 def chease_references_Ip_from_runtime_params() -> References:
   """Reference values for CHEASE geometry where Ip comes from runtime params."""
-  torax_config = model_config.ToraxConfig.from_dict({
+  torax_config = torax_config_lib.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
           'current_profile_nu': 3,

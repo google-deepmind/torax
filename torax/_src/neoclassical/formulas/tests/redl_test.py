@@ -20,7 +20,7 @@ from torax._src.core_profiles import initialization
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.formulas import redl as redl_formulas
 from torax._src.physics import collisions
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -32,7 +32,7 @@ class RedlFormulasTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    torax_config = model_config.ToraxConfig.from_dict({
+    torax_config = torax_config_lib.ToraxConfig.from_dict({
         'profile_conditions': {
             'Ip': 15e6,
             'current_profile_nu': 3,

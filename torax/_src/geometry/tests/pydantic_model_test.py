@@ -22,7 +22,7 @@ from torax._src.geometry import geometry_provider
 from torax._src.geometry import pydantic_model
 from torax._src.geometry import standard_geometry
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -144,7 +144,7 @@ class PydanticModelTest(parameterized.TestCase):
         'Ip_from_parameters': False,
         'n_rho': 4,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )

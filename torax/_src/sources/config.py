@@ -64,7 +64,7 @@ def _source_field(
   )
 
 
-class Sources(torax_pydantic.BaseModelFrozen):
+class SourcesConfig(torax_pydantic.ConfigBase):
   """Config for source models.
 
   Each standard source field defaults to `None` (disabled) when omitted. When a

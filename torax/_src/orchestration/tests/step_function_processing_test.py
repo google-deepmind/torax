@@ -23,7 +23,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.orchestration import step_function_processing
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 ConfinementMode = pedestal_runtime_params_lib.ConfinementMode
@@ -62,7 +62,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
             'pedestal_active': ({0.0: False, 0.5: True}, 'STEP'),
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     step_fn = run_simulation.make_step_fn(torax_config)
     sim_state, post_processed = (
         initial_state.get_initial_state_and_post_processed_outputs(step_fn)
@@ -99,7 +99,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
             'base_multiplier': 1e-5,
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     step_fn = run_simulation.make_step_fn(torax_config)
     sim_state, _ = initial_state.get_initial_state_and_post_processed_outputs(
         step_fn

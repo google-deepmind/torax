@@ -35,7 +35,7 @@ from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import sim_test_case
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -46,7 +46,7 @@ class PostProcessingTest(parameterized.TestCase):
     super().setUp()
     config = default_configs.get_default_config_dict()
     config['sources'] = default_sources.get_default_source_config()
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     self.runtime_params = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
             t=0.0

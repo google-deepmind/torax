@@ -21,7 +21,7 @@ from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import kim
 from torax._src.neoclassical.poloidal_velocity import runtime_params as poloidal_velocity_runtime_params
 from torax._src.neoclassical.poloidal_velocity import zeros
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 _A_TOL = 1e-6
 _R_TOL = 1e-6
@@ -46,7 +46,7 @@ class PoloidalVelocityTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    torax_config = model_config.ToraxConfig.from_dict({
+    torax_config = torax_config_lib.ToraxConfig.from_dict({
         'profile_conditions': {
             'Ip': 15e6,
             'current_profile_nu': 3,

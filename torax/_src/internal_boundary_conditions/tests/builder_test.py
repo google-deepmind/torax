@@ -30,7 +30,7 @@ from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -173,7 +173,7 @@ class BuilderTest(absltest.TestCase):
     self.assertTrue(jnp.all(built_ibc.n_e == 0.0))
 
   def test_build_internal_boundary_conditions_with_model(self):
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = torax_config_lib.ToraxConfig.from_dict(
         dict(
             numerics=dict(),
             plasma_composition=dict(),

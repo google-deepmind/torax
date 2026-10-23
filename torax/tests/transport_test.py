@@ -46,7 +46,7 @@ class FakeTransportModel(transport.ComponentTransportModel):
     )
 
 
-class FakeTransportPydantic(transport.ComponentTransportBase):
+class FakeTransportPydantic(transport.ComponentTransportConfigBase):
   """Fake transport model pydantic config."""
 
   model_name: Annotated[Literal['fake_api'], torax.JAX_STATIC] = 'fake_api'
@@ -95,7 +95,7 @@ class TransportTest(absltest.TestCase):
 
   def test_dynamic_registration_updates_discriminator(self):
 
-    class DynamicTransportPydantic(transport.ComponentTransportBase):
+    class DynamicTransportPydantic(transport.ComponentTransportConfigBase):
       model_name: Annotated[Literal['dynamic_fake'], torax.JAX_STATIC] = (
           'dynamic_fake'
       )
