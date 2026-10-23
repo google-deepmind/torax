@@ -407,7 +407,7 @@ class StepFunctionTest(parameterized.TestCase):
         override_post_processed_outputs, ref_post_processed_outputs
     )
 
-  def test_step_function_geo_overrides(self):
+  def test_step_function_geometry_overrides(self):
     config_dict = default_configs.get_default_config_dict()
     cfg = model_config.ToraxConfig.from_dict(config_dict)
     (
@@ -423,7 +423,7 @@ class StepFunctionTest(parameterized.TestCase):
     override_state, override_post_processed_outputs = step_fn(
         sim_state,
         post_processed_outputs,
-        geo_overrides=new_step_fn.geometry_provider,
+        geometry_overrides=new_step_fn.geometry_provider,
     )
 
     # Use the new step function.

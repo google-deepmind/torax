@@ -63,6 +63,6 @@ so:
         sim_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         # New provider passed in as overrides here.
-        geo_overrides=fbt_geometry_provider,
+        geometry_overrides=fbt_geometry_provider,
     )
     previous_LY = new_LY

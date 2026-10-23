@@ -207,7 +207,7 @@ class SimulationStepFn:
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
-      geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
+      geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -230,7 +230,7 @@ class SimulationStepFn:
         values set in the numerics config.
       runtime_params_overrides: Runtime parameters to override the ones set in
         the runtime params provider.
-      geo_overrides: Geometry provider to override the one set in the step
+      geometry_overrides: Geometry provider to override the one set in the step
         function's geometry provider.
 
     Returns:
@@ -252,7 +252,7 @@ class SimulationStepFn:
     runtime_params_provider = (
         runtime_params_overrides or self.runtime_params_provider
     )
-    geometry_provider = geo_overrides or self._geometry_provider
+    geometry_provider = geometry_overrides or self._geometry_provider
     (
         runtime_params_t,
         geo_t,
@@ -328,7 +328,7 @@ class SimulationStepFn:
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
-      geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
+      geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -358,7 +358,7 @@ class SimulationStepFn:
           prev_post_processed,
           max_dt=remaining_dt,
           runtime_params_overrides=runtime_params_overrides,
-          geo_overrides=geo_overrides,
+          geometry_overrides=geometry_overrides,
       )
       remaining_dt -= output_state.dt
       return remaining_dt, output_state, post_processed_outputs
@@ -390,7 +390,7 @@ class SimulationStepFn:
       runtime_params_overrides: (
           build_runtime_params.RuntimeParamsProvider | None
       ) = None,
-      geo_overrides: geometry_provider_lib.GeometryProvider | None = None,
+      geometry_overrides: geometry_provider_lib.GeometryProvider | None = None,
   ) -> tuple[
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
@@ -401,7 +401,7 @@ class SimulationStepFn:
         input_state,
         previous_post_processed_outputs,
         runtime_params_overrides,
-        geo_overrides,
+        geometry_overrides,
     )
 
   def _sawtooth_step(
