@@ -24,8 +24,8 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry as geometry_lib
+from torax._src.neoclassical import config as neoclassical_config
 from torax._src.neoclassical import neoclassical_model
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.neoclassical import register_model
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params_lib
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -144,7 +144,7 @@ class CustomNeoclassicalModel(neoclassical_model.NeoclassicalModel):
 
 
 class CustomTopLevelNeoclassicalConfig(
-    neoclassical_pydantic_model.BaseNeoclassicalConfig
+    neoclassical_config.NeoclassicalConfigBase
 ):
   """Custom top-level neoclassical model config for testing."""
 

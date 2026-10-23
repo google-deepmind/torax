@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Base class for neoclassical transport models."""
+
 from __future__ import annotations
 
 import abc
@@ -104,7 +105,7 @@ class NeoclassicalTransportModel(abc.ABC):
     pass
 
 
-class NeoclassicalTransportModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class NeoclassicalTransportModelConfig(torax_pydantic.ConfigBase):
   """Base class for neoclassical transport model configs.
 
   Attributes:

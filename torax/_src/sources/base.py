@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base model for source pydantic configs."""
+
 import abc
 from typing import Annotated
 
@@ -21,7 +22,7 @@ from torax._src.sources import source as source_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class SourceConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
+class SourceConfigBase(torax_pydantic.ConfigBase):
   """Base model holding parameters common to all source model configs.
 
   Subclasses should define the `model_name` attribute as a `Literal`
@@ -67,9 +68,7 @@ class SourceConfigBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   ) -> runtime_params.RuntimeParams:
     """Builds runtime parameters for the source."""
     return runtime_params.RuntimeParams(
-        prescribed_values=tuple(
-            v.get_value(t) for v in self.prescribed_values
-        ),
+        prescribed_values=tuple(v.get_value(t) for v in self.prescribed_values),
         mode=self.mode,
         is_explicit=self.is_explicit,
     )

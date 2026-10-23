@@ -40,7 +40,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
 
     default_value = 1.53
 
-    class TestModel(torax_pydantic.BaseModelFrozen):
+    class TestModel(torax_pydantic.ConfigBase):
       a: torax_pydantic.TimeVaryingScalar
       b: torax_pydantic.TimeVaryingScalar = pydantic.Field(
           default_factory=lambda: default_value, validate_default=True
@@ -135,7 +135,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
   )
   def test_raises_error_when_value_is_not_positive(self, values):
-    class TestModel(torax_pydantic.BaseModelFrozen):
+    class TestModel(torax_pydantic.ConfigBase):
       a: torax_pydantic.PositiveTimeVaryingScalar
 
     with self.assertRaisesRegex(pydantic.ValidationError, 'greater than 0'):
@@ -156,7 +156,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
   def test_raises_error_when_value_is_not_non_negative(
       self, values, should_fail
   ):
-    class TestModel(torax_pydantic.BaseModelFrozen):
+    class TestModel(torax_pydantic.ConfigBase):
       a: torax_pydantic.NonNegativeTimeVaryingScalar
 
     if should_fail:
@@ -200,7 +200,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       ),
   )
   def test_unit_interval_validation(self, values, should_fail):
-    class TestModel(torax_pydantic.BaseModelFrozen):
+    class TestModel(torax_pydantic.ConfigBase):
       a: torax_pydantic.UnitIntervalTimeVaryingScalar
 
     if should_fail:
@@ -317,7 +317,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     test_model_cls = pydantic.create_model(
         'TestModel',
         a=(field_type, ...),
-        __base__=torax_pydantic.BaseModelFrozen,
+        __base__=torax_pydantic.ConfigBase,
     )
 
     if should_fail:

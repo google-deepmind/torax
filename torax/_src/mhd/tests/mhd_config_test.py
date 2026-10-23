@@ -19,9 +19,9 @@ from absl.testing import parameterized
 import jax
 from torax._src import jax_utils
 from torax._src.config import build_runtime_params
-from torax._src.mhd import pydantic_model as mhd_pydantic_model
+from torax._src.mhd import config as mhd_config
 from torax._src.mhd import runtime_params as mhd_runtime_params
-from torax._src.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
+from torax._src.mhd.sawtooth import config as sawtooth_config
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
 from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
@@ -31,7 +31,7 @@ from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import component
 
 
-class MHDPydanticModelTest(parameterized.TestCase):
+class MHDConfigTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -47,7 +47,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
         default_configs.get_default_config_dict()
     )
 
-    self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
+    self.assertIsInstance(torax_config.mhd, mhd_config.MHDConfig)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -61,8 +61,8 @@ class MHDPydanticModelTest(parameterized.TestCase):
     config['mhd'] = {}
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
-    assert isinstance(torax_config.mhd, mhd_pydantic_model.MHD)
+    self.assertIsInstance(torax_config.mhd, mhd_config.MHDConfig)
+    assert isinstance(torax_config.mhd, mhd_config.MHDConfig)
     mhd_models = torax_config.mhd.build_mhd_models()
     self.assertIs(mhd_models.sawtooth_models, None)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -86,10 +86,10 @@ class MHDPydanticModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    self.assertIsInstance(torax_config.mhd, mhd_pydantic_model.MHD)
+    self.assertIsInstance(torax_config.mhd, mhd_config.MHDConfig)
     assert torax_config.mhd is not None
     self.assertIsInstance(
-        torax_config.mhd.sawtooth, sawtooth_pydantic_model.SawtoothConfig
+        torax_config.mhd.sawtooth, sawtooth_config.SawtoothConfig
     )
 
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -103,7 +103,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
     self.assertEqual(sawtooth_params.trigger_params.minimum_radius, 0.06)
 
   def test_mhd_model_under_jit(self):
-    mhd_model = mhd_pydantic_model.MHD.from_dict({
+    mhd_model = mhd_config.MHDConfig.from_dict({
         'sawtooth': {
             'trigger_model': {
                 'model_name': 'simple',
@@ -114,7 +114,7 @@ class MHDPydanticModelTest(parameterized.TestCase):
     })
 
     @jax.jit
-    def f(x: mhd_pydantic_model.MHD):
+    def f(x: mhd_config.MHDConfig):
       return x.build_runtime_params(t=0.0)
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):

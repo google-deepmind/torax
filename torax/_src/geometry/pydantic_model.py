@@ -32,7 +32,7 @@ from torax._src.geometry import standard_geometry
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class GeometryConfig(torax_pydantic.BaseModelFrozen):
+class GeometryConfig(torax_pydantic.ConfigBase):
   """Pydantic model for a single geometry config."""
 
   config: (
@@ -44,7 +44,7 @@ class GeometryConfig(torax_pydantic.BaseModelFrozen):
   ) = pydantic.Field(discriminator='geometry_type')
 
 
-class Geometry(torax_pydantic.BaseModelFrozen):
+class Geometry(torax_pydantic.ConfigBase):
   """Pydantic model for a geometry.
 
   This object can be constructed via `Geometry.from_dict(config)`, where

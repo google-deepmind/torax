@@ -26,27 +26,27 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
-from torax._src.edge import pydantic_model as edge_pydantic_model
+from torax._src.edge import config as edge_config
+from torax._src.edge.extended_lengyel import config as extended_lengyel_config
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
-from torax._src.edge.extended_lengyel import pydantic_model as extended_lengyel_pydantic_model
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
-from torax._src.internal_boundary_conditions import pydantic_model as ibc_pydantic_model
-from torax._src.mhd import pydantic_model as mhd_pydantic_model
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
-from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.internal_boundary_conditions import config as ibc_config
+from torax._src.mhd import config as mhd_config
+from torax._src.neoclassical import config as neoclassical_config
+from torax._src.pedestal_model import config as pedestal_config
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
-from torax._src.solver import pydantic_model as solver_pydantic_model
+from torax._src.solver import config as solver_config
 from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
+from torax._src.time_step_calculator import config as time_step_calculator_config
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model as transport_model_pydantic_model
 
 
-class ToraxConfig(torax_pydantic.BaseModelFrozen):
+class ToraxConfig(torax_pydantic.ConfigBase):
   """Base config class for Torax.
 
   Attributes:
@@ -74,17 +74,17 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
   sources: sources_pydantic_config.Sources
-  neoclassical: neoclassical_pydantic_model.NeoclassicalConfig = (
+  neoclassical: neoclassical_config.NeoclassicalConfig = (
       pydantic.Field()
   )
-  solver: solver_pydantic_model.SolverConfig = pydantic.Field()
+  solver: solver_config.SolverConfig = pydantic.Field()
   transport: transport_model_pydantic_model.TransportModel = pydantic.Field()
-  pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field()
-  mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
-  edge: edge_pydantic_model.EdgeConfig | None = None
+  pedestal: pedestal_config.PedestalConfig = pydantic.Field()
+  mhd: mhd_config.MHDConfig = mhd_config.MHDConfig()
+  edge: edge_config.EdgeConfig | None = None
   time_step_calculator: (
-      time_step_calculator_pydantic_model.TimeStepCalculator
-  ) = time_step_calculator_pydantic_model.TimeStepCalculator()
+      time_step_calculator_config.TimeStepCalculatorConfig
+  ) = time_step_calculator_config.TimeStepCalculatorConfig()
   restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
       default=None
   )
@@ -132,18 +132,18 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
   def _get_extended_lengyel_configs(
       self,
-  ) -> list[extended_lengyel_pydantic_model.ExtendedLengyelConfig]:
+  ) -> list[extended_lengyel_config.ExtendedLengyelConfig]:
     if isinstance(
         self.edge,
-        extended_lengyel_pydantic_model.ExtendedLengyelConfig,
+        extended_lengyel_config.ExtendedLengyelConfig,
     ):
       return [self.edge]
-    if isinstance(self.edge, edge_pydantic_model.CombinedEdgeConfig):
+    if isinstance(self.edge, edge_config.CombinedEdgeConfig):
       return [
           sub
           for sub in self.edge.sub_models.values()
           if isinstance(
-              sub, extended_lengyel_pydantic_model.ExtendedLengyelConfig
+              sub, extended_lengyel_config.ExtendedLengyelConfig
           )
       ]
     return []
@@ -161,7 +161,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         )
     )
     using_linear_solver = isinstance(
-        self.solver, solver_pydantic_model.LinearThetaMethod
+        self.solver, solver_config.LinearThetaMethodConfig
     )
 
     # pylint: disable=g-long-ternary
@@ -231,7 +231,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     ibc = self.profile_conditions.internal_boundary_conditions
     if (
         self.pedestal.mode == pedestal_runtime_params.Mode.ADAPTIVE_TRANSPORT
-        and not isinstance(ibc, ibc_pydantic_model.NoIBC)
+        and not isinstance(ibc, ibc_config.NoIBCConfig)
     ):
       raise ValueError(
           'Internal boundary conditions cannot be configured when pedestal'

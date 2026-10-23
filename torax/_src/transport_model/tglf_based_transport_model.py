@@ -13,7 +13,6 @@
 # limitations under the License.
 """Base class and utils for TGLF-based models."""
 
-import abc
 import dataclasses
 from typing import Annotated
 
@@ -53,9 +52,7 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
   max_normalized_collisionality: float
 
 
-class TGLFBasedTransportModelConfig(
-    pydantic_model_base.ComponentTransportBase, abc.ABC
-):
+class TGLFBasedTransportModelConfig(pydantic_model_base.ComponentTransportBase):
   """Base config for TGLF-family transport models."""
 
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False

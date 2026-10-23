@@ -15,7 +15,7 @@
 
 from typing import Annotated, Any, get_args
 
-from torax._src.neoclassical import pydantic_model
+from torax._src.neoclassical import config
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.neoclassical.poloidal_velocity import base as poloidal_velocity_base
@@ -24,20 +24,20 @@ from torax._src.torax_pydantic import model_config
 
 
 def register_neoclassical_model(
-    pydantic_model_class: type[pydantic_model.BaseNeoclassicalConfig],
+    pydantic_model_class: type[config.NeoclassicalConfigBase],
 ) -> None:
   """Registers a top-level neoclassical model with TORAX."""
-  inner_union, discriminator = get_args(pydantic_model.NeoclassicalConfig)
+  inner_union, discriminator = get_args(config.NeoclassicalConfig)
   new_union = inner_union | pydantic_model_class
   setattr(
-      pydantic_model,
+      config,
       'NeoclassicalConfig',
       Annotated[new_union, discriminator],
   )
   setattr(
       model_config.ToraxConfig.model_fields['neoclassical'],
       'annotation',
-      pydantic_model.NeoclassicalConfig,
+      config.NeoclassicalConfig,
   )
   model_config.ToraxConfig.model_rebuild(force=True)
 
@@ -47,7 +47,7 @@ def _register_analytical_submodel(
     pydantic_model_class: type[Any],
 ) -> None:
   """Registers a sub-model on the AnalyticalNeoclassicalConfig."""
-  field_info = pydantic_model.AnalyticalNeoclassicalConfig.model_fields[
+  field_info = config.AnalyticalNeoclassicalConfig.model_fields[
       field_name
   ]
   assert field_info.annotation is not None
@@ -57,7 +57,7 @@ def _register_analytical_submodel(
       field_info.annotation | pydantic_model_class,
   )
   field_info.discriminator = 'model_name'
-  pydantic_model.AnalyticalNeoclassicalConfig.model_rebuild(force=True)
+  config.AnalyticalNeoclassicalConfig.model_rebuild(force=True)
   model_config.ToraxConfig.model_rebuild(force=True)
 
 
