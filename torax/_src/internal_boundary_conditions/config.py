@@ -29,8 +29,8 @@ from typing_extensions import Self
 # pylint: disable=invalid-name
 
 
-class BetaPoloidalPrimeIBC(torax_pydantic.ConfigBase):
-  """Pydantic model for beta_poloidal_prime internal boundary conditions."""
+class BetaPoloidalPrimeIBCConfig(torax_pydantic.ConfigBase):
+  """Pydantic config for beta_poloidal_prime internal boundary conditions."""
 
   model_name: Annotated[
       Literal['beta_poloidal_prime'], torax_pydantic.JAX_STATIC
@@ -96,8 +96,8 @@ class BetaPoloidalPrimeIBC(torax_pydantic.ConfigBase):
     )
 
 
-class NoIBC(torax_pydantic.ConfigBase):
-  """Pydantic model for when there are no internal boundary conditions."""
+class NoIBCConfig(torax_pydantic.ConfigBase):
+  """Pydantic config for when there are no internal boundary conditions."""
 
   model_name: Annotated[Literal['no_ibc'], torax_pydantic.JAX_STATIC] = 'no_ibc'
 
@@ -112,8 +112,8 @@ class NoIBC(torax_pydantic.ConfigBase):
     return ibc_runtime_params.RuntimeParams()
 
 
-class PrescribedIBC(torax_pydantic.ConfigBase):
-  """Pydantic model for prescribed internal boundary conditions."""
+class PrescribedIBCConfig(torax_pydantic.ConfigBase):
+  """Pydantic config for prescribed internal boundary conditions."""
 
   model_name: Annotated[Literal['prescribed'], torax_pydantic.JAX_STATIC] = (
       'prescribed'
@@ -144,6 +144,6 @@ class PrescribedIBC(torax_pydantic.ConfigBase):
 
 
 InternalBoundaryConditionsConfig = Annotated[
-    PrescribedIBC | BetaPoloidalPrimeIBC | NoIBC,
+    PrescribedIBCConfig | BetaPoloidalPrimeIBCConfig | NoIBCConfig,
     pydantic.Field(discriminator='model_name'),
 ]

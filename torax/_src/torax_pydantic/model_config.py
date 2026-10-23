@@ -32,7 +32,7 @@ from torax._src.edge.extended_lengyel import pydantic_model as extended_lengyel_
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
-from torax._src.internal_boundary_conditions import pydantic_model as ibc_pydantic_model
+from torax._src.internal_boundary_conditions import config as ibc_config
 from torax._src.mhd import pydantic_model as mhd_pydantic_model
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
@@ -231,7 +231,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     ibc = self.profile_conditions.internal_boundary_conditions
     if (
         self.pedestal.mode == pedestal_runtime_params.Mode.ADAPTIVE_TRANSPORT
-        and not isinstance(ibc, ibc_pydantic_model.NoIBC)
+        and not isinstance(ibc, ibc_config.NoIBCConfig)
     ):
       raise ValueError(
           'Internal boundary conditions cannot be configured when pedestal'

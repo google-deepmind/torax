@@ -24,7 +24,7 @@ import numpy as np
 import pydantic
 from torax._src.core_profiles import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
-from torax._src.internal_boundary_conditions import pydantic_model as ibc_pydantic_model
+from torax._src.internal_boundary_conditions import config as ibc_config
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -180,8 +180,8 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   n_e_right_bc_reference_rho: torax_pydantic.TimeVaryingScalar | None = None
   n_e_right_bc_multiplier: torax_pydantic.TimeVaryingScalar | None = None
   internal_boundary_conditions: (
-      ibc_pydantic_model.InternalBoundaryConditionsConfig
-  ) = torax_pydantic.ValidatedDefault(ibc_pydantic_model.NoIBC())
+      ibc_config.InternalBoundaryConditionsConfig
+  ) = torax_pydantic.ValidatedDefault(ibc_config.NoIBCConfig())
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   # TODO(b/434175938): Remove this before the V2 API release in place of
