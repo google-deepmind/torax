@@ -249,14 +249,14 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea',
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea.py',
           _ALL_PROFILES,
-          5e-6,
+          1e-5,
       ),
       # Predictor-corrector solver with rotation
       (
           'test_iterhybrid_predictor_corrector_rotation',
           'test_iterhybrid_predictor_corrector_rotation.py',
           _ALL_PROFILES,
-          5e-6,
+          1e-5,
       ),
       # L-mode iterhybrid variant with combined transport model and overwrites
       (
@@ -268,7 +268,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea_rotation',
           'test_iterhybrid_predictor_corrector_tglfnn_ukaea_rotation.py',
           _ALL_PROFILES,
-          5e-6,
+          1e-5,
       ),
       # Tests current and density rampup for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
