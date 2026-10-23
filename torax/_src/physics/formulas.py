@@ -26,6 +26,8 @@ Functions:
       coupling.
     - calculate_stored_thermal_energy: Calculates stored thermal energy from
       pressures.
+    - calculate_time_derivative_with_exponential_smoothing: Calculates raw and
+      exponentially smoothed time derivatives of a scalar.
     - calculate_greenwald_fraction: Calculates the Greenwald fraction from the
       averaged electron density (can be line-averaged or volume-averaged).
     - calculate_beta_volume_avg: Calculates the volume-averaged plasma beta
@@ -39,9 +41,12 @@ Functions:
     - calculate_alpha_mhd_miller: Calculates the Miller general-geometry MHD
       ballooning parameter alpha_mhd_miller on the face grid.
 """
+
+import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
+from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.fvm import cell_variable
@@ -178,6 +183,38 @@ def calculate_stored_thermal_energy(
   wth_tot = math_utils.volume_integration(1.5 * p_tot.value, geo)
 
   return wth_el, wth_ion, wth_tot
+
+
+def calculate_time_derivative_with_exponential_smoothing(
+    current_value: array_typing.FloatScalar,
+    previous_value: array_typing.FloatScalar,
+    previous_smoothed_derivative: array_typing.FloatScalar,
+    dt: array_typing.FloatScalar,
+    smoothing_time_scale: array_typing.FloatScalar,
+) -> tuple[array_typing.FloatScalar, array_typing.FloatScalar]:
+  """Calculates raw and exponentially smoothed time derivatives of a scalar.
+
+  Args:
+    current_value: Current scalar value at time t + dt.
+    previous_value: Previous scalar value at time t.
+    previous_smoothed_derivative: Smoothed time derivative at time t.
+    dt: Time step size.
+    smoothing_time_scale: Exponential smoothing time constant.
+
+  Returns:
+    Tuple of (raw_derivative, smoothed_derivative).
+  """
+  raw_derivative = (current_value - previous_value) / dt
+  alpha = jax.lax.cond(
+      smoothing_time_scale > 0.0,
+      lambda tau: 1.0 - jnp.exp(-dt / tau),
+      lambda _: jnp.array(1.0, dtype=jax_utils.get_dtype()),
+      smoothing_time_scale,
+  )
+  smoothed_derivative = (
+      1.0 - alpha
+  ) * previous_smoothed_derivative + alpha * raw_derivative
+  return raw_derivative, smoothed_derivative
 
 
 def calculate_greenwald_fraction(
@@ -422,4 +459,3 @@ def calculate_alpha_mhd_miller(
   )
   alpha_axis = jnp.zeros(1, dtype=alpha_bulk.dtype)
   return jnp.concatenate([alpha_axis, alpha_bulk])
-

@@ -32,9 +32,7 @@ from collections.abc import Mapping
 import dataclasses
 
 import jax
-import jax.numpy as jnp
 from torax._src import array_typing
-from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
@@ -398,24 +396,28 @@ def _update_energy_state(
           geo,
       )
   )
-  dW_i_dt_raw = (W_thermal_i - prev_energy_state.W_thermal_i) / dt
-  dW_e_dt_raw = (W_thermal_e - prev_energy_state.W_thermal_e) / dt
-
-  exponential_smoothing_alpha = jax.lax.cond(
-      runtime_params.numerics.dW_dt_smoothing_time_scale > 0.0,
-      lambda: jnp.array(1.0, dtype=jax_utils.get_dtype())
-      - jnp.exp(-dt / runtime_params.numerics.dW_dt_smoothing_time_scale),
-      lambda: jnp.array(1.0, dtype=jax_utils.get_dtype()),
+  smoothing_time = runtime_params.numerics.dW_dt_smoothing_time_scale
+  dW_i_dt_raw, dW_i_dt_smoothed = (
+      formulas.calculate_time_derivative_with_exponential_smoothing(
+          current_value=W_thermal_i,
+          previous_value=prev_energy_state.W_thermal_i,
+          previous_smoothed_derivative=(
+              prev_energy_state.dW_thermal_i_dt_smoothed
+          ),
+          dt=dt,
+          smoothing_time_scale=smoothing_time,
+      )
   )
-  dW_i_dt_smoothed = _exponential_smoothing(
-      dW_i_dt_raw,
-      prev_energy_state.dW_thermal_i_dt_smoothed,
-      exponential_smoothing_alpha,
-  )
-  dW_e_dt_smoothed = _exponential_smoothing(
-      dW_e_dt_raw,
-      prev_energy_state.dW_thermal_e_dt_smoothed,
-      exponential_smoothing_alpha,
+  dW_e_dt_raw, dW_e_dt_smoothed = (
+      formulas.calculate_time_derivative_with_exponential_smoothing(
+          current_value=W_thermal_e,
+          previous_value=prev_energy_state.W_thermal_e,
+          previous_smoothed_derivative=(
+              prev_energy_state.dW_thermal_e_dt_smoothed
+          ),
+          dt=dt,
+          smoothing_time_scale=smoothing_time,
+      )
   )
 
   return state.PlasmaInternalEnergy(
@@ -427,8 +429,3 @@ def _update_energy_state(
       dW_thermal_i_dt_smoothed=dW_i_dt_smoothed,
       dW_thermal_e_dt_smoothed=dW_e_dt_smoothed,
   )
-
-
-def _exponential_smoothing(new_raw, old_smoothed, alpha):
-  """Exponential moving average (EMA)."""
-  return (1.0 - alpha) * old_smoothed + alpha * new_raw
