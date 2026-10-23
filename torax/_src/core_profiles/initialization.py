@@ -16,7 +16,6 @@
 
 import dataclasses
 
-from absl import logging
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -137,8 +136,10 @@ def initial_core_profiles(
       v_loop_lcfs=v_loop_lcfs,
       sigma=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
       sigma_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
-      j_total=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
-      j_total_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
+      j_toroidal_total=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
+      j_toroidal_total_face=jnp.zeros_like(
+          geo.rho_face, dtype=jax_utils.get_dtype()
+      ),
       Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
       toroidal_angular_velocity=toroidal_angular_velocity,
       poloidal_velocity=cell_variable.CellVariable(
@@ -194,7 +195,7 @@ def _initialise_internal_energy(
 def update_psi_from_j(
     Ip: array_typing.FloatScalar,
     geo: geometry.Geometry,
-    j_total_hires: jax.Array,
+    j_toroidal_total_hires: jax.Array,
     use_v_loop_lcfs_boundary_condition: bool = False,
 ) -> cell_variable.CellVariable:
   """Calculates poloidal flux (psi) consistent with plasma current.
@@ -207,13 +208,13 @@ def update_psi_from_j(
   Args:
     Ip: Total plasma current [A].
     geo: Torus geometry.
-    j_total_hires: High resolution version of j_total [A/m^2].
+    j_toroidal_total_hires: High resolution version of j_toroidal_total [A/m^2].
     use_v_loop_lcfs_boundary_condition: Whether to set the loop voltage from Ip.
 
   Returns:
     psi: Poloidal flux cell variable.
   """
-  y = j_total_hires * geo.spr_hires
+  y = j_toroidal_total_hires * geo.spr_hires
   assert y.ndim == 1
   assert geo.rho_hires.ndim == 1
   Ip_profile = math_utils.cumulative_trapezoid(
@@ -263,44 +264,6 @@ def update_psi_from_j(
   return psi
 
 
-def _get_initial_psi_mode(
-    runtime_params: runtime_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-) -> core_profile_runtime_params.InitialPsiMode:
-  """Returns the initial psi mode based on the runtime parameters.
-
-  This allows us to support the legacy behavior of initial_psi_from_j, which
-  is only available when using the standard geometry and initial psi is not
-  provided. Moving forward the initial_psi_mode setting in the profile
-  conditions should be preferred.
-
-  Args:
-    runtime_params: Runtime parameters.
-    geo: Torus geometry.
-
-  Returns:
-    How to calculate the initial psi value.
-  """
-  psi_mode = runtime_params.profile_conditions.initial_psi_mode
-  if psi_mode == core_profile_runtime_params.InitialPsiMode.PROFILE_CONDITIONS:
-    if runtime_params.profile_conditions.psi is None:
-      logging.warning(
-          'Falling back to legacy behavior as `profile_conditions.psi` is '
-          'None. Future versions of TORAX will require `psi` to be provided '
-          'if `initial_psi_mode` is PROFILE_CONDITIONS. Use '
-          '`initial_psi_mode` to initialize psi from `j` or `geometry` and '
-          'avoid this warning.'
-      )
-      if (
-          isinstance(geo, standard_geometry.StandardGeometry)
-          and not runtime_params.profile_conditions.initial_psi_from_j
-      ):
-        psi_mode = core_profile_runtime_params.InitialPsiMode.GEOMETRY
-      else:
-        psi_mode = core_profile_runtime_params.InitialPsiMode.J
-  return psi_mode
-
-
 def _init_psi_and_psi_derived(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
@@ -334,15 +297,13 @@ def _init_psi_and_psi_derived(
   # Initialize psi source profiles and bootstrap current to all zeros.
   source_profiles = source_profile_builders.build_all_zero_profiles(geo)
 
-  initial_psi_mode = _get_initial_psi_mode(runtime_params, geo)
-
-  match initial_psi_mode:
+  match runtime_params.profile_conditions.initial_psi_source:
     # Case 1: retrieving psi from the profile conditions, using the prescribed
     # profile and Ip
-    case core_profile_runtime_params.InitialPsiMode.PROFILE_CONDITIONS:
+    case core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS:
       if runtime_params.profile_conditions.psi is None:
         raise ValueError(
-            'psi is None, but initial_psi_mode is PROFILE_CONDITIONS.'
+            'psi is None, but initial_psi_source is PROFILE_CONDITIONS.'
         )
       # Calculate the dpsi/drho necessary to achieve the given Ip
       dpsi_drhonorm_edge = (
@@ -375,7 +336,7 @@ def _init_psi_and_psi_derived(
       )
 
     # Case 2: retrieving psi from the standard geometry input.
-    case core_profile_runtime_params.InitialPsiMode.GEOMETRY:
+    case core_profile_runtime_params.InitialPsiSource.GEOMETRY:
       if not isinstance(geo, standard_geometry.StandardGeometry):
         raise ValueError(
             'GEOMETRY initial_psi_source is only supported for standard'
@@ -404,23 +365,26 @@ def _init_psi_and_psi_derived(
       )
 
     # Case 3: calculating j according to nu formula and psi from j.
-    case core_profile_runtime_params.InitialPsiMode.J:
+    case core_profile_runtime_params.InitialPsiSource.J:
       # calculate j and psi from the nu formula
-      j_total_hires = _get_j_total_hires_with_no_external_sources(
-          runtime_params, geo
+      j_toroidal_total_hires = (
+          _get_j_toroidal_total_hires_with_no_external_sources(
+              runtime_params, geo
+          )
       )
       psi = update_psi_from_j(
           runtime_params.profile_conditions.Ip,
           geo,
-          j_total_hires,
+          j_toroidal_total_hires,
           use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
       )
       if not (runtime_params.profile_conditions.initial_j_is_total_current):
-        # In this branch we require non-inductive currents to determine j_total.
-        # The nu formula only provides the Ohmic component of the current.
-        # However calculating non-inductive currents requires a non-zero psi.
-        # We thus iterate between psi and source calculations, using j_total
-        # and psi calculated purely with the nu formula as an initial guess
+        # In this branch we require non-inductive currents to determine
+        # j_toroidal_total. The nu formula only provides the Ohmic component of
+        # the current. However calculating non-inductive currents requires a
+        # non-zero psi. We thus iterate between psi and source calculations,
+        # using j_toroidal_total and psi calculated purely with the nu formula
+        # as an initial guess
 
         # Initialize iterations
         core_profiles_initial = dataclasses.replace(
@@ -474,8 +438,10 @@ def _calculate_all_psi_dependent_profiles(
     sources_are_calculated: bool,
 ) -> state.CoreProfiles:
   """Supplements core profiles with all other profiles that depend on psi."""
-  j_total, j_total_face, Ip_profile_face = psi_calculations.calc_j_total(
-      geo, psi, runtime_params.numerics.min_rho_norm
+  j_toroidal_total, j_toroidal_total_face, Ip_profile_face = (
+      psi_calculations.calc_j_toroidal_total(
+          geo, psi, runtime_params.numerics.min_rho_norm
+      )
   )
 
   core_profiles = dataclasses.replace(
@@ -483,8 +449,8 @@ def _calculate_all_psi_dependent_profiles(
       psi=psi,
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
-      j_total=j_total,
-      j_total_face=j_total_face,
+      j_toroidal_total=j_toroidal_total,
+      j_toroidal_total_face=j_toroidal_total_face,
       Ip_profile_face=Ip_profile_face,
   )
   neoclassical_outputs = neoclassical_model(runtime_params, geo, core_profiles)
@@ -576,7 +542,7 @@ def _iterate_psi_and_sources(
             runtime_params, geo, core_profiles
         ).bootstrap_current,
     )
-    j_total_hires = get_j_toroidal_total_hires_with_external_sources(
+    j_toroidal_total_hires = get_j_toroidal_total_hires_with_external_sources(
         runtime_params,
         geo,
         source_profiles.bootstrap_current,
@@ -589,7 +555,7 @@ def _iterate_psi_and_sources(
     psi = update_psi_from_j(
         runtime_params.profile_conditions.Ip,
         geo,
-        j_total_hires,
+        j_toroidal_total_hires,
         use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
     )
     core_profiles = dataclasses.replace(
@@ -601,19 +567,19 @@ def _iterate_psi_and_sources(
   return core_profiles.psi, source_profiles
 
 
-def _get_j_total_hires_with_no_external_sources(
+def _get_j_toroidal_total_hires_with_no_external_sources(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
 ) -> jax.Array:
-  """Calculates j_total hires when the total current is given by a formula."""
+  """Calculates j_toroidal_total hires when the total current is given by a formula."""
   Ip = runtime_params.profile_conditions.Ip
   jformula_hires = (
       1 - geo.rho_hires_norm**2
   ) ** runtime_params.profile_conditions.current_profile_nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
   Ctot_hires = Ip / denom
-  j_total_hires = jformula_hires * Ctot_hires
-  return j_total_hires
+  j_toroidal_total_hires = jformula_hires * Ctot_hires
+  return j_toroidal_total_hires
 
 
 def get_j_toroidal_total_hires_with_external_sources(
@@ -622,7 +588,7 @@ def get_j_toroidal_total_hires_with_external_sources(
     bootstrap_current: bootstrap_current_base.BootstrapCurrent,
     j_toroidal_external: array_typing.FloatVectorCell,
 ) -> jax.Array:
-  """Calculates j_total hires when the Ohmic current is given by a formula."""
+  """Calculates j_toroidal_total hires when the Ohmic current is given by a formula."""
   # Convert bootstrap current density to toroidal, and calculate high-resolution
   # version
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
@@ -649,7 +615,7 @@ def get_j_toroidal_total_hires_with_external_sources(
       geo.rho_hires, geo.rho_face, j_toroidal_external_face
   )
 
-  # Calculate high resolution j_total and j_ohmic
+  # Calculate high resolution j_toroidal_total and j_toroidal_ohmic
   j_toroidal_ohmic_formula_hires = (
       1 - geo.rho_hires_norm**2
   ) ** runtime_params.profile_conditions.current_profile_nu

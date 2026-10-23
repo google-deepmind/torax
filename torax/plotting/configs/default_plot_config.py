@@ -81,11 +81,11 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             attrs=(
-                'j_total',
-                'j_ohmic',
-                'j_bootstrap',
-                'j_generic_current',
-                'j_ecrh',
+                'j_toroidal_total',
+                'j_toroidal_ohmic',
+                'j_toroidal_bootstrap',
+                'j_toroidal_generic_current',
+                'j_toroidal_ecrh',
             ),
             labels=(
                 r'$j_\mathrm{tot}$',

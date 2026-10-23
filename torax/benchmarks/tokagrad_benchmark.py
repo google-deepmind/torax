@@ -185,17 +185,13 @@ CONFIG = {
         # Physical line-averaged density corresponding to f_GW=0.4 for Ip=15 MA,
         # a=2m. normalize_n_e_to_nbar=False, so this is mainly bookkeeping.
         "nbar": 4.77464829276e19,
-        "initial_psi_from_j": True,
+        "initial_psi_source": "j",
         "initial_j_is_total_current": True,
         "current_profile_nu": 2.0,
     },
     "numerics": {
         "t_initial": 0.0,
         "t_final": 5.0,
-        "fixed_dt": 1.0e-3,
-        "min_dt": 1.0e-6,
-        "dt_reduction_factor": 3.0,
-        "adaptive_dt": False,
         "evolve_ion_heat": True,
         "evolve_electron_heat": True,
         "evolve_current": True,
@@ -263,10 +259,16 @@ CONFIG = {
     },
     "solver": {
         "solver_type": "linear",
-        "use_predictor_corrector": True,
-        "n_corrector_steps": 1,
+        "use_fixed_point": True,
+        "n_fixed_point_iterations": 1,
         "use_pereverzev": False,
     },
-    "time_step_calculator": {"calculator_type": "fixed"},
+    "time_step_calculator": {
+        "calculator_type": "fixed",
+        "fixed_dt": 1.0e-3,
+        "min_dt": 1.0e-6,
+        "dt_reduction_factor": 3.0,
+        "adaptive_dt": False,
+    },
     "pedestal": {},
 }

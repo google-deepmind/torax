@@ -57,7 +57,7 @@ class References:
   psi: cell_variable.CellVariable
   psi_face_grad: np.ndarray
   psidot: np.ndarray
-  j_total: np.ndarray
+  j_toroidal_total: np.ndarray
   q: np.ndarray
   s: np.ndarray
 
@@ -103,7 +103,7 @@ def _build_references_from_case_data(
       psi=psi,
       psi_face_grad=psi_face_grad,
       psidot=np.array(case_data['psidot']),
-      j_total=np.array(case_data['j_total']),
+      j_toroidal_total=np.array(case_data['j_toroidal_total']),
       q=np.array(case_data['q']),
       s=np.array(case_data['s']),
   )
@@ -114,6 +114,7 @@ def circular_references() -> References:
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
+          'initial_psi_source': 'j',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,
@@ -138,6 +139,7 @@ def chease_references_Ip_from_chease() -> References:
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
+          'initial_psi_source': 'geometry',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,
@@ -165,6 +167,7 @@ def chease_references_Ip_from_runtime_params() -> References:
   torax_config = model_config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
+          'initial_psi_source': 'geometry',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,

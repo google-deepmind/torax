@@ -281,7 +281,7 @@ nonlinearity in the PDE system. TORAX offers several transport models:
     becomes the simulation bottleneck and limits the overall simulation speed
     regardless of JAX compilation in the rest of the stack. Furthermore,
     QuaLiKiz must be run with the ``linear`` solver, ideally with the
-    ``use_predictor_corrector`` solver option, since ``newton_raphson`` requires
+    ``use_fixed_point`` solver option, since ``newton_raphson`` requires
     autodiff which is not supported for QuaLiKiz. Running with QuaLiKiz is not a
     typical workflow due to its computational expense (2-3 orders of
     magnitude slower than with QLKNN). Its use-cases are:

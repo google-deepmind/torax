@@ -24,7 +24,6 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -77,7 +76,7 @@ class InitializationTest(parameterized.TestCase):
         geo,
         runtime_params.numerics.min_rho_norm,
     )
-    j_total_hires = (
+    j_toroidal_total_hires = (
         initialization.get_j_toroidal_total_hires_with_external_sources(
             bootstrap_current=bootstrap,
             runtime_params=runtime_params,
@@ -88,7 +87,7 @@ class InitializationTest(parameterized.TestCase):
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.Ip,
         geo,
-        j_total_hires,
+        j_toroidal_total_hires,
     ).value
     np.testing.assert_allclose(psi, references.psi.value)
 
@@ -117,7 +116,7 @@ class InitializationTest(parameterized.TestCase):
         j_parallel_bootstrap=j_parallel_bs,
         j_parallel_bootstrap_face=j_parallel_bs_face,
     )
-    j_total_hires = (
+    j_toroidal_total_hires = (
         initialization.get_j_toroidal_total_hires_with_external_sources(
             runtime_params=runtime_params,
             geo=geo,
@@ -126,7 +125,7 @@ class InitializationTest(parameterized.TestCase):
         )
     )
     ip_hires = jax.scipy.integrate.trapezoid(
-        j_total_hires * geo.spr_hires, geo.rho_hires_norm
+        j_toroidal_total_hires * geo.spr_hires, geo.rho_hires_norm
     )
     np.testing.assert_allclose(
         ip_hires, runtime_params.profile_conditions.Ip, rtol=1e-2
@@ -171,7 +170,7 @@ class InitializationTest(parameterized.TestCase):
   ):
     """Tests that runtime params validate boundary conditions."""
     config = default_configs.get_default_config_dict()
-    config['profile_conditions']['psi'] = psi
+    config['profile_conditions'] = {'psi': psi}
     torax_config = model_config.ToraxConfig.from_dict(config)
     core_profiles, _, _ = _get_initial_state(torax_config)
 
@@ -183,7 +182,7 @@ class InitializationTest(parameterized.TestCase):
     """Tests that psi is correctly loaded from a CHEASE file (Case 2)."""
     config = default_configs.get_default_config_dict()
     config['geometry']['geometry_type'] = 'chease'
-    config['profile_conditions']['initial_psi_from_j'] = False
+    config['profile_conditions']['initial_psi_source'] = 'geometry'
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     core_profiles, geo, _ = _get_initial_state(torax_config)
@@ -192,19 +191,12 @@ class InitializationTest(parameterized.TestCase):
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
     np.testing.assert_allclose(core_profiles.psi.value, geo.psi_from_Ip)
 
-  @parameterized.parameters([
-      dict(initial_psi_from_j=False),
-      dict(initial_psi_from_j=True),
-  ])
-  def test_initial_psi_from_config_overrides_initial_psi_from_j(
-      self, initial_psi_from_j: bool
-  ):
-    """Tests that providing psi directly in config takes precedence."""
+  def test_initial_psi_from_config(self):
+    """Tests that providing psi directly in config with profile_conditions mode works."""
     config = default_configs.get_default_config_dict()
     config['geometry']['geometry_type'] = 'chease'
-    # Set both flags that would normally trigger Case 3
     psi_profile = {0: {0: 42.0, 1: 43.0}}
-    config['profile_conditions']['initial_psi_from_j'] = initial_psi_from_j
+    config['profile_conditions']['initial_psi_source'] = 'profile_conditions'
     config['profile_conditions']['psi'] = psi_profile
     torax_config = model_config.ToraxConfig.from_dict(config)
 
@@ -220,7 +212,7 @@ class InitializationTest(parameterized.TestCase):
       dict(geometry_name='circular'),
       dict(geometry_name='chease'),
   ])
-  def test_compare_initial_currents_with_different_initial_j_ohmic(
+  def test_compare_initial_currents_with_different_initial_j_toroidal_ohmic(
       self,
       geometry_name: str,
   ):
@@ -241,12 +233,12 @@ class InitializationTest(parameterized.TestCase):
 
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
-        initial_psi_from_j=True,
+        initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     profile_conditions2 = dict(
         initial_j_is_total_current=False,
-        initial_psi_from_j=True,
+        initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
 
@@ -260,12 +252,14 @@ class InitializationTest(parameterized.TestCase):
     jformula = (1 - geo.rho_norm**2) ** _CURRENT_PROFILE_NU
     denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
     ctot = torax_config.profile_conditions.Ip.value[0] / denom
-    j_total1_expected = jformula * ctot
-    j_ohmic2_expected = j_total1_expected * (1 - _FRACTION_OF_TOTAL_CURRENT)
+    j_toroidal_total1_expected = jformula * ctot
+    j_toroidal_ohmic2_expected = j_toroidal_total1_expected * (
+        1 - _FRACTION_OF_TOTAL_CURRENT
+    )
 
-    # Due to approximation errors in psi-->j_total conversions, as well as
-    # modifications to j_total on axis, we only compare the current profile
-    # mean values up to relatively loose tolerance.
+    # Due to approximation errors in psi-->j_toroidal_total conversions, as well
+    # as modifications to j_toroidal_total on axis, we only compare the current
+    # profile mean values up to relatively loose tolerance.
 
     # Both total currents should be equal, even if the relative contribution
     # of Ohmic and external current is different.
@@ -280,7 +274,7 @@ class InitializationTest(parameterized.TestCase):
     # Check that the total current agrees with the expected reference formula.
     np.testing.assert_allclose(
         np.mean(currents1.j_toroidal_total),
-        np.mean(j_total1_expected),
+        np.mean(j_toroidal_total1_expected),
         rtol=_TOL,
     )
 
@@ -292,12 +286,12 @@ class InitializationTest(parameterized.TestCase):
         rtol=_TOL,
     )
 
-    # j_ohmic2_expected is the expected formula for j_ohmic when setting
-    # initial_j_is_total_current=False as in Case 2. It is the "nu" formula
-    # scaled down to compensate for the external current.
+    # j_toroidal_ohmic2_expected is the expected formula for j_toroidal_ohmic
+    # when setting initial_j_is_total_current=False as in Case 2. It is the "nu"
+    # formula scaled down to compensate for the external current.
     np.testing.assert_allclose(
         np.mean(currents2.j_toroidal_ohmic),
-        np.mean(j_ohmic2_expected),
+        np.mean(j_toroidal_ohmic2_expected),
         rtol=_TOL,
     )
 
@@ -306,7 +300,7 @@ class InitializationTest(parameterized.TestCase):
         np.mean(currents1.j_toroidal_total_face),
         np.mean(
             math_utils.cell_to_face(
-                j_total1_expected,
+                j_toroidal_total1_expected,
                 geo,
                 preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
             )
@@ -320,7 +314,7 @@ class InitializationTest(parameterized.TestCase):
         np.mean(currents2.j_toroidal_total_face),
         np.mean(
             math_utils.cell_to_face(
-                j_total1_expected,
+                j_toroidal_total1_expected,
                 geo,
                 preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
             )
@@ -328,7 +322,7 @@ class InitializationTest(parameterized.TestCase):
         rtol=_TOL,
     )
 
-  def test_initial_psi_from_j_with_bootstrap_is_consistent_with_case_without_bootstrap(
+  def test_initial_psi_source_j_with_bootstrap_is_consistent_with_case_without_bootstrap(
       self,
   ):
     _CURRENT_PROFILE_NU = 2
@@ -343,7 +337,7 @@ class InitializationTest(parameterized.TestCase):
 
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
-        initial_psi_from_j=True,
+        initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     sources1 = {
@@ -366,7 +360,7 @@ class InitializationTest(parameterized.TestCase):
 
     profile_conditions2 = dict(
         initial_j_is_total_current=False,
-        initial_psi_from_j=True,
+        initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     sources2 = {
@@ -414,130 +408,30 @@ class InitializationTest(parameterized.TestCase):
         rtol=_TOL,
     )
 
-  def test_initial_psi_from_geo_noop_circular(self):
-    """Tests expected behaviour of initial psi and current options."""
+  def test_initial_psi_from_profile_conditions_none_psi_raises_error(self):
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'initial_psi_from_j': False,
+        'initial_psi_source': 'profile_conditions',
+        'psi': None,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    _, _, currents1 = _get_initial_state(torax_config)
-    jtotal1 = currents1.j_toroidal_total
+    with self.assertRaisesRegex(
+        ValueError, 'psi is None, but initial_psi_source is PROFILE_CONDITIONS.'
+    ):
+      _get_initial_state(torax_config)
 
-    torax_config.update_fields({'profile_conditions.initial_psi_from_j': True})
-    _, _, currents2 = _get_initial_state(torax_config)
-    jtotal2 = currents2.j_toroidal_total
-
-    np.testing.assert_allclose(jtotal1, jtotal2)
-
-  def test_get_initial_psi_mode_geometry(self):
+  def test_initial_psi_from_geo_circular_geometry_raises_error(self):
     config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'geometry',
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        mock.ANY,
-    )
-    self.assertEqual(
-        psi_source, core_profile_runtime_params.InitialPsiMode.GEOMETRY
-    )
-
-  def test_get_initial_psi_mode_j(self):
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'j',
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        mock.ANY,
-    )
-    self.assertEqual(psi_source, core_profile_runtime_params.InitialPsiMode.J)
-
-  def test_get_initial_psi_mode_profile_conditions(self):
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'profile_conditions',
-        'psi': 15.0,
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        mock.ANY,
-    )
-    self.assertEqual(
-        psi_source,
-        core_profile_runtime_params.InitialPsiMode.PROFILE_CONDITIONS,
-    )
-
-  def test_get_initial_psi_mode_legacy_initial_psi_from_j(self):
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'profile_conditions',
-        'initial_psi_from_j': True,
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        torax_config.geometry.build_provider(t=0.0),
-    )
-    self.assertEqual(psi_source, core_profile_runtime_params.InitialPsiMode.J)
-
-  def test_get_initial_psi_mode_legacy_initial_psi_from_j_circular_geo(self):
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'profile_conditions',
-        'initial_psi_from_j': False,
-    }
     config['geometry']['geometry_type'] = 'circular'
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        torax_config.geometry.build_provider(t=0.0),
-    )
-    self.assertEqual(psi_source, core_profile_runtime_params.InitialPsiMode.J)
-
-  def test_get_initial_psi_mode_legacy_init_from_geo(self):
-    config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'initial_psi_mode': 'profile_conditions',
-        'initial_psi_from_j': False,
+        'initial_psi_source': 'geometry',
     }
-    config['geometry']['geometry_type'] = 'chease'
     torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        torax_config.geometry.build_provider(t=0.0),
-    )
-    self.assertEqual(
-        psi_source, core_profile_runtime_params.InitialPsiMode.GEOMETRY
-    )
+    with self.assertRaisesRegex(
+        ValueError,
+        'GEOMETRY initial_psi_source is only supported for standard geometry.',
+    ):
+      _get_initial_state(torax_config)
 
 
 def _get_initial_state(
@@ -575,8 +469,8 @@ def _get_initial_state(
       conductivity=neoclassical_outputs.conductivity,
       bootstrap_current=neoclassical_outputs.bootstrap_current,
   )
-  j_toroidal_total = core_profiles.j_total
-  j_toroidal_total_face = core_profiles.j_total_face
+  j_toroidal_total = core_profiles.j_toroidal_total
+  j_toroidal_total_face = core_profiles.j_toroidal_total_face
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
       sum(core_sources.psi.values()), geo, runtime_params.numerics.min_rho_norm  # pyrefly: ignore[bad-argument-type]
   )

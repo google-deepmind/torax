@@ -74,9 +74,9 @@ class SourceProfiles:
   """Collection of profiles for all sources in TORAX.
 
   Most profiles are stored in the attributes relating to the core profile they
-  affect, but special-case profiles `j_bootstrap` and `qei` are pulled out into
-  their own attributes as these sources need to be treated differently (though
-  they could still be set to zero using appropriate runtime params).
+  affect, but special-case profiles `bootstrap_current` and `qei` are pulled
+  out into their own attributes as these sources need to be treated differently
+  (though they could still be set to zero using appropriate runtime params).
 
   This dataclass is inspired by the IMAS `core_sources` IDS. It is not a 1:1
   mapping to that schema, but it contains similar profiles as you'd expect in
