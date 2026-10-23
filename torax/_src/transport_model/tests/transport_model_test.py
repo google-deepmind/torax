@@ -57,7 +57,11 @@ class FixedTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     chi_face_ion = jnp.linspace(
         0.5, 2, geo.rho_face_norm.shape[0], dtype=jax_utils.get_dtype()
     )
@@ -71,11 +75,14 @@ class FixedTransportModel(component.ComponentTransportModel):
         -0.2, -2, geo.rho_face_norm.shape[0], dtype=jax_utils.get_dtype()
     )
 
-    return transport_coeffs.TransportCoeffs(
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
+    return (
+        transport_coeffs.TransportCoeffs(
+            chi_face_ion=chi_face_ion,
+            chi_face_el=chi_face_el,
+            d_face_el=d_face_el,
+            v_face_el=v_face_el,
+        ),
+        component_state,
     )
 
 

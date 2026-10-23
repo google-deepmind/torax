@@ -35,6 +35,7 @@ from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_params
 from torax._src.transport_model import tglf_based_transport_model
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 from torax._src.transport_model.tglf import tglf2py
 
 
@@ -312,7 +313,11 @@ class FakeTGLFBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     # Assert required for pytype.
     assert isinstance(
         transport_runtime_params,
@@ -325,15 +330,18 @@ class FakeTGLFBasedTransportModel(
         core_profiles=core_profiles,
         two_point_mask=two_point_mask,
     )
-    return self._make_transport_coeffs(
-        ion_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.4,
-        electron_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.5,
-        electron_particle_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 1.6,
-        tglf_inputs=tglf_inputs,
-        transport=transport_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        two_point_mask=two_point_mask,
+    return (
+        self._make_transport_coeffs(
+            ion_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.4,
+            electron_heat_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 0.5,
+            electron_particle_flux_GB=jnp.ones(geo.rho_face_norm.shape) * 1.6,
+            tglf_inputs=tglf_inputs,
+            transport=transport_runtime_params,
+            geo=geo,
+            core_profiles=core_profiles,
+            two_point_mask=two_point_mask,
+        ),
+        component_state,
     )
 
 

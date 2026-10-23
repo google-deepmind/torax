@@ -34,6 +34,7 @@ from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 
 def setUpModule():
@@ -333,7 +334,11 @@ class FakeQualikizBasedTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     # Assert required for pytype.
     assert isinstance(
         transport_runtime_params,
@@ -346,15 +351,18 @@ class FakeQualikizBasedTransportModel(
         core_profiles=core_profiles,
         two_point_mask=two_point_mask,
     )
-    return self._make_transport_coeffs(
-        qi=jnp.ones(geo.rho_face_norm.shape) * 0.4,
-        qe=jnp.ones(geo.rho_face_norm.shape) * 0.5,
-        pfe=jnp.ones(geo.rho_face_norm.shape) * 1.6,
-        qualikiz_inputs=qualikiz_inputs,
-        transport=transport_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        two_point_mask=two_point_mask,
+    return (
+        self._make_transport_coeffs(
+            qi=jnp.ones(geo.rho_face_norm.shape) * 0.4,
+            qe=jnp.ones(geo.rho_face_norm.shape) * 0.5,
+            pfe=jnp.ones(geo.rho_face_norm.shape) * 1.6,
+            qualikiz_inputs=qualikiz_inputs,
+            transport=transport_runtime_params,
+            geo=geo,
+            core_profiles=core_profiles,
+            two_point_mask=two_point_mask,
+        ),
+        component_state,
     )
 
 

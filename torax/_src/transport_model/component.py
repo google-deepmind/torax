@@ -79,14 +79,13 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       tuple of (TransportCoeffs with disabled channels zeroed out,
       updated ComponentTransportState).
     """
-    # TODO(b/572586768): Thread component_state into call_implementation and all
-    # transport models in a follow-up.
-    coeffs = self.call_implementation(
+    coeffs, component_state = self.call_implementation(
         transport_runtime_params,
         runtime_params,
         geo,
         core_profiles,
         two_point_mask=two_point_mask,
+        component_state=component_state,
     )
     coeffs = self.zero_out_disabled_channels(transport_runtime_params, coeffs)
     return coeffs, component_state
@@ -94,12 +93,18 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
   @abc.abstractmethod
   def call_implementation(
       self,
-      transport_runtime_params: transport_runtime_params_lib.ComponentRuntimeParams,
+      transport_runtime_params: (
+          transport_runtime_params_lib.ComponentRuntimeParams
+      ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     pass
 
   def zero_out_disabled_channels(

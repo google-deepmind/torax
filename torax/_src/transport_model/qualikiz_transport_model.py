@@ -40,6 +40,7 @@ from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 # pylint: disable=invalid-name
 
@@ -90,8 +91,12 @@ class QualikizTransportModel(
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
-    """Calculates several transport coefficients simultaneously.
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
+    """Calculates several transport coefficients and state simultaneously.
 
     Args:
       transport_runtime_params: Input runtime parameters for this transport
@@ -103,9 +108,13 @@ class QualikizTransportModel(
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
+      component_state: Component transport state carried over from the previous
+        timestep. Unused by this model and passed through unchanged.
 
     Returns:
-      coeffs: transport coefficients
+      A tuple of (transport_coeffs, component_state), where transport_coeffs
+      contains the transport coefficients and component_state is passed
+      through unchanged.
     """
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
@@ -177,7 +186,7 @@ class QualikizTransportModel(
         two_point_mask,
     )
 
-    return core_transport
+    return core_transport, component_state
 
   def _run_qualikiz(
       self,

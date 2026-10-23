@@ -530,12 +530,13 @@ class TransportModelValidationTest(parameterized.TestCase):
       core_profiles.T_e.face_value.return_value = ones
       core_profiles.T_i.face_value.return_value = ones
       core_profiles.T_i.face_grad.return_value = ti_grad
-      coeffs = model.call_implementation(
+      coeffs, _ = model.call_implementation(
           transport_runtime_params=t_params,
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=core_profiles,
           two_point_mask=jnp.zeros(n_face, dtype=bool),
+          component_state=model.initial_state(runtime_params),
       )
       return jnp.sum(coeffs.chi_face_ion)
 

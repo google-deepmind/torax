@@ -28,6 +28,7 @@ from torax._src.output_tools import output_keys
 from torax._src.transport_model import component
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
+from torax._src.transport_model import transport_state as transport_state_lib
 
 # pylint: disable=invalid-name
 
@@ -103,8 +104,12 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> BohmGyroBohmTransportOutput:
-    r"""Calculates transport coefficients using the BohmGyroBohm model.
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      BohmGyroBohmTransportOutput,
+      transport_state_lib.ComponentTransportState,
+  ]:
+    r"""Calculates transport coefficients and state using BohmGyroBohm model.
 
     We use the implementation from Tholerus et al, Section 3.3.
     https://doi.org/10.1088/1741-4326/ad6ea2
@@ -121,9 +126,12 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
+      component_state: Component transport state carried over from the previous
+        timestep. Unused by this model and passed through unchanged.
 
     Returns:
-      coeffs: The transport coefficients
+      A tuple of (output, component_state), where output contains the transport
+      coefficients and component_state is passed through unchanged.
     """
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
@@ -221,13 +229,16 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
     # Electron convectivity set proportional to the electron diffusivity
     v_face_el = transport_runtime_params.V_face_coeff * d_face_el
 
-    return BohmGyroBohmTransportOutput(
-        chi_face_ion=chi_i,
-        chi_face_el=chi_e,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
-        chi_face_el_bohm=chi_e_bohm,
-        chi_face_el_gyrobohm=chi_e_gyrobohm,
-        chi_face_ion_bohm=chi_i_bohm,
-        chi_face_ion_gyrobohm=chi_i_gyrobohm,
+    return (
+        BohmGyroBohmTransportOutput(
+            chi_face_ion=chi_i,
+            chi_face_el=chi_e,
+            d_face_el=d_face_el,
+            v_face_el=v_face_el,
+            chi_face_el_bohm=chi_e_bohm,
+            chi_face_el_gyrobohm=chi_e_gyrobohm,
+            chi_face_ion_bohm=chi_i_bohm,
+            chi_face_ion_gyrobohm=chi_i_gyrobohm,
+        ),
+        component_state,
     )
