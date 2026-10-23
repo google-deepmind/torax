@@ -22,7 +22,9 @@ from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.geometry import circular_geometry
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import (
+    base as bootstrap_current_base,
+)
 from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source
 from torax._src.sources import source_models as source_models_lib
@@ -96,7 +98,8 @@ class SourceModelsTest(parameterized.TestCase):
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
       def _get_model_value(self, *args, **kwargs):
-        return (jnp.ones(self_test.geo.rho.shape),)
+        source_state = kwargs.get('source_state', args[-1])
+        return (jnp.ones(self_test.geo.rho.shape),), source_state
 
     self_test = self
     test_source = TestSource()
@@ -149,7 +152,8 @@ class SourceModelsTest(parameterized.TestCase):
       )
 
       def _get_model_value(self, *args, **kwargs):
-        return (jnp.ones_like(self_test.geo.rho),) * 2
+        source_state = kwargs.get('source_state', args[-1])
+        return (jnp.ones_like(self_test.geo.rho),) * 2, source_state
 
     self_test = self
     test_source = TestSource()
@@ -232,7 +236,8 @@ class SourceModelsTest(parameterized.TestCase):
       AFFECTED_CORE_PROFILES = (source.AffectedCoreProfile.PSI,)
 
       def _get_model_value(self, *args, **kwargs):
-        return (jnp.ones(self_test.geo.rho.shape),)
+        source_state = kwargs.get('source_state', args[-1])
+        return (jnp.ones(self_test.geo.rho.shape),), source_state
 
     self_test = self
     test_source = TestSource()

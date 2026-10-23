@@ -49,6 +49,7 @@ from torax._src.sources import gas_puff_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -80,7 +81,27 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source.SourceProfileElement, ...]:
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source.SourceProfileElement, ...],
+      source_state_lib.SourceState,
+  ]:
+    """Calculates gas puff source with feedback control.
+
+    Does not modify source_state; returns it unchanged.
+
+    Args:
+      runtime_params: Runtime parameters.
+      geo: Geometry of the torus.
+      core_profiles: Core plasma profiles.
+      calculated_source_profiles: Source profiles calculated so far.
+      conductivity: Conductivity model output.
+      source_state: Source state carried over from the previous timestep. Unused
+        by this model and returned unchanged.
+
+    Returns:
+      A tuple of ((electron_density_profile,), source_state).
+    """
     del calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
@@ -101,18 +122,17 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
     S_total = source_params.S_feedforward + S_feedback
     S_total = jnp.clip(S_total, 0.0, jnp.inf)
 
-    return (
-        formulas.exponential_profile(
-            decay_start=1.0,
-            width=source_params.puff_decay_length,
-            total=S_total,
-            geo=geo,
-        ),
+    profile = formulas.exponential_profile(
+        decay_start=1.0,
+        width=source_params.puff_decay_length,
+        total=S_total,
+        geo=geo,
     )
+    return (profile,), source_state
 
 
 class GasPuffFeedbackSourceConfig(base.SourceConfigBase):
-  """Configuration for the gas puff electron density source with feedback control.
+  """Config for the gas puff electron density source with feedback control.
 
   The total particle injection rate is computed using a proportional feedback
   control loop added to a baseline feedforward rate:

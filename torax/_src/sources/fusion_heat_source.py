@@ -25,6 +25,7 @@ from torax._src.physics import collisions
 from torax._src.sources import base
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -47,8 +48,26 @@ class FusionHeatSource(source.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source.SourceProfileElement, ...]:
-    """Calculates DT fusion heating power with the Bosch-Hale parameterization NF 1992."""
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
+  ]:
+    """Calculates DT fusion heating power with Bosch-Hale (NF 1992).
+
+    Does not modify source_state; returns it unchanged.
+
+    Args:
+      runtime_params: Runtime parameters.
+      geo: Geometry of the torus.
+      core_profiles: Core plasma profiles.
+      calculated_source_profiles: Source profiles calculated so far.
+      conductivity: Conductivity model output.
+      source_state: Source state carried over from the previous timestep. Unused
+        by this model and returned unchanged.
+
+    Returns:
+      A tuple of ((ion_heat_profile, electron_heat_profile), source_state).
+    """
     del geo, calculated_source_profiles, conductivity
     # If both D and T not present in the main ion mixture, return zero fusion.
     # Otherwise, calculate the fusion power.
@@ -57,7 +76,7 @@ class FusionHeatSource(source.Source):
       return (
           jnp.zeros_like(core_profiles.T_i.value),
           jnp.zeros_like(core_profiles.T_i.value),
-      )
+      ), source_state
     else:
       product = 1.0
       for (
@@ -123,7 +142,7 @@ class FusionHeatSource(source.Source):
     frac_e = 1.0 - frac_i
     Pfus_i = Pfus_cell * frac_i * alpha_fraction
     Pfus_e = Pfus_cell * frac_e * alpha_fraction
-    return (Pfus_i, Pfus_e)
+    return (Pfus_i, Pfus_e), source_state
 
 
 class FusionHeatSourceConfig(base.SourceConfigBase):

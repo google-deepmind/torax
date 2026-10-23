@@ -21,6 +21,7 @@ import numpy as np
 from torax._src.geometry import circular_geometry
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import source as source_lib
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.tests import test_lib
 
@@ -32,7 +33,7 @@ jax.config.update('jax_enable_x64', True)
 class _DummySource(icrh_base.IonCyclotronSource):
 
   def _get_model_value(self, *args, **kwargs):
-    return ()
+    return (), source_state_lib.SourceState()
 
 
 class _DummyConfig(icrh_base.IonCyclotronSourceConfig):

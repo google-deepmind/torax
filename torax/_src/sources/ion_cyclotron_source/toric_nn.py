@@ -39,6 +39,7 @@ from torax._src.physics import fast_ion_utils
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -316,7 +317,7 @@ class RuntimeParams(base.RuntimeParams):
 # is provided. This is not expected to happen very often.
 @functools.lru_cache(maxsize=1)
 def _load_toric_nn(model_path: str | None) -> ToricNNWrapper:
-  """Returns the (cached) ToricNN model loaded from `model_path`."""
+  """Returns the (cached) ToricNN model loaded from model_path."""
   return ToricNNWrapper(model_path)
 
 
@@ -333,8 +334,27 @@ class ToricNNIonCyclotronSource(base.IonCyclotronSource):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source.SourceProfileElement, ...]:
-    """Computes ion/electron heat source terms using ToricNN."""
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
+  ]:
+    """Computes ion/electron heat source terms using ToricNN.
+
+    Does not modify source_state; returns it unchanged.
+
+    Args:
+      runtime_params: Runtime parameters.
+      geo: Geometry of the torus.
+      core_profiles: Core plasma profiles.
+      calculated_source_profiles: Source profiles calculated so far.
+      conductivity: Conductivity model output.
+      source_state: Source state carried over from the previous timestep. Unused
+        by this model and returned unchanged.
+
+    Returns:
+      A tuple of ((ion_heat_profile, electron_heat_profile, fast_ions),
+      source_state).
+    """
     del calculated_source_profiles, conductivity
     toric_nn = _load_toric_nn(self.model_path)
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -468,7 +488,7 @@ class ToricNNIonCyclotronSource(base.IonCyclotronSource):
     # Assume that all the power from the tritium power profile goes to ions.
     source_ion += power_deposition_2T * absorbed_power
 
-    return (source_ion, source_el, (he3_fast_ion,))
+    return (source_ion, source_el, (he3_fast_ion,)), source_state
 
 
 class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):

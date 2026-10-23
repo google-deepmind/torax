@@ -28,6 +28,7 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -79,7 +80,26 @@ class MavrinImpurityRadiationHeatSink(
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source_lib.SourceProfileElement, ...]:
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source_lib.SourceProfileElement, ...], source_state_lib.SourceState
+  ]:
+    """Calculates Mavrin fit impurity radiation heat sink profile.
+
+    Does not modify source_state; returns it unchanged.
+
+    Args:
+      runtime_params: Runtime parameters.
+      geo: Geometry of the torus.
+      core_profiles: Core plasma profiles.
+      calculated_source_profiles: Source profiles calculated so far.
+      conductivity: Conductivity model output.
+      source_state: Source state carried over from the previous timestep. Unused
+        by this model and returned unchanged.
+
+    Returns:
+      A tuple of ((electron_heat_profile,), source_state).
+    """
     del geo, calculated_source_profiles, conductivity
     # Reconstruct array from mapping for DynamicIonMixture and effective LZ
     # calculations.
@@ -121,7 +141,7 @@ class MavrinImpurityRadiationHeatSink(
 
     # The impurity radiation heat sink is a negative source, so we return a
     # negative profile.
-    return (-radiation_profile,)
+    return (-radiation_profile,), source_state
 
 
 @jax.tree_util.register_dataclass

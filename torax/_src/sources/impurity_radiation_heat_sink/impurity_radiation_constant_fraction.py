@@ -30,6 +30,7 @@ from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -42,13 +43,11 @@ _HEAT_SINK_SOURCE_IDS = frozenset({
 
 
 # pylint: disable=invalid-name
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
 class ConstantFractionImpurityRadiationHeatSink(
     impurity_radiation_heat_sink.ImpurityRadiationHeatSink
 ):
-  """Impurity radiation heat sink based on constant fraction of total power density."""
+  """Impurity radiation heat sink with constant fraction of total power."""
 
   def _get_model_value(
       self,
@@ -57,7 +56,26 @@ class ConstantFractionImpurityRadiationHeatSink(
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source_lib.SourceProfileElement, ...]:
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source_lib.SourceProfileElement, ...], source_state_lib.SourceState
+  ]:
+    """Calculates constant fraction impurity radiation heat sink profile.
+
+    Does not modify source_state; returns it unchanged.
+
+    Args:
+      runtime_params: Runtime parameters.
+      geo: Geometry of the torus.
+      core_profiles: Core plasma profiles.
+      calculated_source_profiles: Source profiles calculated so far.
+      conductivity: Conductivity model output.
+      source_state: Source state carried over from the previous timestep. Unused
+        by this model and returned unchanged.
+
+    Returns:
+      A tuple of ((electron_heat_profile,), source_state).
+    """
     del core_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
@@ -65,8 +83,8 @@ class ConstantFractionImpurityRadiationHeatSink(
     if calculated_source_profiles is None:
       raise ValueError(
           'calculated_source_profiles is a required argument for'
-          f' `{type(self).__name__}._get_model_value`. This can occur if this'
-          ' source function is used in an explicit source.'
+          ' ImpurityRadiationConstantFraction._get_model_value. This can occur'
+          ' if this source function is used in an explicit source.'
       )
 
     # Based on source_models.sum_sources_T_e and source_models.calc_and_sum
@@ -85,13 +103,14 @@ class ConstantFractionImpurityRadiationHeatSink(
     Q_total_in = source_profiles
     P_total_in = math_utils.volume_integration(Q_total_in, geo)
 
-    # Calculate the heat sink as a fraction of the total power input
-    return (
-        -source_params.fraction_P_heating
+    # Calculate the heat sink as a fraction of the total power input.
+    P_rad = (
+        source_params.fraction_P_heating
         * P_total_in
         / geo.volume_face[-1]
-        * jnp.ones_like(geo.rho),
+        * jnp.ones_like(geo.rho)
     )
+    return (-P_rad,), source_state
 
 
 @jax.tree_util.register_dataclass

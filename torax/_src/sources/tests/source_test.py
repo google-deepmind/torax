@@ -107,7 +107,11 @@ class SourceTest(parameterized.TestCase):
     class MockGenericCurrentSource(generic_current_source.GenericCurrentSource):
 
       def _get_model_value(self, *args, **kwargs):
-        return (np.full([4], 42.0),)
+        source_state = kwargs.get(
+            'source_state',
+            args[-1] if args else source_state_lib.SourceState(),
+        )
+        return (np.full([4], 42.0),), source_state
 
     source = MockGenericCurrentSource()
     dynamic_source_params = {
@@ -236,7 +240,10 @@ class SourceTest(parameterized.TestCase):
       fast_ions_out: tuple[fast_ion_lib.FastIon, ...] = ()
 
       def _get_model_value(self, *args, **kwargs):
-        return (self.fast_ions_out,)
+        source_state = kwargs.get(
+            'source_state', args[-1] if args else source_state_lib.SourceState()
+        )
+        return (self.fast_ions_out,), source_state
 
       def zero_fast_ions(self, geo):
         del geo

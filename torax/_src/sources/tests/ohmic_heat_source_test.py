@@ -119,12 +119,13 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     conductivity = mock.Mock()
     conductivity.sigma = jnp.full((n_rho,), 1e6)
 
-    (pohm,) = ohmic_heat_source.OhmicHeatSource()._get_model_value(
+    (pohm,), _ = ohmic_heat_source.OhmicHeatSource()._get_model_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=calculated_source_profiles,
         conductivity=conductivity,
+        source_state=source_state_lib.SourceState(),
     )
 
     mock_calculate_psidot.assert_not_called()
@@ -166,12 +167,13 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     conductivity = mock.Mock()
     conductivity.sigma = jnp.full((n_rho,), 1e6)
 
-    (pohm,) = ohmic_heat_source.OhmicHeatSource()._get_model_value(
+    (pohm,), _ = ohmic_heat_source.OhmicHeatSource()._get_model_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=calculated_source_profiles,
         conductivity=conductivity,
+        source_state=source_state_lib.SourceState(),
     )
 
     np.testing.assert_allclose(np.asarray(pohm), 0.0, atol=1e-12)
@@ -214,12 +216,13 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     conductivity = mock.Mock()
     conductivity.sigma = sigma
 
-    (pohm,) = ohmic_heat_source.OhmicHeatSource()._get_model_value(
+    (pohm,), _ = ohmic_heat_source.OhmicHeatSource()._get_model_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=calculated_source_profiles,
         conductivity=conductivity,
+        source_state=source_state_lib.SourceState(),
     )
     psidot = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=zero_psi_sources,

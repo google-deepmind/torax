@@ -143,8 +143,21 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[SourceProfileElement, ...]:
-    """Calculates source profile for MODEL_BASED mode."""
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[tuple[SourceProfileElement, ...], source_state_lib.SourceState]:
+    """Returns the model-based value and updated state for this source.
+
+    Args:
+      runtime_params: Slice of the general TORAX config for this timestep.
+      geo: Magnetic geometry.
+      core_profiles: Core plasma profiles.
+      calculated_source_profiles: Already-calculated source profiles.
+      conductivity: Conductivity profile if it exists.
+      source_state: Source state carried over from the previous timestep.
+
+    Returns:
+      A tuple of (profile_elements, source_state).
+    """
 
   def get_value(
       self,
@@ -177,7 +190,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
         See source_profile_builders.py for more details.
       conductivity: Conductivity profile if it exists. It is only provided for
         implicit sources.
-      source_state: Cross-timestep state for this source model.
+      source_state: Source state carried over from the previous timestep.
 
     Returns:
       A tuple of (profile_elements, updated_source_state), where
@@ -189,12 +202,13 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
     mode = source_params.mode
     match mode:
       case sources_runtime_params_lib.Mode.MODEL_BASED:
-        res = self._get_model_value(
+        res, source_state = self._get_model_value(
             runtime_params,
             geo,
             core_profiles,
             calculated_source_profiles,
             conductivity,
+            source_state,
         )
       case sources_runtime_params_lib.Mode.PRESCRIBED:
         expected_len = len(self.AFFECTED_CORE_PROFILES)

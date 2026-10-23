@@ -34,6 +34,7 @@ from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -199,7 +200,7 @@ def _solve_alpha_t_beta_t_grid_search(
     te_data: array_typing.FloatVector,
     beta_scan_parameters: tuple[float, float, int],
 ) -> tuple[array_typing.FloatScalar, array_typing.FloatScalar]:
-  """Returns the alpha and beta parameters that minimize the temperature loss function.
+  """Returns alpha and beta parameters minimizing the temperature loss.
 
   Grid search is used for computational efficiency.
 
@@ -250,8 +251,11 @@ class CyclotronRadiationHeatSink(source.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source.SourceProfileElement, ...]:
-    """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
+  ]:
+    """Calculates cyclotron radiation heat sink for electron heat equation.
 
     Total cyclotron radiation is from:
     F. Albajar et al 2001 Nucl. Fusion 41 665
@@ -277,10 +281,11 @@ class CyclotronRadiationHeatSink(source.Source):
       core_profiles: The core profiles object.
       calculated_source_profiles: Unused.
       conductivity: Unused.
+      source_state: Source state carried over from the previous timestep. Unused
+        by this model and passed through unchanged.
 
     Returns:
-      The cyclotron radiation heat sink contribution to the electron heat
-      equation.
+      A tuple of ((electron_heat_profile,), source_state).
     """
     del calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -358,7 +363,7 @@ class CyclotronRadiationHeatSink(source.Source):
     rescaling_factor = P_cycl_total / denom
     Q_cycl = Q_cycl_shape * rescaling_factor
 
-    return (-Q_cycl,)
+    return (-Q_cycl,), source_state
 
 
 class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):

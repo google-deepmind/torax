@@ -31,6 +31,7 @@ from torax._src.sources import base as source_base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -64,8 +65,27 @@ class GenericCurrentSource(source.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source.SourceProfileElement, ...]:
-    """Calculates the external parallel current density profile on the cell grid."""
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source.SourceProfileElement, ...],
+      source_state_lib.SourceState,
+  ]:
+    """Calculates external parallel current density profile on the cell grid.
+
+    Does not modify source_state; returns it unchanged.
+
+    Args:
+      runtime_params: Runtime parameters.
+      geo: Geometry of the torus.
+      core_profiles: Core plasma profiles.
+      calculated_source_profiles: Source profiles calculated so far.
+      conductivity: Conductivity model output.
+      source_state: Source state carried over from the previous timestep. Unused
+        by this model and returned unchanged.
+
+    Returns:
+      A tuple of ((psi_profile,), source_state).
+    """
     del core_profiles, calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
@@ -87,11 +107,10 @@ class GenericCurrentSource(source.Source):
     Cext = I_generic / math_utils.area_integration(generic_current_form, geo)
     j_tor = Cext * generic_current_form
 
-    return (
-        psi_calculations.j_toroidal_to_j_parallel(
-            j_tor, geo, runtime_params.numerics.min_rho_norm
-        ),
+    j_parallel = psi_calculations.j_toroidal_to_j_parallel(
+        j_tor, geo, runtime_params.numerics.min_rho_norm
     )
+    return (j_parallel,), source_state
 
 
 class GenericCurrentSourceConfig(source_base.SourceConfigBase):

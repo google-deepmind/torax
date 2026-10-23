@@ -77,7 +77,10 @@ class QeiSource(source.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source.SourceProfileElement, ...]:
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
+  ]:
     raise NotImplementedError('Call get_qei() instead.')
 
   def get_value(

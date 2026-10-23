@@ -25,6 +25,7 @@ from torax._src.physics import psi_calculations
 from torax._src.sources import base
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -52,8 +53,26 @@ class OhmicHeatSource(source_lib.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source_lib.SourceProfileElement, ...]:
-    """Returns the Ohmic source for electron heat equation."""
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source_lib.SourceProfileElement, ...], source_state_lib.SourceState
+  ]:
+    """Returns the Ohmic source for electron heat equation.
+
+    Does not modify source_state; returns it unchanged.
+
+    Args:
+      runtime_params: Runtime parameters.
+      geo: Geometry of the torus.
+      core_profiles: Core plasma profiles.
+      calculated_source_profiles: Source profiles calculated so far.
+      conductivity: Conductivity model output.
+      source_state: Source state carried over from the previous timestep. Unused
+        by this model and returned unchanged.
+
+    Returns:
+      A tuple of ((electron_heat_profile,), source_state).
+    """
     if calculated_source_profiles is None:
       raise ValueError(
           'calculated_source_profiles is a required argument for'
@@ -96,7 +115,7 @@ class OhmicHeatSource(source_lib.Source):
     )
     E_dot_B = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot_fixed_phi
     P_ohm = conductivity.sigma * E_dot_B**2 / geo.gm5
-    return (P_ohm,)
+    return (P_ohm,), source_state
 
 
 class OhmicHeatSourceConfig(base.SourceConfigBase):

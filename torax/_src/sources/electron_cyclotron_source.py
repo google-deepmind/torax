@@ -32,6 +32,7 @@ from torax._src.sources import formulas
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -65,7 +66,10 @@ class ElectronCyclotronSource(source.Source):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
-  ) -> tuple[source.SourceProfileElement, ...]:
+      source_state: source_state_lib.SourceState,
+  ) -> tuple[
+      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
+  ]:
     """Calculates external electron heat source and current drive from EC.
 
     Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003). See
@@ -78,9 +82,11 @@ class ElectronCyclotronSource(source.Source):
       core_profiles: CoreProfiles component of the state.
       calculated_source_profiles: Unused.
       conductivity: Unused.
+      source_state: Source state carried over from the previous timestep. Unused
+        by this model and passed through unchanged.
 
     Returns:
-      Tuple of electron cyclotron heating power density and current density.
+      A tuple of ((electron_heat_profile, psi_profile), source_state).
     """
     del calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -127,7 +133,7 @@ class ElectronCyclotronSource(source.Source):
         * j_tor_ec
     )
 
-    return ec_power_density, fsa_j_dot_B
+    return (ec_power_density, fsa_j_dot_B), source_state
 
 
 class ElectronCyclotronSourceConfig(base.SourceConfigBase):
