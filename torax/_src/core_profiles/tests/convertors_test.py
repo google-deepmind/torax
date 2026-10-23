@@ -75,8 +75,6 @@ class ConvertersTest(parameterized.TestCase):
         Z_eff=mock.ANY,
         Z_eff_face=mock.ANY,
         A_i=mock.ANY,
-        Z_impurity=mock.ANY,
-        Z_impurity_face=mock.ANY,
         A_impurity=mock.ANY,
         A_impurity_face=mock.ANY,
         sigma=mock.ANY,

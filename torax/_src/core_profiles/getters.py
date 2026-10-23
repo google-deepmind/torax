@@ -48,8 +48,6 @@ class Ions:
   main_ion_fractions: Mapping[str, array_typing.FloatScalar]
   Z_i: array_typing.FloatVectorCell
   Z_i_face: array_typing.FloatVectorFace
-  Z_impurity: array_typing.FloatVectorCell
-  Z_impurity_face: array_typing.FloatVectorFace
   A_i: array_typing.FloatScalar
   A_impurity: array_typing.FloatVectorCell
   A_impurity_face: array_typing.FloatVectorFace
@@ -57,6 +55,14 @@ class Ions:
   Z_eff_face: array_typing.FloatVectorFace
   charge_state_info: charge_states.ChargeStateInfo
   charge_state_info_face: charge_states.ChargeStateInfo
+
+  @property
+  def Z_impurity(self) -> array_typing.FloatVectorCell:
+    return self.charge_state_info.Z_mixture
+
+  @property
+  def Z_impurity_face(self) -> array_typing.FloatVectorFace:
+    return self.charge_state_info_face.Z_mixture
 
 
 def get_updated_ion_temperature(
@@ -758,8 +764,6 @@ def get_updated_ions(
       main_ion_fractions=main_ion_fractions_dict,
       Z_i=Z_i,
       Z_i_face=Z_i_face,
-      Z_impurity=ion_properties.Z_impurity,
-      Z_impurity_face=ion_properties.Z_impurity_face,
       A_i=runtime_params.plasma_composition.main_ion.A_avg,
       A_impurity=ion_properties.A_impurity,
       A_impurity_face=ion_properties.A_impurity_face,

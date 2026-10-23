@@ -432,10 +432,10 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
         n_impurity=core_profile_helpers.make_constant_core_profile(
             geo, 0.25e20
         ),
-        Z_impurity_face=jnp.full_like(geo.rho_face, 3.0),
         charge_state_info_face=dataclasses.replace(
             base_core_profiles.charge_state_info_face,
             Z_avg=jnp.full_like(geo.rho_face, 2.0),
+            Z2_avg=jnp.full_like(geo.rho_face, 6.0),
         ),
     )
 
