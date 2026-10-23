@@ -201,7 +201,6 @@ class SimTestCase(parameterized.TestCase):
       rtol: float | None = None,
       atol: float | None = None,
       write_output: bool = True,
-      use_jitted_run_loop: bool = False,
       max_steps: int | None = None,
   ):
     """Integration test comparing to TORAX reference output."""
@@ -217,8 +216,7 @@ class SimTestCase(parameterized.TestCase):
 
     torax_config = self._get_torax_config(config_name)
     if (
-        use_jitted_run_loop
-        and max_steps is None
+        max_steps is None
         and torax_config.time_step_calculator.calculator_type
         != time_step_calculator_pydantic_model.TimeStepCalculatorType.FIXED
     ):
@@ -228,7 +226,6 @@ class SimTestCase(parameterized.TestCase):
         torax_config,
         progress_bar=False,
         max_steps=max_steps,
-        _use_jitted_run_loop=use_jitted_run_loop,
     )
     output_xr = state_history.simulation_output_to_xr()
     output_file = _FAILED_TEST_OUTPUT_DIR + config_name[:-3] + '.nc'

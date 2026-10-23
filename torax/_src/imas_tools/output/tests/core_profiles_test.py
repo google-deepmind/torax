@@ -22,9 +22,7 @@ from torax._src import state
 from torax._src.imas_tools.input import core_profiles as input_core_profiles
 from torax._src.imas_tools.input import loader
 from torax._src.imas_tools.output import core_profiles as output_core_profiles
-from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
-from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import sim_test_case
 from torax._src.torax_pydantic import model_config
@@ -53,26 +51,10 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     # Run sim
     config = self._get_config_dict("test_iterhybrid_rampup_short.py")
     torax_config = model_config.ToraxConfig.from_dict(config)
-    (
-        initial_state,
-        post_processed_outputs,
-        step_fn,
-    ) = run_simulation.prepare_simulation(torax_config)
-
-    state_history, post_processed_outputs_history, sim_error = (
-        run_loop.run_loop(
-            initial_state=initial_state,
-            initial_post_processed_outputs=post_processed_outputs,
-            step_fn=step_fn,
-            log_timestep_info=False,
-            progress_bar=False,
-        )
-    )
-    state_history = output.StateHistory(
-        state_history=state_history,
-        post_processed_outputs_history=post_processed_outputs_history,
-        sim_error=sim_error,
-        torax_config=torax_config,
+    state_history = torax.run_simulation(
+        torax_config,
+        log_timestep_info=False,
+        progress_bar=False,
     )
     # Save output profiles to IDS
     post_processed_outputs = state_history.post_processed_outputs
@@ -111,23 +93,14 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     (
         initial_state,
         post_processed_outputs,
-        step_fn,
+        _,
     ) = run_simulation.prepare_simulation(torax_config)
-
-    state_history, post_processed_outputs_history, _ = run_loop.run_loop(
-        initial_state=initial_state,
-        initial_post_processed_outputs=post_processed_outputs,
-        step_fn=step_fn,
-        log_timestep_info=False,
-        progress_bar=False,
-    )
     # Fill an IDS with the output of the simulation, from the initial time step.
-    sim_state = state_history[0]
-    core_profiles = [sim_state.core_profiles]
-    core_sources = [sim_state.core_sources]
-    geometry = [sim_state.geometry]
-    times = [sim_state.t]
-    post_processed_outputs = [post_processed_outputs_history[0]]
+    core_profiles = [initial_state.core_profiles]
+    core_sources = [initial_state.core_sources]
+    geometry = [initial_state.geometry]
+    times = [initial_state.t]
+    post_processed_outputs = [post_processed_outputs]
     filled_ids = output_core_profiles.core_profiles_to_IMAS(
         torax_config,
         post_processed_outputs,
@@ -145,15 +118,16 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         **core_profiles_conditions,
     }
     new_config = model_config.ToraxConfig.from_dict(config)
-    # Running simulation again with the new config
-    imas_results = torax.run_simulation(new_config, progress_bar=False)
-    imas_xr = imas_results.simulation_output_to_xr()
-
-    self.assertEqual(imas_results.sim_error, state.SimError.NO_ERROR)
-
     ref_profiles, ref_time = self._get_refs(
         "test_iterhybrid_predictor_corrector.nc", _ALL_PROFILES
     )
+    # Running simulation again with the new config
+    imas_results = torax.run_simulation(
+        new_config, progress_bar=False, max_steps=len(ref_time) * 2
+    )
+    imas_xr = imas_results.simulation_output_to_xr()
+
+    self.assertEqual(imas_results.sim_error, state.SimError.NO_ERROR)
 
     self._check_profiles_vs_expected(
         t=imas_xr.time.values,
