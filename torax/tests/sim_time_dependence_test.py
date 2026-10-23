@@ -29,7 +29,7 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.orchestration import run_loop
+from torax._src.orchestration import jit_run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
@@ -109,21 +109,27 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
 
+    initial_state, initial_post_processed_outputs, _ = (
+        run_simulation.prepare_simulation(torax_config)
+    )
+
     def _fake_run_loop(
-        initial_state: sim_state.SimState,
-        initial_post_processed_outputs: post_processing.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
+        runtime_params_overrides=None,
         log_timestep_info: bool = False,
-        progress_bar: bool = True,
+        progress_bar: bool = False,
+        log_n_steps: int = 20,
         max_steps: int | None = None,
     ) -> tuple[
-        tuple[sim_state.SimState, ...],
+        list[sim_state.SimState],
         tuple[post_processing.PostProcessedOutputs, ...],
         state.SimError,
     ]:
       del (  # pyrefly: ignore[unsupported-delete]
+          runtime_params_overrides,
           log_timestep_info,
           progress_bar,
+          log_n_steps,
           max_steps,
       )
       output_state, post_processed_outputs = step_fn(
@@ -149,10 +155,10 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           output_state,
           post_processed_outputs,
       )
-      return (output_state,), (post_processed_outputs,), sim_error
+      return [output_state], (post_processed_outputs,), sim_error
 
     with mock.patch.object(
-        run_loop, 'run_loop', wraps=_fake_run_loop
+        jit_run_loop, 'run_loop', wraps=_fake_run_loop
     ) as mock_run_loop:
       run_simulation.run_simulation(torax_config)
     # The initial step will not work, so it should take several adaptive time

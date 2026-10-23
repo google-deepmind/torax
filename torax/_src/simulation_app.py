@@ -156,7 +156,6 @@ def main(
     log_sim_output: bool = False,
     plot_sim_progress: bool = False,
     log_sim_progress_bar: bool = True,
-    _use_jitted_run_loop: bool = False,
 ) -> str:
   """Runs a simulation obtained via `get_config`.
 
@@ -178,8 +177,6 @@ def main(
     plot_sim_progress: If True, then a plotting spectator will be attached to
       the sim.
     log_sim_progress_bar: If True, then a progress bar will be logged.
-    _use_jitted_run_loop: If True, then a jitted run loop will be used. A
-      temporary private argument used for testing.
 
   Returns:
     The output state file path.
@@ -192,7 +189,6 @@ def main(
       torax_config,
       log_sim_progress,
       progress_bar=log_sim_progress_bar,
-      _use_jitted_run_loop=_use_jitted_run_loop,
   )
   data_tree = state_history.simulation_output_to_xr()
 
