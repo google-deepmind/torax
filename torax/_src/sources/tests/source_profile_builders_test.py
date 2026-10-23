@@ -52,16 +52,17 @@ class SourceModelsTest(parameterized.TestCase):
         t=torax_config.numerics.t_initial,
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+    source_states = source_models.initial_state(runtime_params)
     core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,
         geo=geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_states,
     )
     neoclassical_outputs = neoclassical_model(
         runtime_params, geo, core_profiles
     )
-    source_states = source_models.initial_state(runtime_params)
     explicit_source_profiles, source_states = (
         source_profile_builders.build_source_profiles(
             runtime_params,

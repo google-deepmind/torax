@@ -51,7 +51,7 @@ def initial_core_profiles(
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
-    source_states: Mapping[str, source_state_lib.SourceState] | None = None,
+    source_states: Mapping[str, source_state_lib.SourceState],
 ) -> state.CoreProfiles:
   """Calculates the initial core profiles.
 
@@ -60,15 +60,11 @@ def initial_core_profiles(
     geo: Torus geometry at t=t_initial.
     source_models: All models for TORAX sources/sinks.
     neoclassical_model: The neoclassical model.
-    source_states: Initial source states mapping. If None, initialized from
-      source_models.initial_state(runtime_params).
+    source_states: Initial source states mapping.
 
   Returns:
     Initial core profiles.
   """
-  # TODO(b/572586768): Remove None default in a follow-up.
-  if source_states is None:
-    source_states = source_models.initial_state(runtime_params)
   T_i = getters.get_updated_ion_temperature(
       runtime_params.profile_conditions, geo
   )

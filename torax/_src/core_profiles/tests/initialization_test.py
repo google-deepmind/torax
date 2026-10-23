@@ -561,11 +561,13 @@ def _get_initial_state(
           is_initialization=True,
       )
   )
+  source_states = source_models.initial_state(runtime_params)
   core_profiles = initialization.initial_core_profiles(
       runtime_params=runtime_params,
       geo=geo,
       source_models=source_models,
       neoclassical_model=neoclassical_model,
+      source_states=source_states,
   )
   neoclassical_outputs = neoclassical_model(runtime_params, geo, core_profiles)
   core_sources, _ = source_profile_builders.get_all_source_profiles(
@@ -575,7 +577,7 @@ def _get_initial_state(
       source_models=source_models,
       conductivity=neoclassical_outputs.conductivity,
       bootstrap_current=neoclassical_outputs.bootstrap_current,
-      source_states=source_models.initial_state(runtime_params),
+      source_states=source_states,
   )
   j_toroidal_total = core_profiles.j_total
   j_toroidal_total_face = core_profiles.j_total_face
