@@ -86,7 +86,7 @@ run_torax flags
 simulation time, dt, and number of outer solver iterations carried out during
 the step. For the Newton-Raphson solver, the outer solver iterations can be more
 than 1 due to dt backtracking (enabled by ``adaptive_dt=True`` in the
-``numerics`` config dict) when the solver does not converge within a set number
+``time_step_calculator`` config dict) when the solver does not converge within a set number
 of inner solver iterations.
 
 .. code-block:: console

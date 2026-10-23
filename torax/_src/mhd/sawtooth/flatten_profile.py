@@ -152,7 +152,7 @@ def flatten_current_profile(
     redistribution_mask: array_typing.BoolVector,
     flattening_factor: array_typing.FloatScalar,
     original_psi_profile: cell_variable.CellVariable,
-    original_j_total_profile: array_typing.FloatVector,
+    original_j_toroidal_total_profile: array_typing.FloatVector,
     Ip_total: array_typing.FloatScalar,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
@@ -176,8 +176,8 @@ def flatten_current_profile(
       mixing radius.
     flattening_factor: The factor by which the profile is flattened.
     original_psi_profile: The original poloidal flux profile.
-    original_j_total_profile: The original j_total profile already precalculated
-      and consistent with the psi profile.
+    original_j_toroidal_total_profile: The original j_toroidal_total profile
+      already precalculated and consistent with the psi profile.
     Ip_total: The total plasma current [A].
     geo: The geometry of the simulation at this time slice.
 
@@ -185,27 +185,31 @@ def flatten_current_profile(
     The redistributed poloidal flux profile.
   """
 
-  ones = jnp.ones_like(original_j_total_profile)
-  new_j_total = _redistribute_profile(
+  ones = jnp.ones_like(original_j_toroidal_total_profile)
+  new_j_toroidal_total = _redistribute_profile(
       rho_norm_q1=rho_norm_q1,
       rho_norm_mixing=rho_norm_mixing,
       redistribution_mask=redistribution_mask,
       flattening_factor=flattening_factor,
-      original_profile=original_j_total_profile,
+      original_profile=original_j_toroidal_total_profile,
       geo=geo,
       pre_crash_weight=ones,
       post_crash_weight=ones,
   )
 
-  # Construct a new psi profile using the new j_total profile.
-  # Since we will need to use a hires j_total profile, we expect a minor
-  # deviation from the conserved current.
+  # Construct a new psi profile using the new j_toroidal_total profile.
+  # Since we will need to use a hires j_toroidal_total profile, we expect a
+  # minor deviation from the conserved current.
   # TODO(b/317360481). Come up with a better way to conserve current through
   # the j-->psi conversion.
 
-  new_j_total_hires = jnp.interp(geo.rho_hires_norm, geo.rho_norm, new_j_total)
+  new_j_toroidal_total_hires = jnp.interp(
+      geo.rho_hires_norm, geo.rho_norm, new_j_toroidal_total
+  )
 
-  new_psi = initialization.update_psi_from_j(Ip_total, geo, new_j_total_hires)
+  new_psi = initialization.update_psi_from_j(
+      Ip_total, geo, new_j_toroidal_total_hires
+  )
 
   # Shift the new psi profile to match the original psi profile at the
   # face boundary.

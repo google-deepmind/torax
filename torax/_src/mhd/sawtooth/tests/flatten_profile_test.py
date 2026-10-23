@@ -315,18 +315,20 @@ class FlattenProfileTest(parameterized.TestCase):
     )
 
     Ctot = Ip / denom
-    j_total = jformula * Ctot
+    j_toroidal_total = jformula * Ctot
 
-    j_total_hires = np.interp(
-        self.geo.rho_hires_norm, self.geo.rho_norm, j_total
+    j_toroidal_total_hires = np.interp(
+        self.geo.rho_hires_norm, self.geo.rho_norm, j_toroidal_total
     )
 
     original_psi_profile = initialization.update_psi_from_j(
-        Ip, self.geo, j_total_hires
+        Ip, self.geo, j_toroidal_total_hires
     )
 
-    original_j_total_profile, _, _ = psi_calculations.calc_j_total(
-        self.geo, original_psi_profile, min_rho_norm=0.01
+    original_j_toroidal_total_profile, _, _ = (
+        psi_calculations.calc_j_toroidal_total(
+            self.geo, original_psi_profile, min_rho_norm=0.01
+        )
     )
     original_q = psi_calculations.calc_q_face(self.geo, original_psi_profile)
 
@@ -342,13 +344,15 @@ class FlattenProfileTest(parameterized.TestCase):
         redistribution_mask=jnp.array(redistribution_mask),
         flattening_factor=jnp.array(flattening_factor),
         original_psi_profile=original_psi_profile,
-        original_j_total_profile=original_j_total_profile,
+        original_j_toroidal_total_profile=original_j_toroidal_total_profile,
         Ip_total=Ip,
         geo=self.geo,
     )
 
-    redistributed_j_total_profile, _, _ = psi_calculations.calc_j_total(
-        self.geo, redistributed_psi_profile, min_rho_norm=0.01
+    redistributed_j_toroidal_total_profile, _, _ = (
+        psi_calculations.calc_j_toroidal_total(
+            self.geo, redistributed_psi_profile, min_rho_norm=0.01
+        )
     )
     redistributed_q = psi_calculations.calc_q_face(
         self.geo, redistributed_psi_profile
@@ -356,16 +360,16 @@ class FlattenProfileTest(parameterized.TestCase):
 
     with self.subTest('approximate_current_conservation_within_mixing_radius'):
       self._check_conservation_within_mixing_radius(
-          original_j_total_profile,
-          redistributed_j_total_profile,
+          original_j_toroidal_total_profile,
+          redistributed_j_toroidal_total_profile,
           rho_norm_mixing,
           rtol=2e-2,
       )
 
     with self.subTest('approximate_total_current_conservation'):
       self._check_total_conservation(
-          original_j_total_profile,
-          redistributed_j_total_profile,
+          original_j_toroidal_total_profile,
+          redistributed_j_toroidal_total_profile,
           rtol=1e-3,
       )
 

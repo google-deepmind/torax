@@ -31,10 +31,13 @@ class TimeStepCalculatorTest(parameterized.TestCase):
     )
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics'] = {
-        'fixed_dt': 2.0,
         't_initial': t,
         't_final': 5.0,
         'exact_t_final': exact_t_final,
+    }
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'fixed_dt': 2.0,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     sim_state, _, step_fn = run_simulation.prepare_simulation(torax_config)
@@ -59,14 +62,17 @@ class TimeStepCalculatorTest(parameterized.TestCase):
     )
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics'] = {
+        't_initial': t,
+        't_final': 5.0,
+        'exact_t_final': exact_t_final,
+    }
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
         'fixed_dt': {
             0.0: 2.0,
             2.0: 1.0,
             4.0: 2.0,
         },
-        't_initial': t,
-        't_final': 5.0,
-        'exact_t_final': exact_t_final,
     }
     torax_config = model_config.ToraxConfig.from_dict(config_dict)
     sim_state, _, step_fn = run_simulation.prepare_simulation(torax_config)

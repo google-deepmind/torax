@@ -1331,10 +1331,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
 
     # Run for just a few steps
     torax_config.update_fields({
-        'numerics.t_final': (
-            torax_config.numerics.t_initial
-            + 5 * torax_config.numerics.fixed_dt.value[0]
-        )
+        'numerics.t_final': torax_config.numerics.t_initial + 0.5
     })
 
     state_history = run_simulation.run_simulation(torax_config)
@@ -1402,10 +1399,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
 
     # Run for a few steps to allow updates to happen
     torax_config.update_fields({
-        'numerics.t_final': (
-            torax_config.numerics.t_initial
-            + 3 * torax_config.numerics.fixed_dt.value[0]
-        )
+        'numerics.t_final': torax_config.numerics.t_initial + 0.3
     })
 
     state_history = run_simulation.run_simulation(torax_config)
@@ -1508,10 +1502,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
 
     # Run for a few steps
     torax_config.update_fields({
-        'numerics.t_final': (
-            torax_config.numerics.t_initial
-            + 3 * torax_config.numerics.fixed_dt.value[0]
-        )
+        'numerics.t_final': torax_config.numerics.t_initial + 0.3
     })
 
     state_history = run_simulation.run_simulation(torax_config)
@@ -1602,10 +1593,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
 
     # Run for just a few steps
     self.torax_config.update_fields({
-        'numerics.t_final': (
-            self.torax_config.numerics.t_initial
-            + 5 * self.torax_config.numerics.fixed_dt.value[0]
-        )
+        'numerics.t_final': self.torax_config.numerics.t_initial + 0.5
     })
 
   def test_use_model_diverted(self):

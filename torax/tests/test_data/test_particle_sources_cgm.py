@@ -20,6 +20,7 @@ CGM transport model. Pedestal. Particle sources
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'j',
         'nbar': 0.85,
         'n_e_right_bc': 0.2e20,
         # set flat Ohmic current to provide larger range of current
@@ -72,7 +73,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'use_pereverzev': True,
         'D_pereverzev': 0.0,
     },

@@ -168,25 +168,27 @@ class PostProcessedOutputs:
     rho_q_3_1_second: Second outermost rho_norm value that intercepts the q=3/1
       plane. If no intercept is found, set to -inf.
     I_bootstrap: Total bootstrap current [A].
-    j_total: Total toroidal current density [Am^-2]
+    j_toroidal_total: Total toroidal current density [Am^-2]
     j_parallel_total: Total parallel current density [Am^-2]
-    j_bootstrap: Toroidal bootstrap current density [Am^-2]
-    j_bootstrap_face: Toroidal bootstrap current density on face grid [Am^-2]
-    j_external: Toroidal current density from external psi sources (i.e.,
-      excluding bootstrap) [A m^-2]
+    j_toroidal_bootstrap: Toroidal bootstrap current density [Am^-2]
+    j_toroidal_bootstrap_face: Toroidal bootstrap current density on face grid
+      [Am^-2]
+    j_toroidal_external: Toroidal current density from external psi sources
+      (i.e., excluding bootstrap) [A m^-2]
     j_parallel_external: Parallel current density from external psi sources
       (i.e., excluding bootstrap) [A m^-2]
-    j_ohmic: Toroidal ohmic current density [Am^-2]
+    j_toroidal_ohmic: Toroidal ohmic current density [Am^-2]
     j_parallel_ohmic: Parallel ohmic current density [Am^-2]
-    j_generic_current: Toroidal current density from generic current source
-      [Am^-2]
+    j_toroidal_generic_current: Toroidal current density from generic current
+      source [Am^-2]
     j_parallel_generic_current: Parallel current density from generic current
       source [Am^-2]
-    j_ecrh: Toroidal current density from electron cyclotron heating and current
-      source [Am^-2]
+    j_toroidal_ecrh: Toroidal current density from electron cyclotron heating
+      and current source [Am^-2]
     j_parallel_ecrh: Toroidal current density from electron cyclotron heating
       and current source [Am^-2]
-    j_non_inductive: Total toroidal non-inductive current density [Am^-2]
+    j_toroidal_non_inductive: Total toroidal non-inductive current density
+      [Am^-2]
     j_parallel_non_inductive: Total parallel non-inductive current density
       [Am^-2]
     I_external: Total external current [A]
@@ -305,19 +307,18 @@ class PostProcessedOutputs:
   rho_q_3_1_first: array_typing.FloatScalar
   rho_q_3_1_second: array_typing.FloatScalar
   I_bootstrap: array_typing.FloatScalar
-  # Note: The default j profiles (j_total, j_parallel_bootstrap, j_parallel_*
-  # for * in sources) are saved elsewhere
-  # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
+  # Note: The default j profiles (j_toroidal_total, j_parallel_bootstrap,
+  # j_parallel_* for * in sources) are saved elsewhere
   j_parallel_total: array_typing.FloatVector
-  j_external: array_typing.FloatVector
+  j_toroidal_external: array_typing.FloatVector
   j_parallel_external: array_typing.FloatVector
-  j_ohmic: array_typing.FloatVector
+  j_toroidal_ohmic: array_typing.FloatVector
   j_parallel_ohmic: array_typing.FloatVector
-  j_bootstrap: array_typing.FloatVector
-  j_bootstrap_face: array_typing.FloatVector
-  j_generic_current: array_typing.FloatVector
-  j_ecrh: array_typing.FloatVector
-  j_non_inductive: array_typing.FloatVector
+  j_toroidal_bootstrap: array_typing.FloatVector
+  j_toroidal_bootstrap_face: array_typing.FloatVector
+  j_toroidal_generic_current: array_typing.FloatVector
+  j_toroidal_ecrh: array_typing.FloatVector
+  j_toroidal_non_inductive: array_typing.FloatVector
   j_parallel_non_inductive: array_typing.FloatVector
   I_external: array_typing.FloatScalar
   I_non_inductive: array_typing.FloatScalar
@@ -424,16 +425,15 @@ class PostProcessedOutputs:
         rho_q_2_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_3_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
         j_parallel_total=jnp.zeros(geo.rho.shape),
-        j_bootstrap=jnp.zeros(geo.rho.shape),
-        j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
-        j_ohmic=jnp.zeros(geo.rho.shape),
+        j_toroidal_bootstrap=jnp.zeros(geo.rho.shape),
+        j_toroidal_bootstrap_face=jnp.zeros(geo.rho_face.shape),
+        j_toroidal_ohmic=jnp.zeros(geo.rho.shape),
         j_parallel_ohmic=jnp.zeros(geo.rho.shape),
-        j_external=jnp.zeros(geo.rho.shape),
-        j_generic_current=jnp.zeros(geo.rho.shape),
-        j_ecrh=jnp.zeros(geo.rho.shape),
-        j_non_inductive=jnp.zeros(geo.rho.shape),
+        j_toroidal_external=jnp.zeros(geo.rho.shape),
+        j_toroidal_generic_current=jnp.zeros(geo.rho.shape),
+        j_toroidal_ecrh=jnp.zeros(geo.rho.shape),
+        j_toroidal_non_inductive=jnp.zeros(geo.rho.shape),
         j_parallel_external=jnp.zeros(geo.rho.shape),
         j_parallel_non_inductive=jnp.zeros(geo.rho.shape),
         I_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -502,13 +502,13 @@ class PostProcessedOutputs:
     # 2. Profiles on the cell grid (CELL)
     cell_vars = {
         output_keys.J_PARALLEL_TOTAL: self.j_parallel_total,
-        output_keys.J_TOROIDAL_EXTERNAL: self.j_external,
+        output_keys.J_TOROIDAL_EXTERNAL: self.j_toroidal_external,
         output_keys.J_PARALLEL_EXTERNAL: self.j_parallel_external,
-        output_keys.J_TOROIDAL_OHMIC: self.j_ohmic,
+        output_keys.J_TOROIDAL_OHMIC: self.j_toroidal_ohmic,
         output_keys.J_PARALLEL_OHMIC: self.j_parallel_ohmic,
-        output_keys.J_GENERIC_CURRENT: self.j_generic_current,
-        output_keys.J_ECRH: self.j_ecrh,
-        output_keys.J_NON_INDUCTIVE: self.j_non_inductive,
+        output_keys.J_TOROIDAL_GENERIC_CURRENT: self.j_toroidal_generic_current,
+        output_keys.J_TOROIDAL_ECRH: self.j_toroidal_ecrh,
+        output_keys.J_TOROIDAL_NON_INDUCTIVE: self.j_toroidal_non_inductive,
         output_keys.J_PARALLEL_NON_INDUCTIVE: self.j_parallel_non_inductive,
     }
     for key, cell_data in cell_vars.items():
@@ -516,7 +516,7 @@ class PostProcessedOutputs:
 
     # 3. Profiles extended across boundaries (CELL_PLUS_BOUNDARIES)
     extended_j_bootstrap = output_grid_context.extend_cell_grid_to_boundaries(
-        self.j_bootstrap, self.j_bootstrap_face
+        self.j_toroidal_bootstrap, self.j_toroidal_bootstrap_face
     )
     out_dict[output_keys.J_TOROIDAL_BOOTSTRAP] = context.pack(
         output_keys.J_TOROIDAL_BOOTSTRAP, extended_j_bootstrap
@@ -1067,10 +1067,11 @@ def make_post_processed_outputs(
   )
 
   # Parallel current densities
-  # j_total is toroidal by default (see psi_calculations.calc_j_total)
+  # j_toroidal_total is toroidal by default (see
+  # psi_calculations.calc_j_toroidal_total)
   # Core sources psi are all <j.B>/B0
   j_parallel_total = psi_calculations.j_toroidal_to_j_parallel(
-      sim_state.core_profiles.j_total,
+      sim_state.core_profiles.j_toroidal_total,
       sim_state.geometry,
       runtime_params.numerics.min_rho_norm,
   )
@@ -1086,7 +1087,8 @@ def make_post_processed_outputs(
   )
 
   # Toroidal current densities
-  # j_total is toroidal by default (see psi_calculations.calc_j_total)
+  # j_toroidal_total is toroidal by default (see
+  # psi_calculations.calc_j_toroidal_total)
   # Core sources psi are all <j.B>/B0
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
       j_parallel_bootstrap,
@@ -1116,8 +1118,7 @@ def make_post_processed_outputs(
   j_toroidal_sources = {}
   for source_name in ['ecrh', 'generic_current']:
     if source_name in sim_state.core_sources.psi.keys():
-      # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
-      j_toroidal_sources[f'j_{source_name}'] = (
+      j_toroidal_sources[f'j_toroidal_{source_name}'] = (
           psi_calculations.j_parallel_to_j_toroidal(
               sim_state.core_sources.psi[source_name],
               sim_state.geometry,
@@ -1125,7 +1126,7 @@ def make_post_processed_outputs(
           )
       )
     else:
-      j_toroidal_sources[f'j_{source_name}'] = jnp.zeros_like(
+      j_toroidal_sources[f'j_toroidal_{source_name}'] = jnp.zeros_like(
           sim_state.geometry.rho
       )
 
@@ -1217,13 +1218,15 @@ def make_post_processed_outputs(
       I_bootstrap=I_bootstrap,
       j_parallel_total=j_parallel_total,
       j_parallel_ohmic=j_parallel_ohmic,
-      j_ohmic=j_toroidal_ohmic,
-      j_bootstrap=j_toroidal_bootstrap,
-      j_bootstrap_face=j_toroidal_bootstrap_face,
-      j_external=j_toroidal_external,
-      j_ecrh=j_toroidal_sources['j_ecrh'],
-      j_generic_current=j_toroidal_sources['j_generic_current'],
-      j_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
+      j_toroidal_ohmic=j_toroidal_ohmic,
+      j_toroidal_bootstrap=j_toroidal_bootstrap,
+      j_toroidal_bootstrap_face=j_toroidal_bootstrap_face,
+      j_toroidal_external=j_toroidal_external,
+      j_toroidal_ecrh=j_toroidal_sources['j_toroidal_ecrh'],
+      j_toroidal_generic_current=j_toroidal_sources[
+          'j_toroidal_generic_current'
+      ],
+      j_toroidal_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
       j_parallel_external=j_parallel_external,
       j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
       I_external=I_external,

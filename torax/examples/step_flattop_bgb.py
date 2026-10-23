@@ -178,9 +178,6 @@ CONFIG = {
     "numerics": {
         "t_initial": 0.0,
         "t_final": 400.0,
-        "fixed_dt": 10.0,
-        "min_dt": 1e-3,
-        "dt_reduction_factor": 2.0,
         # Current diffusion time in STEP plasmas is very long, so artificially
         # boost the resistivity to decrease simulation time
         "current_diffusion_time_reduction_factor": 10.0,
@@ -195,5 +192,8 @@ CONFIG = {
     },
     "time_step_calculator": {
         "calculator_type": "fixed",
+        "fixed_dt": 10.0,
+        "min_dt": 1e-3,
+        "dt_reduction_factor": 2.0,
     },
 }
