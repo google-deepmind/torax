@@ -20,6 +20,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
+from torax._src import model_state as model_state_lib
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import initialization
@@ -94,6 +95,13 @@ class CalcCoeffsTest(parameterized.TestCase):
         core_profiles=core_profiles,
         explicit=True,
     )
+    model_state = model_state_lib.ModelState(
+        pedestal=models.pedestal_model.initial_state(
+            runtime_params, geo, core_profiles, explicit_source_profiles
+        ),
+        transport=models.transport_model.initial_state(runtime_params),
+        sources=models.source_models.initial_state(runtime_params),
+    )
     calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
@@ -103,6 +111,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         evolving_names=evolving_names,
         use_pereverzev=False,
         pedestal_transition_state=pedestal_transition_state.PedestalTransitionState.empty(),
+        model_state=model_state,
     )
 
   def test_calc_coeffs_hash(self):
@@ -267,6 +276,13 @@ class CalcCoeffsTest(parameterized.TestCase):
           source_models=models.source_models,
           explicit=True,
       )
+      model_state = model_state_lib.ModelState(
+          pedestal=models.pedestal_model.initial_state(
+              rp, geo, cp, explicit_src
+          ),
+          transport=models.transport_model.initial_state(rp),
+          sources=models.source_models.initial_state(rp),
+      )
       evolving = ('T_i', 'T_e', 'n_e')
       coeffs = calc_coeffs.calc_coeffs(
           runtime_params=rp,
@@ -279,6 +295,7 @@ class CalcCoeffsTest(parameterized.TestCase):
           pedestal_transition_state=(
               pedestal_transition_state.PedestalTransitionState.empty()
           ),
+          model_state=model_state,
       )
       x_vars = (cp.T_i, cp.T_e, cp.n_e)
       c_mat, c_vec = discrete_system.calc_c(x_vars, coeffs)
@@ -331,22 +348,33 @@ class CalcCoeffsTest(parameterized.TestCase):
         source_models=models.source_models,
         neoclassical_model=models.neoclassical_model,
     )
+    explicit_source_profiles = source_profile_builders.build_source_profiles(
+        source_models=models.source_models,
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        explicit=True,
+    )
+    model_state = model_state_lib.ModelState(
+        pedestal=models.pedestal_model.initial_state(
+            runtime_params, geo, core_profiles, explicit_source_profiles
+        ),
+        transport=models.transport_model.initial_state(runtime_params),
+        sources=models.source_models.initial_state(runtime_params),
+    )
     evolving_names = ('T_i', 'T_e', 'n_e')
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         models=models,
-        explicit_source_profiles=source_profile_builders.build_source_profiles(
-            source_models=models.source_models,
-            runtime_params=runtime_params,
-            geo=geo,
-            core_profiles=core_profiles,
-            explicit=True,
-        ),
+        explicit_source_profiles=explicit_source_profiles,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=pedestal_transition_state.PedestalTransitionState.empty(),
+        pedestal_transition_state=(
+            pedestal_transition_state.PedestalTransitionState.empty()
+        ),
+        model_state=model_state,
     )
     x = convertors.core_profiles_to_solver_x_tuple(
         core_profiles, evolving_names

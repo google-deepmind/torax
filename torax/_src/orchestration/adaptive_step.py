@@ -89,7 +89,7 @@ def compute_state(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
-    model_state_t: model_state_lib.ModelState,  # pylint: disable=unused-argument
+    model_state_t: model_state_lib.ModelState,
     solver: solver_lib.Solver,
 ) -> tuple[AdaptiveStepState, dict[str, array_typing.IntScalar]]:
   """Computes the state for attempt i of the adaptive step."""
@@ -110,8 +110,6 @@ def compute_state(
       geo_t_plus_dt=geo_t_plus_dt,
       core_profiles_t=input_state.core_profiles,
   )
-  # The solver returned state is still "intermediate" since the CoreProfiles
-  # need to be updated by the evolved CellVariables in x_new
   x_new, solver_numeric_outputs = solver(
       t=input_state.t,
       dt=dt,
@@ -123,6 +121,7 @@ def compute_state(
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       explicit_source_profiles=explicit_source_profiles,
       pedestal_transition_state=pedestal_transition_state,
+      model_state=model_state_t,
   )
   loop_statistics[
       'inner_solver_iterations'

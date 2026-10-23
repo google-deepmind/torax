@@ -619,6 +619,7 @@ class SimulationStepFn:
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
         pedestal_transition_state=pedestal_transition_state,
+        model_state=model_state_t,
     )
     output_state, post_processed_outputs = (
         step_function_processing.finalize_outputs(

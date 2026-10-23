@@ -127,6 +127,7 @@ def sawtooth_step(
       core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
       explicit_source_profiles=explicit_source_profiles,
       pedestal_transition_state=pedestal_transition_state,
+      model_state=model_state_t,
   )
 
   def _make_post_crash_state_and_post_processed_outputs():
