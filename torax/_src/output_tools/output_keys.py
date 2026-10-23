@@ -336,22 +336,22 @@ J_PARALLEL_BOOTSTRAP: Final[OutputKey] = OutputKey(
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
 J_TOROIDAL_TOTAL: Final[OutputKey] = OutputKey(
-    "j_total",
+    "j_toroidal_total",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
 J_TOROIDAL_OHMIC: Final[OutputKey] = OutputKey(
-    "j_ohmic",
+    "j_toroidal_ohmic",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
 J_TOROIDAL_EXTERNAL: Final[OutputKey] = OutputKey(
-    "j_external",
+    "j_toroidal_external",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
 J_TOROIDAL_BOOTSTRAP: Final[OutputKey] = OutputKey(
-    "j_bootstrap",
+    "j_toroidal_bootstrap",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
@@ -531,18 +531,18 @@ FFPRIME: Final[OutputKey] = OutputKey(
 PSI_NORM: Final[OutputKey] = OutputKey(
     "psi_norm", units=Units.DIMENSIONLESS, grid_type=GridType.FACE
 )
-J_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
-    "j_generic_current",
+J_TOROIDAL_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
+    "j_toroidal_generic_current",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
-J_ECRH: Final[OutputKey] = OutputKey(
-    "j_ecrh",
+J_TOROIDAL_ECRH: Final[OutputKey] = OutputKey(
+    "j_toroidal_ecrh",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
-J_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
-    "j_non_inductive",
+J_TOROIDAL_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
+    "j_toroidal_non_inductive",
     units=Units.AMPERE_PER_SQUARE_METER,
     grid_type=GridType.CELL,
 )
@@ -653,17 +653,17 @@ P_ICRH_TOTAL: Final[OutputKey] = OutputKey(
 # ---------------------------------------------------------------------------
 # Post-processed outputs: L-H transition thresholds.
 # ---------------------------------------------------------------------------
-P_LH_HIGH_DENSITY: Final[OutputKey] = OutputKey(
-    "P_LH_high_density", units=Units.WATT, grid_type=GridType.SCALAR
+P_LH_MARTIN_HIGH_DENSITY: Final[OutputKey] = OutputKey(
+    "P_LH_martin_high_density", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_LH_MIN: Final[OutputKey] = OutputKey(
-    "P_LH_min", units=Units.WATT, grid_type=GridType.SCALAR
+P_LH_MARTIN_MIN: Final[OutputKey] = OutputKey(
+    "P_LH_martin_min", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_LH_LOW_DENSITY: Final[OutputKey] = OutputKey(
-    "P_LH_low_density", units=Units.WATT, grid_type=GridType.SCALAR
+P_LH_MARTIN_LOW_DENSITY: Final[OutputKey] = OutputKey(
+    "P_LH_martin_low_density", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_LH: Final[OutputKey] = OutputKey(
-    "P_LH", units=Units.WATT, grid_type=GridType.SCALAR
+P_LH_MARTIN: Final[OutputKey] = OutputKey(
+    "P_LH_martin", units=Units.WATT, grid_type=GridType.SCALAR
 )
 N_E_MIN_P_LH: Final[OutputKey] = OutputKey(
     "n_e_min_P_LH",

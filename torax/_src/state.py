@@ -70,6 +70,25 @@ class PlasmaInternalEnergy:
     """Smoothed total thermal stored energy time derivative [W]."""
     return self.dW_thermal_i_dt_smoothed + self.dW_thermal_e_dt_smoothed
 
+  def to_output_dict(
+      self,
+      context: output_grid_context.OutputGridContext,
+  ) -> dict[str, output_grid_context.OutputVar]:
+    """Converts internal plasma energy into an OutputVar mapping."""
+    energy_scalars = {
+        output_keys.W_THERMAL_I: self.W_thermal_i,
+        output_keys.W_THERMAL_E: self.W_thermal_e,
+        output_keys.W_THERMAL_TOTAL: self.W_thermal_total,
+        output_keys.DW_THERMAL_DT: self.dW_thermal_dt,
+        output_keys.DW_THERMAL_DT_SMOOTHED: self.dW_thermal_dt_smoothed,
+        output_keys.DW_THERMAL_I_DT_SMOOTHED: self.dW_thermal_i_dt_smoothed,
+        output_keys.DW_THERMAL_E_DT_SMOOTHED: self.dW_thermal_e_dt_smoothed,
+    }
+    return {
+        key: context.pack(key, scalar_data)
+        for key, scalar_data in energy_scalars.items()
+    }
+
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -97,20 +116,16 @@ class CoreProfiles:
       v_loop_lcfs: Loop voltage at LCFS (V).
       Z_i: Main ion charge on cell grid [dimensionless].
       Z_i_face: Main ion charge on face grid [dimensionless].
-      A_i: Main ion mass [amu]. # TODO(b/434175938): Remove in V2. Duplication
-        with new charge_state_info.
-      Z_impurity: Impurity charge of bundled impurity on cell grid
-        [dimensionless].
-      Z_impurity_face: Impurity charge of bundled impurity on face grid
-        [dimensionless].
+      A_i: Main ion mass [amu].
       Z_eff: Effective charge on cell grid [dimensionless].
       Z_eff_face: Effective charge on face grid [dimensionless].
       A_impurity: Impurity mass on cell grid [amu].
       A_impurity_face: Impurity mass on face grid [amu].
       sigma: Conductivity on cell grid [S/m].
       sigma_face: Conductivity on face grid [S/m].
-      j_total: Total current density on the cell grid [A/m^2].
-      j_total_face: Total current density on face grid [A/m^2].
+      j_toroidal_total: Total toroidal current density on the cell grid [A/m^2].
+      j_toroidal_total_face: Total toroidal current density on face grid
+        [A/m^2].
       Ip_profile_face: Plasma current profile on the face grid [A].
       toroidal_angular_velocity: Toroidal angular velocity [rad/s].
       poloidal_velocity: Neoclassical poloidal velocity [m/s].
@@ -142,16 +157,14 @@ class CoreProfiles:
   Z_i: array_typing.FloatVectorCell
   Z_i_face: array_typing.FloatVectorFace
   A_i: array_typing.FloatScalar
-  Z_impurity: array_typing.FloatVectorCell
-  Z_impurity_face: array_typing.FloatVectorFace
   A_impurity: array_typing.FloatVectorCell
   A_impurity_face: array_typing.FloatVectorFace
   Z_eff: array_typing.FloatVectorCell
   Z_eff_face: array_typing.FloatVectorFace
   sigma: array_typing.FloatVectorCell
   sigma_face: array_typing.FloatVectorFace
-  j_total: array_typing.FloatVectorCell
-  j_total_face: array_typing.FloatVectorFace
+  j_toroidal_total: array_typing.FloatVectorCell
+  j_toroidal_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
   toroidal_angular_velocity: cell_variable.CellVariable
   poloidal_velocity: cell_variable.CellVariable
@@ -159,6 +172,16 @@ class CoreProfiles:
   charge_state_info_face: charge_states.ChargeStateInfo
   fast_ions: tuple[fast_ion_lib.FastIon, ...]
   internal_plasma_energy: PlasmaInternalEnergy | None = None
+
+  @property
+  def Z_impurity(self) -> array_typing.FloatVectorCell:
+    """Impurity charge of bundled impurity on cell grid [dimensionless]."""
+    return self.charge_state_info.Z_mixture
+
+  @property
+  def Z_impurity_face(self) -> array_typing.FloatVectorFace:
+    """Impurity charge of bundled impurity on face grid [dimensionless]."""
+    return self.charge_state_info_face.Z_mixture
 
   @functools.cached_property
   def impurity_density_scaling(self) -> array_typing.FloatVectorCell:
@@ -438,7 +461,11 @@ class CoreProfiles:
         (output_keys.A_IMPURITY, self.A_impurity, self.A_impurity_face),
         (output_keys.Z_EFF, self.Z_eff, self.Z_eff_face),
         (output_keys.SIGMA_PARALLEL, self.sigma, self.sigma_face),
-        (output_keys.J_TOROIDAL_TOTAL, self.j_total, self.j_total_face),
+        (
+            output_keys.J_TOROIDAL_TOTAL,
+            self.j_toroidal_total,
+            self.j_toroidal_total_face,
+        ),
     ]
     for key, cell_val, face_val in cell_face_pairs:
       extended_data = output_grid_context.extend_cell_grid_to_boundaries(
@@ -461,6 +488,9 @@ class CoreProfiles:
     }
     for key, scalar_data in scalar_vars.items():
       out_dict[key] = context.pack(key, scalar_data)
+
+    if self.internal_plasma_energy is not None:
+      out_dict.update(self.internal_plasma_energy.to_output_dict(context))
 
     if self.main_ion_fractions:
       main_ions = np.asarray(sorted(self.main_ion_fractions.keys()))

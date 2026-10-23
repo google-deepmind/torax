@@ -40,6 +40,7 @@ CONFIG = {
     },
     'profile_conditions': {
         'Ip': {0: 3e6, 80: 10.5e6},  # total plasma current in A
+        'initial_psi_source': 'geometry',
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=a_minor
         'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
@@ -58,17 +59,12 @@ CONFIG = {
     'numerics': {
         # simulation control
         't_final': 2,  # length of simulation time in seconds
-        # Note: we're not guaranteed to end simulation in a single Newton
-        # step due to the dt_reduction loop
-        'fixed_dt': 2,
         # Shortens the current diffusion timescale (psi equation only).
         'current_diffusion_time_reduction_factor': 1,
         'evolve_ion_heat': True,
         'evolve_electron_heat': True,
         'evolve_current': True,
         'evolve_density': True,
-        'max_dt': 0.5,
-        'dt_reduction_factor': 3,
     },
     'geometry': {
         'geometry_type': 'chease',
@@ -184,8 +180,8 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'newton_raphson',
-        'use_predictor_corrector': True,
-        'n_corrector_steps': 10,
+        'use_fixed_point': True,
+        'n_fixed_point_iterations': 10,
         # (deliberately) large heat conductivity for Pereverzev rule
         'chi_pereverzev': 30,
         # (deliberately) large particle diffusion for Pereverzev rule
@@ -195,5 +191,10 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'fixed',
+        # Note: we're not guaranteed to end simulation in a single Newton
+        # step due to the dt_reduction loop
+        'fixed_dt': 2,
+        'max_dt': 0.5,
+        'dt_reduction_factor': 3,
     },
 }

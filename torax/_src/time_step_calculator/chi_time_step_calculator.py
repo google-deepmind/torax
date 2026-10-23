@@ -20,6 +20,7 @@ import jax
 from jax import numpy as jnp
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
+from torax._src.time_step_calculator import runtime_params as time_step_calculator_params
 from torax._src.time_step_calculator import time_step_calculator
 
 
@@ -43,6 +44,10 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     Returns:
       dt: Scalar time step duration.
     """
+    assert isinstance(
+        runtime_params.time_step_calculator,
+        time_step_calculator_params.ChiRuntimeParams,
+    )
     core_transport = sim_state.core_transport
     geo = sim_state.geometry
     chi_max = core_transport.total.chi_max(geo)
@@ -52,8 +57,8 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     basic_dt = (3.0 / 4.0) * (min_drho_norm**2) / chi_max
 
     dt = jnp.minimum(
-        runtime_params.numerics.chi_timestep_prefactor * basic_dt,
-        runtime_params.numerics.max_dt,
+        runtime_params.time_step_calculator.chi_timestep_prefactor * basic_dt,
+        runtime_params.time_step_calculator.max_dt,
     )
 
     return dt

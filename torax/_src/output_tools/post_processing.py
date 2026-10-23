@@ -52,9 +52,6 @@ class PostProcessedOutputs:
   Attributes:
     pprime: Derivative of total pressure with respect to poloidal flux on the
       face grid [Pa/Wb]
-    W_thermal_i: Ion thermal stored energy [J]
-    W_thermal_e: Electron thermal stored energy [J]
-    W_thermal_total: Total thermal stored energy [J]
     tau_E: Thermal energy confinement time [s]
     H89P: L-mode confinement quality factor with respect to the ITER89P scaling
       law derived from the ITER L-mode confinement database
@@ -105,14 +102,14 @@ class PostProcessedOutputs:
     P_icrh_e: Ion cyclotron resonance heating to electrons [W]
     P_icrh_i: Ion cyclotron resonance heating to ions [W]
     P_icrh_total: Total ion cyclotron resonance heating power [W]
-    P_LH_high_density: H-mode transition power from the Martin scaling law for
-      high density branch [W]
-    P_LH_min: Minimum H-mode transition power from the Martin scaling law at
-      n_e_min_P_LH [W]
-    P_LH: H-mode transition power from the Martin scaling law, taken as the
-      maximum of P_LH_high_density and P_LH_min [W]
-    P_LH_low_density: H-mode transition power from a heuristic extension of the
-      Martin scaling law for low density branch [W]
+    P_LH_martin_high_density: H-mode transition power from the Martin scaling
+      law for high density branch [W]
+    P_LH_martin_min: Minimum H-mode transition power from the Martin scaling law
+      at n_e_min_P_LH [W]
+    P_LH_martin: H-mode transition power from the Martin scaling law, taken as
+      the maximum of P_LH_martin_high_density and P_LH_martin_min [W]
+    P_LH_martin_low_density: H-mode transition power from a heuristic extension
+      of the Martin scaling law for low density branch [W]
     n_e_min_P_LH: Density corresponding to the P_LH_min, from the Ryter scaling
       law [m^-3]
     P_LH_delabie_high_density: H-mode transition power from the Delabie scaling
@@ -145,14 +142,6 @@ class PostProcessedOutputs:
     q95: q at 95% of the normalized poloidal flux
     W_pol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]
-    dW_thermal_dt: Time derivative of the total stored thermal energy [W], raw
-      unsmoothed value.
-    dW_thermal_dt_smoothed: Smoothed time derivative of total stored thermal
-      energy [W].
-    dW_thermal_i_dt_smoothed: Smoothed time derivative of ion stored thermal
-      energy [W].
-    dW_thermal_e_dt_smoothed: Smoothed time derivative of electron stored
-      thermal energy [W].
     q_min: Minimum q value
     rho_q_min: rho_norm at the minimum q
     rho_q_3_2_first: First outermost rho_norm value that intercepts the q=3/2
@@ -168,25 +157,27 @@ class PostProcessedOutputs:
     rho_q_3_1_second: Second outermost rho_norm value that intercepts the q=3/1
       plane. If no intercept is found, set to -inf.
     I_bootstrap: Total bootstrap current [A].
-    j_total: Total toroidal current density [Am^-2]
+    j_toroidal_total: Total toroidal current density [Am^-2]
     j_parallel_total: Total parallel current density [Am^-2]
-    j_bootstrap: Toroidal bootstrap current density [Am^-2]
-    j_bootstrap_face: Toroidal bootstrap current density on face grid [Am^-2]
-    j_external: Toroidal current density from external psi sources (i.e.,
-      excluding bootstrap) [A m^-2]
+    j_toroidal_bootstrap: Toroidal bootstrap current density [Am^-2]
+    j_toroidal_bootstrap_face: Toroidal bootstrap current density on face grid
+      [Am^-2]
+    j_toroidal_external: Toroidal current density from external psi sources
+      (i.e., excluding bootstrap) [A m^-2]
     j_parallel_external: Parallel current density from external psi sources
       (i.e., excluding bootstrap) [A m^-2]
-    j_ohmic: Toroidal ohmic current density [Am^-2]
+    j_toroidal_ohmic: Toroidal ohmic current density [Am^-2]
     j_parallel_ohmic: Parallel ohmic current density [Am^-2]
-    j_generic_current: Toroidal current density from generic current source
-      [Am^-2]
+    j_toroidal_generic_current: Toroidal current density from generic current
+      source [Am^-2]
     j_parallel_generic_current: Parallel current density from generic current
       source [Am^-2]
-    j_ecrh: Toroidal current density from electron cyclotron heating and current
-      source [Am^-2]
+    j_toroidal_ecrh: Toroidal current density from electron cyclotron heating
+      and current source [Am^-2]
     j_parallel_ecrh: Toroidal current density from electron cyclotron heating
       and current source [Am^-2]
-    j_non_inductive: Total toroidal non-inductive current density [Am^-2]
+    j_toroidal_non_inductive: Total toroidal non-inductive current density
+      [Am^-2]
     j_parallel_non_inductive: Total parallel non-inductive current density
       [Am^-2]
     I_external: Total external current [A]
@@ -222,10 +213,6 @@ class PostProcessedOutputs:
 
   pprime: array_typing.FloatVector
   # pylint: disable=invalid-name
-  # TODO(b/434175938) Remove W_thermal terms in favor of terms from energy_state
-  W_thermal_i: array_typing.FloatScalar
-  W_thermal_e: array_typing.FloatScalar
-  W_thermal_total: array_typing.FloatScalar
   tau_E: array_typing.FloatScalar
   H89P: array_typing.FloatScalar
   H98: array_typing.FloatScalar
@@ -265,11 +252,10 @@ class PostProcessedOutputs:
   P_icrh_e: array_typing.FloatScalar
   P_icrh_i: array_typing.FloatScalar
   P_icrh_total: array_typing.FloatScalar
-  # TODO(b/434175938) Rename to P_LH_martin_high_density etc
-  P_LH_high_density: array_typing.FloatScalar
-  P_LH_min: array_typing.FloatScalar
-  P_LH_low_density: array_typing.FloatScalar
-  P_LH: array_typing.FloatScalar
+  P_LH_martin_high_density: array_typing.FloatScalar
+  P_LH_martin_min: array_typing.FloatScalar
+  P_LH_martin_low_density: array_typing.FloatScalar
+  P_LH_martin: array_typing.FloatScalar
   n_e_min_P_LH: array_typing.FloatScalar
   P_LH_delabie_high_density: array_typing.FloatScalar
   P_LH_delabie_min: array_typing.FloatScalar
@@ -291,11 +277,6 @@ class PostProcessedOutputs:
   q95: array_typing.FloatScalar
   W_pol: array_typing.FloatScalar
   li3: array_typing.FloatScalar
-  # TODO(b/434175938) Remove dW_dt terms in favor of terms from energy_state.
-  dW_thermal_dt: array_typing.FloatScalar
-  dW_thermal_dt_smoothed: array_typing.FloatScalar
-  dW_thermal_i_dt_smoothed: array_typing.FloatScalar
-  dW_thermal_e_dt_smoothed: array_typing.FloatScalar
   rho_q_min: array_typing.FloatScalar
   q_min: array_typing.FloatScalar
   rho_q_3_2_first: array_typing.FloatScalar
@@ -305,19 +286,18 @@ class PostProcessedOutputs:
   rho_q_3_1_first: array_typing.FloatScalar
   rho_q_3_1_second: array_typing.FloatScalar
   I_bootstrap: array_typing.FloatScalar
-  # Note: The default j profiles (j_total, j_parallel_bootstrap, j_parallel_*
-  # for * in sources) are saved elsewhere
-  # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
+  # Note: The default j profiles (j_toroidal_total, j_parallel_bootstrap,
+  # j_parallel_* for * in sources) are saved elsewhere
   j_parallel_total: array_typing.FloatVector
-  j_external: array_typing.FloatVector
+  j_toroidal_external: array_typing.FloatVector
   j_parallel_external: array_typing.FloatVector
-  j_ohmic: array_typing.FloatVector
+  j_toroidal_ohmic: array_typing.FloatVector
   j_parallel_ohmic: array_typing.FloatVector
-  j_bootstrap: array_typing.FloatVector
-  j_bootstrap_face: array_typing.FloatVector
-  j_generic_current: array_typing.FloatVector
-  j_ecrh: array_typing.FloatVector
-  j_non_inductive: array_typing.FloatVector
+  j_toroidal_bootstrap: array_typing.FloatVector
+  j_toroidal_bootstrap_face: array_typing.FloatVector
+  j_toroidal_generic_current: array_typing.FloatVector
+  j_toroidal_ecrh: array_typing.FloatVector
+  j_toroidal_non_inductive: array_typing.FloatVector
   j_parallel_non_inductive: array_typing.FloatVector
   I_external: array_typing.FloatScalar
   I_non_inductive: array_typing.FloatScalar
@@ -345,9 +325,6 @@ class PostProcessedOutputs:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
         pprime=jnp.zeros(geo.rho_face.shape),
-        W_thermal_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        W_thermal_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        W_thermal_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         tau_E=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H89P=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         H98=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -386,10 +363,10 @@ class PostProcessedOutputs:
         P_icrh_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH_low_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_martin_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_martin_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_martin_low_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_martin=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_delabie_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_delabie_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -411,10 +388,6 @@ class PostProcessedOutputs:
         q95=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         W_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         li3=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        dW_thermal_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        dW_thermal_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        dW_thermal_i_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        dW_thermal_e_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         q_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_3_2_first=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -424,16 +397,15 @@ class PostProcessedOutputs:
         rho_q_2_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         rho_q_3_1_second=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
         j_parallel_total=jnp.zeros(geo.rho.shape),
-        j_bootstrap=jnp.zeros(geo.rho.shape),
-        j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
-        j_ohmic=jnp.zeros(geo.rho.shape),
+        j_toroidal_bootstrap=jnp.zeros(geo.rho.shape),
+        j_toroidal_bootstrap_face=jnp.zeros(geo.rho_face.shape),
+        j_toroidal_ohmic=jnp.zeros(geo.rho.shape),
         j_parallel_ohmic=jnp.zeros(geo.rho.shape),
-        j_external=jnp.zeros(geo.rho.shape),
-        j_generic_current=jnp.zeros(geo.rho.shape),
-        j_ecrh=jnp.zeros(geo.rho.shape),
-        j_non_inductive=jnp.zeros(geo.rho.shape),
+        j_toroidal_external=jnp.zeros(geo.rho.shape),
+        j_toroidal_generic_current=jnp.zeros(geo.rho.shape),
+        j_toroidal_ecrh=jnp.zeros(geo.rho.shape),
+        j_toroidal_non_inductive=jnp.zeros(geo.rho.shape),
         j_parallel_external=jnp.zeros(geo.rho.shape),
         j_parallel_non_inductive=jnp.zeros(geo.rho.shape),
         I_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -502,13 +474,13 @@ class PostProcessedOutputs:
     # 2. Profiles on the cell grid (CELL)
     cell_vars = {
         output_keys.J_PARALLEL_TOTAL: self.j_parallel_total,
-        output_keys.J_TOROIDAL_EXTERNAL: self.j_external,
+        output_keys.J_TOROIDAL_EXTERNAL: self.j_toroidal_external,
         output_keys.J_PARALLEL_EXTERNAL: self.j_parallel_external,
-        output_keys.J_TOROIDAL_OHMIC: self.j_ohmic,
+        output_keys.J_TOROIDAL_OHMIC: self.j_toroidal_ohmic,
         output_keys.J_PARALLEL_OHMIC: self.j_parallel_ohmic,
-        output_keys.J_GENERIC_CURRENT: self.j_generic_current,
-        output_keys.J_ECRH: self.j_ecrh,
-        output_keys.J_NON_INDUCTIVE: self.j_non_inductive,
+        output_keys.J_TOROIDAL_GENERIC_CURRENT: self.j_toroidal_generic_current,
+        output_keys.J_TOROIDAL_ECRH: self.j_toroidal_ecrh,
+        output_keys.J_TOROIDAL_NON_INDUCTIVE: self.j_toroidal_non_inductive,
         output_keys.J_PARALLEL_NON_INDUCTIVE: self.j_parallel_non_inductive,
     }
     for key, cell_data in cell_vars.items():
@@ -516,7 +488,7 @@ class PostProcessedOutputs:
 
     # 3. Profiles extended across boundaries (CELL_PLUS_BOUNDARIES)
     extended_j_bootstrap = output_grid_context.extend_cell_grid_to_boundaries(
-        self.j_bootstrap, self.j_bootstrap_face
+        self.j_toroidal_bootstrap, self.j_toroidal_bootstrap_face
     )
     out_dict[output_keys.J_TOROIDAL_BOOTSTRAP] = context.pack(
         output_keys.J_TOROIDAL_BOOTSTRAP, extended_j_bootstrap
@@ -525,9 +497,6 @@ class PostProcessedOutputs:
     # 4. Scalars (SCALAR)
     scalar_vars = {
         # Stored energy and confinement
-        output_keys.W_THERMAL_I: self.W_thermal_i,
-        output_keys.W_THERMAL_E: self.W_thermal_e,
-        output_keys.W_THERMAL_TOTAL: self.W_thermal_total,
         output_keys.TAU_E: self.tau_E,
         output_keys.H89P: self.H89P,
         output_keys.H98: self.H98,
@@ -535,10 +504,6 @@ class PostProcessedOutputs:
         output_keys.H20: self.H20,
         output_keys.W_POL: self.W_pol,
         output_keys.LI3: self.li3,
-        output_keys.DW_THERMAL_DT: self.dW_thermal_dt,
-        output_keys.DW_THERMAL_DT_SMOOTHED: self.dW_thermal_dt_smoothed,
-        output_keys.DW_THERMAL_I_DT_SMOOTHED: self.dW_thermal_i_dt_smoothed,
-        output_keys.DW_THERMAL_E_DT_SMOOTHED: self.dW_thermal_e_dt_smoothed,
         # Integrated powers
         output_keys.P_SOL_I: self.P_SOL_i,
         output_keys.P_SOL_E: self.P_SOL_e,
@@ -569,10 +534,10 @@ class PostProcessedOutputs:
         output_keys.P_ICRH_I: self.P_icrh_i,
         output_keys.P_ICRH_TOTAL: self.P_icrh_total,
         # L-H transition thresholds
-        output_keys.P_LH_HIGH_DENSITY: self.P_LH_high_density,
-        output_keys.P_LH_MIN: self.P_LH_min,
-        output_keys.P_LH_LOW_DENSITY: self.P_LH_low_density,
-        output_keys.P_LH: self.P_LH,
+        output_keys.P_LH_MARTIN_HIGH_DENSITY: self.P_LH_martin_high_density,
+        output_keys.P_LH_MARTIN_MIN: self.P_LH_martin_min,
+        output_keys.P_LH_MARTIN_LOW_DENSITY: self.P_LH_martin_low_density,
+        output_keys.P_LH_MARTIN: self.P_LH_martin,
         output_keys.N_E_MIN_P_LH: self.n_e_min_P_LH,
         output_keys.P_LH_DELABIE_HIGH_DENSITY: self.P_LH_delabie_high_density,
         output_keys.P_LH_DELABIE_MIN: self.P_LH_delabie_min,
@@ -1067,10 +1032,11 @@ def make_post_processed_outputs(
   )
 
   # Parallel current densities
-  # j_total is toroidal by default (see psi_calculations.calc_j_total)
+  # j_toroidal_total is toroidal by default (see
+  # psi_calculations.calc_j_toroidal_total)
   # Core sources psi are all <j.B>/B0
   j_parallel_total = psi_calculations.j_toroidal_to_j_parallel(
-      sim_state.core_profiles.j_total,
+      sim_state.core_profiles.j_toroidal_total,
       sim_state.geometry,
       runtime_params.numerics.min_rho_norm,
   )
@@ -1086,7 +1052,8 @@ def make_post_processed_outputs(
   )
 
   # Toroidal current densities
-  # j_total is toroidal by default (see psi_calculations.calc_j_total)
+  # j_toroidal_total is toroidal by default (see
+  # psi_calculations.calc_j_toroidal_total)
   # Core sources psi are all <j.B>/B0
   j_toroidal_bootstrap = psi_calculations.j_parallel_to_j_toroidal(
       j_parallel_bootstrap,
@@ -1116,8 +1083,7 @@ def make_post_processed_outputs(
   j_toroidal_sources = {}
   for source_name in ['ecrh', 'generic_current']:
     if source_name in sim_state.core_sources.psi.keys():
-      # TODO(b/434175938): rename j_* to j_toroidal_* for clarity
-      j_toroidal_sources[f'j_{source_name}'] = (
+      j_toroidal_sources[f'j_toroidal_{source_name}'] = (
           psi_calculations.j_parallel_to_j_toroidal(
               sim_state.core_sources.psi[source_name],
               sim_state.geometry,
@@ -1125,7 +1091,7 @@ def make_post_processed_outputs(
           )
       )
     else:
-      j_toroidal_sources[f'j_{source_name}'] = jnp.zeros_like(
+      j_toroidal_sources[f'j_toroidal_{source_name}'] = jnp.zeros_like(
           sim_state.geometry.rho
       )
 
@@ -1165,9 +1131,6 @@ def make_post_processed_outputs(
 
   return PostProcessedOutputs(
       pprime=pprime_face,
-      W_thermal_i=internal_plasma_energy.W_thermal_i,
-      W_thermal_e=internal_plasma_energy.W_thermal_e,
-      W_thermal_total=internal_plasma_energy.W_thermal_total,
       tau_E=tau_E,
       H89P=H89P,
       H98=H98,
@@ -1177,10 +1140,10 @@ def make_post_processed_outputs(
       psi_norm=psi_norm_face,
       **integrated_sources,
       Q_fusion=Q_fusion,
-      P_LH=P_LH_martin,
-      P_LH_min=P_LH_martin_aux_data.P_LH_min,
-      P_LH_high_density=P_LH_martin_aux_data.P_LH_high_density,
-      P_LH_low_density=P_LH_martin_aux_data.P_LH_low_density,
+      P_LH_martin=P_LH_martin,
+      P_LH_martin_min=P_LH_martin_aux_data.P_LH_min,
+      P_LH_martin_high_density=P_LH_martin_aux_data.P_LH_high_density,
+      P_LH_martin_low_density=P_LH_martin_aux_data.P_LH_low_density,
       n_e_min_P_LH=P_LH_martin_aux_data.line_average_n_e_at_P_LH_min,
       P_LH_delabie=P_LH_delabie,
       P_LH_delabie_min=P_LH_delabie_aux_data.P_LH_min,
@@ -1202,10 +1165,6 @@ def make_post_processed_outputs(
       q95=q95,
       W_pol=W_pol,
       li3=li3,
-      dW_thermal_dt=internal_plasma_energy.dW_thermal_dt,
-      dW_thermal_dt_smoothed=internal_plasma_energy.dW_thermal_dt_smoothed,
-      dW_thermal_i_dt_smoothed=internal_plasma_energy.dW_thermal_i_dt_smoothed,
-      dW_thermal_e_dt_smoothed=internal_plasma_energy.dW_thermal_e_dt_smoothed,
       rho_q_min=safety_factor_fit_outputs.rho_q_min,
       q_min=safety_factor_fit_outputs.q_min,
       rho_q_3_2_first=safety_factor_fit_outputs.rho_q_3_2_first,
@@ -1217,13 +1176,15 @@ def make_post_processed_outputs(
       I_bootstrap=I_bootstrap,
       j_parallel_total=j_parallel_total,
       j_parallel_ohmic=j_parallel_ohmic,
-      j_ohmic=j_toroidal_ohmic,
-      j_bootstrap=j_toroidal_bootstrap,
-      j_bootstrap_face=j_toroidal_bootstrap_face,
-      j_external=j_toroidal_external,
-      j_ecrh=j_toroidal_sources['j_ecrh'],
-      j_generic_current=j_toroidal_sources['j_generic_current'],
-      j_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
+      j_toroidal_ohmic=j_toroidal_ohmic,
+      j_toroidal_bootstrap=j_toroidal_bootstrap,
+      j_toroidal_bootstrap_face=j_toroidal_bootstrap_face,
+      j_toroidal_external=j_toroidal_external,
+      j_toroidal_ecrh=j_toroidal_sources['j_toroidal_ecrh'],
+      j_toroidal_generic_current=j_toroidal_sources[
+          'j_toroidal_generic_current'
+      ],
+      j_toroidal_non_inductive=j_toroidal_bootstrap + j_toroidal_external,
       j_parallel_external=j_parallel_external,
       j_parallel_non_inductive=j_parallel_bootstrap + j_parallel_external,
       I_external=I_external,

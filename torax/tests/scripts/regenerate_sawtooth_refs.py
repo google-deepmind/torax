@@ -104,13 +104,12 @@ def get_sawtooth_test_config() -> Mapping[str, Any]:
           'evolve_density': True,
           'evolve_ion_heat': True,
           'evolve_electron_heat': True,
-          'fixed_dt': FIXED_DT,
       },
       # Default initial current will lead to a sawtooth being triggered.
       'profile_conditions': {
           'Ip': 13e6,
           'initial_j_is_total_current': True,
-          'initial_psi_from_j': True,
+          'initial_psi_source': 'j',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
           'normalize_n_e_to_nbar': True,
@@ -125,7 +124,10 @@ def get_sawtooth_test_config() -> Mapping[str, Any]:
           'solver_type': 'linear',
           'use_pereverzev': False,
       },
-      'time_step_calculator': {'calculator_type': 'fixed'},
+      'time_step_calculator': {
+          'calculator_type': 'fixed',
+          'fixed_dt': FIXED_DT,
+      },
       'transport': {
           'core_transport_models': {'prescribed': {'model_name': 'prescribed'}},
       },

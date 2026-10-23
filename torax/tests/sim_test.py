@@ -21,7 +21,7 @@ previously executed TORAX reference:
 import copy
 import functools
 import os
-from typing import Final, Sequence
+from typing import Any, Final, Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -390,15 +390,16 @@ class SimTest(sim_test_case.SimTestCase):
     torax_config.update_fields({
         'numerics': {
             't_final': 0.1,  # Modify final step.
-            'fixed_dt': 0.06,
             'exact_t_final': False,
             'evolve_ion_heat': False,
             'evolve_electron_heat': False,
             'evolve_current': False,
             'evolve_density': False,
         },
+        'time_step_calculator.fixed_dt': 0.06,
         'profile_conditions': {
             'Ip': 3.0e6,
+            'initial_psi_source': 'geometry',
             'n_e': 1.0e20,
             'n_e_right_bc': 1.0e20,
             'n_e_nbar_is_fGW': False,
@@ -432,8 +433,8 @@ class SimTest(sim_test_case.SimTestCase):
           [np.all(profile == first_profile) for profile in profile_history]  # pyrefly: ignore[not-iterable]
       ):
         for i in range(1, len(profile_history)):  # pyrefly: ignore[bad-argument-type]
-          # Most profiles should be == but j_total, q_face, and s_face can be
-          # merely allclose because they are recalculated on each step.
+          # Most profiles should be == but j_toroidal_total, q_face, and s_face
+          # can be merely allclose because they are recalculated on each step.
           if not np.allclose(profile_history[i], first_profile):  # pyrefly: ignore[bad-index]
             msg = (
                 # pyrefly: ignore[bad-index]
@@ -542,8 +543,8 @@ class SimTest(sim_test_case.SimTestCase):
   def test_prescribed_psidot(self):
     """Tests that a prescribed psidot is used when current is not evolved."""
     # Base config for a simple run.
-    base_config_dict = {
-        'profile_conditions': {},
+    base_config_dict: dict[str, Any] = {
+        'profile_conditions': {'initial_psi_source': 'j'},
         'plasma_composition': {},
         'numerics': {
             't_final': 3.0,
