@@ -104,17 +104,6 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
         ),
     )
 
-  # TODO(b/434175938): Remove this once V1 API is deprecated
-  @pydantic.model_validator(mode='before')
-  @classmethod
-  def _v1_compatibility(cls, data: dict[str, Any]) -> dict[str, Any]:
-    configurable_data = copy.deepcopy(data)
-    if 'calcphibdot' in configurable_data['numerics']:
-      calcphibdot = configurable_data['numerics']['calcphibdot']
-      configurable_data['geometry']['calcphibdot'] = calcphibdot
-      del configurable_data['numerics']['calcphibdot']
-    return configurable_data
-
   @pydantic.model_validator(mode='before')
   @classmethod
   def _defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
