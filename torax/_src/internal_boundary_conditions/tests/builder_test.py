@@ -102,7 +102,6 @@ class BuilderTest(absltest.TestCase):
         n_e_ped_L_mode=jnp.array(0.0),
         confinement_mode=confinement_mode,
         pedestal_model_output=output,
-        previous_pedestal_model_output=output,
     )
 
   def test_l_mode_preserves_profile_conditions_ibc(self):

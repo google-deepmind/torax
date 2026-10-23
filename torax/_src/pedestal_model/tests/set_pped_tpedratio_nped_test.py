@@ -18,7 +18,9 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import (
+    pedestal_transition_state as pedestal_transition_state_lib,
+)
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
@@ -78,12 +80,20 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         source_states=source_states,
         explicit=True,
     )
-    pedestal_model_output = jitted_pedestal_model(
+    pedestal_state = pedestal_model.initial_state(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+    )
+    pedestal_model_output, _ = jitted_pedestal_model(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_transition_state=(
+            pedestal_transition_state_lib.PedestalTransitionState.empty()
+        ),
+        pedestal_state=pedestal_state,
     )
 
     if isinstance(rho_norm_ped_top, (float, int)):
@@ -148,12 +158,20 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         source_states=source_states,
         explicit=True,
     )
-    output_1 = pedestal_model(
+    pedestal_state = pedestal_model.initial_state(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+    )
+    output_1, _ = pedestal_model(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_transition_state=(
+            pedestal_transition_state_lib.PedestalTransitionState.empty()
+        ),
+        pedestal_state=pedestal_state,
     )
 
     # Modify multiplier to 1.5
@@ -163,12 +181,20 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         torax_config_2
     )
     runtime_params_2 = provider_2(t=0.0)
-    output_2 = pedestal_model(
+    pedestal_state_2 = pedestal_model.initial_state(
+        runtime_params=runtime_params_2,
+        geo=geo,
+        core_profiles=core_profiles,
+    )
+    output_2, _ = pedestal_model(
         runtime_params=runtime_params_2,
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_transition_state=(
+            pedestal_transition_state_lib.PedestalTransitionState.empty()
+        ),
+        pedestal_state=pedestal_state_2,
     )
 
     np.testing.assert_allclose(output_2.T_e_ped, output_1.T_e_ped * 1.5)

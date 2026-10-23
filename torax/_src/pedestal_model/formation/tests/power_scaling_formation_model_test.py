@@ -197,16 +197,19 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
 
     # Create a state in H-mode
-    initial_transition_state = pedestal_transition_state_lib.PedestalTransitionState(
-        confinement_mode=jnp.array(
-            pedestal_runtime_params_lib.ConfinementMode.H_MODE
-        ),
-        transition_start_time=jnp.array(0.0),
-        T_i_ped_L_mode=jnp.array(0.5),
-        T_e_ped_L_mode=jnp.array(0.5),
-        n_e_ped_L_mode=jnp.array(0.5e19),
-        pedestal_model_output=pedestal_model_output_lib.PedestalStructure.no_pedestal(),
-        previous_pedestal_model_output=pedestal_model_output_lib.PedestalStructure.no_pedestal(),
+    initial_transition_state = (
+        pedestal_transition_state_lib.PedestalTransitionState(
+            confinement_mode=jnp.array(
+                pedestal_runtime_params_lib.ConfinementMode.H_MODE
+            ),
+            transition_start_time=jnp.array(0.0),
+            T_i_ped_L_mode=jnp.array(0.5),
+            T_e_ped_L_mode=jnp.array(0.5),
+            n_e_ped_L_mode=jnp.array(0.5e19),
+            pedestal_model_output=(
+                pedestal_model_output_lib.PedestalStructure.no_pedestal()
+            ),
+        )
     )
 
     target_P_SOL = P_LH * p_sol_factor

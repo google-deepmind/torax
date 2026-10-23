@@ -25,7 +25,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import pedestal_model_output
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.physics import formulas
 
@@ -56,9 +56,11 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.PedestalStructure:
-    del pedestal_transition_state
+      structure_state: pedestal_state_lib.StructureState,
+  ) -> tuple[
+      pedestal_model_output.PedestalStructure,
+      pedestal_state_lib.StructureState,
+  ]:
     structure_params = runtime_params.pedestal.structure
     assert isinstance(structure_params, RuntimeParams)
 
@@ -125,9 +127,12 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # Calculate T_i_ped
     T_i_ped = temperature_ratio * T_e_ped
 
-    return pedestal_model_output.PedestalStructure(
-        n_e_ped=n_e_ped,
-        T_i_ped=T_i_ped,
-        T_e_ped=T_e_ped,
-        rho_norm_ped_top=structure_params.rho_norm_ped_top,
+    return (
+        pedestal_model_output.PedestalStructure(
+            n_e_ped=n_e_ped,
+            T_i_ped=T_i_ped,
+            T_e_ped=T_e_ped,
+            rho_norm_ped_top=structure_params.rho_norm_ped_top,
+        ),
+        structure_state,
     )

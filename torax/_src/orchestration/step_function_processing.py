@@ -120,12 +120,13 @@ def pre_step(
   # and freeze its output for the solver loop. calc_coeffs will skip
   # re-evaluation and use this stored output.
   if runtime_params_t.pedestal.explicit_pedestal:
-    pedestal_model_output = models.pedestal_model(
+    pedestal_model_output, _ = models.pedestal_model(
         runtime_params_t,
         geo_t,
         input_state.core_profiles,
         merged_sources,
         pedestal_transition_state,
+        input_state.model_state.pedestal,
     )
     pedestal_transition_state = dataclasses.replace(
         pedestal_transition_state,
@@ -192,19 +193,17 @@ def finalize_outputs(
       source_states=model_state_t.sources,
   )
   # Compute pedestal model output and store on transition state.
-  # Also update previous_pedestal_model_output if needed for EPED-NN
-  # next-timestep width calculation.
-  final_pedestal_model_output = models.pedestal_model(
+  final_pedestal_model_output, final_pedestal_state = models.pedestal_model(
       runtime_params_t_plus_dt,
       geometry_t_plus_dt,
       final_core_profiles,
       final_source_profiles,
       pedestal_transition_state,
+      model_state_t.pedestal,
   )
-  final_pedestal_state = dataclasses.replace(
+  final_transition_state = dataclasses.replace(
       pedestal_transition_state,
       pedestal_model_output=final_pedestal_model_output,
-      previous_pedestal_model_output=final_pedestal_model_output,
   )
   final_neoclassical_outputs = models.neoclassical_model(
       runtime_params_t_plus_dt, geometry_t_plus_dt, final_core_profiles
@@ -214,7 +213,7 @@ def finalize_outputs(
           runtime_params=runtime_params_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
-          pedestal_transition_state=final_pedestal_state,
+          pedestal_transition_state=final_transition_state,
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
@@ -227,7 +226,7 @@ def finalize_outputs(
           runtime_params=runtime_params_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
-          pedestal_transition_state=final_pedestal_state,
+          pedestal_transition_state=final_transition_state,
           transport_state=model_state_t.transport,
           neoclassical_transport=final_neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
@@ -236,7 +235,7 @@ def finalize_outputs(
       )
   )
   final_model_state = model_state_lib.ModelState(
-      pedestal=model_state_t.pedestal,
+      pedestal=final_pedestal_state,
       transport=final_transport_state,
       sources=final_source_states,
   )
@@ -249,7 +248,7 @@ def finalize_outputs(
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
       edge_outputs=edge_outputs,
-      pedestal_transition_state=final_pedestal_state,
+      pedestal_transition_state=final_transition_state,
       model_state=final_model_state,
       time_step_calculator_state=time_step_calculator_state_t,
   )

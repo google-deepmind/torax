@@ -20,5 +20,13 @@ import jax
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
+class StructureState:
+  """State for a pedestal structure model."""
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class PedestalState:
   """State for a pedestal model."""
+
+  structure: StructureState = dataclasses.field(default_factory=StructureState)

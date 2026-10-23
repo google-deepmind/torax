@@ -32,13 +32,11 @@ from torax._src.pedestal_model import runtime_params as runtime_params_lib
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class PedestalTransitionState:
-  """Tracks pedestal transition state and previous pedestal model output.
+  """Tracks pedestal transition state and pedestal model output.
 
   This state is used when the pedestal model uses a formation model for
-  L-H and H-L transitions. It persists across timesteps to track the current
-  confinement mode, enable smooth transitions, and provide the previous
-  pedestal model output to models that need it (e.g. EPED-NN for
-  self-consistent pedestal width calculations).
+  L-H and H-L transitions. It tracks the current confinement mode, enables
+  smooth transitions, and provides the current pedestal model output.
 
   Attributes:
     confinement_mode: The current confinement mode.
@@ -53,9 +51,6 @@ class PedestalTransitionState:
     n_e_ped_L_mode: Electron density at the pedestal top captured at the start
       of the most recent L-mode to H-mode transition [m^-3].
     pedestal_model_output: The current pedestal model output for this timestep.
-    previous_pedestal_model_output: The pedestal model output from the previous
-      completed timestep. Used by some pedestal models (e.g. EPED-NN) to
-      determine pedestal width for input calculations.
   """
 
   confinement_mode: array_typing.IntScalar
@@ -64,7 +59,6 @@ class PedestalTransitionState:
   T_e_ped_L_mode: array_typing.FloatScalar
   n_e_ped_L_mode: array_typing.FloatScalar
   pedestal_model_output: pedestal_model_output_lib.PedestalStructure
-  previous_pedestal_model_output: pedestal_model_output_lib.PedestalStructure
 
   @classmethod
   def empty(
@@ -83,9 +77,6 @@ class PedestalTransitionState:
         T_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         pedestal_model_output=(
-            pedestal_model_output_lib.PedestalStructure.no_pedestal()
-        ),
-        previous_pedestal_model_output=(
             pedestal_model_output_lib.PedestalStructure.no_pedestal()
         ),
     )

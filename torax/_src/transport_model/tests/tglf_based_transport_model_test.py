@@ -60,15 +60,19 @@ def _get_config_and_model_inputs(
       explicit=True,
   )
   pedestal_model = torax_config.pedestal.build_pedestal_model()
+  pedestal_state = pedestal_model.initial_state(
+      runtime_params, geo, core_profiles
+  )
   transition_state = (
       pedestal_transition_state_lib.PedestalTransitionState.empty()
   )
-  pedestal_model_outputs = pedestal_model(
+  pedestal_model_outputs, _ = pedestal_model(
       runtime_params,
       geo,
       core_profiles,
       source_profiles,
       pedestal_transition_state=transition_state,
+      pedestal_state=pedestal_state,
   )
   transition_state = dataclasses.replace(
       transition_state, pedestal_model_output=pedestal_model_outputs

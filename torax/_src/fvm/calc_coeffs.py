@@ -300,12 +300,16 @@ def _calc_coeffs_full(
   # PedestalTransitionState directly, avoiding the fragile manual
   # dataclasses.replace at every call site.
   if not runtime_params.pedestal.explicit_pedestal:
-    pedestal_model_output = models.pedestal_model(
+    # We purposefully do not update pedestal_state here, as cross-step model
+    # state should only be updated at the end of the timestep in
+    # finalize_outputs.
+    pedestal_model_output, _ = models.pedestal_model(
         runtime_params,
         geo,
         core_profiles,
         merged_source_profiles,
         pedestal_transition_state,
+        model_state.pedestal,
     )
     pedestal_transition_state = dataclasses.replace(
         pedestal_transition_state,

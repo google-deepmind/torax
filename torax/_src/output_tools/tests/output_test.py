@@ -158,7 +158,6 @@ class StateHistoryTest(parameterized.TestCase):
                 runtime_params,
                 self.geo,
                 self.core_profiles,
-                self.source_profiles,
             ),
             transport=models.transport_model.initial_state(runtime_params),
             sources=source_states,

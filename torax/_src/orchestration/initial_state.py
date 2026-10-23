@@ -144,17 +144,19 @@ def _get_initial_state(
   else:
     edge_outputs = None
 
-  pedestal_transition_state = models.pedestal_model.initialize_transition_state(
-      runtime_params,
-      geo,
-      initial_core_profiles,
-      initial_core_sources,
-  )
   initial_pedestal_state = models.pedestal_model.initial_state(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=initial_core_profiles,
-      source_profiles=initial_core_sources,
+  )
+  pedestal_transition_state, initial_pedestal_state = (
+      models.pedestal_model.initialize_transition_state(
+          runtime_params,
+          geo,
+          initial_core_profiles,
+          initial_core_sources,
+          initial_pedestal_state,
+      )
   )
 
   internal_boundary_conditions = (

@@ -21,7 +21,6 @@ from absl.testing import absltest
 import jax.numpy as jnp
 import torax
 from torax import pedestal
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 
 
@@ -34,14 +33,17 @@ class FakePedestalModel(pedestal.PedestalStructureModel):
       runtime_params: torax.RuntimeParams,
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal.PedestalStructure:
-    del runtime_params, geo, core_profiles, pedestal_transition_state
-    return pedestal.PedestalStructure(
-        rho_norm_ped_top=jnp.array(0.9),
-        T_i_ped=jnp.array(5.0),
-        T_e_ped=jnp.array(5.0),
-        n_e_ped=jnp.array(0.7e20),
+      structure_state: pedestal.StructureState,
+  ) -> tuple[pedestal.PedestalStructure, pedestal.StructureState]:
+    del runtime_params, geo, core_profiles
+    return (
+        pedestal.PedestalStructure(
+            rho_norm_ped_top=jnp.array(0.9),
+            T_i_ped=jnp.array(5.0),
+            T_e_ped=jnp.array(5.0),
+            n_e_ped=jnp.array(0.7e20),
+        ),
+        structure_state,
     )
 
 

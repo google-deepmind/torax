@@ -228,7 +228,6 @@ class PostProcessingTest(parameterized.TestCase):
                 self.runtime_params,
                 self.geo,
                 self.core_profiles,
-                self.source_profiles,
             ),
             transport=self.models.transport_model.initial_state(
                 self.runtime_params
@@ -290,7 +289,6 @@ class PostProcessingTest(parameterized.TestCase):
                 self.runtime_params,
                 self.geo,
                 self.core_profiles,
-                self.source_profiles,
             ),
             transport=self.models.transport_model.initial_state(
                 self.runtime_params

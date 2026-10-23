@@ -89,7 +89,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     )
     model_state = model_state_lib.ModelState(
         pedestal=models.pedestal_model.initial_state(
-            runtime_params, geo, core_profiles, explicit_source_profiles
+            runtime_params, geo, core_profiles
         ),
         transport=models.transport_model.initial_state(runtime_params),
         sources=source_states,
@@ -262,9 +262,7 @@ class CalcCoeffsTest(parameterized.TestCase):
           explicit=True,
       )
       model_state = model_state_lib.ModelState(
-          pedestal=models.pedestal_model.initial_state(
-              rp, geo, core_profiles, explicit_src
-          ),
+          pedestal=models.pedestal_model.initial_state(rp, geo, core_profiles),
           transport=models.transport_model.initial_state(rp),
           sources=source_states,
       )
@@ -336,7 +334,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     )
     model_state = model_state_lib.ModelState(
         pedestal=models.pedestal_model.initial_state(
-            runtime_params, geo, core_profiles, explicit_source_profiles
+            runtime_params, geo, core_profiles
         ),
         transport=models.transport_model.initial_state(runtime_params),
         sources=source_states,
