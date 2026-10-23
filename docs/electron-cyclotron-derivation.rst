@@ -106,6 +106,18 @@ Hence,
 
 where :math:`g_2 = \left\langle \frac{|\nabla V|^2}{R^2} \right\rangle` and :math:`g_3 =  \langle R^{-2} \rangle`.
 
+Using :math:`\left\langle\frac{J_\phi}{R}\right\rangle = \langle R^{-1} \rangle j_\mathrm{tor}` and dividing by the vacuum toroidal magnetic field on axis :math:`B_0` gives the parallel current density required by the :math:`\psi` source term in TORAX:
+
+.. math::
+
+    j_{\parallel,\mathrm{EC}} = \frac{\langle J \cdot B \rangle}{B_0}
+    = \frac{F \langle R^{-1} \rangle}{B_0}
+    \left(1+ \frac{g_2 g_3}{16\pi^4 q^2}\right) j_\mathrm{tor}
+    = \frac{16\pi\varepsilon_0^2}{e^3 \ln\Lambda}
+    \frac{F \langle R^{-1} \rangle}{B_0}
+    \left(1+ \frac{g_2 g_3}{16\pi^4 q^2}\right)
+    \frac{T_e}{n_e} \zeta Q_\mathrm{ec}.
+
 
 .. [1] Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003). `Electron cyclotron current drive efficiency in general tokamak geometry <https://doi.org/10.1063/1.1610472>`_. Physics of Plasmas, 10(10), 4064-4071.
 

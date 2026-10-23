@@ -744,12 +744,20 @@ parallel to the magnetic field, in :math:`[Am^{-2}]`, is then given by:
 
 .. math::
 
-    \langle j_\mathrm{EC} \cdot B \rangle = \frac{2\pi\epsilon_0^2 F}
-    {e^3 R_\mathrm{maj}} \frac{T_e}{n_e} \zeta_{EC} Q_\mathrm{EC}
+    j_{\parallel,\mathrm{EC}} = \frac{\langle j_\mathrm{EC} \cdot B \rangle}{B_0}
+    = \frac{16\pi\epsilon_0^2}{e^3 \ln\Lambda_{ee}}
+    \frac{F \langle R^{-1} \rangle}{B_0}
+    \left(1 + \frac{g_2 g_3}{16\pi^4 q^2}\right)
+    \frac{T_e}{n_e} \zeta_{\mathrm{EC}} Q_\mathrm{EC}
 
-where :math:`\epsilon_0` is the vacuum permittivity, :math:`F = B_\phi R` is the
-flux function, :math:`e` is the elementary charge, :math:`R_\mathrm{maj}` is the
-device major radius, :math:`T_e` is the electron temperature in joules, and
+where :math:`\epsilon_0` is the vacuum permittivity, :math:`e` is the elementary
+charge, :math:`\ln\Lambda_{ee}` is the electron-electron Coulomb logarithm,
+:math:`F = B_\phi R` is the toroidal field flux function,
+:math:`\langle R^{-1} \rangle` (``gm9``) is the flux-surface-averaged inverse
+major radius, :math:`B_0` is the vacuum toroidal magnetic field on axis,
+:math:`g_2 = \left\langle \frac{(\nabla V)^2}{R^2} \right\rangle` and
+:math:`g_3 = \langle R^{-2} \rangle` are metric coefficients, :math:`q` is the
+safety factor, :math:`T_e` is the electron temperature in joules, and
 :math:`n_e` is the electron density per cubic meter. This relationship is based
 on the Lin-Liu model |lin-liu|. The derivation can be found
 :ref:`here <ec-derivation>`.

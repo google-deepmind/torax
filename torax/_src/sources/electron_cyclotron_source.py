@@ -80,7 +80,8 @@ class ElectronCyclotronSource(source.Source):
       conductivity: Unused.
 
     Returns:
-      Tuple of electron cyclotron heating power density and current density.
+      Tuple of electron cyclotron heating power density [W/m^3] and parallel
+      current density <j.B>/B_0 [A/m^2].
     """
     del calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -126,8 +127,9 @@ class ElectronCyclotronSource(source.Source):
         * (1 + geo.g2 * geo.g3 / (16 * jnp.pi**4 * q_cell**2))
         * j_tor_ec
     )
+    j_parallel_ec = fsa_j_dot_B / geo.B_0
 
-    return ec_power_density, fsa_j_dot_B
+    return ec_power_density, j_parallel_ec
 
 
 class ElectronCyclotronSourceConfig(base.SourceConfigBase):
