@@ -35,6 +35,7 @@ from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
+from torax._src.sources import source_state as source_state_lib
 
 SourceProfileElement = (
     array_typing.FloatVectorCell | tuple[fast_ion_lib.FastIon, ...]
@@ -87,6 +88,14 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       raise ValueError('Source ID must be set.')
     if not getattr(self, 'AFFECTED_CORE_PROFILES', None):
       raise ValueError('Affected core profiles must be set.')
+
+  def initial_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> source_state_lib.SourceState:
+    """Returns the initial state for this source."""
+    del runtime_params
+    return source_state_lib.SourceState()
 
   def zero_fast_ions(
       self,
