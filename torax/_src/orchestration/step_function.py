@@ -32,14 +32,13 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
 from torax._src.orchestration import adaptive_step
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sawtooth_step
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function_processing
 from torax._src.orchestration import whilei_loop
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import solver as solver_lib
-from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator as ts
 
 
@@ -257,9 +256,8 @@ class SimulationStepFn:
     (
         runtime_params_t,
         geo_t,
-        explicit_source_profiles,
+        explicit_model_outputs,
         edge_outputs,
-        pedestal_transition_state,
         model_state_t,
     ) = step_function_processing.pre_step(
         input_state=input_state,
@@ -274,13 +272,12 @@ class SimulationStepFn:
           max_dt,
           runtime_params_t,
           geo_t,
-          explicit_source_profiles,
+          explicit_model_outputs,
           edge_outputs,
           input_state,
           previous_post_processed_outputs,
           runtime_params_provider,
           geometry_provider,
-          pedestal_transition_state,
           model_state_t,
       )
       # If adaptive dt is enabled, take the adaptive step if the max_dt is
@@ -300,13 +297,12 @@ class SimulationStepFn:
           max_dt,
           runtime_params_t,
           geo_t,
-          explicit_source_profiles,
+          explicit_model_outputs,
           edge_outputs,
           input_state,
           previous_post_processed_outputs,
           runtime_params_provider,
           geometry_provider,
-          pedestal_transition_state,
           model_state_t,
       )
 
@@ -413,15 +409,12 @@ class SimulationStepFn:
       max_dt: chex.Numeric,
       runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       model_state_t: model_state_lib.ModelState,
   ) -> tuple[
       sim_state.SimState,
@@ -448,12 +441,11 @@ class SimulationStepFn:
           runtime_params_provider=runtime_params_provider,
           geo_t=geo_t,
           geometry_provider=geometry_provider,
-          explicit_source_profiles=explicit_source_profiles,
+          explicit_model_outputs=explicit_model_outputs,
           edge_outputs=edge_outputs,
           input_state=input_state,
           input_post_processed_outputs=previous_post_processed_outputs,
           time_step_calculator_state_t=input_state.time_step_calculator_state,
-          pedestal_transition_state=pedestal_transition_state,
           model_state_t=model_state_t,
       )
 
@@ -473,15 +465,12 @@ class SimulationStepFn:
       max_dt: chex.Numeric,
       runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       model_state_t: model_state_lib.ModelState,
   ) -> tuple[
       sim_state.SimState,
@@ -519,11 +508,10 @@ class SimulationStepFn:
         runtime_params_t,
         geo_t,
         input_state,
-        explicit_source_profiles,
+        explicit_model_outputs,
         edge_outputs,
         runtime_params_provider,
         geometry_provider,
-        pedestal_transition_state,
         model_state_t,
     )
     assert isinstance(
@@ -554,13 +542,12 @@ class SimulationStepFn:
             geometry_t_plus_dt=result.state.geo,
             core_profiles_t=input_state.core_profiles,
             core_profiles_t_plus_dt=result.state.core_profiles,
-            explicit_source_profiles=explicit_source_profiles,
+            explicit_model_outputs=explicit_model_outputs,
             edge_outputs=edge_outputs,
             models=self._solver.models,
             evolving_names=evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
             time_step_calculator_state_t=input_state.time_step_calculator_state,
-            pedestal_transition_state=pedestal_transition_state,
             model_state_t=model_state_t,
         )
     )
@@ -571,15 +558,12 @@ class SimulationStepFn:
       max_dt: chex.Numeric,
       runtime_params_t: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       edge_outputs: edge_base.EdgeModelOutputs | None,
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       model_state_t: model_state_lib.ModelState,
   ) -> tuple[
       sim_state.SimState,
@@ -617,8 +601,7 @@ class SimulationStepFn:
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        explicit_source_profiles=explicit_source_profiles,
-        pedestal_transition_state=pedestal_transition_state,
+        explicit_model_outputs=explicit_model_outputs,
         model_state=model_state_t,
     )
     output_state, post_processed_outputs = (
@@ -631,13 +614,12 @@ class SimulationStepFn:
             geometry_t_plus_dt=geo_t_plus_dt,
             core_profiles_t=input_state.core_profiles,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            explicit_source_profiles=explicit_source_profiles,
+            explicit_model_outputs=explicit_model_outputs,
             edge_outputs=edge_outputs,
             models=self._solver.models,
             evolving_names=runtime_params_t.numerics.evolving_names,
             input_post_processed_outputs=previous_post_processed_outputs,
             time_step_calculator_state_t=input_state.time_step_calculator_state,
-            pedestal_transition_state=pedestal_transition_state,
             model_state_t=model_state_t,
         )
     )

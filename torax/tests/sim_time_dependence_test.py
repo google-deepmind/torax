@@ -30,15 +30,14 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import linear_theta_method
 from torax._src.solver import pydantic_model as solver_pydantic_model
-from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
@@ -223,10 +222,7 @@ class FakeSolver(linear_theta_method.LinearThetaMethod):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles.SourceProfiles,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],

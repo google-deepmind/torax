@@ -29,10 +29,9 @@ from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sim_state
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.solver import solver as solver_lib
-from torax._src.sources import source_profiles as source_profiles_lib
 
 
 @jax.tree_util.register_dataclass
@@ -82,13 +81,10 @@ def compute_state(
     runtime_params_t: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
     input_state: sim_state.SimState,
-    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     edge_outputs: edge_base.EdgeModelOutputs | None,
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     model_state_t: model_state_lib.ModelState,
     solver: solver_lib.Solver,
 ) -> tuple[AdaptiveStepState, dict[str, array_typing.IntScalar]]:
@@ -119,8 +115,7 @@ def compute_state(
       geo_t_plus_dt=geo_t_plus_dt,
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      explicit_source_profiles=explicit_source_profiles,
-      pedestal_transition_state=pedestal_transition_state,
+      explicit_model_outputs=explicit_model_outputs,
       model_state=model_state_t,
   )
   loop_statistics[
@@ -146,13 +141,12 @@ def cond_fun(
     runtime_params_t: runtime_params_lib.RuntimeParams,
     unused_geo_t: geometry.Geometry,
     input_state: sim_state.SimState,
-    unused_explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    unused_explicit_model_outputs: (
+        explicit_model_outputs_lib.ExplicitModelOutputs
+    ),
     unused_edge_outputs: edge_base.EdgeModelOutputs | None,
     unused_runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     unused_geometry_provider: geometry_provider_lib.GeometryProvider,
-    unused_pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     unused_model_state_t: model_state_lib.ModelState,
 ) -> array_typing.BoolScalar:
   """Condition function for the adaptive step to keep stepping."""

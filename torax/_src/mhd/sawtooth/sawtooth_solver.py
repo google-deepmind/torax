@@ -26,9 +26,8 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.solver import solver
-from torax._src.sources import source_profiles as source_profiles_lib
 
 
 # TODO(b/414537757). Sawtooth extensions.
@@ -48,11 +47,8 @@ class SawtoothSolver(solver.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -76,10 +72,8 @@ class SawtoothSolver(solver.Solver):
       core_profiles_t: Core profiles at time t.
       core_profiles_t_plus_dt: Core profiles containing boundary conditions and
         prescribed profiles at time t + crash_dt.
-      explicit_source_profiles: Explicit source profiles at time t.
+      explicit_model_outputs: Explicit model outputs evaluated at time t.
       evolving_names: Names of evolving variables.
-      pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions.
       model_state: State of models across timesteps.
 
     Returns:

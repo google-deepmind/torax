@@ -40,8 +40,7 @@ from torax._src.fvm import cell_variable
 from torax._src.fvm import discrete_system
 from torax._src.fvm import fvm_conversions
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
-from torax._src.sources import source_profiles
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
 
@@ -313,13 +312,10 @@ def theta_method_block_residual(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
-    explicit_source_profiles: source_profiles.SourceProfiles,
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     model_state: model_state_lib.ModelState,
 ) -> jax.Array:
   """Residual of theta-method equation for core profiles at next time-step.
@@ -335,14 +331,11 @@ def theta_method_block_residual(
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
-    explicit_source_profiles: Pre-calculated sources implemented as explicit
-      sources in the PDE.
+    explicit_model_outputs: Explicit model outputs evaluated at time t.
     models: Models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
-    pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions.
     model_state: State of models across timesteps.
 
   Returns:
@@ -369,10 +362,9 @@ def theta_method_block_residual(
       runtime_params=runtime_params_t_plus_dt,
       geo=geo_t_plus_dt,
       core_profiles=core_profiles_t_plus_dt,
-      explicit_source_profiles=explicit_source_profiles,
+      explicit_model_outputs=explicit_model_outputs,
       models=models,
       evolving_names=evolving_names,
-      pedestal_transition_state=pedestal_transition_state,
       model_state=model_state,
       use_pereverzev=False,
   )
@@ -422,13 +414,10 @@ def theta_method_block_loss(
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
-    explicit_source_profiles: source_profiles.SourceProfiles,
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     model_state: model_state_lib.ModelState,
 ) -> jax.Array:
   """Loss for the optimizer method of nonlinear solution.
@@ -444,14 +433,11 @@ def theta_method_block_loss(
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
-    explicit_source_profiles: pre-calculated sources implemented as explicit
-      sources in the PDE
+    explicit_model_outputs: Explicit model outputs evaluated at time t.
     models: Models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
-    pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions.
     model_state: State of models across timesteps.
 
   Returns:
@@ -465,11 +451,10 @@ def theta_method_block_loss(
       x_old=x_old,
       x_new_guess_vec=x_new_guess_vec,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      explicit_source_profiles=explicit_source_profiles,
+      explicit_model_outputs=explicit_model_outputs,
       models=models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
-      pedestal_transition_state=pedestal_transition_state,
       model_state=model_state,
   )
   loss = jnp.mean(jnp.square(residual))
@@ -489,13 +474,10 @@ def jaxopt_solver(
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,
     core_profiles_t_plus_dt: state.CoreProfiles,
-    explicit_source_profiles: source_profiles.SourceProfiles,
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_old: Block1DCoeffs,
     evolving_names: tuple[str, ...],
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     model_state: model_state_lib.ModelState,
     maxiter: int,
     tol: float,
@@ -513,14 +495,11 @@ def jaxopt_solver(
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
-    explicit_source_profiles: pre-calculated sources implemented as explicit
-      sources in the PDE.
+    explicit_model_outputs: Explicit model outputs evaluated at time t.
     models: Models used for the calculations.
     coeffs_old: The coefficients calculated at x_old.
     evolving_names: The names of variables within the core profiles that should
       evolve.
-    pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions.
     model_state: State of models across timesteps.
     maxiter: maximum number of iterations of jaxopt solver.
     tol: tolerance for jaxopt solver convergence.
@@ -538,11 +517,10 @@ def jaxopt_solver(
       geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      explicit_source_profiles=explicit_source_profiles,
+      explicit_model_outputs=explicit_model_outputs,
       models=models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
-      pedestal_transition_state=pedestal_transition_state,
       model_state=model_state,
   )
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, implicit_diff=True)

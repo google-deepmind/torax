@@ -19,6 +19,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 from torax._src import jax_utils
 from torax._src.orchestration import adaptive_step
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
@@ -85,6 +86,10 @@ class AdaptiveStepTest(parameterized.TestCase):
         ),
         explicit=True,
     )
+    explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
+        sources=explicit_source_profiles,
+        pedestal=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+    )
     adaptive_step_state, _ = adaptive_step.compute_state(
         i=0,
         loop_statistics=loop_statistics,  # pyrefly: ignore[bad-argument-type]
@@ -92,11 +97,10 @@ class AdaptiveStepTest(parameterized.TestCase):
         runtime_params_t=self.runtime_params,
         geo_t=self.geo,
         input_state=self.sim_state,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         edge_outputs=None,
         runtime_params_provider=self.step_fn.runtime_params_provider,
         geometry_provider=self.step_fn.geometry_provider,
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
         model_state_t=self.sim_state.model_state,
         solver=self.step_fn.solver,
     )
@@ -197,7 +201,6 @@ class AdaptiveStepTest(parameterized.TestCase):
             runtime_params,
             mock.ANY,
             sim_state,
-            mock.ANY,
             mock.ANY,
             mock.ANY,
             mock.ANY,

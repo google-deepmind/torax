@@ -27,6 +27,7 @@ from torax._src.fvm import convection_terms
 from torax._src.fvm import diffusion_terms
 from torax._src.fvm import implicit_solve_block
 from torax._src.fvm import residual_and_loss
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.sources import source_profile_builders
@@ -238,15 +239,18 @@ class FVMTest(parameterized.TestCase):
     explicit_source_profiles = source_profile_builders.build_all_zero_profiles(
         geo
     )
+    explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
+        sources=explicit_source_profiles,
+        pedestal=sim_state.pedestal_transition_state,
+    )
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=sim_state.geometry,
         core_profiles=sim_state.core_profiles,
         models=step_fn.solver.models,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         evolving_names=evolving_names,
         use_pereverzev=False,
-        pedestal_transition_state=sim_state.pedestal_transition_state,
         model_state=sim_state.model_state,
     )
     return (
@@ -254,7 +258,7 @@ class FVMTest(parameterized.TestCase):
         runtime_params,
         sim_state,
         evolving_names,
-        explicit_source_profiles,
+        explicit_model_outputs,
         coeffs,
     )
 
@@ -271,7 +275,7 @@ class FVMTest(parameterized.TestCase):
         runtime_params,
         sim_state,
         evolving_names,
-        explicit_source_profiles,
+        explicit_model_outputs,
         coeffs,
     ) = self._build_fvm_test_inputs(
         num_cells=num_cells, theta_implicit=theta_implicit
@@ -304,10 +308,9 @@ class FVMTest(parameterized.TestCase):
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
           core_profiles_t_plus_dt=sim_state.core_profiles,
           models=step_fn.solver.models,
-          explicit_source_profiles=explicit_source_profiles,
+          explicit_model_outputs=explicit_model_outputs,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
-          pedestal_transition_state=sim_state.pedestal_transition_state,
           model_state=sim_state.model_state,
       )
 
@@ -319,10 +322,9 @@ class FVMTest(parameterized.TestCase):
           x_old=x_old,
           core_profiles_t_plus_dt=sim_state.core_profiles,
           models=step_fn.solver.models,
-          explicit_source_profiles=explicit_source_profiles,
+          explicit_model_outputs=explicit_model_outputs,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
-          pedestal_transition_state=sim_state.pedestal_transition_state,
           model_state=sim_state.model_state,
       )
 
@@ -396,7 +398,7 @@ class FVMTest(parameterized.TestCase):
         runtime_params,
         sim_state,
         evolving_names,
-        explicit_source_profiles,
+        explicit_model_outputs,
         coeffs_old,
     ) = self._build_fvm_test_inputs(num_cells=num_cells, theta_implicit=0.5)
     x_0 = cell_variable.CellVariable(
@@ -420,10 +422,9 @@ class FVMTest(parameterized.TestCase):
         x_new_guess_vec=x_0.value,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         models=step_fn.solver.models,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         coeffs_old=coeffs_old,
         evolving_names=evolving_names,
-        pedestal_transition_state=sim_state.pedestal_transition_state,
         model_state=sim_state.model_state,
     )
     np.testing.assert_allclose(residual, 0.0)
@@ -446,7 +447,7 @@ class FVMTest(parameterized.TestCase):
         runtime_params_theta0,
         sim_state,
         evolving_names,
-        explicit_source_profiles,
+        explicit_model_outputs,
         coeffs_old,
     ) = self._build_fvm_test_inputs(num_cells=num_cells, theta_implicit=0.0)
     core_profiles_t_plus_dt = dataclasses.replace(
@@ -462,9 +463,8 @@ class FVMTest(parameterized.TestCase):
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         evolving_names=evolving_names,
         models=step_fn.solver.models,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         coeffs_old=coeffs_old,
-        pedestal_transition_state=sim_state.pedestal_transition_state,
         model_state=sim_state.model_state,
     )
     np.testing.assert_allclose(residual_theta0, 0.0)
@@ -481,10 +481,9 @@ class FVMTest(parameterized.TestCase):
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         x_new_guess_vec=x_0.value,
         models=step_fn.solver.models,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         coeffs_old=coeffs_old,
         evolving_names=evolving_names,
-        pedestal_transition_state=sim_state.pedestal_transition_state,
         model_state=sim_state.model_state,
     )
     self.assertGreater(jnp.abs(jnp.sum(residual_theta05)), 0.0)

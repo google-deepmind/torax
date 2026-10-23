@@ -33,9 +33,8 @@ from torax._src.fvm import enums
 from torax._src.fvm import fvm_conversions
 from torax._src.fvm import residual_and_loss
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.solver import predictor_corrector_method
-from torax._src.sources import source_profiles
 
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 
@@ -57,16 +56,13 @@ def optimizer_solve_block(
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
-    explicit_source_profiles: source_profiles.SourceProfiles,
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     coeffs_callback: calc_coeffs.CoeffsCallback,
     evolving_names: tuple[str, ...],
     initial_guess_mode: enums.InitialGuessMode,
     maxiter: int,
     tol: float,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     model_state: model_state_lib.ModelState,
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
@@ -101,8 +97,7 @@ def optimizer_solve_block(
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
-    explicit_source_profiles: Pre-calculated sources implemented as explicit
-      sources in the PDE.
+    explicit_model_outputs: Explicit model outputs evaluated at time t.
     models: Physics models used for the calculations.
     coeffs_callback: Calculates diffusion, convection etc. coefficients given a
       core_profiles. Repeatedly called by the iterative optimizer.
@@ -115,8 +110,6 @@ def optimizer_solve_block(
       solver for the optional initial guess from the linear solver.
     maxiter: See docstring of `jaxopt.LBFGS`.
     tol: See docstring of `jaxopt.LBFGS`.
-    pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions.
     model_state: State of models across timesteps.
 
   Returns:
@@ -131,9 +124,8 @@ def optimizer_solve_block(
       geo_t,
       core_profiles_t,
       x=x_old,
-      explicit_source_profiles=explicit_source_profiles,
+      explicit_model_outputs=explicit_model_outputs,
       explicit_call=True,
-      pedestal_transition_state=pedestal_transition_state,
       model_state=model_state,
   )
 
@@ -150,10 +142,9 @@ def optimizer_solve_block(
           geo_t,
           core_profiles_t,
           x=x_old,
-          explicit_source_profiles=explicit_source_profiles,
+          explicit_model_outputs=explicit_model_outputs,
           allow_pereverzev=True,
           explicit_call=True,
-          pedestal_transition_state=pedestal_transition_state,
           model_state=model_state,
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
@@ -169,8 +160,7 @@ def optimizer_solve_block(
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
-          explicit_source_profiles=explicit_source_profiles,
-          pedestal_transition_state=pedestal_transition_state,
+          explicit_model_outputs=explicit_model_outputs,
           model_state=model_state,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
@@ -193,11 +183,10 @@ def optimizer_solve_block(
       x_old=x_old,
       init_x_new_vec=init_x_new_vec,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      explicit_source_profiles=explicit_source_profiles,
+      explicit_model_outputs=explicit_model_outputs,
       models=models,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
-      pedestal_transition_state=pedestal_transition_state,
       model_state=model_state,
       maxiter=maxiter,
       tol=tol,

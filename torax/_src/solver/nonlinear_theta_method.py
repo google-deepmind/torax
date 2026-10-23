@@ -27,10 +27,9 @@ from torax._src.fvm import enums
 from torax._src.fvm import newton_raphson_solve_block
 from torax._src.fvm import optimizer_solve_block
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.solver import runtime_params as solver_runtime_params_lib
 from torax._src.solver import solver
-from torax._src.sources import source_profiles
 
 
 @jax.tree_util.register_dataclass
@@ -66,11 +65,8 @@ class NonlinearThetaMethod(solver.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles.SourceProfiles,
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -93,10 +89,9 @@ class NonlinearThetaMethod(solver.Solver):
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
-        pedestal_transition_state=pedestal_transition_state,
         model_state=model_state,
     )
 
@@ -115,12 +110,9 @@ class NonlinearThetaMethod(solver.Solver):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles.SourceProfiles,
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -146,15 +138,12 @@ class NonlinearThetaMethod(solver.Solver):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
-      explicit_source_profiles: Pre-calculated sources implemented as explicit
-        sources in the PDE.
+      explicit_model_outputs: Explicit model outputs evaluated at time t.
       coeffs_callback: Calculates diffusion, convection etc. coefficients given
         a core_profiles, geometry, runtime_params. Repeatedly called by the
         iterative solvers.
       evolving_names: The names of variables within the core profiles that
         should evolve.
-      pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions.
       model_state: State of models across timesteps.
 
     Returns:
@@ -177,12 +166,9 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles.SourceProfiles,
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -206,7 +192,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         models=self.models,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
         initial_guess_mode=enums.InitialGuessMode(
@@ -214,7 +200,6 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         ),
         maxiter=solver_params.n_max_iterations,
         tol=solver_params.loss_tol,
-        pedestal_transition_state=pedestal_transition_state,
         model_state=model_state,
     )
     return (
@@ -235,12 +220,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles.SourceProfiles,
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -264,7 +246,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         ),
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         models=self.models,
         coeffs_callback=coeffs_callback,
         evolving_names=evolving_names,
@@ -277,7 +259,6 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         coarse_tol=solver_params.residual_coarse_tol,
         delta_reduction_factor=solver_params.delta_reduction_factor,
         tau_min=solver_params.tau_min,
-        pedestal_transition_state=pedestal_transition_state,
         model_state=model_state,
         vmap_linesearch=solver_params.vmap_linesearch,
         max_linesearch_steps=solver_params.max_linesearch_steps,

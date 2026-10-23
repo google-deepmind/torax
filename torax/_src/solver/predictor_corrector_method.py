@@ -29,9 +29,8 @@ from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.fvm import implicit_solve_block
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.solver import jax_fixed_point
-from torax._src.sources import source_profiles
 
 
 # TODO(b/434175938): Rename to fixed_point_method.
@@ -48,11 +47,8 @@ def predictor_corrector_method(
     x_new_guess: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
-    explicit_source_profiles: source_profiles.SourceProfiles,
     coeffs_callback: calc_coeffs.CoeffsCallback,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     model_state: model_state_lib.ModelState,
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Predictor-corrector method.
@@ -68,14 +64,8 @@ def predictor_corrector_method(
       the next time step.
     core_profiles_t_plus_dt: Core profiles at the next time step.
     coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep.
-    explicit_source_profiles: Precomputed explicit source profiles. These
-      profiles were configured to always depend on state and parameters at time
-      t during the solver step. They can thus be inputs, since they are not
-      recalculated at time t+plus_dt with updated state during the solver
-      iterations. For sources that are implicit, their explicit profiles are set
-      to all zeros.
     coeffs_callback: coefficient callback function.
-    pedestal_transition_state: State tracking the pedestal transitions.
+    explicit_model_outputs: Explicit model outputs evaluated at time t.
     model_state: State of models across timesteps.
 
   Returns:
@@ -91,8 +81,7 @@ def predictor_corrector_method(
         geo_t_plus_dt,
         core_profiles_t_plus_dt,
         x=x_new_guess,
-        explicit_source_profiles=explicit_source_profiles,
-        pedestal_transition_state=pedestal_transition_state,
+        explicit_model_outputs=explicit_model_outputs,
         model_state=model_state,
         allow_pereverzev=True,
     )

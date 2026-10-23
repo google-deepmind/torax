@@ -27,11 +27,10 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
-from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
 from torax._src.transport_model import transport_coefficients_builder
 
@@ -46,9 +45,8 @@ def pre_step(
 ) -> tuple[
     runtime_params_lib.RuntimeParams,
     geometry.Geometry,
-    source_profiles_lib.SourceProfiles,
+    explicit_model_outputs_lib.ExplicitModelOutputs,
     edge_base.EdgeModelOutputs | None,
-    pedestal_transition_state_lib.PedestalTransitionState,
     model_state_lib.ModelState,
 ]:
   """Performs the pre-step operations for the step function."""
@@ -141,12 +139,15 @@ def pre_step(
       pedestal=updated_pedestal_state,
       sources=source_states,
   )
+  explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
+      sources=explicit_source_profiles,
+      pedestal=pedestal_transition_state,
+  )
   return (
       runtime_params_t,
       geo_t,
-      explicit_source_profiles,
+      explicit_model_outputs,
       edge_outputs,
-      pedestal_transition_state,
       model_state_t,
   )
 
@@ -167,18 +168,17 @@ def finalize_outputs(
     runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
     core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
-    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     edge_outputs: edge_base.EdgeModelOutputs | None,
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
     time_step_calculator_state_t: time_step_calculator_state_lib.TimeStepCalculatorState,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     model_state_t: model_state_lib.ModelState,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
+  explicit_source_profiles = explicit_model_outputs.sources
+  pedestal_transition_state = explicit_model_outputs.pedestal
   (
       final_core_profiles,
       final_source_profiles,

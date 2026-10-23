@@ -28,12 +28,11 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd.sawtooth import sawtooth_solver as sawtooth_solver_lib
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function_processing
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.physics import formulas
-from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
 
 # pylint: disable=invalid-name
@@ -51,14 +50,11 @@ def sawtooth_step(
     runtime_params_provider: build_runtime_params.RuntimeParamsProvider,
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.GeometryProvider,
-    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     edge_outputs: edge_base.EdgeModelOutputs | None,
     input_state: sim_state.SimState,
     input_post_processed_outputs: post_processing.PostProcessedOutputs,
     time_step_calculator_state_t: time_step_calculator_state_lib.TimeStepCalculatorState,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     model_state_t: model_state_lib.ModelState,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Checks for and handles a sawtooth crash.
@@ -77,14 +73,12 @@ def sawtooth_step(
     runtime_params_provider: Provider for runtime params.
     geo_t: Geometry at time t.
     geometry_provider: Provider for geometry.
-    explicit_source_profiles: Explicit source profiles at time t.
+    explicit_model_outputs: Explicit model outputs evaluated at time t.
     edge_outputs: Explicit edge outputs at time t.
     input_state: State at the start of the time step.
     input_post_processed_outputs: Post-processed outputs from the previous step.
     time_step_calculator_state_t: Time step calculator state at the start of the
       time step.
-    pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions.
     model_state_t: State of models across timesteps at time t.
 
   Returns:
@@ -125,8 +119,7 @@ def sawtooth_step(
       geo_t_plus_dt=geo_t_plus_crash_dt,
       core_profiles_t=input_state.core_profiles,
       core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
-      explicit_source_profiles=explicit_source_profiles,
-      pedestal_transition_state=pedestal_transition_state,
+      explicit_model_outputs=explicit_model_outputs,
       model_state=model_state_t,
   )
 
@@ -161,13 +154,12 @@ def sawtooth_step(
         geometry_t_plus_dt=geo_t_plus_crash_dt,
         core_profiles_t=input_state.core_profiles,
         core_profiles_t_plus_dt=core_profiles_t_plus_crash_dt,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         edge_outputs=edge_outputs,
         models=sawtooth_solver.models,
         evolving_names=runtime_params_t.numerics.evolving_names,
         input_post_processed_outputs=input_post_processed_outputs,
         time_step_calculator_state_t=time_step_calculator_state_t,
-        pedestal_transition_state=pedestal_transition_state,
         model_state_t=model_state_t,
     )
 

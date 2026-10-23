@@ -30,8 +30,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
-from torax._src.sources import source_profiles
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -59,10 +58,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles.SourceProfiles,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -85,15 +81,7 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
-      explicit_source_profiles: Source profiles of all explicit sources (as
-        configured by the input params). All implicit source's profiles will be
-        set to 0 in this object. These explicit source profiles were calculated
-        either based on the original core profiles at the start of the time step
-        or were independent of the core profiles. Because they were calculated
-        outside the possibly-JAX-jitted solver logic, they can be calculated in
-        non-JAX-friendly ways.
-      pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions.
+      explicit_model_outputs: Explicit model outputs evaluated at time t.
       model_state: State of models across timesteps.
 
     Returns:
@@ -117,9 +105,8 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          explicit_source_profiles=explicit_source_profiles,
+          explicit_model_outputs=explicit_model_outputs,
           evolving_names=runtime_params_t.numerics.evolving_names,
-          pedestal_transition_state=pedestal_transition_state,
           model_state=model_state,
       )
     else:
@@ -145,11 +132,8 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
       geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      explicit_source_profiles: source_profiles.SourceProfiles,
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
       model_state: model_state_lib.ModelState,
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -174,10 +158,8 @@ class Solver(static_dataclass.StaticDataclass, abc.ABC):
         prescribed quantities at the end of the time step. This includes
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
-      explicit_source_profiles: see the docstring of __call__
+      explicit_model_outputs: Explicit model outputs evaluated at time t.
       evolving_names: The names of core_profiles variables that should evolve.
-      pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions.
       model_state: State of models across timesteps.
 
     Returns:

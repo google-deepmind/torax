@@ -114,30 +114,42 @@ class StepFunctionProcessingTest(parameterized.TestCase):
       )
 
     with self.subTest('L_to_H_transition'):
-      _, _, _, _, state_h, _ = step_function_processing.pre_step(
+      _, _, explicit_outputs_h, _, _ = step_function_processing.pre_step(
           input_state=dataclasses.replace(sim_state, t=jnp.array(1.5)),
           runtime_params_provider=step_fn.runtime_params_provider,
           geometry_provider=step_fn.geometry_provider,
           models=step_fn._solver.models,
       )
-      self.assertEqual(state_h.confinement_mode, ConfinementMode.H_MODE)
+      pedestal_transition_state_h = explicit_outputs_h.pedestal
+      self.assertEqual(
+          pedestal_transition_state_h.confinement_mode,
+          ConfinementMode.H_MODE,
+      )
+      ped_output_h = pedestal_transition_state_h.pedestal_model_output
       np.testing.assert_allclose(
-          state_h.pedestal_model_output.transport_multipliers.chi_i_multiplier,
+          ped_output_h.transport_multipliers.chi_i_multiplier,
           1e-5,
       )
 
     with self.subTest('H_to_L_transition'):
-      _, _, _, _, state_l, _ = step_function_processing.pre_step(
+      _, _, explicit_outputs_l, _, _ = step_function_processing.pre_step(
           input_state=dataclasses.replace(
-              sim_state, t=jnp.array(2.5), pedestal_transition_state=state_h
+              sim_state,
+              t=jnp.array(2.5),
+              pedestal_transition_state=pedestal_transition_state_h,
           ),
           runtime_params_provider=step_fn.runtime_params_provider,
           geometry_provider=step_fn.geometry_provider,
           models=step_fn._solver.models,
       )
-      self.assertEqual(state_l.confinement_mode, ConfinementMode.L_MODE)
+      pedestal_transition_state_l = explicit_outputs_l.pedestal
+      self.assertEqual(
+          pedestal_transition_state_l.confinement_mode,
+          ConfinementMode.L_MODE,
+      )
+      ped_output_l = pedestal_transition_state_l.pedestal_model_output
       np.testing.assert_allclose(
-          state_l.pedestal_model_output.transport_multipliers.chi_i_multiplier,
+          ped_output_l.transport_multipliers.chi_i_multiplier,
           1.0,
       )
 

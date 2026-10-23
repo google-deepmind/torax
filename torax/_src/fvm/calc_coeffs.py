@@ -28,10 +28,9 @@ from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
-from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
@@ -68,10 +67,7 @@ class CoeffsCallback:
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       x: tuple[cell_variable.CellVariable, ...],
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
+      explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       model_state: model_state_lib.ModelState,
       allow_pereverzev: bool = False,
       # Checks if reduced calc_coeffs for explicit terms when theta_implicit=1
@@ -90,14 +86,7 @@ class CoeffsCallback:
       geo: The geometry of the system at this time step.
       core_profiles: The core profiles of the system at this time step.
       x: The state with cell-grid values of the evolving variables.
-      explicit_source_profiles: Precomputed explicit source profiles. These
-        profiles were configured to always depend on state and parameters at
-        time t during the solver step. They can thus be inputs, since they are
-        not recalculated at time t+plus_dt with updated state during the solver
-        iterations. For sources that are implicit, their explicit profiles are
-        set to all zeros.
-      pedestal_transition_state: State for tracking pedestal L-H and H-L
-        transitions.
+      explicit_model_outputs: Explicit model outputs evaluated at time t.
       model_state: State of models across timesteps.
       allow_pereverzev: If True, then the coeffs are being called within a
         linear solver. Thus could be either the use_predictor_corrector solver
@@ -131,10 +120,9 @@ class CoeffsCallback:
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         models=self.models,
         evolving_names=self.evolving_names,
-        pedestal_transition_state=pedestal_transition_state,
         model_state=model_state,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
@@ -145,12 +133,9 @@ def calc_coeffs(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     model_state: model_state_lib.ModelState,
     use_pereverzev: bool = False,
     explicit_call: bool = False,
@@ -166,16 +151,10 @@ def calc_coeffs(
       of the solver. Depending on the type of solver being used, this may or may
       not be equal to the original plasma profiles at the beginning of the time
       step.
-    explicit_source_profiles: Precomputed explicit source profiles. These
-      profiles either do not depend on the core profiles or depend on the
-      original core profiles at the start of the time step, not the "live"
-      updating core profiles. For sources that are implicit, their explicit
-      profiles are set to all zeros.
+    explicit_model_outputs: Explicit model outputs evaluated at time t.
     models: The models to use for the simulation.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
-    pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions.
     model_state: Model state carried over from the previous timestep.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
     explicit_call: If True, indicates that calc_coeffs is being called for the
@@ -200,10 +179,9 @@ def calc_coeffs(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        explicit_source_profiles=explicit_source_profiles,
+        explicit_model_outputs=explicit_model_outputs,
         models=models,
         evolving_names=evolving_names,
-        pedestal_transition_state=pedestal_transition_state,
         model_state=model_state,
         use_pereverzev=use_pereverzev,
     )
@@ -220,16 +198,15 @@ def _calc_coeffs_full(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     models: models_lib.Models,
     evolving_names: tuple[str, ...],
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
     model_state: model_state_lib.ModelState,
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """See `calc_coeffs` for details."""
+  explicit_source_profiles = explicit_model_outputs.sources
+  explicit_pedestal_transition_state = explicit_model_outputs.pedestal
 
   consts = constants.CONSTANTS
 
@@ -300,11 +277,11 @@ def _calc_coeffs_full(
         geo,
         core_profiles,
         merged_source_profiles,
-        pedestal_transition_state,
+        explicit_pedestal_transition_state,
         model_state.pedestal,
     )
     pedestal_transition_state = dataclasses.replace(
-        pedestal_transition_state,
+        explicit_pedestal_transition_state,
         pedestal_model_output=pedestal_model_output,
     )
   elif (
@@ -316,24 +293,29 @@ def _calc_coeffs_full(
     # re-evaluated with current profiles. We purposefully do not update
     # formation_state here, as cross-step model state is only updated in
     # finalize_outputs.
-    frozen_pedestal_output = pedestal_transition_state.pedestal_model_output
+    frozen_pedestal_output = (
+        explicit_pedestal_transition_state.pedestal_model_output
+    )
     transport_multipliers, _ = (
         models.pedestal_model.compute_transport_multipliers(
             runtime_params,
             geo,
             core_profiles,
             merged_source_profiles,
-            pedestal_transition_state,
+            explicit_pedestal_transition_state,
             frozen_pedestal_output,
             model_state.pedestal.formation,
         )
     )
     pedestal_transition_state = dataclasses.replace(
-        pedestal_transition_state,
+        explicit_pedestal_transition_state,
         pedestal_model_output=dataclasses.replace(
-            frozen_pedestal_output, transport_multipliers=transport_multipliers
+            frozen_pedestal_output,
+            transport_multipliers=transport_multipliers,
         ),
     )
+  else:
+    pedestal_transition_state = explicit_pedestal_transition_state
 
   internal_boundary_conditions = internal_boundary_conditions_builder.build_internal_boundary_conditions(
       runtime_params=runtime_params,
