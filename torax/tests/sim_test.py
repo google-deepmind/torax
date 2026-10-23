@@ -633,7 +633,7 @@ class SimTest(sim_test_case.SimTestCase):
         'test_iterhybrid_radiation_collapse.py'
     )
     # Increase T_min so that we are sure to hit the error
-    torax_config.update_fields({'numerics.T_minimum_eV': 20})
+    torax_config.update_fields({'numerics.T_min_eV': 20})
 
     state_history = run_simulation.run_simulation(torax_config)
 

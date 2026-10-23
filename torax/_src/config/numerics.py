@@ -130,7 +130,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   dW_dt_smoothing_time_scale: pydantic.NonNegativeFloat = 0.3
   min_rho_norm: torax_pydantic.UnitInterval = 0.015
 
-  T_minimum_eV: pydantic.PositiveFloat = 5.0
+  T_min_eV: pydantic.PositiveFloat = 5.0
 
   @pydantic.model_validator(mode='after')
   def model_validation(self) -> Self:

@@ -382,13 +382,13 @@ class CoreProfiles:
     )
 
   @jax.jit
-  def below_minimum_temperature(self, T_minimum_eV: float) -> jax.Array:
+  def below_minimum_temperature(self, T_min_eV: float) -> jax.Array:
     """Return True if T_e or T_i is below the minimum temperature threshold."""
     # Convert eV -> keV since internal storage is keV
-    T_minimum_keV = T_minimum_eV / 1000.0
+    T_min_keV = T_min_eV / 1000.0
 
-    is_low_te = jnp.any(self.T_e.value < T_minimum_keV)
-    is_low_ti = jnp.any(self.T_i.value < T_minimum_keV)
+    is_low_te = jnp.any(self.T_e.value < T_min_keV)
+    is_low_ti = jnp.any(self.T_i.value < T_min_keV)
 
     return is_low_te | is_low_ti
 

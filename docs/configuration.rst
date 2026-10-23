@@ -633,9 +633,7 @@ equations being solved, constant numerical variables.
   Minimum rho_norm value below which current profile values are extrapolated to
   the axis in psi calculations, to avoid numerical artifacts near rho=0.
 
-.. TODO (b/434175938): consolidate naming to _min or _minimum.
-
-``T_minimum_eV`` (float [default = 5.0])
+``T_min_eV`` (float [default = 5.0])
   Minimum temperature threshold in eV. If the ion or electron temperature drops
   below this value anywhere in the domain, the simulation will stop with a
   ``LOW_TEMPERATURE_COLLAPSE`` error (error code 5). This is to catch radiative

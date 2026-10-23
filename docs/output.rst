@@ -147,7 +147,7 @@ The ``numerics`` dataset contains the following data variables.
 
   * 4 if the minimum timestep, as set by ``numerics.min_dt`` is reached.
 
-  * 5 if low temperature collapse is detected (T < T_minimum_eV).
+  * 5 if low temperature collapse is detected (T < T_min_eV).
 
 profiles
 --------

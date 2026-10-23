@@ -49,12 +49,12 @@ from torax._src.time_step_calculator import time_step_calculator as ts
 def _has_any_step_error(
     output_state: sim_state.SimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
-    T_minimum_eV: float,
+    T_min_eV: float,
     adaptive_dt: bool,
 ) -> jax.Array:
   """Single fused XLA check returning True if any error condition is met."""
   return (
-      output_state.core_profiles.below_minimum_temperature(T_minimum_eV)
+      output_state.core_profiles.below_minimum_temperature(T_min_eV)
       | output_state.core_profiles.negative_temperature_or_density()
       | output_state.has_nan()
       | ~output_state.core_profiles.quasineutrality_satisfied()
@@ -168,7 +168,7 @@ class SimulationStepFn:
         _has_any_step_error(
             output_state,
             post_processed_outputs,
-            self._runtime_params_provider.numerics.T_minimum_eV,
+            self._runtime_params_provider.numerics.T_min_eV,
             bool(self._runtime_params_provider.numerics.adaptive_dt),
         )
     ):
@@ -176,7 +176,7 @@ class SimulationStepFn:
 
     # Low-temperature collapse check
     if output_state.core_profiles.below_minimum_temperature(
-        self._runtime_params_provider.numerics.T_minimum_eV
+        self._runtime_params_provider.numerics.T_min_eV
     ):
       return state.SimError.LOW_TEMPERATURE_COLLAPSE
 
