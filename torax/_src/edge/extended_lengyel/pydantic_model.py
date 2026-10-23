@@ -131,9 +131,8 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   diverted: torax_pydantic.TimeVaryingScalarStep | None = None
 
   # --- Physical parameters ---
-  # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
-  ne_tau: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(extended_lengyel_defaults.NE_TAU)
+  n_e_tau: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(extended_lengyel_defaults.N_E_TAU)
   )
   divertor_broadening_factor: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(
@@ -430,7 +429,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
         newton_raphson_iterations=self.newton_raphson_iterations,
         newton_raphson_tol=self.newton_raphson_tol,
         multistart_num_guesses=self.multistart_num_guesses,
-        ne_tau=self.ne_tau.get_value(t),
+        n_e_tau=self.n_e_tau.get_value(t),
         divertor_broadening_factor=self.divertor_broadening_factor.get_value(t),
         sheath_heat_transmission_factor=self.sheath_heat_transmission_factor.get_value(
             t

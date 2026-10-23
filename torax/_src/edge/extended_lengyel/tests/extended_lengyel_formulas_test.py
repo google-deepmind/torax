@@ -176,7 +176,7 @@ class ExtendedLengyelFormulasTest(absltest.TestCase):
         c_z=c_z,
         T_e=T_e,
         Z_i=Z_i,
-        ne_tau=extended_lengyel_defaults.NE_TAU,
+        n_e_tau=extended_lengyel_defaults.N_E_TAU,
         seed_impurity_weights=seed_impurity_weights,
         fixed_impurity_concentrations=fixed_impurity_concentrations,
     )

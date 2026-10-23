@@ -78,8 +78,7 @@ class RuntimeParams(edge_runtime_params_lib.RuntimeParams):
   multistart_num_guesses: int = jax.tree.static()
 
   # --- Physical Parameters ---
-  # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
-  ne_tau: array_typing.FloatScalar
+  n_e_tau: array_typing.FloatScalar
   divertor_broadening_factor: array_typing.FloatScalar
   ratio_bpol_omp_to_bpol_avg: array_typing.FloatScalar
   sheath_heat_transmission_factor: array_typing.FloatScalar
@@ -288,7 +287,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         fixed_impurity_concentrations=fixed_impurity_concentrations,
         computation_mode=edge_params.computation_mode,
         solver_mode=edge_params.solver_mode,
-        ne_tau=edge_params.ne_tau,
+        n_e_tau=edge_params.n_e_tau,
         sheath_heat_transmission_factor=edge_params.sheath_heat_transmission_factor,
         fraction_of_P_SOL_to_divertor=edge_params.fraction_of_P_SOL_to_divertor,
         SOL_conduction_fraction=edge_params.SOL_conduction_fraction,

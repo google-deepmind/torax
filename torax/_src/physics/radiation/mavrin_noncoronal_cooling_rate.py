@@ -178,7 +178,7 @@ MAX_TEMPERATURES: Final[Mapping[str, float]] = immutabledict.immutabledict({
 
 def evaluate_polynomial_fit(
     T_e: array_typing.FloatVector,
-    ne_tau_fraction: array_typing.FloatScalar,
+    n_e_tau_fraction: array_typing.FloatScalar,
     coeffs: jt.Float[array_typing.Array, '10 _'],
 ) -> array_typing.FloatVector:
   """Evaluate the polynomial fit for the cooling rate."""
@@ -195,7 +195,7 @@ def evaluate_polynomial_fit(
   # Formulas are constructed for T_e in eV
   T_e_eV = T_e * 1e3
   X = jnp.log10(T_e_eV)
-  Y = jnp.log10(ne_tau_fraction)
+  Y = jnp.log10(n_e_tau_fraction)
 
   # 2D polynomial from Mavrin 2017, Eq. 8
   log10_cooling_rate = (

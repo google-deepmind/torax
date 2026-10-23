@@ -65,8 +65,7 @@ class ExtendedLengyelParameters:
   main_ion_charge: array_typing.FloatScalar  # [dimensionless]
   average_ion_mass: array_typing.FloatScalar  # [amu]
   mean_ion_charge_state: array_typing.FloatScalar  # [dimensionless]
-  # TODO(b/434175938): (v2) Rename to n_e_tau for consistency.
-  ne_tau: array_typing.FloatScalar  # [s m^-3]
+  n_e_tau: array_typing.FloatScalar  # [s m^-3]
   fraction_of_P_SOL_to_divertor: array_typing.FloatScalar  # [dimensionless]
   SOL_conduction_fraction: array_typing.FloatScalar  # [dimensionless]
   divertor_broadening_factor: array_typing.FloatScalar  # [dimensionless]
@@ -297,7 +296,7 @@ class DivertorSOL1D:
         c_z=self.state.c_z_prefactor,
         T_e=self.divertor_entrance_electron_temp / 1e3,  # to keV
         Z_i=self.params.main_ion_charge,
-        ne_tau=self.params.ne_tau,
+        n_e_tau=self.params.n_e_tau,
         seed_impurity_weights=self.params.seed_impurity_weights,
         fixed_impurity_concentrations=self.params.fixed_impurity_concentrations,
     )
@@ -308,7 +307,7 @@ class DivertorSOL1D:
         c_z=self.state.c_z_prefactor,
         T_e=self.T_e_separatrix / 1e3,  # to keV
         Z_i=self.params.main_ion_charge,
-        ne_tau=self.params.ne_tau,
+        n_e_tau=self.params.n_e_tau,
         seed_impurity_weights=self.params.seed_impurity_weights,
         fixed_impurity_concentrations=self.params.fixed_impurity_concentrations,
     )

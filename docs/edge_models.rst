@@ -291,7 +291,7 @@ Physical Parameters
 ``enrichment_model_multiplier`` (**time-varying-scalar** [default = 1.0])
   Multiplier applied to the calculated Kallenbach 2024 enrichment factor.
 
-``ne_tau`` (**time-varying-scalar** [default = 0.5e17])
+``n_e_tau`` (**time-varying-scalar** [default = 0.5e17])
   The non-coronal parameter (:math:`n_e \tau_{res}`) [:math:`\mathrm{s~m^{-3}}`]
   used in impurity radiation calculations.
 
