@@ -108,12 +108,15 @@ def pre_step(
 
   # Update the discrete pedestal transition state (confinement mode, transition
   # start time, and L-mode baselines) once per step at time t.
-  pedestal_transition_state = models.pedestal_model.update_transition_state(
-      runtime_params=runtime_params_t,
-      geo=geo_t,
-      core_profiles=input_state.core_profiles,
-      source_profiles=merged_sources,
-      pedestal_transition_state=input_state.pedestal_transition_state,
+  pedestal_transition_state, updated_pedestal_state = (
+      models.pedestal_model.update_transition_state(
+          runtime_params=runtime_params_t,
+          geo=geo_t,
+          core_profiles=input_state.core_profiles,
+          source_profiles=merged_sources,
+          pedestal_transition_state=input_state.pedestal_transition_state,
+          pedestal_state=input_state.model_state.pedestal,
+      )
   )
 
   # When explicit_pedestal is True, evaluate the pedestal model once here
@@ -126,7 +129,7 @@ def pre_step(
         input_state.core_profiles,
         merged_sources,
         pedestal_transition_state,
-        input_state.model_state.pedestal,
+        updated_pedestal_state,
     )
     pedestal_transition_state = dataclasses.replace(
         pedestal_transition_state,
@@ -135,6 +138,7 @@ def pre_step(
 
   model_state_t = dataclasses.replace(
       input_state.model_state,
+      pedestal=updated_pedestal_state,
       sources=source_states,
   )
   return (

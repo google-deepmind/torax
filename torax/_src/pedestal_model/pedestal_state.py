@@ -26,7 +26,14 @@ class StructureState:
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
+class FormationState:
+  """State for a pedestal formation model."""
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class PedestalState:
-  """State for a pedestal model."""
+  """State for a pedestal model carried over from the previous timestep."""
 
   structure: StructureState = dataclasses.field(default_factory=StructureState)
+  formation: FormationState = dataclasses.field(default_factory=FormationState)

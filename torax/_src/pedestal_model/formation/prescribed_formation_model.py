@@ -22,7 +22,10 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
+from torax._src.pedestal_model import (
+    pedestal_transition_state as pedestal_transition_state_lib,
+)
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import base
 from torax._src.sources import source_profiles as source_profiles_lib
@@ -48,8 +51,14 @@ class PrescribedFormationModel(base.FormationModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.TransportMultipliers:
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
+      formation_state: pedestal_state_lib.FormationState,
+  ) -> tuple[
+      pedestal_model_output.TransportMultipliers,
+      pedestal_state_lib.FormationState,
+  ]:
     del geo, core_profiles, source_profiles, pedestal_transition_state
     assert isinstance(
         runtime_params.pedestal.formation, PrescribedFormationRuntimeParams
@@ -59,11 +68,14 @@ class PrescribedFormationModel(base.FormationModel):
         runtime_params.pedestal.formation.base_multiplier,
         1.0,
     )
-    return pedestal_model_output.TransportMultipliers(
-        chi_e_multiplier=transport_multiplier,
-        chi_i_multiplier=transport_multiplier,
-        D_e_multiplier=transport_multiplier,
-        v_e_multiplier=transport_multiplier,
+    return (
+        pedestal_model_output.TransportMultipliers(
+            chi_e_multiplier=transport_multiplier,
+            chi_i_multiplier=transport_multiplier,
+            D_e_multiplier=transport_multiplier,
+            v_e_multiplier=transport_multiplier,
+        ),
+        formation_state,
     )
 
   def evaluate_transition_conditions(
@@ -72,7 +84,12 @@ class PrescribedFormationModel(base.FormationModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[array_typing.BoolScalar, array_typing.BoolScalar]:
+      formation_state: pedestal_state_lib.FormationState,
+  ) -> tuple[
+      array_typing.BoolScalar,
+      array_typing.BoolScalar,
+      pedestal_state_lib.FormationState,
+  ]:
     del geo, core_profiles, source_profiles
     assert isinstance(
         runtime_params.pedestal.formation, PrescribedFormationRuntimeParams
@@ -80,4 +97,8 @@ class PrescribedFormationModel(base.FormationModel):
     trigger_l_to_h_transition = jnp.asarray(
         runtime_params.pedestal.formation.pedestal_active, dtype=bool
     )
-    return trigger_l_to_h_transition, ~trigger_l_to_h_transition
+    return (
+        trigger_l_to_h_transition,
+        ~trigger_l_to_h_transition,
+        formation_state,
+    )

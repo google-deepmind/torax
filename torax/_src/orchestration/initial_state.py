@@ -32,6 +32,7 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
+from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.sources import source_profile_builders
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.transport_model import transport_coefficients_builder
@@ -330,6 +331,36 @@ def get_initial_state_and_post_processed_outputs_from_file(
       v_loop_lcfs=scalars_dataset.v_loop_lcfs.values,
       internal_plasma_energy=energy_state,
   )
+  pedestal_state = initial_state.model_state.pedestal
+  # TODO(b/434175938): Have model states reconstruct themselves from restart
+  # outputs instead of special-casing specific state subclasses here.
+  if isinstance(
+      pedestal_state.formation,
+      power_scaling_formation_model.PowerScalingFormationState,
+  ):
+    if pedestal_state.formation.dW_thermal_dt_smoothed is not None:
+      dw_thermal_dt_smoothed = jnp.asarray(
+          scalars_dataset.data_vars['dW_thermal_dt_smoothed'].to_numpy(),
+          dtype=jax_utils.get_dtype(),
+      )
+    else:
+      dw_thermal_dt_smoothed = None
+    if pedestal_state.formation.t is not None:
+      t_formation = jnp.asarray(t_restart, dtype=jax_utils.get_dtype())
+    else:
+      t_formation = None
+    pedestal_state = dataclasses.replace(
+        pedestal_state,
+        formation=dataclasses.replace(
+            pedestal_state.formation,
+            dW_thermal_dt_smoothed=dw_thermal_dt_smoothed,
+            t=t_formation,
+        ),
+    )
+  model_state = dataclasses.replace(
+      initial_state.model_state,
+      pedestal=pedestal_state,
+  )
   numerics_dataset = data_tree.children[output_keys.NUMERICS].dataset
   numerics_dataset = numerics_dataset.squeeze()
   sawtooth_crash = bool(numerics_dataset[output_keys.SAWTOOTH_CRASH])
@@ -343,6 +374,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
       dataclasses.replace(
           initial_state,
           core_profiles=core_profiles,
+          model_state=model_state,
           solver_numeric_outputs=state.SolverNumericOutputs(
               sawtooth_crash=sawtooth_crash,
               solver_error_state=jnp.zeros((), jax_utils.get_int_dtype()),

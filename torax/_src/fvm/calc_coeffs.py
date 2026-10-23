@@ -321,15 +321,20 @@ def _calc_coeffs_full(
   ):
     # Explicit mode with ADAPTIVE_TRANSPORT: pedestal output (T_ped, n_ped,
     # rho_ped_top) stays frozen from pre_step, but transport multipliers are
-    # re-evaluated with current profiles.
+    # re-evaluated with current profiles. We purposefully do not update
+    # formation_state here, as cross-step model state is only updated in
+    # finalize_outputs.
     frozen_pedestal_output = pedestal_transition_state.pedestal_model_output
-    transport_multipliers = models.pedestal_model.compute_transport_multipliers(
-        runtime_params,
-        geo,
-        core_profiles,
-        merged_source_profiles,
-        pedestal_transition_state,
-        frozen_pedestal_output,
+    transport_multipliers, _ = (
+        models.pedestal_model.compute_transport_multipliers(
+            runtime_params,
+            geo,
+            core_profiles,
+            merged_source_profiles,
+            pedestal_transition_state,
+            frozen_pedestal_output,
+            model_state.pedestal.formation,
+        )
     )
     pedestal_transition_state = dataclasses.replace(
         pedestal_transition_state,

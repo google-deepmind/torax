@@ -18,6 +18,7 @@ from absl.testing import parameterized
 import jax
 import pydantic
 from torax._src import jax_utils
+from torax._src.pedestal_model import pedestal_state
 from torax._src.pedestal_model import pydantic_model
 from torax._src.pedestal_model import runtime_params
 from torax._src.pedestal_model.formation import power_scaling_formation_model
@@ -158,23 +159,41 @@ class PedestalModelPydanticTest(parameterized.TestCase):
     # Verify PrescribedFormationModel.__call__ and transition conditions.
     dummy_rp_t0 = mock.Mock(pedestal=params_t0)
     dummy_rp_t2 = mock.Mock(pedestal=params_t2)
-    mult_t0 = formation_model(
-        dummy_rp_t0, mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()
+    mult_t0, _ = formation_model(
+        dummy_rp_t0,
+        mock.Mock(),
+        mock.Mock(),
+        mock.Mock(),
+        mock.Mock(),
+        pedestal_state.FormationState(),
     )
-    mult_t2 = formation_model(
-        dummy_rp_t2, mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()
+    mult_t2, _ = formation_model(
+        dummy_rp_t2,
+        mock.Mock(),
+        mock.Mock(),
+        mock.Mock(),
+        mock.Mock(),
+        pedestal_state.FormationState(),
     )
     self.assertEqual(float(mult_t0.chi_e_multiplier), 1.0)
     self.assertAlmostEqual(float(mult_t2.chi_e_multiplier), 1e-4)
 
-    trigger_l_to_h_0, trigger_h_to_l_0 = (
+    trigger_l_to_h_0, trigger_h_to_l_0, _ = (
         formation_model.evaluate_transition_conditions(
-            dummy_rp_t0, mock.Mock(), mock.Mock(), mock.Mock()
+            dummy_rp_t0,
+            mock.Mock(),
+            mock.Mock(),
+            mock.Mock(),
+            pedestal_state.FormationState(),
         )
     )
-    trigger_l_to_h_2, trigger_h_to_l_2 = (
+    trigger_l_to_h_2, trigger_h_to_l_2, _ = (
         formation_model.evaluate_transition_conditions(
-            dummy_rp_t2, mock.Mock(), mock.Mock(), mock.Mock()
+            dummy_rp_t2,
+            mock.Mock(),
+            mock.Mock(),
+            mock.Mock(),
+            pedestal_state.FormationState(),
         )
     )
     self.assertEqual(

@@ -18,16 +18,20 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
+from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
+from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import base
+from torax._src.physics import formulas
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profiles as source_profiles_lib
+from typing_extensions import override
 
 # pylint: disable=invalid-name
 
@@ -46,21 +50,41 @@ class PowerScalingFormationRuntimeParams(
   include_dW_dt_in_P_SOL: bool = jax.tree.static()
 
 
-@jax.jit(static_argnames=['include_dW_dt'])
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class PowerScalingFormationState(pedestal_state_lib.FormationState):
+  """State for power scaling pedestal formation models.
+
+  Attributes:
+    W_thermal_total: Total thermal stored energy [J] at time `t`, or `None` when
+      `include_dW_dt_in_P_SOL` is False.
+    dW_thermal_dt_smoothed: Exponentially smoothed time derivative of total
+      thermal stored energy [W], or `None` when `include_dW_dt_in_P_SOL` is
+      False.
+    t: Simulation time [s] at which `W_thermal_total` and
+      `dW_thermal_dt_smoothed` were last evaluated, or `None` when
+      `include_dW_dt_in_P_SOL` is False.
+  """
+
+  W_thermal_total: array_typing.FloatScalar | None = None
+  dW_thermal_dt_smoothed: array_typing.FloatScalar | None = None
+  t: array_typing.FloatScalar | None = None
+
+
+@jax.jit
 def calculate_P_SOL_total(
-    internal_plasma_energy: state.PlasmaInternalEnergy | None,
     core_sources: source_profiles_lib.SourceProfiles,
     geo: geometry.Geometry,
-    include_dW_dt: bool = True,
+    dW_thermal_dt_smoothed: array_typing.FloatScalar | None = None,
 ) -> jax.Array:
   """Calculates the total power out of the separatrix.
 
   Args:
-    internal_plasma_energy: Internal plasma energy state.
     core_sources: Source profiles.
     geo: Geometry.
-    include_dW_dt: If True, subtracts dW/dt from P_heat to get P_SOL. If
-      False, returns P_heat (total heating power) without the dW/dt correction.
+    dW_thermal_dt_smoothed: Smoothed time derivative of total thermal stored
+      energy [W]. If None, returns P_heat (total heating power) without the
+      dW/dt correction.
 
   Returns:
     P_SOL or P_heat total [W].
@@ -74,13 +98,9 @@ def calculate_P_SOL_total(
       for source in core_sources.T_i.values()
   )
   P_heat_total = jnp.asarray(P_heat_e + P_heat_i)
-  if not include_dW_dt:
+  if dW_thermal_dt_smoothed is None:
     return P_heat_total
-  if internal_plasma_energy is None:
-    raise ValueError(
-        'internal_plasma_energy must not be None when include_dW_dt is True.'
-    )
-  return P_heat_total - internal_plasma_energy.dW_thermal_dt_smoothed
+  return P_heat_total - dW_thermal_dt_smoothed
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -98,22 +118,107 @@ class PowerScalingFormationModel(base.FormationModel):
       scaling_laws.DivertorConfiguration.HT
   )
 
+  @override
+  def initial_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> PowerScalingFormationState:
+    """Returns the initial PowerScalingFormationState for this model."""
+    assert isinstance(
+        runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
+    )
+    if not runtime_params.pedestal.formation.include_dW_dt_in_P_SOL:
+      return PowerScalingFormationState()
+    _, _, W_thermal_total = formulas.calculate_stored_thermal_energy(
+        core_profiles.pressure_thermal_e,
+        core_profiles.pressure_thermal_i,
+        core_profiles.pressure_thermal_total,
+        geo,
+    )
+    return PowerScalingFormationState(
+        W_thermal_total=W_thermal_total,
+        dW_thermal_dt_smoothed=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        t=jnp.asarray(runtime_params.t, dtype=jax_utils.get_dtype()),
+    )
+
+  def _update_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      formation_state: PowerScalingFormationState,
+  ) -> PowerScalingFormationState:
+    """Updates PowerScalingFormationState for the current timestep."""
+    assert isinstance(
+        runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
+    )
+    if not runtime_params.pedestal.formation.include_dW_dt_in_P_SOL:
+      return formation_state
+    assert formation_state.W_thermal_total is not None
+    assert formation_state.dW_thermal_dt_smoothed is not None
+    assert formation_state.t is not None
+    dt = runtime_params.t - formation_state.t
+    _, _, W_thermal_total = formulas.calculate_stored_thermal_energy(
+        core_profiles.pressure_thermal_e,
+        core_profiles.pressure_thermal_i,
+        core_profiles.pressure_thermal_total,
+        geo,
+    )
+
+    def _advance_state() -> PowerScalingFormationState:
+      assert formation_state.W_thermal_total is not None
+      assert formation_state.dW_thermal_dt_smoothed is not None
+      _, dW_thermal_dt_smoothed = (
+          formulas.calculate_time_derivative_with_exponential_smoothing(
+              current_value=W_thermal_total,
+              previous_value=formation_state.W_thermal_total,
+              previous_smoothed_derivative=(
+                  formation_state.dW_thermal_dt_smoothed
+              ),
+              dt=jnp.where(dt > 0.0, dt, 1.0),
+              smoothing_time_scale=(
+                  runtime_params.numerics.dW_dt_smoothing_time_scale
+              ),
+          )
+      )
+      return PowerScalingFormationState(
+          W_thermal_total=W_thermal_total,
+          dW_thermal_dt_smoothed=dW_thermal_dt_smoothed,
+          t=jnp.asarray(runtime_params.t, dtype=jax_utils.get_dtype()),
+      )
+
+    # formation_state may be passed into both evaluate_transition_conditions
+    # (in pre_step at time t) and __call__ (in calc_coeffs and
+    # finalize_outputs at t + dt). Guarding on dt > 0.0 ensures that when
+    # pre_step at time t evaluates transition conditions using a
+    # formation_state that was already advanced to t at the end of the
+    # previous step (finalize_outputs), _update_state is a no-op (dt == 0.0)
+    # and preserves the previous step's W_thermal_total and
+    # dW_thermal_dt_smoothed.
+    return jax.lax.cond(
+        dt > 0.0,
+        _advance_state,
+        lambda: formation_state,
+    )
+
   def _calculate_P_SOL_and_P_LH(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
+      formation_state: PowerScalingFormationState,
   ) -> tuple[jax.Array, jax.Array]:
     """Calculates P_SOL and rescaled P_LH."""
     assert isinstance(
         runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
     P_SOL_total = calculate_P_SOL_total(
-        core_profiles.internal_plasma_energy,
         core_sources,
         geo,
-        include_dW_dt=runtime_params.pedestal.formation.include_dW_dt_in_P_SOL,
+        dW_thermal_dt_smoothed=formation_state.dW_thermal_dt_smoothed,
     )
     P_LH, _ = scaling_laws.calculate_P_LH(
         geo,
@@ -130,13 +235,31 @@ class PowerScalingFormationModel(base.FormationModel):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[array_typing.BoolScalar, array_typing.BoolScalar]:
+      formation_state: pedestal_state_lib.FormationState,
+  ) -> tuple[
+      array_typing.BoolScalar,
+      array_typing.BoolScalar,
+      pedestal_state_lib.FormationState,
+  ]:
     """Evaluates L-H and H-L transition triggers based on P_SOL vs P_LH."""
     assert isinstance(
         runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
+    assert isinstance(formation_state, PowerScalingFormationState)
+    # Both evaluate_transition_conditions and __call__ invoke _update_state
+    # because Mode.INTERNAL_BOUNDARY_CONDITION only invokes
+    # evaluate_transition_conditions, whereas Mode.ADAPTIVE_TRANSPORT invokes
+    # evaluate_transition_conditions (in pre_step) and __call__ (during the step
+    # and in finalize_outputs).
+    updated_formation_state = self._update_state(
+        runtime_params, geo, core_profiles, formation_state
+    )
     P_SOL_total, rescaled_P_LH = self._calculate_P_SOL_and_P_LH(
-        runtime_params, geo, core_profiles, source_profiles
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
+        updated_formation_state,
     )
     trigger_l_to_h_transition = P_SOL_total > rescaled_P_LH
     trigger_h_to_l_transition = (
@@ -144,22 +267,45 @@ class PowerScalingFormationModel(base.FormationModel):
         < rescaled_P_LH
         * runtime_params.pedestal.formation.P_LH_hysteresis_factor
     )
-    return trigger_l_to_h_transition, trigger_h_to_l_transition
+    return (
+        trigger_l_to_h_transition,
+        trigger_h_to_l_transition,
+        updated_formation_state,
+    )
 
   def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      core_sources: source_profiles_lib.SourceProfiles,
-      pedestal_transition_state: pedestal_transition_state_lib.PedestalTransitionState,
-  ) -> pedestal_model_output.TransportMultipliers:
+      source_profiles: source_profiles_lib.SourceProfiles,
+      pedestal_transition_state: (
+          pedestal_transition_state_lib.PedestalTransitionState
+      ),
+      formation_state: pedestal_state_lib.FormationState,
+  ) -> tuple[
+      pedestal_model_output.TransportMultipliers,
+      pedestal_state_lib.FormationState,
+  ]:
     """Calculates transport decrease multipliers based on P_SOL and P_LH."""
     assert isinstance(
         runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
+    assert isinstance(formation_state, PowerScalingFormationState)
+    # Both evaluate_transition_conditions and __call__ invoke _update_state
+    # because Mode.INTERNAL_BOUNDARY_CONDITION only invokes
+    # evaluate_transition_conditions, whereas Mode.ADAPTIVE_TRANSPORT invokes
+    # evaluate_transition_conditions (in pre_step) and __call__ (during the step
+    # and in finalize_outputs).
+    updated_formation_state = self._update_state(
+        runtime_params, geo, core_profiles, formation_state
+    )
     P_SOL_total, rescaled_P_LH = self._calculate_P_SOL_and_P_LH(
-        runtime_params, geo, core_profiles, core_sources
+        runtime_params,
+        geo,
+        core_profiles,
+        source_profiles,
+        updated_formation_state,
     )
 
     # Apply hysteresis: in H-mode, use a lower effective P_LH threshold,
@@ -183,9 +329,12 @@ class PowerScalingFormationModel(base.FormationModel):
     alpha = jax.nn.sigmoid(shifted_deviation * sharpness)
     transport_multiplier = (1.0 - alpha) * 1.0 + alpha * base_multiplier
 
-    return pedestal_model_output.TransportMultipliers(
-        chi_e_multiplier=transport_multiplier,
-        chi_i_multiplier=transport_multiplier,
-        D_e_multiplier=transport_multiplier,
-        v_e_multiplier=transport_multiplier,
+    return (
+        pedestal_model_output.TransportMultipliers(
+            chi_e_multiplier=transport_multiplier,
+            chi_i_multiplier=transport_multiplier,
+            D_e_multiplier=transport_multiplier,
+            v_e_multiplier=transport_multiplier,
+        ),
+        updated_formation_state,
     )

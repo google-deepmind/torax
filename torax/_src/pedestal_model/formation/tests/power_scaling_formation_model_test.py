@@ -20,7 +20,6 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
@@ -41,7 +40,10 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'ADAPTIVE_TRANSPORT',
         # Individual tests will override the model name.
-        'formation_model': {'model_name': 'martin_scaling'},
+        'formation_model': {
+            'model_name': 'martin_scaling',
+            'include_dW_dt_in_P_SOL': True,
+        },
     }
     # Add a source so that P_SOL is non-zero.
     config['sources'] = {
@@ -60,10 +62,18 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     self.runtime_params = self.step_fn.runtime_params_provider(t=0.0)
 
   def test_calculate_P_SOL_total(self):
+    formation_state = self.initial_state.model_state.pedestal.formation
+    self.assertIsInstance(
+        formation_state,
+        power_scaling_formation_model.PowerScalingFormationState,
+    )
+    self.assertIsNotNone(formation_state.W_thermal_total)
+    self.assertIsNotNone(formation_state.dW_thermal_dt_smoothed)
+    self.assertIsNotNone(formation_state.t)
     P_SOL_total = power_scaling_formation_model.calculate_P_SOL_total(
-        self.initial_state.core_profiles.internal_plasma_energy,
         self.initial_state.core_sources,
         self.initial_state.geometry,
+        dW_thermal_dt_smoothed=formation_state.dW_thermal_dt_smoothed,
     )
 
     np.testing.assert_allclose(
@@ -71,23 +81,88 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
 
   def test_calculate_P_SOL_total_without_dW_dt(self):
+    formation_state = self.initial_state.model_state.pedestal.formation
+    self.assertIsInstance(
+        formation_state,
+        power_scaling_formation_model.PowerScalingFormationState,
+    )
+    self.assertIsNotNone(formation_state.dW_thermal_dt_smoothed)
     P_SOL = power_scaling_formation_model.calculate_P_SOL_total(
-        self.initial_state.core_profiles.internal_plasma_energy,
         self.initial_state.core_sources,
         self.initial_state.geometry,
-        include_dW_dt=True,
+        dW_thermal_dt_smoothed=formation_state.dW_thermal_dt_smoothed,
     )
     P_heat = power_scaling_formation_model.calculate_P_SOL_total(
-        self.initial_state.core_profiles.internal_plasma_energy,
         self.initial_state.core_sources,
         self.initial_state.geometry,
-        include_dW_dt=False,
+        dW_thermal_dt_smoothed=None,
     )
-    dW_dt = (
-        self.initial_state.core_profiles
-        .internal_plasma_energy.dW_thermal_dt_smoothed
-    )
+    dW_dt = formation_state.dW_thermal_dt_smoothed
     np.testing.assert_allclose(P_heat, P_SOL + dW_dt)
+
+  def test_power_scaling_formation_state_none_when_dW_dt_disabled(self):
+    self.assertIsInstance(
+        self.runtime_params.pedestal.formation,
+        power_scaling_formation_model.PowerScalingFormationRuntimeParams,
+    )
+    runtime_params = dataclasses.replace(
+        self.runtime_params,
+        pedestal=dataclasses.replace(
+            self.runtime_params.pedestal,
+            formation=dataclasses.replace(
+                self.runtime_params.pedestal.formation,
+                include_dW_dt_in_P_SOL=False,
+            ),
+        ),
+    )
+    formation_model = power_scaling_formation_model.PowerScalingFormationModel(
+        scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
+    )
+    state = formation_model.initial_state(
+        runtime_params=runtime_params,
+        geo=self.initial_state.geometry,
+        core_profiles=self.initial_state.core_profiles,
+    )
+    self.assertIsNone(state.W_thermal_total)
+    self.assertIsNone(state.dW_thermal_dt_smoothed)
+    self.assertIsNone(state.t)
+
+    with self.subTest('__call__'):
+      _, updated_state = formation_model(
+          runtime_params=runtime_params,
+          geo=self.initial_state.geometry,
+          core_profiles=self.initial_state.core_profiles,
+          source_profiles=self.initial_state.core_sources,
+          pedestal_transition_state=(
+              self.initial_state.pedestal_transition_state
+          ),
+          formation_state=state,
+      )
+      self.assertIsInstance(
+          updated_state,
+          power_scaling_formation_model.PowerScalingFormationState,
+      )
+      self.assertIsNone(updated_state.W_thermal_total)
+      self.assertIsNone(updated_state.dW_thermal_dt_smoothed)
+      self.assertIsNone(updated_state.t)
+
+    with self.subTest('evaluate_transition_conditions'):
+      _, _, updated_state_cond = (
+          formation_model.evaluate_transition_conditions(
+              runtime_params=runtime_params,
+              geo=self.initial_state.geometry,
+              core_profiles=self.initial_state.core_profiles,
+              source_profiles=self.initial_state.core_sources,
+              formation_state=state,
+          )
+      )
+      self.assertIsInstance(
+          updated_state_cond,
+          power_scaling_formation_model.PowerScalingFormationState,
+      )
+      self.assertIsNone(updated_state_cond.W_thermal_total)
+      self.assertIsNone(updated_state_cond.dW_thermal_dt_smoothed)
+      self.assertIsNone(updated_state_cond.t)
 
   @parameterized.named_parameters(
       dict(
@@ -130,12 +205,13 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i={'aux': aux_power_profile},
     )
 
-    transport_multipliers = formation_model(
+    transport_multipliers, _ = formation_model(
         self.runtime_params,
         self.initial_state.geometry,
         self.initial_state.core_profiles,
         high_power_profiles,
         pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        self.initial_state.model_state.pedestal.formation,
     )
     for k, multiplier in dataclasses.asdict(transport_multipliers).items():
       np.testing.assert_allclose(
@@ -181,7 +257,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
 
     # Set hysteresis factor
-    assert isinstance(
+    self.assertIsInstance(
         self.runtime_params.pedestal.formation,
         power_scaling_formation_model.PowerScalingFormationRuntimeParams,
     )
@@ -197,19 +273,13 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
 
     # Create a state in H-mode
-    initial_transition_state = (
-        pedestal_transition_state_lib.PedestalTransitionState(
-            confinement_mode=jnp.array(
-                pedestal_runtime_params_lib.ConfinementMode.H_MODE
-            ),
-            transition_start_time=jnp.array(0.0),
-            T_i_ped_L_mode=jnp.array(0.5),
-            T_e_ped_L_mode=jnp.array(0.5),
-            n_e_ped_L_mode=jnp.array(0.5e19),
-            pedestal_model_output=(
-                pedestal_model_output_lib.PedestalStructure.no_pedestal()
-            ),
-        )
+    initial_transition_state = dataclasses.replace(
+        self.initial_state.pedestal_transition_state,
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+        transition_start_time=jnp.array(0.0),
+        T_i_ped_L_mode=jnp.array(0.5),
+        T_e_ped_L_mode=jnp.array(0.5),
+        n_e_ped_L_mode=jnp.array(0.5e19),
     )
 
     target_P_SOL = P_LH * p_sol_factor
@@ -220,13 +290,14 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     ) as mock_calc:
       mock_calc.return_value = target_P_SOL
 
-      new_state = (
+      new_state, _ = (
           self.step_fn._solver.models.pedestal_model.update_transition_state(
               runtime_params=runtime_params,
               geo=self.initial_state.geometry,
               core_profiles=self.initial_state.core_profiles,
               source_profiles=self.initial_state.core_sources,
               pedestal_transition_state=initial_transition_state,
+              pedestal_state=self.initial_state.model_state.pedestal,
           )
       )
 
@@ -240,7 +311,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
 
     # Set hysteresis factor
-    assert isinstance(
+    self.assertIsInstance(
         self.runtime_params.pedestal.formation,
         power_scaling_formation_model.PowerScalingFormationRuntimeParams,
     )
@@ -273,19 +344,21 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
       with mock.patch.object(scaling_laws, 'calculate_P_LH') as mock_calc_p_lh:
         mock_calc_p_lh.return_value = (jnp.array(target_P_LH), None)
 
-        multiplier_l_mode = formation_model(
+        multiplier_l_mode, _ = formation_model(
             runtime_params,
             self.initial_state.geometry,
             self.initial_state.core_profiles,
             self.initial_state.core_sources,
             l_mode_state,
+            self.initial_state.model_state.pedestal.formation,
         )
-        multiplier_h_mode = formation_model(
+        multiplier_h_mode, _ = formation_model(
             runtime_params,
             self.initial_state.geometry,
             self.initial_state.core_profiles,
             self.initial_state.core_sources,
             h_mode_state,
+            self.initial_state.model_state.pedestal.formation,
         )
 
     # In H-mode, the effective P_LH is lower (P_LH * 0.5), so P_SOL is
@@ -296,14 +369,75 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         multiplier_l_mode.chi_e_multiplier,
     )
 
-  def test_calculate_P_SOL_total_raises_when_energy_is_none(self):
-    with self.assertRaises(ValueError):
-      power_scaling_formation_model.calculate_P_SOL_total(
-          None,
-          self.initial_state.core_sources,
-          self.initial_state.geometry,
-          include_dW_dt=True,
-      )
+  def test_power_scaling_formation_model_updates_state(self):
+    formation_model = power_scaling_formation_model.PowerScalingFormationModel(
+        scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
+        divertor_configuration=scaling_laws.DivertorConfiguration.VT,
+    )
+    initial_formation_state = self.initial_state.model_state.pedestal.formation
+    self.assertIsInstance(
+        initial_formation_state,
+        power_scaling_formation_model.PowerScalingFormationState,
+    )
+    runtime_params = dataclasses.replace(self.runtime_params, t=jnp.array(0.1))
+    modified_core_profiles = dataclasses.replace(
+        self.initial_state.core_profiles,
+        T_e=dataclasses.replace(
+            self.initial_state.core_profiles.T_e,
+            value=self.initial_state.core_profiles.T_e.value * 2.0,
+        ),
+    )
+    _, updated_state = formation_model(
+        runtime_params=runtime_params,
+        geo=self.initial_state.geometry,
+        core_profiles=modified_core_profiles,
+        source_profiles=self.initial_state.core_sources,
+        pedestal_transition_state=(
+            pedestal_transition_state_lib.PedestalTransitionState.empty()
+        ),
+        formation_state=initial_formation_state,
+    )
+    self.assertIsInstance(
+        updated_state,
+        power_scaling_formation_model.PowerScalingFormationState,
+    )
+    self.assertIsNotNone(updated_state.t)
+    self.assertIsNotNone(updated_state.W_thermal_total)
+    self.assertIsNotNone(initial_formation_state.W_thermal_total)
+    self.assertIsNotNone(updated_state.dW_thermal_dt_smoothed)
+    np.testing.assert_allclose(updated_state.t, 0.1)
+    self.assertGreater(
+        updated_state.W_thermal_total,
+        initial_formation_state.W_thermal_total,
+    )
+    self.assertGreater(updated_state.dW_thermal_dt_smoothed, 0.0)
+
+    _, _, updated_transition_formation_state = (
+        formation_model.evaluate_transition_conditions(
+            runtime_params=runtime_params,
+            geo=self.initial_state.geometry,
+            core_profiles=modified_core_profiles,
+            source_profiles=self.initial_state.core_sources,
+            formation_state=initial_formation_state,
+        )
+    )
+    self.assertIsInstance(
+        updated_transition_formation_state,
+        power_scaling_formation_model.PowerScalingFormationState,
+    )
+    self.assertIsNotNone(updated_transition_formation_state.t)
+    self.assertIsNotNone(updated_transition_formation_state.W_thermal_total)
+    self.assertIsNotNone(
+        updated_transition_formation_state.dW_thermal_dt_smoothed
+    )
+    np.testing.assert_allclose(updated_transition_formation_state.t, 0.1)
+    self.assertGreater(
+        updated_transition_formation_state.W_thermal_total,
+        initial_formation_state.W_thermal_total,
+    )
+    self.assertGreater(
+        updated_transition_formation_state.dW_thermal_dt_smoothed, 0.0
+    )
 
   @parameterized.named_parameters(
       dict(
@@ -331,7 +465,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     formation_model = power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
     )
-    assert isinstance(
+    self.assertIsInstance(
         self.runtime_params.pedestal.formation,
         power_scaling_formation_model.PowerScalingFormationRuntimeParams,
     )
@@ -354,14 +488,19 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         'calculate_P_LH',
         return_value=(jnp.array(100.0e6), None),
     ):
-      trigger_l_to_h, trigger_h_to_l = (
+      trigger_l_to_h, trigger_h_to_l, updated_formation_state = (
           formation_model.evaluate_transition_conditions(
               runtime_params=runtime_params,
               geo=self.initial_state.geometry,
               core_profiles=self.initial_state.core_profiles,
               source_profiles=self.initial_state.core_sources,
+              formation_state=self.initial_state.model_state.pedestal.formation,
           )
       )
+    self.assertIsInstance(
+        updated_formation_state,
+        power_scaling_formation_model.PowerScalingFormationState,
+    )
     self.assertEqual(bool(trigger_l_to_h), expected_trigger_l_to_h)
     self.assertEqual(bool(trigger_h_to_l), expected_trigger_h_to_l)
 
