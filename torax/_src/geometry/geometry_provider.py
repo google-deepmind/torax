@@ -158,13 +158,13 @@ class TimeDependentGeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis | None
-  calcphibdot: bool = jax.tree.static()
+  calc_Phi_b_dot: bool = jax.tree.static()
 
   @classmethod
   def create_provider(
       cls,
       geometries: Mapping[float, geometry.Geometry],
-      calcphibdot: bool,
+      calc_Phi_b_dot: bool,
   ) -> Self:
     """Creates a GeometryProvider from a mapping of times to geometries."""
     # Create a list of times and geometries.
@@ -180,7 +180,7 @@ class TimeDependentGeometryProvider:
     kwargs = {
         'geometry_type': initial_geometry.geometry_type,
         'torax_mesh': initial_geometry.torax_mesh,
-        'calcphibdot': calcphibdot,
+        'calc_Phi_b_dot': calc_Phi_b_dot,
     }
     if hasattr(initial_geometry, 'Ip_from_parameters'):
       kwargs['Ip_from_parameters'] = initial_geometry.Ip_from_parameters
@@ -189,7 +189,7 @@ class TimeDependentGeometryProvider:
           attr.name == 'geometry_type'
           or attr.name == 'torax_mesh'
           or attr.name == 'Ip_from_parameters'
-          or attr.name == 'calcphibdot'
+          or attr.name == 'calc_Phi_b_dot'
       ):
         continue
       # We assume that if an attribute is None for the initial geometry, it is
@@ -231,7 +231,7 @@ class TimeDependentGeometryProvider:
       ):
         continue
       if attr.name == 'Phi_b_dot':
-        if self.calcphibdot:
+        if self.calc_Phi_b_dot:
           kwargs[attr.name] = jnp.asarray(  # pyrefly: ignore[bad-assignment]
               _Phi_b_grad(self.Phi_face, t), dtype=jax_utils.get_dtype()
           )

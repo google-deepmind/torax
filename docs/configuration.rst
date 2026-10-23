@@ -1290,9 +1290,9 @@ geometry
 
 Geometry dicts for all geometry types can contain the following additional keys.
 
-``calcphibdot`` (bool [default = True])
+``calc_Phi_b_dot`` (bool [default = True])
   Toggles whether to calculate time-dependent toroidal flux derivatives
-  (Phibdot) in the geometry dataclasses. Used in ``calc_coeffs`` for moving
+  (:math:`\dot{\Phi}_b`) in the geometry dataclasses. Used in ``calc_coeffs`` for moving
   mesh / time-dependent geometry terms.
 
 ``n_rho`` (int | None [default = 25])

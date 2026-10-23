@@ -168,7 +168,7 @@ class EquilibriumTest(parameterized.TestCase):
     """Test that all time slices are loaded from a multi-slice IDS."""
     filename = 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc'
     config = imas_config.IMASConfig(imas_filepath=filename)
-    provider = config.build_geometry_provider(calcphibdot=True)
+    provider = config.build_geometry_provider(calc_Phi_b_dot=True)
     self.assertIsInstance(provider, standard_geometry.StandardGeometryProvider)
     # Provider should span 11 time slices (check via the interpolated psi times)
     self.assertLen(provider.psi.xs, 11)

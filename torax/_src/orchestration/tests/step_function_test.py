@@ -417,7 +417,7 @@ class StepFunctionTest(parameterized.TestCase):
     ) = run_simulation.prepare_simulation(cfg)
 
     # Construct a new step function with a different geometry.
-    cfg.update_fields({'geometry.calcphibdot': False})
+    cfg.update_fields({'geometry.calc_Phi_b_dot': False})
     new_step_fn = run_simulation.make_step_fn(cfg)
     # Use original step function with new step function's geometry as overrides.
     override_state, override_post_processed_outputs = step_fn(

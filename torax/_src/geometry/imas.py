@@ -168,7 +168,7 @@ class IMASConfig(base.BaseGeometryConfig):
 
   def build_geometry_provider(
       self,
-      calcphibdot: bool,
+      calc_Phi_b_dot: bool,
   ) -> geometry_provider.GeometryProvider:
     """Builds a time-dependent GeometryProvider from all IDS time slices.
 
@@ -176,7 +176,7 @@ class IMASConfig(base.BaseGeometryConfig):
     `StandardGeometryProvider` that interpolates geometry across them.
 
     Args:
-      calcphibdot: Whether to calculate Phibdot.
+      calc_Phi_b_dot: Whether to calculate Phi_b_dot.
 
     Returns:
       A StandardGeometryProvider interpolating across all time slices.
@@ -200,5 +200,5 @@ class IMASConfig(base.BaseGeometryConfig):
       geometries[t] = standard_geometry.build_standard_geometry(intermediates)
     return standard_geometry.StandardGeometryProvider.create_provider(
         geometries,
-        calcphibdot=calcphibdot,
+        calc_Phi_b_dot=calc_Phi_b_dot,
     )

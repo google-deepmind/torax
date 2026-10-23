@@ -56,7 +56,7 @@ class CircularGeometryTest(parameterized.TestCase):
         hires_factor=4,
     ).build_geometry()
     provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
-        {0.0: geo_0, 10.0: geo_1}, calcphibdot=True,
+        {0.0: geo_0, 10.0: geo_1}, calc_Phi_b_dot=True,
     )
     geo = provider(5.0)
     np.testing.assert_allclose(geo.R_major, 6.7)

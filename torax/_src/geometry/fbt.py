@@ -145,7 +145,7 @@ class FBTConfig(base.BaseGeometryConfig):
   # redesigned.
   def build_fbt_geometry_provider_from_bundle(
       self,
-      calcphibdot: bool,
+      calc_Phi_b_dot: bool,
   ) -> geometry_provider.GeometryProvider:
     """Builds a `GeometryProvider` from the input config."""
     intermediates = _from_fbt_bundle(
@@ -165,7 +165,7 @@ class FBTConfig(base.BaseGeometryConfig):
     }
     return standard_geometry.StandardGeometryProvider.create_provider(
         geometries,
-        calcphibdot=calcphibdot,
+        calc_Phi_b_dot=calc_Phi_b_dot,
     )
 
 

@@ -55,7 +55,7 @@ class IMASGeometryTest(parameterized.TestCase):
     provider_config = imas.IMASConfig(
         imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
     )
-    provider = provider_config.build_geometry_provider(calcphibdot=False)
+    provider = provider_config.build_geometry_provider(calc_Phi_b_dot=False)
     provider_geo = provider(0.0)
 
     np.testing.assert_allclose(single_geo.gm4, provider_geo.gm4, rtol=1e-5)
