@@ -21,7 +21,7 @@ from torax._src.sources import gas_puff_source
 from torax._src.sources import register_model
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax.experimental import gas_puff_feedback_source
 
 # Register the experimental source model
@@ -47,7 +47,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
             'S_feedforward': 0.0,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
 
     runtime_params_provider = (
@@ -73,7 +73,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     )
     config['sources']['gas_puff']['feedback_gain'] = 10.0
     config['sources']['gas_puff']['S_feedforward'] = 0.0
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)

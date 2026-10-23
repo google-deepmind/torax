@@ -25,7 +25,7 @@ from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import circular_geometry
 from torax._src.physics import charge_states
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -478,7 +478,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
         'plasma_composition.impurity.species': {'Ne': 0.98, 'W': 0.02}
     }
 
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     self.assertEqual(
         torax_config.plasma_composition.get_impurity_names(), ('Ne', 'W')
     )

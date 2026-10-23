@@ -29,7 +29,7 @@ from torax._src.output_tools import output_keys
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import register_model
@@ -47,7 +47,7 @@ def _get_config_and_model_inputs(
   """Returns the model inputs for testing."""
   config = default_configs.get_default_config_dict()
   config['transport'] = transport
-  torax_config = model_config.ToraxConfig.from_dict(config)
+  torax_config = torax_config_lib.ToraxConfig.from_dict(config)
   source_models = torax_config.sources.build_models()
   neoclassical_model = torax_config.neoclassical.build_model()
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(

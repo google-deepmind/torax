@@ -338,7 +338,7 @@ rst_epilog = f"""
 .. _torax_run_simulation_func_target: {github_base_url}/torax/_src/orchestration/run_simulation.py
 
 .. |torax.ToraxConfig| replace:: `torax.ToraxConfig <torax_ToraxConfig_target_>`_
-.. _torax_ToraxConfig_target: {github_base_url}/torax/_src/torax_pydantic/model_config.py
+.. _torax_ToraxConfig_target: {github_base_url}/torax/_src/torax_pydantic/torax_config.py
 
 .. |torax.StateHistory| replace:: `torax.StateHistory <torax_StateHistory_target_>`_
 .. _torax_StateHistory_target: {github_base_url}/torax/_src/output_tools/output.py

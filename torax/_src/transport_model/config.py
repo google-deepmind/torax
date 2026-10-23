@@ -24,10 +24,10 @@ import pydantic
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import bohm_gyrobohm
+from torax._src.transport_model import config_base
 from torax._src.transport_model import critical_gradient
 from torax._src.transport_model import enums
 from torax._src.transport_model import prescribed
-from torax._src.transport_model import pydantic_model_base
 from torax._src.transport_model import qlknn_10d
 from torax._src.transport_model import qlknn_transport_model
 from torax._src.transport_model import qualikiz_based_transport_model
@@ -67,7 +67,7 @@ def _resolve_qlknn_model_name(model_name: str, model_path: str) -> str:
 
 
 # pylint: disable=invalid-name
-class QLKNNTransportModel(
+class QLKNNTransportModelConfig(
     qualikiz_based_transport_model.QualikizBasedTransportModelConfig
 ):
   """Model for the QLKNN transport model.
@@ -170,7 +170,7 @@ class QLKNNTransportModel(
     )
 
 
-class TGLFNNukaeaTransportModel(
+class TGLFNNukaeaTransportModelConfig(
     tglf_based_transport_model.TGLFBasedTransportModelConfig
 ):
   """Model for the TGLFNN-ukaea transport model.
@@ -203,7 +203,9 @@ class TGLFNNukaeaTransportModel(
     )
 
 
-class PrescribedTransportModel(pydantic_model_base.ComponentTransportBase):
+class PrescribedTransportModelConfig(
+    config_base.ComponentTransportConfigBase
+):
   """Model for the Prescribed transport model.
 
   Attributes:
@@ -242,8 +244,8 @@ class PrescribedTransportModel(pydantic_model_base.ComponentTransportBase):
     )
 
 
-class CriticalGradientTransportModel(
-    pydantic_model_base.ComponentTransportBase
+class CriticalGradientTransportModelConfig(
+    config_base.ComponentTransportConfigBase
 ):
   """Model for the Critical Gradient transport model.
 
@@ -292,7 +294,9 @@ class CriticalGradientTransportModel(
     )
 
 
-class BohmGyroBohmTransportModel(pydantic_model_base.ComponentTransportBase):
+class BohmGyroBohmTransportModelConfig(
+    config_base.ComponentTransportConfigBase
+):
   """Model for the Bohm + Gyro-Bohm transport model.
 
   Attributes:
@@ -384,11 +388,11 @@ try:
   # try/except block, unions using this type will cause invalid-annotation
   # errors in pytype.
   ComponentTransportModelConfig = Annotated[
-      QLKNNTransportModel
-      | TGLFNNukaeaTransportModel
-      | PrescribedTransportModel
-      | CriticalGradientTransportModel
-      | BohmGyroBohmTransportModel
+      QLKNNTransportModelConfig
+      | TGLFNNukaeaTransportModelConfig
+      | PrescribedTransportModelConfig
+      | CriticalGradientTransportModelConfig
+      | BohmGyroBohmTransportModelConfig
       | tglf_transport_model.TGLFTransportModelConfig
       | qualikiz_transport_model.QualikizTransportModelConfig,
       pydantic.Discriminator('model_name'),
@@ -396,17 +400,17 @@ try:
 
 except ImportError:
   ComponentTransportModelConfig = Annotated[
-      QLKNNTransportModel
-      | TGLFNNukaeaTransportModel
-      | PrescribedTransportModel
-      | CriticalGradientTransportModel
-      | BohmGyroBohmTransportModel
+      QLKNNTransportModelConfig
+      | TGLFNNukaeaTransportModelConfig
+      | PrescribedTransportModelConfig
+      | CriticalGradientTransportModelConfig
+      | BohmGyroBohmTransportModelConfig
       | tglf_transport_model.TGLFTransportModelConfig,
       pydantic.Discriminator('model_name'),
   ]
 
 
-class SmoothingZone(torax_pydantic.BaseModelFrozen):
+class SmoothingZoneConfig(torax_pydantic.ConfigBase):
   """Defines a radial zone with a specific smoothing width."""
 
   rho_min: torax_pydantic.UnitInterval
@@ -420,7 +424,7 @@ class SmoothingZone(torax_pydantic.BaseModelFrozen):
     return self
 
 
-class TransportModel(torax_pydantic.BaseModelFrozen):
+class TransportConfig(torax_pydantic.ConfigBase):
   """Model for the TransportModel.
 
   Attributes:
@@ -464,7 +468,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
   ] = pydantic.Field(
       default_factory=dict
   )
-  smoothing_zones: Sequence[SmoothingZone] = pydantic.Field(
+  smoothing_zones: Sequence[SmoothingZoneConfig] = pydantic.Field(
       default_factory=list
   )
 
@@ -569,7 +573,7 @@ class TransportModel(torax_pydantic.BaseModelFrozen):
 
 
 def _validate_unique_overwrites(
-    models: Mapping[str, pydantic_model_base.ComponentTransportBase],
+    models: Mapping[str, config_base.ComponentTransportConfigBase],
     domain: str,
 ) -> None:
   """Validates that models overwriting the same channel do not overlap."""
@@ -604,8 +608,8 @@ def _validate_unique_overwrites(
 
 
 def _get_overlapping_channels(
-    model1: pydantic_model_base.ComponentTransportBase,
-    model2: pydantic_model_base.ComponentTransportBase,
+    model1: config_base.ComponentTransportConfigBase,
+    model2: config_base.ComponentTransportConfigBase,
 ) -> list[str]:
   """Returns list of channels enabled in both models."""
   channels = []
@@ -628,15 +632,15 @@ def _is_enabled(
 
 
 def _get_range_bounds(
-    model: pydantic_model_base.ComponentTransportBase,
+    model: config_base.ComponentTransportConfigBase,
 ) -> tuple[float, float]:
   """Returns global min/max for a model's active range."""
   return np.min(model.rho_min.value), np.max(model.rho_max.value)
 
 
 def _ranges_overlap(
-    model1: pydantic_model_base.ComponentTransportBase,
-    model2: pydantic_model_base.ComponentTransportBase,
+    model1: config_base.ComponentTransportConfigBase,
+    model2: config_base.ComponentTransportConfigBase,
 ) -> bool:
   """Checks if global extents of two models overlap."""
   r1_min, r1_max = _get_range_bounds(model1)

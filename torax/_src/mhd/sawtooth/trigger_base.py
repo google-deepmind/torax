@@ -41,7 +41,7 @@ class TriggerModel(static_dataclass.StaticDataclass, abc.ABC):
     """Indicates if a crash is triggered and the radius of the q=1 surface."""
 
 
-class TriggerConfig(torax_pydantic.BaseModelFrozen):
+class TriggerConfig(torax_pydantic.ConfigBase):
   """Base config for all trigger models.
 
   Attributes:

@@ -40,16 +40,16 @@ from torax._src.edge import base as edge_base
 from torax._src.edge import updaters as edge_updaters
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.mhd import pydantic_model as mhd_pydantic_model
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
-from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax._src.solver import pydantic_model as solver_pydantic_model
-from torax._src.sources import pydantic_config as sources_pydantic_config
-from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
+from torax._src.mhd import config as mhd_config
+from torax._src.neoclassical import config as neoclassical_config
+from torax._src.pedestal_model import config as pedestal_config
+from torax._src.solver import config as solver_config
+from torax._src.sources import config as sources_config
+from torax._src.time_step_calculator import config as time_step_calculator_config
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import pydantic_model as transport_pydantic_model
+from torax._src.torax_pydantic import torax_config
+from torax._src.transport_model import config as transport_config
 
 # pylint: disable=invalid-name
 
@@ -81,22 +81,24 @@ class RuntimeParamsProvider:
   corresponding geometry.
   """
 
-  sources: sources_pydantic_config.Sources
-  numerics: numerics_lib.Numerics
+  sources: sources_config.SourcesConfig
+  numerics: numerics_lib.NumericsConfig
   profile_conditions: profile_conditions_lib.ProfileConditions
   plasma_composition: plasma_composition_lib.PlasmaComposition
-  transport_model: transport_pydantic_model.TransportModel
-  solver: solver_pydantic_model.SolverConfig
-  pedestal: pedestal_pydantic_model.PedestalConfig
-  mhd: mhd_pydantic_model.MHD
+  transport_model: transport_config.TransportConfig
+  solver: solver_config.SolverConfig
+  pedestal: pedestal_config.PedestalConfig
+  mhd: mhd_config.MHDConfig
   edge: edge_base.EdgeModelConfig | None
-  neoclassical: neoclassical_pydantic_model.BaseNeoclassicalConfig
-  time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
+  neoclassical: neoclassical_config.NeoclassicalConfigBase
+  time_step_calculator: (
+      time_step_calculator_config.TimeStepCalculatorConfig
+  )
 
   @classmethod
   def from_config(
       cls,
-      config: model_config.ToraxConfig,
+      config: torax_config.ToraxConfig,
   ) -> Self:
     """Constructs a RuntimeParamsProvider from a ToraxConfig."""
     return cls(

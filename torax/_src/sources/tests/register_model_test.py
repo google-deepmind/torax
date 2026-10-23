@@ -30,7 +30,7 @@ from torax._src.sources import register_model
 from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -119,7 +119,7 @@ class RegisterConfigTest(parameterized.TestCase):
     register_model.register_source_config(NewGasPuffSourceModelConfig)
 
     # Load the original config and check the gas puff source is expected type.
-    config_pydantic = model_config.ToraxConfig.from_dict(config)
+    config_pydantic = torax_config.ToraxConfig.from_dict(config)
     gas_puff_config = config_pydantic.sources.gas_puff
     self.assertIsInstance(
         gas_puff_config, gas_puff_source_lib.GasPuffSourceConfig
@@ -135,7 +135,7 @@ class RegisterConfigTest(parameterized.TestCase):
         'model_name': 'test_model',  # new registered name.
         'a': 2.0,
     }
-    config_pydantic = model_config.ToraxConfig.from_dict(config)
+    config_pydantic = torax_config.ToraxConfig.from_dict(config)
     # Check we build the correct config.
     new_gas_puff_config = config_pydantic.sources.gas_puff
     self.assertIsInstance(new_gas_puff_config, NewGasPuffSourceModelConfig)

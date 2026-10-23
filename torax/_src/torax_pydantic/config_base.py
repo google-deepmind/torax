@@ -30,7 +30,7 @@ StaticKwargs: TypeAlias = dict[str, Any]
 DynamicArgs: TypeAlias = list[Any]
 
 
-class BaseModelFrozen(pydantic.BaseModel):
+class ConfigBase(pydantic.BaseModel):
   """Base config with frozen fields.
 
   See https://docs.pydantic.dev/latest/ for documentation on pydantic.
@@ -139,7 +139,7 @@ class BaseModelFrozen(pydantic.BaseModel):
     )
 
   @property
-  def _direct_submodels(self) -> tuple[Self, ...]:
+  def _direct_submodels(self) -> tuple['ConfigBase', ...]:
     """Direct submodels in the model."""
 
     def is_leaf(x):
@@ -152,10 +152,10 @@ class BaseModelFrozen(pydantic.BaseModel):
     # Some Pydantic models are values of a dict. We flatten the tree to access
     # them.
     leaves = jax.tree.flatten(leaves, is_leaf=is_leaf)[0]
-    return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))  # pyrefly: ignore[bad-return]
+    return tuple(i for i in leaves if isinstance(i, ConfigBase))
 
   @property
-  def submodels(self) -> tuple[Self, ...]:
+  def submodels(self) -> tuple['ConfigBase', ...]:
     """A tuple of the model and all submodels.
 
     This will return all Pydantic models directly inside model fields, and
@@ -165,7 +165,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       A tuple of the model and all model submodels.
     """
 
-    all_submodels = [self]
+    all_submodels: list[ConfigBase] = [self]
     new_submodels = self._direct_submodels
     while new_submodels:
       new_submodels_temp = []
@@ -203,7 +203,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         data=self,
     )
     for model in self._direct_submodels:
-      if model.__class__ is not BaseModelFrozen:
+      if model.__class__ is not ConfigBase:
         model_tree.paste(id(self), model.tree_build())
     return model_tree
 
@@ -227,7 +227,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         del self.__dict__[p]
 
   def _update_fields(self, x: Mapping[str, Any]):
-    """Safely update fields a nested BaseModelFrozen.
+    """Safely update fields a nested ConfigBase.
 
     This method will invalidate all `functools.cached_property` caches of
     all ancestral models in the nested tree, as these could have a dependency
@@ -256,12 +256,12 @@ class BaseModelFrozen(pydantic.BaseModel):
       model = self._lookup_path(path_split)
       mutated_models.append(model)
 
-      if not isinstance(model, BaseModelFrozen) or (
+      if not isinstance(model, ConfigBase) or (
           value_name not in model.__class__.model_fields
       ):
         raise ValueError(
             f'The path {path} does not refer to a field of a Pydantic'
-            ' BaseModelFrozen model.'
+            ' ConfigBase model.'
         )
       assert value_name in model.__dict__
       field_type = model.__class__.model_fields[value_name].annotation
@@ -289,17 +289,17 @@ class BaseModelFrozen(pydantic.BaseModel):
     """Returns the model at the given path."""
     value = self
     for path in paths:
-      if isinstance(value, BaseModelFrozen):
+      if isinstance(value, ConfigBase):
         if path not in value.__class__.model_fields:
           raise ValueError(
               f'The path {".".join(paths)} does not refer to a field of a'
-              ' Pydantic BaseModelFrozen model.'
+              ' Pydantic ConfigBase model.'
           )
         value = getattr(value, path)
       elif isinstance(value, dict):
         value = value[path]
       else:
         raise ValueError(f'Cannot look up path {path} in {value}')
-    if not isinstance(value, BaseModelFrozen):
+    if not isinstance(value, ConfigBase):
       raise ValueError(f'The value at path {paths} is not a Pydantic model.')
     return value  # pyrefly: ignore[bad-return]

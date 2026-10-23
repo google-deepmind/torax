@@ -23,7 +23,7 @@ from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.ion_cyclotron_source import scaled_profile
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -49,7 +49,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
     config['sources'] = {
         icrh_base.IonCyclotronSource.SOURCE_ID: icrh_config_dict,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     icrh_source = source_models.standard_sources[

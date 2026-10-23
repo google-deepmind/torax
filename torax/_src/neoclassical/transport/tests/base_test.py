@@ -20,12 +20,12 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry as geometry_lib
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.neoclassical import register_model
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import base as neoclassical_transport_base
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import transport_coeffs
 
@@ -36,14 +36,9 @@ class NeoclassicalTransportTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    # Register the fake transport config.
-    neoclassical_pydantic_model.AnalyticalNeoclassicalConfig.model_fields[  # pyrefly: ignore[bad-assignment]
-        'transport'
-    ].annotation |= FakeNeoclassicalTransportModelConfig
-    neoclassical_pydantic_model.AnalyticalNeoclassicalConfig.model_rebuild(
-        force=True
+    register_model.register_neoclassical_transport_model(
+        FakeNeoclassicalTransportModelConfig
     )
-    model_config.ToraxConfig.model_rebuild(force=True)
 
   def test_clipping(self):
     config = default_configs.get_default_config_dict()
@@ -58,7 +53,7 @@ class NeoclassicalTransportTest(absltest.TestCase):
             'V_e_max': -0.75,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)

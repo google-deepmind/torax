@@ -27,7 +27,7 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 
 # pylint: disable=invalid-name
@@ -82,7 +82,7 @@ class UpdatersTest(parameterized.TestCase):
     }
     config['profile_conditions']['initial_psi_mode'] = 'profile_conditions'
 
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -129,7 +129,7 @@ class UpdatersTest(parameterized.TestCase):
         0.0: 10.0
     }  # Set initial only via config for init
 
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -180,7 +180,7 @@ class UpdatersTest(parameterized.TestCase):
         'initial_psi_mode': 'profile_conditions',
     }
 
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )

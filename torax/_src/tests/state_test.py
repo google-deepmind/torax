@@ -35,7 +35,7 @@ from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
@@ -54,7 +54,7 @@ class InitialStatesTest(parameterized.TestCase):
         'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
         'normalize_n_e_to_nbar': False,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     dynamic_provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -80,7 +80,7 @@ class InitialStatesTest(parameterized.TestCase):
 
   def test_core_profiles_quasineutrality_check(self):
     """Tests core_profiles quasineutrality check on initial state."""
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = torax_config_lib.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
     source_models = torax_config.sources.build_models()
@@ -142,7 +142,7 @@ class InitialStatesTest(parameterized.TestCase):
             'species': {'Ne': 0.01},
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -263,7 +263,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
         },
         'Z_eff': 2.0,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
@@ -311,7 +311,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
             },
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
@@ -358,7 +358,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
         },
         'Z_eff': 1.5,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
 
     state_history = run_simulation.run_simulation(
         torax_config, progress_bar=False

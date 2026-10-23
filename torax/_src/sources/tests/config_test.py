@@ -21,11 +21,11 @@ import numpy as np
 import pydantic
 from torax._src import jax_utils
 from torax._src.geometry import circular_geometry
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.neoclassical import config as neoclassical_config
 from torax._src.sources import base
+from torax._src.sources import config as sources_config
 from torax._src.sources import fusion_heat_source
 from torax._src.sources import gas_puff_source
-from torax._src.sources import pydantic_config
 from torax._src.sources import qei_source
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
@@ -34,12 +34,12 @@ from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class PydanticConfigTest(parameterized.TestCase):
+class SourcesConfigTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
     self.neoclassical = (
-        neoclassical_pydantic_model.AnalyticalNeoclassicalConfig.from_dict({})
+        neoclassical_config.AnalyticalNeoclassicalConfig.from_dict({})
     )
 
   @parameterized.parameters(
@@ -76,7 +76,7 @@ class PydanticConfigTest(parameterized.TestCase):
       config: dict[str, Any],
       expected_sources_model: type[base.SourceConfigBase],
   ):
-    sources_model = pydantic_config.Sources.from_dict(config)
+    sources_model = sources_config.SourcesConfig.from_dict(config)
     self.assertIsInstance(
         sources_model.source_model_config[list(config.keys())[0]],
         expected_sources_model,
@@ -89,7 +89,7 @@ class PydanticConfigTest(parameterized.TestCase):
 
   def test_adding_standard_source_via_config(self):
     """Tests that a source can be added with overriding defaults."""
-    sources = pydantic_config.Sources.from_dict({
+    sources = sources_config.SourcesConfig.from_dict({
         'gas_puff': {
             'puff_decay_length': 1.23,
         },
@@ -127,7 +127,7 @@ class PydanticConfigTest(parameterized.TestCase):
 
   def test_empty_source_config_only_has_defaults_turned_off(self):
     """Tests that an empty source config has all sources turned off."""
-    sources = pydantic_config.Sources.from_dict({})
+    sources = sources_config.SourcesConfig.from_dict({})
     self.assertEqual(
         sources.ei_exchange.mode,
         source_runtime_params_lib.Mode.ZERO,
@@ -137,7 +137,7 @@ class PydanticConfigTest(parameterized.TestCase):
 
   def test_adding_a_source_with_prescribed_values(self):
     """Tests that a source can be added with overriding defaults."""
-    sources = pydantic_config.Sources.from_dict({
+    sources = sources_config.SourcesConfig.from_dict({
         'generic_current': {
             'mode': 'PRESCRIBED',
             'prescribed_values': (
@@ -190,7 +190,7 @@ class PydanticConfigTest(parameterized.TestCase):
             'model_name': 'mavrin_fit',
         },
     }
-    sources = pydantic_config.Sources.from_dict(config)
+    sources = sources_config.SourcesConfig.from_dict(config)
     assert sources.bremsstrahlung is not None
     self.assertTrue(sources.bremsstrahlung.exclude_impurity_bremsstrahlung)
 
@@ -202,7 +202,7 @@ class PydanticConfigTest(parameterized.TestCase):
             'model_name': 'mavrin_fit',
         },
     }
-    sources = pydantic_config.Sources.from_dict(config)
+    sources = sources_config.SourcesConfig.from_dict(config)
     assert sources.bremsstrahlung is not None
     self.assertFalse(sources.bremsstrahlung.exclude_impurity_bremsstrahlung)
 
@@ -214,7 +214,7 @@ class PydanticConfigTest(parameterized.TestCase):
             'model_name': 'mavrin_fit',
         },
     }
-    sources = pydantic_config.Sources.from_dict(config)
+    sources = sources_config.SourcesConfig.from_dict(config)
     assert sources.bremsstrahlung is not None
     self.assertFalse(sources.bremsstrahlung.exclude_impurity_bremsstrahlung)
 
@@ -228,7 +228,7 @@ class PydanticConfigTest(parameterized.TestCase):
             'model_name': 'P_in_scaled_flat_profile',
         },
     }
-    sources = pydantic_config.Sources.from_dict(config)
+    sources = sources_config.SourcesConfig.from_dict(config)
     assert sources.bremsstrahlung is not None
     self.assertFalse(sources.bremsstrahlung.exclude_impurity_bremsstrahlung)
 
@@ -353,12 +353,12 @@ class PydanticConfigTest(parameterized.TestCase):
       config_dict[source_name]['model_name'] = model_name
     if extra_fields is not None:
       config_dict[source_name].update(extra_fields)
-    sm = pydantic_config.Sources.from_dict(config_dict)
+    sm = sources_config.SourcesConfig.from_dict(config_dict)
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(sm, geo.torax_mesh)
 
     @jax.jit
-    def f(sources: pydantic_config.Sources):
+    def f(sources: sources_config.SourcesConfig):
       source = sources.source_model_config[source_name]
       return source.build_runtime_params(t=0.0)
 
@@ -383,7 +383,7 @@ class PydanticConfigTest(parameterized.TestCase):
         r"Input tag 'invalid_name' found using 'model_name' does not match any"
         r' of the expected tags',
     ):
-      pydantic_config.Sources.from_dict(
+      sources_config.SourcesConfig.from_dict(
           {'generic_current': {'model_name': 'invalid_name'}}
       )
 

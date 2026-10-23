@@ -34,7 +34,7 @@ import torax
 from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 from absl import app
 
@@ -191,7 +191,7 @@ def _maybe_update_config(path: pathlib.Path) -> pathlib.Path:
 
 def _modify_config(
     path: pathlib.Path,
-) -> model_config.ToraxConfig | None:
+) -> torax_config_lib.ToraxConfig | None:
   """Returns a new ToraxConfig from the modified config module."""
 
   simulation_app.log_to_stdout(
@@ -216,7 +216,7 @@ def _modify_config(
 
 def _change_config(
     config_path: pathlib.Path,
-) -> tuple[model_config.ToraxConfig, pathlib.Path]:
+) -> tuple[torax_config_lib.ToraxConfig, pathlib.Path]:
   """Returns a ToraxConfig from the new config file."""
   config_path = _maybe_update_config(config_path)
   simulation_app.log_to_stdout(

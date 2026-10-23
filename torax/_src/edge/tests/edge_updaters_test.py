@@ -24,7 +24,7 @@ from torax._src.edge import base as edge_base
 from torax._src.edge import runtime_params as edge_runtime_params
 from torax._src.edge import updaters
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -48,7 +48,7 @@ class UpdateRuntimeParamsFromEdgeTest(parameterized.TestCase):
             'Ne': {0: _UNCHANGED_RATIO, 1: _UNCHANGED_RATIO},
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )

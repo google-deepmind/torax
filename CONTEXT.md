@@ -71,9 +71,10 @@ For build and test instructions, see
     root deduplication, convergence checking) to the individual `Outputs` data
     containers instead.
 
-*   **Config Propagation:** Configuration flows from user-facing Pydantic models
-    (e.g., `Numerics`, `ExtendedLengyelConfig`) to JAX-compatible, frozen
-    `RuntimeParams` dataclasses via a `build_runtime_params(self, t)` method.
+*   **Config Propagation:** Configuration flows from user-facing Pydantic
+    configs (e.g., `NumericsConfig`, `ExtendedLengyelConfig`) to JAX-compatible,
+    frozen `RuntimeParams` dataclasses via a `build_runtime_params(self, t)`
+    method.
     The `t` argument evaluates time-dependent parameters (like
     `TimeVaryingScalar`) at a specific simulation time slice to yield concrete
     numerical values. Pydantic models use specialized types

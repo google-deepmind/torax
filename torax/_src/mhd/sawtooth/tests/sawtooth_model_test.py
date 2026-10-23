@@ -27,7 +27,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import step_function
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax.tests.scripts import regenerate_sawtooth_refs
 
 # Internal import.
@@ -59,7 +59,7 @@ class SawtoothModelTest(parameterized.TestCase):
     super().setUp()
     # Use the shared test configuration from the regeneration script
     test_config_dict = regenerate_sawtooth_refs.get_sawtooth_test_config()
-    torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(test_config_dict)
     self._torax_config = torax_config
 
     solver = torax_config.solver.build_solver(

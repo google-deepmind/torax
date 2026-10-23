@@ -14,8 +14,8 @@
 """Utilities for registering new pydantic configs."""
 
 from torax._src.sources import base
-from torax._src.sources import pydantic_config as sources_pydantic_config
-from torax._src.torax_pydantic import model_config
+from torax._src.sources import config as sources_config
+from torax._src.torax_pydantic import torax_config
 
 
 def register_source_config(
@@ -39,19 +39,19 @@ def register_source_config(
     raise ValueError(
         'Cannot register a new source model config for the ei_exchange source.'
     )
-  if source_id not in sources_pydantic_config.Sources.model_fields:
+  if source_id not in sources_config.SourcesConfig.model_fields:
     raise ValueError(f'The source name {source_id} is not supported.')
 
-  # Update the Sources pydantic model to be aware of the new config.
-  field_info = sources_pydantic_config.Sources.model_fields[source_id]
+  # Update the SourcesConfig pydantic model to be aware of the new config.
+  field_info = sources_config.SourcesConfig.model_fields[source_id]
   previous_annotation = field_info.annotation
   assert previous_annotation is not None
   field_info.annotation = previous_annotation | source_config_class
   try:
-    sources_pydantic_config.Sources.model_rebuild(force=True)
-    model_config.ToraxConfig.model_rebuild(force=True)
+    sources_config.SourcesConfig.model_rebuild(force=True)
+    torax_config.ToraxConfig.model_rebuild(force=True)
   except Exception:
     field_info.annotation = previous_annotation
-    sources_pydantic_config.Sources.model_rebuild(force=True)
-    model_config.ToraxConfig.model_rebuild(force=True)
+    sources_config.SourcesConfig.model_rebuild(force=True)
+    torax_config.ToraxConfig.model_rebuild(force=True)
     raise

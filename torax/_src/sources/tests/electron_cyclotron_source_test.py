@@ -18,12 +18,12 @@ from torax._src.core_profiles import initialization
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 
 def _build_torax_config(
     power: float, current_drive_efficiency: float
-) -> model_config.ToraxConfig:
+) -> torax_config_lib.ToraxConfig:
   """Returns a config with a Gaussian EC source of uniform efficiency."""
   config = default_configs.get_default_config_dict()
   config["sources"] = {
@@ -38,16 +38,18 @@ def _build_torax_config(
           },
       }
   }
-  return model_config.ToraxConfig.from_dict(config)
+  return torax_config_lib.ToraxConfig.from_dict(config)
 
 
-def _build_runtime_params(torax_config: model_config.ToraxConfig):
+def _build_runtime_params(torax_config: torax_config_lib.ToraxConfig):
   return build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
       t=torax_config.numerics.t_initial
   )
 
 
-def _build_plasma_state(torax_config: model_config.ToraxConfig, runtime_params):
+def _build_plasma_state(
+    torax_config: torax_config_lib.ToraxConfig, runtime_params
+):
   """Returns the geometry and initial core profiles for the config."""
   geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
   core_profiles = initialization.initial_core_profiles(

@@ -20,23 +20,23 @@ from torax._src.core_profiles import initialization
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.transport_model import bohm_gyrobohm
-from torax._src.transport_model import pydantic_model
+from torax._src.transport_model import config
 
 
 # pylint: disable=invalid-name
 class BohmGyroBohmTest(absltest.TestCase):
 
   def _build_model_and_params(self, **bgb_params):
-    bgb_config = pydantic_model.BohmGyroBohmTransportModel(
+    bgb_config = config.BohmGyroBohmTransportModelConfig(
         D_face_c1=0.1,
         D_face_c2=0.2,
         V_face_coeff=0.3,
         **bgb_params,
     )
     model = bgb_config.build_transport_model()
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = torax_config_lib.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
     t = torax_config.numerics.t_initial

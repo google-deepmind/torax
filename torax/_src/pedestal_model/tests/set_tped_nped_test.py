@@ -21,7 +21,7 @@ from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -63,7 +63,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
             'n_e_ped_is_fGW': n_e_ped_is_fGW,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )

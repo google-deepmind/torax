@@ -34,7 +34,7 @@ from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import torax_refs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -96,7 +96,7 @@ class InitializationTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['geometry']['geometry_type'] = 'chease'
     config['geometry']['n_rho'] = 100
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
             t=torax_config.numerics.t_initial,
@@ -135,7 +135,7 @@ class InitializationTest(parameterized.TestCase):
   def test_initial_core_profiles_toroidal_angular_velocity(self):
     config = default_configs.get_default_config_dict()
     # Test default initialization (zeros)
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     core_profiles, geo, _ = _get_initial_state(torax_config)
     np.testing.assert_allclose(
         core_profiles.toroidal_angular_velocity.value, np.zeros_like(geo.rho)
@@ -144,14 +144,16 @@ class InitializationTest(parameterized.TestCase):
   def test_initial_toroidal_velocity_from_profile_conditions(self):
     config = default_configs.get_default_config_dict()
     toroidal_angular_velocity_test = np.array([10.0, 20.0, 30.0, 40.0])
-    _, geo, _ = _get_initial_state(model_config.ToraxConfig.from_dict(config))
+    _, geo, _ = _get_initial_state(
+        torax_config_lib.ToraxConfig.from_dict(config)
+    )
     config['profile_conditions']['toroidal_angular_velocity'] = {
         0.0: {
             rho: value
             for rho, value in zip(geo.rho_norm, toroidal_angular_velocity_test)
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     core_profiles, _, _ = _get_initial_state(torax_config)
     np.testing.assert_allclose(
         core_profiles.toroidal_angular_velocity.value,
@@ -172,7 +174,7 @@ class InitializationTest(parameterized.TestCase):
     """Tests that runtime params validate boundary conditions."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions']['psi'] = psi
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     core_profiles, _, _ = _get_initial_state(torax_config)
 
     np.testing.assert_allclose(
@@ -184,7 +186,7 @@ class InitializationTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['geometry']['geometry_type'] = 'chease'
     config['profile_conditions']['initial_psi_from_j'] = False
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     core_profiles, geo, _ = _get_initial_state(torax_config)
 
@@ -206,7 +208,7 @@ class InitializationTest(parameterized.TestCase):
     psi_profile = {0: {0: 42.0, 1: 43.0}}
     config['profile_conditions']['initial_psi_from_j'] = initial_psi_from_j
     config['profile_conditions']['psi'] = psi_profile
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     core_profiles, geo, _ = _get_initial_state(torax_config)
 
@@ -237,7 +239,7 @@ class InitializationTest(parameterized.TestCase):
             'fraction_of_total_current': _FRACTION_OF_TOTAL_CURRENT
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
@@ -339,7 +341,7 @@ class InitializationTest(parameterized.TestCase):
     config = default_configs.get_default_config_dict()
     config['geometry']['geometry_type'] = 'chease'
     config['geometry']['n_rho'] = _NRHO
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
 
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
@@ -420,7 +422,7 @@ class InitializationTest(parameterized.TestCase):
     config['profile_conditions'] = {
         'initial_psi_from_j': False,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     _, _, currents1 = _get_initial_state(torax_config)
     jtotal1 = currents1.j_toroidal_total
 
@@ -435,7 +437,7 @@ class InitializationTest(parameterized.TestCase):
     config['profile_conditions'] = {
         'initial_psi_mode': 'geometry',
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -453,7 +455,7 @@ class InitializationTest(parameterized.TestCase):
     config['profile_conditions'] = {
         'initial_psi_mode': 'j',
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -470,7 +472,7 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_mode': 'profile_conditions',
         'psi': 15.0,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -490,7 +492,7 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_mode': 'profile_conditions',
         'initial_psi_from_j': True,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -508,7 +510,7 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_from_j': False,
     }
     config['geometry']['geometry_type'] = 'circular'
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -526,7 +528,7 @@ class InitializationTest(parameterized.TestCase):
         'initial_psi_from_j': False,
     }
     config['geometry']['geometry_type'] = 'chease'
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -541,7 +543,7 @@ class InitializationTest(parameterized.TestCase):
 
 
 def _get_initial_state(
-    torax_config: model_config.ToraxConfig,
+    torax_config: torax_config_lib.ToraxConfig,
 ) -> tuple[
     state.CoreProfiles,
     geometry.Geometry,

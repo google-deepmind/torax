@@ -29,7 +29,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
-class InitialGuessConfig(torax_pydantic.BaseModelFrozen):
+class InitialGuessConfig(torax_pydantic.ConfigBase):
   """Configuration for initial guesses of the edge model state.
 
   Allows overriding the initial guess for the iterative solver.

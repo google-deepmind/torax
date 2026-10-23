@@ -33,7 +33,7 @@ from torax._src.pedestal_model import pedestal_transition_state as pedestal_tran
 from torax._src.sources import runtime_params as source_runtime_params
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_sources
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 
 def _make_face_centers(dr: float, num_cells: int) -> np.ndarray:
@@ -217,7 +217,7 @@ class FVMTest(parameterized.TestCase):
     source_config['generic_heat']['P_total'] = 0.0
     source_config['fusion']['mode'] = source_runtime_params.Mode.ZERO
     source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = torax_config_lib.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
@@ -331,7 +331,7 @@ class FVMTest(parameterized.TestCase):
     source_config['generic_heat']['P_total'] = 0.0
     source_config['fusion']['mode'] = source_runtime_params.Mode.ZERO
     source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = torax_config_lib.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
@@ -446,7 +446,7 @@ class FVMTest(parameterized.TestCase):
     source_config['generic_heat']['P_total'] = 0.0
     source_config['fusion']['mode'] = source_runtime_params.Mode.ZERO
     source_config['ohmic']['mode'] = source_runtime_params.Mode.ZERO
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = torax_config_lib.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
             profile_conditions=dict(),

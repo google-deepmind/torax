@@ -35,7 +35,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.physics import charge_states
 from torax._src.physics import formulas
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.torax_pydantic import torax_pydantic
 
 SMALL_VALUE = 1e-6
@@ -140,7 +140,7 @@ class GettersTest(parameterized.TestCase):
             'normalize_n_e_to_nbar': False,
         },
     )
-    numerics = numerics_lib.Numerics.from_dict({})
+    numerics = numerics_lib.NumericsConfig.from_dict({})
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     n_e = getters.get_updated_electron_density(
@@ -291,7 +291,7 @@ class GettersTest(parameterized.TestCase):
         'n_e_right_bc': n_e_right_bc,
         'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
     })
-    numerics = numerics_lib.Numerics.from_dict({})
+    numerics = numerics_lib.NumericsConfig.from_dict({})
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     n_e = getters.get_updated_electron_density(
@@ -310,7 +310,7 @@ class GettersTest(parameterized.TestCase):
   ):
     """Tests that normalizing vs. not by nbar gives consistent results."""
     nbar = 1e20
-    numerics = numerics_lib.Numerics.from_dict({})
+    numerics = numerics_lib.NumericsConfig.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
         'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_nbar_is_fGW': False,
@@ -346,7 +346,7 @@ class GettersTest(parameterized.TestCase):
       normalize_n_e_to_nbar: bool,
   ):
     """Tests setting the Greenwald fraction vs. not gives consistent results."""
-    numerics = numerics_lib.Numerics.from_dict({})
+    numerics = numerics_lib.NumericsConfig.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
         'n_e': {0: {0: 1.5, 1: 1}},
         'n_e_nbar_is_fGW': True,
@@ -394,7 +394,7 @@ class GettersTest(parameterized.TestCase):
         'normalize_n_e_to_nbar': False,
     }
     config['plasma_composition']['Z_eff'] = 2.0
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -438,7 +438,7 @@ class GettersTest(parameterized.TestCase):
   def test_Z_eff_calculation(self):
     config = default_configs.get_default_config_dict()
     config['plasma_composition']['Z_eff'] = {0.0: 1.0, 1.0: 2.0}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     runtime_params_provider = (
@@ -559,7 +559,7 @@ class GettersTest(parameterized.TestCase):
         'transport': {},
         'pedestal': {},
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
 
     # 3. Call the function under test.
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -664,7 +664,7 @@ class GettersTest(parameterized.TestCase):
         'transport': {},
         'pedestal': {},
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
 
     # 3. Call the function under test.
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -770,7 +770,7 @@ class GettersTest(parameterized.TestCase):
             'species': n_e_ratios,
         },
     }
-    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+    torax_config_ne_ratios = torax_config_lib.ToraxConfig.from_dict(
         config_dict_ne_ratios
     )
 
@@ -784,7 +784,7 @@ class GettersTest(parameterized.TestCase):
         },
         'Z_eff': float(zeff),
     }
-    torax_config_fractions = model_config.ToraxConfig.from_dict(
+    torax_config_fractions = torax_config_lib.ToraxConfig.from_dict(
         config_dict_fractions
     )
 
@@ -850,7 +850,7 @@ class GettersTest(parameterized.TestCase):
         'transport': {},
         'pedestal': {},
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -971,7 +971,7 @@ class GettersTest(parameterized.TestCase):
             'species': n_e_ratios,
         },
     }
-    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+    torax_config_ne_ratios = torax_config_lib.ToraxConfig.from_dict(
         config_dict_ne_ratios
     )
 
@@ -985,7 +985,7 @@ class GettersTest(parameterized.TestCase):
         },
         'Z_eff': (geo.rho_face_norm, zeff),
     }
-    torax_config_fractions = model_config.ToraxConfig.from_dict(
+    torax_config_fractions = torax_config_lib.ToraxConfig.from_dict(
         config_dict_fractions
     )
 
@@ -1053,7 +1053,7 @@ class GettersTest(parameterized.TestCase):
             'species': n_e_ratios,
         },
     }
-    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+    torax_config_ne_ratios = torax_config_lib.ToraxConfig.from_dict(
         config_dict_ne_ratios
     )
 
@@ -1102,7 +1102,7 @@ class GettersTest(parameterized.TestCase):
             ground_truth_zeff[0]
         ),  # Use the calculated Z_eff as input
     }
-    torax_config_ne_ratios_zeff = model_config.ToraxConfig.from_dict(
+    torax_config_ne_ratios_zeff = torax_config_lib.ToraxConfig.from_dict(
         config_dict_ne_ratios_zeff
     )
 
@@ -1155,7 +1155,7 @@ class GettersTest(parameterized.TestCase):
             'species': n_e_ratios,
         },
     }
-    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
+    torax_config_ne_ratios = torax_config_lib.ToraxConfig.from_dict(
         config_dict_ne_ratios
     )
 
@@ -1221,7 +1221,7 @@ class GettersTest(parameterized.TestCase):
         # Use the calculated Z_eff as input
         'Z_eff': (geo.rho_face_norm, zeff),
     }
-    torax_config_ne_ratios_zeff = model_config.ToraxConfig.from_dict(
+    torax_config_ne_ratios_zeff = torax_config_lib.ToraxConfig.from_dict(
         config_dict_ne_ratios_zeff
     )
 
@@ -1267,7 +1267,7 @@ class GettersTest(parameterized.TestCase):
     }
     if Z_eff is not None:
       config_dict['plasma_composition']['Z_eff'] = Z_eff
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
 
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config

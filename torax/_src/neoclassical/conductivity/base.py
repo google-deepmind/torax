@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Base class for conductivity models."""
+
 from __future__ import annotations
 
 import abc
@@ -52,14 +53,14 @@ class ConductivityModel(abc.ABC):
     """Calculates conductivity."""
 
 
-class ConductivityModelConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class ConductivityModelConfig(torax_pydantic.ConfigBase):
   """Base class for conductivity model configs.
 
   Attributes:
     conductivity_multiplier: Multiplication factor for the conductivity.
     neoclassical_correction: If True, applies the neoclassical trapped-particle
-      correction to the Spitzer conductivity. If False, the Spitzer
-      conductivity is used.
+      correction to the Spitzer conductivity. If False, the Spitzer conductivity
+      is used.
   """
 
   conductivity_multiplier: pydantic.PositiveFloat = 1.0

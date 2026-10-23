@@ -30,7 +30,7 @@ from torax._src.pedestal_model import pedestal_transition_state as pedestal_tran
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import interpolated_param_1d
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 
 def get_step_fn_sim_state_and_post_processed_outputs(
@@ -42,7 +42,7 @@ def get_step_fn_sim_state_and_post_processed_outputs(
 ]:
   if config_dict is None:
     config_dict = default_configs.get_default_config_dict()
-  torax_config = model_config.ToraxConfig.from_dict(config_dict)
+  torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
   (
       sim_state,
       post_processed_outputs,
@@ -180,7 +180,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics']['fixed_dt'] = config_dt
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -214,7 +214,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics']['fixed_dt'] = config_dt
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -247,7 +247,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics']['fixed_dt'] = config_dt
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -291,7 +291,7 @@ class StepFunctionTest(parameterized.TestCase):
             'crash_step_duration': crash_step_duration,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -307,7 +307,7 @@ class StepFunctionTest(parameterized.TestCase):
   def test_fixed_time_step_correct_time(self):
     config_dict = default_configs.get_default_config_dict()
     control_dt = 0.01
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -329,7 +329,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics']['min_dt'] = 0.1
     config_dict['numerics']['adaptive_dt'] = True
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -371,7 +371,7 @@ class StepFunctionTest(parameterized.TestCase):
     original_ip = 15e6
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions']['Ip'] = original_ip
-    cfg = model_config.ToraxConfig.from_dict(config_dict)
+    cfg = torax_config_lib.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -409,7 +409,7 @@ class StepFunctionTest(parameterized.TestCase):
 
   def test_step_function_geometry_overrides(self):
     config_dict = default_configs.get_default_config_dict()
-    cfg = model_config.ToraxConfig.from_dict(config_dict)
+    cfg = torax_config_lib.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,

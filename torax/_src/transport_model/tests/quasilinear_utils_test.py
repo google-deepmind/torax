@@ -22,7 +22,7 @@ from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 from torax._src.transport_model import quasilinear_utils
 from torax._src.transport_model import runtime_params as transport_params
 
@@ -64,7 +64,7 @@ class QuasilinearUtilsTest(parameterized.TestCase):
       self, A_n_and_pfe, DV_effective_smooth_width
   ):
     A_n_target, pfe_val = A_n_and_pfe
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = torax_config_lib.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
@@ -119,9 +119,9 @@ class QuasilinearUtilsTest(parameterized.TestCase):
   ):
     config = default_configs.get_default_config_dict()
     config['geometry'] = {'geometry_type': 'chease'}
-    geo = model_config.ToraxConfig.from_dict(config).geometry.build_provider(
-        t=0.0
-    )
+    geo = torax_config_lib.ToraxConfig.from_dict(
+        config
+    ).geometry.build_provider(t=0.0)
     n_e = cell_variable.CellVariable(
         value=1.0e20 * (1.0 - 0.7 * geo.rho_norm**2),
         face_centers=geo.rho_face_norm,

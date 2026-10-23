@@ -73,7 +73,7 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.transport.ComponentTransportBase`` and implements the
+``torax.transport.ComponentTransportConfigBase`` and implements the
 ``build_transport_model`` method. The config class must have a ``model_name``
 field with a unique ``Literal`` type that identifies your model.
 
@@ -81,7 +81,7 @@ field with a unique ``Literal`` type that identifies your model.
 
     from typing import Annotated, Literal
 
-    class MyTransportConfig(transport.ComponentTransportBase):
+    class MyTransportConfig(transport.ComponentTransportConfigBase):
       """Pydantic config for MyTransportModel."""
 
       model_name: Annotated[
@@ -180,7 +180,7 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.pedestal.BaseStructure`` and implements the ``build_structure_model``
+``torax.pedestal.StructureConfigBase`` and implements the ``build_structure_model``
 method. The config class must have a ``model_name`` field with a unique
 ``Literal`` type.
 
@@ -206,7 +206,7 @@ Continuing from Step 1 (additional imports only):
 
       T_ped: array_typing.FloatScalar
 
-    class MyStructureConfig(pedestal.BaseStructure):
+    class MyStructureConfig(pedestal.StructureConfigBase):
       """Pydantic config for MyPedestalStructureModel."""
 
       model_name: Annotated[
@@ -395,10 +395,11 @@ This must be done at module level, before any TORAX config is built.
 
     sources.register_source_config(MyHeatSourceConfig)
 
-The source's ``SOURCE_ID`` must be one of the fields in the ``Sources`` pydantic
-model: ``bremsstrahlung``, ``cyclotron_radiation``, ``ecrh``, ``fusion``,
-``gas_puff``, ``generic_current``, ``generic_heat``, ``generic_particle``,
-``icrh``, ``impurity_radiation``, ``ohmic``, or ``pellet``.
+The source's ``SOURCE_ID`` must be one of the fields in the ``SourcesConfig``
+pydantic config: ``bremsstrahlung``, ``cyclotron_radiation``, ``ecrh``,
+``fusion``, ``gas_puff``, ``generic_current``, ``generic_heat``,
+``generic_particle``, ``icrh``, ``impurity_radiation``, ``ohmic``, or
+``pellet``.
 
 If you want to register a custom implementation for a source that isn't in this
 list (for example "nbi"), please reach out to the TORAX team and we will help.
@@ -591,7 +592,7 @@ and poloidal velocity) together in one evaluation.
 
 Create a ``NeoclassicalModel`` subclass implementing ``__call__`` (returning
 ``NeoclassicalOutputs``), an optional ``RuntimeParams`` subclass for dynamic
-parameters, and a ``BaseNeoclassicalConfig`` config subclass with a unique
+parameters, and a ``NeoclassicalConfigBase`` config subclass with a unique
 ``model_name`` ``Literal``:
 
 .. code-block:: python
@@ -634,7 +635,7 @@ parameters, and a ``BaseNeoclassicalConfig`` config subclass with a unique
             poloidal_velocity=neoclassical.PoloidalVelocity.zeros(geometry),
         )
 
-    class MyNeoclassicalConfig(neoclassical.BaseNeoclassicalConfig):
+    class MyNeoclassicalConfig(neoclassical.NeoclassicalConfigBase):
       """Pydantic config for MyNeoclassicalModel."""
 
       model_name: Annotated[

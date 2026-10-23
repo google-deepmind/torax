@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the `torax.torax_pydantic.model_base` module."""
+"""Unit tests for the `torax.torax_pydantic.config_base` module."""
 
 import functools
 from typing import Annotated, Any
@@ -21,15 +21,15 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import pydantic
-from torax._src.torax_pydantic import model_base
+from torax._src.torax_pydantic import config_base
 from torax._src.torax_pydantic import torax_pydantic
 
 
 class PydanticBaseTest(parameterized.TestCase):
 
-  def test_model_base_frozen(self):
+  def test_config_base_frozen(self):
 
-    class TestModel(model_base.BaseModelFrozen):
+    class TestModel(config_base.ConfigBase):
       x: float
       y: float
 
@@ -39,15 +39,15 @@ class PydanticBaseTest(parameterized.TestCase):
       with self.assertRaises(ValueError):
         m.x = 2.0  # pyrefly: ignore[read-only]
 
-  def test_model_base_jax_pytree(self):
+  def test_config_base_jax_pytree(self):
 
-    class TestModel1(model_base.BaseModelFrozen):
-      name: Annotated[str, model_base.JAX_STATIC]
+    class TestModel1(config_base.ConfigBase):
+      name: Annotated[str, config_base.JAX_STATIC]
       y: float
 
-    class TestModel2(model_base.BaseModelFrozen):
+    class TestModel2(config_base.ConfigBase):
       name: Annotated[
-          str, 'distractor_1', model_base.JAX_STATIC, 'distractor_2'
+          str, 'distractor_1', config_base.JAX_STATIC, 'distractor_2'
       ]
       y: TestModel1
       z: float
@@ -80,13 +80,15 @@ class PydanticBaseTest(parameterized.TestCase):
 
   def test_model_field_metadata(self):
 
-    class TestModel(model_base.BaseModelFrozen):
+    class TestModel(config_base.ConfigBase):
       x: torax_pydantic.Second
       y: Annotated[
-          torax_pydantic.Meter, 'other_metadata', model_base.TIME_INVARIANT
+          torax_pydantic.Meter, 'other_metadata', config_base.TIME_INVARIANT
       ]
       z: Annotated[
-          Annotated[torax_pydantic.OpenUnitInterval, model_base.TIME_INVARIANT],
+          Annotated[
+              torax_pydantic.OpenUnitInterval, config_base.TIME_INVARIANT
+          ],
           'other_metadata',
       ]
 
@@ -105,15 +107,15 @@ class PydanticBaseTest(parameterized.TestCase):
 
   def test_nested_model_graph(self):
 
-    class Test1(model_base.BaseModelFrozen):
+    class Test1(config_base.ConfigBase):
       x: bool = False
 
-    class Test2(model_base.BaseModelFrozen):
+    class Test2(config_base.ConfigBase):
       x: dict[str, Any]
       y: int
       z: list[tuple[Test1, Test1, int]]
 
-    class Test3(model_base.BaseModelFrozen):
+    class Test3(config_base.ConfigBase):
       x: tuple[Test1, Test2, Test1]
       y: dict[str, int]
 
@@ -171,10 +173,10 @@ class PydanticBaseTest(parameterized.TestCase):
 
   def test_nested_model_non_unique_submodels(self):
 
-    class Test1(model_base.BaseModelFrozen):
+    class Test1(config_base.ConfigBase):
       x: bool = False
 
-    class Test2(model_base.BaseModelFrozen):
+    class Test2(config_base.ConfigBase):
       x: Test1
       y: Test1
 
@@ -185,14 +187,14 @@ class PydanticBaseTest(parameterized.TestCase):
       t2.tree_build()
 
   def test_update_fields(self):
-    class Test1(model_base.BaseModelFrozen):
+    class Test1(config_base.ConfigBase):
       x: float
 
       @functools.cached_property
       def get_x(self):
         return self.x
 
-    class Test2(model_base.BaseModelFrozen):
+    class Test2(config_base.ConfigBase):
       x: pydantic.PositiveFloat
       y: Test1
       z: Test1
@@ -201,7 +203,7 @@ class PydanticBaseTest(parameterized.TestCase):
       def get_yx(self):
         return self.y.x
 
-    class Test3(model_base.BaseModelFrozen):
+    class Test3(config_base.ConfigBase):
       x: Test1
       y: Test2
 
@@ -209,7 +211,7 @@ class PydanticBaseTest(parameterized.TestCase):
       def get_square(self):
         return self.x.x**2
 
-    class Test4(model_base.BaseModelFrozen):
+    class Test4(config_base.ConfigBase):
       x: Test1
       y: Test2
       z: Test3
@@ -258,15 +260,15 @@ class PydanticBaseTest(parameterized.TestCase):
       with self.assertRaisesRegex(
           ValueError,
           'The path x.zz does not refer to a field of a Pydantic'
-          ' BaseModelFrozen model',
+          ' ConfigBase model',
       ):
         model._update_fields({'x.zz': -1.0})
 
   def test_update_fields_dict(self):
-    class Test1(model_base.BaseModelFrozen):
+    class Test1(config_base.ConfigBase):
       x: float
 
-    class Test2(model_base.BaseModelFrozen):
+    class Test2(config_base.ConfigBase):
       y: dict[str, dict[str, Test1]]
 
     model_1 = Test1(x=1.0)
@@ -276,10 +278,10 @@ class PydanticBaseTest(parameterized.TestCase):
     self.assertEqual(model.y['test1']['test2'].x, new_val)
 
   def test_unique_submodels(self):
-    class Test1(model_base.BaseModelFrozen):
+    class Test1(config_base.ConfigBase):
       x: float
 
-    class Test2(model_base.BaseModelFrozen):
+    class Test2(config_base.ConfigBase):
       x: list[Test1]
       y: float
       z: Test1
@@ -296,7 +298,7 @@ class PydanticBaseTest(parameterized.TestCase):
       self.assertSetEqual(submodels_set, {id(t2), id(t1_2), id(t1_1)})
 
   def test_update_fields_conform(self):
-    class Test1(model_base.BaseModelFrozen):
+    class Test1(config_base.ConfigBase):
       x: float
       y: float
 
@@ -308,7 +310,7 @@ class PydanticBaseTest(parameterized.TestCase):
         x, y = data.split(';')
         return dict(x=float(x), y=float(y))
 
-    class Test2(model_base.BaseModelFrozen):
+    class Test2(config_base.ConfigBase):
       x: dict[int, Test1]
       y: Test1
 
@@ -322,11 +324,11 @@ class PydanticBaseTest(parameterized.TestCase):
 
   def test_cached_property_submodules(self):
 
-    class TestModel1(model_base.BaseModelFrozen):
+    class TestModel1(config_base.ConfigBase):
       x: float
       y: float
 
-    class TestModel2(model_base.BaseModelFrozen):
+    class TestModel2(config_base.ConfigBase):
       x: float
       y: float
 
@@ -346,23 +348,23 @@ class PydanticBaseTest(parameterized.TestCase):
       with self.assertRaisesRegex(
           ValueError,
           'The path get_model_1 does not refer to a field of a Pydantic'
-          ' BaseModelFrozen model',
+          ' ConfigBase model',
       ):
         model._update_fields({'get_model_1': TestModel1(x=1.0, y=2.0)})
 
       with self.assertRaisesRegex(
           ValueError,
           'The path get_model_1 does not refer to a field of a Pydantic'
-          ' BaseModelFrozen model',
+          ' ConfigBase model',
       ):
         model._update_fields({'get_model_1.x': 2.3})
 
   def test_update_multiple_fields(self):
 
-    class Test1(model_base.BaseModelFrozen):
+    class Test1(config_base.ConfigBase):
       a: float
 
-    class Test2(model_base.BaseModelFrozen):
+    class Test2(config_base.ConfigBase):
       a: Test1
       b: float
       c: float

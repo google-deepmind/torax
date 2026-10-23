@@ -22,7 +22,7 @@ from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -61,7 +61,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
             'T_i_T_e_ratio': T_i_T_e_ratio,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(
             torax_config
@@ -141,7 +141,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
             'P_ped_multiplier': 1.0,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -174,7 +174,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
 
     # Modify multiplier to 1.5
     config['pedestal']['structure_model']['P_ped_multiplier'] = 1.5
-    torax_config_2 = model_config.ToraxConfig.from_dict(config)
+    torax_config_2 = torax_config_lib.ToraxConfig.from_dict(config)
     provider_2 = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config_2
     )

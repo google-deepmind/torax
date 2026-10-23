@@ -21,7 +21,7 @@ from torax._src.imas_tools.input import core_sources
 from torax._src.imas_tools.input import loader
 from torax._src.sources import source as source_module
 from torax._src.test_utils import sim_test_case
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import torax_config as torax_config_lib
 
 # pylint: disable=invalid-name
 
@@ -93,7 +93,7 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     sources = core_sources.sources_from_IMAS(ids_in, None, False)
     config["sources"] |= sources
     # Checks the config can be built properly with input sources.
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     torax.run_simulation(torax_config, progress_bar=False)
 
   def test_get_particle_profile(self):
