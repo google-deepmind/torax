@@ -51,7 +51,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
-            profile_conditions=dict(),
+            profile_conditions=dict(initial_psi_source='j'),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(
                 structure_model=dict(model_name='set_T_ped_n_ped'),
@@ -191,6 +191,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         numerics=dict(),
         plasma_composition=dict(),
         profile_conditions=dict(
+            initial_psi_source='j',
             T_i={0.0: {0.0: 20.0, 0.7: 8.0, 0.9: 5.0, 1.0: 0.2}},
             T_e={0.0: {0.0: 18.0, 0.7: 7.0, 0.9: 4.5, 1.0: 0.2}},
             n_e={0.0: {0.0: 1.5e20, 0.85: 1.1e20, 1.0: 0.4e20}},
@@ -301,6 +302,7 @@ class CalcCoeffsTest(parameterized.TestCase):
             numerics=dict(),
             plasma_composition=dict(),
             profile_conditions=dict(
+                initial_psi_source='j',
                 T_i={0.0: {0.0: 5.0, 1.0: 5.0}},
                 T_e={0.0: {0.0: 5.0, 1.0: 5.0}},
                 n_e={0.0: {0.0: 1.0e20, 1.0: 1.0e20}},

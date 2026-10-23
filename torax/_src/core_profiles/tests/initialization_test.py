@@ -24,7 +24,6 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.core_profiles import initialization
-from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -171,7 +170,7 @@ class InitializationTest(parameterized.TestCase):
   ):
     """Tests that runtime params validate boundary conditions."""
     config = default_configs.get_default_config_dict()
-    config['profile_conditions']['psi'] = psi
+    config['profile_conditions'] = {'psi': psi}
     torax_config = model_config.ToraxConfig.from_dict(config)
     core_profiles, _, _ = _get_initial_state(torax_config)
 
@@ -183,7 +182,7 @@ class InitializationTest(parameterized.TestCase):
     """Tests that psi is correctly loaded from a CHEASE file (Case 2)."""
     config = default_configs.get_default_config_dict()
     config['geometry']['geometry_type'] = 'chease'
-    config['profile_conditions']['initial_psi_from_j'] = False
+    config['profile_conditions']['initial_psi_source'] = 'geometry'
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     core_profiles, geo, _ = _get_initial_state(torax_config)
@@ -192,19 +191,12 @@ class InitializationTest(parameterized.TestCase):
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
     np.testing.assert_allclose(core_profiles.psi.value, geo.psi_from_Ip)
 
-  @parameterized.parameters([
-      dict(initial_psi_from_j=False),
-      dict(initial_psi_from_j=True),
-  ])
-  def test_initial_psi_from_config_overrides_initial_psi_from_j(
-      self, initial_psi_from_j: bool
-  ):
-    """Tests that providing psi directly in config takes precedence."""
+  def test_initial_psi_from_config(self):
+    """Tests that providing psi directly in config with profile_conditions mode works."""
     config = default_configs.get_default_config_dict()
     config['geometry']['geometry_type'] = 'chease'
-    # Set both flags that would normally trigger Case 3
     psi_profile = {0: {0: 42.0, 1: 43.0}}
-    config['profile_conditions']['initial_psi_from_j'] = initial_psi_from_j
+    config['profile_conditions']['initial_psi_source'] = 'profile_conditions'
     config['profile_conditions']['psi'] = psi_profile
     torax_config = model_config.ToraxConfig.from_dict(config)
 
@@ -241,12 +233,12 @@ class InitializationTest(parameterized.TestCase):
 
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
-        initial_psi_from_j=True,
+        initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     profile_conditions2 = dict(
         initial_j_is_total_current=False,
-        initial_psi_from_j=True,
+        initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
 
@@ -328,7 +320,7 @@ class InitializationTest(parameterized.TestCase):
         rtol=_TOL,
     )
 
-  def test_initial_psi_from_j_with_bootstrap_is_consistent_with_case_without_bootstrap(
+  def test_initial_psi_source_j_with_bootstrap_is_consistent_with_case_without_bootstrap(
       self,
   ):
     _CURRENT_PROFILE_NU = 2
@@ -343,7 +335,7 @@ class InitializationTest(parameterized.TestCase):
 
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
-        initial_psi_from_j=True,
+        initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     sources1 = {
@@ -366,7 +358,7 @@ class InitializationTest(parameterized.TestCase):
 
     profile_conditions2 = dict(
         initial_j_is_total_current=False,
-        initial_psi_from_j=True,
+        initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     sources2 = {
@@ -414,130 +406,30 @@ class InitializationTest(parameterized.TestCase):
         rtol=_TOL,
     )
 
-  def test_initial_psi_from_geo_noop_circular(self):
-    """Tests expected behaviour of initial psi and current options."""
+  def test_initial_psi_from_profile_conditions_none_psi_raises_error(self):
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'initial_psi_from_j': False,
+        'initial_psi_source': 'profile_conditions',
+        'psi': None,
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    _, _, currents1 = _get_initial_state(torax_config)
-    jtotal1 = currents1.j_toroidal_total
+    with self.assertRaisesRegex(
+        ValueError, 'psi is None, but initial_psi_source is PROFILE_CONDITIONS.'
+    ):
+      _get_initial_state(torax_config)
 
-    torax_config.update_fields({'profile_conditions.initial_psi_from_j': True})
-    _, _, currents2 = _get_initial_state(torax_config)
-    jtotal2 = currents2.j_toroidal_total
-
-    np.testing.assert_allclose(jtotal1, jtotal2)
-
-  def test_get_initial_psi_mode_geometry(self):
+  def test_initial_psi_from_geo_circular_geometry_raises_error(self):
     config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'geometry',
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        mock.ANY,
-    )
-    self.assertEqual(
-        psi_source, core_profile_runtime_params.InitialPsiMode.GEOMETRY
-    )
-
-  def test_get_initial_psi_mode_j(self):
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'j',
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        mock.ANY,
-    )
-    self.assertEqual(psi_source, core_profile_runtime_params.InitialPsiMode.J)
-
-  def test_get_initial_psi_mode_profile_conditions(self):
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'profile_conditions',
-        'psi': 15.0,
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        mock.ANY,
-    )
-    self.assertEqual(
-        psi_source,
-        core_profile_runtime_params.InitialPsiMode.PROFILE_CONDITIONS,
-    )
-
-  def test_get_initial_psi_mode_legacy_initial_psi_from_j(self):
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'profile_conditions',
-        'initial_psi_from_j': True,
-    }
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        torax_config.geometry.build_provider(t=0.0),
-    )
-    self.assertEqual(psi_source, core_profile_runtime_params.InitialPsiMode.J)
-
-  def test_get_initial_psi_mode_legacy_initial_psi_from_j_circular_geo(self):
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
-        'initial_psi_mode': 'profile_conditions',
-        'initial_psi_from_j': False,
-    }
     config['geometry']['geometry_type'] = 'circular'
-    torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        torax_config.geometry.build_provider(t=0.0),
-    )
-    self.assertEqual(psi_source, core_profile_runtime_params.InitialPsiMode.J)
-
-  def test_get_initial_psi_mode_legacy_init_from_geo(self):
-    config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
-        'initial_psi_mode': 'profile_conditions',
-        'initial_psi_from_j': False,
+        'initial_psi_source': 'geometry',
     }
-    config['geometry']['geometry_type'] = 'chease'
     torax_config = model_config.ToraxConfig.from_dict(config)
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
-    runtime_params = params_provider(t=0.0)
-    psi_source = initialization._get_initial_psi_mode(
-        runtime_params,
-        torax_config.geometry.build_provider(t=0.0),
-    )
-    self.assertEqual(
-        psi_source, core_profile_runtime_params.InitialPsiMode.GEOMETRY
-    )
+    with self.assertRaisesRegex(
+        ValueError,
+        'GEOMETRY initial_psi_source is only supported for standard geometry.',
+    ):
+      _get_initial_state(torax_config)
 
 
 def _get_initial_state(

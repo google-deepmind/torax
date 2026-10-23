@@ -17,7 +17,7 @@ from typing import Any
 
 def get_default_config_dict() -> dict[str, Any]:
   return {
-      'profile_conditions': {},
+      'profile_conditions': {'initial_psi_source': 'j'},
       'plasma_composition': {},
       'numerics': {},
       'geometry': {'geometry_type': 'circular', 'n_rho': 4},

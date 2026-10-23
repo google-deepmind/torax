@@ -16,7 +16,9 @@
 
 
 CONFIG = {
-    'profile_conditions': {},  # use default profile conditions
+    'profile_conditions': {
+        'initial_psi_source': 'j',
+    },  # use default profile conditions
     'plasma_composition': {},  # use default plasma composition
     'numerics': {},  # use default numerics
     # circular geometry is only for testing and prototyping
