@@ -84,12 +84,13 @@ class QualikizTransportModelTest(parameterized.TestCase):
       test_model = torax_config.transport.build_transport_model()
       model_call = jax.jit(test_model.__call__) if jit else test_model.__call__
       two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-      coeffs = model_call(
+      coeffs, _ = model_call(
           runtime_params,
           geo,
           core_profiles,
           pedestal_transition_state_lib.PedestalTransitionState.empty(),
           two_point_mask,
+          transport_state=test_model.initial_state(runtime_params),
       )
       expected_shape = geo.rho_face_norm.shape
       self.assertEqual(coeffs.total.chi_face_ion.shape, expected_shape)

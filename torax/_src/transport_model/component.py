@@ -55,7 +55,11 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
-  ) -> transport_coeffs.TransportCoeffs:
+      component_state: transport_state_lib.ComponentTransportState,
+  ) -> tuple[
+      transport_coeffs.TransportCoeffs,
+      transport_state_lib.ComponentTransportState,
+  ]:
     """Computes transport coefficients and zeros out disabled channels.
 
     Delegates to call_implementation to compute the raw transport coefficients,
@@ -69,10 +73,14 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       two_point_mask: Boolean mask on the face grid indicating where to use
         2-point central differencing instead of 3-point polynomial interpolation
         for gradients.
+      component_state: ComponentTransportState for this model.
 
     Returns:
-      Transport coefficients with disabled channels zeroed out.
+      tuple of (TransportCoeffs with disabled channels zeroed out,
+      updated ComponentTransportState).
     """
+    # TODO(b/572586768): Thread component_state into call_implementation and all
+    # transport models in a follow-up.
     coeffs = self.call_implementation(
         transport_runtime_params,
         runtime_params,
@@ -81,7 +89,7 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
         two_point_mask=two_point_mask,
     )
     coeffs = self.zero_out_disabled_channels(transport_runtime_params, coeffs)
-    return coeffs
+    return coeffs, component_state
 
   @abc.abstractmethod
   def call_implementation(

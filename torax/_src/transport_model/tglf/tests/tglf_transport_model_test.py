@@ -52,12 +52,13 @@ class TGLFTransportModelTest(parameterized.TestCase):
         jax.jit(transport_model.__call__) if jit else transport_model.__call__
     )
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    outputs = model_call(
+    outputs, _ = model_call(
         runtime_params,
         geo,
         core_profiles,
         pedestal_transition_state_lib.PedestalTransitionState.empty(),
         two_point_mask,
+        transport_state=transport_model.initial_state(runtime_params),
     )
     self.assertIsNotNone(outputs.total.chi_face_ion)
     self.assertIsNotNone(outputs.total.chi_face_el)

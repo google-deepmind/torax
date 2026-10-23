@@ -102,7 +102,6 @@ def _get_initial_state(
   """Returns the initial state to be used by run_simulation()."""
   models = step_fn.solver.models
   initial_source_states = models.source_models.initial_state(runtime_params)
-  initial_transport_state = models.transport_model.initial_state(runtime_params)
   initial_core_profiles = initialization.initial_core_profiles(
       runtime_params,
       geo,
@@ -170,13 +169,14 @@ def _get_initial_state(
           source_profiles=initial_core_sources,
       )
   )
-  transport_coeffs = (
+  transport_coeffs, initial_transport_state = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=models.transport_model,
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=initial_core_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          transport_state=models.transport_model.initial_state(runtime_params),
           neoclassical_transport=neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
               geo

@@ -25,6 +25,7 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 from torax._src.transport_model import transport_model as transport_model_lib
+from torax._src.transport_model import transport_state as transport_state_lib
 
 # pylint: disable=invalid-name
 
@@ -44,17 +45,34 @@ def calculate_all_transport_coeffs(
     pedestal_transition_state: (
         pedestal_transition_state_lib.PedestalTransitionState
     ),
+    transport_state: transport_state_lib.TransportState,
     neoclassical_transport: transport_coeffs_lib.NeoclassicalTransport,
     two_point_mask: array_typing.BoolVectorFace,
     use_pereverzev: bool = False,
-) -> state.CoreTransport:
-  """Calculates the transport coefficients from all models."""
-  turbulent_transport_coeffs = transport_model(
+) -> tuple[state.CoreTransport, transport_state_lib.TransportState]:
+  """Calculates the transport coefficients from all models and updated state.
+
+  Args:
+    runtime_params: Runtime configuration parameters.
+    geo: Geometry of the torus.
+    core_profiles: Core plasma profiles.
+    transport_model: Combined transport model.
+    pedestal_transition_state: State tracking pedestal transitions.
+    transport_state: Transport state carried over from the previous timestep.
+    neoclassical_transport: Neoclassical transport coefficients.
+    two_point_mask: Mask for boundary faces.
+    use_pereverzev: Whether to calculate Pereverzev transport.
+
+  Returns:
+    A tuple of (core_transport, updated_transport_state).
+  """
+  turbulent_transport_coeffs, transport_state = transport_model(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       pedestal_transition_state=pedestal_transition_state,
       two_point_mask=two_point_mask,
+      transport_state=transport_state,
   )
 
   if use_pereverzev:
@@ -106,4 +124,4 @@ def calculate_all_transport_coeffs(
         pedestal_runtime_params=runtime_params.pedestal,
     )
 
-  return core_transport
+  return core_transport, transport_state

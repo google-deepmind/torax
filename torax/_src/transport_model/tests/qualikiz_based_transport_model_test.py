@@ -75,12 +75,14 @@ def _get_config_and_model_inputs(
       transition_state, pedestal_model_output=pedestal_model_outputs
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
+  transport_model = torax_config.transport.build_transport_model()
   return torax_config, (
       runtime_params,
       geo,
       core_profiles,
       transition_state,
       two_point_mask,
+      transport_model.initial_state(runtime_params),
   )
 
 
@@ -100,7 +102,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
     })
     transport_model = torax_config.transport.build_transport_model()
 
-    core_transport = transport_model(*model_inputs)
+    core_transport, _ = transport_model(*model_inputs)
     expected_shape = model_inputs[1].rho_face_norm.shape
     self.assertEqual(core_transport.total.chi_face_ion.shape, expected_shape)
     self.assertEqual(core_transport.total.chi_face_el.shape, expected_shape)
@@ -129,7 +131,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params, geo, core_profiles, _, two_point_mask = model_inputs
+    runtime_params, geo, core_profiles, _, two_point_mask, _ = model_inputs
     qualikiz_params = (
         runtime_params.transport.core_transport_model_params['qualikiz_based']
     )
@@ -183,7 +185,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params, geo, core_profiles, _, two_point_mask = model_inputs
+    runtime_params, geo, core_profiles, _, two_point_mask, _ = model_inputs
     qualikiz_params = (
         runtime_params.transport.core_transport_model_params['qualikiz_based']
     )
@@ -231,10 +233,10 @@ class QualikizTransportModelTest(parameterized.TestCase):
         transport_model,
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
-    runtime_params_uncapped, geo, core_profiles, _, two_point_mask = (
+    runtime_params_uncapped, geo, core_profiles, _, two_point_mask, _ = (
         uncapped_inputs
     )
-    runtime_params_capped, _, _, _, _ = capped_inputs
+    runtime_params_capped = capped_inputs[0]
 
     qualikiz_params_uncapped = (
         runtime_params_uncapped.transport.core_transport_model_params[

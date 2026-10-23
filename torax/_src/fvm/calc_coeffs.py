@@ -184,7 +184,7 @@ def calc_coeffs(
       coefficients should be written to `coeffs`.
     pedestal_transition_state: State for tracking pedestal L-H and H-L
       transitions.
-    model_state: Cross-timestep model state.
+    model_state: Model state carried over from the previous timestep.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
     explicit_call: If True, indicates that calc_coeffs is being called for the
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
@@ -343,14 +343,17 @@ def _calc_coeffs_full(
       source_profiles=merged_source_profiles,
   )
 
-  # Compute transport coefficients.
-  transport_coefficients = (
+  # Compute transport coefficients. We purposefully do not update
+  # transport_state here, as cross-step model state should only be updated at
+  # the end of the timestep in finalize_outputs.
+  transport_coefficients, _ = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=models.transport_model,
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=core_profiles,
           pedestal_transition_state=pedestal_transition_state,
+          transport_state=model_state.transport,
           neoclassical_transport=neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
               geo

@@ -41,6 +41,7 @@ from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_runtime_params_lib
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_model
+from torax._src.transport_model import transport_state as transport_state_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -191,12 +192,13 @@ class TransportMaskingTest(parameterized.TestCase):
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     model = torax_config.transport.build_transport_model()
-    coeffs = model(
+    coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         transition_state,
         two_point_mask,
+        transport_state=model.initial_state(runtime_params),
     )
 
     # Verify chi_i is zeroed out
@@ -232,12 +234,13 @@ class TransportMaskingTest(parameterized.TestCase):
     transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    coeffs = model(
+    coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         transition_state,
         two_point_mask,
+        transport_state=model.initial_state(runtime_params),
     )
 
     # Reference single model run to compare against
@@ -258,12 +261,13 @@ class TransportMaskingTest(parameterized.TestCase):
     single_runtime = build_runtime_params.RuntimeParamsProvider.from_config(
         single_torax
     )(t=0.0)
-    ref_coeffs = single_model(
+    ref_coeffs, _ = single_model(
         single_runtime,
         geo,
         core_profiles,
         transition_state,
         two_point_mask,
+        transport_state=single_model.initial_state(single_runtime),
     )
 
     # chi_i should be approx equal to single model (1x contribution)
@@ -366,12 +370,13 @@ class TransportMaskingTest(parameterized.TestCase):
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     transport_model_instance = torax_config.transport.build_transport_model()
-    coeffs = transport_model_instance(
+    coeffs, _ = transport_model_instance(
         runtime_params,
         geo,
         core_profiles,
         transition_state,
         two_point_mask,
+        transport_state=transport_model_instance.initial_state(runtime_params),
     )
 
     # Find index where rho > 0.8
@@ -430,12 +435,13 @@ class TransportModelTest(parameterized.TestCase):
     )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    coeffs = model(
+    coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         transition_state,
         two_point_mask,
+        transport_state=model.initial_state(runtime_params),
     )
     # Target:
     # - 0.1 for rho = [rho_ped_top, rho_max]
@@ -479,12 +485,13 @@ class TransportModelTest(parameterized.TestCase):
     )
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    coeffs = model(
+    coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         transition_state,
         two_point_mask,
+        transport_state=model.initial_state(runtime_params),
     )
     # Target:
     # - 1.0 for rho > rho_ped_top, set by pedestal chi_min
@@ -682,12 +689,13 @@ class TransportModelTest(parameterized.TestCase):
     )
     transition_state = _make_transition_state(rho_norm_ped_top=0.95)
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    coeffs = model(
+    coeffs, _ = model(
         runtime_params,
         geo,
         core_profiles,
         transition_state,
         two_point_mask,
+        transport_state=model.initial_state(runtime_params),
     )
     self.assertEqual(coeffs.total.chi_face_ion.shape, geo.rho_face_norm.shape)
 
@@ -755,19 +763,21 @@ class TransportModelTest(parameterized.TestCase):
     transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    coeffs_small = model_small(
+    coeffs_small, _ = model_small(
         params_small,
         geo,
         mock.ANY,
         transition_state,
         two_point_mask,
+        transport_state=model_small.initial_state(params_small),
     )
-    coeffs_large = model_large(
+    coeffs_large, _ = model_large(
         params_large,
         geo,
         mock.ANY,
         transition_state,
         two_point_mask,
+        transport_state=model_large.initial_state(params_large),
     )
 
     idx_left = np.where(
@@ -849,12 +859,13 @@ class TransportModelTest(parameterized.TestCase):
     )  # No pedestal restriction for this test
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    coeffs = model(
+    coeffs, _ = model(
         runtime_params,
         geo,
         mock.ANY,
         transition_state,
         two_point_mask,
+        transport_state=model.initial_state(runtime_params),
     )
 
     # Expected: 1.0 for rho <= 0.5, 2.0 for rho > 0.5
@@ -885,12 +896,13 @@ class TransportModelTest(parameterized.TestCase):
     transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    coeffs = model(
+    coeffs, _ = model(
         runtime_params,
         geo,
         mock.ANY,
         transition_state,
         two_point_mask,
+        transport_state=model.initial_state(runtime_params),
     )
 
     expected = jnp.where(geo.rho_face_norm <= 0.5, 2.0, 1.0)
@@ -925,12 +937,13 @@ class TransportModelTest(parameterized.TestCase):
     transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    coeffs = model(
+    coeffs, _ = model(
         runtime_params,
         geo,
         mock.ANY,
         transition_state,
         two_point_mask,
+        transport_state=model.initial_state(runtime_params),
     )
 
     # chi_i: Overwritten in outer half.
@@ -956,7 +969,13 @@ class TransportModelTest(parameterized.TestCase):
         d_face_el=jnp.ones_like(geo.rho_face_norm),
         v_face_el=jnp.ones_like(geo.rho_face_norm),
     )
-    mock_model.return_value = mock_coeffs
+    mock_model.return_value = (
+        mock_coeffs,
+        transport_state_lib.ComponentTransportState(),
+    )
+    mock_model.initial_state.return_value = (
+        transport_state_lib.ComponentTransportState()
+    )
 
     combined_model = transport_model.TransportModel(
         core_transport_models={'mock': mock_model},
@@ -998,8 +1017,13 @@ class TransportModelTest(parameterized.TestCase):
     core_profiles = mock.Mock()
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
-    coeffs = combined_model(
-        runtime_params, geo, core_profiles, transition_state, two_point_mask
+    coeffs, _ = combined_model(
+        runtime_params,
+        geo,
+        core_profiles,
+        transition_state,
+        two_point_mask,
+        transport_state=combined_model.initial_state(runtime_params),
     )
 
     self.assertEqual(mock_model.call_count, 1)
@@ -1010,6 +1034,10 @@ class TransportModelTest(parameterized.TestCase):
     self.assertEqual(call_args[0][3], core_profiles)
     np.testing.assert_array_equal(
         call_args[1]['two_point_mask'], two_point_mask
+    )
+    self.assertIsInstance(
+        call_args[1]['component_state'],
+        transport_state_lib.ComponentTransportState,
     )
 
     # Check individual model outputs are preserved.
@@ -1049,7 +1077,7 @@ class TransportModelTest(parameterized.TestCase):
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     ped_mask = geo.rho_face_norm >= 0.8
 
-    l_mode_coeffs = model(
+    l_mode_coeffs, _ = model(
         runtime_params,
         geo,
         mock.ANY,
@@ -1058,6 +1086,7 @@ class TransportModelTest(parameterized.TestCase):
             confinement_mode=pedestal_runtime_params_lib.ConfinementMode.L_MODE,
         ),
         two_point_mask,
+        transport_state=model.initial_state(runtime_params),
     )
     np.testing.assert_allclose(
         l_mode_coeffs.core.chi_face_ion,
@@ -1074,7 +1103,7 @@ class TransportModelTest(parameterized.TestCase):
         pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
     ):
       with self.subTest(confinement_mode=active_mode.name):
-        active_coeffs = model(
+        active_coeffs, _ = model(
             runtime_params,
             geo,
             mock.ANY,
@@ -1083,6 +1112,7 @@ class TransportModelTest(parameterized.TestCase):
                 confinement_mode=active_mode,
             ),
             two_point_mask,
+            transport_state=model.initial_state(runtime_params),
         )
         np.testing.assert_allclose(
             active_coeffs.core.chi_face_ion,
@@ -1143,7 +1173,7 @@ class TransportModelTest(parameterized.TestCase):
         d_face_el=jnp.full_like(geo.rho_face_norm, 1.0),
         v_face_el=jnp.full_like(geo.rho_face_norm, -1.0),
     )
-    model_1.return_value = model_1_coeffs
+    model_1.return_value = (model_1_coeffs, mock.Mock())
     params_1 = mock.Mock()
     params_1.disable_chi_i = False
     params_1.disable_chi_e = False
@@ -1166,7 +1196,7 @@ class TransportModelTest(parameterized.TestCase):
         d_face_el=nan_outside_domain,
         v_face_el=jnp.full_like(geo.rho_face_norm, jnp.nan),
     )
-    model_2.return_value = model_2_coeffs
+    model_2.return_value = (model_2_coeffs, mock.Mock())
     params_2 = mock.Mock()
     params_2.disable_chi_i = True
     params_2.disable_chi_e = False
@@ -1187,7 +1217,7 @@ class TransportModelTest(parameterized.TestCase):
         d_face_el=jnp.zeros_like(geo.rho_face_norm),
         v_face_el=jnp.zeros_like(geo.rho_face_norm),
     )
-    model_3.return_value = model_3_coeffs
+    model_3.return_value = (model_3_coeffs, mock.Mock())
     params_3 = mock.Mock()
     params_3.disable_chi_i = False
     params_3.disable_chi_e = True
@@ -1229,13 +1259,18 @@ class TransportModelTest(parameterized.TestCase):
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     core_profiles = mock.Mock()
 
-    accumulated_coeffs, _ = combined_model._combine(
+    accumulated_coeffs, _, _ = combined_model._combine(
         models=combined_model.core_transport_models,
         params_map=combined_params.core_transport_model_params,
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         two_point_mask=two_point_mask,
+        component_states={
+            'model_1': mock.Mock(),
+            'model_2': mock.Mock(),
+            'model_3': mock.Mock(),
+        },
     )
 
     # Verify no NaNs in any accumulated channel.

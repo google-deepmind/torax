@@ -221,13 +221,14 @@ def finalize_outputs(
           source_profiles=final_source_profiles,
       )
   )
-  final_total_transport = (
+  final_total_transport, final_transport_state = (
       transport_coefficients_builder.calculate_all_transport_coeffs(
           transport_model=models.transport_model,
           runtime_params=runtime_params_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
           pedestal_transition_state=final_pedestal_state,
+          transport_state=model_state_t.transport,
           neoclassical_transport=final_neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
               geometry_t_plus_dt
@@ -236,7 +237,7 @@ def finalize_outputs(
   )
   final_model_state = model_state_lib.ModelState(
       pedestal=model_state_t.pedestal,
-      transport=model_state_t.transport,
+      transport=final_transport_state,
       sources=final_source_states,
   )
   output_state = sim_state.SimState(
