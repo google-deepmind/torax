@@ -26,8 +26,8 @@ import numpy as np
 import pydantic
 from torax._src import array_typing
 from torax._src import interpolated_param
+from torax._src.torax_pydantic import config_base
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_base
 from torax._src.torax_pydantic import pydantic_types
 
 
@@ -38,7 +38,7 @@ class TimeVaryingScalarUpdate:
   time: jt.Float[jax.Array, 't'] | None = None
 
 
-class TimeVaryingScalar(model_base.BaseModelFrozen):
+class TimeVaryingScalar(config_base.ConfigBase):
   """Base class for time interpolated scalar types.
 
   The Pydantic `.model_validate` constructor can accept a variety of input types
@@ -58,11 +58,11 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 
   time: pydantic_types.NumpyArray1DSorted
   value: pydantic_types.NumpyArray
-  is_bool_param: Annotated[bool, model_base.JAX_STATIC] = (
+  is_bool_param: Annotated[bool, config_base.JAX_STATIC] = (
       False
   )
   interpolation_mode: Annotated[
-      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+      interpolated_param.InterpolationMode, config_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
 
   def get_value(self, t: chex.Numeric) -> array_typing.Array:
@@ -228,7 +228,7 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
 class TimeVaryingScalarStep(TimeVaryingScalar):
   """TimeVaryingScalar with STEP interpolation mode by default."""
   interpolation_mode: Annotated[
-      interpolated_param.InterpolationMode, model_base.JAX_STATIC
+      interpolated_param.InterpolationMode, config_base.JAX_STATIC
   ] = interpolated_param.InterpolationMode.STEP
 
 

@@ -36,7 +36,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
-class BaseFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
+class BaseFormation(torax_pydantic.ConfigBase):
   """Base configuration for pedestal formation models.
 
   Attributes:
@@ -44,10 +44,10 @@ class BaseFormation(torax_pydantic.BaseModelFrozen, abc.ABC):
       ADAPTIVE_TRANSPORT mode when the pedestal is active. Decrease (closer to
       0) for stronger reductions in transport once formation starts.
     initial_confinement_mode: Optional explicit initial confinement mode
-      ('L_MODE' or 'H_MODE') at t_initial. When None (default), the initial
-      mode is inferred automatically from the formation model's transition
-      conditions at t_initial. Used to enable triggering L-H or H-L transitions
-      from a cold start.
+      ('L_MODE' or 'H_MODE') at t_initial. When None (default), the initial mode
+      is inferred automatically from the formation model's transition conditions
+      at t_initial. Used to enable triggering L-H or H-L transitions from a cold
+      start.
   """
 
   base_multiplier: Annotated[
@@ -187,7 +187,7 @@ class DelabieScalingFormation(PowerScalingFormation):
     )
 
 
-class ProfileValueSaturation(torax_pydantic.BaseModelFrozen):
+class ProfileValueSaturation(torax_pydantic.ConfigBase):
   """Configuration for ProfileValueSaturation model.
 
   This saturation model triggers an increase in pedestal transport when the
@@ -288,7 +288,7 @@ FormationConfig: TypeAlias = Annotated[
 SaturationConfig: TypeAlias = ProfileValueSaturation
 
 
-class BaseStructure(torax_pydantic.BaseModelFrozen, abc.ABC):
+class BaseStructure(torax_pydantic.ConfigBase):
   """Base configuration for pedestal structure models.
 
   Attributes:
@@ -439,7 +439,7 @@ StructureConfig = Annotated[
 ]
 
 
-class Pedestal(torax_pydantic.BaseModelFrozen):
+class Pedestal(torax_pydantic.ConfigBase):
   """Configuration for the pedestal model.
 
   Attributes:

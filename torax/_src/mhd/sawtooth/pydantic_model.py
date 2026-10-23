@@ -22,7 +22,7 @@ from torax._src.mhd.sawtooth import simple_trigger
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class SawtoothConfig(torax_pydantic.BaseModelFrozen):
+class SawtoothConfig(torax_pydantic.ConfigBase):
   """Pydantic model for sawtooth configuration.
 
   Attributes:

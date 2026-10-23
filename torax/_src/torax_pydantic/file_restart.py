@@ -17,7 +17,7 @@ import pydantic
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class FileRestart(torax_pydantic.BaseModelFrozen):
+class FileRestart(torax_pydantic.ConfigBase):
   """Pydantic config for restarting a simulation from a file.
 
   Attributes:

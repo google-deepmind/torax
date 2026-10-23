@@ -29,7 +29,7 @@ from typing_extensions import Self
 # pylint: disable=invalid-name
 
 
-class BetaPoloidalPrimeIBC(torax_pydantic.BaseModelFrozen):
+class BetaPoloidalPrimeIBC(torax_pydantic.ConfigBase):
   """Pydantic model for beta_poloidal_prime internal boundary conditions."""
 
   model_name: Annotated[
@@ -96,7 +96,7 @@ class BetaPoloidalPrimeIBC(torax_pydantic.BaseModelFrozen):
     )
 
 
-class NoIBC(torax_pydantic.BaseModelFrozen):
+class NoIBC(torax_pydantic.ConfigBase):
   """Pydantic model for when there are no internal boundary conditions."""
 
   model_name: Annotated[Literal['no_ibc'], torax_pydantic.JAX_STATIC] = 'no_ibc'
@@ -112,7 +112,7 @@ class NoIBC(torax_pydantic.BaseModelFrozen):
     return ibc_runtime_params.RuntimeParams()
 
 
-class PrescribedIBC(torax_pydantic.BaseModelFrozen):
+class PrescribedIBC(torax_pydantic.ConfigBase):
   """Pydantic model for prescribed internal boundary conditions."""
 
   model_name: Annotated[Literal['prescribed'], torax_pydantic.JAX_STATIC] = (

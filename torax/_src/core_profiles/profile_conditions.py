@@ -38,7 +38,7 @@ _MAX_TEMPERATURE_KEV: Final[float] = 1e3
 _MAX_TEMPERATURE_BC_KEV: Final[float] = 5e1
 
 
-class PrescribedFastIon(torax_pydantic.BaseModelFrozen):
+class PrescribedFastIon(torax_pydantic.ConfigBase):
   """User-facing config for prescribed fast ion density and temperature.
 
   This is the Pydantic configuration class that users interact with. Fields
@@ -64,7 +64,7 @@ class PrescribedFastIon(torax_pydantic.BaseModelFrozen):
   T_right_bc: torax_pydantic.TimeVaryingScalar
 
 
-class ProfileConditions(torax_pydantic.BaseModelFrozen):
+class ProfileConditions(torax_pydantic.ConfigBase):
   """Generic numeric parameters for the simulation.
 
   The `from_dict(...)` method can accept a dictionary defined by

@@ -22,7 +22,7 @@ from torax._src.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class MHD(torax_pydantic.BaseModelFrozen):
+class MHD(torax_pydantic.ConfigBase):
   """Config for MHD models.
 
   Attributes:

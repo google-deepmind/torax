@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class and utils for Qualikiz-based models."""
-import abc
+
 import dataclasses
 import enum
 from typing import Annotated
@@ -112,6 +112,7 @@ class RotationMode(enum.StrEnum):
     half of the radius (rhon > 0.5).
   FULL_RADIUS: The rotation correction is applied everywhere.
   """
+
   OFF = 'off'
   HALF_RADIUS = 'half_radius'
   FULL_RADIUS = 'full_radius'
@@ -155,7 +156,7 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
 
 
 class QualikizBasedTransportModelConfig(
-    pydantic_model_base.ComponentTransportBase, abc.ABC
+    pydantic_model_base.ComponentTransportBase
 ):
   """Base config for Qualikiz-family transport models."""
 

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for geometry configuration."""
+
 import abc
 from typing import Annotated, Any, Self
 
@@ -24,7 +25,7 @@ from torax._src.torax_pydantic import torax_pydantic
 TrappedFractionSource = trapped_fraction.TrappedFractionSource
 
 
-class BaseGeometryConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
+class BaseGeometryConfig(torax_pydantic.ConfigBase):
   """Base class for all geometry configuration classes.
 
   Attributes:
@@ -119,9 +120,8 @@ class BaseGeometryConfig(torax_pydantic.BaseModelFrozen, abc.ABC):
 
   def __eq__(self, other: object) -> bool:
     """Equality operator for BaseGeometryConfig."""
-    if (
-        not isinstance(other, BaseGeometryConfig)
-        or type(other) is not type(self)
+    if not isinstance(other, BaseGeometryConfig) or type(other) is not type(
+        self
     ):
       return False
     return (

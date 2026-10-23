@@ -46,7 +46,7 @@ from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import pydantic_model as transport_model_pydantic_model
 
 
-class ToraxConfig(torax_pydantic.BaseModelFrozen):
+class ToraxConfig(torax_pydantic.ConfigBase):
   """Base config class for Torax.
 
   Attributes:
