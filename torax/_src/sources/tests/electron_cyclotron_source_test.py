@@ -14,9 +14,9 @@
 from absl.testing import absltest
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources.tests import test_lib
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -49,13 +49,8 @@ def _build_runtime_params(torax_config: model_config.ToraxConfig):
 
 def _build_plasma_state(torax_config: model_config.ToraxConfig, runtime_params):
   """Returns the geometry and initial core profiles for the config."""
-  geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-  core_profiles = initialization.initial_core_profiles(
-      runtime_params=runtime_params,
-      geo=geo,
-      source_models=torax_config.sources.build_models(),
-      neoclassical_model=torax_config.neoclassical.build_model(),
-  )
+  del runtime_params
+  core_profiles, _, geo = core_profile_helpers.make_initial_inputs(torax_config)
   return geo, core_profiles
 
 

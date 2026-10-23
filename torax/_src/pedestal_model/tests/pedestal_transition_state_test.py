@@ -23,13 +23,13 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profile_builders
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 
@@ -251,26 +251,19 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
         }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    self.geo = torax_config.geometry.build_provider(0.0)
-    self.runtime_params = provider(t=0.0)
     self.pedestal_model = torax_config.pedestal.build_pedestal_model()
-    self.core_profiles = initialization.initial_core_profiles(
-        self.runtime_params,
-        self.geo,
-        source_models,
-        neoclassical_model,
+
+    self.core_profiles, self.runtime_params, self.geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
+    source_states = source_models.initial_state(self.runtime_params)
     self.source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
-        source_states=source_models.initial_state(self.runtime_params),
+        source_states=source_states,
         explicit=True,
     )
 
@@ -913,26 +906,19 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
         }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    provider = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    self.geo = torax_config.geometry.build_provider(0.0)
-    self.runtime_params = provider(t=0.0)
     self.pedestal_model = torax_config.pedestal.build_pedestal_model()
-    self.core_profiles = initialization.initial_core_profiles(
-        self.runtime_params,
-        self.geo,
-        source_models,
-        neoclassical_model,
+
+    self.core_profiles, self.runtime_params, self.geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
+    source_states = source_models.initial_state(self.runtime_params)
     self.source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
-        source_states=source_models.initial_state(self.runtime_params),
+        source_states=source_states,
         explicit=True,
     )
 

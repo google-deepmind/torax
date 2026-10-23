@@ -16,10 +16,10 @@ from absl.testing import absltest
 import chex
 from torax._src import math_utils
 from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.sources import gas_puff_source
 from torax._src.sources import register_model
 from torax._src.sources.tests import test_lib
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax.experimental import gas_puff_feedback_source
@@ -48,21 +48,10 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
         }
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-
-    runtime_params_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
+    core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
+        torax_config
     )
-    runtime_params = runtime_params_provider(t=torax_config.numerics.t_initial)
-
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
-    )
 
     initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)
 

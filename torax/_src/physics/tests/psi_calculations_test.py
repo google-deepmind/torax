@@ -221,11 +221,13 @@ class PsiCalculationsTest(parameterized.TestCase):
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
     )
+    source_states = source_models.initial_state(runtime_params)
     initial_core_profiles = initialization.initial_core_profiles(
         runtime_params,
         geo,
         source_models=source_models,
         neoclassical_model=neoclassical_model,
+        source_states=source_states,
     )
     # Updates the calculated source profiles with the standard source profiles.
     source_profile_builders.build_standard_source_profiles(
@@ -233,7 +235,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,
-        source_states=source_models.initial_state(runtime_params),
+        source_states=source_states,
         psi_only=True,
         calculate_anyway=True,
         calculated_source_profiles=source_profiles,

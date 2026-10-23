@@ -18,9 +18,7 @@ from unittest import mock
 from absl.testing import absltest
 import jax.numpy as jnp
 from torax._src import state
-from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import initialization
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import circular_geometry
 from torax._src.internal_boundary_conditions import base_model
@@ -30,6 +28,7 @@ from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_transition_state
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profiles as source_profiles_lib
+from torax._src.test_utils import core_profile_helpers
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
@@ -191,19 +190,10 @@ class BuilderTest(absltest.TestCase):
             time_step_calculator=dict(),
         )
     )
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
     models = torax_config.build_models()
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=models.source_models,
-        neoclassical_model=models.neoclassical_model,
-    )
     l_mode_state = pedestal_transition_state.PedestalTransitionState.empty()
 
     built_ibc = builder.build_internal_boundary_conditions(

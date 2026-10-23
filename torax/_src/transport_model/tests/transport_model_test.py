@@ -25,12 +25,12 @@ from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import initialization
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profile_builders
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
@@ -160,24 +160,17 @@ class TransportMaskingTest(parameterized.TestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     # Build components
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models,
-        neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
+    source_states = source_models.initial_state(runtime_params)
     source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        source_states=source_models.initial_state(runtime_params),
+        source_states=source_states,
         explicit=True,
     )
     # We need a pedestal model even if unused by the fixed transport
@@ -233,21 +226,8 @@ class TransportMaskingTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
-    geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial
-    )
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models,
-        neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     transition_state = _make_transition_state(rho_norm_ped_top=1.0)
 
@@ -356,26 +336,18 @@ class TransportMaskingTest(parameterized.TestCase):
         },
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=0.0)
-    geo = torax_config.geometry.build_provider(t=0.0)
-    # We need a pedestal model even if unused by the fixed transport
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    # Mock core profiles (not used by FixedTransportModel but needed for API)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        torax_config.sources.build_models(),
-        torax_config.neoclassical.build_model(),
-    )
     source_models = torax_config.sources.build_models()
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    source_states = source_models.initial_state(runtime_params)
     source_profiles, _ = source_profile_builders.build_source_profiles(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
-        source_states=source_models.initial_state(runtime_params),
+        source_states=source_states,
         explicit=True,
     )
     transition_state = (
@@ -449,21 +421,8 @@ class TransportModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
-    geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial
-    )
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models,
-        neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     transition_state = _make_transition_state(
         rho_norm_ped_top=0.91,
@@ -511,21 +470,8 @@ class TransportModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
-    geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial
-    )
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models,
-        neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     transition_state = _make_transition_state(
         rho_norm_ped_top=0.91,
@@ -731,16 +677,8 @@ class TransportModelTest(parameterized.TestCase):
     }
     torax_config = model_config.ToraxConfig.from_dict(config)
     model = torax_config.transport.build_transport_model()
-    geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial
-    )
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(t=torax_config.numerics.t_initial)
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params, geo, source_models, neoclassical_model
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     transition_state = _make_transition_state(rho_norm_ped_top=0.95)
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)

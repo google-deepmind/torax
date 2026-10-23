@@ -21,13 +21,12 @@ from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.sources import base
 from torax._src.sources import runtime_params as runtime_params_lib
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
@@ -110,19 +109,10 @@ class SingleProfileSourceTestCase(SourceTestCase):
     else:
       config['sources'] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     if self._needs_source_models:
       calculated_source_profiles = source_profiles.SourceProfiles(
@@ -169,20 +159,10 @@ class MultipleProfileSourceTestCase(SourceTestCase):
       config['sources'] = {self._source_name: {}}
     torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
     source = source_models.standard_sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
-    runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
-        torax_config
-    )(
-        t=torax_config.numerics.t_initial,
-    )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
-    core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
     )
     value, _ = source.get_value(
         runtime_params=runtime_params,

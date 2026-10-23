@@ -15,11 +15,10 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src.config import build_runtime_params
-from torax._src.core_profiles import initialization
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.formulas import redl as redl_formulas
 from torax._src.physics import collisions
+from torax._src.test_utils import core_profile_helpers
 from torax._src.torax_pydantic import model_config
 
 # pylint: disable=invalid-name
@@ -56,24 +55,8 @@ class RedlFormulasTest(parameterized.TestCase):
         'sources': {},
     })
 
-    params_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+    self.core_profiles, _, self.geo = core_profile_helpers.make_initial_inputs(
         torax_config
-    )
-    runtime_params, self.geo = (
-        build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=torax_config.numerics.t_initial,
-            runtime_params_provider=params_provider,
-            geometry_provider=torax_config.geometry.build_provider,
-            is_initialization=True,
-        )
-    )
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-    self.core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        self.geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
     )
 
     log_lambda_ei = collisions.calculate_log_lambda_ei(

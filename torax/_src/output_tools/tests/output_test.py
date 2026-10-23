@@ -26,7 +26,6 @@ from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import config_loader
-from torax._src.core_profiles import initialization
 from torax._src.edge import base as edge_base
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.fvm import cell_variable
@@ -109,11 +108,9 @@ class StateHistoryTest(parameterized.TestCase):
         n_e={},
         psi={},
     )
-    self.core_profiles = initialization.initial_core_profiles(
-        runtime_params=runtime_params,
-        geo=self.geo,
-        source_models=models.source_models,
-        neoclassical_model=models.neoclassical_model,
+    source_states = models.source_models.initial_state(runtime_params)
+    self.core_profiles, _, _ = core_profile_helpers.make_initial_inputs(
+        self.torax_config
     )
     self.core_transport = state.CoreTransport(
         total=transport_coeffs_lib.TransportCoeffs.zeros(self.geo),
@@ -164,7 +161,7 @@ class StateHistoryTest(parameterized.TestCase):
                 self.source_profiles,
             ),
             transport=models.transport_model.initial_state(runtime_params),
-            sources=models.source_models.initial_state(runtime_params),
+            sources=source_states,
         ),
     )
     sim_error = state.SimError.NO_ERROR
@@ -702,30 +699,12 @@ class StateHistoryTest(parameterized.TestCase):
         'pedestal': {},
     })
 
-    geo = torax_config.geometry.build_provider(t=0.0)
-    runtime_params_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
-    )
-
     # Create core profiles at two different times
-    runtime_params_t0 = runtime_params_provider(t=0.0)
-    runtime_params_t1 = runtime_params_provider(t=1.0)
-
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-
-    core_profiles_t0 = initialization.initial_core_profiles(
-        runtime_params=runtime_params_t0,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles_t0, _, _ = core_profile_helpers.make_initial_inputs(
+        torax_config, t_override=0.0
     )
-
-    core_profiles_t1 = initialization.initial_core_profiles(
-        runtime_params=runtime_params_t1,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles_t1, _, _ = core_profile_helpers.make_initial_inputs(
+        torax_config, t_override=1.0
     )
 
     # Verify the fractions in core_profiles match the config at t=0
@@ -804,30 +783,12 @@ class StateHistoryTest(parameterized.TestCase):
         'pedestal': {},
     })
 
-    geo = torax_config.geometry.build_provider(t=0.0)
-    runtime_params_provider = (
-        build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
-    )
-
     # Create core profiles at two different times
-    runtime_params_t0 = runtime_params_provider(t=0.0)
-    runtime_params_t1 = runtime_params_provider(t=1.0)
-
-    source_models = torax_config.sources.build_models()
-    neoclassical_model = torax_config.neoclassical.build_model()
-
-    core_profiles_t0 = initialization.initial_core_profiles(
-        runtime_params=runtime_params_t0,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles_t0, _, geo = core_profile_helpers.make_initial_inputs(
+        torax_config, t_override=0.0
     )
-
-    core_profiles_t1 = initialization.initial_core_profiles(
-        runtime_params=runtime_params_t1,
-        geo=geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
+    core_profiles_t1, _, _ = core_profile_helpers.make_initial_inputs(
+        torax_config, t_override=1.0
     )
 
     sim_state_t0 = dataclasses.replace(
