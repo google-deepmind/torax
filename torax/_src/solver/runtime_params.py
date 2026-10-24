@@ -25,8 +25,8 @@ class RuntimeParams:
   """Input params for the solver which can be used as compiled args."""
 
   theta_implicit: float = jax.tree.static()
-  use_predictor_corrector: bool = jax.tree.static()
-  n_corrector_steps: int = jax.tree.static()
+  use_fixed_point: bool = jax.tree.static()
+  n_fixed_point_iterations: int = jax.tree.static()
   use_pereverzev: bool = jax.tree.static()
   implicit_solver_type: tridiagonal.SolverType = jax.tree.static()
   chi_pereverzev: float

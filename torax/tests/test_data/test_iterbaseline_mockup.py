@@ -177,7 +177,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'use_pereverzev': True,
         'chi_pereverzev': 20,
         'D_pereverzev': 10,

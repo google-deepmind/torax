@@ -55,7 +55,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'theta_implicit': 0.5,
     },
     'time_step_calculator': {

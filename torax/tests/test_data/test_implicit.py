@@ -42,7 +42,7 @@ CONFIG = {
     'transport': {},
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': False,
+        'use_fixed_point': False,
         'theta_implicit': 1.0,
         'use_pereverzev': False,
     },

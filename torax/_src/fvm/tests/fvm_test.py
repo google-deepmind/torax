@@ -214,7 +214,7 @@ class FVMTest(parameterized.TestCase):
             pedestal=dict(),
             sources=dict(),
             solver=dict(
-                use_predictor_corrector=False, theta_implicit=theta_implicit
+                use_fixed_point=False, theta_implicit=theta_implicit
             ),
             transport=dict(
                 core_transport_models=dict(

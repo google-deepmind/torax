@@ -33,8 +33,8 @@ CONFIG['transport']['core_transport_models']['inner_patch']['rho_max'] = 0.15
 # Simplify numerics by switching to linear solver.
 CONFIG['solver'] = {
     'solver_type': 'linear',
-    'use_predictor_corrector': True,
-    'n_corrector_steps': 10,
+    'use_fixed_point': True,
+    'n_fixed_point_iterations': 10,
     'use_pereverzev': True,
     'chi_pereverzev': 30,
     'D_pereverzev': 15,
