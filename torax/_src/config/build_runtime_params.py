@@ -43,7 +43,7 @@ from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import config as mhd_config
 from torax._src.neoclassical import config as neoclassical_config
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax._src.solver import pydantic_model as solver_pydantic_model
+from torax._src.solver import config as solver_config
 from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import interpolated_param_1d
@@ -86,7 +86,7 @@ class RuntimeParamsProvider:
   profile_conditions: profile_conditions_lib.ProfileConditions
   plasma_composition: plasma_composition_lib.PlasmaComposition
   transport_model: transport_pydantic_model.TransportModel
-  solver: solver_pydantic_model.SolverConfig
+  solver: solver_config.SolverConfig
   pedestal: pedestal_pydantic_model.PedestalConfig
   mhd: mhd_config.MHDConfig
   edge: edge_base.EdgeModelConfig | None

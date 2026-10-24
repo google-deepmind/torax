@@ -30,7 +30,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 
-class BaseSolver(torax_pydantic.ConfigBase):
+class SolverConfigBase(torax_pydantic.ConfigBase):
   """Base class for solver configs.
 
   Attributes:
@@ -108,7 +108,7 @@ class BaseSolver(torax_pydantic.ConfigBase):
     """Builds a solver from the config."""
 
 
-class LinearThetaMethod(BaseSolver):
+class LinearThetaMethodConfig(SolverConfigBase):
   """Model for the linear solver.
 
   Attributes:
@@ -128,7 +128,7 @@ class LinearThetaMethod(BaseSolver):
     )
 
 
-class NewtonRaphsonThetaMethod(BaseSolver):
+class NewtonRaphsonThetaMethodConfig(SolverConfigBase):
   """Model for nonlinear Newton-Raphson solver.
 
   Attributes:
@@ -193,7 +193,7 @@ class NewtonRaphsonThetaMethod(BaseSolver):
     )
 
 
-class OptimizerThetaMethod(BaseSolver):
+class OptimizerThetaMethodConfig(SolverConfigBase):
   """Model for nonlinear OptimizerThetaMethod solver.
 
   Attributes:
@@ -234,6 +234,8 @@ class OptimizerThetaMethod(BaseSolver):
 
 
 SolverConfig = Annotated[
-    LinearThetaMethod | NewtonRaphsonThetaMethod | OptimizerThetaMethod,
+    LinearThetaMethodConfig
+    | NewtonRaphsonThetaMethodConfig
+    | OptimizerThetaMethodConfig,
     pydantic.Discriminator('solver_type'),
 ]

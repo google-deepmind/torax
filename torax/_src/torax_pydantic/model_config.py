@@ -37,7 +37,7 @@ from torax._src.mhd import config as mhd_config
 from torax._src.neoclassical import config as neoclassical_config
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
-from torax._src.solver import pydantic_model as solver_pydantic_model
+from torax._src.solver import config as solver_config
 from torax._src.sources import pydantic_config as sources_pydantic_config
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
@@ -77,7 +77,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   neoclassical: neoclassical_config.NeoclassicalConfig = (
       pydantic.Field()
   )
-  solver: solver_pydantic_model.SolverConfig = pydantic.Field()
+  solver: solver_config.SolverConfig = pydantic.Field()
   transport: transport_model_pydantic_model.TransportModel = pydantic.Field()
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field()
   mhd: mhd_config.MHDConfig = mhd_config.MHDConfig()
@@ -161,7 +161,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
         )
     )
     using_linear_solver = isinstance(
-        self.solver, solver_pydantic_model.LinearThetaMethod
+        self.solver, solver_config.LinearThetaMethodConfig
     )
 
     # pylint: disable=g-long-ternary
