@@ -189,18 +189,18 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         B_0=5.0,
     ).build_geometry()
     ip_tot = 1e6
-    j_total_hires_shape = (1.0 - geo.rho_hires_norm**2) ** 2
-    j_total_hires = jnp.asarray(
-        j_total_hires_shape
+    j_toroidal_total_hires_shape = (1.0 - geo.rho_hires_norm**2) ** 2
+    j_toroidal_total_hires = jnp.asarray(
+        j_toroidal_total_hires_shape
         * (
             ip_tot
             / jnp.trapezoid(
-                j_total_hires_shape * geo.spr_hires, geo.rho_hires_norm
+                j_toroidal_total_hires_shape * geo.spr_hires, geo.rho_hires_norm
             )
         )
     )
-    psi = initialization.update_psi_from_j(ip_tot, geo, j_total_hires)
-    j_total, _, _ = psi_calculations.calc_j_total(
+    psi = initialization.update_psi_from_j(ip_tot, geo, j_toroidal_total_hires)
+    j_toroidal_total, _, _ = psi_calculations.calc_j_toroidal_total(
         geo, psi, min_rho_norm=0.01
     )
 
@@ -231,7 +231,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         geo=geo,
     )
     large_aspect_ratio_pohm = (
-        j_total * psidot / (2.0 * jnp.pi * geo.R_major_profile)
+        j_toroidal_total * psidot / (2.0 * jnp.pi * geo.R_major_profile)
     )
     np.testing.assert_allclose(
         np.asarray(pohm), large_aspect_ratio_pohm, rtol=3e-4

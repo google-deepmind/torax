@@ -123,11 +123,11 @@ below as an example.
           ),
           plotruns_lib.PlotProperties(
               attrs=(
-                  'j_total',
-                  'j_ohmic',
-                  'j_bootstrap',
-                  'j_generic_current',
-                  'j_ecrh',
+                  'j_toroidal_total',
+                  'j_toroidal_ohmic',
+                  'j_toroidal_bootstrap',
+                  'j_toroidal_generic_current',
+                  'j_toroidal_ecrh',
               ),
               labels=(
                   r'$j_{tot}$',
@@ -224,7 +224,7 @@ The fields in ``PlotProperties`` are as follows:
 
 ``suppress_zero_values`` is useful when defining plots where not all the
 ``attrs`` may be relevant for all runs. For example, if a run does not include a
-bootstrap current, the ``j_bootstrap`` attribute will be all zero. Setting
+bootstrap current, the ``j_toroidal_bootstrap`` attribute will be all zero. Setting
 ``suppress_zero_values=True`` will automatically exclude this line from the
 plot.
 

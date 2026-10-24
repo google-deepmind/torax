@@ -122,11 +122,11 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     n_e_right_bc_is_fGW: Toggle units of n_e_right_bc.
     internal_boundary_conditions: Config for internal boundary conditions. See
       `InternalBoundaryConditionsConfig` for more details.
-    current_profile_nu: Peaking factor of "Ohmic" current: j_ohmic = j0*(1 -
-      r^2/a^2)^current_profile_nu
+    current_profile_nu: Peaking factor of "Ohmic" current: j_toroidal_ohmic =
+      j0*(1 - r^2/a^2)^current_profile_nu
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
       current upon initialization, or if non-inductive current should be
-      included in initial j_total calculation.
+      included in initial j_toroidal_total calculation.
     initial_psi_from_j: Toggles if the initial psi calculation is based on the
       "current_profile_nu" current formula, or from the psi available in the
       numerical geometry file. This setting is ignored for the ad-hoc circular

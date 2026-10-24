@@ -75,8 +75,9 @@ class CoreProfiles:
       A_impurity_face: Impurity mass on face grid [amu].
       sigma: Conductivity on cell grid [S/m].
       sigma_face: Conductivity on face grid [S/m].
-      j_total: Total current density on the cell grid [A/m^2].
-      j_total_face: Total current density on face grid [A/m^2].
+      j_toroidal_total: Total toroidal current density on the cell grid [A/m^2].
+      j_toroidal_total_face: Total toroidal current density on face grid
+        [A/m^2].
       Ip_profile_face: Plasma current profile on the face grid [A].
       toroidal_angular_velocity: Toroidal angular velocity [rad/s].
       poloidal_velocity: Neoclassical poloidal velocity [m/s].
@@ -114,8 +115,8 @@ class CoreProfiles:
   Z_eff_face: array_typing.FloatVectorFace
   sigma: array_typing.FloatVectorCell
   sigma_face: array_typing.FloatVectorFace
-  j_total: array_typing.FloatVectorCell
-  j_total_face: array_typing.FloatVectorFace
+  j_toroidal_total: array_typing.FloatVectorCell
+  j_toroidal_total_face: array_typing.FloatVectorFace
   Ip_profile_face: array_typing.FloatVectorFace
   toroidal_angular_velocity: cell_variable.CellVariable
   poloidal_velocity: cell_variable.CellVariable
@@ -401,7 +402,11 @@ class CoreProfiles:
         (output_keys.A_IMPURITY, self.A_impurity, self.A_impurity_face),
         (output_keys.Z_EFF, self.Z_eff, self.Z_eff_face),
         (output_keys.SIGMA_PARALLEL, self.sigma, self.sigma_face),
-        (output_keys.J_TOROIDAL_TOTAL, self.j_total, self.j_total_face),
+        (
+            output_keys.J_TOROIDAL_TOTAL,
+            self.j_toroidal_total,
+            self.j_toroidal_total_face,
+        ),
     ]
     for key, cell_val, face_val in cell_face_pairs:
       extended_data = output_grid_context.extend_cell_grid_to_boundaries(
