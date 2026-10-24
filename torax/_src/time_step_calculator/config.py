@@ -34,7 +34,7 @@ class TimeStepCalculatorType(enum.Enum):
   FROM_PREVIOUS_DT = 'from_previous_dt'
 
 
-class TimeStepCalculator(torax_pydantic.ConfigBase):
+class TimeStepCalculatorConfig(torax_pydantic.ConfigBase):
   """Config for a time step calculator.
 
   Attributes:

@@ -29,7 +29,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
-from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
+from torax._src.time_step_calculator import config as time_step_calculator_config
 from torax._src.torax_pydantic import model_config
 
 _FAILED_TEST_OUTPUT_DIR: Final[str] = '/tmp/torax_failed_sim_test_outputs/'
@@ -220,7 +220,7 @@ class SimTestCase(parameterized.TestCase):
         use_jitted_run_loop
         and max_steps is None
         and torax_config.time_step_calculator.calculator_type
-        != time_step_calculator_pydantic_model.TimeStepCalculatorType.FIXED
+        != time_step_calculator_config.TimeStepCalculatorType.FIXED
     ):
       max_steps = len(ref_time) * 2
 

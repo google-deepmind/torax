@@ -45,7 +45,7 @@ from torax._src.neoclassical import config as neoclassical_config
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.solver import config as solver_config
 from torax._src.sources import config as sources_config
-from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
+from torax._src.time_step_calculator import config as time_step_calculator_config
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
@@ -91,7 +91,9 @@ class RuntimeParamsProvider:
   mhd: mhd_config.MHDConfig
   edge: edge_base.EdgeModelConfig | None
   neoclassical: neoclassical_config.NeoclassicalConfigBase
-  time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
+  time_step_calculator: (
+      time_step_calculator_config.TimeStepCalculatorConfig
+  )
 
   @classmethod
   def from_config(
