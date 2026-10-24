@@ -16,7 +16,6 @@
 
 from collections.abc import Sequence
 import dataclasses
-import itertools
 
 import os
 
@@ -251,26 +250,8 @@ class StateHistory:
     """Returns the post processed outputs for the simulation."""
     return self._post_processed_outputs
 
-  def simulation_output_to_xr(self) -> xr.DataTree:
-    """Build an xr.DataTree of the simulation output.
-
-    Returns:
-      A xr.DataTree containing a single top level xr.Dataset and four child
-      datasets. The top level dataset contains the following variables:
-        - time: The time of the simulation.
-        - rho_norm: The normalized toroidal coordinate on the cell grid with the
-            left and right face boundaries added.
-        - rho_face_norm: The normalized toroidal coordinate on the face grid.
-        - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
-        - config: The ToraxConfig used to run the simulation serialized to JSON.
-      The child datasets contain the following variables:
-        - numerics: Contains data variables for numeric quantities to do with
-            the simulation.
-        - profiles: Contains data variables for 1D profiles.
-        - scalars: Contains data variables for scalars.
-        - edge: Contains data variables for the edge model, if one is active.
-    """
-
+  def _build_top_level_dataset(self) -> xr.Dataset:
+    """Builds the top-level xr.Dataset with coordinates and config metadata."""
     time = xr.DataArray(
         self.times,
         dims=[output_keys.TIME],
@@ -302,29 +283,60 @@ class StateHistory:
         output_keys.RHO_CELL_NORM: rho_cell_norm,
         output_keys.RHO_NORM: rho_norm,
     }
+    return xr.Dataset(
+        data_vars=None,
+        coords=coords,
+        attrs={output_keys.CONFIG: self.torax_config.model_dump_json()},
+    )
 
-    # Update dict with flattened StateHistory dataclass containers.
-    all_core_data = [
-        self._save_core_profiles(),
-        self._save_core_transport(),
-        self._save_core_sources(),
-        self._save_post_processed_outputs(),
-        self._save_geometry(),
+  def _build_profiles_and_scalars_datasets(
+      self,
+  ) -> tuple[xr.Dataset, xr.Dataset]:
+    """Builds the profiles and scalars xr.Datasets from stacked state dicts."""
+    grid = self._output_grid_context
+    output_dicts = [
+        self._stacked_core_profiles.to_output_dict(grid),
+        self._stacked_core_transport.to_output_dict(grid),
+        self._stacked_core_sources.to_output_dict(grid),
+        self._stacked_post_processed_outputs.to_output_dict(grid),
+        self._stacked_geometry.to_output_dict(grid),
     ]
-    flattened_all_core_data = {}
-    for key, value in itertools.chain(*(d.items() for d in all_core_data)):
-      if key not in flattened_all_core_data:
-        flattened_all_core_data[key] = value
-      else:
-        raise ValueError(f"Duplicate key: {key}")
+    all_vars: dict[str, output_grid_context.OutputVar] = {}
+    for d in output_dicts:
+      duplicate_keys = set(all_vars).intersection(d)
+      if duplicate_keys:
+        raise ValueError(
+            f"Duplicate keys found in output dicts: {duplicate_keys}"
+        )
+      all_vars.update(d)
 
-    # Determine simulation status based on error state.
+    spatial_coords = {
+        output_keys.RHO_FACE_NORM,
+        output_keys.RHO_CELL_NORM,
+        output_keys.RHO_NORM,
+    }
+    profiles_vars = {
+        k: v
+        for k, v in all_vars.items()
+        if any(d in spatial_coords for d in v[0])
+    }
+    scalars_vars = {
+        k: v
+        for k, v in all_vars.items()
+        if not any(d in spatial_coords for d in v[0])
+    }
+    return (
+        grid.build_dataset(profiles_vars),
+        grid.build_dataset(scalars_vars),
+    )
+
+  def _build_numerics_dataset(self) -> xr.Dataset:
+    """Builds the numerics xr.Dataset."""
     sim_status = (
         state.SimStatus.COMPLETED
         if self.sim_error is state.SimError.NO_ERROR
         else state.SimStatus.ERROR
     )
-
     numerics_vars: dict[str, output_grid_context.OutputVar] = {
         output_keys.SIM_STATUS: (
             (),
@@ -337,56 +349,71 @@ class StateHistory:
             output_keys.get_units(output_keys.SIM_ERROR),
         ),
     }
-    # Populate solver numeric variables from stacked solver outputs.
     numerics_vars.update(
         self._stacked_solver_numeric_outputs.to_output_dict(
             self._output_grid_context
         )
     )
-    numerics = self._output_grid_context.build_dataset(numerics_vars)
+    return self._output_grid_context.build_dataset(numerics_vars)
 
-    spatial_coords = {
-        output_keys.RHO_FACE_NORM,
-        output_keys.RHO_CELL_NORM,
-        output_keys.RHO_NORM,
-    }
+  def _build_auxiliary_datatree(self) -> xr.DataTree | None:
+    """Builds the auxiliary xr.DataTree if turbulent transport has children."""
+    turbulent_transport_tree = (
+        self._stacked_core_transport.turbulent.to_xr_datatree(
+            self._output_grid_context
+        )
+    )
+    if not turbulent_transport_tree.children:
+      return None
+    return xr.DataTree(
+        children={
+            output_keys.TURBULENT_TRANSPORT: turbulent_transport_tree,
+        },
+    )
 
-    profiles_dict = {
-        k: v
-        for k, v in flattened_all_core_data.items()
-        if any(d in spatial_coords for d in v[0])
-    }
-    profiles = self._output_grid_context.build_dataset(profiles_dict)
-    scalars_dict = {
-        k: v
-        for k, v in flattened_all_core_data.items()
-        if not any(d in spatial_coords for d in v[0])
-    }
-    scalars = self._output_grid_context.build_dataset(scalars_dict)
-    children = {
-        output_keys.PROFILES: xr.DataTree(dataset=profiles),
-        output_keys.NUMERICS: xr.DataTree(dataset=numerics),
-        output_keys.SCALARS: xr.DataTree(dataset=scalars),
+  def simulation_output_to_xr(self) -> xr.DataTree:
+    """Build an xr.DataTree of the simulation output.
+
+    Returns:
+      A xr.DataTree containing a single top level xr.Dataset and four child
+      datasets. The top level dataset contains the following variables:
+        - time: The time of the simulation.
+        - rho_norm: The normalized toroidal coordinate on the cell grid with the
+            left and right face boundaries added.
+        - rho_face_norm: The normalized toroidal coordinate on the face grid.
+        - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
+        - config: The ToraxConfig used to run the simulation serialized to JSON.
+      The child datasets contain the following variables:
+        - numerics: Contains data variables for numeric quantities to do with
+            the simulation.
+        - profiles: Contains data variables for 1D profiles.
+        - scalars: Contains data variables for scalars.
+        - edge: Contains data variables for the edge model, if one is active.
+        - auxiliary: Contains auxiliary model outputs, such as turbulent
+            transport component outputs, if any are present.
+    """
+    profiles_dataset, scalars_dataset = (
+        self._build_profiles_and_scalars_datasets()
+    )
+    children: dict[str, xr.DataTree] = {
+        output_keys.PROFILES: xr.DataTree(dataset=profiles_dataset),
+        output_keys.SCALARS: xr.DataTree(dataset=scalars_dataset),
+        output_keys.NUMERICS: xr.DataTree(
+            dataset=self._build_numerics_dataset()
+        ),
     }
     if self._stacked_edge_outputs is not None:
-      children[output_keys.EDGE] = self._save_edge_outputs()
-    turbulent_transport_tree = self._save_turbulent_transport()
-    auxiliary_children = {}
-    if turbulent_transport_tree.children:
-      auxiliary_children[output_keys.TURBULENT_TRANSPORT] = (
-          turbulent_transport_tree
+      children[output_keys.EDGE] = self._stacked_edge_outputs.to_xr_datatree(
+          self._output_grid_context
       )
-    if auxiliary_children:
-      children[output_keys.AUXILIARY] = xr.DataTree(
-          children=auxiliary_children
-      )
+
+    auxiliary_tree = self._build_auxiliary_datatree()
+    if auxiliary_tree is not None:
+      children[output_keys.AUXILIARY] = auxiliary_tree
+
     data_tree = xr.DataTree(
-        children=children,  # pyrefly: ignore[bad-argument-type]
-        dataset=xr.Dataset(
-            data_vars=None,
-            coords=coords,
-            attrs={output_keys.CONFIG: self.torax_config.model_dump_json()},
-        ),
+        children=children,
+        dataset=self._build_top_level_dataset(),
     )
     if (
         self.torax_config.restart is not None
@@ -395,53 +422,3 @@ class StateHistory:
       data_tree = stitch_state_files(self.torax_config.restart, data_tree)
 
     return data_tree
-
-  def _save_core_profiles(
-      self,
-  ) -> dict[str, output_grid_context.OutputVar]:
-    """Saves the stacked core profiles to a dictionary."""
-    return self._stacked_core_profiles.to_output_dict(
-        self._output_grid_context
-    )
-
-  def _save_core_transport(
-      self,
-  ) -> dict[str, output_grid_context.OutputVar]:
-    """Saves the core transport to a dict."""
-    return self._stacked_core_transport.to_output_dict(
-        self._output_grid_context
-    )
-
-  def _save_core_sources(
-      self,
-  ) -> dict[str, output_grid_context.OutputVar]:
-    """Saves the core sources to a dict."""
-    return self._stacked_core_sources.to_output_dict(
-        self._output_grid_context
-    )
-
-  def _save_post_processed_outputs(
-      self,
-  ) -> dict[str, output_grid_context.OutputVar]:
-    """Saves the post processed outputs to a dict."""
-    return self._stacked_post_processed_outputs.to_output_dict(
-        self._output_grid_context
-    )
-
-  def _save_geometry(
-      self,
-  ) -> dict[str, output_grid_context.OutputVar]:
-    """Saves the geometry to a dict."""
-    return self._stacked_geometry.to_output_dict(self._output_grid_context)
-
-  def _save_edge_outputs(self) -> xr.DataTree:
-    """Saves the edge outputs to a DataTree."""
-    if self._stacked_edge_outputs is None:
-      return xr.DataTree(dataset=xr.Dataset({}))
-    return self._stacked_edge_outputs.to_xr_datatree(self._output_grid_context)
-
-  def _save_turbulent_transport(self) -> xr.DataTree:
-    """Saves turbulent transport per-model outputs to a DataTree."""
-    return self._stacked_core_transport.turbulent.to_xr_datatree(
-        self._output_grid_context
-    )
