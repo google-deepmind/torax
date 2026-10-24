@@ -16,19 +16,22 @@ from typing import Annotated, get_args, get_origin
 
 import pydantic
 from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import pydantic_model
-from torax._src.transport_model import pydantic_model_base
+from torax._src.transport_model import config
+from torax._src.transport_model import config_base
 
 
 def register_transport_model(
-    pydantic_model_class: type[pydantic_model_base.ComponentTransportBase],
+    pydantic_model_class: type[
+        config_base.ComponentTransportConfigBase
+    ],
 ):
   """Registers a transport model with TORAX.
 
   This function adds the transport model to the config model such that it can
   be configured via pydantic. The pydantic model class should inherit from
-  ComponentTransportBase and should have a distinct model_name. It should also
-  define a build_transport_model method which returns a ComponentTransportModel.
+  ComponentTransportConfigBase and should have a distinct model_name. It should
+  also define a build_transport_model method which returns a
+  ComponentTransportModel.
 
   It can then be used in the `core_transport_models` or
   `pedestal_transport_models` mapping of the transport configuration.
@@ -39,7 +42,7 @@ def register_transport_model(
   transport_model = model_config.ToraxConfig.model_fields[
       'transport'
   ].annotation
-  assert transport_model is pydantic_model.TransportModel
+  assert transport_model is config.TransportConfig
 
   # The annotation for core_transport_models and pedestal_transport_models is
   # dict[str, UnionType]. We need to extract the value type and extend it.

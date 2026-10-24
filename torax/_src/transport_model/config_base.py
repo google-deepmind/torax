@@ -28,7 +28,7 @@ from torax._src.transport_model import runtime_params
 
 
 # pylint: disable=invalid-name
-class ComponentTransportBase(torax_pydantic.ConfigBase):
+class ComponentTransportConfigBase(torax_pydantic.ConfigBase):
   """Base model holding parameters common to all transport models.
 
   Attributes:

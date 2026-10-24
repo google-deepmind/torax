@@ -49,7 +49,7 @@ from torax._src.time_step_calculator import pydantic_model as time_step_calculat
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import pydantic_model as transport_pydantic_model
+from torax._src.transport_model import config as transport_config
 
 # pylint: disable=invalid-name
 
@@ -85,7 +85,7 @@ class RuntimeParamsProvider:
   numerics: numerics_lib.Numerics
   profile_conditions: profile_conditions_lib.ProfileConditions
   plasma_composition: plasma_composition_lib.PlasmaComposition
-  transport_model: transport_pydantic_model.TransportModel
+  transport_model: transport_config.TransportConfig
   solver: solver_config.SolverConfig
   pedestal: pedestal_pydantic_model.PedestalConfig
   mhd: mhd_config.MHDConfig

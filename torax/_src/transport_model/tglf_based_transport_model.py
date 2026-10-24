@@ -31,7 +31,7 @@ from torax._src.physics import psi_calculations
 from torax._src.physics import rotation
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
-from torax._src.transport_model import pydantic_model_base
+from torax._src.transport_model import config_base
 from torax._src.transport_model import quasilinear_utils
 from torax._src.transport_model import runtime_params as transport_runtime_params
 from torax._src.transport_model import transport_coeffs
@@ -52,7 +52,9 @@ class RuntimeParams(transport_runtime_params.ComponentRuntimeParams):
   max_normalized_collisionality: float
 
 
-class TGLFBasedTransportModelConfig(pydantic_model_base.ComponentTransportBase):
+class TGLFBasedTransportModelConfig(
+    config_base.ComponentTransportConfigBase
+):
   """Base config for TGLF-family transport models."""
 
   DV_effective: Annotated[bool, torax_pydantic.JAX_STATIC] = False

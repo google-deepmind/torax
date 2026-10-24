@@ -41,7 +41,7 @@ from torax._src.solver import linear_theta_method
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
-from torax._src.transport_model import pydantic_model_base as transport_pydantic_model_base
+from torax._src.transport_model import config_base as transport_config_base
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_model_runtime_params
 from torax._src.transport_model import transport_coeffs
@@ -296,7 +296,7 @@ class FakeTransportModel(component.ComponentTransportModel):
 
 
 class FakeTransportConfig(
-    transport_pydantic_model_base.ComponentTransportBase
+    transport_config_base.ComponentTransportConfigBase
 ):
   """Fake transport config for a model that always returns zeros."""
 

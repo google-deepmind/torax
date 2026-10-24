@@ -73,7 +73,7 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.transport.ComponentTransportBase`` and implements the
+``torax.transport.ComponentTransportConfigBase`` and implements the
 ``build_transport_model`` method. The config class must have a ``model_name``
 field with a unique ``Literal`` type that identifies your model.
 
@@ -81,7 +81,7 @@ field with a unique ``Literal`` type that identifies your model.
 
     from typing import Annotated, Literal
 
-    class MyTransportConfig(transport.ComponentTransportBase):
+    class MyTransportConfig(transport.ComponentTransportConfigBase):
       """Pydantic config for MyTransportModel."""
 
       model_name: Annotated[

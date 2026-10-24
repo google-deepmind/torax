@@ -43,7 +43,7 @@ from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax._src.torax_pydantic import torax_pydantic
-from torax._src.transport_model import pydantic_model as transport_model_pydantic_model
+from torax._src.transport_model import config as transport_config
 
 
 class ToraxConfig(torax_pydantic.ConfigBase):
@@ -78,7 +78,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
       pydantic.Field()
   )
   solver: solver_config.SolverConfig = pydantic.Field()
-  transport: transport_model_pydantic_model.TransportModel = pydantic.Field()
+  transport: transport_config.TransportConfig = pydantic.Field()
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field()
   mhd: mhd_config.MHDConfig = mhd_config.MHDConfig()
   edge: edge_config.EdgeConfig | None = None
