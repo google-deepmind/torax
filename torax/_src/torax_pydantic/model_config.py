@@ -26,9 +26,9 @@ from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
-from torax._src.edge import pydantic_model as edge_pydantic_model
+from torax._src.edge import config as edge_config
+from torax._src.edge.extended_lengyel import config as extended_lengyel_config
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
-from torax._src.edge.extended_lengyel import pydantic_model as extended_lengyel_pydantic_model
 from torax._src.fvm import enums
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
@@ -81,7 +81,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   transport: transport_model_pydantic_model.TransportModel = pydantic.Field()
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field()
   mhd: mhd_config.MHDConfig = mhd_config.MHDConfig()
-  edge: edge_pydantic_model.EdgeConfig | None = None
+  edge: edge_config.EdgeConfig | None = None
   time_step_calculator: (
       time_step_calculator_pydantic_model.TimeStepCalculator
   ) = time_step_calculator_pydantic_model.TimeStepCalculator()
@@ -132,18 +132,18 @@ class ToraxConfig(torax_pydantic.ConfigBase):
 
   def _get_extended_lengyel_configs(
       self,
-  ) -> list[extended_lengyel_pydantic_model.ExtendedLengyelConfig]:
+  ) -> list[extended_lengyel_config.ExtendedLengyelConfig]:
     if isinstance(
         self.edge,
-        extended_lengyel_pydantic_model.ExtendedLengyelConfig,
+        extended_lengyel_config.ExtendedLengyelConfig,
     ):
       return [self.edge]
-    if isinstance(self.edge, edge_pydantic_model.CombinedEdgeConfig):
+    if isinstance(self.edge, edge_config.CombinedEdgeConfig):
       return [
           sub
           for sub in self.edge.sub_models.values()
           if isinstance(
-              sub, extended_lengyel_pydantic_model.ExtendedLengyelConfig
+              sub, extended_lengyel_config.ExtendedLengyelConfig
           )
       ]
     return []
