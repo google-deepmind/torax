@@ -33,7 +33,7 @@ from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles as source_profiles_lib
-from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
+from torax._src.torax_pydantic import file_restart as file_restart_config
 from torax._src.torax_pydantic import model_config
 import xarray as xr
 
@@ -87,7 +87,8 @@ def concat_datatrees(
 
 
 def stitch_state_files(
-    file_restart: file_restart_pydantic_model.FileRestart, datatree: xr.DataTree
+    file_restart: file_restart_config.FileRestartConfig,
+    datatree: xr.DataTree,
 ) -> xr.DataTree:
   """Stitch a datatree to the end of a previous state file.
 

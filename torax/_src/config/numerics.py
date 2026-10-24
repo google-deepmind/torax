@@ -31,7 +31,7 @@ from torax._src.torax_pydantic import torax_pydantic
 class RuntimeParams:
   """Generic numeric parameters for the simulation.
 
-  For definitions see `Numerics`.
+  For definitions see `NumericsConfig`.
   """
 
   t_initial: float
@@ -67,7 +67,7 @@ class RuntimeParams:
     return tuple(evolving_names)
 
 
-class Numerics(torax_pydantic.ConfigBase):
+class NumericsConfig(torax_pydantic.ConfigBase):
   """Generic numeric parameters for the simulation.
 
   The `from_dict(...)` method can accept a dictionary defined by

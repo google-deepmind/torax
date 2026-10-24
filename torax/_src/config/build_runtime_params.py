@@ -82,7 +82,7 @@ class RuntimeParamsProvider:
   """
 
   sources: sources_config.SourcesConfig
-  numerics: numerics_lib.Numerics
+  numerics: numerics_lib.NumericsConfig
   profile_conditions: profile_conditions_lib.ProfileConditions
   plasma_composition: plasma_composition_lib.PlasmaComposition
   transport_model: transport_config.TransportConfig

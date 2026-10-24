@@ -466,7 +466,7 @@ class SimTest(sim_test_case.SimTestCase):
     # Override the config to restart from the halfway point of the reference.
     torax_config = self._get_torax_config(test_config + '.py')
     torax_config.update_fields({'numerics.t_initial': loading_time})
-    file_restart = file_restart_pydantic.FileRestart.from_dict(
+    file_restart = file_restart_pydantic.FileRestartConfig.from_dict(
         dict(
             filename=output_file,
             time=loading_time,

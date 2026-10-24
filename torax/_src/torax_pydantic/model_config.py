@@ -41,7 +41,7 @@ from torax._src.solver import config as solver_config
 from torax._src.sources import config as sources_config
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
-from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
+from torax._src.torax_pydantic import file_restart as file_restart_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import config as transport_config
 
@@ -70,7 +70,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   """
 
   profile_conditions: profile_conditions_lib.ProfileConditions
-  numerics: numerics_lib.Numerics
+  numerics: numerics_lib.NumericsConfig
   plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
   sources: sources_config.SourcesConfig
@@ -85,7 +85,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   time_step_calculator: (
       time_step_calculator_pydantic_model.TimeStepCalculator
   ) = time_step_calculator_pydantic_model.TimeStepCalculator()
-  restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
+  restart: file_restart_config.FileRestartConfig | None = pydantic.Field(
       default=None
   )
 

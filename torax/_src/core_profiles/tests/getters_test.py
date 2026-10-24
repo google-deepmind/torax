@@ -140,7 +140,7 @@ class GettersTest(parameterized.TestCase):
             'normalize_n_e_to_nbar': False,
         },
     )
-    numerics = numerics_lib.Numerics.from_dict({})
+    numerics = numerics_lib.NumericsConfig.from_dict({})
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     n_e = getters.get_updated_electron_density(
@@ -291,7 +291,7 @@ class GettersTest(parameterized.TestCase):
         'n_e_right_bc': n_e_right_bc,
         'normalize_n_e_to_nbar': normalize_n_e_to_nbar,
     })
-    numerics = numerics_lib.Numerics.from_dict({})
+    numerics = numerics_lib.NumericsConfig.from_dict({})
     torax_pydantic.set_grid(profile_conditions, self.geo.torax_mesh)
     torax_pydantic.set_grid(numerics, self.geo.torax_mesh)
     n_e = getters.get_updated_electron_density(
@@ -310,7 +310,7 @@ class GettersTest(parameterized.TestCase):
   ):
     """Tests that normalizing vs. not by nbar gives consistent results."""
     nbar = 1e20
-    numerics = numerics_lib.Numerics.from_dict({})
+    numerics = numerics_lib.NumericsConfig.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
         'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_nbar_is_fGW': False,
@@ -346,7 +346,7 @@ class GettersTest(parameterized.TestCase):
       normalize_n_e_to_nbar: bool,
   ):
     """Tests setting the Greenwald fraction vs. not gives consistent results."""
-    numerics = numerics_lib.Numerics.from_dict({})
+    numerics = numerics_lib.NumericsConfig.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
         'n_e': {0: {0: 1.5, 1: 1}},
         'n_e_nbar_is_fGW': True,

@@ -34,7 +34,7 @@ from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.sources import source_profile_builders
-from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
+from torax._src.torax_pydantic import file_restart as file_restart_config
 from torax._src.transport_model import transport_coefficients_builder
 import xarray as xr
 
@@ -220,7 +220,7 @@ def _get_initial_state(
 
 
 def get_initial_state_and_post_processed_outputs_from_file(
-    file_restart: file_restart_pydantic_model.FileRestart,
+    file_restart: file_restart_config.FileRestartConfig,
     step_fn: step_function.SimulationStepFn,
     t: float | None = None,
     runtime_params_overrides: (
