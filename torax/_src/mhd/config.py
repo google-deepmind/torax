@@ -18,18 +18,18 @@ import chex
 import pydantic
 from torax._src.mhd import base
 from torax._src.mhd import runtime_params as mhd_runtime_params
-from torax._src.mhd.sawtooth import pydantic_model as sawtooth_pydantic_model
+from torax._src.mhd.sawtooth import config as sawtooth_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class MHD(torax_pydantic.ConfigBase):
+class MHDConfig(torax_pydantic.ConfigBase):
   """Config for MHD models.
 
   Attributes:
     sawtooth: Config for sawtooth models.
   """
 
-  sawtooth: sawtooth_pydantic_model.SawtoothConfig | None = pydantic.Field(
+  sawtooth: sawtooth_config.SawtoothConfig | None = pydantic.Field(
       default=None
   )
 

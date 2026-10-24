@@ -33,7 +33,7 @@ from torax._src.fvm import enums
 from torax._src.geometry import geometry
 from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.internal_boundary_conditions import config as ibc_config
-from torax._src.mhd import pydantic_model as mhd_pydantic_model
+from torax._src.mhd import config as mhd_config
 from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
@@ -80,7 +80,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   solver: solver_pydantic_model.SolverConfig = pydantic.Field()
   transport: transport_model_pydantic_model.TransportModel = pydantic.Field()
   pedestal: pedestal_pydantic_model.PedestalConfig = pydantic.Field()
-  mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
+  mhd: mhd_config.MHDConfig = mhd_config.MHDConfig()
   edge: edge_pydantic_model.EdgeConfig | None = None
   time_step_calculator: (
       time_step_calculator_pydantic_model.TimeStepCalculator
