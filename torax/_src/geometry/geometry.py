@@ -59,6 +59,7 @@ class GeometryType(enum.IntEnum):
   FBT = 2
   EQDSK = 3
   IMAS = 4
+  TOKAMAKER = 5
 
 
 # pylint: disable=invalid-name

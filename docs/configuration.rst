@@ -1286,6 +1286,15 @@ geometry
     (IDS) or directly the equilibrium IDS on the fly. It handles IDSs in Data
     Dictionary version 4.0.0.
 
+* ``'tokamaker'``
+    Takes flux surface averages computed by
+    `TokaMaker <https://github.com/openfusiontoolkit/OpenFUSIONToolkit>`_.
+    TokaMaker traces flux surfaces on the finite element mesh used for the
+    equilibrium solve, then passes arrays of flux surface averaged quantities
+    to TORAX. TORAX does not depend on TokaMaker (or Open FUSION Toolkit),
+    the geometry information is passed as plain arrays, which can be done
+    without saving and loading files.
+
 Geometry dicts for all geometry types can contain the following additional keys.
 
 ``calc_Phi_b_dot`` (bool [default = True])
@@ -1349,8 +1358,8 @@ Geometry dicts for all geometry types can contain the following additional keys.
     Only supported for EQDSK and IMAS geometries.
 
 
-Geometry dicts for all non-circular geometry types can contain the following
-additional keys.
+Geometry dicts for file-based geometry types (such as CHEASE and EQDSK) can
+contain the following additional keys.
 
 ``geometry_file`` (str) See below for information on defaults
   Required for CHEASE and EQDSK geometry. Sets the geometry file loaded.
@@ -1361,10 +1370,14 @@ additional keys.
   Optionally set the geometry directory. This should be set to an absolute path.
   If not set, then the default is ``torax/data/third_party/geo``
 
+Geometry dicts for all non-circular geometry types can contain the following
+additional key.
+
 ``Ip_from_parameters`` (bool [default = True])
   Toggles whether total plasma current is read from the configuration file, or
-  from the geometry file. If ``True``, then the :math:`\psi` calculated from the
-  geometry file is scaled to match the desired :math:`I_p`.
+  from the geometry file or equilibrium object. If ``True``, then the
+  :math:`\psi` calculated from the geometry file or equilibrium object is scaled
+  to match the desired :math:`I_p`.
 
 Geometry dicts for analytical circular geometry require the following additional
 keys.
@@ -1534,6 +1547,14 @@ Geometry dicts for IMAS geometry also support the following optional keys.
       'imas_filepath': '/path/to/equilibrium.nc',
       'load_all_time_slices': True,
   }
+
+Geometry dicts for TokaMaker geometry require the following additional keys.
+
+``fsa_profiles`` (dict)
+  Dictionary containing flux surface averaged profiles matching the format
+  returned by ``OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()`` (see the
+  `OpenFUSIONToolkit TokaMaker documentation
+  <https://openfusiontoolkit.github.io/OpenFUSIONToolkit/doc_tokamaker_main.html>`_).
 
 For setting up time-dependent geometry, a subset of varying geometry parameters
 and input files can be defined in a ``geometry_configs`` dict, which is a
