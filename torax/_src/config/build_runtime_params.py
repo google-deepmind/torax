@@ -44,7 +44,7 @@ from torax._src.mhd import config as mhd_config
 from torax._src.neoclassical import config as neoclassical_config
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.solver import config as solver_config
-from torax._src.sources import pydantic_config as sources_pydantic_config
+from torax._src.sources import config as sources_config
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
@@ -81,7 +81,7 @@ class RuntimeParamsProvider:
   corresponding geometry.
   """
 
-  sources: sources_pydantic_config.Sources
+  sources: sources_config.SourcesConfig
   numerics: numerics_lib.Numerics
   profile_conditions: profile_conditions_lib.ProfileConditions
   plasma_composition: plasma_composition_lib.PlasmaComposition

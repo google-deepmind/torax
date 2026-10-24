@@ -38,7 +38,7 @@ from torax._src.neoclassical import config as neoclassical_config
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
 from torax._src.solver import config as solver_config
-from torax._src.sources import pydantic_config as sources_pydantic_config
+from torax._src.sources import config as sources_config
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic_model
@@ -73,7 +73,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   numerics: numerics_lib.Numerics
   plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
-  sources: sources_pydantic_config.Sources
+  sources: sources_config.SourcesConfig
   neoclassical: neoclassical_config.NeoclassicalConfig = (
       pydantic.Field()
   )

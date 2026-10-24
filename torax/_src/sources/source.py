@@ -71,8 +71,8 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
 
   Attributes:
     SOURCE_ID: Identifier for the source type (e.g. `'ecrh'`, `'icrh'`,
-      `'fusion'`). This corresponds to the field name on the `Sources` Pydantic
-      config and the key in `runtime_params.sources` and
+      `'fusion'`). This corresponds to the field name on the `SourcesConfig`
+      Pydantic config and the key in `runtime_params.sources` and
       `SourceModels.standard_sources`.
     AFFECTED_CORE_PROFILES: Core profiles affected by this source's profile(s).
       This attribute defines which equations the source profiles are terms for.

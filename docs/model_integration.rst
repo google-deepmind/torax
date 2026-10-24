@@ -395,10 +395,11 @@ This must be done at module level, before any TORAX config is built.
 
     sources.register_source_config(MyHeatSourceConfig)
 
-The source's ``SOURCE_ID`` must be one of the fields in the ``Sources`` pydantic
-model: ``bremsstrahlung``, ``cyclotron_radiation``, ``ecrh``, ``fusion``,
-``gas_puff``, ``generic_current``, ``generic_heat``, ``generic_particle``,
-``icrh``, ``impurity_radiation``, ``ohmic``, or ``pellet``.
+The source's ``SOURCE_ID`` must be one of the fields in the ``SourcesConfig``
+pydantic config: ``bremsstrahlung``, ``cyclotron_radiation``, ``ecrh``,
+``fusion``, ``gas_puff``, ``generic_current``, ``generic_heat``,
+``generic_particle``, ``icrh``, ``impurity_radiation``, ``ohmic``, or
+``pellet``.
 
 If you want to register a custom implementation for a source that isn't in this
 list (for example "nbi"), please reach out to the TORAX team and we will help.
