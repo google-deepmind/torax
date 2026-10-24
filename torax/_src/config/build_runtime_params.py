@@ -41,7 +41,7 @@ from torax._src.edge import updaters as edge_updaters
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import config as mhd_config
-from torax._src.neoclassical import pydantic_model as neoclassical_pydantic_model
+from torax._src.neoclassical import config as neoclassical_config
 from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax._src.solver import pydantic_model as solver_pydantic_model
 from torax._src.sources import pydantic_config as sources_pydantic_config
@@ -90,7 +90,7 @@ class RuntimeParamsProvider:
   pedestal: pedestal_pydantic_model.PedestalConfig
   mhd: mhd_config.MHDConfig
   edge: edge_base.EdgeModelConfig | None
-  neoclassical: neoclassical_pydantic_model.BaseNeoclassicalConfig
+  neoclassical: neoclassical_config.NeoclassicalConfigBase
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
 
   @classmethod

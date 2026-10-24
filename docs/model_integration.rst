@@ -591,7 +591,7 @@ and poloidal velocity) together in one evaluation.
 
 Create a ``NeoclassicalModel`` subclass implementing ``__call__`` (returning
 ``NeoclassicalOutputs``), an optional ``RuntimeParams`` subclass for dynamic
-parameters, and a ``BaseNeoclassicalConfig`` config subclass with a unique
+parameters, and a ``NeoclassicalConfigBase`` config subclass with a unique
 ``model_name`` ``Literal``:
 
 .. code-block:: python
@@ -634,7 +634,7 @@ parameters, and a ``BaseNeoclassicalConfig`` config subclass with a unique
             poloidal_velocity=neoclassical.PoloidalVelocity.zeros(geometry),
         )
 
-    class MyNeoclassicalConfig(neoclassical.BaseNeoclassicalConfig):
+    class MyNeoclassicalConfig(neoclassical.NeoclassicalConfigBase):
       """Pydantic config for MyNeoclassicalModel."""
 
       model_name: Annotated[

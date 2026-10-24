@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Pydantic model for the neoclassical package."""
+"""Pydantic config for the neoclassical package."""
 
 import abc
 import copy
@@ -32,7 +32,7 @@ from torax._src.neoclassical.transport import zeros as transport_zeros
 from torax._src.torax_pydantic import torax_pydantic
 
 
-class BaseNeoclassicalConfig(torax_pydantic.ConfigBase):
+class NeoclassicalConfigBase(torax_pydantic.ConfigBase):
   """Base config for neoclassical models.
 
   Subclasses configure either the built-in composite analytical model
@@ -50,7 +50,7 @@ class BaseNeoclassicalConfig(torax_pydantic.ConfigBase):
     """Builds the neoclassical model."""
 
 
-class AnalyticalNeoclassicalConfig(BaseNeoclassicalConfig):
+class AnalyticalNeoclassicalConfig(NeoclassicalConfigBase):
   """Config for the composite analytical neoclassical model.
 
   Attributes:
@@ -74,17 +74,29 @@ class AnalyticalNeoclassicalConfig(BaseNeoclassicalConfig):
       bootstrap_current_zeros.ZerosModelConfig
       | sauter_current.SauterModelConfig
       | redl_current.RedlModelConfig
-  ) = pydantic.Field(discriminator="model_name")
+  ) = pydantic.Field(
+      default_factory=bootstrap_current_zeros.ZerosModelConfig,
+      discriminator="model_name",
+  )
   conductivity: (
       sauter_conductivity.SauterModelConfig | redl_conductivity.RedlModelConfig
-  ) = pydantic.Field(discriminator="model_name")
+  ) = pydantic.Field(
+      default_factory=sauter_conductivity.SauterModelConfig,
+      discriminator="model_name",
+  )
   transport: (
       transport_zeros.ZerosModelConfig | angioni_sauter.AngioniSauterModelConfig
-  ) = pydantic.Field(discriminator="model_name")
+  ) = pydantic.Field(
+      default_factory=transport_zeros.ZerosModelConfig,
+      discriminator="model_name",
+  )
   poloidal_velocity: (
       poloidal_velocity_zeros.ZerosModelConfig
       | kim_poloidal_velocity.KimModelConfig
-  ) = pydantic.Field(discriminator="model_name")
+  ) = pydantic.Field(
+      default_factory=kim_poloidal_velocity.KimModelConfig,
+      discriminator="model_name",
+  )
 
   @pydantic.model_validator(mode="before")
   @classmethod
