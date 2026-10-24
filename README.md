@@ -1,5 +1,9 @@
 [![Unittests](https://github.com/google-deepmind/torax/actions/workflows/pytest.yml/badge.svg)](https://github.com/google-deepmind/torax/actions/workflows/pytest.yml)
 
+<p align="center">
+  <b>English</b> · <a href="https://github.com/google-deepmind/torax/blob/main/README.zh.md">简体中文</a>
+</p>
+
 ## What is TORAX?
 
 TORAX is a differentiable tokamak core transport simulator aimed for fast
