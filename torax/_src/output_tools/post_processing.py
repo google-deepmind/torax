@@ -105,14 +105,14 @@ class PostProcessedOutputs:
     P_icrh_e: Ion cyclotron resonance heating to electrons [W]
     P_icrh_i: Ion cyclotron resonance heating to ions [W]
     P_icrh_total: Total ion cyclotron resonance heating power [W]
-    P_LH_high_density: H-mode transition power from the Martin scaling law for
-      high density branch [W]
-    P_LH_min: Minimum H-mode transition power from the Martin scaling law at
-      n_e_min_P_LH [W]
-    P_LH: H-mode transition power from the Martin scaling law, taken as the
-      maximum of P_LH_high_density and P_LH_min [W]
-    P_LH_low_density: H-mode transition power from a heuristic extension of the
-      Martin scaling law for low density branch [W]
+    P_LH_martin_high_density: H-mode transition power from the Martin scaling
+      law for high density branch [W]
+    P_LH_martin_min: Minimum H-mode transition power from the Martin scaling law
+      at n_e_min_P_LH [W]
+    P_LH_martin: H-mode transition power from the Martin scaling law, taken as
+      the maximum of P_LH_martin_high_density and P_LH_martin_min [W]
+    P_LH_martin_low_density: H-mode transition power from a heuristic extension
+      of the Martin scaling law for low density branch [W]
     n_e_min_P_LH: Density corresponding to the P_LH_min, from the Ryter scaling
       law [m^-3]
     P_LH_delabie_high_density: H-mode transition power from the Delabie scaling
@@ -267,11 +267,10 @@ class PostProcessedOutputs:
   P_icrh_e: array_typing.FloatScalar
   P_icrh_i: array_typing.FloatScalar
   P_icrh_total: array_typing.FloatScalar
-  # TODO(b/434175938) Rename to P_LH_martin_high_density etc
-  P_LH_high_density: array_typing.FloatScalar
-  P_LH_min: array_typing.FloatScalar
-  P_LH_low_density: array_typing.FloatScalar
-  P_LH: array_typing.FloatScalar
+  P_LH_martin_high_density: array_typing.FloatScalar
+  P_LH_martin_min: array_typing.FloatScalar
+  P_LH_martin_low_density: array_typing.FloatScalar
+  P_LH_martin: array_typing.FloatScalar
   n_e_min_P_LH: array_typing.FloatScalar
   P_LH_delabie_high_density: array_typing.FloatScalar
   P_LH_delabie_min: array_typing.FloatScalar
@@ -387,10 +386,10 @@ class PostProcessedOutputs:
         P_icrh_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH_low_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_martin_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_martin_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_martin_low_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_martin=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_delabie_high_density=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_LH_delabie_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -569,10 +568,10 @@ class PostProcessedOutputs:
         output_keys.P_ICRH_I: self.P_icrh_i,
         output_keys.P_ICRH_TOTAL: self.P_icrh_total,
         # L-H transition thresholds
-        output_keys.P_LH_HIGH_DENSITY: self.P_LH_high_density,
-        output_keys.P_LH_MIN: self.P_LH_min,
-        output_keys.P_LH_LOW_DENSITY: self.P_LH_low_density,
-        output_keys.P_LH: self.P_LH,
+        output_keys.P_LH_MARTIN_HIGH_DENSITY: self.P_LH_martin_high_density,
+        output_keys.P_LH_MARTIN_MIN: self.P_LH_martin_min,
+        output_keys.P_LH_MARTIN_LOW_DENSITY: self.P_LH_martin_low_density,
+        output_keys.P_LH_MARTIN: self.P_LH_martin,
         output_keys.N_E_MIN_P_LH: self.n_e_min_P_LH,
         output_keys.P_LH_DELABIE_HIGH_DENSITY: self.P_LH_delabie_high_density,
         output_keys.P_LH_DELABIE_MIN: self.P_LH_delabie_min,
@@ -1222,10 +1221,10 @@ def make_post_processed_outputs(
       psi_norm=psi_norm_face,
       **integrated_sources,
       Q_fusion=Q_fusion,
-      P_LH=P_LH_martin,
-      P_LH_min=P_LH_martin_aux_data.P_LH_min,
-      P_LH_high_density=P_LH_martin_aux_data.P_LH_high_density,
-      P_LH_low_density=P_LH_martin_aux_data.P_LH_low_density,
+      P_LH_martin=P_LH_martin,
+      P_LH_martin_min=P_LH_martin_aux_data.P_LH_min,
+      P_LH_martin_high_density=P_LH_martin_aux_data.P_LH_high_density,
+      P_LH_martin_low_density=P_LH_martin_aux_data.P_LH_low_density,
       n_e_min_P_LH=P_LH_martin_aux_data.line_average_n_e_at_P_LH_min,
       P_LH_delabie=P_LH_delabie,
       P_LH_delabie_min=P_LH_delabie_aux_data.P_LH_min,

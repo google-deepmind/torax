@@ -415,6 +415,18 @@ class PostProcessingTest(parameterized.TestCase):
           attrs, output_keys.get_units(output_keys.W_THERMAL_TOTAL)
       )
 
+    with self.subTest('p_lh_martin'):
+      for key in (
+          output_keys.P_LH_MARTIN,
+          output_keys.P_LH_MARTIN_HIGH_DENSITY,
+          output_keys.P_LH_MARTIN_MIN,
+          output_keys.P_LH_MARTIN_LOW_DENSITY,
+      ):
+        self.assertIn(key, out_dict)
+        dims, _, attrs = out_dict[key]
+        self.assertEqual(dims, (output_keys.TIME,))
+        self.assertEqual(attrs, output_keys.get_units(key))
+
     with self.subTest('impurity_radiation'):
       self.assertIn(output_keys.RADIATION_IMPURITY_SPECIES, out_dict)
       dims, data, attrs = out_dict[output_keys.RADIATION_IMPURITY_SPECIES]
