@@ -78,7 +78,7 @@ class InitializationTest(parameterized.TestCase):
         geo,
         runtime_params.numerics.min_rho_norm,
     )
-    j_total_hires = (
+    j_toroidal_total_hires = (
         initialization.get_j_toroidal_total_hires_with_external_sources(
             bootstrap_current=bootstrap,
             runtime_params=runtime_params,
@@ -89,7 +89,7 @@ class InitializationTest(parameterized.TestCase):
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.Ip,
         geo,
-        j_total_hires,
+        j_toroidal_total_hires,
     ).value
     np.testing.assert_allclose(psi, references.psi.value)
 
@@ -118,7 +118,7 @@ class InitializationTest(parameterized.TestCase):
         j_parallel_bootstrap=j_parallel_bs,
         j_parallel_bootstrap_face=j_parallel_bs_face,
     )
-    j_total_hires = (
+    j_toroidal_total_hires = (
         initialization.get_j_toroidal_total_hires_with_external_sources(
             runtime_params=runtime_params,
             geo=geo,
@@ -127,7 +127,7 @@ class InitializationTest(parameterized.TestCase):
         )
     )
     ip_hires = jax.scipy.integrate.trapezoid(
-        j_total_hires * geo.spr_hires, geo.rho_hires_norm
+        j_toroidal_total_hires * geo.spr_hires, geo.rho_hires_norm
     )
     np.testing.assert_allclose(
         ip_hires, runtime_params.profile_conditions.Ip, rtol=1e-2
@@ -221,7 +221,7 @@ class InitializationTest(parameterized.TestCase):
       dict(geometry_name='circular'),
       dict(geometry_name='chease'),
   ])
-  def test_compare_initial_currents_with_different_initial_j_ohmic(
+  def test_compare_initial_currents_with_different_initial_j_toroidal_ohmic(
       self,
       geometry_name: str,
   ):
@@ -261,12 +261,14 @@ class InitializationTest(parameterized.TestCase):
     jformula = (1 - geo.rho_norm**2) ** _CURRENT_PROFILE_NU
     denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
     ctot = torax_config.profile_conditions.Ip.value[0] / denom
-    j_total1_expected = jformula * ctot
-    j_ohmic2_expected = j_total1_expected * (1 - _FRACTION_OF_TOTAL_CURRENT)
+    j_toroidal_total1_expected = jformula * ctot
+    j_toroidal_ohmic2_expected = j_toroidal_total1_expected * (
+        1 - _FRACTION_OF_TOTAL_CURRENT
+    )
 
-    # Due to approximation errors in psi-->j_total conversions, as well as
-    # modifications to j_total on axis, we only compare the current profile
-    # mean values up to relatively loose tolerance.
+    # Due to approximation errors in psi-->j_toroidal_total conversions, as well
+    # as modifications to j_toroidal_total on axis, we only compare the current
+    # profile mean values up to relatively loose tolerance.
 
     # Both total currents should be equal, even if the relative contribution
     # of Ohmic and external current is different.
@@ -281,7 +283,7 @@ class InitializationTest(parameterized.TestCase):
     # Check that the total current agrees with the expected reference formula.
     np.testing.assert_allclose(
         np.mean(currents1.j_toroidal_total),
-        np.mean(j_total1_expected),
+        np.mean(j_toroidal_total1_expected),
         rtol=_TOL,
     )
 
@@ -293,12 +295,12 @@ class InitializationTest(parameterized.TestCase):
         rtol=_TOL,
     )
 
-    # j_ohmic2_expected is the expected formula for j_ohmic when setting
-    # initial_j_is_total_current=False as in Case 2. It is the "nu" formula
-    # scaled down to compensate for the external current.
+    # j_toroidal_ohmic2_expected is the expected formula for j_toroidal_ohmic
+    # when setting initial_j_is_total_current=False as in Case 2. It is the "nu"
+    # formula scaled down to compensate for the external current.
     np.testing.assert_allclose(
         np.mean(currents2.j_toroidal_ohmic),
-        np.mean(j_ohmic2_expected),
+        np.mean(j_toroidal_ohmic2_expected),
         rtol=_TOL,
     )
 
@@ -307,7 +309,7 @@ class InitializationTest(parameterized.TestCase):
         np.mean(currents1.j_toroidal_total_face),
         np.mean(
             math_utils.cell_to_face(
-                j_total1_expected,
+                j_toroidal_total1_expected,
                 geo,
                 preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
             )
@@ -321,7 +323,7 @@ class InitializationTest(parameterized.TestCase):
         np.mean(currents2.j_toroidal_total_face),
         np.mean(
             math_utils.cell_to_face(
-                j_total1_expected,
+                j_toroidal_total1_expected,
                 geo,
                 preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
             )
@@ -579,8 +581,8 @@ def _get_initial_state(
       bootstrap_current=neoclassical_outputs.bootstrap_current,
       source_states=source_states,
   )
-  j_toroidal_total = core_profiles.j_total
-  j_toroidal_total_face = core_profiles.j_total_face
+  j_toroidal_total = core_profiles.j_toroidal_total
+  j_toroidal_total_face = core_profiles.j_toroidal_total_face
   j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
       sum(core_sources.psi.values()), geo, runtime_params.numerics.min_rho_norm  # pyrefly: ignore[bad-argument-type]
   )
