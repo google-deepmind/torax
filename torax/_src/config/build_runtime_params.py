@@ -42,7 +42,7 @@ from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.mhd import config as mhd_config
 from torax._src.neoclassical import config as neoclassical_config
-from torax._src.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax._src.pedestal_model import config as pedestal_config
 from torax._src.solver import config as solver_config
 from torax._src.sources import config as sources_config
 from torax._src.time_step_calculator import config as time_step_calculator_config
@@ -87,7 +87,7 @@ class RuntimeParamsProvider:
   plasma_composition: plasma_composition_lib.PlasmaComposition
   transport_model: transport_config.TransportConfig
   solver: solver_config.SolverConfig
-  pedestal: pedestal_pydantic_model.PedestalConfig
+  pedestal: pedestal_config.PedestalConfig
   mhd: mhd_config.MHDConfig
   edge: edge_base.EdgeModelConfig | None
   neoclassical: neoclassical_config.NeoclassicalConfigBase

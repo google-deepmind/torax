@@ -180,7 +180,7 @@ Step 2: Define the pydantic config
 ------------------------------------
 
 Create a pydantic config class that inherits from
-``torax.pedestal.BaseStructure`` and implements the ``build_structure_model``
+``torax.pedestal.StructureConfigBase`` and implements the ``build_structure_model``
 method. The config class must have a ``model_name`` field with a unique
 ``Literal`` type.
 
@@ -206,7 +206,7 @@ Continuing from Step 1 (additional imports only):
 
       T_ped: array_typing.FloatScalar
 
-    class MyStructureConfig(pedestal.BaseStructure):
+    class MyStructureConfig(pedestal.StructureConfigBase):
       """Pydantic config for MyPedestalStructureModel."""
 
       model_name: Annotated[
