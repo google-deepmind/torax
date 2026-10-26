@@ -148,13 +148,13 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
     alpha_n = cyclotron_radiation_heat_sink._alpha_closed_form(
         beta=2.0,
         rho_norm=geo.rho_face_norm,
-        profile_data=core_profiles.n_e.face_value() / 1e20,
+        profile_data=core_profiles.kinetic.n_e.face_value() / 1e20,
         profile_edge_value=0.0,
     )
     alpha_t, _ = (
         cyclotron_radiation_heat_sink._solve_alpha_t_beta_t_grid_search(
             rho_norm=geo.rho_face_norm,
-            te_data=core_profiles.T_e.face_value(),
+            te_data=core_profiles.kinetic.T_e.face_value(),
             beta_scan_parameters=(0.5, 8.0, 32),
         )
     )
@@ -165,8 +165,6 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
     (q_cycl,) = output.profiles

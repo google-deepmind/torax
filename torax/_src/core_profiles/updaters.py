@@ -117,7 +117,7 @@ def update_core_and_source_profiles_after_step(
     geo: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
     solver_state_t_plus_dt: state.SolverState,
-    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    explicit_source_outputs: Mapping[str, source_profiles_lib.SourceOutput],
     source_models: source_models_lib.SourceModels,
     neoclassical_model: neoclassical_model_lib.NeoclassicalModel,
     evolving_names: tuple[str, ...],
@@ -140,7 +140,7 @@ def update_core_and_source_profiles_after_step(
     core_profiles_t: The old set of core plasma profiles.
     solver_state_t_plus_dt: The primary profiles at t + dt with prescribed
       quantities and boundary conditions.
-    explicit_source_profiles: The explicit source profiles.
+    explicit_source_outputs: The explicit source outputs.
     source_models: The source models.
     neoclassical_model: The neoclassical model.
     evolving_names: The names of the evolving variables.
@@ -193,7 +193,7 @@ def update_core_and_source_profiles_after_step(
           face_centers=geo.rho_face_norm,
       ),
   )
-  partial_source_profiles, updated_source_states = (
+  basic_source_outputs, updated_source_states = (
       source_profile_builders.build_basic_sources(
           runtime_params=runtime_params_t_plus_dt,
           geo=geo,
@@ -201,12 +201,12 @@ def update_core_and_source_profiles_after_step(
           source_models=source_models,
           source_states=source_states,
           explicit=False,
-          explicit_source_profiles=explicit_source_profiles,
+          explicit_source_outputs=explicit_source_outputs,
       )
   )
   if runtime_params_t_plus_dt.numerics.enable_fast_ions:
     fast_ions = profile_conditions.apply_prescribed_fast_ions(
-        sum(partial_source_profiles.fast_ions.values(), ()),
+        source_profile_builders.extract_fast_ions(basic_source_outputs),
         runtime_params_t_plus_dt.profile_conditions.prescribed_fast_ions,
         geo.rho_face_norm,
     )
@@ -227,9 +227,9 @@ def update_core_and_source_profiles_after_step(
   psidot = psi_calculations.calculate_psidot(
       psi=intermediate_core_profiles.psi,
       sigma=conductivity.sigma,
-      psi_sources=dataclasses.replace(
-          partial_source_profiles, bootstrap_current=bootstrap_current
-      ).total_psi_sources(geo),
+      psi_sources=source_profile_builders.sum_total_psi_sources(
+          basic_source_outputs, source_models, bootstrap_current, geo
+      ),
       geo=geo,
       evolve_current=runtime_params_t_plus_dt.numerics.evolve_current,
       prescribed_psidot=runtime_params_t_plus_dt.profile_conditions.psidot,
@@ -249,9 +249,7 @@ def update_core_and_source_profiles_after_step(
           core_profiles=core_profiles_t_plus_dt,
           source_models=source_models,
           source_states=updated_source_states,
-          partial_source_profiles=partial_source_profiles,
-          explicit=False,
-          conductivity=conductivity,
+          basic_source_outputs=basic_source_outputs,
           bootstrap_current=bootstrap_current,
       )
   )

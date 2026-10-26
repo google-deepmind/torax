@@ -72,8 +72,6 @@ class InitializationTest(parameterized.TestCase):
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock.ANY,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
     (j_parallel_external,) = output.profiles
@@ -502,7 +500,7 @@ class InitializationTest(parameterized.TestCase):
       self.assertLen(he3_fast_ions, 1)
       self.assertTrue(np.any(he3_fast_ions[0].n.value > 0.0))
 
-      conductivity, bootstrap_current, _, _ = (
+      _, bootstrap_current, _, _ = (
           neoclassical_model.calculate_conductivity_current_and_rotation(
               runtime_params, geo, result
           )
@@ -512,7 +510,6 @@ class InitializationTest(parameterized.TestCase):
           geo=geo,
           core_profiles=result,
           source_models=source_models,
-          conductivity=conductivity,
           bootstrap_current=bootstrap_current,
           source_states=source_states,
       )
@@ -676,7 +673,7 @@ class InitializationTest(parameterized.TestCase):
         source_states=source_states,
     )
 
-    basic_sources, _ = source_profile_builders.build_basic_sources(
+    basic_source_outputs, _ = source_profile_builders.build_basic_sources(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=result,
@@ -690,14 +687,13 @@ class InitializationTest(parameterized.TestCase):
             runtime_params, geo, result
         )
     )
-    final_source_profiles = dataclasses.replace(
-        basic_sources,
-        bootstrap_current=bootstrap_current,
+    expected_psi_sources = source_profile_builders.sum_total_psi_sources(
+        basic_source_outputs, source_models, bootstrap_current, geo
     )
     expected_psidot = psi_calculations.calculate_psidot(
         psi=result.psi,
         sigma=conductivity.sigma,
-        psi_sources=final_source_profiles.total_psi_sources(geo),
+        psi_sources=expected_psi_sources,
         geo=geo,
         evolve_current=runtime_params.numerics.evolve_current,
         prescribed_psidot=runtime_params.profile_conditions.psidot,
@@ -772,7 +768,7 @@ def _get_initial_state(
       neoclassical_model=neoclassical_model,
       source_states=source_states,
   )
-  conductivity, bootstrap_current, _, _ = (
+  _, bootstrap_current, _, _ = (
       neoclassical_model.calculate_conductivity_current_and_rotation(
           runtime_params, geo, core_profiles
       )
@@ -782,7 +778,6 @@ def _get_initial_state(
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
-      conductivity=conductivity,
       bootstrap_current=bootstrap_current,
       source_states=source_states,
   )
