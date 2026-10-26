@@ -349,8 +349,9 @@ class ToricNNIonCyclotronSource(base.IonCyclotronSource):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(ion_heat_profile,
-      electron_heat_profile), fast_ions=fast_ions), source_state).
+      A tuple of (SourceOutput(power_density_i=ion_heat_profile,
+      power_density_e=electron_heat_profile, fast_ions=fast_ions),
+      source_state).
     """
     del calculated_source_profiles, conductivity
     toric_nn = _load_toric_nn(self.model_path)
@@ -488,7 +489,9 @@ class ToricNNIonCyclotronSource(base.IonCyclotronSource):
 
     return (
         source_profiles.SourceOutput(
-            profiles=(source_ion, source_el), fast_ions=fast_ions
+            power_density_i=source_ion,
+            power_density_e=source_el,
+            fast_ions=fast_ions,
         ),
         source_state,
     )

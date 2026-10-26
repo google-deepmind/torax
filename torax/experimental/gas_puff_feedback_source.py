@@ -99,7 +99,7 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_density_profile,)),
+      A tuple of (SourceOutput(particle_source=electron_density_profile),
       source_state).
     """
     del calculated_source_profiles, conductivity
@@ -128,7 +128,7 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
         total=S_total,
         geo=geo,
     )
-    return source_profiles.SourceOutput(profiles=(profile,)), source_state
+    return source_profiles.SourceOutput(particle_source=profile), source_state
 
 
 class GasPuffFeedbackSourceConfig(base.SourceConfigBase):

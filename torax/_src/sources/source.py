@@ -20,12 +20,11 @@ in this folder use these classes to define specific types of sources/sinks.
 See Source class docstring for more details on what a TORAX source is and how to
 use it.
 """
+
 import abc
 import dataclasses
-import enum
 from typing import ClassVar
 
-from jax import numpy as jnp
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -35,23 +34,7 @@ from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
-
-@enum.unique
-class AffectedCoreProfile(enum.IntEnum):
-  """Defines which part of the core profiles the source helps evolve.
-
-  The profiles of each source/sink are terms included in equations evolving
-  different core profiles. This enum maps a source to those equations.
-  """
-
-  # Current density equation.
-  PSI = 1
-  # Electron density equation.
-  NE = 2
-  # Ion temperature equation.
-  TEMP_ION = 3
-  # Electron temperature equation.
-  TEMP_EL = 4
+AffectedCoreProfile = source_profiles.AffectedCoreProfile
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -162,6 +145,21 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
             conductivity,
             source_state,
         )
+        for affected_profile in AffectedCoreProfile:
+          value = getattr(output, affected_profile)
+          if affected_profile in self.AFFECTED_CORE_PROFILES:
+            if value is None:
+              raise ValueError(
+                  f'{type(self).__name__} must return'
+                  f' {affected_profile.value!r} for affected core profile'
+                  f' {affected_profile.name}.'
+              )
+          elif value is not None:
+            raise ValueError(
+                f'{type(self).__name__} returned {affected_profile.value!r}'
+                f' but {affected_profile.name} is not in'
+                ' AFFECTED_CORE_PROFILES.'
+            )
       case sources_runtime_params_lib.Mode.PRESCRIBED:
         if len(source_params.prescribed_values) != len(
             self.AFFECTED_CORE_PROFILES
@@ -172,13 +170,22 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
               f'{len(source_params.prescribed_values)} '
               f' Expected: {len(self.AFFECTED_CORE_PROFILES)}.'
           )
+        prescribed = dict(
+            zip(
+                self.AFFECTED_CORE_PROFILES,
+                source_params.prescribed_values,
+                strict=True,
+            )
+        )
         output = source_profiles.SourceOutput(
-            profiles=source_params.prescribed_values
+            power_density_i=prescribed.get(AffectedCoreProfile.TEMP_ION),
+            power_density_e=prescribed.get(AffectedCoreProfile.TEMP_EL),
+            j_parallel=prescribed.get(AffectedCoreProfile.PSI),
+            particle_source=prescribed.get(AffectedCoreProfile.NE),
         )
       case sources_runtime_params_lib.Mode.ZERO:
-        zeros = jnp.zeros(geo.rho_norm.shape)
-        output = source_profiles.SourceOutput(
-            profiles=(zeros,) * len(self.AFFECTED_CORE_PROFILES)
+        output = source_profiles.SourceOutput.zeros(
+            geo, self.AFFECTED_CORE_PROFILES
         )
       case _:
         raise ValueError(f'Unknown mode: {mode}')

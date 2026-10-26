@@ -15,6 +15,7 @@
 # pylint: disable=invalid-name
 
 """Bremsstrahlung heat sink for electron heat equation.."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 import chex
@@ -56,13 +57,13 @@ def calc_bremsstrahlung(
   Args:
       core_profiles: core plasma profiles.
       geo: geometry object.
-      use_relativistic_correction: Set to True to include the
-        relativistic correction from Stott. Defaults to False.
+      use_relativistic_correction: Set to True to include the relativistic
+        correction from Stott. Defaults to False.
       exclude_impurity_bremsstrahlung: If True, only include main-ion
-        bremsstrahlung by using Z_eff_main = n_i * Z_i^2 / n_e instead
-        of the full Z_eff. This is used when the Mavrin impurity radiation
-        model is active, since it already accounts for impurity bremsstrahlung
-        via ADAS data. Defaults to False.
+        bremsstrahlung by using Z_eff_main = n_i * Z_i^2 / n_e instead of the
+        full Z_eff. This is used when the Mavrin impurity radiation model is
+        active, since it already accounts for impurity bremsstrahlung via ADAS
+        data. Defaults to False.
 
   Returns:
       jax.Array: total bremsstrahlung radiation power [MW]
@@ -76,7 +77,8 @@ def calc_bremsstrahlung(
   # contribution to Z_eff: Z_eff_main = n_i * Z_i^2 / n_e.
   Z_eff_face = jnp.where(
       exclude_impurity_bremsstrahlung,
-      core_profiles.n_i.face_value() * core_profiles.Z_i_face**2
+      core_profiles.n_i.face_value()
+      * core_profiles.Z_i_face**2
       / core_profiles.n_e.face_value(),
       core_profiles.Z_eff_face,
   )
@@ -89,8 +91,7 @@ def calc_bremsstrahlung(
     # Apply the Stott relativistic correction.
     Tm = 511.0  # m_e * c**2 in keV
     correction = (1.0 + 2.0 * T_e_kev / Tm) * (
-        1.0
-        + (2.0 / Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
+        1.0 + (2.0 / Z_eff_face) * (1.0 - 1.0 / (1.0 + T_e_kev / Tm))
     )
     return correction  # pyrefly: ignore[bad-return]
 
@@ -141,7 +142,7 @@ class BremsstrahlungHeatSink(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
+      A tuple of (SourceOutput(power_density_e=electron_heat_profile),
       source_state).
     """
     del calculated_source_profiles, conductivity  # Unused.
@@ -157,7 +158,7 @@ class BremsstrahlungHeatSink(source.Source):
     )
     # As a sink, the power is negative.
     return (
-        source_profiles.SourceOutput(profiles=(-1.0 * P_brem_profile,)),
+        source_profiles.SourceOutput(power_density_e=-1.0 * P_brem_profile),
         source_state,
     )
 

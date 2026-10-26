@@ -127,12 +127,14 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         conductivity=conductivity,
         source_state=source_state_lib.SourceState(),
     )
-    (pohm,) = output.profiles
+    assert output.power_density_e is not None
 
     mock_calculate_psidot.assert_not_called()
     expected_e_dot_b = geo.F * geo.g3 / (2.0 * jnp.pi) * prescribed_psidot
     expected_pohm = conductivity.sigma * expected_e_dot_b**2 / geo.gm5
-    np.testing.assert_allclose(np.asarray(pohm), expected_pohm)
+    np.testing.assert_allclose(
+        np.asarray(output.power_density_e), expected_pohm
+    )
 
   @mock.patch.object(
       ohmic_heat_source.psi_calculations, 'calculate_psidot_from_psi_sources'
@@ -176,9 +178,11 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         conductivity=conductivity,
         source_state=source_state_lib.SourceState(),
     )
-    (pohm,) = output.profiles
+    assert output.power_density_e is not None
 
-    np.testing.assert_allclose(np.asarray(pohm), 0.0, atol=1e-12)
+    np.testing.assert_allclose(
+        np.asarray(output.power_density_e), 0.0, atol=1e-12
+    )
 
   def test_ohmic_power_agrees_with_large_aspect_ratio_formula_for_pure_ohmic_current(
       self,
@@ -226,7 +230,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         conductivity=conductivity,
         source_state=source_state_lib.SourceState(),
     )
-    (pohm,) = output.profiles
+    assert output.power_density_e is not None
     psidot = psi_calculations.calculate_psidot_from_psi_sources(
         psi_sources=zero_psi_sources,
         sigma=sigma,
@@ -237,8 +241,9 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         j_toroidal_total * psidot / (2.0 * jnp.pi * geo.R_major_profile)
     )
     np.testing.assert_allclose(
-        np.asarray(pohm), large_aspect_ratio_pohm, rtol=3e-4
+        np.asarray(output.power_density_e), large_aspect_ratio_pohm, rtol=3e-4
     )
+
 
 if __name__ == '__main__':
   absltest.main()

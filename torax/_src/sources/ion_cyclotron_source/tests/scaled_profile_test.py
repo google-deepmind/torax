@@ -83,7 +83,9 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
         'reference_B0': 5.3,  # Matches default circular geometry B_0.
     }
     output, geo = self._build_and_run(config_dict)
-    ion_el_total = output.profiles[0] + output.profiles[1]
+    assert output.power_density_i is not None
+    assert output.power_density_e is not None
+    ion_el_total = output.power_density_i + output.power_density_e
     integrated_power = jnp.sum(ion_el_total * geo.vpr * geo.drho_norm)
     np.testing.assert_allclose(
         integrated_power,
@@ -114,8 +116,8 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
     # Since B0 == reference_B0, no shift occurs — only uniform amplitude
     # scaling. The output profiles should be proportional to the interpolated
     # reference profiles (i.e. out = constant * ref everywhere).
-    out_ion = np.array(output.profiles[0])
-    out_el = np.array(output.profiles[1])
+    out_ion = np.array(output.power_density_i)
+    out_el = np.array(output.power_density_e)
     rho_grid = np.array(geo.torax_mesh.cell_centers)
     ref_ion_interp = np.interp(rho_grid, rho, ion_profile)
     ref_el_interp = np.interp(rho_grid, rho, el_profile)
@@ -177,7 +179,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
 
     rho_grid = np.array(geo.torax_mesh.cell_centers)
     expected_index = int(np.argmin(np.abs(rho_grid - expected_rho)))
-    actual_index = int(np.argmax(np.array(output.profiles[0])))
+    actual_index = int(np.argmax(np.array(output.power_density_i)))
     self.assertEqual(actual_index, expected_index)
 
 

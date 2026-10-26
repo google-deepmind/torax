@@ -64,8 +64,8 @@ def _calc_ec_current(runtime_params, geo, core_profiles) -> np.ndarray:
       conductivity=None,
       source_state=source.initial_state(runtime_params),
   )
-  _, j_parallel = output.profiles
-  return np.asarray(j_parallel)
+  assert output.j_parallel is not None
+  return np.asarray(output.j_parallel)
 
 
 class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
