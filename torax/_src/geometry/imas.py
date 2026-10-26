@@ -32,20 +32,6 @@ class IMASConfig(base.BaseGeometryConfig):
   Currently written for COCOSv17 and DDv4. Note the IMASConfig is experimental
   for now and may undergo changes.
 
-  Supports two loading modes:
-
-  1. **Single time slice** (default, ``load_all_time_slices=False``): Only a
-     single time slice is loaded, selected by ``slice_index``. Use
-     ``build_geometry`` to obtain a ``StandardGeometry``. This mode is
-     analogous to the single-file loading used by other geometry types (e.g.
-     CHEASE, EQDSK) and is compatible with the standard time-dependent
-     ``geometry_configs`` dict.
-
-  2. **All time slices** (``load_all_time_slices=True``): All time
-    slices present in the IDS are loaded and used to build a time-dependent
-    ``StandardGeometryProvider`` that interpolates across them. Use
-    ``build_geometry_provider`` to obtain the provider.
-
   Note the input here supports one and only one of the following:
   1. imas_filepath: Path to the IMAS netCDF file containing the equilibrium
       data. This is the only option that is covered by integration tests and can
@@ -75,17 +61,12 @@ class IMASConfig(base.BaseGeometryConfig):
       the with running TORAX using the provided APIs. To use this option you
       must implement a custom run loop. Only one of imas_filepath, imas_uri or
       equilibrium_object can be set.
-    slice_time: Time of slice to load from IMAS IDS. If given, overrides
-    slice_index: Index of slice to load from IMAS IDS.
+    slice_time: Time [s] of a single slice to load from the IMAS IDS.
+      If None (default), all time slices in the IDS are loaded.
     explicit_convert: Whether to explicitly convert the IDS to the current DD
       version. If True, an explicit conversion will be attempted. Explicit
       conversion is required when converting between major DD versions.
       https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
-    load_all_time_slices: If True, all time slices in the IDS are loaded by the
-      `Geometry` config and a time-dependent ``StandardGeometryProvider`` is
-      built via ``build_geometry_provider``. If False (default), only the single
-      time slice selected by ``slice_time`` or ``slice_index`` is loaded via
-      ``build_geometry``.
   """
 
   @property
@@ -108,13 +89,8 @@ class IMASConfig(base.BaseGeometryConfig):
   imas_filepath: str | None = None
   imas_uri: str | None = None
   equilibrium_object: ids_toplevel.IDSToplevel | None = None
-  slice_index: pydantic.NonNegativeInt = 0
   slice_time: float | None = None
   explicit_convert: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
-  # TODO(b/434175938): Set to `True` by default when we move to V2.
-  load_all_time_slices: Annotated[
-      bool, torax_pydantic.TIME_INVARIANT
-  ] = False
 
   @pydantic.model_validator(mode='after')
   def _validate_model(self) -> Self:
@@ -139,14 +115,11 @@ class IMASConfig(base.BaseGeometryConfig):
     """Builds a StandardGeometry from a single IDS time slice.
 
     Loads a single time slice from the equilibrium IDS and returns a
-    ``StandardGeometry``. The slice is selected by ``slice_time`` (closest
-    match by time) or ``slice_index`` (integer index, default 0).
+    `StandardGeometry`. If `slice_time` is set, the slice closest in time is
+    selected; otherwise, the first time slice (index 0) is loaded.
 
     Returns:
       A StandardGeometry built from the selected time slice.
-
-    Raises:
-      ValueError: If ``slice_index`` is out of range for the IDS.
     """
     inputs = imas_geometry.geometry_from_single_IMAS_slice(
         geometry_directory=self.geometry_directory,
@@ -157,7 +130,6 @@ class IMASConfig(base.BaseGeometryConfig):
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         explicit_convert=self.explicit_convert,
-        slice_index=self.slice_index,
         slice_time=self.slice_time,
         trapped_fraction_source=self.trapped_fraction_source,
     )

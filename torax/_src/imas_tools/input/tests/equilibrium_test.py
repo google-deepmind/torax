@@ -121,48 +121,45 @@ class EquilibriumTest(parameterized.TestCase):
           val1 = geo1.__dict__[key]
           val2 = geo2.__dict__[key]
           if val1 is None:
-            self.assertIsNone(
-                val2,
-                f'Value {key} mismatched between slice_time and slice_index',
-            )
+            self.assertIsNone(val2, f'Value {key} mismatched')
           else:
             np.testing.assert_allclose(
                 val1,
                 val2,
-                err_msg=(
-                    f'Value {key} mismatched between slice_time and slice_index'
-                ),
+                err_msg=f'Value {key} mismatched',
             )
 
     filename = 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc'
-    config_at_0 = imas_config.IMASConfig(imas_filepath=filename)
-    config_at_slice_from_time = imas_config.IMASConfig(
-        imas_filepath=filename, slice_time=40
-    )
-    config_at_slice_from_index = imas_config.IMASConfig(
-        imas_filepath=filename, slice_index=5
-    )
+    geo_default = imas_config.IMASConfig(
+        imas_filepath=filename
+    ).build_geometry()
+    geo_at_0 = imas_config.IMASConfig(
+        imas_filepath=filename, slice_time=0.0
+    ).build_geometry()
+    geo_at_40 = imas_config.IMASConfig(
+        imas_filepath=filename, slice_time=40.0
+    ).build_geometry()
+    provider = imas_config.IMASConfig(
+        imas_filepath=filename
+    ).build_geometry_provider(calc_Phi_b_dot=False)
 
-    geo_at_0 = config_at_0.build_geometry()
-    geo_at_slice_from_time = config_at_slice_from_time.build_geometry()
-    geo_at_slice_from_index = config_at_slice_from_index.build_geometry()
+    _check_geo_match(geo_default, geo_at_0)
+    _check_geo_match(geo_at_40, provider(40.0))
 
-    _check_geo_match(geo_at_slice_from_time, geo_at_slice_from_index)
+    # Check that the geometry at t=40 is not the same as at t=0.
+    with self.assertRaisesRegex(AssertionError, 'mismatched'):
+      _check_geo_match(geo_at_0, geo_at_40)
 
-    # Check that the geometry is not the same as at t=0
-    with self.assertRaisesRegex(
-        AssertionError, 'mismatched between slice_time and slice_index'
-    ):
-      _check_geo_match(geo_at_0, geo_at_slice_from_index)
-
-  def test_IMAS_raises_if_slice_out_of_range(self):
-    filename = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
+  def test_IMAS_raises_if_no_time_slices(self):
+    empty_equilibrium = imas.IDSFactory().equilibrium()
     config = imas_config.IMASConfig(
-        imas_filepath=filename,
-        slice_index=100,
+        equilibrium_object=empty_equilibrium,
+        explicit_convert=False,
     )
-    with self.assertRaisesRegex(ValueError, 'out of range'):
+    with self.assertRaisesRegex(ValueError, 'contains no time slices'):
       config.build_geometry()
+    with self.assertRaisesRegex(ValueError, 'contains no time slices'):
+      config.build_geometry_provider(calc_Phi_b_dot=False)
 
   def test_IMAS_load_all_slices(self):
     """Test that all time slices are loaded from a multi-slice IDS."""

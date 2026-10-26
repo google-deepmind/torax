@@ -101,7 +101,7 @@ class Geometry(torax_pydantic.ConfigBase):
     if self.geometry_type == geometry.GeometryType.IMAS:
       if not isinstance(self.geometry_configs, dict):
         assert isinstance(self.geometry_configs.config, imas.IMASConfig)
-        if self.geometry_configs.config.load_all_time_slices:
+        if self.geometry_configs.config.slice_time is None:
           return self.geometry_configs.config.build_geometry_provider(
               self.calc_Phi_b_dot
           )

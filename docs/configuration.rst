@@ -1482,16 +1482,11 @@ additional keys.
 
 Geometry dicts for IMAS geometry also support the following optional keys.
 
-``slice_index`` (int [default = 0])
-  Index of the time slice to load from the IMAS IDS. Used when
-  ``load_all_time_slices=False`` (the default). Ignored if ``slice_time`` is
-  set.
-
 ``slice_time`` (float | None [default = None])
-  Time of the slice to load from the IMAS IDS, in seconds. When set, the
-  slice whose time is closest to this value is selected. Overrides
-  ``slice_index``. Cannot be set simultaneously with a non-zero
-  ``slice_index``. Used when ``load_all_time_slices=False`` (the default).
+  Controls which time slice(s) are loaded from the IMAS IDS. If ``None``, all
+  time slices are loaded and the TORAX time-dependent geometry is interpolated
+  between them. If a float is provided, only the single time slice
+  closest to the given time (in seconds) is loaded.
 
 ``explicit_convert`` (bool [default = True])
   Whether to explicitly convert the IDS to the current Data Dictionary (DD)
@@ -1501,32 +1496,7 @@ Geometry dicts for IMAS geometry also support the following optional keys.
   <https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions>`_
   for details.
 
-``load_all_time_slices`` (bool [default = False])
-  Controls how time slices are loaded from the IMAS IDS. Two modes are
-  supported:
-
-  * ``False`` (default — **single time slice** mode): Only the single time
-    slice selected by ``slice_time`` or ``slice_index`` is loaded. The
-    resulting geometry is time-independent (a
-    ``ConstantGeometryProvider``). This is analogous to the single-file
-    loading used by other geometry types (e.g. CHEASE, EQDSK) and is
-    compatible with the standard ``geometry_configs`` dict for building a
-    time-dependent provider from multiple individual slices.
-
-  * ``True`` (**all time slices** mode): All time slices present in the IDS
-    are loaded and used to build a time-dependent
-    ``StandardGeometryProvider`` that interpolates geometry across them.
-    This is a convenient alternative to specifying multiple entries in
-    ``geometry_configs`` when all the time-varying geometry data is already
-    contained within a single IMAS file. ``slice_time`` and ``slice_index``
-    are ignored in this mode.
-
-  .. note::
-
-    ``load_all_time_slices=True`` cannot be combined with
-    ``geometry_configs``. Use one or the other.
-
-**Example — single time slice (default):**
+**Example — all time slices from a single IMAS file (default):**
 
 .. code-block:: python
 
@@ -1534,10 +1504,9 @@ Geometry dicts for IMAS geometry also support the following optional keys.
       'geometry_type': 'imas',
       'Ip_from_parameters': True,
       'imas_filepath': '/path/to/equilibrium.nc',
-      'slice_index': 2,
   }
 
-**Example — all time slices from a single IMAS file:**
+**Example — single time slice:**
 
 .. code-block:: python
 
@@ -1545,7 +1514,7 @@ Geometry dicts for IMAS geometry also support the following optional keys.
       'geometry_type': 'imas',
       'Ip_from_parameters': True,
       'imas_filepath': '/path/to/equilibrium.nc',
-      'load_all_time_slices': True,
+      'slice_time': 40.0,
   }
 
 Geometry dicts for TokaMaker geometry require the following additional keys.

@@ -460,6 +460,9 @@ def geometry_from_IMAS(
   Returns:
     A mapping from times to dicts of intermediate geometry values, one per
     time slice in the IDS.
+
+  Raises:
+    ValueError: If the equilibrium IDS contains no time slices.
   """
   equilibrium = _load_equilibrium(
       equilibrium_object=equilibrium_object,
@@ -470,6 +473,8 @@ def geometry_from_IMAS(
   )
 
   n_slices = len(equilibrium.time_slice)
+  if n_slices == 0:
+    raise ValueError("Equilibrium IDS contains no time slices.")
   times = np.asarray(equilibrium.time)
 
   intermediates = {}
@@ -496,7 +501,6 @@ def geometry_from_single_IMAS_slice(
     imas_uri: str | None = None,
     imas_filepath: str | None = None,
     explicit_convert: bool = False,
-    slice_index: int = 0,
     slice_time: float | None = None,
     trapped_fraction_source: trapped_fraction_lib.TrappedFractionSource = (
         trapped_fraction_lib.TrappedFractionSource.SAUTER
@@ -512,12 +516,9 @@ def geometry_from_single_IMAS_slice(
   way as other single-file geometry types (e.g. CHEASE, EQDSK), including as
   entries in a time-dependent ``geometry_configs`` dict.
 
-  The slice to load is selected by one of two mutually exclusive options:
-
-  - ``slice_time``: The IDS time slice whose time is closest to this value
-    (in seconds) is selected. Takes precedence over ``slice_index`` when set.
-  - ``slice_index``: Integer index into the IDS time slice array. Defaults to
-    0 (the first time slice).
+  If ``slice_time`` is provided, the IDS time slice whose time is closest to
+  ``slice_time`` (in seconds) is selected; otherwise, the first time slice
+  (index 0) is loaded.
 
   Args:
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
@@ -535,21 +536,18 @@ def geometry_from_single_IMAS_slice(
       version. If True, an explicit conversion will be attempted. Explicit
       conversion is recommended when converting between major DD versions.
       https://imas-python.readthedocs.io/en/latest/multi-dd.html#conversion-of-idss-between-dd-versions
-    slice_index: Index of the time slice to load. Defaults to 0 (the first time
-      slice). Ignored when ``slice_time`` is provided.
     slice_time: Time (in seconds) of the IDS time slice to load. The slice whose
-      time is closest to this value is selected. When provided, takes precedence
-      over ``slice_index``.
+      time is closest to this value is selected. If None, defaults to the first
+      time slice (index 0).
     trapped_fraction_source: Selects how the effective trapped particle fraction
-      is computed; see `base.TrappedFractionSource`.
+      is computed; see `trapped_fraction.TrappedFractionSource`.
 
   Returns:
     A dict of intermediate geometry values for building a StandardGeometry,
     corresponding to the selected time slice.
 
   Raises:
-    ValueError: If `slice_index` is out of range for the number of time slices
-      in the IDS.
+    ValueError: If the equilibrium IDS contains no time slices.
   """
   equilibrium = _load_equilibrium(
       equilibrium_object=equilibrium_object,
@@ -559,17 +557,14 @@ def geometry_from_single_IMAS_slice(
       explicit_convert=explicit_convert,
   )
 
-  n_slices = len(equilibrium.time_slice)
+  if not equilibrium.time_slice:
+    raise ValueError("Equilibrium IDS contains no time slices.")
 
   if slice_time is not None:
     times = np.asarray(equilibrium.time)
     slice_index = int(np.argmin(np.abs(times - slice_time)))
-
-  if slice_index < 0 or slice_index >= n_slices:
-    raise ValueError(
-        f"slice_index={slice_index} is out of range for IDS with "
-        f"{n_slices} time slice(s)."
-    )
+  else:
+    slice_index = 0
 
   return _geometry_from_single_slice(
       equilibrium=equilibrium,
