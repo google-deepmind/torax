@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src import state
+from torax._src.orchestration import jit_run_loop
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output
 from torax._src.test_utils import sim_test_case
@@ -127,13 +128,31 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config('test_implicit.py')
 
     # Use max_steps=1 which is far too few to reach t_final=1.
-    state_history = run_simulation.run_simulation(
-        torax_config, max_steps=1
-    )
+    state_history = run_simulation.run_simulation(torax_config, max_steps=1)
 
     self.assertEqual(
         state_history.sim_error, state.SimError.DID_NOT_REACH_T_FINAL
     )
+
+  @parameterized.named_parameters(
+      ('with_progress_bar', True),
+      ('without_progress_bar', False),
+  )
+  def test_jitted_run_loop_with_logging(self, progress_bar: bool):
+    torax_config = self._get_torax_config('test_iterhybrid_mockup.py')
+    state_history = run_simulation.run_simulation(
+        torax_config,
+        log_timestep_info=True,
+        progress_bar=progress_bar,
+        log_n_steps=5,
+        max_steps=100,
+        _use_jitted_run_loop=True,
+    )
+    self.assertIsInstance(state_history.simulation_output_to_xr(), xr.DataTree)
+    self.assertIsInstance(state_history, output.StateHistory)
+    self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
+    with jit_run_loop._LOCK:
+      self.assertEmpty(jit_run_loop._TQDM_REF)
 
 
 if __name__ == '__main__':

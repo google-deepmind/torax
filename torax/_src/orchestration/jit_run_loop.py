@@ -14,11 +14,15 @@
 
 """JITted run_loop for iterating over the simulation step function."""
 
+import contextlib
+import dataclasses
 import math
+import threading
 from typing import Any, Final, TypeAlias
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.config import build_runtime_params
@@ -27,13 +31,80 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.time_step_calculator import fixed_time_step_calculator
+import tqdm
 
 PyTree: TypeAlias = Any
 
+type Counter = array_typing.IntScalar
 
-type Counter = jax.Array  # An integer scalar JAX array.
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class LoggingInfo:
+  """Logging info for the JITted run loop.
+
+  Attributes:
+    progress_bar_ref: Integer reference ID for the active progress bar in
+      `_TQDM_REF`.
+    log_n_steps: Number of steps between logging/progress bar updates.
+    step: Current iteration count within the simulation loop.
+    progress_bar: Whether to update the progress bar.
+    log_timestep_info: Whether to log timestep information.
+  """
+
+  progress_bar_ref: array_typing.IntScalar
+  log_n_steps: array_typing.IntScalar
+  step: array_typing.IntScalar
+  progress_bar: bool = jax.tree.static()
+  log_timestep_info: bool = jax.tree.static()
+
+
+_LOCK: threading.Lock = threading.Lock()
+_counter_global: int = 0
+# This stores references  active tqdm progress bar instances.
+_TQDM_REF: dict[int, tqdm.tqdm] = {}
+# The progress bar measures percentage of simulated time.
+_PROGRESS_BAR_TOTAL: Final[int] = 100
 _ADAPTIVE_DT_MAX_STEPS_MULTIPLIER: Final[int] = 10
+
+
+def _progress_bar_callback(
+    logging_info: LoggingInfo,
+    progress: float,
+    t: float,
+) -> None:
+  """Host-side callback to update the progress bar during simulation steps."""
+  with _LOCK:
+    pbar = _TQDM_REF.get(int(logging_info.progress_bar_ref))
+    if pbar is not None:
+      pbar.n = round(float(progress) * _PROGRESS_BAR_TOTAL)
+      pbar.set_description(f'Simulating (t={t:.5f})')
+      pbar.refresh()
+
+
+def _log_timestep_callback(
+    t: float,
+    dt: float,
+    outer_solver_iterations: int,
+    solver_error_state: int,
+) -> None:
+  """Host-side callback to log timestep info during simulation steps."""
+  with _LOCK:
+    log_str = (
+        f'Simulation time: {t:.5f}, previous dt:'
+        f' {dt:.6f}, previous solver iterations:'
+        f' {outer_solver_iterations}'
+    )
+    match solver_error_state:
+      case 0:
+        pass
+      case 1:
+        log_str += ' Solver did not converge in previous step.'
+      case 2:
+        log_str += (
+            ' Solver converged only within coarse tolerance in previous step.'
+        )
+    tqdm.tqdm.write(log_str)
 
 
 @jax.jit(static_argnames='max_steps')
@@ -43,8 +114,20 @@ def run_loop_jit(
     runtime_params_overrides: (
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
+    logging_info: LoggingInfo | None = None,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs, Counter]:
-  """Runs the simulation loop under jax.jit."""
+  """Runs the simulation loop under jax.jit.
+
+  Args:
+    step_fn: A callable `SimulationStepFn` taking the current state and
+      returning the next state.
+    max_steps: Maximum number of steps to perform in the bounded while loop.
+    runtime_params_overrides: Optional overrides for runtime parameters.
+    logging_info: Logging configuration and state to pass through the JIT.
+
+  Returns:
+    A tuple of (states_history, post_processed_outputs_history, final_i).
+  """
   initial_state, initial_post_processed_outputs = (
       initial_state_lib.get_initial_state_and_post_processed_outputs(
           step_fn=step_fn,
@@ -52,27 +135,96 @@ def run_loop_jit(
       )
   )
 
+  int_dtype = jax_utils.get_int_dtype()
+  if logging_info is None:
+    logging_info = LoggingInfo(
+        progress_bar_ref=jnp.asarray(0, dtype=int_dtype),
+        log_n_steps=jnp.asarray(1, dtype=int_dtype),
+        step=jnp.asarray(0, dtype=int_dtype),
+        progress_bar=False,
+        log_timestep_info=False,
+    )
+  else:
+    logging_info = dataclasses.replace(
+        logging_info,
+        progress_bar_ref=jnp.asarray(
+            logging_info.progress_bar_ref, dtype=int_dtype
+        ),
+        log_n_steps=jnp.asarray(logging_info.log_n_steps, dtype=int_dtype),
+        step=jnp.asarray(logging_info.step, dtype=int_dtype),
+    )
+
+  runtime_params = (
+      runtime_params_overrides
+      if runtime_params_overrides is not None
+      else step_fn.runtime_params_provider
+  )
+  numerics = runtime_params.numerics
+  t_initial = numerics.t_initial
+  duration = numerics.t_final - t_initial
+
   def _cond_fun(inputs):
-    current_state, _ = inputs
+    current_state, _, _ = inputs
     is_done = step_fn.is_done(current_state.t)
     return jnp.logical_not(is_done)
 
   def _step_fn(inputs):
-    previous_state, previous_post_processed_outputs = inputs
+    previous_state, previous_post_processed_outputs, loop_logging_info = inputs
     current_state, post_processed_outputs = step_fn(
         previous_state,
         previous_post_processed_outputs,
         runtime_params_overrides=runtime_params_overrides,
     )
-    return current_state, post_processed_outputs
+    is_done = step_fn.is_done(current_state.t)
+    is_log_step = (
+        loop_logging_info.step % jnp.maximum(loop_logging_info.log_n_steps, 1)
+    ) == 0
+    should_log = is_log_step | is_done
+
+    if loop_logging_info.progress_bar:
+
+      def _do_progress_bar_callback():
+        progress = jnp.where(
+            duration > 0,
+            jnp.clip((current_state.t - t_initial) / duration, 0.0, 1.0),
+            1.0,
+        )
+        jax.debug.callback(
+            _progress_bar_callback,
+            loop_logging_info,
+            progress,
+            current_state.t,
+        )
+
+      jax.lax.cond(should_log, _do_progress_bar_callback, lambda: None)
+
+    if loop_logging_info.log_timestep_info:
+
+      def _do_log_timestep_callback():
+        jax.debug.callback(
+            _log_timestep_callback,
+            current_state.t,
+            current_state.dt,
+            current_state.solver_numeric_outputs.outer_solver_iterations,
+            current_state.solver_numeric_outputs.solver_error_state,
+        )
+
+      jax.lax.cond(should_log, _do_log_timestep_callback, lambda: None)
+
+    new_logging_info = dataclasses.replace(
+        loop_logging_info, step=loop_logging_info.step + 1
+    )
+    return current_state, post_processed_outputs, new_logging_info
 
   _, final_i, history = jax_utils.while_loop_bounded(
       _cond_fun,
       _step_fn,
-      (initial_state, initial_post_processed_outputs),
+      (initial_state, initial_post_processed_outputs, logging_info),
       max_steps,
       implementation='while_loop',
   )
+
+  states_stacked, post_processed_outputs_stacked, _ = history
 
   # Prepend initial state to give (max_steps + 1, ...) output.
   history = jax.tree_util.tree_map(
@@ -80,7 +232,7 @@ def run_loop_jit(
           [jnp.expand_dims(init, axis=0), stacked], axis=0
       ),
       (initial_state, initial_post_processed_outputs),
-      history,
+      (states_stacked, post_processed_outputs_stacked),
   )
 
   states_history, post_processed_outputs_history = history
@@ -174,6 +326,7 @@ def run_loop(
     ) = None,
     log_timestep_info: bool = False,
     progress_bar: bool = False,
+    log_n_steps: int = 20,
     max_steps: int | None = None,
 ) -> tuple[
     list[sim_state.SimState],
@@ -182,7 +335,7 @@ def run_loop(
 ]:
   """Version of torax._src.orchestration.run_loop that loops with jax.jit.
 
-  Unlike the `run_loop` function, This does not support logging or progress bar.
+  Performs logging and updates the progress bar if requested.
 
   Args:
     step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
@@ -193,14 +346,15 @@ def run_loop(
     log_timestep_info: If True, logs basic timestep info, like time, dt, on
       every step.
     progress_bar: If True, displays a progress bar.
+    log_n_steps: Frequency in steps for logging and progress bar updates.
     max_steps: Optional maximum number of steps to take. When using
       `chi_time_step_calculator` or `from_previous_time_step_calculator`,
-      `max_steps` must be explicitly specified or a `ValueError` is raised.
-      When using `fixed_time_step_calculator`, if not provided, `max_steps` is
+      `max_steps` must be explicitly specified or a `ValueError` is raised. When
+      using `fixed_time_step_calculator`, if not provided, `max_steps` is
       deterministically set to `ceil((t_final - t_initial) / min(fixed_dt))`
-      when `adaptive_dt=False`, or 10x that value when `adaptive_dt=True`.
-      Users can explicitly override `max_steps` (e.g. to reduce pre-allocated
-      buffer memory when `adaptive_dt=True`).
+      when `adaptive_dt=False`, or 10x that value when `adaptive_dt=True`. Users
+      can explicitly override `max_steps` (e.g. to reduce pre-allocated buffer
+      memory when `adaptive_dt=True`).
 
   Returns:
     A tuple of:
@@ -217,23 +371,52 @@ def run_loop(
         the last valid timestep.
       - The sim error state.
   """
-
-  if progress_bar:
-    raise NotImplementedError(
-        'Progress bar is not supported with the jitted run loop.'
-    )
-  if log_timestep_info:
-    raise NotImplementedError(
-        'Log timestep info is not supported with the jitted run loop.'
-    )
-
   if max_steps is None:
     max_steps = _get_max_steps(step_fn)
-  states_history, post_processed_outputs_history, final_i = run_loop_jit(
-      step_fn,
-      max_steps,
-      runtime_params_overrides=runtime_params_overrides,
+
+  # Use a nullcontext when `progress_bar` is False to manage the progress bar
+  # lifecycle with a single `with` block.
+  pbar_context = (
+      tqdm.tqdm(total=_PROGRESS_BAR_TOTAL, desc='Simulating', leave=True)
+      if progress_bar
+      else contextlib.nullcontext()
   )
+  with pbar_context as pbar:
+    # `tqdm` instances cannot be traced by JAX, and passing them as static
+    # arguments would trigger recompilation on every run. Instead, register the
+    # active bar in `_TQDM_REF` under a unique integer ID and pass that ID
+    # into `run_loop_jit`. `_LOCK` protects the global registry and counter
+    # across concurrent threads and asynchronous JAX callbacks.
+    if pbar is not None:
+      with _LOCK:
+        global _counter_global
+        _counter_global += 1
+        bar_ref = _counter_global
+        _TQDM_REF[bar_ref] = pbar
+    else:
+      bar_ref = 0
+
+    int_dtype = jax_utils.get_int_dtype()
+    try:
+      states_history, post_processed_outputs_history, final_i = run_loop_jit(
+          step_fn,
+          max_steps,
+          runtime_params_overrides=runtime_params_overrides,
+          logging_info=LoggingInfo(
+              progress_bar_ref=jnp.asarray(bar_ref, dtype=int_dtype),
+              log_n_steps=jnp.asarray(log_n_steps, dtype=int_dtype),
+              step=jnp.asarray(0, dtype=int_dtype),
+              progress_bar=progress_bar,
+              log_timestep_info=log_timestep_info,
+          ),
+      )
+      # JAX dispatch is asynchronous: wait for pending logging callbacks
+      # before the progress bar is unregistered and closed.
+      jax.effects_barrier()
+    finally:
+      if pbar is not None:
+        with _LOCK:
+          _TQDM_REF.pop(bar_ref, None)
 
   unstacked_states = _unstack_pytree_history(states_history, final_i)
   unstacked_post_processed_outputs = _unstack_pytree_history(
