@@ -125,13 +125,6 @@ class QLKNNTransportModelConfig(
       return data
     data = copy.deepcopy(data)
 
-    if 'shear_suppression_mode' in data:
-      logging.warning(
-          'shear_suppression_mode is deprecated and no longer used. Setting'
-          ' shear_suppression_alpha is now used to control shear suppression.'
-      )
-      del data['shear_suppression_mode']
-
     data['qlknn_model_name'] = _resolve_qlknn_model_name(
         model_name=data.get('qlknn_model_name', ''),
         model_path=data.get('model_path', ''),
