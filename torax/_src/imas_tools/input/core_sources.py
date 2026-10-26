@@ -55,13 +55,15 @@ class _SourceProfiles:
       )
     if self.affected_profiles != new_source.affected_profiles:
       raise ValueError(
-          "combines_sources must be used on sources of the same type."
+          'combines_sources must be used on sources of the same type.'
       )
 
     for affected_profile in self.affected_profiles:
       initial_profile = self.profiles[affected_profile]
       new_profile = new_source.profiles[affected_profile]
-      self.profiles[affected_profile] = np.add(initial_profile, new_profile)  # pyrefly: ignore[unsupported-operation]
+      self.profiles[affected_profile] = np.add(
+          initial_profile, new_profile
+      )  # pyrefly: ignore[unsupported-operation]
 
 
 @dataclasses.dataclass
@@ -98,8 +100,8 @@ class _SourceCollection:
 
       if values_list:
         output[name] = {
-            "mode": "PRESCRIBED",
-            "prescribed_values": tuple(values_list),
+            'mode': 'PRESCRIBED',
+            'prescribed_values': tuple(values_list),
         }
     return output
 
@@ -112,6 +114,8 @@ def sources_from_IMAS(
     ids: ids_toplevel.IDSToplevel,
     t_initial: float | None = None,
     load_only_external_sources: bool = False,
+    *,
+    source_name_overrides: Mapping[str, str] | None = None,
 ) -> Mapping[str, Any]:
   """Converts core_sources IDS to a sources dict for TORAX config.
 
@@ -124,37 +128,85 @@ def sources_from_IMAS(
     load_only_external_sources: If True, only loads sources from auxiliary
       systems for which models exist in TORAX (pellet, gas puff, ecrh, icrh). If
       False, also loads physics-based sources such as radiation sources.
+    source_name_overrides: Optional mapping from an IMAS source identifier to
+      an existing TORAX source name, e.g. {'line_radiation':
+      'impurity_radiation'}. This permits explicitly choosing how to interpret
+      sources not mapped by default. Different IMAS identifiers are not allowed
+      to contribute to the same TORAX source, to prevent double counting.
+      Aggregate identifiers ('total', 'auxiliary', 'radiation' and combined
+      cyclotron/synchrotron) cannot be mapped to a single TORAX source.
 
   Returns:
     The fields read from the IDS that can be used to completely or partially
     fill the `sources` section of a TORAX `CONFIG`.
   """
   # Checks that the IDS is of the correct type.
-  if ids.metadata.name != "core_sources":
-    raise ValueError(f"Expected core_sources IDS, got {ids.metadata.name} IDS.")
+  if ids.metadata.name != 'core_sources':
+    raise ValueError(f'Expected core_sources IDS, got {ids.metadata.name} IDS.')
+
+  name_overrides = source_name_overrides or {}
+  aggregate_names = {
+      'total',
+      'auxiliary',
+      'radiation',
+      'cyclotron_synchrotron_radiation',
+  }
+  invalid_aggregate = set(name_overrides).intersection(aggregate_names)
+  if invalid_aggregate:
+    raise ValueError(
+        'Aggregate IMAS source identifiers cannot be mapped to a single TORAX'
+        f' source: {sorted(invalid_aggregate)}.'
+    )
+  supported_sources = {
+      mapping.torax_source_name: mapping
+      for mapping in (
+          sources_mapping.IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING.values()
+      )
+  }
+  invalid = set(name_overrides.values()) - supported_sources.keys()
+  if invalid:
+    raise ValueError(
+        f'Unknown TORAX source override(s): {sorted(invalid)}. '
+        f'Available sources: {sorted(supported_sources)}.'
+    )
 
   accumulator = _SourceCollection()
+  # Multiple entries of the same IMAS identifier may describe independent
+  # launchers and should still be summed. Distinct identifier types must not
+  # be combined implicitly, since aggregate and component source profiles can
+  # otherwise be counted twice.
+  source_origins: dict[str, str] = {}
   for source in ids.source:
     imas_source_name = str(source.identifier.name)
-    if (
-        imas_source_name
-        in sources_mapping.IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING
-    ):
-      source_mapping = sources_mapping.IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING[
-          imas_source_name
-      ]
-      if load_only_external_sources and not source_mapping.is_external:
-        continue
-      source_data = _extract_source_profiles(
-          source, source_mapping.affected_core_profiles, t_initial
-      )
-      accumulator.add(source_mapping.torax_source_name, source_data)
+    if imas_source_name in name_overrides:
+      source_mapping = supported_sources[name_overrides[imas_source_name]]
     else:
+      source_mapping = (
+          sources_mapping.IMAS_SOURCE_ID_TO_TORAX_SOURCE_MAPPING.get(
+              imas_source_name
+          )
+      )
+    if source_mapping is None:
       logging.info(
-          "IMAS Source %s does not have a corresponding TORAX source model."
-          " Skipping this source.",
+          'IMAS Source %s does not have a corresponding TORAX source model.'
+          ' Skipping this source.',
           imas_source_name,
       )
+      continue
+    if load_only_external_sources and not source_mapping.is_external:
+      continue
+    target_name = source_mapping.torax_source_name
+    earlier_source = source_origins.get(target_name)
+    if earlier_source is not None and earlier_source != imas_source_name:
+      raise ValueError(
+          f'IMAS sources {earlier_source!r} and {imas_source_name!r} both map '
+          f'to TORAX source {target_name!r}; refusing to double count them.'
+      )
+    source_origins[target_name] = imas_source_name
+    source_data = _extract_source_profiles(
+        source, source_mapping.affected_core_profiles, t_initial
+    )
+    accumulator.add(target_name, source_data)
 
   return accumulator.to_dict()
 
@@ -246,7 +298,7 @@ def _get_particle_source_profile(
     ]
   else:
     raise ValueError(
-        "Expected particle source, but none of electrons or ion particle source"
-        "is defined in the IDS."
+        'Expected particle source, but none of electrons or ion particle source'
+        'is defined in the IDS.'
     )
   return particles  # pyrefly: ignore[bad-return]
