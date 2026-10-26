@@ -182,8 +182,8 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': True,
-        'n_corrector_steps': 2,
+        'use_fixed_point': True,
+        'n_fixed_point_iterations': 2,
         # (deliberately) large heat conductivity for Pereverzev rule
         'chi_pereverzev': 30,
         # (deliberately) large particle diffusion for Pereverzev rule

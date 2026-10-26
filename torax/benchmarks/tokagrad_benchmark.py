@@ -263,8 +263,8 @@ CONFIG = {
     },
     "solver": {
         "solver_type": "linear",
-        "use_predictor_corrector": True,
-        "n_corrector_steps": 1,
+        "use_fixed_point": True,
+        "n_fixed_point_iterations": 1,
         "use_pereverzev": False,
     },
     "time_step_calculator": {"calculator_type": "fixed"},

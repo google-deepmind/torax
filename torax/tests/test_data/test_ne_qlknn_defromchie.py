@@ -79,7 +79,7 @@ CONFIG = {
     },
     'solver': {
         'solver_type': 'linear',
-        'use_predictor_corrector': True,
+        'use_fixed_point': True,
         'use_pereverzev': True,
     },
     'time_step_calculator': {
