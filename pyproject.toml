@@ -71,7 +71,7 @@ dev = [
     "pyink",
     "sphinxcontrib-apidoc",
     "sphinx-autodoc-typehints",
-    "sphinx-rtd-theme",
+    "sphinx-book-theme>=1.0.1",
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx_remove_toctrees",

@@ -1,4 +1,5 @@
 .. Define link targets
+
 .. _qlknn10d_link: https://doi.org/10.1063/1.5134126
 .. _qlknn_7_11_link: https://github.com/google-deepmind/fusion_surrogates
 .. _citrin2010_link: https://doi.org/10.1088/0029-5515/50/11/115007
@@ -39,40 +40,41 @@
 .. _shaing1997_link: https://doi.org/10.1063/1.872171
 
 .. Define substitutions using link targets
-.. |qlknn10d| replace:: `[van de Plassche et al, Phys. Plasmas 2020] <qlknn10d_link_>`_
-.. |qlknn_7_11| replace:: `QLKNN_7_11 <qlknn_7_11_link_>`_
-.. |citrin2010| replace:: `[Citrin et al, Nucl. Fusion 2010] <citrin2010_link_>`_
-.. |pint| replace:: `PINT <pint_link_>`_
-.. |raptor| replace:: `[Felici et al, Plasma Phys. Control. Fusion 2012] <raptor_link_>`_
-.. |toricnn| replace:: `[Wallace et al, APS 2024] <toricnn_link_>`_
-.. |pereverzev-corrigan-method| replace:: `Pereverzev-Corrigan method <pereverzev-corrigan_link_>`_
-.. |chease| replace:: `CHEASE <chease_link_>`_
-.. |fbt| replace:: `FBT <fbt_link_>`_
-.. |mavrin| replace:: `[Mavrin REDS 2018] <mavrin_link_>`_
-.. |guo-romanelli| replace:: `Guo-Romanelli <guo-romanelli_link_>`_
-.. |bohm-gyrobohm| replace:: `[Erba et al, 1998] <erba_link_>`_
-.. |garzotti2003| replace:: `[Garzotti et al, 2003] <garzotti2003_link_>`_
-.. |qualikiz| replace:: `QuaLiKiz  <qualikiz_link_>`_
-.. |flax| replace:: `Flax <flax_link_>`_
-.. |qualikiz-pythontools| replace:: `QuaLiKiz Pythontools <qualikiz-pythontools_link_>`_
-.. |sauter99| replace:: `[Sauter PoP 1999] <sauter_link_>`_
-.. |sauter16| replace:: `[Sauter, Fusion Eng. Des. 2016] <sauter2016_link_>`_
-.. |bosch-hale| replace:: `[H.-S. Bosch and G.M. Hale NF 1992] <bosch-hale_link_>`_
-.. |lin-liu| replace:: `[Lin-Liu, Chan, Prater, PoP 2003] <lin-liu_link_>`_
-.. |lin-liu-miller1995| replace:: `[Lin-Liu & Miller, Phys. Plasmas 1995] <lin-liu-miller1995_link_>`_
-.. |albajar2001| replace:: `Albajar NF 2001 <albajar2001_link_>`_
-.. |artaud2018| replace:: `Artaud NF 2018 <artaud2018_link_>`_
-.. |wallace2024| replace:: `[Wallace et al, APS 2024] <wallace2024_link_>`_
-.. |body2025| replace:: `[Body et al, NF 2025] <body2025_link_>`_
-.. |kallenbach2024| replace:: `[Kallenbach et al, NF 2024] <kallenbach2024_link_>`_
-.. |mavrin2017| replace:: `[Mavrin, J Fusion Energ 2017] <mavrin2017_link_>`_
-.. |kim1991| replace:: `[Kim et al, Phys. Fluids B 1991] <kim1991_link_>`_
-.. |hinton1976| replace:: `[Hinton & Hazeltine, Rev. Mod. Phys. 1976] <hinton1976_link_>`_
-.. |waltz1998| replace:: `[Waltz et al, Phys. Plasmas 1998] <waltz1998_link_>`_
-.. |stix1972| replace:: `[Stix, Plasma Phys. 1972] <stix1972_link_>`_
-.. |stix1975| replace:: `[Stix, Nucl. Fusion 1975] <stix1975_link_>`_
-.. |disiena2021| replace:: `[Di Siena et al, PRL 2021] <disiena2021_link_>`_
-.. |labombard2008| replace:: `[LaBombard et al, Phys. Plasmas 2008] <labombard2008_link_>`_
-.. |redl2021| replace:: `[Redl et al, Phys. Plasmas 2021] <redl2021_link_>`_
-.. |angioni2000| replace:: `[Angioni & Sauter, Phys. Plasmas 2000] <angioni2000_link_>`_
-.. |shaing1997| replace:: `[Shaing et al, Phys. Plasmas 1997] <shaing1997_link_>`_
+
+.. |qlknn10d| replace:: `[van de Plassche et al, Phys. Plasmas 2020] <qlknn10d_link_>`__
+.. |qlknn_7_11| replace:: `QLKNN_7_11 <qlknn_7_11_link_>`__
+.. |citrin2010| replace:: `[Citrin et al, Nucl. Fusion 2010] <citrin2010_link_>`__
+.. |pint| replace:: `PINT <pint_link_>`__
+.. |raptor| replace:: `[Felici et al, Plasma Phys. Control. Fusion 2012] <raptor_link_>`__
+.. |toricnn| replace:: `[Wallace et al, APS 2024] <toricnn_link_>`__
+.. |pereverzev-corrigan-method| replace:: `Pereverzev-Corrigan method <pereverzev-corrigan_link_>`__
+.. |chease| replace:: `CHEASE <chease_link_>`__
+.. |fbt| replace:: `FBT <fbt_link_>`__
+.. |mavrin| replace:: `[Mavrin REDS 2018] <mavrin_link_>`__
+.. |guo-romanelli| replace:: `Guo-Romanelli <guo-romanelli_link_>`__
+.. |bohm-gyrobohm| replace:: `[Erba et al, 1998] <erba_link_>`__
+.. |garzotti2003| replace:: `[Garzotti et al, 2003] <garzotti2003_link_>`__
+.. |qualikiz| replace:: `QuaLiKiz  <qualikiz_link_>`__
+.. |flax| replace:: `Flax <flax_link_>`__
+.. |qualikiz-pythontools| replace:: `QuaLiKiz Pythontools <qualikiz-pythontools_link_>`__
+.. |sauter99| replace:: `[Sauter PoP 1999] <sauter_link_>`__
+.. |sauter16| replace:: `[Sauter, Fusion Eng. Des. 2016] <sauter2016_link_>`__
+.. |bosch-hale| replace:: `[H.-S. Bosch and G.M. Hale NF 1992] <bosch-hale_link_>`__
+.. |lin-liu| replace:: `[Lin-Liu, Chan, Prater, PoP 2003] <lin-liu_link_>`__
+.. |lin-liu-miller1995| replace:: `[Lin-Liu & Miller, Phys. Plasmas 1995] <lin-liu-miller1995_link_>`__
+.. |albajar2001| replace:: `Albajar NF 2001 <albajar2001_link_>`__
+.. |artaud2018| replace:: `Artaud NF 2018 <artaud2018_link_>`__
+.. |wallace2024| replace:: `[Wallace et al, APS 2024] <wallace2024_link_>`__
+.. |body2025| replace:: `[Body et al, NF 2025] <body2025_link_>`__
+.. |kallenbach2024| replace:: `[Kallenbach et al, NF 2024] <kallenbach2024_link_>`__
+.. |mavrin2017| replace:: `[Mavrin, J Fusion Energ 2017] <mavrin2017_link_>`__
+.. |kim1991| replace:: `[Kim et al, Phys. Fluids B 1991] <kim1991_link_>`__
+.. |hinton1976| replace:: `[Hinton & Hazeltine, Rev. Mod. Phys. 1976] <hinton1976_link_>`__
+.. |waltz1998| replace:: `[Waltz et al, Phys. Plasmas 1998] <waltz1998_link_>`__
+.. |stix1972| replace:: `[Stix, Plasma Phys. 1972] <stix1972_link_>`__
+.. |stix1975| replace:: `[Stix, Nucl. Fusion 1975] <stix1975_link_>`__
+.. |disiena2021| replace:: `[Di Siena et al, PRL 2021] <disiena2021_link_>`__
+.. |labombard2008| replace:: `[LaBombard et al, Phys. Plasmas 2008] <labombard2008_link_>`__
+.. |redl2021| replace:: `[Redl et al, Phys. Plasmas 2021] <redl2021_link_>`__
+.. |angioni2000| replace:: `[Angioni & Sauter, Phys. Plasmas 2000] <angioni2000_link_>`__
+.. |shaing1997| replace:: `[Shaing et al, Phys. Plasmas 1997] <shaing1997_link_>`__

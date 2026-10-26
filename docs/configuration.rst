@@ -1,3 +1,5 @@
+.. include:: links.rst
+
 .. _configuration:
 
 Simulation input configuration

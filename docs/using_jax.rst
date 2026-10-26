@@ -52,7 +52,7 @@ persistent cache even though the ``id`` of an object will change if the object
 is recreated. See https://github.com/google-deepmind/torax/pull/276 for more
 detail.
 
-The `tests/persistent_cache.py` test gives some good examples of usage and
+The ``tests/persistent_cache.py`` test gives some good examples of usage and
 includes comments with advice about debugging cases of the cache unexpectedly
 not being used.
 

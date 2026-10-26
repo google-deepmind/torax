@@ -230,7 +230,7 @@ and where :math:`\mathbf{x}_{t+\Delta t}^{0} = \mathbf{x}_t`.
 By replacing :math:`\mathbf{x}_{t+\Delta t}` with
 :math:`\mathbf{x}_{t+\Delta t}^{k-1}` within the coefficients
 :math:`\mathbf{\tilde{T}}`, :math:`\mathbf{\bar{C}}` and :math:`\mathbf{c}`,
-these coefficients become known at every iteration step, describing a `linear`
+these coefficients become known at every iteration step, describing a ``linear``
 system of equations. :math:`\mathbf{x}_{t+\Delta t}^k` can then be solved using
 standard linear algebra methods implemented in JAX.
 
@@ -307,19 +307,19 @@ search reduces the step size within a given Newton iteration step, while
 :math:`\Delta t` backtracking reduces the overall time step and restarts the
 entire Newton-Raphson solver for the present timestep, as follows:
 
-  - If a Newton step leads to an increasing residual,
-    i.e.
-    :math:`\mathbf{R}(\mathbf{x}_{t+\Delta t}^{k+1}) > \mathbf{R}(\mathbf{x}_{t+\Delta t}^k)`,
-    or if :math:`\mathbf{x}_{t+\Delta t}^{k+1}` is unphysical, e.g. negative
-    temperature, then :math:`\delta \mathbf{x}` is reduced by a
-    user-configurable factor, and the line-search checks are repeated. The total
-    accumulative reduction factor in a Newton step is denoted :math:`\tau`.
+- If a Newton step leads to an increasing residual,
+  i.e.
+  :math:`\mathbf{R}(\mathbf{x}_{t+\Delta t}^{k+1}) > \mathbf{R}(\mathbf{x}_{t+\Delta t}^k)`,
+  or if :math:`\mathbf{x}_{t+\Delta t}^{k+1}` is unphysical, e.g. negative
+  temperature, then :math:`\delta \mathbf{x}` is reduced by a
+  user-configurable factor, and the line-search checks are repeated. The total
+  accumulative reduction factor in a Newton step is denoted :math:`\tau`.
 
-  - If during the line-search phase, :math:`\tau` becomes too low, as determined
-    by a user-configurable variable, then the solve is abandoned and
-    :math:`\Delta t` backtracking is invoked. A new solve attempt is made at a
-    reduced :math:`\Delta t`, reduced by a user-configurable factor, which
-    results in a less nonlinear system.
+- If during the line-search phase, :math:`\tau` becomes too low, as determined
+  by a user-configurable variable, then the solve is abandoned and
+  :math:`\Delta t` backtracking is invoked. A new solve attempt is made at a
+  reduced :math:`\Delta t`, reduced by a user-configurable factor, which
+  results in a less nonlinear system.
 
 For the initial guess :math:`\mathbf{x}_{t+\Delta t}^0`, two options are
 available. The user can start from :math:`\mathbf{x}_t`, or use the result of
@@ -342,15 +342,15 @@ Timestep (:math:`\Delta t`) calculation
 TORAX provides two methods for calculating the timestep :math:`\Delta t`,
 as follows.
 
-  - Fixed :math:`\Delta t`: This method uses a user-configurable constant
-    timestep throughout the simulation. If a nonlinear solver is employed, and
-    adaptive timestepping is enabled, then in practice, some steps may have a
-    lower :math:`\Delta t` following backtracking.
+- Fixed :math:`\Delta t`: This method uses a user-configurable constant
+  timestep throughout the simulation. If a nonlinear solver is employed, and
+  adaptive timestepping is enabled, then in practice, some steps may have a
+  lower :math:`\Delta t` following backtracking.
 
-  - Adaptive :math:`\Delta t`:  This method adapts :math:`\Delta t` based on the
-    maximum heat conductivity :math:`\chi_{\max}=\max(\chi_i, \chi_e)`.
-    :math:`\Delta t` is a multiple of a base timestep inspired by the explicit
-    stability limit for parabolic PDEs:
+- Adaptive :math:`\Delta t`:  This method adapts :math:`\Delta t` based on the
+  maximum heat conductivity :math:`\chi_{\max}=\max(\chi_i, \chi_e)`.
+  :math:`\Delta t` is a multiple of a base timestep inspired by the explicit
+  stability limit for parabolic PDEs:
 
   .. math::
 

@@ -14,63 +14,63 @@ Governing equations
 TORAX solves coupled 1D PDEs in normalized toroidal flux coordinates,
 :math:`\hat{\rho}`. The set of 1D PDEs being solved are as follows:
 
-  Ion heat transport, governing the evolution of the ion temperature
-  :math:`T_i`.
+Ion heat transport, governing the evolution of the ion temperature
+:math:`T_i`.
 
-  .. math::
+.. math::
 
-    \begin{split}
-    \frac{3}{2} V'^{-5/3} \left(\frac{\partial }{\partial t}-
-    \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}{\partial\hat{\rho}}
-    \hat{\rho}\right)\left[V'^{5/3} n_i T_i\right] &= \\
-    \frac{1}{V'} \frac{\partial}{\partial \hat{\rho}} \left[
-      \chi_i n_i \frac{g_1}{V'} \frac{\partial T_i}{\partial \hat{\rho}} -
-      g_0q_i^{\mathrm{conv}}T_i\right] &+ Q_i
-    \end{split}
+  \begin{split}
+  \frac{3}{2} V'^{-5/3} \left(\frac{\partial }{\partial t}-
+  \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}{\partial\hat{\rho}}
+  \hat{\rho}\right)\left[V'^{5/3} n_i T_i\right] &= \\
+  \frac{1}{V'} \frac{\partial}{\partial \hat{\rho}} \left[
+    \chi_i n_i \frac{g_1}{V'} \frac{\partial T_i}{\partial \hat{\rho}} -
+    g_0q_i^{\mathrm{conv}}T_i\right] &+ Q_i
+  \end{split}
 
-  If multiple main ion species are present (e.g., a D-T mix), then :math:`n_i`
-  represents the sum of all main ions, and ion attributes like charge and mass
-  are averaged values for the mixture, weighted by fractional abundance.
+If multiple main ion species are present (e.g., a D-T mix), then :math:`n_i`
+represents the sum of all main ions, and ion attributes like charge and mass
+are averaged values for the mixture, weighted by fractional abundance.
 
-  Electron heat transport, governing the evolution of the electron temperature
-  :math:`T_e`.
+Electron heat transport, governing the evolution of the electron temperature
+:math:`T_e`.
 
-  .. math::
+.. math::
 
-    \begin{split}
-    \frac{3}{2} V'^{-5/3} \left(\frac{\partial }{\partial t}-
-    \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}{\partial\hat{\rho}}
-    \hat{\rho}\right)\left[V'^{5/3} n_e T_e\right] &= \\
-    \frac{1}{V'} \frac{\partial}{\partial \hat{\rho}} \left[
-      \chi_e n_e \frac{g_1}{V'} \frac{\partial T_e}{\partial \hat{\rho}} -
-      g_0q_e^{\mathrm{conv}}T_e \right] &+ Q_e
-    \end{split}
+  \begin{split}
+  \frac{3}{2} V'^{-5/3} \left(\frac{\partial }{\partial t}-
+  \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}{\partial\hat{\rho}}
+  \hat{\rho}\right)\left[V'^{5/3} n_e T_e\right] &= \\
+  \frac{1}{V'} \frac{\partial}{\partial \hat{\rho}} \left[
+    \chi_e n_e \frac{g_1}{V'} \frac{\partial T_e}{\partial \hat{\rho}} -
+    g_0q_e^{\mathrm{conv}}T_e \right] &+ Q_e
+  \end{split}
 
-  Electron particle transport, governing the evolution of the electron density
-  :math:`n_e`.
+Electron particle transport, governing the evolution of the electron density
+:math:`n_e`.
 
-  .. math::
+.. math::
 
-    \begin{split}
-    \left(\frac{\partial}{\partial t}-
-    \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}
-    {\partial\hat{\rho}}\hat{\rho}\right)\left[ n_e V' \right] &= \\
-    \frac{\partial}{\partial \hat{\rho}} \left[D_e \frac{g_1}{V'}
-    \frac{\partial n_e}{\partial \hat{\rho}} - g_0V_e n_e \right] &+ V'S_n
-    \end{split}
+  \begin{split}
+  \left(\frac{\partial}{\partial t}-
+  \frac{\dot{\Phi}_b}{2\Phi_b}\frac{\partial}
+  {\partial\hat{\rho}}\hat{\rho}\right)\left[ n_e V' \right] &= \\
+  \frac{\partial}{\partial \hat{\rho}} \left[D_e \frac{g_1}{V'}
+  \frac{\partial n_e}{\partial \hat{\rho}} - g_0V_e n_e \right] &+ V'S_n
+  \end{split}
 
-  Current diffusion, governing the evolution of the poloidal flux :math:`\psi`.
+Current diffusion, governing the evolution of the poloidal flux :math:`\psi`.
 
-  .. math::
+.. math::
 
-    \begin{split}
-    \frac{16 \pi^2 \sigma_{||}\mu_0 \hat{\rho} \Phi_b^2}{F^2}
-    \left(\frac{\partial \psi}{\partial t}-\frac{\hat{\rho}\dot{\Phi}_b}
-    {2\Phi_b}\frac{\partial \psi}{\partial \hat{\rho}}\right)  &= \\
-    \frac{\partial}{\partial \hat{\rho}} \left( \frac{g_2 g_3}{\hat{\rho}}
-    \frac{\partial \psi}{\partial \hat{\rho}} \right) &- \frac{8\pi^2 V' \mu_0
-    \Phi_b}{F^2} \langle \mathbf{B} \cdot \mathbf{j}_{n_i} \rangle
-    \end{split}
+  \begin{split}
+  \frac{16 \pi^2 \sigma_{||}\mu_0 \hat{\rho} \Phi_b^2}{F^2}
+  \left(\frac{\partial \psi}{\partial t}-\frac{\hat{\rho}\dot{\Phi}_b}
+  {2\Phi_b}\frac{\partial \psi}{\partial \hat{\rho}}\right)  &= \\
+  \frac{\partial}{\partial \hat{\rho}} \left( \frac{g_2 g_3}{\hat{\rho}}
+  \frac{\partial \psi}{\partial \hat{\rho}} \right) &- \frac{8\pi^2 V' \mu_0
+  \Phi_b}{F^2} \langle \mathbf{B} \cdot \mathbf{j}_{n_i} \rangle
+  \end{split}
 
 where :math:`T_{i,e}` are ion and electron temperatures, :math:`n_{i,e}` are ion
 and electron densities, and :math:`\psi` is poloidal flux. :math:`\chi_{i,e}`

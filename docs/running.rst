@@ -1,10 +1,10 @@
-It is convenient to set up a Python virtual environment for running TORAX, as
-described in :ref:`installation`.
-
 .. _running:
 
 Running simulations
 ###################
+
+It is convenient to set up a Python virtual environment for running TORAX, as
+described in :ref:`installation`.
 
 TORAX comes with several pre-packaged example configuration files. These can be
 inspected on GitHub at |torax/examples/|, or by cloning the repository. See
@@ -48,7 +48,7 @@ relative or absolute path of your configuration file. It is required that the
 configuration (``.py``) file contains a valid TORAX config dict named
 ``CONFIG``. An invalid dict will raise informative errors by the underlying
 Pydantic library which uses the ``CONFIG`` dict to construct a
-`torax.ToraxConfig` object used under the hood.
+``torax.ToraxConfig`` object used under the hood.
 
 .. code-block:: console
 
@@ -62,15 +62,15 @@ Environment variables
 All environment variables can be set in shell configuration scripts, e.g.
 ``.bashrc``, or by shell prompt commands.
 
-``TORAX_ERRORS_ENABLED`` (default: `False`) - If `True`, error checking is enabled
-in internal routines. Used for debugging. Default is `False` since it is
+``TORAX_ERRORS_ENABLED`` (default: ``False``) - If ``True``, error checking is enabled
+in internal routines. Used for debugging. Default is ``False`` since it is
 incompatible with the persistent compilation cache.
 
 .. code-block:: console
 
   export TORAX_ERRORS_ENABLED=<True/False>
 
-``JAX_DISABLE_JIT`` (default: `False`) - If `True`, JAX does not compile
+``JAX_DISABLE_JIT`` (default: ``False``) - If ``True``, JAX does not compile
 internal TORAX functions. Used for debugging.
 
 .. code-block:: console
@@ -82,7 +82,7 @@ internal TORAX functions. Used for debugging.
 run_torax flags
 ---------------
 
-``log_progress`` (default: `False`) - Logs for each timestep (dt) the current
+``log_progress`` (default: ``False``) - Logs for each timestep (dt) the current
 simulation time, dt, and number of outer solver iterations carried out during
 the step. For the Newton-Raphson solver, the outer solver iterations can be more
 than 1 due to dt backtracking (enabled by ``adaptive_dt=True`` in the
@@ -93,29 +93,29 @@ of inner solver iterations.
 
   run_torax --config='torax.examples.basic_config' --log_progress
 
-``reference_run`` (default: `None`) - Absolute path or relative path
-  (relative to the current directory) to a reference run to compare against in
-  post-simulation plotting.
+``reference_run`` (default: ``None``) - Absolute path or relative path
+(relative to the current directory) to a reference run to compare against in
+post-simulation plotting.
 
 .. code-block:: console
 
   run_torax --config='torax.examples.basic_config' \
   --reference_run=<path/to/reference_run/myoutput.nc>
 
-``output_dir`` (default: `'/tmp/torax_results'`) - Absolute path or relative
-  path (relative to the current directory) to a directory where the output files
-  will be written in the format ``state_history_%Y%m%d_%H%M%S.nc``.
+``output_dir`` (default: ``'/tmp/torax_results'``) - Absolute path or relative
+path (relative to the current directory) to a directory where the output files
+will be written in the format ``state_history_%Y%m%d_%H%M%S.nc``.
 
 .. code-block:: console
 
   run_torax --config='torax.examples.basic_config' \
   --output_dir=</path/to/output_dir>
 
-``plot_config`` (default: `plotting/configs/default_plot_config.py`) -
+``plot_config`` (default: ``plotting/configs/default_plot_config.py``) -
 Sets the plotting configuration used for the post-simulation plotting options.
 This flag should give the path to a Python file containing a ``PLOT_CONFIG``
 variable which is an instance of ``torax.plotting.plotruns_lib.FigureProperties``.
-By default, `plotting/configs/default_plot_config.py` is used.
+By default, ``plotting/configs/default_plot_config.py`` is used.
 See :ref:`plotting` for further details and examples. An example using a
 non-default plot config is shown below.
 
@@ -124,7 +124,7 @@ non-default plot config is shown below.
   run_torax --config='torax.examples.basic_config' \
   --plot_config=plotting/configs/simple_plot_config.py
 
-``log_output`` (default: `False`) - Logs a subset of the initial and final
+``log_output`` (default: ``False``) - Logs a subset of the initial and final
 state of the simulation, including: ion and electron temperature, electron
 density, safety factor and magnetic shear. Used for debugging.
 
@@ -143,13 +143,13 @@ To take advantage of the in-memory (non-persistent) cache, the process does not
 end upon simulation termination. Instead, the user is presented with the
 following menu.
 
-  | **r**: RUN SIMULATION
-  | **mc**: modify the existing config and reload it
-  | **cc**: provide a new config file to load
-  | **tlp**: toggle --log_progress
-  | **tlo**: toggle --log_output
-  | **pr**: plot previous run(s) or against reference if provided
-  | **q**: quit
+| **r**: RUN SIMULATION
+| **mc**: modify the existing config and reload it
+| **cc**: provide a new config file to load
+| **tlp**: toggle --log_progress
+| **tlo**: toggle --log_output
+| **pr**: plot previous run(s) or against reference if provided
+| **q**: quit
 
 * **mc** allows for reloading the existing config file, which can be modified
   in the interim.
@@ -164,10 +164,10 @@ discussion on whether a recompilation is required or not. In general things
 that modify the simulation problem will trigger recompilation, for example
 changing:
 
-  * Grid resolution
-  * Evolved variables (equations being solved)
-  * Changing internal functions used, e.g. transport model, sources,
-    time_step_calculator, pedestal model, solver, etc.
+* Grid resolution
+* Evolved variables (equations being solved)
+* Changing internal functions used, e.g. transport model, sources,
+  time_step_calculator, pedestal model, solver, etc.
 
 * **r** will launch a new run, include with config changes if **cc** or **mc**
   was chosen previously and changes applied.

@@ -1,3 +1,5 @@
+.. _tutorials:
+
 Tutorials
 #########
 
@@ -18,81 +20,95 @@ simulation execution, and plotting routines, are also all packaged with the
 notebook. Instructions for using these routines are provided in the notebook
 itself.
 
-Google Colab
-------------
+Tutorial Notebooks
+==================
 
-For loading the tutorial notebook directly from GitHub, click the link below:
+.. grid:: 1 2 2 2
+   :gutter: 3
 
-.. raw:: html
+   .. grid-item-card:: :material-regular:`assignment;1.5em` Tutorial Exercises
+      :class-card: torax-nav-card
 
-  <a target="_blank" href="https://colab.research.google.com/github/
-  google-deepmind/torax/blob/main/torax/tutorials/
-  torax_tutorial_exercises.ipynb">
-    <img src="https://colab.research.google.com/assets/colab-badge.svg"
-    alt="Open In Colab"/>
-  </a>
+      Interactive exercises investigating heating and current drive actuators
+      for q-profile tailoring in an ITER hybrid scenario.
 
-And for the notebook containing the suggested solutions, click the link below:
+      .. raw:: html
 
-.. raw:: html
+        <p style="margin-top: 0.75rem; margin-bottom: 0;">
+          <a target="_blank" href="https://colab.research.google.com/github/google-deepmind/torax/blob/main/torax/tutorials/torax_tutorial_exercises.ipynb">
+            <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+          </a>
+        </p>
 
-  <a target="_blank" href="https://colab.research.google.com/github/
-  google-deepmind/torax/blob/main/torax/tutorials/
-  torax_tutorial_exercises_with_solutions.ipynb">
-    <img src="https://colab.research.google.com/assets/colab-badge.svg"
-    alt="Open In Colab"/>
-  </a>
+   .. grid-item-card:: :material-regular:`fact_check;1.5em` Exercises with Solutions
+      :class-card: torax-nav-card
 
-The tutorial notebook can then be immediately run.
+      Companion notebook containing the full tutorial exercises alongside
+      suggested reference solutions.
 
-For loading the tutorial notebook from your cloned source code,
-carry out the following steps:
+      .. raw:: html
 
-1. Navigate your browser to https://colab.research.google.com/
-2. Click on "File" in the upper left corner, then "Upload notebook", then
-   "Browse".
-3. Navigate to the ``torax/tutorials`` directory in the file explorer and upload
-   the desired notebook.
+        <p style="margin-top: 0.75rem; margin-bottom: 0;">
+          <a target="_blank" href="https://colab.research.google.com/github/google-deepmind/torax/blob/main/torax/tutorials/torax_tutorial_exercises_with_solutions.ipynb">
+            <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+          </a>
+        </p>
 
+Running the Notebooks
+=====================
 
-Jupyter
--------
+.. tab-set::
 
-First install the necessary dependencies. For PyPI installations:
+   .. tab-item:: Google Colab
 
-.. code-block:: console
+      Click one of the **Open in Colab** badges above to load the tutorial
+      notebook directly from GitHub and run it immediately.
 
-  pip install torax[tutorial]
+      For loading the tutorial notebook from your cloned source code, carry out
+      the following steps:
 
-For installations from the cloned source code, run the following from the TORAX
-root directory:
+      1. Navigate your browser to https://colab.research.google.com/
+      2. Click on "File" in the upper left corner, then "Upload notebook", then
+         "Browse".
+      3. Navigate to the ``torax/tutorials`` directory in the file explorer and
+         upload the desired notebook.
 
-.. code-block:: console
+   .. tab-item:: Local Jupyter
 
-  pip install -e .[tutorial]
+      First install the necessary dependencies. For PyPI installations:
 
-Then run the kernel:
+      .. code-block:: console
 
-.. code-block:: console
+        pip install torax[tutorial]
 
-  jupyter notebook --no-browser
+      For installations from the cloned source code, run the following from the
+      TORAX root directory:
 
-If successful, you should see a message like:
+      .. code-block:: console
 
-.. code-block:: console
+        pip install -e .[tutorial]
 
-  To access the server, open this file in a browser:
-      file:///<PATH>
-  Or copy and paste one of these URLs:
-      http://localhost:8890/tree?token=<TOKEN>
-      http://127.0.0.1:8890/tree?token=<TOKEN>
+      Then run the kernel:
 
-With ``<PATH>`` and ``<TOKEN>`` being environment and instance specific.
+      .. code-block:: console
 
-To access the notebook server:
+        jupyter notebook --no-browser
 
-1. Copy one of the URLs into your browser.
-2. Assuming that you have cloned the TORAX source code, navigate to the
-   ``torax/tutorials`` directory in the file explorer.
-3. Open the desired notebook.
+      If successful, you should see a message like:
 
+      .. code-block:: console
+
+        To access the server, open this file in a browser:
+            file:///<PATH>
+        Or copy and paste one of these URLs:
+            http://localhost:8890/tree?token=<TOKEN>
+            http://127.0.0.1:8890/tree?token=<TOKEN>
+
+      With ``<PATH>`` and ``<TOKEN>`` being environment and instance specific.
+
+      To access the notebook server:
+
+      1. Copy one of the URLs into your browser.
+      2. Assuming that you have cloned the TORAX source code, navigate to the
+         ``torax/tutorials`` directory in the file explorer.
+      3. Open the desired notebook.

@@ -6,46 +6,9 @@ Contribution tips
 Installing from source
 ======================
 
-Create a code directory where you will install the virtual env and other TORAX
-dependencies.
-
-```shell
-mkdir /path/to/torax_dir && cd "$_"
-```
-Where `/path/to/torax_dir` should be replaced by a path of your choice.
-
-Create a TORAX virtual env.
-
-```shell
-python3 -m venv toraxvenv
-source toraxvenv/bin/activate
-```
-
-Download and install the TORAX codebase via http:
-
-```shell
-git clone https://github.com/google-deepmind/torax.git
-```
-or ssh (ensure that you have the appropriate SSH key uploaded to github).
-
-```shell
-git clone git@github.com:google-deepmind/torax.git
-```
-Enter the TORAX directory and pip install the dependencies.
-
-```shell
-cd torax; pip install -e .
-```
-
-If you want to install with the dev dependencies (useful for running `pytest`
-and installing `pyink` for lint checking), then run with the `[dev]`:
-
-```shell
-cd torax; pip install -e .[dev]
-```
-
-Optional: Install additional GPU support for JAX if your machine has a GPU:
-https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
+For instructions on setting up a virtual environment and installing TORAX from
+source (including ``[dev]`` dependencies and optional GPU support), see the
+*From Source (GitHub / Dev)* tab in :ref:`installation`.
 
 
 Code reviews
@@ -75,10 +38,10 @@ following command from the docs folder in the TORAX repository:
 
   make html
 
-This will generate the documentation in the `docs/_build/html` directory. You can then view
-the documentation by opening the `index.html` file in your browser.
-Run ``pwd`` to find the path to the `docs/_build/html` directory and then point your browser
-to `file:///path/to/torax/docs/_build/html/index.html`.
+This will generate the documentation in the ``docs/_build/html`` directory. You can then view
+the documentation by opening the ``index.html`` file in your browser.
+Run ``pwd`` to find the path to the ``docs/_build/html`` directory and then point your browser
+to ``file:///path/to/torax/docs/_build/html/index.html``.
 
 The staged documentation is cleaned up from your local repository by running the command:
 
@@ -109,7 +72,7 @@ To run all tests, run the following command from the TORAX root directory:
 
   pytest -n <num_workers>
 
-with `<num_workers>` being the number of processes that you want to use in parallel.
+with ``<num_workers>`` being the number of processes that you want to use in parallel.
 
 It is recommended to run tests with the environment variable ``TORAX_ERRORS_ENABLED=True`` to
 enable full test coverage. However, it is then recommended to revert back to ``TORAX_ERRORS_ENABLED=False``

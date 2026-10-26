@@ -120,7 +120,7 @@ The ``numerics`` dataset contains the following data variables.
 
 ``outer_solver_iterations`` (time)
   Number of outer solver iterations. This will either be 1 or in the case of
-  any adaptive steps being taken, 1+`num_adaptive_steps`
+  any adaptive steps being taken, 1 + ``num_adaptive_steps``
 
 ``sawtooth_crash`` (time)
   Boolean array with a length equal to the number of simulation timesteps,
@@ -574,17 +574,17 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``dW_thermal_dt_smoothed`` (time)
   Smoothed time derivative of total stored thermal energy [:math:`W`].
   Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
-  set in the `numerics` config.
+  set in the ``numerics`` config.
 
 ``dW_thermal_e_dt_smoothed`` (time)
   Smoothed time derivative of electron stored thermal energy [:math:`W`].
   Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
-  set in the `numerics` config.
+  set in the ``numerics`` config.
 
 ``dW_thermal_i_dt_smoothed`` (time)
   Smoothed time derivative of ion stored thermal energy [:math:`W`].
   Exponential moving average of ``dW_thermal_dt`` with a time window coefficient
-  set in the `numerics` config.
+  set in the ``numerics`` config.
 
 ``E_aux_total`` (time)
   Total (ion + electron) cumulative (integrated over time) auxiliary energy
@@ -869,7 +869,7 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``v_loop_lcfs`` (time)
   Loop voltage at the last closed flux surface (LCFS) [:math:`Wb/s` or
-  :math:`V`]. This is a scalar value derived from the `v_loop` profile.
+  :math:`V`]. This is a scalar value derived from the ``v_loop`` profile.
 
 ``W_pol`` (time)
   Total poloidal magnetic energy [:math:`J`].

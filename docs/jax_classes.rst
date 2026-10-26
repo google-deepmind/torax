@@ -15,10 +15,10 @@ Designing JAX-compatible classes
   ongoing area of complexity. This document is
   something of a mix of:
 
-    * Documentation of what TORAX *does*
-    * A design document describing how new Torax classes *should be* written
-    * Incomplete design thoughts about how we might change what TORAX should do
-      in the future
+  * Documentation of what TORAX *does*
+  * A design document describing how new Torax classes *should be* written
+  * Incomplete design thoughts about how we might change what TORAX should do
+    in the future
 
 * The TORAX design standard is that static arguments must
   be immutable, and must support ``__hash__`` and ``__eq__``, in order for the
@@ -26,41 +26,41 @@ Designing JAX-compatible classes
   and compare by value not by ``id``. In particular, classes with polymorphism
   must hash the class id as part of the value.
 
-     * It's actually quite hard to find a statement of the JAX requirements on this
-       subject.
-     * The `jax documentation <https://docs.jax.dev/en/latest/faq.html>`_ implies
-       that it is sufficient for a static argument to either be immutable (and
-       hash by id) *or* hash by value.
-     * The JAX documentation does say that if your class is mutable then it 'is not
-       really "static"' and should be made a pytree instead.
-     * The JAX documentation does seem to imply that it's OK to have an immutable
-       object that hashes by ``id``.
-     * In Torax, we allow singletons to be hashed by ``id``, but not other objects.
-       Examples of singletons include Python functions defined by parsing .py
-       files. If a function ``foo`` is defined by a ``def foo(x):`` statement in
-       text, it will be parsed and assigned an ``id`` once, so we don't need to
-       worry that an equivalent copy of the same function will hash or compare
-       different.
-     * In Torax, all objects other than singletons must hash by value. This is to
-       avoid paying the cost of recompilation when multiple calls to
-       ``run_simulation`` (for example during pulse optimization) result in
-       constructing multiple copies of equivalent objects (``Solver`` contains
-       many objects such as ``Models``, ``TransportModel``, ``Source``,
-       etc.),
-       with one copy of each object per call to ``run_simulation``.
-     * None of our ``__hash__`` methods are used for the persistent cache at all.
-       Every time the Python interpreter is started, the ``hash`` function gets
-       a different random seed, for security reasons. Hashes are thus not stable
-       across two processes, even if we hash by value rather than ``id``.
-       The persistent cache is queried after tracing, using some kind of
-       intermediate representation, where our custom classes are no longer part
-       of the interface to the cache.
-       See more discussion in this
-       `commit <https://github.com/google-deepmind/torax/commit/d73192ed0ea52c30fbafb01cc6e0d421550b22a4>`_,
-       which removed a feature for hashing the code used to generate a trace.
-       The important takeaway is that hashes do not need to be stable across
-       invocations of the Python interpreter, so it is fine for example to
-       hash Python functions by ``id``.
+  * It's actually quite hard to find a statement of the JAX requirements on this
+    subject.
+  * The `jax documentation <https://docs.jax.dev/en/latest/faq.html>`_ implies
+    that it is sufficient for a static argument to either be immutable (and
+    hash by id) *or* hash by value.
+  * The JAX documentation does say that if your class is mutable then it 'is not
+    really "static"' and should be made a pytree instead.
+  * The JAX documentation does seem to imply that it's OK to have an immutable
+    object that hashes by ``id``.
+  * In Torax, we allow singletons to be hashed by ``id``, but not other objects.
+    Examples of singletons include Python functions defined by parsing .py
+    files. If a function ``foo`` is defined by a ``def foo(x):`` statement in
+    text, it will be parsed and assigned an ``id`` once, so we don't need to
+    worry that an equivalent copy of the same function will hash or compare
+    different.
+  * In Torax, all objects other than singletons must hash by value. This is to
+    avoid paying the cost of recompilation when multiple calls to
+    ``run_simulation`` (for example during pulse optimization) result in
+    constructing multiple copies of equivalent objects (``Solver`` contains
+    many objects such as ``Models``, ``TransportModel``, ``Source``,
+    etc.),
+    with one copy of each object per call to ``run_simulation``.
+  * None of our ``__hash__`` methods are used for the persistent cache at all.
+    Every time the Python interpreter is started, the ``hash`` function gets
+    a different random seed, for security reasons. Hashes are thus not stable
+    across two processes, even if we hash by value rather than ``id``.
+    The persistent cache is queried after tracing, using some kind of
+    intermediate representation, where our custom classes are no longer part
+    of the interface to the cache.
+    See more discussion in this
+    `commit <https://github.com/google-deepmind/torax/commit/d73192ed0ea52c30fbafb01cc6e0d421550b22a4>`_,
+    which removed a feature for hashing the code used to generate a trace.
+    The important takeaway is that hashes do not need to be stable across
+    invocations of the Python interpreter, so it is fine for example to
+    hash Python functions by ``id``.
 
 * JAX does not enforce correct behavior. It is on us to do so.
 
@@ -118,16 +118,16 @@ Designing JAX-compatible classes
   * It is still necessary to think carefully when making each new class that is
     a static argument. Common "gotchas" while using ``StaticDataclass`` include:
 
-      * Functions as fields: these must be marked in the metadata as allowed to
-        hash by ``id``. Be sure only to mark actual Python *functions* that are
-        singletons as hashable by ``id``; callables with other bound state
-        are no longer singletons. For example the method ``self.foo`` has
-        ``self`` bound to it, one must install ``<class>.foo`` as a field
-        instead.
-      * If there are any complications at all, such as using a field that is
-        not a primitive or a StaticDataclass, it is probably a good idea to
-        write a unit test that constructing two equivalent copies of the class
-        results in them hashing the same and comparing equal.
+    * Functions as fields: these must be marked in the metadata as allowed to
+      hash by ``id``. Be sure only to mark actual Python *functions* that are
+      singletons as hashable by ``id``; callables with other bound state
+      are no longer singletons. For example the method ``self.foo`` has
+      ``self`` bound to it, one must install ``<class>.foo`` as a field
+      instead.
+    * If there are any complications at all, such as using a field that is
+      not a primitive or a StaticDataclass, it is probably a good idea to
+      write a unit test that constructing two equivalent copies of the class
+      results in them hashing the same and comparing equal.
 
 * For pytree arguments, we prefer not to use ``chex.dataclass`` but rather to
   apply ``jax.tree_util.register_dataclass`` to traditional dataclasses. This
