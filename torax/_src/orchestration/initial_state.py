@@ -119,7 +119,7 @@ def _get_initial_state(
       source_states=initial_source_states,
   )
   (
-      conductivity,
+      _,
       bootstrap_current,
       _,
       neoclassical_intermediates,
@@ -132,7 +132,6 @@ def _get_initial_state(
           geo=geo,
           core_profiles=initial_core_profiles,
           source_models=models.source_models,
-          conductivity=conductivity,
           bootstrap_current=bootstrap_current,
           source_states=initial_source_states,
       )

@@ -64,8 +64,8 @@ def pre_step(
 
   # This only computes sources set to explicit in the
   # SourceConfig.
-  explicit_source_profiles, source_states = (
-      source_profile_builders.build_source_profiles(
+  explicit_source_outputs, source_states = (
+      source_profile_builders.build_basic_sources(
           runtime_params=runtime_params_t,
           geo=geo_t,
           core_profiles=input_state.core_profiles,
@@ -82,12 +82,10 @@ def pre_step(
   # consistent with time t. For the edge and pedestal models, we want all
   # sources consistent with the state at time t, so we replace the explicit
   # sources with the newly calculated profiles.
-  merged_sources = dataclasses.replace(
+  merged_sources = source_profile_builders.update_source_profiles(
       input_state.core_sources,
-      T_e=input_state.core_sources.T_e | explicit_source_profiles.T_e,
-      T_i=input_state.core_sources.T_i | explicit_source_profiles.T_i,
-      n_e=input_state.core_sources.n_e | explicit_source_profiles.n_e,
-      psi=input_state.core_sources.psi | explicit_source_profiles.psi,
+      explicit_source_outputs,
+      models.source_models,
   )
 
   # Execute the edge model if one is configured. The edge model uses the state
@@ -123,7 +121,7 @@ def pre_step(
       sources=source_states,
   )
   explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-      sources=explicit_source_profiles,
+      sources=explicit_source_outputs,
       pedestal=explicit_pedestal_structure,
   )
   return (
@@ -160,7 +158,7 @@ def finalize_outputs(
     model_state_t: model_state_lib.ModelState,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
-  explicit_source_profiles = explicit_model_outputs.sources
+  explicit_source_outputs = explicit_model_outputs.sources
   (
       final_core_profiles,
       final_source_profiles,
@@ -173,7 +171,7 @@ def finalize_outputs(
       geo=geometry_t_plus_dt,
       core_profiles_t=core_profiles_t,
       solver_state_t_plus_dt=solver_state_t_plus_dt,
-      explicit_source_profiles=explicit_source_profiles,
+      explicit_source_outputs=explicit_source_outputs,
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
       evolving_names=evolving_names,

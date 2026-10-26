@@ -46,12 +46,16 @@ from typing import Any
 from absl import app
 from absl import flags
 import jax
+import jax.numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import path_utils
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import standard_geometry
+from torax._src.neoclassical.bootstrap_current import (
+    base as bootstrap_current_base,
+)
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import torax_refs
@@ -129,28 +133,28 @@ def _calculate_new_references(
       neoclassical_model=neoclassical_model,
       source_states=source_states,
   )
-  source_profiles = source_profile_builders.build_all_zero_profiles(geo)
-  source_profile_builders.build_standard_source_profiles(
+  psi_sources, _ = source_profile_builders.build_psi_sources(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=initial_core_profiles,
       source_models=source_models,
       source_states=source_states,
-      psi_only=True,
       calculate_anyway=True,
-      calculated_source_profiles=source_profiles,
   )
+  external_current = sum(psi_sources.values(), start=jnp.zeros_like(geo.rho))
   if not isinstance(geo, standard_geometry.StandardGeometry):
-    external_current = sum(source_profiles.psi.values())
-    j_toroidal_total_hires = initialization.get_j_toroidal_total_hires_with_external_sources(
-        runtime_params=runtime_params,
-        geo=geo,
-        bootstrap_current=source_profiles.bootstrap_current,
-        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(  # pyrefly: ignore[bad-argument-type]
-            sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
-            geo,
-            runtime_params.numerics.min_rho_norm,
-        ),
+    dummy_bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
+    j_toroidal_total_hires = (
+        initialization.get_j_toroidal_total_hires_with_external_sources(
+            runtime_params=runtime_params,
+            geo=geo,
+            bootstrap_current=dummy_bootstrap,
+            j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
+                external_current,
+                geo,
+                runtime_params.numerics.min_rho_norm,
+            ),
+        )
     )
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.I_p,
@@ -158,7 +162,6 @@ def _calculate_new_references(
         j_toroidal_total_hires,
     )
   elif isinstance(geo, standard_geometry.StandardGeometry):
-    external_current = sum(source_profiles.psi.values())
     psi_value = geo.psi_from_I_p
     psi_constraint = (
         runtime_params.profile_conditions.I_p
@@ -191,7 +194,7 @@ def _calculate_new_references(
       )
   )
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
-      psi_sources=external_current,  # pyrefly: ignore[bad-argument-type]
+      psi_sources=external_current,
       sigma=conductivity.sigma,
       psi=psi,
       geo=geo,

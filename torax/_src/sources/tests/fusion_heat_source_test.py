@@ -43,12 +43,11 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Calculates total DT fusion power [MW] from the fusion source profiles."""
     source = source_models.standard_sources[self.source_name]
+    assert isinstance(source, fusion_heat_source.FusionHeatSource)
     output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
     Pfus_i, Pfus_e = output.profiles

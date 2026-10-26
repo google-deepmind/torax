@@ -85,7 +85,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     )
     source_states = models.source_models.initial_state(runtime_params)
     evolving_names = tuple(['T_i'])
-    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
+    explicit_source_outputs, _ = source_profile_builders.build_basic_sources(
         source_models=models.source_models,
         source_states=source_states,
         runtime_params=runtime_params,
@@ -105,7 +105,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         sources=source_states,
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=explicit_source_profiles,
+        sources=explicit_source_outputs,
         pedestal=None,
     )
     calc_coeffs.calc_coeffs(
@@ -267,7 +267,7 @@ class CalcCoeffsTest(parameterized.TestCase):
                 ),
             ),
         )
-      explicit_src, _ = source_profile_builders.build_source_profiles(
+      explicit_src, _ = source_profile_builders.build_basic_sources(
           source_models=models.source_models,
           source_states=source_states,
           runtime_params=rp,
@@ -348,7 +348,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     )
     geo = dataclasses.replace(geo, Phi_b_dot=2.5)
     source_states = models.source_models.initial_state(runtime_params)
-    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
+    explicit_source_outputs, _ = source_profile_builders.build_basic_sources(
         source_models=models.source_models,
         source_states=source_states,
         runtime_params=runtime_params,
@@ -369,7 +369,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     )
     evolving_names = ('T_i', 'T_e', 'n_e')
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=explicit_source_profiles,
+        sources=explicit_source_outputs,
         pedestal=None,
     )
     coeffs = calc_coeffs.calc_coeffs(
@@ -447,7 +447,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         core_profile_helpers.make_initial_inputs(torax_config)
     )
     source_states = models.source_models.initial_state(runtime_params)
-    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
+    explicit_source_outputs, _ = source_profile_builders.build_basic_sources(
         source_models=models.source_models,
         source_states=source_states,
         runtime_params=runtime_params,
@@ -467,7 +467,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         sources=source_states,
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=explicit_source_profiles,
+        sources=explicit_source_outputs,
         pedestal=None,
     )
 
@@ -605,7 +605,7 @@ class CalcCoeffsTest(parameterized.TestCase):
     stale_core_profiles = dataclasses.replace(core_profiles, fast_ions=())
     source_states = models.source_models.initial_state(runtime_params)
     evolving_names = ('psi',)
-    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
+    explicit_source_outputs, _ = source_profile_builders.build_basic_sources(
         source_models=models.source_models,
         source_states=source_states,
         runtime_params=runtime_params,
@@ -625,7 +625,7 @@ class CalcCoeffsTest(parameterized.TestCase):
         sources=source_states,
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=explicit_source_profiles,
+        sources=explicit_source_outputs,
         pedestal=None,
     )
 
