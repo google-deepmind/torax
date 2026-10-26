@@ -64,7 +64,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('Ip_profile', 'I_bootstrap', 'I_aux_generic', 'I_ecrh'),
+            attrs=('Ip', 'I_bootstrap', 'I_aux_generic', 'I_ecrh'),
             labels=(
                 r'$I_\mathrm{p}$',
                 r'$I_\mathrm{bs}$',

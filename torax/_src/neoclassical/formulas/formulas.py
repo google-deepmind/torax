@@ -192,6 +192,28 @@ def calculate_nu_i_star(
   )
 
 
+def calculate_spitzer_conductivity(
+    Z_eff: array_typing.FloatVector,
+    T_e: array_typing.FloatVector,
+    log_lambda_ei: array_typing.FloatVector,
+) -> array_typing.FloatVector:
+  """Calculates the Spitzer conductivity [S/m].
+
+  Equation (18a) from O. Sauter, C. Angioni, and Y. R. Lin-Liu,
+  Phys. Plasmas 6, 2834 (1999), https://doi.org/10.1063/1.873240
+
+  Args:
+    Z_eff: Effective charge.
+    T_e: Electron temperature [keV]. Converted to eV in the formula.
+    log_lambda_ei: Electron-ion Coulomb logarithm.
+
+  Returns:
+    The Spitzer conductivity [S/m].
+  """
+  NZ = 0.58 + 0.74 / (0.76 + Z_eff)
+  return 1.9012e04 * (T_e * 1e3) ** 1.5 / Z_eff / NZ / log_lambda_ei
+
+
 def _calculate_neoclassical_k_neo(
     nu_star: array_typing.FloatScalar, epsilon: array_typing.FloatScalar
 ):

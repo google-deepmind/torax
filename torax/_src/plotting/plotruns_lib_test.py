@@ -234,12 +234,6 @@ class PlotDataTest(absltest.TestCase):
     expected = np.array([-17.0, -17.0])
     np.testing.assert_array_equal(self.plot_data.P_sink, expected)
 
-  def test_legacy_ip_profile_redirect(self):
-    """Test that requesting 'Ip_profile' returns 'Ip' from scalars."""
-    np.testing.assert_array_equal(
-        self.plot_data.Ip_profile, self.scalars_ds['Ip'].to_numpy()
-    )
-
   def test_optional_attributes_default_to_zero(self):
     """Tests that missing optional attributes return a zero array."""
     # 's_pellet' is in _OPTIONAL_PROFILE_ATTRS but not in our mock datasets

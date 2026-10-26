@@ -266,14 +266,6 @@ class PlotData:
     Returns:
       A numpy array containing the variable data.
     """
-
-    # Intercept Ip_profile and set as scalars.Ip
-    # This is needed for backwards compatibility with V1 Ip_profile definition
-    # in PlotData.
-    # TODO(b/379838765): Remove this in V2
-    if name == 'Ip_profile':
-      return self._scalars_dataset['Ip'].to_numpy()
-
     # 1. Search in profiles dataset
     if self._profiles_dataset is not None and name in self._profiles_dataset:
       return self._profiles_dataset[name].to_numpy()

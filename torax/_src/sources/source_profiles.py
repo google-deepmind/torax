@@ -204,7 +204,7 @@ class SourceProfiles:
       yield (
           output_keys.OutputKey(
               output_keys.p_source_i_key(name),
-              units=output_keys.Units.MW_PER_CUBIC_METER,
+              units=output_keys.Units.WATT_PER_CUBIC_METER,
               grid_type=output_keys.GridType.CELL,
           ),
           data,
@@ -214,7 +214,7 @@ class SourceProfiles:
       yield (
           output_keys.OutputKey(
               output_keys.p_source_e_key(name),
-              units=output_keys.Units.MW_PER_CUBIC_METER,
+              units=output_keys.Units.WATT_PER_CUBIC_METER,
               grid_type=output_keys.GridType.CELL,
           ),
           data,

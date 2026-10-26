@@ -80,7 +80,6 @@ class Units(enum.StrEnum):
   SIEMENS_PER_METER = "S/m"
   WATT_PER_SQUARE_METER = "W/m^2"
   WATT_PER_CUBIC_METER = "W/m^3"
-  MW_PER_CUBIC_METER = "MW/m^3"
   W_PER_M_EV35 = "W/(m*eV^3.5)"
   PASCAL_PER_WEBER = "Pa/Wb"
   WEBER_PER_SECOND = "Wb/s"
@@ -305,7 +304,7 @@ PRESSURE_TOTAL: Final[OutputKey] = OutputKey(
 )
 EI_EXCHANGE: Final[OutputKey] = OutputKey(
     "ei_exchange",
-    units=Units.MW_PER_CUBIC_METER,
+    units=Units.WATT_PER_CUBIC_METER,
     grid_type=GridType.CELL,
 )
 PSI_FROM_IP: Final[OutputKey] = OutputKey(
@@ -1133,7 +1132,7 @@ Z_MAGNETIC_AXIS: Final[OutputKey] = OutputKey(
 # The prefix determines the physical quantity and hence the unit.
 # ---------------------------------------------------------------------------
 _SOURCE_UNIT_PREFIXES: dict[str, Units] = {
-    "p_": Units.MW_PER_CUBIC_METER,
+    "p_": Units.WATT_PER_CUBIC_METER,
     "j_parallel_": Units.AMPERE_PER_SQUARE_METER,
     "s_": Units.INVERSE_CUBIC_METER_PER_SECOND,
     "n_fast_ion_": Units.INVERSE_CUBIC_METER,

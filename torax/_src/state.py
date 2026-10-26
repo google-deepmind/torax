@@ -557,18 +557,17 @@ class SolverNumericOutputs:
     }
 
 
-# TODO(b/434175938): change to StrEnum
 @enum.unique
-class SimError(enum.Enum):
-  """Integer enum for sim error handling."""
+class SimError(enum.StrEnum):
+  """String enum for simulation error state."""
 
-  NO_ERROR = 0
-  NAN_DETECTED = 1
-  QUASINEUTRALITY_BROKEN = 2
-  NEGATIVE_CORE_PROFILES = 3
-  REACHED_MIN_DT = 4
-  LOW_TEMPERATURE_COLLAPSE = 5
-  DID_NOT_REACH_T_FINAL = 6
+  NO_ERROR = "no_error"
+  NAN_DETECTED = "nan_detected"
+  QUASINEUTRALITY_BROKEN = "quasineutrality_broken"
+  NEGATIVE_CORE_PROFILES = "negative_core_profiles"
+  REACHED_MIN_DT = "reached_min_dt"
+  LOW_TEMPERATURE_COLLAPSE = "low_temperature_collapse"
+  DID_NOT_REACH_T_FINAL = "did_not_reach_t_final"
 
   def log_error(self):
     match self:

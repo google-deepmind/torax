@@ -88,15 +88,10 @@ def _calculate_conductivity(
   # pylint: disable=invalid-name
 
   # Formulas from Sauter PoP 1999.
-
-  # Spitzer conductivity
-  NZ = 0.58 + 0.74 / (0.76 + Z_eff_face)
-  sigsptz = (
-      1.9012e04
-      * (T_e.face_value() * 1e3) ** 1.5
-      / Z_eff_face
-      / NZ
-      / log_lambda_ei
+  sigsptz = formulas.calculate_spitzer_conductivity(
+      Z_eff=Z_eff_face,
+      T_e=T_e.face_value(),
+      log_lambda_ei=log_lambda_ei,
   )
 
   sigma_face = conductivity_multiplier * sigsptz

@@ -73,6 +73,10 @@ def concat_datatrees(
       ds: xr.Dataset,
   ) -> xr.Dataset:
     """Concats two xr.Datasets."""
+    non_time_vars = {
+        k: v for k, v in ds.data_vars.items() if output_keys.TIME not in v.dims
+    }
+    previous_ds = previous_ds.assign(non_time_vars)
     # Do a minimal concat to avoid concatting any non time indexed vars.
     ds = xr.concat([previous_ds, ds], dim=output_keys.TIME, data_vars="minimal")
     # Drop any duplicate time steps. Using "first" imposes

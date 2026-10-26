@@ -135,19 +135,21 @@ The ``numerics`` dataset contains the following data variables.
   * "error" if in an error state.
 
 ``sim_error`` ()
-  Integer providing further information on the simulation error state:
+  String providing further information on the simulation error state:
 
-  * 0 if no error.
+  * "no_error" if no error.
 
-  * 1 if a NaN is detected in the state or post-processed outputs.
+  * "nan_detected" if a NaN is detected in the state or post-processed outputs.
 
-  * 2 if quasineutrality is violated.
+  * "quasineutrality_broken" if quasineutrality is violated.
 
-  * 3 if negative temperatures or densities are detected.
+  * "negative_core_profiles" if negative temperatures or densities are detected.
 
-  * 4 if the minimum timestep, as set by ``numerics.min_dt`` is reached.
+  * "reached_min_dt" if the minimum timestep, as set by ``numerics.min_dt`` is reached.
 
-  * 5 if low temperature collapse is detected (T < T_min_eV).
+  * "low_temperature_collapse" if low temperature collapse is detected (T < T_min_eV).
+
+  * "did_not_reach_t_final" if the simulation did not reach the final timestep ``t_final``.
 
 profiles
 --------
