@@ -30,9 +30,9 @@ from torax._src.pedestal_model import (
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.physics import scaling_laws
-from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
+from torax._src.test_utils import source_helpers
 from torax._src.torax_pydantic import config as torax_pydantic_config
 
 # pylint: disable=invalid-name,protected-access
@@ -88,14 +88,11 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     self.core_profiles, self.runtime_params, self.geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    source_states = source_models.initial_state(self.runtime_params)
-    self.source_profiles, _ = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_helpers.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
-        source_states=source_states,
-        explicit=True,
     )
     self.formation_state = (
         self.pedestal_model.formation_model.initial_state(
@@ -205,7 +202,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     np.testing.assert_allclose(init_state.rho_norm_ped_top, rho_norm_ped_top)
     np.testing.assert_allclose(
         init_output.structure.T_i_ped,
-        self.core_profiles.T_i.value[ped_top_idx],
+        self.core_profiles.kinetic.T_i.value[ped_top_idx],
     )
 
   @parameterized.named_parameters(
@@ -269,14 +266,14 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
       ped_top_idx = jnp.argmin(
           jnp.abs(self.geo.rho_norm - init_output.rho_norm_ped_top)
       )
-      expected_T_i = self.core_profiles.T_i.value[ped_top_idx]
-      expected_T_e = self.core_profiles.T_e.value[ped_top_idx]
-      expected_n_e = self.core_profiles.n_e.value[ped_top_idx]
+      expected_T_i = self.core_profiles.kinetic.T_i.value[ped_top_idx]
+      expected_T_e = self.core_profiles.kinetic.T_e.value[ped_top_idx]
+      expected_n_e = self.core_profiles.kinetic.n_e.value[ped_top_idx]
     else:
       mult = 2.0 if custom_bc_multiplier is None else custom_bc_multiplier
-      expected_T_i = mult * self.core_profiles.T_i.face_value()[-1]
-      expected_T_e = mult * self.core_profiles.T_e.face_value()[-1]
-      expected_n_e = mult * self.core_profiles.n_e.face_value()[-1]
+      expected_T_i = mult * self.core_profiles.kinetic.T_i.face_value()[-1]
+      expected_T_e = mult * self.core_profiles.kinetic.T_e.face_value()[-1]
+      expected_n_e = mult * self.core_profiles.kinetic.n_e.face_value()[-1]
     np.testing.assert_allclose(init_state.T_i_ped_L_mode, expected_T_i)
     np.testing.assert_allclose(init_state.T_e_ped_L_mode, expected_T_e)
     np.testing.assert_allclose(init_state.n_e_ped_L_mode, expected_n_e)
@@ -481,15 +478,15 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     new_state, _ = self._call_pre_step(state, P_SOL=_P_LH * 1.5)
     np.testing.assert_allclose(
         new_state.T_i_ped_L_mode,
-        self.core_profiles.T_i.value[ped_top_idx],
+        self.core_profiles.kinetic.T_i.value[ped_top_idx],
     )
     np.testing.assert_allclose(
         new_state.T_e_ped_L_mode,
-        self.core_profiles.T_e.value[ped_top_idx],
+        self.core_profiles.kinetic.T_e.value[ped_top_idx],
     )
     np.testing.assert_allclose(
         new_state.n_e_ped_L_mode,
-        self.core_profiles.n_e.value[ped_top_idx],
+        self.core_profiles.kinetic.n_e.value[ped_top_idx],
     )
 
   def test_non_L_to_H_preserves_L_mode_values(self):
@@ -545,7 +542,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     self.assertEqual(h_state.confinement_mode, ConfinementMode.H_MODE)
     np.testing.assert_allclose(
         h_state.T_i_ped_L_mode,
-        self.core_profiles.T_i.value[ped_top_idx],
+        self.core_profiles.kinetic.T_i.value[ped_top_idx],
     )
 
   @parameterized.named_parameters(
@@ -728,14 +725,11 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
     self.core_profiles, self.runtime_params, self.geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    source_states = source_models.initial_state(self.runtime_params)
-    self.source_profiles, _ = source_profile_builders.build_source_profiles(
+    self.source_profiles, _ = source_helpers.build_source_profiles(
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
         source_models=source_models,
-        source_states=source_states,
-        explicit=True,
     )
     self.formation_state = (
         self.pedestal_model.formation_model.initial_state(
