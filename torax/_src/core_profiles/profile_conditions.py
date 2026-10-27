@@ -88,10 +88,10 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       at rhon=1.
     T_i: Prescribed or evolving values for temperature at different times.
     T_e: Prescribed or evolving values for temperature at different times.
-    psi: Initial values for psi. If provided, the initial psi will be taken from
-      here. Otherwise, the initial psi will be calculated from either the
-      geometry or the "current_profile_nu formula" dependant on the
-      `initial_psi_from_j` field.
+    psi: Poloidal flux profile [Wb]. Used as the initial condition for psi when
+      `initial_psi_source` is `PROFILE_CONDITIONS` (unless restarting from a
+      file). If `numerics.evolve_current` is False and `psi` is provided, it
+      prescribes `psi` for t > t_initial.
     psidot: Prescribed values for the time derivative of poloidal flux (loop
       voltage). If provided, and if `evolve_current` is False, this prescribed
       `psidot` will be used instead of the internally calculated one. This is
@@ -127,17 +127,12 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     initial_j_is_total_current: Toggles if "Ohmic" current is treated as total
       current upon initialization, or if non-inductive current should be
       included in initial j_toroidal_total calculation.
-    initial_psi_from_j: Toggles if the initial psi calculation is based on the
-      "current_profile_nu" current formula, or from the psi available in the
-      numerical geometry file. This setting is ignored for the ad-hoc circular
-      geometry, which has no numerical geometry.
-    initial_psi_mode: Mode of the initial psi value. If `PROFILE_CONDITIONS` is
-      used, then the initial psi is taken from the `psi` attribute. If
-      `GEOMETRY` is used, then the initial psi is taken from the geometry. If
-      `J` is used, then the psi calculation is based on the `current_profile_nu`
-      current formula. For now if `PROFILE_CONDITIONS` is used, but `psi` is not
-      provided then the `initial_psi_from_j` setting will be used to match the
-      legacy behavior.
+    initial_psi_source: Required source of the initial psi value. If
+      `PROFILE_CONDITIONS` is used, then the initial psi is taken from the `psi`
+      attribute (which must be provided unless restarting from a file). If
+      `GEOMETRY` is used, then the initial psi is taken from the numerical
+      geometry (not supported for `CircularGeometry`). If `J` is used, then the
+      psi calculation is based on the `current_profile_nu` current formula.
   """
 
   Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
@@ -184,12 +179,9 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   ) = torax_pydantic.ValidatedDefault(ibc_config.NoIBCConfig())
   current_profile_nu: float = 1.0
   initial_j_is_total_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  # TODO(b/434175938): Remove this before the V2 API release in place of
-  # initial_psi_source.
-  initial_psi_from_j: Annotated[bool, torax_pydantic.JAX_STATIC] = False
-  initial_psi_mode: Annotated[
-      runtime_params_lib.InitialPsiMode, torax_pydantic.JAX_STATIC
-  ] = runtime_params_lib.InitialPsiMode.PROFILE_CONDITIONS
+  initial_psi_source: Annotated[
+      runtime_params_lib.InitialPsiSource, torax_pydantic.JAX_STATIC
+  ]
   fast_ions: list[PrescribedFastIon] | None = None
 
   @pydantic.model_validator(mode='after')

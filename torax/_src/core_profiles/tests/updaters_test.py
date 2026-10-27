@@ -80,7 +80,7 @@ class UpdatersTest(parameterized.TestCase):
     config['numerics'] = {
         'evolve_current': False,
     }
-    config['profile_conditions']['initial_psi_mode'] = 'profile_conditions'
+    config['profile_conditions']['initial_psi_source'] = 'profile_conditions'
 
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -161,7 +161,7 @@ class UpdatersTest(parameterized.TestCase):
             0.0: {0.0: 10.0, 1.0: 10.0},
             1.0: {0.0: 20.0, 1.0: 20.0},
         },  # Prescribed varying
-        'initial_psi_mode': 'profile_conditions',
+        'initial_psi_source': 'profile_conditions',
     }
 
     torax_config = model_config.ToraxConfig.from_dict(config)

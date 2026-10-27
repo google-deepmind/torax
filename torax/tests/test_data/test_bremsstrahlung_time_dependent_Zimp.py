@@ -27,6 +27,7 @@ CONFIG = {
         },
     },
     'profile_conditions': {
+        'initial_psi_source': 'geometry',
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
         'n_e_right_bc': 0.5e20,

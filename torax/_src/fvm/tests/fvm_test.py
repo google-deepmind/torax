@@ -209,7 +209,7 @@ class FVMTest(parameterized.TestCase):
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
-            profile_conditions=dict(),
+            profile_conditions=dict(initial_psi_source='j'),
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=dict(),

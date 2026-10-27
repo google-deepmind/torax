@@ -32,6 +32,7 @@ v_loop = 0.087 + 0.1 * np.sin(2 * np.pi * times)
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
         'use_v_loop_lcfs_boundary_condition': True,
         'v_loop_lcfs': (times, v_loop),

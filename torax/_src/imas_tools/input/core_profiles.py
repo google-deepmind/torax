@@ -108,6 +108,7 @@ def profile_conditions_from_IMAS(
 
   return {
       "Ip": Ip,
+      "initial_psi_source": "profile_conditions",
       "psi": psi,
       "T_i": T_i,
       "T_i_right_bc": None,

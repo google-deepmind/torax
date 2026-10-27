@@ -133,6 +133,7 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
         cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID: {}
     }
     config["profile_conditions"] = {
+        "initial_psi_source": "j",
         "T_e": {0.0: te_profile},
         "n_e": {0.0: ne_profile},
         "n_e_nbar_is_fGW": False,

@@ -15,6 +15,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 from torax._src.config import build_runtime_params
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output_keys
@@ -125,6 +126,9 @@ class InitialStateTest(sim_test_case.SimTestCase):
     runtime_params.profile_conditions.n_e = n_e
     runtime_params.profile_conditions.n_e_right_bc = n_e_right_bc
     runtime_params.profile_conditions.psi = psi
+    runtime_params.profile_conditions.initial_psi_source = (
+        core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
+    )
     # When loading from file we want ne not to have transformations.
     # Both ne and the boundary condition are given in absolute values (not fGW).
     # Additionally we want to avoid normalizing to nbar.

@@ -29,6 +29,7 @@ CONFIG = {
         },
     },
     'profile_conditions': {
+        'initial_psi_source': 'geometry',
         'T_i': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'Ip': {0: 5e6, 4: 15e6, 6: 12e6, 8: 12e6},

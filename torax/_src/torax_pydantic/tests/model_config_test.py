@@ -14,6 +14,7 @@
 import copy
 import json
 import logging
+import os
 from typing import Any
 
 from absl.testing import absltest
@@ -21,11 +22,13 @@ from absl.testing import parameterized
 import chex
 import eqdsk as eqdsk_lib
 import numpy as np
+import pydantic
 from torax._src import version
 from torax._src.config import config_loader
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
 from torax._src.test_utils import default_configs
+from torax._src.test_utils import paths
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -167,6 +170,7 @@ class ConfigTest(parameterized.TestCase):
             "n_rho": new_n_rho,
             "geometry_type": "circular",
         },
+        "profile_conditions.initial_psi_source": "j",
     })
 
     self.assertEqual(
@@ -262,6 +266,171 @@ class ConfigTest(parameterized.TestCase):
     config_dict["numerics"]["evolve_current"] = evolve_current
 
     warning_snippet = "profile_conditions.psidot input is ignored"
+    self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
+
+  def test_missing_initial_psi_source_raises_error(self):
+    config_dict = default_configs.get_default_config_dict()
+    del config_dict["profile_conditions"]["initial_psi_source"]
+    with self.assertRaisesRegex(
+        pydantic.ValidationError, "initial_psi_source"
+    ):
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="psi_none_no_restart",
+          psi=None,
+          do_restart=None,
+          expect_error=True,
+      ),
+      dict(
+          testcase_name="psi_none_do_restart_false",
+          psi=None,
+          do_restart=False,
+          expect_error=True,
+      ),
+      dict(
+          testcase_name="psi_none_do_restart_true",
+          psi=None,
+          do_restart=True,
+          expect_error=False,
+      ),
+      dict(
+          testcase_name="psi_provided_no_restart",
+          psi={0: {0: 0.0, 1: 1.0}},
+          do_restart=None,
+          expect_error=False,
+      ),
+  )
+  def test_initial_psi_source_profile_conditions_requires_psi_unless_restarting(
+      self, psi, do_restart, expect_error
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["profile_conditions"]["initial_psi_source"] = (
+        "profile_conditions"
+    )
+    config_dict["profile_conditions"]["psi"] = psi
+    if do_restart is not None:
+      config_dict["restart"] = {
+          "filename": os.path.join(
+              paths.test_data_dir(), "test_iterhybrid_rampup.nc"
+          ),
+          "time": 40,
+          "do_restart": do_restart,
+          "stitch": True,
+      }
+    if expect_error:
+      with self.assertRaisesRegex(
+          ValueError,
+          "profile_conditions.psi must be provided when"
+          " profile_conditions.initial_psi_source is 'profile_conditions'",
+      ):
+        model_config.ToraxConfig.from_dict(config_dict)
+    else:
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="circular_geometry_raises",
+          geometry={"geometry_type": "circular", "n_rho": 4},
+          expect_error=True,
+      ),
+      dict(
+          testcase_name="chease_geometry_passes",
+          geometry={
+              "geometry_type": "chease",
+              "geometry_file": "iterhybrid.mat2cols",
+          },
+          expect_error=False,
+      ),
+  )
+  def test_initial_psi_source_geometry_validation(
+      self, geometry, expect_error
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = geometry
+    config_dict["profile_conditions"]["initial_psi_source"] = "geometry"
+    if expect_error:
+      with self.assertRaisesRegex(
+          ValueError,
+          "profile_conditions.initial_psi_source='geometry' is not supported"
+          " for CircularGeometry.",
+      ):
+        model_config.ToraxConfig.from_dict(config_dict)
+    else:
+      model_config.ToraxConfig.from_dict(config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="psi_set_source_j_evolve_current_true",
+          initial_psi_source="j",
+          geometry_type="circular",
+          psi={0: {0: 0.0, 1: 1.0}},
+          evolve_current=True,
+          expect_warning=True,
+      ),
+      dict(
+          testcase_name="psi_set_source_geometry_evolve_current_true",
+          initial_psi_source="geometry",
+          geometry_type="chease",
+          psi={0: {0: 0.0, 1: 1.0}},
+          evolve_current=True,
+          expect_warning=True,
+      ),
+      dict(
+          testcase_name="psi_set_source_j_evolve_current_false",
+          initial_psi_source="j",
+          geometry_type="circular",
+          psi={0: {0: 0.0, 1: 1.0}},
+          evolve_current=False,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="psi_set_source_geometry_evolve_current_false",
+          initial_psi_source="geometry",
+          geometry_type="chease",
+          psi={0: {0: 0.0, 1: 1.0}},
+          evolve_current=False,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="psi_set_source_profile_conditions_evolve_current_true",
+          initial_psi_source="profile_conditions",
+          geometry_type="circular",
+          psi={0: {0: 0.0, 1: 1.0}},
+          evolve_current=True,
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="psi_none_source_j_evolve_current_true",
+          initial_psi_source="j",
+          geometry_type="circular",
+          psi=None,
+          evolve_current=True,
+          expect_warning=False,
+      ),
+  )
+  def test_psi_ignored_warning(
+      self,
+      initial_psi_source,
+      geometry_type,
+      psi,
+      evolve_current,
+      expect_warning,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    if geometry_type == "chease":
+      config_dict["geometry"] = {
+          "geometry_type": "chease",
+          "geometry_file": "iterhybrid.mat2cols",
+      }
+    config_dict["profile_conditions"]["initial_psi_source"] = (
+        initial_psi_source
+    )
+    config_dict["profile_conditions"]["psi"] = psi
+    config_dict["numerics"]["evolve_current"] = evolve_current
+
+    warning_snippet = "profile_conditions.psi is provided but will be ignored"
     self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
 
   @parameterized.named_parameters(

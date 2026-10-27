@@ -21,6 +21,7 @@ density. D_e scaled from chi_e
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'j',
         'nbar': 0.85,  # initial density (Greenwald fraction units)
         'n_e_right_bc': 0.2e20,
         # set flat Ohmic current to provide larger range of current

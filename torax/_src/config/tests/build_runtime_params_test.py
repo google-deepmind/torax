@@ -48,7 +48,10 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
   def test_time_dependent_provider_is_time_dependent(self):
     """Tests that the runtime_params provider is time dependent."""
     config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {'T_i_right_bc': {0.0: 2.0, 4.0: 4.0}}
+    config['profile_conditions'] = {
+        'initial_psi_source': 'j',
+        'T_i_right_bc': {0.0: 2.0, 4.0: 4.0},
+    }
     torax_config = model_config.ToraxConfig.from_dict(config)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -67,6 +70,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     # All of the following parameters are time-dependent fields, but they can
     # be initialized in different ways.
     profile_conditions = profile_conditions_lib.ProfileConditions(
+        initial_psi_source='j',
         T_i_right_bc={0.0: 2.0, 4.0: 4.0},
         T_e_right_bc=4.5,  # not time-dependent.
         n_e_right_bc=({5.0: 6.0e20, 7.0: 8.0e20}, 'step'),
@@ -194,6 +198,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     boundary_var_name = var_name + '_right_bc'
 
     temperatures = {
+        'initial_psi_source': 'j',
         var_name: var,
         boundary_var_name: var_boundary_condition,
     }
@@ -247,6 +252,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     )
 
     config['profile_conditions'] = {
+        'initial_psi_source': 'j',
         'n_e_right_bc': n_e_right_bc,
         'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
         'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
@@ -541,6 +547,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     """Tests density_fraction mode with core_profiles=None (init fallback)."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
+        'initial_psi_source': 'j',
         'n_e': {0: {0.0: 1.5e20, 1.0: 1.0e20}},
         'n_e_nbar_is_fGW': False,
         'normalize_n_e_to_nbar': False,
@@ -585,6 +592,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     """Tests density_fraction mode with a mock CoreProfiles."""
     config = default_configs.get_default_config_dict()
     config['profile_conditions'] = {
+        'initial_psi_source': 'j',
         'n_e_right_bc_mode': 'density_fraction',
         'n_e_right_bc_reference_rho': 0.5,
         'n_e_right_bc_multiplier': 0.8,

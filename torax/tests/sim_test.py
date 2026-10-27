@@ -21,7 +21,7 @@ previously executed TORAX reference:
 import copy
 import functools
 import os
-from typing import Final, Sequence
+from typing import Any, Final, Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -399,6 +399,7 @@ class SimTest(sim_test_case.SimTestCase):
         },
         'profile_conditions': {
             'Ip': 3.0e6,
+            'initial_psi_source': 'geometry',
             'n_e': 1.0e20,
             'n_e_right_bc': 1.0e20,
             'n_e_nbar_is_fGW': False,
@@ -542,8 +543,8 @@ class SimTest(sim_test_case.SimTestCase):
   def test_prescribed_psidot(self):
     """Tests that a prescribed psidot is used when current is not evolved."""
     # Base config for a simple run.
-    base_config_dict = {
-        'profile_conditions': {},
+    base_config_dict: dict[str, Any] = {
+        'profile_conditions': {'initial_psi_source': 'j'},
         'plasma_composition': {},
         'numerics': {
             't_final': 3.0,

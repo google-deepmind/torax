@@ -58,6 +58,7 @@ class StateHistoryTest(parameterized.TestCase):
     super().setUp()
     self.torax_config = model_config.ToraxConfig.from_dict({
         'profile_conditions': {
+            'initial_psi_source': 'j',
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
             'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
@@ -677,6 +678,7 @@ class StateHistoryTest(parameterized.TestCase):
     # Create a config with 2 main ions with time-varying fractions
     torax_config = model_config.ToraxConfig.from_dict({
         'profile_conditions': {
+            'initial_psi_source': 'j',
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
         },
@@ -761,6 +763,7 @@ class StateHistoryTest(parameterized.TestCase):
     # Create a config with 2 main ions with time-varying fractions
     torax_config = model_config.ToraxConfig.from_dict({
         'profile_conditions': {
+            'initial_psi_source': 'j',
             'T_i_right_bc': 27.7,
             'T_e_right_bc': {0.0: 42.0, 1.0: 0.0001},
         },

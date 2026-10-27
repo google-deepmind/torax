@@ -24,6 +24,7 @@ from torax._src import models
 from torax._src import version
 from torax._src.config import numerics as numerics_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params_lib
 from torax._src.core_profiles.plasma_composition import electron_density_ratios
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import config as edge_config
@@ -203,6 +204,45 @@ class ToraxConfig(torax_pydantic.ConfigBase):
 
           Prescribed psidot is only applied when current diffusion is off.
           """)
+    return self
+
+  @pydantic.model_validator(mode='after')
+  def _validate_initial_psi_source(self) -> Self:
+    """Validates `profile_conditions.initial_psi_source` compatibility."""
+    initial_psi_source = self.profile_conditions.initial_psi_source
+    is_restarting = self.restart is not None and self.restart.do_restart
+    if (
+        initial_psi_source
+        == core_profile_runtime_params_lib.InitialPsiSource.PROFILE_CONDITIONS
+        and self.profile_conditions.psi is None
+        and not is_restarting
+    ):
+      raise ValueError(
+          'profile_conditions.psi must be provided when'
+          " profile_conditions.initial_psi_source is 'profile_conditions'"
+          ' (unless restarting from a file).'
+      )
+    if (
+        initial_psi_source
+        == core_profile_runtime_params_lib.InitialPsiSource.GEOMETRY
+        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+    ):
+      raise ValueError(
+          "profile_conditions.initial_psi_source='geometry' is not supported"
+          ' for CircularGeometry.'
+      )
+    if (
+        self.profile_conditions.psi is not None
+        and initial_psi_source
+        != core_profile_runtime_params_lib.InitialPsiSource.PROFILE_CONDITIONS
+        and self.numerics.evolve_current
+    ):
+      logging.warning(
+          'profile_conditions.psi is provided but will be ignored because'
+          ' profile_conditions.initial_psi_source is %r and'
+          ' numerics.evolve_current is True.',
+          initial_psi_source.value,
+      )
     return self
 
   @pydantic.model_validator(mode='after')

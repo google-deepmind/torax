@@ -16,6 +16,7 @@
 
 CONFIG = {
     'profile_conditions': {
+        'initial_psi_source': 'j',
         'n_e_right_bc': 0.5e20,
     },
     'numerics': {
