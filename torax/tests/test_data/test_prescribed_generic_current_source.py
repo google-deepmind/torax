@@ -16,6 +16,7 @@
 
 Constant transport coefficient model, circular geometry.
 """
+
 import numpy as np
 
 
@@ -58,13 +59,13 @@ CONFIG = {
         # Only drive the external current source
         'generic_current': {
             'mode': 'prescribed',
-            'prescribed_values': (
-                (
+            'prescribed_values': {
+                'j_parallel': (
                     times,
                     gauss_r,
                     generic_current_profiles,
                 ),
-            ),
+            },
         },
         # Disable density sources/sinks
         'generic_particle': {

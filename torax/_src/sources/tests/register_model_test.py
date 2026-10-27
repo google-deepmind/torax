@@ -68,7 +68,9 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
     )
     return (
         source_profiles.SourceOutput(
-            profiles=tuple(2 * x for x in output.profiles)
+            particle_source=2 * output.particle_source
+            if output.particle_source is not None
+            else None
         ),
         source_state,
     )

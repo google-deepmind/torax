@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Routines for calculating impurity radiation based on a polynomial fit."""
+
 import dataclasses
 from typing import Annotated, Literal, Sequence
 import chex
@@ -95,7 +96,7 @@ class MavrinImpurityRadiationHeatSink(
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
+      A tuple of (SourceOutput(power_density_e=electron_heat_profile),
       source_state).
     """
     del geo, calculated_source_profiles, conductivity
@@ -140,7 +141,7 @@ class MavrinImpurityRadiationHeatSink(
     # The impurity radiation heat sink is a negative source, so we return a
     # negative profile.
     return (
-        source_profiles.SourceOutput(profiles=(-radiation_profile,)),
+        source_profiles.SourceOutput(power_density_e=-radiation_profile),
         source_state,
     )
 

@@ -24,9 +24,10 @@ the only active source in ``sources``, set:
 
 The configurable runtime parameters of each source are as follows:
 
-``prescribed_values`` (**time-varying-array** [default = {0: {0: 0, 1: 0}}])
-  Time varying array of prescribed values for the source. Used if ``mode`` is
-  ``'prescribed'``.
+``prescribed_values`` (**dict** [default = {}])
+  Prescribed profile values for the source, keyed by output channel name
+  (``power_density_i``, ``power_density_e``, ``j_parallel``,
+  ``particle_source``). Used if ``mode`` is ``'prescribed'``.
 
 ``mode`` (str [default = 'zero'])
   Defines how the source values are computed. Currently the options are:
@@ -41,14 +42,12 @@ The configurable runtime parameters of each source are as follows:
 
 * ``'prescribed'``
     Source values are arbitrarily prescribed by the user. The value is set by
-    ``prescribed_values``, and  should be a tuple of values. Each value can
-    contain the same data structures as :ref:`Time-varying arrays`. Note that
-    these values are treated completely independently of each other so for
-    sources with multiple time dimensions, the prescribed values should each
-    contain all the information they need.
-    For sources which affect multiple core profiles, look at the source's
-    ``affected_core_profiles`` property to see the order in which the
-    prescribed values should be provided.
+    ``prescribed_values`` as a dictionary mapping channel names
+    (``power_density_i``, ``power_density_e``, ``j_parallel``,
+    ``particle_source``) to :ref:`Time-varying arrays`. Note that each channel
+    is evaluated independently at each time step.
+    Only channels matching the source's ``affected_core_profiles`` should be
+    specified.
 
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity
 purposes, set:
@@ -68,7 +67,7 @@ config module, set:
     'sources': {
         'generic_current': {
             'mode': 'prescribed',
-            'prescribed_values': ((times, rhon, current_profiles),),
+            'prescribed_values': {'j_parallel': (times, rhon, current_profiles)},
         },
 
 where the example ``times`` is a 1D numpy array of times, ``rhon`` is a 1D numpy

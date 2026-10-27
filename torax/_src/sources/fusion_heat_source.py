@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Fusion heat source for both ion and electron heat equations."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 from jax import numpy as jnp
@@ -64,8 +65,8 @@ class FusionHeatSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(ion_heat_profile,
-      electron_heat_profile)), source_state).
+      A tuple of (SourceOutput(power_density_i=ion_heat_profile,
+      power_density_e=electron_heat_profile), source_state).
     """
     del geo, calculated_source_profiles, conductivity
     # If both D and T not present in the main ion mixture, return zero fusion.
@@ -74,10 +75,8 @@ class FusionHeatSource(source.Source):
     if not {'D', 'T'}.issubset(main_ion_names):
       return (
           source_profiles.SourceOutput(
-              profiles=(
-                  jnp.zeros_like(core_profiles.T_i.value),
-                  jnp.zeros_like(core_profiles.T_i.value),
-              )
+              power_density_i=jnp.zeros_like(core_profiles.T_i.value),
+              power_density_e=jnp.zeros_like(core_profiles.T_i.value),
           ),
           source_state,
       )
@@ -146,7 +145,12 @@ class FusionHeatSource(source.Source):
     frac_e = 1.0 - frac_i
     Pfus_i = Pfus_cell * frac_i * alpha_fraction
     Pfus_e = Pfus_cell * frac_e * alpha_fraction
-    return source_profiles.SourceOutput(profiles=(Pfus_i, Pfus_e)), source_state
+    return (
+        source_profiles.SourceOutput(
+            power_density_i=Pfus_i, power_density_e=Pfus_e
+        ),
+        source_state,
+    )
 
 
 class FusionHeatSourceConfig(base.SourceConfigBase):

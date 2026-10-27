@@ -72,10 +72,9 @@ class InitializationTest(parameterized.TestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
-    (j_parallel_external,) = output.profiles
-    assert isinstance(j_parallel_external, jax.Array)
+    assert isinstance(output.j_parallel, jax.Array)
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
-        j_parallel_external,
+        output.j_parallel,
         geo,
         runtime_params.numerics.min_rho_norm,
     )

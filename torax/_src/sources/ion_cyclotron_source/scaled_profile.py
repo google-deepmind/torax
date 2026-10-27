@@ -75,8 +75,8 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
         by this model and passed through unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(ion_heat_profile,
-      electron_heat_profile)), source_state).
+      A tuple of (SourceOutput(power_density_i=ion_heat_profile,
+      power_density_e=electron_heat_profile), source_state).
     """
     del core_profiles, calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -123,7 +123,9 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
 
     # TODO(b/508118026): extend to support scaled prescribed fast ion profiles.
     return (
-        source_profiles.SourceOutput(profiles=(source_ion, source_el)),
+        source_profiles.SourceOutput(
+            power_density_i=source_ion, power_density_e=source_el
+        ),
         source_state,
     )
 
@@ -143,13 +145,13 @@ class ScaledProfileIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):
 
   Attributes:
     model_name: Discriminator literal for Pydantic.
-    heat_profile_ion: Reference ion heating power density shape [W/m³],
-      provided on a normalised toroidal coordinate grid as a TimeVaryingArray.
+    heat_profile_ion: Reference ion heating power density shape [W/m³], provided
+      on a normalised toroidal coordinate grid as a TimeVaryingArray.
     heat_profile_electron: Reference electron heating power density shape
       [W/m³], provided on a normalised toroidal coordinate grid as a
       TimeVaryingArray.
-    reference_B0: Vacuum toroidal magnetic field at which the reference
-      profiles were computed [T].
+    reference_B0: Vacuum toroidal magnetic field at which the reference profiles
+      were computed [T].
   """
 
   model_name: Annotated[

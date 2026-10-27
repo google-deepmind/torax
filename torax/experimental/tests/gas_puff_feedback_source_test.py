@@ -14,7 +14,6 @@
 
 from absl.testing import absltest
 import chex
-from torax._src import array_typing
 from torax._src import math_utils
 from torax._src.config import build_runtime_params
 from torax._src.sources import gas_puff_source
@@ -84,10 +83,9 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
-    (profile,) = output.profiles
-    assert isinstance(profile, array_typing.Array)
+    assert output.particle_source is not None
 
-    total_particles = math_utils.volume_integration(profile, geo)
+    total_particles = math_utils.volume_integration(output.particle_source, geo)
 
     # Expected error = (initial_line_avg + 1e19) - initial_line_avg = 1e19
     # Expected S_total = 10.0 * 1e19 = 1e20

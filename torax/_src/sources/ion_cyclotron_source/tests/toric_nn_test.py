@@ -212,9 +212,10 @@ class ToricNNTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    self.assertLen(icrh_out.profiles, 2)
-    self.assertEqual(icrh_out.profiles[0].shape, geo.rho.shape)
-    self.assertEqual(icrh_out.profiles[1].shape, geo.rho.shape)
+    assert icrh_out.power_density_i is not None
+    assert icrh_out.power_density_e is not None
+    self.assertEqual(icrh_out.power_density_i.shape, geo.rho.shape)
+    self.assertEqual(icrh_out.power_density_e.shape, geo.rho.shape)
 
   def test_source_with_minority_species_from_composition(self):
     """Tests ICRH source with minority_species reading from composition."""
@@ -249,9 +250,10 @@ class ToricNNTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    self.assertLen(icrh_out.profiles, 2)
-    self.assertEqual(icrh_out.profiles[0].shape, geo.rho.shape)
-    self.assertEqual(icrh_out.profiles[1].shape, geo.rho.shape)
+    assert icrh_out.power_density_i is not None
+    assert icrh_out.power_density_e is not None
+    self.assertEqual(icrh_out.power_density_i.shape, geo.rho.shape)
+    self.assertEqual(icrh_out.power_density_e.shape, geo.rho.shape)
 
   def test_source_with_minority_species_main_ion(self):
     """Tests ICRH source with minority_species as a main ion."""
@@ -296,8 +298,9 @@ class ToricNNTest(test_lib.SourceTestCase):
     )
 
     # Just verify it runs and returns shapes
-    self.assertLen(icrh_out.profiles, 2)
-    self.assertEqual(icrh_out.profiles[0].shape, geo.rho.shape)
+    assert icrh_out.power_density_i is not None
+    assert icrh_out.power_density_e is not None
+    self.assertEqual(icrh_out.power_density_i.shape, geo.rho.shape)
 
   def test_source_raises_if_minority_species_not_in_composition(self):
     """Tests that a ValueError is raised if minority species is missing."""
@@ -350,7 +353,8 @@ class ToricNNTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    self.assertLen(output.profiles, 2)
+    self.assertIsNotNone(output.power_density_i)
+    self.assertIsNotNone(output.power_density_e)
     fast_ion_data = output.fast_ions
     self.assertIsInstance(fast_ion_data, tuple)
     self.assertLen(fast_ion_data, 1)
@@ -478,7 +482,10 @@ class ToricNNTest(test_lib.SourceTestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params_partial),
     )
-    source_ion_partial, source_el_partial = output_partial.profiles
+    source_ion_partial = output_partial.power_density_i
+    source_el_partial = output_partial.power_density_e
+    assert source_ion_partial is not None
+    assert source_el_partial is not None
     fast_ions_partial = output_partial.fast_ions
 
     torax_config.update_fields({
@@ -498,7 +505,10 @@ class ToricNNTest(test_lib.SourceTestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params_full),
     )
-    source_ion_full, source_el_full = output_full.profiles
+    source_ion_full = output_full.power_density_i
+    source_el_full = output_full.power_density_e
+    assert source_ion_full is not None
+    assert source_el_full is not None
     fast_ions_full = output_full.fast_ions
 
     np.testing.assert_allclose(source_ion_partial, source_ion_full)
