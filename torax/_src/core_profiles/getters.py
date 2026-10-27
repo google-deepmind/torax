@@ -646,12 +646,15 @@ def get_updated_ions(
       # Not expected to be reached but needed to avoid linter errors.
       raise ValueError('Unknown impurity mode.')
 
+  if n_e.right_face_constraint is None:
+    raise ValueError('n_e must have right_face_constraint set.')
+  n_e_right_bc = n_e.right_face_constraint
+
   n_i = cell_variable.CellVariable(
       value=n_e.value * ion_properties.dilution_factor,
       face_centers=geo.rho_face_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=n_e.right_face_constraint  # pyrefly: ignore[unsupported-operation]
-      * ion_properties.dilution_factor_edge,
+      right_face_constraint=n_e_right_bc * ion_properties.dilution_factor_edge,
   )
 
   # Guard the dead branch of jnp.where against division by zero.
@@ -678,7 +681,7 @@ def get_updated_ions(
   n_impurity_right_face_constraint = jnp.where(
       ion_properties.dilution_factor_edge == 1.0,
       0.0,
-      (n_e.right_face_constraint - n_i.right_face_constraint * Z_i_face[-1])
+      (n_e_right_bc - n_i.right_face_constraint * Z_i_face[-1])
       / safe_Z_impurity_edge,
   )
 

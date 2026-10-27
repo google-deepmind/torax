@@ -23,6 +23,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
+from torax._src.orchestration import physics_pipeline
 from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
 from torax._src.torax_pydantic import config
@@ -63,14 +64,20 @@ def make_initial_inputs(
           is_initialization=True,
       )
   )
-  core_profiles = initialization.initial_core_profiles(
-      runtime_params,
-      geo,
+  solver_state = initialization.initial_solver_state(
+      runtime_params=runtime_params,
+      geo=geo,
       source_models=models.source_models,
       neoclassical_model=models.neoclassical_model,
       source_states=models.source_models.initial_state(runtime_params),
   )
-  return core_profiles, runtime_params, geo
+  physics_outputs, _ = physics_pipeline.evaluate_initial_physics(
+      runtime_params=runtime_params,
+      geo=geo,
+      solver_state=solver_state,
+      models=models,
+  )
+  return physics_outputs.core_profiles, runtime_params, geo
 
 
 # pylint: disable=invalid-name

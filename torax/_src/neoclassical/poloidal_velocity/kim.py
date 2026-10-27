@@ -101,20 +101,20 @@ class KimModel(base.PoloidalVelocityModel):
       self,
       runtime_params: poloidal_velocity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: state.BaseCoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> base.PoloidalVelocity:
     """Calculates poloidal velocity according to the Kim (1991) model."""
     B_tor_face = geometry.F_face / geometry.R_major_profile_face
     B_pol_squared_face = psi_calculations.calc_bpol_squared(
-        geometry, core_profiles.psi
+        geometry, core_profiles.flux.psi
     )
     B_total_squared_face = B_pol_squared_face + B_tor_face**2
 
     v_pol = _calculate_poloidal_velocity(
-        T_i=core_profiles.T_i,
+        T_i=core_profiles.kinetic.T_i,
         k_neo=neoclassical_intermediates.k_neo,
-        Z_i=core_profiles.Z_i_face,
+        Z_i=core_profiles.ions.Z_i_face,
         B_tor=B_tor_face,
         B_total_squared=B_total_squared_face,
         geo=geometry,

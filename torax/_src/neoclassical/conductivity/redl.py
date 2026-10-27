@@ -48,7 +48,7 @@ class RedlModel(base.ConductivityModel):
       self,
       runtime_params: conductivity_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: state.BaseCoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> state.Conductivity:
     """Calculates conductivity using the Redl model."""
@@ -56,8 +56,8 @@ class RedlModel(base.ConductivityModel):
     return _calculate_conductivity(
         conductivity_multiplier=runtime_params.conductivity_multiplier,
         neoclassical_correction=runtime_params.neoclassical_correction,
-        Z_eff_face=core_profiles.Z_eff_face,
-        T_e=core_profiles.T_e,
+        Z_eff_face=core_profiles.ions.Z_eff_face,
+        T_e=core_profiles.kinetic.T_e,
         f_trap=neoclassical_intermediates.f_trap,
         log_lambda_ei=neoclassical_intermediates.log_lambda_ei,
         nu_e_star=neoclassical_intermediates.nu_e_star,
