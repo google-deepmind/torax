@@ -23,6 +23,7 @@ from torax._src import array_typing
 from torax._src.sources import base as source_base
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
+from torax._src.sources import source_profiles
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -43,9 +44,11 @@ class IonCyclotronSource(source.Source):
   """Ion cyclotron source."""
 
   SOURCE_ID: ClassVar[str] = 'icrh'
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
-      source.AffectedCoreProfile.TEMP_ION,
-      source.AffectedCoreProfile.TEMP_EL,
+  AFFECTED_CORE_PROFILES: ClassVar[
+      tuple[source_profiles.AffectedCoreProfile, ...]
+  ] = (
+      source_profiles.AffectedCoreProfile.TEMP_ION,
+      source_profiles.AffectedCoreProfile.TEMP_EL,
   )
 
 

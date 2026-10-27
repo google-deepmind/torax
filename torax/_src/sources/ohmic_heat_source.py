@@ -41,8 +41,8 @@ class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
 
   SOURCE_ID: ClassVar[str] = 'ohmic'
   AFFECTED_CORE_PROFILES: ClassVar[
-      tuple[source_lib.AffectedCoreProfile, ...]
-  ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
+      tuple[source_profiles.AffectedCoreProfile, ...]
+  ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
 
   def _get_model_value(
       self,

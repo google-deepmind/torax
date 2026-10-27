@@ -56,6 +56,7 @@ from torax._src.geometry import standard_geometry
 from torax._src.neoclassical.bootstrap_current import (
     base as bootstrap_current_base,
 )
+from torax._src.orchestration import state_evaluation
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import torax_refs
@@ -122,17 +123,25 @@ def _calculate_new_references(
   """Calculates a fresh set of reference values using TORAX's core logic."""
   reference = config_generator_func()
   torax_config = reference.torax_config
-  source_models = torax_config.sources.build_models()
-  neoclassical_model = torax_config.neoclassical.build_model()
+  models = torax_config.build_models()
+  source_models = models.source_models
+  neoclassical_model = models.neoclassical_model
   runtime_params, geo = reference.get_runtime_params_and_geo()
   source_states = source_models.initial_state(runtime_params)
-  initial_core_profiles = initialization.initial_core_profiles(
-      runtime_params,
-      geo,
+  solver_state = initialization.initial_solver_state(
+      runtime_params=runtime_params,
+      geo=geo,
       source_models=source_models,
       neoclassical_model=neoclassical_model,
       source_states=source_states,
   )
+  evaluated_state, _ = state_evaluation.evaluate_initial_state(
+      runtime_params=runtime_params,
+      geo=geo,
+      solver_state=solver_state,
+      models=models,
+  )
+  initial_core_profiles = evaluated_state.core_profiles
   psi_sources, _ = source_profile_builders.evaluate_psi_sources(
       runtime_params=runtime_params,
       geo=geo,
@@ -191,6 +200,7 @@ def _calculate_new_references(
           runtime_params,
           geo,
           initial_core_profiles,
+          fast_ions=initial_core_profiles.fast_ions,
       )
   )
   psidot = psi_calculations.calculate_psidot_from_psi_sources(

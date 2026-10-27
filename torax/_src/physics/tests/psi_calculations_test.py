@@ -31,6 +31,7 @@ from torax._src.geometry import standard_geometry
 from torax._src.imas_tools.input import loader as imas_loader
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
+from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import torax_refs
 from torax._src.torax_pydantic import interpolated_param_2d
 from torax._src.torax_pydantic import torax_pydantic
@@ -220,17 +221,13 @@ class PsiCalculationsTest(parameterized.TestCase):
     references.torax_config.update_fields(
         {'sources.generic_current.mode': 'model_based'}
     )
+    initial_core_profiles, _, _ = core_profile_helpers.make_initial_inputs(
+        references.torax_config
+    )
     source_models = references.torax_config.sources.build_models()
     neoclassical_model = references.torax_config.neoclassical.build_model()
     runtime_params, geo = references.get_runtime_params_and_geo()
     source_states = source_models.initial_state(runtime_params)
-    initial_core_profiles = initialization.initial_core_profiles(
-        runtime_params,
-        geo,
-        source_models=source_models,
-        neoclassical_model=neoclassical_model,
-        source_states=source_states,
-    )
     psi_sources, _ = source_profile_builders.evaluate_psi_sources(
         runtime_params=runtime_params,
         geo=geo,
@@ -244,6 +241,7 @@ class PsiCalculationsTest(parameterized.TestCase):
             runtime_params,
             geo,
             initial_core_profiles,
+            fast_ions=initial_core_profiles.fast_ions,
         )
     )
 

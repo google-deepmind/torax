@@ -18,7 +18,6 @@ import dataclasses
 from absl.testing import absltest
 import jax
 import numpy as np
-from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
@@ -56,8 +55,8 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
 
   def test_affected_core_profiles(self):
     expected = (
-        source_lib.AffectedCoreProfile.TEMP_ION,
-        source_lib.AffectedCoreProfile.TEMP_EL,
+        source_profiles.AffectedCoreProfile.TEMP_ION,
+        source_profiles.AffectedCoreProfile.TEMP_EL,
     )
     self.assertEqual(
         icrh_base.IonCyclotronSource.AFFECTED_CORE_PROFILES, expected

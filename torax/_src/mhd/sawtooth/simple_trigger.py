@@ -61,8 +61,8 @@ class SimpleTrigger(
     minimum_radius = sawtooth_params.trigger_params.minimum_radius
     s_critical = sawtooth_params.trigger_params.s_critical
 
-    q_face = core_profiles.q_face
-    s_face = core_profiles.s_face
+    q_face = core_profiles.poloidal_flux.q_face
+    s_face = core_profiles.poloidal_flux.s_face
     rho_face_norm = geo.rho_face_norm
     eps = constants.CONSTANTS.eps
 

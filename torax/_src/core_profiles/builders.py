@@ -73,7 +73,7 @@ def build_base_core_profiles(
 ) -> state.BaseCoreProfiles:
   """Constructs purely algebraic BaseCoreProfiles from SolverState.
 
-  Used by the unified physics pipeline and initialization profile builders.
+  Used by the unified physics pipeline and initial state convergence.
 
   Args:
     runtime_params: Runtime parameters.
@@ -182,46 +182,36 @@ def build_core_profiles(
           source_models=source_models,
           source_states=source_states,
           explicit=explicit,
-          explicit_source_outputs=explicit_source_outputs,
           calculate_anyway=calculate_anyway,
       )
   )
+  if explicit_source_outputs is not None:
+    basic_source_outputs = {
+        **explicit_source_outputs,
+        **basic_source_outputs,
+    }
+
   if runtime_params.numerics.enable_fast_ions:
     fast_ions = profile_conditions.apply_prescribed_fast_ions(
-        source_profile_builders.extract_fast_ions(basic_source_outputs),
+        source_profiles_lib.extract_fast_ions(basic_source_outputs),
         runtime_params.profile_conditions.prescribed_fast_ions,
         geo.rho_face_norm,
     )
   else:
     fast_ions = ()
 
-  # TODO(b/572586768): Pass BaseCoreProfiles and fast_ions directly once
-  # neoclassical models migrate to BaseCoreProfiles.
-  temp_core_profiles = state.CoreProfiles(
-      kinetic=base_profiles.kinetic,
-      ions=base_profiles.ions,
-      poloidal_flux=base_profiles.poloidal_flux,
-      fast_ions=fast_ions,
-      conductivity=state.Conductivity.zeros(geo),
-      poloidal_velocity=cell_variable.CellVariable(
-          value=jnp.zeros_like(geo.rho_norm),
-          face_centers=geo.rho_face_norm,
-      ),
-      psidot=cell_variable.CellVariable(
-          value=jnp.zeros_like(geo.rho_norm),
-          face_centers=geo.rho_face_norm,
-      ),
-  )
+  # Evaluate neoclassical conductivity, bootstrap current, and poloidal
+  # velocity. These depend on fast ions.
   (
       conductivity,
       bootstrap_current,
       poloidal_velocity,
       neoclassical_intermediates,
   ) = neoclassical_model.calculate_conductivity_current_and_rotation(
-      runtime_params, geo, temp_core_profiles
+      runtime_params, geo, base_profiles, fast_ions=fast_ions
   )
 
-  total_psi_sources = source_profile_builders.sum_total_psi_sources(
+  total_psi_sources = source_profiles_lib.sum_total_psi_sources(
       basic_source_outputs=basic_source_outputs,
       source_models=source_models,
       bootstrap_current=bootstrap_current,

@@ -21,6 +21,7 @@ from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.sources import qei_source as qei_source_lib
 from torax._src.sources import source as source_lib
+from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
 
@@ -76,7 +77,8 @@ class SourceModels(static_dataclass.StaticDataclass):
         name: source
         for name, source in self.standard_sources.items()
         if isinstance(source, source_lib.Source)
-        and source_lib.AffectedCoreProfile.PSI in source.AFFECTED_CORE_PROFILES
+        and source_profiles.AffectedCoreProfile.PSI
+        in source.AFFECTED_CORE_PROFILES
     })
 
   @functools.cached_property

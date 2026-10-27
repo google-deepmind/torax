@@ -202,7 +202,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     np.testing.assert_allclose(init_state.rho_norm_ped_top, rho_norm_ped_top)
     np.testing.assert_allclose(
         init_output.structure.T_i_ped,
-        self.core_profiles.T_i.value[ped_top_idx],
+        self.core_profiles.kinetic.T_i.value[ped_top_idx],
     )
 
   @parameterized.named_parameters(
@@ -266,14 +266,14 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
       ped_top_idx = jnp.argmin(
           jnp.abs(self.geo.rho_norm - init_output.rho_norm_ped_top)
       )
-      expected_T_i = self.core_profiles.T_i.value[ped_top_idx]
-      expected_T_e = self.core_profiles.T_e.value[ped_top_idx]
-      expected_n_e = self.core_profiles.n_e.value[ped_top_idx]
+      expected_T_i = self.core_profiles.kinetic.T_i.value[ped_top_idx]
+      expected_T_e = self.core_profiles.kinetic.T_e.value[ped_top_idx]
+      expected_n_e = self.core_profiles.kinetic.n_e.value[ped_top_idx]
     else:
       mult = 2.0 if custom_bc_multiplier is None else custom_bc_multiplier
-      expected_T_i = mult * self.core_profiles.T_i.face_value()[-1]
-      expected_T_e = mult * self.core_profiles.T_e.face_value()[-1]
-      expected_n_e = mult * self.core_profiles.n_e.face_value()[-1]
+      expected_T_i = mult * self.core_profiles.kinetic.T_i.right_face_value[0]
+      expected_T_e = mult * self.core_profiles.kinetic.T_e.right_face_value[0]
+      expected_n_e = mult * self.core_profiles.kinetic.n_e.right_face_value[0]
     np.testing.assert_allclose(init_state.T_i_ped_L_mode, expected_T_i)
     np.testing.assert_allclose(init_state.T_e_ped_L_mode, expected_T_e)
     np.testing.assert_allclose(init_state.n_e_ped_L_mode, expected_n_e)
@@ -478,15 +478,15 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     new_state, _ = self._call_pre_step(state, P_SOL=_P_LH * 1.5)
     np.testing.assert_allclose(
         new_state.T_i_ped_L_mode,
-        self.core_profiles.T_i.value[ped_top_idx],
+        self.core_profiles.kinetic.T_i.value[ped_top_idx],
     )
     np.testing.assert_allclose(
         new_state.T_e_ped_L_mode,
-        self.core_profiles.T_e.value[ped_top_idx],
+        self.core_profiles.kinetic.T_e.value[ped_top_idx],
     )
     np.testing.assert_allclose(
         new_state.n_e_ped_L_mode,
-        self.core_profiles.n_e.value[ped_top_idx],
+        self.core_profiles.kinetic.n_e.value[ped_top_idx],
     )
 
   def test_non_L_to_H_preserves_L_mode_values(self):
@@ -542,7 +542,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     self.assertEqual(h_state.confinement_mode, ConfinementMode.H_MODE)
     np.testing.assert_allclose(
         h_state.T_i_ped_L_mode,
-        self.core_profiles.T_i.value[ped_top_idx],
+        self.core_profiles.kinetic.T_i.value[ped_top_idx],
     )
 
   @parameterized.named_parameters(

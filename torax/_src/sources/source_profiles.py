@@ -15,7 +15,8 @@
 
 from collections.abc import Iterator, Mapping
 import dataclasses
-from typing import Literal, Self
+import enum
+from typing import Any, Literal, Self
 
 import jax
 import jax.numpy as jnp
@@ -28,6 +29,20 @@ from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
 
 # pylint: disable=invalid-name
+
+
+@enum.unique
+class AffectedCoreProfile(enum.IntEnum):
+  """An enum for the core profiles affected by a source."""
+
+  # Poloidal magnetic flux equation.
+  PSI = 1
+  # Electron density equation.
+  NE = 2
+  # Ion temperature equation.
+  TEMP_ION = 3
+  # Electron temperature equation.
+  TEMP_EL = 4
 
 
 def j_parallel_to_psi_source(
@@ -55,6 +70,45 @@ class SourceOutput:
 
   profiles: tuple[array_typing.FloatVectorCell, ...]
   fast_ions: tuple[fast_ion_lib.FastIon, ...] = ()
+
+
+def extract_fast_ions(
+    source_outputs: Mapping[str, SourceOutput],
+) -> tuple[fast_ion_lib.FastIon, ...]:
+  """Returns all fast ions produced by source outputs."""
+  fast_ions = []
+  for out in source_outputs.values():
+    fast_ions.extend(out.fast_ions)
+  return tuple(fast_ions)
+
+
+def extract_psi_sources(
+    source_outputs: Mapping[str, SourceOutput],
+    source_models: Any,
+) -> dict[str, jax.Array]:
+  """Extracts psi source profiles from SourceOutput mapping."""
+  psi_sources = {}
+  for name, out in source_outputs.items():
+    if name in source_models.standard_sources:
+      source = source_models.standard_sources[name]
+      for profile, affected in zip(out.profiles, source.AFFECTED_CORE_PROFILES):
+        if affected == AffectedCoreProfile.PSI:
+          psi_sources[name] = jnp.asarray(profile)
+  return psi_sources
+
+
+def sum_total_psi_sources(
+    basic_source_outputs: Mapping[str, SourceOutput],
+    source_models: Any,
+    bootstrap_current: bootstrap_current_base.BootstrapCurrent,
+    geo: geometry.Geometry,
+) -> array_typing.Array:
+  """Extracts and sums total psi PDE source term from basic sources and bootstrap."""
+  psi_sources = extract_psi_sources(basic_source_outputs, source_models)
+  total_j_parallel = bootstrap_current.j_parallel_bootstrap + sum(
+      psi_sources.values(), start=jnp.zeros_like(geo.rho)
+  )
+  return j_parallel_to_psi_source(total_j_parallel, geo)
 
 
 @jax.tree_util.register_dataclass
@@ -157,6 +211,86 @@ class SourceProfiles:
       return jnp.zeros_like(geo.vpr)
     total = sum(source.values())
     return total * geo.vpr
+
+  @classmethod
+  def from_source_outputs(
+      cls,
+      source_outputs: Mapping[str, SourceOutput],
+      standard_sources: Mapping[str, Any],
+      bootstrap_current: bootstrap_current_base.BootstrapCurrent,
+      qei: QeiInfo,
+  ) -> Self:
+    """Constructs SourceProfiles from evaluated source outputs."""
+    T_e = {}
+    T_i = {}
+    n_e = {}
+    psi = {}
+    fast_ions = {}
+    for name, output in source_outputs.items():
+      if name in standard_sources:
+        source = standard_sources[name]
+        for profile, affected in zip(
+            output.profiles, source.AFFECTED_CORE_PROFILES, strict=True
+        ):
+          jax_profile = jnp.asarray(profile)
+          match affected:
+            case AffectedCoreProfile.PSI:
+              psi[name] = jax_profile
+            case AffectedCoreProfile.NE:
+              n_e[name] = jax_profile
+            case AffectedCoreProfile.TEMP_ION:
+              T_i[name] = jax_profile
+            case AffectedCoreProfile.TEMP_EL:
+              T_e[name] = jax_profile
+        if output.fast_ions:
+          fast_ions[name] = output.fast_ions
+    return cls(
+        bootstrap_current=bootstrap_current,
+        qei=qei,
+        T_e=T_e,
+        T_i=T_i,
+        n_e=n_e,
+        psi=psi,
+        fast_ions=fast_ions,
+    )
+
+  def update_source_profiles(
+      self,
+      source_outputs: Mapping[str, SourceOutput],
+      source_models: Any,
+  ) -> Self:
+    """Updates source profiles with source_outputs, returning a new SourceProfiles."""
+    T_e = dict(self.T_e)
+    T_i = dict(self.T_i)
+    n_e = dict(self.n_e)
+    psi = dict(self.psi)
+    fast_ions = dict(self.fast_ions)
+    for name, output in source_outputs.items():
+      if name in source_models.standard_sources:
+        source = source_models.standard_sources[name]
+        for profile, affected in zip(
+            output.profiles, source.AFFECTED_CORE_PROFILES, strict=True
+        ):
+          jax_profile = jnp.asarray(profile)
+          match affected:
+            case AffectedCoreProfile.PSI:
+              psi[name] = jax_profile
+            case AffectedCoreProfile.NE:
+              n_e[name] = jax_profile
+            case AffectedCoreProfile.TEMP_ION:
+              T_i[name] = jax_profile
+            case AffectedCoreProfile.TEMP_EL:
+              T_e[name] = jax_profile
+        if output.fast_ions:
+          fast_ions[name] = output.fast_ions
+    return dataclasses.replace(
+        self,
+        T_e=T_e,
+        T_i=T_i,
+        n_e=n_e,
+        psi=psi,
+        fast_ions=fast_ions,
+    )
 
   def _iterate_channels_for_output(
       self,

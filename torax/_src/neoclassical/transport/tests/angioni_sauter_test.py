@@ -95,7 +95,7 @@ class AngioniSauterTest(absltest.TestCase):
         self._get_reference_runtime_params_geo_and_core_profiles()
     )
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
-        geo, core_profiles
+        geo, core_profiles, fast_ions=()
     )
     raw = angioni_sauter._calculate_angioni_sauter_transport(
         geometry=geo,

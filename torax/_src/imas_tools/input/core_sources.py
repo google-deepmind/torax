@@ -25,7 +25,7 @@ import numpy as np
 from torax._src.imas_tools import sources_mapping
 from torax._src.imas_tools.input import loader
 from torax._src.sources import qei_source
-from torax._src.sources import source as source_module
+from torax._src.sources import source_profiles
 
 
 @dataclasses.dataclass
@@ -34,9 +34,9 @@ class _SourceProfiles:
 
   time: Sequence[float]
   rho_norm: Sequence[Sequence[float]]
-  affected_profiles: tuple[source_module.AffectedCoreProfile, ...]
+  affected_profiles: tuple[source_profiles.AffectedCoreProfile, ...]
   # Dict containing the affected profiles.
-  profiles: dict[source_module.AffectedCoreProfile, Sequence[float]]
+  profiles: dict[source_profiles.AffectedCoreProfile, Sequence[float]]
 
   def combine_sources(self, new_source: Self) -> None:
     """Combines 2 sources of the same type together (adds the profiles).
@@ -171,7 +171,7 @@ def sources_from_IMAS(
 
 def _extract_source_profiles(
     source: ids_structure.IDSStructure,
-    affected_profiles: tuple[source_module.AffectedCoreProfile, ...],
+    affected_profiles: tuple[source_profiles.AffectedCoreProfile, ...],
     t_initial: float | None = None,
 ) -> _SourceProfiles:
   """Extracts profiles for a given source from a core_sources IDS.
@@ -191,7 +191,7 @@ def _extract_source_profiles(
 
   profiles = {}
   for affected_profile in affected_profiles:
-    if affected_profile == source_module.AffectedCoreProfile.PSI:
+    if affected_profile == source_profiles.AffectedCoreProfile.PSI:
       # Switch sign due to the difference between input COCOS conventions and
       # TORAX ones. IMAS Data Dictionary version >4.0.0 (TORAX compatible
       # versions) uses COCOS=17. Previous DD versions used COCOS=11, which had
@@ -199,15 +199,15 @@ def _extract_source_profiles(
       profiles[affected_profile] = [
           -1.0 * profile.j_parallel for profile in profiles_1d
       ]
-    elif affected_profile == source_module.AffectedCoreProfile.TEMP_ION:
+    elif affected_profile == source_profiles.AffectedCoreProfile.TEMP_ION:
       profiles[affected_profile] = [
           profile.total_ion_energy for profile in profiles_1d
       ]
-    elif affected_profile == source_module.AffectedCoreProfile.TEMP_EL:
+    elif affected_profile == source_profiles.AffectedCoreProfile.TEMP_EL:
       profiles[affected_profile] = [
           profile.electrons.energy for profile in profiles_1d
       ]
-    elif affected_profile == source_module.AffectedCoreProfile.NE:
+    elif affected_profile == source_profiles.AffectedCoreProfile.NE:
       profiles[affected_profile] = _get_particle_source_profile(profiles_1d)
 
   return _SourceProfiles(

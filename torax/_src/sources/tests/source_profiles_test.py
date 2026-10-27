@@ -11,15 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 
 
@@ -59,6 +62,70 @@ class SourceProfilesTest(parameterized.TestCase):
       np.testing.assert_allclose(jitted_T_i, ones * 4 * geo.vpr)
       jitted_T_e = sum_temp('T_e', geo)
       np.testing.assert_allclose(jitted_T_e, ones * 10 * geo.vpr)
+
+  def test_from_source_outputs(self):
+    geo = circular_geometry.CircularConfig(n_rho=10).build_geometry()
+    ones = jnp.ones(10)
+
+    @dataclasses.dataclass(frozen=True)
+    class DummySource:
+      AFFECTED_CORE_PROFILES: tuple[
+          source_profiles_lib.AffectedCoreProfile, ...
+      ]
+
+    standard_sources = {
+        'heat': DummySource((
+            source_profiles_lib.AffectedCoreProfile.TEMP_ION,
+            source_profiles_lib.AffectedCoreProfile.TEMP_EL,
+        )),
+        'particle': DummySource((source_profiles_lib.AffectedCoreProfile.NE,)),
+        'current': DummySource((source_profiles_lib.AffectedCoreProfile.PSI,)),
+    }
+    mock_fast_ion = fast_ion_lib.FastIon(
+        species='He3',
+        source='heat',
+        n=cell_variable.CellVariable(
+            value=ones,
+            face_centers=geo.rho_face_norm,
+        ),
+        T=cell_variable.CellVariable(
+            value=ones * 10.0,
+            face_centers=geo.rho_face_norm,
+        ),
+    )
+    bootstrap_current = bootstrap_current_base.BootstrapCurrent.zeros(geo)
+    qei = source_profiles_lib.QeiInfo.zeros(geo)
+    source_outputs = {
+        'heat': source_profiles_lib.SourceOutput(
+            profiles=(ones * 2.0, ones * 3.0),
+            fast_ions=(mock_fast_ion,),
+        ),
+        'particle': source_profiles_lib.SourceOutput(
+            profiles=(ones * 4.0,),
+        ),
+        'current': source_profiles_lib.SourceOutput(
+            profiles=(ones * 5.0,),
+        ),
+        'ignored_nonstandard': source_profiles_lib.SourceOutput(
+            profiles=(ones * 99.0,),
+        ),
+    }
+    profiles = source_profiles_lib.SourceProfiles.from_source_outputs(
+        source_outputs=source_outputs,
+        standard_sources=standard_sources,
+        bootstrap_current=bootstrap_current,
+        qei=qei,
+    )
+    self.assertIn('heat', profiles.T_i)
+    self.assertIn('heat', profiles.T_e)
+    self.assertIn('particle', profiles.n_e)
+    self.assertIn('current', profiles.psi)
+    self.assertNotIn('ignored_nonstandard', profiles.psi)
+    np.testing.assert_allclose(profiles.T_i['heat'], ones * 2.0)
+    np.testing.assert_allclose(profiles.T_e['heat'], ones * 3.0)
+    np.testing.assert_allclose(profiles.n_e['particle'], ones * 4.0)
+    np.testing.assert_allclose(profiles.psi['current'], ones * 5.0)
+    self.assertEqual(profiles.fast_ions['heat'], (mock_fast_ion,))
 
   def test_qei_info_to_output_dict(self):
     geo = circular_geometry.CircularConfig().build_geometry()

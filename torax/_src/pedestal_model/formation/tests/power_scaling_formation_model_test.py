@@ -386,8 +386,8 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         kinetic=dataclasses.replace(
             self.initial_state.core_profiles.kinetic,
             T_e=dataclasses.replace(
-                self.initial_state.core_profiles.T_e,
-                value=self.initial_state.core_profiles.T_e.value * 2.0,
+                self.initial_state.core_profiles.kinetic.T_e,
+                value=self.initial_state.core_profiles.kinetic.T_e.value * 2.0,
             ),
         ),
     )

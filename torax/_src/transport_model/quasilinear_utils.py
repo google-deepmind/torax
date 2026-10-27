@@ -61,10 +61,10 @@ class NormalizedLogarithmicGradients:
     """Calculates the normalized logarithmic gradients."""
     gradients = {}
     for name, profile in {
-        "lref_over_lti": core_profiles.T_i,
-        "lref_over_lte": core_profiles.T_e,
-        "lref_over_lne": core_profiles.n_e,
-        "lref_over_lni0": core_profiles.n_i,
+        "lref_over_lti": core_profiles.kinetic.T_i,
+        "lref_over_lte": core_profiles.kinetic.T_e,
+        "lref_over_lne": core_profiles.kinetic.n_e,
+        "lref_over_lni0": core_profiles.kinetic.n_i,
         "lref_over_lni1": core_profiles.n_impurity_thermal,
     }.items():
       gradients[name] = calculate_normalized_logarithmic_gradient(
@@ -384,8 +384,12 @@ def _compute_fast_ion_stabilization_factor(
   factor = jnp.ones_like(smag)
   for fast_ion in core_profiles.fast_ions:
     key = f"{fast_ion.source}_{fast_ion.species}"
-    n_fi_over_ne = fast_ion.n.face_value() / core_profiles.n_e.face_value()
-    t_fi_over_te = fast_ion.T.face_value() / core_profiles.T_e.face_value()
+    n_fi_over_ne = (
+        fast_ion.n.face_value() / core_profiles.kinetic.n_e.face_value()
+    )
+    t_fi_over_te = (
+        fast_ion.T.face_value() / core_profiles.kinetic.T_e.face_value()
+    )
     lref_over_lt_fi = normalized_logarithmic_gradients.fast_ion_gradients[key][
         "lref_over_lt"
     ]

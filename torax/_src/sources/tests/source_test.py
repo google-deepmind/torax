@@ -37,8 +37,8 @@ class SourceTest(parameterized.TestCase):
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class BadSource(source_lib.Source):
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_lib.AffectedCoreProfile, ...]
-      ] = (source_lib.AffectedCoreProfile.PSI,)
+          tuple[source_profiles.AffectedCoreProfile, ...]
+      ] = (source_profiles.AffectedCoreProfile.PSI,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
@@ -211,8 +211,8 @@ class SourceTest(parameterized.TestCase):
     class BadSource(source_lib.SourceUsingCoreProfiles):
       SOURCE_ID: ClassVar[str] = "bad_core_profile_source"
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_lib.AffectedCoreProfile, ...]
-      ] = (source_lib.AffectedCoreProfile.PSI,)
+          tuple[source_profiles.AffectedCoreProfile, ...]
+      ] = (source_profiles.AffectedCoreProfile.PSI,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
@@ -225,8 +225,8 @@ class SourceTest(parameterized.TestCase):
     class BadSource(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = "bad_final_source"
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_lib.AffectedCoreProfile, ...]
-      ] = (source_lib.AffectedCoreProfile.PSI,)
+          tuple[source_profiles.AffectedCoreProfile, ...]
+      ] = (source_profiles.AffectedCoreProfile.PSI,)
 
       def _get_model_value(self, *args, **kwargs):
         raise NotImplementedError
@@ -243,8 +243,8 @@ class SourceTest(parameterized.TestCase):
     class FastIonCoreProfilesSource(source_lib.SourceUsingCoreProfiles):
       SOURCE_ID: ClassVar[str] = "fast_ion_core_source"
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_lib.AffectedCoreProfile, ...]
-      ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
+          tuple[source_profiles.AffectedCoreProfile, ...]
+      ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
 
       def _get_model_value(self, *args, **kwargs):
         return (
@@ -282,8 +282,8 @@ class SourceTest(parameterized.TestCase):
     class FastIonFinalSource(source_lib.FinalSource):
       SOURCE_ID: ClassVar[str] = "fast_ion_final_source"
       AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_lib.AffectedCoreProfile, ...]
-      ] = (source_lib.AffectedCoreProfile.TEMP_EL,)
+          tuple[source_profiles.AffectedCoreProfile, ...]
+      ] = (source_profiles.AffectedCoreProfile.TEMP_EL,)
 
       def _get_model_value(self, *args, **kwargs):
         return (

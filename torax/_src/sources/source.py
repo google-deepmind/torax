@@ -21,7 +21,6 @@ folder use these classes to define specific types of sources/sinks.
 import abc
 from collections.abc import Callable
 import dataclasses
-import enum
 from typing import ClassVar
 
 from jax import numpy as jnp
@@ -32,24 +31,6 @@ from torax._src.geometry import geometry
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
-
-
-@enum.unique
-class AffectedCoreProfile(enum.IntEnum):
-  """Defines which part of the core profiles the source helps evolve.
-
-  The profiles of each source/sink are terms included in equations evolving
-  different core profiles. This enum maps a source to those equations.
-  """
-
-  # Current density equation.
-  PSI = 1
-  # Electron density equation.
-  NE = 2
-  # Ion temperature equation.
-  TEMP_ION = 3
-  # Electron temperature equation.
-  TEMP_EL = 4
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
@@ -66,7 +47,9 @@ class SourceBase(static_dataclass.StaticDataclass, abc.ABC):
   """
 
   SOURCE_ID: ClassVar[str]
-  AFFECTED_CORE_PROFILES: ClassVar[tuple[AffectedCoreProfile, ...]]
+  AFFECTED_CORE_PROFILES: ClassVar[
+      tuple[source_profiles.AffectedCoreProfile, ...]
+  ]
 
   def __post_init__(self):
     super().__post_init__()
@@ -161,7 +144,7 @@ class SourceUsingCoreProfiles(SourceBase):
 
   def __post_init__(self):
     super().__post_init__()
-    if AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
+    if source_profiles.AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
       raise ValueError(
           f'{type(self).__name__} cannot affect PSI, but got'
           f' AFFECTED_CORE_PROFILES={self.AFFECTED_CORE_PROFILES}.'
@@ -219,7 +202,7 @@ class FinalSource(SourceBase):
 
   def __post_init__(self):
     super().__post_init__()
-    if AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
+    if source_profiles.AffectedCoreProfile.PSI in self.AFFECTED_CORE_PROFILES:
       raise ValueError(
           f'{type(self).__name__} cannot affect PSI, but got'
           f' AFFECTED_CORE_PROFILES={self.AFFECTED_CORE_PROFILES}.'
