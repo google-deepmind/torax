@@ -115,11 +115,11 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     )
 
     core_profiles = mock.MagicMock()
-    core_profiles.n_e = n_e
-    core_profiles.T_e = T_e
-    core_profiles.n_i = n_i
-    core_profiles.Z_i_face = Z_i_face
-    core_profiles.Z_eff_face = Z_eff_face
+    core_profiles.kinetic.n_e = n_e
+    core_profiles.kinetic.T_e = T_e
+    core_profiles.kinetic.n_i = n_i
+    core_profiles.ions.Z_i_face = Z_i_face
+    core_profiles.ions.Z_eff_face = Z_eff_face
 
     # Mock geometry — needs rho_norm, vpr, drho_norm for volume_integration.
     rho_norm = geometry_lib.face_to_cell(rho_face_norm)

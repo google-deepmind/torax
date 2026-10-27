@@ -21,6 +21,7 @@ from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import builders
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
@@ -100,14 +101,12 @@ def sawtooth_step(
 
   # Prepare solver_state_t_plus_crash_dt with new boundary conditions
   # and prescribed profiles if present.
-  solver_state_t_plus_crash_dt = (
-      updaters.provide_solver_state_t_plus_dt(
-          dt=dt_crash,
-          runtime_params_t=runtime_params_t,
-          runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
-          geo_t_plus_dt=geo_t_plus_crash_dt,
-          core_profiles_t=input_state.core_profiles,
-      )
+  solver_state_t_plus_crash_dt = updaters.provide_solver_state_t_plus_dt(
+      dt=dt_crash,
+      runtime_params_t=runtime_params_t,
+      runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
+      geo_t_plus_dt=geo_t_plus_crash_dt,
+      core_profiles_t=input_state.core_profiles,
   )
 
   (
@@ -189,19 +188,32 @@ def _evolve_x_after_sawtooth(
 ) -> tuple[cell_variable.CellVariable, ...]:
   """Evolves the x_redistributed after the sawtooth redistribution."""
 
-  del fast_ions_t  # Unused until physics_pipeline in CL 13.
-  updated_core_profiles = updaters.update_core_profiles_during_step(
+  updated_solver_state = convertors.solver_x_tuple_to_solver_state(
       x_redistributed,
+      evolving_names,
+      solver_state_redistributed,
+  )
+  base_profiles = builders.build_base_core_profiles(
       runtime_params_t_plus_crash_dt,
       geo_t_plus_crash_dt,
-      solver_state=solver_state_redistributed,
-      evolving_names=evolving_names,
+      updated_solver_state,
+  )
+
+  p_thermal_e = base_profiles.pressure_thermal_e
+  p_thermal_i = state.calculate_pressure_thermal_i(base_profiles, fast_ions_t)
+  p_thermal_tot = cell_variable.CellVariable(
+      value=p_thermal_e.value + p_thermal_i.value,
+      face_centers=p_thermal_e.face_centers,
+      right_face_constraint=(
+          p_thermal_e.get_right_bc() + p_thermal_i.get_right_bc()
+      ),
+      right_face_grad_constraint=None,
   )
 
   _, _, W_thermal_tot = formulas.calculate_stored_thermal_energy(
-      updated_core_profiles.pressure_thermal_e,
-      updated_core_profiles.pressure_thermal_i,
-      updated_core_profiles.pressure_thermal_total,
+      p_thermal_e,
+      p_thermal_i,
+      p_thermal_tot,
       geo_t_plus_crash_dt,
   )
 
@@ -210,9 +222,6 @@ def _evolve_x_after_sawtooth(
 
   factor = 1 + dW_target / W_thermal_tot
 
-  updated_solver_state = state.SolverState.from_core_profiles(
-      updated_core_profiles
-  )
   updated_solver_state = dataclasses.replace(
       updated_solver_state,
       T_e=dataclasses.replace(
