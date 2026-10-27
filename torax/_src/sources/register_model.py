@@ -34,7 +34,7 @@ def register_source_config(
       unique `model_name`.
   """
   source = source_config_class().build_source()
-  source_id = source.SOURCE_ID
+  source_id = getattr(source, 'SOURCE_ID')
   if source_id == 'ei_exchange':
     raise ValueError(
         'Cannot register a new source model config for the ei_exchange source.'
