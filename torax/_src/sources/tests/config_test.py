@@ -91,10 +91,10 @@ class SourcesConfigTest(parameterized.TestCase):
     """Tests that a source can be added with overriding defaults."""
     sources = sources_config.SourcesConfig.from_dict({
         'gas_puff': {
+            'is_explicit': True,
             'puff_decay_length': 1.23,
         },
         'ohmic': {
-            'is_explicit': True,
             'mode': 'zero',  # turn it off.
         },
     })
