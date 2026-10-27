@@ -478,7 +478,7 @@ class SimTest(sim_test_case.SimTestCase):
     torax_config.update_fields({'restart': file_restart})
 
     output_xr = run_simulation.run_simulation(
-        torax_config, progress_bar=False
+        torax_config, progress_bar=False, max_steps=len(ref_time) * 2
     ).simulation_output_to_xr()
     # Allow for small numerical differences due to NetCDF round-trip / restart
     # floating point precision.
@@ -503,7 +503,9 @@ class SimTest(sim_test_case.SimTestCase):
     # Run the first sim
     config_ip_bc = self._get_config_dict(test_config + '.py')
     torax_config = model_config.ToraxConfig.from_dict(config_ip_bc)
-    sim_outputs_ip_bc = run_simulation.run_simulation(torax_config)
+    sim_outputs_ip_bc = run_simulation.run_simulation(
+        torax_config, max_steps=100
+    )
     middle_index = len(sim_outputs_ip_bc.times) // 2
     times = sim_outputs_ip_bc.times
 
@@ -517,7 +519,9 @@ class SimTest(sim_test_case.SimTestCase):
         sim_outputs_ip_bc._stacked_core_profiles.v_loop_lcfs,
     )
     torax_config = model_config.ToraxConfig.from_dict(config_v_loop_bc)
-    sim_outputs_v_loop_bc = run_simulation.run_simulation(torax_config)
+    sim_outputs_v_loop_bc = run_simulation.run_simulation(
+        torax_config, max_steps=100
+    )
 
     profiles_to_check = (
         sim_outputs_v_loop_bc._stacked_core_profiles.T_i,
@@ -570,7 +574,7 @@ class SimTest(sim_test_case.SimTestCase):
     ref_config_dict['numerics']['evolve_current'] = True
     ref_torax_config = model_config.ToraxConfig.from_dict(ref_config_dict)
     ref_output_xr = run_simulation.run_simulation(
-        ref_torax_config, progress_bar=False
+        ref_torax_config, progress_bar=False, max_steps=100
     ).simulation_output_to_xr()
     # Extract the psidot profile and time array
     ref_psidot = ref_output_xr.profiles.v_loop.values
@@ -583,7 +587,7 @@ class SimTest(sim_test_case.SimTestCase):
     test_config_dict['numerics']['evolve_current'] = False
     test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
     test_output_xr_different = run_simulation.run_simulation(
-        test_torax_config, progress_bar=False
+        test_torax_config, progress_bar=False, max_steps=100
     ).simulation_output_to_xr()
 
     # --- Run 3: Test run without current evolution, using prescribed psidot ---
@@ -598,7 +602,7 @@ class SimTest(sim_test_case.SimTestCase):
     )
     test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
     test_output_xr_same = run_simulation.run_simulation(
-        test_torax_config, progress_bar=False
+        test_torax_config, progress_bar=False, max_steps=100
     ).simulation_output_to_xr()
 
     # Compare Runs 1 and 3 - v_loop (cell grid) should be identical

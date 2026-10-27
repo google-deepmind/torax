@@ -75,7 +75,7 @@ class TransportTest(absltest.TestCase):
         'core_transport_models': {'fake_api': {'model_name': 'fake_api'}},
     }
     torax_config = torax.ToraxConfig.from_dict(config)
-    torax.run_simulation(torax_config)
+    torax.run_simulation(torax_config, max_steps=100)
 
   def test_fake_transport_model_multiple_instances(self):
     """Tests multiple fake transport models combined together."""
@@ -87,7 +87,7 @@ class TransportTest(absltest.TestCase):
         },
     }
     torax_config = torax.ToraxConfig.from_dict(config)
-    torax.run_simulation(torax_config)
+    torax.run_simulation(torax_config, max_steps=100)
 
   def test_registered_model_discriminator(self):
     config = default_configs.get_default_config_dict()

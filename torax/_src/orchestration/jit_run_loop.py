@@ -115,6 +115,10 @@ def run_loop_jit(
         build_runtime_params.RuntimeParamsProvider | None
     ) = None,
     logging_info: LoggingInfo | None = None,
+    initial_state: sim_state.SimState | None = None,
+    initial_post_processed_outputs: (
+        post_processing.PostProcessedOutputs | None
+    ) = None,
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs, Counter]:
   """Runs the simulation loop under jax.jit.
 
@@ -124,16 +128,21 @@ def run_loop_jit(
     max_steps: Maximum number of steps to perform in the bounded while loop.
     runtime_params_overrides: Optional overrides for runtime parameters.
     logging_info: Logging configuration and state to pass through the JIT.
+    initial_state: Optional initial state for the simulation (e.g. from file
+      restart). If None, computed from `step_fn`.
+    initial_post_processed_outputs: Optional initial post-processed outputs for
+      the simulation (e.g. from file restart). If None, computed from `step_fn`.
 
   Returns:
     A tuple of (states_history, post_processed_outputs_history, final_i).
   """
-  initial_state, initial_post_processed_outputs = (
-      initial_state_lib.get_initial_state_and_post_processed_outputs(
-          step_fn=step_fn,
-          runtime_params_overrides=runtime_params_overrides,
-      )
-  )
+  if initial_state is None or initial_post_processed_outputs is None:
+    initial_state, initial_post_processed_outputs = (
+        initial_state_lib.get_initial_state_and_post_processed_outputs(
+            step_fn=step_fn,
+            runtime_params_overrides=runtime_params_overrides,
+        )
+    )
 
   int_dtype = jax_utils.get_int_dtype()
   if logging_info is None:
@@ -160,13 +169,19 @@ def run_loop_jit(
       else step_fn.runtime_params_provider
   )
   numerics = runtime_params.numerics
-  t_initial = numerics.t_initial
+  t_initial = initial_state.t
   duration = numerics.t_final - t_initial
 
   def _cond_fun(inputs):
-    current_state, _, _ = inputs
+    current_state, current_post_processed_outputs, _ = inputs
     is_done = step_fn.is_done(current_state.t)
-    return jnp.logical_not(is_done)
+    has_error = step_function.has_any_step_error(
+        current_state,
+        current_post_processed_outputs,
+        numerics.T_min_eV,
+        bool(numerics.adaptive_dt),
+    )
+    return jnp.logical_not(is_done) & jnp.logical_not(has_error)
 
   def _step_fn(inputs):
     previous_state, previous_post_processed_outputs, loop_logging_info = inputs
@@ -328,12 +343,16 @@ def run_loop(
     progress_bar: bool = False,
     log_n_steps: int = 20,
     max_steps: int | None = None,
+    initial_state: sim_state.SimState | None = None,
+    initial_post_processed_outputs: (
+        post_processing.PostProcessedOutputs | None
+    ) = None,
 ) -> tuple[
     list[sim_state.SimState],
     tuple[post_processing.PostProcessedOutputs, ...],
     state.SimError,
 ]:
-  """Version of torax._src.orchestration.run_loop that loops with jax.jit.
+  """Runs the simulation loop with jax.jit.
 
   Performs logging and updates the progress bar if requested.
 
@@ -355,6 +374,10 @@ def run_loop(
       when `adaptive_dt=False`, or 10x that value when `adaptive_dt=True`. Users
       can explicitly override `max_steps` (e.g. to reduce pre-allocated buffer
       memory when `adaptive_dt=True`).
+    initial_state: Optional initial state for the simulation (e.g. from file
+      restart). If None, computed from `step_fn`.
+    initial_post_processed_outputs: Optional initial post-processed outputs for
+      the simulation (e.g. from file restart). If None, computed from `step_fn`.
 
   Returns:
     A tuple of:
@@ -409,6 +432,8 @@ def run_loop(
               progress_bar=progress_bar,
               log_timestep_info=log_timestep_info,
           ),
+          initial_state=initial_state,
+          initial_post_processed_outputs=initial_post_processed_outputs,
       )
       # JAX dispatch is asynchronous: wait for pending logging callbacks
       # before the progress bar is unregistered and closed.
@@ -427,9 +452,13 @@ def run_loop(
       unstacked_states[-1],
       unstacked_post_processed_outputs[-1],
   )
-  if sim_error == state.SimError.NO_ERROR:
-    if not step_fn.is_done(unstacked_states[-1].t):
-      sim_error = state.SimError.DID_NOT_REACH_T_FINAL
+  if sim_error != state.SimError.NO_ERROR:
+    sim_error.log_error()
+    if len(unstacked_states) > 1:
+      unstacked_states.pop()
+      unstacked_post_processed_outputs.pop()
+  elif not step_fn.is_done(unstacked_states[-1].t):
+    sim_error = state.SimError.DID_NOT_REACH_T_FINAL
   return (
       unstacked_states,
       tuple(unstacked_post_processed_outputs),

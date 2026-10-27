@@ -69,6 +69,10 @@ def while_loop_bounded[State](
         are the state after each step. The states for steps that are not
         executed are filled with NaNs if floats and 0s otherwise.
   """
+  # Ensure all leaves are JAX arrays (e.g. when JAX_DISABLE_JIT=True bypasses
+  # the @jax.jit wrapper on while_loop_bounded and init_val contains Python
+  # scalars such as bool/int/float).
+  init_val = jax.tree.map(jnp.asarray, init_val)
   match implementation:
     case 'scan':
       return _while_loop_bounded_scan(

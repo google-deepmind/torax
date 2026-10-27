@@ -32,7 +32,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
   def test_change_config(self):
     torax_config = self._get_torax_config('test_iterhybrid_mockup.py')
     simulation_xr = run_simulation.run_simulation(
-        torax_config
+        torax_config, max_steps=100
     ).simulation_output_to_xr()
 
     original_value = torax_config.profile_conditions.nbar
@@ -40,7 +40,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
 
     torax_config.update_fields({'profile_conditions.nbar': new_value})
     new_simulation_xr = run_simulation.run_simulation(
-        torax_config
+        torax_config, max_steps=100
     ).simulation_output_to_xr()
 
     self.assertFalse(
@@ -146,7 +146,6 @@ class RunSimulationTest(sim_test_case.SimTestCase):
         progress_bar=progress_bar,
         log_n_steps=5,
         max_steps=100,
-        _use_jitted_run_loop=True,
     )
     self.assertIsInstance(state_history.simulation_output_to_xr(), xr.DataTree)
     self.assertIsInstance(state_history, output.StateHistory)

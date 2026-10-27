@@ -269,7 +269,6 @@ class JitSimTest(sim_test_case.SimTestCase):
         profiles=profiles,
         rtol=rtol,
         atol=atol,
-        use_jitted_run_loop=True,
     )
 
   def test_did_not_reach_t_final_error_when_max_steps_too_low(self):
@@ -279,7 +278,7 @@ class JitSimTest(sim_test_case.SimTestCase):
 
     # Use max_steps=1 which is far too few to reach t_final=1.
     state_history = run_simulation.run_simulation(
-        torax_config, max_steps=1, progress_bar=False, _use_jitted_run_loop=True
+        torax_config, max_steps=1, progress_bar=False
     )
 
     self.assertEqual(
@@ -298,9 +297,7 @@ class JitSimTest(sim_test_case.SimTestCase):
     with self.assertRaisesRegex(
         ValueError, 'max_steps must be specified when using'
     ):
-      run_simulation.run_simulation(
-          torax_config, progress_bar=False, _use_jitted_run_loop=True
-      )
+      run_simulation.run_simulation(torax_config, progress_bar=False)
 
 
 if __name__ == '__main__':

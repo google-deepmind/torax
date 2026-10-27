@@ -460,7 +460,7 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     config_name = 'test_all_transport_fusion_qlknn.py'
     torax_config = self._get_torax_config(config_name)
 
-    state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config, max_steps=100)
     p_fusion = state_history._stacked_post_processed_outputs.P_alpha_total
     p_aux_total = state_history._stacked_post_processed_outputs.P_aux_total
     p_ohmic_e = state_history._stacked_post_processed_outputs.P_ohmic_e

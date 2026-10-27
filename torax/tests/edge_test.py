@@ -198,7 +198,7 @@ class EdgeTest(absltest.TestCase):
         'model_name': 'custom_edge',
     }
     torax_config = torax.ToraxConfig.from_dict(config)
-    state_history = torax.run_simulation(torax_config)
+    state_history = torax.run_simulation(torax_config, max_steps=100)
     data_tree = state_history.simulation_output_to_xr()
     self.assertIn('T_e_right_bc', data_tree.edge.dataset.data_vars)
 

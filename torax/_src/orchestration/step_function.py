@@ -47,7 +47,7 @@ from torax._src.time_step_calculator import time_step_calculator as ts
 
 
 @jax.jit(static_argnames=['adaptive_dt'])
-def _has_any_step_error(
+def has_any_step_error(
     output_state: sim_state.SimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
     T_min_eV: float,
@@ -166,7 +166,7 @@ class SimulationStepFn:
   ) -> state.SimError:
     """Checks for errors in the simulation state."""
     if not bool(
-        _has_any_step_error(
+        has_any_step_error(
             output_state,
             post_processed_outputs,
             self._runtime_params_provider.numerics.T_min_eV,

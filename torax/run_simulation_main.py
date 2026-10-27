@@ -102,6 +102,12 @@ _QUIT = flags.DEFINE_bool(
     'If True, quits after the first operation (no interactive mode).',
 )
 
+_MAX_STEPS = flags.DEFINE_integer(
+    'max_steps',
+    None,
+    'Maximum number of steps to take in the simulation.',
+)
+
 # Needed to test-time name collision with the flag in regenerate_torax_refs.py.
 if 'output_dir' not in FLAGS:
   _OUTPUT_DIR = flags.DEFINE_string(
@@ -530,6 +536,7 @@ def _call_sim_app_main(
       log_sim_progress=log_sim_progress,
       plot_sim_progress=plot_sim_progress,
       log_sim_output=log_sim_output,
+      max_steps=_MAX_STEPS.value,
   )
 
 

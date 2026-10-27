@@ -68,6 +68,7 @@ class RunSimulationMainTest(parameterized.TestCase):
   @flagsaver.flagsaver(
       config="tests/test_data/test_implicit.py",
       output_dir=_TMP_DIR,
+      max_steps=100,
   )
   @mock.patch("builtins.input", side_effect=["q"])
   def test_main_app_runs(self, mock_input):
@@ -123,10 +124,10 @@ class RunSimulationMainTest(parameterized.TestCase):
     if hasattr(os, "sync"):
       os.sync()
 
-    with flagsaver.flagsaver((
-        run_simulation_main._CONFIG_PATH,
-        in_use,
-    )):
+    with flagsaver.flagsaver(
+        (run_simulation_main._CONFIG_PATH, in_use),
+        (run_simulation_main._MAX_STEPS, 100),
+    ):
 
       # Redirect stdout to this string buffer
       captured_stdout = io.StringIO()

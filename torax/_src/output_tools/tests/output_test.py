@@ -524,7 +524,8 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
     output_xr = run_simulation.run_simulation(
-        torax_config
+        torax_config,
+        max_steps=100,
     ).simulation_output_to_xr()
 
     self.assertIn(

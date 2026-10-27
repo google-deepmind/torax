@@ -27,7 +27,6 @@ new_sim_outputs = torax.run_simulation(torax_config)
 from torax._src.config import build_runtime_params
 from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import jit_run_loop
-from torax._src.orchestration import run_loop
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
@@ -105,7 +104,6 @@ def run_simulation(
     progress_bar: bool = True,
     log_n_steps: int = 20,
     max_steps: int | None = None,
-    _use_jitted_run_loop: bool = False,  # pylint: disable=invalid-name
 ) -> output.StateHistory:
   """Runs a TORAX simulation using the config and returns the outputs.
 
@@ -114,19 +112,14 @@ def run_simulation(
     log_timestep_info: Whether to log the timestep information.
     progress_bar: Whether to show a progress bar.
     log_n_steps: The number of steps between logging events. This affects both
-      the `log_timestep_info` and `progress_bar` arguments when using the
-      jitted run loop.
-    max_steps: The maximum number of steps to take. For the non-jitted run loop,
-      if not provided, the simulation runs until `t_final` is reached. When
-      `_use_jitted_run_loop=True` and `max_steps` is not provided, `max_steps`
-      is determined automatically for `fixed_time_step_calculator` (exact step
-      count when `adaptive_dt=False`, or 10x that value when `adaptive_dt=True`;
-      can be overridden to reduce memory usage), while
-      `chi_time_step_calculator` and `from_previous_time_step_calculator`
-      require `max_steps` to be explicitly specified (otherwise a `ValueError`
-      is raised).
-    _use_jitted_run_loop: If True, then a jitted run loop will be used. A
-      temporary private argument used for testing.
+      the `log_timestep_info` and `progress_bar` arguments.
+    max_steps: The maximum number of steps to take. When `max_steps` is not
+      provided, `max_steps` is determined automatically for
+      `fixed_time_step_calculator` (exact step count when `adaptive_dt=False`,
+      or 10x that value when `adaptive_dt=True`; can be overridden to reduce
+      memory usage), while `chi_time_step_calculator` and
+      `from_previous_time_step_calculator` require `max_steps` to be explicitly
+      specified (otherwise a `ValueError` is raised).
 
   Returns:
     The state history which contains the `CoreProfiles`, `CoreTransport`,
@@ -134,33 +127,29 @@ def run_simulation(
     step of the simulation. A DataTree can be obtained via
     `state_history.simulation_output_to_xr()`.
   """
-  (
-      initial_state,
-      post_processed_outputs,
-      step_fn,
-  ) = prepare_simulation(torax_config)
 
-  if _use_jitted_run_loop:
-    state_history, post_processed_outputs_history, sim_error = (
-        jit_run_loop.run_loop(
-            step_fn,
-            max_steps=max_steps,
-            log_timestep_info=log_timestep_info,
-            progress_bar=progress_bar,
-            log_n_steps=log_n_steps,
-        )
+  # Only prepare the initial state if we are doing a restart, as this is more
+  # expensive than doing this in the JITted function.
+  if torax_config.restart and torax_config.restart.do_restart:
+    initial_state, initial_post_processed_outputs, step_fn = prepare_simulation(
+        torax_config
     )
   else:
-    state_history, post_processed_outputs_history, sim_error = (
-        run_loop.run_loop(
-            initial_state=initial_state,
-            initial_post_processed_outputs=post_processed_outputs,
-            step_fn=step_fn,
-            log_timestep_info=log_timestep_info,
-            progress_bar=progress_bar,
-            max_steps=max_steps,
-        )
-    )
+    step_fn = make_step_fn(torax_config)
+    initial_state = None
+    initial_post_processed_outputs = None
+
+  state_history, post_processed_outputs_history, sim_error = (
+      jit_run_loop.run_loop(
+          step_fn,
+          max_steps=max_steps,
+          log_timestep_info=log_timestep_info,
+          progress_bar=progress_bar,
+          log_n_steps=log_n_steps,
+          initial_state=initial_state,
+          initial_post_processed_outputs=initial_post_processed_outputs,
+      )
+  )
 
   state_history = output.StateHistory(
       state_history=state_history,

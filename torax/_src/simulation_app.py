@@ -156,7 +156,7 @@ def main(
     log_sim_output: bool = False,
     plot_sim_progress: bool = False,
     log_sim_progress_bar: bool = True,
-    _use_jitted_run_loop: bool = False,
+    max_steps: int | None = None,
 ) -> str:
   """Runs a simulation obtained via `get_config`.
 
@@ -178,8 +178,13 @@ def main(
     plot_sim_progress: If True, then a plotting spectator will be attached to
       the sim.
     log_sim_progress_bar: If True, then a progress bar will be logged.
-    _use_jitted_run_loop: If True, then a jitted run loop will be used. A
-      temporary private argument used for testing.
+    max_steps: Optional maximum number of steps to take in the simulation. If
+      None, `max_steps` is determined automatically for
+      `fixed_time_step_calculator` (exact step count when `adaptive_dt=False`,
+      or 10x that value when `adaptive_dt=True`), while
+      `chi_time_step_calculator` and `from_previous_time_step_calculator`
+      require `max_steps` to be explicitly specified (otherwise a `ValueError`
+      is raised).
 
   Returns:
     The output state file path.
@@ -192,7 +197,7 @@ def main(
       torax_config,
       log_sim_progress,
       progress_bar=log_sim_progress_bar,
-      _use_jitted_run_loop=_use_jitted_run_loop,
+      max_steps=max_steps,
   )
   data_tree = state_history.simulation_output_to_xr()
 

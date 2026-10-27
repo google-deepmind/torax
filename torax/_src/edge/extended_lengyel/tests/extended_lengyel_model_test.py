@@ -1337,7 +1337,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
         )
     })
 
-    state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config, max_steps=100)
 
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
 
@@ -1408,7 +1408,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
         )
     })
 
-    state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config, max_steps=100)
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
 
     # Check the last time step
@@ -1514,7 +1514,7 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
         )
     })
 
-    state_history = run_simulation.run_simulation(torax_config)
+    state_history = run_simulation.run_simulation(torax_config, max_steps=100)
     xr_outputs = state_history.simulation_output_to_xr()
 
     final_edge_output = state_history._edge_outputs[-1]
@@ -1615,7 +1615,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         'edge.diverted': True,
     })
     outputs = run_simulation.run_simulation(
-        self.torax_config
+        self.torax_config, max_steps=100
     ).simulation_output_to_xr()
     calculated_enrichment = outputs.edge.calculated_enrichment.values[0]
     core_impurity_value = outputs.profiles.n_impurity.values[:, -1]
@@ -1642,7 +1642,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         'edge.diverted': True,
     })
     outputs = run_simulation.run_simulation(
-        self.torax_config
+        self.torax_config, max_steps=100
     ).simulation_output_to_xr()
     core_impurity_value = outputs.profiles.n_impurity.values[:, -1]
     for i in range(len(core_impurity_value)):
@@ -1662,7 +1662,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         'edge.diverted': False,
     })
     outputs = run_simulation.run_simulation(
-        self.torax_config
+        self.torax_config, max_steps=100
     ).simulation_output_to_xr()
     calculated_enrichment = outputs.edge.calculated_enrichment.values[0]
     edge_impurity_bc = outputs.edge.impurity_right_bc.sel(impurity='Ne').values
@@ -1691,7 +1691,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
         'edge.diverted': False,
     })
     outputs = run_simulation.run_simulation(
-        self.torax_config
+        self.torax_config, max_steps=100
     ).simulation_output_to_xr()
     edge_impurity_bc = outputs.edge.impurity_right_bc.sel(impurity='Ne').values
     core_impurity_value = outputs.profiles.n_impurity.values[:, -1]

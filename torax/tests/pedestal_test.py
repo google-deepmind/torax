@@ -72,7 +72,7 @@ class PedestalTest(absltest.TestCase):
         },
     }
     torax_config = torax.ToraxConfig.from_dict(config)
-    torax.run_simulation(torax_config)
+    torax.run_simulation(torax_config, max_steps=100)
 
 
 if __name__ == '__main__':
