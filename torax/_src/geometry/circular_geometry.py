@@ -279,7 +279,7 @@ def _build_circular_geometry(
       elongation=elongation,
       elongation_face=elongation_face,
       spr_hires=spr_hires,
-      rho_hires_norm=rho_hires_norm,  # pyrefly: ignore[bad-argument-type]
+      rho_hires_norm=rho_hires_norm,
       rho_hires=rho_hires,
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and

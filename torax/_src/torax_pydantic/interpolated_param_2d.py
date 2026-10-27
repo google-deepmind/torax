@@ -395,7 +395,12 @@ class TimeVaryingArray(config_base.ConfigBase):
     def get_leaves(
         x: Self,
     ) -> tuple[
-        chex.Array, chex.Array, chex.Array, chex.Array, chex.Array, chex.Array
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
+        array_typing.Array,
     ]:
       # We need to update the time (xs) and value (ys) arrays for all
       # cached interpolated params.

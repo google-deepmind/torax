@@ -104,7 +104,7 @@ class TimeVaryingScalar(config_base.ConfigBase):
           f' be the same length. Got value: {value.shape}, time: {time.shape}.'
       )
 
-    def get_leaves(x: Self) -> tuple[chex.Array, chex.Array]:
+    def get_leaves(x: Self) -> tuple[array_typing.Array, array_typing.Array]:
       return (x.time, x.value)
 
     return eqx.tree_at(get_leaves, self, (time, value),)

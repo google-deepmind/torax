@@ -20,6 +20,7 @@ import functools
 import chex
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
@@ -322,7 +323,7 @@ class SimulationStepFn:
 
   def fixed_time_step(
       self,
-      dt: chex.Array,
+      dt: array_typing.Array,
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_overrides: (
@@ -373,18 +374,18 @@ class SimulationStepFn:
     # Set the dt to the original dt passed to the function, and the t to the
     # final time.
     # In case we exited early return the actual elapsed dt.
-    elapsed_dt = dt - remaining_dt  # pyrefly: ignore[unsupported-operation]
+    elapsed_dt = dt - remaining_dt
     output_state = dataclasses.replace(
         output_state,
         t=input_state.t + elapsed_dt,
-        dt=elapsed_dt,  # pyrefly: ignore[bad-argument-type]
+        dt=elapsed_dt,
     )
     return output_state, post_processed_outputs
 
   @jax.jit
   def jitted_fixed_time_step(
       self,
-      dt: chex.Array,
+      dt: array_typing.Array,
       input_state: sim_state.SimState,
       previous_post_processed_outputs: post_processing.PostProcessedOutputs,
       runtime_params_overrides: (

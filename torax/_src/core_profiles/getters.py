@@ -586,7 +586,7 @@ def _get_ion_properties_from_n_e_ratios_Z_eff(
       Z_eff=Z_eff_from_config,
       dilution_factor=dilution_factor,
       dilution_factor_edge=dilution_factor_face[-1],
-      impurity_fractions=fractions,  # pyrefly: ignore[bad-argument-type]
+      impurity_fractions=fractions,
       charge_state_info=charge_state_info,
       charge_state_info_face=charge_state_info_face,
   )

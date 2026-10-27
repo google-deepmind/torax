@@ -21,7 +21,6 @@ physics or differential equation solvers.
 import enum
 import functools
 
-import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
@@ -44,18 +43,18 @@ class IntegralPreservationQuantity(enum.Enum):
 @jax.jit
 def inner_face_values_from_cell_values(
     *,
-    cell_values: chex.Array,
-    face_centers: chex.Array,
-    cell_centers: chex.Array,
-) -> chex.Array:
+    cell_values: array_typing.Array,
+    face_centers: array_typing.Array,
+    cell_centers: array_typing.Array,
+) -> array_typing.Array:
   """Interpolate inner face values from cell values."""
-  face_pts = face_centers[1:-1]  # pyrefly: ignore[bad-index]
-  left_cells = cell_centers[:-1]  # pyrefly: ignore[bad-index]
-  right_cells = cell_centers[1:]  # pyrefly: ignore[bad-index]
+  face_pts = face_centers[1:-1]
+  left_cells = cell_centers[:-1]
+  right_cells = cell_centers[1:]
 
   # Linearly interpolate within cell centers as faces aren't uniformly spaced.
   weights = (face_pts - left_cells) / (right_cells - left_cells)
-  inner = (1.0 - weights) * cell_values[:-1] + weights * cell_values[1:]  # pyrefly: ignore[bad-index]
+  inner = (1.0 - weights) * cell_values[:-1] + weights * cell_values[1:]
   return inner
 
 
@@ -304,8 +303,8 @@ def cumulative_volume_integration(
 
 @jax.jit
 def safe_divide(
-    *, num: chex.Array, denom: chex.Array, eps: float
-) -> chex.Array:
+    *, num: array_typing.Array, denom: array_typing.Array, eps: float
+) -> array_typing.Array:
   """Divides num by denom with a sign-preserving epsilon offset.
 
   Args:

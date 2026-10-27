@@ -532,13 +532,15 @@ def update_geometries_with_Phibdot(
   return geo_t, geo_t_plus_dt
 
 
-def increase_grid_resolution(faces: chex.Array, factor: int) -> chex.Array:
+def increase_grid_resolution(
+    faces: array_typing.Array, factor: int
+) -> array_typing.Array:
   """Increase the grid resolution by a factor."""
   if factor <= 1:
     raise ValueError('factor must be >= 1.')
-  num_faces = len(faces)  # pyrefly: ignore[bad-argument-type]
+  num_faces = len(faces)
   num_cells = num_faces - 1
-  grid_indices = np.arange(len(faces))  # pyrefly: ignore[bad-argument-type]
+  grid_indices = np.arange(len(faces))
   new_num_faces = num_cells * factor + 1
   new_indices = np.linspace(0, num_cells, new_num_faces)
   return np.interp(new_indices, grid_indices, faces)
