@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -1305,6 +1306,25 @@ class GettersTest(parameterized.TestCase):
         state.SimError.NO_ERROR,
         err_msg='Simulation resulted in an unexpected error.',
     )
+
+  def test_get_updated_ions_without_right_face_constraint_raises(self):
+    config_dict = default_configs.get_default_config_dict()
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    initial_core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    n_e_no_bc = dataclasses.replace(
+        initial_core_profiles.n_e,
+        right_face_constraint=None,
+        right_face_grad_constraint=jnp.array(0.0),
+    )
+    with self.assertRaisesRegex(ValueError, 'right_face_constraint'):
+      getters.get_updated_ions(
+          runtime_params,
+          geo,
+          n_e_no_bc,
+          initial_core_profiles.T_e,
+      )
 
 
 if __name__ == '__main__':
