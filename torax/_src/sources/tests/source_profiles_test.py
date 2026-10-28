@@ -197,7 +197,7 @@ class SourceProfilesTest(parameterized.TestCase):
     self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_CELL_NORM))
     np.testing.assert_allclose(data, p_ei)
     self.assertEqual(
-        attrs, {'units': output_keys.Units.MW_PER_CUBIC_METER}
+        attrs, {'units': output_keys.Units.WATT_PER_CUBIC_METER}
     )
 
   def test_bootstrap_current_to_output_dict(self):
@@ -273,7 +273,7 @@ class SourceProfilesTest(parameterized.TestCase):
     )
     self.assertEqual(
         out_dict['p_alpha_i'][2],
-        {'units': output_keys.Units.MW_PER_CUBIC_METER},
+        {'units': output_keys.Units.WATT_PER_CUBIC_METER},
     )
 
   def test_source_profiles_to_output_dict_empty_channels(self):
@@ -346,8 +346,8 @@ class SourceProfilesTest(parameterized.TestCase):
     self.assertEqual(
         [k.units for k in keys],
         [
-            output_keys.Units.MW_PER_CUBIC_METER,
-            output_keys.Units.MW_PER_CUBIC_METER,
+            output_keys.Units.WATT_PER_CUBIC_METER,
+            output_keys.Units.WATT_PER_CUBIC_METER,
             output_keys.Units.AMPERE_PER_SQUARE_METER,
             output_keys.Units.INVERSE_CUBIC_METER_PER_SECOND,
         ],
