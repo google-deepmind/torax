@@ -51,7 +51,7 @@ class Geometry(torax_pydantic.ConfigBase):
 
   This object can be constructed via `Geometry.from_dict(config)`, where
   `config` is a dict described in
-  https://torax.readthedocs.io/en/latest/configuration.html#geometry.
+  https://torax.readthedocs.io/en/latest/configuration/geometry.html.
 
   Attributes:
     geometry_type: A `geometry.GeometryType` enum.

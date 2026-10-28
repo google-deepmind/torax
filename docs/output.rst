@@ -25,10 +25,11 @@ The output is an `[xarray DataTree] <https://docs.xarray.dev/en/latest/generated
 The DataTree is a hierarchical structure containing ``xarray.DataSet``
 objects, including:
 
-* ``numerics`` containing simulation numeric quantities.
-* ``scalars`` containing scalar quantities.
-* ``profiles`` containing 1D profile quantities.
-* ``edge`` containing edge model quantities (when an edge model is configured).
+* :ref:`numerics <output_numerics>` containing simulation numeric quantities.
+* :ref:`scalars <output_scalars>` containing scalar quantities.
+* :ref:`profiles <output_profiles>` containing 1D profile quantities.
+* :ref:`edge <output_edge>` containing edge model quantities (when an edge model
+  is configured).
 * ``auxiliary`` containing auxiliary datasets, such as
   ``auxiliary/turbulent_transport/core/<model_name>`` and
   ``auxiliary/turbulent_transport/pedestal/<model_name>`` for per-model
@@ -111,6 +112,8 @@ Child datatrees
 The following datatrees are child nodes, the title of each section is the name
 of the child ``DataTree``.
 
+.. _output_numerics:
+
 numerics
 --------
 The ``numerics`` dataset contains the following data variables.
@@ -149,20 +152,24 @@ The ``numerics`` dataset contains the following data variables.
 
   * 5 if low temperature collapse is detected (T < T_min_eV).
 
+.. _output_profiles:
+
 profiles
 --------
 
 This dataset contains radial profiles of various plasma parameters at different
 times. The radial coordinate is the normalized toroidal flux coordinate. Note
 that the output structure is dependent on the input config for the
-``geometry`` and ``sources`` fields.
+:ref:`geometry <geometry_doc>` and :ref:`sources <sources_config>` fields.
 
 Note that certain profiles are only output for specific input configurations.
 These are called out in the list of profiles below, and generally relate to:
 
-* ``sources`` profiles which are only output if the source is active.
+* :ref:`sources <sources_config>` profiles which are only output if the source
+  is active.
 
-* ``geometry`` profiles which are only output for non ``circular`` geometries.
+* :ref:`geometry <geometry_doc>` profiles which are only output for non
+  ``circular`` geometries.
 
 For current density profiles, TORAX outputs both parallel (``j_parallel_*``) and
 toroidal (``j_toroidal_*``) current densities:
@@ -512,6 +519,8 @@ toroidal (``j_toroidal_*``) current densities:
 ``Z_impurity_species`` (impurity_symbol, time, rho_cell_norm)
   True averaged impurity charge state per species [dimensionless].
 
+.. _output_scalars:
+
 scalars
 -------
 
@@ -588,23 +597,23 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``E_aux_total`` (time)
   Total (ion + electron) cumulative (integrated over time) auxiliary energy
-    absorbed by the plasma. Corresponds to external heating sources like NBI,
-    ICRH, ECRH. [:math:`J`].
+  absorbed by the plasma. Corresponds to external heating sources like NBI,
+  ICRH, ECRH. [:math:`J`].
 
 ``E_external_injected`` (time)
   Total (ion + electron) cumulative (integrated over time) auxiliary energy
-    injected into the plasma. Corresponds to external heating sources like NBI,
-    ICRH, ECRH. [:math:`J`]. Can be higher than ``E_aux_total`` since it
-    includes the energy that is not absorbed by the plasma.
+  injected into the plasma. Corresponds to external heating sources like NBI,
+  ICRH, ECRH. [:math:`J`]. Can be higher than ``E_aux_total`` since it
+  includes the energy that is not absorbed by the plasma.
 
 ``E_external_total`` (time)
   Total (ion + electron) cumulative (integrated over time) external energy
-    absorbed by the plasma [:math:`J`]. Equal to ``E_aux_total`` +
-    ``E_ohmic_e``.
+  absorbed by the plasma [:math:`J`]. Equal to ``E_aux_total`` +
+  ``E_ohmic_e``.
 
 ``E_fusion`` (time)
   Total (ion + electron) cumulative (integrated over time) fusion energy
-    produced [:math:`J`].
+  produced [:math:`J`].
 
 ``E_ohmic_e`` (time)
   Cumulative (integrated over time) Ohmic heating to electrons [:math:`J`].
@@ -886,10 +895,12 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``z_magnetic_axis`` (time)
   Vertical position of the magnetic axis [:math:`m`].
 
+.. _output_edge:
+
 edge
 ----
 The ``edge`` dataset contains variables related to the edge physics model,
-if one is active (e.g., ``extended_lengyel``).
+if one is active (e.g., :ref:`extended_lengyel <extended_lengyel>`).
 
 ``alpha_t`` (time)
   Turbulence broadening parameter [dimensionless].

@@ -115,7 +115,6 @@ design workflows. TORAX is written in Python using the JAX_ library.
    equation_summary
    solver_details
    physics_models
-   edge_models
    electron-cyclotron-derivation
    glossary
 

@@ -71,7 +71,7 @@ class NumericsConfig(torax_pydantic.ConfigBase):
   """Generic numeric parameters for the simulation.
 
   The `from_dict(...)` method can accept a dictionary defined by
-  https://torax.readthedocs.io/en/latest/configuration.html#numerics.
+  https://torax.readthedocs.io/en/latest/configuration/numerics.html.
 
   Attributes:
     t_initial: Simulation start time, in units of seconds.

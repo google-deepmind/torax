@@ -73,7 +73,7 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   """Generic numeric parameters for the simulation.
 
   The `from_dict(...)` method can accept a dictionary defined by
-  https://torax.readthedocs.io/en/latest/configuration.html#profile-conditions.
+  https://torax.readthedocs.io/en/latest/configuration/profile_conditions.html.
 
   Attributes:
     Ip: Total plasma current in A. Note that if Ip_from_parameters=False in

@@ -60,7 +60,7 @@ class PlasmaComposition(torax_pydantic.ConfigBase):
   """Configuration for the plasma composition.
 
   The `from_dict(...)` method can accept a dictionary defined by
-  https://torax.readthedocs.io/en/latest/configuration.html#plasma-composition.
+  https://torax.readthedocs.io/en/latest/configuration/plasma_composition.html.
 
   Attributes:
     main_ion: Main ion species. Can be single ion or a mixture of ions (e.g. D

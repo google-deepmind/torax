@@ -24,12 +24,12 @@ toroidal flux coordinate at the last-closed-flux-surface, in units of meters.
 
 **evolving profiles**: ``core_profile`` variables
 (:math:`T_i`, :math:`T_e`, :math:`n_e`, :math:`\psi`) which are evolved by the
-PDE, as determined in the **numerics** configuration (see :ref:`configuration`).
+PDE, as determined in the :ref:`numerics <numerics_dataclass>` configuration.
 
 **prescribed profiles**: ``core_profile`` variables that are not being evolved
-by the PDE, but have time-dependent variables in the **profile_conditions**
-configuration (see :ref:`configuration`) that determine their values
-throughout the simulation.
+by the PDE, but have time-dependent variables in the
+:ref:`profile_conditions <profile_conditions>` configuration that determine
+their values throughout the simulation.
 
 **runtime parameters**: configuration variables that are inputs to the
 simulation. Some of these are time-dependent, and some are not.

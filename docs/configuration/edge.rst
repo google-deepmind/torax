@@ -1,12 +1,16 @@
-.. include:: links.rst
+.. include:: ../links.rst
 
 .. _edge_models:
+.. _extended_lengyel:
 
-Edge Model Configuration
-########################
+edge
+####
 
-This guide details the configuration and usage of the edge physics models in
-TORAX. For a brief overview of the underlying physics, refer to the
+Configures the edge physics model used to determine boundary conditions for the
+core transport solver. If not provided, no edge model is run, and boundary
+conditions are determined solely by the ``profile_conditions`` settings.
+
+For a brief overview of the underlying physics, refer to the
 :ref:`physics_models` section. An overview of all configurable model inputs is
 provided below at :ref:`extended_lengyel_config`. We first provide some general
 guidance and context on the model usage.
