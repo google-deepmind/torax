@@ -161,26 +161,26 @@ class PedestalConfigTest(parameterized.TestCase):
     # Verify PrescribedFormationModel.__call__ and transition conditions.
     dummy_rp_t0 = mock.Mock(pedestal=params_t0)
     dummy_rp_t2 = mock.Mock(pedestal=params_t2)
-    mult_t0, _ = formation_model(
+    mult_t0 = formation_model(
         dummy_rp_t0,
         mock.Mock(),
         mock.Mock(),
         mock.Mock(),
-        mock.Mock(),
+        runtime_params.ConfinementMode.L_MODE,
         pedestal_state.FormationState(),
     )
-    mult_t2, _ = formation_model(
+    mult_t2 = formation_model(
         dummy_rp_t2,
         mock.Mock(),
         mock.Mock(),
         mock.Mock(),
-        mock.Mock(),
+        runtime_params.ConfinementMode.L_MODE,
         pedestal_state.FormationState(),
     )
     self.assertEqual(float(mult_t0.chi_e_multiplier), 1.0)
     self.assertAlmostEqual(float(mult_t2.chi_e_multiplier), 1e-4)
 
-    trigger_l_to_h_0, trigger_h_to_l_0, _ = (
+    trigger_l_to_h_0, trigger_h_to_l_0 = (
         formation_model.evaluate_transition_conditions(
             dummy_rp_t0,
             mock.Mock(),
@@ -189,7 +189,7 @@ class PedestalConfigTest(parameterized.TestCase):
             pedestal_state.FormationState(),
         )
     )
-    trigger_l_to_h_2, trigger_h_to_l_2, _ = (
+    trigger_l_to_h_2, trigger_h_to_l_2 = (
         formation_model.evaluate_transition_conditions(
             dummy_rp_t2,
             mock.Mock(),

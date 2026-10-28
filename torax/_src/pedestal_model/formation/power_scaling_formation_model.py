@@ -25,7 +25,6 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import base
 from torax._src.physics import formulas
@@ -143,17 +142,19 @@ class PowerScalingFormationModel(base.FormationModel):
         t=jnp.asarray(runtime_params.t, dtype=jax_utils.get_dtype()),
     )
 
-  def _update_state(
+  @override
+  def update_state(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      formation_state: PowerScalingFormationState,
+      formation_state: pedestal_state_lib.FormationState,
   ) -> PowerScalingFormationState:
     """Updates PowerScalingFormationState for the current timestep."""
     assert isinstance(
         runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
+    assert isinstance(formation_state, PowerScalingFormationState)
     if not runtime_params.pedestal.formation.include_dW_dt_in_P_SOL:
       return formation_state
     assert formation_state.W_thermal_total is not None
@@ -189,14 +190,9 @@ class PowerScalingFormationModel(base.FormationModel):
           t=jnp.asarray(runtime_params.t, dtype=jax_utils.get_dtype()),
       )
 
-    # formation_state may be passed into both evaluate_transition_conditions
-    # (in pre_step at time t) and __call__ (in calc_coeffs and
-    # finalize_outputs at t + dt). Guarding on dt > 0.0 ensures that when
-    # pre_step at time t evaluates transition conditions using a
-    # formation_state that was already advanced to t at the end of the
-    # previous step (finalize_outputs), _update_state is a no-op (dt == 0.0)
-    # and preserves the previous step's W_thermal_total and
-    # dW_thermal_dt_smoothed.
+    # When theta_implicit < 1.0, calc_coeffs evaluates explicit PDE terms at
+    # start-of-step time t (where dt == 0.0); preserve formation_state to
+    # avoid 0.0 / 0.0 in the raw time derivative.
     return jax.lax.cond(
         dt > 0.0,
         _advance_state,
@@ -229,6 +225,7 @@ class PowerScalingFormationModel(base.FormationModel):
     rescaled_P_LH = P_LH * runtime_params.pedestal.formation.P_LH_prefactor
     return P_SOL_total, rescaled_P_LH
 
+  @override
   def evaluate_transition_conditions(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
@@ -239,27 +236,18 @@ class PowerScalingFormationModel(base.FormationModel):
   ) -> tuple[
       array_typing.BoolScalar,
       array_typing.BoolScalar,
-      pedestal_state_lib.FormationState,
   ]:
     """Evaluates L-H and H-L transition triggers based on P_SOL vs P_LH."""
     assert isinstance(
         runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
     assert isinstance(formation_state, PowerScalingFormationState)
-    # Both evaluate_transition_conditions and __call__ invoke _update_state
-    # because Mode.INTERNAL_BOUNDARY_CONDITION only invokes
-    # evaluate_transition_conditions, whereas Mode.ADAPTIVE_TRANSPORT invokes
-    # evaluate_transition_conditions (in pre_step) and __call__ (during the step
-    # and in finalize_outputs).
-    updated_formation_state = self._update_state(
-        runtime_params, geo, core_profiles, formation_state
-    )
     P_SOL_total, rescaled_P_LH = self._calculate_P_SOL_and_P_LH(
         runtime_params,
         geo,
         core_profiles,
         source_profiles,
-        updated_formation_state,
+        formation_state,
     )
     trigger_l_to_h_transition = P_SOL_total > rescaled_P_LH
     trigger_h_to_l_transition = (
@@ -270,49 +258,37 @@ class PowerScalingFormationModel(base.FormationModel):
     return (
         trigger_l_to_h_transition,
         trigger_h_to_l_transition,
-        updated_formation_state,
     )
 
+  @override
   def __call__(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
+      confinement_mode: (
+          pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
       ),
       formation_state: pedestal_state_lib.FormationState,
-  ) -> tuple[
-      pedestal_model_output.TransportMultipliers,
-      pedestal_state_lib.FormationState,
-  ]:
+  ) -> pedestal_model_output.TransportMultipliers:
     """Calculates transport decrease multipliers based on P_SOL and P_LH."""
     assert isinstance(
         runtime_params.pedestal.formation, PowerScalingFormationRuntimeParams
     )
     assert isinstance(formation_state, PowerScalingFormationState)
-    # Both evaluate_transition_conditions and __call__ invoke _update_state
-    # because Mode.INTERNAL_BOUNDARY_CONDITION only invokes
-    # evaluate_transition_conditions, whereas Mode.ADAPTIVE_TRANSPORT invokes
-    # evaluate_transition_conditions (in pre_step) and __call__ (during the step
-    # and in finalize_outputs).
-    updated_formation_state = self._update_state(
-        runtime_params, geo, core_profiles, formation_state
-    )
     P_SOL_total, rescaled_P_LH = self._calculate_P_SOL_and_P_LH(
         runtime_params,
         geo,
         core_profiles,
         source_profiles,
-        updated_formation_state,
+        formation_state,
     )
 
     # Apply hysteresis: in H-mode, use a lower effective P_LH threshold,
     # making it harder to transition back to L-mode.
     effective_P_LH = jnp.where(
-        pedestal_transition_state.confinement_mode
-        == pedestal_runtime_params_lib.ConfinementMode.H_MODE,
+        confinement_mode == pedestal_runtime_params_lib.ConfinementMode.H_MODE,
         rescaled_P_LH
         * runtime_params.pedestal.formation.P_LH_hysteresis_factor,
         rescaled_P_LH,
@@ -329,12 +305,9 @@ class PowerScalingFormationModel(base.FormationModel):
     alpha = jax.nn.sigmoid(shifted_deviation * sharpness)
     transport_multiplier = (1.0 - alpha) * 1.0 + alpha * base_multiplier
 
-    return (
-        pedestal_model_output.TransportMultipliers(
-            chi_e_multiplier=transport_multiplier,
-            chi_i_multiplier=transport_multiplier,
-            D_e_multiplier=transport_multiplier,
-            v_e_multiplier=transport_multiplier,
-        ),
-        updated_formation_state,
+    return pedestal_model_output.TransportMultipliers(
+        chi_e_multiplier=transport_multiplier,
+        chi_i_multiplier=transport_multiplier,
+        D_e_multiplier=transport_multiplier,
+        v_e_multiplier=transport_multiplier,
     )

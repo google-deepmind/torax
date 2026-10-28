@@ -296,15 +296,23 @@ def _calc_coeffs_full(
     frozen_pedestal_output = (
         explicit_pedestal_transition_state.pedestal_model_output
     )
-    transport_multipliers, _ = (
+    candidate_formation_state = (
+        models.pedestal_model.formation_model.update_state(
+            runtime_params,
+            geo,
+            core_profiles,
+            model_state.pedestal.formation,
+        )
+    )
+    transport_multipliers = (
         models.pedestal_model.compute_transport_multipliers(
             runtime_params,
             geo,
             core_profiles,
             merged_source_profiles,
-            explicit_pedestal_transition_state,
+            explicit_pedestal_transition_state.confinement_mode,
             frozen_pedestal_output,
-            model_state.pedestal.formation,
+            candidate_formation_state,
         )
     )
     pedestal_transition_state = dataclasses.replace(

@@ -25,9 +25,6 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
-from torax._src.pedestal_model import (
-    pedestal_transition_state as pedestal_transition_state_lib,
-)
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 
@@ -46,6 +43,28 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
     del runtime_params, geo, core_profiles
     return pedestal_state_lib.FormationState()
 
+  def update_state(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      formation_state: pedestal_state_lib.FormationState,
+  ) -> pedestal_state_lib.FormationState:
+    """Returns the updated FormationState at the end of a timestep.
+
+    Args:
+      runtime_params: Runtime parameters.
+      geo: Geometry.
+      core_profiles: Core profiles.
+      formation_state: Pedestal formation state carried over from the previous
+        timestep.
+
+    Returns:
+      Updated formation state.
+    """
+    del runtime_params, geo, core_profiles
+    return formation_state
+
   @abc.abstractmethod
   def __call__(
       self,
@@ -53,27 +72,24 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
+      confinement_mode: (
+          pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
       ),
       formation_state: pedestal_state_lib.FormationState,
-  ) -> tuple[
-      pedestal_model_output.TransportMultipliers,
-      pedestal_state_lib.FormationState,
-  ]:
-    """Calculates the transport decrease multipliers and updated state.
+  ) -> pedestal_model_output.TransportMultipliers:
+    """Calculates transport decrease multipliers.
 
     Args:
       runtime_params: Runtime parameters.
       geo: Geometry.
       core_profiles: Core profiles.
       source_profiles: Source profiles.
-      pedestal_transition_state: Current pedestal transition state.
+      confinement_mode: Current confinement mode (e.g. L-mode or H-mode).
       formation_state: Pedestal formation state carried over from the previous
         timestep.
 
     Returns:
-      A tuple of transport decrease multipliers and updated formation state.
+      Transport decrease multipliers.
     """
 
   @abc.abstractmethod
@@ -84,12 +100,8 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       formation_state: pedestal_state_lib.FormationState,
-  ) -> tuple[
-      array_typing.BoolScalar,
-      array_typing.BoolScalar,
-      pedestal_state_lib.FormationState,
-  ]:
-    """Evaluates L-H and H-L transition triggers and updates formation state.
+  ) -> tuple[array_typing.BoolScalar, array_typing.BoolScalar]:
+    """Evaluates L-H and H-L transition triggers.
 
     Args:
       runtime_params: Runtime parameters.
@@ -100,11 +112,11 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
         timestep.
 
     Returns:
-      A tuple `(trigger_l_to_h_transition, trigger_h_to_l_transition,
-      updated_formation_state)` where the boolean scalars are mutually exclusive
-      indicators of whether the conditions to trigger an L->H transition or an
-      H->L back-transition are satisfied (`trigger_l_to_h_transition &
-      trigger_h_to_l_transition` must be False).
+      A tuple `(trigger_l_to_h_transition, trigger_h_to_l_transition)` where the
+      boolean scalars are mutually exclusive indicators of whether the
+      conditions to trigger an L->H transition or an H->L back-transition are
+      satisfied (`trigger_l_to_h_transition & trigger_h_to_l_transition` must be
+      False).
     """
 
   def initial_confinement_mode(
@@ -123,7 +135,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
           runtime_params.pedestal.formation.initial_confinement_mode,
           dtype=jax_utils.get_int_dtype(),
       )
-    trigger_l_to_h_transition, _, _ = self.evaluate_transition_conditions(
+    trigger_l_to_h_transition, _ = self.evaluate_transition_conditions(
         runtime_params, geo, core_profiles, source_profiles, formation_state
     )
     return jnp.where(

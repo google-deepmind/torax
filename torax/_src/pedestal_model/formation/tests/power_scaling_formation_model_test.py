@@ -20,7 +20,6 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.physics import scaling_laws
@@ -127,15 +126,11 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     self.assertIsNone(state.dW_thermal_dt_smoothed)
     self.assertIsNone(state.t)
 
-    with self.subTest('__call__'):
-      _, updated_state = formation_model(
+    with self.subTest('update_state'):
+      updated_state = formation_model.update_state(
           runtime_params=runtime_params,
           geo=self.initial_state.geometry,
           core_profiles=self.initial_state.core_profiles,
-          source_profiles=self.initial_state.core_sources,
-          pedestal_transition_state=(
-              self.initial_state.pedestal_transition_state
-          ),
           formation_state=state,
       )
       self.assertIsInstance(
@@ -146,8 +141,21 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
       self.assertIsNone(updated_state.dW_thermal_dt_smoothed)
       self.assertIsNone(updated_state.t)
 
+    with self.subTest('__call__'):
+      multipliers = formation_model(
+          runtime_params=runtime_params,
+          geo=self.initial_state.geometry,
+          core_profiles=self.initial_state.core_profiles,
+          source_profiles=self.initial_state.core_sources,
+          confinement_mode=(
+              pedestal_runtime_params_lib.ConfinementMode.L_MODE
+          ),
+          formation_state=state,
+      )
+      self.assertIsNotNone(multipliers)
+
     with self.subTest('evaluate_transition_conditions'):
-      _, _, updated_state_cond = (
+      trigger_l_to_h, trigger_h_to_l = (
           formation_model.evaluate_transition_conditions(
               runtime_params=runtime_params,
               geo=self.initial_state.geometry,
@@ -156,13 +164,8 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
               formation_state=state,
           )
       )
-      self.assertIsInstance(
-          updated_state_cond,
-          power_scaling_formation_model.PowerScalingFormationState,
-      )
-      self.assertIsNone(updated_state_cond.W_thermal_total)
-      self.assertIsNone(updated_state_cond.dW_thermal_dt_smoothed)
-      self.assertIsNone(updated_state_cond.t)
+      self.assertIsInstance(bool(trigger_l_to_h), bool)
+      self.assertIsInstance(bool(trigger_h_to_l), bool)
 
   @parameterized.named_parameters(
       dict(
@@ -205,12 +208,12 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         T_i={'aux': aux_power_profile},
     )
 
-    transport_multipliers, _ = formation_model(
+    transport_multipliers = formation_model(
         self.runtime_params,
         self.initial_state.geometry,
         self.initial_state.core_profiles,
         high_power_profiles,
-        pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_runtime_params_lib.ConfinementMode.L_MODE,
         self.initial_state.model_state.pedestal.formation,
     )
     for k, multiplier in dataclasses.asdict(transport_multipliers).items():
@@ -326,11 +329,6 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         ),
     )
 
-    l_mode_state = pedestal_transition_state_lib.PedestalTransitionState.empty()
-    h_mode_state = pedestal_transition_state_lib.PedestalTransitionState.empty(
-        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE
-    )
-
     # Mock calculate_P_SOL_total and calculate_P_LH to avoid depending on
     # specific profile values and scaling laws in this test.
     target_P_LH = 100.0e6
@@ -344,20 +342,20 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
       with mock.patch.object(scaling_laws, 'calculate_P_LH') as mock_calc_p_lh:
         mock_calc_p_lh.return_value = (jnp.array(target_P_LH), None)
 
-        multiplier_l_mode, _ = formation_model(
+        multiplier_l_mode = formation_model(
             runtime_params,
             self.initial_state.geometry,
             self.initial_state.core_profiles,
             self.initial_state.core_sources,
-            l_mode_state,
+            pedestal_runtime_params_lib.ConfinementMode.L_MODE,
             self.initial_state.model_state.pedestal.formation,
         )
-        multiplier_h_mode, _ = formation_model(
+        multiplier_h_mode = formation_model(
             runtime_params,
             self.initial_state.geometry,
             self.initial_state.core_profiles,
             self.initial_state.core_sources,
-            h_mode_state,
+            pedestal_runtime_params_lib.ConfinementMode.H_MODE,
             self.initial_state.model_state.pedestal.formation,
         )
 
@@ -387,14 +385,11 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
             value=self.initial_state.core_profiles.T_e.value * 2.0,
         ),
     )
-    _, updated_state = formation_model(
+    # When dt > 0.0, update_state advances state.
+    updated_state = formation_model.update_state(
         runtime_params=runtime_params,
         geo=self.initial_state.geometry,
         core_profiles=modified_core_profiles,
-        source_profiles=self.initial_state.core_sources,
-        pedestal_transition_state=(
-            pedestal_transition_state_lib.PedestalTransitionState.empty()
-        ),
         formation_state=initial_formation_state,
     )
     self.assertIsInstance(
@@ -412,31 +407,30 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
     self.assertGreater(updated_state.dW_thermal_dt_smoothed, 0.0)
 
-    _, _, updated_transition_formation_state = (
-        formation_model.evaluate_transition_conditions(
-            runtime_params=runtime_params,
-            geo=self.initial_state.geometry,
-            core_profiles=modified_core_profiles,
-            source_profiles=self.initial_state.core_sources,
-            formation_state=initial_formation_state,
-        )
+    # When dt == 0.0, update_state is a safe no-op.
+    noop_state = formation_model.update_state(
+        runtime_params=runtime_params,
+        geo=self.initial_state.geometry,
+        core_profiles=modified_core_profiles,
+        formation_state=updated_state,
     )
     self.assertIsInstance(
-        updated_transition_formation_state,
+        noop_state,
         power_scaling_formation_model.PowerScalingFormationState,
     )
-    self.assertIsNotNone(updated_transition_formation_state.t)
-    self.assertIsNotNone(updated_transition_formation_state.W_thermal_total)
-    self.assertIsNotNone(
-        updated_transition_formation_state.dW_thermal_dt_smoothed
+    self.assertIsNotNone(noop_state.t)
+    self.assertIsNotNone(noop_state.W_thermal_total)
+    self.assertIsNotNone(noop_state.dW_thermal_dt_smoothed)
+    assert noop_state.t is not None
+    assert noop_state.W_thermal_total is not None
+    assert noop_state.dW_thermal_dt_smoothed is not None
+    np.testing.assert_allclose(noop_state.t, updated_state.t)
+    np.testing.assert_allclose(
+        noop_state.W_thermal_total, updated_state.W_thermal_total
     )
-    np.testing.assert_allclose(updated_transition_formation_state.t, 0.1)
-    self.assertGreater(
-        updated_transition_formation_state.W_thermal_total,
-        initial_formation_state.W_thermal_total,
-    )
-    self.assertGreater(
-        updated_transition_formation_state.dW_thermal_dt_smoothed, 0.0
+    np.testing.assert_allclose(
+        noop_state.dW_thermal_dt_smoothed,
+        updated_state.dW_thermal_dt_smoothed,
     )
 
   @parameterized.named_parameters(
@@ -488,7 +482,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         'calculate_P_LH',
         return_value=(jnp.array(100.0e6), None),
     ):
-      trigger_l_to_h, trigger_h_to_l, updated_formation_state = (
+      trigger_l_to_h, trigger_h_to_l = (
           formation_model.evaluate_transition_conditions(
               runtime_params=runtime_params,
               geo=self.initial_state.geometry,
@@ -497,12 +491,53 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
               formation_state=self.initial_state.model_state.pedestal.formation,
           )
       )
-    self.assertIsInstance(
-        updated_formation_state,
-        power_scaling_formation_model.PowerScalingFormationState,
-    )
     self.assertEqual(bool(trigger_l_to_h), expected_trigger_l_to_h)
     self.assertEqual(bool(trigger_h_to_l), expected_trigger_h_to_l)
+
+  def test_call_uses_formation_state_dW_dt(self):
+    formation_model = power_scaling_formation_model.PowerScalingFormationModel(
+        scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
+    )
+    p_heat = power_scaling_formation_model.calculate_P_SOL_total(
+        self.initial_state.core_sources,
+        self.initial_state.geometry,
+    )
+    p_lh, _ = scaling_laws.calculate_P_LH(
+        geo=self.initial_state.geometry,
+        core_profiles=self.initial_state.core_profiles,
+        scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
+        divertor_configuration=formation_model.divertor_configuration,
+    )
+    low_dw_dt_state = power_scaling_formation_model.PowerScalingFormationState(
+        W_thermal_total=jnp.array(1.0e6),
+        dW_thermal_dt_smoothed=p_heat - 1.2 * p_lh,
+        t=jnp.array(0.0),
+    )
+    high_dw_dt_state = dataclasses.replace(
+        low_dw_dt_state,
+        dW_thermal_dt_smoothed=p_heat - 0.8 * p_lh,
+    )
+    multipliers_low_dw_dt = formation_model(
+        runtime_params=self.runtime_params,
+        geo=self.initial_state.geometry,
+        core_profiles=self.initial_state.core_profiles,
+        source_profiles=self.initial_state.core_sources,
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+        formation_state=low_dw_dt_state,
+    )
+    multipliers_high_dw_dt = formation_model(
+        runtime_params=self.runtime_params,
+        geo=self.initial_state.geometry,
+        core_profiles=self.initial_state.core_profiles,
+        source_profiles=self.initial_state.core_sources,
+        confinement_mode=pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+        formation_state=high_dw_dt_state,
+    )
+    # Higher dW/dt lowers P_SOL = P_heat - dW/dt, yielding less suppression.
+    self.assertGreater(
+        multipliers_high_dw_dt.chi_e_multiplier,
+        multipliers_low_dw_dt.chi_e_multiplier,
+    )
 
 
 if __name__ == '__main__':
