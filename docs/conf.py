@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'TORAX'
-copyright = '2024, The TORAX Authors.'
+copyright = '2024, The TORAX authors'
 author = 'The TORAX authors'
 
 # The short X.Y version
