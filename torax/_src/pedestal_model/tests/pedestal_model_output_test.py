@@ -24,7 +24,9 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.pedestal_model import (
+    runtime_params as pedestal_runtime_params_lib,
+)
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
@@ -666,8 +668,174 @@ def _mtanh_ibc(
   return ped_out.to_internal_boundary_conditions(
       geo,
       core_profiles=core_profiles,
-      pedestal_profile_form=pedestal_runtime_params_lib.PedestalProfileForm.MTANH,
+      pedestal_profile_form=(
+          pedestal_runtime_params_lib.PedestalProfileForm.MTANH
+      ),
   )
+
+
+class PedestalModelOutputTest(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.geo = mock.create_autospec(geometry.Geometry, instance=True)
+    self.geo.rho_face_norm = jnp.linspace(0, 1, 10)
+    self.geo.rho = jnp.linspace(0, 1, 9)
+    self.geo.rho_norm = jnp.linspace(0, 1, 9)
+    self.geo.torax_mesh = mock.MagicMock(nx=9)
+    self.structure = pedestal_model_output.PedestalStructure(
+        rho_norm_ped_top=0.99,
+        T_i_ped=1.0,
+        T_e_ped=1.1,
+        n_e_ped=1.2e19,
+        transport_multipliers=pedestal_model_output.TransportMultipliers(
+            chi_e_multiplier=jnp.array(2.0),
+            chi_i_multiplier=jnp.array(3.0),
+            D_e_multiplier=jnp.array(4.0),
+            v_e_multiplier=jnp.array(5.0),
+        ),
+    )
+    self.pedestal_runtime_params = mock.create_autospec(
+        pedestal_runtime_params_lib.RuntimeParams, instance=True
+    )
+    self.pedestal_runtime_params.chi_max = jnp.array(10.0)
+    self.pedestal_runtime_params.D_e_max = jnp.array(10.0)
+    self.pedestal_runtime_params.V_e_max = jnp.array(10.0)
+    self.pedestal_runtime_params.V_e_min = jnp.array(-10.0)
+    self.pedestal_runtime_params.pedestal_top_smoothing_width = jnp.array(0.0)
+
+  def test_ibc_output_to_internal_boundary_conditions_set_at_ped_top(self):
+    output = pedestal_model_output.IBCPedestalModelOutput(
+        structure=self.structure,
+        confinement_mode=jnp.asarray(
+            pedestal_runtime_params_lib.ConfinementMode.H_MODE
+        ),
+    )
+    # SET_AT_PED_TOP
+    ibc_set = output.to_internal_boundary_conditions(
+        self.geo,
+        core_profiles=mock.create_autospec(state.CoreProfiles, instance=True),
+        pedestal_profile_form=(
+            pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
+        ),
+    )
+    expected_ibc = self.structure.to_internal_boundary_conditions(
+        self.geo,
+        core_profiles=mock.create_autospec(state.CoreProfiles, instance=True),
+        pedestal_profile_form=(
+            pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
+        ),
+    )
+    np.testing.assert_allclose(ibc_set.T_i, expected_ibc.T_i)
+    np.testing.assert_allclose(ibc_set.T_e, expected_ibc.T_e)
+    np.testing.assert_allclose(ibc_set.n_e, expected_ibc.n_e)
+
+  def test_ibc_output_to_internal_boundary_conditions_mtanh(self):
+    geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
+    rho_ped_top = float(geo.rho_norm[22])
+    core_profiles = _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
+    output_mtanh = pedestal_model_output.IBCPedestalModelOutput(
+        structure=pedestal_model_output.PedestalStructure(
+            rho_norm_ped_top=rho_ped_top,
+            T_i_ped=5.0,
+            T_e_ped=4.0,
+            n_e_ped=0.7e20,
+        ),
+        confinement_mode=jnp.asarray(
+            pedestal_runtime_params_lib.ConfinementMode.H_MODE
+        ),
+    )
+    ibc_mtanh = output_mtanh.to_internal_boundary_conditions(
+        geo,
+        core_profiles=core_profiles,
+        pedestal_profile_form=(
+            pedestal_runtime_params_lib.PedestalProfileForm.MTANH
+        ),
+    )
+    expected_mtanh = output_mtanh.structure.to_internal_boundary_conditions(
+        geo,
+        core_profiles=core_profiles,
+        pedestal_profile_form=(
+            pedestal_runtime_params_lib.PedestalProfileForm.MTANH
+        ),
+    )
+    np.testing.assert_allclose(ibc_mtanh.T_i, expected_mtanh.T_i)
+    np.testing.assert_allclose(ibc_mtanh.T_e, expected_mtanh.T_e)
+    np.testing.assert_allclose(ibc_mtanh.n_e, expected_mtanh.n_e)
+
+  def test_adaptive_transport_pedestal_model_output_modify_core_transport(
+      self,
+  ):
+    multipliers = pedestal_model_output.TransportMultipliers(
+        chi_e_multiplier=jnp.array(2.0),
+        chi_i_multiplier=jnp.array(3.0),
+        D_e_multiplier=jnp.array(4.0),
+        v_e_multiplier=jnp.array(5.0),
+    )
+    output = pedestal_model_output.AdaptiveTransportPedestalModelOutput(
+        structure=self.structure,
+        confinement_mode=jnp.asarray(
+            pedestal_runtime_params_lib.ConfinementMode.H_MODE
+        ),
+        transport_multipliers=multipliers,
+    )
+    n_face = self.geo.rho_face_norm.shape[0]
+    turbulent_core = transport_coeffs_lib.TransportCoeffs(
+        chi_face_ion=jnp.ones(n_face),
+        chi_face_el=jnp.ones(n_face),
+        d_face_el=jnp.ones(n_face),
+        v_face_el=jnp.ones(n_face),
+    )
+    turbulent_pedestal = transport_coeffs_lib.TransportCoeffs.zeros(self.geo)
+    turbulent = transport_coeffs_lib.TurbulentTransport(
+        core=turbulent_core,
+        pedestal=turbulent_pedestal,
+    )
+    neoclassical = transport_coeffs_lib.NeoclassicalTransport(
+        chi_face_ion=jnp.ones(n_face),
+        chi_face_el=jnp.ones(n_face),
+        d_face_el=jnp.ones(n_face),
+        v_face_el=jnp.ones(n_face) * 2.0,
+        v_face_el_ware=jnp.ones(n_face),
+    )
+    pereverzev = transport_coeffs_lib.PereverzevTransport(
+        chi_face_ion=jnp.ones(n_face) * 30.0,
+        chi_face_el=jnp.ones(n_face) * 30.0,
+        full_v_heat_face_ion=jnp.ones(n_face) * 15.0,
+        full_v_heat_face_el=jnp.ones(n_face) * 12.0,
+        d_face_el=jnp.ones(n_face) * 5.0,
+        v_face_el=jnp.ones(n_face) * -3.0,
+    )
+    core_transport = state.CoreTransport(
+        total=transport_coeffs_lib.sum_transport_coeffs(
+            turbulent.total, neoclassical, pereverzev
+        ),
+        turbulent=turbulent,
+        neoclassical=neoclassical,
+        pereverzev=pereverzev,
+    )
+    modified = output.modify_core_transport(
+        core_transport=core_transport,
+        geo=self.geo,
+        pedestal_runtime_params=self.pedestal_runtime_params,
+    )
+    expected = self.structure.modify_core_transport(
+        core_transport=core_transport,
+        geo=self.geo,
+        pedestal_runtime_params=self.pedestal_runtime_params,
+    )
+    np.testing.assert_allclose(
+        modified.total.chi_face_ion, expected.total.chi_face_ion
+    )
+    np.testing.assert_allclose(
+        modified.total.chi_face_el, expected.total.chi_face_el
+    )
+    np.testing.assert_allclose(
+        modified.total.d_face_el, expected.total.d_face_el
+    )
+    np.testing.assert_allclose(
+        modified.total.v_face_el, expected.total.v_face_el
+    )
 
 
 if __name__ == '__main__':

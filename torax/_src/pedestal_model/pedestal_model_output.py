@@ -14,6 +14,7 @@
 
 """Output of the pedestal model."""
 
+import abc
 import dataclasses
 from typing import Self
 
@@ -25,9 +26,14 @@ from torax._src import jax_utils
 from torax._src import math_utils
 from torax._src import state
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
+from torax._src.pedestal_model import (
+    runtime_params as pedestal_runtime_params_lib,
+)
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
+from typing_extensions import override
 
 # pylint: disable=invalid-name
 
@@ -114,17 +120,369 @@ class PedestalStructure:
           pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
       ),
   ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
-    """Convert the pedestal model output to internal boundary conditions.
+    """Convert the pedestal model output to internal boundary conditions."""
+    return _structure_to_internal_boundary_conditions(
+        self, geo, core_profiles, pedestal_profile_form
+    )
 
-    When pedestal_profile_form is MTANH and core_profiles is provided, generates
-    an mtanh-shaped profile across the pedestal region using the formula:
-      a(ψ) = a_sep + a₀·[tanh(1) - tanh(2(ψ - ψ_mid)/Δ)]
-    where a denotes either T_i, T_e, or n_e, and Δ is derived from
-    rho_norm_ped_top via the ψ_N(ρ) mapping:
-      ψ_top = ψ_N(rho_norm_ped_top), Δ = (1 - ψ_top) / 1.5
+  def _tanh_internal_boundary_conditions(
+      self,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
+    """Compute mtanh-shaped internal boundary conditions."""
+    return _tanh_internal_boundary_conditions(self, geo, core_profiles)
 
-    When pedestal_profile_form is SET_AT_PED_TOP, falls back to a single-point
-    mask at the nearest cell to rho_norm_ped_top.
+  def modify_core_transport(
+      self,
+      core_transport: state.CoreTransport,
+      geo: geometry.Geometry,
+      pedestal_runtime_params: pedestal_runtime_params_lib.RuntimeParams,
+  ) -> state.CoreTransport:
+    """Modify transport coefficients in the entire pedestal region."""
+    return _modify_core_transport(
+        core_transport,
+        geo,
+        pedestal_runtime_params,
+        self.rho_norm_ped_top,
+        self.transport_multipliers,
+    )
+
+
+def _tanh_internal_boundary_conditions(
+    structure: PedestalStructure,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
+  """Compute mtanh-shaped internal boundary conditions.
+
+  The mtanh width Δ is derived from rho_norm_ped_top using the ψ_N(ρ)
+  mapping. In the mtanh geometry, the pedestal top is at ψ_top = 1 - 1.5Δ,
+  so Δ = (1 - ψ_top) / 1.5.
+
+  The profile is then:
+    q(ψ) = q_sep + a₀·[tanh(1) - tanh(2(ψ - ψ_mid)/Δ)]
+  where:
+    ψ_mid = 1 - Δ/2 (center of the tanh)
+    a₀ = (q_top - q_sep) / (tanh(1) + tanh(2))
+
+  Values are applied to the cells given by `_pedestal_cell_mask`, whose right
+  face lies at or beyond ρ_ped_top. Core cells get 0.0, and no cells are
+  pinned when ρ_ped_top >= 1.
+
+  Args:
+    structure: Pedestal structure containing values at the pedestal top.
+    geo: Geometry object for the grid.
+    core_profiles: Core profiles for ψ_N mapping and separatrix values.
+
+  Returns:
+    Internal boundary conditions with mtanh-shaped profiles for T_i, T_e, n_e.
+  """
+  # Get ψ_N at each cell center.
+  psi_norm_cell = core_profiles.psi_norm
+
+  # Interpolate ψ_top continuously at rho_norm_ped_top so Δ = (1 - ψ_top)/1.5
+  # avoids O(Δρ) cell-snapping steps. Clamp rho_norm_ped_top to the [0, 1]
+  # face grid and floor Δ at eps so reverse-mode AD stays finite when
+  # rho_norm_ped_top >= 1.0 (e.g. no_pedestal() = inf, where jnp.interp's
+  # discarded extrapolation branch would otherwise give inf * 0 gradients).
+  rho_ped_clamped = jnp.clip(structure.rho_norm_ped_top, 0.0, 1.0)
+  psi_top = jnp.interp(
+      rho_ped_clamped, geo.rho_face_norm, core_profiles.psi_norm_face
+  )
+  delta = jnp.maximum((1.0 - psi_top) / 1.5, constants.CONSTANTS.eps)
+  psi_mid = 1.0 - delta / 2.0
+
+  # Separatrix values from the rightmost face of core_profiles.
+  T_i_sep = core_profiles.T_i.right_face_value
+  T_e_sep = core_profiles.T_e.right_face_value
+  n_e_sep = core_profiles.n_e.right_face_value
+
+  # A pedestal top at or beyond the LCFS means no pedestal: Δ collapses to eps
+  # and would otherwise pin the last cell to a zero-width step at ~q_top.
+  ped_mask = _pedestal_cell_mask(
+      geo.rho_face_norm, structure.rho_norm_ped_top
+  ) & (structure.rho_norm_ped_top < 1.0)
+
+  def _mtanh_profile(val_top, val_sep):
+    """Evaluate mtanh for one quantity."""
+    tanh1 = jnp.tanh(1.0)
+    tanh2 = jnp.tanh(2.0)
+    a0 = (val_top - val_sep) / (tanh1 + tanh2)
+    profile = val_sep + a0 * (
+        tanh1 - jnp.tanh(2.0 * (psi_norm_cell - psi_mid) / delta)
+    )
+    return jnp.where(ped_mask, profile, 0.0)
+
+  return internal_boundary_conditions_lib.InternalBoundaryConditions(
+      T_i=_mtanh_profile(structure.T_i_ped, T_i_sep),
+      T_e=_mtanh_profile(structure.T_e_ped, T_e_sep),
+      n_e=_mtanh_profile(structure.n_e_ped, n_e_sep),
+  )
+
+
+def _structure_to_internal_boundary_conditions(
+    structure: PedestalStructure,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles | None,
+    pedestal_profile_form: pedestal_runtime_params_lib.PedestalProfileForm,
+) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
+  """Convert pedestal structure to internal boundary conditions.
+
+  Generates a smooth mtanh-shaped profile across the pedestal region when
+  `pedestal_profile_form` is `MTANH`, or pins pedestal values at the single
+  grid cell nearest to `rho_norm_ped_top` when `SET_AT_PED_TOP`.
+
+  Args:
+    structure: Pedestal structure containing values at the pedestal top.
+    geo: Geometry object for the grid.
+    core_profiles: Core profiles, needed for ψ_N mapping and separatrix values
+      when using mtanh profiles.
+    pedestal_profile_form: Controls the shape of the pedestal profile.
+
+  Returns:
+    Internal boundary conditions for T_i, T_e, n_e.
+  """
+  match pedestal_profile_form:
+    case pedestal_runtime_params_lib.PedestalProfileForm.MTANH:
+      if core_profiles is None:
+        raise ValueError(
+            'core_profiles must be provided when pedestal_profile_form is'
+            ' MTANH.'
+        )
+      return _tanh_internal_boundary_conditions(structure, geo, core_profiles)
+    case pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP:
+      # Single-point mask: pin values at the nearest cell to ped top.
+      rho_norm_ped_top_idx = jnp.argmin(
+          jnp.abs(geo.rho_norm - structure.rho_norm_ped_top)
+      )
+      pedestal_mask = (
+          jnp.zeros_like(geo.rho, dtype=bool).at[rho_norm_ped_top_idx].set(True)
+      )
+      return internal_boundary_conditions_lib.InternalBoundaryConditions(
+          T_i=jnp.where(pedestal_mask, structure.T_i_ped, 0.0),
+          T_e=jnp.where(pedestal_mask, structure.T_e_ped, 0.0),
+          n_e=jnp.where(pedestal_mask, structure.n_e_ped, 0.0),
+      )
+
+
+def _modify_core_transport(
+    core_transport: state.CoreTransport,
+    geo: geometry.Geometry,
+    pedestal_runtime_params: pedestal_runtime_params_lib.RuntimeParams,
+    rho_norm_ped_top: array_typing.FloatScalar,
+    transport_multipliers: TransportMultipliers,
+) -> state.CoreTransport:
+  """Modify transport coefficients in the entire pedestal region.
+
+  Scales the turbulent core transport coefficients in the pedestal region by
+  the multipliers in the pedestal model output, and applies smoothing across
+  the combined (scaled core + pedestal) turbulent transport at the pedestal
+  top. Transport coefficients from neoclassical, Pereverzev, and pedestal
+  transport models, as well as individual per-model diagnostic outputs, are
+  not transformed.
+
+  Args:
+    core_transport: The core transport coefficients to modify.
+    geo: The geometry of the torus.
+    pedestal_runtime_params: The runtime parameters of the pedestal model.
+    rho_norm_ped_top: Radial location of the pedestal top in rho_norm.
+    transport_multipliers: Multipliers to apply to turbulent core transport.
+
+  Returns:
+    The modified core transport coefficients.
+  """
+  # We are using the face grid here, since transport coefficients are
+  # applied on the face grid.
+  pedestal_active_mask_face = geo.rho_face_norm > rho_norm_ped_top
+
+  # TODO(b/573686723): The +/-2 width band spreads the smoothing well into the
+  # pedestal at the default width and is strongly resolution dependent.
+  smoothing_width = pedestal_runtime_params.pedestal_top_smoothing_width
+  smoothing_matrix = math_utils.gaussian_smoothing_matrix(
+      geo.rho_face_norm,
+      smoothing_width,
+      active=(
+          jnp.abs(geo.rho_face_norm - rho_norm_ped_top) < 2.0 * smoothing_width
+      ),
+  )
+
+  def _scale_channel(
+      coeff: array_typing.FloatVectorFace,
+      multiplier: array_typing.FloatScalar,
+      clip_min: array_typing.FloatScalar | None = None,
+      clip_max: array_typing.FloatScalar | None = None,
+  ) -> array_typing.FloatVectorFace:
+    """Scales and clips a single transport coefficient channel."""
+    # If transport suppression is not in effect, perform no scaling (L-mode).
+    # If transport suppression is in effect (i.e. H-mode, multiplier != 1.0),
+    # then clip before scaling to avoid unrealistic values.
+    modified = jnp.where(
+        jnp.isclose(multiplier, 1.0),
+        coeff,
+        jnp.clip(coeff, min=clip_min, max=clip_max) * multiplier,
+    )
+    # Only modify the coefficients in the pedestal region.
+    return jnp.where(pedestal_active_mask_face, modified, coeff)
+
+  core_coeffs = core_transport.turbulent.core
+  pedestal_coeffs = core_transport.turbulent.pedestal
+
+  # Scale only core transport.
+  scaled_core = dataclasses.replace(
+      core_coeffs,
+      chi_face_ion=_scale_channel(
+          core_coeffs.chi_face_ion,
+          transport_multipliers.chi_i_multiplier,
+          clip_max=pedestal_runtime_params.chi_max,
+      ),
+      chi_face_el=_scale_channel(
+          core_coeffs.chi_face_el,
+          transport_multipliers.chi_e_multiplier,
+          clip_max=pedestal_runtime_params.chi_max,
+      ),
+      d_face_el=_scale_channel(
+          core_coeffs.d_face_el,
+          transport_multipliers.D_e_multiplier,
+          clip_max=pedestal_runtime_params.D_e_max,
+      ),
+      v_face_el=_scale_channel(
+          core_coeffs.v_face_el,
+          transport_multipliers.v_e_multiplier,
+          clip_min=pedestal_runtime_params.V_e_min,
+          clip_max=pedestal_runtime_params.V_e_max,
+      ),
+  )
+
+  # Smooth across the combined core and pedestal transport, then subtract the
+  # pedestal contribution so that `modified_turbulent.total` (`core +
+  # pedestal`) equals the smoothed total while only updating `core` for
+  # simplicity.
+  def _smooth_combined(
+      scaled_core_channel: array_typing.FloatVectorFace,
+      ped_channel: array_typing.FloatVectorFace,
+  ) -> array_typing.FloatVectorFace:
+    combined = scaled_core_channel + ped_channel
+    smoothed_total = jnp.dot(smoothing_matrix, combined)
+    return smoothed_total - ped_channel
+
+  smoothed_core = jax.tree_util.tree_map(
+      _smooth_combined,
+      scaled_core,
+      pedestal_coeffs,
+  )
+  modified_turbulent = dataclasses.replace(
+      core_transport.turbulent,
+      core=smoothed_core,
+  )
+
+  # Neoclassical and Pereverzev-Corrigan stabilization transport are not
+  # affected by scaling from an ADAPTIVE_TRANSPORT pedestal model.
+  # Pereverzev diffusivity (chi_face, d_face) and counter-convection
+  # (full_v_heat_face, v_face) must remain exactly balanced so their net flux
+  # vanishes at convergence.
+  coeffs_to_sum = [modified_turbulent.total, core_transport.neoclassical]
+  if core_transport.pereverzev is not None:
+    coeffs_to_sum.append(core_transport.pereverzev)
+  total = transport_coeffs_lib.sum_transport_coeffs(*coeffs_to_sum)
+  return state.CoreTransport(
+      total=total,
+      turbulent=modified_turbulent,
+      neoclassical=core_transport.neoclassical,
+      pereverzev=core_transport.pereverzev,
+  )
+
+
+@dataclasses.dataclass(frozen=True)
+class PedestalModelOutput(abc.ABC):
+  """Base class for pedestal model output.
+
+  Attributes:
+    structure: Geometric structure of the pedestal (temperatures, densities,
+      and pedestal-top location).
+    confinement_mode: Confinement mode (L_MODE, H_MODE, or transitioning).
+  """
+
+  structure: PedestalStructure
+  # Cast to a JAX array so pytree leaves have weak_type=False and avoid
+  # step-1 JIT recompilation of step_fn.
+  confinement_mode: (
+      pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
+  ) = dataclasses.field(
+      default_factory=lambda: jnp.asarray(
+          pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+          dtype=jax_utils.get_int_dtype(),
+      )
+  )
+
+  @property
+  def rho_norm_ped_top(self) -> array_typing.FloatScalar:
+    """Normalized radial coordinate of the pedestal top."""
+    return self.structure.rho_norm_ped_top
+
+  @property
+  def is_active(self) -> array_typing.BoolScalar:
+    """Whether the pedestal is active (i.e. not in L-mode)."""
+    return (
+        self.confinement_mode
+        != pedestal_runtime_params_lib.ConfinementMode.L_MODE
+    )
+
+  @classmethod
+  @abc.abstractmethod
+  def empty(
+      cls,
+      confinement_mode: (
+          pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
+      ) = pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+  ) -> Self:
+    """Returns an empty pedestal model output representing no pedestal.
+
+    Args:
+      confinement_mode: Confinement mode (default L-mode).
+
+    Returns:
+      An empty pedestal model output representing no pedestal.
+    """
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class IBCPedestalModelOutput(PedestalModelOutput):
+  """Output of a pedestal model using internal boundary conditions."""
+
+  @classmethod
+  @override
+  def empty(
+      cls,
+      confinement_mode: (
+          pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
+      ) = pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+  ) -> Self:
+    """Returns an empty IBCPedestalModelOutput representing no pedestal.
+
+    Args:
+      confinement_mode: Confinement mode (default L-mode).
+
+    Returns:
+      A default IBCPedestalModelOutput instance representing no pedestal.
+    """
+    return cls(
+        structure=PedestalStructure.no_pedestal(),
+        confinement_mode=jnp.asarray(
+            confinement_mode, dtype=jax_utils.get_int_dtype()
+        ),
+    )
+
+  def to_internal_boundary_conditions(
+      self,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles | None = None,
+      pedestal_profile_form: pedestal_runtime_params_lib.PedestalProfileForm = (
+          pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP
+      ),
+  ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
+    """Converts the pedestal model output to internal boundary conditions.
 
     Args:
       geo: Geometry object for the grid.
@@ -135,98 +493,48 @@ class PedestalStructure:
     Returns:
       Internal boundary conditions for T_i, T_e, n_e.
     """
-    match pedestal_profile_form:
-      case pedestal_runtime_params_lib.PedestalProfileForm.MTANH:
-        if core_profiles is None:
-          raise ValueError(
-              "core_profiles must be provided when pedestal_profile_form"
-              " is MTANH."
-          )
-        return self._tanh_internal_boundary_conditions(geo, core_profiles)
-      case pedestal_runtime_params_lib.PedestalProfileForm.SET_AT_PED_TOP:
-        # Single-point mask: pin values at the nearest cell to ped top.
-        rho_norm_ped_top_idx = jnp.argmin(
-            jnp.abs(geo.rho_norm - self.rho_norm_ped_top)
-        )
-        pedestal_mask = (
-            jnp.zeros_like(geo.rho, dtype=bool)
-            .at[rho_norm_ped_top_idx]
-            .set(True)
-        )
-        return internal_boundary_conditions_lib.InternalBoundaryConditions(
-            T_i=jnp.where(pedestal_mask, self.T_i_ped, 0.0),
-            T_e=jnp.where(pedestal_mask, self.T_e_ped, 0.0),
-            n_e=jnp.where(pedestal_mask, self.n_e_ped, 0.0),
-        )
+    return _structure_to_internal_boundary_conditions(
+        self.structure, geo, core_profiles, pedestal_profile_form
+    )
 
-  def _tanh_internal_boundary_conditions(
-      self,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
-    """Compute mtanh-shaped internal boundary conditions.
 
-    The mtanh width Δ is derived from rho_norm_ped_top using the ψ_N(ρ)
-    mapping. In the mtanh geometry, the pedestal top is at ψ_top = 1 - 1.5Δ,
-    so Δ = (1 - ψ_top) / 1.5.
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class AdaptiveTransportPedestalModelOutput(PedestalModelOutput):
+  """Output of a pedestal model using adaptive transport multipliers.
 
-    The profile is then:
-      q(ψ) = q_sep + a₀·[tanh(1) - tanh(2(ψ - ψ_mid)/Δ)]
-    where:
-      ψ_mid = 1 - Δ/2 (center of the tanh)
-      a₀ = (q_top - q_sep) / (tanh(1) + tanh(2))
+  Attributes:
+    structure: Geometric structure of the pedestal.
+    confinement_mode: Confinement mode (L_MODE, H_MODE, or transitioning).
+    transport_multipliers: Multipliers for turbulent transport in the pedestal.
+  """
 
-    Values are applied to the cells given by `_pedestal_cell_mask`, whose right
-    face lies at or beyond ρ_ped_top. Core cells get 0.0, and no cells are
-    pinned when ρ_ped_top >= 1.
+  transport_multipliers: TransportMultipliers = dataclasses.field(
+      default_factory=TransportMultipliers.default
+  )
+
+  @classmethod
+  @override
+  def empty(
+      cls,
+      confinement_mode: (
+          pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
+      ) = pedestal_runtime_params_lib.ConfinementMode.L_MODE,
+  ) -> Self:
+    """Returns an empty AdaptiveTransportPedestalModelOutput.
 
     Args:
-      geo: Geometry object for the grid.
-      core_profiles: Core profiles for ψ_N mapping and separatrix values.
+      confinement_mode: Confinement mode (default L-mode).
 
     Returns:
-      Internal boundary conditions with mtanh-shaped profiles for T_i, T_e, n_e.
+      A default AdaptiveTransportPedestalModelOutput representing no pedestal.
     """
-    # Get ψ_N at each cell center.
-    psi_norm_cell = core_profiles.psi_norm
-
-    # Interpolate ψ_top continuously at rho_norm_ped_top so Δ = (1 - ψ_top)/1.5
-    # avoids O(Δρ) cell-snapping steps. Clamp rho_norm_ped_top to the [0, 1]
-    # face grid and floor Δ at eps so reverse-mode AD stays finite when
-    # rho_norm_ped_top >= 1.0 (e.g. no_pedestal() = inf, where jnp.interp's
-    # discarded extrapolation branch would otherwise give inf * 0 gradients).
-    rho_ped_clamped = jnp.clip(self.rho_norm_ped_top, 0.0, 1.0)
-    psi_top = jnp.interp(
-        rho_ped_clamped, geo.rho_face_norm, core_profiles.psi_norm_face
-    )
-    delta = jnp.maximum((1.0 - psi_top) / 1.5, constants.CONSTANTS.eps)
-    psi_mid = 1.0 - delta / 2.0
-
-    # Separatrix values from the rightmost face of core_profiles.
-    T_i_sep = core_profiles.T_i.right_face_value
-    T_e_sep = core_profiles.T_e.right_face_value
-    n_e_sep = core_profiles.n_e.right_face_value
-
-    # A pedestal top at or beyond the LCFS means no pedestal: Δ collapses to eps
-    # and would otherwise pin the last cell to a zero-width step at ~q_top.
-    ped_mask = _pedestal_cell_mask(geo.rho_face_norm, self.rho_norm_ped_top) & (
-        self.rho_norm_ped_top < 1.0
-    )
-
-    def _mtanh_profile(val_top, val_sep):
-      """Evaluate mtanh for one quantity."""
-      tanh1 = jnp.tanh(1.0)
-      tanh2 = jnp.tanh(2.0)
-      a0 = (val_top - val_sep) / (tanh1 + tanh2)
-      profile = val_sep + a0 * (
-          tanh1 - jnp.tanh(2.0 * (psi_norm_cell - psi_mid) / delta)
-      )
-      return jnp.where(ped_mask, profile, 0.0)
-
-    return internal_boundary_conditions_lib.InternalBoundaryConditions(
-        T_i=_mtanh_profile(self.T_i_ped, T_i_sep),
-        T_e=_mtanh_profile(self.T_e_ped, T_e_sep),
-        n_e=_mtanh_profile(self.n_e_ped, n_e_sep),
+    return cls(
+        structure=PedestalStructure.no_pedestal(),
+        confinement_mode=jnp.asarray(
+            confinement_mode, dtype=jax_utils.get_int_dtype()
+        ),
+        transport_multipliers=TransportMultipliers.default(),
     )
 
   def modify_core_transport(
@@ -235,14 +543,7 @@ class PedestalStructure:
       geo: geometry.Geometry,
       pedestal_runtime_params: pedestal_runtime_params_lib.RuntimeParams,
   ) -> state.CoreTransport:
-    """Modify transport coefficients in the entire pedestal region.
-
-    Scales the turbulent core transport coefficients in the pedestal region by
-    the multipliers in the pedestal model output, and applies smoothing across
-    the combined (scaled core + pedestal) turbulent transport at the pedestal
-    top. Transport coefficients from neoclassical, Pereverzev, and pedestal
-    transport models, as well as individual per-model diagnostic outputs, are
-    not transformed.
+    """Modifies core transport coefficients in the pedestal region.
 
     Args:
       core_transport: The core transport coefficients to modify.
@@ -252,103 +553,10 @@ class PedestalStructure:
     Returns:
       The modified core transport coefficients.
     """
-    # We are using the face grid here, since transport coefficients are
-    # applied on the face grid.
-    pedestal_active_mask_face = geo.rho_face_norm > self.rho_norm_ped_top
-
-    # TODO(b/573686723): The +/-2 width band spreads the smoothing well into the
-    # pedestal at the default width and is strongly resolution dependent.
-    smoothing_width = pedestal_runtime_params.pedestal_top_smoothing_width
-    smoothing_matrix = math_utils.gaussian_smoothing_matrix(
-        geo.rho_face_norm,
-        smoothing_width,
-        active=(
-            jnp.abs(geo.rho_face_norm - self.rho_norm_ped_top)
-            < 2.0 * smoothing_width
-        ),
-    )
-
-    def _scale_channel(
-        coeff: array_typing.FloatVectorFace,
-        multiplier: array_typing.FloatScalar,
-        clip_min: array_typing.FloatScalar | None = None,
-        clip_max: array_typing.FloatScalar | None = None,
-    ) -> array_typing.FloatVectorFace:
-      """Scales and clips a single transport coefficient channel."""
-      # If transport suppression is not in effect, perform no scaling (L-mode).
-      # If transport suppression is in effect (i.e. H-mode, multiplier != 1.0),
-      # then clip before scaling to avoid unrealistic values.
-      modified = jnp.where(
-          jnp.isclose(multiplier, 1.0),
-          coeff,
-          jnp.clip(coeff, min=clip_min, max=clip_max) * multiplier,
-      )
-      # Only modify the coefficients in the pedestal region.
-      return jnp.where(pedestal_active_mask_face, modified, coeff)
-
-    core_coeffs = core_transport.turbulent.core
-    pedestal_coeffs = core_transport.turbulent.pedestal
-
-    # Scale only core transport.
-    scaled_core = dataclasses.replace(
-        core_coeffs,
-        chi_face_ion=_scale_channel(
-            core_coeffs.chi_face_ion,
-            self.transport_multipliers.chi_i_multiplier,
-            clip_max=pedestal_runtime_params.chi_max,
-        ),
-        chi_face_el=_scale_channel(
-            core_coeffs.chi_face_el,
-            self.transport_multipliers.chi_e_multiplier,
-            clip_max=pedestal_runtime_params.chi_max,
-        ),
-        d_face_el=_scale_channel(
-            core_coeffs.d_face_el,
-            self.transport_multipliers.D_e_multiplier,
-            clip_max=pedestal_runtime_params.D_e_max,
-        ),
-        v_face_el=_scale_channel(
-            core_coeffs.v_face_el,
-            self.transport_multipliers.v_e_multiplier,
-            clip_min=pedestal_runtime_params.V_e_min,
-            clip_max=pedestal_runtime_params.V_e_max,
-        ),
-    )
-
-    # Smooth across the combined core and pedestal transport, then subtract the
-    # pedestal contribution so that `modified_turbulent.total` (`core +
-    # pedestal`) equals the smoothed total while only updating `core` for
-    # simplicity.
-    def _smooth_combined(
-        scaled_core_channel: array_typing.FloatVectorFace,
-        ped_channel: array_typing.FloatVectorFace,
-    ) -> array_typing.FloatVectorFace:
-      combined = scaled_core_channel + ped_channel
-      smoothed_total = jnp.dot(smoothing_matrix, combined)
-      return smoothed_total - ped_channel
-
-    smoothed_core = jax.tree_util.tree_map(
-        _smooth_combined,
-        scaled_core,
-        pedestal_coeffs,
-    )
-    modified_turbulent = dataclasses.replace(
-        core_transport.turbulent,
-        core=smoothed_core,
-    )
-
-    # Neoclassical and Pereverzev-Corrigan stabilization transport are not
-    # affected by scaling from an ADAPTIVE_TRANSPORT pedestal model.
-    # Pereverzev diffusivity (chi_face, d_face) and counter-convection
-    # (full_v_heat_face, v_face) must remain exactly balanced so their net flux
-    # vanishes at convergence.
-    coeffs_to_sum = [modified_turbulent.total, core_transport.neoclassical]
-    if core_transport.pereverzev is not None:
-      coeffs_to_sum.append(core_transport.pereverzev)
-    total = transport_coeffs_lib.sum_transport_coeffs(*coeffs_to_sum)
-    return state.CoreTransport(
-        total=total,
-        turbulent=modified_turbulent,
-        neoclassical=core_transport.neoclassical,
-        pereverzev=core_transport.pereverzev,
+    return _modify_core_transport(
+        core_transport,
+        geo,
+        pedestal_runtime_params,
+        self.rho_norm_ped_top,
+        self.transport_multipliers,
     )
