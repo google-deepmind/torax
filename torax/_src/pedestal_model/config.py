@@ -44,7 +44,7 @@ class FormationConfigBase(torax_pydantic.ConfigBase):
       ADAPTIVE_TRANSPORT mode when the pedestal is active. Decrease (closer to
       0) for stronger reductions in transport once formation starts.
     initial_confinement_mode: Optional explicit initial confinement mode
-      ('L_MODE' or 'H_MODE') at t_initial. When None (default), the initial mode
+      ('l_mode' or 'h_mode') at t_initial. When None (default), the initial mode
       is inferred automatically from the formation model's transition conditions
       at t_initial. Used to enable triggering L-H or H-L transitions from a cold
       start.
@@ -53,7 +53,7 @@ class FormationConfigBase(torax_pydantic.ConfigBase):
   base_multiplier: Annotated[
       array_typing.FloatScalar, pydantic.Field(gt=0.0, le=1.0)
   ] = 1e-6
-  initial_confinement_mode: Literal["L_MODE", "H_MODE"] | None = None
+  initial_confinement_mode: Literal["l_mode", "h_mode"] | None = None
 
   @abc.abstractmethod
   def build_formation_model(
@@ -66,11 +66,12 @@ class FormationConfigBase(torax_pydantic.ConfigBase):
   ) -> runtime_params.FormationRuntimeParams:
     """Builds the runtime params."""
     del t
+    mode = self.initial_confinement_mode
     return runtime_params.FormationRuntimeParams(
         base_multiplier=self.base_multiplier,
         initial_confinement_mode=(
-            runtime_params.ConfinementMode[self.initial_confinement_mode]
-            if self.initial_confinement_mode is not None
+            runtime_params.ConfinementMode[mode.upper()]
+            if mode is not None
             else None
         ),
     )
@@ -176,7 +177,7 @@ class DelabieScalingFormationConfig(PowerScalingFormationConfig):
 
   divertor_configuration: Annotated[
       scaling_laws.DivertorConfiguration, torax_pydantic.JAX_STATIC
-  ] = scaling_laws.DivertorConfiguration.HT
+  ] = scaling_laws.DivertorConfiguration.HORIZONTAL_TARGET
 
   def build_formation_model(
       self,
@@ -546,9 +547,9 @@ class PedestalConfig(torax_pydantic.ConfigBase):
         raise ValueError(
             "NoPedestal cannot be used with a power-scaling formation model."
         )
-      if self.formation_model.initial_confinement_mode == "H_MODE":
+      if self.formation_model.initial_confinement_mode == "h_mode":
         raise ValueError(
-            "NoPedestal cannot have initial_confinement_mode='H_MODE'."
+            "NoPedestal cannot have initial_confinement_mode='h_mode'."
         )
       return self
 

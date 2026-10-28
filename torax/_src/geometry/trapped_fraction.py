@@ -42,9 +42,9 @@ class TrappedFractionSource(enum.StrEnum):
   [2] Y. R. Lin-Liu, R. L. Miller, Phys. Plasmas 2(5) 1666-1668 (1995), Eq 1.
   """
 
-  SAUTER = 'SAUTER'
-  FILE = 'FILE'
-  EXACT = 'EXACT'
+  SAUTER = 'sauter'
+  FILE = 'file'
+  EXACT = 'exact'
 
 
 # TODO(b/545148156): Add finite-orbit-width effects.

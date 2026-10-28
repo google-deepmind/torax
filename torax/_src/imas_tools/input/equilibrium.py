@@ -115,11 +115,11 @@ def _calculate_exact_trapped_fraction(IMAS_data: Any) -> np.ndarray:
       or IMAS_data.profiles_2d[0].grid_type.index != _IMAS_RECTANGULAR_GRID_TYPE
   ):
     raise ValueError(
-        "trapped_fraction_source=EXACT requires a rectangular"
+        "trapped_fraction_source=exact requires a rectangular"
         " profiles_2d psi grid to compute the bounce-averaged integral,"
         " but this equilibrium IDS does not provide one. Use"
-        " trapped_fraction_source=FILE to read a value precomputed by"
-        " the equilibrium code instead (if available), or SAUTER for"
+        " trapped_fraction_source=file to read a value precomputed by"
+        " the equilibrium code instead (if available), or sauter for"
         " the analytic approximation."
     )
 
@@ -340,10 +340,10 @@ def _geometry_from_single_slice(
     case trapped_fraction_lib.TrappedFractionSource.FILE:
       if not IMAS_data.profiles_1d.trapped_fraction:
         raise ValueError(
-            "trapped_fraction_source=FILE requires the equilibrium IDS to"
+            "trapped_fraction_source=file requires the equilibrium IDS to"
             " populate profiles_1d.trapped_fraction, but this IDS does"
-            " not. Use trapped_fraction_source=EXACT to compute it directly"
-            " from the 2D equilibrium instead, or SAUTER for the analytic"
+            " not. Use trapped_fraction_source=exact to compute it directly"
+            " from the 2D equilibrium instead, or sauter for the analytic"
             " approximation."
         )
       trapped_fraction = np.asarray(IMAS_data.profiles_1d.trapped_fraction)

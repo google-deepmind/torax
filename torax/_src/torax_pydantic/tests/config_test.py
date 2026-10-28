@@ -657,7 +657,7 @@ class ConfigTest(parameterized.TestCase):
       config.ToraxConfig.from_dict(config_dict)
 
     # Case 1b: minority_species is missing in ZERO or PRESCRIBED mode -> Valid
-    for mode in ("ZERO", "PRESCRIBED"):
+    for mode in ("zero", "prescribed"):
       non_model_config_dict = copy.deepcopy(config_dict)
       non_model_config_dict["sources"]["icrh"]["mode"] = mode
       # Should not raise
@@ -997,7 +997,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
         "structure_model": {"model_name": "set_T_ped_n_ped"},
-        "mode": "ADAPTIVE_TRANSPORT",
+        "mode": "adaptive_transport",
         "formation_model": {"model_name": "martin_scaling"},
     }
     config_dict["profile_conditions"]["internal_boundary_conditions"] = {
@@ -1015,7 +1015,7 @@ class ExtendedLengyelImpurityModeValidationTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict["pedestal"] = {
         "structure_model": {"model_name": "set_T_ped_n_ped"},
-        "mode": "ADAPTIVE_TRANSPORT",
+        "mode": "adaptive_transport",
         "formation_model": {"model_name": "martin_scaling"},
     }
     # Should not raise when internal_boundary_conditions is default/empty

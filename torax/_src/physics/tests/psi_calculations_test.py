@@ -216,7 +216,7 @@ class PsiCalculationsTest(parameterized.TestCase):
   ):
     references = references_getter()
     references.torax_config.update_fields(
-        {'sources.generic_current.mode': 'MODEL_BASED'}
+        {'sources.generic_current.mode': 'model_based'}
     )
     source_models = references.torax_config.sources.build_models()
     neoclassical_model = references.torax_config.neoclassical.build_model()

@@ -24,15 +24,15 @@ from torax._src import array_typing
 
 
 @enum.unique
-class Mode(enum.Enum):
+class Mode(enum.StrEnum):
   """Defines how the pedestal is generated."""
 
   # The pedestal is set by modifying the transport coefficients.
-  ADAPTIVE_TRANSPORT = "ADAPTIVE_TRANSPORT"
+  ADAPTIVE_TRANSPORT = "adaptive_transport"
 
   # The pedestal is set by modifying the state equations and directly setting
   # internal Dirichlet boundary conditions at a grid point or partial profile.
-  INTERNAL_BOUNDARY_CONDITION = "INTERNAL_BOUNDARY_CONDITION"
+  INTERNAL_BOUNDARY_CONDITION = "internal_boundary_condition"
 
 
 # Store confinement mode as an int so that it is a valid JAX dynamic type.
@@ -55,8 +55,8 @@ class PedestalProfileForm(enum.StrEnum):
       parameterization of Snyder et al., Nucl. Fusion 44 (2004) 320.
   """
 
-  SET_AT_PED_TOP = "SET_AT_PED_TOP"
-  MTANH = "MTANH"
+  SET_AT_PED_TOP = "set_at_ped_top"
+  MTANH = "mtanh"
 
 
 @jax.tree_util.register_dataclass

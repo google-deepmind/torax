@@ -110,7 +110,7 @@ class IMASGeometryTest(parameterized.TestCase):
     )
     equilibrium_object.time_slice[0].profiles_1d.trapped_fraction = []
 
-    with self.assertRaisesRegex(ValueError, 'trapped_fraction_source=FILE'):
+    with self.assertRaisesRegex(ValueError, 'trapped_fraction_source=file'):
       imas.IMASConfig(
           equilibrium_object=equilibrium_object,
           trapped_fraction_source=base.TrappedFractionSource.FILE,

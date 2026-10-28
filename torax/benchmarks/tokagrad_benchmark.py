@@ -217,7 +217,7 @@ CONFIG = {
         "ei_exchange": {"Qei_multiplier": 1.0},
         "bremsstrahlung": {"use_relativistic_correction": False},
         "cyclotron_radiation": {"wall_reflection_coeff": 0.8},
-        "impurity_radiation": {"mode": "ZERO"},
+        "impurity_radiation": {"mode": "zero"},
         "generic_heat": {
             "gaussian_location": 0.2,
             "gaussian_width": 0.3,

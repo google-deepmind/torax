@@ -96,7 +96,7 @@ class _SourceCollection:
 
       if values_list:
         output[name] = {
-            "mode": "PRESCRIBED",
+            "mode": "prescribed",
             "prescribed_values": tuple(values_list),
         }
     return output

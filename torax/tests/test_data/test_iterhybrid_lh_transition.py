@@ -82,7 +82,7 @@ CONFIG['transport'] = {
 
 # Set pedestal to adaptive transport mode
 CONFIG['pedestal'] = {
-    'mode': 'ADAPTIVE_TRANSPORT',
+    'mode': 'adaptive_transport',
     'structure_model': {
         'model_name': 'set_T_ped_n_ped',
         'T_i_ped': 4.5,

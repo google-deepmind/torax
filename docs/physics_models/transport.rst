@@ -217,11 +217,11 @@ L-H and H-L transitions occur, either from a prescribed schedule or from a
 :math:`P_{LH}` power-threshold scaling law with hysteresis. A saturation model
 increases pedestal transport once the pedestal-top values exceed their targets.
 
-The pedestal is imposed in one of two modes. In ``INTERNAL_BOUNDARY_CONDITION``
+The pedestal is imposed in one of two modes. In ``internal_boundary_condition``
 mode, internal boundary conditions set the pedestal-top values directly (either
 at a single grid point or as an mtanh profile across the pedestal region), with
 an optional linear ramp during L-H and H-L transitions. In
-``ADAPTIVE_TRANSPORT`` mode, the turbulent transport coefficients in the
+``adaptive_transport`` mode, the turbulent transport coefficients in the
 pedestal region are scaled down by the formation model and back up by the
 saturation model, allowing the pedestal to evolve self-consistently.
 

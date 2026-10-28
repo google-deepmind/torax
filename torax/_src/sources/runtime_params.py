@@ -24,20 +24,20 @@ TimeInterpolatedInput = interpolated_param.TimeInterpolatedInput
 
 
 @enum.unique
-class Mode(enum.Enum):
+class Mode(enum.StrEnum):
   """Defines how to compute the source terms for this source/sink."""
 
   # Source is set to zero always.
-  ZERO = "ZERO"
+  ZERO = "zero"
 
   # Source values come from a model in code. These terms can be implicit or
   # explicit depending on the model implementation.
-  MODEL_BASED = "MODEL_BASED"
+  MODEL_BASED = "model_based"
 
   # Source values come from a pre-determined set of values, that may evolve in
   # time. Currently, this is only supported for sources that have a 1D output
   # along the cell grid or face grid.
-  PRESCRIBED = "PRESCRIBED"
+  PRESCRIBED = "prescribed"
 
 
 @jax.tree_util.register_dataclass

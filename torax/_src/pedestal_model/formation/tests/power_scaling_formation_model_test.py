@@ -37,7 +37,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     # Switch to use the PowerScaling formation model.
     config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
-        'mode': 'ADAPTIVE_TRANSPORT',
+        'mode': 'adaptive_transport',
         # Individual tests will override the model name.
         'formation_model': {
             'model_name': 'martin_scaling',
@@ -198,7 +198,9 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
   ):
     formation_model = power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_law,
-        divertor_configuration=scaling_laws.DivertorConfiguration.VT,
+        divertor_configuration=(
+            scaling_laws.DivertorConfiguration.VERTICAL_TARGET
+        ),
     )
 
     aux_power_profile = power * jnp.ones_like(self.initial_state.geometry.rho)
@@ -256,7 +258,9 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         geo=self.initial_state.geometry,
         core_profiles=self.initial_state.core_profiles,
         scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
-        divertor_configuration=scaling_laws.DivertorConfiguration.VT,
+        divertor_configuration=(
+            scaling_laws.DivertorConfiguration.VERTICAL_TARGET
+        ),
     )
 
     # Set hysteresis factor
@@ -310,7 +314,9 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     """Verifies that in H-mode the sigmoid center uses P_LH * hysteresis."""
     formation_model = power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
-        divertor_configuration=scaling_laws.DivertorConfiguration.VT,
+        divertor_configuration=(
+            scaling_laws.DivertorConfiguration.VERTICAL_TARGET
+        ),
     )
 
     # Set hysteresis factor
@@ -370,7 +376,9 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
   def test_power_scaling_formation_model_updates_state(self):
     formation_model = power_scaling_formation_model.PowerScalingFormationModel(
         scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
-        divertor_configuration=scaling_laws.DivertorConfiguration.VT,
+        divertor_configuration=(
+            scaling_laws.DivertorConfiguration.VERTICAL_TARGET
+        ),
     )
     initial_formation_state = self.initial_state.model_state.pedestal.formation
     self.assertIsInstance(

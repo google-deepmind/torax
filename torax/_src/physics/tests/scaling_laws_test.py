@@ -84,7 +84,9 @@ class ScalingLawsTest(parameterized.TestCase):
       dict(
           testcase_name='martin',
           scaling_law=scaling_laws.PLHScalingLaw.MARTIN,
-          divertor_configuration=scaling_laws.DivertorConfiguration.VT,
+          divertor_configuration=(
+              scaling_laws.DivertorConfiguration.VERTICAL_TARGET
+          ),
           prefactor=0.0488,
           Bt_exponent=0.803,
           ne_exponent=0.717,
@@ -94,7 +96,9 @@ class ScalingLawsTest(parameterized.TestCase):
       dict(
           testcase_name='delabie',
           scaling_law=scaling_laws.PLHScalingLaw.DELABIE,
-          divertor_configuration=scaling_laws.DivertorConfiguration.VT,
+          divertor_configuration=(
+              scaling_laws.DivertorConfiguration.VERTICAL_TARGET
+          ),
           prefactor=0.0441,
           Bt_exponent=0.580,
           ne_exponent=1.08,

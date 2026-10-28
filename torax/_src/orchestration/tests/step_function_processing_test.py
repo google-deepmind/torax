@@ -96,7 +96,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
-        'mode': 'ADAPTIVE_TRANSPORT',
+        'mode': 'adaptive_transport',
         'formation_model': {
             'model_name': 'prescribed',
             'pedestal_active': {0.0: False, 1.0: True, 2.0: False},

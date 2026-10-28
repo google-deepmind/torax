@@ -57,7 +57,7 @@ CONFIG = {
     'sources': {
         # Only drive the external current source
         'generic_current': {
-            'mode': 'PRESCRIBED',
+            'mode': 'prescribed',
             'prescribed_values': (
                 (
                     times,

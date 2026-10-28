@@ -121,7 +121,7 @@ CONFIG = {
             # electron heating fraction r
             'electron_heat_fraction': 0.68,
         },
-        'fusion': {'mode': 'ZERO'},
+        'fusion': {'mode': 'zero'},
         'ei_exchange': {
             # multiplier for ion-electron heat exchange term for sensitivity
             'Qei_multiplier': 1.0,

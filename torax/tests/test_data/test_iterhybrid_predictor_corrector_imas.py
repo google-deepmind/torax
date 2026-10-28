@@ -23,5 +23,5 @@ CONFIG['geometry'] = {
     'geometry_type': 'imas',
     'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
     'Ip_from_parameters': True,
-    'trapped_fraction_source': 'FILE',
+    'trapped_fraction_source': 'file',
 }

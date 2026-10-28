@@ -543,7 +543,7 @@ class TransportModelTest(parameterized.TestCase):
     }
     config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
-        'mode': 'INTERNAL_BOUNDARY_CONDITION',
+        'mode': 'internal_boundary_condition',
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(

@@ -95,7 +95,7 @@ class SourcesConfigTest(parameterized.TestCase):
         },
         'ohmic': {
             'is_explicit': True,
-            'mode': 'ZERO',  # turn it off.
+            'mode': 'zero',  # turn it off.
         },
     })
     source_models = sources.build_models()
@@ -139,7 +139,7 @@ class SourcesConfigTest(parameterized.TestCase):
     """Tests that a source can be added with overriding defaults."""
     sources = sources_config.SourcesConfig.from_dict({
         'generic_current': {
-            'mode': 'PRESCRIBED',
+            'mode': 'prescribed',
             'prescribed_values': (
                 (
                     np.array([0.0, 1.0, 2.0, 3.0]),
@@ -149,7 +149,7 @@ class SourcesConfigTest(parameterized.TestCase):
             ),
         },
         'ecrh': {
-            'mode': 'PRESCRIBED',
+            'mode': 'prescribed',
             'prescribed_values': (
                 3.0,
                 4.0,
@@ -184,9 +184,9 @@ class SourcesConfigTest(parameterized.TestCase):
   def test_bremsstrahlung_and_mavrin_both_active_sets_exclude_flag(self):
     """When both bremsstrahlung and Mavrin are active, exclude flag is set."""
     config_dict = {
-        'bremsstrahlung': {'mode': 'PRESCRIBED'},
+        'bremsstrahlung': {'mode': 'prescribed'},
         'impurity_radiation': {
-            'mode': 'PRESCRIBED',
+            'mode': 'prescribed',
             'model_name': 'mavrin_fit',
         },
     }
@@ -196,9 +196,9 @@ class SourcesConfigTest(parameterized.TestCase):
 
   def test_bremsstrahlung_active_mavrin_zero_does_not_set_exclude_flag(self):
     config_dict = {
-        'bremsstrahlung': {'mode': 'PRESCRIBED'},
+        'bremsstrahlung': {'mode': 'prescribed'},
         'impurity_radiation': {
-            'mode': 'ZERO',
+            'mode': 'zero',
             'model_name': 'mavrin_fit',
         },
     }
@@ -208,9 +208,9 @@ class SourcesConfigTest(parameterized.TestCase):
 
   def test_bremsstrahlung_zero_mavrin_active_does_not_set_exclude_flag(self):
     config_dict = {
-        'bremsstrahlung': {'mode': 'ZERO'},
+        'bremsstrahlung': {'mode': 'zero'},
         'impurity_radiation': {
-            'mode': 'PRESCRIBED',
+            'mode': 'prescribed',
             'model_name': 'mavrin_fit',
         },
     }
@@ -222,9 +222,9 @@ class SourcesConfigTest(parameterized.TestCase):
       self,
   ):
     config_dict = {
-        'bremsstrahlung': {'mode': 'PRESCRIBED'},
+        'bremsstrahlung': {'mode': 'prescribed'},
         'impurity_radiation': {
-            'mode': 'PRESCRIBED',
+            'mode': 'prescribed',
             'model_name': 'P_in_scaled_flat_profile',
         },
     }

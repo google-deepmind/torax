@@ -25,5 +25,5 @@ from torax.tests.test_data import test_iterhybrid_lh_transition
 CONFIG = copy.deepcopy(test_iterhybrid_lh_transition.CONFIG)
 
 # Switch pedestal mode from ADAPTIVE_TRANSPORT to INTERNAL_BOUNDARY_CONDITION.
-CONFIG['pedestal']['mode'] = 'INTERNAL_BOUNDARY_CONDITION'
+CONFIG['pedestal']['mode'] = 'internal_boundary_condition'
 CONFIG['pedestal']['transition_time_width'] = 3.0

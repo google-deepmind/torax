@@ -114,7 +114,7 @@ class PowerScalingFormationModel(base.FormationModel):
 
   scaling_law: scaling_laws.PLHScalingLaw
   divertor_configuration: scaling_laws.DivertorConfiguration = (
-      scaling_laws.DivertorConfiguration.HT
+      scaling_laws.DivertorConfiguration.HORIZONTAL_TARGET
   )
 
   @override

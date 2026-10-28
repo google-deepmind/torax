@@ -26,20 +26,20 @@ The configurable runtime parameters of each source are as follows:
 
 ``prescribed_values`` (**time-varying-array** [default = {0: {0: 0, 1: 0}}])
   Time varying array of prescribed values for the source. Used if ``mode`` is
-  ``'PRESCRIBED'``.
+  ``'prescribed'``.
 
 ``mode`` (str [default = 'zero'])
   Defines how the source values are computed. Currently the options are:
 
-* ``'ZERO'``
+* ``'zero'``
     Source is set to zero.
 
-* ``'MODEL'``
+* ``'model_based'``
     Source values come from a model in code. Specific model selection where more
     than one model is available can be done by specifying a ``model_name``.
     This is documented in the individual source sections.
 
-* ``'PRESCRIBED'``
+* ``'prescribed'``
     Source values are arbitrarily prescribed by the user. The value is set by
     ``prescribed_values``, and  should be a tuple of values. Each value can
     contain the same data structures as :ref:`Time-varying arrays`. Note that
@@ -56,7 +56,7 @@ purposes, set:
 .. code-block:: python
 
     'sources': {
-        'fusion': {'mode': 'ZERO'},
+        'fusion': {'mode': 'zero'},
     }
 
 To set 'generic_current' to a prescribed value based on a tuple of numpy arrays,
@@ -67,7 +67,7 @@ config module, set:
 
     'sources': {
         'generic_current': {
-            'mode': 'PRESCRIBED',
+            'mode': 'prescribed',
             'prescribed_values': ((times, rhon, current_profiles),),
         },
 

@@ -10,33 +10,33 @@ three sub-models:
   (``rho_norm_ped_top``) and pedestal-top electron density, ion temperature,
   and electron temperature.
 * ``formation_model``: determines when L-H and H-L transitions occur (and in
-  ``'ADAPTIVE_TRANSPORT'`` mode, the transport decrease multiplier).
+  ``'adaptive_transport'`` mode, the transport decrease multiplier).
 * ``saturation_model``: determines how transport scales in the pedestal region
-  relative to the H-mode target values in ``'ADAPTIVE_TRANSPORT'`` mode.
+  relative to the H-mode target values in ``'adaptive_transport'`` mode.
 
-``mode`` (str [default = 'INTERNAL_BOUNDARY_CONDITION'])
+``mode`` (str [default = 'internal_boundary_condition'])
   Defines how the pedestal is generated. Options:
 
-  * ``'INTERNAL_BOUNDARY_CONDITION'``: Sets the pedestal top value by directly
+  * ``'internal_boundary_condition'``: Sets the pedestal top value by directly
     modifying the state equations to set Dirichlet internal boundary
     conditions at a cell grid point corresponding to the pedestal top, or for a
     profile (see ``pedestal_profile_form``). This is the default mode.
-  * ``'ADAPTIVE_TRANSPORT'``: Sets the pedestal by modifying the transport
+  * ``'adaptive_transport'``: Sets the pedestal by modifying the transport
     coefficients in the pedestal region, allowing the pedestal to
     self-consistently evolve. Transport coefficients are scaled to allow the
     temperature and density to evolve towards the prescribed pedestal values.
 
 ``transition_time_width`` (**time-varying-scalar** [default = 0.0])
   Duration of the L-H or H-L transition ramp in seconds for
-  ``'INTERNAL_BOUNDARY_CONDITION'`` mode. During a transition, the confinement
+  ``'internal_boundary_condition'`` mode. During a transition, the confinement
   mode enters ``TRANSITIONING_TO_H_MODE`` or ``TRANSITIONING_TO_L_MODE`` and
   pedestal values are linearly interpolated between the captured L-mode baseline
   values and the H-mode target values (e.g. ``T_i_ped(t)``, ``T_e_ped(t)``,
   ``n_e_ped(t)``) over this time window. Must be non-negative. Defaults to
-  ``0.0`` (immediate step transition between ``L_MODE`` and ``H_MODE``) for
+  ``0.0`` (immediate step transition between ``l_mode`` and ``h_mode``) for
   ``'prescribed'`` formation, and must be explicitly specified when using a
   power-scaling formation model (``'martin_scaling'`` or ``'delabie_scaling'``)
-  in ``'INTERNAL_BOUNDARY_CONDITION'`` mode. Note that if
+  in ``'internal_boundary_condition'`` mode. Note that if
   ``transition_time_width > 0.0`` is used with time-varying pedestal targets,
   those targets should represent the H-mode trajectory rather than manually
   encoding the L-H ramp, as the ramp scaling is applied on top of the target
@@ -49,7 +49,7 @@ three sub-models:
   frozen during the solver loop. When ``False``, the pedestal model is
   re-evaluated every Newton iteration, coupling pedestal physics to the
   implicit solve, but increasing the non-linearity of the system. Note: for
-  ``ADAPTIVE_TRANSPORT`` mode, transport multipliers are always re-evaluated
+  ``adaptive_transport`` mode, transport multipliers are always re-evaluated
   implicitly with current profiles regardless of this setting, since the
   saturation model's profile-based feedback loop requires implicit coupling.
 
@@ -67,13 +67,13 @@ three sub-models:
   via ``torax.pedestal.register_pedestal_structure_model`` (see
   :ref:`model-integration`). All structure models share the following parameter:
 
-  * ``pedestal_profile_form`` (**str** [default = ``"SET_AT_PED_TOP"``]):
+  * ``pedestal_profile_form`` (**str** [default = ``"set_at_ped_top"``]):
     Controls the shape of internal boundary conditions in the pedestal region.
     Options:
 
-    * ``"SET_AT_PED_TOP"``: Pedestal values are pinned at a single grid cell
+    * ``"set_at_ped_top"``: Pedestal values are pinned at a single grid cell
       nearest to ``rho_norm_ped_top``.
-    * ``"MTANH"``: A smooth modified-tanh (mtanh) profile is applied across the
+    * ``"mtanh"``: A smooth modified-tanh (mtanh) profile is applied across the
       pedestal region from the pedestal top to the separatrix, following the mtanh
       parameterization of `Snyder et al., Nucl. Fusion 44 (2004) 320
       <https://doi.org/10.1088/0029-5515/44/2/014>`_.
@@ -105,8 +105,8 @@ three sub-models:
   Configuration for the pedestal formation model, which determines when L-H
   and H-L transitions occur. Defaults to
   ``{'model_name': 'prescribed',  'pedestal_active': True}`` in
-  ``'INTERNAL_BOUNDARY_CONDITION'`` mode, and must be explicitly
-  specified when ``mode`` is ``'ADAPTIVE_TRANSPORT'``.
+  ``'internal_boundary_condition'`` mode, and must be explicitly
+  specified when ``mode`` is ``'adaptive_transport'``.
 
   .. note::
      Transition conditions are evaluated in the pre-step phase at the **start**
@@ -118,12 +118,12 @@ three sub-models:
   All formation models share the following parameters:
 
   * ``initial_confinement_mode`` (**str | None** [default = ``None``]):
-    Optional explicit initial confinement mode (``'L_MODE'`` or ``'H_MODE'``)
+    Optional explicit initial confinement mode (``'l_mode'`` or ``'h_mode'``)
     at :math:`t_{\text{initial}}`. When ``None`` (default), the initial mode is
     inferred automatically from the formation model's transition conditions at
-    :math:`t_{\text{initial}}` (cannot be ``'H_MODE'`` for ``'no_pedestal'``).
+    :math:`t_{\text{initial}}` (cannot be ``'h_mode'`` for ``'no_pedestal'``).
   * ``base_multiplier`` (float [default = 1e-6]): The base value of the
-    transport decrease multiplier in ``'ADAPTIVE_TRANSPORT'`` mode when the
+    transport decrease multiplier in ``'adaptive_transport'`` mode when the
     pedestal is active.
 
   The ``model_name`` key selects the model:
@@ -131,12 +131,12 @@ three sub-models:
   * ``'prescribed'``: Controls pedestal activation via a prescribed boolean
     schedule rather than a power-threshold scaling law. When
     ``pedestal_active`` is ``True``, activates the internal boundary condition
-    in ``'INTERNAL_BOUNDARY_CONDITION'`` mode (stepping directly between
-    ``L_MODE`` and ``H_MODE`` when ``transition_time_width == 0.0``, or ramping
+    in ``'internal_boundary_condition'`` mode (stepping directly between
+    ``l_mode`` and ``h_mode`` when ``transition_time_width == 0.0``, or ramping
     through ``TRANSITIONING_TO_H_MODE`` / ``TRANSITIONING_TO_L_MODE`` over
     ``transition_time_width`` when ``transition_time_width > 0.0``), or applies
     a constant transport suppression multiplier (``base_multiplier``) in
-    ``'ADAPTIVE_TRANSPORT'`` mode (while the saturation model regulates
+    ``'adaptive_transport'`` mode (while the saturation model regulates
     transport once pedestal targets are reached). Additional parameters:
 
     * ``pedestal_active`` (**time-varying-scalar** [default = True]): Whether
@@ -170,8 +170,8 @@ three sub-models:
   * ``'delabie_scaling'``: Uses the Delabie scaling law for the L-H power
     threshold. Accepts the same parameters as ``'martin_scaling'``, plus:
 
-    * ``divertor_configuration`` (str [default = ``'HT'``]): Divertor
-      configuration (``'HT'`` for horizontal target or ``'VT'`` for vertical
+    * ``divertor_configuration`` (str [default = ``'horizontal_target'``]): Divertor
+      configuration (``'horizontal_target'`` for horizontal target or ``'vertical_target'`` for vertical
       target).
 
 ``saturation_model`` (dict)

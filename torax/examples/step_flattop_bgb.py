@@ -101,7 +101,7 @@ CONFIG = {
         # Sauter analytic approximation for the trapped particle fraction is
         # least accurate. Compute the exact value directly from the 2D
         # equilibrium instead.
-        "trapped_fraction_source": "EXACT",
+        "trapped_fraction_source": "exact",
     },
     "pedestal": {
         "structure_model": {

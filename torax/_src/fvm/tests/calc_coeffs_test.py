@@ -46,8 +46,8 @@ class CalcCoeffsTest(parameterized.TestCase):
     sources_config = default_sources.get_default_source_config()
     sources_config['ei_exchange']['Qei_multiplier'] = 0.0
     sources_config['generic_heat']['P_total'] = 0.0
-    sources_config['fusion']['mode'] = 'ZERO'
-    sources_config['ohmic']['mode'] = 'ZERO'
+    sources_config['fusion']['mode'] = 'zero'
+    sources_config['ohmic']['mode'] = 'zero'
     torax_config = config.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),

@@ -73,7 +73,7 @@ class SourcesConfig(torax_pydantic.ConfigBase):
   """
 
   ei_exchange: qei_source_lib.QeiSourceConfig = torax_pydantic.ValidatedDefault(
-      {'mode': 'ZERO'}
+      {'mode': 'zero'}
   )
   # keep-sorted start
   bremsstrahlung: (

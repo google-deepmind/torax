@@ -40,8 +40,8 @@ class PLHScalingLaw(enum.StrEnum):
 
 
 class DivertorConfiguration(enum.StrEnum):
-  HT = 'HT'
-  VT = 'VT'
+  HORIZONTAL_TARGET = 'horizontal_target'
+  VERTICAL_TARGET = 'vertical_target'
 
 
 _P_LH_SCALING_PARAMS = {
@@ -142,7 +142,9 @@ def calculate_P_LH(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     scaling_law: PLHScalingLaw,
-    divertor_configuration: DivertorConfiguration = DivertorConfiguration.HT,
+    divertor_configuration: DivertorConfiguration = (
+        DivertorConfiguration.HORIZONTAL_TARGET
+    ),
     prefactor: float = 1.0,
 ) -> tuple[jax.Array, PLHAuxiliaryData]:
   """Calculates the H-mode transition power from a given scaling law.
@@ -158,9 +160,9 @@ def calculate_P_LH(
     P_LH in W, and auxiliary data.
   """
   if scaling_law == PLHScalingLaw.DELABIE:
-    if divertor_configuration == DivertorConfiguration.HT:
+    if divertor_configuration == DivertorConfiguration.HORIZONTAL_TARGET:
       divertor_factor = 1.0
-    elif divertor_configuration == DivertorConfiguration.VT:
+    elif divertor_configuration == DivertorConfiguration.VERTICAL_TARGET:
       divertor_factor = 1.93
     else:
       raise ValueError(

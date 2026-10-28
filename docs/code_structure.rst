@@ -186,7 +186,7 @@ corresponding to the H-mode pedestal (see :ref:`pedestal_config`).
 * ``FormationModel``: controls L-H and H-L transitions (either via a prescribed
   schedule or a power-scaling law).
 * ``SaturationModel``: controls how transport scales in the pedestal region
-  relative to the target values in ``ADAPTIVE_TRANSPORT`` mode.
+  relative to the target values in ``adaptive_transport`` mode.
 
 See the |pedestal_model| modules for all implementations.
 

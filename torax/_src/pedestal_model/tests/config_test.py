@@ -86,7 +86,7 @@ class PedestalConfigTest(parameterized.TestCase):
     with self.assertRaises(pydantic.ValidationError):
       config.PedestalConfig.from_dict({
           "structure_model": {"model_name": "no_pedestal"},
-          "formation_model": {"initial_confinement_mode": "H_MODE"},
+          "formation_model": {"initial_confinement_mode": "h_mode"},
       })
 
   def test_update_structure_model_from_no_pedestal_activates_pedestal(self):
@@ -234,12 +234,12 @@ class PedestalConfigTest(parameterized.TestCase):
       ):
         config.PedestalConfig.from_dict({
             "structure_model": {"model_name": "set_T_ped_n_ped"},
-            "mode": "INTERNAL_BOUNDARY_CONDITION",
+            "mode": "internal_boundary_condition",
             "formation_model": {"model_name": "martin_scaling"},
         })
       ped = config.PedestalConfig.from_dict({
           "structure_model": {"model_name": "set_T_ped_n_ped"},
-          "mode": "INTERNAL_BOUNDARY_CONDITION",
+          "mode": "internal_boundary_condition",
           "formation_model": {"model_name": "martin_scaling"},
           "transition_time_width": 0.5,
       })
@@ -250,7 +250,7 @@ class PedestalConfigTest(parameterized.TestCase):
     with self.subTest("optional_for_scaling_in_adaptive_transport_mode"):
       ped = config.PedestalConfig.from_dict({
           "structure_model": {"model_name": "set_T_ped_n_ped"},
-          "mode": "ADAPTIVE_TRANSPORT",
+          "mode": "adaptive_transport",
           "formation_model": {"model_name": "martin_scaling"},
       })
       self.assertEqual(
@@ -265,7 +265,7 @@ class PedestalConfigTest(parameterized.TestCase):
       ):
         config.PedestalConfig.from_dict({
             "structure_model": {"model_name": "set_T_ped_n_ped"},
-            "mode": "ADAPTIVE_TRANSPORT",
+            "mode": "adaptive_transport",
         })
 
     with self.subTest("formation_dict_without_model_name_in_ibc_mode"):
@@ -316,7 +316,7 @@ class PedestalConfigTest(parameterized.TestCase):
 
     custom_ped = config.PedestalConfig.from_dict({
         "structure_model": {"model_name": "set_T_ped_n_ped"},
-        "formation_model": {"initial_confinement_mode": "L_MODE"},
+        "formation_model": {"initial_confinement_mode": "l_mode"},
         "initial_L_mode_bc_multiplier": 3.5,
     })
     params = custom_ped.build_runtime_params(t=0.0)

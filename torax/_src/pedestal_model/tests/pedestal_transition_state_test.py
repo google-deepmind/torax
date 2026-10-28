@@ -216,7 +216,7 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     super().setUp()
     config_dict = default_configs.get_default_config_dict()
     config_dict['pedestal'] = {
-        'mode': 'INTERNAL_BOUNDARY_CONDITION',
+        'mode': 'internal_boundary_condition',
         'formation_model': {
             'model_name': 'martin_scaling',
             'P_LH_hysteresis_factor': _HYSTERESIS,
@@ -767,7 +767,7 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
     # No pedestal until t=1.0, linear ramp over [1.0, 2.0], H-mode for t >= 2.0.
     config_dict = default_configs.get_default_config_dict()
     config_dict['pedestal'] = {
-        'mode': 'INTERNAL_BOUNDARY_CONDITION',
+        'mode': 'internal_boundary_condition',
         'transition_time_width': 1.0,
         'formation_model': {
             'model_name': 'prescribed',
@@ -921,7 +921,7 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
-        'mode': 'ADAPTIVE_TRANSPORT',
+        'mode': 'adaptive_transport',
         'formation_model': {
             'model_name': 'martin_scaling',
             'P_LH_hysteresis_factor': _HYSTERESIS,
