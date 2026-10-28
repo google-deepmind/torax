@@ -67,9 +67,7 @@ class ElectronCyclotronSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates external electron heat source and current drive from EC.
 
     Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003). See
@@ -86,7 +84,8 @@ class ElectronCyclotronSource(source.Source):
         by this model and passed through unchanged.
 
     Returns:
-      A tuple of ((electron_heat_profile, psi_profile), source_state).
+      A tuple of (SourceOutput(profiles=(electron_heat_profile, psi_profile)),
+      source_state).
     """
     del calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -133,7 +132,10 @@ class ElectronCyclotronSource(source.Source):
         * j_tor_ec
     )
 
-    return (ec_power_density, fsa_j_dot_B), source_state
+    return (
+        source_profiles.SourceOutput(profiles=(ec_power_density, fsa_j_dot_B)),
+        source_state,
+    )
 
 
 class ElectronCyclotronSourceConfig(base.SourceConfigBase):

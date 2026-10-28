@@ -245,14 +245,18 @@ def update_core_and_source_profiles_after_step(
       )
   )
 
+  if runtime_params_t_plus_dt.numerics.enable_fast_ions:
+    # Flatten the tuple of tuples, then apply prescribed overrides.
+    fast_ions = profile_conditions.apply_prescribed_fast_ions(
+        sum(total_source_profiles.fast_ions.values(), ()),
+        runtime_params_t_plus_dt.profile_conditions.prescribed_fast_ions,
+        geo.rho_face_norm,
+    )
+  else:
+    fast_ions = ()
   intermediate_core_profiles = dataclasses.replace(
       intermediate_core_profiles,
-      # Flatten the tuple of tuples, then apply prescribed overrides.
-      fast_ions=profile_conditions.apply_prescribed_fast_ions(
-          sum(total_source_profiles.fast_ions.values(), ()),
-          runtime_params_t_plus_dt.profile_conditions.prescribed_fast_ions,
-          geo.rho_face_norm,  # pyrefly: ignore[bad-argument-type]
-      ),
+      fast_ions=fast_ions,
   )
 
   if (

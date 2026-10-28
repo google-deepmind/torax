@@ -21,7 +21,9 @@ from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 from torax._src import constants
+from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.physics import fast_ion_utils
 
 # Internal import.
@@ -46,6 +48,39 @@ class FastIonUtilsTest(parameterized.TestCase):
     self.T_i = jnp.full(len(self.geo.rho), self.T_i_val)
     self.n_i = jnp.full(len(self.geo.rho), self.n_i_val)
     self.n_impurity = jnp.full(len(self.geo.rho), self.n_impurity_val)
+
+  @parameterized.parameters(*fast_ion_lib.FAST_ION_SPECIES)
+  def test_fast_ion_valid_species(self, species):
+    zeros = np.zeros(len(self.geo.rho))
+    cv = cell_variable.CellVariable(
+        value=zeros,
+        face_centers=self.geo.rho_face_norm,
+        right_face_grad_constraint=None,
+        right_face_constraint=np.float64(0.0),
+    )
+    fi = fast_ion_lib.FastIon(
+        species=species,
+        source='test_source',
+        n=cv,
+        T=cv,
+    )
+    self.assertEqual(fi.species, species)
+
+  def test_fast_ion_invalid_species_raises(self):
+    zeros = np.zeros(len(self.geo.rho))
+    cv = cell_variable.CellVariable(
+        value=zeros,
+        face_centers=self.geo.rho_face_norm,
+        right_face_grad_constraint=None,
+        right_face_constraint=np.float64(0.0),
+    )
+    with self.assertRaisesRegex(ValueError, 'not a supported species'):
+      fast_ion_lib.FastIon(
+          species='INVALID',
+          source='test_source',
+          n=cv,
+          T=cv,
+      )
 
   def _call_bimaxwellian_split(self, **kwargs):
     defaults = dict(

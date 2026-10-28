@@ -18,9 +18,8 @@ import dataclasses
 from absl.testing import absltest
 import jax
 import numpy as np
-from torax._src.geometry import circular_geometry
-from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import source as source_lib
+from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base as icrh_base
 from torax._src.sources.tests import test_lib
@@ -33,7 +32,10 @@ jax.config.update('jax_enable_x64', True)
 class _DummySource(icrh_base.IonCyclotronSource):
 
   def _get_model_value(self, *args, **kwargs):
-    return (), source_state_lib.SourceState()
+    return (
+        source_profiles.SourceOutput(profiles=()),
+        source_state_lib.SourceState(),
+    )
 
 
 class _DummyConfig(icrh_base.IonCyclotronSourceConfig):
@@ -56,22 +58,10 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
     expected = (
         source_lib.AffectedCoreProfile.TEMP_ION,
         source_lib.AffectedCoreProfile.TEMP_EL,
-        source_lib.AffectedCoreProfile.FAST_IONS,
     )
     self.assertEqual(
         icrh_base.IonCyclotronSource.AFFECTED_CORE_PROFILES, expected
     )
-
-  def test_zero_fast_ions(self):
-    """IonCyclotronSource.zero_fast_ions returns all-zero fast ions."""
-    geo = circular_geometry.CircularConfig().build_geometry()
-    fast_ions = icrh_base.IonCyclotronSource.zero_fast_ions(geo)
-    self.assertLen(fast_ions, len(fast_ion_lib.FAST_ION_SPECIES))
-    for fi, species in zip(fast_ions, fast_ion_lib.FAST_ION_SPECIES):
-      self.assertEqual(fi.species, species)
-      self.assertEqual(fi.source, 'icrh')
-      np.testing.assert_allclose(fi.n.value, 0.0, atol=1e-15)
-      np.testing.assert_allclose(fi.T.value, 0.0, atol=1e-15)
 
   def test_build_source_returns_correct_type(self):
     """IonCyclotronSourceConfig.build_source returns IonCyclotronSource."""

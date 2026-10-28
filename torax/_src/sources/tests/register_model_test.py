@@ -55,7 +55,7 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
   ) -> tuple[
-      tuple[source_lib.SourceProfileElement, ...],
+      source_profiles.SourceOutput,
       source_state_lib.SourceState,
   ]:
     output, source_state = super()._get_model_value(
@@ -66,7 +66,12 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
         conductivity=conductivity,
         source_state=source_state,
     )
-    return tuple(2 * x for x in output), source_state
+    return (
+        source_profiles.SourceOutput(
+            profiles=tuple(2 * x for x in output.profiles)
+        ),
+        source_state,
+    )
 
 
 class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceConfigBase):

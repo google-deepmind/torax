@@ -15,7 +15,6 @@ from typing import Callable, Mapping
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 import numpy as np
 from torax._src import constants
 from torax._src import math_utils
@@ -44,7 +43,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Calculates total DT fusion power [MW] from the fusion source profiles."""
     source = source_models.standard_sources[self.source_name]
-    (Pfus_i, Pfus_e), _ = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -52,8 +51,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
-    assert isinstance(Pfus_i, jax.Array)
-    assert isinstance(Pfus_e, jax.Array)
+    Pfus_i, Pfus_e = output.profiles
     # Total fusion power to charged particles (alphas) is Pfus_i + Pfus_e.
     # Total DT fusion power includes neutrons: P_total = P_alpha / (3.5 / 17.6).
     torax_alpha_power = (

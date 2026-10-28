@@ -16,6 +16,7 @@
 
 from collections.abc import Mapping
 import jax
+import jax.numpy as jnp
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
@@ -199,32 +200,24 @@ def _update_standard_source_profiles(
     calculated_source_profiles: source_profiles.SourceProfiles,
     source_name: str,
     affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...],
-    profile: tuple[source_lib.SourceProfileElement, ...],
+    output: source_profiles.SourceOutput,
 ):
-  """Updates the standard source profiles in calculated_source_profiles.
-
-  Args:
-    calculated_source_profiles: The source profiles to update with the newly
-      calculated source profiles. Here we are adding to the standard source
-      dictionaries so are modifying the calculated_source_profiles in place.
-    source_name: The name of the source.
-    affected_core_profiles: The core profiles affected by the source.
-    profile: The profile of the source.
-  """
-  for profile, affected_core_profile in zip(  # pyrefly: ignore[bad-assignment]
-      profile, affected_core_profiles, strict=True
+  """Updates the standard source profiles in calculated_source_profiles."""
+  for profile, affected_core_profile in zip(
+      output.profiles, affected_core_profiles, strict=True
   ):
+    jax_profile = jnp.asarray(profile)
     match affected_core_profile:
       case source_lib.AffectedCoreProfile.PSI:
-        calculated_source_profiles.psi[source_name] = profile  # pyrefly: ignore[unsupported-operation]
+        calculated_source_profiles.psi[source_name] = jax_profile
       case source_lib.AffectedCoreProfile.NE:
-        calculated_source_profiles.n_e[source_name] = profile  # pyrefly: ignore[unsupported-operation]
+        calculated_source_profiles.n_e[source_name] = jax_profile
       case source_lib.AffectedCoreProfile.TEMP_ION:
-        calculated_source_profiles.T_i[source_name] = profile  # pyrefly: ignore[unsupported-operation]
+        calculated_source_profiles.T_i[source_name] = jax_profile
       case source_lib.AffectedCoreProfile.TEMP_EL:
-        calculated_source_profiles.T_e[source_name] = profile  # pyrefly: ignore[unsupported-operation]
-      case source_lib.AffectedCoreProfile.FAST_IONS:
-        calculated_source_profiles.fast_ions[source_name] = profile  # pyrefly: ignore[unsupported-operation]
+        calculated_source_profiles.T_e[source_name] = jax_profile
+  if output.fast_ions:
+    calculated_source_profiles.fast_ions[source_name] = output.fast_ions
 
 
 def build_all_zero_profiles(

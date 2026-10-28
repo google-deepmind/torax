@@ -664,6 +664,39 @@ class ProfileConditionsTest(parameterized.TestCase):
     self.assertEqual(pc.fast_ions[0].source, 'icrh')
     self.assertEqual(pc.fast_ions[0].species, 'He3')
 
+  def test_fast_ions_distinct_source_species_accepted(self):
+    pc = profile_conditions.ProfileConditions(
+        initial_psi_source='j',
+        fast_ions=[
+            {
+                'source': 'icrh',
+                'species': 'He3',
+                'n': {0.0: 1e19},
+                'n_right_bc': 0.0,
+                'T': {0.0: 100.0},
+                'T_right_bc': 0.0,
+            },
+            {
+                'source': 'nbi',
+                'species': 'He3',
+                'n': {0.0: 2e19},
+                'n_right_bc': 0.0,
+                'T': {0.0: 200.0},
+                'T_right_bc': 0.0,
+            },
+            {
+                'source': 'icrh',
+                'species': 'D',
+                'n': {0.0: 3e19},
+                'n_right_bc': 0.0,
+                'T': {0.0: 300.0},
+                'T_right_bc': 0.0,
+            },
+        ],
+    )
+    self.assertIsNotNone(pc.fast_ions)
+    self.assertLen(pc.fast_ions, 3)
+
   def test_build_runtime_params_evaluates_fast_ions(self):
     pc = profile_conditions.ProfileConditions(
         initial_psi_source='j',
@@ -728,7 +761,7 @@ class ProfileConditionsTest(parameterized.TestCase):
     result = profile_conditions.apply_prescribed_fast_ions(
         fi_list,
         prescribed,
-        geo.rho_face_norm,  # pyrefly: ignore[bad-argument-type]
+        geo.rho_face_norm,
     )
     self.assertLen(result, 2)
     # He3 should be overridden
@@ -756,10 +789,130 @@ class ProfileConditionsTest(parameterized.TestCase):
     result = profile_conditions.apply_prescribed_fast_ions(
         fi_list,
         (),
-        geo.rho_face_norm,  # pyrefly: ignore[bad-argument-type]
+        geo.rho_face_norm,
     )
     self.assertLen(result, 1)
     np.testing.assert_allclose(result[0].n.value, 0.0, atol=1e-9)
+
+  def test_apply_prescribed_fast_ions_appends_when_empty(self):
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    prescribed = (
+        core_profile_runtime_params.PrescribedFastIonData(
+            source='nbi',
+            species='D',
+            n=np.full(4, 2e19),
+            n_right_bc=np.float64(0.0),
+            T=np.full(4, 50.0),
+            T_right_bc=np.float64(0.0),
+        ),
+    )
+    result = profile_conditions.apply_prescribed_fast_ions(
+        (),
+        prescribed,
+        geo.rho_face_norm,
+    )
+    self.assertLen(result, 1)
+    self.assertEqual(result[0].source, 'nbi')
+    self.assertEqual(result[0].species, 'D')
+    np.testing.assert_allclose(result[0].n.value, 2e19, atol=1e-9)
+    np.testing.assert_allclose(result[0].T.value, 50.0, atol=1e-9)
+
+  def test_apply_prescribed_fast_ions_overwrites_matching_and_appends_unmatched(
+      self,
+  ):
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    zeros = np.zeros(4)
+    zero_cv = cell_variable.CellVariable(
+        value=zeros,
+        face_centers=geo.rho_face_norm,
+        right_face_grad_constraint=None,
+        right_face_constraint=np.float64(0.0),
+    )
+    fi_list = [
+        fast_ion_lib.FastIon(
+            species='He3', source='icrh', n=zero_cv, T=zero_cv
+        ),
+    ]
+    prescribed = (
+        core_profile_runtime_params.PrescribedFastIonData(
+            source='icrh',
+            species='He3',
+            n=np.full(4, 1e19),
+            n_right_bc=np.float64(0.0),
+            T=np.full(4, 100.0),
+            T_right_bc=np.float64(0.0),
+        ),
+        core_profile_runtime_params.PrescribedFastIonData(
+            source='nbi',
+            species='D',
+            n=np.full(4, 2e19),
+            n_right_bc=np.float64(0.0),
+            T=np.full(4, 50.0),
+            T_right_bc=np.float64(0.0),
+        ),
+    )
+    result = profile_conditions.apply_prescribed_fast_ions(
+        fi_list,
+        prescribed,
+        geo.rho_face_norm,
+    )
+    self.assertLen(result, 2)
+    self.assertEqual(result[0].source, 'icrh')
+    self.assertEqual(result[0].species, 'He3')
+    np.testing.assert_allclose(result[0].n.value, 1e19, atol=1e-9)
+    np.testing.assert_allclose(result[0].T.value, 100.0, atol=1e-9)
+    self.assertEqual(result[1].source, 'nbi')
+    self.assertEqual(result[1].species, 'D')
+    np.testing.assert_allclose(result[1].n.value, 2e19, atol=1e-9)
+    np.testing.assert_allclose(result[1].T.value, 50.0, atol=1e-9)
+
+  def test_apply_prescribed_fast_ions_later_duplicate_prescribed_overrides(
+      self,
+  ):
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    p1 = core_profile_runtime_params.PrescribedFastIonData(
+        source='icrh',
+        species='He3',
+        n=np.full(4, 1e19),
+        n_right_bc=np.float64(0.0),
+        T=np.full(4, 100.0),
+        T_right_bc=np.float64(0.0),
+    )
+    p2 = core_profile_runtime_params.PrescribedFastIonData(
+        source='icrh',
+        species='He3',
+        n=np.full(4, 2e19),
+        n_right_bc=np.float64(0.0),
+        T=np.full(4, 200.0),
+        T_right_bc=np.float64(0.0),
+    )
+    result = profile_conditions.apply_prescribed_fast_ions(
+        (),
+        (p1, p2),
+        geo.rho_face_norm,
+    )
+    self.assertLen(result, 1)
+    self.assertEqual(result[0].source, 'icrh')
+    self.assertEqual(result[0].species, 'He3')
+    np.testing.assert_allclose(result[0].n.value, 2e19, atol=1e-9)
+    np.testing.assert_allclose(result[0].T.value, 200.0, atol=1e-9)
+
+  def test_apply_prescribed_fast_ions_unsupported_species_raises(self):
+    geo = circular_geometry.CircularConfig(n_rho=4).build_geometry()
+    p = core_profile_runtime_params.PrescribedFastIonData(
+        source='icrh',
+        species='UNKNOWN',
+        n=np.full(4, 1e19),
+        n_right_bc=np.float64(0.0),
+        T=np.full(4, 100.0),
+        T_right_bc=np.float64(0.0),
+    )
+    with self.assertRaisesRegex(ValueError, 'not a supported species'):
+      profile_conditions.apply_prescribed_fast_ions(
+          (),
+          (p,),
+          geo.rho_face_norm,
+      )
 
   def test_ne_bc_density_fraction_rejects_is_fgw(self):
     with self.assertRaisesRegex(

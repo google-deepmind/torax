@@ -24,6 +24,15 @@ from torax._src.fvm import cell_variable
 FAST_ION_SPECIES: tuple[str, ...] = ('H', 'D', 'T', 'He3', 'He4')
 
 
+def validate_fast_ion_species(species: str, source: str) -> None:
+  """Validates that `species` is in `FAST_ION_SPECIES`."""
+  if species not in FAST_ION_SPECIES:
+    raise ValueError(
+        f'Fast ion species {species!r} for source {source!r} is not a'
+        f' supported species. Supported species: {FAST_ION_SPECIES}'
+    )
+
+
 # pylint: disable=invalid-name
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
@@ -41,3 +50,6 @@ class FastIon:
   source: str = jax.tree.static()
   n: cell_variable.CellVariable
   T: cell_variable.CellVariable
+
+  def __post_init__(self):
+    validate_fast_ion_species(self.species, self.source)

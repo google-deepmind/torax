@@ -76,7 +76,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     chex.assert_trees_all_close(gas_puff_params.feedback_gain, 10.0)
 
     source = source_models.standard_sources['gas_puff']
-    (profile,), _ = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -84,6 +84,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
+    (profile,) = output.profiles
     assert isinstance(profile, array_typing.Array)
 
     total_particles = math_utils.volume_integration(profile, geo)

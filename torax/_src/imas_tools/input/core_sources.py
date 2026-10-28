@@ -85,14 +85,12 @@ class _SourceCollection:
 
   def to_dict(self) -> dict[str, Any]:
     """Finalize output to expected TORAX sources dict."""
+    # TODO(b/502494342): Handle fast ion sources from IMAS. For now we skip
+    # them here as IMAS fast ion data seems to be in core_profiles.
     output = {}
     for name, source_data in self._data.items():
       values_list = []
       for affected_profile in source_data.affected_profiles:
-        # TODO(b/502494342): Handle fast ion sources from IMAS. For now we skip
-        # them here as IMAS fast ion data seems to be in core_profiles.
-        if affected_profile == source_module.AffectedCoreProfile.FAST_IONS:
-          continue
         profile = source_data.profiles[affected_profile]
         values_list.append((source_data.time, source_data.rho_norm, profile))
 
@@ -199,9 +197,6 @@ def _extract_source_profiles(
       ]
     elif affected_profile == source_module.AffectedCoreProfile.NE:
       profiles[affected_profile] = _get_particle_source_profile(profiles_1d)
-    # Handling of fast ions from ICRH not taken into account yet.
-    elif affected_profile == source_module.AffectedCoreProfile.FAST_IONS:
-      profiles[affected_profile] = None
 
   return _SourceProfiles(
       time=time_array,

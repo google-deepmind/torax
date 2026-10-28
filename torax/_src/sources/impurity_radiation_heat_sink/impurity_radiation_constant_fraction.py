@@ -28,7 +28,6 @@ from torax._src.sources import base
 from torax._src.sources import bremsstrahlung_heat_sink
 from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
@@ -57,9 +56,7 @@ class ConstantFractionImpurityRadiationHeatSink(
       calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source_lib.SourceProfileElement, ...], source_state_lib.SourceState
-  ]:
+  ) -> tuple[source_profiles_lib.SourceOutput, source_state_lib.SourceState]:
     """Calculates constant fraction impurity radiation heat sink profile.
 
     Does not modify source_state; returns it unchanged.
@@ -74,7 +71,8 @@ class ConstantFractionImpurityRadiationHeatSink(
         by this model and returned unchanged.
 
     Returns:
-      A tuple of ((electron_heat_profile,), source_state).
+      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
+      source_state).
     """
     del core_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -110,7 +108,7 @@ class ConstantFractionImpurityRadiationHeatSink(
         / geo.volume_face[-1]
         * jnp.ones_like(geo.rho)
     )
-    return (-P_rad,), source_state
+    return source_profiles_lib.SourceOutput(profiles=(-P_rad,)), source_state
 
 
 @jax.tree_util.register_dataclass

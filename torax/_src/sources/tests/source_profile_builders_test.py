@@ -99,7 +99,12 @@ class SourceModelsTest(parameterized.TestCase):
 
       def _get_model_value(self, *args, **kwargs):
         source_state = kwargs.get('source_state', args[-1])
-        return (jnp.ones(self_test.geo.rho.shape),), source_state
+        return (
+            source_profiles.SourceOutput(
+                profiles=(jnp.ones(self_test.geo.rho.shape),)
+            ),
+            source_state,
+        )
 
     self_test = self
     test_source = TestSource()
@@ -153,7 +158,12 @@ class SourceModelsTest(parameterized.TestCase):
 
       def _get_model_value(self, *args, **kwargs):
         source_state = kwargs.get('source_state', args[-1])
-        return (jnp.ones_like(self_test.geo.rho),) * 2, source_state
+        return (
+            source_profiles.SourceOutput(
+                profiles=(jnp.ones_like(self_test.geo.rho),) * 2
+            ),
+            source_state,
+        )
 
     self_test = self
     test_source = TestSource()
@@ -237,7 +247,12 @@ class SourceModelsTest(parameterized.TestCase):
 
       def _get_model_value(self, *args, **kwargs):
         source_state = kwargs.get('source_state', args[-1])
-        return (jnp.ones(self_test.geo.rho.shape),), source_state
+        return (
+            source_profiles.SourceOutput(
+                profiles=(jnp.ones(self_test.geo.rho.shape),)
+            ),
+            source_state,
+        )
 
     self_test = self
     test_source = TestSource()

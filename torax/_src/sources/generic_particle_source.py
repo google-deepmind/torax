@@ -50,10 +50,7 @@ class GenericParticleSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source.SourceProfileElement, ...],
-      source_state_lib.SourceState,
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates external source term for n from SBI.
 
     Does not modify source_state; returns it unchanged.
@@ -68,7 +65,8 @@ class GenericParticleSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of ((electron_density_profile,), source_state).
+      A tuple of (SourceOutput(profiles=(electron_density_profile,)),
+      source_state).
     """
     del core_profiles, calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -79,7 +77,7 @@ class GenericParticleSource(source.Source):
         total=source_params.S_total,
         geo=geo,
     )
-    return (profile,), source_state
+    return source_profiles.SourceOutput(profiles=(profile,)), source_state
 
 
 @jax.tree_util.register_dataclass

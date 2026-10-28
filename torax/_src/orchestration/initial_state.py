@@ -24,6 +24,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
@@ -124,6 +125,19 @@ def _get_initial_state(
           bootstrap_current=neoclassical_outputs.bootstrap_current,
           source_states=initial_source_states,
       )
+  )
+
+  if runtime_params.numerics.enable_fast_ions:
+    fast_ions = profile_conditions.apply_prescribed_fast_ions(
+        sum(initial_core_sources.fast_ions.values(), ()),
+        runtime_params.profile_conditions.prescribed_fast_ions,
+        geo.rho_face_norm,
+    )
+  else:
+    fast_ions = ()
+  initial_core_profiles = dataclasses.replace(
+      initial_core_profiles,
+      fast_ions=fast_ions,
   )
 
   if models.edge_model is not None:

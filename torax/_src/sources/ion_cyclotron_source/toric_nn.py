@@ -37,7 +37,6 @@ from torax._src.physics import collisions
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.physics import fast_ion_utils
 from torax._src.sources import runtime_params as source_runtime_params_lib
-from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base
@@ -335,9 +334,7 @@ class ToricNNIonCyclotronSource(base.IonCyclotronSource):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Computes ion/electron heat source terms using ToricNN.
 
     Does not modify source_state; returns it unchanged.
@@ -352,8 +349,8 @@ class ToricNNIonCyclotronSource(base.IonCyclotronSource):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of ((ion_heat_profile, electron_heat_profile, fast_ions),
-      source_state).
+      A tuple of (SourceOutput(profiles=(ion_heat_profile,
+      electron_heat_profile), fast_ions=fast_ions), source_state).
     """
     del calculated_source_profiles, conductivity
     toric_nn = _load_toric_nn(self.model_path)
@@ -472,6 +469,7 @@ class ToricNNIonCyclotronSource(base.IonCyclotronSource):
             right_face_constraint=core_profiles.T_i.right_face_constraint,
         ),
     )
+    fast_ions = (he3_fast_ion,)
 
     frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
         T_tail,
@@ -488,7 +486,12 @@ class ToricNNIonCyclotronSource(base.IonCyclotronSource):
     # Assume that all the power from the tritium power profile goes to ions.
     source_ion += power_deposition_2T * absorbed_power
 
-    return (source_ion, source_el, (he3_fast_ion,)), source_state
+    return (
+        source_profiles.SourceOutput(
+            profiles=(source_ion, source_el), fast_ions=fast_ions
+        ),
+        source_state,
+    )
 
 
 class ToricNNIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):

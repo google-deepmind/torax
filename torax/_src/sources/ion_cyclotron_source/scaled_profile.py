@@ -25,7 +25,6 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.ion_cyclotron_source import base
@@ -56,9 +55,7 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source_lib.SourceProfileElement, ...], source_state_lib.SourceState
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Compute ICRH heating from prescribed profiles with B-field shift.
 
     The model performs two operations on the reference profiles:
@@ -78,9 +75,8 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
         by this model and passed through unchanged.
 
     Returns:
-      A tuple of ((ion_heat_profile, electron_heat_profile, fast_ions),
-      source_state). Fast_ions are all zeros for now. Scaled fast ion profiles
-      will be supported in a future version.
+      A tuple of (SourceOutput(profiles=(ion_heat_profile,
+      electron_heat_profile)), source_state).
     """
     del core_profiles, calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -125,9 +121,11 @@ class ScaledProfileIonCyclotronSource(base.IonCyclotronSource):
     source_ion = shifted_ion * scale
     source_el = shifted_el * scale
 
-    # --- 3. Default empty fast ions (populated by Source.get_value) ---
     # TODO(b/508118026): extend to support scaled prescribed fast ion profiles.
-    return (source_ion, source_el, ()), source_state
+    return (
+        source_profiles.SourceOutput(profiles=(source_ion, source_el)),
+        source_state,
+    )
 
 
 class ScaledProfileIonCyclotronSourceConfig(base.IonCyclotronSourceConfig):

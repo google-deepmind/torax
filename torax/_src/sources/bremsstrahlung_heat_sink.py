@@ -126,9 +126,7 @@ class BremsstrahlungHeatSink(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates bremsstrahlung radiation heat sink profile.
 
     Does not modify source_state; returns it unchanged.
@@ -143,7 +141,8 @@ class BremsstrahlungHeatSink(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of ((electron_heat_profile,), source_state).
+      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
+      source_state).
     """
     del calculated_source_profiles, conductivity  # Unused.
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -157,7 +156,10 @@ class BremsstrahlungHeatSink(source.Source):
         ),
     )
     # As a sink, the power is negative.
-    return (-1.0 * P_brem_profile,), source_state
+    return (
+        source_profiles.SourceOutput(profiles=(-1.0 * P_brem_profile,)),
+        source_state,
+    )
 
 
 class BremsstrahlungHeatSinkConfig(base.SourceConfigBase):

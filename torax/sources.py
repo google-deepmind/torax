@@ -23,6 +23,7 @@ from torax._src.sources.runtime_params import Mode
 from torax._src.sources.runtime_params import RuntimeParams
 from torax._src.sources.source import AffectedCoreProfile
 from torax._src.sources.source import Source
+from torax._src.sources.source_profiles import SourceOutput
 from torax._src.sources.source_profiles import SourceProfiles
 
 __all__ = [
@@ -31,6 +32,7 @@ __all__ = [
     'RuntimeParams',
     'Source',
     'SourceConfigBase',
+    'SourceOutput',
     'SourceProfiles',
     'register_source_config',
 ]

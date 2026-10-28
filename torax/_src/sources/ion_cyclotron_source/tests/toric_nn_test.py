@@ -40,10 +40,6 @@ from torax._src.torax_pydantic import torax_pydantic
 # Internal import.
 # Internal import.
 
-# Index of He3 in _FAST_ION_SPECIES.
-_HE3_INDEX = 3
-
-
 _DUMMY_MODEL_PATH = "/tmp/toricnn.json"
 
 
@@ -214,9 +210,9 @@ class ToricNNTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    self.assertLen(icrh_out, 3)
-    self.assertEqual(icrh_out[0].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
-    self.assertEqual(icrh_out[1].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
+    self.assertLen(icrh_out.profiles, 2)
+    self.assertEqual(icrh_out.profiles[0].shape, geo.rho.shape)
+    self.assertEqual(icrh_out.profiles[1].shape, geo.rho.shape)
 
   def test_source_with_minority_species_from_composition(self):
     """Tests ICRH source with minority_species reading from composition."""
@@ -253,9 +249,9 @@ class ToricNNTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    self.assertLen(icrh_out, 3)
-    self.assertEqual(icrh_out[0].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
-    self.assertEqual(icrh_out[1].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
+    self.assertLen(icrh_out.profiles, 2)
+    self.assertEqual(icrh_out.profiles[0].shape, geo.rho.shape)
+    self.assertEqual(icrh_out.profiles[1].shape, geo.rho.shape)
 
   def test_source_with_minority_species_main_ion(self):
     """Tests ICRH source with minority_species as a main ion."""
@@ -300,8 +296,8 @@ class ToricNNTest(test_lib.SourceTestCase):
     )
 
     # Just verify it runs and returns shapes
-    self.assertLen(icrh_out, 3)
-    self.assertEqual(icrh_out[0].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
+    self.assertLen(icrh_out.profiles, 2)
+    self.assertEqual(icrh_out.profiles[0].shape, geo.rho.shape)
 
   def test_source_raises_if_minority_species_not_in_composition(self):
     """Tests that a ValueError is raised if minority species is missing."""
@@ -354,11 +350,11 @@ class ToricNNTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    self.assertLen(output, 3)
-    fast_ion_data = output[2]
+    self.assertLen(output.profiles, 2)
+    fast_ion_data = output.fast_ions
     self.assertIsInstance(fast_ion_data, tuple)
-    self.assertLen(fast_ion_data, 5)
-    fi = fast_ion_data[_HE3_INDEX]
+    self.assertLen(fast_ion_data, 1)
+    fi = fast_ion_data[0]
     self.assertIsInstance(fi, fast_ion_lib.FastIon)
     self.assertEqual(fi.species, "He3")
     self.assertEqual(fi.source, icrh_base.IonCyclotronSource.SOURCE_ID)
@@ -390,8 +386,8 @@ class ToricNNTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    fast_ion_data = output[2]
-    n_tail = fast_ion_data[_HE3_INDEX].n.value  # pyrefly: ignore[missing-attribute]
+    fast_ion_data = output.fast_ions
+    n_tail = fast_ion_data[0].n.value
     n_total = core_profiles.n_e.value * minority_conc
     self.assertTrue(jnp.all(n_tail >= 0))
     self.assertTrue(jnp.all(n_tail <= n_total))
@@ -418,8 +414,8 @@ class ToricNNTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    fast_ion_data = output[2]
-    temperature_tail = fast_ion_data[_HE3_INDEX].T.value  # pyrefly: ignore[missing-attribute]
+    fast_ion_data = output.fast_ions
+    temperature_tail = fast_ion_data[0].T.value
     self.assertTrue(jnp.all(temperature_tail >= core_profiles.T_e.value))
 
   def test_zero_power_produces_zero_fast_ions(self):
@@ -444,12 +440,10 @@ class ToricNNTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
         conductivity=None,
     )
-    fast_ion_data = output[2]
+    fast_ion_data = output.fast_ions
+    np.testing.assert_allclose(fast_ion_data[0].n.value, 0.0, atol=1e-9)
     np.testing.assert_allclose(
-        fast_ion_data[_HE3_INDEX].n.value, 0.0, atol=1e-9  # pyrefly: ignore[missing-attribute]
-    )
-    np.testing.assert_allclose(
-        fast_ion_data[_HE3_INDEX].T.value, core_profiles.T_i.value  # pyrefly: ignore[missing-attribute]
+        fast_ion_data[0].T.value, core_profiles.T_i.value
     )
 
   @parameterized.parameters(
@@ -476,19 +470,16 @@ class ToricNNTest(test_lib.SourceTestCase):
     core_profiles, runtime_params_partial, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    (source_ion_partial, source_el_partial, fast_ions_partial), _ = (
-        source.get_value(
-            runtime_params=runtime_params_partial,
-            geo=geo,
-            core_profiles=core_profiles,
-            calculated_source_profiles=None,
-            conductivity=None,
-            source_state=source.initial_state(runtime_params_partial),
-        )
+    output_partial, _ = source.get_value(
+        runtime_params=runtime_params_partial,
+        geo=geo,
+        core_profiles=core_profiles,
+        calculated_source_profiles=None,
+        conductivity=None,
+        source_state=source.initial_state(runtime_params_partial),
     )
-    self.assertIsInstance(source_ion_partial, jax.Array)
-    self.assertIsInstance(source_el_partial, jax.Array)
-    self.assertIsInstance(fast_ions_partial, tuple)
+    source_ion_partial, source_el_partial = output_partial.profiles
+    fast_ions_partial = output_partial.fast_ions
 
     torax_config.update_fields({
         f"sources.{self._source_name}.P_total": p_total * absorption_fraction,
@@ -499,7 +490,7 @@ class ToricNNTest(test_lib.SourceTestCase):
             t=torax_config.numerics.t_initial
         )
     )
-    (source_ion_full, source_el_full, fast_ions_full), _ = source.get_value(
+    output_full, _ = source.get_value(
         runtime_params=runtime_params_full,
         geo=geo,
         core_profiles=core_profiles,
@@ -507,19 +498,18 @@ class ToricNNTest(test_lib.SourceTestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params_full),
     )
-    self.assertIsInstance(source_ion_full, jax.Array)
-    self.assertIsInstance(source_el_full, jax.Array)
-    self.assertIsInstance(fast_ions_full, tuple)
+    source_ion_full, source_el_full = output_full.profiles
+    fast_ions_full = output_full.fast_ions
 
     np.testing.assert_allclose(source_ion_partial, source_ion_full)
     np.testing.assert_allclose(source_el_partial, source_el_full)
     np.testing.assert_allclose(
-        fast_ions_partial[_HE3_INDEX].n.value,
-        fast_ions_full[_HE3_INDEX].n.value,
+        fast_ions_partial[0].n.value,
+        fast_ions_full[0].n.value,
     )
     np.testing.assert_allclose(
-        fast_ions_partial[_HE3_INDEX].T.value,
-        fast_ions_full[_HE3_INDEX].T.value,
+        fast_ions_partial[0].T.value,
+        fast_ions_full[0].T.value,
     )
 
 

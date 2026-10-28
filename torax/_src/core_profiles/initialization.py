@@ -26,7 +26,6 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters
-from torax._src.core_profiles import profile_conditions as profile_conditions_lib
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -101,19 +100,6 @@ def initial_core_profiles(
       face_centers=geo.rho_face_norm,
   )
 
-  fast_ions_list = []
-  if runtime_params.numerics.enable_fast_ions:
-    for s in source_models.standard_sources.values():
-      fast_ions_list.extend(s.zero_fast_ions(geo))
-    # Override with prescribed fast ions from profile_conditions.
-    fast_ions_list = list(
-        profile_conditions_lib.apply_prescribed_fast_ions(
-            fast_ions_list,
-            runtime_params.profile_conditions.prescribed_fast_ions,
-            geo.rho_face_norm,  # pyrefly: ignore[bad-argument-type]
-        )
-    )
-
   core_profiles = state.CoreProfiles(
       T_i=T_i,
       T_e=T_e,
@@ -131,7 +117,7 @@ def initial_core_profiles(
       A_impurity_face=ions.A_impurity_face,
       Z_eff=ions.Z_eff,
       Z_eff_face=ions.Z_eff_face,
-      fast_ions=tuple(fast_ions_list),
+      fast_ions=(),
       psi=psi,
       psidot=psidot,
       q_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),

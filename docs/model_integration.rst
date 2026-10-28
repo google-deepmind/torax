@@ -288,17 +288,17 @@ attributes:
 * ``SOURCE_ID``: The target source name (e.g. ``'generic_heat'``), matching the
   corresponding field in the ``Sources`` config.
 * ``AFFECTED_CORE_PROFILES``: A tuple of ``torax.sources.AffectedCoreProfile``
-  values (``PSI``, ``NE``, ``TEMP_ION``, ``TEMP_EL``, or ``FAST_IONS``)
-  specifying which core profile equations the source contributes to. (If
-  ``FAST_IONS`` is included, you must also implement ``zero_fast_ions``.)
+  values (``PSI``, ``NE``, ``TEMP_ION``, or ``TEMP_EL``)
+  specifying which core profile equations the source contributes to.
 
 If you instead subclass an existing source class (e.g.
 ``GenericIonElectronHeatSource``), ``SOURCE_ID`` and ``AFFECTED_CORE_PROFILES``
 are inherited automatically.
 
-``_get_model_value`` receives the simulation state and must return a tuple of
-source profile arrays on the cell grid (one per entry in
-``AFFECTED_CORE_PROFILES``, in the same order).
+``_get_model_value`` receives the simulation state and returns a tuple of
+``sources.SourceOutput`` (containing the 1D profiles, one per entry in
+``AFFECTED_CORE_PROFILES``, in the same order, and optional fast ions) and the
+(possibly updated) ``source_state``.
 
 .. code-block:: python
 
@@ -307,6 +307,7 @@ source profile arrays on the cell grid (one per entry in
     import jax.numpy as jnp
     import torax
     from torax import sources
+    from torax._src.sources import source_state as source_state_lib
 
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class MyHeatSource(sources.Source):
@@ -327,12 +328,16 @@ source profile arrays on the cell grid (one per entry in
           core_profiles: torax.CoreProfiles,
           calculated_source_profiles: sources.SourceProfiles | None,
           conductivity,
-      ) -> tuple[jnp.ndarray, ...]:
-        # Return a tuple with one element per affected core profile.
-        # For a source affecting TEMP_ION and TEMP_EL, return two profiles.
+          source_state: source_state_lib.SourceState,
+      ) -> tuple[sources.SourceOutput, source_state_lib.SourceState]:
+        # Return a SourceOutput with one profile per affected core profile.
+        # For a source affecting TEMP_ION and TEMP_EL, provide two profiles.
         ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
         el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6
-        return (ion_heat, el_heat)
+        return (
+            sources.SourceOutput(profiles=(ion_heat, el_heat)),
+            source_state,
+        )
 
 
 Step 2: Define the pydantic config

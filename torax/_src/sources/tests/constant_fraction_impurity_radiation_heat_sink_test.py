@@ -80,7 +80,7 @@ class ImpurityRadiationConstantFractionTest(
     heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource()
 
     geo = circular_geometry.CircularConfig().build_geometry()
-    (el, ion), _ = heat_source.get_value(
+    heat_source_output, _ = heat_source.get_value(
         runtime_params,
         geo,
         mock.ANY,
@@ -88,40 +88,37 @@ class ImpurityRadiationConstantFractionTest(
         None,
         source_state=source_state_lib.SourceState(),
     )
+    el, ion = heat_source_output.profiles
 
     impurity_radiation_sink = (
         impurity_radiation_constant_fraction.ConstantFractionImpurityRadiationHeatSink()
     )
 
-    impurity_radiation_heat_sink_power_density, _ = (
-        impurity_radiation_sink.get_value(
-            runtime_params=runtime_params,
-            geo=geo,
-            core_profiles=mock.ANY,
-            calculated_source_profiles=source_profiles.SourceProfiles(
-                bootstrap_current=mock.ANY,
-                qei=mock.ANY,
-                T_e={
-                    'foo': jnp.asarray(el),
-                    'bremsstrahlung': -0.3 * jnp.asarray(el),
-                    'cyclotron_radiation': -0.2 * jnp.asarray(el),
-                },
-                T_i={'foo_source': ion},  # pyrefly: ignore[bad-assignment]
-            ),
-            conductivity=None,
-            source_state=source_state_lib.SourceState(),
-        )
+    impurity_output, _ = impurity_radiation_sink.get_value(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=mock.ANY,
+        calculated_source_profiles=source_profiles.SourceProfiles(
+            bootstrap_current=mock.ANY,
+            qei=mock.ANY,
+            T_e={
+                'foo': jnp.asarray(el),
+                'bremsstrahlung': -0.3 * jnp.asarray(el),
+                'cyclotron_radiation': -0.2 * jnp.asarray(el),
+            },
+            T_i={'foo_source': jnp.asarray(ion)},
+        ),
+        conductivity=None,
+        source_state=source_state_lib.SourceState(),
     )
 
-    self.assertLen(impurity_radiation_heat_sink_power_density, 1)
-    impurity_radiation_heat_sink_power_density = (
-        impurity_radiation_heat_sink_power_density[0]
-    )
+    self.assertLen(impurity_output.profiles, 1)
+    impurity_radiation_heat_sink_power_density = impurity_output.profiles[0]
     # The value should be equal to fraction * sum of the (TEMP_EL+TEMP_ION)
     # sources, minus P_ei and P_brems.
     # In this case, that is only the generic_ion_el_heat_source.
     impurity_radiation_heat_sink_power = math_utils.volume_integration(
-        impurity_radiation_heat_sink_power_density, geo  # pyrefly: ignore[bad-argument-type]
+        impurity_radiation_heat_sink_power_density, geo
     )
     chex.assert_trees_all_close(
         impurity_radiation_heat_sink_power,

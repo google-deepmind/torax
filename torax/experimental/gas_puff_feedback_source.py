@@ -47,7 +47,6 @@ from torax._src.sources import base
 from torax._src.sources import formulas
 from torax._src.sources import gas_puff_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
-from torax._src.sources import source
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.torax_pydantic import torax_pydantic
@@ -83,7 +82,7 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
   ) -> tuple[
-      tuple[source.SourceProfileElement, ...],
+      source_profiles.SourceOutput,
       source_state_lib.SourceState,
   ]:
     """Calculates gas puff source with feedback control.
@@ -100,7 +99,8 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of ((electron_density_profile,), source_state).
+      A tuple of (SourceOutput(profiles=(electron_density_profile,)),
+      source_state).
     """
     del calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -128,7 +128,7 @@ class GasPuffFeedbackSource(gas_puff_source.GasPuffSource):
         total=S_total,
         geo=geo,
     )
-    return (profile,), source_state
+    return source_profiles.SourceOutput(profiles=(profile,)), source_state
 
 
 class GasPuffFeedbackSourceConfig(base.SourceConfigBase):

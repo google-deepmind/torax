@@ -18,11 +18,7 @@ from typing import Annotated, ClassVar
 
 import chex
 import jax
-from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src.fvm import cell_variable
-from torax._src.geometry import geometry
-from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import base as source_base
 from torax._src.sources import runtime_params as source_runtime_params_lib
 from torax._src.sources import source
@@ -49,34 +45,7 @@ class IonCyclotronSource(source.Source):
   AFFECTED_CORE_PROFILES: ClassVar[tuple[source.AffectedCoreProfile, ...]] = (
       source.AffectedCoreProfile.TEMP_ION,
       source.AffectedCoreProfile.TEMP_EL,
-      source.AffectedCoreProfile.FAST_IONS,
   )
-
-  @classmethod
-  def zero_fast_ions(
-      cls,
-      geo: geometry.Geometry,
-  ) -> tuple[fast_ion_lib.FastIon, ...]:
-    zeros = jnp.zeros_like(geo.rho)
-    return tuple(
-        fast_ion_lib.FastIon(
-            species=species,
-            source=cls.SOURCE_ID,
-            n=cell_variable.CellVariable(
-                value=zeros,
-                face_centers=geo.rho_face_norm,
-                right_face_grad_constraint=None,
-                right_face_constraint=jnp.zeros(()),
-            ),
-            T=cell_variable.CellVariable(
-                value=zeros,
-                face_centers=geo.rho_face_norm,
-                right_face_grad_constraint=None,
-                right_face_constraint=jnp.zeros(()),
-            ),
-        )
-        for species in fast_ion_lib.FAST_ION_SPECIES
-    )
 
 
 class IonCyclotronSourceConfig(source_base.SourceConfigBase):

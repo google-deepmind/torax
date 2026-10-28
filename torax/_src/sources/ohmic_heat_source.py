@@ -54,9 +54,7 @@ class OhmicHeatSource(source_lib.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source_lib.SourceProfileElement, ...], source_state_lib.SourceState
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the Ohmic source for electron heat equation.
 
     Does not modify source_state; returns it unchanged.
@@ -71,7 +69,8 @@ class OhmicHeatSource(source_lib.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of ((electron_heat_profile,), source_state).
+      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
+      source_state).
     """
     if calculated_source_profiles is None:
       raise ValueError(
@@ -115,7 +114,7 @@ class OhmicHeatSource(source_lib.Source):
     )
     E_dot_B = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot_fixed_phi
     P_ohm = conductivity.sigma * E_dot_B**2 / geo.gm5
-    return (P_ohm,), source_state
+    return source_profiles.SourceOutput(profiles=(P_ohm,)), source_state
 
 
 class OhmicHeatSourceConfig(base.SourceConfigBase):

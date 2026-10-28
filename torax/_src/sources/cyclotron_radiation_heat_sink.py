@@ -252,9 +252,7 @@ class CyclotronRadiationHeatSink(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates cyclotron radiation heat sink for electron heat equation.
 
     Total cyclotron radiation is from:
@@ -285,7 +283,8 @@ class CyclotronRadiationHeatSink(source.Source):
         by this model and passed through unchanged.
 
     Returns:
-      A tuple of ((electron_heat_profile,), source_state).
+      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
+      source_state).
     """
     del calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -363,7 +362,7 @@ class CyclotronRadiationHeatSink(source.Source):
     rescaling_factor = P_cycl_total / denom
     Q_cycl = Q_cycl_shape * rescaling_factor
 
-    return (-Q_cycl,), source_state
+    return source_profiles.SourceOutput(profiles=(-Q_cycl,)), source_state
 
 
 class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):

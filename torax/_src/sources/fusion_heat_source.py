@@ -49,9 +49,7 @@ class FusionHeatSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates DT fusion heating power with Bosch-Hale (NF 1992).
 
     Does not modify source_state; returns it unchanged.
@@ -66,7 +64,8 @@ class FusionHeatSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of ((ion_heat_profile, electron_heat_profile), source_state).
+      A tuple of (SourceOutput(profiles=(ion_heat_profile,
+      electron_heat_profile)), source_state).
     """
     del geo, calculated_source_profiles, conductivity
     # If both D and T not present in the main ion mixture, return zero fusion.
@@ -74,9 +73,14 @@ class FusionHeatSource(source.Source):
     main_ion_names = runtime_params.plasma_composition.main_ion_names
     if not {'D', 'T'}.issubset(main_ion_names):
       return (
-          jnp.zeros_like(core_profiles.T_i.value),
-          jnp.zeros_like(core_profiles.T_i.value),
-      ), source_state
+          source_profiles.SourceOutput(
+              profiles=(
+                  jnp.zeros_like(core_profiles.T_i.value),
+                  jnp.zeros_like(core_profiles.T_i.value),
+              )
+          ),
+          source_state,
+      )
     else:
       product = 1.0
       for (
@@ -142,7 +146,7 @@ class FusionHeatSource(source.Source):
     frac_e = 1.0 - frac_i
     Pfus_i = Pfus_cell * frac_i * alpha_fraction
     Pfus_e = Pfus_cell * frac_e * alpha_fraction
-    return (Pfus_i, Pfus_e), source_state
+    return source_profiles.SourceOutput(profiles=(Pfus_i, Pfus_e)), source_state
 
 
 class FusionHeatSourceConfig(base.SourceConfigBase):

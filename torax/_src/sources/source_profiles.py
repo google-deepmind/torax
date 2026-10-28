@@ -33,6 +33,21 @@ from torax._src.physics import fast_ion as fast_ion_lib
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
+class SourceOutput:
+  """Output of a single Source model evaluation for one time step.
+
+  Attributes:
+    profiles: Tuple of 1D cell-grid profiles corresponding to
+      `Source.AFFECTED_CORE_PROFILES` in the same order.
+    fast_ions: Fast ion species distributions produced by this source, if any.
+  """
+
+  profiles: tuple[array_typing.FloatVectorCell, ...]
+  fast_ions: tuple[fast_ion_lib.FastIon, ...] = ()
+
+
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
 class QeiInfo:
   """Represents the source values coming from a QeiSource."""
 

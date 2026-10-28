@@ -61,9 +61,7 @@ class GenericIonElectronHeatSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source.SourceProfileElement, ...], source_state_lib.SourceState
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Computes Gaussian ion/electron heat source terms.
 
     Does not modify source_state; returns it unchanged.
@@ -78,7 +76,8 @@ class GenericIonElectronHeatSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of ((ion_heat_profile, electron_heat_profile), source_state).
+      A tuple of (SourceOutput(profiles=(ion_heat_profile,
+      electron_heat_profile)), source_state).
     """
     del core_profiles, calculated_source_profiles, conductivity  # Unused.
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -92,7 +91,10 @@ class GenericIonElectronHeatSource(source.Source):
     )
     source_ion = profile * (1 - source_params.electron_heat_fraction)
     source_el = profile * source_params.electron_heat_fraction
-    return (source_ion, source_el), source_state
+    return (
+        source_profiles.SourceOutput(profiles=(source_ion, source_el)),
+        source_state,
+    )
 
 
 class GenericIonElHeatSourceConfig(base.SourceConfigBase):

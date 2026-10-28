@@ -130,7 +130,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
       calculated_source_profiles = None
       conductivity = None
     source = source_models.standard_sources[self._source_name]
-    elements, _ = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -138,9 +138,9 @@ class SingleProfileSourceTestCase(SourceTestCase):
         conductivity=conductivity,
         source_state=source.initial_state(runtime_params),
     )
-    value = elements[0]
+    value = output.profiles[0]
     chex.assert_rank(value, 1)
-    self.assertEqual(value.shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
+    self.assertEqual(value.shape, geo.rho.shape)
 
 
 class MultipleProfileSourceTestCase(SourceTestCase):
@@ -164,7 +164,7 @@ class MultipleProfileSourceTestCase(SourceTestCase):
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
-    value, _ = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -172,9 +172,10 @@ class MultipleProfileSourceTestCase(SourceTestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
+    value = output.profiles
     self.assertLen(value, 2)
-    self.assertEqual(value[0].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
-    self.assertEqual(value[1].shape, geo.rho.shape)  # pyrefly: ignore[missing-attribute]
+    self.assertEqual(value[0].shape, geo.rho.shape)
+    self.assertEqual(value[1].shape, geo.rho.shape)
 
-    self.assertFalse(jnp.any(jnp.isnan(value[0])))  # pyrefly: ignore[bad-argument-type]
-    self.assertFalse(jnp.any(jnp.isnan(value[1])))  # pyrefly: ignore[bad-argument-type]
+    self.assertFalse(jnp.any(jnp.isnan(value[0])))
+    self.assertFalse(jnp.any(jnp.isnan(value[1])))

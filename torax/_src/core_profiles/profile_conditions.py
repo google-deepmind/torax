@@ -19,9 +19,9 @@ import logging
 from typing import Annotated, Callable, Final, Self, Sequence
 
 import chex
-import jax
 import numpy as np
 import pydantic
+from torax._src import array_typing
 from torax._src.core_profiles import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.internal_boundary_conditions import config as ibc_config
@@ -62,6 +62,11 @@ class PrescribedFastIon(torax_pydantic.ConfigBase):
   n_right_bc: torax_pydantic.TimeVaryingScalar
   T: torax_pydantic.TimeVaryingArray
   T_right_bc: torax_pydantic.TimeVaryingScalar
+
+  @pydantic.model_validator(mode='after')
+  def _validate_species(self) -> Self:
+    fast_ion_lib.validate_fast_ion_species(self.species, self.source)
+    return self
 
 
 class ProfileConditions(torax_pydantic.ConfigBase):
@@ -183,19 +188,6 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       runtime_params_lib.InitialPsiSource, torax_pydantic.JAX_STATIC
   ]
   fast_ions: list[PrescribedFastIon] | None = None
-
-  @pydantic.model_validator(mode='after')
-  def _validate_fast_ion_species(self) -> Self:
-    """Validates that prescribed fast ion species are known."""
-    if self.fast_ions is not None:
-      for pfi in self.fast_ions:
-        if pfi.species not in fast_ion_lib.FAST_ION_SPECIES:
-          raise ValueError(
-              f'Prescribed fast ion species {pfi.species!r} for source'
-              f' {pfi.source!r} is not a supported species. Supported'
-              f' species: {fast_ion_lib.FAST_ION_SPECIES}'
-          )
-    return self
 
   @pydantic.model_validator(mode='after')
   def after_validator(self) -> Self:
@@ -547,55 +539,54 @@ def _build_prescribed_fast_ions(
   )
 
 
+def _prescribed_to_fast_ion(
+    p: runtime_params_lib.PrescribedFastIonData,
+    face_centers: array_typing.FloatVectorFace,
+) -> fast_ion_lib.FastIon:
+  """Constructs a FastIon from PrescribedFastIonData and face_centers."""
+  return fast_ion_lib.FastIon(
+      species=p.species,
+      source=p.source,
+      n=cell_variable.CellVariable(
+          value=p.n,
+          face_centers=face_centers,
+          right_face_grad_constraint=None,
+          right_face_constraint=p.n_right_bc,
+      ),
+      T=cell_variable.CellVariable(
+          value=p.T,
+          face_centers=face_centers,
+          right_face_grad_constraint=None,
+          right_face_constraint=p.T_right_bc,
+      ),
+  )
+
+
 def apply_prescribed_fast_ions(
     fast_ions: Sequence[fast_ion_lib.FastIon],
     prescribed: tuple[runtime_params_lib.PrescribedFastIonData, ...],
-    face_centers: jax.Array,
+    face_centers: array_typing.FloatVectorFace,
 ) -> tuple[fast_ion_lib.FastIon, ...]:
-  """Overrides matching fast ions with prescribed data.
+  """Overrides matching fast ions with prescribed data and appends unmatched.
 
   For each prescribed fast ion, if a matching (source, species) pair exists in
-  the fast_ions list, it is replaced with the prescribed values. Prescribed
-  entries that do not match any existing fast ion are ignored.
+  `fast_ions`, it is replaced in-place with the prescribed values; otherwise
+  it is appended.
 
   Args:
-    fast_ions: Existing fast ion objects (from sources or initialization).
+    fast_ions: Existing fast ion objects (e.g. from sources).
     prescribed: Prescribed fast ion data from profile_conditions.
     face_centers: Face-grid coordinates for building CellVariables.
 
   Returns:
-    Updated tuple of FastIon objects with prescribed overrides applied.
+    Updated tuple of FastIon objects with prescribed fast ions applied.
   """
   if not prescribed:
     return tuple(fast_ions)
-
-  prescribed_by_key = {(p.source, p.species): p for p in prescribed}
-  result = []
-  for fi in fast_ions:
-    key = (fi.source, fi.species)
-    if key in prescribed_by_key:
-      p = prescribed_by_key[key]
-      result.append(
-          fast_ion_lib.FastIon(
-              species=fi.species,
-              source=fi.source,
-              n=cell_variable.CellVariable(
-                  value=p.n,
-                  face_centers=face_centers,
-                  right_face_grad_constraint=None,
-                  right_face_constraint=p.n_right_bc,
-              ),
-              T=cell_variable.CellVariable(
-                  value=p.T,
-                  face_centers=face_centers,
-                  right_face_grad_constraint=None,
-                  right_face_constraint=p.T_right_bc,
-              ),
-          )
-      )
-    else:
-      result.append(fi)
-  return tuple(result)
+  by_key = {(fi.source, fi.species): fi for fi in fast_ions}
+  for p in prescribed:
+    by_key[(p.source, p.species)] = _prescribed_to_fast_ion(p, face_centers)
+  return tuple(by_key.values())
 
 
 def _get_first_failing_value_and_time_or_rho(

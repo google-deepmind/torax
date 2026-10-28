@@ -18,14 +18,13 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src.config import numerics
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.sources import electron_cyclotron_source
 from torax._src.sources import generic_current_source
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source as source_lib
+from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 
 
@@ -87,7 +86,7 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
-    np.testing.assert_allclose(profile[0], np.zeros_like(geo.rho_norm))  # pyrefly: ignore[no-matching-overload]
+    np.testing.assert_allclose(profile.profiles[0], np.zeros_like(geo.rho_norm))
 
   @parameterized.parameters(
       (sources_runtime_params_lib.Mode.ZERO, np.array([0, 0, 0, 0])),
@@ -111,7 +110,10 @@ class SourceTest(parameterized.TestCase):
             'source_state',
             args[-1] if args else source_state_lib.SourceState(),
         )
-        return (np.full([4], 42.0),), source_state
+        return (
+            source_profiles.SourceOutput(profiles=(np.full([4], 42.0),)),
+            source_state,
+        )
 
     source = MockGenericCurrentSource()
     dynamic_source_params = {
@@ -126,9 +128,6 @@ class SourceTest(parameterized.TestCase):
     dynamic_slice = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
-        numerics=mock.create_autospec(
-            numerics.RuntimeParams, enable_fast_ions=True
-        ),
     )
     # Make a geo with rho_norm as we need it for the zero profile shape.
     geo = mock.create_autospec(
@@ -142,8 +141,8 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        profile[0],
+    np.testing.assert_allclose(
+        profile.profiles[0],
         expected_profile,
         atol=1e-6,
         rtol=1e-6,
@@ -163,9 +162,6 @@ class SourceTest(parameterized.TestCase):
     dynamic_slice = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
-        numerics=mock.create_autospec(
-            numerics.RuntimeParams, enable_fast_ions=True
-        ),
     )
     profile, _ = source.get_value(
         runtime_params=dynamic_slice,
@@ -175,15 +171,15 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
-    self.assertLen(profile, 2)
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        profile[0],
+    self.assertLen(profile.profiles, 2)
+    np.testing.assert_allclose(
+        profile.profiles[0],
         np.full([4], 3.0),
         atol=1e-6,
         rtol=1e-6,
     )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        profile[1],
+    np.testing.assert_allclose(
+        profile.profiles[1],
         np.full([4], 4.0),
         atol=1e-6,
         rtol=1e-6,
@@ -203,9 +199,6 @@ class SourceTest(parameterized.TestCase):
     dynamic_slice = mock.create_autospec(
         runtime_params_lib.RuntimeParams,
         sources=dynamic_source_params,
-        numerics=mock.create_autospec(
-            numerics.RuntimeParams, enable_fast_ions=True
-        ),
     )
     with self.assertRaisesRegex(
         ValueError,
@@ -219,174 +212,6 @@ class SourceTest(parameterized.TestCase):
           conductivity=None,
           source_state=source_state_lib.SourceState(),
       )
-
-  def test_fast_ions_populates_missing_species_and_validates(self):
-    zero_d = mock.create_autospec(
-        fast_ion_lib.FastIon, instance=True, species='D'
-    )
-    zero_he3 = mock.create_autospec(
-        fast_ion_lib.FastIon, instance=True, species='He3'
-    )
-    computed_he3 = mock.create_autospec(
-        fast_ion_lib.FastIon, instance=True, species='He3'
-    )
-
-    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-    class DummyFastIonSource(source_lib.Source):
-      SOURCE_ID: ClassVar[str] = 'dummy_fast_ion'
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_lib.AffectedCoreProfile, ...]
-      ] = (source_lib.AffectedCoreProfile.FAST_IONS,)
-      fast_ions_out: tuple[fast_ion_lib.FastIon, ...] = ()
-
-      def _get_model_value(self, *args, **kwargs):
-        source_state = kwargs.get(
-            'source_state', args[-1] if args else source_state_lib.SourceState()
-        )
-        return (self.fast_ions_out,), source_state
-
-      def zero_fast_ions(self, geo):
-        del geo
-        return (zero_d, zero_he3)
-
-    dynamic_slice = mock.create_autospec(
-        runtime_params_lib.RuntimeParams,
-        sources={
-            'dummy_fast_ion': sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(),
-                mode=sources_runtime_params_lib.Mode.MODEL_BASED,
-                is_explicit=False,
-            )
-        },
-        numerics=mock.create_autospec(
-            numerics.RuntimeParams, enable_fast_ions=True
-        ),
-    )
-
-    source = DummyFastIonSource(fast_ions_out=(computed_he3,))
-    profile, _ = source.get_value(
-        runtime_params=dynamic_slice,
-        geo=mock.ANY,
-        core_profiles=mock.ANY,
-        calculated_source_profiles=None,
-        conductivity=None,
-        source_state=source_state_lib.SourceState(),
-    )
-    self.assertEqual(profile[0], (zero_d, computed_he3))
-
-    # Unsupported species raises ValueError.
-    bad_species = mock.create_autospec(
-        fast_ion_lib.FastIon, instance=True, species='W'
-    )
-    bad_source = DummyFastIonSource(fast_ions_out=(bad_species,))
-    with self.assertRaisesRegex(ValueError, 'Unsupported FastIon species'):
-      bad_source.get_value(
-          runtime_params=dynamic_slice,
-          geo=mock.ANY,
-          core_profiles=mock.ANY,
-          calculated_source_profiles=None,
-          conductivity=None,
-          source_state=source_state_lib.SourceState(),
-      )
-
-    # Duplicate species raises ValueError.
-    dup_source = DummyFastIonSource(
-        fast_ions_out=(computed_he3, computed_he3)
-    )
-    with self.assertRaisesRegex(ValueError, 'Duplicate FastIon species'):
-      dup_source.get_value(
-          runtime_params=dynamic_slice,
-          geo=mock.ANY,
-          core_profiles=mock.ANY,
-          calculated_source_profiles=None,
-          conductivity=None,
-          source_state=source_state_lib.SourceState(),
-      )
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='fast_ions_enabled',
-          enable_fast_ions=True,
-          expected_species=('D', 'He3'),
-      ),
-      dict(
-          testcase_name='fast_ions_disabled',
-          enable_fast_ions=False,
-          expected_species=(),
-      ),
-  )
-  def test_prescribed_values_omitting_fast_ions(
-      self,
-      enable_fast_ions: bool,
-      expected_species: tuple[str, ...],
-  ):
-    zero_d = mock.create_autospec(
-        fast_ion_lib.FastIon, instance=True, species='D'
-    )
-    zero_he3 = mock.create_autospec(
-        fast_ion_lib.FastIon, instance=True, species='He3'
-    )
-    species_map = {'D': zero_d, 'He3': zero_he3}
-
-    @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-    class DummyHeatingAndFastIonSource(source_lib.Source):
-      SOURCE_ID: ClassVar[str] = 'dummy_icrh'
-      AFFECTED_CORE_PROFILES: ClassVar[
-          tuple[source_lib.AffectedCoreProfile, ...]
-      ] = (
-          source_lib.AffectedCoreProfile.TEMP_ION,
-          source_lib.AffectedCoreProfile.TEMP_EL,
-          source_lib.AffectedCoreProfile.FAST_IONS,
-      )
-
-      def _get_model_value(self, *args, **kwargs):
-        raise NotImplementedError
-
-      def zero_fast_ions(self, geo):
-        del geo
-        return (zero_d, zero_he3)
-
-    dynamic_slice = mock.create_autospec(
-        runtime_params_lib.RuntimeParams,
-        sources={
-            'dummy_icrh': sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(np.full([4], 3.0), np.full([4], 4.0)),
-                mode=sources_runtime_params_lib.Mode.PRESCRIBED,
-                is_explicit=False,
-            )
-        },
-        numerics=mock.create_autospec(
-            numerics.RuntimeParams, enable_fast_ions=enable_fast_ions
-        ),
-    )
-
-    source = DummyHeatingAndFastIonSource()
-    profile, _ = source.get_value(
-        runtime_params=dynamic_slice,
-        geo=mock.ANY,
-        core_profiles=mock.ANY,
-        calculated_source_profiles=None,
-        conductivity=None,
-        source_state=source_state_lib.SourceState(),
-    )
-
-    self.assertLen(profile, 3)
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        profile[0],
-        np.full([4], 3.0),
-        atol=1e-6,
-        rtol=1e-6,
-    )
-    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
-        profile[1],
-        np.full([4], 4.0),
-        atol=1e-6,
-        rtol=1e-6,
-    )
-    self.assertEqual(
-        profile[2],
-        tuple(species_map[s] for s in expected_species),
-    )
 
 
 if __name__ == '__main__':

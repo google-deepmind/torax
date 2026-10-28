@@ -47,7 +47,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     source_models = torax_config.sources.build_models()
     source_states = source_models.initial_state(runtime_params)
     source = source_models.standard_sources[self._source_name]
-    (res,), _ = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -55,6 +55,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         conductivity=None,
         source_state=source_states[self._source_name],
     )
+    (res,) = output.profiles
     return res
 
   def test_correct_dynamic_params_built(self):

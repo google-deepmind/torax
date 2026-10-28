@@ -66,10 +66,7 @@ class GenericCurrentSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-  ) -> tuple[
-      tuple[source.SourceProfileElement, ...],
-      source_state_lib.SourceState,
-  ]:
+  ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates external parallel current density profile on the cell grid.
 
     Does not modify source_state; returns it unchanged.
@@ -84,7 +81,7 @@ class GenericCurrentSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of ((psi_profile,), source_state).
+      A tuple of (SourceOutput(profiles=(psi_profile,)), source_state).
     """
     del core_profiles, calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -110,7 +107,7 @@ class GenericCurrentSource(source.Source):
     j_parallel = psi_calculations.j_toroidal_to_j_parallel(
         j_tor, geo, runtime_params.numerics.min_rho_norm
     )
-    return (j_parallel,), source_state
+    return source_profiles.SourceOutput(profiles=(j_parallel,)), source_state
 
 
 class GenericCurrentSourceConfig(source_base.SourceConfigBase):

@@ -64,7 +64,7 @@ class InitializationTest(parameterized.TestCase):
     runtime_params, geo = references.get_runtime_params_and_geo()
     bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
     source = generic_current_source.GenericCurrentSource()
-    (j_parallel_external,), _ = source.get_value(
+    output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=mock.ANY,
@@ -72,6 +72,7 @@ class InitializationTest(parameterized.TestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
+    (j_parallel_external,) = output.profiles
     assert isinstance(j_parallel_external, jax.Array)
     j_toroidal_external = psi_calculations.j_parallel_to_j_toroidal(
         j_parallel_external,
