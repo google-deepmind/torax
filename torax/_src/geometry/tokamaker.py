@@ -145,7 +145,7 @@ class TokaMakerEquilibrium(torax_pydantic.ConfigBase):
     return self
 
 
-class TokaMakerConfig(base.BaseGeometryConfig):
+class TokaMakerConfig(base.GeometryConfigBase):
   """Pydantic model for the TokaMaker geometry.
 
   The flux surface grid is set by the ``get_fsa()`` call, not by this config.

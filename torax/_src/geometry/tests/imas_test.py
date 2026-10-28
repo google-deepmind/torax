@@ -17,9 +17,9 @@ import numpy as np
 from torax._src.fvm import cell_variable
 from torax._src.geometry import base
 from torax._src.geometry import chease
+from torax._src.geometry import config
 from torax._src.geometry import eqdsk
 from torax._src.geometry import imas
-from torax._src.geometry import pydantic_model
 from torax._src.geometry import standard_geometry
 from torax._src.imas_tools.input import loader
 from torax._src.physics import psi_calculations
@@ -31,16 +31,18 @@ class IMASGeometryTest(parameterized.TestCase):
 
   def test_build_standard_geometry_from_IMAS(self):
     """Test that the default IMAS geometry can be built."""
-    config = imas.IMASConfig(imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc')
-    config.build_geometry()
+    imas_config = imas.IMASConfig(
+        imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc'
+    )
+    imas_config.build_geometry()
 
   def test_build_single_slice_geometry_from_IMAS(self):
     """Test that a single-slice IMAS geometry can be built."""
-    config = imas.IMASConfig(
+    imas_config = imas.IMASConfig(
         imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
         slice_time=0.0,
     )
-    geo = config.build_geometry()
+    geo = imas_config.build_geometry()
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
 
   def test_single_slice_consistent_with_provider(self):
@@ -63,7 +65,7 @@ class IMASGeometryTest(parameterized.TestCase):
   def test_geometry_build_provider_loads_all_slices_when_slice_time_is_none(
       self,
   ):
-    geo_provider = pydantic_model.Geometry.from_dict({
+    geo_provider = config.GeometryConfig.from_dict({
         'geometry_type': 'imas',
         'imas_filepath': 'ITERhybrid_rampup_11_time_slices_COCOS17_IDS_ddv4.nc',
     }).build_provider

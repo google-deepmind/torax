@@ -25,7 +25,7 @@ from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
-from torax._src.geometry import imas as imas_geometry_pydantic_model
+from torax._src.geometry import imas as imas_geometry
 from torax._src.geometry import standard_geometry
 from torax._src.imas_tools.input import loader as imas_loader
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
@@ -49,7 +49,7 @@ class PsiCalculationsTest(parameterized.TestCase):
       jax.Array,
   ]:
     # Load geo from IMAS
-    config = imas_geometry_pydantic_model.IMASConfig(
+    config = imas_geometry.IMASConfig(
         imas_filepath=imas_filename,
         n_rho=200,
     )

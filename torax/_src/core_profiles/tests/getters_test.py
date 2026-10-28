@@ -29,7 +29,7 @@ from torax._src.core_profiles import runtime_params as core_profile_runtime_para
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
+from torax._src.geometry import config as geometry_config
 from torax._src.orchestration import run_simulation
 from torax._src.physics import charge_states
 from torax._src.physics import formulas
@@ -935,7 +935,7 @@ class GettersTest(parameterized.TestCase):
         'transport': {},
         'pedestal': {},
     }
-    geo = geometry_pydantic_model.Geometry.from_dict(
+    geo = geometry_config.GeometryConfig.from_dict(
         base_config_dict['geometry']
     ).build_provider(t=0.0)
 
@@ -1174,7 +1174,7 @@ class GettersTest(parameterized.TestCase):
 
     # Config 2: n_e_ratios_Z_eff
     config_dict_ne_ratios_zeff = base_config_dict.copy()
-    geo = geometry_pydantic_model.Geometry.from_dict(
+    geo = geometry_config.GeometryConfig.from_dict(
         config_dict_ne_ratios_zeff['geometry']
     ).build_provider(t=0.0)
 

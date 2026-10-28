@@ -53,7 +53,7 @@ _MIN_CONTOUR_POINTS_FOR_EXACT_INTEGRAL: Final[int] = 20
 
 
 # pylint: disable=invalid-name
-class EQDSKConfig(base.BaseGeometryConfig):
+class EQDSKConfig(base.GeometryConfigBase):
   """Pydantic model for the EQDSK geometry.
 
   Attributes:

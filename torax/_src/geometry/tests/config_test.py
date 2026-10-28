@@ -18,23 +18,23 @@ import numpy as np
 from torax._src.config import build_runtime_params
 from torax._src.geometry import chease
 from torax._src.geometry import circular_geometry
+from torax._src.geometry import config as geometry_config
 from torax._src.geometry import geometry_provider
-from torax._src.geometry import pydantic_model
 from torax._src.geometry import standard_geometry
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 
 
-class PydanticModelTest(parameterized.TestCase):
+class GeometryConfigTest(parameterized.TestCase):
 
   def test_missing_geometry_type_raises_error(self):
     with self.assertRaisesRegex(
         ValueError, 'geometry_type must be set in the input config'
     ):
-      pydantic_model.Geometry.from_dict({})
+      geometry_config.GeometryConfig.from_dict({})
 
   def test_build_circular_geometry(self):
-    geo_provider = pydantic_model.Geometry.from_dict({
+    geo_provider = geometry_config.GeometryConfig.from_dict({
         'geometry_type': 'circular',
         'n_rho': 5,  # override a default.
     }).build_provider
@@ -47,7 +47,7 @@ class PydanticModelTest(parameterized.TestCase):
     np.testing.assert_array_equal(geo.B_0, 5.3)  # test a default.
 
   def test_build_geometry_from_chease(self):
-    geo_provider = pydantic_model.Geometry.from_dict(
+    geo_provider = geometry_config.GeometryConfig.from_dict(
         {
             'geometry_type': 'chease',
             'n_rho': 5,  # override a default.
@@ -62,7 +62,7 @@ class PydanticModelTest(parameterized.TestCase):
   def test_build_time_dependent_geometry_from_chease(self):
     """Tests correctness of config constraints with time-dependent geometry."""
 
-    base_config = {
+    base_config_dict = {
         'geometry_type': 'chease',
         'Ip_from_parameters': True,
         'n_rho': 10,  # overrides the default
@@ -83,7 +83,7 @@ class PydanticModelTest(parameterized.TestCase):
     }
 
     # Test valid config
-    geo_pydantic = pydantic_model.Geometry.from_dict(base_config)
+    geo_pydantic = geometry_config.GeometryConfig.from_dict(base_config_dict)
     geo_provider = geo_pydantic.build_provider
     self.assertIsInstance(
         geo_provider, standard_geometry.StandardGeometryProvider
@@ -106,7 +106,7 @@ class PydanticModelTest(parameterized.TestCase):
       self, param, value
   ):
 
-    base_config = {
+    base_config_dict = {
         'geometry_type': 'chease',
         'Ip_from_parameters': True,
         'n_rho': 10,  # overrides the default
@@ -128,12 +128,12 @@ class PydanticModelTest(parameterized.TestCase):
 
     # Test invalid configs:
     for time_key in [0.0, 1.0]:
-      invalid_config = base_config.copy()
-      invalid_config['geometry_configs'][time_key][param] = value  # pyrefly: ignore[bad-index]
+      invalid_config_dict = base_config_dict.copy()
+      invalid_config_dict['geometry_configs'][time_key][param] = value  # pyrefly: ignore[bad-index]
       with self.assertRaisesRegex(
           ValueError, 'following parameters cannot be set per geometry_config'
       ):
-        pydantic_model.Geometry.from_dict(invalid_config)
+        geometry_config.GeometryConfig.from_dict(invalid_config_dict)
 
   # pylint: disable=invalid-name
   def test_chease_geometry_updates_Ip(self):
@@ -189,7 +189,7 @@ class PydanticModelTest(parameterized.TestCase):
         'n_surfaces': 100,
         'cocos': 2,
     }
-    pydantic_model.Geometry.from_dict(config_dict)
+    geometry_config.GeometryConfig.from_dict(config_dict)
 
 
 if __name__ == '__main__':

@@ -17,7 +17,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src import constants
-from torax._src.geometry import pydantic_model
+from torax._src.geometry import config as geometry_config
 from torax._src.geometry import standard_geometry
 from torax._src.geometry import tokamaker
 
@@ -260,12 +260,12 @@ class TokaMakerGeometryTest(parameterized.TestCase):
 
   def test_config_round_trips_through_json(self):
     """The config must serialize, since every output write dumps it to JSON."""
-    config = pydantic_model.Geometry.from_dict({
+    config = geometry_config.GeometryConfig.from_dict({
         'geometry_type': 'tokamaker',
         'n_rho': 25,
         'fsa_profiles': _circular_get_fsa(),
     })
-    restored = pydantic_model.Geometry.model_validate_json(
+    restored = geometry_config.GeometryConfig.model_validate_json(
         config.model_dump_json()
     )
     geo, geo_restored = (
@@ -281,7 +281,7 @@ class TokaMakerGeometryTest(parameterized.TestCase):
 
   def test_time_dependent_geometry_configs(self):
     """Equilibria at several times are interpolated by the standard provider."""
-    config = pydantic_model.Geometry.from_dict({
+    config = geometry_config.GeometryConfig.from_dict({
         'geometry_type': 'tokamaker',
         'n_rho': 25,
         'geometry_configs': {

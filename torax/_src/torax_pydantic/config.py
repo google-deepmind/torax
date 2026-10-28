@@ -31,8 +31,8 @@ from torax._src.edge import config as edge_config
 from torax._src.edge.extended_lengyel import config as extended_lengyel_config
 from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.fvm import enums
+from torax._src.geometry import config as geometry_config
 from torax._src.geometry import geometry
-from torax._src.geometry import pydantic_model as geometry_pydantic_model
 from torax._src.internal_boundary_conditions import config as ibc_config
 from torax._src.mhd import config as mhd_config
 from torax._src.neoclassical import config as neoclassical_config
@@ -73,7 +73,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   profile_conditions: profile_conditions_lib.ProfileConditions
   numerics: numerics_lib.NumericsConfig
   plasma_composition: plasma_composition_lib.PlasmaComposition
-  geometry: geometry_pydantic_model.Geometry
+  geometry: geometry_config.GeometryConfig
   sources: sources_config.SourcesConfig
   neoclassical: neoclassical_config.NeoclassicalConfig = pydantic.Field()
   solver: solver_config.SolverConfig = pydantic.Field()

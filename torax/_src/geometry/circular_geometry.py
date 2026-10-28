@@ -22,7 +22,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class CircularConfig(base.BaseGeometryConfig):
+class CircularConfig(base.GeometryConfigBase):
   """Pydantic model for the circular geometry config.
 
   Attributes:

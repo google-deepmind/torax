@@ -55,7 +55,7 @@ class DivertorDomain(enum.StrEnum):
   LOWER_NULL = 'lower_null'
 
 
-class FBTConfig(base.BaseGeometryConfig):
+class FBTConfig(base.GeometryConfigBase):
   """Pydantic model for the FBT geometry.
 
   Attributes:

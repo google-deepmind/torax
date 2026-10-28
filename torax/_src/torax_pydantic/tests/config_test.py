@@ -25,6 +25,7 @@ import numpy as np
 import pydantic
 from torax._src import version
 from torax._src.config import config_loader
+from torax._src.geometry import eqdsk
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
 from torax._src.test_utils import default_configs
@@ -123,26 +124,26 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
-    new_n_rho = torax_config.geometry.geometry_configs.config.n_rho * 2  # pyrefly: ignore[missing-attribute]
-    new_hires_factor = (
-        torax_config.geometry.geometry_configs.config.hires_factor * 2  # pyrefly: ignore[missing-attribute]
-    )
+    assert not isinstance(torax_config.geometry.geometry_configs, dict)
+    assert torax_config.geometry.geometry_configs.n_rho is not None
+    new_n_rho = torax_config.geometry.geometry_configs.n_rho * 2
+    new_hires_factor = torax_config.geometry.geometry_configs.hires_factor * 2
 
     # Check that the caches are invalidated.
     torax_config.plasma_composition.Z_eff.get_value(t=0.2, grid_type="cell")
     torax_config.plasma_composition.Z_eff.get_value(t=0.2, grid_type="face")
 
     torax_config.update_fields({
-        "geometry.geometry_configs.config.n_rho": new_n_rho,
-        "geometry.geometry_configs.config.hires_factor": new_hires_factor,
+        "geometry.geometry_configs.n_rho": new_n_rho,
+        "geometry.geometry_configs.hires_factor": new_hires_factor,
     })
 
     self.assertEqual(
-        torax_config.geometry.geometry_configs.config.n_rho,  # pyrefly: ignore[missing-attribute]
+        torax_config.geometry.geometry_configs.n_rho,
         new_n_rho,
     )
     self.assertEqual(
-        torax_config.geometry.geometry_configs.config.hires_factor,  # pyrefly: ignore[missing-attribute]
+        torax_config.geometry.geometry_configs.hires_factor,
         new_hires_factor,
     )
 
@@ -163,7 +164,9 @@ class ConfigTest(parameterized.TestCase):
     )["CONFIG"]
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
-    new_n_rho = torax_config.geometry.geometry_configs.config.n_rho * 2  # pyrefly: ignore[missing-attribute]
+    assert not isinstance(torax_config.geometry.geometry_configs, dict)
+    assert torax_config.geometry.geometry_configs.n_rho is not None
+    new_n_rho = torax_config.geometry.geometry_configs.n_rho * 2
 
     torax_config.update_fields({
         "geometry": {
@@ -174,7 +177,7 @@ class ConfigTest(parameterized.TestCase):
     })
 
     self.assertEqual(
-        torax_config.geometry.geometry_configs.config.n_rho,  # pyrefly: ignore[missing-attribute]
+        torax_config.geometry.geometry_configs.n_rho,
         new_n_rho,
     )
 
@@ -696,12 +699,17 @@ class ConfigTest(parameterized.TestCase):
     dumped_config_dict = torax_config.model_dump()
 
     torax_config_restored = config.ToraxConfig.from_dict(dumped_config_dict)
+    self.assertIsInstance(
+        torax_config_restored.geometry.geometry_configs, eqdsk.EQDSKConfig
+    )
+    assert isinstance(
+        torax_config_restored.geometry.geometry_configs, eqdsk.EQDSKConfig
+    )
     assert (
-        torax_config_restored.geometry.geometry_configs.config.eqdsk_object  # pyrefly: ignore[missing-attribute]
-        is not None
+        torax_config_restored.geometry.geometry_configs.eqdsk_object is not None
     )
     self.assertIsInstance(
-        torax_config_restored.geometry.geometry_configs.config.eqdsk_object,  # pyrefly: ignore[missing-attribute]
+        torax_config_restored.geometry.geometry_configs.eqdsk_object,
         eqdsk_lib.EQDSKInterface,
     )
     provider = torax_config_restored.geometry.build_provider

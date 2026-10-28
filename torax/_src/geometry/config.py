@@ -11,13 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Pydantic model for geometry."""
+"""Pydantic config for geometry."""
 
 # pylint: disable=invalid-name
 
 import functools
-from typing import Annotated
-from typing import Any
+from typing import Annotated, Any, TypeAlias
 
 import numpy as np
 import pydantic
@@ -32,39 +31,41 @@ from torax._src.geometry import standard_geometry
 from torax._src.geometry import tokamaker
 from torax._src.torax_pydantic import torax_pydantic
 
+SupportedGeometryConfig: TypeAlias = Annotated[
+    circular_geometry.CircularConfig
+    | chease.CheaseConfig
+    | fbt.FBTConfig
+    | eqdsk.EQDSKConfig
+    | imas.IMASConfig
+    | tokamaker.TokaMakerConfig,
+    pydantic.Field(discriminator='geometry_type'),
+]
+
+_GEOMETRY_CONFIG_ADAPTER = pydantic.TypeAdapter(SupportedGeometryConfig)
+
 
 class GeometryConfig(torax_pydantic.ConfigBase):
-  """Pydantic model for a single geometry config."""
+  """Pydantic config for a geometry.
 
-  config: (
-      circular_geometry.CircularConfig
-      | chease.CheaseConfig
-      | fbt.FBTConfig
-      | eqdsk.EQDSKConfig
-      | imas.IMASConfig
-      | tokamaker.TokaMakerConfig
-  ) = pydantic.Field(discriminator='geometry_type')
-
-
-class Geometry(torax_pydantic.ConfigBase):
-  """Pydantic model for a geometry.
-
-  This object can be constructed via `Geometry.from_dict(config)`, where
+  This object can be constructed via `GeometryConfig.from_dict(config)`, where
   `config` is a dict described in
-  https://torax.readthedocs.io/en/latest/configuration/geometry.html.
+  https://torax.readthedocs.io/en/latest/configuration.html#geometry.
 
   Attributes:
     geometry_type: A `geometry.GeometryType` enum.
-    geometry_configs: Either a single `GeometryConfig` or a dict of
-      `GeometryConfig` objects, where the keys are times in seconds.
-    calc_Phi_b_dot: Whether to calculate Phi_b_dot in the geometry
-      dataclasses. This is used in calc_coeffs to calculate terms related to
-      time-dependent geometry. We can set this to False to zero out Phi_b_dot in
-      the geometry dataclasses to look at its effect on the simulation.
+    geometry_configs: Either a single `SupportedGeometryConfig` or a dict of
+      `SupportedGeometryConfig` objects, where the keys are times in seconds.
+    calc_Phi_b_dot: Whether to calculate Phi_b_dot in the geometry dataclasses.
+      This is used in calc_coeffs to calculate terms related to time-dependent
+      geometry. We can set this to False to zero out Phi_b_dot in the geometry
+      dataclasses to look at its effect on the simulation.
   """
 
   geometry_type: geometry.GeometryType
-  geometry_configs: GeometryConfig | dict[torax_pydantic.Second, GeometryConfig]
+  geometry_configs: (
+      SupportedGeometryConfig
+      | dict[torax_pydantic.Second, SupportedGeometryConfig]
+  )
   calc_Phi_b_dot: Annotated[bool, torax_pydantic.JAX_STATIC] = True
 
   @pydantic.model_validator(mode='before')
@@ -92,23 +93,22 @@ class Geometry(torax_pydantic.ConfigBase):
     # is redesigned.
     if self.geometry_type == geometry.GeometryType.FBT:
       if not isinstance(self.geometry_configs, dict):
-        assert isinstance(self.geometry_configs.config, fbt.FBTConfig)
-        fbt_config = self.geometry_configs.config
-        if fbt_config.LY_bundle_object is not None:
-          return fbt_config.build_fbt_geometry_provider_from_bundle(
+        assert isinstance(self.geometry_configs, fbt.FBTConfig)
+        if self.geometry_configs.LY_bundle_object is not None:
+          return self.geometry_configs.build_fbt_geometry_provider_from_bundle(
               self.calc_Phi_b_dot
           )
     if self.geometry_type == geometry.GeometryType.IMAS:
       if not isinstance(self.geometry_configs, dict):
-        assert isinstance(self.geometry_configs.config, imas.IMASConfig)
-        if self.geometry_configs.config.slice_time is None:
-          return self.geometry_configs.config.build_geometry_provider(
+        assert isinstance(self.geometry_configs, imas.IMASConfig)
+        if self.geometry_configs.slice_time is None:
+          return self.geometry_configs.build_geometry_provider(
               self.calc_Phi_b_dot
           )
 
     if isinstance(self.geometry_configs, dict):
       geometries = {
-          time: config.config.build_geometry()
+          time: config.build_geometry()
           for time, config in self.geometry_configs.items()
       }
       provider = (
@@ -118,7 +118,7 @@ class Geometry(torax_pydantic.ConfigBase):
       )
       return provider(geometries, calc_Phi_b_dot=self.calc_Phi_b_dot)
     else:
-      geometries = self.geometry_configs.config.build_geometry()
+      geometries = self.geometry_configs.build_geometry()
       provider = geometry_provider.ConstantGeometryProvider
       return provider(geometries)
 
@@ -127,11 +127,9 @@ class Geometry(torax_pydantic.ConfigBase):
     if isinstance(self.geometry_configs, dict):
       # We check that the grid is the same for all geometries so can return the
       # face centers from any of them here.
-      return next(
-          iter(self.geometry_configs.values())
-      ).config.get_face_centers()
+      return next(iter(self.geometry_configs.values())).get_face_centers()
     else:
-      return self.geometry_configs.config.get_face_centers()
+      return self.geometry_configs.get_face_centers()
 
 
 def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
@@ -159,9 +157,11 @@ def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
       raise ValueError('geometry_configs must be a dict.')
     constructor_args['geometry_configs'] = {}
     for time, c_time_dependent in configs_time_dependent.items():
-      gc = GeometryConfig.from_dict({'config': c_time_dependent | data_copy})
+      gc = _GEOMETRY_CONFIG_ADAPTER.validate_python(
+          c_time_dependent | data_copy
+      )
       constructor_args['geometry_configs'][time] = gc
-      if x := set(gc.config.time_invariant_fields()).intersection(
+      if x := set(gc.time_invariant_fields()).intersection(
           c_time_dependent.keys()
       ):
         raise ValueError(
@@ -169,6 +169,6 @@ def _conform_user_data(data: dict[str, Any]) -> dict[str, Any]:
             f' {", ".join(x)}'
         )
   else:
-    constructor_args['geometry_configs'] = {'config': data_copy}
+    constructor_args['geometry_configs'] = data_copy
 
   return constructor_args
