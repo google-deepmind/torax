@@ -71,7 +71,7 @@ class ElectronCyclotronSource(source.Source):
     """Calculates external electron heat source and current drive from EC.
 
     Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003). See
-    https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
+    https://torax.readthedocs.io/en/latest/physics_models/electron-cyclotron-derivation.html
     for more details.
 
     Args:
@@ -148,7 +148,7 @@ class ElectronCyclotronSourceConfig(base.SourceConfigBase):
       [\mathrm{m^{-3}}]}{T_e [\mathrm{eV}]} \frac{I_{ec}
       [\mathrm{A}]}{P_{ec} [\mathrm{W}]}`.
       See
-      https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
+      https://torax.readthedocs.io/en/latest/physics_models/electron-cyclotron-derivation.html
       for more details.
     extra_prescribed_power_density: Manual EC power density profile on the rho
       grid.

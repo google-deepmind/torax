@@ -254,7 +254,7 @@ and enforced to ensure robustness.
 
 To further enhance the stability of the linear solver, particularly in the
 presence of stiff transport coefficients (e.g., when using the QLKNN turbulent
-transport model, see :ref:`physics_models`), the |pereverzev-corrigan-method|
+transport model, see :ref:`physics_transport`), the |pereverzev-corrigan-method|
 is implemented as an option. This method adds a large (user-configurable)
 artificial diffusion term to the transport equations, balanced by a large inward
 convection term such that zero extra transport is added at time :math:`t`. These

@@ -118,7 +118,7 @@ geometry
 
 |torax.Geometry| describes the geometry of the torus and fields. See the
 |geometry| package for different ways to build a ``Geometry`` and its child
-classes.
+classes, as well as :ref:`geometry_doc` and :ref:`physics_geometry`.
 
 Each ``Geometry`` object represents the geometry at a single point in time.
 A sequence of different geometries at different timesteps can be provided at
@@ -132,7 +132,8 @@ solver
 ^^^^^^^
 
 |solver| contains PDE time solvers that discretize the PDE in time and solve
-for the next time step with linear or nonlinear methods.
+for the next time step with linear or nonlinear methods (see
+:ref:`solver_config` and :ref:`solver_details`).
 
 Inside the |Solver| implementations is where JAX is actually used to compute
 Jacobians or do optimization-based solving. See the implementations for more
@@ -150,7 +151,8 @@ help access all the sources while stepping through the simulation.
 A TORAX ``Source`` produces heat, particle, or current deposition profiles used
 to compute PDE source/sink coefficients used while solving for the next
 simulation state. TORAX provides several default source model implementations,
-all of which are configurable via the Python dict config.
+all of which are configurable via the Python dict config (see
+:ref:`sources_config` and :ref:`physics_sources`).
 
 See the |sources| subpackage for all implementations.
 
@@ -163,7 +165,7 @@ The TORAX |TransportModel| combines one or more component transport models
 across the core and pedestal domains to compute the heat and particle turbulent
 transport coefficients. Each component model inherits from the abstract
 ``ComponentTransportModel`` class, and TORAX provides several implementations,
-including |QLKNN|.
+including |QLKNN| (see :ref:`transport_config` and :ref:`physics_transport`).
 
 See the |transport_model| subpackage for all implementations.
 
@@ -172,8 +174,8 @@ pedestal
 
 A TORAX |PedestalModel| imposes the plasma temperature and density at a desired
 internal location (or via adaptive transport in the pedestal region)
-corresponding to the H-mode pedestal. |PedestalModel| is composed of three
-modular sub-models:
+corresponding to the H-mode pedestal (see :ref:`pedestal_config`).
+|PedestalModel| is composed of three modular sub-models:
 
 * ``PedestalStructureModel``: computes the H-mode target pedestal-top values
   (temperature, density, and radial location). TORAX provides two built-in
@@ -192,7 +194,8 @@ mhd
 ^^^
 
 The |mhd| module currently just contains the sawtooth model which models the
-crash in temperature and density at the centre of plasma. This is currently only
+crash in temperature and density at the centre of plasma (see
+:ref:`mhd_config` and :ref:`physics_mhd`). This is currently only
 a simple analytical model and can be extended by more complex models for trigger
 and redistribution in the future.
 
@@ -201,8 +204,9 @@ neoclassical
 
 The |neoclassical| module contains the models for neoclassical physics:
 bootstrap current, parallel conductivity, neoclassical transport coefficients,
-and poloidal velocity. A ``NeoclassicalModel`` evaluates these quantities at a
-given plasma state and returns them in a ``NeoclassicalOutputs`` container.
+and poloidal velocity (see :ref:`neoclassical_config` and
+:ref:`physics_neoclassical`). A ``NeoclassicalModel`` evaluates these quantities
+at a given plasma state and returns them in a ``NeoclassicalOutputs`` container.
 
 Neoclassical quantities can be computed either separately via modular
 sub-models or all together in a single evaluation:
@@ -224,4 +228,5 @@ time_step_calculator
 
 |time_step_calculator| contains the interface and default implementations of
 |TimeStepCalculator|, the base class which computes the duration of the next
-time step in TORAX and decides when the simulation is over.
+time step in TORAX and decides when the simulation is over (see
+:ref:`time_step_calculator_config`).

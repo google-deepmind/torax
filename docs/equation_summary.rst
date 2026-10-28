@@ -115,7 +115,7 @@ where :math:`R` is the major radius along the flux surface being averaged.
 
 The geometry terms :math:`V'`, :math:`g_0`, :math:`g_1`, :math:`g_2` and
 :math:`g_3` are calculated from pre-calculated flux-surface-averaged outputs of
-a Grad-Shafranov equilibrium code (see :ref:`physics_models`). Future work will
+a Grad-Shafranov equilibrium code (see :ref:`physics_geometry`). Future work will
 allow for the option of self-consistent magnetic equilibrium calculated during
 the solver step.
 

@@ -114,8 +114,8 @@ class BohmGyroBohmTransportModel(component.ComponentTransportModel):
     We use the implementation from Tholerus et al, Section 3.3.
     https://doi.org/10.1088/1741-4326/ad6ea2
 
-    A description is provided in physics_models.rst.
-    https://torax.readthedocs.io/en/latest/physics_models.html
+    A description is provided in physics_models/transport.rst.
+    https://torax.readthedocs.io/en/latest/physics_models/transport.html
 
     Args:
       transport_runtime_params: Input runtime parameters for this transport
