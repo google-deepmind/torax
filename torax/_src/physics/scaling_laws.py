@@ -114,7 +114,8 @@ def _calculate_P_LH_high_density(
       * params['prefactor']  # Prefactor from the scaling law
       * Bt ** params['Bt_exponent']
       * line_avg_n_e_20 ** params['ne_exponent']
-      * (2.0 / Meff) ** params['Meff_exponent']
+      # 2 / Meff^a, not (2 / Meff)^a: see Eq. 5 in Delabie et al. 2026.
+      * (2.0 / Meff ** params['Meff_exponent'])
       * divertor_factor
       * S ** params['S_exponent']
   )

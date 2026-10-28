@@ -127,7 +127,7 @@ class ScalingLawsTest(parameterized.TestCase):
         prefactor
         * 5.0**Bt_exponent
         * 2.0**ne_exponent
-        * (2.0 / 3.0) ** Meff_exponent
+        * (2.0 / 3.0**Meff_exponent)
         * divertor_factor
         * S**S_exponent
         * 1e6
@@ -141,7 +141,7 @@ class ScalingLawsTest(parameterized.TestCase):
         prefactor
         * 5.0**Bt_exponent
         * (expected_n_e_min / 1e20) ** ne_exponent
-        * (2.0 / 3.0) ** Meff_exponent
+        * (2.0 / 3.0**Meff_exponent)
         * divertor_factor
         * S**S_exponent
         * 1e6
