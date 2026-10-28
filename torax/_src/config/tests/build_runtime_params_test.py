@@ -31,9 +31,9 @@ from torax._src.pedestal_model import config as pedestal_config
 from torax._src.pedestal_model import set_tped_nped
 from torax._src.pedestal_model.formation import prescribed_formation_model
 from torax._src.test_utils import default_configs
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -47,12 +47,12 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
 
   def test_time_dependent_provider_is_time_dependent(self):
     """Tests that the runtime_params provider is time dependent."""
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions'] = {
         'initial_psi_source': 'j',
         'T_i_right_bc': {0.0: 2.0, 4.0: 4.0},
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -124,9 +124,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     np.testing.assert_allclose(pedestal_params.structure.T_i_ped, 0.0)
     np.testing.assert_allclose(pedestal_params.structure.T_e_ped, 1.0)
     np.testing.assert_allclose(pedestal_params.structure.n_e_ped, 2.0e20)
-    np.testing.assert_allclose(
-        pedestal_params.structure.rho_norm_ped_top, 3.0
-    )
+    np.testing.assert_allclose(pedestal_params.structure.rho_norm_ped_top, 3.0)
     # And check after the time limit.
     pedestal_params = pedestal.build_runtime_params(t=1.5)
     assert isinstance(pedestal_params.structure, set_tped_nped.RuntimeParams)
@@ -138,9 +136,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     np.testing.assert_allclose(pedestal_params.structure.T_i_ped, 1.0)
     np.testing.assert_allclose(pedestal_params.structure.T_e_ped, 2.0)
     np.testing.assert_allclose(pedestal_params.structure.n_e_ped, 3.0e20)
-    np.testing.assert_allclose(
-        pedestal_params.structure.rho_norm_ped_top, 5.0
-    )
+    np.testing.assert_allclose(pedestal_params.structure.rho_norm_ped_top, 5.0)
 
   @parameterized.parameters(
       (
@@ -239,7 +235,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
   ):
     """Tests that the profile conditions can set the electron density."""
 
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
 
     # Set correct order of magnitudes to pass Pydantic validation.
     if n_e_right_bc is not None:
@@ -251,7 +247,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
         else {0.0: {0.0: 1.5e20, 1.0: 1.0e20}}
     )
 
-    config['profile_conditions'] = {
+    config_dict['profile_conditions'] = {
         'initial_psi_source': 'j',
         'n_e_right_bc': n_e_right_bc,
         'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
@@ -259,7 +255,7 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
         'nbar': nbar,
         'n_e': n_e,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     profile_condition_params = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
             t=0.0
@@ -545,8 +541,8 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
   def test_ne_bc_density_fraction_from_runtime_params(self):
     """Tests density_fraction mode with core_profiles=None (init fallback)."""
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions'] = {
         'initial_psi_source': 'j',
         'n_e': {0: {0.0: 1.5e20, 1.0: 1.0e20}},
         'n_e_nbar_is_fGW': False,
@@ -555,7 +551,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         'n_e_right_bc_reference_rho': 0.5,
         'n_e_right_bc_multiplier': 0.8,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -590,14 +586,14 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
   def test_ne_bc_density_fraction_from_core_profiles(self):
     """Tests density_fraction mode with a mock CoreProfiles."""
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions'] = {
         'initial_psi_source': 'j',
         'n_e_right_bc_mode': 'density_fraction',
         'n_e_right_bc_reference_rho': 0.5,
         'n_e_right_bc_multiplier': 0.8,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )

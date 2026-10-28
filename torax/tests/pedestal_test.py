@@ -65,13 +65,13 @@ class PedestalTest(absltest.TestCase):
 
   def test_fake_pedestal_model(self):
     """Tests that the fake pedestal model can be used in a simulation."""
-    config = default_configs.get_default_config_dict()
-    config['pedestal'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
         'structure_model': {
             'model_name': 'fake_pedestal',
         },
     }
-    torax_config = torax.ToraxConfig.from_dict(config)
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config, max_steps=100)
 
 

@@ -22,7 +22,7 @@ from torax._src.sources.ion_cyclotron_source import scaled_profile
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 
@@ -35,20 +35,20 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
 
   def _build_and_run(self, icrh_config_dict, n_rho=None):
     """Helper to build a ToraxConfig and run the ICRH source."""
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
     if n_rho is not None:
-      config['geometry']['n_rho'] = n_rho
-    config['plasma_composition'] = {
+      config_dict['geometry']['n_rho'] = n_rho
+    config_dict['plasma_composition'] = {
         'main_ion': {'D': 0.5, 'T': 0.5},
         'impurity': {
             'impurity_mode': 'n_e_ratios',
             'species': {'He3': 0.03, 'Ne': 0.01},
         },
     }
-    config['sources'] = {
+    config_dict['sources'] = {
         icrh_base.IonCyclotronSource.SOURCE_ID: icrh_config_dict,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     icrh_source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID

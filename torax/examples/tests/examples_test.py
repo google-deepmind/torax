@@ -17,7 +17,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax._src.config import config_loader
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class ExamplesTest(parameterized.TestCase):
@@ -32,8 +32,10 @@ class ExamplesTest(parameterized.TestCase):
   def test_validation_of_configs(self, config_name_no_py: str):
     example_config_paths = config_loader.example_config_paths()
     example_config_path = example_config_paths[config_name_no_py]  # pyrefly: ignore[bad-index]
-    cfg = config_loader.build_torax_config_from_file(example_config_path)
-    self.assertIsInstance(cfg, model_config.ToraxConfig)
+    torax_config = config_loader.build_torax_config_from_file(
+        example_config_path
+    )
+    self.assertIsInstance(torax_config, config.ToraxConfig)
 
 
 if __name__ == '__main__':

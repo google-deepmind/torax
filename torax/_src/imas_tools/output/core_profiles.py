@@ -28,12 +28,12 @@ from torax._src.geometry import geometry as geometry_lib
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profiles
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 # pylint: disable=invalid-name
 def core_profiles_to_IMAS(
-    torax_config: model_config.ToraxConfig,
+    torax_config: config.ToraxConfig,
     post_processed_outputs: Sequence[post_processing.PostProcessedOutputs],
     core_profiles: Sequence[state.CoreProfiles],
     core_sources: Sequence[source_profiles.SourceProfiles],
@@ -115,7 +115,7 @@ def _fill_metadata(ids: ids_toplevel.IDSToplevel):
 
 def _fill_global_quantities(
     ids: ids_toplevel.IDSToplevel,
-    torax_config: model_config.ToraxConfig,
+    torax_config: config.ToraxConfig,
     post_processed_outputs: Sequence[post_processing.PostProcessedOutputs],
     core_profiles: Sequence[state.CoreProfiles],
     geometry: Sequence[geometry_lib.Geometry],

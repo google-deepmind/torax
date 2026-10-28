@@ -112,7 +112,7 @@ Once registered, the model can be used in a TORAX config under
 
 .. code-block:: python
 
-    config = {
+    config_dict = {
         ...
         'transport': {
             'core_transport_models': {
@@ -123,7 +123,7 @@ Once registered, the model can be used in a TORAX config under
         },
         ...
     }
-    torax_config = torax.ToraxConfig.from_dict(config)
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config)
 
 
@@ -246,7 +246,7 @@ config:
 
 .. code-block:: python
 
-    config = {
+    config_dict = {
         ...
         'pedestal': {
             'structure_model': {
@@ -255,7 +255,7 @@ config:
         },
         ...
     }
-    torax_config = torax.ToraxConfig.from_dict(config)
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config)
 
 
@@ -418,7 +418,7 @@ Once registered, the model can be used in a TORAX config by setting the
 
 .. code-block:: python
 
-    config = {
+    config_dict = {
         ...
         'sources': {
             'generic_heat': {
@@ -428,7 +428,7 @@ Once registered, the model can be used in a TORAX config by setting the
         },
         ...
     }
-    torax_config = torax.ToraxConfig.from_dict(config)
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config)
 
 
@@ -544,14 +544,14 @@ sub-model inside a ``'combined'`` edge model:
 
 .. code-block:: python
 
-    config = {
+    config_dict = {
         ...
         'edge': {
             'model_name': 'my_edge',
         },
         ...
     }
-    torax_config = torax.ToraxConfig.from_dict(config)
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config)
 
 
@@ -568,7 +568,7 @@ any boundary conditions it should not provide:
 
 .. code-block:: python
 
-    config = {
+    config_dict = {
         ...
         'edge': {
             'model_name': 'combined',
@@ -661,7 +661,7 @@ dictionary:
 
 .. code-block:: python
 
-    config = {
+    config_dict = {
         ...
         'neoclassical': {
             'model_name': 'my_neoclassical',

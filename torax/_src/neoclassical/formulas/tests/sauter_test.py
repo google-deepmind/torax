@@ -19,7 +19,7 @@ from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.formulas import sauter as sauter_formulas
 from torax._src.physics import collisions
 from torax._src.test_utils import core_profile_helpers
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 
@@ -32,7 +32,7 @@ class SauterFormulasTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    torax_config = model_config.ToraxConfig.from_dict({
+    torax_config = config.ToraxConfig.from_dict({
         'profile_conditions': {
             'Ip': 15e6,
             'initial_psi_source': 'geometry',
@@ -86,6 +86,7 @@ class SauterFormulasTest(parameterized.TestCase):
         self.f_trap, self.nu_e_star, self.core_profiles.Z_eff_face
     )
     np.testing.assert_allclose(L32, _L32_EXPECTED, atol=_A_TOL, rtol=_R_TOL)
+
 
 _L31_EXPECTED = np.array([
     0.0,

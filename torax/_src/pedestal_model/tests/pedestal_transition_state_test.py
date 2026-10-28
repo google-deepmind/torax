@@ -33,7 +33,7 @@ from torax._src.physics import scaling_laws
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name,protected-access
 ConfinementMode = pedestal_runtime_params_lib.ConfinementMode
@@ -214,8 +214,8 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    config = default_configs.get_default_config_dict()
-    config['pedestal'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
         'formation_model': {
             'model_name': 'martin_scaling',
@@ -230,7 +230,7 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
             'rho_norm_ped_top': 0.9,
         },
     }
-    config['sources'] = {
+    config_dict['sources'] = {
         'generic_heat': {
             'gaussian_location': 0.15,
             'gaussian_width': 0.1,
@@ -238,7 +238,7 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
             'electron_heat_fraction': 0.8,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     self.pedestal_model = torax_config.pedestal.build_pedestal_model()
 
@@ -765,8 +765,8 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
 
   def test_prescribed_formation_with_finite_transition_time_width(self):
     # No pedestal until t=1.0, linear ramp over [1.0, 2.0], H-mode for t >= 2.0.
-    config = default_configs.get_default_config_dict()
-    config['pedestal'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
         'transition_time_width': 1.0,
         'formation_model': {
@@ -781,7 +781,7 @@ class UpdatePedestalTransitionStateTest(parameterized.TestCase):
             'rho_norm_ped_top': 0.9,
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -918,8 +918,8 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    config = default_configs.get_default_config_dict()
-    config['pedestal'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'ADAPTIVE_TRANSPORT',
         'formation_model': {
@@ -927,7 +927,7 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
             'P_LH_hysteresis_factor': _HYSTERESIS,
         },
     }
-    config['sources'] = {
+    config_dict['sources'] = {
         'generic_heat': {
             'gaussian_location': 0.15,
             'gaussian_width': 0.1,
@@ -935,7 +935,7 @@ class AdaptiveTransportTransitionStateTest(parameterized.TestCase):
             'electron_heat_fraction': 0.8,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     self.pedestal_model = torax_config.pedestal.build_pedestal_model()
 

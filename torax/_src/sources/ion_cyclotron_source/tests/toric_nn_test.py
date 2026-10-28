@@ -33,8 +33,8 @@ from torax._src.sources.ion_cyclotron_source import toric_nn as ion_cyclotron_so
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
 # Internal import.
@@ -86,19 +86,19 @@ class ToricNNTest(test_lib.SourceTestCase):
     model_output, params = toric_nn.init_with_output(
         jax.random.PRNGKey(0), toric_input
     )
-    config = dataclasses.asdict(toric_nn)
-    config[ion_cyclotron_source._HELIUM3_ID] = jax.tree_util.tree_map(
+    config_dict = dataclasses.asdict(toric_nn)
+    config_dict[ion_cyclotron_source._HELIUM3_ID] = jax.tree_util.tree_map(
         lambda x: x.tolist(), params["params"]
     )
-    config[ion_cyclotron_source._TRITIUM_SECOND_HARMONIC_ID] = (
+    config_dict[ion_cyclotron_source._TRITIUM_SECOND_HARMONIC_ID] = (
         jax.tree_util.tree_map(lambda x: x.tolist(), params["params"])
     )
-    config[ion_cyclotron_source._ELECTRON_ID] = jax.tree_util.tree_map(
+    config_dict[ion_cyclotron_source._ELECTRON_ID] = jax.tree_util.tree_map(
         lambda x: x.tolist(), params["params"]
     )
     # pylint: enable=protected-access
     with open(_DUMMY_MODEL_PATH, "w") as f:
-      json.dump(config, f, indent=4, separators=(",", ":"))
+      json.dump(config_dict, f, indent=4, separators=(",", ":"))
     self.dummy_input = model_input
     self.dummy_output = model_output
     self._source_name = icrh_base.IonCyclotronSource.SOURCE_ID
@@ -106,15 +106,15 @@ class ToricNNTest(test_lib.SourceTestCase):
   def _get_default_config_dict(
       self, minority_concentration: float = 0.03
   ) -> dict[str, Any]:
-    config = default_configs.get_default_config_dict()
-    config["plasma_composition"] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["plasma_composition"] = {
         "main_ion": {"D": 0.5, "T": 0.5},
         "impurity": {
             "impurity_mode": "n_e_ratios",
             "species": {"He3": minority_concentration},
         },
     }
-    return config
+    return config_dict
 
   def test_build_runtime_params(self):
     source = ion_cyclotron_source.ToricNNIonCyclotronSourceConfig.from_dict(
@@ -159,13 +159,13 @@ class ToricNNTest(test_lib.SourceTestCase):
     self.assertEqual(dynamic_params.is_explicit, is_explicit)
 
   def test_config_raises_if_model_path_does_not_exist(self):
-    config = ion_cyclotron_source.ToricNNIonCyclotronSourceConfig(
+    source_config = ion_cyclotron_source.ToricNNIonCyclotronSourceConfig(
         model_path="/tmp/non_existent_file.json"
     )
     # We catch generic Exception because different environments may raise
     # different errors.
     with self.assertRaises(Exception):
-      _ = config.build_source()
+      _ = source_config.build_source()
 
   def test_toric_nn_loads_and_predicts_with_dummy_model(self):
     """Test that the ToricNNWrapper loads and predicts consistently."""
@@ -191,9 +191,11 @@ class ToricNNTest(test_lib.SourceTestCase):
 
   def test_source_value(self):
     """Tests that the source can provide a value by default."""
-    config = self._get_default_config_dict()
-    config["sources"] = {self._source_name: {"model_path": _DUMMY_MODEL_PATH}}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = self._get_default_config_dict()
+    config_dict["sources"] = {
+        self._source_name: {"model_path": _DUMMY_MODEL_PATH}
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
@@ -216,14 +218,14 @@ class ToricNNTest(test_lib.SourceTestCase):
 
   def test_source_with_minority_species_from_composition(self):
     """Tests ICRH source with minority_species reading from composition."""
-    config = self._get_default_config_dict()
-    config["sources"] = {
+    config_dict = self._get_default_config_dict()
+    config_dict["sources"] = {
         self._source_name: {
             "model_path": _DUMMY_MODEL_PATH,
             "minority_species": "He3",
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
@@ -233,9 +235,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         core_profile_helpers.make_initial_inputs(torax_config)
     )
     # Verify minority_species is set in runtime params
-    icrh_params = runtime_params.sources[
-        icrh_base.IonCyclotronSource.SOURCE_ID
-    ]
+    icrh_params = runtime_params.sources[icrh_base.IonCyclotronSource.SOURCE_ID]
     self.assertIsInstance(icrh_params, ion_cyclotron_source.RuntimeParams)
     self.assertEqual(icrh_params.minority_species, "He3")
     # Verify He3 is in impurity composition
@@ -255,9 +255,9 @@ class ToricNNTest(test_lib.SourceTestCase):
 
   def test_source_with_minority_species_main_ion(self):
     """Tests ICRH source with minority_species as a main ion."""
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
     # Add He3 as a main ion in the plasma composition
-    config["plasma_composition"] = {
+    config_dict["plasma_composition"] = {
         "main_ion": {
             "D": 0.47,
             "T": 0.5,
@@ -269,13 +269,13 @@ class ToricNNTest(test_lib.SourceTestCase):
         },
     }
     # Configure ICRH to use minority_species
-    config["sources"] = {
+    config_dict["sources"] = {
         self._source_name: {
             "model_path": _DUMMY_MODEL_PATH,
             "minority_species": "He3",
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
@@ -301,13 +301,13 @@ class ToricNNTest(test_lib.SourceTestCase):
 
   def test_source_raises_if_minority_species_not_in_composition(self):
     """Tests that a ValueError is raised if minority species is missing."""
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
     # D and T only, no He3
-    config["plasma_composition"] = {
+    config_dict["plasma_composition"] = {
         "main_ion": {"D": 0.5, "T": 0.5},
         "impurity": {"impurity_mode": "n_e_ratios", "species": {"Ne": 0.01}},
     }
-    config["sources"] = {
+    config_dict["sources"] = {
         self._source_name: {
             "model_path": _DUMMY_MODEL_PATH,
             "minority_species": "He3",
@@ -317,7 +317,7 @@ class ToricNNTest(test_lib.SourceTestCase):
         pydantic.ValidationError,
         'The ICRH source requires "He3" to be present',
     ):
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
 
   def test_invalid_minority_species_raises(self):
     with self.assertRaisesRegex(
@@ -329,12 +329,12 @@ class ToricNNTest(test_lib.SourceTestCase):
       )
 
   def test_icrh_returns_fast_ion_data(self):
-    config = self._get_default_config_dict()
-    config["numerics"] = {"enable_fast_ions": True}
-    config["sources"] = {
+    config_dict = self._get_default_config_dict()
+    config_dict["numerics"] = {"enable_fast_ions": True}
+    config_dict["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 10e6}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
@@ -363,14 +363,14 @@ class ToricNNTest(test_lib.SourceTestCase):
 
   def test_fast_ion_density_conservation(self):
     minority_conc = 0.03
-    config = self._get_default_config_dict(
+    config_dict = self._get_default_config_dict(
         minority_concentration=minority_conc
     )
-    config["numerics"] = {"enable_fast_ions": True}
-    config["sources"] = {
+    config_dict["numerics"] = {"enable_fast_ions": True}
+    config_dict["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 10e6}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
@@ -393,12 +393,12 @@ class ToricNNTest(test_lib.SourceTestCase):
     self.assertTrue(jnp.all(n_tail <= n_total))
 
   def test_fast_ion_tail_temperature_above_electron_temp(self):
-    config = self._get_default_config_dict()
-    config["numerics"] = {"enable_fast_ions": True}
-    config["sources"] = {
+    config_dict = self._get_default_config_dict()
+    config_dict["numerics"] = {"enable_fast_ions": True}
+    config_dict["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 10e6}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
@@ -419,12 +419,12 @@ class ToricNNTest(test_lib.SourceTestCase):
     self.assertTrue(jnp.all(temperature_tail >= core_profiles.T_e.value))
 
   def test_zero_power_produces_zero_fast_ions(self):
-    config = self._get_default_config_dict()
-    config["numerics"] = {"enable_fast_ions": True}
-    config["sources"] = {
+    config_dict = self._get_default_config_dict()
+    config_dict["numerics"] = {"enable_fast_ions": True}
+    config_dict["sources"] = {
         self._source_name: {"model_path": _DUMMY_MODEL_PATH, "P_total": 0.0}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID
@@ -453,16 +453,16 @@ class ToricNNTest(test_lib.SourceTestCase):
   def test_absorption_fraction_scales_heating_and_fast_ions(
       self, p_total: float, absorption_fraction: float
   ):
-    config = self._get_default_config_dict()
-    config["numerics"] = {"enable_fast_ions": True}
-    config["sources"] = {
+    config_dict = self._get_default_config_dict()
+    config_dict["numerics"] = {"enable_fast_ions": True}
+    config_dict["sources"] = {
         self._source_name: {
             "model_path": _DUMMY_MODEL_PATH,
             "P_total": p_total,
             "absorption_fraction": absorption_fraction,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[
         icrh_base.IonCyclotronSource.SOURCE_ID

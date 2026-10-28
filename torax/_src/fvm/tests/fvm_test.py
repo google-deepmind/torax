@@ -31,7 +31,7 @@ from torax._src.orchestration import explicit_model_outputs as explicit_model_ou
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
 from torax._src.sources import source_profile_builders
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 def _make_face_centers(dr: float, num_cells: int) -> np.ndarray:
@@ -205,7 +205,7 @@ class FVMTest(parameterized.TestCase):
       self, num_cells: int = 4, theta_implicit: float = 1.0
   ):
     """Builds FVM test inputs for diffusive transport with no sources."""
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = config.ToraxConfig.from_dict(
         dict(
             numerics=dict(evolve_electron_heat=False),
             plasma_composition=dict(),
@@ -213,9 +213,7 @@ class FVMTest(parameterized.TestCase):
             geometry=dict(geometry_type='circular', n_rho=num_cells),
             pedestal=dict(),
             sources=dict(),
-            solver=dict(
-                use_fixed_point=False, theta_implicit=theta_implicit
-            ),
+            solver=dict(use_fixed_point=False, theta_implicit=theta_implicit),
             transport=dict(
                 core_transport_models=dict(
                     prescribed=dict(model_name='prescribed', chi_i=1)

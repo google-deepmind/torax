@@ -20,7 +20,7 @@ from absl.testing import parameterized
 from torax._src import path_utils
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class ConfigLoaderTest(parameterized.TestCase):
@@ -69,8 +69,8 @@ class ConfigLoaderTest(parameterized.TestCase):
       path=list(config_loader.example_config_paths().values()),
   )
   def test_build_torax_config_from_file(self, path: pathlib.Path):
-    config = config_loader.build_torax_config_from_file(path)
-    self.assertIsInstance(config, model_config.ToraxConfig)
+    torax_config = config_loader.build_torax_config_from_file(path)
+    self.assertIsInstance(torax_config, config.ToraxConfig)
 
   @parameterized.product(
       use_string=[True, False],

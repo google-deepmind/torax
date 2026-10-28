@@ -30,8 +30,8 @@ from torax._src.output_tools import post_processing
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import paths
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_1d
-from torax._src.torax_pydantic import model_config
 
 
 def get_step_fn_sim_state_and_post_processed_outputs(
@@ -43,7 +43,7 @@ def get_step_fn_sim_state_and_post_processed_outputs(
 ]:
   if config_dict is None:
     config_dict = default_configs.get_default_config_dict()
-  torax_config = model_config.ToraxConfig.from_dict(config_dict)
+  torax_config = config.ToraxConfig.from_dict(config_dict)
   (
       sim_state,
       post_processed_outputs,
@@ -181,7 +181,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics']['fixed_dt'] = config_dt
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -219,7 +219,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics']['fixed_dt'] = config_dt
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -256,7 +256,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics']['fixed_dt'] = config_dt
     config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -304,7 +304,7 @@ class StepFunctionTest(parameterized.TestCase):
             'crash_step_duration': crash_step_duration,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -320,7 +320,7 @@ class StepFunctionTest(parameterized.TestCase):
   def test_fixed_time_step_correct_time(self):
     config_dict = default_configs.get_default_config_dict()
     control_dt = 0.01
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -342,7 +342,7 @@ class StepFunctionTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['numerics']['min_dt'] = 0.1
     config_dict['numerics']['adaptive_dt'] = True
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
@@ -384,12 +384,12 @@ class StepFunctionTest(parameterized.TestCase):
     original_ip = 15e6
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions']['Ip'] = original_ip
-    cfg = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
         step_fn,
-    ) = run_simulation.prepare_simulation(cfg)
+    ) = run_simulation.prepare_simulation(torax_config)
     params_provider = step_fn.runtime_params_provider
 
     # Run a step with overridden Ip.
@@ -407,8 +407,8 @@ class StepFunctionTest(parameterized.TestCase):
     )
 
     # Update the config itself and re-run the step.
-    cfg.update_fields({'profile_conditions.Ip': original_ip * 2.0})
-    step_fn = run_simulation.make_step_fn(cfg)
+    torax_config.update_fields({'profile_conditions.Ip': original_ip * 2.0})
+    step_fn = run_simulation.make_step_fn(torax_config)
     ref_state, ref_post_processed_outputs = step_fn(
         # Use original state and post-processed outputs as the initial value.
         sim_state,
@@ -422,16 +422,16 @@ class StepFunctionTest(parameterized.TestCase):
 
   def test_step_function_geometry_overrides(self):
     config_dict = default_configs.get_default_config_dict()
-    cfg = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
         post_processed_outputs,
         step_fn,
-    ) = run_simulation.prepare_simulation(cfg)
+    ) = run_simulation.prepare_simulation(torax_config)
 
     # Construct a new step function with a different geometry.
-    cfg.update_fields({'geometry.calc_Phi_b_dot': False})
-    new_step_fn = run_simulation.make_step_fn(cfg)
+    torax_config.update_fields({'geometry.calc_Phi_b_dot': False})
+    new_step_fn = run_simulation.make_step_fn(torax_config)
     # Use original step function with new step function's geometry as overrides.
     override_state, override_post_processed_outputs = step_fn(
         sim_state,

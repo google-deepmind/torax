@@ -42,7 +42,6 @@ from torax._src.orchestration import run_simulation
 
 # Internal import.
 
-
 FLAGS = flags.FLAGS
 
 # Guard against DuplicateFlagError when multiple regenerate scripts are
@@ -93,7 +92,7 @@ class NumpyEncoder(json.JSONEncoder):
     return super().default(o)
 
 
-def get_sawtooth_test_config() -> Mapping[str, Any]:
+def get_sawtooth_test_config_dict() -> Mapping[str, Any]:
   """Returns the test configuration dictionary for sawtooth tests.
 
   This configuration is shared between the test and reference generation.
@@ -162,7 +161,7 @@ def calculate_sawtooth_crash_references() -> Mapping[str, np.ndarray]:
   Raises:
     ValueError: If sawtooth crash did not occur.
   """
-  test_config_dict = get_sawtooth_test_config()
+  test_config_dict = get_sawtooth_test_config_dict()
   torax_config = torax.ToraxConfig.from_dict(test_config_dict)
 
   initial_state, initial_post_processed_outputs, step_fn = (

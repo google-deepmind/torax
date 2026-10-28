@@ -25,7 +25,7 @@ from torax._src.core_profiles.plasma_composition import ion_mixture
 from torax._src.core_profiles.plasma_composition import plasma_composition
 from torax._src.geometry import circular_geometry
 from torax._src.physics import charge_states
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -175,7 +175,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='default',
-          config={},
+          config_dict={},
           expected_impurity_names=('Ne',),
           expected_Z_override=None,
           expected_A_override=None,
@@ -183,7 +183,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='explicit_fractions',
-          config={
+          config_dict={
               'impurity': {
                   'impurity_mode': plasma_composition._IMPURITY_MODE_FRACTIONS,
                   'species': {'C': 0.5, 'N': 0.5},
@@ -198,7 +198,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='n_e_ratios',
-          config={
+          config_dict={
               'impurity': {
                   'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS,
                   'species': {'C': 0.01, 'N': 0.02},
@@ -213,7 +213,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='n_e_ratios_Z_eff',
-          config={
+          config_dict={
               'impurity': {
                   'impurity_mode': (
                       plasma_composition._IMPURITY_MODE_NE_RATIOS_ZEFF
@@ -231,13 +231,13 @@ class PlasmaCompositionTest(parameterized.TestCase):
   )
   def test_impurity_api(
       self,
-      config,
+      config_dict,
       expected_impurity_names,
       expected_Z_override,
       expected_A_override,
       expected_impurity_model_type,
   ):
-    pc = plasma_composition.PlasmaComposition(**config)
+    pc = plasma_composition.PlasmaComposition(**config_dict)
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
     self.assertIsInstance(pc.impurity, expected_impurity_model_type)
@@ -310,15 +310,15 @@ class PlasmaCompositionTest(parameterized.TestCase):
   )
   def test_ne_ratios_Z_eff_validation(self, species, should_raise):
     """Tests that NeRatiosZeffModel must have exactly one None species."""
-    config = {
+    config_dict = {
         'impurity_mode': plasma_composition._IMPURITY_MODE_NE_RATIOS_ZEFF,
         'species': species,
     }
     if should_raise:
       with self.assertRaises(pydantic.ValidationError):
-        plasma_composition.PlasmaComposition(impurity=config)
+        plasma_composition.PlasmaComposition(impurity=config_dict)
     else:
-      plasma_composition.PlasmaComposition(impurity=config)
+      plasma_composition.PlasmaComposition(impurity=config_dict)
 
   @parameterized.named_parameters(
       dict(
@@ -385,9 +385,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     )
     torax_pydantic.set_grid(pc_ne_ratios, geo.torax_mesh)
     ne_params = pc_ne_ratios.impurity.build_runtime_params(t)
-    assert isinstance(
-        ne_params, electron_density_ratios.RuntimeParams
-    )
+    assert isinstance(ne_params, electron_density_ratios.RuntimeParams)
 
     pc_fractions = plasma_composition.PlasmaComposition(
         impurity={
@@ -478,7 +476,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
         'plasma_composition.impurity.species': {'Ne': 0.98, 'W': 0.02}
     }
 
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     self.assertEqual(
         torax_config.plasma_composition.get_impurity_names(), ('Ne', 'W')
     )
@@ -570,9 +568,7 @@ class IonMixtureTest(parameterized.TestCase):
   )
   def test_ion_mixture_averaging(self, species, time, expected_Z, expected_A):
     """Tests the averaging of Z and A for different mixtures."""
-    mixture = ion_mixture.IonMixture.model_validate(
-        dict(species=species)
-    )
+    mixture = ion_mixture.IonMixture.model_validate(dict(species=species))
     mixture_params = mixture.build_runtime_params(time)
     calculated_Z = charge_states.get_average_charge_state(
         T_e=np.array([10.0]),  # Ensure that all ions in test are fully ionized

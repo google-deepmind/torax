@@ -18,14 +18,14 @@ import jax
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class RuntimeParamsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._torax_config = model_config.ToraxConfig.from_dict(
+    self._torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
     self._torax_mesh = self._torax_config.geometry.build_provider.torax_mesh

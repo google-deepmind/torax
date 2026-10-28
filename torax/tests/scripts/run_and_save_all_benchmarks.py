@@ -26,7 +26,7 @@ from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.orchestration import run_simulation
 from torax._src.test_utils import paths
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 _OUTPUT_DIR = flags.DEFINE_string(
     'output_dir', '/tmp/torax_sim_outputs', 'Where to save sim outputs.'
@@ -65,7 +65,7 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
     # The config module is using the "basic" configuration setup with a single
     # CONFIG dictionary defining everything.
     # This CONFIG needs to be built into an actual Sim object.
-    torax_config = model_config.ToraxConfig.from_dict(config_module['CONFIG'])
+    torax_config = config.ToraxConfig.from_dict(config_module['CONFIG'])
   else:
     raise ValueError(
         f'Config module {config_name} must either define a get_sim() method'

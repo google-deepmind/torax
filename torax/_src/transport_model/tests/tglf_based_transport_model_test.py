@@ -30,7 +30,7 @@ from torax._src.pedestal_model import (
 )
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import register_model
 from torax._src.transport_model import runtime_params as transport_params
@@ -44,9 +44,9 @@ def _get_config_and_model_inputs(
     transport: Mapping[str, Any],
 ):
   """Returns the model inputs for testing."""
-  config = default_configs.get_default_config_dict()
-  config["transport"] = transport
-  torax_config = model_config.ToraxConfig.from_dict(config)
+  config_dict = default_configs.get_default_config_dict()
+  config_dict["transport"] = transport
+  torax_config = config.ToraxConfig.from_dict(config_dict)
   core_profiles, runtime_params, geo = core_profile_helpers.make_initial_inputs(
       torax_config
   )
@@ -109,12 +109,10 @@ class TGLFTransportModelTest(parameterized.TestCase):
         transport_model, tglf_based_transport_model.TGLFBasedTransportModel
     )
     runtime_params, geo, core_profiles, _, two_point_mask, _ = model_inputs
-    tglf_params = (
-        runtime_params.transport.core_transport_model_params["tglf_based"]
-    )
-    assert isinstance(
-        tglf_params, tglf_based_transport_model.RuntimeParams
-    )
+    tglf_params = runtime_params.transport.core_transport_model_params[
+        "tglf_based"
+    ]
+    assert isinstance(tglf_params, tglf_based_transport_model.RuntimeParams)
     tglf_inputs = transport_model._prepare_tglf_inputs(
         transport=tglf_params,
         geo=geo,
@@ -159,9 +157,9 @@ class TGLFTransportModelTest(parameterized.TestCase):
     tglf_params_uncapped = (
         runtime_uncapped.transport.core_transport_model_params["tglf_based"]
     )
-    tglf_params_capped = (
-        runtime_capped.transport.core_transport_model_params["tglf_based"]
-    )
+    tglf_params_capped = runtime_capped.transport.core_transport_model_params[
+        "tglf_based"
+    ]
     assert isinstance(
         tglf_params_uncapped, tglf_based_transport_model.RuntimeParams
     )

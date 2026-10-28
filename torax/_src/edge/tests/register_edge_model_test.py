@@ -29,25 +29,25 @@ from torax._src.edge import runtime_params as edge_runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 
 
-def _base_config() -> dict[str, object]:
-  config = default_configs.get_default_config_dict()
+def _base_config_dict() -> dict[str, object]:
+  config_dict = default_configs.get_default_config_dict()
   # Non-circular geometry and n_e_ratios impurity mode are required when an
   # edge model is configured.
-  config["geometry"] = {
+  config_dict["geometry"] = {
       "geometry_type": "chease",
       "geometry_file": "iterhybrid.mat2cols",
   }
-  config["plasma_composition"] = {
+  config_dict["plasma_composition"] = {
       "impurity": {
           "impurity_mode": "n_e_ratios",
           "species": {"Ne": 0.01},
       }
   }
-  return config
+  return config_dict
 
 
 class RegisterEdgeModelTest(parameterized.TestCase):
@@ -55,9 +55,9 @@ class RegisterEdgeModelTest(parameterized.TestCase):
   def test_registered_model_in_config(self):
     register_model.register_edge_model(DummyEdgeConfig)
 
-    config = _base_config()
-    config["edge"] = {"model_name": "dummy_edge"}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = _base_config_dict()
+    config_dict["edge"] = {"model_name": "dummy_edge"}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     self.assertIsNotNone(torax_config.edge)
     edge_model = torax_config.edge.build_edge_model()
     self.assertIsInstance(edge_model, DummyEdgeModel)
@@ -65,9 +65,9 @@ class RegisterEdgeModelTest(parameterized.TestCase):
   def test_update_flags_default_to_supported_boundary_conditions(self):
     register_model.register_edge_model(DummyElectronTemperatureConfig)
 
-    config = _base_config()
-    config["edge"] = {"model_name": "dummy_te"}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = _base_config_dict()
+    config_dict["edge"] = {"model_name": "dummy_te"}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     assert torax_config.edge is not None
     runtime_params = torax_config.edge.build_runtime_params(t=0.0)
     self.assertTrue(runtime_params.update_T_e)
@@ -79,8 +79,8 @@ class RegisterEdgeModelTest(parameterized.TestCase):
     """Test that an error is raised if an unsupported BC is updated."""
     register_model.register_edge_model(DummyElectronTemperatureConfig)
 
-    config = _base_config()
-    config["edge"] = {
+    config_dict = _base_config_dict()
+    config_dict["edge"] = {
         "model_name": "dummy_te",
         "update_T_i": True,
     }
@@ -89,7 +89,7 @@ class RegisterEdgeModelTest(parameterized.TestCase):
         r"'update_T_i' cannot be True because 'dummy_te' does not"
         r" support the 'T_i' boundary condition\.",
     ):
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
 
   def test_missing_supported_boundary_conditions_raises_error(self):
     class BadEdgeConfig(base.EdgeModelConfig):
@@ -103,23 +103,23 @@ class RegisterEdgeModelTest(parameterized.TestCase):
     ):
       BadEdgeConfig.from_dict({})
 
-  def _combined_sub_models_config(self) -> dict[str, object]:
+  def _combined_sub_models_config_dict(self) -> dict[str, object]:
     register_model.register_edge_model(DummyEdgeConfig)
     register_model.register_edge_model(DummyElectronTemperatureConfig)
 
-    config = _base_config()
-    config["edge"] = {
+    config_dict = _base_config_dict()
+    config_dict["edge"] = {
         "model_name": "combined",
         "sub_models": {
             "full": {"model_name": "dummy_edge", "update_T_e": False},
             "te": {"model_name": "dummy_te"},
         },
     }
-    return config
+    return config_dict
 
   def test_combined_edge_builds_sub_models(self):
-    config = self._combined_sub_models_config()
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = self._combined_sub_models_config_dict()
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     assert torax_config.edge is not None
     edge_model = torax_config.edge.build_edge_model()
     assert isinstance(edge_model, base.CombinedEdgeModel)
@@ -133,8 +133,8 @@ class RegisterEdgeModelTest(parameterized.TestCase):
     self.assertEqual(edge_model.n_impurities_sub_model, "full")
 
   def test_combined_edge_aggregates_sub_model_update_flags(self):
-    config = self._combined_sub_models_config()
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = self._combined_sub_models_config_dict()
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     assert torax_config.edge is not None
     runtime_params = torax_config.edge.build_runtime_params(t=0.0)
     self.assertTrue(runtime_params.update_T_e)
@@ -180,8 +180,8 @@ class RegisterEdgeModelTest(parameterized.TestCase):
         "update_n_e": False,
         "update_n_impurities": False,
     }
-    config = _base_config()
-    config["edge"] = {
+    config_dict = _base_config_dict()
+    config_dict["edge"] = {
         "model_name": "combined",
         "sub_models": {
             "first": {**base_sub_model, flag_name: first_flag},
@@ -193,13 +193,13 @@ class RegisterEdgeModelTest(parameterized.TestCase):
         rf"'{flag_name}' may only be enabled on a single sub-model"
         r" across all time, but is enabled on \['first', 'second'\]\.",
     ):
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
 
   def test_combined_edge_top_level_update_flag_raises_error(self):
     register_model.register_edge_model(DummyElectronTemperatureConfig)
 
-    config = _base_config()
-    config["edge"] = {
+    config_dict = _base_config_dict()
+    config_dict["edge"] = {
         "model_name": "combined",
         "sub_models": {
             "te": {"model_name": "dummy_te"},
@@ -210,28 +210,28 @@ class RegisterEdgeModelTest(parameterized.TestCase):
         pydantic.ValidationError,
         r"'update_T_e' cannot be set on a combined edge model\.",
     ):
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
 
   def test_combined_edge_empty_sub_models_raises_error(self):
-    config = _base_config()
-    config["edge"] = {
+    config_dict = _base_config_dict()
+    config_dict["edge"] = {
         "model_name": "combined",
         "sub_models": {},
     }
     with self.assertRaises(pydantic.ValidationError):
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
 
   def test_dynamic_registration_updates_discriminator(self):
     register_model.register_edge_model(DummyEdgeConfig)
 
-    config = default_configs.get_default_config_dict()
-    config["edge"] = {"model_name": "invalid_edge_model"}
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["edge"] = {"model_name": "invalid_edge_model"}
     with self.assertRaisesRegex(
         pydantic.ValidationError,
         r"Input tag 'invalid_edge_model' found using 'model_name' does not"
         r" match any.*'dummy_edge'",
     ):
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

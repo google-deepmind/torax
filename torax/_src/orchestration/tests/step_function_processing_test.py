@@ -23,7 +23,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.orchestration import step_function_processing
 from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 ConfinementMode = pedestal_runtime_params_lib.ConfinementMode
@@ -45,10 +45,14 @@ class StepFunctionProcessingTest(parameterized.TestCase):
       self,
       explicit_pedestal: bool,
   ):
-    config = default_configs.get_default_config_dict()
-    config['numerics'] = {'fixed_dt': 1.0, 't_initial': 0.0, 't_final': 2.0}
-    config['time_step_calculator'] = {'calculator_type': 'fixed'}
-    config['pedestal'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['numerics'] = {
+        'fixed_dt': 1.0,
+        't_initial': 0.0,
+        't_final': 2.0,
+    }
+    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
+    config_dict['pedestal'] = {
         'explicit_pedestal': explicit_pedestal,
         'structure_model': {
             'model_name': 'set_T_ped_n_ped',
@@ -62,7 +66,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
             'pedestal_active': ({0.0: False, 0.5: True}, 'STEP'),
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     step_fn = run_simulation.make_step_fn(torax_config)
     sim_state, post_processed = (
         initial_state.get_initial_state_and_post_processed_outputs(step_fn)
@@ -89,8 +93,8 @@ class StepFunctionProcessingTest(parameterized.TestCase):
     )
 
   def test_prescribed_formation_adaptive_transport_L_to_H_and_H_to_L(self):
-    config = default_configs.get_default_config_dict()
-    config['pedestal'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'ADAPTIVE_TRANSPORT',
         'formation_model': {
@@ -99,7 +103,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
             'base_multiplier': 1e-5,
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     step_fn = run_simulation.make_step_fn(torax_config)
     sim_state, _ = initial_state.get_initial_state_and_post_processed_outputs(
         step_fn

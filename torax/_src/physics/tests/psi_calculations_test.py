@@ -168,12 +168,14 @@ class PsiCalculationsTest(parameterized.TestCase):
       self, references_getter: Callable[[], torax_refs.References]
   ):
     references = references_getter()
-    geo = references.geometry_provider(references.config.numerics.t_initial)
+    geo = references.geometry_provider(
+        references.torax_config.numerics.t_initial
+    )
     # pylint: disable=invalid-name
     j, _, Ip_profile_face = psi_calculations.calc_j_toroidal_total(
         geo,
         references.psi,
-        min_rho_norm=references.config.numerics.min_rho_norm,
+        min_rho_norm=references.torax_config.numerics.min_rho_norm,
     )
     # pylint: enable=invalid-name
     np.testing.assert_allclose(j, references.j_toroidal_total, rtol=1e-5)
@@ -195,7 +197,9 @@ class PsiCalculationsTest(parameterized.TestCase):
   ])
   def test_calc_s(self, references_getter: Callable[[], torax_refs.References]):
     references = references_getter()
-    geo = references.geometry_provider(references.config.numerics.t_initial)
+    geo = references.geometry_provider(
+        references.torax_config.numerics.t_initial
+    )
 
     s = psi_calculations.calc_s_face(geo, references.psi)
     np.testing.assert_allclose(s, references.s, rtol=1e-5)
@@ -211,11 +215,11 @@ class PsiCalculationsTest(parameterized.TestCase):
       self, references_getter: Callable[[], torax_refs.References]
   ):
     references = references_getter()
-    references.config.update_fields(
+    references.torax_config.update_fields(
         {'sources.generic_current.mode': 'MODEL_BASED'}
     )
-    source_models = references.config.sources.build_models()
-    neoclassical_model = references.config.neoclassical.build_model()
+    source_models = references.torax_config.sources.build_models()
+    neoclassical_model = references.torax_config.neoclassical.build_model()
     runtime_params, geo = references.get_runtime_params_and_geo()
     source_profiles = source_profiles_lib.SourceProfiles(
         bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),

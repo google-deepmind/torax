@@ -31,8 +31,8 @@ from torax._src.internal_boundary_conditions import prescribed
 from torax._src.internal_boundary_conditions import runtime_params as ibc_runtime_params
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import default_configs
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -70,7 +70,7 @@ class PrescribedIBCTest(parameterized.TestCase):
     )
 
   def test_from_config(self):
-    config = {
+    config_dict = {
         'model_name': 'prescribed',
         'T_e': {
             0.0: {
@@ -79,7 +79,7 @@ class PrescribedIBCTest(parameterized.TestCase):
             }
         },
     }
-    ibc = ibc_config_lib.PrescribedIBCConfig.model_validate(config)
+    ibc = ibc_config_lib.PrescribedIBCConfig.model_validate(config_dict)
 
     face_centers = interpolated_param_2d.get_face_centers(4)
     grid = interpolated_param_2d.Grid1D(face_centers=face_centers)
@@ -194,7 +194,7 @@ class InternalBoundaryConditionsTest(absltest.TestCase):
 
   def test_from_config_defaults_to_no_ibc(self):
     config_dict = default_configs.get_default_config_dict()
-    torax_config = model_config.ToraxConfig.model_validate(config_dict)
+    torax_config = config.ToraxConfig.model_validate(config_dict)
     self.assertEqual(
         torax_config.profile_conditions.internal_boundary_conditions.model_name,
         'no_ibc',
@@ -206,7 +206,7 @@ class InternalBoundaryConditionsTest(absltest.TestCase):
         'T_e': {0.0: {0.8: 1.0}},
     }
     with self.assertRaises(pydantic.ValidationError):
-      model_config.ToraxConfig.model_validate(config_dict)
+      config.ToraxConfig.model_validate(config_dict)
 
 
 if __name__ == '__main__':

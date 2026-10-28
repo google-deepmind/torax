@@ -21,7 +21,7 @@ from torax._src.imas_tools.input import core_sources
 from torax._src.imas_tools.input import loader
 from torax._src.sources import source as source_module
 from torax._src.test_utils import sim_test_case
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 
@@ -85,15 +85,15 @@ class CoreSourcesTest(sim_test_case.SimTestCase):
     core_profiles_15MA_DT_50_50_flat_top_slice.nc in data/third_party/imas, and
     was converted to DD version 4.0.0
     """
-    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    config_dict = self._get_config_dict("test_iterhybrid_rampup_short.py")
     directory = pathlib.Path(__file__).parent
     path = "core_sources_ddv4.nc"
     ids_name = "core_sources"
     ids_in = loader.load_imas_data(path, ids_name, directory=directory)
     sources = core_sources.sources_from_IMAS(ids_in, None, False)
-    config["sources"] |= sources
+    config_dict["sources"] |= sources
     # Checks the config can be built properly with input sources.
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config, progress_bar=False)
 
   def test_get_particle_profile(self):

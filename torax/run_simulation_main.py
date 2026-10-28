@@ -34,13 +34,11 @@ import torax
 from torax._src import simulation_app
 from torax._src.config import config_loader
 from torax._src.plotting import plotruns_lib
-from torax._src.torax_pydantic import model_config
 
 from absl import app
 
 os.environ['XLA_FLAGS'] = (
-    os.environ.get('XLA_FLAGS', '')
-    + ' --xla_cpu_opt_preset=FAST_COMPILE'
+    os.environ.get('XLA_FLAGS', '') + ' --xla_cpu_opt_preset=FAST_COMPILE'
 )
 
 # String used when prompting the user to make a choice of command
@@ -197,7 +195,7 @@ def _maybe_update_config(path: pathlib.Path) -> pathlib.Path:
 
 def _modify_config(
     path: pathlib.Path,
-) -> model_config.ToraxConfig | None:
+) -> torax.ToraxConfig | None:
   """Returns a new ToraxConfig from the modified config module."""
 
   simulation_app.log_to_stdout(
@@ -222,7 +220,7 @@ def _modify_config(
 
 def _change_config(
     config_path: pathlib.Path,
-) -> tuple[model_config.ToraxConfig, pathlib.Path]:
+) -> tuple[torax.ToraxConfig, pathlib.Path]:
   """Returns a ToraxConfig from the new config file."""
   config_path = _maybe_update_config(config_path)
   simulation_app.log_to_stdout(
@@ -336,18 +334,14 @@ def _post_run_plotting(
     return
   match input_text:
     case '0':
-      return plotruns_lib.plot_run(
-          plot_config, {'Run 1': output_files[-1]}
-      )
+      return plotruns_lib.plot_run(plot_config, {'Run 1': output_files[-1]})
     case '1':
       if len(output_files) == 1:
         simulation_app.log_to_stdout(
             'Only one output run file found, only plotting the last run.',
             color=simulation_app.AnsiColors.RED,
         )
-        return plotruns_lib.plot_run(
-            plot_config, {'Run 1': output_files[-1]}
-        )
+        return plotruns_lib.plot_run(plot_config, {'Run 1': output_files[-1]})
       return plotruns_lib.plot_run(
           plot_config,
           {'Run 1': output_files[-1], 'Run 2': output_files[-2]},

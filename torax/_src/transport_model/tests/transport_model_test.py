@@ -34,7 +34,7 @@ from torax._src.pedestal_model import (
 )
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
 from torax._src.transport_model import config_base as transport_config_base
@@ -90,9 +90,7 @@ class FixedTransportModel(component.ComponentTransportModel):
     )
 
 
-class FixedTransportConfig(
-    transport_config_base.ComponentTransportConfigBase
-):
+class FixedTransportConfig(transport_config_base.ComponentTransportConfigBase):
   """Fixed transport config for a model that always returns fixed values."""
 
   model_name: Annotated[Literal['fixed'], torax_pydantic.JAX_STATIC] = 'fixed'
@@ -134,15 +132,15 @@ def _build_smoothing_matrix_for_n_rho(
     n_rho: int,
 ) -> tuple[array_typing.Array, array_typing.Array]:
   """Returns the transport smoothing matrix and face grid for a circular geo."""
-  config = default_configs.get_default_config_dict()
-  config['geometry'] = {'geometry_type': 'circular', 'n_rho': n_rho}
-  config['transport'] = {
+  config_dict = default_configs.get_default_config_dict()
+  config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': n_rho}
+  config_dict['transport'] = {
       'smoothing_width': 0.1,
       'core_transport_models': {
           'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
       },
   }
-  torax_config = model_config.ToraxConfig.from_dict(config)
+  torax_config = config.ToraxConfig.from_dict(config_dict)
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
       torax_config
   )(t=torax_config.numerics.t_initial)
@@ -160,8 +158,8 @@ class TransportMaskingTest(parameterized.TestCase):
 
   def test_single_model_masking(self):
     """Tests that disabling a channel zeroes its output in a single model."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         # Set the min values to 0.0 to avoid clipping overriding the masking.
         'chi_min': 0.0,
         'D_e_min': 0.0,
@@ -173,7 +171,7 @@ class TransportMaskingTest(parameterized.TestCase):
             },
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
@@ -196,8 +194,8 @@ class TransportMaskingTest(parameterized.TestCase):
 
   def test_combined_model_masking(self):
     """Tests that masking works correctly in a combined model."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'core_transport_models': {
             'base': {
                 'model_name': 'fixed',  # Base model
@@ -213,7 +211,7 @@ class TransportMaskingTest(parameterized.TestCase):
         'chi_min': 0.0,
         'D_e_min': 0.0,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     model = torax_config.transport.build_transport_model()
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
@@ -231,8 +229,8 @@ class TransportMaskingTest(parameterized.TestCase):
     )
 
     # Reference single model run to compare against
-    single_config = default_configs.get_default_config_dict()
-    single_config['transport'] = {
+    single_config_dict = default_configs.get_default_config_dict()
+    single_config_dict['transport'] = {
         'core_transport_models': {
             'fixed': {
                 'model_name': 'fixed',
@@ -243,10 +241,10 @@ class TransportMaskingTest(parameterized.TestCase):
         'chi_min': 0.0,
         'D_e_min': 0.0,
     }
-    single_torax = model_config.ToraxConfig.from_dict(single_config)
-    single_model = single_torax.transport.build_transport_model()
+    single_torax_config = config.ToraxConfig.from_dict(single_config_dict)
+    single_model = single_torax_config.transport.build_transport_model()
     single_runtime = build_runtime_params.RuntimeParamsProvider.from_config(
-        single_torax
+        single_torax_config
     )(t=0.0)
     ref_coeffs, _ = single_model(
         single_runtime,
@@ -313,8 +311,8 @@ class TransportMaskingTest(parameterized.TestCase):
 
   def test_domain_restriction(self):
     """Tests that channels are masked by domain restriction."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'chi_min': 0.0,
         'D_e_min': 0.0,
         'V_e_min': 0.0,
@@ -326,7 +324,7 @@ class TransportMaskingTest(parameterized.TestCase):
             },
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
@@ -359,8 +357,8 @@ class TransportMaskingTest(parameterized.TestCase):
 class TransportModelTest(parameterized.TestCase):
 
   def test_combining(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'core_transport_models': {
             'inner': {
                 'model_name': 'prescribed',
@@ -383,10 +381,10 @@ class TransportModelTest(parameterized.TestCase):
             'pedestal_prescribed': {'model_name': 'prescribed', 'chi_i': 0.1}
         },
     }
-    config['pedestal'] = {
+    config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     model = torax_config.transport.build_transport_model()
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
@@ -422,8 +420,8 @@ class TransportModelTest(parameterized.TestCase):
     np.testing.assert_allclose(coeffs.pedestal.chi_face_ion, expected_pedestal)
 
   def test_chi_min(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'core_transport_models': {
             'prescribed': {
                 'model_name': 'prescribed',
@@ -433,10 +431,10 @@ class TransportModelTest(parameterized.TestCase):
         },
         'chi_min': 1.0,
     }
-    config['pedestal'] = {
+    config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'}
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     model = torax_config.transport.build_transport_model()
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
@@ -470,13 +468,13 @@ class TransportModelTest(parameterized.TestCase):
 
   def test_build_smoothing_matrix_zero_width_is_identity(self):
     """Tests that a zero smoothing width produces an identity matrix."""
-    config = {
+    config_dict = {
         'smoothing_width': 0.0,
         'core_transport_models': {
             'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
         },
     }
-    _, runtime_params, geo = self._build_model_and_params(config)
+    _, runtime_params, geo = self._build_model_and_params(config_dict)
     pedestal_output = _make_pedestal_output(rho_norm_ped_top=0.91)
     matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
@@ -489,13 +487,13 @@ class TransportModelTest(parameterized.TestCase):
 
   def test_build_smoothing_matrix_row_sums_and_constant_invariance(self):
     """Tests that matrix rows sum to 1 and preserve constant profiles."""
-    config = {
+    config_dict = {
         'smoothing_width': 0.08,
         'core_transport_models': {
             'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
         },
     }
-    _, runtime_params, geo = self._build_model_and_params(config)
+    _, runtime_params, geo = self._build_model_and_params(config_dict)
     pedestal_output = _make_pedestal_output(rho_norm_ped_top=0.91)
     matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
@@ -511,7 +509,7 @@ class TransportModelTest(parameterized.TestCase):
 
   def test_build_smoothing_matrix_zone_isolation(self):
     """Tests that matrix is identity for points outside defined smoothing zones."""
-    config = {
+    config_dict = {
         'smoothing_zones': [
             {'rho_min': 0.3, 'rho_max': 0.7, 'smoothing_width': 0.05},
         ],
@@ -519,7 +517,7 @@ class TransportModelTest(parameterized.TestCase):
             'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
         },
     }
-    _, runtime_params, geo = self._build_model_and_params(config)
+    _, runtime_params, geo = self._build_model_and_params(config_dict)
     pedestal_output = _make_pedestal_output(rho_norm_ped_top=0.91)
     matrix = transport_model._build_smoothing_matrix(
         runtime_params.transport,
@@ -536,18 +534,18 @@ class TransportModelTest(parameterized.TestCase):
 
   def test_build_smoothing_matrix_pedestal_boundary_isolation(self):
     """Tests that smoothing matrix is identity at/above pedestal top in IBC mode."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'smoothing_width': 0.08,
         'core_transport_models': {
             'prescribed': {'model_name': 'prescribed', 'chi_i': 1.0}
         },
     }
-    config['pedestal'] = {
+    config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'INTERNAL_BOUNDARY_CONDITION',
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)
@@ -572,9 +570,9 @@ class TransportModelTest(parameterized.TestCase):
       np.testing.assert_allclose(matrix[idx], expected_row, atol=1e-7)
 
   def test_build_pedestal_smoothing_matrix_zero_width_is_identity(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {'pedestal_smoothing_width': 0.0}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {'pedestal_smoothing_width': 0.0}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)
@@ -590,9 +588,9 @@ class TransportModelTest(parameterized.TestCase):
     np.testing.assert_allclose(matrix, np.eye(len(geo.rho_face_norm)))
 
   def test_build_pedestal_smoothing_matrix_isolation_and_row_sums(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {'pedestal_smoothing_width': 0.05}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {'pedestal_smoothing_width': 0.05}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)
@@ -621,8 +619,8 @@ class TransportModelTest(parameterized.TestCase):
 
   def test_smoothing_zones(self):
     """Tests that smoothing_zones smoothes transport coefficients in the specified region."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'smoothing_zones': [
             {'rho_min': 0.3, 'rho_max': 0.7, 'smoothing_width': 0.08},
         ],
@@ -640,7 +638,7 @@ class TransportModelTest(parameterized.TestCase):
         },
         'chi_min': 0.0,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     model = torax_config.transport.build_transport_model()
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
@@ -749,8 +747,8 @@ class TransportModelTest(parameterized.TestCase):
     )
 
   def test_error_if_pedestal_model_defines_rho_min(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'core_transport_models': {'prescribed': {'model_name': 'prescribed'}},
         'pedestal_transport_models': {
             'pedestal_prescribed': {
@@ -762,11 +760,11 @@ class TransportModelTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'rho_min and rho_max not supported'
     ):
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
 
   def test_error_if_pedestal_model_defines_rho_max(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'core_transport_models': {'prescribed': {'model_name': 'prescribed'}},
         'pedestal_transport_models': {
             'pedestal_prescribed': {
@@ -778,12 +776,12 @@ class TransportModelTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'rho_min and rho_max not supported'
     ):
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
 
   def _build_model_and_params(self, transport_config):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = transport_config
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = transport_config
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
         t=torax_config.numerics.t_initial
@@ -799,7 +797,7 @@ class TransportModelTest(parameterized.TestCase):
     """Tests that OVERWRITE mode wipes previous values in active region."""
     # Model 1: Value 1.0 everywhere.
     # Model 2: Value 2.0 in rho > 0.5. MergeMode = OVERWRITE.
-    config = {
+    config_dict = {
         'core_transport_models': {
             'model_1': {'model_name': 'prescribed', 'chi_i': 1.0},
             'model_2': {
@@ -811,7 +809,7 @@ class TransportModelTest(parameterized.TestCase):
         },
         'chi_min': 0.0,
     }
-    model, runtime_params, geo = self._build_model_and_params(config)
+    model, runtime_params, geo = self._build_model_and_params(config_dict)
     pedestal_output = _make_pedestal_output(
         rho_norm_ped_top=1.0
     )  # No pedestal restriction for this test
@@ -834,7 +832,7 @@ class TransportModelTest(parameterized.TestCase):
     """Tests that OVERWRITE mode prevents subsequent ADD models from modifying the region."""
     # Model 1: Overwrite, Value 1.0 in rho > 0.5.
     # Model 2: Add, Value 2.0 everywhere.
-    config = {
+    config_dict = {
         'core_transport_models': {
             'model_1': {
                 'model_name': 'prescribed',
@@ -850,7 +848,7 @@ class TransportModelTest(parameterized.TestCase):
         },
         'chi_min': 0.0,
     }
-    model, runtime_params, geo = self._build_model_and_params(config)
+    model, runtime_params, geo = self._build_model_and_params(config_dict)
     pedestal_output = _make_pedestal_output(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
@@ -873,7 +871,7 @@ class TransportModelTest(parameterized.TestCase):
     # Model 2: Overwrite, Value 2.0 in rho > 0.5. BUT disable_chi_e = True.
     # Result: chi_i should be 1.0 then 2.0. chi_e should be 1.0 everywhere
     # (transparent overwrite).
-    config = {
+    config_dict = {
         'core_transport_models': {
             'model_1': {
                 'model_name': 'prescribed',
@@ -891,7 +889,7 @@ class TransportModelTest(parameterized.TestCase):
         },
         'chi_min': 0.0,
     }
-    model, runtime_params, geo = self._build_model_and_params(config)
+    model, runtime_params, geo = self._build_model_and_params(config_dict)
     pedestal_output = _make_pedestal_output(rho_norm_ped_top=1.0)
 
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)

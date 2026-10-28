@@ -12,26 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Register a pedestal model with TORAX."""
+
 from typing import Annotated, get_args
-from torax._src.pedestal_model import config
-from torax._src.torax_pydantic import model_config
+from torax._src.pedestal_model import config as pedestal_config
+from torax._src.torax_pydantic import config
 
 
 def register_pedestal_structure_model(
-    pydantic_model_class: type[config.StructureConfigBase],
+    pydantic_model_class: type[pedestal_config.StructureConfigBase],
 ):
   """Registers a pedestal structure model with TORAX."""
-  inner_union, discriminator = get_args(config.StructureConfig)
+  inner_union, discriminator = get_args(pedestal_config.StructureConfig)
   new_union = inner_union | pydantic_model_class
   setattr(
-      config,
+      pedestal_config,
       'StructureConfig',
       Annotated[new_union, discriminator],
   )
   setattr(
-      config.PedestalConfig.model_fields['structure_model'],
+      pedestal_config.PedestalConfig.model_fields['structure_model'],
       'annotation',
       new_union,
   )
-  config.PedestalConfig.model_rebuild(force=True)
-  model_config.ToraxConfig.model_rebuild(force=True)
+  pedestal_config.PedestalConfig.model_rebuild(force=True)
+  config.ToraxConfig.model_rebuild(force=True)

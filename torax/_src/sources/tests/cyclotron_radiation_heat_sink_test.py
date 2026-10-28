@@ -19,7 +19,7 @@ import numpy as np
 from torax._src.sources import cyclotron_radiation_heat_sink
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
@@ -128,18 +128,18 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
       te_profile,
       ne_profile,
   ):
-    config = default_configs.get_default_config_dict()
-    config["sources"] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["sources"] = {
         cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID: {}
     }
-    config["profile_conditions"] = {
+    config_dict["profile_conditions"] = {
         "initial_psi_source": "j",
         "T_e": {0.0: te_profile},
         "n_e": {0.0: ne_profile},
         "n_e_nbar_is_fGW": False,
         "normalize_n_e_to_nbar": False,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )

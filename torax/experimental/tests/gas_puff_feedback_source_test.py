@@ -22,7 +22,7 @@ from torax._src.sources import register_model
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax.experimental import gas_puff_feedback_source
 
 # Register the experimental source model
@@ -39,8 +39,8 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
 
   def test_feedback_mode(self):
     """Tests calc_puff_feedback_source with real objects."""
-    config = default_configs.get_default_config_dict()
-    config['sources'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['sources'] = {
         'gas_puff': {
             'model_name': 'feedback',
             'feedback_gain': 10.0,
@@ -48,7 +48,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
             'S_feedforward': 0.0,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
         torax_config
     )
@@ -57,13 +57,13 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)
 
     # Rebuild with specific requested value
-    config['sources']['gas_puff']['model_name'] = 'feedback'
-    config['sources']['gas_puff']['target_average_n_e'] = float(
+    config_dict['sources']['gas_puff']['model_name'] = 'feedback'
+    config_dict['sources']['gas_puff']['target_average_n_e'] = float(
         initial_line_avg + 1e19
     )
-    config['sources']['gas_puff']['feedback_gain'] = 10.0
-    config['sources']['gas_puff']['S_feedforward'] = 0.0
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict['sources']['gas_puff']['feedback_gain'] = 10.0
+    config_dict['sources']['gas_puff']['S_feedforward'] = 0.0
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(t=torax_config.numerics.t_initial)

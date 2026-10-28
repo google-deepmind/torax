@@ -55,7 +55,6 @@ from collections.abc import Sequence
 import datetime
 import enum
 import os
-
 import shutil
 import sys
 from typing import Callable, Final
@@ -65,7 +64,7 @@ import jax
 import numpy as np
 from torax._src import state
 from torax._src.orchestration import run_simulation
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 import xarray as xr
 
 # String printed before printing the output file path
@@ -149,7 +148,7 @@ def can_plot() -> bool:
 
 
 def main(
-    get_config: Callable[[], model_config.ToraxConfig],
+    get_config: Callable[[], config.ToraxConfig],
     *,
     output_dir: str | None = None,
     log_sim_progress: bool = False,

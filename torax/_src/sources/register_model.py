@@ -15,7 +15,7 @@
 
 from torax._src.sources import base
 from torax._src.sources import config as sources_config
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 def register_source_config(
@@ -29,9 +29,9 @@ def register_source_config(
   causes issues, please raise this in a bug to the TORAX team.
 
   Args:
-    source_config_class: The new source config to register. This
-      should be a subclass of SourceConfigBase that implements the interface and
-      has a unique `model_name`.
+    source_config_class: The new source config to register. This should be a
+      subclass of SourceConfigBase that implements the interface and has a
+      unique `model_name`.
   """
   source = source_config_class().build_source()
   source_id = source.SOURCE_ID
@@ -49,9 +49,9 @@ def register_source_config(
   field_info.annotation = previous_annotation | source_config_class
   try:
     sources_config.SourcesConfig.model_rebuild(force=True)
-    model_config.ToraxConfig.model_rebuild(force=True)
+    config.ToraxConfig.model_rebuild(force=True)
   except Exception:
     field_info.annotation = previous_annotation
     sources_config.SourcesConfig.model_rebuild(force=True)
-    model_config.ToraxConfig.model_rebuild(force=True)
+    config.ToraxConfig.model_rebuild(force=True)
     raise

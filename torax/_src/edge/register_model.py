@@ -16,8 +16,8 @@
 from collections.abc import Mapping
 from typing import Annotated, get_args
 from torax._src.edge import base
-from torax._src.edge import config
-from torax._src.torax_pydantic import model_config
+from torax._src.edge import config as edge_config
+from torax._src.torax_pydantic import config
 
 
 def register_edge_model(
@@ -33,30 +33,30 @@ def register_edge_model(
       Must inherit from `base.EdgeModelConfig` and declare a unique `model_name`
       discriminator.
   """
-  edge_models, discriminator = get_args(config.EdgeConfig)
+  edge_models, discriminator = get_args(edge_config.EdgeConfig)
   new_edge_union = edge_models | pydantic_model_class
   new_edge_config = Annotated[new_edge_union, discriminator]
   setattr(
-      config,
+      edge_config,
       'EdgeConfig',
       new_edge_config,
   )
   setattr(
-      model_config.ToraxConfig.model_fields['edge'],
+      config.ToraxConfig.model_fields['edge'],
       'annotation',
       new_edge_config | None,
   )
 
-  sub_models, sub_discriminator = get_args(config.SubModelConfig)
+  sub_models, sub_discriminator = get_args(edge_config.SubModelConfig)
   new_sub_union = sub_models | pydantic_model_class
   new_sub_config = Annotated[new_sub_union, sub_discriminator]
   setattr(
-      config,
+      edge_config,
       'SubModelConfig',
       new_sub_config,
   )
-  config.CombinedEdgeConfig.model_fields['sub_models'].annotation = (
+  edge_config.CombinedEdgeConfig.model_fields['sub_models'].annotation = (
       Mapping[str, new_sub_config]
   )
-  config.CombinedEdgeConfig.model_rebuild(force=True)
-  model_config.ToraxConfig.model_rebuild(force=True)
+  edge_config.CombinedEdgeConfig.model_rebuild(force=True)
+  config.ToraxConfig.model_rebuild(force=True)

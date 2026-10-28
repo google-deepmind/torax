@@ -24,14 +24,14 @@ from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class AdaptiveStepTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
     (

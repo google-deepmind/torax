@@ -24,7 +24,7 @@ from torax._src.neoclassical.transport import base as neoclassical_transport_bas
 from torax._src.neoclassical.transport import runtime_params as transport_runtime_params
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import transport_coeffs
 
@@ -40,8 +40,8 @@ class NeoclassicalTransportTest(absltest.TestCase):
     )
 
   def test_clipping(self):
-    config = default_configs.get_default_config_dict()
-    config['neoclassical'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['neoclassical'] = {
         'transport': {
             'model_name': 'fake',
             'chi_min': 0.75,
@@ -52,7 +52,7 @@ class NeoclassicalTransportTest(absltest.TestCase):
             'V_e_max': -0.75,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
         torax_config
     )

@@ -22,7 +22,7 @@ from torax._src.geometry import geometry
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import angioni_sauter
 from torax._src.test_utils import core_profile_helpers
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 _N_RHO = 10
 _A_TOL = 1e-6
@@ -38,7 +38,7 @@ class AngioniSauterTest(absltest.TestCase):
   ) -> tuple[
       runtime_params_lib.RuntimeParams, geometry.Geometry, state.CoreProfiles
   ]:
-    torax_config = model_config.ToraxConfig.from_dict({
+    torax_config = config.ToraxConfig.from_dict({
         'profile_conditions': {
             'Ip': 15e6,
             'initial_psi_source': 'geometry',

@@ -22,7 +22,7 @@ from torax._src import constants as constants_module
 from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.transport_model import quasilinear_utils
 from torax._src.transport_model import runtime_params as transport_params
 
@@ -64,7 +64,7 @@ class QuasilinearUtilsTest(parameterized.TestCase):
       self, A_n_and_pfe, DV_effective_smooth_width
   ):
     A_n_target, pfe_val = A_n_and_pfe
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
     geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
@@ -117,9 +117,9 @@ class QuasilinearUtilsTest(parameterized.TestCase):
   def test_scaled_d_matches_dv_effective_flux_in_chease_geometry(
       self, pfe_value: float
   ):
-    config = default_configs.get_default_config_dict()
-    config['geometry'] = {'geometry_type': 'chease'}
-    geo = model_config.ToraxConfig.from_dict(config).geometry.build_provider(
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {'geometry_type': 'chease'}
+    geo = config.ToraxConfig.from_dict(config_dict).geometry.build_provider(
         t=0.0
     )
     n_e = cell_variable.CellVariable(

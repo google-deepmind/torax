@@ -31,7 +31,7 @@ from torax._src.pedestal_model import (
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import register_model
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -40,29 +40,29 @@ class RegisterPedestalModelTest(absltest.TestCase):
   def test_registered_model_in_config(self):
     register_model.register_pedestal_structure_model(FixedPedestalConfig)
 
-    config = default_configs.get_default_config_dict()
-    config['pedestal'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
         'structure_model': {
             'model_name': 'fixed_pedestal',
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     pedestal_model = torax_config.pedestal.build_pedestal_model()
-    self.assertIsInstance(
-        pedestal_model.structure_model, FixedPedestalModel
-    )
+    self.assertIsInstance(pedestal_model.structure_model, FixedPedestalModel)
 
   def test_dynamic_registration_updates_discriminator(self):
     register_model.register_pedestal_structure_model(FixedPedestalConfig)
 
-    config = default_configs.get_default_config_dict()
-    config['pedestal'] = {'structure_model': {'model_name': 'invalid_name'}}
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
+        'structure_model': {'model_name': 'invalid_name'}
+    }
     with self.assertRaisesRegex(
         pydantic.ValidationError,
         r"Input tag 'invalid_name' found using 'model_name' does not match any"
         r".*'fixed_pedestal'",
     ):
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
 
 
 @dataclasses.dataclass(frozen=True, eq=False)

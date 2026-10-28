@@ -47,9 +47,9 @@ from torax._src.pedestal_model import config as pedestal_config
 from torax._src.solver import config as solver_config
 from torax._src.sources import config as sources_config
 from torax._src.time_step_calculator import config as time_step_calculator_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_1d
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
 from torax._src.transport_model import config as transport_config
 
 # pylint: disable=invalid-name
@@ -92,28 +92,26 @@ class RuntimeParamsProvider:
   mhd: mhd_config.MHDConfig
   edge: edge_base.EdgeModelConfig | None
   neoclassical: neoclassical_config.NeoclassicalConfigBase
-  time_step_calculator: (
-      time_step_calculator_config.TimeStepCalculatorConfig
-  )
+  time_step_calculator: time_step_calculator_config.TimeStepCalculatorConfig
 
   @classmethod
   def from_config(
       cls,
-      config: model_config.ToraxConfig,
+      torax_config: config.ToraxConfig,
   ) -> Self:
     """Constructs a RuntimeParamsProvider from a ToraxConfig."""
     return cls(
-        sources=config.sources,
-        numerics=config.numerics,
-        profile_conditions=config.profile_conditions,
-        plasma_composition=config.plasma_composition,
-        transport_model=config.transport,
-        solver=config.solver,
-        pedestal=config.pedestal,
-        mhd=config.mhd,
-        edge=config.edge,
-        neoclassical=config.neoclassical,
-        time_step_calculator=config.time_step_calculator,
+        sources=torax_config.sources,
+        numerics=torax_config.numerics,
+        profile_conditions=torax_config.profile_conditions,
+        plasma_composition=torax_config.plasma_composition,
+        transport_model=torax_config.transport,
+        solver=torax_config.solver,
+        pedestal=torax_config.pedestal,
+        mhd=torax_config.mhd,
+        edge=torax_config.edge,
+        neoclassical=torax_config.neoclassical,
+        time_step_calculator=torax_config.time_step_calculator,
     )
 
   # TODO(b/460347309): investigate effect of jit here on overall compile time.

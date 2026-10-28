@@ -33,7 +33,7 @@ from torax._src.output_tools import output_keys
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
@@ -43,17 +43,17 @@ class InitialStatesTest(parameterized.TestCase):
 
   def test_initial_boundary_condition_from_time_dependent_params(self):
     """Tests that the initial boundary conditions are set from the config."""
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
     # Boundary conditions can be time-dependent, but when creating the initial
     # core profiles, we want to grab the boundary condition params at time 0.
-    config['profile_conditions'] = {
+    config_dict['profile_conditions'] = {
         'initial_psi_source': 'j',
         'T_i_right_bc': 27.7,
         'T_e_right_bc': {0.0: 42.0, 1.0: 0.001},
         'n_e_right_bc': ({0.0: 0.1e20, 1.0: 2.0e20}, 'step'),
         'normalize_n_e_to_nbar': False,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, _, _ = core_profile_helpers.make_initial_inputs(torax_config)
     np.testing.assert_allclose(core_profiles.T_i.right_face_constraint, 27.7)  # pyrefly: ignore[no-matching-overload]
     np.testing.assert_allclose(core_profiles.T_e.right_face_constraint, 42.0)  # pyrefly: ignore[no-matching-overload]
@@ -61,7 +61,7 @@ class InitialStatesTest(parameterized.TestCase):
 
   def test_core_profiles_quasineutrality_check(self):
     """Tests core_profiles quasineutrality check on initial state."""
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
     core_profiles, _, _ = core_profile_helpers.make_initial_inputs(torax_config)
@@ -97,15 +97,15 @@ class InitialStatesTest(parameterized.TestCase):
       self.assertFalse(new_core_profiles.negative_temperature_or_density())
 
   def test_get_species_concentration(self):
-    config = default_configs.get_default_config_dict()
-    config['plasma_composition'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['plasma_composition'] = {
         'main_ion': {'D': 0.48, 'T': 0.48, 'He3': 0.04},
         'impurity': {
             'impurity_mode': 'n_e_ratios',
             'species': {'Ne': 0.01},
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
         torax_config
     )
@@ -217,7 +217,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
         },
         'Z_eff': 2.0,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
@@ -226,9 +226,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
       fractions = state_history.core_profiles[i].impurity_fractions
       impurity_config = torax_config.plasma_composition.impurity
       geo = torax_config.geometry.build_provider(t)
-      assert isinstance(
-          impurity_config, impurity_fractions.ImpurityFractions
-      )
+      assert isinstance(impurity_config, impurity_fractions.ImpurityFractions)
       expected_fractions = {
           'Ar': jnp.full_like(
               geo.rho_norm, impurity_config.species['Ar'].get_value(t)
@@ -265,7 +263,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
             },
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NO_ERROR)
@@ -312,7 +310,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
         },
         'Z_eff': 1.5,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     state_history = run_simulation.run_simulation(
         torax_config, progress_bar=False
@@ -541,9 +539,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
 
     self.assertIn(output_keys.MAIN_ION_FRACTIONS, out_dict)
     dims, data, attrs = out_dict[output_keys.MAIN_ION_FRACTIONS]
-    self.assertEqual(
-        dims, (output_keys.MAIN_ION, output_keys.TIME)
-    )
+    self.assertEqual(dims, (output_keys.MAIN_ION, output_keys.TIME))
     self.assertEqual(data.shape, (1, 2))
     self.assertIn('units', attrs)
 

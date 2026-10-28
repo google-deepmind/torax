@@ -22,7 +22,7 @@ from torax._src.output_tools import output_keys
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import sim_test_case
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 
@@ -30,7 +30,7 @@ from torax._src.torax_pydantic import model_config
 class InitialStateTest(sim_test_case.SimTestCase):
 
   def test_initial_state_has_dt(self):
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
     step_fn = run_simulation.make_step_fn(torax_config)
@@ -92,9 +92,9 @@ class InitialStateTest(sim_test_case.SimTestCase):
     ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
     t = int(ref_time[index])
 
-    config = self._get_config_dict(test_config + '.py')
-    config['numerics']['t_initial'] = t
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = self._get_config_dict(test_config + '.py')
+    config_dict['numerics']['t_initial'] = t
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     step_fn = run_simulation.make_step_fn(torax_config)
     runtime_params, geo = (

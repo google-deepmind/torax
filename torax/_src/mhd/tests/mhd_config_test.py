@@ -27,7 +27,7 @@ from torax._src.neoclassical import neoclassical_model as neoclassical_model_lib
 from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.transport_model import component
 
 
@@ -43,7 +43,7 @@ class MHDConfigTest(parameterized.TestCase):
     )
 
   def test_no_mhd_config_makes_empty_runtime_params(self):
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
 
@@ -57,9 +57,9 @@ class MHDConfigTest(parameterized.TestCase):
 
   def test_empty_mhd_config(self):
     """Tests the case where 'mhd' key exists but is an empty dict."""
-    config = default_configs.get_default_config_dict()
-    config['mhd'] = {}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['mhd'] = {}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     self.assertIsInstance(torax_config.mhd, mhd_config.MHDConfig)
     assert isinstance(torax_config.mhd, mhd_config.MHDConfig)
@@ -74,8 +74,8 @@ class MHDConfigTest(parameterized.TestCase):
 
   def test_mhd_config_with_sawtooth(self):
     """Tests the case with a valid sawtooth configuration."""
-    config = default_configs.get_default_config_dict()
-    config['mhd'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['mhd'] = {
         'sawtooth': {
             'trigger_model': {
                 'model_name': 'simple',
@@ -84,7 +84,7 @@ class MHDConfigTest(parameterized.TestCase):
             'redistribution_model': {'model_name': 'simple'},
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     self.assertIsInstance(torax_config.mhd, mhd_config.MHDConfig)
     assert torax_config.mhd is not None

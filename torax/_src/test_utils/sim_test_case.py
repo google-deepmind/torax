@@ -30,7 +30,7 @@ from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 from torax._src.time_step_calculator import config as time_step_calculator_config
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 _FAILED_TEST_OUTPUT_DIR: Final[str] = '/tmp/torax_failed_sim_test_outputs/'
 
@@ -63,7 +63,7 @@ class SimTestCase(parameterized.TestCase):
     )
     return copy.deepcopy(cfg['CONFIG'])
 
-  def _get_torax_config(self, config_name: str) -> model_config.ToraxConfig:
+  def _get_torax_config(self, config_name: str) -> config.ToraxConfig:
     """Returns a ToraxConfig given the name of a py file to build it."""
     return config_loader.build_torax_config_from_file(
         os.path.join(self.test_data_dir, config_name)

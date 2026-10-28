@@ -23,7 +23,7 @@ from torax._src.mhd.sawtooth import simple_redistribution
 from torax._src.physics import psi_calculations
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # Set jax_enable_x64 to True to ensure high precision for tests.
 jax.config.update('jax_enable_x64', True)
@@ -65,7 +65,7 @@ class SimpleRedistributionTest(parameterized.TestCase):
         }
     }
 
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     assert torax_config.mhd is not None
     assert torax_config.mhd.sawtooth is not None
 
@@ -143,7 +143,7 @@ class MixingRadiusClampingTest(parameterized.TestCase):
             },
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     assert torax_config.mhd is not None
     assert torax_config.mhd.sawtooth is not None
     redistribution_config = torax_config.mhd.sawtooth.redistribution_model

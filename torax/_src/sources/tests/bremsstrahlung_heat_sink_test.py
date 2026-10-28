@@ -47,7 +47,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     references = references_getter()
 
     core_profiles, _, geo = core_profile_helpers.make_initial_inputs(
-        references.config
+        references.torax_config
     )
 
     P_brem_total, P_brems_profile = (

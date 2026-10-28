@@ -38,7 +38,7 @@ from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
 from torax._src.solver import config as solver_config
 from torax._src.solver import linear_theta_method
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import component
 from torax._src.transport_model import config_base as transport_config_base
@@ -57,10 +57,10 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    model_config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
+    config.ToraxConfig.model_fields[  # pyrefly: ignore[bad-assignment]
         'solver'
     ].annotation |= FakeSolverConfig
-    model_config.ToraxConfig.model_rebuild(force=True)
+    config.ToraxConfig.model_rebuild(force=True)
 
   @parameterized.named_parameters(
       ('with_adaptive_dt', True, 3, 0, 2.44444444444, [2, 3], 3 + 3 + 2),
@@ -77,7 +77,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
   ):
     """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
 
-    config = {
+    config_dict = {
         'profile_conditions': {
             'initial_psi_source': 'j',
             'T_i_right_bc': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
@@ -109,7 +109,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         'time_step_calculator': {'calculator_type': 'fixed'},
         'sources': {},
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     (
         initial_state_from_prep,
@@ -310,9 +310,7 @@ class FakeTransportModel(component.ComponentTransportModel):
     )
 
 
-class FakeTransportConfig(
-    transport_config_base.ComponentTransportConfigBase
-):
+class FakeTransportConfig(transport_config_base.ComponentTransportConfigBase):
   """Fake transport config for a model that always returns zeros."""
 
   model_name: Annotated[Literal['fake'], torax_pydantic.JAX_STATIC] = 'fake'

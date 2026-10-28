@@ -33,12 +33,14 @@ class StepFunctionTest(parameterized.TestCase):
   ):
     example_config_paths = config_loader.example_config_paths()
     example_config_path = example_config_paths[config_name_no_py]
-    cfg = config_loader.build_torax_config_from_file(example_config_path)
+    torax_config = config_loader.build_torax_config_from_file(
+        example_config_path
+    )
     (
         sim_state,
         post_processed_outputs,
         step_fn,
-    ) = run_simulation.prepare_simulation(cfg)
+    ) = run_simulation.prepare_simulation(torax_config)
     params_provider = step_fn.runtime_params_provider
     input_value = params_provider.profile_conditions.Ip.value
 

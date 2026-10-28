@@ -31,13 +31,13 @@ from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
 from torax._src.output_tools import post_processing
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 def make_step_fn(
-    torax_config: model_config.ToraxConfig,
+    torax_config: config.ToraxConfig,
 ) -> step_function.SimulationStepFn:
-  """Prepare a TORAX step function from a config."""
+  """Prepare a TORAX step function from a torax_config."""
   geometry_provider = torax_config.geometry.build_provider
   models = torax_config.build_models()
 
@@ -58,7 +58,7 @@ def make_step_fn(
 
 
 def prepare_simulation(
-    torax_config: model_config.ToraxConfig,
+    torax_config: config.ToraxConfig,
 ) -> tuple[
     sim_state.SimState,
     post_processing.PostProcessedOutputs,
@@ -99,7 +99,7 @@ def prepare_simulation(
 
 
 def run_simulation(
-    torax_config: model_config.ToraxConfig,
+    torax_config: config.ToraxConfig,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
     log_n_steps: int = 20,

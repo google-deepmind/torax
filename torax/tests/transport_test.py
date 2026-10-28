@@ -70,28 +70,28 @@ class TransportTest(absltest.TestCase):
 
   def test_fake_transport_model(self):
     """Tests that the fake transport model returns zeros."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'core_transport_models': {'fake_api': {'model_name': 'fake_api'}},
     }
-    torax_config = torax.ToraxConfig.from_dict(config)
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config, max_steps=100)
 
   def test_fake_transport_model_multiple_instances(self):
     """Tests multiple fake transport models combined together."""
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'core_transport_models': {
             'fake_inner': {'model_name': 'fake_api', 'rho_max': 0.5},
             'fake_outer': {'model_name': 'fake_api', 'rho_min': 0.5},
         },
     }
-    torax_config = torax.ToraxConfig.from_dict(config)
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     torax.run_simulation(torax_config, max_steps=100)
 
   def test_registered_model_discriminator(self):
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'core_transport_models': {'test': {'model_name': 'invalid_name'}},
     }
     with self.assertRaisesRegex(
@@ -99,7 +99,7 @@ class TransportTest(absltest.TestCase):
         r"Input tag 'invalid_name' found using 'model_name' does not match any"
         r".*'fake_api'",
     ):
-      torax.ToraxConfig.from_dict(config)
+      torax.ToraxConfig.from_dict(config_dict)
 
   def test_dynamic_registration_updates_discriminator(self):
 
@@ -113,9 +113,9 @@ class TransportTest(absltest.TestCase):
 
     transport.register_transport_model(DynamicTransportPydantic)
 
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
     # Verify that an invalid model name error now includes 'dynamic_fake'.
-    config['transport'] = {
+    config_dict['transport'] = {
         'core_transport_models': {'dyn': {'model_name': 'unknown_model'}},
     }
     with self.assertRaisesRegex(
@@ -123,7 +123,7 @@ class TransportTest(absltest.TestCase):
         r"Input tag 'unknown_model' found using 'model_name' does not match any"
         r".*'dynamic_fake'",
     ):
-      torax.ToraxConfig.from_dict(config)
+      torax.ToraxConfig.from_dict(config_dict)
 
 
 if __name__ == '__main__':

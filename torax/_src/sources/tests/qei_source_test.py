@@ -16,7 +16,7 @@ from torax._src.sources import qei_source
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class QeiSourceTest(test_lib.SourceTestCase):
@@ -28,9 +28,9 @@ class QeiSourceTest(test_lib.SourceTestCase):
 
   def test_source_value(self):
     """Checks that the default implementation from Sources gives values."""
-    config = default_configs.get_default_config_dict()
-    config["sources"] = {self._source_name: {}}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["sources"] = {self._source_name: {}}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.qei_source
     core_profiles, runtime_params, geo = (

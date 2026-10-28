@@ -125,8 +125,8 @@ class ConfigBase(pydantic.BaseModel):
     return cls.model_construct(**(dynamic_kwargs | aux_data))
 
   @classmethod
-  def from_dict(cls: type[Self], cfg: Mapping[str, Any]) -> Self:
-    return cls.model_validate(cfg)
+  def from_dict(cls: type[Self], config_dict: Mapping[str, Any]) -> Self:
+    return cls.model_validate(config_dict)
 
   def to_dict(self) -> dict[str, Any]:
     return self.model_dump()

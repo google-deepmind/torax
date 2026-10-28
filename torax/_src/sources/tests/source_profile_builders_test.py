@@ -32,7 +32,7 @@ from torax._src.sources import source_profile_builders
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class SourceModelsTest(parameterized.TestCase):
@@ -43,7 +43,7 @@ class SourceModelsTest(parameterized.TestCase):
 
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
-    torax_config = model_config.ToraxConfig.from_dict(
+    torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
     source_models = torax_config.sources.build_models()

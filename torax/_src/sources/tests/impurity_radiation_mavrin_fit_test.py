@@ -24,8 +24,8 @@ from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_h
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -39,8 +39,8 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   )
   model_name = 'mavrin_fit'
 
-  def _run_source_model(self, torax_config: model_config.ToraxConfig):
-    """Helper to run the impurity radiation model for a given config."""
+  def _run_source_model(self, torax_config: config.ToraxConfig):
+    """Helper to run the impurity radiation model for a given torax_config."""
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )
@@ -347,7 +347,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         'pedestal': {},
     }
 
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     # --- 3. Call the function under test ---
     calculated_radiation = np.array(self._run_source_model(torax_config))
@@ -423,9 +423,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
             'species': n_e_ratios,
         },
     }
-    torax_config_ne_ratios = model_config.ToraxConfig.from_dict(
-        config_dict_ne_ratios
-    )
+    torax_config_ne_ratios = config.ToraxConfig.from_dict(config_dict_ne_ratios)
 
     # Config 2: fractions + Z_eff
     config_dict_fractions = base_config_dict.copy()
@@ -437,9 +435,7 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         },
         'Z_eff': float(zeff),
     }
-    torax_config_fractions = model_config.ToraxConfig.from_dict(
-        config_dict_fractions
-    )
+    torax_config_fractions = config.ToraxConfig.from_dict(config_dict_fractions)
 
     # 4. Run the impurity radiation model for both and compare
     radiation_ne_ratios = self._run_source_model(torax_config_ne_ratios)

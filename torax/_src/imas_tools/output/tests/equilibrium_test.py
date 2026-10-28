@@ -19,7 +19,7 @@ from torax._src.imas_tools.input import loader
 from torax._src.imas_tools.output import equilibrium as output_equilibrium
 from torax._src.orchestration import run_simulation
 from torax._src.test_utils import sim_test_case
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class EquilibriumTest(sim_test_case.SimTestCase):
@@ -42,7 +42,8 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     # Input equilibrium reading.
     config_dict = self._get_config_dict(config_name)
     equilibrium_in = loader.load_imas_data(
-        config_dict['geometry']['imas_filepath'], 'equilibrium',
+        config_dict['geometry']['imas_filepath'],
+        'equilibrium',
     )
     # Build TORAXSimState object and write output to equilibrium IDS.
     # Improve resolution to compare the input without losing too much
@@ -55,7 +56,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     config_dict['geometry']['imas_filepath'] = None
     # Set the current to be consistent with the input psi.
     config_dict['profile_conditions']['Ip'] = 11.75e6
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     sim_state, post_processed_outputs, _ = run_simulation.prepare_simulation(
         torax_config
     )

@@ -117,7 +117,7 @@ def _calculate_new_references(
 ) -> dict[str, Any]:
   """Calculates a fresh set of reference values using TORAX's core logic."""
   reference = config_generator_func()
-  torax_config = reference.config
+  torax_config = reference.torax_config
   source_models = torax_config.sources.build_models()
   neoclassical_model = torax_config.neoclassical.build_model()
   runtime_params, geo = reference.get_runtime_params_and_geo()
@@ -142,17 +142,15 @@ def _calculate_new_references(
   )
   if not isinstance(geo, standard_geometry.StandardGeometry):
     external_current = sum(source_profiles.psi.values())
-    j_toroidal_total_hires = (
-        initialization.get_j_toroidal_total_hires_with_external_sources(
-            runtime_params=runtime_params,
-            geo=geo,
-            bootstrap_current=source_profiles.bootstrap_current,
-            j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(  # pyrefly: ignore[bad-argument-type]
-                sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
-                geo,
-                runtime_params.numerics.min_rho_norm,
-            ),
-        )
+    j_toroidal_total_hires = initialization.get_j_toroidal_total_hires_with_external_sources(
+        runtime_params=runtime_params,
+        geo=geo,
+        bootstrap_current=source_profiles.bootstrap_current,
+        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(  # pyrefly: ignore[bad-argument-type]
+            sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
+            geo,
+            runtime_params.numerics.min_rho_norm,
+        ),
     )
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.Ip,

@@ -25,11 +25,11 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_keys
 from torax._src.physics import charge_states
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 def make_initial_inputs(
-    torax_config: model_config.ToraxConfig,
+    torax_config: config.ToraxConfig,
     t_override: float | None = None,
 ) -> tuple[
     state.CoreProfiles,

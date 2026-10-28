@@ -29,7 +29,7 @@ from torax._src.pedestal_model import (
 )
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import register_model
@@ -48,9 +48,9 @@ def _get_config_and_model_inputs(
     transport: Mapping[str, Any],
 ):
   """Returns the model inputs for testing."""
-  config = default_configs.get_default_config_dict()
-  config['transport'] = transport
-  torax_config = model_config.ToraxConfig.from_dict(config)
+  config_dict = default_configs.get_default_config_dict()
+  config_dict['transport'] = transport
+  torax_config = config.ToraxConfig.from_dict(config_dict)
   core_profiles, runtime_params, geo = core_profile_helpers.make_initial_inputs(
       torax_config
   )
@@ -112,9 +112,9 @@ class QualikizTransportModelTest(parameterized.TestCase):
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
     runtime_params, geo, core_profiles, _, two_point_mask, _ = model_inputs
-    qualikiz_params = (
-        runtime_params.transport.core_transport_model_params['qualikiz_based']
-    )
+    qualikiz_params = runtime_params.transport.core_transport_model_params[
+        'qualikiz_based'
+    ]
     assert isinstance(
         qualikiz_params, qualikiz_based_transport_model.RuntimeParams
     )
@@ -166,9 +166,9 @@ class QualikizTransportModelTest(parameterized.TestCase):
         qualikiz_based_transport_model.QualikizBasedTransportModel,
     )
     runtime_params, geo, core_profiles, _, two_point_mask, _ = model_inputs
-    qualikiz_params = (
-        runtime_params.transport.core_transport_model_params['qualikiz_based']
-    )
+    qualikiz_params = runtime_params.transport.core_transport_model_params[
+        'qualikiz_based'
+    ]
     assert isinstance(
         qualikiz_params, qualikiz_based_transport_model.RuntimeParams
     )

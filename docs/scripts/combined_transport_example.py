@@ -13,12 +13,12 @@
 # limitations under the License.
 
 """Script for plotting the combined transport model in the docs."""
+
 from typing import Sequence
 
 from absl import app
 import matplotlib.pyplot as plt
 import torax
-from torax._src.torax_pydantic import model_config
 
 _FILE_PATH = '/tmp/combined_transport_example.png'
 
@@ -26,7 +26,7 @@ _FILE_PATH = '/tmp/combined_transport_example.png'
 def main(argv: Sequence[str]) -> None:
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
-  config = {
+  config_dict = {
       'profile_conditions': {'initial_psi_source': 'j'},
       'numerics': {},
       'plasma_composition': {},
@@ -66,7 +66,7 @@ def main(argv: Sequence[str]) -> None:
           },
       },
   }
-  torax_config = model_config.ToraxConfig.from_dict(config)
+  torax_config = torax.ToraxConfig.from_dict(config_dict)
   data_tree = torax.run_simulation(
       torax_config, max_steps=100
   ).simulation_output_to_xr()

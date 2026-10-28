@@ -20,7 +20,7 @@ from torax._src.solver import config as solver_config
 from torax._src.solver import linear_theta_method
 from torax._src.solver import nonlinear_theta_method
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class ConfigTest(parameterized.TestCase):
@@ -44,12 +44,12 @@ class ConfigTest(parameterized.TestCase):
   )
   def test_build_solver_from_config(self, solver_type, expected_type):
     """Builds a solver from the config."""
-    config = default_configs.get_default_config_dict()
-    config['solver'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['solver'] = {
         'solver_type': solver_type,
         'theta_implicit': 0.5,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     solver = torax_config.solver.build_solver(
         models=torax_config.build_models(),
@@ -59,12 +59,12 @@ class ConfigTest(parameterized.TestCase):
 
   @parameterized.parameters('linear', 'newton_raphson', 'optimizer')
   def test_solver_under_jit(self, solver_type):
-    config = default_configs.get_default_config_dict()
-    config['solver'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['solver'] = {
         'solver_type': solver_type,
         'D_pereverzev': 0.5,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     solver = torax_config.solver
 
@@ -74,9 +74,7 @@ class ConfigTest(parameterized.TestCase):
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(solver)
-      self.assertIsInstance(
-          output, solver_config.runtime_params.RuntimeParams
-      )
+      self.assertIsInstance(output, solver_config.runtime_params.RuntimeParams)
       self.assertEqual(output.D_pereverzev, 0.5)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
@@ -87,12 +85,12 @@ class ConfigTest(parameterized.TestCase):
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
   def test_solver_discriminator(self):
-    config = default_configs.get_default_config_dict()
-    config['solver'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['solver'] = {
         'solver_type': 'unknown_solver',
     }
     with self.assertRaises(pydantic.ValidationError) as cm:
-      model_config.ToraxConfig.from_dict(config)
+      config.ToraxConfig.from_dict(config_dict)
     self.assertIn(
         "Input tag 'unknown_solver' found using 'solver_type'",
         str(cm.exception),

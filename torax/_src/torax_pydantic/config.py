@@ -75,17 +75,15 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   plasma_composition: plasma_composition_lib.PlasmaComposition
   geometry: geometry_pydantic_model.Geometry
   sources: sources_config.SourcesConfig
-  neoclassical: neoclassical_config.NeoclassicalConfig = (
-      pydantic.Field()
-  )
+  neoclassical: neoclassical_config.NeoclassicalConfig = pydantic.Field()
   solver: solver_config.SolverConfig = pydantic.Field()
   transport: transport_config.TransportConfig = pydantic.Field()
   pedestal: pedestal_config.PedestalConfig = pydantic.Field()
   mhd: mhd_config.MHDConfig = mhd_config.MHDConfig()
   edge: edge_config.EdgeConfig | None = None
-  time_step_calculator: (
-      time_step_calculator_config.TimeStepCalculatorConfig
-  ) = time_step_calculator_config.TimeStepCalculatorConfig()
+  time_step_calculator: time_step_calculator_config.TimeStepCalculatorConfig = (
+      time_step_calculator_config.TimeStepCalculatorConfig()
+  )
   restart: file_restart_config.FileRestartConfig | None = pydantic.Field(
       default=None
   )
@@ -143,9 +141,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
       return [
           sub
           for sub in self.edge.sub_models.values()
-          if isinstance(
-              sub, extended_lengyel_config.ExtendedLengyelConfig
-          )
+          if isinstance(sub, extended_lengyel_config.ExtendedLengyelConfig)
       ]
     return []
 

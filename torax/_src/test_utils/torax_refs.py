@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Reference values used throughout TORAX unit tests."""
+
 import dataclasses
 import json
 from typing import Callable, Final, Literal, Mapping
@@ -20,6 +21,7 @@ from typing import Callable, Final, Literal, Mapping
 import immutabledict
 import jax
 import numpy as np
+
 # set_jax_precision() is called in torax __init__.py, needed for tests and
 # reference generation
 import torax  # pylint: disable=unused-import
@@ -29,7 +31,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 
@@ -53,7 +55,7 @@ def _load_all_references():
 class References:
   """Collection of reference values useful for unit tests."""
 
-  config: model_config.ToraxConfig
+  torax_config: config.ToraxConfig
   psi: cell_variable.CellVariable
   psi_face_grad: np.ndarray
   psidot: np.ndarray
@@ -63,25 +65,25 @@ class References:
 
   @property
   def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
-    return self.config.geometry.build_provider
+    return self.torax_config.geometry.build_provider
 
   def get_runtime_params_and_geo(
       self,
   ) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
-    t = self.config.numerics.t_initial
+    t = self.torax_config.numerics.t_initial
     params = build_runtime_params.RuntimeParamsProvider.from_config(
-        self.config
+        self.torax_config
     )
     return build_runtime_params.get_consistent_runtime_params_and_geometry(
         t=t,
         runtime_params_provider=params,
-        geometry_provider=self.config.geometry.build_provider,
+        geometry_provider=self.torax_config.geometry.build_provider,
         is_initialization=True,
     )
 
 
 def _build_references_from_case_data(
-    case_name: str, torax_config: model_config.ToraxConfig
+    case_name: str, torax_config: config.ToraxConfig
 ) -> References:
   """Helper function to build a References object from a config and JSON data."""
   geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
@@ -99,7 +101,7 @@ def _build_references_from_case_data(
   )
 
   return References(
-      config=torax_config,
+      torax_config=torax_config,
       psi=psi,
       psi_face_grad=psi_face_grad,
       psidot=np.array(case_data['psidot']),
@@ -111,7 +113,7 @@ def _build_references_from_case_data(
 
 def circular_references() -> References:
   """Reference values for circular geometry."""
-  torax_config = model_config.ToraxConfig.from_dict({
+  torax_config = config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
           'initial_psi_source': 'j',
@@ -136,7 +138,7 @@ def circular_references() -> References:
 
 def chease_references_Ip_from_chease() -> References:
   """Reference values for CHEASE geometry where Ip comes from the file."""
-  torax_config = model_config.ToraxConfig.from_dict({
+  torax_config = config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
           'initial_psi_source': 'geometry',
@@ -164,7 +166,7 @@ def chease_references_Ip_from_chease() -> References:
 
 def chease_references_Ip_from_runtime_params() -> References:
   """Reference values for CHEASE geometry where Ip comes from runtime params."""
-  torax_config = model_config.ToraxConfig.from_dict({
+  torax_config = config.ToraxConfig.from_dict({
       'profile_conditions': {
           'Ip': 15e6,
           'initial_psi_source': 'geometry',

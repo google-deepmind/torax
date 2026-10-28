@@ -32,8 +32,8 @@ from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import paths
 from torax._src.test_utils import sim_test_case
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import file_restart as file_restart_pydantic
-from torax._src.torax_pydantic import model_config
 import xarray as xr
 
 _ALL_PROFILES: Final[Sequence[str]] = (
@@ -501,8 +501,8 @@ class SimTest(sim_test_case.SimTestCase):
     test_config = 'test_timedependence'
 
     # Run the first sim
-    config_ip_bc = self._get_config_dict(test_config + '.py')
-    torax_config = model_config.ToraxConfig.from_dict(config_ip_bc)
+    config_dict_ip_bc = self._get_config_dict(test_config + '.py')
+    torax_config = config.ToraxConfig.from_dict(config_dict_ip_bc)
     sim_outputs_ip_bc = run_simulation.run_simulation(
         torax_config, max_steps=100
     )
@@ -510,15 +510,15 @@ class SimTest(sim_test_case.SimTestCase):
     times = sim_outputs_ip_bc.times
 
     # Run the second sim
-    config_v_loop_bc = copy.deepcopy(config_ip_bc)
-    config_v_loop_bc['profile_conditions'][
+    config_dict_v_loop_bc = copy.deepcopy(config_dict_ip_bc)
+    config_dict_v_loop_bc['profile_conditions'][
         'use_v_loop_lcfs_boundary_condition'
     ] = True
-    config_v_loop_bc['profile_conditions']['v_loop_lcfs'] = (
+    config_dict_v_loop_bc['profile_conditions']['v_loop_lcfs'] = (
         times,
         sim_outputs_ip_bc._stacked_core_profiles.v_loop_lcfs,
     )
-    torax_config = model_config.ToraxConfig.from_dict(config_v_loop_bc)
+    torax_config = config.ToraxConfig.from_dict(config_dict_v_loop_bc)
     sim_outputs_v_loop_bc = run_simulation.run_simulation(
         torax_config, max_steps=100
     )
@@ -572,7 +572,7 @@ class SimTest(sim_test_case.SimTestCase):
     # --- Run 1: Reference run with current evolution to generate psidot ---
     ref_config_dict = copy.deepcopy(base_config_dict)
     ref_config_dict['numerics']['evolve_current'] = True
-    ref_torax_config = model_config.ToraxConfig.from_dict(ref_config_dict)
+    ref_torax_config = config.ToraxConfig.from_dict(ref_config_dict)
     ref_output_xr = run_simulation.run_simulation(
         ref_torax_config, progress_bar=False, max_steps=100
     ).simulation_output_to_xr()
@@ -585,7 +585,7 @@ class SimTest(sim_test_case.SimTestCase):
     # We expect this to be different from Run 1.
     test_config_dict = copy.deepcopy(base_config_dict)
     test_config_dict['numerics']['evolve_current'] = False
-    test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
+    test_torax_config = config.ToraxConfig.from_dict(test_config_dict)
     test_output_xr_different = run_simulation.run_simulation(
         test_torax_config, progress_bar=False, max_steps=100
     ).simulation_output_to_xr()
@@ -600,7 +600,7 @@ class SimTest(sim_test_case.SimTestCase):
         ref_rho_norm,
         ref_psidot,
     )
-    test_torax_config = model_config.ToraxConfig.from_dict(test_config_dict)
+    test_torax_config = config.ToraxConfig.from_dict(test_config_dict)
     test_output_xr_same = run_simulation.run_simulation(
         test_torax_config, progress_bar=False, max_steps=100
     ).simulation_output_to_xr()

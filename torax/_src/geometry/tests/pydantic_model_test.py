@@ -22,7 +22,7 @@ from torax._src.geometry import geometry_provider
 from torax._src.geometry import pydantic_model
 from torax._src.geometry import standard_geometry
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -94,8 +94,8 @@ class PydanticModelTest(parameterized.TestCase):
     np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 10)
 
     np.testing.assert_array_equal(
-        geo_pydantic.get_face_centers(),
-        geo_provider.torax_mesh.face_centers)
+        geo_pydantic.get_face_centers(), geo_provider.torax_mesh.face_centers
+    )
 
   @parameterized.parameters([
       dict(param='n_rho', value=5),
@@ -138,13 +138,13 @@ class PydanticModelTest(parameterized.TestCase):
   # pylint: disable=invalid-name
   def test_chease_geometry_updates_Ip(self):
     """Tests that the Ip is updated when using chease geometry."""
-    config = default_configs.get_default_config_dict()
-    config['geometry'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {
         'geometry_type': 'chease',
         'Ip_from_parameters': False,
         'n_rho': 4,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )
@@ -165,23 +165,23 @@ class PydanticModelTest(parameterized.TestCase):
     # pylint: enable=invalid-name
 
   @parameterized.parameters([
-      dict(config=chease.CheaseConfig),
-      dict(config=circular_geometry.CircularConfig),
+      dict(config_cls=chease.CheaseConfig),
+      dict(config_cls=circular_geometry.CircularConfig),
   ])
-  def test_rmin_rmax_ordering(self, config):
+  def test_rmin_rmax_ordering(self, config_cls):
 
     with self.subTest('rmin_greater_than_rmaj'):
       with self.assertRaisesRegex(
           ValueError, 'a_minor must be less than or equal to R_major'
       ):
-        config(R_major=1.0, a_minor=2.0)
+        config_cls(R_major=1.0, a_minor=2.0)
 
     with self.subTest('negative_values'):
       with self.assertRaises(ValueError):
-        config(R_major=-1.0, a_minor=-2.0)
+        config_cls(R_major=-1.0, a_minor=-2.0)
 
   def test_failed_test(self):
-    config = {
+    config_dict = {
         'geometry_type': 'eqdsk',
         'geometry_file': 'iterhybrid_cocos02.eqdsk',
         'Ip_from_parameters': True,
@@ -189,7 +189,7 @@ class PydanticModelTest(parameterized.TestCase):
         'n_surfaces': 100,
         'cocos': 2,
     }
-    pydantic_model.Geometry.from_dict(config)
+    pydantic_model.Geometry.from_dict(config_dict)
 
 
 if __name__ == '__main__':

@@ -23,7 +23,7 @@ from torax._src.pedestal_model import (
 )
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=g-import-not-at-top
 try:
@@ -48,8 +48,8 @@ class QualikizTransportModelTest(parameterized.TestCase):
       self.skipTest('Qualikiz transport model is not available.')
 
     # Building the model inputs.
-    config = default_configs.get_default_config_dict()
-    config['transport'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['transport'] = {
         'core_transport_models': {
             'qualikiz': {
                 'model_name': 'qualikiz',
@@ -58,7 +58,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
             }
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)
     )

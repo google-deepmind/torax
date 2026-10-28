@@ -22,7 +22,7 @@ from torax._src.edge.extended_lengyel import extended_lengyel_enums
 from torax._src.edge.extended_lengyel import extended_lengyel_solvers
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 # pylint: disable=invalid-name
@@ -30,39 +30,40 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
 
   def test_extended_lengyel_defaults(self):
     """Checks default values for the extended lengyel config."""
-    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
-    self.assertEqual(config.model_name, 'extended_lengyel')
+    edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
+    self.assertEqual(edge_config.model_name, 'extended_lengyel')
     self.assertEqual(
-        config.computation_mode, extended_lengyel_enums.ComputationMode.FORWARD
+        edge_config.computation_mode,
+        extended_lengyel_enums.ComputationMode.FORWARD,
     )
     self.assertEqual(
-        config.solver_mode, extended_lengyel_enums.SolverMode.HYBRID
+        edge_config.solver_mode, extended_lengyel_enums.SolverMode.HYBRID
     )
 
   def test_initial_guess_config_defaults(self):
     """Checks default values for the initial guess config."""
-    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
+    edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
     self.assertEqual(
-        config.initial_guess.alpha_t.get_value(0.0),
+        edge_config.initial_guess.alpha_t.get_value(0.0),
         extended_lengyel_defaults.DEFAULT_ALPHA_T_INIT,
     )
     self.assertEqual(
-        config.initial_guess.kappa_e.get_value(0.0),
+        edge_config.initial_guess.kappa_e.get_value(0.0),
         extended_lengyel_defaults.DEFAULT_KAPPA_E_INIT,
     )
     self.assertEqual(
-        config.initial_guess.T_e_separatrix.get_value(0.0),
+        edge_config.initial_guess.T_e_separatrix.get_value(0.0),
         extended_lengyel_defaults.DEFAULT_T_E_SEPARATRIX_INIT,
     )
     self.assertEqual(
-        config.initial_guess.T_e_target.get_value(0.0),
+        edge_config.initial_guess.T_e_target.get_value(0.0),
         extended_lengyel_defaults.DEFAULT_T_E_TARGET_INIT_FORWARD,
     )
     self.assertEqual(
-        config.initial_guess.c_z_prefactor.get_value(0.0),
+        edge_config.initial_guess.c_z_prefactor.get_value(0.0),
         extended_lengyel_defaults.DEFAULT_C_Z_PREFACTOR_INIT,
     )
-    self.assertTrue(config.initial_guess.use_previous_step_as_guess)
+    self.assertTrue(edge_config.initial_guess.use_previous_step_as_guess)
 
   def test_fixed_point_iterations_default(self):
     # Default solver_mode is HYBRID
@@ -86,9 +87,9 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
     self.assertEqual(config_override.fixed_point_iterations, 100)
 
   def test_fixed_point_relaxation_factor(self):
-    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
+    edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
     self.assertEqual(
-        config.fixed_point_relaxation_factor,
+        edge_config.fixed_point_relaxation_factor,
         extended_lengyel_defaults.FIXED_POINT_RELAXATION_FACTOR,
     )
     config_override = extended_lengyel_config.ExtendedLengyelConfig.from_dict(
@@ -130,7 +131,7 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
             'species': {'N': 1e-2, 'Ar': 1e-3},
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     self.assertIsNotNone(torax_config.edge)
     self.assertIsInstance(
         torax_config.edge, extended_lengyel_config.ExtendedLengyelConfig
@@ -152,7 +153,7 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
     """Ensures ToraxConfig works fine without an edge config."""
     config_dict = default_configs.get_default_config_dict()
     # No 'edge' key in config_dict
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     self.assertIsNone(torax_config.edge)
 
   def test_enrichment_factor_key_validation_valid(self):
@@ -363,7 +364,7 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
       })
 
   def test_build_runtime_params_with_enrichment_model(self):
-    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
+    edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'use_enrichment_model': True,
         'enrichment_factor': None,
         'enrichment_model_multiplier': 2.0,
@@ -373,11 +374,11 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
         'seed_impurity_weights': {'N': 1.0},
         'fixed_impurity_concentrations': {'He4': 0.01},
     })
-    runtime_params = config.build_runtime_params(t=0.0)
+    runtime_params = edge_config.build_runtime_params(t=0.0)
     self.assertIsNone(runtime_params.enrichment_factor)
 
   def test_build_runtime_params_without_enrichment_model(self):
-    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
+    edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({
         'use_enrichment_model': False,
         'enrichment_factor': {'N': 2.5, 'He4': 3.5},
         # Other required fields
@@ -386,7 +387,7 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
         'seed_impurity_weights': {'N': 1.0},
         'fixed_impurity_concentrations': {'He4': 0.01},
     })
-    runtime_params = config.build_runtime_params(t=0.0)
+    runtime_params = edge_config.build_runtime_params(t=0.0)
     self.assertIsNotNone(runtime_params.enrichment_factor)
     assert runtime_params.enrichment_factor is not None
     self.assertIn('N', runtime_params.enrichment_factor)
@@ -395,8 +396,8 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
     np.testing.assert_allclose(runtime_params.enrichment_factor['He4'], 3.5)
 
   def test_optional_params_are_none_in_runtime_params_if_not_provided(self):
-    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
-    runtime_params = config.build_runtime_params(t=0.0)
+    edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
+    runtime_params = edge_config.build_runtime_params(t=0.0)
     self.assertIsNone(runtime_params.connection_length_target)
     self.assertIsNone(runtime_params.connection_length_divertor)
     self.assertIsNone(runtime_params.T_e_target)
@@ -424,7 +425,7 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
         'Mismatch between core plasma composition impurities and edge'
         ' impurities',
     ):
-      model_config.ToraxConfig.from_dict(config_dict)
+      config.ToraxConfig.from_dict(config_dict)
 
   def test_species_overlap_validation_failure(self):
     """Tests failure when seeded and fixed impurities overlap."""
@@ -450,7 +451,7 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'Edge fixed and seeded impurities must be disjoint'
     ):
-      model_config.ToraxConfig.from_dict(config_dict)
+      config.ToraxConfig.from_dict(config_dict)
 
   def test_run_standalone_from_config(self):
     """Tests that standalone can be run from a pydantic config."""
@@ -504,10 +505,10 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
         'average_ion_mass': 2.0,
     }
     # Build runtime params from config
-    config = extended_lengyel_config.ExtendedLengyelConfig.from_dict(
+    edge_config = extended_lengyel_config.ExtendedLengyelConfig.from_dict(
         config_dict_inputs
     )
-    runtime_params = config.build_runtime_params(t=0.0)
+    runtime_params = edge_config.build_runtime_params(t=0.0)
     # Combine dynamic inputs and runtime params to call standalone function
     runtime_params_dict = dataclasses.asdict(runtime_params)
     runtime_params_dict.pop('enrichment_factor')
@@ -563,8 +564,8 @@ class ExtendedLengyelConfigTest(absltest.TestCase):
 
   def test_update_electron_density_default_and_explicit_false_valid(self):
     with self.subTest('default'):
-      config_default = (
-          extended_lengyel_config.ExtendedLengyelConfig.from_dict({})
+      config_default = extended_lengyel_config.ExtendedLengyelConfig.from_dict(
+          {}
       )
       self.assertFalse(config_default.update_n_e.value.any())
 

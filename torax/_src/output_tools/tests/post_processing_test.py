@@ -35,7 +35,7 @@ from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import sim_test_case
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 
@@ -44,9 +44,9 @@ class PostProcessingTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    config = default_configs.get_default_config_dict()
-    config['sources'] = default_sources.get_default_source_config()
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['sources'] = default_sources.get_default_source_config()
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     self.models = torax_config.build_models()
     self.core_profiles, self.runtime_params, self.geo = (
         core_profile_helpers.make_initial_inputs(torax_config)

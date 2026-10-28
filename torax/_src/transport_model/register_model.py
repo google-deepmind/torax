@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Register a transport model with TORAX."""
+
 from typing import Annotated, get_args, get_origin
 
 import pydantic
-from torax._src.torax_pydantic import model_config
-from torax._src.transport_model import config
+from torax._src.torax_pydantic import config
+from torax._src.transport_model import config as transport_config
 from torax._src.transport_model import config_base
 
 
 def register_transport_model(
-    pydantic_model_class: type[
-        config_base.ComponentTransportConfigBase
-    ],
+    pydantic_model_class: type[config_base.ComponentTransportConfigBase],
 ):
   """Registers a transport model with TORAX.
 
@@ -39,10 +38,8 @@ def register_transport_model(
   Args:
     pydantic_model_class: The pydantic model class to register.
   """
-  transport_model = model_config.ToraxConfig.model_fields[
-      'transport'
-  ].annotation
-  assert transport_model is config.TransportConfig
+  transport_model = config.ToraxConfig.model_fields['transport'].annotation
+  assert transport_model is transport_config.TransportConfig
 
   # The annotation for core_transport_models and pedestal_transport_models is
   # dict[str, UnionType]. We need to extract the value type and extend it.
@@ -62,4 +59,4 @@ def register_transport_model(
     ]
   transport_model.model_rebuild(force=True)
 
-  model_config.ToraxConfig.model_rebuild(force=True)
+  config.ToraxConfig.model_rebuild(force=True)

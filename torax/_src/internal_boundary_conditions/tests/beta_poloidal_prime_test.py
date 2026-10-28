@@ -32,7 +32,7 @@ from torax._src.orchestration import run_simulation
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
@@ -183,7 +183,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       config_dict['profile_conditions'][
           'internal_boundary_conditions'
       ] = ibc_dict
-      torax_config = model_config.ToraxConfig.from_dict(config_dict)
+      torax_config = config.ToraxConfig.from_dict(config_dict)
       models = torax_config.build_models()
       sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
       runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
@@ -387,7 +387,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         'Ti_Te_ratio': 1.0,
         **n_e_edge_kwargs,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     sim_state, post_processed_outputs, step_fn = (
         run_simulation.prepare_simulation(torax_config)
     )

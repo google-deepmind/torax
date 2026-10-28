@@ -174,37 +174,37 @@ def _evaluate_combined_edge(
   return outputs
 
 
-def _base_config() -> dict[str, object]:
-  config = default_configs.get_default_config_dict()
-  config['geometry'] = {
+def _base_config_dict() -> dict[str, object]:
+  config_dict = default_configs.get_default_config_dict()
+  config_dict['geometry'] = {
       'geometry_type': 'chease',
       'geometry_file': 'iterhybrid.mat2cols',
   }
-  config['plasma_composition'] = {
+  config_dict['plasma_composition'] = {
       'impurity': {
           'impurity_mode': 'n_e_ratios',
           'species': {'Ne': 0.01},
       }
   }
-  return config
+  return config_dict
 
 
 class EdgeTest(absltest.TestCase):
 
   def test_custom_edge_model_runs(self):
     """Tests that the custom edge model can be used in a simulation."""
-    config = _base_config()
-    config['edge'] = {
+    config_dict = _base_config_dict()
+    config_dict['edge'] = {
         'model_name': 'custom_edge',
     }
-    torax_config = torax.ToraxConfig.from_dict(config)
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     state_history = torax.run_simulation(torax_config, max_steps=100)
     data_tree = state_history.simulation_output_to_xr()
     self.assertIn('T_e_right_bc', data_tree.edge.dataset.data_vars)
 
   def test_combined_edge_merges_bcs_from_sub_models(self):
-    config = _base_config()
-    config['edge'] = {
+    config_dict = _base_config_dict()
+    config_dict['edge'] = {
         'model_name': 'combined',
         'sub_models': {
             'te': {
@@ -221,7 +221,7 @@ class EdgeTest(absltest.TestCase):
             },
         },
     }
-    torax_config = torax.ToraxConfig.from_dict(config)
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
     outputs = _evaluate_combined_edge(torax_config)
     assert outputs.T_e_right_bc is not None
     assert outputs.T_i_right_bc is not None

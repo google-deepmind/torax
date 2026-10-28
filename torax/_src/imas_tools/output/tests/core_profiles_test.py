@@ -25,7 +25,7 @@ from torax._src.imas_tools.output import core_profiles as output_core_profiles
 from torax._src.orchestration import run_simulation
 from torax._src.output_tools import output_keys
 from torax._src.test_utils import sim_test_case
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 _ALL_PROFILES: Final[Sequence[str]] = (
     output_keys.T_I,
@@ -49,8 +49,8 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
   ):
     """Test to check that multiple time slice can be saved into an IDS."""
     # Run sim
-    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     state_history = torax.run_simulation(
         torax_config,
         log_timestep_info=False,
@@ -87,8 +87,10 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     rtol = 1e-10
     atol = 0
     # Input core_profiles reading and config loading
-    config = self._get_config_dict("test_iterhybrid_predictor_corrector.py")
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict = self._get_config_dict(
+        "test_iterhybrid_predictor_corrector.py"
+    )
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     # Run Sim
     (
         initial_state,
@@ -114,16 +116,16 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     core_profiles_conditions = input_core_profiles.profile_conditions_from_IMAS(
         filled_ids
     )
-    config["profile_conditions"] = {
+    config_dict["profile_conditions"] = {
         **core_profiles_conditions,
     }
-    new_config = model_config.ToraxConfig.from_dict(config)
+    new_torax_config = config.ToraxConfig.from_dict(config_dict)
     ref_profiles, ref_time = self._get_refs(
         "test_iterhybrid_predictor_corrector.nc", _ALL_PROFILES
     )
     # Running simulation again with the new config
     imas_results = torax.run_simulation(
-        new_config, progress_bar=False, max_steps=len(ref_time) * 2
+        new_torax_config, progress_bar=False, max_steps=len(ref_time) * 2
     )
     imas_xr = imas_results.simulation_output_to_xr()
 
@@ -155,7 +157,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     atol = 0
 
     # Input core_profiles reading and config loading
-    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    config_dict = self._get_config_dict("test_iterhybrid_rampup_short.py")
     # path = "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     initial_core_profiles = loader.load_imas_data(path, "core_profiles")
@@ -195,12 +197,12 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         t_initial=0.0,
         main_ions_symbols=["D", "T"],
     )
-    config["geometry"]["n_rho"] = 25
-    config["profile_conditions"] = core_profiles_conditions
-    config["plasma_composition"] = plasma_composition
+    config_dict["geometry"]["n_rho"] = 25
+    config_dict["profile_conditions"] = core_profiles_conditions
+    config_dict["plasma_composition"] = plasma_composition
 
     # Init sim from config
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         initial_state,
         post_processed_outputs,

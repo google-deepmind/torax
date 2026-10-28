@@ -28,8 +28,8 @@ from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_2d
-from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 
 # Most of the checks and computations in TORAX require float64.
@@ -99,16 +99,16 @@ class SingleProfileSourceTestCase(SourceTestCase):
 
   def test_source_value_on_the_cell_grid(self):
     """Tests that the source can provide a value by default on the cell grid."""
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
     if self._model_name is not None:
-      config['sources'] = {
+      config_dict['sources'] = {
           self._source_name: {
               'model_name': self._model_name,
           }
       }
     else:
-      config['sources'] = {self._source_name: {}}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+      config_dict['sources'] = {self._source_name: {}}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
     core_profiles, runtime_params, geo = (
@@ -148,16 +148,16 @@ class MultipleProfileSourceTestCase(SourceTestCase):
 
   def test_source_values_on_the_cell_grid(self):
     """Tests that the source can provide values on the cell grid."""
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
     if self._model_name is not None:
-      config['sources'] = {
+      config_dict['sources'] = {
           self._source_name: {
               'model_name': self._model_name,
           }
       }
     else:
-      config['sources'] = {self._source_name: {}}
-    torax_config = model_config.ToraxConfig.from_dict(config)
+      config_dict['sources'] = {self._source_name: {}}
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)

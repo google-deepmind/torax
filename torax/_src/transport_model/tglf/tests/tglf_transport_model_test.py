@@ -23,7 +23,7 @@ from torax._src.pedestal_model import (
 )
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.transport_model.tglf import tglf2py
 # Internal import.
 
@@ -40,11 +40,11 @@ class TGLFTransportModelTest(parameterized.TestCase):
   )
   def test_call(self, jit: bool):
     """Tests that the model can be called and executes real TGLF calculations."""
-    config = default_configs.get_default_config_dict()
-    config["transport"] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["transport"] = {
         "core_transport_models": {"tglf": {"model_name": "tglf"}},
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     transport_model = torax_config.transport.build_transport_model()
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)

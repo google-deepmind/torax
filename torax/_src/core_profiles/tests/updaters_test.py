@@ -27,7 +27,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 
 # pylint: disable=invalid-name
@@ -72,17 +72,19 @@ class UpdatersTest(parameterized.TestCase):
   )
   def test_prescribed_psi_update(self, psi, expected_psi_val_t1):
     """Tests that psi is updated when evolve_current is False and psi is prescribed."""
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions'] = {
         'psi': psi,
         'Ip': 15e6,  # Ip is required but not used for psi value here
     }
-    config['numerics'] = {
+    config_dict['numerics'] = {
         'evolve_current': False,
     }
-    config['profile_conditions']['initial_psi_source'] = 'profile_conditions'
+    config_dict['profile_conditions'][
+        'initial_psi_source'
+    ] = 'profile_conditions'
 
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -112,16 +114,16 @@ class UpdatersTest(parameterized.TestCase):
 
   def test_psi_not_updated_if_not_prescribed(self):
     """Tests that psi retains previous value if not prescribed (None) and not evolving."""
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
     # Don't provide psi in profile_conditions, it defaults to None
-    config['numerics'] = {
+    config_dict['numerics'] = {
         'evolve_current': False,
     }
-    config['profile_conditions']['psi'] = {
+    config_dict['profile_conditions']['psi'] = {
         0.0: 10.0
     }  # Set initial only via config for init
 
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
@@ -154,9 +156,9 @@ class UpdatersTest(parameterized.TestCase):
 
   def test_psi_not_updated_if_evolve_current_true(self):
     """Tests that psi from profile_conditions is IGNORED if evolve_current is True."""
-    config = default_configs.get_default_config_dict()
-    config['numerics'] = {'evolve_current': True}
-    config['profile_conditions'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['numerics'] = {'evolve_current': True}
+    config_dict['profile_conditions'] = {
         'psi': {
             0.0: {0.0: 10.0, 1.0: 10.0},
             1.0: {0.0: 20.0, 1.0: 20.0},
@@ -164,7 +166,7 @@ class UpdatersTest(parameterized.TestCase):
         'initial_psi_source': 'profile_conditions',
     }
 
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )

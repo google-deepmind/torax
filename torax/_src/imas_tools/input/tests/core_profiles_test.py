@@ -17,7 +17,7 @@ from torax._src.imas_tools.input import core_profiles
 from torax._src.imas_tools.input import loader
 from torax._src.orchestration import run_simulation
 from torax._src.test_utils import sim_test_case
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 
@@ -50,7 +50,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     rtol = 1e-6
     atol = 1e-8
     # Input core_profiles reading and config loading
-    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    config_dict = self._get_config_dict("test_iterhybrid_rampup_short.py")
     path = "core_profiles_15MA_DT_50_50_flat_top_slice.nc"
     ids_in = loader.load_imas_data(path, "core_profiles")
     rhon_in = ids_in.profiles_1d[0].grid.rho_tor_norm
@@ -60,9 +60,9 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         ids_in,
         t_initial=0.0,
     )
-    config["geometry"]["n_rho"] = 200
-    config["profile_conditions"] = core_profiles_conditions
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    config_dict["geometry"]["n_rho"] = 200
+    config_dict["profile_conditions"] = core_profiles_conditions
+    torax_config = config.ToraxConfig.from_dict(config_dict)
 
     # Init sim from config
     sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
@@ -75,7 +75,9 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(
         init_core_profiles.T_e.value * 1e3,
         np.interp(
-            cell_centers, rhon_in, ids_in.profiles_1d[0].electrons.temperature,
+            cell_centers,
+            rhon_in,
+            ids_in.profiles_1d[0].electrons.temperature,
         ),
         rtol=rtol,
         atol=atol,
@@ -83,9 +85,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     )
     np.testing.assert_allclose(
         init_core_profiles.T_i.value * 1e3,
-        np.interp(
-            cell_centers, rhon_in, ids_in.profiles_1d[0].t_i_average
-        ),
+        np.interp(cell_centers, rhon_in, ids_in.profiles_1d[0].t_i_average),
         rtol=rtol,
         atol=atol,
         err_msg="Ti profile failed",
@@ -93,7 +93,9 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(
         init_core_profiles.n_e.value,
         np.interp(
-            cell_centers, rhon_in, ids_in.profiles_1d[0].electrons.density,
+            cell_centers,
+            rhon_in,
+            ids_in.profiles_1d[0].electrons.density,
         ),
         rtol=rtol,
         atol=atol,
@@ -101,16 +103,14 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
     )
     np.testing.assert_allclose(
         init_core_profiles.psi.value,
-        np.interp(
-            cell_centers, rhon_in, ids_in.profiles_1d[0].grid.psi
-        ),
+        np.interp(cell_centers, rhon_in, ids_in.profiles_1d[0].grid.psi),
         rtol=rtol,
         atol=atol,
         err_msg="psi profile failed",
     )
 
   def test_imas_plasma_composition(self):
-    config = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    config_dict = self._get_config_dict("test_iterhybrid_rampup_short.py")
 
     path = "core_profiles_ddv4_iterhybrid_rampup_conditions.nc"
     core_profiles_in = loader.load_imas_data(path, "core_profiles")
@@ -174,9 +174,11 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
           main_ions_symbols=["D", "T"],
           excluded_impurities=["He5"],
       )
-      config["plasma_composition"] = plasma_composition_data
-      config["plasma_composition"]["impurity"]["impurity_mode"] = "n_e_ratios"
-      torax_config = model_config.ToraxConfig.from_dict(config)
+      config_dict["plasma_composition"] = plasma_composition_data
+      config_dict["plasma_composition"]["impurity"][
+          "impurity_mode"
+      ] = "n_e_ratios"
+      torax_config = config.ToraxConfig.from_dict(config_dict)
 
       Ne_impurity = torax_config.plasma_composition.impurity.species["Ne"]
       self.assertIsNotNone(Ne_impurity)

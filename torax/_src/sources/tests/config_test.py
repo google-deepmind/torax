@@ -44,7 +44,7 @@ class SourcesConfigTest(parameterized.TestCase):
 
   @parameterized.parameters(
       dict(
-          config={
+          config_dict={
               'gas_puff': {
                   'puff_decay_length': 0.3,
                   'S_total': 0.0,
@@ -53,19 +53,19 @@ class SourcesConfigTest(parameterized.TestCase):
           expected_sources_model=gas_puff_source.GasPuffSourceConfig,
       ),
       dict(
-          config={
+          config_dict={
               'fusion': {},
           },
           expected_sources_model=fusion_heat_source.FusionHeatSourceConfig,
       ),
       dict(
-          config={
+          config_dict={
               'impurity_radiation': {'model_name': 'mavrin_fit'},
           },
           expected_sources_model=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
       ),
       dict(
-          config={
+          config_dict={
               'impurity_radiation': {'model_name': 'P_in_scaled_flat_profile'},
           },
           expected_sources_model=impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
@@ -73,12 +73,12 @@ class SourcesConfigTest(parameterized.TestCase):
   )
   def test_correct_source_model(
       self,
-      config: dict[str, Any],
+      config_dict: dict[str, Any],
       expected_sources_model: type[base.SourceConfigBase],
   ):
-    sources_model = sources_config.SourcesConfig.from_dict(config)
+    sources_model = sources_config.SourcesConfig.from_dict(config_dict)
     self.assertIsInstance(
-        sources_model.source_model_config[list(config.keys())[0]],
+        sources_model.source_model_config[list(config_dict.keys())[0]],
         expected_sources_model,
     )
     # Check that ei_exchange is always present by default.
@@ -183,52 +183,52 @@ class SourcesConfigTest(parameterized.TestCase):
 
   def test_bremsstrahlung_and_mavrin_both_active_sets_exclude_flag(self):
     """When both bremsstrahlung and Mavrin are active, exclude flag is set."""
-    config = {
+    config_dict = {
         'bremsstrahlung': {'mode': 'PRESCRIBED'},
         'impurity_radiation': {
             'mode': 'PRESCRIBED',
             'model_name': 'mavrin_fit',
         },
     }
-    sources = sources_config.SourcesConfig.from_dict(config)
+    sources = sources_config.SourcesConfig.from_dict(config_dict)
     assert sources.bremsstrahlung is not None
     self.assertTrue(sources.bremsstrahlung.exclude_impurity_bremsstrahlung)
 
   def test_bremsstrahlung_active_mavrin_zero_does_not_set_exclude_flag(self):
-    config = {
+    config_dict = {
         'bremsstrahlung': {'mode': 'PRESCRIBED'},
         'impurity_radiation': {
             'mode': 'ZERO',
             'model_name': 'mavrin_fit',
         },
     }
-    sources = sources_config.SourcesConfig.from_dict(config)
+    sources = sources_config.SourcesConfig.from_dict(config_dict)
     assert sources.bremsstrahlung is not None
     self.assertFalse(sources.bremsstrahlung.exclude_impurity_bremsstrahlung)
 
   def test_bremsstrahlung_zero_mavrin_active_does_not_set_exclude_flag(self):
-    config = {
+    config_dict = {
         'bremsstrahlung': {'mode': 'ZERO'},
         'impurity_radiation': {
             'mode': 'PRESCRIBED',
             'model_name': 'mavrin_fit',
         },
     }
-    sources = sources_config.SourcesConfig.from_dict(config)
+    sources = sources_config.SourcesConfig.from_dict(config_dict)
     assert sources.bremsstrahlung is not None
     self.assertFalse(sources.bremsstrahlung.exclude_impurity_bremsstrahlung)
 
   def test_bremsstrahlung_with_constant_fraction_does_not_set_exclude_flag(
       self,
   ):
-    config = {
+    config_dict = {
         'bremsstrahlung': {'mode': 'PRESCRIBED'},
         'impurity_radiation': {
             'mode': 'PRESCRIBED',
             'model_name': 'P_in_scaled_flat_profile',
         },
     }
-    sources = sources_config.SourcesConfig.from_dict(config)
+    sources = sources_config.SourcesConfig.from_dict(config_dict)
     assert sources.bremsstrahlung is not None
     self.assertFalse(sources.bremsstrahlung.exclude_impurity_bremsstrahlung)
 

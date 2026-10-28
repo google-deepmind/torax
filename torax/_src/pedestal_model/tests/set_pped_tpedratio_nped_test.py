@@ -24,7 +24,7 @@ from torax._src.pedestal_model import (
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 
@@ -53,8 +53,8 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         n_e_ped = {key: value / 1e20 for key, value in n_e_ped.items()}
       else:
         n_e_ped /= 1e20
-    config = default_configs.get_default_config_dict()
-    config['pedestal'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
         'structure_model': {
             'model_name': 'set_P_ped_n_ped',
             'n_e_ped': n_e_ped,
@@ -63,7 +63,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
             'T_i_T_e_ratio': T_i_T_e_ratio,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
     jitted_pedestal_model = jax.jit(pedestal_model)
@@ -130,8 +130,8 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
       )
 
   def test_pedestal_pressure_multiplier(self):
-    config = default_configs.get_default_config_dict()
-    config['pedestal'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['pedestal'] = {
         'structure_model': {
             'model_name': 'set_P_ped_n_ped',
             'n_e_ped': 0.7e20,
@@ -142,7 +142,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
             'P_ped_multiplier': 1.0,
         }
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 
@@ -175,8 +175,8 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     )
 
     # Modify multiplier to 1.5
-    config['pedestal']['structure_model']['P_ped_multiplier'] = 1.5
-    torax_config_2 = model_config.ToraxConfig.from_dict(config)
+    config_dict['pedestal']['structure_model']['P_ped_multiplier'] = 1.5
+    torax_config_2 = config.ToraxConfig.from_dict(config_dict)
     provider_2 = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config_2
     )

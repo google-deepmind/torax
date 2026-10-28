@@ -29,7 +29,7 @@ from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
 import xarray as xr
 
@@ -38,9 +38,7 @@ import xarray as xr
 class ProfileConditionsTest(parameterized.TestCase):
 
   def test_missing_initial_psi_source_raises_error(self):
-    with self.assertRaisesRegex(
-        pydantic.ValidationError, 'initial_psi_source'
-    ):
+    with self.assertRaisesRegex(pydantic.ValidationError, 'initial_psi_source'):
       profile_conditions.ProfileConditions.from_dict({})
 
   def test_profile_conditions_build_runtime_params_smoke_test(self):
@@ -122,13 +120,13 @@ class ProfileConditionsTest(parameterized.TestCase):
   ):
     """Tests that n_e_right_bc is set correctly."""
 
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions'] = {
         'initial_psi_source': 'j',
         'n_e': {0: {0: 1.0e20, 1: 2.0e20}, 1.5: {0: 100.0e20, 1: 200.0e20}},
         'n_e_right_bc': n_e_right_bc,
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )
@@ -928,8 +926,8 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_internal_boundary_conditions_set_correctly(self):
     """Tests that internal_boundary_conditions is populated from config."""
-    config = default_configs.get_default_config_dict()
-    config['profile_conditions'] = {
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions'] = {
         'initial_psi_source': 'j',
         'internal_boundary_conditions': {
             'model_name': 'prescribed',
@@ -939,7 +937,7 @@ class ProfileConditionsTest(parameterized.TestCase):
             },
         },
     }
-    torax_config = model_config.ToraxConfig.from_dict(config)
+    torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params_provider = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)
     )

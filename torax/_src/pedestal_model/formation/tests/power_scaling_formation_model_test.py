@@ -24,7 +24,7 @@ from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.physics import scaling_laws
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 
 # pylint: disable=invalid-name
 
@@ -33,9 +33,9 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    config = default_configs.get_default_config_dict()
+    config_dict = default_configs.get_default_config_dict()
     # Switch to use the PowerScaling formation model.
-    config['pedestal'] = {
+    config_dict['pedestal'] = {
         'structure_model': {'model_name': 'set_T_ped_n_ped'},
         'mode': 'ADAPTIVE_TRANSPORT',
         # Individual tests will override the model name.
@@ -45,7 +45,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
         },
     }
     # Add a source so that P_SOL is non-zero.
-    config['sources'] = {
+    config_dict['sources'] = {
         'generic_heat': {
             'gaussian_location': 0.15,
             'gaussian_width': 0.1,
@@ -53,7 +53,7 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
             'electron_heat_fraction': 0.8,
         }
     }
-    self.torax_config = model_config.ToraxConfig.from_dict(config)
+    self.torax_config = config.ToraxConfig.from_dict(config_dict)
     self.step_fn = run_simulation.make_step_fn(self.torax_config)
     self.initial_state, self.initial_post_processed_outputs = (
         initial_state.get_initial_state_and_post_processed_outputs(self.step_fn)

@@ -71,11 +71,11 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Compare `calc_fusion` function to a reference implementation."""
     references = references_getter()
-    references.config.update_fields({'sources.fusion': {}})
+    references.torax_config.update_fields({'sources.fusion': {}})
     core_profiles, runtime_params, geo = (
-        core_profile_helpers.make_initial_inputs(references.config)
+        core_profile_helpers.make_initial_inputs(references.torax_config)
     )
-    source_models = references.config.sources.build_models()
+    source_models = references.torax_config.sources.build_models()
 
     torax_fusion_power = self._calculate_torax_fusion_power(
         source_models, runtime_params, geo, core_profiles
@@ -99,15 +99,15 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   ):
     """Compare `calc_fusion` function to a reference implementation for various ion mixtures."""
     references = torax_refs.chease_references_Ip_from_chease()
-    references.config.update_fields({
+    references.torax_config.update_fields({
         'plasma_composition.main_ion': main_ion_input,
         'sources.fusion': {},
     })
 
     core_profiles, runtime_params_t, geo = (
-        core_profile_helpers.make_initial_inputs(references.config)
+        core_profile_helpers.make_initial_inputs(references.torax_config)
     )
-    source_models = references.config.sources.build_models()
+    source_models = references.torax_config.sources.build_models()
 
     torax_fusion_power = self._calculate_torax_fusion_power(
         source_models, runtime_params_t, geo, core_profiles

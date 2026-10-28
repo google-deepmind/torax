@@ -65,7 +65,7 @@ extensions = [
     'sphinx_autodoc_typehints',
     'sphinx_remove_toctrees',
     'sphinx_copybutton',
-    'sphinx_design'
+    'sphinx_design',
 ]
 
 intersphinx_mapping = {
@@ -178,15 +178,12 @@ latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
-
     # The font size ('10pt', '11pt' or '12pt').
     #
     # 'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     #
     # 'preamble': '',
-
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
@@ -196,8 +193,13 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (main_doc, 'TORAX.tex', 'TORAX Documentation',
-     'The TORAX authors', 'manual'),
+    (
+        main_doc,
+        'TORAX.tex',
+        'TORAX Documentation',
+        'The TORAX authors',
+        'manual',
+    ),
 ]
 
 
@@ -205,10 +207,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (main_doc, 'torax', 'TORAX Documentation',
-     [author], 1)
-]
+man_pages = [(main_doc, 'torax', 'TORAX Documentation', [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------------
@@ -217,9 +216,15 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (main_doc, 'TORAX', 'TORAX Documentation',
-     author, 'TORAX', 'Differentiable tokamak core simulator.',
-     'Miscellaneous'),
+    (
+        main_doc,
+        'TORAX',
+        'TORAX Documentation',
+        author,
+        'TORAX',
+        'Differentiable tokamak core simulator.',
+        'Miscellaneous',
+    ),
 ]
 
 
@@ -349,7 +354,7 @@ rst_epilog = f"""
 .. _torax_run_simulation_func_target: {github_base_url}/torax/_src/orchestration/run_simulation.py
 
 .. |torax.ToraxConfig| replace:: `torax.ToraxConfig <torax_ToraxConfig_target_>`__
-.. _torax_ToraxConfig_target: {github_base_url}/torax/_src/torax_pydantic/model_config.py
+.. _torax_ToraxConfig_target: {github_base_url}/torax/_src/torax_pydantic/config.py
 
 .. |torax.StateHistory| replace:: `torax.StateHistory <torax_StateHistory_target_>`__
 .. _torax_StateHistory_target: {github_base_url}/torax/_src/output_tools/output.py

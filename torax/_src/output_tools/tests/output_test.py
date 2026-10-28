@@ -41,7 +41,7 @@ from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
 from torax._src.test_utils import paths
-from torax._src.torax_pydantic import model_config
+from torax._src.torax_pydantic import config
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 import xarray as xr
 
@@ -56,7 +56,7 @@ class StateHistoryTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.torax_config = model_config.ToraxConfig.from_dict({
+    self.torax_config = config.ToraxConfig.from_dict({
         'profile_conditions': {
             'initial_psi_source': 'j',
             'T_i_right_bc': 27.7,
@@ -383,7 +383,7 @@ class StateHistoryTest(parameterized.TestCase):
     """Tests that the serialization/deserialization of the config is correct."""
     output_xr = self.history.simulation_output_to_xr()
     config_dict = json.loads(output_xr.dataset.attrs[output_keys.CONFIG])
-    rebuilt_torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    rebuilt_torax_config = config.ToraxConfig.from_dict(config_dict)
     self.assertEqual(rebuilt_torax_config, self.torax_config)
 
   def test_cell_plus_boundaries_output(self):
@@ -677,7 +677,7 @@ class StateHistoryTest(parameterized.TestCase):
     (D and T) at different time points.
     """
     # Create a config with 2 main ions with time-varying fractions
-    torax_config = model_config.ToraxConfig.from_dict({
+    torax_config = config.ToraxConfig.from_dict({
         'profile_conditions': {
             'initial_psi_source': 'j',
             'T_i_right_bc': 27.7,
@@ -762,7 +762,7 @@ class StateHistoryTest(parameterized.TestCase):
     (D and T) at different time points.
     """
     # Create a config with 2 main ions with time-varying fractions
-    torax_config = model_config.ToraxConfig.from_dict({
+    torax_config = config.ToraxConfig.from_dict({
         'profile_conditions': {
             'initial_psi_source': 'j',
             'T_i_right_bc': 27.7,
