@@ -77,12 +77,12 @@ class Grid1D(config_base.ConfigBase):
   @property
   def nx(self) -> int:
     """Number of cells in the grid."""
-    return len(self.face_centers) - 1
+    return self.face_centers.shape[-1] - 1
 
   @property
   def cell_centers(self) -> np.ndarray:
     """Coordinates of cell centers (midpoints between faces)."""
-    return (self.face_centers[1:] + self.face_centers[:-1]) / 2.0
+    return (self.face_centers[..., 1:] + self.face_centers[..., :-1]) / 2.0
 
   @functools.cached_property
   def cell_widths(self) -> jax.Array:
