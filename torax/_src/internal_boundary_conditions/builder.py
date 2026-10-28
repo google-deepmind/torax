@@ -19,8 +19,12 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import base_model
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
+from torax._src.pedestal_model import (
+    pedestal_model_output as pedestal_model_output_lib,
+)
 from torax._src.sources import source_profiles as source_profiles_lib
 
 # pylint: disable=invalid-name
@@ -30,9 +34,7 @@ def build_internal_boundary_conditions(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
+    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
     internal_boundary_condition_model: (
         base_model.InternalBoundaryConditionModel
     ),
@@ -49,7 +51,7 @@ def build_internal_boundary_conditions(
     runtime_params: Runtime parameters for the simulation.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles.
-    pedestal_transition_state: Current state of the pedestal transition.
+    pedestal_model_output: Output of the pedestal model for this step.
     internal_boundary_condition_model: Model used to evaluate profile-condition
       internal boundary conditions.
     source_profiles: Core source profiles.
@@ -57,27 +59,27 @@ def build_internal_boundary_conditions(
   Returns:
     The active InternalBoundaryConditions object.
   """
-  pedestal_internal_boundary_conditions = (
-      pedestal_transition_state.to_internal_boundary_conditions(
-          t=runtime_params.t,
-          pedestal_runtime_params=runtime_params.pedestal,
-          geo=geo,
-          core_profiles=core_profiles,
-      )
-  )
-
   config_internal_boundary_conditions = internal_boundary_condition_model(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_profiles=source_profiles,
   )
-
-  is_pedestal_ibc_active = pedestal_transition_state.is_ibc_active(
-      runtime_params.pedestal
-  )
-  return jax.tree.map(
-      lambda p, u: jax.lax.select(is_pedestal_ibc_active, p, u),
-      pedestal_internal_boundary_conditions,
-      config_internal_boundary_conditions,
-  )
+  if isinstance(
+      pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
+  ):
+    pedestal_internal_boundary_conditions = (
+        pedestal_model_output.to_internal_boundary_conditions(
+            geo=geo,
+            core_profiles=core_profiles,
+            pedestal_profile_form=(
+                runtime_params.pedestal.structure.pedestal_profile_form
+            ),
+        )
+    )
+    return jax.tree.map(
+        lambda p, u: jax.lax.select(pedestal_model_output.is_active, p, u),
+        pedestal_internal_boundary_conditions,
+        config_internal_boundary_conditions,
+    )
+  return config_internal_boundary_conditions

@@ -28,7 +28,9 @@ from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
+from torax._src.internal_boundary_conditions import (
+    builder as internal_boundary_conditions_builder,
+)
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import output
@@ -175,12 +177,16 @@ def _get_initial_state(
       )
   )
 
+  pedestal_output = pedestal_transition_state.to_pedestal_model_output(
+      t=runtime_params.t,
+      pedestal_runtime_params=runtime_params.pedestal,
+  )
   internal_boundary_conditions = (
       internal_boundary_conditions_builder.build_internal_boundary_conditions(
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=initial_core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
+          pedestal_model_output=pedestal_output,
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
@@ -193,7 +199,7 @@ def _get_initial_state(
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=initial_core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
+          pedestal_model_output=pedestal_output,
           transport_state=models.transport_model.initial_state(runtime_params),
           neoclassical_transport=neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(

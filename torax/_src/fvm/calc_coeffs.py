@@ -27,9 +27,11 @@ from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
-from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.internal_boundary_conditions import builder as ibc_builder
+from torax._src.orchestration import (
+    explicit_model_outputs as explicit_model_outputs_lib,
+)
+from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
 from torax._src.sources import source_profile_builders
 from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
@@ -286,7 +288,7 @@ def _calc_coeffs_full(
     )
   elif (
       runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+      == pedestal_runtime_params.Mode.ADAPTIVE_TRANSPORT
   ):
     # Explicit mode with ADAPTIVE_TRANSPORT: pedestal output (T_ped, n_ped,
     # rho_ped_top) stays frozen from pre_step, but transport multipliers are
@@ -325,13 +327,21 @@ def _calc_coeffs_full(
   else:
     pedestal_transition_state = explicit_pedestal_transition_state
 
-  internal_boundary_conditions = internal_boundary_conditions_builder.build_internal_boundary_conditions(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      pedestal_transition_state=pedestal_transition_state,
-      internal_boundary_condition_model=models.internal_boundary_condition_model,
-      source_profiles=merged_source_profiles,
+  pedestal_output = pedestal_transition_state.to_pedestal_model_output(
+      t=runtime_params.t,
+      pedestal_runtime_params=runtime_params.pedestal,
+  )
+  internal_boundary_conditions = (
+      ibc_builder.build_internal_boundary_conditions(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          pedestal_model_output=pedestal_output,
+          internal_boundary_condition_model=(
+              models.internal_boundary_condition_model
+          ),
+          source_profiles=merged_source_profiles,
+      )
   )
 
   # Compute transport coefficients. We purposefully do not update
@@ -343,7 +353,7 @@ def _calc_coeffs_full(
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=core_profiles,
-          pedestal_transition_state=pedestal_transition_state,
+          pedestal_model_output=pedestal_output,
           transport_state=model_state.transport,
           neoclassical_transport=neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(

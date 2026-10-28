@@ -26,8 +26,10 @@ from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider as geometry_provider_lib
-from torax._src.internal_boundary_conditions import builder as internal_boundary_conditions_builder
-from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
+from torax._src.internal_boundary_conditions import builder as ibc_builder
+from torax._src.orchestration import (
+    explicit_model_outputs as explicit_model_outputs_lib,
+)
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import post_processing
 from torax._src.sources import source_profile_builders
@@ -212,12 +214,16 @@ def finalize_outputs(
   final_neoclassical_outputs = models.neoclassical_model(
       runtime_params_t_plus_dt, geometry_t_plus_dt, final_core_profiles
   )
+  final_pedestal_output = final_transition_state.to_pedestal_model_output(
+      t=runtime_params_t_plus_dt.t,
+      pedestal_runtime_params=runtime_params_t_plus_dt.pedestal,
+  )
   internal_boundary_conditions = (
-      internal_boundary_conditions_builder.build_internal_boundary_conditions(
+      ibc_builder.build_internal_boundary_conditions(
           runtime_params=runtime_params_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
-          pedestal_transition_state=final_transition_state,
+          pedestal_model_output=final_pedestal_output,
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
@@ -230,7 +236,7 @@ def finalize_outputs(
           runtime_params=runtime_params_t_plus_dt,
           geo=geometry_t_plus_dt,
           core_profiles=final_core_profiles,
-          pedestal_transition_state=final_transition_state,
+          pedestal_model_output=final_pedestal_output,
           transport_state=model_state_t.transport,
           neoclassical_transport=final_neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(

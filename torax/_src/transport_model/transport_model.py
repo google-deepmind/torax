@@ -29,12 +29,14 @@ from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.pedestal_model import (
+    pedestal_model_output as pedestal_model_output_lib,
+)
 from torax._src.transport_model import component
 from torax._src.transport_model import enums
-from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import (
+    runtime_params as transport_runtime_params_lib,
+)
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
 
@@ -72,9 +74,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      pedestal_transition_state: (
-          pedestal_transition_state_lib.PedestalTransitionState
-      ),
+      pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
       two_point_mask: array_typing.BoolVectorFace,
       transport_state: transport_state_lib.TransportState,
   ) -> tuple[
@@ -89,7 +89,7 @@ class TransportModel(static_dataclass.StaticDataclass):
       runtime_params: Runtime parameters for the simulation at the current time.
       geo: Geometry of the torus at the current time.
       core_profiles: Core plasma profiles at the current time.
-      pedestal_transition_state: State of pedestal L-H transitions.
+      pedestal_model_output: Output of the pedestal model.
       two_point_mask: Boolean mask indicating the two-point model region.
       transport_state: Transport state carried over from the previous timestep,
         containing core and pedestal component states.
@@ -100,33 +100,33 @@ class TransportModel(static_dataclass.StaticDataclass):
       individual model outputs, and updated_transport_state is the updated
       TransportState.
     """
-    pedestal_active = (
-        pedestal_transition_state.confinement_mode
-        != pedestal_runtime_params_lib.ConfinementMode.L_MODE
-    )
     pedestal_mask = jnp.asarray(
-        pedestal_active
+        pedestal_model_output.is_active
         & pedestal_model_output_lib.pedestal_face_mask(
             geo.rho_face_norm,
-            pedestal_transition_state.pedestal_model_output.rho_norm_ped_top,
+            pedestal_model_output.rho_norm_ped_top,
         )
     )
-    core_domain_mask = jnp.where(
-        pedestal_transition_state.is_ibc_active(runtime_params.pedestal),
-        ~pedestal_mask,
-        True,
-    )
+    if isinstance(
+        pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
+    ):
+      core_domain_mask = jnp.where(
+          pedestal_model_output.is_active,
+          ~pedestal_mask,
+          True,
+      )
+    else:
+      core_domain_mask = jnp.ones_like(pedestal_mask, dtype=bool)
 
     core_smoothing_matrix = _build_smoothing_matrix(
         runtime_params.transport,
-        runtime_params,
         geo,
-        pedestal_transition_state,
+        pedestal_model_output,
     )
     pedestal_smoothing_matrix = _build_pedestal_smoothing_matrix(
         runtime_params.transport,
         geo,
-        pedestal_transition_state,
+        pedestal_model_output,
     )
 
     core, core_components, new_core_states = self._compute_domain_coeffs(
@@ -351,11 +351,8 @@ class TransportModel(static_dataclass.StaticDataclass):
 
 def _build_smoothing_matrix(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
-    runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
+    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Builds a smoothing matrix for the transport model."""
   # 1. Build smoothing width profile
@@ -386,20 +383,18 @@ def _build_smoothing_matrix(
   # Apply pedestal mask if in INTERNAL_BOUNDARY_CONDITION mode.
   # Zeros out smoothing_width_profile for rho >= rho_ped_top to avoid bleeding
   # into boundary condition zone.
-  is_ibc_active = pedestal_transition_state.is_ibc_active(
-      runtime_params.pedestal
-  )
-  rho_norm_ped_top = (
-      pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
-  )
-  smoothing_width_profile = jnp.where(
-      is_ibc_active
-      & pedestal_model_output_lib.pedestal_face_mask(
-          geo.rho_face_norm, rho_norm_ped_top
-      ),
-      0.0,
-      smoothing_width_profile,
-  )
+  if isinstance(
+      pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
+  ):
+    rho_norm_ped_top = pedestal_model_output.rho_norm_ped_top
+    smoothing_width_profile = jnp.where(
+        pedestal_model_output.is_active
+        & pedestal_model_output_lib.pedestal_face_mask(
+            geo.rho_face_norm, rho_norm_ped_top
+        ),
+        0.0,
+        smoothing_width_profile,
+    )
 
   return math_utils.gaussian_smoothing_matrix(
       geo.rho_face_norm,
@@ -412,14 +407,10 @@ def _build_smoothing_matrix(
 def _build_pedestal_smoothing_matrix(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
+    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Builds a smoothing matrix localized to the pedestal region."""
-  rho_norm_ped_top = (
-      pedestal_transition_state.pedestal_model_output.rho_norm_ped_top
-  )
+  rho_norm_ped_top = pedestal_model_output.rho_norm_ped_top
   smoothing_width_profile = jnp.where(
       pedestal_model_output_lib.pedestal_face_mask(
           geo.rho_face_norm, rho_norm_ped_top

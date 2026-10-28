@@ -24,15 +24,18 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
-from torax._src.sources import source_profile_builders
+from torax._src.pedestal_model import (
+    pedestal_model_output as pedestal_model_output_lib,
+)
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import qualikiz_based_transport_model
 from torax._src.transport_model import register_model
-from torax._src.transport_model import runtime_params as transport_runtime_params_lib
+from torax._src.transport_model import (
+    runtime_params as transport_runtime_params_lib,
+)
 from torax._src.transport_model import transport_coeffs
 from torax._src.transport_model import transport_state as transport_state_lib
 
@@ -48,36 +51,8 @@ def _get_config_and_model_inputs(
   config = default_configs.get_default_config_dict()
   config['transport'] = transport
   torax_config = model_config.ToraxConfig.from_dict(config)
-  source_models = torax_config.sources.build_models()
   core_profiles, runtime_params, geo = core_profile_helpers.make_initial_inputs(
       torax_config
-  )
-  source_states = source_models.initial_state(runtime_params)
-  source_profiles, _ = source_profile_builders.build_source_profiles(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_models=source_models,
-      source_states=source_states,
-      explicit=True,
-  )
-  pedestal_model = torax_config.pedestal.build_pedestal_model()
-  pedestal_state = pedestal_model.initial_state(
-      runtime_params, geo, core_profiles
-  )
-  transition_state = (
-      pedestal_transition_state_lib.PedestalTransitionState.empty()
-  )
-  pedestal_model_outputs, _ = pedestal_model(
-      runtime_params,
-      geo,
-      core_profiles,
-      source_profiles,
-      pedestal_transition_state=transition_state,
-      pedestal_state=pedestal_state,
-  )
-  transition_state = dataclasses.replace(
-      transition_state, pedestal_model_output=pedestal_model_outputs
   )
   two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
   transport_model = torax_config.transport.build_transport_model()
@@ -85,7 +60,7 @@ def _get_config_and_model_inputs(
       runtime_params,
       geo,
       core_profiles,
-      transition_state,
+      pedestal_model_output_lib.IBCPedestalModelOutput.empty(),
       two_point_mask,
       transport_model.initial_state(runtime_params),
   )

@@ -22,8 +22,12 @@ from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import state
 from torax._src.geometry import geometry
-from torax._src.internal_boundary_conditions import internal_boundary_conditions as internal_boundary_conditions_lib
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
+from torax._src.internal_boundary_conditions import (
+    internal_boundary_conditions as internal_boundary_conditions_lib,
+)
+from torax._src.pedestal_model import (
+    pedestal_model_output as pedestal_model_output_lib,
+)
 from torax._src.pedestal_model import runtime_params as runtime_params_lib
 
 # pylint: disable=invalid-name
@@ -180,6 +184,38 @@ class PedestalTransitionState:
         transition_time_width=transition_time_width,
     )
     return self._apply_transition_ramp_scaling(ramp_fraction=ramp_fraction)
+
+  def to_pedestal_model_output(
+      self,
+      t: array_typing.FloatScalar,
+      pedestal_runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> pedestal_model_output_lib.PedestalModelOutput:
+    """Converts this transition state into a mode-specific PedestalModelOutput.
+
+    Args:
+      t: Current simulation time.
+      pedestal_runtime_params: Runtime parameters for the pedestal model.
+
+    Returns:
+      PedestalModelOutput corresponding to the current state and mode.
+    """
+    if (
+        pedestal_runtime_params.mode
+        == runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+    ):
+      scaled_structure = self._get_scaled_pedestal_model_output(
+          t=t,
+          transition_time_width=pedestal_runtime_params.transition_time_width,
+      )
+      return pedestal_model_output_lib.IBCPedestalModelOutput(
+          structure=scaled_structure,
+          confinement_mode=self.confinement_mode,
+      )
+    return pedestal_model_output_lib.AdaptiveTransportPedestalModelOutput(
+        structure=self.pedestal_model_output,
+        confinement_mode=self.confinement_mode,
+        transport_multipliers=self.pedestal_model_output.transport_multipliers,
+    )
 
   def is_ibc_active(
       self,

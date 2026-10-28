@@ -20,8 +20,9 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.pedestal_model import (
+    pedestal_model_output as pedestal_model_output_lib,
+)
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 from torax._src.transport_model import transport_model as transport_model_lib
@@ -42,9 +43,7 @@ def calculate_all_transport_coeffs(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    pedestal_transition_state: (
-        pedestal_transition_state_lib.PedestalTransitionState
-    ),
+    pedestal_model_output: pedestal_model_output_lib.PedestalModelOutput,
     transport_state: transport_state_lib.TransportState,
     neoclassical_transport: transport_coeffs_lib.NeoclassicalTransport,
     two_point_mask: array_typing.BoolVectorFace,
@@ -53,11 +52,11 @@ def calculate_all_transport_coeffs(
   """Calculates the transport coefficients from all models and updated state.
 
   Args:
+    transport_model: Combined transport model.
     runtime_params: Runtime configuration parameters.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles.
-    transport_model: Combined transport model.
-    pedestal_transition_state: State tracking pedestal transitions.
+    pedestal_model_output: Output of the pedestal model for this step.
     transport_state: Transport state carried over from the previous timestep.
     neoclassical_transport: Neoclassical transport coefficients.
     two_point_mask: Mask for boundary faces.
@@ -70,7 +69,7 @@ def calculate_all_transport_coeffs(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
-      pedestal_transition_state=pedestal_transition_state,
+      pedestal_model_output=pedestal_model_output,
       two_point_mask=two_point_mask,
       transport_state=transport_state,
   )
@@ -83,16 +82,18 @@ def calculate_all_transport_coeffs(
     )
     # If in INTERNAL_BOUNDARY_CONDITION mode, set the Pereverzev transport
     # coefficients in the pedestal region to zero.
-    pedestal_model_output = pedestal_transition_state.pedestal_model_output
-    pedestal_active_mask_face = jnp.where(
-        pedestal_transition_state.is_ibc_active(runtime_params.pedestal),
-        geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top,
-        False,
-    )
-    pereverzev_transport_coeffs = jax.tree.map(
-        lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
-        pereverzev_transport_coeffs,
-    )
+    if isinstance(
+        pedestal_model_output, pedestal_model_output_lib.IBCPedestalModelOutput
+    ):
+      pedestal_active_mask_face = jnp.where(
+          pedestal_model_output.is_active,
+          geo.rho_face_norm >= pedestal_model_output.rho_norm_ped_top,
+          False,
+      )
+      pereverzev_transport_coeffs = jax.tree.map(
+          lambda x: jnp.where(pedestal_active_mask_face, 0.0, x),
+          pereverzev_transport_coeffs,
+      )
   else:
     pereverzev_transport_coeffs = None
 
@@ -111,13 +112,10 @@ def calculate_all_transport_coeffs(
       pereverzev=pereverzev_transport_coeffs,
   )
 
-  # Modify the turbulent + Pereverzev transport coefficients if the pedestal
-  # model is in ADAPTIVE_TRANSPORT mode.
-  if (
-      runtime_params.pedestal.mode
-      == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+  if isinstance(
+      pedestal_model_output,
+      pedestal_model_output_lib.AdaptiveTransportPedestalModelOutput,
   ):
-    pedestal_model_output = pedestal_transition_state.pedestal_model_output
     core_transport = pedestal_model_output.modify_core_transport(
         core_transport=core_transport,
         geo=geo,

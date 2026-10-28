@@ -18,7 +18,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import (
+    pedestal_model_output as pedestal_model_output_lib,
+)
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import model_config
@@ -88,7 +90,7 @@ class QualikizTransportModelTest(parameterized.TestCase):
           runtime_params,
           geo,
           core_profiles,
-          pedestal_transition_state_lib.PedestalTransitionState.empty(),
+          pedestal_model_output_lib.IBCPedestalModelOutput.empty(),
           two_point_mask,
           transport_state=test_model.initial_state(runtime_params),
       )

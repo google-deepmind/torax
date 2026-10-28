@@ -20,9 +20,12 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import state
 from torax._src.geometry import circular_geometry
-from torax._src.pedestal_model import pedestal_model_output as pedestal_model_output_lib
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.pedestal_model import (
+    pedestal_model_output as pedestal_model_output_lib,
+)
+from torax._src.pedestal_model import (
+    runtime_params as pedestal_runtime_params_lib,
+)
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
@@ -76,18 +79,21 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     self.runtime_params = mock.Mock()
     self.runtime_params.pedestal.mode = None
 
-    # Mock pedestal transition state.
-    self.pedestal_output = pedestal_model_output_lib.PedestalStructure(
+    # Pedestal structure and outputs.
+    self.pedestal_structure = pedestal_model_output_lib.PedestalStructure(
         rho_norm_ped_top=jnp.asarray(0.7),
         T_i_ped=jnp.asarray(4.0),
         T_e_ped=jnp.asarray(4.0),
         n_e_ped=jnp.asarray(0.6e20),
     )
-    self.pedestal_state = mock.create_autospec(
-        pedestal_transition_state_lib.PedestalTransitionState, instance=True
+    self.ibc_pedestal_output = (
+        pedestal_model_output_lib.IBCPedestalModelOutput(
+            structure=self.pedestal_structure,
+            confinement_mode=jnp.asarray(
+                pedestal_runtime_params_lib.ConfinementMode.L_MODE
+            ),
+        )
     )
-    self.pedestal_state.pedestal_model_output = self.pedestal_output
-    self.pedestal_state.is_ibc_active.return_value = False
 
     # Dummy Pereverzev transport output.
     self.pereverzev_transport = transport_coeffs_lib.PereverzevTransport(
@@ -109,7 +115,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
             runtime_params=self.runtime_params,
             geo=self.geo,
             core_profiles=self.core_profiles,
-            pedestal_transition_state=self.pedestal_state,
+            pedestal_model_output=self.ibc_pedestal_output,
             use_pereverzev=False,
         )
     )
@@ -144,7 +150,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
           runtime_params=self.runtime_params,
           geo=self.geo,
           core_profiles=self.core_profiles,
-          pedestal_transition_state=self.pedestal_state,
+          pedestal_model_output=self.ibc_pedestal_output,
           use_pereverzev=True,
       )
 
@@ -169,7 +175,12 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     np.testing.assert_allclose(result.total.v_face_el, expected_total.v_face_el)
 
   def test_masks_pereverzev_in_pedestal_when_ibc_is_active(self):
-    self.pedestal_state.is_ibc_active.return_value = True
+    h_mode_ibc_output = pedestal_model_output_lib.IBCPedestalModelOutput(
+        structure=self.pedestal_structure,
+        confinement_mode=jnp.asarray(
+            pedestal_runtime_params_lib.ConfinementMode.H_MODE
+        ),
+    )
     ped_mask = self.geo.rho_face_norm >= 0.7
     core_mask = ~ped_mask
 
@@ -186,7 +197,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
           runtime_params=self.runtime_params,
           geo=self.geo,
           core_profiles=self.core_profiles,
-          pedestal_transition_state=self.pedestal_state,
+          pedestal_model_output=h_mode_ibc_output,
           use_pereverzev=True,
       )
 
@@ -209,7 +220,6 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     )
 
   def test_does_not_mask_pereverzev_when_ibc_is_inactive(self):
-    self.pedestal_state.is_ibc_active.return_value = False
     ped_mask = self.geo.rho_face_norm >= 0.7
 
     with mock.patch.object(
@@ -225,7 +235,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
           runtime_params=self.runtime_params,
           geo=self.geo,
           core_profiles=self.core_profiles,
-          pedestal_transition_state=self.pedestal_state,
+          pedestal_model_output=self.ibc_pedestal_output,
           use_pereverzev=True,
       )
 
@@ -235,17 +245,14 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     )
 
   def test_applies_adaptive_transport_modification_in_adaptive_mode(self):
-    self.runtime_params.pedestal.mode = (
-        pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
-    )
     mock_modified_transport = mock.create_autospec(
         state.CoreTransport, instance=True
     )
     mock_ped_output = mock.create_autospec(
-        pedestal_model_output_lib.PedestalStructure, instance=True
+        pedestal_model_output_lib.AdaptiveTransportPedestalModelOutput,
+        instance=True,
     )
     mock_ped_output.modify_core_transport.return_value = mock_modified_transport
-    self.pedestal_state.pedestal_model_output = mock_ped_output
 
     result, _ = transport_coefficients_builder.calculate_all_transport_coeffs(
         transport_model=self.transport_model,
@@ -255,7 +262,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
-        pedestal_transition_state=self.pedestal_state,
+        pedestal_model_output=mock_ped_output,
         use_pereverzev=False,
     )
 
@@ -263,15 +270,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     mock_ped_output.modify_core_transport.assert_called_once()
 
   def test_does_not_modify_core_transport_when_not_adaptive_mode(self):
-    self.runtime_params.pedestal.mode = (
-        pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
-    )
-    mock_ped_output = mock.create_autospec(
-        pedestal_model_output_lib.PedestalStructure, instance=True
-    )
-    self.pedestal_state.pedestal_model_output = mock_ped_output
-
-    transport_coefficients_builder.calculate_all_transport_coeffs(
+    result, _ = transport_coefficients_builder.calculate_all_transport_coeffs(
         transport_model=self.transport_model,
         transport_state=self.transport_state,
         neoclassical_transport=self.neoclassical_transport,
@@ -279,11 +278,15 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
         runtime_params=self.runtime_params,
         geo=self.geo,
         core_profiles=self.core_profiles,
-        pedestal_transition_state=self.pedestal_state,
+        pedestal_model_output=self.ibc_pedestal_output,
         use_pereverzev=False,
     )
-
-    mock_ped_output.modify_core_transport.assert_not_called()
+    expected_total = transport_coeffs_lib.sum_transport_coeffs(
+        self.turbulent_total, self.neoclassical_transport
+    )
+    np.testing.assert_allclose(
+        result.total.chi_face_ion, expected_total.chi_face_ion
+    )
 
 
 if __name__ == '__main__':
