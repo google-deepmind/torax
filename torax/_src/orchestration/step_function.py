@@ -46,14 +46,13 @@ from torax._src.time_step_calculator import time_step_calculator as ts
 # pylint: disable=invalid-name
 
 
-@jax.jit(static_argnames=['adaptive_dt'])
 def has_any_step_error(
     output_state: sim_state.SimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
     T_min_eV: float,
     adaptive_dt: bool,
 ) -> jax.Array:
-  """Single fused XLA check returning True if any error condition is met."""
+  """Returns True if any error condition is met."""
   return (
       output_state.core_profiles.below_minimum_temperature(T_min_eV)
       | output_state.core_profiles.negative_temperature_or_density()
