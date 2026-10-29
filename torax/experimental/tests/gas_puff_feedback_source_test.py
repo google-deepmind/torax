@@ -54,7 +54,9 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     )
     source_models = torax_config.sources.build_models()
 
-    initial_line_avg = math_utils.line_average(core_profiles.n_e.value, geo)
+    initial_line_avg = math_utils.line_average(
+        core_profiles.kinetic.n_e.value, geo
+    )
 
     # Rebuild with specific requested value
     config_dict['sources']['gas_puff']['model_name'] = 'feedback'
@@ -76,12 +78,11 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     chex.assert_trees_all_close(gas_puff_params.feedback_gain, 10.0)
 
     source = source_models.standard_sources['gas_puff']
+    assert isinstance(source, gas_puff_feedback_source.GasPuffFeedbackSource)
     output, _ = source.get_value(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=None,
-        conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
     (profile,) = output.profiles

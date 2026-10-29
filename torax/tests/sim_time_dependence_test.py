@@ -163,7 +163,8 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           expected_error_state,
       )
       np.testing.assert_allclose(
-          output_state.core_profiles.T_i.value[0], expected_combined_value
+          output_state.core_profiles.kinetic.T_i.value[0],
+          expected_combined_value,
       )
       sim_error = step_fn.check_for_errors(
           output_state,
