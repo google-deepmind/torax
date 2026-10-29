@@ -74,7 +74,10 @@ class BuilderTest(absltest.TestCase):
     pedestal = mock.create_autospec(
         pedestal_runtime_params_lib.RuntimeParams,
         instance=True,
-        mode=pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
+        mode=(
+            pedestal_runtime_params_lib.PedestalGenerationMode
+            .INTERNAL_BOUNDARY_CONDITION
+        ),
         transition_time_width=1.0,
         structure=structure,
     )

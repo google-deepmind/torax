@@ -266,7 +266,10 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     """Validates that internal boundary conditions are not used with ADAPTIVE_TRANSPORT."""
     ibc = self.profile_conditions.internal_boundary_conditions
     if (
-        self.pedestal.mode == pedestal_runtime_params.Mode.ADAPTIVE_TRANSPORT
+        (
+            self.pedestal.mode
+            == pedestal_runtime_params.PedestalGenerationMode.ADAPTIVE_TRANSPORT
+        )
         and not isinstance(ibc, ibc_config.NoIBCConfig)
     ):
       raise ValueError(

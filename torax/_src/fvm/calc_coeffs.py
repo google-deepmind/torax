@@ -288,7 +288,7 @@ def _calc_coeffs_full(
     )
   elif (
       runtime_params.pedestal.mode
-      == pedestal_runtime_params.Mode.ADAPTIVE_TRANSPORT
+      == pedestal_runtime_params.PedestalGenerationMode.ADAPTIVE_TRANSPORT
   ):
     # Explicit mode with ADAPTIVE_TRANSPORT: pedestal output (T_ped, n_ped,
     # rho_ped_top) stays frozen from pre_step, but transport multipliers are

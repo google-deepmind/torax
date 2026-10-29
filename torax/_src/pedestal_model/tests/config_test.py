@@ -123,7 +123,8 @@ class PedestalConfigTest(parameterized.TestCase):
         pedestal.formation_model, config.MartinScalingFormationConfig
     )
     self.assertEqual(
-        pedestal.mode, runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
+        pedestal.mode,
+        runtime_params.PedestalGenerationMode.INTERNAL_BOUNDARY_CONDITION,
     )
     formation_params = pedestal.build_runtime_params(t=0.0).formation
     self.assertIsInstance(
@@ -136,7 +137,7 @@ class PedestalConfigTest(parameterized.TestCase):
   def test_prescribed_formation_with_adaptive_transport(self):
     pedestal_model = config.PedestalConfig.from_dict({
         "structure_model": {"model_name": "set_T_ped_n_ped"},
-        "mode": runtime_params.Mode.ADAPTIVE_TRANSPORT,
+        "mode": runtime_params.PedestalGenerationMode.ADAPTIVE_TRANSPORT,
         "formation_model": {
             "model_name": "prescribed",
             "pedestal_active": {0.0: False, 2.0: True},

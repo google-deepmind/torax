@@ -107,7 +107,7 @@ class PedestalModel(static_dataclass.StaticDataclass):
     # on the formation and saturation models.
     if (
         runtime_params.pedestal.mode
-        == pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT
+        == pedestal_runtime_params_lib.PedestalGenerationMode.ADAPTIVE_TRANSPORT
     ):
       transport_multipliers = self.compute_transport_multipliers(
           runtime_params,
@@ -250,13 +250,18 @@ class PedestalModel(static_dataclass.StaticDataclass):
         formation_state=pedestal_state.formation,
     )
     match runtime_params.pedestal.mode:
-      case pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT:
+      case (
+          pedestal_runtime_params_lib.PedestalGenerationMode.ADAPTIVE_TRANSPORT
+      ):
         updated_transition_state = _update_adaptive_transport(
             pedestal_transition_state,
             trigger_l_to_h_transition,
             trigger_h_to_l_transition,
         )
-      case pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION:
+      case (
+          pedestal_runtime_params_lib.PedestalGenerationMode
+          .INTERNAL_BOUNDARY_CONDITION
+      ):
         updated_transition_state = _update_internal_boundary_condition(
             pedestal_transition_state,
             runtime_params,

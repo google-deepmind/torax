@@ -967,7 +967,8 @@ class TransportModelTest(parameterized.TestCase):
     runtime_params = mock.Mock()
     runtime_params.transport = combined_params
     runtime_params.pedestal.mode = (
-        pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+        pedestal_runtime_params_lib.PedestalGenerationMode
+        .INTERNAL_BOUNDARY_CONDITION
     )
     runtime_params.profile_conditions.internal_boundary_conditions = None
     core_profiles = mock.Mock()

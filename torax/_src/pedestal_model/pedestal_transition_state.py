@@ -201,7 +201,7 @@ class PedestalTransitionState:
     """
     if (
         pedestal_runtime_params.mode
-        == runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+        == runtime_params_lib.PedestalGenerationMode.INTERNAL_BOUNDARY_CONDITION
     ):
       scaled_structure = self._get_scaled_pedestal_model_output(
           t=t,
@@ -224,7 +224,7 @@ class PedestalTransitionState:
     """Returns whether the pedestal IBC is actively controlling the edge."""
     if (
         pedestal_runtime_params.mode
-        != runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+        != runtime_params_lib.PedestalGenerationMode.INTERNAL_BOUNDARY_CONDITION
     ):
       return False
 
@@ -240,7 +240,7 @@ class PedestalTransitionState:
     """Builds the internal boundary conditions produced by the pedestal model."""
     if (
         pedestal_runtime_params.mode
-        == runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION
+        == runtime_params_lib.PedestalGenerationMode.INTERNAL_BOUNDARY_CONDITION
     ):
       pedestal_model_output = self._get_scaled_pedestal_model_output(
           t=t,

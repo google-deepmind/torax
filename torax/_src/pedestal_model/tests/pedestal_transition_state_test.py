@@ -155,27 +155,39 @@ class PedestalTransitionStateTest(parameterized.TestCase):
 
   @parameterized.parameters(
       (
-          pedestal_runtime_params_lib.Mode.ADAPTIVE_TRANSPORT,
+          pedestal_runtime_params_lib.PedestalGenerationMode.ADAPTIVE_TRANSPORT,
           pedestal_runtime_params_lib.ConfinementMode.H_MODE,
           False,
       ),
       (
-          pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
+          (
+              pedestal_runtime_params_lib.PedestalGenerationMode
+              .INTERNAL_BOUNDARY_CONDITION
+          ),
           pedestal_runtime_params_lib.ConfinementMode.L_MODE,
           False,
       ),
       (
-          pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
+          (
+              pedestal_runtime_params_lib.PedestalGenerationMode
+              .INTERNAL_BOUNDARY_CONDITION
+          ),
           pedestal_runtime_params_lib.ConfinementMode.H_MODE,
           True,
       ),
       (
-          pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
+          (
+              pedestal_runtime_params_lib.PedestalGenerationMode
+              .INTERNAL_BOUNDARY_CONDITION
+          ),
           pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_H_MODE,
           True,
       ),
       (
-          pedestal_runtime_params_lib.Mode.INTERNAL_BOUNDARY_CONDITION,
+          (
+              pedestal_runtime_params_lib.PedestalGenerationMode
+              .INTERNAL_BOUNDARY_CONDITION
+          ),
           pedestal_runtime_params_lib.ConfinementMode.TRANSITIONING_TO_L_MODE,
           True,
       ),

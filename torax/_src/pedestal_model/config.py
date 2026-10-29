@@ -491,9 +491,9 @@ class PedestalConfig(torax_pydantic.ConfigBase):
   structure_model: StructureConfig = torax_pydantic.ValidatedDefault(
       NoPedestalConfig()
   )
-  mode: Annotated[runtime_params.Mode, torax_pydantic.JAX_STATIC] = (
-      runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
-  )
+  mode: Annotated[
+      runtime_params.PedestalGenerationMode, torax_pydantic.JAX_STATIC
+  ] = runtime_params.PedestalGenerationMode.INTERNAL_BOUNDARY_CONDITION
   transition_time_width: torax_pydantic.NonNegativeTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
@@ -555,14 +555,18 @@ class PedestalConfig(torax_pydantic.ConfigBase):
 
     if (
         "formation_model" not in self.model_fields_set
-        and self.mode == runtime_params.Mode.ADAPTIVE_TRANSPORT
+        and self.mode
+        == runtime_params.PedestalGenerationMode.ADAPTIVE_TRANSPORT
     ):
       raise ValueError(
           "formation_model must be explicitly specified when mode is"
           " ADAPTIVE_TRANSPORT."
       )
     if (
-        self.mode == runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION
+        (
+            self.mode
+            == runtime_params.PedestalGenerationMode.INTERNAL_BOUNDARY_CONDITION
+        )
         and "transition_time_width" not in self.model_fields_set
         and not isinstance(self.formation_model, PrescribedFormationConfig)
     ):

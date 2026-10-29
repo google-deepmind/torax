@@ -24,7 +24,7 @@ from torax._src import array_typing
 
 
 @enum.unique
-class Mode(enum.StrEnum):
+class PedestalGenerationMode(enum.StrEnum):
   """Defines how the pedestal is generated."""
 
   # The pedestal is set by modifying the transport coefficients.
@@ -127,7 +127,7 @@ class RuntimeParams:
       directly in H-mode without L-mode profile data.
   """
 
-  mode: Mode = jax.tree.static()
+  mode: PedestalGenerationMode = jax.tree.static()
   transition_time_width: array_typing.FloatScalar
   explicit_pedestal: bool = jax.tree.static()
   structure: StructureRuntimeParams
