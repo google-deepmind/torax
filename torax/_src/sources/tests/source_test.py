@@ -86,7 +86,8 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
-    np.testing.assert_allclose(profile.profiles[0], np.zeros_like(geo.rho_norm))
+    assert profile.j_parallel is not None
+    np.testing.assert_allclose(profile.j_parallel, np.zeros_like(geo.rho_norm))
 
   @parameterized.parameters(
       (sources_runtime_params_lib.Mode.ZERO, np.array([0, 0, 0, 0])),
@@ -111,7 +112,7 @@ class SourceTest(parameterized.TestCase):
             args[-1] if args else source_state_lib.SourceState(),
         )
         return (
-            source_profiles.SourceOutput(profiles=(np.full([4], 42.0),)),
+            source_profiles.SourceOutput(j_parallel=np.full([4], 42.0)),
             source_state,
         )
 
@@ -141,8 +142,9 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
+    assert profile.j_parallel is not None
     np.testing.assert_allclose(
-        profile.profiles[0],
+        profile.j_parallel,
         expected_profile,
         atol=1e-6,
         rtol=1e-6,
@@ -171,15 +173,16 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
-    self.assertLen(profile.profiles, 2)
+    assert profile.power_density_e is not None
+    assert profile.j_parallel is not None
     np.testing.assert_allclose(
-        profile.profiles[0],
+        profile.power_density_e,
         np.full([4], 3.0),
         atol=1e-6,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        profile.profiles[1],
+        profile.j_parallel,
         np.full([4], 4.0),
         atol=1e-6,
         rtol=1e-6,

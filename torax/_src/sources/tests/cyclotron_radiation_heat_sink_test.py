@@ -167,7 +167,8 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
-    (q_cycl,) = output.profiles
+    q_cycl = output.power_density_e
+    assert q_cycl is not None
     self.assertFalse(np.any(np.isnan(q_cycl)))
     self.assertTrue(np.all(np.isfinite(q_cycl)))
     self.assertTrue(np.all(q_cycl <= 0.0))

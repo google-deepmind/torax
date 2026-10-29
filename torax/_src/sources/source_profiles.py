@@ -13,8 +13,9 @@
 # limitations under the License.
 """Source/sink profiles for all the sources in TORAX."""
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Collection, Iterator, Mapping
 import dataclasses
+import enum
 import operator
 from typing import Any, Literal, Self
 
@@ -31,19 +32,79 @@ from torax._src.physics import fast_ion as fast_ion_lib
 # pylint: disable=invalid-name
 
 
+@enum.unique
+class AffectedCoreProfile(enum.StrEnum):
+  """Defines which part of the core profiles the source helps evolve.
+
+  The profiles of each source/sink are terms included in equations evolving
+  different core profiles. This enum maps a source to those equations, and its
+  values correspond to the field names on `SourceOutput`.
+  """
+
+  # Current density equation.
+  PSI = 'j_parallel'
+  # Electron density equation.
+  NE = 'particle_source'
+  # Ion temperature equation.
+  TEMP_ION = 'power_density_i'
+  # Electron temperature equation.
+  TEMP_EL = 'power_density_e'
+
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class SourceOutput:
   """Output of a single Source model evaluation for one time step.
 
   Attributes:
-    profiles: Tuple of 1D cell-grid profiles corresponding to
-      `Source.AFFECTED_CORE_PROFILES` in the same order.
+    power_density_i: Ion power density profile on the cell grid [W/m^3].
+    power_density_e: Electron power density profile on the cell grid [W/m^3].
+    j_parallel: Parallel current density profile on the cell grid [A/m^2].
+    particle_source: Electron particle source profile on the cell grid [m^-3
+      s^-1].
     fast_ions: Fast ion species distributions produced by this source, if any.
   """
 
-  profiles: tuple[array_typing.FloatVectorCell, ...]
+  power_density_i: array_typing.FloatVectorCell | None = None
+  power_density_e: array_typing.FloatVectorCell | None = None
+  j_parallel: array_typing.FloatVectorCell | None = None
+  particle_source: array_typing.FloatVectorCell | None = None
   fast_ions: tuple[fast_ion_lib.FastIon, ...] = ()
+
+  @classmethod
+  def zeros(
+      cls,
+      geo: geometry.Geometry,
+      affected_core_profiles: Collection[AffectedCoreProfile] | None = None,
+  ) -> Self:
+    """Returns a SourceOutput with zero profiles for affected core profiles."""
+    zero_profile = jnp.zeros(geo.rho_norm.shape)
+    if affected_core_profiles is None:
+      return cls(
+          power_density_i=zero_profile,
+          power_density_e=zero_profile,
+          j_parallel=zero_profile,
+          particle_source=zero_profile,
+      )
+    profiles = set(affected_core_profiles)
+    return cls(
+        power_density_i=(
+            zero_profile
+            if AffectedCoreProfile.TEMP_ION in profiles
+            else None
+        ),
+        power_density_e=(
+            zero_profile
+            if AffectedCoreProfile.TEMP_EL in profiles
+            else None
+        ),
+        j_parallel=(
+            zero_profile if AffectedCoreProfile.PSI in profiles else None
+        ),
+        particle_source=(
+            zero_profile if AffectedCoreProfile.NE in profiles else None
+        ),
+    )
 
 
 @jax.tree_util.register_dataclass
@@ -151,8 +212,8 @@ class SourceProfiles:
     Returns:
       A SourceProfiles with non-zero profiles for all sources, both explicit and
       implicit (assuming the source model outputted a non-zero profile).
-
     """
+
     def _is_fast_ions_dict(x: Any) -> bool:
       return isinstance(x, dict) and all(
           isinstance(v, tuple)

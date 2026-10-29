@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Generic heat source for both ion and electron heat."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 
@@ -76,8 +77,8 @@ class GenericIonElectronHeatSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(ion_heat_profile,
-      electron_heat_profile)), source_state).
+      A tuple of (SourceOutput(power_density_i=ion_heat_profile,
+      power_density_e=electron_heat_profile), source_state).
     """
     del core_profiles, calculated_source_profiles, conductivity  # Unused.
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -92,7 +93,9 @@ class GenericIonElectronHeatSource(source.Source):
     source_ion = profile * (1 - source_params.electron_heat_fraction)
     source_el = profile * source_params.electron_heat_fraction
     return (
-        source_profiles.SourceOutput(profiles=(source_ion, source_el)),
+        source_profiles.SourceOutput(
+            power_density_i=source_ion, power_density_e=source_el
+        ),
         source_state,
     )
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Gas puff source for the n_e equation."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 
@@ -73,7 +74,7 @@ class GasPuffSource(source.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_density_profile,)),
+      A tuple of (SourceOutput(particle_source=electron_density_profile),
       source_state).
     """
     del core_profiles, calculated_source_profiles, conductivity
@@ -85,7 +86,7 @@ class GasPuffSource(source.Source):
         total=source_params.S_total,
         geo=geo,
     )
-    return source_profiles.SourceOutput(profiles=(profile,)), source_state
+    return source_profiles.SourceOutput(particle_source=profile), source_state
 
 
 class GasPuffSourceConfig(base.SourceConfigBase):

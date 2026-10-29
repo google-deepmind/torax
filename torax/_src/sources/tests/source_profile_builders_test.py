@@ -101,7 +101,7 @@ class SourceModelsTest(parameterized.TestCase):
         source_state = kwargs.get('source_state', args[-1])
         return (
             source_profiles.SourceOutput(
-                profiles=(jnp.ones(self_test.geo.rho.shape),)
+                j_parallel=jnp.ones(self_test.geo.rho.shape)
             ),
             source_state,
         )
@@ -160,7 +160,8 @@ class SourceModelsTest(parameterized.TestCase):
         source_state = kwargs.get('source_state', args[-1])
         return (
             source_profiles.SourceOutput(
-                profiles=(jnp.ones_like(self_test.geo.rho),) * 2
+                power_density_i=jnp.ones_like(self_test.geo.rho),
+                power_density_e=jnp.ones_like(self_test.geo.rho),
             ),
             source_state,
         )
@@ -249,7 +250,7 @@ class SourceModelsTest(parameterized.TestCase):
         source_state = kwargs.get('source_state', args[-1])
         return (
             source_profiles.SourceOutput(
-                profiles=(jnp.ones(self_test.geo.rho.shape),)
+                j_parallel=jnp.ones(self_test.geo.rho.shape)
             ),
             source_state,
         )

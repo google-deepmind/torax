@@ -138,7 +138,18 @@ class SingleProfileSourceTestCase(SourceTestCase):
         conductivity=conductivity,
         source_state=source.initial_state(runtime_params),
     )
-    value = output.profiles[0]
+    profiles = [
+        p
+        for p in (
+            output.power_density_i,
+            output.power_density_e,
+            output.j_parallel,
+            output.particle_source,
+        )
+        if p is not None
+    ]
+    self.assertLen(profiles, 1)
+    value = profiles[0]
     chex.assert_rank(value, 1)
     self.assertEqual(value.shape, geo.rho.shape)
 
@@ -172,10 +183,19 @@ class MultipleProfileSourceTestCase(SourceTestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
-    value = output.profiles
-    self.assertLen(value, 2)
-    self.assertEqual(value[0].shape, geo.rho.shape)
-    self.assertEqual(value[1].shape, geo.rho.shape)
+    profiles = [
+        p
+        for p in (
+            output.power_density_i,
+            output.power_density_e,
+            output.j_parallel,
+            output.particle_source,
+        )
+        if p is not None
+    ]
+    self.assertLen(profiles, 2)
+    self.assertEqual(profiles[0].shape, geo.rho.shape)
+    self.assertEqual(profiles[1].shape, geo.rho.shape)
 
-    self.assertFalse(jnp.any(jnp.isnan(value[0])))
-    self.assertFalse(jnp.any(jnp.isnan(value[1])))
+    self.assertFalse(jnp.any(jnp.isnan(profiles[0])))
+    self.assertFalse(jnp.any(jnp.isnan(profiles[1])))

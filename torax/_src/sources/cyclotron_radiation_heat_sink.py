@@ -15,6 +15,7 @@
 # pylint: disable=invalid-name
 
 """Cyclotron radiation heat sink for electron heat equation.."""
+
 import dataclasses
 from typing import Annotated, ClassVar, Literal, Self
 
@@ -283,7 +284,7 @@ class CyclotronRadiationHeatSink(source.Source):
         by this model and passed through unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
+      A tuple of (SourceOutput(power_density_e=electron_heat_profile),
       source_state).
     """
     del calculated_source_profiles, conductivity
@@ -362,7 +363,7 @@ class CyclotronRadiationHeatSink(source.Source):
     rescaling_factor = P_cycl_total / denom
     Q_cycl = Q_cycl_shape * rescaling_factor
 
-    return source_profiles.SourceOutput(profiles=(-Q_cycl,)), source_state
+    return source_profiles.SourceOutput(power_density_e=-Q_cycl), source_state
 
 
 class CyclotronRadiationHeatSinkConfig(base.SourceConfigBase):

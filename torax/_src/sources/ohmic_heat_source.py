@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Ohmic heat source."""
+
 # pylint: disable=invalid-name
 
 import dataclasses
@@ -69,7 +70,7 @@ class OhmicHeatSource(source_lib.Source):
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
+      A tuple of (SourceOutput(power_density_e=electron_heat_profile),
       source_state).
     """
     if calculated_source_profiles is None:
@@ -114,7 +115,7 @@ class OhmicHeatSource(source_lib.Source):
     )
     E_dot_B = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot_fixed_phi
     P_ohm = conductivity.sigma * E_dot_B**2 / geo.gm5
-    return source_profiles.SourceOutput(profiles=(P_ohm,)), source_state
+    return source_profiles.SourceOutput(power_density_e=P_ohm), source_state
 
 
 class OhmicHeatSourceConfig(base.SourceConfigBase):

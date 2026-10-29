@@ -23,7 +23,6 @@ from torax._src.sources.tests import test_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import torax_refs
 
-
 # pylint: disable=invalid-name
 
 
@@ -51,7 +50,10 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
         conductivity=None,
         source_state=source.initial_state(runtime_params),
     )
-    Pfus_i, Pfus_e = output.profiles
+    Pfus_i = output.power_density_i
+    Pfus_e = output.power_density_e
+    assert Pfus_i is not None
+    assert Pfus_e is not None
     # Total fusion power to charged particles (alphas) is Pfus_i + Pfus_e.
     # Total DT fusion power includes neutrons: P_total = P_alpha / (3.5 / 17.6).
     torax_alpha_power = (
