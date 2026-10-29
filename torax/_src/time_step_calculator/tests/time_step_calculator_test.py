@@ -210,6 +210,22 @@ class TimeStepCalculatorTest(parameterized.TestCase):
     )
     self.assertAlmostEqual(float(dt_after_later_crash), 0.75)
 
+  def test_backtrack_dt(self):
+    calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        'dt_backtracking_factor': 2.0,
+    }
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    _, _, step_fn = run_simulation.prepare_simulation(torax_config)
+    runtime_params_t = step_fn.runtime_params_provider(t=0.0)
+    dt = calculator.backtrack_dt(
+        initial_dt=0.4,
+        attempt=2,
+        runtime_params=runtime_params_t,
+    )
+    self.assertAlmostEqual(float(dt), 0.1)
 
 if __name__ == '__main__':
   absltest.main()

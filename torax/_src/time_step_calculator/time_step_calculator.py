@@ -18,6 +18,7 @@ import abc
 
 import jax
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.time_step_calculator import runtime_params as time_step_calculator_params
@@ -95,6 +96,18 @@ class TimeStepCalculator(abc.ABC):
         dt,
     )
     return dt
+
+  def backtrack_dt(
+      self,
+      initial_dt: array_typing.FloatScalar,
+      attempt: array_typing.IntScalar,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> jax.Array:
+    """Returns the reduced trial timestep for backtracking attempt `attempt`."""
+    return (
+        jnp.asarray(initial_dt)
+        / runtime_params.time_step_calculator.dt_backtracking_factor**attempt
+    )
 
   @abc.abstractmethod
   def _next_dt(

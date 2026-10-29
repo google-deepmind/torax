@@ -32,6 +32,7 @@ from torax._src.geometry import geometry_provider as geometry_provider_lib
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import sim_state
 from torax._src.solver import solver as solver_lib
+from torax._src.time_step_calculator import time_step_calculator as time_step_calculator_lib
 
 
 @jax.tree_util.register_dataclass
@@ -75,9 +76,9 @@ def create_initial_state(
 
 
 def compute_state(
-    i: chex.Numeric,
+    i: array_typing.IntScalar,
     loop_statistics: dict[str, array_typing.IntScalar],
-    initial_dt: chex.Numeric,
+    initial_dt: array_typing.FloatScalar,
     runtime_params_t: runtime_params_lib.RuntimeParams,
     geo_t: geometry.Geometry,
     input_state: sim_state.SimState,
@@ -87,11 +88,13 @@ def compute_state(
     geometry_provider: geometry_provider_lib.GeometryProvider,
     model_state_t: model_state_lib.ModelState,
     solver: solver_lib.Solver,
+    time_step_calculator: time_step_calculator_lib.TimeStepCalculator,
 ) -> tuple[AdaptiveStepState, dict[str, array_typing.IntScalar]]:
   """Computes the state for attempt i of the adaptive step."""
-  dt = (
-      initial_dt
-      / runtime_params_t.time_step_calculator.dt_backtracking_factor**i
+  dt = time_step_calculator.backtrack_dt(
+      initial_dt=initial_dt,
+      attempt=i,
+      runtime_params=runtime_params_t,
   )
   runtime_params_t_plus_dt, geo_t_plus_dt = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(

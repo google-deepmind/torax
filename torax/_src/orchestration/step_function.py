@@ -502,6 +502,7 @@ class SimulationStepFn:
         functools.partial(
             adaptive_step.compute_state,
             solver=self.solver,
+            time_step_calculator=self.time_step_calculator,
         ),
         (
             initial_state,

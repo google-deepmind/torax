@@ -103,6 +103,7 @@ class AdaptiveStepTest(parameterized.TestCase):
         geometry_provider=self.step_fn.geometry_provider,
         model_state_t=self.sim_state.model_state,
         solver=self.step_fn.solver,
+        time_step_calculator=self.step_fn.time_step_calculator,
     )
     self.assertIsInstance(adaptive_step_state, adaptive_step.AdaptiveStepState)
 
