@@ -34,6 +34,8 @@ generic_current_profiles = np.array([
 # Create the config
 CONFIG = {
     'profile_conditions': {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'nbar': 0.85,
         'n_e_nbar_is_fGW': True,

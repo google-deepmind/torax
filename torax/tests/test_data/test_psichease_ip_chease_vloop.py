@@ -22,6 +22,7 @@
 
 CONFIG = {
     'profile_conditions': {
+        'I_p_source': 'geometry',
         'initial_psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
         'use_v_loop_lcfs_boundary_condition': True,
@@ -46,7 +47,6 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'I_p_from_parameters': False,
     },
     'sources': {
         'generic_heat': {

@@ -118,6 +118,7 @@ def circular_references() -> References:
   torax_config = config.ToraxConfig.from_dict({
       'profile_conditions': {
           'I_p': 15e6,
+          'I_p_source': 'profile_conditions',
           'initial_psi_source': 'j',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
@@ -143,6 +144,7 @@ def chease_references_I_p_from_chease() -> References:
   torax_config = config.ToraxConfig.from_dict({
       'profile_conditions': {
           'I_p': 15e6,
+          'I_p_source': 'geometry',
           'initial_psi_source': 'geometry',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
@@ -154,7 +156,6 @@ def chease_references_I_p_from_chease() -> References:
       'plasma_composition': {},
       'geometry': {
           'geometry_type': 'chease',
-          'I_p_from_parameters': False,
       },
       'transport': {},
       'solver': {},
@@ -171,6 +172,7 @@ def chease_references_I_p_from_runtime_params() -> References:
   torax_config = config.ToraxConfig.from_dict({
       'profile_conditions': {
           'I_p': 15e6,
+          'I_p_source': 'profile_conditions',
           'initial_psi_source': 'geometry',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
@@ -182,7 +184,6 @@ def chease_references_I_p_from_runtime_params() -> References:
       'plasma_composition': {},
       'geometry': {
           'geometry_type': 'chease',
-          'I_p_from_parameters': True,
       },
       'transport': {},
       'solver': {},

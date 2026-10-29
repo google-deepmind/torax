@@ -174,6 +174,8 @@ class InitializationTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions'] = {
         'psi': psi,
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'profile_conditions',
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -238,11 +240,15 @@ class InitializationTest(parameterized.TestCase):
 
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
+        I_p=15e6,
+        I_p_source='profile_conditions',
         initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
     profile_conditions2 = dict(
         initial_j_is_total_current=False,
+        I_p=15e6,
+        I_p_source='profile_conditions',
         initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
@@ -256,6 +262,7 @@ class InitializationTest(parameterized.TestCase):
     # calculate total and Ohmic current profile references
     jformula = (1 - geo.rho_norm**2) ** _CURRENT_PROFILE_NU
     denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
+    assert torax_config.profile_conditions.I_p is not None
     ctot = torax_config.profile_conditions.I_p.value[0] / denom
     j_toroidal_total1_expected = jformula * ctot
     j_toroidal_ohmic2_expected = j_toroidal_total1_expected * (
@@ -342,6 +349,8 @@ class InitializationTest(parameterized.TestCase):
 
     profile_conditions1 = dict(
         initial_j_is_total_current=True,
+        I_p=15e6,
+        I_p_source='profile_conditions',
         initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )
@@ -365,6 +374,8 @@ class InitializationTest(parameterized.TestCase):
 
     profile_conditions2 = dict(
         initial_j_is_total_current=False,
+        I_p=15e6,
+        I_p_source='profile_conditions',
         initial_psi_source='j',
         current_profile_nu=_CURRENT_PROFILE_NU,
     )

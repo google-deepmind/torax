@@ -108,6 +108,7 @@ def get_sawtooth_test_config_dict() -> Mapping[str, Any]:
       'profile_conditions': {
           'I_p': 13e6,
           'initial_j_is_total_current': True,
+          'I_p_source': 'profile_conditions',
           'initial_psi_source': 'j',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,

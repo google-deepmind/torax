@@ -133,6 +133,8 @@ class GettersTest(parameterized.TestCase):
     expected_value = np.array([1.4375e20, 1.3125e20, 1.1875e20, 1.0625e20])
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict(
         {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': {0: {0: 1.5e20, 1: 1e20}},
             'n_e_nbar_is_fGW': False,
@@ -285,6 +287,8 @@ class GettersTest(parameterized.TestCase):
       n_e = {0: {0: 1.5e20, 1: 1e20}}
 
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': n_e,
         'n_e_nbar_is_fGW': n_e_nbar_is_fGW,
@@ -314,6 +318,8 @@ class GettersTest(parameterized.TestCase):
     nbar = 1e20
     numerics = numerics_lib.NumericsConfig.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_nbar_is_fGW': False,
@@ -351,6 +357,8 @@ class GettersTest(parameterized.TestCase):
     """Tests setting the Greenwald fraction vs. not gives consistent results."""
     numerics = numerics_lib.NumericsConfig.from_dict({})
     profile_conditions = profile_conditions_lib.ProfileConditions.from_dict({
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': {0: {0: 1.5, 1: 1}},
         'n_e_nbar_is_fGW': True,
@@ -391,6 +399,8 @@ class GettersTest(parameterized.TestCase):
     expected_value = np.array([1.4375e20, 1.3125e20, 1.1875e20, 1.0625e20])
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions'] = {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': {0: {0: 1.5e20, 1: 1e20}},
         'n_e_nbar_is_fGW': False,
@@ -525,6 +535,8 @@ class GettersTest(parameterized.TestCase):
     impurity_fraction_he3 = 1.0 - impurity_fraction_w
     config_dict = {
         'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': n_e,
             'T_e': T_e,
@@ -629,6 +641,8 @@ class GettersTest(parameterized.TestCase):
     impurity_fraction_he3 = 1.0 - impurity_fraction_w
     config_dict = {
         'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': n_e,
             'T_e': T_e,
@@ -738,6 +752,8 @@ class GettersTest(parameterized.TestCase):
     # 3. Create the two configurations
     base_config_dict = {
         'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
@@ -817,6 +833,8 @@ class GettersTest(parameterized.TestCase):
 
     config_dict = {
         'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
@@ -921,6 +939,8 @@ class GettersTest(parameterized.TestCase):
 
     base_config_dict = {
         'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
@@ -1016,6 +1036,8 @@ class GettersTest(parameterized.TestCase):
     # 2. Create the two configurations
     base_config_dict = {
         'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
@@ -1117,6 +1139,8 @@ class GettersTest(parameterized.TestCase):
 
     base_config_dict = {
         'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,
@@ -1234,7 +1258,11 @@ class GettersTest(parameterized.TestCase):
       self, impurity_mode, species, Z_eff
   ):
     config_dict = {
-        'profile_conditions': {'initial_psi_source': 'j'},
+        'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
+            'initial_psi_source': 'j',
+        },
         'plasma_composition': {
             'main_ion': 'D',
             'impurity': {

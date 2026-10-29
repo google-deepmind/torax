@@ -402,11 +402,12 @@ class StepFunctionTest(parameterized.TestCase):
     params_provider = step_fn.runtime_params_provider
 
     # Run a step with overridden I_p.
+    assert params_provider.profile_conditions.I_p is not None
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=params_provider.profile_conditions.I_p.value * 2.0  # pyrefly: ignore[bad-argument-type]
     )
     runtime_params_overrides = params_provider.update_provider(
-        lambda x: (x.profile_conditions.I_p,),
+        lambda x: (x.profile_conditions.I_p,),  # pyrefly: ignore[bad-argument-type]
         (ip_update,),
     )
     override_state, override_post_processed_outputs = step_fn(

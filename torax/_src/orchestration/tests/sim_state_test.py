@@ -38,7 +38,6 @@ class SimStateTest(parameterized.TestCase):
   def _make_geometry(self, **overrides) -> standard_geometry.StandardGeometry:
     defaults = dict(
         geometry_type=geometry.GeometryType.FBT,
-        I_p_from_parameters=True,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,

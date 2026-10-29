@@ -64,7 +64,6 @@ class GeometryConfigTest(parameterized.TestCase):
 
     base_config_dict = {
         'geometry_type': 'chease',
-        'I_p_from_parameters': True,
         'n_rho': 10,  # overrides the default
         'geometry_configs': {
             0.0: {
@@ -99,7 +98,6 @@ class GeometryConfigTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(param='n_rho', value=5),
-      dict(param='I_p_from_parameters', value=True),
       dict(param='geometry_directory', value='.'),
   ])
   def test_build_time_dependent_geometry_from_chease_failure(
@@ -108,7 +106,6 @@ class GeometryConfigTest(parameterized.TestCase):
 
     base_config_dict = {
         'geometry_type': 'chease',
-        'I_p_from_parameters': True,
         'n_rho': 10,  # overrides the default
         'geometry_configs': {
             0.0: {
@@ -139,9 +136,9 @@ class GeometryConfigTest(parameterized.TestCase):
   def test_chease_geometry_updates_I_p(self):
     """Tests that the I_p is updated when using chease geometry."""
     config_dict = default_configs.get_default_config_dict()
+    config_dict['profile_conditions']['I_p_source'] = 'geometry'
     config_dict['geometry'] = {
         'geometry_type': 'chease',
-        'I_p_from_parameters': False,
         'n_rho': 4,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -157,6 +154,7 @@ class GeometryConfigTest(parameterized.TestCase):
         )
     )
     original_I_p = torax_config.profile_conditions.I_p
+    assert original_I_p is not None
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
     self.assertIsNotNone(runtime_params)
     self.assertNotEqual(
@@ -184,7 +182,6 @@ class GeometryConfigTest(parameterized.TestCase):
     config_dict = {
         'geometry_type': 'eqdsk',
         'geometry_file': 'iterhybrid_cocos02.eqdsk',
-        'I_p_from_parameters': True,
         'last_surface_factor': 0.99,
         'n_surfaces': 100,
         'cocos': 2,

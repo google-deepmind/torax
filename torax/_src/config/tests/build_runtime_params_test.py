@@ -49,6 +49,8 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     """Tests that the runtime_params provider is time dependent."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions'] = {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'T_i_right_bc': {0.0: 2.0, 4.0: 4.0},
     }
@@ -70,6 +72,8 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     # All of the following parameters are time-dependent fields, but they can
     # be initialized in different ways.
     profile_conditions = profile_conditions_lib.ProfileConditions(
+        I_p=15e6,
+        I_p_source='profile_conditions',
         initial_psi_source='j',
         T_i_right_bc={0.0: 2.0, 4.0: 4.0},
         T_e_right_bc=4.5,  # not time-dependent.
@@ -194,6 +198,8 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
     boundary_var_name = var_name + '_right_bc'
 
     temperatures = {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         var_name: var,
         boundary_var_name: var_boundary_condition,
@@ -247,7 +253,10 @@ class BuildRuntimeParamsTest(parameterized.TestCase):
         else {0.0: {0.0: 1.5e20, 1.0: 1.0e20}}
     )
 
+    config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions'] = {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e_right_bc': n_e_right_bc,
         'n_e_right_bc_is_fGW': n_e_right_bc_is_fGW,
@@ -331,6 +340,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
   def test_update_runtime_params_provider(self):
     params_provider = self._params_provider
     # Create updates for a `TimeVaryingScalar`, `TimeVaryingArray` and `float`.
+    assert params_provider.profile_conditions.I_p is not None
     I_p_value = params_provider.profile_conditions.I_p.value
     I_p_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=I_p_value * 2.0,  # pyrefly: ignore[bad-argument-type]
@@ -349,13 +359,14 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     @jax.jit
     def f(I_p_update, T_e_update, qei_update):
       provider_new = params_provider.update_provider(
-          lambda x: (
+          lambda x: (  # pyrefly: ignore[bad-argument-type]
               x.profile_conditions.I_p,
               x.profile_conditions.T_e,
               x.sources.ei_exchange.Qei_multiplier,
           ),
           (I_p_update, T_e_update, qei_update),
       )
+      assert provider_new.profile_conditions.I_p is not None
       t = jnp.array(1.0)
       return (
           provider_new.profile_conditions.I_p.get_value(t),
@@ -432,6 +443,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
   def test_update_runtime_params_provider_result_can_be_updated_again(self):
     params_provider = self._params_provider
+    assert params_provider.profile_conditions.I_p is not None
     I_p_value = params_provider.profile_conditions.I_p.value
     I_p_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=I_p_value * 2.0,  # pyrefly: ignore[bad-argument-type]
@@ -440,19 +452,21 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         value=I_p_value * 4.0,  # pyrefly: ignore[bad-argument-type]
     )
     updated_provider = params_provider.update_provider(
-        lambda x: (x.profile_conditions.I_p,),
+        lambda x: (x.profile_conditions.I_p,),  # pyrefly: ignore[bad-argument-type]
         (I_p_update,),
     )
     re_updated_provider = updated_provider.update_provider(
-        lambda x: (x.profile_conditions.I_p,),
+        lambda x: (x.profile_conditions.I_p,),  # pyrefly: ignore[bad-argument-type]
         (I_p_second_update,),
     )
+    assert re_updated_provider.profile_conditions.I_p is not None
     final_I_p = re_updated_provider.profile_conditions.I_p.get_value(0.0)
     original_I_p = params_provider.profile_conditions.I_p.get_value(0.0)
     np.testing.assert_allclose(final_I_p, original_I_p * 4.0)
 
   def test_update_runtime_params_provider_mapping(self):
     params_provider = self._params_provider
+    assert params_provider.profile_conditions.I_p is not None
     I_p_value = params_provider.profile_conditions.I_p.value
     I_p_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=I_p_value * 2.0,  # pyrefly: ignore[bad-argument-type]
@@ -479,6 +493,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
               'sources.ei_exchange.Qei_multiplier': Qei_multiplier_update,
           },
       )
+      assert provider_new.profile_conditions.I_p is not None
       # this provider can then be used as overrides for the step function.
       t = jnp.array(0.0)
       return (
@@ -493,6 +508,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
     # then
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
+    assert self._params_provider.profile_conditions.I_p is not None
     original_I_p_value = self._params_provider.profile_conditions.I_p.get_value(
         0.0
     )
@@ -522,6 +538,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
   def test_update_runtime_params_provider_mapping_raises_for_invalid_key(self):
+    assert self._params_provider.profile_conditions.I_p is not None
     value = self._params_provider.profile_conditions.I_p.value
     I_p_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=value * 2.0,  # pyrefly: ignore[bad-argument-type]
@@ -543,6 +560,8 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     """Tests density_fraction mode with core_profiles=None (init fallback)."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions'] = {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e': {0: {0.0: 1.5e20, 1.0: 1.0e20}},
         'n_e_nbar_is_fGW': False,
@@ -588,6 +607,8 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     """Tests density_fraction mode with a mock CoreProfiles."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions'] = {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e_right_bc_mode': 'density_fraction',
         'n_e_right_bc_reference_rho': 0.5,
@@ -628,6 +649,45 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     )
     self.assertTrue(runtime_params.profile_conditions.n_e_right_bc_is_absolute)
     self.assertFalse(runtime_params.profile_conditions.n_e_right_bc_is_fGW)
+
+  def test_get_consistent_runtime_params_and_geometry_with_I_p_none(self):
+    """Tests that I_p is populated from geometry before density_fraction BC."""
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {
+        'geometry_type': 'chease',
+        'geometry_file': 'iterhybrid.mat2cols',
+    }
+    del config_dict['profile_conditions']['I_p']
+    config_dict['profile_conditions']['I_p_source'] = 'geometry'
+    config_dict['profile_conditions']['n_e'] = {0.0: {0.0: 1.5, 1.0: 1.0}}
+    config_dict['profile_conditions']['nbar'] = 1.0
+    config_dict['profile_conditions']['n_e_nbar_is_fGW'] = True
+    config_dict['profile_conditions']['normalize_n_e_to_nbar'] = True
+    config_dict['profile_conditions']['n_e_right_bc_mode'] = 'density_fraction'
+    config_dict['profile_conditions']['n_e_right_bc_reference_rho'] = 0.5
+    config_dict['profile_conditions']['n_e_right_bc_multiplier'] = 0.8
+
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    self.assertIsNone(torax_config.profile_conditions.I_p)
+    dcs_provider = build_runtime_params.RuntimeParamsProvider.from_config(
+        torax_config
+    )
+    geo_provider = torax_config.geometry.build_provider
+    geo = geo_provider(0.0)
+
+    runtime_params, _ = (
+        build_runtime_params.get_consistent_runtime_params_and_geometry(
+            t=0.0,
+            runtime_params_provider=dcs_provider,
+            geometry_provider=geo_provider,
+            is_initialization=True,
+        )
+    )
+    np.testing.assert_allclose(
+        runtime_params.profile_conditions.I_p,
+        geo.I_p_profile_face[-1],  # pyrefly: ignore[missing-attribute]
+    )
+    self.assertGreater(runtime_params.profile_conditions.n_e_right_bc, 0.0)
 
 
 if __name__ == '__main__':

@@ -188,7 +188,6 @@ def _calculate_exact_trapped_fraction(IMAS_data: Any) -> np.ndarray:
 def _geometry_from_single_slice(
     equilibrium: ids_toplevel.IDSToplevel,
     face_centers: np.ndarray,
-    I_p_from_parameters: bool = False,
     hires_factor: int = 4,
     slice_index: int = 0,
     trapped_fraction_source: trapped_fraction_lib.TrappedFractionSource = (
@@ -200,8 +199,6 @@ def _geometry_from_single_slice(
   Args:
     equilibrium: The equilibrium IDS.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
-    I_p_from_parameters: If True, the I_p is taken from the parameters and the
-      values in the Geometry are rescaled to match the new I_p.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     slice_index: Index of the time slice to process.
@@ -382,7 +379,6 @@ def _geometry_from_single_slice(
   # TODO(b/446608829): Add support for edge geometries from IMAS.
 
   return {
-      "I_p_from_parameters": I_p_from_parameters,
       "R_major": R_major,
       "a_minor": np.asarray(IMAS_data.boundary.minor_radius),
       "B_0": B_0,
@@ -424,7 +420,6 @@ def _geometry_from_single_slice(
 def geometry_from_IMAS(
     face_centers: np.ndarray,
     geometry_directory: str | None = None,
-    I_p_from_parameters: bool = False,
     hires_factor: int = 4,
     equilibrium_object: ids_toplevel.IDSToplevel | None = None,
     imas_uri: str | None = None,
@@ -442,8 +437,6 @@ def geometry_from_IMAS(
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     geometry_directory: Directory where to find the equilibrium object. If None,
       it defaults to another dir. See `load_geo_data` implementation.
-    I_p_from_parameters: If True, the I_p is taken from the parameters and the
-      values in the Geometry are rescaled to match the new I_p.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     equilibrium_object: The equilibrium IDS containing the relevant data.
@@ -484,7 +477,6 @@ def geometry_from_IMAS(
         equilibrium=equilibrium,
         slice_index=idx,
         face_centers=face_centers,
-        I_p_from_parameters=I_p_from_parameters,
         hires_factor=hires_factor,
         trapped_fraction_source=trapped_fraction_source,
     )
@@ -495,7 +487,6 @@ def geometry_from_IMAS(
 def geometry_from_single_IMAS_slice(
     face_centers: np.ndarray,
     geometry_directory: str | None = None,
-    I_p_from_parameters: bool = False,
     hires_factor: int = 4,
     equilibrium_object: ids_toplevel.IDSToplevel | None = None,
     imas_uri: str | None = None,
@@ -524,8 +515,6 @@ def geometry_from_single_IMAS_slice(
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     geometry_directory: Directory where to find the equilibrium object. If None,
       it defaults to another dir. See `load_geo_data` implementation.
-    I_p_from_parameters: If True, the I_p is taken from the parameters and the
-      values in the Geometry are rescaled to match the new I_p.
     hires_factor: Grid refinement factor for poloidal flux <-> plasma current
       calculations.
     equilibrium_object: The equilibrium IDS containing the relevant data.
@@ -570,7 +559,6 @@ def geometry_from_single_IMAS_slice(
       equilibrium=equilibrium,
       slice_index=slice_index,
       face_centers=face_centers,
-      I_p_from_parameters=I_p_from_parameters,
       hires_factor=hires_factor,
       trapped_fraction_source=trapped_fraction_source,
   )

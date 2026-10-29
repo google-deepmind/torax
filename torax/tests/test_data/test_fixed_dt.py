@@ -17,6 +17,8 @@
 
 CONFIG = {
     'profile_conditions': {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'n_e_right_bc': 0.5e20,
     },

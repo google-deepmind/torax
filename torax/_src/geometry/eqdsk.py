@@ -63,9 +63,6 @@ class EQDSKConfig(base.GeometryConfigBase):
     eqdsk_object: In-memory EQDSKInterface object.
     geometry_type: Always set to 'eqdsk'.
     geometry_directory: Optionally overrides the default geometry directory.
-    I_p_from_parameters: Toggles whether total plasma current is read from the
-      configuration file, or from the geometry file. If True, then the `psi`
-      calculated from the geometry file is scaled to match the desired `I_p`.
     n_surfaces: Number of surfaces for which flux surface averages are
       calculated.
     last_surface_factor: Multiplication factor of the boundary poloidal flux,
@@ -97,7 +94,6 @@ class EQDSKConfig(base.GeometryConfigBase):
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )
-  I_p_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
   target_psi_grid_resolution: Annotated[int | None, pydantic.Field(ge=1)] = 128
@@ -146,7 +142,6 @@ class EQDSKConfig(base.GeometryConfigBase):
         geometry_directory=self.geometry_directory,
         geometry_file=self.geometry_file,
         eqdsk_object=self.eqdsk_object,
-        I_p_from_parameters=self.I_p_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         cocos=self.cocos,
@@ -289,7 +284,6 @@ def _construct_intermediates_from_eqdsk(
     geometry_file: str | None,
     eqdsk_object: eqdsk.EQDSKInterface | None,
     hires_factor: int,
-    I_p_from_parameters: bool,
     face_centers: np.ndarray,
     n_surfaces: int,
     last_surface_factor: float,
@@ -314,8 +308,6 @@ def _construct_intermediates_from_eqdsk(
       loaded from the geometry directory.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
-    I_p_from_parameters: If True, then I_p is taken from the config and the
-      values in the Geometry are rescaled.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     n_surfaces: Number of surfaces for which flux surface averages are
       calculated.
@@ -731,7 +723,6 @@ def _construct_intermediates_from_eqdsk(
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.EQDSK,
-      I_p_from_parameters=I_p_from_parameters,
       R_major=R_major,
       a_minor=a_minor,
       B_0=np.array(B_0),

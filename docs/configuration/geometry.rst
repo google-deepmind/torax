@@ -117,15 +117,6 @@ contain the following additional keys.
   Optionally set the geometry directory. This should be set to an absolute path.
   If not set, then the default is ``torax/data/third_party/geo``
 
-Geometry dicts for all non-circular geometry types can contain the following
-additional key.
-
-``I_p_from_parameters`` (bool [default = True])
-  Toggles whether total plasma current is read from the configuration file, or
-  from the geometry file or equilibrium object. If ``True``, then the
-  :math:`\psi` calculated from the geometry file or equilibrium object is scaled
-  to match the desired :math:`I_p`.
-
 Geometry dicts for analytical circular geometry require the following additional
 keys.
 
@@ -249,7 +240,6 @@ Geometry dicts for IMAS geometry also support the following optional keys.
 
   'geometry': {
       'geometry_type': 'imas',
-      'I_p_from_parameters': True,
       'imas_filepath': '/path/to/equilibrium.nc',
   }
 
@@ -259,7 +249,6 @@ Geometry dicts for IMAS geometry also support the following optional keys.
 
   'geometry': {
       'geometry_type': 'imas',
-      'I_p_from_parameters': True,
       'imas_filepath': '/path/to/equilibrium.nc',
       'slice_time': 40.0,
   }
@@ -281,7 +270,6 @@ input with 3 time-slices of single-time-slice FBT geometries can be set up as:
 
   'geometry': {
       'geometry_type': 'fbt',
-      'I_p_from_parameters': True,
       'geometry_configs': {
           20.0: {
               'LY_file': 'LY_early_rampup.mat',

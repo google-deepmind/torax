@@ -76,6 +76,7 @@ class UpdatersTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'psi': psi,
         'I_p': 15e6,  # I_p is required but not used for psi value here
+        'I_p_source': 'profile_conditions',
     }
     config_dict['numerics'] = {
         'evolve_current': False,
@@ -163,6 +164,8 @@ class UpdatersTest(parameterized.TestCase):
             0.0: {0.0: 10.0, 1.0: 10.0},
             1.0: {0.0: 20.0, 1.0: 20.0},
         },  # Prescribed varying
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'profile_conditions',
     }
 

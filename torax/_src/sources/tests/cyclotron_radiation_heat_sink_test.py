@@ -133,6 +133,8 @@ class CyclotronRadiationHeatSinkTest(parameterized.TestCase):
         cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID: {}
     }
     config_dict["profile_conditions"] = {
+        "I_p": 15e6,
+        "I_p_source": "profile_conditions",
         "initial_psi_source": "j",
         "T_e": {0.0: te_profile},
         "n_e": {0.0: ne_profile},

@@ -42,6 +42,7 @@ class StepFunctionTest(parameterized.TestCase):
         step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
     params_provider = step_fn.runtime_params_provider
+    assert params_provider.profile_conditions.I_p is not None
     input_value = params_provider.profile_conditions.I_p.value
 
     @jax.jit
@@ -50,7 +51,7 @@ class StepFunctionTest(parameterized.TestCase):
           value=override_value
       )
       runtime_params_overrides = params_provider.update_provider(
-          lambda x: (x.profile_conditions.I_p,),
+          lambda x: (x.profile_conditions.I_p,),  # pyrefly: ignore[bad-argument-type]
           (ip_update,),
       )
       _, new_post_processed_outputs = step_fn(

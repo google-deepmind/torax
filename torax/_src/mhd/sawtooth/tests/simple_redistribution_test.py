@@ -50,6 +50,7 @@ class SimpleRedistributionTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'initial_j_is_total_current': True,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'current_profile_nu': 3,
     }
@@ -130,6 +131,7 @@ class MixingRadiusClampingTest(parameterized.TestCase):
     config_dict['profile_conditions'] = {
         'I_p': 15e6,
         'initial_j_is_total_current': True,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'current_profile_nu': 3,
     }

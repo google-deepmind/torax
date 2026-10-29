@@ -31,9 +31,6 @@ class CheaseConfig(base.GeometryConfigBase):
   Attributes:
     geometry_type: Always set to 'chease'.
     geometry_directory: Optionally overrides the default geometry directory.
-    I_p_from_parameters: Toggles whether total plasma current is read from the
-      configuration file, or from the geometry file. If True, then the `psi`
-      calculated from the geometry file is scaled to match the desired `I_p`.
     R_major: Major radius (R) in meters.
     a_minor: Minor radius (a) in meters.
     B_0: Vacuum toroidal magnetic field at `R_major` [T].
@@ -54,7 +51,6 @@ class CheaseConfig(base.GeometryConfigBase):
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )
-  I_p_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   geometry_file: str = 'iterhybrid.mat2cols'
   R_major: torax_pydantic.Meter = 6.2
   a_minor: torax_pydantic.Meter = 2.0
@@ -70,7 +66,6 @@ class CheaseConfig(base.GeometryConfigBase):
     intermediates = _construct_intermediates_from_chease(
         geometry_directory=self.geometry_directory,
         geometry_file=self.geometry_file,
-        I_p_from_parameters=self.I_p_from_parameters,
         face_centers=self.get_face_centers(),
         R_major=self.R_major,
         a_minor=self.a_minor,
@@ -88,7 +83,6 @@ class CheaseConfig(base.GeometryConfigBase):
 def _construct_intermediates_from_chease(
     geometry_directory: str | None,
     geometry_file: str,
-    I_p_from_parameters: bool,
     face_centers: np.ndarray,
     R_major: float,
     a_minor: float,
@@ -105,8 +99,6 @@ def _construct_intermediates_from_chease(
       magnetic geometry. If None, then it defaults to another dir. See
       implementation.
     geometry_file: CHEASE file name.
-    I_p_from_parameters: If True, the I_p is taken from the parameters and the
-      values in the Geometry are rescaled to match the new I_p.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     R_major: Major radius (R) in meters, commonly defined in TORAX as the
       midplane average of the LCFS radius. CHEASE geometries are normalized, so
@@ -186,7 +178,6 @@ def _construct_intermediates_from_chease(
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.CHEASE,
-      I_p_from_parameters=I_p_from_parameters,
       R_major=np.array(R_major),
       a_minor=np.array(a_minor),
       B_0=np.array(B_0),

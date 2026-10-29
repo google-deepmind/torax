@@ -71,7 +71,6 @@ class FBTGeometryTest(parameterized.TestCase):
     """Tests that edge geometry parameters are propagated to StandardGeometry."""
     intermediate = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.FBT,
-        I_p_from_parameters=True,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,

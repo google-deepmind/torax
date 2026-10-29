@@ -323,6 +323,8 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     }
     config_dict = {
         'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': n_e_true,
             'T_e': t_e_keV,
@@ -397,6 +399,8 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     # 3. Create the two configurations
     base_config_dict = {
         'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'j',
             'n_e': n_e_val,
             'T_e': t_e_keV,

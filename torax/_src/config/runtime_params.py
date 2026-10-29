@@ -95,26 +95,32 @@ def make_I_p_consistent(
 ) -> tuple[RuntimeParams, geometry.Geometry]:
   """Fixes I_p to be the same across runtime_params and geo."""
   if isinstance(geo, standard_geometry.StandardGeometry):
-    if geo.I_p_from_parameters:
-      # If I_p is from parameters, renormalise psi etc to match the I_p in the
-      # parameters.
-      param_I_p = runtime_params.profile_conditions.I_p
-      I_p_scale_factor = param_I_p / geo.I_p_profile_face[-1]
-      geo = dataclasses.replace(
-          geo,
-          I_p_profile_face=geo.I_p_profile_face * I_p_scale_factor,
-          psi_from_I_p=geo.psi_from_I_p * I_p_scale_factor,
-          psi_from_I_p_face=geo.psi_from_I_p_face * I_p_scale_factor,
-          j_toroidal_total=geo.j_toroidal_total * I_p_scale_factor,
-          j_toroidal_total_face=geo.j_toroidal_total_face * I_p_scale_factor,
-      )
-    else:
-      # If I_p is from the geometry, update the parameters to match.
-      runtime_params = dataclasses.replace(
-          runtime_params,
-          profile_conditions=dataclasses.replace(
-              runtime_params.profile_conditions,
-              I_p=geo.I_p_profile_face[-1],
-          ),
-      )
+    match runtime_params.profile_conditions.I_p_source:
+      case core_profiles_params.IpSource.PROFILE_CONDITIONS:
+        # If I_p is from parameters, renormalise psi etc to match the I_p in
+        # the parameters.
+        param_I_p = runtime_params.profile_conditions.I_p
+        I_p_scale_factor = param_I_p / geo.I_p_profile_face[-1]
+        geo = dataclasses.replace(
+            geo,
+            I_p_profile_face=geo.I_p_profile_face * I_p_scale_factor,
+            psi_from_I_p=geo.psi_from_I_p * I_p_scale_factor,
+            psi_from_I_p_face=geo.psi_from_I_p_face * I_p_scale_factor,
+            j_toroidal_total=geo.j_toroidal_total * I_p_scale_factor,
+            j_toroidal_total_face=geo.j_toroidal_total_face * I_p_scale_factor,
+        )
+      case core_profiles_params.IpSource.GEOMETRY:
+        # If I_p is from the geometry, update the parameters to match.
+        runtime_params = dataclasses.replace(
+            runtime_params,
+            profile_conditions=dataclasses.replace(
+                runtime_params.profile_conditions,
+                I_p=geo.I_p_profile_face[-1],
+            ),
+        )
+      case _:
+        raise ValueError(
+            'Unknown I_p_source:'
+            f' {runtime_params.profile_conditions.I_p_source}'
+        )
   return runtime_params, geo

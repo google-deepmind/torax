@@ -47,7 +47,6 @@ class GeometryTest(parameterized.TestCase):
 
     intermediate = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.FBT,
-        I_p_from_parameters=True,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,
@@ -162,7 +161,6 @@ class GeometryTest(parameterized.TestCase):
   def _make_intermediates(self, **overrides):
     defaults = dict(
         geometry_type=geometry.GeometryType.FBT,
-        I_p_from_parameters=True,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,
@@ -568,7 +566,6 @@ class OffAxisGridTest(parameterized.TestCase):
     chease_kwargs = dict(
         geometry_directory=None,
         geometry_file='iterhybrid.mat2cols',
-        I_p_from_parameters=True,
         face_centers=interpolated_param_2d.get_face_centers(400),
         R_major=6.2,
         a_minor=2.0,

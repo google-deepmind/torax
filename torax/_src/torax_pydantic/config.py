@@ -267,6 +267,30 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     return self
 
   @pydantic.model_validator(mode='after')
+  def _validate_I_p_source(self) -> Self:
+    """Validates `profile_conditions.I_p_source` compatibility."""
+    i_p_source = self.profile_conditions.I_p_source
+    if (
+        i_p_source == core_profile_runtime_params_lib.IpSource.GEOMETRY
+        and self.geometry.geometry_type == geometry.GeometryType.CIRCULAR
+    ):
+      raise ValueError(
+          "profile_conditions.I_p_source='geometry' is not supported for"
+          ' CircularGeometry.'
+      )
+    if (
+        self.profile_conditions.I_p is not None
+        and i_p_source
+        != core_profile_runtime_params_lib.IpSource.PROFILE_CONDITIONS
+    ):
+      logging.warning(
+          'profile_conditions.I_p is provided but will be ignored because'
+          ' profile_conditions.I_p_source is %r.',
+          i_p_source.value,
+      )
+    return self
+
+  @pydantic.model_validator(mode='after')
   def _validate_pedestal_mode_and_internal_boundary_conditions(
       self,
   ) -> Self:

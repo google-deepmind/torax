@@ -368,10 +368,13 @@ def get_consistent_runtime_params_and_geometry(
 
   geo = geometry_provider(t)
   runtime_params = runtime_params_provider(t=t)
+  runtime_params, geo = runtime_params_lib.make_I_p_consistent(
+      runtime_params, geo
+  )
   runtime_params = _update_ne_density_fraction_boundary_condition(
       runtime_params, geo, core_profiles
   )
   runtime_params = edge_updaters.update_runtime_params(
       runtime_params, edge_outputs
   )
-  return runtime_params_lib.make_I_p_consistent(runtime_params, geo)
+  return runtime_params, geo

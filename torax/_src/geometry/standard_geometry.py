@@ -66,10 +66,6 @@ class StandardGeometry(geometry.Geometry):
   from various equilibrium data sources (CHEASE, FBT, EQDSK, etc.).
 
   Attributes:
-    I_p_from_parameters: Boolean indicating whether the total plasma current
-      (`I_p`) is determined by the config parameters (True) or read from the
-      geometry file (False). This field is marked as static and will retrigger
-      compilation if changed.
     I_p_profile_face: Plasma current profile on the face grid
       [:math:`\mathrm{A}`].
     psi: 1D poloidal flux profile on the cell grid [:math:`\mathrm{Wb}`].
@@ -107,7 +103,6 @@ class StandardGeometry(geometry.Geometry):
       flux_surf_avg_Bp2[-1] in StandardGeometryIntermediates.
   """
 
-  I_p_from_parameters: bool = jax.tree.static()
   I_p_profile_face: array_typing.FloatVectorFace
   psi: array_typing.FloatVectorCell
   psi_from_I_p: array_typing.FloatVectorCell
@@ -167,7 +162,6 @@ class StandardGeometry(geometry.Geometry):
 class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
 
-  I_p_from_parameters: bool = jax.tree.static()
   I_p_profile_face: interpolated_param.InterpolatedVarSingleAxis
   psi: interpolated_param.InterpolatedVarSingleAxis
   psi_from_I_p: interpolated_param.InterpolatedVarSingleAxis
@@ -213,8 +207,6 @@ class StandardGeometryIntermediates:
   Attributes:
     geometry_type:  The type of geometry being represented (e.g., CHEASE, FBT,
       EQDSK).
-    I_p_from_parameters: If True, the I_p is taken from the parameters and the
-      values in the Geometry are rescaled to match the new I_p.
     R_major: Major radius defined as midplane average of the LCFS radius,
       :math:`R_\mathrm{major} = (R_\mathrm{max} + R_\mathrm{min}) / 2`
       [:math:`\mathrm{m}`].
@@ -277,7 +269,6 @@ class StandardGeometryIntermediates:
   """
 
   geometry_type: geometry.GeometryType
-  I_p_from_parameters: bool
   R_major: array_typing.FloatScalar
   a_minor: array_typing.FloatScalar
   B_0: array_typing.FloatScalar
@@ -696,7 +687,6 @@ def build_standard_geometry(
       R_in_face=Rin_face,
       R_out=Rout,
       R_out_face=Rout_face,
-      I_p_from_parameters=intermediates.I_p_from_parameters,
       I_p_profile_face=I_p_profile_face,
       psi=psi,
       psi_from_I_p=psi_from_I_p,

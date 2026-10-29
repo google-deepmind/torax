@@ -141,7 +141,6 @@ class TokaMakerGeometryTest(parameterized.TestCase):
     fsa = _circular_get_fsa()
     intermediates = tokamaker._construct_intermediates_from_tokamaker(  # pylint: disable=protected-access
         equilibrium=tokamaker.TokaMakerEquilibrium.from_dict(fsa),
-        I_p_from_parameters=True,
         face_centers=np.linspace(0.0, 1.0, 26),
         hires_factor=4,
     )

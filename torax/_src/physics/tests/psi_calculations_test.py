@@ -22,6 +22,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src.core_profiles import initialization
+from torax._src.core_profiles import runtime_params as runtime_params_lib
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import geometry
@@ -181,7 +182,10 @@ class PsiCalculationsTest(parameterized.TestCase):
     np.testing.assert_allclose(j, references.j_toroidal_total, rtol=1e-5)
 
     if isinstance(geo, standard_geometry.StandardGeometry):
-      if not geo.I_p_from_parameters:
+      if (
+          references.torax_config.profile_conditions.I_p_source
+          == runtime_params_lib.IpSource.GEOMETRY
+      ):
         np.testing.assert_allclose(
             I_p_profile_face[-1],
             geo.I_p_profile_face[-1],

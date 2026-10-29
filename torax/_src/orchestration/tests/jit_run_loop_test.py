@@ -147,6 +147,7 @@ class JitRunLoopTest(parameterized.TestCase):
     torax_config.update_fields({'solver.residual_coarse_tol': 1e-5})
     step_fn = torax_experimental.make_step_fn(torax_config)
     runtime_params_provider = step_fn.runtime_params_provider
+    assert runtime_params_provider.profile_conditions.I_p is not None
 
     original_times = runtime_params_provider.profile_conditions.I_p.time
     start_time = original_times[0]

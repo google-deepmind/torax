@@ -20,6 +20,8 @@ I_p from parameters. implicit, psi (current diffusion) only
 CONFIG = {
     'profile_conditions': {
         'n_e_right_bc': 0.5e20,
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'initial_j_is_total_current': True,
         'current_profile_nu': 2,
@@ -38,7 +40,6 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'I_p_from_parameters': True,
     },
     'sources': {
         'generic_heat': {

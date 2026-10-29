@@ -29,6 +29,7 @@ CONFIG = {
         },
     },
     'profile_conditions': {
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'geometry',
         'T_i': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 10.0, 1.0: 1.0}},
@@ -48,7 +49,6 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'I_p_from_parameters': True,
     },
     'sources': {
         'generic_heat': {

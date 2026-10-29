@@ -25,6 +25,7 @@ import numpy as np
 import pydantic
 from torax._src import version
 from torax._src.config import config_loader
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params_lib
 from torax._src.geometry import eqdsk
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
@@ -428,6 +429,97 @@ class ConfigTest(parameterized.TestCase):
     config_dict["numerics"]["evolve_current"] = evolve_current
 
     warning_snippet = "profile_conditions.psi is provided but will be ignored"
+    self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
+
+  def test_I_p_and_I_p_source_defaults(self):
+    config_dict = default_configs.get_default_config_dict()
+    del config_dict["profile_conditions"]["I_p_source"]
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    self.assertEqual(
+        torax_config.profile_conditions.I_p_source,
+        core_profile_runtime_params_lib.IpSource.PROFILE_CONDITIONS,
+    )
+
+  def test_missing_I_p_with_default_I_p_source_raises_error(self):
+    config_dict = default_configs.get_default_config_dict()
+    del config_dict["profile_conditions"]["I_p"]
+    del config_dict["profile_conditions"]["I_p_source"]
+    with self.assertRaisesRegex(
+        pydantic.ValidationError,
+        "I_p must be provided when I_p_source is 'profile_conditions'.",
+    ):
+      config.ToraxConfig.from_dict(config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="circular_geometry_raises",
+          geometry={"geometry_type": "circular", "n_rho": 4},
+          expect_error=True,
+      ),
+      dict(
+          testcase_name="chease_geometry_passes",
+          geometry={
+              "geometry_type": "chease",
+              "geometry_file": "iterhybrid.mat2cols",
+          },
+          expect_error=False,
+      ),
+  )
+  def test_I_p_source_geometry_validation(self, geometry, expect_error):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = geometry
+    del config_dict["profile_conditions"]["I_p"]
+    config_dict["profile_conditions"]["I_p_source"] = "geometry"
+    if expect_error:
+      with self.assertRaisesRegex(
+          ValueError,
+          "profile_conditions.I_p_source='geometry' is not supported for"
+          " CircularGeometry.",
+      ):
+        config.ToraxConfig.from_dict(config_dict)
+    else:
+      torax_config = config.ToraxConfig.from_dict(config_dict)
+      self.assertIsNone(torax_config.profile_conditions.I_p)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="I_p_set_source_geometry",
+          I_p=15e6,
+          I_p_source="geometry",
+          expect_warning=True,
+      ),
+      dict(
+          testcase_name="I_p_set_source_profile_conditions",
+          I_p=15e6,
+          I_p_source="profile_conditions",
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="I_p_explicit_none_source_geometry",
+          I_p=None,
+          I_p_source="geometry",
+          expect_warning=False,
+      ),
+      dict(
+          testcase_name="I_p_omitted_source_geometry",
+          I_p="OMIT",
+          I_p_source="geometry",
+          expect_warning=False,
+      ),
+  )
+  def test_I_p_ignored_warning(self, I_p, I_p_source, expect_warning):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["geometry"] = {
+        "geometry_type": "chease",
+        "geometry_file": "iterhybrid.mat2cols",
+    }
+    config_dict["profile_conditions"]["I_p_source"] = I_p_source
+    if I_p == "OMIT":
+      del config_dict["profile_conditions"]["I_p"]
+    else:
+      config_dict["profile_conditions"]["I_p"] = I_p
+
+    warning_snippet = "profile_conditions.I_p is provided but will be ignored"
     self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
 
   @parameterized.named_parameters(

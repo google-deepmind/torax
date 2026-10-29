@@ -26,6 +26,7 @@ CONFIG = {
     },
     'profile_conditions': {
         'I_p': 10.5e6,  # Total plasma current [A]
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'geometry',
         # Boundary and initial conditions for T and n
         'T_i': {0.0: {0.0: 15.0, 1.0: 0.2}},
@@ -50,7 +51,6 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'I_p_from_parameters': True,
         'R_major': 6.2,  # Major radius R [m]
         'a_minor': 2.0,  # Minor radius a [m]
         'B_0': 5.3,  # Toroidal magnetic field on axis [T]

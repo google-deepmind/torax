@@ -27,6 +27,8 @@ CONFIG = {
         },
     },
     'profile_conditions': {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'geometry',
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
@@ -39,7 +41,6 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'I_p_from_parameters': True,
     },
     'neoclassical': {
         'bootstrap_current': {

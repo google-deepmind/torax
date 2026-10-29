@@ -457,7 +457,11 @@ class PlasmaCompositionTest(parameterized.TestCase):
   def test_update_fields_with_impurity(self):
     """Tests updating impurity format via update_fields."""
     config_dict = {
-        'profile_conditions': {'initial_psi_source': 'j'},
+        'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
+            'initial_psi_source': 'j',
+        },
         'plasma_composition': {
             'impurity': {
                 'impurity_mode': 'fractions',

@@ -156,9 +156,6 @@ class TokaMakerConfig(base.GeometryConfigBase):
 
   Attributes:
     geometry_type: Always set to 'tokamaker'.
-    I_p_from_parameters: Toggles whether total plasma current is read from the
-      configuration file, or from the equilibrium. If True, then the `psi`
-      calculated from the equilibrium is scaled to match the desired `I_p`.
     fsa_profiles: Flux surface profiles, as returned by
       ``OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()``.
   """
@@ -166,7 +163,6 @@ class TokaMakerConfig(base.GeometryConfigBase):
   geometry_type: Annotated[
       Literal['tokamaker'], torax_pydantic.TIME_INVARIANT
   ] = 'tokamaker'
-  I_p_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   fsa_profiles: TokaMakerEquilibrium
 
   @property
@@ -178,7 +174,6 @@ class TokaMakerConfig(base.GeometryConfigBase):
   def build_geometry(self) -> standard_geometry.StandardGeometry:
     intermediates = _construct_intermediates_from_tokamaker(
         equilibrium=self.fsa_profiles,
-        I_p_from_parameters=self.I_p_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         trapped_fraction_source=self.trapped_fraction_source,
@@ -188,7 +183,6 @@ class TokaMakerConfig(base.GeometryConfigBase):
 
 def _construct_intermediates_from_tokamaker(
     equilibrium: TokaMakerEquilibrium,
-    I_p_from_parameters: bool,
     face_centers: np.ndarray,
     hires_factor: int,
     trapped_fraction_source: (
@@ -205,8 +199,6 @@ def _construct_intermediates_from_tokamaker(
   Args:
     equilibrium: Flux surface profiles from
       ``OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()``.
-    I_p_from_parameters: If True, the I_p is taken from the parameters and the
-      values in the Geometry are rescaled to match the new I_p.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
@@ -320,7 +312,6 @@ def _construct_intermediates_from_tokamaker(
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.TOKAMAKER,
-      I_p_from_parameters=I_p_from_parameters,
       R_major=np.array(R_major),
       a_minor=np.array(a_minor),
       B_0=np.array(B_0),

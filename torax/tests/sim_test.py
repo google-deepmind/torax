@@ -402,6 +402,7 @@ class SimTest(sim_test_case.SimTestCase):
         },
         'profile_conditions': {
             'I_p': 3.0e6,
+            'I_p_source': 'profile_conditions',
             'initial_psi_source': 'geometry',
             'n_e': 1.0e20,
             'n_e_right_bc': 1.0e20,
@@ -553,7 +554,11 @@ class SimTest(sim_test_case.SimTestCase):
     """Tests that a prescribed psidot is used when current is not evolved."""
     # Base config for a simple run.
     base_config_dict: dict[str, Any] = {
-        'profile_conditions': {'initial_psi_source': 'j'},
+        'profile_conditions': {
+            'I_p': 15e6,
+            'I_p_source': 'profile_conditions',
+            'initial_psi_source': 'j',
+        },
         'plasma_composition': {},
         'numerics': {
             'evolve_ion_heat': True,

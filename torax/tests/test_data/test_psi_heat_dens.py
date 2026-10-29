@@ -19,6 +19,8 @@ Constant transport coefficient model. Pedestal
 
 CONFIG = {
     'profile_conditions': {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'nbar': 0.85,  # initial density (in Greenwald fraction units)
         'n_e_right_bc': 0.5e20,

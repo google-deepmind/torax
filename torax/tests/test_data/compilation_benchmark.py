@@ -23,6 +23,8 @@ is infeasible.
 
 CONFIG = {
     'profile_conditions': {
+        'I_p': 15e6,
+        'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
         'nbar': 0.85,  # initial density (Greenwald fraction units)
         'n_e_right_bc': 0.2e20,

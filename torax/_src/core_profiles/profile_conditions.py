@@ -76,10 +76,15 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   https://torax.readthedocs.io/en/latest/configuration/profile_conditions.html.
 
   Attributes:
-    I_p: Total plasma current in A. Note that if I_p_from_parameters=False in
-      geometry, then this I_p will be overwritten by values from the geometry
-      data. If use_v_loop_lcfs_boundary_condition, only used as an initial
+    I_p: Total plasma current in A. Required when `I_p_source` is
+      `PROFILE_CONDITIONS`; ignored otherwise. If
+      `use_v_loop_lcfs_boundary_condition` is True, only used as an initial
       condition.
+    I_p_source: Source of the total plasma current `I_p`. Defaults to
+      `PROFILE_CONDITIONS`. If `PROFILE_CONDITIONS` is used, then `I_p` is taken
+      from the `I_p` attribute (which must be provided). If `GEOMETRY` is used,
+      then `I_p` is taken from the numerical geometry (not supported for
+      `CircularGeometry`).
     use_v_loop_lcfs_boundary_condition: Boundary condition at LCFS for Vloop ( =
       dspsi_lcfs/dt ). If use_v_loop_lcfs_boundary_condition is True, then the
       specified Vloop at the LCFS is used as the boundary condition for the psi
@@ -140,7 +145,10 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       psi calculation is based on the `current_profile_nu` current formula.
   """
 
-  I_p: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
+  I_p: torax_pydantic.TimeVaryingScalar | None = None
+  I_p_source: Annotated[
+      runtime_params_lib.IpSource, torax_pydantic.JAX_STATIC
+  ] = runtime_params_lib.IpSource.PROFILE_CONDITIONS
   use_v_loop_lcfs_boundary_condition: Annotated[
       bool, torax_pydantic.JAX_STATIC
   ] = False
@@ -259,8 +267,16 @@ class ProfileConditions(torax_pydantic.ConfigBase):
             ' n_e_right_bc_mode is "prescribed".'
         )
 
+    if (
+        self.I_p_source == runtime_params_lib.IpSource.PROFILE_CONDITIONS
+        and self.I_p is None
+    ):
+      error_messages.append(
+          "I_p must be provided when I_p_source is 'profile_conditions'."
+      )
+
     # Validate plasma current input order of magnitude.
-    if np.any(self.I_p.value < _MIN_I_P_AMPS):
+    if self.I_p is not None and np.any(self.I_p.value < _MIN_I_P_AMPS):
       failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
           self.I_p.value, self.I_p.time, lambda x: x < _MIN_I_P_AMPS
       )
@@ -446,6 +462,12 @@ class ProfileConditions(torax_pydantic.ConfigBase):
             'internal_boundary_conditions',
         )
     }
+
+    if self.I_p is None:
+      # When I_p is None (only valid when I_p_source is GEOMETRY), the actual
+      # I_p value is populated from geometry later in make_I_p_consistent.
+      # Set a placeholder here so RuntimeParams.I_p is always a FloatScalar.
+      runtime_params['I_p'] = 0.0
 
     if self.T_e_right_bc is None:
       runtime_params['T_e_right_bc'] = self.T_e.get_value(

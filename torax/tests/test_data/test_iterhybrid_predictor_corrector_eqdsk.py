@@ -22,7 +22,6 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 CONFIG['geometry'] = {
     'geometry_type': 'eqdsk',
     'geometry_file': 'iterhybrid_cocos11.eqdsk',
-    'I_p_from_parameters': True,
     'last_surface_factor': 0.99,
     'n_surfaces': 100,
     'cocos': 11,

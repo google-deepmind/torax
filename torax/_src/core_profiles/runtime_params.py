@@ -58,6 +58,13 @@ class InitialPsiSource(enum.StrEnum):
   J = 'j'
 
 
+class IpSource(enum.StrEnum):
+  """How to calculate the total plasma current (I_p)."""
+
+  PROFILE_CONDITIONS = 'profile_conditions'
+  GEOMETRY = 'geometry'
+
+
 class NeBoundaryConditionMode(enum.StrEnum):
   """Mode for the electron density right boundary condition.
 
@@ -79,6 +86,7 @@ class RuntimeParams:
   """Prescribed values and boundary conditions for the core profiles."""
 
   I_p: array_typing.FloatScalar
+  I_p_source: IpSource = jax.tree.static()
   v_loop_lcfs: array_typing.FloatScalar
   T_i_right_bc: array_typing.FloatScalar
   T_e_right_bc: array_typing.FloatScalar

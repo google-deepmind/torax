@@ -8,13 +8,19 @@ profile_conditions
 Configures boundary conditions, initial conditions, and (optionally) prescribed
 time-dependence of temperature, density, and current.
 
-``I_p`` (**time-varying-scalar** [default = 15.0e6])
-  Total plasma current in A. Note that if ``I_p_from_parameters=False`` in
-  geometry, then this I_p will be overwritten by values from the geometry data.
-  Boundary condition for the :math:`\psi` equation if
-  ``use_v_loop_lcfs_boundary_condition`` is False. If
+``I_p`` (**time-varying-scalar** [default = None])
+  Total plasma current in A. Required when ``I_p_source = 'profile_conditions'``;
+  ignored otherwise. If ``I_p_source = 'geometry'``, then the total plasma
+  current is read from the geometry data instead. Boundary condition for the
+  :math:`\psi` equation if ``use_v_loop_lcfs_boundary_condition`` is False. If
   ``use_v_loop_lcfs_boundary_condition`` is True, only used as an initial
   condition.
+
+``I_p_source`` (str [default = ``'profile_conditions'``])
+  Source for the total plasma current :math:`I_p`.
+  Options are ``'profile_conditions'`` (uses the ``I_p`` scalar attribute) or
+  ``'geometry'`` (reads :math:`I_p` from numerical geometry; not supported
+  for ``'circular'`` geometry).
 
 ``use_v_loop_lcfs_boundary_condition`` (bool = False)
   Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). If
