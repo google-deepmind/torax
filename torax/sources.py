@@ -17,6 +17,7 @@ This module contains the sources config and implementation API needed
 for interacting with the sources or implementing a custom sources.
 """
 
+from torax._src.sources.base import PrescribedValues
 from torax._src.sources.base import SourceConfigBase
 from torax._src.sources.register_model import register_source_config
 from torax._src.sources.runtime_params import Mode
@@ -29,6 +30,7 @@ from torax._src.sources.source_profiles import SourceProfiles
 __all__ = [
     'AffectedCoreProfile',
     'Mode',
+    'PrescribedValues',
     'RuntimeParams',
     'Source',
     'SourceConfigBase',

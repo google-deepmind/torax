@@ -140,20 +140,20 @@ class SourcesConfigTest(parameterized.TestCase):
     sources = sources_config.SourcesConfig.from_dict({
         'generic_current': {
             'mode': 'prescribed',
-            'prescribed_values': (
-                (
+            'prescribed_values': {
+                'j_parallel': (
                     np.array([0.0, 1.0, 2.0, 3.0]),
                     np.array([0.0, 0.5, 1.0]),
                     np.full([4, 3], 42),
                 ),
-            ),
+            },
         },
         'ecrh': {
             'mode': 'prescribed',
-            'prescribed_values': (
-                3.0,
-                4.0,
-            ),
+            'prescribed_values': {
+                'power_density_e': 3.0,
+                'j_parallel': 4.0,
+            },
         },
     })
     mesh = torax_pydantic.Grid1D(
@@ -162,23 +162,25 @@ class SourcesConfigTest(parameterized.TestCase):
     torax_pydantic.set_grid(sources, mesh)
     source = sources.generic_current
     self.assertIsNotNone(source)
-    self.assertLen(source.prescribed_values, 1)
     self.assertIsInstance(
-        source.prescribed_values[0], torax_pydantic.TimeVaryingArray
+        source.prescribed_values.j_parallel, torax_pydantic.TimeVaryingArray
     )
+    self.assertIsNone(source.prescribed_values.power_density_i)
+    self.assertIsNone(source.prescribed_values.power_density_e)
+    self.assertIsNone(source.prescribed_values.particle_source)
 
     source = sources.ecrh
     self.assertIsNotNone(source)
-    self.assertLen(source.prescribed_values, 2)
     self.assertIsInstance(
-        source.prescribed_values[0], torax_pydantic.TimeVaryingArray
+        source.prescribed_values.power_density_e,
+        torax_pydantic.TimeVaryingArray,
     )
     self.assertIsInstance(
-        source.prescribed_values[1], torax_pydantic.TimeVaryingArray
+        source.prescribed_values.j_parallel, torax_pydantic.TimeVaryingArray
     )
-    value = source.prescribed_values[0].get_value(0.0)
+    value = source.prescribed_values.power_density_e.get_value(0.0)
     np.testing.assert_equal(value, 3.0)
-    value = source.prescribed_values[1].get_value(0.0)
+    value = source.prescribed_values.j_parallel.get_value(0.0)
     np.testing.assert_equal(value, 4.0)
 
   def test_bremsstrahlung_and_mavrin_both_active_sets_exclude_flag(self):

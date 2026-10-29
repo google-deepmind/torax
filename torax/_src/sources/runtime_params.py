@@ -13,12 +13,13 @@
 # limitations under the License.
 
 """Configuration for all the sources/sinks modelled in Torax."""
+
 import dataclasses
 import enum
 
 import jax
-from torax._src import array_typing
 from torax._src import interpolated_param
+from torax._src.sources import source_profiles
 
 TimeInterpolatedInput = interpolated_param.TimeInterpolatedInput
 
@@ -45,6 +46,6 @@ class Mode(enum.StrEnum):
 class RuntimeParams:
   """Runtime params for a single TORAX source."""
 
-  prescribed_values: tuple[array_typing.FloatVectorCell, ...]
+  prescribed_values: source_profiles.SourceOutput
   mode: Mode = jax.tree.static()
   is_explicit: bool = jax.tree.static()

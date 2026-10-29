@@ -88,7 +88,10 @@ class ImpurityRadiationConstantFractionTest(
         None,
         source_state=source_state_lib.SourceState(),
     )
-    el, ion = heat_source_output.profiles
+    ion = heat_source_output.power_density_i
+    el = heat_source_output.power_density_e
+    assert ion is not None
+    assert el is not None
 
     impurity_radiation_sink = (
         impurity_radiation_constant_fraction.ConstantFractionImpurityRadiationHeatSink()
@@ -112,8 +115,8 @@ class ImpurityRadiationConstantFractionTest(
         source_state=source_state_lib.SourceState(),
     )
 
-    self.assertLen(impurity_output.profiles, 1)
-    impurity_radiation_heat_sink_power_density = impurity_output.profiles[0]
+    impurity_radiation_heat_sink_power_density = impurity_output.power_density_e
+    assert impurity_radiation_heat_sink_power_density is not None
     # The value should be equal to fraction * sum of the (TEMP_EL+TEMP_ION)
     # sources, minus P_ei and P_brems.
     # In this case, that is only the generic_ion_el_heat_source.

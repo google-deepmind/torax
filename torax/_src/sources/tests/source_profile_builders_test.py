@@ -101,7 +101,7 @@ class SourceModelsTest(parameterized.TestCase):
         source_state = kwargs.get('source_state', args[-1])
         return (
             source_profiles.SourceOutput(
-                profiles=(jnp.ones(self_test.geo.rho.shape),)
+                j_parallel=jnp.ones(self_test.geo.rho.shape)
             ),
             source_state,
         )
@@ -117,7 +117,9 @@ class SourceModelsTest(parameterized.TestCase):
         runtime_params_lib.RuntimeParams,
         sources={
             'foo': source_runtime_params.RuntimeParams(
-                prescribed_values=(jnp.ones(self.geo.rho.shape),),
+                prescribed_values=source_profiles.SourceOutput(
+                    j_parallel=jnp.ones(self.geo.rho.shape)
+                ),
                 mode=source_runtime_params.Mode.MODEL_BASED,
                 is_explicit=True,
             )
@@ -160,7 +162,8 @@ class SourceModelsTest(parameterized.TestCase):
         source_state = kwargs.get('source_state', args[-1])
         return (
             source_profiles.SourceOutput(
-                profiles=(jnp.ones_like(self_test.geo.rho),) * 2
+                power_density_i=jnp.ones_like(self_test.geo.rho),
+                power_density_e=jnp.ones_like(self_test.geo.rho),
             ),
             source_state,
         )
@@ -176,9 +179,9 @@ class SourceModelsTest(parameterized.TestCase):
         runtime_params_lib.RuntimeParams,
         sources={
             'foo': source_runtime_params.RuntimeParams(
-                prescribed_values=(
-                    jnp.ones(self.geo.rho.shape),
-                    jnp.ones(self.geo.rho.shape),
+                prescribed_values=source_profiles.SourceOutput(
+                    power_density_i=jnp.ones(self.geo.rho.shape),
+                    power_density_e=jnp.ones(self.geo.rho.shape),
                 ),
                 mode=source_runtime_params.Mode.MODEL_BASED,
                 is_explicit=True,
@@ -249,7 +252,7 @@ class SourceModelsTest(parameterized.TestCase):
         source_state = kwargs.get('source_state', args[-1])
         return (
             source_profiles.SourceOutput(
-                profiles=(jnp.ones(self_test.geo.rho.shape),)
+                j_parallel=jnp.ones(self_test.geo.rho.shape)
             ),
             source_state,
         )
@@ -265,7 +268,9 @@ class SourceModelsTest(parameterized.TestCase):
         runtime_params_lib.RuntimeParams,
         sources={
             'foo': source_runtime_params.RuntimeParams(
-                prescribed_values=(jnp.ones(self.geo.rho.shape),),
+                prescribed_values=source_profiles.SourceOutput(
+                    j_parallel=jnp.ones(self.geo.rho.shape)
+                ),
                 mode=source_runtime_params.Mode.MODEL_BASED,
                 is_explicit=True,  # Set the source to be explicit.
             )

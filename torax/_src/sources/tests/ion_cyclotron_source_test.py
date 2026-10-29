@@ -33,7 +33,7 @@ class _DummySource(icrh_base.IonCyclotronSource):
 
   def _get_model_value(self, *args, **kwargs):
     return (
-        source_profiles.SourceOutput(profiles=()),
+        source_profiles.SourceOutput(),
         source_state_lib.SourceState(),
     )
 
@@ -73,9 +73,7 @@ class IonCyclotronSourceBaseTest(test_lib.SourceTestCase):
     """Verify default config values are correct."""
     config = _DummyConfig(minority_species='He3')
     np.testing.assert_allclose(config.P_total.get_value(0.0), 10e6)
-    np.testing.assert_allclose(
-        config.absorption_fraction.get_value(0.0), 1.0
-    )
+    np.testing.assert_allclose(config.absorption_fraction.get_value(0.0), 1.0)
 
 
 if __name__ == '__main__':

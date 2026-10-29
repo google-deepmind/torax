@@ -161,7 +161,6 @@ def build_standard_source_profiles(
       _update_standard_source_profiles(
           calculated_source_profiles,
           source_name,
-          source.AFFECTED_CORE_PROFILES,
           value,
       )
 
@@ -199,23 +198,23 @@ def build_standard_source_profiles(
 def _update_standard_source_profiles(
     calculated_source_profiles: source_profiles.SourceProfiles,
     source_name: str,
-    affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...],
     output: source_profiles.SourceOutput,
 ):
   """Updates the standard source profiles in calculated_source_profiles."""
-  for profile, affected_core_profile in zip(
-      output.profiles, affected_core_profiles, strict=True
-  ):
-    jax_profile = jnp.asarray(profile)
-    match affected_core_profile:
-      case source_lib.AffectedCoreProfile.PSI:
-        calculated_source_profiles.psi[source_name] = jax_profile
-      case source_lib.AffectedCoreProfile.NE:
-        calculated_source_profiles.n_e[source_name] = jax_profile
-      case source_lib.AffectedCoreProfile.TEMP_ION:
-        calculated_source_profiles.T_i[source_name] = jax_profile
-      case source_lib.AffectedCoreProfile.TEMP_EL:
-        calculated_source_profiles.T_e[source_name] = jax_profile
+  if output.j_parallel is not None:
+    calculated_source_profiles.psi[source_name] = jnp.asarray(output.j_parallel)
+  if output.particle_source is not None:
+    calculated_source_profiles.n_e[source_name] = jnp.asarray(
+        output.particle_source
+    )
+  if output.power_density_i is not None:
+    calculated_source_profiles.T_i[source_name] = jnp.asarray(
+        output.power_density_i
+    )
+  if output.power_density_e is not None:
+    calculated_source_profiles.T_e[source_name] = jnp.asarray(
+        output.power_density_e
+    )
   if output.fast_ions:
     calculated_source_profiles.fast_ions[source_name] = output.fast_ions
 

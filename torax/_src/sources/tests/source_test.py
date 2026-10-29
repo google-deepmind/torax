@@ -68,7 +68,9 @@ class SourceTest(parameterized.TestCase):
     source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=np.zeros_like(geo.rho_norm),
+                prescribed_values=source_profiles.SourceOutput(
+                    j_parallel=np.zeros_like(geo.rho_norm)
+                ),
                 mode=sources_runtime_params_lib.Mode.ZERO,
                 is_explicit=False,
             )
@@ -86,7 +88,8 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
-    np.testing.assert_allclose(profile.profiles[0], np.zeros_like(geo.rho_norm))
+    assert profile.j_parallel is not None
+    np.testing.assert_allclose(profile.j_parallel, np.zeros_like(geo.rho_norm))
 
   @parameterized.parameters(
       (sources_runtime_params_lib.Mode.ZERO, np.array([0, 0, 0, 0])),
@@ -111,7 +114,7 @@ class SourceTest(parameterized.TestCase):
             args[-1] if args else source_state_lib.SourceState(),
         )
         return (
-            source_profiles.SourceOutput(profiles=(np.full([4], 42.0),)),
+            source_profiles.SourceOutput(j_parallel=np.full([4], 42.0)),
             source_state,
         )
 
@@ -119,7 +122,9 @@ class SourceTest(parameterized.TestCase):
     dynamic_source_params = {
         generic_current_source.GenericCurrentSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(np.full([4], 3.0),),
+                prescribed_values=source_profiles.SourceOutput(
+                    j_parallel=np.full([4], 3.0)
+                ),
                 mode=mode,
                 is_explicit=False,
             )
@@ -141,8 +146,9 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
+    assert profile.j_parallel is not None
     np.testing.assert_allclose(
-        profile.profiles[0],
+        profile.j_parallel,
         expected_profile,
         atol=1e-6,
         rtol=1e-6,
@@ -153,7 +159,10 @@ class SourceTest(parameterized.TestCase):
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(np.full([4], 3.0), np.full([4], 4.0)),
+                prescribed_values=source_profiles.SourceOutput(
+                    power_density_e=np.full([4], 3.0),
+                    j_parallel=np.full([4], 4.0),
+                ),
                 mode=sources_runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
             )
@@ -171,15 +180,16 @@ class SourceTest(parameterized.TestCase):
         conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
-    self.assertLen(profile.profiles, 2)
+    assert profile.power_density_e is not None
+    assert profile.j_parallel is not None
     np.testing.assert_allclose(
-        profile.profiles[0],
+        profile.power_density_e,
         np.full([4], 3.0),
         atol=1e-6,
         rtol=1e-6,
     )
     np.testing.assert_allclose(
-        profile.profiles[1],
+        profile.j_parallel,
         np.full([4], 4.0),
         atol=1e-6,
         rtol=1e-6,
@@ -190,7 +200,9 @@ class SourceTest(parameterized.TestCase):
     dynamic_source_params = {
         electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: (
             sources_runtime_params_lib.RuntimeParams(
-                prescribed_values=(np.full([4], 3.0),),
+                prescribed_values=source_profiles.SourceOutput(
+                    power_density_e=np.full([4], 3.0),
+                ),
                 mode=sources_runtime_params_lib.Mode.PRESCRIBED,
                 is_explicit=False,
             )
@@ -202,7 +214,7 @@ class SourceTest(parameterized.TestCase):
     )
     with self.assertRaisesRegex(
         ValueError,
-        'the number of prescribed values must match the number of affected',
+        "must provide 'j_parallel' for affected core profile PSI",
     ):
       source.get_value(
           runtime_params=dynamic_slice,

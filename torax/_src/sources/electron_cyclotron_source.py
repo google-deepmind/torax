@@ -84,8 +84,8 @@ class ElectronCyclotronSource(source.Source):
         by this model and passed through unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile, psi_profile)),
-      source_state).
+      A tuple of (SourceOutput(power_density_e=electron_heat_profile,
+      j_parallel=psi_profile), source_state).
     """
     del calculated_source_profiles, conductivity
     source_params = runtime_params.sources[self.SOURCE_ID]
@@ -133,7 +133,9 @@ class ElectronCyclotronSource(source.Source):
     )
 
     return (
-        source_profiles.SourceOutput(profiles=(ec_power_density, fsa_j_dot_B)),
+        source_profiles.SourceOutput(
+            power_density_e=ec_power_density, j_parallel=fsa_j_dot_B
+        ),
         source_state,
     )
 
@@ -145,9 +147,8 @@ class ElectronCyclotronSourceConfig(base.SourceConfigBase):
     current_drive_efficiency: Dimensionless current drive efficiency profile
       defined on the cell grid, :math:`\zeta = \frac{e^2\ln\Lambda_{ee}}{8
       \varepsilon_0^2} \frac{1}{\left\langle\frac{1}{R}\right\rangle} \frac{n_e
-      [\mathrm{m^{-3}}]}{T_e [\mathrm{eV}]} \frac{I_{ec}
-      [\mathrm{A}]}{P_{ec} [\mathrm{W}]}`.
-      See
+      [\mathrm{m^{-3}}]}{T_e [\mathrm{eV}]} \frac{I_{ec} [\mathrm{A}]}{P_{ec}
+      [\mathrm{W}]}`. See
       https://torax.readthedocs.io/en/latest/physics_models/electron-cyclotron-derivation.html
       for more details.
     extra_prescribed_power_density: Manual EC power density profile on the rho

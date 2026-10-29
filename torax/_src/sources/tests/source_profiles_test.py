@@ -34,6 +34,32 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 class SourceProfilesTest(parameterized.TestCase):
 
+  def test_source_output_zeros(self):
+    geo = circular_geometry.CircularConfig().build_geometry()
+    all_zeros = source_profiles_lib.SourceOutput.zeros(geo)
+    self.assertIsNotNone(all_zeros.power_density_i)
+    self.assertIsNotNone(all_zeros.power_density_e)
+    self.assertIsNotNone(all_zeros.j_parallel)
+    self.assertIsNotNone(all_zeros.particle_source)
+    np.testing.assert_allclose(all_zeros.power_density_i, 0.0)
+    np.testing.assert_allclose(all_zeros.power_density_e, 0.0)
+    np.testing.assert_allclose(all_zeros.j_parallel, 0.0)
+    np.testing.assert_allclose(all_zeros.particle_source, 0.0)
+
+    partial_zeros = source_profiles_lib.SourceOutput.zeros(
+        geo,
+        affected_core_profiles=(
+            source_profiles_lib.AffectedCoreProfile.TEMP_EL,
+            source_profiles_lib.AffectedCoreProfile.PSI,
+        ),
+    )
+    self.assertIsNone(partial_zeros.power_density_i)
+    self.assertIsNone(partial_zeros.particle_source)
+    self.assertIsNotNone(partial_zeros.power_density_e)
+    self.assertIsNotNone(partial_zeros.j_parallel)
+    np.testing.assert_allclose(partial_zeros.power_density_e, 0.0)
+    np.testing.assert_allclose(partial_zeros.j_parallel, 0.0)
+
   def test_summed_T_i_profiles_dont_change_when_jitting(self):
     geo = circular_geometry.CircularConfig().build_geometry()
 

@@ -55,8 +55,8 @@ class MavrinImpurityRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         conductivity=None,
         source_state=source_states[self._source_name],
     )
-    (res,) = output.profiles
-    return res
+    assert output.power_density_e is not None
+    return output.power_density_e
 
   def test_correct_dynamic_params_built(self):
     # Source models

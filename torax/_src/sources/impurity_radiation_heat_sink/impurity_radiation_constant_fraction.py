@@ -33,7 +33,6 @@ from torax._src.sources import source_state as source_state_lib
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax._src.torax_pydantic import torax_pydantic
 
-
 _HEAT_SINK_SOURCE_IDS = frozenset({
     bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_ID,
     cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_ID,
@@ -71,7 +70,7 @@ class ConstantFractionImpurityRadiationHeatSink(
         by this model and returned unchanged.
 
     Returns:
-      A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
+      A tuple of (SourceOutput(power_density_e=electron_heat_profile),
       source_state).
     """
     del core_profiles, conductivity
@@ -108,7 +107,10 @@ class ConstantFractionImpurityRadiationHeatSink(
         / geo.volume_face[-1]
         * jnp.ones_like(geo.rho)
     )
-    return source_profiles_lib.SourceOutput(profiles=(-P_rad,)), source_state
+    return (
+        source_profiles_lib.SourceOutput(power_density_e=-P_rad),
+        source_state,
+    )
 
 
 @jax.tree_util.register_dataclass
