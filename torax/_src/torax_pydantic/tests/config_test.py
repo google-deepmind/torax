@@ -585,16 +585,16 @@ class ConfigTest(parameterized.TestCase):
           "bad_config",
           True,
           True,
-          "`diverted` must NOT be set when using FBT geometry",
+          "`diverted` must NOT be set when using MEQ geometry",
       ),
   )
-  def test_edge_diverted_status_validation_with_fbt(
+  def test_edge_diverted_status_validation_with_meq(
       self, diverted, expect_error, error_regex
   ):
     L, LY = get_example_L_LY_data.get_example_L_LY_data(10, 1)
     config_dict = default_configs.get_default_config_dict()
     config_dict["geometry"] = {
-        "geometry_type": "fbt",
+        "geometry_type": "meq",
         "L_object": L,
         "LY_object": LY,
     }
@@ -621,7 +621,7 @@ class ConfigTest(parameterized.TestCase):
           "bad_config",
           None,
           True,
-          "`diverted` MUST be set when using non-FBT geometry",
+          "`diverted` MUST be set when using non-MEQ geometry",
       ),
   )
   def test_edge_diverted_status_validation_with_chease(

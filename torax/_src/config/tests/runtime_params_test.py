@@ -31,7 +31,7 @@ from torax._src.torax_pydantic import interpolated_param_2d
 def _create_dummy_standard_geometry() -> standard_geometry.StandardGeometry:
   """Creates a dummy StandardGeometry in memory without loading any files."""
   intermediate = standard_geometry.StandardGeometryIntermediates(
-      geometry_type=geometry.GeometryType.FBT,
+      geometry_type=geometry.GeometryType.MEQ,
       R_major=6.2,
       a_minor=2.0,
       B_0=5.3,

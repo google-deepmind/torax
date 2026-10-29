@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Classes for loading and representing a FBT geometry."""
+"""Classes for loading and representing a MEQ geometry."""
 
 from collections.abc import Mapping
 import enum
@@ -55,22 +55,22 @@ class DivertorDomain(enum.StrEnum):
   LOWER_NULL = 'lower_null'
 
 
-class FBTConfig(base.GeometryConfigBase):
-  """Pydantic model for the FBT geometry.
+class MEQConfig(base.GeometryConfigBase):
+  """Pydantic model for the MEQ geometry.
 
   Attributes:
-    geometry_type: Always set to 'fbt'.
+    geometry_type: Always set to 'meq'.
     geometry_directory: Optionally overrides the default geometry directory.
-    LY_object: Sets a single-slice FBT LY geometry file to be loaded, or
+    LY_object: Sets a single-slice MEQ LY geometry file to be loaded, or
       alternatively a dict directly containing a single time slice of LY data.
-    LY_bundle_object: Sets the FBT LY bundle file to be loaded, corresponding to
+    LY_bundle_object: Sets the MEQ LY bundle file to be loaded, corresponding to
       multiple time-slices, or alternatively a dict directly containing all
       time-slices of LY data.
     LY_to_torax_times: Sets the TORAX simulation times corresponding to the
-      individual slices in the FBT LY bundle file. If not provided, then the
+      individual slices in the MEQ LY bundle file. If not provided, then the
       times are taken from the LY_bundle_file itself. The length of the array
       must match the number of slices in the bundle.
-    L_object: Sets the FBT L geometry file loaded, or alternatively a dict
+    L_object: Sets the MEQ L geometry file loaded, or alternatively a dict
       directly containing the L data.
     divertor_domain: The divertor domain (upper or lower null) for extracting
       edge quantities when diverted.
@@ -82,8 +82,8 @@ class FBTConfig(base.GeometryConfigBase):
   ) -> frozenset[trapped_fraction_lib.TrappedFractionSource]:
     return frozenset({trapped_fraction_lib.TrappedFractionSource.SAUTER})
 
-  geometry_type: Annotated[Literal['fbt'], torax_pydantic.TIME_INVARIANT] = (
-      'fbt'
+  geometry_type: Annotated[Literal['meq'], torax_pydantic.TIME_INVARIANT] = (
+      'meq'
   )
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
@@ -115,7 +115,7 @@ class FBTConfig(base.GeometryConfigBase):
   def _validate_model(self) -> Self:
     if self.LY_bundle_object is not None and self.LY_object is not None:
       raise ValueError(
-          "Cannot use 'LY_object' together with a bundled FBT file"
+          "Cannot use 'LY_object' together with a bundled MEQ file"
       )
     if self.LY_to_torax_times is not None and self.LY_bundle_object is None:
       raise ValueError(
@@ -124,7 +124,7 @@ class FBTConfig(base.GeometryConfigBase):
     return self
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
-    intermediates = _from_fbt_single_slice(
+    intermediates = _from_meq_single_slice(
         geometry_directory=self.geometry_directory,
         LY_object=self.LY_object,  # pyrefly: ignore[bad-argument-type]
         L_object=self.L_object,  # pyrefly: ignore[bad-argument-type]
@@ -136,14 +136,14 @@ class FBTConfig(base.GeometryConfigBase):
 
     return standard_geometry.build_standard_geometry(intermediates)
 
-  # TODO(b/398191165): Remove this branch once the FBT bundle logic is
+  # TODO(b/398191165): Remove this branch once the MEQ bundle logic is
   # redesigned.
-  def build_fbt_geometry_provider_from_bundle(
+  def build_meq_geometry_provider_from_bundle(
       self,
       calc_Phi_b_dot: bool,
   ) -> geometry_provider.GeometryProvider:
     """Builds a `GeometryProvider` from the input config."""
-    intermediates = _from_fbt_bundle(
+    intermediates = _from_meq_bundle(
         geometry_directory=self.geometry_directory,
         LY_bundle_object=self.LY_bundle_object,  # pyrefly: ignore[bad-argument-type]
         L_object=self.L_object,  # pyrefly: ignore[bad-argument-type]
@@ -163,7 +163,7 @@ class FBTConfig(base.GeometryConfigBase):
     )
 
 
-def _from_fbt_single_slice(
+def _from_meq_single_slice(
     geometry_directory: str | None,
     LY_object: str | Mapping[str, np.ndarray],
     L_object: str | Mapping[str, np.ndarray],
@@ -174,9 +174,9 @@ def _from_fbt_single_slice(
         trapped_fraction_lib.TrappedFractionSource
     ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
 ) -> standard_geometry.StandardGeometryIntermediates:
-  """Returns StandardGeometryIntermediates from a single slice FBT LY file.
+  """Returns StandardGeometryIntermediates from a single slice MEQ LY file.
 
-  LY and L are FBT data files containing magnetic geometry information.
+  LY and L are MEQ data files containing magnetic geometry information.
   The majority of the needed information is in the LY file. The L file
   is only needed to get the normalized poloidal flux coordinate, pQ.
 
@@ -185,7 +185,7 @@ def _from_fbt_single_slice(
   provided in the geometry config.
 
   Args:
-    geometry_directory: Directory where to find the FBT file describing the
+    geometry_directory: Directory where to find the MEQ file describing the
       magnetic geometry. If None, then it defaults to another dir. See
       `load_geo_data` implementation.
     LY_object: File name for LY data, or directly an LY single slice dict.
@@ -205,7 +205,7 @@ def _from_fbt_single_slice(
   """
   if isinstance(LY_object, str):
     LY = geometry_loader.load_geo_data(
-        geometry_directory, LY_object, geometry_loader.GeometrySource.FBT
+        geometry_directory, LY_object, geometry_loader.GeometrySource.MEQ
     )
   elif isinstance(LY_object, Mapping):
     LY = LY_object
@@ -213,7 +213,7 @@ def _from_fbt_single_slice(
     raise ValueError('LY_object must be a string (file path) or a dictionary.')
   if isinstance(L_object, str):
     L = geometry_loader.load_geo_data(
-        geometry_directory, L_object, geometry_loader.GeometrySource.FBT
+        geometry_directory, L_object, geometry_loader.GeometrySource.MEQ
     )
   elif isinstance(L_object, Mapping):
     L = L_object
@@ -228,8 +228,8 @@ def _from_fbt_single_slice(
   LY, L = jax.tree_util.tree_map(np.squeeze, (LY, L))
 
   # Raises a ValueError if the data is invalid.
-  _validate_fbt_data(LY, L)
-  return _from_fbt(
+  _validate_meq_data(LY, L)
+  return _from_meq(
       LY,
       L,
       face_centers,
@@ -239,7 +239,7 @@ def _from_fbt_single_slice(
   )
 
 
-def _from_fbt_bundle(
+def _from_meq_bundle(
     geometry_directory: str | None,
     LY_bundle_object: str | Mapping[str, np.ndarray],
     L_object: str | Mapping[str, np.ndarray],
@@ -251,9 +251,9 @@ def _from_fbt_bundle(
         trapped_fraction_lib.TrappedFractionSource
     ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
 ) -> Mapping[float, standard_geometry.StandardGeometryIntermediates]:
-  """Returns StandardGeometryIntermediates from a bundled FBT LY file.
+  """Returns StandardGeometryIntermediates from a bundled MEQ LY file.
 
-  LY_bundle_object is an FBT data object containing a bundle of LY geometry
+  LY_bundle_object is an MEQ data object containing a bundle of LY geometry
   slices at different times, packaged within a single object (as opposed to
   a sequence of standalone LY files). LY_to_torax_times is a 1D array of
   times, defining the times in the TORAX simulation corresponding to each
@@ -262,7 +262,7 @@ def _from_fbt_bundle(
   for disk loading, or directly the data dicts.
 
   Args:
-    geometry_directory: Directory where to find the FBT file describing the
+    geometry_directory: Directory where to find the MEQ file describing the
       magnetic geometry. If None, then it defaults to another dir. See
       `load_geo_data` implementation.
     LY_bundle_object: Either file name for bundled LY data, e.g. as produced by
@@ -291,7 +291,7 @@ def _from_fbt_bundle(
     LY_bundle = geometry_loader.load_geo_data(
         geometry_directory,
         LY_bundle_object,
-        geometry_loader.GeometrySource.FBT,
+        geometry_loader.GeometrySource.MEQ,
     )
   elif isinstance(LY_bundle_object, Mapping):
     LY_bundle = LY_bundle_object
@@ -302,7 +302,7 @@ def _from_fbt_bundle(
 
   if isinstance(L_object, str):
     L = geometry_loader.load_geo_data(
-        geometry_directory, L_object, geometry_loader.GeometrySource.FBT
+        geometry_directory, L_object, geometry_loader.GeometrySource.MEQ
     )
   elif isinstance(L_object, Mapping):
     L = L_object
@@ -312,7 +312,7 @@ def _from_fbt_bundle(
   LY_bundle, L = jax.tree_util.tree_map(np.squeeze, (LY_bundle, L))
 
   # Raises a ValueError if the data is invalid.
-  _validate_fbt_data(LY_bundle, L)
+  _validate_meq_data(LY_bundle, L)
 
   if LY_to_torax_times is None:
     LY_to_torax_times = LY_bundle['t']  # ndarray of times
@@ -327,7 +327,7 @@ def _from_fbt_bundle(
   intermediates = {}
   for idx, t in enumerate(LY_to_torax_times):
     data_slice = _get_LY_single_slice_from_bundle(LY_bundle, idx)
-    intermediates[t] = _from_fbt(
+    intermediates[t] = _from_meq(
         data_slice,
         L,
         face_centers,
@@ -345,7 +345,7 @@ def _get_LY_single_slice_from_bundle(
 ) -> Mapping[str, np.ndarray]:
   """Returns a single LY slice from a bundled LY file, at index idx."""
 
-  # The keys below are the required LY keys for the FBT geometry provider.
+  # The keys below are the required LY keys for the MEQ geometry provider.
   required_keys = [
       'rBt',
       'aminor',
@@ -368,7 +368,7 @@ def _get_LY_single_slice_from_bundle(
       'lX',
   ]
 
-  # The keys below are the optional LY keys for the FBT geometry provider.
+  # The keys below are the optional LY keys for the MEQ geometry provider.
   # They are used to extract edge quantities for extended Lengyel.
   optional_keys = list(_ALL_EDGE_KEYS)
 
@@ -394,7 +394,7 @@ def _get_LY_single_slice_from_bundle(
   return LY_single_slice
 
 
-def _from_fbt(
+def _from_meq(
     LY: Mapping[str, np.ndarray | int],
     L: Mapping[str, np.ndarray],
     face_centers: np.ndarray,
@@ -404,11 +404,11 @@ def _from_fbt(
         trapped_fraction_lib.TrappedFractionSource
     ) = trapped_fraction_lib.TrappedFractionSource.SAUTER,
 ) -> standard_geometry.StandardGeometryIntermediates:
-  """Constructs a StandardGeometryIntermediates from a single FBT LY slice.
+  """Constructs a StandardGeometryIntermediates from a single MEQ LY slice.
 
   Args:
-    LY: A dictionary of relevant FBT LY geometry data.
-    L: A dictionary of relevant FBT L geometry data.
+    LY: A dictionary of relevant MEQ LY geometry data.
+    L: A dictionary of relevant MEQ L geometry data.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations on initialization.
@@ -475,7 +475,7 @@ def _from_fbt(
       )
 
   # Edge/Divertor geometry
-  # These parameters are optional as older FBT files may not contain them.
+  # These parameters are optional as older MEQ files may not contain them.
   connection_length_target = None
   connection_length_divertor = None
   angle_of_incidence_target = None
@@ -508,7 +508,7 @@ def _from_fbt(
       R_target = LY['r_target'][idx]  # pyrefly: ignore[bad-index]
 
   return standard_geometry.StandardGeometryIntermediates(
-      geometry_type=geometry.GeometryType.FBT,
+      geometry_type=geometry.GeometryType.MEQ,
       R_major=R_major,
       a_minor=a_minor,
       B_0=B_0,
@@ -544,16 +544,16 @@ def _from_fbt(
   )
 
 
-def _validate_fbt_data(
+def _validate_meq_data(
     LY: Mapping[str, np.ndarray], L: Mapping[str, np.ndarray]
 ) -> None:
-  """Validates the FBT data dictionaries.
+  """Validates the MEQ data dictionaries.
 
   Works for both single slice and bundle LY data.
 
   Args:
-    LY: A dictionary of FBT LY geometry data.
-    L: A dictionary of FBT L geometry data.
+    LY: A dictionary of MEQ LY geometry data.
+    L: A dictionary of MEQ L geometry data.
 
   Raises a ValueError if the data is invalid.
   """

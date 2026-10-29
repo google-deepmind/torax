@@ -15,7 +15,7 @@
 """Classes for representing a standard geometry.
 
 This is a geometry object that is used for most geometries sources
-CHEASE, FBT, etc.
+CHEASE, MEQ, etc.
 """
 
 import dataclasses
@@ -63,7 +63,7 @@ class StandardGeometry(geometry.Geometry):
 
   Most instances of Geometry should be of this type.  This class extends
   the base `Geometry` class with attributes that are commonly computed
-  from various equilibrium data sources (CHEASE, FBT, EQDSK, etc.).
+  from various equilibrium data sources (CHEASE, MEQ, EQDSK, etc.).
 
   Attributes:
     I_p_profile_face: Plasma current profile on the face grid
@@ -194,7 +194,7 @@ class StandardGeometryIntermediates:
 
   In particular these are the values that are used when interpolating different
   geometries.  These intermediates are typically extracted directly from
-  equilibrium solver outputs (like CHEASE, FBT, or EQDSK) and then used to
+  equilibrium solver outputs (like CHEASE, MEQ, or EQDSK) and then used to
   construct a `StandardGeometry` instance.
 
   TODO(b/335204606): Specify the expected COCOS format.
@@ -205,7 +205,7 @@ class StandardGeometryIntermediates:
   All inputs are 1D profiles vs normalized rho toroidal (rhon).
 
   Attributes:
-    geometry_type:  The type of geometry being represented (e.g., CHEASE, FBT,
+    geometry_type:  The type of geometry being represented (e.g., CHEASE, MEQ,
       EQDSK).
     R_major: Major radius defined as midplane average of the LCFS radius,
       :math:`R_\mathrm{major} = (R_\mathrm{max} + R_\mathrm{min}) / 2`

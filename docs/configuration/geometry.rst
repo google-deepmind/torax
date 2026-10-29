@@ -13,9 +13,9 @@ geometry
 * ``'chease'``
     Loads a CHEASE geometry file.
 
-* ``'fbt'``
-    Loads FBT geometry files.
-    NOTE: ``<B^2>`` and ``<1/B^2>`` are not currently supported by FBT geometry;
+* ``'meq'``
+    Loads MEQ (e.g. FBT, FGE, LIUQE) geometry files or structures.
+    NOTE: ``<B^2>`` and ``<1/B^2>`` are not currently supported by MEQ geometry;
     TORAX approximates these using analytical expressions for circular
     geometry. This might cause inaccuracies in neoclassical transport.
 
@@ -148,7 +148,7 @@ denormalization.
 ``B_0`` (float [default = 5.3])
   Vacuum toroidal magnetic field at ``R_major``, in :math:`T`.
 
-Geometry dicts for FBT geometry require the following additional keys.
+Geometry dicts for MEQ geometry require the following additional keys.
 
 ``divertor_domain`` (str [default = 'lower_null'])
   Selects the divertor domain used to extract edge geometry parameters used
@@ -156,24 +156,24 @@ Geometry dicts for FBT geometry require the following additional keys.
   Either ``'lower_null'`` or ``'upper_null'``.
 
 ``LY_object`` (dict[str, np.ndarray | float] | str | None [default = None])
-  Sets a single-slice FBT LY geometry file to be loaded, or alternatively a dict
+  Sets a single-slice MEQ LY geometry file to be loaded, or alternatively a dict
   directly containing a single time slice of LY data.
-  **Note:** FBT files can optionally contain edge geometry parameters
+  **Note:** MEQ files can optionally contain edge geometry parameters
   (e.g., ``Lpar_target``) used by the :ref:`extended_lengyel` edge model.
 
 ``LY_bundle_object`` (dict[str, np.ndarray | float] | str | None
-  [default = None]) Sets the FBT LY bundle file to be loaded, corresponding to
+  [default = None]) Sets the MEQ LY bundle file to be loaded, corresponding to
   multiple time-slices, or alternatively a dict directly containing all
   time-slices of LY data.
 
 ``LY_to_torax_times`` (ndarray | None [default = None])
   Sets the TORAX simulation times corresponding to the individual slices in the
-  FBT LY bundle file. If not provided, then the times are taken from the
+  MEQ LY bundle file. If not provided, then the times are taken from the
   LY_bundle_file itself. The length of the array must match the number of slices
   in the bundle.
 
 ``L_object`` (dict[str, np.ndarray | float] | str | None [default = None])
-  Sets the FBT L geometry file loaded, or alternatively a dict directly
+  Sets the MEQ L geometry file loaded, or alternatively a dict directly
   containing the L data.
 
 Geometry dicts for EQDSK geometry can contain the following additional keys.
@@ -264,12 +264,12 @@ Geometry dicts for TokaMaker geometry require the following additional keys.
 For setting up time-dependent geometry, a subset of varying geometry parameters
 and input files can be defined in a ``geometry_configs`` dict, which is a
 time-series of {time: {configs}} pairs. For example, a time-dependent geometry
-input with 3 time-slices of single-time-slice FBT geometries can be set up as:
+input with 3 time-slices of single-time-slice MEQ geometries can be set up as:
 
 .. code-block:: python
 
   'geometry': {
-      'geometry_type': 'fbt',
+      'geometry_type': 'meq',
       'geometry_configs': {
           20.0: {
               'LY_file': 'LY_early_rampup.mat',
@@ -286,7 +286,7 @@ input with 3 time-slices of single-time-slice FBT geometries can be set up as:
       },
   },
 
-Alternatively, for FBT data specifically, TORAX supports loading a bundle of LY
+Alternatively, for MEQ data specifically, TORAX supports loading a bundle of LY
 files packaged within a single ``.mat`` file using LIUQE meqlpack. This
 eliminates the need to specify multiple individual LY files in the
 ``geometry_configs`` parameter.

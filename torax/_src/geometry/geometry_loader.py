@@ -30,7 +30,7 @@ class GeometrySource(enum.Enum):
   """Integer enum for geometry source."""
 
   CHEASE = 0
-  FBT = 1
+  MEQ = 1
   EQDSK = 2
 
 
@@ -58,7 +58,7 @@ def _load_CHEASE_file(  # pylint: disable=invalid-name
   }
 
 
-def _load_fbt_file(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
+def _load_meq_file(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
   """Loads data into a dictionary from an MEQ LY or L file or file path."""
 
   meq_data = scipy.io.loadmat(file_path)
@@ -140,8 +140,8 @@ def load_geo_data(
   match geometry_source:
     case GeometrySource.CHEASE:
       return _load_CHEASE_file(filepath)
-    case GeometrySource.FBT:
-      return _load_fbt_file(filepath)
+    case GeometrySource.MEQ:
+      return _load_meq_file(filepath)
     case GeometrySource.EQDSK:
       return _load_eqdsk_file(cocos=cocos, file_path=filepath)  # pyrefly: ignore[bad-argument-type]
     case _:

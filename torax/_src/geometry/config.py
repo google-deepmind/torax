@@ -23,10 +23,10 @@ import pydantic
 from torax._src.geometry import chease
 from torax._src.geometry import circular_geometry
 from torax._src.geometry import eqdsk
-from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.geometry import imas
+from torax._src.geometry import meq
 from torax._src.geometry import standard_geometry
 from torax._src.geometry import tokamaker
 from torax._src.torax_pydantic import torax_pydantic
@@ -34,7 +34,7 @@ from torax._src.torax_pydantic import torax_pydantic
 SupportedGeometryConfig: TypeAlias = Annotated[
     circular_geometry.CircularConfig
     | chease.CheaseConfig
-    | fbt.FBTConfig
+    | meq.MEQConfig
     | eqdsk.EQDSKConfig
     | imas.IMASConfig
     | tokamaker.TokaMakerConfig,
@@ -87,15 +87,15 @@ class GeometryConfig(torax_pydantic.ConfigBase):
 
   @functools.cached_property
   def build_provider(self) -> geometry_provider.GeometryProvider:
-    # Time-varying geometries from FBT and IMAS can be loaded directly and we
+    # Time-varying geometries from MEQ and IMAS can be loaded directly and we
     # special-case both paths here.
     # TODO(b/398191165): Remove these branches once the Geometry configuration
     # is redesigned.
-    if self.geometry_type == geometry.GeometryType.FBT:
+    if self.geometry_type == geometry.GeometryType.MEQ:
       if not isinstance(self.geometry_configs, dict):
-        assert isinstance(self.geometry_configs, fbt.FBTConfig)
+        assert isinstance(self.geometry_configs, meq.MEQConfig)
         if self.geometry_configs.LY_bundle_object is not None:
-          return self.geometry_configs.build_fbt_geometry_provider_from_bundle(
+          return self.geometry_configs.build_meq_geometry_provider_from_bundle(
               self.calc_Phi_b_dot
           )
     if self.geometry_type == geometry.GeometryType.IMAS:

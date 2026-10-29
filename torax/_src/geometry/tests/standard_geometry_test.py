@@ -23,10 +23,10 @@ from torax._src import array_typing
 from torax._src.fvm import cell_variable
 from torax._src.geometry import chease
 from torax._src.geometry import config as geometry_config
-from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
+from torax._src.geometry import meq
 from torax._src.geometry import standard_geometry
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
@@ -46,7 +46,7 @@ class GeometryTest(parameterized.TestCase):
       return geo.R_major
 
     intermediate = standard_geometry.StandardGeometryIntermediates(
-        geometry_type=geometry.GeometryType.FBT,
+        geometry_type=geometry.GeometryType.MEQ,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,
@@ -90,20 +90,20 @@ class GeometryTest(parameterized.TestCase):
     L, LY0 = get_example_L_LY_data.get_example_L_LY_data(10, 1, fill_value=1.0)
     _, LY1 = get_example_L_LY_data.get_example_L_LY_data(10, 1, fill_value=2.0)
     _, LY2 = get_example_L_LY_data.get_example_L_LY_data(10, 1, fill_value=3.0)
-    geo0_intermediate = fbt._from_fbt_single_slice(
+    geo0_intermediate = meq._from_meq_single_slice(
         geometry_directory=None,
         LY_object=LY0,
         L_object=L,
         face_centers=interpolated_param_2d.get_face_centers(25),
     )
 
-    geo1_intermediate = fbt._from_fbt_single_slice(
+    geo1_intermediate = meq._from_meq_single_slice(
         geometry_directory=None,
         LY_object=LY1,
         L_object=L,
         face_centers=interpolated_param_2d.get_face_centers(25),
     )
-    geo2_intermediate = fbt._from_fbt_single_slice(
+    geo2_intermediate = meq._from_meq_single_slice(
         geometry_directory=None,
         LY_object=LY2,
         L_object=L,
@@ -160,7 +160,7 @@ class GeometryTest(parameterized.TestCase):
 
   def _make_intermediates(self, **overrides):
     defaults = dict(
-        geometry_type=geometry.GeometryType.FBT,
+        geometry_type=geometry.GeometryType.MEQ,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,

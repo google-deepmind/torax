@@ -39,7 +39,7 @@ impurity line radiation, an [[ICRH ML-surrogate]](https://meetings.aps.org/Meeti
 and QLKNN10D
 [[van de Plassche et al, Phys. Plasmas 2020]](https://doi.org/10.1063/1.5134126)
 QuaLiKiz neural network surrogates for physics-based turbulent transport
-- General geometry, provided via CHEASE, FBT, or EQDSK equilibrium files
+- General geometry, provided via CHEASE, MEQ (e.g. FBT, FGE, LIUQE), or EQDSK equilibrium files
     - For testing and demonstration purposes, a single CHEASE equilibrium file
     is available in the `data/third_party/geo` directory. It corresponds to an
     ITER hybrid scenario equilibrium based on simulations in

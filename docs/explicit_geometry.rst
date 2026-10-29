@@ -21,14 +21,14 @@ so:
   # We can directly create a new geometry object from a config.
   geometry_config = geometry_experimental.GeometryConfig.from_dict({
       'n_rho': 25,
-      'geometry_type': 'fbt',
+      'geometry_type': 'meq',
       'LY_object': initial_LY,
       'L_object': L,
   })
-  fbt_geometry_provider = geometry_config.build_provider
+  meq_geometry_provider = geometry_config.build_provider
   sim_state, post_processed_outputs = (
       torax_experimental.get_initial_state_and_post_processed_outputs(
-          geometry_provider=fbt_geometry_provider,
+          geometry_provider=meq_geometry_provider,
           step_fn=step_fn
       )
   )
@@ -43,7 +43,7 @@ so:
     # We need to provide the previous LY object to create a correct phibdot term
     geometry_config = geometry_experimental.GeometryConfig.from_dict({
       'n_rho': 25,
-      'geometry_type': 'fbt',
+      'geometry_type': 'meq',
       'geometry_configs': {
             sim_state.t: {
                 'LY_object': previous_LY,
@@ -55,12 +55,12 @@ so:
             },
         },
     })
-    fbt_geometry_provider = geometry_config.build_provider
+    meq_geometry_provider = geometry_config.build_provider
     sim_state, post_processed_outputs = step_fn.jitted_fixed_time_step(
         dt=control_dt,
         sim_state=sim_state,
         previous_post_processed_outputs=post_processed_outputs,
         # New provider passed in as overrides here.
-        geometry_overrides=fbt_geometry_provider,
+        geometry_overrides=meq_geometry_provider,
     )
     previous_LY = new_LY

@@ -47,7 +47,7 @@ class GeometryProviderTest(absltest.TestCase):
 
   def test_time_dependent_different_types(self):
     geo_0 = circular_geometry.CircularConfig().build_geometry()
-    geo_1 = dataclasses.replace(geo_0, geometry_type=geometry.GeometryType.FBT)
+    geo_1 = dataclasses.replace(geo_0, geometry_type=geometry.GeometryType.MEQ)
     with self.assertRaisesRegex(
         ValueError, "All geometries must have the same geometry type."
     ):

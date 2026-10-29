@@ -168,7 +168,7 @@ Geometry Configuration
 The model requires specific edge geometric parameters (connection lengths,
 flux expansion, etc.).
 
-*   **FBT Geometry:** If using FBT files, TORAX attempts to extract these values
+*   **MEQ Geometry:** If using MEQ files, TORAX attempts to extract these values
     directly from the file. If values are found in both the geometry file and
     the edge configuration, the values in the file take precedence.
 

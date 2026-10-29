@@ -56,7 +56,7 @@ class GeometryType(enum.IntEnum):
 
   CIRCULAR = 0
   CHEASE = 1
-  FBT = 2
+  MEQ = 2
   EQDSK = 3
   IMAS = 4
   TOKAMAKER = 5

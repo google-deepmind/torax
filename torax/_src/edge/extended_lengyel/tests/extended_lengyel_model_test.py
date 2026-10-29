@@ -81,7 +81,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     n_rho = 10
     mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
-    mock_geo.geometry_type = geometry.GeometryType.FBT
+    mock_geo.geometry_type = geometry.GeometryType.MEQ
     # Mock geo quantities that are needed for the test.
     mock_geo.R_major = np.array(1.65)
     mock_geo.a_minor = np.array(0.5)
@@ -263,7 +263,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     # 1. Mock Geometry
     mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
-    mock_geo.geometry_type = geometry.GeometryType.FBT
+    mock_geo.geometry_type = geometry.GeometryType.MEQ
     mock_geo.rho_face_norm = np.linspace(0, 1.0, (n_rho + 1))
     mock_geo.rho_norm = np.linspace(0, 1, n_rho)
     mock_geo.drho_norm = np.ones(n_rho) / n_rho
@@ -982,10 +982,10 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     _CONFIG_BROADENING = 3.0
 
     # 1. Mock Geometry
-    # We simulate a non-FBT geometry so that 'diverted' is read from
+    # We simulate a non-MEQ geometry so that 'diverted' is read from
     # the edge configuration rather than the geometry object.
     mock_geo = mock.MagicMock(spec=standard_geometry.StandardGeometry)
-    mock_geo.geometry_type = geometry.GeometryType.CHEASE  # Not FBT
+    mock_geo.geometry_type = geometry.GeometryType.CHEASE  # Not MEQ
 
     # Mock minimal attributes required for geometric resolution
     mock_geo.rho_face_norm = np.linspace(0, 1.0, (n_rho + 1))

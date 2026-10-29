@@ -230,7 +230,7 @@ def _geometry_from_single_slice(
   R_major = np.asarray(R_major_profile[-1])
 
   # IMAS defines the vacuum toroidal field b0 at the reference radius r0.
-  # Scale to R_major using B_vac ∝ 1/R, consistent with EQDSK/FBT loaders.
+  # Scale to R_major using B_vac ∝ 1/R, consistent with EQDSK/MEQ loaders.
   r0 = np.asarray(equilibrium.vacuum_toroidal_field.r0)
   B_0 = np.abs(equilibrium.vacuum_toroidal_field.b0[0]) * r0 / R_major
 

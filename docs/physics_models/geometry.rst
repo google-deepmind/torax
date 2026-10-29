@@ -13,9 +13,10 @@ transport equations.
   boundary Grad-Shafranov equilibrium code. Users provide a CHEASE output
   file, and TORAX extracts the relevant geometric quantities.
 
-- **FBT:** This model utilizes equilibrium data from the |fbt| free boundary
-  Grad-Shafranov equilibrium code. Users provide FBT output files, and TORAX
-  extracts the relevant geometric quantities.
+- **MEQ:** This model utilizes equilibrium data from the MEQ suite (e.g., the
+  |fbt| free boundary Grad-Shafranov equilibrium code, FGE, or LIUQE). Users
+  provide MEQ output files or structures, and TORAX extracts the relevant
+  geometric quantities.
 
 - **EQDSK:** This model utilizes equilibrium data provided in the EQDSK
   format. Users provide EQDSK formatted files. TORAX extracts the relevant

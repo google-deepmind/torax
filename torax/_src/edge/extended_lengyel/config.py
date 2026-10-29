@@ -127,7 +127,7 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   ] = extended_lengyel_defaults.MULTISTART_NUM_GUESSES
 
   # Optional boolean to specify if the geometry is diverted.
-  # Required for non-FBT geometries. Not allowed for FBT geometries.
+  # Required for non-MEQ geometries. Not allowed for MEQ geometries.
   diverted: torax_pydantic.TimeVaryingScalarStep | None = None
 
   # --- Physical parameters ---

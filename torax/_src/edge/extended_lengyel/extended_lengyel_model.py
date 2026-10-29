@@ -155,7 +155,7 @@ class ExtendedLengyelModel(base.EdgeModel):
           extended_lengyel_standalone.ExtendedLengyelOutputs,
       )
 
-    # Determine diverted status. For FBT geometries, this is provided by the
+    # Determine diverted status. For MEQ geometries, this is provided by the
     # geometry object. For other types, it must be provided in the config.
     # The config validation ensures that one and only one of these is valid.
 
@@ -457,12 +457,12 @@ def _get_diverted(
   # To avoid None values in the jnp.where, use safe defaults.
   # The pydantic config validation ensures that the values that override the
   # None are never used.
-  safe_fbt_diverted = geo.diverted if geo.diverted is not None else False
+  safe_meq_diverted = geo.diverted if geo.diverted is not None else False
   safe_params_diverted = (
       edge_params.diverted if edge_params.diverted is not None else False
   )
-  is_fbt = geo.geometry_type == geometry.GeometryType.FBT
-  return jnp.where(is_fbt, safe_fbt_diverted, safe_params_diverted)
+  is_meq = geo.geometry_type == geometry.GeometryType.MEQ
+  return jnp.where(is_meq, safe_meq_diverted, safe_params_diverted)
 
 
 def _is_viable_previous_outputs(

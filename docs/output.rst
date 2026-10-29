@@ -529,7 +529,7 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``angle_of_incidence_target`` (time)
   Angle between magnetic field line and divertor target [degrees]. Only present
-  if provided by FBT geometry.
+  if provided by MEQ geometry.
 
 ``a_minor`` (time)
   Minor radius [:math:`m`].
@@ -545,7 +545,7 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``B_pol_OMP`` (time)
   Poloidal magnetic field at the outboard midplane [:math:`T`]. Only present if
-  provided by FBT geometry.
+  provided by MEQ geometry.
 
 ``beta_N`` (time)
   Normalized beta (thermal) in percent [dimensionless]. Defined as
@@ -566,15 +566,15 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``connection_length_divertor`` (time)
   Parallel connection length from outboard midplane to X-point [:math:`m`]. Only
-  present if provided by FBT geometry.
+  present if provided by MEQ geometry.
 
 ``connection_length_target`` (time)
   Parallel connection length from outboard midplane to target [:math:`m`]. Only
-  present if provided by FBT geometry.
+  present if provided by MEQ geometry.
 
 ``diverted`` (time)
   Boolean flag indicating whether the geometry is diverted or limited. Only
-  present if provided by FBT geometry.
+  present if provided by MEQ geometry.
 
 ``dW_thermal_dt`` (time)
   Time derivative of the total thermal stored energy [:math:`W`], raw unsmoothed
@@ -822,7 +822,7 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``R_target`` (time)
   Major radius of the divertor target strike point [:math:`m`]. Only present if
-  provided by FBT geometry.
+  provided by MEQ geometry.
 
 ``rho_b`` (time)
   Value of the unnormalized rho coordinate at the boundary [:math:`m`].

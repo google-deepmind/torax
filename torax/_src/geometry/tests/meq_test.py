@@ -18,10 +18,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax._src.geometry import config as geometry_config
-from torax._src.geometry import fbt
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_loader
 from torax._src.geometry import get_example_L_LY_data
+from torax._src.geometry import meq
 from torax._src.geometry import standard_geometry
 from torax._src.geometry import trapped_fraction
 from torax._src.torax_pydantic import interpolated_param_2d
@@ -31,7 +31,7 @@ from torax._src.torax_pydantic import interpolated_param_2d
 # pylint: disable=invalid-name
 
 
-class FBTGeometryTest(parameterized.TestCase):
+class MEQGeometryTest(parameterized.TestCase):
 
   @parameterized.parameters([
       trapped_fraction.TrappedFractionSource.FILE,
@@ -40,29 +40,29 @@ class FBTGeometryTest(parameterized.TestCase):
   def test_trapped_fraction_source_not_supported(
       self, trapped_fraction_source: trapped_fraction.TrappedFractionSource
   ):
-    """Tests that FBT only supports SAUTER (no file or 2D equilibrium data)."""
-    with self.assertRaisesRegex(ValueError, 'not supported for FBTConfig'):
-      fbt.FBTConfig(trapped_fraction_source=trapped_fraction_source)
+    """Tests that MEQ only supports SAUTER (no file or 2D equilibrium data)."""
+    with self.assertRaisesRegex(ValueError, 'not supported for MEQConfig'):
+      meq.MEQConfig(trapped_fraction_source=trapped_fraction_source)
 
   @parameterized.parameters([
       trapped_fraction.TrappedFractionSource.FILE,
       trapped_fraction.TrappedFractionSource.EXACT,
   ])
-  def test_from_fbt_unsupported_trapped_fraction_source(
+  def test_from_meq_unsupported_trapped_fraction_source(
       self, trapped_fraction_source: trapped_fraction.TrappedFractionSource
   ):
-    """Tests that _from_fbt raises ValueError for unsupported trapped_fraction_source."""
+    """Tests that _from_meq raises ValueError for unsupported trapped_fraction_source."""
     L, LY = get_example_L_LY_data.get_example_L_LY_data(
         len_psinorm=20, len_times=1
     )
     with self.assertRaisesRegex(
         ValueError, 'Unsupported trapped_fraction_source'
     ):
-      fbt._from_fbt_single_slice(
+      meq._from_meq_single_slice(
           geometry_directory=None,
           LY_object=LY,
           L_object=L,
-          divertor_domain=fbt.DivertorDomain.LOWER_NULL,
+          divertor_domain=meq.DivertorDomain.LOWER_NULL,
           face_centers=interpolated_param_2d.get_face_centers(25),
           trapped_fraction_source=trapped_fraction_source,
       )
@@ -70,7 +70,7 @@ class FBTGeometryTest(parameterized.TestCase):
   def test_edge_geometry_params_are_propagated(self):
     """Tests that edge geometry parameters are propagated to StandardGeometry."""
     intermediate = standard_geometry.StandardGeometryIntermediates(
-        geometry_type=geometry.GeometryType.FBT,
+        geometry_type=geometry.GeometryType.MEQ,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,
@@ -135,7 +135,7 @@ class FBTGeometryTest(parameterized.TestCase):
       dict(invalid_key='zA', invalid_shape=(2,)),
       dict(invalid_key='t', invalid_shape=(2,)),
   ])
-  def test_validate_fbt_data_invalid_shape(self, invalid_key, invalid_shape):
+  def test_validate_meq_data_invalid_shape(self, invalid_key, invalid_shape):
     len_psinorm = 20
     len_times = 3
 
@@ -144,7 +144,7 @@ class FBTGeometryTest(parameterized.TestCase):
     LY[invalid_key] = np.zeros(invalid_shape)
 
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
-      fbt._validate_fbt_data(LY, L)
+      meq._validate_meq_data(LY, L)
 
   @parameterized.parameters(
       'rBt',
@@ -169,7 +169,7 @@ class FBTGeometryTest(parameterized.TestCase):
       't',
       'lX',
   )
-  def test_validate_fbt_data_missing_LY_key(self, missing_key):
+  def test_validate_meq_data_missing_LY_key(self, missing_key):
     len_psinorm = 20
     len_times = 3
     L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
@@ -181,25 +181,25 @@ class FBTGeometryTest(parameterized.TestCase):
       errmsg = 'LY data is missing the'
 
     with self.assertRaisesRegex(ValueError, errmsg):
-      fbt._validate_fbt_data(LY, L)
+      meq._validate_meq_data(LY, L)
 
-  def test_validate_fbt_data_missing_L_key(self):
+  def test_validate_meq_data_missing_L_key(self):
     len_psinorm = 20
     len_times = 3
     L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
     del L['pQ']
     with self.assertRaisesRegex(ValueError, 'L data is missing'):
-      fbt._validate_fbt_data(LY, L)
+      meq._validate_meq_data(LY, L)
 
-  def test_validate_fbt_data_incorrect_L_pQ_shape(self):
+  def test_validate_meq_data_incorrect_L_pQ_shape(self):
     len_psinorm = 20
     len_times = 3
     L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
     L['pQ'] = np.zeros((len_psinorm + 1,))
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
-      fbt._validate_fbt_data(LY, L)
+      meq._validate_meq_data(LY, L)
 
-  def test_fbt_edge_parameters(self):
+  def test_meq_edge_parameters(self):
     """Tests edge parameters are extracted using shortest Lpar_div."""
     len_psinorm = 20
     len_times = 2
@@ -221,7 +221,7 @@ class FBTGeometryTest(parameterized.TestCase):
     # Set diverted flag.
     LY['lX'] = np.ones(len_times, dtype=int)
 
-    geo_intermediates = fbt._from_fbt_bundle(
+    geo_intermediates = meq._from_meq_bundle(
         geometry_directory=None,
         LY_bundle_object=LY,
         LY_to_torax_times=np.array([0.0, 1.0]),
@@ -229,7 +229,7 @@ class FBTGeometryTest(parameterized.TestCase):
         face_centers=interpolated_param_2d.get_face_centers(25),
     )
 
-    # from_fbt_bundle returns a dictionary of StandardGeometryIntermediates
+    # from_meq_bundle returns a dictionary of StandardGeometryIntermediates
     # objects, so we need to extract the values for each time slice.
     intermediates_list = list(geo_intermediates.values())
 
@@ -257,11 +257,11 @@ class FBTGeometryTest(parameterized.TestCase):
         [i.B_pol_OMP for i in intermediates_list], np.array([0.5, 0.7])
     )
 
-  def test_fbt_edge_parameters_missing_edge_parameters(self):
+  def test_meq_edge_parameters_missing_edge_parameters(self):
     len_psinorm = 20
     len_times = 2
     L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
-    geo_intermediates_no_z = fbt._from_fbt_bundle(
+    geo_intermediates_no_z = meq._from_meq_bundle(
         geometry_directory=None,
         LY_bundle_object=LY,
         LY_to_torax_times=np.array([0.0, 1.0]),
@@ -287,7 +287,7 @@ class FBTGeometryTest(parameterized.TestCase):
           (10, 2),
       ),  # (10, 2) is not (2, 10) or (10,)
   )
-  def test_validate_fbt_data_edge_shapes(self, omp_shape, target_shape):
+  def test_validate_meq_data_edge_shapes(self, omp_shape, target_shape):
     len_psinorm = 20
     len_times = 10
     L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
@@ -302,11 +302,11 @@ class FBTGeometryTest(parameterized.TestCase):
 
     if should_fail:
       with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
-        fbt._validate_fbt_data(LY, L)
+        meq._validate_meq_data(LY, L)
     else:
-      fbt._validate_fbt_data(LY, L)
+      meq._validate_meq_data(LY, L)
 
-  def test_validate_fbt_data_edge_shapes_scalar(self):
+  def test_validate_meq_data_edge_shapes_scalar(self):
     len_psinorm = 20
     len_times = 1
     L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
@@ -317,17 +317,17 @@ class FBTGeometryTest(parameterized.TestCase):
     # 1. Valid scalar OMP, scalar target (n_directions=1)
     LY['r_OMP'] = np.array(1.0)  # scalar
     LY['Lpar_target'] = np.array(1.0)  # scalar
-    fbt._validate_fbt_data(LY, L)
+    meq._validate_meq_data(LY, L)
 
     # 2. Valid scalar OMP, 1D target (n_directions=2) -> shape (2,)
     LY['Lpar_target'] = np.array([1.0, 2.0])
-    fbt._validate_fbt_data(LY, L)
+    meq._validate_meq_data(LY, L)
 
     # 3. Invalid OMP shape (vector instead of scalar)
     LY['r_OMP'] = np.array([1.0, 2.0])
     # Expect incorrect shape because OMP is strictly checked against time_only
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
-      fbt._validate_fbt_data(LY, L)
+      meq._validate_meq_data(LY, L)
 
     # 4. Invalid target shape (n_directions=3)
     LY['r_OMP'] = np.array(1.0)
@@ -335,9 +335,9 @@ class FBTGeometryTest(parameterized.TestCase):
     # consistent check: 3 != 1.
     LY['Lpar_target'] = np.array([1.0, 2.0, 3.0])
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
-      fbt._validate_fbt_data(LY, L)
+      meq._validate_meq_data(LY, L)
 
-  def test_validate_fbt_data_partial_optional_keys(self):
+  def test_validate_meq_data_partial_optional_keys(self):
     len_psinorm = 20
     len_times = 1
     L, LY = get_example_L_LY_data.get_example_L_LY_data(len_psinorm, len_times)
@@ -347,7 +347,7 @@ class FBTGeometryTest(parameterized.TestCase):
 
     # We expect a warning about missing keys.
     with self.assertLogs(level='WARNING') as cm:
-      fbt._validate_fbt_data(LY, L)
+      meq._validate_meq_data(LY, L)
 
     self.assertTrue(
         any(

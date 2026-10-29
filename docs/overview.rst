@@ -51,7 +51,8 @@ TORAX has the following physics and numerics feature set:
 * Coupling to the |qlknn_7_11| and QLKNN10D |qlknn10d| QuaLiKiz-neural-network
   surrogates for physics-based turbulent transport. The semi-empirical
   Bohm-GyroBohm model is also available.
-* General geometry, provided via CHEASE, FBT, or EQDSK equilibrium files.
+* General geometry, provided via CHEASE, MEQ (e.g. FBT, FGE, LIUQE), or EQDSK
+  equilibrium files.
 * Sawtooth triggering and profile redistribution.
 * Simple pedestal models using a local adaptive source to set internal
   boundary conditions.
