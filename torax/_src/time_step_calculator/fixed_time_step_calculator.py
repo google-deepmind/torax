@@ -19,8 +19,8 @@ Steps through time using a constant time step.
 
 import jax
 from jax import numpy as jnp
-from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
+from torax._src.time_step_calculator import runtime_params as time_step_calculator_params
 from torax._src.time_step_calculator import time_step_calculator
 
 
@@ -29,12 +29,16 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator):
 
   def _next_dt(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: time_step_calculator_params.RuntimeParams,
       sim_state: sim_state_lib.SimState,
   ) -> jax.Array:
     """Returns the fixed time step duration."""
     del sim_state
-    return jnp.array(runtime_params.numerics.fixed_dt)
+    assert isinstance(
+        runtime_params,
+        time_step_calculator_params.FixedRuntimeParams,
+    )
+    return jnp.array(runtime_params.dt)
 
   def __eq__(self, other) -> bool:
     return isinstance(other, type(self))

@@ -46,7 +46,6 @@ CONFIG = {
         'evolve_electron_heat': False,
         'evolve_current': True,
         'current_diffusion_time_reduction_factor': 100,
-        't_final': 3,
     },
     'plasma_composition': {},
     'geometry': {
@@ -74,5 +73,6 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        't_final': 3,
     },
 }

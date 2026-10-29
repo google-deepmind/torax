@@ -389,13 +389,16 @@ class SimTest(sim_test_case.SimTestCase):
     torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
     torax_config.update_fields({
         'numerics': {
-            't_final': 0.1,  # Modify final step.
-            'fixed_dt': 0.06,
-            'exact_t_final': False,
             'evolve_ion_heat': False,
             'evolve_electron_heat': False,
             'evolve_current': False,
             'evolve_density': False,
+        },
+        'time_step_calculator': {
+            'calculator_type': 'fixed',
+            't_final': 0.1,  # Modify final step.
+            'dt': 0.06,
+            'exact_t_final': False,
         },
         'profile_conditions': {
             'Ip': 3.0e6,
@@ -414,7 +417,9 @@ class SimTest(sim_test_case.SimTestCase):
 
     history_length = history._stacked_core_profiles.T_i.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
-    self.assertGreater(history.times[-1], torax_config.numerics.t_final)
+    self.assertGreater(
+        history.times[-1], torax_config.time_step_calculator.t_final
+    )
     profiles_to_check = (
         (output_keys.T_I, history._stacked_core_profiles.T_i),
         (output_keys.T_E, history._stacked_core_profiles.T_e),
@@ -466,7 +471,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Override the config to restart from the halfway point of the reference.
     torax_config = self._get_torax_config(test_config + '.py')
-    torax_config.update_fields({'numerics.t_initial': loading_time})
+    torax_config.update_fields({'time_step_calculator.t_initial': loading_time})
     file_restart = file_restart_pydantic.FileRestartConfig.from_dict(
         dict(
             filename=output_file,
@@ -551,10 +556,12 @@ class SimTest(sim_test_case.SimTestCase):
         'profile_conditions': {'initial_psi_source': 'j'},
         'plasma_composition': {},
         'numerics': {
-            't_final': 3.0,
             'evolve_ion_heat': True,
             'evolve_electron_heat': True,
             'evolve_density': False,
+        },
+        'time_step_calculator': {
+            't_final': 3.0,
         },
         'geometry': {
             'geometry_type': 'circular',
@@ -628,7 +635,9 @@ class SimTest(sim_test_case.SimTestCase):
     state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
-    self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+    self.assertLess(
+        state_history.times[-1], torax_config.time_step_calculator.t_final
+    )
 
   def test_low_temperature_error(self):
     # We don't compare the results to a reference solution, because the purpose
@@ -646,7 +655,9 @@ class SimTest(sim_test_case.SimTestCase):
     self.assertEqual(
         state_history.sim_error, state.SimError.LOW_TEMPERATURE_COLLAPSE
     )
-    self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+    self.assertLess(
+        state_history.times[-1], torax_config.time_step_calculator.t_final
+    )
 
   def test_full_output_matches_reference(self):
     torax_config = self._get_torax_config('test_iterhybrid_rampup.py')

@@ -67,7 +67,9 @@ class QuasilinearUtilsTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+    geo = torax_config.geometry.build_provider(
+        torax_config.time_step_calculator.t_initial
+    )
     two_point_mask = np.zeros_like(geo.rho_face_norm, dtype=bool)
     L_ref = 3.0
     An_min = 0.05

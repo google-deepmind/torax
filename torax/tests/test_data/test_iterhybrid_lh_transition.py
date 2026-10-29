@@ -44,8 +44,6 @@ CONFIG['profile_conditions']['n_e_nbar_is_fGW'] = False
 CONFIG['profile_conditions']['normalize_n_e_to_nbar'] = False
 
 # Ramp heat up and down to trigger LH and HL transitions
-CONFIG['numerics']['t_initial'] = 0
-CONFIG['numerics']['t_final'] = 60
 CONFIG['sources']['generic_heat']['P_total'] = {
     0.0: 2e6,
     60.0: 6e7,
@@ -113,11 +111,15 @@ CONFIG['solver'] = {
 CONFIG['transport']['smoothing_width'] = 0.1
 
 # Use the from_previous_dt time step calculator to speed up the simulation.
-CONFIG['time_step_calculator'] = {'calculator_type': 'from_previous_dt'}
-CONFIG['numerics']['min_dt'] = 1e-3
-CONFIG['numerics']['max_dt'] = 1.0
-CONFIG['numerics']['fixed_dt'] = 1.0
-CONFIG['numerics']['dt_reduction_factor'] = 2.0
+CONFIG['time_step_calculator'] = {
+    'calculator_type': 'from_previous_dt',
+    't_initial': 0,
+    't_final': 60,
+    'max_dt': 1.0,
+    'initial_dt': 1.0,
+    'min_dt': 1e-3,
+    'dt_backtracking_factor': 2.0,
+}
 
 # Turn off resistivity multiplier, as otherwise high chi -> low temp -> high
 # resistivity becomes unstable.

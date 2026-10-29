@@ -36,7 +36,6 @@ CONFIG = {
         'evolve_density': True,
         'evolve_current': True,
         'current_diffusion_time_reduction_factor': 100,
-        't_final': 0.0007944 * 2,
     },
     'plasma_composition': {},
     'geometry': {
@@ -81,5 +80,6 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        't_final': 0.0007944 * 2,
     },
 }

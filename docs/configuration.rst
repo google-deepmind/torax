@@ -18,8 +18,8 @@ dictionary, where the top level keys are:
 * :ref:`profile_conditions <profile_conditions>`: Configures boundary
   conditions, initial conditions, and prescribed time-dependence of temperature,
   density, and current.
-* :ref:`numerics <numerics_dataclass>`: Configures time stepping settings and
-  numerical parameters.
+* :ref:`numerics <numerics_dataclass>`: Configures simulation control such as
+  equations being solved and constant numerical parameters.
 * :ref:`plasma_composition <plasma_composition_config>`: Configures the
   distribution of ion species.
 * :ref:`geometry <geometry_doc>`: Configures geometry setup and constructs the
@@ -381,13 +381,10 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'n_e': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
       },
       'numerics': {
-          't_final': 80,
-          'fixed_dt': 2,
           'evolve_ion_heat': True,
           'evolve_electron_heat': True,
           'evolve_current': True,
           'evolve_density': True,
-          'dt_reduction_factor': 3,
       },
       'geometry': {
           'geometry_type': 'chease',
@@ -458,5 +455,8 @@ CHEASE geometry), is shown below. The configuration file is also available in
       },
       'time_step_calculator': {
           'calculator_type': 'fixed',
+          't_final': 80,
+          'dt': 2,
+          'dt_backtracking_factor': 3,
       },
   }

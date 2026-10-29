@@ -190,7 +190,6 @@ class ImpurityFractionsTest(parameterized.TestCase):
             'T_e': {0: {0: 15.0, 1: 1.0}},
             'n_e': {0: {0: 1.2e20, 1: 0.8e20}},
         },
-        'numerics': {'t_final': 5.0, 'fixed_dt': 1.0},
         'geometry': {'geometry_type': 'circular'},
         'sources': {},
         'transport': {
@@ -199,7 +198,12 @@ class ImpurityFractionsTest(parameterized.TestCase):
             },
         },
         'solver': {'solver_type': 'linear'},
-        'time_step_calculator': {'calculator_type': 'fixed'},
+        'numerics': {},
+        'time_step_calculator': {
+            'calculator_type': 'fixed',
+            'dt': 1.0,
+            't_final': 5.0,
+        },
         'pedestal': {},
     }
 
@@ -321,7 +325,9 @@ class ImpurityFractionsTest(parameterized.TestCase):
         state_history.sim_error, state.SimError.NEGATIVE_CORE_PROFILES
     )
     # Verify that the simulation terminated before reaching t_final.
-    self.assertLess(state_history.times[-1], torax_config.numerics.t_final)
+    self.assertLess(
+        state_history.times[-1], torax_config.time_step_calculator.t_final
+    )
 
 
 class CoreProfilesCachedPropertiesTest(parameterized.TestCase):

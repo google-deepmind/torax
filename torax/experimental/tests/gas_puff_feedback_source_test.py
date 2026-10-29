@@ -66,7 +66,7 @@ class GasPuffFeedbackSourceTest(test_lib.SingleProfileSourceTestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
-    )(t=torax_config.numerics.t_initial)
+    )(t=torax_config.time_step_calculator.t_initial)
 
     gas_puff_params = runtime_params.sources['gas_puff']
     assert isinstance(gas_puff_params, gas_puff_feedback_source.RuntimeParams)

@@ -84,11 +84,6 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
             'n_e_right_bc': 0.5e20,
         },
         'numerics': {
-            'adaptive_dt': adaptive_dt,
-            # 1 time step in, the T_i_right_bc will be 2.0
-            'fixed_dt': 1.0,
-            'dt_reduction_factor': 1.5,
-            't_final': 1.0,
             'evolve_ion_heat': True,
             'evolve_electron_heat': False,
             'evolve_current': False,
@@ -106,7 +101,14 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
             'inner_solver_iterations': inner_solver_iterations,
         },
         'pedestal': {},
-        'time_step_calculator': {'calculator_type': 'fixed'},
+        'time_step_calculator': {
+            'calculator_type': 'fixed',
+            # 1 time step in, the T_i_right_bc will be 2.0
+            'dt': 1.0,
+            'dt_backtracking_factor': 1.5,
+            't_final': 1.0,
+            'allow_backtracking': adaptive_dt,
+        },
         'sources': {},
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)

@@ -20,8 +20,10 @@ Steps through time based on the previous time step.
 import dataclasses
 import jax
 import jax.numpy as jnp
+from torax._src import jax_utils
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.orchestration import sim_state as sim_state_lib
+from torax._src.time_step_calculator import runtime_params as time_step_calculator_params
 from torax._src.time_step_calculator import time_step_calculator
 from torax._src.time_step_calculator import time_step_calculator_state as time_step_calculator_state_lib
 
@@ -36,9 +38,11 @@ class FromPreviousTimeStepCalculatorState(
   Attributes:
     previous_non_sawtooth_dt: The duration of the most recent time step that is
       not a sawtooth.
+    is_first_step: Whether no non-sawtooth step has completed yet.
   """
 
   previous_non_sawtooth_dt: jax.Array
+  is_first_step: jax.Array
 
 
 class FromPreviousTimeStepCalculator(time_step_calculator.TimeStepCalculator):
@@ -48,8 +52,16 @@ class FromPreviousTimeStepCalculator(time_step_calculator.TimeStepCalculator):
       self, runtime_params: runtime_params_lib.RuntimeParams
   ) -> FromPreviousTimeStepCalculatorState:
     """Returns the initial state for the time step calculator."""
+    assert isinstance(
+        runtime_params.time_step_calculator,
+        time_step_calculator_params.FromPreviousRuntimeParams,
+    )
     return FromPreviousTimeStepCalculatorState(
-        previous_non_sawtooth_dt=jnp.array(runtime_params.numerics.fixed_dt)
+        previous_non_sawtooth_dt=jnp.array(
+            runtime_params.time_step_calculator.initial_dt,
+            dtype=jax_utils.get_dtype(),
+        ),
+        is_first_step=jnp.array(True),
     )
 
   def get_updated_state(
@@ -64,26 +76,33 @@ class FromPreviousTimeStepCalculator(time_step_calculator.TimeStepCalculator):
     # If the last step was a sawtooth crash, then the previous non-sawtooth dt
     # is the dt from before the crash. Otherwise, it is the dt from the most
     # recent time step.
+    sawtooth_crash = sim_state.solver_numeric_outputs.sawtooth_crash
     return FromPreviousTimeStepCalculatorState(
         previous_non_sawtooth_dt=jnp.where(
-            sim_state.solver_numeric_outputs.sawtooth_crash,
+            sawtooth_crash,
             sim_state.time_step_calculator_state.previous_non_sawtooth_dt,
             sim_state.dt,
+        ),
+        is_first_step=jnp.logical_and(
+            sim_state.time_step_calculator_state.is_first_step,
+            sawtooth_crash,
         ),
     )
 
   def _next_dt(
       self,
-      runtime_params: runtime_params_lib.RuntimeParams,
+      runtime_params: time_step_calculator_params.RuntimeParams,
       sim_state: sim_state_lib.SimState,
   ) -> jax.Array:
     """Calculates the next time step duration based on the previous time step.
 
-    The next timestep dt is the most recent non-sawtooth dt multiplied by the
-    dt reduction factor, clipped to the min and max dt values.
+    On the first step (before any non-sawtooth step has completed), returns
+    `initial_dt` (clipped to `max_dt`). On subsequent steps, returns the most
+    recent non-sawtooth dt multiplied by `dt_backtracking_factor`, clipped to
+    `max_dt`.
 
-    For example, if the previous non-sawtooth dt is 0.01 and the dt reduction
-    factor is 2.0, then the next dt is 0.02.
+    For example, if the previous non-sawtooth dt is 0.01 and
+    `dt_backtracking_factor` is 2.0, then the next dt is 0.02.
 
     Args:
       runtime_params: Input runtime parameters for the current timestep.
@@ -97,11 +116,17 @@ class FromPreviousTimeStepCalculator(time_step_calculator.TimeStepCalculator):
         FromPreviousTimeStepCalculatorState,
     )
 
-    dt = (
-        sim_state.time_step_calculator_state.previous_non_sawtooth_dt
-        * runtime_params.numerics.dt_reduction_factor
+    assert isinstance(
+        runtime_params,
+        time_step_calculator_params.FromPreviousRuntimeParams,
     )
-    dt = jnp.clip(dt, max=runtime_params.numerics.max_dt)
+    dt = jnp.where(
+        sim_state.time_step_calculator_state.is_first_step,
+        runtime_params.initial_dt,
+        sim_state.time_step_calculator_state.previous_non_sawtooth_dt
+        * runtime_params.dt_backtracking_factor,
+    )
+    dt = jnp.clip(dt, max=runtime_params.max_dt)
     return dt
 
   def __eq__(self, other) -> bool:

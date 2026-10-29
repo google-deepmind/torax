@@ -1331,9 +1331,8 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
 
     # Run for just a few steps
     torax_config.update_fields({
-        'numerics.t_final': (
-            torax_config.numerics.t_initial
-            + 5 * torax_config.numerics.fixed_dt.value[0]
+        'time_step_calculator.t_final': (
+            torax_config.time_step_calculator.t_initial + 0.5
         )
     })
 
@@ -1402,9 +1401,8 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
 
     # Run for a few steps to allow updates to happen
     torax_config.update_fields({
-        'numerics.t_final': (
-            torax_config.numerics.t_initial
-            + 3 * torax_config.numerics.fixed_dt.value[0]
+        'time_step_calculator.t_final': (
+            torax_config.time_step_calculator.t_initial + 0.3
         )
     })
 
@@ -1508,9 +1506,8 @@ class ExtendedLengyelModelCouplingTest(sim_test_case.SimTestCase):
 
     # Run for a few steps
     torax_config.update_fields({
-        'numerics.t_final': (
-            torax_config.numerics.t_initial
-            + 3 * torax_config.numerics.fixed_dt.value[0]
+        'time_step_calculator.t_final': (
+            torax_config.time_step_calculator.t_initial + 0.3
         )
     })
 
@@ -1602,9 +1599,8 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
 
     # Run for just a few steps
     self.torax_config.update_fields({
-        'numerics.t_final': (
-            self.torax_config.numerics.t_initial
-            + 5 * self.torax_config.numerics.fixed_dt.value[0]
+        'time_step_calculator.t_final': (
+            self.torax_config.time_step_calculator.t_initial + 0.5
         )
     })
 

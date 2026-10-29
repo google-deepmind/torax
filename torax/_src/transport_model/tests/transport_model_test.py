@@ -143,8 +143,10 @@ def _build_smoothing_matrix_for_n_rho(
   torax_config = config.ToraxConfig.from_dict(config_dict)
   runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
       torax_config
-  )(t=torax_config.numerics.t_initial)
-  geo = torax_config.geometry.build_provider(t=torax_config.numerics.t_initial)
+  )(t=torax_config.time_step_calculator.t_initial)
+  geo = torax_config.geometry.build_provider(
+      t=torax_config.time_step_calculator.t_initial
+  )
   matrix = transport_model._build_smoothing_matrix(
       runtime_params.transport,
       geo,
@@ -548,9 +550,9 @@ class TransportModelTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
-    )(t=torax_config.numerics.t_initial)
+    )(t=torax_config.time_step_calculator.t_initial)
     geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial
+        t=torax_config.time_step_calculator.t_initial
     )
     pedestal_output = _make_pedestal_output(
         rho_norm_ped_top=0.8,
@@ -575,9 +577,9 @@ class TransportModelTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
-    )(t=torax_config.numerics.t_initial)
+    )(t=torax_config.time_step_calculator.t_initial)
     geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial
+        t=torax_config.time_step_calculator.t_initial
     )
     pedestal_output = _make_pedestal_output(rho_norm_ped_top=0.8)
     matrix = transport_model._build_pedestal_smoothing_matrix(
@@ -593,9 +595,9 @@ class TransportModelTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
-    )(t=torax_config.numerics.t_initial)
+    )(t=torax_config.time_step_calculator.t_initial)
     geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial
+        t=torax_config.time_step_calculator.t_initial
     )
     pedestal_output = _make_pedestal_output(rho_norm_ped_top=0.8)
     matrix = transport_model._build_pedestal_smoothing_matrix(
@@ -784,12 +786,12 @@ class TransportModelTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     model = torax_config.transport.build_transport_model()
     geo = torax_config.geometry.build_provider(
-        t=torax_config.numerics.t_initial
+        t=torax_config.time_step_calculator.t_initial
     )
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(
-        t=torax_config.numerics.t_initial,
+        t=torax_config.time_step_calculator.t_initial,
     )
     return model, runtime_params, geo
 

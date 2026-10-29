@@ -16,7 +16,7 @@
 
 import dataclasses
 import functools
-from typing import Annotated, Self
+from typing import Annotated
 
 import chex
 import jax
@@ -34,13 +34,6 @@ class RuntimeParams:
   For definitions see `NumericsConfig`.
   """
 
-  t_initial: float
-  t_final: float
-  max_dt: float
-  min_dt: float
-  chi_timestep_prefactor: float
-  fixed_dt: array_typing.FloatScalar
-  dt_reduction_factor: float
   current_diffusion_time_reduction_factor: array_typing.FloatScalar
   dW_dt_smoothing_time_scale: float
   min_rho_norm: float
@@ -48,8 +41,6 @@ class RuntimeParams:
   evolve_electron_heat: bool = jax.tree.static()
   evolve_current: bool = jax.tree.static()
   evolve_density: bool = jax.tree.static()
-  exact_t_final: bool = jax.tree.static()
-  adaptive_dt: bool = jax.tree.static()
   enable_fast_ions: bool = jax.tree.static()
 
   @functools.cached_property
@@ -74,21 +65,6 @@ class NumericsConfig(torax_pydantic.ConfigBase):
   https://torax.readthedocs.io/en/latest/configuration/numerics.html.
 
   Attributes:
-    t_initial: Simulation start time, in units of seconds.
-    t_final: Simulation end time, in units of seconds.
-    exact_t_final: If True, ensures that the simulation end time is exactly
-      `t_final`, by adapting the final `dt` to match.
-    max_dt: Maximum timesteps allowed in the simulation. This is only used with
-      the `chi_time_step_calculator` time_step_calculator.
-    min_dt: Minimum timestep allowed in simulation.
-    chi_timestep_prefactor: Prefactor in front of chi_timestep_calculator base
-      timestep dt=dx^2/(2*chi). In most use-cases can be increased further above
-      this.
-    fixed_dt: Timestep used for `fixed_time_step_calculator`.
-    adaptive_dt: Iterative reduction of dt if nonlinear step does not converge,
-      if nonlinear step does not converge, then the step is redone iteratively
-      at successively lower dt until convergence is reached.
-    dt_reduction_factor: Factor by which to reduce dt if adaptive_dt is True.
     evolve_ion_heat: Solve the ion heat equation (ion temperature evolves over
       time).
     evolve_electron_heat: Solve the electron heat equation (electron temperature
@@ -107,18 +83,6 @@ class NumericsConfig(torax_pydantic.ConfigBase):
       near rho=0.
   """
 
-  t_initial: torax_pydantic.Second = 0.0
-  t_final: torax_pydantic.Second = 5.0
-  exact_t_final: Annotated[bool, torax_pydantic.JAX_STATIC] = True
-  # TODO(b/434175938) move these to the various time step calculator configs.
-  max_dt: torax_pydantic.Second = 2.0
-  min_dt: torax_pydantic.Second = 1e-8
-  chi_timestep_prefactor: pydantic.PositiveFloat = 50.0
-  fixed_dt: torax_pydantic.NonNegativeTimeVaryingScalarStep = (
-      torax_pydantic.ValidatedDefault(1e-1)
-  )
-  adaptive_dt: Annotated[bool, torax_pydantic.JAX_STATIC] = True
-  dt_reduction_factor: pydantic.PositiveFloat = 3.0
   evolve_ion_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   evolve_electron_heat: Annotated[bool, torax_pydantic.JAX_STATIC] = True
   evolve_current: Annotated[bool, torax_pydantic.JAX_STATIC] = False
@@ -131,21 +95,6 @@ class NumericsConfig(torax_pydantic.ConfigBase):
   min_rho_norm: torax_pydantic.UnitInterval = 0.015
 
   T_min_eV: pydantic.PositiveFloat = 5.0
-
-  @pydantic.model_validator(mode='after')
-  def model_validation(self) -> Self:
-    if self.t_initial > self.t_final:
-      raise ValueError(
-          't_initial must be less than or equal to t_final. '
-          f't_initial: {self.t_initial}, t_final: {self.t_final}'
-      )
-
-    if self.min_dt > self.max_dt:
-      raise ValueError(
-          'max_dt must be greater than or equal to min_dt. '
-          f'max_dt: {self.max_dt}, min_dt: {self.min_dt}'
-      )
-    return self
 
   @property
   def evolving_names(self) -> tuple[str, ...]:
@@ -164,13 +113,6 @@ class NumericsConfig(torax_pydantic.ConfigBase):
   def build_runtime_params(self, t: chex.Numeric) -> RuntimeParams:
     """Builds a RuntimeParams object for time t."""
     return RuntimeParams(
-        t_initial=self.t_initial,
-        t_final=self.t_final,
-        max_dt=self.max_dt,
-        min_dt=self.min_dt,
-        chi_timestep_prefactor=self.chi_timestep_prefactor,
-        fixed_dt=self.fixed_dt.get_value(t),
-        dt_reduction_factor=self.dt_reduction_factor,
         current_diffusion_time_reduction_factor=(
             self.current_diffusion_time_reduction_factor.get_value(t)
         ),
@@ -180,7 +122,5 @@ class NumericsConfig(torax_pydantic.ConfigBase):
         evolve_electron_heat=self.evolve_electron_heat,
         evolve_current=self.evolve_current,
         evolve_density=self.evolve_density,
-        exact_t_final=self.exact_t_final,
-        adaptive_dt=self.adaptive_dt,
         enable_fast_ions=self.enable_fast_ions,
     )

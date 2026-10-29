@@ -38,7 +38,7 @@ class BohmGyroBohmTest(absltest.TestCase):
     torax_config = config.ToraxConfig.from_dict(
         default_configs.get_default_config_dict()
     )
-    t = torax_config.numerics.t_initial
+    t = torax_config.time_step_calculator.t_initial
     bgb_runtime_params = bgb_config.build_runtime_params(t)
     core_profiles, runtime_params, geo = (
         core_profile_helpers.make_initial_inputs(torax_config)

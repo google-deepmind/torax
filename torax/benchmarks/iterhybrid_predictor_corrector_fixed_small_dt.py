@@ -18,5 +18,4 @@ import copy
 from torax.examples import iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(iterhybrid_predictor_corrector.CONFIG)
-CONFIG['numerics']['fixed_dt'] = 1e-3
-CONFIG['time_step_calculator'] = {'calculator_type': 'fixed'}
+CONFIG['time_step_calculator'] = {'calculator_type': 'fixed', 'dt': 1e-3}

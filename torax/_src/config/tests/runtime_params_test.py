@@ -40,7 +40,7 @@ class RuntimeParamsTest(parameterized.TestCase):
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         self._torax_config
     )(
-        t=self._torax_config.numerics.t_initial,
+        t=self._torax_config.time_step_calculator.t_initial,
     )
     # Make sure you can call the function with runtime_params as an arg.
     foo_jitted(runtime_params)

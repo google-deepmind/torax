@@ -188,7 +188,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       sim_state, _, _ = run_simulation.prepare_simulation(torax_config)
       runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
           torax_config
-      )(t=torax_config.numerics.t_initial)
+      )(t=torax_config.time_step_calculator.t_initial)
       return models.internal_boundary_condition_model(
           runtime_params=runtime_params,
           geo=sim_state.geometry,

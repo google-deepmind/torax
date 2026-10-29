@@ -89,7 +89,10 @@ def compute_state(
     solver: solver_lib.Solver,
 ) -> tuple[AdaptiveStepState, dict[str, array_typing.IntScalar]]:
   """Computes the state for attempt i of the adaptive step."""
-  dt = initial_dt / runtime_params_t.numerics.dt_reduction_factor**i
+  dt = (
+      initial_dt
+      / runtime_params_t.time_step_calculator.dt_backtracking_factor**i
+  )
   runtime_params_t_plus_dt, geo_t_plus_dt = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=input_state.t + dt,
@@ -161,15 +164,15 @@ def cond_fun(
 
   # If t + dt  is exactly the final time we may need a smaller step than
   # min_dt to exactly reach the final time.
-  if runtime_params_t.numerics.exact_t_final:
+  if runtime_params_t.time_step_calculator.exact_t_final:
     at_exact_t_final = jnp.allclose(
         input_state.t + next_dt,
-        runtime_params_t.numerics.t_final,
+        runtime_params_t.time_step_calculator.t_final,
     )
   else:
     at_exact_t_final = jnp.array(False)
 
-  next_dt_too_small = next_dt < runtime_params_t.numerics.min_dt
+  next_dt_too_small = next_dt < runtime_params_t.time_step_calculator.min_dt
 
   take_another_step = jax.lax.cond(
       solver_did_not_converge,

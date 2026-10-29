@@ -72,7 +72,11 @@ def get_initial_state_and_post_processed_outputs(
       runtime_params_overrides or step_fn.runtime_params_provider
   )
   geometry_provider = geometry_overrides or step_fn.geometry_provider
-  t = t if t is not None else runtime_params_provider.numerics.t_initial
+  t = (
+      t
+      if t is not None
+      else runtime_params_provider.time_step_calculator.t_initial
+  )
 
   runtime_params_for_init, geo_for_init = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
@@ -216,11 +220,10 @@ def _get_initial_state(
 
   return sim_state.SimState(
       t=jnp.array(
-          runtime_params.numerics.t_initial, dtype=jax_utils.get_dtype()
+          runtime_params.time_step_calculator.t_initial,
+          dtype=jax_utils.get_dtype(),
       ),
-      dt=jnp.array(
-          runtime_params.numerics.fixed_dt, dtype=jax_utils.get_dtype()
-      ),
+      dt=jnp.zeros((), dtype=jax_utils.get_dtype()),
       core_profiles=initial_core_profiles,
       core_sources=initial_core_sources,
       core_transport=transport_coeffs,
@@ -270,7 +273,7 @@ def get_initial_state_and_post_processed_outputs_from_file(
       runtime_params_overrides or step_fn.runtime_params_provider
   )
   geometry_provider = geometry_overrides or step_fn.geometry_provider
-  t = t or runtime_params_provider.numerics.t_initial
+  t = t or runtime_params_provider.time_step_calculator.t_initial
 
   data_tree = output.load_state_file(file_restart.filename)  # pyrefly: ignore[bad-argument-type]
   # Find the closest time in the given dataset.
@@ -412,7 +415,13 @@ def _override_initial_runtime_params_from_file(
   # TODO(b/446608829): Implement passing of impurity content needed when
   # restarting with inverse model extended-lengyel.
 
-  runtime_params.numerics.t_initial = t_restart
+  runtime_params = dataclasses.replace(
+      runtime_params,
+      time_step_calculator=dataclasses.replace(
+          runtime_params.time_step_calculator,
+          t_initial=t_restart,
+      ),
+  )
   runtime_params.profile_conditions.Ip = profiles_ds.data_vars[
       output_keys.IP_PROFILE
   ].to_numpy()[-1]

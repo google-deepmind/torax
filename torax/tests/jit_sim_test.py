@@ -291,7 +291,7 @@ class JitSimTest(sim_test_case.SimTestCase):
     config_path = os.path.join(test_data_dir, 'test_implicit.py')
     torax_config = config_loader.build_torax_config_from_file(config_path)
     torax_config.update_fields(
-        {'time_step_calculator.calculator_type': calculator_type}
+        {'time_step_calculator': {'calculator_type': calculator_type}}
     )
 
     with self.assertRaisesRegex(

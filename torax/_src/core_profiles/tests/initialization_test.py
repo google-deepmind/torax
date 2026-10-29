@@ -101,7 +101,7 @@ class InitializationTest(parameterized.TestCase):
     torax_config = config.ToraxConfig.from_dict(config_dict)
     runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=torax_config.numerics.t_initial,
+            t=torax_config.time_step_calculator.t_initial,
             runtime_params_provider=build_runtime_params.RuntimeParamsProvider.from_config(
                 torax_config
             ),
@@ -426,7 +426,7 @@ def _get_initial_state(
   neoclassical_model = torax_config.neoclassical.build_model()
   runtime_params, geo = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
-          t=torax_config.numerics.t_initial,
+          t=torax_config.time_step_calculator.t_initial,
           runtime_params_provider=build_runtime_params.RuntimeParamsProvider.from_config(
               torax_config
           ),

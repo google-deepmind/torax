@@ -148,7 +148,7 @@ The ``numerics`` dataset contains the following data variables.
 
   * 3 if negative temperatures or densities are detected.
 
-  * 4 if the minimum timestep, as set by ``numerics.min_dt`` is reached.
+  * 4 if the minimum timestep, as set by ``time_step_calculator.min_dt`` is reached.
 
   * 5 if low temperature collapse is detected (T < T_min_eV).
 

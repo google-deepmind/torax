@@ -37,7 +37,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     sim_state, _ = initial_state.get_initial_state_and_post_processed_outputs(
         step_fn=step_fn,
     )
-    self.assertEqual(sim_state.dt, torax_config.numerics.fixed_dt.value)
+    self.assertEqual(sim_state.dt, 0.0)
 
   def test_from_file_restart(self):
     torax_config = self._get_torax_config('test_iterhybrid_rampup_restart.py')
@@ -93,13 +93,13 @@ class InitialStateTest(sim_test_case.SimTestCase):
     t = int(ref_time[index])
 
     config_dict = self._get_config_dict(test_config + '.py')
-    config_dict['numerics']['t_initial'] = t
+    config_dict.setdefault('time_step_calculator', {})['t_initial'] = t
     torax_config = config.ToraxConfig.from_dict(config_dict)
 
     step_fn = run_simulation.make_step_fn(torax_config)
     runtime_params, geo = (
         build_runtime_params.get_consistent_runtime_params_and_geometry(
-            t=torax_config.numerics.t_initial,
+            t=torax_config.time_step_calculator.t_initial,
             runtime_params_provider=step_fn.runtime_params_provider,
             geometry_provider=step_fn.geometry_provider,
             is_initialization=True,

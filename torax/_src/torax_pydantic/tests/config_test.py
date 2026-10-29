@@ -76,7 +76,7 @@ class ConfigTest(parameterized.TestCase):
       self.assertTrue(torax_config._has_unique_submodels)
 
     self.assertEqual(
-        torax_config.time_step_calculator.calculator_type.value,
+        torax_config.time_step_calculator.calculator_type,
         config_dict["time_step_calculator"]["calculator_type"],
     )
     with self.subTest("pedestal_model_set"):

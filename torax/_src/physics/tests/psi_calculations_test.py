@@ -169,7 +169,7 @@ class PsiCalculationsTest(parameterized.TestCase):
   ):
     references = references_getter()
     geo = references.geometry_provider(
-        references.torax_config.numerics.t_initial
+        references.torax_config.time_step_calculator.t_initial
     )
     # pylint: disable=invalid-name
     j, _, Ip_profile_face = psi_calculations.calc_j_toroidal_total(
@@ -198,7 +198,7 @@ class PsiCalculationsTest(parameterized.TestCase):
   def test_calc_s(self, references_getter: Callable[[], torax_refs.References]):
     references = references_getter()
     geo = references.geometry_provider(
-        references.torax_config.numerics.t_initial
+        references.torax_config.time_step_calculator.t_initial
     )
 
     s = psi_calculations.calc_s_face(geo, references.psi)

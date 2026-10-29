@@ -55,7 +55,7 @@ class JitRunLoopTest(parameterized.TestCase):
           testcase_name='fixed_no_adaptive_exact_division',
           t_initial=0.0,
           t_final=5.0,
-          fixed_dt=0.5,
+          dt=0.5,
           adaptive_dt=False,
           expected_max_steps=10,
       ),
@@ -63,15 +63,15 @@ class JitRunLoopTest(parameterized.TestCase):
           testcase_name='fixed_no_adaptive_ceil_division',
           t_initial=0.0,
           t_final=5.0,
-          fixed_dt=2.0,
+          dt=2.0,
           adaptive_dt=False,
           expected_max_steps=3,
       ),
       dict(
-          testcase_name='fixed_no_adaptive_time_varying_fixed_dt',
+          testcase_name='fixed_no_adaptive_time_varying_dt',
           t_initial=0.0,
           t_final=5.0,
-          fixed_dt={0.0: 2.0, 2.0: 0.5},
+          dt={0.0: 2.0, 2.0: 0.5},
           adaptive_dt=False,
           expected_max_steps=10,
       ),
@@ -79,7 +79,7 @@ class JitRunLoopTest(parameterized.TestCase):
           testcase_name='fixed_with_adaptive_exact_division',
           t_initial=0.0,
           t_final=5.0,
-          fixed_dt=0.5,
+          dt=0.5,
           adaptive_dt=True,
           expected_max_steps=100,
       ),
@@ -87,7 +87,7 @@ class JitRunLoopTest(parameterized.TestCase):
           testcase_name='fixed_with_adaptive_ceil_division',
           t_initial=0.0,
           t_final=5.0,
-          fixed_dt=2.0,
+          dt=2.0,
           adaptive_dt=True,
           expected_max_steps=30,
       ),
@@ -96,17 +96,17 @@ class JitRunLoopTest(parameterized.TestCase):
       self,
       t_initial,
       t_final,
-      fixed_dt,
+      dt,
       adaptive_dt,
       expected_max_steps,
   ):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
-    config_dict['numerics'] = {
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
         't_initial': t_initial,
         't_final': t_final,
-        'fixed_dt': fixed_dt,
-        'adaptive_dt': adaptive_dt,
+        'dt': dt,
+        'allow_backtracking': adaptive_dt,
     }
     torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
@@ -115,12 +115,12 @@ class JitRunLoopTest(parameterized.TestCase):
 
   def test_run_loop_fixed_default_and_explicit_max_steps(self):
     config_dict = default_configs.get_default_config_dict()
-    config_dict['time_step_calculator'] = {'calculator_type': 'fixed'}
-    config_dict['numerics'] = {
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
         't_initial': 0.0,
         't_final': 0.2,
-        'fixed_dt': 0.1,
-        'adaptive_dt': False,
+        'dt': 0.1,
+        'allow_backtracking': False,
     }
     torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)

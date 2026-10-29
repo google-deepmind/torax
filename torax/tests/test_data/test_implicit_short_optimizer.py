@@ -19,9 +19,7 @@ CONFIG = {
         'initial_psi_source': 'j',
         'n_e_right_bc': 0.5e20,
     },
-    'numerics': {
-        't_final': 0.1,
-    },
+    'numerics': {},
     'plasma_composition': {},
     'geometry': {
         'geometry_type': 'circular',
@@ -55,5 +53,6 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        't_final': 0.1,
     },
 }

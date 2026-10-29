@@ -46,12 +46,12 @@ from torax._src.time_step_calculator import time_step_calculator as ts
 # pylint: disable=invalid-name
 
 
-@jax.jit(static_argnames=['adaptive_dt'])
+@jax.jit(static_argnames=['allow_backtracking'])
 def has_any_step_error(
     output_state: sim_state.SimState,
     post_processed_outputs: post_processing.PostProcessedOutputs,
     T_min_eV: float,
-    adaptive_dt: bool,
+    allow_backtracking: bool,
 ) -> jax.Array:
   """Single fused XLA check returning True if any error condition is met."""
   return (
@@ -61,7 +61,7 @@ def has_any_step_error(
       | ~output_state.core_profiles.quasineutrality_satisfied()
       | post_processed_outputs.has_nan()
       | (
-          adaptive_dt
+          allow_backtracking
           & (output_state.solver_numeric_outputs.solver_error_state == 1)
       )
   )
@@ -155,7 +155,7 @@ class SimulationStepFn:
   def is_done(self, t: jax.Array) -> bool | jax.Array:
     return self._time_step_calculator.is_done(
         t=t,
-        t_final=self._runtime_params_provider.numerics.t_final,
+        t_final=self._runtime_params_provider.time_step_calculator.t_final,
         tolerance=self._runtime_params_provider.time_step_calculator.tolerance,
     )
 
@@ -170,7 +170,9 @@ class SimulationStepFn:
             output_state,
             post_processed_outputs,
             self._runtime_params_provider.numerics.T_min_eV,
-            bool(self._runtime_params_provider.numerics.adaptive_dt),
+            bool(
+                self._runtime_params_provider.time_step_calculator.allow_backtracking
+            ),
         )
     ):
       return state.SimError.NO_ERROR
@@ -191,7 +193,7 @@ class SimulationStepFn:
 
     # Check if reached the minimum time step last - this is often caused by
     # other errors so check those first to give more informative error messages.
-    if self._runtime_params_provider.numerics.adaptive_dt:
+    if self._runtime_params_provider.time_step_calculator.allow_backtracking:
       if output_state.solver_numeric_outputs.solver_error_state == 1:
         # If using adaptive stepping and the solver did not converge we must
         # have reached the minimum time step, so we can exit the simulation.
@@ -226,9 +228,9 @@ class SimulationStepFn:
       previous_post_processed_outputs: Post-processed outputs from the previous
         time step.
       max_dt: The maximum time step duration to allow the simulation to take. If
-        set this will override the properties set in the numerics config. If
-        this is infinite, the time step duration will be chosen based on the
-        values set in the numerics config.
+        set this will override the properties set in the time_step_calculator
+        config. If this is infinite, the time step duration will be chosen based
+        on the values set in the time_step_calculator config.
       runtime_params_overrides: Runtime parameters to override the ones set in
         the runtime params provider.
       geometry_overrides: Geometry provider to override the one set in the step
@@ -281,11 +283,11 @@ class SimulationStepFn:
           geometry_provider,
           model_state_t,
       )
-      # If adaptive dt is enabled, take the adaptive step if the max_dt is
+      # If dt backtracking is enabled, take the adaptive step if the max_dt is
       # greater than the min_dt, otherwise take the fixed step.
-      if runtime_params_provider.numerics.adaptive_dt:
+      if runtime_params_provider.time_step_calculator.allow_backtracking:
         return jax.lax.cond(
-            max_dt > runtime_params_t.numerics.min_dt,
+            max_dt > runtime_params_t.time_step_calculator.min_dt,
             self._adaptive_step,
             self._fixed_step,
             *step_args,
@@ -344,7 +346,7 @@ class SimulationStepFn:
       # and an error will be raised when the state is checked. Here we set a
       # the bool min_dt_reached to True to indicate that we should exit the
       # simulation.
-      if self.runtime_params_provider.numerics.adaptive_dt:
+      if self.runtime_params_provider.time_step_calculator.allow_backtracking:
         exit_min_dt = prev_state.solver_numeric_outputs.solver_error_state == 1
       else:
         exit_min_dt = False
@@ -480,7 +482,7 @@ class SimulationStepFn:
     """Performs a (possibly) adaptive simulation step."""
     evolving_names = runtime_params_t.numerics.evolving_names
     initial_dt = self.time_step_calculator.next_dt(
-        runtime_params_t,
+        runtime_params_t.time_step_calculator,
         input_state,
     )
     initial_dt = jnp.minimum(initial_dt, max_dt)
@@ -572,7 +574,7 @@ class SimulationStepFn:
   ]:
     """Performs a single simulation step."""
     dt = self.time_step_calculator.next_dt(
-        runtime_params_t,
+        runtime_params_t.time_step_calculator,
         input_state,
     )
     dt = jnp.minimum(dt, max_dt)

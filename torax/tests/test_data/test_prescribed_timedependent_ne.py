@@ -43,9 +43,6 @@ CONFIG = {
         'evolve_current': True,
         # to shorten current diffusion time for the test
         'current_diffusion_time_reduction_factor': 50,
-        'chi_timestep_prefactor': 150,
-        'max_dt': 0.5,
-        't_final': 10,
     },
     'plasma_composition': {},
     'geometry': {
@@ -90,5 +87,8 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        'chi_timestep_prefactor': 150,
+        'max_dt': 0.5,
+        't_final': 10,
     },
 }

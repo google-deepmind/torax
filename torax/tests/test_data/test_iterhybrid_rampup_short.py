@@ -58,18 +58,12 @@ CONFIG = {
     },
     'numerics': {
         # simulation control
-        't_final': 2,  # length of simulation time in seconds
-        # Note: we're not guaranteed to end simulation in a single Newton
-        # step due to the dt_reduction loop
-        'fixed_dt': 2,
         # Shortens the current diffusion timescale (psi equation only).
         'current_diffusion_time_reduction_factor': 1,
         'evolve_ion_heat': True,
         'evolve_electron_heat': True,
         'evolve_current': True,
         'evolve_density': True,
-        'max_dt': 0.5,
-        'dt_reduction_factor': 3,
     },
     'geometry': {
         'geometry_type': 'chease',
@@ -196,5 +190,10 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'fixed',
+        # Note: we're not guaranteed to end simulation in a single Newton
+        # step due to the dt_reduction loop
+        'dt': 2,
+        'dt_backtracking_factor': 3,
+        't_final': 2,  # length of simulation time in seconds
     },
 }

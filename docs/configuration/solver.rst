@@ -100,8 +100,8 @@ newton_raphson
   number, the current value of the residual, and the current value of ``tau``,
   which is the relative reduction in Newton step size compared to the original
   Newton step size. If the solver does not converge, then these inner iterations
-  will restart at a smaller timestep size if ``adaptive_dt=True`` in the
-  ``numerics`` config dict.
+  will restart at a smaller timestep size if ``allow_backtracking=True`` in the
+  ``time_step_calculator`` config dict.
 
 ``initial_guess_mode`` (str [default = 'linear_step'])
   Sets the approach taken for the initial guess into the Newton-Raphson solver

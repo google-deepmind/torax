@@ -28,9 +28,7 @@ CONFIG = {
         'nbar': 0.85,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
     },
-    'numerics': {
-        't_final': 1,
-    },
+    'numerics': {},
     'plasma_composition': {},
     'geometry': {
         'geometry_type': 'chease',
@@ -78,5 +76,6 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        't_final': 1,
     },
 }

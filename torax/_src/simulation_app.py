@@ -179,11 +179,11 @@ def main(
     log_sim_progress_bar: If True, then a progress bar will be logged.
     max_steps: Optional maximum number of steps to take in the simulation. If
       None, `max_steps` is determined automatically for
-      `fixed_time_step_calculator` (exact step count when `adaptive_dt=False`,
-      or 10x that value when `adaptive_dt=True`), while
-      `chi_time_step_calculator` and `from_previous_time_step_calculator`
-      require `max_steps` to be explicitly specified (otherwise a `ValueError`
-      is raised).
+      `fixed_time_step_calculator` (exact step count when
+      `allow_backtracking=False`, or 10x that value when
+      `allow_backtracking=True`), while `chi_time_step_calculator` and
+      `from_previous_time_step_calculator` require `max_steps` to be explicitly
+      specified (otherwise a `ValueError` is raised).
 
   Returns:
     The output state file path.

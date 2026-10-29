@@ -70,7 +70,7 @@ class References:
   def get_runtime_params_and_geo(
       self,
   ) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
-    t = self.torax_config.numerics.t_initial
+    t = self.torax_config.time_step_calculator.t_initial
     params = build_runtime_params.RuntimeParamsProvider.from_config(
         self.torax_config
     )
@@ -86,7 +86,9 @@ def _build_references_from_case_data(
     case_name: str, torax_config: config.ToraxConfig
 ) -> References:
   """Helper function to build a References object from a config and JSON data."""
-  geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+  geo = torax_config.geometry.build_provider(
+      torax_config.time_step_calculator.t_initial
+  )
   all_references = _load_all_references()
   case_data = all_references[case_name]
 

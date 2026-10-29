@@ -225,9 +225,9 @@ class FVMTest(parameterized.TestCase):
     )
     step_fn = run_simulation.make_step_fn(torax_config)
     runtime_params = step_fn.runtime_params_provider(
-        t=torax_config.numerics.t_initial
+        t=torax_config.time_step_calculator.t_initial
     )
-    geo = step_fn.geometry_provider(torax_config.numerics.t_initial)
+    geo = step_fn.geometry_provider(torax_config.time_step_calculator.t_initial)
     sim_state = initial_state._get_initial_state(
         runtime_params=runtime_params,
         geo=geo,

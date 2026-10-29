@@ -38,6 +38,8 @@ CONFIG = {
         'evolve_electron_heat': False,
         'evolve_current': True,
         'current_diffusion_time_reduction_factor': 100,
+    },
+    'time_step_calculator': {
         't_final': 3,
     },
     'plasma_composition': {},

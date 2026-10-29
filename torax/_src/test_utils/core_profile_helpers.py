@@ -41,7 +41,7 @@ def make_initial_inputs(
   Args:
     torax_config: The TORAX configuration.
     t_override: Optional timestamp override; defaults to
-      `torax_config.numerics.t_initial`.
+      `torax_config.time_step_calculator.t_initial`.
 
   Returns:
     A tuple of (core_profiles, runtime_params, geo).
@@ -50,7 +50,7 @@ def make_initial_inputs(
   runtime_params, geo = (
       build_runtime_params.get_consistent_runtime_params_and_geometry(
           t=(
-              torax_config.numerics.t_initial
+              torax_config.time_step_calculator.t_initial
               if t_override is None
               else t_override
           ),

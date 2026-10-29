@@ -51,9 +51,11 @@ class SourceModelsTest(parameterized.TestCase):
     runtime_params = build_runtime_params.RuntimeParamsProvider.from_config(
         torax_config
     )(
-        t=torax_config.numerics.t_initial,
+        t=torax_config.time_step_calculator.t_initial,
     )
-    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
+    geo = torax_config.geometry.build_provider(
+        torax_config.time_step_calculator.t_initial
+    )
     source_states = source_models.initial_state(runtime_params)
     core_profiles = initialization.initial_core_profiles(
         runtime_params=runtime_params,

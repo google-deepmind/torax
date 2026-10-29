@@ -43,7 +43,7 @@ def _build_torax_config(
 
 def _build_runtime_params(torax_config: config.ToraxConfig):
   return build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
-      t=torax_config.numerics.t_initial
+      t=torax_config.time_step_calculator.t_initial
   )
 
 

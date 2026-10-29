@@ -82,7 +82,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   mhd: mhd_config.MHDConfig = mhd_config.MHDConfig()
   edge: edge_config.EdgeConfig | None = None
   time_step_calculator: time_step_calculator_config.TimeStepCalculatorConfig = (
-      time_step_calculator_config.TimeStepCalculatorConfig()
+      time_step_calculator_config.ChiTimeStepCalculatorConfig()
   )
   restart: file_restart_config.FileRestartConfig | None = pydantic.Field(
       default=None
@@ -127,6 +127,13 @@ class ToraxConfig(torax_pydantic.ConfigBase):
         and 'solver_type' not in configurable_data['solver']
     ):
       configurable_data['solver']['solver_type'] = 'linear'
+    if 'time_step_calculator' not in configurable_data:
+      configurable_data['time_step_calculator'] = {'calculator_type': 'chi'}
+    elif (
+        isinstance(configurable_data['time_step_calculator'], dict)
+        and 'calculator_type' not in configurable_data['time_step_calculator']
+    ):
+      configurable_data['time_step_calculator']['calculator_type'] = 'chi'
     return configurable_data
 
   def _get_extended_lengyel_configs(

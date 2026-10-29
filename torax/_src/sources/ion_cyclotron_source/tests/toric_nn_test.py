@@ -487,7 +487,7 @@ class ToricNNTest(test_lib.SourceTestCase):
     })
     runtime_params_full = (
         build_runtime_params.RuntimeParamsProvider.from_config(torax_config)(
-            t=torax_config.numerics.t_initial
+            t=torax_config.time_step_calculator.t_initial
         )
     )
     output_full, _ = source.get_value(

@@ -16,7 +16,6 @@
 
 import contextlib
 import dataclasses
-import math
 import threading
 from typing import Any, Final, TypeAlias
 import jax
@@ -30,7 +29,6 @@ from torax._src.orchestration import initial_state as initial_state_lib
 from torax._src.orchestration import sim_state
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
-from torax._src.time_step_calculator import fixed_time_step_calculator
 import tqdm
 
 PyTree: TypeAlias = Any
@@ -65,7 +63,6 @@ _counter_global: int = 0
 _TQDM_REF: dict[int, tqdm.tqdm] = {}
 # The progress bar measures percentage of simulated time.
 _PROGRESS_BAR_TOTAL: Final[int] = 100
-_ADAPTIVE_DT_MAX_STEPS_MULTIPLIER: Final[int] = 10
 
 
 def _progress_bar_callback(
@@ -169,8 +166,9 @@ def run_loop_jit(
       else step_fn.runtime_params_provider
   )
   numerics = runtime_params.numerics
+  time_step_calculator = runtime_params.time_step_calculator
   t_initial = initial_state.t
-  duration = numerics.t_final - t_initial
+  duration = time_step_calculator.t_final - t_initial
 
   def _cond_fun(inputs):
     current_state, current_post_processed_outputs, _ = inputs
@@ -179,7 +177,7 @@ def run_loop_jit(
         current_state,
         current_post_processed_outputs,
         numerics.T_min_eV,
-        bool(numerics.adaptive_dt),
+        bool(time_step_calculator.allow_backtracking),
     )
     return jnp.logical_not(is_done) & jnp.logical_not(has_error)
 
@@ -314,23 +312,13 @@ def _get_max_steps(
       calculator) is used, as a default `max_steps` cannot be determined
       statically.
   """
-  if not isinstance(
-      step_fn.time_step_calculator,
-      fixed_time_step_calculator.FixedTimeStepCalculator,
-  ):
-    # TODO(b/564475000): Support max_steps heuristics for other time step
-    # calculators.
+  max_steps = step_fn.runtime_params_provider.time_step_calculator.max_steps
+  if max_steps is None:
     raise ValueError(
         'max_steps must be specified when using '
         f'{type(step_fn.time_step_calculator).__name__}. Please provide an '
         'explicit max_steps argument.'
     )
-
-  numerics = step_fn.runtime_params_provider.numerics
-  min_fixed_dt = float(np.min(numerics.fixed_dt.value))
-  max_steps = math.ceil((numerics.t_final - numerics.t_initial) / min_fixed_dt)
-  if numerics.adaptive_dt:
-    max_steps *= _ADAPTIVE_DT_MAX_STEPS_MULTIPLIER
   return max_steps
 
 
@@ -370,10 +358,11 @@ def run_loop(
       `chi_time_step_calculator` or `from_previous_time_step_calculator`,
       `max_steps` must be explicitly specified or a `ValueError` is raised. When
       using `fixed_time_step_calculator`, if not provided, `max_steps` is
-      deterministically set to `ceil((t_final - t_initial) / min(fixed_dt))`
-      when `adaptive_dt=False`, or 10x that value when `adaptive_dt=True`. Users
+      deterministically set to `ceil((t_final - t_initial) / min(dt))`
+      when `allow_backtracking=False`, or 10x that value when
+      `allow_backtracking=True`. Users
       can explicitly override `max_steps` (e.g. to reduce pre-allocated buffer
-      memory when `adaptive_dt=True`).
+      memory when `allow_backtracking=True`).
     initial_state: Optional initial state for the simulation (e.g. from file
       restart). If None, computed from `step_fn`.
     initial_post_processed_outputs: Optional initial post-processed outputs for

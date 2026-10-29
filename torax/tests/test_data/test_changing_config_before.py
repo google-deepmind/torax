@@ -42,18 +42,12 @@ CONFIG = {
     },
     'numerics': {
         # simulation control
-        't_final': 3,  # length of simulation time in seconds
         # Shortens the current diffusion timescale (psi equation only).
         'current_diffusion_time_reduction_factor': 200,
         'evolve_ion_heat': True,
         'evolve_electron_heat': True,
         'evolve_current': True,
         'evolve_density': True,
-        'max_dt': 0.5,
-        # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
-        # likely be increased further beyond this default.
-        'chi_timestep_prefactor': 50,
-        'dt_reduction_factor': 3,
     },
     'geometry': {
         'geometry_type': 'chease',
@@ -193,5 +187,11 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        'max_dt': 0.5,
+        # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
+        # likely be increased further beyond this default.
+        'chi_timestep_prefactor': 50,
+        'dt_backtracking_factor': 3,
+        't_final': 3,  # length of simulation time in seconds
     },
 }

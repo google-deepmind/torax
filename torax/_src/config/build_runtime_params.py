@@ -135,7 +135,7 @@ class RuntimeParamsProvider:
         neoclassical=self.neoclassical.build_runtime_params(),
         pedestal=self.pedestal.build_runtime_params(t),
         mhd=self.mhd.build_runtime_params(t),
-        time_step_calculator=self.time_step_calculator.build_runtime_params(),
+        time_step_calculator=self.time_step_calculator.build_runtime_params(t),
         edge=None if self.edge is None else self.edge.build_runtime_params(t),
     )
 

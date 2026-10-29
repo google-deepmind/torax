@@ -190,12 +190,6 @@ CONFIG = {
         "current_profile_nu": 2.0,
     },
     "numerics": {
-        "t_initial": 0.0,
-        "t_final": 5.0,
-        "fixed_dt": 1.0e-3,
-        "min_dt": 1.0e-6,
-        "dt_reduction_factor": 3.0,
-        "adaptive_dt": False,
         "evolve_ion_heat": True,
         "evolve_electron_heat": True,
         "evolve_current": True,
@@ -267,6 +261,14 @@ CONFIG = {
         "n_fixed_point_iterations": 1,
         "use_pereverzev": False,
     },
-    "time_step_calculator": {"calculator_type": "fixed"},
+    "time_step_calculator": {
+        "calculator_type": "fixed",
+        "dt": 1.0e-3,
+        "min_dt": 1.0e-6,
+        "dt_backtracking_factor": 3.0,
+        "t_initial": 0.0,
+        "t_final": 5.0,
+        "allow_backtracking": False,
+    },
     "pedestal": {},
 }

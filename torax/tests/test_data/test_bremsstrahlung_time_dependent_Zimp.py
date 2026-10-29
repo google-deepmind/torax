@@ -35,7 +35,6 @@ CONFIG = {
     },
     'numerics': {
         'current_diffusion_time_reduction_factor': 100,
-        't_final': 1,
     },
     'geometry': {
         'geometry_type': 'chease',
@@ -77,5 +76,6 @@ CONFIG = {
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
+        't_final': 1,
     },
 }
