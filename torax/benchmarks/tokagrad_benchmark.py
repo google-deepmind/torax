@@ -241,8 +241,8 @@ CONFIG = {
         "V_e_max": 10.0,
         "smoothing_width": 0.05,
         "core_transport_models": {
-            "bohm-gyrobohm": {
-                "model_name": "bohm-gyrobohm",
+            "bohm_gyrobohm": {
+                "model_name": "bohm_gyrobohm",
                 "chi_e_bohm_multiplier": 1.0,
                 "chi_i_bohm_multiplier": 1.0,
                 "chi_e_gyrobohm_multiplier": 1.0,

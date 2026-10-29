@@ -25,8 +25,8 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 # Set to use TGLFNN
 CONFIG['transport'] = {
     'core_transport_models': {
-        'tglfnn-ukaea': {
-            'model_name': 'tglfnn-ukaea',
+        'tglfnn_ukaea': {
+            'model_name': 'tglfnn_ukaea',
             'machine': 'multimachine',
             'An_min': 0.05,
             'DV_effective': True,

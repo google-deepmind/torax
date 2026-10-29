@@ -191,7 +191,7 @@ class ConfigTest(parameterized.TestCase):
   @parameterized.named_parameters(
       ("const_lin_no_per", "constant", "linear", None, False, False),
       ("qlknn_lin_no_per", "qlknn", "linear", None, False, True),
-      ("cgm_lin_no_per", "CGM", "linear", None, False, True),
+      ("cgm_lin_no_per", "cgm", "linear", None, False, True),
       ("qlknn_lin_per", "qlknn", "linear", None, True, False),
       ("qualikiz_lin_per", "qualikiz", "linear", None, True, False),
       (

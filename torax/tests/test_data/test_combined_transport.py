@@ -39,11 +39,11 @@ CONFIG['transport'] = {
             'rho_max': 0.3,
         },
         'bohm_gyrobohm': {
-            'model_name': 'bohm-gyrobohm',
+            'model_name': 'bohm_gyrobohm',
             'rho_min': 0.1,
             'rho_max': 0.9,
         },
-        'cgm': {'model_name': 'CGM', 'rho_min': 0.1, 'rho_max': 0.9},
+        'cgm': {'model_name': 'cgm', 'rho_min': 0.1, 'rho_max': 0.9},
     },
     'pedestal_transport_models': {
         'prescribed': {

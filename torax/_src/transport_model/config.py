@@ -169,12 +169,12 @@ class TGLFNNukaeaTransportModelConfig(
   """Model for the TGLFNN-ukaea transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'tglfnn-ukaea'.
+    model_name: The transport model to use. Hardcoded to 'tglfnn_ukaea'.
     machine: The machine type to use. Either 'step' or 'multimachine'.
   """
 
-  model_name: Annotated[Literal['tglfnn-ukaea'], torax_pydantic.JAX_STATIC] = (
-      'tglfnn-ukaea'
+  model_name: Annotated[Literal['tglfnn_ukaea'], torax_pydantic.JAX_STATIC] = (
+      'tglfnn_ukaea'
   )
   machine: Annotated[
       Literal['step', 'multimachine'], torax_pydantic.JAX_STATIC
@@ -243,7 +243,7 @@ class CriticalGradientTransportModelConfig(
   """Model for the Critical Gradient transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'CGM'.
+    model_name: The transport model to use. Hardcoded to 'cgm'.
     alpha: Exponent of chi power law: chi ∝ (R/LTi - R/LTi_crit)^alpha.
     chi_stiff: Stiffness parameter.
     chi_e_i_ratio: Ratio of ion to electron heat conductivity (ion higher for
@@ -255,7 +255,7 @@ class CriticalGradientTransportModelConfig(
       model.
   """
 
-  model_name: Annotated[Literal['CGM'], torax_pydantic.JAX_STATIC] = 'CGM'
+  model_name: Annotated[Literal['cgm'], torax_pydantic.JAX_STATIC] = 'cgm'
   alpha: float = 2.0
   chi_stiff: float = 2.0
   chi_e_i_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
@@ -293,7 +293,7 @@ class BohmGyroBohmTransportModelConfig(
   """Model for the Bohm + Gyro-Bohm transport model.
 
   Attributes:
-    model_name: The transport model to use. Hardcoded to 'bohm-gyrobohm'.
+    model_name: The transport model to use. Hardcoded to 'bohm_gyrobohm'.
     chi_e_bohm_coeff: Prefactor for Bohm term for electron heat conductivity.
     chi_e_gyrobohm_coeff: Prefactor for GyroBohm term for electron heat
       conductivity.
@@ -312,8 +312,8 @@ class BohmGyroBohmTransportModelConfig(
     V_face_coeff: Proportionality factor between convectivity and diffusivity.
   """
 
-  model_name: Annotated[Literal['bohm-gyrobohm'], torax_pydantic.JAX_STATIC] = (
-      'bohm-gyrobohm'
+  model_name: Annotated[Literal['bohm_gyrobohm'], torax_pydantic.JAX_STATIC] = (
+      'bohm_gyrobohm'
   )
   chi_e_bohm_coeff: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(8e-5)

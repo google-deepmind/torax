@@ -74,8 +74,8 @@ CONFIG = {
     },
     'transport': {
         'core_transport_models': {
-            'bohm-gyrobohm': {
-                'model_name': 'bohm-gyrobohm',
+            'bohm_gyrobohm': {
+                'model_name': 'bohm_gyrobohm',
             },
         },
     },

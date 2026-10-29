@@ -159,7 +159,7 @@ class ToraxConfig(torax_pydantic.ConfigBase):
         self.transport.pedestal_transport_models.values()
     )
     using_nonlinear_transport_model = any(
-        model.model_name in ['qualikiz', 'qlknn', 'CGM']
+        model.model_name in ['qualikiz', 'qlknn', 'cgm']
         for model in list(core_transport_models) + list(
             pedestal_transport_models
         )

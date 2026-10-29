@@ -65,8 +65,8 @@ CONFIG = {
     },
     'transport': {
         'core_transport_models': {
-            'CGM': {
-                'model_name': 'CGM',
+            'cgm': {
+                'model_name': 'cgm',
                 'chi_D_ratio': 8,
                 'VR_D_ratio': {0: -3.0, 1: 0.0},
             },

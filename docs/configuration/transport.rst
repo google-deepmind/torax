@@ -26,7 +26,7 @@ Top-level Transport Parameters
   A dictionary mapping user-given names to config dictionaries for the component
   models for turbulent transport in the core. Each entry must specify
   ``'model_name'`` (e.g. ``'prescribed'``, ``'qlknn'``, ``'cgm'``,
-  ``'bohm-gyrobohm'``, ``'tglf'``, ``'tglfnn-ukaea'``, ``'qualikiz'``) along
+  ``'bohm_gyrobohm'``, ``'tglf'``, ``'tglfnn_ukaea'``, ``'qualikiz'``) along
   with model-specific parameters. For each component model, ``rho_min`` and
   ``rho_max`` define its active radial domain. If a pedestal is active and
   configured with an internal boundary condition, the core ``rho_max`` is
@@ -197,14 +197,14 @@ all component models:
 
 * ``'prescribed'``
    Prescribed (constant or space/time-varying) transport coefficients.
-* ``'CGM'``
+* ``'cgm'``
    Critical Gradient Model.
-* ``'bohm-gyrobohm'``
+* ``'bohm_gyrobohm'``
    Bohm-GyroBohm model.
 * ``'qlknn'``
    A QuaLiKiz Neural Network surrogate model, the default is
    `QLKNN_7_11 <https://github.com/google-deepmind/fusion_surrogates>`_.
-* ``'tglfnn-ukaea'``
+* ``'tglfnn_ukaea'``
    A TGLF Neural Network surrogate model developed by UKAEA,
    `reimplemented in JAX <https://github.com/google-deepmind/fusion_surrogates>`_.
 * ``'qualikiz'``
@@ -277,7 +277,7 @@ an exponential decay) using the time-varying-array syntax.
 ``V_e`` (**time-varying-array** [default = -0.33])
   Electron particle convection. In units of :math:`m^2/s`.
 
-CGM
+cgm
 ===
 
 Runtime parameters for the Critical Gradient Model (CGM).
@@ -301,7 +301,7 @@ Runtime parameters for the Critical Gradient Model (CGM).
   Negative values will set a peaked electron density profile in the absence of
   sources.
 
-Bohm-GyroBohm
+bohm_gyrobohm
 =============
 
 Runtime parameters for the Bohm-GyroBohm model.
@@ -462,7 +462,7 @@ It is recommended to not set ``qlknn_model_name``,  or
   If ``True``, output individual ITG/TEM/ETG contributions to transport
   coefficients in addition to the total values.
 
-tglfnn-ukaea
+tglfnn_ukaea
 ============
 
 Runtime parameters for the TGLFNN-UKAEA model. If you use this model, please cite

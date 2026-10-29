@@ -23,7 +23,7 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector_tglfnn_uka
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector_tglfnn_ukaea.CONFIG)
 
 core_models = CONFIG['transport']['core_transport_models']
-core_models['tglfnn-ukaea']['use_rotation'] = True
+core_models['tglfnn_ukaea']['use_rotation'] = True
 
 # Reference angular velocity used for mach number calculations.
 # omega_ref ~ sqrt(2 * T_i/ m_i) / R_major
