@@ -14,7 +14,7 @@
 
 """Tests Bremsstrahlung power model with time-dependent Zimp and Z_eff. CHEASE.
 
-Ip from parameters. implicit, T_i+T_e, Pei low dens, no pedestal, constant chi
+I_p from parameters. implicit, T_i+T_e, Pei low dens, no pedestal, constant chi
 """
 
 
@@ -39,7 +39,7 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
     },
     'neoclassical': {
         'bootstrap_current': {

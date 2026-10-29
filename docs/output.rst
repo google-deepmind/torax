@@ -272,7 +272,7 @@ toroidal (``j_toroidal_*``) current densities:
 ``gm9`` (time, rho_norm)
   Flux surface averaged :math:`\frac{1}{R}` [:math:`m^{-1}`].
 
-``Ip_profile`` (time, rho_face_norm)
+``I_p_profile`` (time, rho_face_norm)
   Total cumulative current profile [:math:`A`].
 
 ``j_parallel_bootstrap`` (time, rho_norm)
@@ -419,7 +419,7 @@ toroidal (``j_toroidal_*``) current densities:
   Poloidal flux provided by the input geometry file (NOT psi calculated
   self-consistently by the TORAX PDE) on the cell grid [:math:`Wb`].
 
-``psi_from_Ip`` (time, rho_norm)
+``psi_from_I_p`` (time, rho_norm)
   Poloidal flux calculated from the current profile provided by the input
   geometry file (NOT psi calculated self-consistently by the TORAX PDE)
   [:math:`Wb`].
@@ -661,7 +661,7 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``I_ecrh`` (time)
   Total electron cyclotron source current [:math:`A`].
 
-``Ip`` (time)
+``I_p`` (time)
   Plasma current [:math:`A`].
 
 ``li3`` (time)

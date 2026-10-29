@@ -104,20 +104,20 @@ is equivalent to ``(inputs, 'PIECEWISE_LINEAR')``.
 
 Examples
 ^^^^^^^^
-1. Define a time-dependent total current :math:`Ip_{tot}` with piecewise linear
-interpolation, from :math:`t=10` to :math:`t=100`. :math:`Ip_{tot}` rises from
+1. Define a time-dependent total current :math:`I_{p,tot}` with piecewise linear
+interpolation, from :math:`t=10` to :math:`t=100`. :math:`I_{p,tot}` rises from
 2MA to 15MA, and then stays flat due to constant extrapolation beyond the last
 time value.
 
 .. code-block:: python
 
-  Ip = ({10: 2.0e6, 100: 15.0e6}, 'PIECEWISE_LINEAR')
+  I_p = ({10: 2.0e6, 100: 15.0e6}, 'PIECEWISE_LINEAR')
 
 or more simply, taking advantage of the default.
 
 .. code-block:: python
 
-    Ip = {10: 2.0e6, 100: 15.0e6}
+    I_p = {10: 2.0e6, 100: 15.0e6}
 
 2. Define a time-dependent internal boundary condition for ion temperature,
 ``T_i_ped``, with stepwise changes, starting at :math:`1~keV` at :math:`t=2s`,
@@ -366,7 +366,7 @@ CHEASE geometry), is shown below. The configuration file is also available in
           'Z_eff': 1.6,
       },
       'profile_conditions': {
-          'Ip': {0: 3e6, 80: 10.5e6},
+          'I_p': {0: 3e6, 80: 10.5e6},
           'initial_psi_source': 'geometry',
           # initial condition ion temperature for r=0 and r=a_minor
           'T_i': {0.0: {0.0: 6.0, 1.0: 0.1}},
@@ -389,7 +389,7 @@ CHEASE geometry), is shown below. The configuration file is also available in
       'geometry': {
           'geometry_type': 'chease',
           'geometry_file': 'iterhybrid.mat2cols',
-          'Ip_from_parameters': True,
+          'I_p_from_parameters': True,
           'R_major': 6.2,
           'a_minor': 2.0,
           'B_0': 5.3,

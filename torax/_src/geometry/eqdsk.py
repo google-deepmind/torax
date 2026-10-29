@@ -63,7 +63,7 @@ class EQDSKConfig(base.GeometryConfigBase):
     eqdsk_object: In-memory EQDSKInterface object.
     geometry_type: Always set to 'eqdsk'.
     geometry_directory: Optionally overrides the default geometry directory.
-    Ip_from_parameters: Toggles whether total plasma current is read from the
+    I_p_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
     n_surfaces: Number of surfaces for which flux surface averages are
@@ -97,7 +97,7 @@ class EQDSKConfig(base.GeometryConfigBase):
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )
-  Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
+  I_p_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   n_surfaces: pydantic.PositiveInt = 100
   last_surface_factor: torax_pydantic.OpenUnitInterval = 0.99
   target_psi_grid_resolution: Annotated[int | None, pydantic.Field(ge=1)] = 128
@@ -146,7 +146,7 @@ class EQDSKConfig(base.GeometryConfigBase):
         geometry_directory=self.geometry_directory,
         geometry_file=self.geometry_file,
         eqdsk_object=self.eqdsk_object,
-        Ip_from_parameters=self.Ip_from_parameters,
+        I_p_from_parameters=self.I_p_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         cocos=self.cocos,
@@ -289,7 +289,7 @@ def _construct_intermediates_from_eqdsk(
     geometry_file: str | None,
     eqdsk_object: eqdsk.EQDSKInterface | None,
     hires_factor: int,
-    Ip_from_parameters: bool,
+    I_p_from_parameters: bool,
     face_centers: np.ndarray,
     n_surfaces: int,
     last_surface_factor: float,
@@ -314,8 +314,8 @@ def _construct_intermediates_from_eqdsk(
       loaded from the geometry directory.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
-    Ip_from_parameters: If True, then Ip is taken from the config and the values
-      in the Geometry are rescaled.
+    I_p_from_parameters: If True, then I_p is taken from the config and the
+      values in the Geometry are rescaled.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     n_surfaces: Number of surfaces for which flux surface averages are
       calculated.
@@ -523,7 +523,7 @@ def _construct_intermediates_from_eqdsk(
   flux_surf_avg_1_over_B2 = np.empty(len(surfaces) + 1)  # <1/B**2>
   trapped_fraction = np.full(len(surfaces) + 1, np.nan)
   int_dl_over_Bp = np.empty(len(surfaces) + 1)  # int(Rdl / | grad(psi) |)
-  Ip = np.empty(len(surfaces) + 1)  # Toroidal plasma current
+  I_p = np.empty(len(surfaces) + 1)  # Toroidal plasma current
   delta_upper_face = np.empty(len(surfaces) + 1)  # Upper face delta
   delta_lower_face = np.empty(len(surfaces) + 1)  # Lower face delta
   elongation = np.empty(len(surfaces) + 1)  # Elongation
@@ -637,7 +637,7 @@ def _construct_intermediates_from_eqdsk(
                 dl_over_Bp=surface_dl / surface_Bpol,
             )
         )
-    Ip[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
+    I_p[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu_0
     delta_upper_face[n + 1] = surface_delta_upper_face
     delta_lower_face[n + 1] = surface_delta_lower_face
     elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (2.0 * a_minor_local)
@@ -663,7 +663,7 @@ def _construct_intermediates_from_eqdsk(
   ):
     # No trapped particles on the magnetic axis, where B is uniform.
     trapped_fraction[0] = 0.0
-  Ip[0] = 0
+  I_p[0] = 0
   delta_upper_face[0] = delta_upper_face[1]
   delta_lower_face[0] = delta_lower_face[1]
   elongation[0] = elongation[1]
@@ -731,7 +731,7 @@ def _construct_intermediates_from_eqdsk(
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.EQDSK,
-      Ip_from_parameters=Ip_from_parameters,
+      I_p_from_parameters=I_p_from_parameters,
       R_major=R_major,
       a_minor=a_minor,
       B_0=np.array(B_0),
@@ -739,7 +739,7 @@ def _construct_intermediates_from_eqdsk(
       # The absolute value of psi may have meaning when connected in wider
       # workflows, so we make sure that we set psi(0) from the eqdsk
       psi=psi_on_flux_surfaces + eq_dict['psimag'],
-      Ip_profile=Ip,
+      I_p_profile=I_p,
       Phi=Phi,
       R_in=R_inboard,
       R_out=R_outboard,
@@ -773,8 +773,8 @@ def _construct_intermediates_from_eqdsk(
 def _enforce_torax_sign_convention(
     eq_dict: dict[str, np.ndarray],
 ) -> dict[str, np.ndarray]:
-  """Modifies the EQDSK dict to comply with TORAX conventions (COCOS11, B0>0, Ip>0)."""
-  # Set Ip and B0 positive
+  """Modifies the EQDSK dict to comply with TORAX conventions (COCOS11, B_0>0, I_p>0)."""
+  # Set I_p and B_0 positive
   # This is a choice not necessarily governed by COCOS (see Table Ib in COCOS
   # paper). The logic here may need to change when rotation is added,
   # particularly combined vExB and parallel rotation, and momentum transport.
@@ -782,7 +782,7 @@ def _enforce_torax_sign_convention(
   # TODO(b/461727869): consolidate logic when full rotation features are added.
   eq_dict['cplasma'] = np.abs(eq_dict['cplasma'])
   eq_dict['bcentre'] = np.abs(eq_dict['bcentre'])
-  # Ensure that psi grows with increasing radius, consistent with positive Ip
+  # Ensure that psi grows with increasing radius, consistent with positive I_p
   if eq_dict['psimag'] > eq_dict['psibdry']:
     eq_dict['psi'] = -eq_dict['psi']
     eq_dict['psimag'] = -eq_dict['psimag']
@@ -790,7 +790,7 @@ def _enforce_torax_sign_convention(
   # pprime and ffprime are gradients with respect to the poloidal flux (psi),
   # and its sign depends on the sign of the poloidal flux. Since pressure on
   # average should decrease as the radius increases, positive mean pprime means
-  # decreasing psi which is not consistent with positive Ip, therefore we need
+  # decreasing psi which is not consistent with positive I_p, therefore we need
   # to flip the values.
   if np.mean(eq_dict['pprime']) > 0:
     eq_dict['pprime'] = -eq_dict['pprime']
@@ -801,7 +801,7 @@ def _enforce_torax_sign_convention(
 def _validate_torax_sign_convention(
     eq_dict: dict[str, np.ndarray | float],
 ) -> None:
-  """Checks that an EQDSK dict complies with TORAX conventions (COCOS11, B0>0, Ip>0)."""
+  """Checks that an EQDSK dict complies with TORAX conventions (COCOS11, B_0>0, I_p>0)."""
   # pylint: disable=invalid-name
   COCOS_violations = ''
   if eq_dict['bcentre'] < 0:
@@ -813,11 +813,11 @@ def _validate_torax_sign_convention(
   if np.any(eq_dict['qpsi']) < 0:
     COCOS_violations += '- q has negative values\n'
   if eq_dict['cplasma'] < 0:
-    COCOS_violations += '- Ip is negative'
+    COCOS_violations += '- I_p is negative'
   if COCOS_violations:
     raise ValueError(
-        'The following violate the COCOS11 coordinate system when Ip and B0 are'
-        ' restricted to be positive:\n'
+        'The following violate the COCOS11 coordinate system when I_p and B_0'
+        ' are restricted to be positive:\n'
         + COCOS_violations
         + 'Check that the COCOS of the input EQDSK was set correctly.'
     )

@@ -104,12 +104,12 @@ class JitSimTest(sim_test_case.SimTestCase):
           'test_psichease_prescribed_johm',
           'test_psichease_prescribed_johm.py',
       ),
-      # Tests time-dependent pedestal, P_total, Ip. CHEASE geometry. QLKNN.
+      # Tests time-dependent pedestal, P_total, I_p. CHEASE geometry. QLKNN.
       (
           'test_timedependence',
           'test_timedependence.py',
       ),
-      # Tests prescribed time-dependent n_e (tied to GW frac with evolving Ip).
+      # Tests prescribed time-dependent n_e (tied to GW frac with evolving I_p).
       (
           'test_prescribed_timedependent_ne',
           'test_prescribed_timedependent_ne.py',
@@ -230,19 +230,19 @@ class JitSimTest(sim_test_case.SimTestCase):
           'test_changing_config_after.py',
       ),
       # Tests current diffusion with vloop BC.
-      # Initial Ip from parameters and psi from CHEASE, varying vloop BC.
+      # Initial I_p from parameters and psi from CHEASE, varying vloop BC.
       (
           'test_psichease_ip_parameters_vloop_varying',
           'test_psichease_ip_parameters_vloop_varying.py',
       ),
       # Tests current diffusion with vloop BC.
-      # Initial Ip and psi from CHEASE.
+      # Initial I_p and psi from CHEASE.
       (
           'test_psichease_ip_chease_vloop',
           'test_psichease_ip_chease_vloop.py',
       ),
       # Tests current diffusion with vloop BC.
-      # Initial Ip from parameters and psi from current_profile_nu formula.
+      # Initial I_p from parameters and psi from current_profile_nu formula.
       (
           'test_psichease_prescribed_jtot_vloop',
           'test_psichease_prescribed_jtot_vloop.py',

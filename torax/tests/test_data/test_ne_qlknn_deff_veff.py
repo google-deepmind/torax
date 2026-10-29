@@ -14,7 +14,7 @@
 
 """Tests qlknn particle transport with deff + veff model. CHEASE geometry.
 
-Ip from parameters. current, heat, and particle transport. qlknn transport
+I_p from parameters. current, heat, and particle transport. qlknn transport
 model. Pedestal. Particle sources. PC method for density. Deff +
 Veff model.
 """
@@ -41,7 +41,7 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
     },
     'sources': {
         'generic_heat': {

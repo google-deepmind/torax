@@ -163,7 +163,7 @@ class GettersTest(parameterized.TestCase):
         instance=True,
         n_e_right_bc=0.5,
         n_e=value,
-        Ip=15e6,
+        I_p=15e6,
         n_e_right_bc_is_fGW=False,
         n_e_nbar_is_fGW=False,
         normalize_n_e_to_nbar=False,

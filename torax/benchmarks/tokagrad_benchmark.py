@@ -171,7 +171,7 @@ CONFIG = {
         "Z_eff": 1.0,
     },
     "profile_conditions": {
-        "Ip": 15000000,
+        "I_p": 15000000,
         "use_v_loop_lcfs_boundary_condition": False,
         "T_e": (_RHO, _TE_INIT_KEV),
         "T_i": (_RHO, _TI_INIT_KEV),
@@ -182,8 +182,9 @@ CONFIG = {
         "n_e_right_bc_is_fGW": False,
         "normalize_n_e_to_nbar": False,
         "n_e_nbar_is_fGW": False,
-        # Physical line-averaged density corresponding to f_GW=0.4 for Ip=15 MA,
-        # a=2m. normalize_n_e_to_nbar=False, so this is mainly bookkeeping.
+        # Physical line-averaged density corresponding to f_GW=0.4 for
+        # I_p=15 MA, a=2m. normalize_n_e_to_nbar=False, so this is mainly
+        # bookkeeping.
         "nbar": 4.77464829276e19,
         "initial_psi_source": "j",
         "initial_j_is_total_current": True,

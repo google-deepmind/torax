@@ -42,7 +42,7 @@ class StepFunctionTest(parameterized.TestCase):
         step_fn,
     ) = run_simulation.prepare_simulation(torax_config)
     params_provider = step_fn.runtime_params_provider
-    input_value = params_provider.profile_conditions.Ip.value
+    input_value = params_provider.profile_conditions.I_p.value
 
     @jax.jit
     def f(override_value):
@@ -50,7 +50,7 @@ class StepFunctionTest(parameterized.TestCase):
           value=override_value
       )
       runtime_params_overrides = params_provider.update_provider(
-          lambda x: (x.profile_conditions.Ip,),
+          lambda x: (x.profile_conditions.I_p,),
           (ip_update,),
       )
       _, new_post_processed_outputs = step_fn(

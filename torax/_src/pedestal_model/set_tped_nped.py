@@ -64,7 +64,7 @@ class SetTemperatureDensityPedestalModel(
 
     # Calculate n_e_ped in m^-3, potentially converting from nGW.
     nGW = (
-        runtime_params.profile_conditions.Ip
+        runtime_params.profile_conditions.I_p
         / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20

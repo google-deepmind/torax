@@ -14,9 +14,9 @@
 
 """Tests time dependent boundary conditions and sources.
 
-Ip from parameters. implicit + pereverzev-corrigan, T_i+T_e+Psi, Pei standard
+I_p from parameters. implicit + pereverzev-corrigan, T_i+T_e+Psi, Pei standard
 dens, pedestal, chi from QLKNN. Internal boundary conditions for T_e.
-Includes time dependent Ip, P_total, and pedestal, mocking up current-overshoot
+Includes time dependent I_p, P_total, and pedestal, mocking up current-overshoot
 and an LH transition.
 """
 
@@ -25,11 +25,11 @@ CONFIG = {
         'initial_psi_source': 'geometry',
         'T_i': {0.0: {0.0: 10.0, 1.0: 1.0}},
         'T_e': {0.0: {0.0: 10.0, 1.0: 1.0}},
-        'Ip': {0: 5e6, 4: 15e6, 6: 12e6, 8: 12e6},
+        'I_p': {0: 5e6, 4: 15e6, 6: 12e6, 8: 12e6},
         'n_e_right_bc': 0.5e20,
         'n_e_nbar_is_fGW': False,
         'normalize_n_e_to_nbar': True,
-        'nbar': 0.33820425407e20,  # fGW=0.85 for Ip(t=0)
+        'nbar': 0.33820425407e20,  # fGW=0.85 for I_p(t=0)
         'internal_boundary_conditions': {
             'model_name': 'prescribed',
             'T_e': {
@@ -47,7 +47,7 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
     },
     'sources': {
         'generic_heat': {

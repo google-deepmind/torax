@@ -37,7 +37,7 @@ class ScalingLawsTest(parameterized.TestCase):
         B_0=5.0,
     ).build_geometry()
 
-    # Using mock.ANY instead of mock.create_autospec to maintain the Ip_total
+    # Using mock.ANY instead of mock.create_autospec to maintain the I_p_total
     # property needed in calculate_P_LH.
     core_profiles = state.CoreProfiles(
         n_e=cell_variable.CellVariable(
@@ -71,7 +71,7 @@ class ScalingLawsTest(parameterized.TestCase):
         sigma_face=mock.ANY,
         j_toroidal_total=mock.ANY,
         j_toroidal_total_face=mock.ANY,
-        Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+        I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
         toroidal_angular_velocity=mock.ANY,
         poloidal_velocity=mock.ANY,
         charge_state_info=mock.ANY,
@@ -175,7 +175,7 @@ class ScalingLawsTest(parameterized.TestCase):
         a_minor=2.0,
         B_0=5.0,
     ).build_geometry()
-    # Using mock.ANY instead of mock.create_autospec to maintain the Ip_total
+    # Using mock.ANY instead of mock.create_autospec to maintain the I_p_total
     # property needed in calculate_plh_delabie.
     core_profiles = state.CoreProfiles(
         n_e=cell_variable.CellVariable(
@@ -209,7 +209,7 @@ class ScalingLawsTest(parameterized.TestCase):
         sigma_face=mock.ANY,
         j_toroidal_total=mock.ANY,
         j_toroidal_total_face=mock.ANY,
-        Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+        I_p_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
         toroidal_angular_velocity=mock.ANY,
         poloidal_velocity=mock.ANY,
         charge_state_info=mock.ANY,

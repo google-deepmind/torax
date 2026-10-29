@@ -36,7 +36,7 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         float(ids_in.profiles_1d[i].time)
         for i in range(len(ids_in.profiles_1d))
     ])
-    t_out = np.array(list(core_profiles_conditions["Ip"][0]))
+    t_out = np.array(list(core_profiles_conditions["I_p"][0]))
     np.testing.assert_equal(t_out, t_in + 100.0)
 
   def test_init_profiles_from_IMAS(self):

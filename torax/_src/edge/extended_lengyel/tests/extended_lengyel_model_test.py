@@ -105,7 +105,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
 
     # Mock CoreProfiles
     mock_core_profiles = mock.MagicMock(spec=state.CoreProfiles)
-    mock_core_profiles.Ip_profile_face = np.linspace(0.0, 1.0e6, (n_rho + 1))
+    mock_core_profiles.I_p_profile_face = np.linspace(0.0, 1.0e6, (n_rho + 1))
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.array([10.0] * (n_rho + 1))
     mock_core_profiles.Z_i_face = np.array([1.0] * (n_rho + 1))
@@ -301,7 +301,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 4.0
-    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     # 3. Mock CoreSources
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
@@ -404,7 +404,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
-    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1)
+    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1)
 
     # 3. Mock CoreSources
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
@@ -578,7 +578,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
-    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1)
+    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1)
 
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.zeros(n_rho)
@@ -737,7 +737,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
-    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
@@ -873,7 +873,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
-    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6
@@ -1019,7 +1019,7 @@ class ExtendedLengyelModelTest(parameterized.TestCase):
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1)
-    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1)
+    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1)
 
     # 3. Mock CoreSources
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
@@ -1716,7 +1716,7 @@ class ExtendedLengyelEnrichmentFactorTest(sim_test_case.SimTestCase):
     mock_core_profiles.Z_i_face = np.ones(n_rho + 1)
     mock_core_profiles.A_i = np.array(2.0)
     mock_core_profiles.A_impurity_face = np.ones(n_rho + 1) * 20.0
-    mock_core_profiles.Ip_profile_face = np.ones(n_rho + 1) * 1e6
+    mock_core_profiles.I_p_profile_face = np.ones(n_rho + 1) * 1e6
 
     mock_core_sources = mock.MagicMock(spec=source_profiles.SourceProfiles)
     mock_core_sources.total_sources.return_value = np.ones(n_rho) * 1e6

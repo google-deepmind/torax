@@ -48,10 +48,10 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc.build_runtime_params(t=0.0)
 
   def test_profile_conditions_under_jit(self):
-    initial_ip = 1e6
-    updated_ip = 2e6
+    initial_I_p = 1e6
+    updated_I_p = 2e6
     pc = profile_conditions.ProfileConditions(
-        Ip=initial_ip, initial_psi_source='j'
+        I_p=initial_I_p, initial_psi_source='j'
     )
     geo = circular_geometry.CircularConfig().build_geometry()
     torax_pydantic.set_grid(pc, geo.torax_mesh)
@@ -62,13 +62,13 @@ class ProfileConditionsTest(parameterized.TestCase):
 
     with self.subTest('first_jit_compiles_and_returns_expected_value'):
       output = f(pc)
-      chex.assert_trees_all_close(output.Ip, initial_ip)
+      chex.assert_trees_all_close(output.I_p, initial_I_p)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
     with self.subTest('second_jit_updates_value_without_recompile'):
-      pc._update_fields({'Ip': updated_ip})
+      pc._update_fields({'I_p': updated_I_p})
       output = f(pc)
-      chex.assert_trees_all_close(output.Ip, updated_ip)
+      chex.assert_trees_all_close(output.I_p, updated_I_p)
       self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
   @parameterized.named_parameters(
@@ -280,21 +280,21 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          testcase_name='valid_Ip',
-          config_overrides={'Ip': 1e4},
+          testcase_name='valid_I_p',
+          config_overrides={'I_p': 1e4},
       ),
       dict(
-          testcase_name='invalid_Ip_too_low',
-          config_overrides={'Ip': 1e2},
+          testcase_name='invalid_I_p_too_low',
+          config_overrides={'I_p': 1e2},
           expected_error_msg='below the minimum threshold',
       ),
       dict(
-          testcase_name='invalid_Ip_time_varying_too_low',
-          config_overrides={'Ip': {0.0: 5e3, 1.0: 1e2}},
+          testcase_name='invalid_I_p_time_varying_too_low',
+          config_overrides={'I_p': {0.0: 5e3, 1.0: 1e2}},
           expected_error_msg='below the minimum threshold',
       ),
   )
-  def test_Ip_order_of_magnitude_validation(
+  def test_I_p_order_of_magnitude_validation(
       self, config_overrides, expected_error_msg=None
   ):
     config_overrides = {'initial_psi_source': 'j', **config_overrides}
@@ -535,7 +535,7 @@ class ProfileConditionsTest(parameterized.TestCase):
   def test_multiple_validation_errors(self):
     config_overrides = {
         'initial_psi_source': 'j',
-        'Ip': 1e2,
+        'I_p': 1e2,
         'T_e': {0: {0: 2e3, 1: 1.0}, 1.0: {0: 1e6, 1: 1e10}},
         'T_i_right_bc': 1e2,
     }

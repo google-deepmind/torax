@@ -87,7 +87,7 @@ class OutputKeysTest(parameterized.TestCase):
     self.assertEqual(
         output_keys.PSI.grid_type, output_keys.GridType.CELL_PLUS_BOUNDARIES
     )
-    self.assertEqual(output_keys.IP.grid_type, output_keys.GridType.SCALAR)
+    self.assertEqual(output_keys.I_P.grid_type, output_keys.GridType.SCALAR)
     self.assertEqual(
         output_keys.TOROIDAL_ANGULAR_VELOCITY.grid_type,
         output_keys.GridType.CELL_PLUS_BOUNDARIES,

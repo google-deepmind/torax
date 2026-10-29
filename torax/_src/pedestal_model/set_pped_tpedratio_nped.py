@@ -65,9 +65,9 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     assert isinstance(structure_params, RuntimeParams)
 
     # Convert n_e_ped to reference units.
-    # Ip in MA. a_minor in m. nGW in m^-3.
+    # I_p in MA. a_minor in m. nGW in m^-3.
     nGW = (
-        runtime_params.profile_conditions.Ip
+        runtime_params.profile_conditions.I_p
         / 1e6  # Convert to MA.
         / (jnp.pi * geo.a_minor**2)
         * 1e20

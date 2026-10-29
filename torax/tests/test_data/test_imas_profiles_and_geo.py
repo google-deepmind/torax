@@ -43,7 +43,7 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 CONFIG["geometry"] = {
     "geometry_type": "imas",
     "imas_filepath": "ITERhybrid_COCOS17_IDS_ddv4.nc",
-    "Ip_from_parameters": False,
+    "I_p_from_parameters": False,
 }
 # Dump all profile_conditions from the first IDS loaded.
 CONFIG["profile_conditions"] = {

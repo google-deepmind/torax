@@ -46,7 +46,7 @@ class FormulasTest(parameterized.TestCase):
         n_impurity=core_profile_helpers.make_constant_core_profile(
             self.geo, 0.25e20
         ),
-        Ip_profile_face=[np.pi * 1e6],  # pyrefly: ignore[bad-argument-type]
+        I_p_profile_face=[np.pi * 1e6],  # pyrefly: ignore[bad-argument-type]
     )
 
   # TODO(b/377225415): generalize to arbitrary number of ions.
@@ -161,12 +161,12 @@ class FormulasTest(parameterized.TestCase):
     geo = circular_geometry.CircularConfig(
         n_rho=50, a_minor=1.0, R_major=10.0, B_0=2.0
     ).build_geometry()
-    Ip = 1e6
+    I_p = 1e6
     mu0 = constants.CONSTANTS.mu_0
     R0 = geo.R_major
 
-    psi_face = 0.5 * mu0 * Ip * R0 * (geo.rho_face / geo.rho_face[-1]) ** 2
-    psi_cell = 0.5 * mu0 * Ip * R0 * (geo.rho / geo.rho_face[-1]) ** 2
+    psi_face = 0.5 * mu0 * I_p * R0 * (geo.rho_face / geo.rho_face[-1]) ** 2
+    psi_cell = 0.5 * mu0 * I_p * R0 * (geo.rho / geo.rho_face[-1]) ** 2
     psi_var = cell_variable.CellVariable(
         value=psi_cell,
         face_centers=geo.rho_face,

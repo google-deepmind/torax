@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests CHEASE geometry with Ip from config and psi from prescribed total j.
+"""Tests CHEASE geometry with I_p from config and psi from prescribed total j.
 
-Ip from parameters. implicit, psi (current diffusion) only
+I_p from parameters. implicit, psi (current diffusion) only
 """
 
 CONFIG = {
@@ -38,7 +38,7 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
     },
     'sources': {
         'generic_heat': {

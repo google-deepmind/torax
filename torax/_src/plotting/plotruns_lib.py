@@ -266,14 +266,6 @@ class PlotData:
     Returns:
       A numpy array containing the variable data.
     """
-
-    # Intercept Ip_profile and set as scalars.Ip
-    # This is needed for backwards compatibility with V1 Ip_profile definition
-    # in PlotData.
-    # TODO(b/379838765): Remove this in V2
-    if name == 'Ip_profile':
-      return self._scalars_dataset['Ip'].to_numpy()
-
     # 1. Search in profiles dataset
     if self._profiles_dataset is not None and name in self._profiles_dataset:
       return self._profiles_dataset[name].to_numpy()
@@ -351,8 +343,8 @@ def _transform_data(ds: xr.Dataset) -> xr.Dataset:
       output_keys.J_TOROIDAL_EXTERNAL: 1e6,  # A/m^2 to MA/m^2
       output_keys.J_TOROIDAL_GENERIC_CURRENT: 1e6,  # A/m^2 to MA/m^2
       output_keys.I_BOOTSTRAP: 1e6,  # A to MA
-      output_keys.IP_PROFILE: 1e6,  # A to MA
-      output_keys.IP: 1e6,  # A to MA
+      output_keys.I_P_PROFILE: 1e6,  # A to MA
+      output_keys.I_P: 1e6,  # A to MA
       output_keys.J_TOROIDAL_ECRH: 1e6,  # A/m^2 to MA/m^2
       'p_icrh_i': 1e6,  # W/m^3 to MW/m^3
       'p_icrh_e': 1e6,  # W/m^3 to MW/m^3

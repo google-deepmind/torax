@@ -33,7 +33,7 @@ class RedlFormulasTest(parameterized.TestCase):
     super().setUp()
     torax_config = config.ToraxConfig.from_dict({
         'profile_conditions': {
-            'Ip': 15e6,
+            'I_p': 15e6,
             'initial_psi_source': 'geometry',
             'current_profile_nu': 3,
             'n_e_nbar_is_fGW': True,
@@ -47,7 +47,7 @@ class RedlFormulasTest(parameterized.TestCase):
         },
         'geometry': {
             'geometry_type': 'chease',
-            'Ip_from_parameters': False,
+            'I_p_from_parameters': False,
             'n_rho': 10,
         },
         'transport': {},

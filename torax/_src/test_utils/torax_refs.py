@@ -117,7 +117,7 @@ def circular_references() -> References:
   """Reference values for circular geometry."""
   torax_config = config.ToraxConfig.from_dict({
       'profile_conditions': {
-          'Ip': 15e6,
+          'I_p': 15e6,
           'initial_psi_source': 'j',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
@@ -138,11 +138,11 @@ def circular_references() -> References:
   return _build_references_from_case_data('circular_references', torax_config)
 
 
-def chease_references_Ip_from_chease() -> References:
-  """Reference values for CHEASE geometry where Ip comes from the file."""
+def chease_references_I_p_from_chease() -> References:
+  """Reference values for CHEASE geometry where I_p comes from the file."""
   torax_config = config.ToraxConfig.from_dict({
       'profile_conditions': {
-          'Ip': 15e6,
+          'I_p': 15e6,
           'initial_psi_source': 'geometry',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
@@ -154,7 +154,7 @@ def chease_references_Ip_from_chease() -> References:
       'plasma_composition': {},
       'geometry': {
           'geometry_type': 'chease',
-          'Ip_from_parameters': False,
+          'I_p_from_parameters': False,
       },
       'transport': {},
       'solver': {},
@@ -162,15 +162,15 @@ def chease_references_Ip_from_chease() -> References:
       'sources': {'generic_current': {}},
   })
   return _build_references_from_case_data(
-      'chease_references_Ip_from_chease', torax_config
+      'chease_references_I_p_from_chease', torax_config
   )
 
 
-def chease_references_Ip_from_runtime_params() -> References:
-  """Reference values for CHEASE geometry where Ip comes from runtime params."""
+def chease_references_I_p_from_runtime_params() -> References:
+  """Reference values for CHEASE geometry where I_p comes from runtime params."""
   torax_config = config.ToraxConfig.from_dict({
       'profile_conditions': {
-          'Ip': 15e6,
+          'I_p': 15e6,
           'initial_psi_source': 'geometry',
           'current_profile_nu': 3,
           'n_e_nbar_is_fGW': True,
@@ -182,7 +182,7 @@ def chease_references_Ip_from_runtime_params() -> References:
       'plasma_composition': {},
       'geometry': {
           'geometry_type': 'chease',
-          'Ip_from_parameters': True,
+          'I_p_from_parameters': True,
       },
       'transport': {},
       'solver': {},
@@ -190,16 +190,16 @@ def chease_references_Ip_from_runtime_params() -> References:
       'sources': {'generic_current': {}},
   })
   return _build_references_from_case_data(
-      'chease_references_Ip_from_runtime_params', torax_config
+      'chease_references_I_p_from_runtime_params', torax_config
   )
 
 
 REFERENCES_REGISTRY: Final[Mapping[str, Callable[[], References]]] = (
     immutabledict.immutabledict({
         'circular_references': circular_references,
-        'chease_references_Ip_from_chease': chease_references_Ip_from_chease,
-        'chease_references_Ip_from_runtime_params': (
-            chease_references_Ip_from_runtime_params
+        'chease_references_I_p_from_chease': chease_references_I_p_from_chease,
+        'chease_references_I_p_from_runtime_params': (
+            chease_references_I_p_from_runtime_params
         ),
     })
 )

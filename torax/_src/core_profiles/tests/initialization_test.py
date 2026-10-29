@@ -88,13 +88,13 @@ class InitializationTest(parameterized.TestCase):
         )
     )
     psi = initialization.update_psi_from_j(
-        runtime_params.profile_conditions.Ip,
+        runtime_params.profile_conditions.I_p,
         geo,
         j_toroidal_total_hires,
     ).value
     np.testing.assert_allclose(psi, references.psi.value)
 
-  def test_get_j_toroidal_total_hires_with_bootstrap_integrates_to_ip(self):
+  def test_get_j_toroidal_total_hires_with_bootstrap_integrates_to_I_p(self):
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry']['geometry_type'] = 'chease'
     config_dict['geometry']['n_rho'] = 100
@@ -127,11 +127,11 @@ class InitializationTest(parameterized.TestCase):
             j_toroidal_external=jnp.zeros_like(geo.rho_norm),
         )
     )
-    ip_hires = jax.scipy.integrate.trapezoid(
+    I_p_hires = jax.scipy.integrate.trapezoid(
         j_toroidal_total_hires * geo.spr_hires, geo.rho_hires_norm
     )
     np.testing.assert_allclose(
-        ip_hires, runtime_params.profile_conditions.Ip, rtol=1e-2
+        I_p_hires, runtime_params.profile_conditions.I_p, rtol=1e-2
     )
 
   def test_initial_core_profiles_toroidal_angular_velocity(self):
@@ -191,9 +191,9 @@ class InitializationTest(parameterized.TestCase):
 
     core_profiles, geo, _ = _get_initial_state(torax_config)
 
-    # The `psi_from_Ip` attribute of the geometry is the ground truth here.
+    # The `psi_from_I_p` attribute of the geometry is the ground truth here.
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
-    np.testing.assert_allclose(core_profiles.psi.value, geo.psi_from_Ip)
+    np.testing.assert_allclose(core_profiles.psi.value, geo.psi_from_I_p)
 
   def test_initial_psi_from_config(self):
     config_dict = default_configs.get_default_config_dict()
@@ -256,7 +256,7 @@ class InitializationTest(parameterized.TestCase):
     # calculate total and Ohmic current profile references
     jformula = (1 - geo.rho_norm**2) ** _CURRENT_PROFILE_NU
     denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
-    ctot = torax_config.profile_conditions.Ip.value[0] / denom
+    ctot = torax_config.profile_conditions.I_p.value[0] / denom
     j_toroidal_total1_expected = jformula * ctot
     j_toroidal_ohmic2_expected = j_toroidal_total1_expected * (
         1 - _FRACTION_OF_TOTAL_CURRENT

@@ -120,9 +120,9 @@ def get_updated_electron_density(
 ) -> cell_variable.CellVariable:
   """Gets initial and/or prescribed electron density profiles."""
   # Greenwald density in m^-3.
-  # Ip in MA. a_minor in m.
+  # I_p in MA. a_minor in m.
   nGW = (
-      profile_conditions_params.Ip
+      profile_conditions_params.I_p
       / 1e6  # Convert to MA.
       / (jnp.pi * geo.a_minor**2)
       * 1e20
@@ -223,8 +223,8 @@ def get_updated_psi(
     value = profile_conditions_params.psi
 
   right_face_grad_constraint = (
-      psi_calculations.calculate_psi_grad_constraint_from_Ip(  # pylint: disable=g-long-ternary
-          Ip=profile_conditions_params.Ip,
+      psi_calculations.calculate_psi_grad_constraint_from_I_p(  # pylint: disable=g-long-ternary
+          I_p=profile_conditions_params.I_p,
           geo=geo,
       )
       if not profile_conditions_params.use_v_loop_lcfs_boundary_condition

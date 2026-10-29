@@ -94,12 +94,12 @@ For build and test instructions, see
 
 *   **Variable Naming:** Prioritize consistency and clarity in naming. Avoid
     excessive acronyms or contractions, but standard physics abbreviations
-    (e.g., `T_e`, `n_e`, `R_major`, `Ip`) are encouraged where appropriate.
+    (e.g., `T_e`, `n_e`, `R_major`, `I_p`) are encouraged where appropriate.
     Capital letters are permitted for physics variables, but you must add
     `# pylint: disable=invalid-name` near the top of the module to stop
     linter complaints.
     *   *Note:* Output keys in `output.py` use UPPER_SNAKE_CASE
-        (e.g., `T_E`, `IP`), and integrated scalars in `scalars/` use
+        (e.g., `T_E`, `I_P`), and integrated scalars in `scalars/` use
         formats like `P_SOL`.
 
 *   **Dtype Conventions & Array Initialization:** Prefer `jnp.asarray` over

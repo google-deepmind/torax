@@ -61,9 +61,9 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_I_p_from_chease),
       dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+          references_getter=torax_refs.chease_references_I_p_from_runtime_params
       ),
   ])
   def test_calc_fusion(
@@ -98,7 +98,7 @@ class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
       expected_fusion_factor: float,
   ):
     """Compare `calc_fusion` function to a reference implementation for various ion mixtures."""
-    references = torax_refs.chease_references_Ip_from_chease()
+    references = torax_refs.chease_references_I_p_from_chease()
     references.torax_config.update_fields({
         'plasma_composition.main_ion': main_ion_input,
         'sources.fusion': {},

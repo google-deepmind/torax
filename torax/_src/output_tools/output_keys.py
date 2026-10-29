@@ -235,11 +235,11 @@ SIGMA_PARALLEL: Final[OutputKey] = OutputKey(
 V_LOOP_LCFS: Final[OutputKey] = OutputKey(
     "v_loop_lcfs", units=Units.VOLT, grid_type=GridType.SCALAR
 )
-IP_PROFILE: Final[OutputKey] = OutputKey(
-    "Ip_profile", units=Units.AMPERE, grid_type=GridType.FACE
+I_P_PROFILE: Final[OutputKey] = OutputKey(
+    "I_p_profile", units=Units.AMPERE, grid_type=GridType.FACE
 )
-IP: Final[OutputKey] = OutputKey(
-    "Ip", units=Units.AMPERE, grid_type=GridType.SCALAR
+I_P: Final[OutputKey] = OutputKey(
+    "I_p", units=Units.AMPERE, grid_type=GridType.SCALAR
 )
 TOROIDAL_ANGULAR_VELOCITY: Final[OutputKey] = OutputKey(
     "toroidal_angular_velocity",
@@ -307,8 +307,8 @@ EI_EXCHANGE: Final[OutputKey] = OutputKey(
     units=Units.WATT_PER_CUBIC_METER,
     grid_type=GridType.CELL,
 )
-PSI_FROM_IP: Final[OutputKey] = OutputKey(
-    "psi_from_Ip", units=Units.WEBER, grid_type=GridType.CELL_PLUS_BOUNDARIES
+PSI_FROM_I_P: Final[OutputKey] = OutputKey(
+    "psi_from_I_p", units=Units.WEBER, grid_type=GridType.CELL_PLUS_BOUNDARIES
 )
 
 # ---------------------------------------------------------------------------
@@ -1113,8 +1113,8 @@ TRAPPED_FRACTION: Final[OutputKey] = OutputKey(
 # ---------------------------------------------------------------------------
 # Geometry output renames.
 # ---------------------------------------------------------------------------
-IP_PROFILE_FROM_GEO: Final[OutputKey] = OutputKey(
-    "Ip_profile_from_geo", units=Units.AMPERE, grid_type=GridType.FACE
+I_P_PROFILE_FROM_GEO: Final[OutputKey] = OutputKey(
+    "I_p_profile_from_geo", units=Units.AMPERE, grid_type=GridType.FACE
 )
 PSI_FROM_GEO: Final[OutputKey] = OutputKey(
     "psi_from_geo", units=Units.WEBER, grid_type=GridType.CELL

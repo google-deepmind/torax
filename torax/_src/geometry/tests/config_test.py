@@ -64,7 +64,7 @@ class GeometryConfigTest(parameterized.TestCase):
 
     base_config_dict = {
         'geometry_type': 'chease',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
         'n_rho': 10,  # overrides the default
         'geometry_configs': {
             0.0: {
@@ -99,7 +99,7 @@ class GeometryConfigTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(param='n_rho', value=5),
-      dict(param='Ip_from_parameters', value=True),
+      dict(param='I_p_from_parameters', value=True),
       dict(param='geometry_directory', value='.'),
   ])
   def test_build_time_dependent_geometry_from_chease_failure(
@@ -108,7 +108,7 @@ class GeometryConfigTest(parameterized.TestCase):
 
     base_config_dict = {
         'geometry_type': 'chease',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
         'n_rho': 10,  # overrides the default
         'geometry_configs': {
             0.0: {
@@ -136,12 +136,12 @@ class GeometryConfigTest(parameterized.TestCase):
         geometry_config.GeometryConfig.from_dict(invalid_config_dict)
 
   # pylint: disable=invalid-name
-  def test_chease_geometry_updates_Ip(self):
-    """Tests that the Ip is updated when using chease geometry."""
+  def test_chease_geometry_updates_I_p(self):
+    """Tests that the I_p is updated when using chease geometry."""
     config_dict = default_configs.get_default_config_dict()
     config_dict['geometry'] = {
         'geometry_type': 'chease',
-        'Ip_from_parameters': False,
+        'I_p_from_parameters': False,
         'n_rho': 4,
     }
     torax_config = config.ToraxConfig.from_dict(config_dict)
@@ -156,11 +156,11 @@ class GeometryConfigTest(parameterized.TestCase):
             is_initialization=True,
         )
     )
-    original_Ip = torax_config.profile_conditions.Ip
+    original_I_p = torax_config.profile_conditions.I_p
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
     self.assertIsNotNone(runtime_params)
     self.assertNotEqual(
-        runtime_params.profile_conditions.Ip, original_Ip.value[0]
+        runtime_params.profile_conditions.I_p, original_I_p.value[0]
     )
     # pylint: enable=invalid-name
 
@@ -184,7 +184,7 @@ class GeometryConfigTest(parameterized.TestCase):
     config_dict = {
         'geometry_type': 'eqdsk',
         'geometry_file': 'iterhybrid_cocos02.eqdsk',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
         'last_surface_factor': 0.99,
         'n_surfaces': 100,
         'cocos': 2,

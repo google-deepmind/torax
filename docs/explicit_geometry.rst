@@ -22,7 +22,7 @@ so:
   geometry_config = geometry_experimental.GeometryConfig.from_dict({
       'n_rho': 25,
       'geometry_type': 'fbt',
-      'Ip_from_parameters': True,
+      'I_p_from_parameters': True,
       'LY_object': initial_LY,
       'L_object': L,
   })
@@ -45,7 +45,7 @@ so:
     geometry_config = geometry_experimental.GeometryConfig.from_dict({
       'n_rho': 25,
       'geometry_type': 'fbt',
-      'Ip_from_parameters': True,
+      'I_p_from_parameters': True,
       'geometry_configs': {
             sim_state.t: {
                 'LY_object': previous_LY,

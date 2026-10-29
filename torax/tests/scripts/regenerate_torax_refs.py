@@ -153,15 +153,15 @@ def _calculate_new_references(
         ),
     )
     psi = initialization.update_psi_from_j(
-        runtime_params.profile_conditions.Ip,
+        runtime_params.profile_conditions.I_p,
         geo,
         j_toroidal_total_hires,
     )
   elif isinstance(geo, standard_geometry.StandardGeometry):
     external_current = sum(source_profiles.psi.values())
-    psi_value = geo.psi_from_Ip
+    psi_value = geo.psi_from_I_p
     psi_constraint = (
-        runtime_params.profile_conditions.Ip
+        runtime_params.profile_conditions.I_p
         * (16 * np.pi**3 * constants.CONSTANTS.mu_0 * geo.Phi_b)
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
     )

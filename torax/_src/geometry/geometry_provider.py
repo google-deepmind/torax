@@ -182,13 +182,13 @@ class TimeDependentGeometryProvider:
         'torax_mesh': initial_geometry.torax_mesh,
         'calc_Phi_b_dot': calc_Phi_b_dot,
     }
-    if hasattr(initial_geometry, 'Ip_from_parameters'):
-      kwargs['Ip_from_parameters'] = initial_geometry.Ip_from_parameters
+    if hasattr(initial_geometry, 'I_p_from_parameters'):
+      kwargs['I_p_from_parameters'] = initial_geometry.I_p_from_parameters
     for attr in dataclasses.fields(cls):
       if (
           attr.name == 'geometry_type'
           or attr.name == 'torax_mesh'
-          or attr.name == 'Ip_from_parameters'
+          or attr.name == 'I_p_from_parameters'
           or attr.name == 'calc_Phi_b_dot'
       ):
         continue
@@ -221,13 +221,13 @@ class TimeDependentGeometryProvider:
         'geometry_type': self.geometry_type,
         'torax_mesh': self.torax_mesh,
     }
-    if hasattr(self, 'Ip_from_parameters'):
-      kwargs['Ip_from_parameters'] = self.Ip_from_parameters
+    if hasattr(self, 'I_p_from_parameters'):
+      kwargs['I_p_from_parameters'] = self.I_p_from_parameters
     for attr in dataclasses.fields(geometry_class):
       if (
           attr.name == 'geometry_type'
           or attr.name == 'torax_mesh'
-          or attr.name == 'Ip_from_parameters'
+          or attr.name == 'I_p_from_parameters'
       ):
         continue
       if attr.name == 'Phi_b_dot':

@@ -106,7 +106,7 @@ def get_sawtooth_test_config_dict() -> Mapping[str, Any]:
       },
       # Default initial current will lead to a sawtooth being triggered.
       'profile_conditions': {
-          'Ip': 13e6,
+          'I_p': 13e6,
           'initial_j_is_total_current': True,
           'initial_psi_source': 'j',
           'current_profile_nu': 3,

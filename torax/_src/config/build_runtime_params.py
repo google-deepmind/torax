@@ -16,7 +16,7 @@
  - `RuntimeParamsProvider` which provides a the `RuntimeParams` to
   use during time t of the sim.
  - `get_consistent_params_and_geometry` which returns a
-`RuntimeParams` and a corresponding `Geometry` with consistent `Ip`. Also
+`RuntimeParams` and a corresponding `Geometry` with consistent `I_p`. Also
   optionally updates temperature boundary conditions and impurity
   concentrations based on the edge model outputs.
 """
@@ -151,8 +151,8 @@ class RuntimeParamsProvider:
 
     Example usage:
     ```
-    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
-        value=new_ip_value,
+    I_p_update = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=new_I_p_value,
     )
     T_e_update = interpolated_param_2d.TimeVaryingArrayReplace(
         value=T_e_cell_value * 3.0,
@@ -160,8 +160,8 @@ class RuntimeParamsProvider:
     )
     new_provider = provider.update_provider(
         # ordering of the replace values and return values must match.
-        lambda x: (x.profile_conditions.Ip, x.profile_conditions.T_e),
-        (ip_update, T_e_update),
+        lambda x: (x.profile_conditions.I_p, x.profile_conditions.T_e),
+        (I_p_update, T_e_update),
     )
     ```
 
@@ -211,8 +211,8 @@ class RuntimeParamsProvider:
 
     Example usage:
     ```
-    ip_update = interpolated_param_1d.TimeVaryingScalarReplace(
-        value=new_ip_value,
+    I_p_update = interpolated_param_1d.TimeVaryingScalarReplace(
+        value=new_I_p_value,
     )
     T_e_update = interpolated_param_2d.TimeVaryingArrayReplace(
         cell_value=T_e_cell_value * 3.0,
@@ -220,7 +220,7 @@ class RuntimeParamsProvider:
     )
     new_provider = provider.update_provider_from_mapping(
         {
-            'profile_conditions.Ip': ip_update,
+            'profile_conditions.I_p': I_p_update,
             'profile_conditions.T_e': T_e_update,
             'sources.ei_exchange.Qei_multiplier': 2.0,
         }
@@ -374,4 +374,4 @@ def get_consistent_runtime_params_and_geometry(
   runtime_params = edge_updaters.update_runtime_params(
       runtime_params, edge_outputs
   )
-  return runtime_params_lib.make_ip_consistent(runtime_params, geo)
+  return runtime_params_lib.make_I_p_consistent(runtime_params, geo)

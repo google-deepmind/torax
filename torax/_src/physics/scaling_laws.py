@@ -127,10 +127,10 @@ def _calculate_line_average_n_e_at_P_LH_min(
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
   """Calculates the density at P_LH_min from equation 3 in Ryter 2014."""
-  Ip_total = core_profiles.Ip_profile_face[..., -1]
+  I_p_total = core_profiles.I_p_profile_face[..., -1]
   return (
       0.7  # pyrefly: ignore[bad-return]
-      * (Ip_total / 1e6) ** 0.34
+      * (I_p_total / 1e6) ** 0.34
       * geo.a_minor**-0.95
       * geo.B_0**0.62
       * (geo.R_major / geo.a_minor) ** 0.4
@@ -236,7 +236,7 @@ def calculate_scaling_law_confinement_time(
       'H89P': {
           # From Yushmanov et al, Nuclear Fusion, vol. 30, no. 10, pp. 4-6, 1990
           'prefactor': 0.038128,
-          'Ip_exponent': 0.85,
+          'I_p_exponent': 0.85,
           'B_exponent': 0.2,
           'line_avg_n_e_exponent': 0.1,
           'Ploss_exponent': -0.5,
@@ -252,7 +252,7 @@ def calculate_scaling_law_confinement_time(
           # Confinement Modelling and Database, Nucl. Fusion 39 2175, 1999
           # Doyle et al, Nucl. Fusion 47 (2007) S18–S127, Eq 30
           'prefactor': 0.0562,
-          'Ip_exponent': 0.93,
+          'I_p_exponent': 0.93,
           'B_exponent': 0.15,
           'line_avg_n_e_exponent': 0.41,
           'Ploss_exponent': -0.69,
@@ -266,7 +266,7 @@ def calculate_scaling_law_confinement_time(
           # From the ITER L-mode confinement database.
           # S.M. Kaye et al 1997 Nucl. Fusion 37 1303, Eq 7
           'prefactor': 0.023,
-          'Ip_exponent': 0.96,
+          'I_p_exponent': 0.96,
           'B_exponent': 0.03,
           'line_avg_n_e_exponent': 0.4,
           'Ploss_exponent': -0.73,
@@ -280,7 +280,7 @@ def calculate_scaling_law_confinement_time(
           # Updated ITER H-mode confinement database, using full dataset.
           # G. Verdoolaege et al 2021 Nucl. Fusion 61 076006, Eq 7
           'prefactor': 0.053,
-          'Ip_exponent': 0.98,
+          'I_p_exponent': 0.98,
           'B_exponent': 0.22,
           'line_avg_n_e_exponent': 0.24,
           'Ploss_exponent': -0.669,
@@ -304,7 +304,7 @@ def calculate_scaling_law_confinement_time(
   # need to avoid NaNs.
   P_loss = jnp.maximum(P_loss, 1.0)
 
-  scaled_Ip = core_profiles.Ip_profile_face[-1] / 1e6  # convert to MA
+  scaled_I_p = core_profiles.I_p_profile_face[-1] / 1e6  # convert to MA
   scaled_Ploss = P_loss / 1e6  # convert to MW
   B = geo.B_0
   line_avg_n_e = (  # convert to 10^19 m^-3
@@ -322,7 +322,7 @@ def calculate_scaling_law_confinement_time(
 
   tau_scaling = (
       params['prefactor']
-      * scaled_Ip ** params['Ip_exponent']
+      * scaled_I_p ** params['I_p_exponent']
       * B ** params['B_exponent']
       * line_avg_n_e ** params['line_avg_n_e_exponent']
       * scaled_Ploss ** params['Ploss_exponent']

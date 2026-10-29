@@ -268,7 +268,7 @@ class ExtendedLengyelModel(base.EdgeModel):
         main_ion_charge=core_profiles.Z_i_face[-1],
         mean_ion_charge_state=mean_ion_charge_state,
         magnetic_field_on_axis=geo.B_0,
-        plasma_current=core_profiles.Ip_profile_face[-1],
+        plasma_current=core_profiles.I_p_profile_face[-1],
         major_radius=geo.R_major,
         minor_radius=geo.a_minor,
         elongation_psi95=elongation_psi95,

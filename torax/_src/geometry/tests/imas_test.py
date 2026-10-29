@@ -252,12 +252,14 @@ class OffAxisGridIMASGeometryTest(parameterized.TestCase):
     self._assert_near_axis_matches_ids(geo, geo.j_toroidal_total)
 
   @parameterized.parameters(200, 400)
-  def test_near_axis_j_toroidal_total_from_psi_from_ip_matches_ids(self, n_rho):
+  def test_near_axis_j_toroidal_total_from_psi_from_i_p_matches_ids(
+      self, n_rho
+  ):
     geo = self._build_geometry(n_rho)
     psi = cell_variable.CellVariable(
-        value=geo.psi_from_Ip,
+        value=geo.psi_from_I_p,
         face_centers=geo.rho_face_norm,
-        right_face_constraint=geo.psi_from_Ip_face[-1],
+        right_face_constraint=geo.psi_from_I_p_face[-1],
         right_face_grad_constraint=None,
     )
     j_toroidal_total, _, _ = psi_calculations.calc_j_toroidal_total(

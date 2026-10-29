@@ -36,9 +36,9 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_I_p_from_chease),
       dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+          references_getter=torax_refs.chease_references_I_p_from_runtime_params
       ),
   ])
   def test_compare_against_known(

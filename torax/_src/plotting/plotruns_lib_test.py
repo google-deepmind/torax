@@ -206,7 +206,7 @@ class PlotDataTest(absltest.TestCase):
         'P_bremsstrahlung_e': ('time', [-10.0, -10.0]),
         'P_radiation_e': ('time', [-5.0, -5.0]),
         'P_cyclotron_e': ('time', [-2.0, -2.0]),
-        'Ip': ('time', [15.0, 15.0]),
+        'I_p': ('time', [15.0, 15.0]),
     })
 
     self.top_level_ds = xr.Dataset({'time': [0.0, 1.0]})
@@ -233,12 +233,6 @@ class PlotDataTest(absltest.TestCase):
   def test_p_sink_summation(self):
     expected = np.array([-17.0, -17.0])
     np.testing.assert_array_equal(self.plot_data.P_sink, expected)
-
-  def test_legacy_ip_profile_redirect(self):
-    """Test that requesting 'Ip_profile' returns 'Ip' from scalars."""
-    np.testing.assert_array_equal(
-        self.plot_data.Ip_profile, self.scalars_ds['Ip'].to_numpy()
-    )
 
   def test_optional_attributes_default_to_zero(self):
     """Tests that missing optional attributes return a zero array."""

@@ -24,8 +24,8 @@ Functions:
     - calc_Wpol: Calculates total magnetic energy (Wpol).
     - calc_li3: Calculates normalized internal inductance li3 (ITER convention).
     - calc_q95: Calculates the q-profile at 95% of the normalized poloidal flux.
-    - calculate_psi_grad_constraint_from_Ip: Calculates the gradient
-      constraint on the poloidal flux (psi) from Ip.
+    - calculate_psi_grad_constraint_from_I_p: Calculates the gradient
+      constraint on the poloidal flux (psi) from I_p.
     - calc_bpol_squared: Calculates square of poloidal field (Bp).
     - j_toroidal_to_j_parallel: Calculates <j.B>/B0 from j_toroidal = dI/dS.
     - j_parallel_to_j_toroidal: Calculates j_toroidal = dI/dS from <j.B>/B0.
@@ -156,11 +156,11 @@ def calc_j_toroidal_total(
   Returns:
     j_toroidal_total: total toroidal current density [A/m2] on cell grid
     j_toroidal_total_face: total toroidal current density [A/m2] on face grid
-    Ip_profile_face: cumulative total plasma current profile [A] on face grid
+    I_p_profile_face: cumulative total plasma current profile [A] on face grid
   """
 
   # pylint: disable=invalid-name
-  Ip_profile_face = (
+  I_p_profile_face = (
       psi.face_grad()
       * geo.g2g3_over_rhon_face
       * geo.F_face
@@ -171,7 +171,7 @@ def calc_j_toroidal_total(
   # Calculate dI/drhon on the cell grid using finite difference of the face
   # values. This ensures that the current density is consistent with the
   # enclosed current at the boundaries of the cells.
-  dI_drhon = jnp.diff(Ip_profile_face) / geo.drho_norm
+  dI_drhon = jnp.diff(I_p_profile_face) / geo.drho_norm
 
   j_toroidal_total = dI_drhon / geo.spr
 
@@ -189,7 +189,7 @@ def calc_j_toroidal_total(
       preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
   )
 
-  return j_toroidal_total, j_toroidal_total_face, Ip_profile_face
+  return j_toroidal_total, j_toroidal_total_face, I_p_profile_face
 
 
 def calc_s_face(
@@ -294,7 +294,7 @@ def calc_Wpol(
 def calc_li3(
     R_major: jax.Array,
     Wpol: jax.Array,
-    Ip_total: jax.Array,
+    I_p_total: jax.Array,
 ) -> jax.Array:
   """Calculates li3 based on a formulation using Wpol.
 
@@ -303,21 +303,21 @@ def calc_li3(
   the average at the last closed flux surface.
 
   We use the ITER convention for normalized internal inductance defined as:
-  li3 = 2*V*<Bpol^2>_V / (mu0^2 Ip^2*R_major) = 4 * Wpol / (mu0 Ip^2*R_major)
+  li3 = 2*V*<Bpol^2>_V / (mu0^2 I_p^2*R_major) = 4 * Wpol / (mu0 I_p^2*R_major)
 
-  Ip (total plasma current) enters through the integral form of Ampere's law.
+  I_p (total plasma current) enters through the integral form of Ampere's law.
   Since Wpol also corresponds to a volume integral of the poloidal field, we
   can define li3 with respect to Wpol.
 
   Args:
     R_major: Major radius.
     Wpol: Total magnetic energy.
-    Ip_total: Total plasma current.
+    I_p_total: Total plasma current.
 
   Returns:
     li3: Normalized internal inductance, ITER convention.
   """
-  return 4 * Wpol / (constants.CONSTANTS.mu_0 * Ip_total**2 * R_major)
+  return 4 * Wpol / (constants.CONSTANTS.mu_0 * I_p_total**2 * R_major)
 
 
 def calc_q95(
@@ -338,13 +338,13 @@ def calc_q95(
   return q95
 
 
-def calculate_psi_grad_constraint_from_Ip(
-    Ip: array_typing.FloatScalar,
+def calculate_psi_grad_constraint_from_I_p(
+    I_p: array_typing.FloatScalar,
     geo: geometry.Geometry,
 ) -> jax.Array:
-  """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
+  """Calculates the gradient constraint on the poloidal flux (psi) from I_p."""
   return (
-      Ip  # pyrefly: ignore[bad-return]
+      I_p  # pyrefly: ignore[bad-return]
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu_0 * geo.Phi_b)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )
@@ -376,7 +376,7 @@ def calculate_v_loop_lcfs_from_psi(
 ) -> jax.Array:
   """Calculates the v_loop_lcfs for the next timestep.
 
-  For the Ip boundary condition case, the v_loop_lcfs formula is in principle
+  For the I_p boundary condition case, the v_loop_lcfs formula is in principle
   calculated from:
 
   (psi_lcfs_t_plus_dt - psi_lcfs_t) / (dt *

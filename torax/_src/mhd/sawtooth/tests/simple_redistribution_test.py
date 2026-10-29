@@ -48,7 +48,7 @@ class SimpleRedistributionTest(parameterized.TestCase):
         'evolve_current': True,
     }
     config_dict['profile_conditions'] = {
-        'Ip': 15e6,
+        'I_p': 15e6,
         'initial_j_is_total_current': True,
         'initial_psi_source': 'j',
         'current_profile_nu': 3,
@@ -128,7 +128,7 @@ class MixingRadiusClampingTest(parameterized.TestCase):
     config_dict['numerics']['evolve_current'] = True
     config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': n_rho}
     config_dict['profile_conditions'] = {
-        'Ip': 15e6,
+        'I_p': 15e6,
         'initial_j_is_total_current': True,
         'initial_psi_source': 'j',
         'current_profile_nu': 3,

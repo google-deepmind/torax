@@ -22,6 +22,6 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 CONFIG['geometry'] = {
     'geometry_type': 'imas',
     'imas_filepath': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
-    'Ip_from_parameters': True,
+    'I_p_from_parameters': True,
     'trapped_fraction_source': 'file',
 }

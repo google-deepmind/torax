@@ -101,7 +101,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
       beta_poloidal_prime_val: float = 1.5,
       ti_te_ratio: float = 1.2,
       n_e_is_fGW: bool = False,
-      Ip: float = 5e6,
+      I_p: float = 5e6,
       mode: beta_poloidal_prime.Mode = beta_poloidal_prime.Mode.CONSTANT,
       beta_poloidal_prime_min: float = 0.2,
       P_SOL_scaling: float | None = None,
@@ -115,7 +115,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
         n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
         n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        Ip_profile_face=jnp.linspace(0.0, Ip, geo.rho_face.shape[0]),
+        I_p_profile_face=jnp.linspace(0.0, I_p, geo.rho_face.shape[0]),
     )
 
     ibc_config = ibc_config_lib.BetaPoloidalPrimeIBCConfig(
@@ -135,7 +135,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
     class _MockProfileConditions:
       internal_boundary_conditions = ibc_rp
 
-    _MockProfileConditions.Ip = Ip
+    _MockProfileConditions.I_p = I_p
 
     class _MockRuntimeParams:
       profile_conditions = _MockProfileConditions()
@@ -260,7 +260,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
         T_e=core_profile_helpers.make_constant_core_profile(geo, 1.0),
         n_e=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
         n_i=core_profile_helpers.make_constant_core_profile(geo, 3.0e19),
-        Ip_profile_face=jnp.linspace(0.0, 5e6, geo.rho_face.shape[0]),
+        I_p_profile_face=jnp.linspace(0.0, 5e6, geo.rho_face.shape[0]),
     )
     model = beta_poloidal_prime.BetaPoloidalPrimeIBCModel()
 
@@ -279,7 +279,7 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
       class _MockProfileConditions:
         internal_boundary_conditions = ibc_rp
-        Ip = 5e6
+        I_p = 5e6
 
       class _MockRuntimeParams:
         profile_conditions = _MockProfileConditions()
@@ -332,19 +332,19 @@ class BetaPoloidalPrimeIBCTest(parameterized.TestCase):
 
   def test_greenwald_density_conversion(self):
     fgw = 0.4
-    Ip = 5e6
+    I_p = 5e6
     geo, _, ibc_out_fgw = self._setup_model_and_profiles(
         rho_norm_edge=0.7,
         n_e_edge=fgw,
         n_e_is_fGW=True,
-        Ip=Ip,
+        I_p=I_p,
     )
-    nGW = (Ip / 1e6) / (np.pi * geo.a_minor**2) * 1e20
+    nGW = (I_p / 1e6) / (np.pi * geo.a_minor**2) * 1e20
     _, _, ibc_out_abs = self._setup_model_and_profiles(
         rho_norm_edge=0.7,
         n_e_edge=fgw * nGW,
         n_e_is_fGW=False,
-        Ip=Ip,
+        I_p=I_p,
     )
     np.testing.assert_allclose(ibc_out_fgw.n_e, ibc_out_abs.n_e)
     np.testing.assert_allclose(ibc_out_fgw.T_e, ibc_out_abs.T_e)

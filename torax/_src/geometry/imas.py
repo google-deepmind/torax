@@ -46,7 +46,7 @@ class IMASConfig(base.GeometryConfigBase):
   Attributes:
     geometry_type: Always set to 'imas'.
     geometry_directory: Optionally overrides the default geometry directory.
-    Ip_from_parameters: Toggles whether total plasma current is read from the
+    I_p_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
     imas_filepath: Path to the IMAS netCDF file containing the equilibrium data.
@@ -85,7 +85,7 @@ class IMASConfig(base.GeometryConfigBase):
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )
-  Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
+  I_p_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   imas_filepath: str | None = None
   imas_uri: str | None = None
   equilibrium_object: ids_toplevel.IDSToplevel | None = None
@@ -126,7 +126,7 @@ class IMASConfig(base.GeometryConfigBase):
         equilibrium_object=self.equilibrium_object,
         imas_uri=self.imas_uri,
         imas_filepath=self.imas_filepath,
-        Ip_from_parameters=self.Ip_from_parameters,
+        I_p_from_parameters=self.I_p_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         explicit_convert=self.explicit_convert,
@@ -158,7 +158,7 @@ class IMASConfig(base.GeometryConfigBase):
         equilibrium_object=self.equilibrium_object,
         imas_uri=self.imas_uri,
         imas_filepath=self.imas_filepath,
-        Ip_from_parameters=self.Ip_from_parameters,
+        I_p_from_parameters=self.I_p_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         explicit_convert=self.explicit_convert,

@@ -78,7 +78,7 @@ class NeBoundaryConditionMode(enum.StrEnum):
 class RuntimeParams:
   """Prescribed values and boundary conditions for the core profiles."""
 
-  Ip: array_typing.FloatScalar
+  I_p: array_typing.FloatScalar
   v_loop_lcfs: array_typing.FloatScalar
   T_i_right_bc: array_typing.FloatScalar
   T_e_right_bc: array_typing.FloatScalar

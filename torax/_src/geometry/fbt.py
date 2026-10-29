@@ -61,7 +61,7 @@ class FBTConfig(base.GeometryConfigBase):
   Attributes:
     geometry_type: Always set to 'fbt'.
     geometry_directory: Optionally overrides the default geometry directory.
-    Ip_from_parameters: Toggles whether total plasma current is read from the
+    I_p_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the geometry file. If True, then the `psi`
       calculated from the geometry file is scaled to match the desired `I_p`.
     LY_object: Sets a single-slice FBT LY geometry file to be loaded, or
@@ -91,7 +91,7 @@ class FBTConfig(base.GeometryConfigBase):
   geometry_directory: Annotated[str | None, torax_pydantic.TIME_INVARIANT] = (
       None
   )
-  Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
+  I_p_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   LY_object: LY_OBJECT_TYPE | None = None
   LY_bundle_object: LY_OBJECT_TYPE | None = None
   LY_to_torax_times: torax_pydantic.NumpyArray | None = None
@@ -132,7 +132,7 @@ class FBTConfig(base.GeometryConfigBase):
         geometry_directory=self.geometry_directory,
         LY_object=self.LY_object,  # pyrefly: ignore[bad-argument-type]
         L_object=self.L_object,  # pyrefly: ignore[bad-argument-type]
-        Ip_from_parameters=self.Ip_from_parameters,
+        I_p_from_parameters=self.I_p_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         divertor_domain=self.divertor_domain,
@@ -153,7 +153,7 @@ class FBTConfig(base.GeometryConfigBase):
         LY_bundle_object=self.LY_bundle_object,  # pyrefly: ignore[bad-argument-type]
         L_object=self.L_object,  # pyrefly: ignore[bad-argument-type]
         LY_to_torax_times=self.LY_to_torax_times,
-        Ip_from_parameters=self.Ip_from_parameters,
+        I_p_from_parameters=self.I_p_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         divertor_domain=self.divertor_domain,
@@ -174,7 +174,7 @@ def _from_fbt_single_slice(
     LY_object: str | Mapping[str, np.ndarray],
     L_object: str | Mapping[str, np.ndarray],
     face_centers: np.ndarray,
-    Ip_from_parameters: bool = True,
+    I_p_from_parameters: bool = True,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
     trapped_fraction_source: (
@@ -198,8 +198,8 @@ def _from_fbt_single_slice(
     LY_object: File name for LY data, or directly an LY single slice dict.
     L_object: File name for L data, or directly an L dict.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
-    Ip_from_parameters: If True, then Ip is taken from the config and the values
-      in the Geometry are rescaled
+    I_p_from_parameters: If True, then I_p is taken from the config and the
+      values in the Geometry are rescaled
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     divertor_domain: The divertor domain (upper or lower null) for extracting
@@ -242,7 +242,7 @@ def _from_fbt_single_slice(
       LY,
       L,
       face_centers,
-      Ip_from_parameters,
+      I_p_from_parameters,
       hires_factor,
       divertor_domain,
       trapped_fraction_source=trapped_fraction_source,
@@ -255,7 +255,7 @@ def _from_fbt_bundle(
     L_object: str | Mapping[str, np.ndarray],
     LY_to_torax_times: np.ndarray | None,
     face_centers: np.ndarray,
-    Ip_from_parameters: bool = True,
+    I_p_from_parameters: bool = True,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
     trapped_fraction_source: (
@@ -285,8 +285,8 @@ def _from_fbt_bundle(
       number of array elements doesn't match the length of the LY_bundle array
       data. If None, then times are taken from the LY_bundle_object itself.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
-    Ip_from_parameters: If True, then Ip is taken from the config and the values
-      in the Geometry are rescaled.
+    I_p_from_parameters: If True, then I_p is taken from the config and the
+      values in the Geometry are rescaled.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     divertor_domain: The divertor domain (upper or lower null) for extracting
@@ -344,7 +344,7 @@ def _from_fbt_bundle(
         data_slice,
         L,
         face_centers,
-        Ip_from_parameters,
+        I_p_from_parameters,
         hires_factor,
         divertor_domain,
         trapped_fraction_source=trapped_fraction_source,
@@ -412,7 +412,7 @@ def _from_fbt(
     LY: Mapping[str, np.ndarray | int],
     L: Mapping[str, np.ndarray],
     face_centers: np.ndarray,
-    Ip_from_parameters: bool = True,
+    I_p_from_parameters: bool = True,
     hires_factor: int = 4,
     divertor_domain: DivertorDomain = DivertorDomain.LOWER_NULL,
     trapped_fraction_source: (
@@ -425,8 +425,8 @@ def _from_fbt(
     LY: A dictionary of relevant FBT LY geometry data.
     L: A dictionary of relevant FBT L geometry data.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
-    Ip_from_parameters: If True, then Ip is taken from the config and the values
-      in the Geometry are rescaled.
+    I_p_from_parameters: If True, then I_p is taken from the config and the
+      values in the Geometry are rescaled.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations on initialization.
     divertor_domain: The divertor domain (upper or lower null) for extracting
@@ -526,13 +526,13 @@ def _from_fbt(
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.FBT,
-      Ip_from_parameters=Ip_from_parameters,
+      I_p_from_parameters=I_p_from_parameters,
       R_major=R_major,
       a_minor=a_minor,
       B_0=B_0,
       psi=psi,
       Phi=Phi,  # pyrefly: ignore[bad-argument-type]
-      Ip_profile=LY['ItQ'],  # pyrefly: ignore[bad-argument-type]
+      I_p_profile=LY['ItQ'],  # pyrefly: ignore[bad-argument-type]
       R_in=LY['rgeom'] - LY['aminor'],  # pyrefly: ignore[bad-argument-type]
       R_out=LY['rgeom'] + LY['aminor'],  # pyrefly: ignore[bad-argument-type]
       F=LY['TQ'],  # pyrefly: ignore[bad-argument-type]

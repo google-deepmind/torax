@@ -333,21 +333,23 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
     # Check fraction
-    # f_non_inductive = I_non_inductive / Ip
-    # Ip comes from core_profiles.Ip_profile_face[-1]
-    ip = self.core_profiles.Ip_profile_face[-1]
+    # f_non_inductive = I_non_inductive / I_p
+    # I_p comes from core_profiles.I_p_profile_face[-1]
+    I_p = self.core_profiles.I_p_profile_face[-1]
     # Code uses eps=1e-7 for division guard
     np.testing.assert_allclose(
         outputs.f_non_inductive,
-        math_utils.safe_divide(num=outputs.I_non_inductive, denom=ip, eps=1e-7),
+        math_utils.safe_divide(
+            num=outputs.I_non_inductive, denom=I_p, eps=1e-7
+        ),
         rtol=1e-5,
     )
 
     # Check bootstrap fraction
-    # f_bootstrap = I_bootstrap / Ip
+    # f_bootstrap = I_bootstrap / I_p
     np.testing.assert_allclose(
         outputs.f_bootstrap,
-        math_utils.safe_divide(num=outputs.I_bootstrap, denom=ip, eps=1e-7),
+        math_utils.safe_divide(num=outputs.I_bootstrap, denom=I_p, eps=1e-7),
         rtol=1e-5,
     )
 

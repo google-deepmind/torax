@@ -78,7 +78,7 @@ class CoreProfiles:
       j_toroidal_total: Total toroidal current density on the cell grid [A/m^2].
       j_toroidal_total_face: Total toroidal current density on face grid
         [A/m^2].
-      Ip_profile_face: Plasma current profile on the face grid [A].
+      I_p_profile_face: Plasma current profile on the face grid [A].
       toroidal_angular_velocity: Toroidal angular velocity [rad/s].
       poloidal_velocity: Neoclassical poloidal velocity [m/s].
       charge_state_info: Container with averaged and per-species ion charge
@@ -117,7 +117,7 @@ class CoreProfiles:
   sigma_face: array_typing.FloatVectorFace
   j_toroidal_total: array_typing.FloatVectorCell
   j_toroidal_total_face: array_typing.FloatVectorFace
-  Ip_profile_face: array_typing.FloatVectorFace
+  I_p_profile_face: array_typing.FloatVectorFace
   toroidal_angular_velocity: cell_variable.CellVariable
   poloidal_velocity: cell_variable.CellVariable
   charge_state_info: charge_states.ChargeStateInfo
@@ -417,7 +417,7 @@ class CoreProfiles:
     face_vars = {
         output_keys.Q: self.q_face,
         output_keys.MAGNETIC_SHEAR: self.s_face,
-        output_keys.IP_PROFILE: self.Ip_profile_face,
+        output_keys.I_P_PROFILE: self.I_p_profile_face,
     }
     for key, face_data in face_vars.items():
       out_dict[key] = context.pack(key, face_data)
@@ -425,7 +425,7 @@ class CoreProfiles:
     scalar_vars = {
         output_keys.V_LOOP_LCFS: self.v_loop_lcfs,
         output_keys.A_I: self.A_i,
-        output_keys.IP: self.Ip_profile_face[..., -1],
+        output_keys.I_P: self.I_p_profile_face[..., -1],
     }
     for key, scalar_data in scalar_vars.items():
       out_dict[key] = context.pack(key, scalar_data)

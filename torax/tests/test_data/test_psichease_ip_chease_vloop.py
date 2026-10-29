@@ -14,7 +14,7 @@
 
 """Tests plasma current obtained from CHEASE geometry file.
 
-* Ip from CHEASE
+* I_p from CHEASE
 * implicit
 * psi (current diffusion) only
 * v_loop boundary condition
@@ -46,7 +46,7 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'Ip_from_parameters': False,
+        'I_p_from_parameters': False,
     },
     'sources': {
         'generic_heat': {

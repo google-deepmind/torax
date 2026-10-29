@@ -139,7 +139,7 @@ class StateHistory:
         and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
         and len(state_history) >= 2
     ):
-      # For the Ip BC case, set v_loop_lcfs[0] to the same value as
+      # For the I_p BC case, set v_loop_lcfs[0] to the same value as
       # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
       # underconstrained.
       self._core_profiles[0] = dataclasses.replace(

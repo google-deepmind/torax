@@ -75,7 +75,7 @@ class UpdatersTest(parameterized.TestCase):
     config_dict = default_configs.get_default_config_dict()
     config_dict['profile_conditions'] = {
         'psi': psi,
-        'Ip': 15e6,  # Ip is required but not used for psi value here
+        'I_p': 15e6,  # I_p is required but not used for psi value here
     }
     config_dict['numerics'] = {
         'evolve_current': False,

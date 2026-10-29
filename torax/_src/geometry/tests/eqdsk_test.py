@@ -213,18 +213,18 @@ class EqdskGeometryTest(parameterized.TestCase):
     # Use last_surface_factor=0.97 so that all contours remain closed on the
     # unrefined stride=2 grid (at the default 0.99, the outermost two contours
     # are clipped open by the LCFS bounding box).
-    reference_Ip = (
+    reference_I_p = (
         eqdsk.EQDSKConfig(
             geometry_file='iterhybrid_cocos11.eqdsk',
             cocos=11,
             last_surface_factor=0.97,
         )
         .build_geometry()
-        .Ip_profile_face[-1]
+        .I_p_profile_face[-1]
     )
     # coarsened_obj has nx = 65, nz = 65.
     # resolution=None: no refinement. resolution=130: ceil(130/65) = 2.
-    coarse_Ip_unrefined = (
+    coarse_I_p_unrefined = (
         eqdsk.EQDSKConfig(
             eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
             cocos=11,
@@ -232,9 +232,9 @@ class EqdskGeometryTest(parameterized.TestCase):
             target_psi_grid_resolution=None,
         )
         .build_geometry()
-        .Ip_profile_face[-1]
+        .I_p_profile_face[-1]
     )
-    coarse_Ip_refined = (
+    coarse_I_p_refined = (
         eqdsk.EQDSKConfig(
             eqdsk_object=self._coarsened_iterhybrid_eqdsk(stride=2),
             cocos=11,
@@ -242,10 +242,10 @@ class EqdskGeometryTest(parameterized.TestCase):
             target_psi_grid_resolution=130,
         )
         .build_geometry()
-        .Ip_profile_face[-1]
+        .I_p_profile_face[-1]
     )
-    error_unrefined = abs(coarse_Ip_unrefined / reference_Ip - 1)
-    error_refined = abs(coarse_Ip_refined / reference_Ip - 1)
+    error_unrefined = abs(coarse_I_p_unrefined / reference_I_p - 1)
+    error_refined = abs(coarse_I_p_refined / reference_I_p - 1)
     self.assertLess(error_refined, 5e-3)
     self.assertLess(error_refined, error_unrefined)
 

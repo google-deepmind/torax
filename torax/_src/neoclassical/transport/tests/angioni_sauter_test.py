@@ -40,7 +40,7 @@ class AngioniSauterTest(absltest.TestCase):
   ]:
     torax_config = config.ToraxConfig.from_dict({
         'profile_conditions': {
-            'Ip': 15e6,
+            'I_p': 15e6,
             'initial_psi_source': 'geometry',
             'current_profile_nu': 3,
             'n_e_nbar_is_fGW': True,
@@ -54,7 +54,7 @@ class AngioniSauterTest(absltest.TestCase):
         },
         'geometry': {
             'geometry_type': 'chease',
-            'Ip_from_parameters': False,
+            'I_p_from_parameters': False,
             'n_rho': _N_RHO,
         },
         'transport': {},

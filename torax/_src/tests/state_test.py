@@ -184,7 +184,7 @@ class ImpurityFractionsTest(parameterized.TestCase):
     super().setUp()
     self.base_config_dict = {
         'profile_conditions': {
-            'Ip': 15.0e6,
+            'I_p': 15.0e6,
             'initial_psi_source': 'j',
             'T_i': {0: {0: 15.0, 1: 1.0}},
             'T_e': {0: {0: 15.0, 1: 1.0}},
@@ -524,7 +524,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     face_keys = (
         output_keys.Q,
         output_keys.MAGNETIC_SHEAR,
-        output_keys.IP_PROFILE,
+        output_keys.I_P_PROFILE,
     )
     for key in face_keys:
       self.assertIn(key, out_dict)
@@ -535,7 +535,7 @@ class CoreProfilesCachedPropertiesTest(parameterized.TestCase):
     scalar_keys = (
         output_keys.V_LOOP_LCFS,
         output_keys.A_I,
-        output_keys.IP,
+        output_keys.I_P,
     )
     for key in scalar_keys:
       self.assertIn(key, out_dict)

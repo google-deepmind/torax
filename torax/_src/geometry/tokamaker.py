@@ -156,7 +156,7 @@ class TokaMakerConfig(base.GeometryConfigBase):
 
   Attributes:
     geometry_type: Always set to 'tokamaker'.
-    Ip_from_parameters: Toggles whether total plasma current is read from the
+    I_p_from_parameters: Toggles whether total plasma current is read from the
       configuration file, or from the equilibrium. If True, then the `psi`
       calculated from the equilibrium is scaled to match the desired `I_p`.
     fsa_profiles: Flux surface profiles, as returned by
@@ -166,7 +166,7 @@ class TokaMakerConfig(base.GeometryConfigBase):
   geometry_type: Annotated[
       Literal['tokamaker'], torax_pydantic.TIME_INVARIANT
   ] = 'tokamaker'
-  Ip_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
+  I_p_from_parameters: Annotated[bool, torax_pydantic.TIME_INVARIANT] = True
   fsa_profiles: TokaMakerEquilibrium
 
   @property
@@ -178,7 +178,7 @@ class TokaMakerConfig(base.GeometryConfigBase):
   def build_geometry(self) -> standard_geometry.StandardGeometry:
     intermediates = _construct_intermediates_from_tokamaker(
         equilibrium=self.fsa_profiles,
-        Ip_from_parameters=self.Ip_from_parameters,
+        I_p_from_parameters=self.I_p_from_parameters,
         face_centers=self.get_face_centers(),
         hires_factor=self.hires_factor,
         trapped_fraction_source=self.trapped_fraction_source,
@@ -188,7 +188,7 @@ class TokaMakerConfig(base.GeometryConfigBase):
 
 def _construct_intermediates_from_tokamaker(
     equilibrium: TokaMakerEquilibrium,
-    Ip_from_parameters: bool,
+    I_p_from_parameters: bool,
     face_centers: np.ndarray,
     hires_factor: int,
     trapped_fraction_source: (
@@ -205,8 +205,8 @@ def _construct_intermediates_from_tokamaker(
   Args:
     equilibrium: Flux surface profiles from
       ``OpenFUSIONToolkit.TokaMaker.TokaMaker.get_fsa()``.
-    Ip_from_parameters: If True, the Ip is taken from the parameters and the
-      values in the Geometry are rescaled to match the new Ip.
+    I_p_from_parameters: If True, the I_p is taken from the parameters and the
+      values in the Geometry are rescaled to match the new I_p.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
@@ -250,7 +250,7 @@ def _construct_intermediates_from_tokamaker(
 
   # Enclosed toroidal current from Ampere's law on a flux surface:
   # mu_0 I = oint(B_p dl) = <B_p^2> oint(dl/B_p).
-  Ip_profile = (
+  I_p_profile = (
       prepend(0.0, eq.flux_surf_avg_Bp2)
       * int_dl_over_Bp
       / constants.CONSTANTS.mu_0
@@ -320,12 +320,12 @@ def _construct_intermediates_from_tokamaker(
 
   return standard_geometry.StandardGeometryIntermediates(
       geometry_type=geometry.GeometryType.TOKAMAKER,
-      Ip_from_parameters=Ip_from_parameters,
+      I_p_from_parameters=I_p_from_parameters,
       R_major=np.array(R_major),
       a_minor=np.array(a_minor),
       B_0=np.array(B_0),
       psi=psi,
-      Ip_profile=Ip_profile,
+      I_p_profile=I_p_profile,
       Phi=Phi,
       R_in=R_in,
       R_out=R_out,

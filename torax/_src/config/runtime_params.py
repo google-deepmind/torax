@@ -89,32 +89,32 @@ class RuntimeParams:
   time_step_calculator: time_step_calculator_params.RuntimeParams
 
 
-def make_ip_consistent(
+def make_I_p_consistent(
     runtime_params: RuntimeParams,
     geo: geometry.Geometry,
 ) -> tuple[RuntimeParams, geometry.Geometry]:
-  """Fixes Ip to be the same across runtime_params and geo."""
+  """Fixes I_p to be the same across runtime_params and geo."""
   if isinstance(geo, standard_geometry.StandardGeometry):
-    if geo.Ip_from_parameters:
-      # If Ip is from parameters, renormalise psi etc to match the Ip in the
+    if geo.I_p_from_parameters:
+      # If I_p is from parameters, renormalise psi etc to match the I_p in the
       # parameters.
-      param_Ip = runtime_params.profile_conditions.Ip
-      Ip_scale_factor = param_Ip / geo.Ip_profile_face[-1]
+      param_I_p = runtime_params.profile_conditions.I_p
+      I_p_scale_factor = param_I_p / geo.I_p_profile_face[-1]
       geo = dataclasses.replace(
           geo,
-          Ip_profile_face=geo.Ip_profile_face * Ip_scale_factor,
-          psi_from_Ip=geo.psi_from_Ip * Ip_scale_factor,
-          psi_from_Ip_face=geo.psi_from_Ip_face * Ip_scale_factor,
-          j_toroidal_total=geo.j_toroidal_total * Ip_scale_factor,
-          j_toroidal_total_face=geo.j_toroidal_total_face * Ip_scale_factor,
+          I_p_profile_face=geo.I_p_profile_face * I_p_scale_factor,
+          psi_from_I_p=geo.psi_from_I_p * I_p_scale_factor,
+          psi_from_I_p_face=geo.psi_from_I_p_face * I_p_scale_factor,
+          j_toroidal_total=geo.j_toroidal_total * I_p_scale_factor,
+          j_toroidal_total_face=geo.j_toroidal_total_face * I_p_scale_factor,
       )
     else:
-      # If Ip is from the geometry, update the parameters to match.
+      # If I_p is from the geometry, update the parameters to match.
       runtime_params = dataclasses.replace(
           runtime_params,
           profile_conditions=dataclasses.replace(
               runtime_params.profile_conditions,
-              Ip=geo.Ip_profile_face[-1],
+              I_p=geo.I_p_profile_face[-1],
           ),
       )
   return runtime_params, geo

@@ -39,7 +39,7 @@ CONFIG = {
         'Z_eff': 1.6,  # sets impurity density
     },
     'profile_conditions': {
-        'Ip': {0: 3e6, 80: 10.5e6},  # total plasma current in A
+        'I_p': {0: 3e6, 80: 10.5e6},  # total plasma current in A
         'initial_psi_source': 'geometry',
         # boundary + initial conditions for T and n
         # initial condition ion temperature for r=0 and r=a_minor
@@ -68,7 +68,7 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
         'R_major': 6.2,  # major radius (R) in meters
         'a_minor': 2.0,  # minor radius (a) in meters
         'B_0': 5.3,  # Toroidal magnetic field on axis [T]

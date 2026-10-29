@@ -153,7 +153,7 @@ def flatten_current_profile(
     flattening_factor: array_typing.FloatScalar,
     original_psi_profile: cell_variable.CellVariable,
     original_j_toroidal_total_profile: array_typing.FloatVector,
-    Ip_total: array_typing.FloatScalar,
+    I_p_total: array_typing.FloatScalar,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Redistributes a poloidal flux profile while preserving total current.
@@ -178,7 +178,7 @@ def flatten_current_profile(
     original_psi_profile: The original poloidal flux profile.
     original_j_toroidal_total_profile: The original j_toroidal_total profile
       already precalculated and consistent with the psi profile.
-    Ip_total: The total plasma current [A].
+    I_p_total: The total plasma current [A].
     geo: The geometry of the simulation at this time slice.
 
   Returns:
@@ -208,7 +208,7 @@ def flatten_current_profile(
   )
 
   new_psi = initialization.update_psi_from_j(
-      Ip_total, geo, new_j_toroidal_total_hires
+      I_p_total, geo, new_j_toroidal_total_hires
   )
 
   # Shift the new psi profile to match the original psi profile at the

@@ -141,7 +141,7 @@ class TokaMakerGeometryTest(parameterized.TestCase):
     fsa = _circular_get_fsa()
     intermediates = tokamaker._construct_intermediates_from_tokamaker(  # pylint: disable=protected-access
         equilibrium=tokamaker.TokaMakerEquilibrium.from_dict(fsa),
-        Ip_from_parameters=True,
+        I_p_from_parameters=True,
         face_centers=np.linspace(0.0, 1.0, 26),
         hires_factor=4,
     )
@@ -177,13 +177,13 @@ class TokaMakerGeometryTest(parameterized.TestCase):
     ):
       np.testing.assert_allclose(got[1:][outer], want[outer], rtol=1e-12)
 
-  def test_Ip_profile_matches_ampere_law(self):
-    """Ip = <B_p^2> int(dl/B_p) / mu_0, with int(dl/B_p) = |dV/dPsi|/(2*pi)."""
+  def test_I_p_profile_matches_ampere_law(self):
+    """I_p = <B_p^2> int(dl/B_p) / mu_0, with int(dl/B_p) = |dV/dPsi|/(2*pi)."""
     fsa = _circular_get_fsa()
     geo = tokamaker.TokaMakerConfig(fsa_profiles=fsa).build_geometry()
     int_dl_over_Bp = np.abs(fsa['dV/dPsi'][-1]) / (2 * np.pi)
     expected = fsa['<Bp^2>'][-1] * int_dl_over_Bp / constants.CONSTANTS.mu_0
-    np.testing.assert_allclose(geo.Ip_profile_face[-1], expected, rtol=1e-6)
+    np.testing.assert_allclose(geo.I_p_profile_face[-1], expected, rtol=1e-6)
 
   def test_shape_parameters(self):
     """Concentric circles have zero triangularity and unit elongation."""
@@ -234,7 +234,7 @@ class TokaMakerGeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(
         geo.gm5_face[0], (_R_MAJOR * _B_0 / _R_MAJOR) ** 2, rtol=1e-12
     )
-    np.testing.assert_allclose(geo.Ip_profile_face[0], 0.0, atol=1e-12)
+    np.testing.assert_allclose(geo.I_p_profile_face[0], 0.0, atol=1e-12)
     np.testing.assert_allclose(geo.R_in_face[0], _R_MAJOR, rtol=1e-12)
     np.testing.assert_allclose(geo.R_out_face[0], _R_MAJOR, rtol=1e-12)
 
@@ -272,7 +272,7 @@ class TokaMakerGeometryTest(parameterized.TestCase):
         config.build_provider(0.0),
         restored.build_provider(0.0),
     )
-    for field in ('vpr', 'g0', 'g1', 'g2', 'g3', 'psi', 'Ip_profile_face'):
+    for field in ('vpr', 'g0', 'g1', 'g2', 'g3', 'psi', 'I_p_profile_face'):
       np.testing.assert_allclose(
           getattr(geo, field),
           getattr(geo_restored, field),

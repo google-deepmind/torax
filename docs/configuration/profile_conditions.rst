@@ -8,9 +8,9 @@ profile_conditions
 Configures boundary conditions, initial conditions, and (optionally) prescribed
 time-dependence of temperature, density, and current.
 
-``Ip`` (**time-varying-scalar** [default = 15.0e6])
-  Total plasma current in A. Note that if ``Ip_from_parameters=False`` in
-  geometry, then this Ip will be overwritten by values from the geometry data.
+``I_p`` (**time-varying-scalar** [default = 15.0e6])
+  Total plasma current in A. Note that if ``I_p_from_parameters=False`` in
+  geometry, then this I_p will be overwritten by values from the geometry data.
   Boundary condition for the :math:`\psi` equation if
   ``use_v_loop_lcfs_boundary_condition`` is False. If
   ``use_v_loop_lcfs_boundary_condition`` is True, only used as an initial
@@ -20,7 +20,7 @@ time-dependence of temperature, density, and current.
   Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). If
   ``use_v_loop_lcfs_boundary_condition`` is True, then the specified Vloop at
   the LCFS is used to construct the boundary condition for the psi equation;
-  otherwise, Ip is used to construct the boundary condition.
+  otherwise, I_p is used to construct the boundary condition.
 
 ``v_loop_lcfs`` (**time-varying-scalar** [default = 0.0])
   Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). This sets the psi at
@@ -82,7 +82,7 @@ time-dependence of temperature, density, and current.
   Line averaged density. In units of :math:`m^{-3}` if
   ``n_e_nbar_is_fGW = False``. In Greenwald fraction if
   ``n_e_nbar_is_fGW = True``. :math:`n_{GW} = I_p/(\pi a^2)` with a in m,
-  :math:`n_{GW}` in :math:`10^{20} m^{-3}`, Ip in MA.
+  :math:`n_{GW}` in :math:`10^{20} m^{-3}`, I_p in MA.
 
 ``n_e_nbar_is_fGW`` (bool = False)
   Toggle units of ``nbar``.
@@ -133,7 +133,7 @@ time-dependence of temperature, density, and current.
   Toggle if the initial current formula set by ``current_profile_nu`` is the
   total current, or the Ohmic current. If Ohmic current, then the magnitude of
   the Ohmic current is set such that the initial total non-inductive current +
-  total Ohmic current equals ``Ip``
+  total Ohmic current equals ``I_p``
 
 ``initial_psi_source`` (str)
   Required method for determining initial poloidal flux :math:`\psi`.

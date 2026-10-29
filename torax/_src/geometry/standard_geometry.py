@@ -44,7 +44,7 @@ _COARSE_GRID_THRESHOLD = 0.02
 _COARSE_GRID_WARNING_INTERVAL_SEC = 10 * 60
 # Radial profiles that vanish on the magnetic axis.
 _ZERO_ON_AXIS = frozenset({
-    'Ip_profile',
+    'I_p_profile',
     'Phi',
     'flux_surf_avg_grad_psi',
     'flux_surf_avg_grad_psi2',
@@ -66,16 +66,16 @@ class StandardGeometry(geometry.Geometry):
   from various equilibrium data sources (CHEASE, FBT, EQDSK, etc.).
 
   Attributes:
-    Ip_from_parameters: Boolean indicating whether the total plasma current
-      (`Ip`) is determined by the config parameters (True) or read from the
+    I_p_from_parameters: Boolean indicating whether the total plasma current
+      (`I_p`) is determined by the config parameters (True) or read from the
       geometry file (False). This field is marked as static and will retrigger
       compilation if changed.
-    Ip_profile_face: Plasma current profile on the face grid
+    I_p_profile_face: Plasma current profile on the face grid
       [:math:`\mathrm{A}`].
     psi: 1D poloidal flux profile on the cell grid [:math:`\mathrm{Wb}`].
-    psi_from_Ip: Poloidal flux profile on the cell grid  [:math:`\mathrm{Wb}`],
+    psi_from_I_p: Poloidal flux profile on the cell grid [:math:`\mathrm{Wb}`],
       calculated from the plasma current profile in the geometry file.
-    psi_from_Ip_face: Poloidal flux profile on the face grid [Wb], calculated
+    psi_from_I_p_face: Poloidal flux profile on the face grid [Wb], calculated
       from the plasma current profile in the geometry file.
     j_toroidal_total: Total toroidal current density profile on the cell grid
       [:math:`\mathrm{A/m^2}`].
@@ -107,11 +107,11 @@ class StandardGeometry(geometry.Geometry):
       flux_surf_avg_Bp2[-1] in StandardGeometryIntermediates.
   """
 
-  Ip_from_parameters: bool = jax.tree.static()
-  Ip_profile_face: array_typing.FloatVectorFace
+  I_p_from_parameters: bool = jax.tree.static()
+  I_p_profile_face: array_typing.FloatVectorFace
   psi: array_typing.FloatVectorCell
-  psi_from_Ip: array_typing.FloatVectorCell
-  psi_from_Ip_face: array_typing.FloatVectorFace
+  psi_from_I_p: array_typing.FloatVectorCell
+  psi_from_I_p_face: array_typing.FloatVectorFace
   j_toroidal_total: array_typing.Array
   j_toroidal_total_face: array_typing.FloatVectorFace
   delta_upper_face: array_typing.FloatVectorFace
@@ -131,11 +131,11 @@ class StandardGeometry(geometry.Geometry):
     """Serializes stacked StandardGeometry into a flat dictionary of OutputVar tuples."""
     output_dict = super().to_output_dict(context)
     vars_to_pack: dict[output_keys.OutputKey, chex.Numeric] = {
-        output_keys.IP_PROFILE_FROM_GEO: self.Ip_profile_face,
+        output_keys.I_P_PROFILE_FROM_GEO: self.I_p_profile_face,
         output_keys.PSI_FROM_GEO: self.psi,
-        output_keys.PSI_FROM_IP: (
+        output_keys.PSI_FROM_I_P: (
             output_grid_context.extend_cell_grid_to_boundaries(
-                self.psi_from_Ip, self.psi_from_Ip_face
+                self.psi_from_I_p, self.psi_from_I_p_face
             )
         ),
         output_keys.DELTA_UPPER: self.delta_upper_face,
@@ -167,11 +167,11 @@ class StandardGeometry(geometry.Geometry):
 class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
 
-  Ip_from_parameters: bool = jax.tree.static()
-  Ip_profile_face: interpolated_param.InterpolatedVarSingleAxis
+  I_p_from_parameters: bool = jax.tree.static()
+  I_p_profile_face: interpolated_param.InterpolatedVarSingleAxis
   psi: interpolated_param.InterpolatedVarSingleAxis
-  psi_from_Ip: interpolated_param.InterpolatedVarSingleAxis
-  psi_from_Ip_face: interpolated_param.InterpolatedVarSingleAxis
+  psi_from_I_p: interpolated_param.InterpolatedVarSingleAxis
+  psi_from_I_p_face: interpolated_param.InterpolatedVarSingleAxis
   j_toroidal_total: interpolated_param.InterpolatedVarSingleAxis
   j_toroidal_total_face: interpolated_param.InterpolatedVarSingleAxis
   delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
@@ -213,8 +213,8 @@ class StandardGeometryIntermediates:
   Attributes:
     geometry_type:  The type of geometry being represented (e.g., CHEASE, FBT,
       EQDSK).
-    Ip_from_parameters: If True, the Ip is taken from the parameters and the
-      values in the Geometry are rescaled to match the new Ip.
+    I_p_from_parameters: If True, the I_p is taken from the parameters and the
+      values in the Geometry are rescaled to match the new I_p.
     R_major: Major radius defined as midplane average of the LCFS radius,
       :math:`R_\mathrm{major} = (R_\mathrm{max} + R_\mathrm{min}) / 2`
       [:math:`\mathrm{m}`].
@@ -223,7 +223,7 @@ class StandardGeometryIntermediates:
       [:math:`\mathrm{m}`].
     B_0: Vacuum toroidal magnetic field at ``R_major`` [:math:`\mathrm{T}`].
     psi: Poloidal flux profile [:math:`\mathrm{Wb}`].
-    Ip_profile: Plasma current profile [:math:`\mathrm{A}`].
+    I_p_profile: Plasma current profile [:math:`\mathrm{A}`].
     Phi: Toroidal flux profile [:math:`\mathrm{Wb}`].
     R_in: Radius of the flux surface at the inboard side at midplane
       [:math:`\mathrm{m}`]. Inboard side is defined as the innermost radius.
@@ -277,12 +277,12 @@ class StandardGeometryIntermediates:
   """
 
   geometry_type: geometry.GeometryType
-  Ip_from_parameters: bool
+  I_p_from_parameters: bool
   R_major: array_typing.FloatScalar
   a_minor: array_typing.FloatScalar
   B_0: array_typing.FloatScalar
   psi: array_typing.Array
-  Ip_profile: array_typing.Array
+  I_p_profile: array_typing.Array
   Phi: array_typing.Array
   R_in: array_typing.Array
   R_out: array_typing.Array
@@ -317,7 +317,7 @@ class StandardGeometryIntermediates:
 
     Sign conventions - TODO(b/335204606): Replace with proper COCOS handling:
     - psi must grow with radius, i.e. psi(axis) < psi(separatrix).
-    - Total Ip must be positive.
+    - Total I_p must be positive.
     - Positive-definite quantities are enforced via abs(): Phi, F,
       int_dl_over_Bp, vpr, flux_surf_avg_grad_psi, flux_surf_avg_grad_psi2,
       flux_surf_avg_grad_psi2_over_R2.
@@ -331,8 +331,8 @@ class StandardGeometryIntermediates:
     if self.psi[-1] < self.psi[0]:
       object.__setattr__(self, 'psi', -self.psi)
 
-    if self.Ip_profile[-1] < 0:
-      object.__setattr__(self, 'Ip_profile', -self.Ip_profile)
+    if self.I_p_profile[-1] < 0:
+      object.__setattr__(self, 'I_p_profile', -self.I_p_profile)
 
     object.__setattr__(self, 'Phi', np.abs(self.Phi))
     object.__setattr__(self, 'F', np.abs(self.F))
@@ -517,7 +517,7 @@ def build_standard_geometry(
   )
 
   # plasma current density
-  dI_tot_drhon = np.gradient(intermediates.Ip_profile, rho_norm_intermediate)
+  dI_tot_drhon = np.gradient(intermediates.I_p_profile, rho_norm_intermediate)
 
   j_toroidal_total_face_bulk = dI_tot_drhon[1:] / spr[1:]
 
@@ -587,8 +587,8 @@ def build_standard_geometry(
   )
   j_toroidal_total = rhon_interpolation_func(rho_norm, j_toroidal_total)
 
-  Ip_profile_face = rhon_interpolation_func(
-      rho_face_norm, intermediates.Ip_profile
+  I_p_profile_face = rhon_interpolation_func(
+      rho_face_norm, intermediates.I_p_profile
   )
 
   Rin_face = rhon_interpolation_func(rho_face_norm, intermediates.R_in)
@@ -629,10 +629,10 @@ def build_standard_geometry(
   g2g3_over_rhon_hires = rhon_interpolation_func(rho_hires_norm, g2g3_over_rhon)
   g2g3_over_rhon = rhon_interpolation_func(rho_norm, g2g3_over_rhon)
 
-  # Alternative initial psi, consistent with the equilibrium Ip profile.
-  psi_from_Ip, psi_from_Ip_face = _calculate_psi_from_Ip(
+  # Alternative initial psi, consistent with the equilibrium I_p profile.
+  psi_from_I_p, psi_from_I_p_face = _calculate_psi_from_I_p(
       rho_norm_intermediate=rho_norm_intermediate,
-      Ip_profile=intermediates.Ip_profile,
+      I_p_profile=intermediates.I_p_profile,
       psi_axis=intermediates.psi[0],
       Phi_b=intermediates.Phi[-1],
       rho_norm=rho_norm,
@@ -696,11 +696,11 @@ def build_standard_geometry(
       R_in_face=Rin_face,
       R_out=Rout,
       R_out_face=Rout_face,
-      Ip_from_parameters=intermediates.Ip_from_parameters,
-      Ip_profile_face=Ip_profile_face,
+      I_p_from_parameters=intermediates.I_p_from_parameters,
+      I_p_profile_face=I_p_profile_face,
       psi=psi,
-      psi_from_Ip=psi_from_Ip,
-      psi_from_Ip_face=psi_from_Ip_face,
+      psi_from_I_p=psi_from_I_p,
+      psi_from_I_p_face=psi_from_I_p_face,
       j_toroidal_total=j_toroidal_total,
       j_toroidal_total_face=j_toroidal_total_face,
       delta_upper_face=delta_upper_face,
@@ -753,9 +753,9 @@ def _interpolate_rho_norm_squared_near_axis(
   return np.where(first_interval, y_over_vpr2 * vpr**2, y)
 
 
-def _calculate_psi_from_Ip(
+def _calculate_psi_from_I_p(
     rho_norm_intermediate: array_typing.Array,
-    Ip_profile: array_typing.Array,
+    I_p_profile: array_typing.Array,
     psi_axis: array_typing.FloatScalar,
     Phi_b: array_typing.FloatScalar,
     rho_norm: array_typing.Array,
@@ -763,17 +763,17 @@ def _calculate_psi_from_Ip(
     g2g3_over_rhon_face: array_typing.Array,
     F_face: array_typing.Array,
 ) -> tuple[np.ndarray, np.ndarray]:
-  """Returns psi on the cell and face grids, consistent with Ip_profile.
+  """Returns psi on the cell and face grids, consistent with I_p_profile.
 
-  Ip_profile is cubic-spline interpolated onto the transport faces, and the
-  face psi gradients are obtained by inverting the finite-volume Ip relation
+  I_p_profile is cubic-spline interpolated onto the transport faces, and the
+  face psi gradients are obtained by inverting the finite-volume I_p relation
   used in `psi_calculations.calc_j_toroidal_total`. psi is then the cumulative
   sum of these gradients from the axis.
 
   Args:
     rho_norm_intermediate: Normalized toroidal flux coordinate of the
       equilibrium grid.
-    Ip_profile: Enclosed plasma current on the equilibrium grid [A].
+    I_p_profile: Enclosed plasma current on the equilibrium grid [A].
     psi_axis: Poloidal flux on the magnetic axis [Wb].
     Phi_b: Toroidal flux at the LCFS [Wb].
     rho_norm: Cell centers of the transport mesh.
@@ -782,14 +782,14 @@ def _calculate_psi_from_Ip(
     F_face: F on the transport faces.
 
   Returns:
-    psi_from_Ip on the cell and face grids [Wb].
+    psi_from_I_p on the cell and face grids [Wb].
   """
-  Ip_face = scipy.interpolate.CubicSpline(rho_norm_intermediate, Ip_profile)(
+  I_p_face = scipy.interpolate.CubicSpline(rho_norm_intermediate, I_p_profile)(
       rho_face_norm
   )
   dpsi_drhon_face = np.zeros_like(rho_face_norm)
   dpsi_drhon_face[1:] = (
-      Ip_face[1:]
+      I_p_face[1:]
       * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * Phi_b)
       / (g2g3_over_rhon_face[1:] * F_face[1:])
   )

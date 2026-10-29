@@ -57,14 +57,14 @@ equilibrium_ids = loader.load_imas_data(str(path), "equilibrium")
 core_profiles_ids = loader.load_imas_data(str(path), "core_profiles")
 core_sources_ids = loader.load_imas_data(str(path), "core_sources")
 
-# Replace Ip from profile conditions with Ip from equilibrium
-# TODO(b/323504363): can this be handled within the IMAS loader? e.g. if Ip
+# Replace I_p from profile conditions with I_p from equilibrium
+# TODO(b/323504363): can this be handled within the IMAS loader? e.g. if I_p
 # is not present in profile_conditions, pull from equilibrium automatically.
 profile_conditions_from_ids = core_profiles.profile_conditions_from_IMAS(
     core_profiles_ids,
 )
 equilibrium_xr = imas.util.to_xarray(equilibrium_ids)
-profile_conditions_from_ids["Ip"] = equilibrium_xr[
+profile_conditions_from_ids["I_p"] = equilibrium_xr[
     "time_slice.global_quantities.ip"
 ][0].item()
 

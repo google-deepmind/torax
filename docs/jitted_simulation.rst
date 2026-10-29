@@ -49,7 +49,7 @@ details on usage.
 
 .. code-block:: python
 
-  # Replace the `TimeVaryingScalar` `Ip`.
+  # Replace the `TimeVaryingScalar` `I_p`.
   ip_update = torax_experimental.TimeVaryingScalarReplace(
       value=new_ip_value,
   )
@@ -60,7 +60,7 @@ details on usage.
   )
   new_provider = step_fn.runtime_params_provider.update_provider_from_mapping(
       {
-          'profile_conditions.Ip': ip_update,
+          'profile_conditions.I_p': ip_update,
           'profile_conditions.T_e': T_e_update,
           'sources.ei_exchange.Qei_multiplier': 2.0,
       }

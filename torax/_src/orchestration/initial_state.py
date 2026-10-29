@@ -422,8 +422,8 @@ def _override_initial_runtime_params_from_file(
           t_initial=t_restart,
       ),
   )
-  runtime_params.profile_conditions.Ip = profiles_ds.data_vars[
-      output_keys.IP_PROFILE
+  runtime_params.profile_conditions.I_p = profiles_ds.data_vars[
+      output_keys.I_P_PROFILE
   ].to_numpy()[-1]
   runtime_params.profile_conditions.T_e = (
       profiles_ds.data_vars[output_keys.T_E]

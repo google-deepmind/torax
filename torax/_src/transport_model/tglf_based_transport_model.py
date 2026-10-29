@@ -479,7 +479,7 @@ class TGLFBasedTransportModel(component.ComponentTransportModel):
           two_point_mask=two_point_mask,
       )
       v_ExB_shear = -(
-          jnp.sign(core_profiles.Ip_profile_face)
+          jnp.sign(core_profiles.I_p_profile_face)
           * (r / jnp.abs(core_profiles.q_face))
           * grad
           * (a / c_s)

@@ -188,7 +188,7 @@ def _calculate_exact_trapped_fraction(IMAS_data: Any) -> np.ndarray:
 def _geometry_from_single_slice(
     equilibrium: ids_toplevel.IDSToplevel,
     face_centers: np.ndarray,
-    Ip_from_parameters: bool = False,
+    I_p_from_parameters: bool = False,
     hires_factor: int = 4,
     slice_index: int = 0,
     trapped_fraction_source: trapped_fraction_lib.TrappedFractionSource = (
@@ -200,8 +200,8 @@ def _geometry_from_single_slice(
   Args:
     equilibrium: The equilibrium IDS.
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
-    Ip_from_parameters: If True, the Ip is taken from the parameters and the
-      values in the Geometry are rescaled to match the new Ip.
+    I_p_from_parameters: If True, the I_p is taken from the parameters and the
+      values in the Geometry are rescaled to match the new I_p.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     slice_index: Index of the time slice to process.
@@ -283,7 +283,7 @@ def _geometry_from_single_slice(
   # flux-surface current density profile. i.e.
   # jtor_torax \equiv dI/dS = dI/drhon / (dS/drhon) = dI/drhon / spr
   # spr = vpr * <1/R> / ( 2 * np.pi )
-  # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
+  # -> I_p_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
   # Validate j_phi exists and is non-empty before using it
   if not IMAS_data.profiles_1d.j_phi or not np.any(IMAS_data.profiles_1d.j_phi):
     raise ValueError(
@@ -304,22 +304,22 @@ def _geometry_from_single_slice(
   vpr = 4 * np.pi * phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
   spr = vpr * flux_surf_avg_1_over_R / (2 * np.pi)
 
-  # This Ip_profile by integration results in a minor discrepancy between this
-  # term and the total Ip from IDS. ~0.1% for the standard test case.
+  # This I_p_profile by integration results in a minor discrepancy between this
+  # term and the total I_p from IDS. ~0.1% for the standard test case.
   # rhon[0] * spr[0] * jtor[0] is zero unless the grid starts off-axis, in which
-  # case Ip_axis is the current inside the first grid point assuming constant
+  # case I_p_axis is the current inside the first grid point assuming constant
   # jtor there (since spr scales like rho_norm near the axis).
-  Ip_axis = 0.5 * rhon[0] * spr[0] * jtor[0]
-  Ip_bulk = scipy.integrate.cumulative_trapezoid(
+  I_p_axis = 0.5 * rhon[0] * spr[0] * jtor[0]
+  I_p_bulk = scipy.integrate.cumulative_trapezoid(
       y=spr * jtor, x=rhon, initial=0.0
   )
-  Ip_profile_unscaled = Ip_axis + Ip_bulk
+  I_p_profile_unscaled = I_p_axis + I_p_bulk
 
-  # Because of the minor discrepancy between Ip_profile[-1] (computed by
-  # integration) and global_quantities.ip, here we will scale Ip_profile such
+  # Because of the minor discrepancy between I_p_profile[-1] (computed by
+  # integration) and global_quantities.ip, here we will scale I_p_profile such
   # that the total plasma current is fully consistent.
-  Ip_total = -1 * IMAS_data.global_quantities.ip
-  Ip_profile = Ip_profile_unscaled * (Ip_total / Ip_profile_unscaled[-1])
+  I_p_total = -1 * IMAS_data.global_quantities.ip
+  I_p_profile = I_p_profile_unscaled * (I_p_total / I_p_profile_unscaled[-1])
 
   z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
@@ -382,12 +382,12 @@ def _geometry_from_single_slice(
   # TODO(b/446608829): Add support for edge geometries from IMAS.
 
   return {
-      "Ip_from_parameters": Ip_from_parameters,
+      "I_p_from_parameters": I_p_from_parameters,
       "R_major": R_major,
       "a_minor": np.asarray(IMAS_data.boundary.minor_radius),
       "B_0": B_0,
       "psi": psi,
-      "Ip_profile": Ip_profile,
+      "I_p_profile": I_p_profile,
       "Phi": phi,
       "R_in": R_in,
       "R_out": R_out,
@@ -424,7 +424,7 @@ def _geometry_from_single_slice(
 def geometry_from_IMAS(
     face_centers: np.ndarray,
     geometry_directory: str | None = None,
-    Ip_from_parameters: bool = False,
+    I_p_from_parameters: bool = False,
     hires_factor: int = 4,
     equilibrium_object: ids_toplevel.IDSToplevel | None = None,
     imas_uri: str | None = None,
@@ -442,8 +442,8 @@ def geometry_from_IMAS(
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     geometry_directory: Directory where to find the equilibrium object. If None,
       it defaults to another dir. See `load_geo_data` implementation.
-    Ip_from_parameters: If True, the Ip is taken from the parameters and the
-      values in the Geometry are rescaled to match the new Ip.
+    I_p_from_parameters: If True, the I_p is taken from the parameters and the
+      values in the Geometry are rescaled to match the new I_p.
     hires_factor: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     equilibrium_object: The equilibrium IDS containing the relevant data.
@@ -484,7 +484,7 @@ def geometry_from_IMAS(
         equilibrium=equilibrium,
         slice_index=idx,
         face_centers=face_centers,
-        Ip_from_parameters=Ip_from_parameters,
+        I_p_from_parameters=I_p_from_parameters,
         hires_factor=hires_factor,
         trapped_fraction_source=trapped_fraction_source,
     )
@@ -495,7 +495,7 @@ def geometry_from_IMAS(
 def geometry_from_single_IMAS_slice(
     face_centers: np.ndarray,
     geometry_directory: str | None = None,
-    Ip_from_parameters: bool = False,
+    I_p_from_parameters: bool = False,
     hires_factor: int = 4,
     equilibrium_object: ids_toplevel.IDSToplevel | None = None,
     imas_uri: str | None = None,
@@ -524,8 +524,8 @@ def geometry_from_single_IMAS_slice(
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
     geometry_directory: Directory where to find the equilibrium object. If None,
       it defaults to another dir. See `load_geo_data` implementation.
-    Ip_from_parameters: If True, the Ip is taken from the parameters and the
-      values in the Geometry are rescaled to match the new Ip.
+    I_p_from_parameters: If True, the I_p is taken from the parameters and the
+      values in the Geometry are rescaled to match the new I_p.
     hires_factor: Grid refinement factor for poloidal flux <-> plasma current
       calculations.
     equilibrium_object: The equilibrium IDS containing the relevant data.
@@ -570,7 +570,7 @@ def geometry_from_single_IMAS_slice(
       equilibrium=equilibrium,
       slice_index=slice_index,
       face_centers=face_centers,
-      Ip_from_parameters=Ip_from_parameters,
+      I_p_from_parameters=I_p_from_parameters,
       hires_factor=hires_factor,
       trapped_fraction_source=trapped_fraction_source,
   )

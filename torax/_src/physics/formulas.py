@@ -235,9 +235,9 @@ def calculate_greenwald_fraction(
   Returns:
     fgw: Greenwald density fraction
   """
-  # gw_limit is in units of 10^20 m^-3 when Ip is in MA and a_minor is in m.
+  # gw_limit is in units of 10^20 m^-3 when I_p is in MA and a_minor is in m.
   gw_limit = (
-      core_profiles.Ip_profile_face[-1] * 1e-6 / (jnp.pi * geo.a_minor**2)
+      core_profiles.I_p_profile_face[-1] * 1e-6 / (jnp.pi * geo.a_minor**2)
   )
   fgw = n_e_avg / (gw_limit * 1e20)
   return fgw
@@ -259,16 +259,16 @@ def calculate_betas(
 
   beta_pol = P_total_volume_avg / (Bpol_lcfs^2 / (2 * mu0))
 
-  Using an approximation for Bpol_lcfs^2 = mu0^2 * Ip^2 / 4*pi^2*a_V^2, where
+  Using an approximation for Bpol_lcfs^2 = mu0^2 * I_p^2 / 4*pi^2*a_V^2, where
   a_V is the effective minor radius satisfying the volume calculation
   V = 2 * pi^2 * R_0 * a_V^2, we get:
 
-  beta_pol = 4 * V * P_total_volume_avg / (mu0 * Ip^2 * R_0)
+  beta_pol = 4 * V * P_total_volume_avg / (mu0 * I_p^2 * R_0)
 
   beta_N is the normalized toroidal plasma beta in percent:
 
-  beta_N = beta_tor * (a * B0 / Ip) * 1e8
-  where beta_tor is fractional toroidal beta. Ip is in A, a is minor radius.
+  beta_N = beta_tor * (a * B0 / I_p) * 1e8
+  where beta_tor is fractional toroidal beta. I_p is in A, a is minor radius.
 
   Args:
     core_profiles: CoreProfiles object.
@@ -293,7 +293,7 @@ def calculate_betas(
       * p_total_volume_avg
       / (
           constants.CONSTANTS.mu_0
-          * core_profiles.Ip_profile_face[-1] ** 2
+          * core_profiles.I_p_profile_face[-1] ** 2
           * geo.R_major
           + constants.CONSTANTS.eps
       )
@@ -305,7 +305,7 @@ def calculate_betas(
       * (
           geo.a_minor
           * geo.B_0
-          / (core_profiles.Ip_profile_face[-1] + constants.CONSTANTS.eps)
+          / (core_profiles.I_p_profile_face[-1] + constants.CONSTANTS.eps)
       )
   )
 

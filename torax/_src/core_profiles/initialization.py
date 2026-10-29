@@ -77,7 +77,7 @@ def initial_core_profiles(
   )
   # Set v_loop_lcfs. Two branches:
   # 1. Set the v_loop_lcfs from profile_conditions if using the v_loop BC option
-  # 2. Initialize v_loop_lcfs to 0 if using the Ip boundary condition for psi.
+  # 2. Initialize v_loop_lcfs to 0 if using the I_p boundary condition for psi.
   # In case 2, v_loop_lcfs will be updated every timestep based on the psi_lcfs
   # values across the time interval. Since there is is one more time value than
   # time intervals, the v_loop_lcfs time-series is underconstrained. Therefore,
@@ -129,7 +129,9 @@ def initial_core_profiles(
       j_toroidal_total_face=jnp.zeros_like(
           geo.rho_face, dtype=jax_utils.get_dtype()
       ),
-      Ip_profile_face=jnp.zeros_like(geo.rho_face, dtype=jax_utils.get_dtype()),
+      I_p_profile_face=jnp.zeros_like(
+          geo.rho_face, dtype=jax_utils.get_dtype()
+      ),
       toroidal_angular_velocity=toroidal_angular_velocity,
       poloidal_velocity=cell_variable.CellVariable(
           value=jnp.zeros_like(geo.rho, dtype=jax_utils.get_dtype()),
@@ -152,7 +154,7 @@ def initial_core_profiles(
 
 
 def update_psi_from_j(
-    Ip: array_typing.FloatScalar,
+    I_p: array_typing.FloatScalar,
     geo: geometry.Geometry,
     j_toroidal_total_hires: jax.Array,
     use_v_loop_lcfs_boundary_condition: bool = False,
@@ -160,15 +162,16 @@ def update_psi_from_j(
   """Calculates poloidal flux (psi) consistent with plasma current.
 
   For increased accuracy of psi, a hi-res grid is used, due to the double
-    integration. Presently used only for initialization. Therefore Ip is
-    a valid source of truth for Ip, even if use_v_loop_lcfs_boundary_condition
+    integration. Presently used only for initialization. Therefore I_p is
+    a valid source of truth for I_p, even if use_v_loop_lcfs_boundary_condition
     is True.
 
   Args:
-    Ip: Total plasma current [A].
+    I_p: Total plasma current [A].
     geo: Torus geometry.
     j_toroidal_total_hires: High resolution version of j_toroidal_total [A/m^2].
-    use_v_loop_lcfs_boundary_condition: Whether to set the loop voltage from Ip.
+    use_v_loop_lcfs_boundary_condition: Whether to set the loop voltage from
+      I_p.
 
   Returns:
     psi: Poloidal flux cell variable.
@@ -176,7 +179,7 @@ def update_psi_from_j(
   y = j_toroidal_total_hires * geo.spr_hires
   assert y.ndim == 1
   assert geo.rho_hires.ndim == 1
-  Ip_profile = math_utils.cumulative_trapezoid(
+  I_p_profile = math_utils.cumulative_trapezoid(
       y=y, x=geo.rho_hires_norm, initial=0.0
   )
   scale = jnp.concatenate((
@@ -185,7 +188,7 @@ def update_psi_from_j(
       / (geo.F_hires[1:] * geo.g2g3_over_rhon_hires[1:]),
   ))
   # dpsi_dr on hires cell grid
-  dpsi_drhon_hires = scale * Ip_profile
+  dpsi_drhon_hires = scale * I_p_profile
 
   # psi on hires cell grid
   psi_hires = math_utils.cumulative_trapezoid(
@@ -194,9 +197,9 @@ def update_psi_from_j(
 
   psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
 
-  # Set the BCs for psi to ensure the correct Ip
-  dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_Ip(
-      Ip,
+  # Set the BCs for psi to ensure the correct I_p
+  dpsi_drhonorm_edge = psi_calculations.calculate_psi_grad_constraint_from_I_p(
+      I_p,
       geo,
   )
 
@@ -260,24 +263,24 @@ def _init_psi_and_psi_derived(
 
   match runtime_params.profile_conditions.initial_psi_source:
     # Case 1: retrieving psi from the profile conditions, using the prescribed
-    # profile and Ip
+    # profile and I_p
     case core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS:
       if runtime_params.profile_conditions.psi is None:
         raise ValueError(
             'psi is None, but initial_psi_source is PROFILE_CONDITIONS.'
         )
-      # Calculate the dpsi/drho necessary to achieve the given Ip
+      # Calculate the dpsi/drho necessary to achieve the given I_p
       dpsi_drhonorm_edge = (
-          psi_calculations.calculate_psi_grad_constraint_from_Ip(
-              runtime_params.profile_conditions.Ip,
+          psi_calculations.calculate_psi_grad_constraint_from_I_p(
+              runtime_params.profile_conditions.I_p,
               geo,
           )
       )
 
-      # Set the BCs to ensure the correct Ip
+      # Set the BCs to ensure the correct I_p
       if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition:
         # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
-        # to achieve the desired Ip
+        # to achieve the desired I_p
         right_face_grad_constraint = None
         right_face_constraint = (
             runtime_params.profile_conditions.psi[-1]
@@ -306,21 +309,21 @@ def _init_psi_and_psi_derived(
       # psi is already provided from a numerical equilibrium, so no need to
       # first calculate currents.
       dpsi_drhonorm_edge = (
-          psi_calculations.calculate_psi_grad_constraint_from_Ip(
-              runtime_params.profile_conditions.Ip,
+          psi_calculations.calculate_psi_grad_constraint_from_I_p(
+              runtime_params.profile_conditions.I_p,
               geo,
           )
       )
       # Use the psi from the equilibrium as the right face constraint
-      # This has already been made consistent with the desired Ip
-      # by make_ip_consistent
+      # This has already been made consistent with the desired I_p
+      # by make_I_p_consistent
       psi = cell_variable.CellVariable(
-          value=geo.psi_from_Ip,  # Use psi from equilibrium
+          value=geo.psi_from_I_p,  # Use psi from equilibrium
           face_centers=geo.rho_face_norm,
           right_face_grad_constraint=None
           if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
           else dpsi_drhonorm_edge,
-          right_face_constraint=geo.psi_from_Ip_face[-1]
+          right_face_constraint=geo.psi_from_I_p_face[-1]
           if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
           else None,
       )
@@ -334,7 +337,7 @@ def _init_psi_and_psi_derived(
           )
       )
       psi = update_psi_from_j(
-          runtime_params.profile_conditions.Ip,
+          runtime_params.profile_conditions.I_p,
           geo,
           j_toroidal_total_hires,
           use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
@@ -402,7 +405,7 @@ def _calculate_all_psi_dependent_profiles(
     source_states: Mapping[str, source_state_lib.SourceState],
 ) -> state.CoreProfiles:
   """Supplements core profiles with all other profiles that depend on psi."""
-  j_toroidal_total, j_toroidal_total_face, Ip_profile_face = (
+  j_toroidal_total, j_toroidal_total_face, I_p_profile_face = (
       psi_calculations.calc_j_toroidal_total(
           geo, psi, runtime_params.numerics.min_rho_norm
       )
@@ -415,7 +418,7 @@ def _calculate_all_psi_dependent_profiles(
       s_face=psi_calculations.calc_s_face(geo, psi),
       j_toroidal_total=j_toroidal_total,
       j_toroidal_total_face=j_toroidal_total_face,
-      Ip_profile_face=Ip_profile_face,
+      I_p_profile_face=I_p_profile_face,
   )
   neoclassical_outputs = neoclassical_model(runtime_params, geo, core_profiles)
 
@@ -520,7 +523,7 @@ def _iterate_psi_and_sources(
         ),
     )
     psi = update_psi_from_j(
-        runtime_params.profile_conditions.Ip,
+        runtime_params.profile_conditions.I_p,
         geo,
         j_toroidal_total_hires,
         use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
@@ -539,12 +542,12 @@ def _get_j_toroidal_total_hires_with_no_external_sources(
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates j_toroidal_total hires when the total current is given by a formula."""
-  Ip = runtime_params.profile_conditions.Ip
+  I_p = runtime_params.profile_conditions.I_p
   jformula_hires = (
       1 - geo.rho_hires_norm**2
   ) ** runtime_params.profile_conditions.current_profile_nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
-  Ctot_hires = Ip / denom
+  Ctot_hires = I_p / denom
   j_toroidal_total_hires = jformula_hires * Ctot_hires
   return j_toroidal_total_hires
 
@@ -592,7 +595,7 @@ def get_j_toroidal_total_hires_with_external_sources(
   I_non_inductive = math_utils.area_integration(
       j_toroidal_external + j_toroidal_bootstrap, geo
   )
-  I_ohmic = runtime_params.profile_conditions.Ip - I_non_inductive
+  I_ohmic = runtime_params.profile_conditions.I_p - I_non_inductive
   C_ohm_hires = I_ohmic / denom
   j_toroidal_ohmic_hires = j_toroidal_ohmic_formula_hires * C_ohm_hires
   j_toroidal_total_hires = (

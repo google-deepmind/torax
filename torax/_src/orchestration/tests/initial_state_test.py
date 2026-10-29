@@ -79,7 +79,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
         output_keys.N_I,
         output_keys.PSI,
         output_keys.V_LOOP,
-        output_keys.IP_PROFILE,
+        output_keys.I_P_PROFILE,
         output_keys.Q,
         output_keys.MAGNETIC_SHEAR,
         output_keys.J_TOROIDAL_BOOTSTRAP,
@@ -107,7 +107,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     )
 
     # Load in the reference core profiles.
-    Ip_total = ref_profiles[output_keys.IP_PROFILE][index, -1]
+    I_p_total = ref_profiles[output_keys.I_P_PROFILE][index, -1]
     # All profiles are on a grid with [left_face, cell_grid, right_face]
     T_e = ref_profiles[output_keys.T_E][index, 1:-1]
     T_e_bc = ref_profiles[output_keys.T_E][index, -1]
@@ -118,7 +118,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     psi = ref_profiles[output_keys.PSI][index, 1:-1]
 
     # Override the runtime params with the loaded values.
-    runtime_params.profile_conditions.Ip = Ip_total
+    runtime_params.profile_conditions.I_p = I_p_total
     runtime_params.profile_conditions.T_e = T_e
     runtime_params.profile_conditions.T_e_right_bc = T_e_bc
     runtime_params.profile_conditions.T_i = T_i

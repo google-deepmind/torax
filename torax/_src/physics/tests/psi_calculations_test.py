@@ -144,9 +144,9 @@ class PsiCalculationsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_I_p_from_chease),
       dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+          references_getter=torax_refs.chease_references_I_p_from_runtime_params
       ),
   ])
   def test_calc_q(self, references_getter: Callable[[], torax_refs.References]):
@@ -159,9 +159,9 @@ class PsiCalculationsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_I_p_from_chease),
       dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+          references_getter=torax_refs.chease_references_I_p_from_runtime_params
       ),
   ])
   def test_calc_j_toroidal_total(
@@ -172,7 +172,7 @@ class PsiCalculationsTest(parameterized.TestCase):
         references.torax_config.time_step_calculator.t_initial
     )
     # pylint: disable=invalid-name
-    j, _, Ip_profile_face = psi_calculations.calc_j_toroidal_total(
+    j, _, I_p_profile_face = psi_calculations.calc_j_toroidal_total(
         geo,
         references.psi,
         min_rho_norm=references.torax_config.numerics.min_rho_norm,
@@ -181,18 +181,18 @@ class PsiCalculationsTest(parameterized.TestCase):
     np.testing.assert_allclose(j, references.j_toroidal_total, rtol=1e-5)
 
     if isinstance(geo, standard_geometry.StandardGeometry):
-      if not geo.Ip_from_parameters:
+      if not geo.I_p_from_parameters:
         np.testing.assert_allclose(
-            Ip_profile_face[-1],
-            geo.Ip_profile_face[-1],
+            I_p_profile_face[-1],
+            geo.I_p_profile_face[-1],
             rtol=1e-6,
         )
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_I_p_from_chease),
       dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+          references_getter=torax_refs.chease_references_I_p_from_runtime_params
       ),
   ])
   def test_calc_s(self, references_getter: Callable[[], torax_refs.References]):
@@ -206,9 +206,9 @@ class PsiCalculationsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_I_p_from_chease),
       dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+          references_getter=torax_refs.chease_references_I_p_from_runtime_params
       ),
   ])
   def test_calc_psidot(
@@ -273,19 +273,19 @@ class PsiCalculationsTest(parameterized.TestCase):
         a_minor=1.0,
         B_0=5.0,
     ).build_geometry()
-    Ip = 15e6
+    I_p = 15e6
     # calculate high resolution j_toroidal_total consistent with total current
     # profile
     j_toroidal_total_profile = (1 - geo.rho_hires_norm**2) ** 2
     denom = _trapz(j_toroidal_total_profile * geo.spr_hires, geo.rho_hires_norm)
-    Ctot = Ip / denom
+    Ctot = I_p / denom
     j_toroidal_total = j_toroidal_total_profile * Ctot
     psi_cell_variable = initialization.update_psi_from_j(
-        Ip,
+        I_p,
         geo,
         j_toroidal_total,
     )
-    _, _, Ip_profile_face = psi_calculations.calc_j_toroidal_total(
+    _, _, I_p_profile_face = psi_calculations.calc_j_toroidal_total(
         geo,
         psi_cell_variable,
         min_rho_norm=0.01,
@@ -294,7 +294,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     # Analytical formula for Bpol in circular geometry (Ampere's law)
     Bpol_bulk = (
         constants.CONSTANTS.mu_0
-        * Ip_profile_face[1:]
+        * I_p_profile_face[1:]
         / (2 * np.pi * geo.rho_face[1:])
     )
     Bpol = np.concatenate([np.array([0.0]), Bpol_bulk])
@@ -320,19 +320,19 @@ class PsiCalculationsTest(parameterized.TestCase):
         a_minor=1.0,
         B_0=5.0,
     ).build_geometry()
-    Ip = 15e6
+    I_p = 15e6
     # calculate high resolution j_toroidal_total consistent with total current
     # profile
     j_toroidal_total_profile = (1 - geo.rho_hires_norm**2) ** 2
     denom = _trapz(j_toroidal_total_profile * geo.spr_hires, geo.rho_hires_norm)
-    Ctot = Ip / denom
+    Ctot = I_p / denom
     j_toroidal_total = j_toroidal_total_profile * Ctot
     psi_cell_variable = initialization.update_psi_from_j(
-        Ip,
+        I_p,
         geo,
         j_toroidal_total,
     )
-    _, _, Ip_profile_face = psi_calculations.calc_j_toroidal_total(
+    _, _, I_p_profile_face = psi_calculations.calc_j_toroidal_total(
         geo,
         psi_cell_variable,
         min_rho_norm=0.01,
@@ -341,7 +341,7 @@ class PsiCalculationsTest(parameterized.TestCase):
     # Analytical formula for Bpol^2 in circular geometry (Ampere's law)
     bpol_squared_bulk = (
         constants.CONSTANTS.mu_0
-        * Ip_profile_face[1:]
+        * I_p_profile_face[1:]
         / (2 * np.pi * geo.rho_face[1:])
     ) ** 2
     expected_bpol_squared = np.concatenate([np.array([0.0]), bpol_squared_bulk])

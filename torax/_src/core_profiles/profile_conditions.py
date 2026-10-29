@@ -31,7 +31,7 @@ from torax._src.torax_pydantic import torax_pydantic
 # pylint: disable=invalid-name
 
 # Order of magnitude validations to catch common config errors.
-_MIN_IP_AMPS: Final[float] = 1e3
+_MIN_I_P_AMPS: Final[float] = 1e3
 _MIN_DENSITY_M3: Final[float] = 1e10
 _MAX_DENSITY_GW: Final[float] = 1e2
 _MAX_TEMPERATURE_KEV: Final[float] = 1e3
@@ -76,14 +76,14 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   https://torax.readthedocs.io/en/latest/configuration/profile_conditions.html.
 
   Attributes:
-    Ip: Total plasma current in A. Note that if Ip_from_parameters=False in
-      geometry, then this Ip will be overwritten by values from the geometry
+    I_p: Total plasma current in A. Note that if I_p_from_parameters=False in
+      geometry, then this I_p will be overwritten by values from the geometry
       data. If use_v_loop_lcfs_boundary_condition, only used as an initial
       condition.
     use_v_loop_lcfs_boundary_condition: Boundary condition at LCFS for Vloop ( =
       dspsi_lcfs/dt ). If use_v_loop_lcfs_boundary_condition is True, then the
       specified Vloop at the LCFS is used as the boundary condition for the psi
-      equation; otherwise, Ip is used as the boundary condition.
+      equation; otherwise, I_p is used as the boundary condition.
     v_loop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ).
     T_i_right_bc: Temperature boundary conditions at r=a_minor. If this is
       `None` the boundary condition will instead be taken from `T_i` and `T_e`
@@ -113,8 +113,8 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     normalize_n_e_to_nbar: Whether to renormalize the density profile to have
       the desired line averaged density `nbar`.
     nbar: Line averaged density. In units of m^-3 if n_e_nbar_is_fGW = False. In
-      Greenwald fraction if n_e_nbar_is_fGW = True. nGW = Ip/(pi*a^2) with a in
-      m, nGW in 10^20 m-3, Ip in MA
+      Greenwald fraction if n_e_nbar_is_fGW = True. nGW = I_p/(pi*a^2) with a in
+      m, nGW in 10^20 m-3, I_p in MA
     n_e_nbar_is_fGW: Toggle units of nbar
     n_e_right_bc: Density boundary condition for r=a_minor. In units of m^-3 if
       n_e_right_bc_is_fGW = False. In Greenwald fraction if `n_e_right_bc_is_fGW
@@ -140,7 +140,7 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       psi calculation is based on the `current_profile_nu` current formula.
   """
 
-  Ip: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
+  I_p: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(15e6)
   use_v_loop_lcfs_boundary_condition: Annotated[
       bool, torax_pydantic.JAX_STATIC
   ] = False
@@ -260,14 +260,14 @@ class ProfileConditions(torax_pydantic.ConfigBase):
         )
 
     # Validate plasma current input order of magnitude.
-    if np.any(self.Ip.value < _MIN_IP_AMPS):
+    if np.any(self.I_p.value < _MIN_I_P_AMPS):
       failed_val, time_at_fail = _get_first_failing_value_and_time_or_rho(
-          self.Ip.value, self.Ip.time, lambda x: x < _MIN_IP_AMPS
+          self.I_p.value, self.I_p.time, lambda x: x < _MIN_I_P_AMPS
       )
       error_messages.append(
-          f'Plasma current Ip at time {time_at_fail}s is {failed_val:.2e} A,'
-          f' which is below the minimum threshold of {_MIN_IP_AMPS:.0e} A.'
-          ' Possible cause: erroneous input Ip in MA instead of A.'
+          f'Plasma current I_p at time {time_at_fail}s is {failed_val:.2e} A,'
+          f' which is below the minimum threshold of {_MIN_I_P_AMPS:.0e} A.'
+          ' Possible cause: erroneous input I_p in MA instead of A.'
       )
 
     # Validate plasma density inputs order of magnitude.

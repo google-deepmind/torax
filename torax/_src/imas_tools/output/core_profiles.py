@@ -130,7 +130,7 @@ def _fill_global_quantities(
   ids.vacuum_toroidal_field.b0 = [
       geometry_slice.B_0 for geometry_slice in geometry
   ]
-  Ip = []
+  I_p = []
   v_loop = []
   I_bootstrap = []
   li_3 = []
@@ -140,7 +140,7 @@ def _fill_global_quantities(
   t_e_volume_average = []
   n_e_volume_average = []
   for cp_slice in core_profiles:
-    Ip.append(-1 * cp_slice.Ip_profile_face[-1])
+    I_p.append(-1 * cp_slice.I_p_profile_face[-1])
     v_loop.append(cp_slice.v_loop_lcfs)
   for ppo_slice in post_processed_outputs:
     I_bootstrap.append(-1 * ppo_slice.I_bootstrap)
@@ -151,7 +151,7 @@ def _fill_global_quantities(
     # Temperatures are converted from keV to eV(IMAS standard unit).
     t_e_volume_average.append(ppo_slice.T_e_volume_avg * 1e3)
     n_e_volume_average.append(ppo_slice.n_e_volume_avg)
-  ids.global_quantities.ip = Ip
+  ids.global_quantities.ip = I_p
   ids.global_quantities.current_bootstrap = I_bootstrap
   ids.global_quantities.v_loop = v_loop
   ids.global_quantities.li_3 = li_3

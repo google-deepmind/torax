@@ -569,7 +569,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
       )
 
   @parameterized.named_parameters(
-      ('low_ip', {'plasma_current': 2.0e6, 'power_crossing_separatrix': 10e6}),
+      ('low_I_p', {'plasma_current': 2.0e6, 'power_crossing_separatrix': 10e6}),
       (
           'low_power',
           {'plasma_current': 15.0e6, 'power_crossing_separatrix': 1.0e6},
@@ -578,7 +578,7 @@ class ExtendedLengyelTest(parameterized.TestCase):
   def test_underpowered_scenario(self, inputs_update):
     """Test scenario where input power is too low to reach target temperature.
 
-    This uses unrealistically low inputs for ITER-like scenarios (Ip or P_SOL)
+    This uses unrealistically low inputs for ITER-like scenarios (I_p or P_SOL)
     which results in required impurity concentration being negative
     (physically impossible).
     The solver should report this via physics_outcome and a non-zero residual.

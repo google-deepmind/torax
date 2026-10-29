@@ -38,7 +38,7 @@ class EquilibriumTest(parameterized.TestCase):
     # Loading the equilibrium and constructing geometry object
     config = imas_config.IMASConfig(
         imas_filepath='ITERhybrid_COCOS17_IDS_ddv4.nc',
-        Ip_from_parameters=True,
+        I_p_from_parameters=True,
     )
     geo_IMAS = config.build_geometry()
 
@@ -49,7 +49,7 @@ class EquilibriumTest(parameterized.TestCase):
     for key in geo_IMAS.__dict__.keys():
       if (
           key != 'geometry_type'
-          and key != 'Ip_from_parameters'
+          and key != 'I_p_from_parameters'
           and key != 'torax_mesh'
           and key != '_z_magnetic_axis'
       ):
@@ -116,7 +116,7 @@ class EquilibriumTest(parameterized.TestCase):
             'B_0',
             'rho_hires_norm',
             'Phi_b_dot',
-            'Ip_from_parameters',
+            'I_p_from_parameters',
         ]:
           val1 = geo1.__dict__[key]
           val2 = geo2.__dict__[key]

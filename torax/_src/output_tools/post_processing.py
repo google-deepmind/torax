@@ -1099,7 +1099,7 @@ def make_post_processed_outputs(
   li3 = psi_calculations.calc_li3(
       sim_state.geometry.R_major,  # pyrefly: ignore[bad-argument-type]
       W_pol,
-      sim_state.core_profiles.Ip_profile_face[-1],
+      sim_state.core_profiles.I_p_profile_face[-1],
   )
 
   safety_factor_fit_outputs = (
@@ -1276,12 +1276,12 @@ def make_post_processed_outputs(
       I_non_inductive=I_non_inductive,
       f_non_inductive=math_utils.safe_divide(
           num=I_non_inductive,
-          denom=sim_state.core_profiles.Ip_profile_face[-1],
+          denom=sim_state.core_profiles.I_p_profile_face[-1],
           eps=1e-7,
       ),
       f_bootstrap=math_utils.safe_divide(
           num=I_bootstrap,
-          denom=sim_state.core_profiles.Ip_profile_face[-1],
+          denom=sim_state.core_profiles.I_p_profile_face[-1],
           eps=1e-7,
       ),
       beta_tor=beta_tor,

@@ -135,7 +135,7 @@ def make_zero_core_profiles(
       sigma_face=jnp.zeros_like(geo.rho_face),
       j_toroidal_total=jnp.zeros_like(geo.rho),
       j_toroidal_total_face=jnp.zeros_like(geo.rho_face),
-      Ip_profile_face=jnp.zeros_like(geo.rho_face),
+      I_p_profile_face=jnp.zeros_like(geo.rho_face),
       toroidal_angular_velocity=zero_cell_variable,
       poloidal_velocity=zero_cell_variable,
       charge_state_info=zero_charge_state_info,
@@ -277,12 +277,12 @@ def verify_core_profiles(
       ),
   )
   np.testing.assert_allclose(
-      core_profiles.Ip_profile_face,
-      ref_profiles[output_keys.IP_PROFILE][index, :],
+      core_profiles.I_p_profile_face,
+      ref_profiles[output_keys.I_P_PROFILE][index, :],
       err_msg=(
-          "Mismatch for Ip_profile_face. Core profile:"
-          f" {core_profiles.Ip_profile_face}, Ref profile"
-          f" ({output_keys.IP_PROFILE}):"
-          f" {ref_profiles[output_keys.IP_PROFILE][index, :]}"
+          "Mismatch for I_p_profile_face. Core profile:"
+          f" {core_profiles.I_p_profile_face}, Ref profile"
+          f" ({output_keys.I_P_PROFILE}):"
+          f" {ref_profiles[output_keys.I_P_PROFILE][index, :]}"
       ),
   )

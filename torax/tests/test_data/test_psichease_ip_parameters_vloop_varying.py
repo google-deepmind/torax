@@ -13,9 +13,9 @@
 # limitations under the License.
 
 
-"""Tests CHEASE geometry when setting Ip from config, with varying v_loop.
+"""Tests CHEASE geometry when setting I_p from config, with varying v_loop.
 
-* Ip from parameters
+* I_p from parameters
 * implicit
 * psi (current diffusion) only
 * varying v loop boundary condition
@@ -51,7 +51,7 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
     },
     'sources': {
         'generic_heat': {

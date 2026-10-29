@@ -91,7 +91,7 @@ class GenericCurrentSource(source.Source):
         source_params.use_absolute_current,
         source_params.I_generic,
         (
-            runtime_params.profile_conditions.Ip
+            runtime_params.profile_conditions.I_p
             * source_params.fraction_of_total_current
         ),
     )
@@ -120,7 +120,7 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
     gaussian_width: width of "external" Gaussian current profile
     gaussian_location: normalized radius of "external" Gaussian current profile
     use_absolute_current: Toggles if external current is provided absolutely or
-      as a fraction of Ip.
+      as a fraction of I_p.
   """
 
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (

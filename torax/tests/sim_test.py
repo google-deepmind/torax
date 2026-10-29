@@ -128,13 +128,13 @@ class SimTest(sim_test_case.SimTestCase):
           'test_psichease_prescribed_johm',
           'test_psichease_prescribed_johm.py',
       ),
-      # Tests time-dependent pedestal, P_total, Ip, and internal boundary
+      # Tests time-dependent pedestal, P_total, I_p, and internal boundary
       # conditions.
       (
           'test_timedependence',
           'test_timedependence.py',
       ),
-      # Tests prescribed time-dependent n_e (tied to GW frac with evolving Ip).
+      # Tests prescribed time-dependent n_e (tied to GW frac with evolving I_p).
       (
           'test_prescribed_timedependent_ne',
           'test_prescribed_timedependent_ne.py',
@@ -314,19 +314,19 @@ class SimTest(sim_test_case.SimTestCase):
           'test_changing_config_after.py',
       ),
       # Tests current diffusion with vloop BC.
-      # Initial Ip from parameters and psi from CHEASE, varying vloop BC.
+      # Initial I_p from parameters and psi from CHEASE, varying vloop BC.
       (
           'test_psichease_ip_parameters_vloop_varying',
           'test_psichease_ip_parameters_vloop_varying.py',
       ),
       # Tests current diffusion with vloop BC.
-      # Initial Ip and psi from CHEASE.
+      # Initial I_p and psi from CHEASE.
       (
           'test_psichease_ip_chease_vloop',
           'test_psichease_ip_chease_vloop.py',
       ),
       # Tests current diffusion with vloop BC.
-      # Initial Ip from parameters and psi from current_profile_nu formula.
+      # Initial I_p from parameters and psi from current_profile_nu formula.
       (
           'test_psichease_prescribed_jtot_vloop',
           'test_psichease_prescribed_jtot_vloop.py',
@@ -401,7 +401,7 @@ class SimTest(sim_test_case.SimTestCase):
             'exact_t_final': False,
         },
         'profile_conditions': {
-            'Ip': 3.0e6,
+            'I_p': 3.0e6,
             'initial_psi_source': 'geometry',
             'n_e': 1.0e20,
             'n_e_right_bc': 1.0e20,
@@ -492,11 +492,11 @@ class SimTest(sim_test_case.SimTestCase):
     )
     xr.map_over_datasets(assert_allclose_fn, output_xr, gt_output_xr)
 
-  def test_ip_bc_v_loop_bc_equivalence(self):
-    """Tests the equivalence of the Ip BC and the VLoop BC.
+  def test_I_p_bc_v_loop_bc_equivalence(self):
+    """Tests the equivalence of the I_p BC and the VLoop BC.
 
     In this test we:
-    - Run a sim with the Ip BC.
+    - Run a sim with the I_p BC.
     - Get from the output the v_loop_lcfs
     - Run a second sim with the Vloop BC using v_loop_lcfs from the first sim
     - Compare core profiles between the two sims. Exact equivalence is not

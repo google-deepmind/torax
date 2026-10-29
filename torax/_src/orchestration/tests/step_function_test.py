@@ -392,7 +392,7 @@ class StepFunctionTest(parameterized.TestCase):
   def test_step_function_overrides(self):
     original_ip = 15e6
     config_dict = default_configs.get_default_config_dict()
-    config_dict['profile_conditions']['Ip'] = original_ip
+    config_dict['profile_conditions']['I_p'] = original_ip
     torax_config = config.ToraxConfig.from_dict(config_dict)
     (
         sim_state,
@@ -401,12 +401,12 @@ class StepFunctionTest(parameterized.TestCase):
     ) = run_simulation.prepare_simulation(torax_config)
     params_provider = step_fn.runtime_params_provider
 
-    # Run a step with overridden Ip.
+    # Run a step with overridden I_p.
     ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=params_provider.profile_conditions.Ip.value * 2.0  # pyrefly: ignore[bad-argument-type]
+        value=params_provider.profile_conditions.I_p.value * 2.0  # pyrefly: ignore[bad-argument-type]
     )
     runtime_params_overrides = params_provider.update_provider(
-        lambda x: (x.profile_conditions.Ip,),
+        lambda x: (x.profile_conditions.I_p,),
         (ip_update,),
     )
     override_state, override_post_processed_outputs = step_fn(
@@ -416,7 +416,7 @@ class StepFunctionTest(parameterized.TestCase):
     )
 
     # Update the config itself and re-run the step.
-    torax_config.update_fields({'profile_conditions.Ip': original_ip * 2.0})
+    torax_config.update_fields({'profile_conditions.I_p': original_ip * 2.0})
     step_fn = run_simulation.make_step_fn(torax_config)
     ref_state, ref_post_processed_outputs = step_fn(
         # Use original state and post-processed outputs as the initial value.

@@ -47,13 +47,13 @@ class GeometryTest(parameterized.TestCase):
 
     intermediate = standard_geometry.StandardGeometryIntermediates(
         geometry_type=geometry.GeometryType.FBT,
-        Ip_from_parameters=True,
+        I_p_from_parameters=True,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,
         # Use the same dummy value for the rest.
         psi=np.arange(0, 1.0, 0.01),
-        Ip_profile=np.arange(0, 1.0, 0.01),
+        I_p_profile=np.arange(0, 1.0, 0.01),
         Phi=np.arange(0, 1.0, 0.01),
         R_in=np.arange(1, 2, 0.01),
         R_out=np.arange(1, 2, 0.01),
@@ -127,11 +127,11 @@ class GeometryTest(parameterized.TestCase):
         np.array([geo0.g2[-1], geo1.g2[-1], geo2.g2[-1]]),
     )
     np.testing.assert_allclose(
-        stacked_geo.Ip_profile_face[:, -1],
+        stacked_geo.I_p_profile_face[:, -1],
         np.array([
-            geo0.Ip_profile_face[-1],
-            geo1.Ip_profile_face[-1],
-            geo2.Ip_profile_face[-1],
+            geo0.I_p_profile_face[-1],
+            geo1.I_p_profile_face[-1],
+            geo2.I_p_profile_face[-1],
         ]),
     )
 
@@ -162,12 +162,12 @@ class GeometryTest(parameterized.TestCase):
   def _make_intermediates(self, **overrides):
     defaults = dict(
         geometry_type=geometry.GeometryType.FBT,
-        Ip_from_parameters=True,
+        I_p_from_parameters=True,
         R_major=6.2,
         a_minor=2.0,
         B_0=5.3,
         psi=np.linspace(0, 1.0, 100),
-        Ip_profile=np.linspace(0, 1e6, 100),
+        I_p_profile=np.linspace(0, 1e6, 100),
         Phi=np.linspace(0, 1.0, 100),
         R_in=np.linspace(4.0, 4.2, 100),
         R_out=np.linspace(8.0, 8.4, 100),
@@ -209,15 +209,15 @@ class GeometryTest(parameterized.TestCase):
     intermediates = self._make_intermediates(psi=psi_increasing)
     np.testing.assert_array_equal(intermediates.psi, psi_increasing)
 
-  def test_post_init_flips_negative_Ip(self):
-    Ip_negative = np.linspace(0, -1e6, 100)
-    intermediates = self._make_intermediates(Ip_profile=Ip_negative)
-    self.assertGreater(intermediates.Ip_profile[-1], 0)
+  def test_post_init_flips_negative_I_p(self):
+    I_p_negative = np.linspace(0, -1e6, 100)
+    intermediates = self._make_intermediates(I_p_profile=I_p_negative)
+    self.assertGreater(intermediates.I_p_profile[-1], 0)
 
-  def test_post_init_preserves_positive_Ip(self):
-    Ip_positive = np.linspace(0, 1e6, 100)
-    intermediates = self._make_intermediates(Ip_profile=Ip_positive)
-    np.testing.assert_array_equal(intermediates.Ip_profile, Ip_positive)
+  def test_post_init_preserves_positive_I_p(self):
+    I_p_positive = np.linspace(0, 1e6, 100)
+    intermediates = self._make_intermediates(I_p_profile=I_p_positive)
+    np.testing.assert_array_equal(intermediates.I_p_profile, I_p_positive)
 
   def test_post_init_enforces_positive_definite_quantities(self):
     intermediates = self._make_intermediates(
@@ -256,7 +256,7 @@ class GeometryTest(parameterized.TestCase):
       self._make_intermediates(
           Phi=Phi,
           psi=np.linspace(0, 1.0, n),
-          Ip_profile=np.linspace(0, 1e6, n),
+          I_p_profile=np.linspace(0, 1e6, n),
           R_in=np.linspace(4.0, 4.2, n),
           R_out=np.linspace(8.0, 8.4, n),
           F=np.linspace(30.0, 33.0, n),
@@ -287,7 +287,7 @@ class GeometryTest(parameterized.TestCase):
       self._make_intermediates(
           Phi=Phi,
           psi=np.linspace(0, 1.0, n),
-          Ip_profile=np.linspace(0, 1e6, n),
+          I_p_profile=np.linspace(0, 1e6, n),
           R_in=np.linspace(4.0, 4.2, n),
           R_out=np.linspace(8.0, 8.4, n),
           F=np.linspace(30.0, 33.0, n),
@@ -409,8 +409,8 @@ class GeometryTest(parameterized.TestCase):
     out = stacked_geo.to_output_dict(context)
 
     # StandardGeometry profiles
-    self.assertIn(output_keys.IP_PROFILE_FROM_GEO, out)
-    dims, _, attrs = out[output_keys.IP_PROFILE_FROM_GEO]
+    self.assertIn(output_keys.I_P_PROFILE_FROM_GEO, out)
+    dims, _, attrs = out[output_keys.I_P_PROFILE_FROM_GEO]
     self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_FACE_NORM))
     self.assertEqual(attrs, {'units': output_keys.Units.AMPERE})
 
@@ -419,8 +419,8 @@ class GeometryTest(parameterized.TestCase):
     self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_CELL_NORM))
     self.assertEqual(attrs, {'units': output_keys.Units.WEBER})
 
-    self.assertIn(output_keys.PSI_FROM_IP, out)
-    dims, _, attrs = out[output_keys.PSI_FROM_IP]
+    self.assertIn(output_keys.PSI_FROM_I_P, out)
+    dims, _, attrs = out[output_keys.PSI_FROM_I_P]
     self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_NORM))
     self.assertEqual(attrs, {'units': output_keys.Units.WEBER})
 
@@ -497,8 +497,8 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_array_less(0.5, normalized)
 
 
-class PsiFromIpTest(absltest.TestCase):
-  """Tests j_toroidal_total derived from psi_from_Ip on a mesh finer than the equilibrium."""
+class PsiFromIPTest(absltest.TestCase):
+  """Tests j_toroidal_total derived from psi_from_I_p on a mesh finer than the equilibrium."""
 
   @classmethod
   def setUpClass(cls):
@@ -510,23 +510,23 @@ class PsiFromIpTest(absltest.TestCase):
     }).build_provider(0.0)
     assert isinstance(geo, standard_geometry.StandardGeometry)
     # LCFS psi value constraint (as with the V_loop boundary condition), so the
-    # edge gradient also comes from the psi_from_Ip interpolation.
+    # edge gradient also comes from the psi_from_I_p interpolation.
     psi = cell_variable.CellVariable(
-        value=geo.psi_from_Ip,
+        value=geo.psi_from_I_p,
         face_centers=geo.rho_face_norm,
-        right_face_constraint=geo.psi_from_Ip_face[-1],
+        right_face_constraint=geo.psi_from_I_p_face[-1],
         right_face_grad_constraint=None,
     )
-    j_toroidal_total, _, ip_profile_face = (
+    j_toroidal_total, _, I_p_profile_face = (
         psi_calculations.calc_j_toroidal_total(geo, psi, min_rho_norm=0.0)
     )
     cls.geo = geo
     cls.j_toroidal_total = np.asarray(j_toroidal_total)
-    cls.ip_profile_face = np.asarray(ip_profile_face)
+    cls.I_p_profile_face = np.asarray(I_p_profile_face)
 
-  def test_lcfs_ip_matches_equilibrium_ip(self):
+  def test_lcfs_I_p_matches_equilibrium_I_p(self):
     np.testing.assert_allclose(
-        self.ip_profile_face[-1], self.geo.Ip_profile_face[-1], rtol=1e-12
+        self.I_p_profile_face[-1], self.geo.I_p_profile_face[-1], rtol=1e-12
     )
 
   def test_near_axis_j_toroidal_total_matches_equilibrium(self):
@@ -568,7 +568,7 @@ class OffAxisGridTest(parameterized.TestCase):
     chease_kwargs = dict(
         geometry_directory=None,
         geometry_file='iterhybrid.mat2cols',
-        Ip_from_parameters=True,
+        I_p_from_parameters=True,
         face_centers=interpolated_param_2d.get_face_centers(400),
         R_major=6.2,
         a_minor=2.0,
@@ -618,8 +618,8 @@ class OffAxisGridTest(parameterized.TestCase):
       and f.name
       not in {
           'psi',
-          'psi_from_Ip',
-          'psi_from_Ip_face',
+          'psi_from_I_p',
+          'psi_from_I_p_face',
           'delta_face',
           'delta_upper_face',
           'delta_lower_face',
@@ -632,14 +632,14 @@ class OffAxisGridTest(parameterized.TestCase):
         rtol=2e-4,
     )
 
-  def test_psi_from_ip_variation_matches_on_axis_grid(self):
+  def test_psi_from_I_p_variation_matches_on_axis_grid(self):
     # When the axis point is dropped, psi[0] is taken from the first off-axis
-    # point, shifting psi_from_Ip by that constant offset while preserving its
-    # radial profile (psi_from_Ip - psi_from_Ip[0]).
+    # point, shifting psi_from_I_p by that constant offset while preserving its
+    # radial profile (psi_from_I_p - psi_from_I_p[0]).
     np.testing.assert_allclose(
-        self.geo_off_axis.psi_from_Ip_face
-        - self.geo_off_axis.psi_from_Ip_face[0],
-        self.geo.psi_from_Ip_face - self.geo.psi_from_Ip_face[0],
+        self.geo_off_axis.psi_from_I_p_face
+        - self.geo_off_axis.psi_from_I_p_face[0],
+        self.geo.psi_from_I_p_face - self.geo.psi_from_I_p_face[0],
         rtol=1e-12,
     )
 

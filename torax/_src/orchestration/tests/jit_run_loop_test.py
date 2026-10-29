@@ -148,20 +148,20 @@ class JitRunLoopTest(parameterized.TestCase):
     step_fn = torax_experimental.make_step_fn(torax_config)
     runtime_params_provider = step_fn.runtime_params_provider
 
-    original_times = runtime_params_provider.profile_conditions.Ip.time
+    original_times = runtime_params_provider.profile_conditions.I_p.time
     start_time = original_times[0]
     end_time = original_times[-1]
     mid_time = (start_time + end_time) / 2
-    Ip_new_times = jnp.array([start_time, mid_time, end_time])
+    I_p_new_times = jnp.array([start_time, mid_time, end_time])
 
     @jax.jit
-    def fun(Ip_override_values: jax.Array):
-      Ip_overrides = torax_experimental.TimeVaryingScalarUpdate(
-          time=Ip_new_times,
-          value=Ip_override_values,
+    def fun(I_p_override_values: jax.Array):
+      I_p_overrides = torax_experimental.TimeVaryingScalarUpdate(
+          time=I_p_new_times,
+          value=I_p_override_values,
       )
       runtime_overrides = runtime_params_provider.update_provider_from_mapping(
-          {'profile_conditions.Ip': Ip_overrides}
+          {'profile_conditions.I_p': I_p_overrides}
       )
       states, post_processed_outputs, final_i = jit_run_loop.run_loop_jit(
           step_fn=step_fn,
@@ -171,22 +171,24 @@ class JitRunLoopTest(parameterized.TestCase):
       error_states = states.solver_numeric_outputs.solver_error_state
       return post_processed_outputs.Q_fusion[final_i], (error_states, final_i)
 
-    original_values = runtime_params_provider.profile_conditions.Ip.value
-    start_Ip = original_values[0]
-    end_Ip = original_values[-1]
-    mid_Ip = (start_Ip + end_Ip) / 2
-    Ip_new_values = jnp.array([start_Ip, mid_Ip, end_Ip])
+    original_values = runtime_params_provider.profile_conditions.I_p.value
+    start_I_p = original_values[0]
+    end_I_p = original_values[-1]
+    mid_I_p = (start_I_p + end_I_p) / 2
+    I_p_new_values = jnp.array([start_I_p, mid_I_p, end_I_p])
 
-    grad_vjp, aux = jax.jit(jax.grad(fun, has_aux=True))(Ip_new_values)
+    grad_vjp, aux = jax.jit(jax.grad(fun, has_aux=True))(I_p_new_values)
 
     # jax.test_util.check_grads could be used here, but its very slow.
-    # Scale the step to the Ip magnitude (~1e7 A): an absolute step of O(1e-6)
+    # Scale the step to the I_p magnitude (~1e7 A): an absolute step of O(1e-6)
     # A changes Q_fusion by ~1e-13 relative, which is dominated by roundoff.
     index = 1
-    eps = 1e-6 * Ip_new_values[index]
-    eps_vec = jax.nn.one_hot(index, len(Ip_new_values), dtype=jnp.float64) * eps
-    Q_plus, aux_plus = fun(Ip_new_values + eps_vec)
-    Q_minus, aux_minus = fun(Ip_new_values - eps_vec)
+    eps = 1e-6 * I_p_new_values[index]
+    eps_vec = (
+        jax.nn.one_hot(index, len(I_p_new_values), dtype=jnp.float64) * eps
+    )
+    Q_plus, aux_plus = fun(I_p_new_values + eps_vec)
+    Q_minus, aux_minus = fun(I_p_new_values - eps_vec)
     grad_diff = (Q_plus - Q_minus) / (2 * eps)
 
     # Gradients through the Newton-Raphson solver use implicit differentiation

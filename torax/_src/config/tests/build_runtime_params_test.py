@@ -331,9 +331,9 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
   def test_update_runtime_params_provider(self):
     params_provider = self._params_provider
     # Create updates for a `TimeVaryingScalar`, `TimeVaryingArray` and `float`.
-    ip_value = params_provider.profile_conditions.Ip.value
-    ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 2.0,  # pyrefly: ignore[bad-argument-type]
+    I_p_value = params_provider.profile_conditions.I_p.value
+    I_p_update = interpolated_param_1d.TimeVaryingScalarUpdate(
+        value=I_p_value * 2.0,  # pyrefly: ignore[bad-argument-type]
     )
     T_e_cell_value = (
         params_provider.profile_conditions.T_e.get_cached_interpolated_param_cell.ys
@@ -347,45 +347,45 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     qei_update = params_provider.sources.ei_exchange.Qei_multiplier * 4.0
 
     @jax.jit
-    def f(ip_update, T_e_update, qei_update):
+    def f(I_p_update, T_e_update, qei_update):
       provider_new = params_provider.update_provider(
           lambda x: (
-              x.profile_conditions.Ip,
+              x.profile_conditions.I_p,
               x.profile_conditions.T_e,
               x.sources.ei_exchange.Qei_multiplier,
           ),
-          (ip_update, T_e_update, qei_update),
+          (I_p_update, T_e_update, qei_update),
       )
       t = jnp.array(1.0)
       return (
-          provider_new.profile_conditions.Ip.get_value(t),
+          provider_new.profile_conditions.I_p.get_value(t),
           provider_new.profile_conditions.T_e.get_value(t),
           provider_new.sources.ei_exchange.Qei_multiplier,
       )
 
-    original_ip_value = params_provider.profile_conditions.Ip.get_value(1.0)
+    original_I_p_value = params_provider.profile_conditions.I_p.get_value(1.0)
     original_T_e_value = params_provider.profile_conditions.T_e.get_value(1.0)
     original_qei_value = params_provider.sources.ei_exchange.Qei_multiplier
-    ip_value_new, T_e_value_new, qei_value_new = f(
-        ip_update, T_e_update, qei_update
+    I_p_value_new, T_e_value_new, qei_value_new = f(
+        I_p_update, T_e_update, qei_update
     )
     num_compiles1 = jax_utils.get_number_of_compiles(f)
-    ip_update_new = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 4.0,  # pyrefly: ignore[bad-argument-type]
+    I_p_update_new = interpolated_param_1d.TimeVaryingScalarUpdate(
+        value=I_p_value * 4.0,  # pyrefly: ignore[bad-argument-type]
     )
-    ip_value_2, T_e_value_2, qei_value_2 = f(
-        ip_update_new, T_e_update, qei_update
+    I_p_value_2, T_e_value_2, qei_value_2 = f(
+        I_p_update_new, T_e_update, qei_update
     )
     num_compiles2 = jax_utils.get_number_of_compiles(f)
 
     with self.subTest('jit_compiles_and_returns_expected_value'):
       self.assertEqual(num_compiles1, 1)
-      np.testing.assert_allclose(ip_value_new, original_ip_value * 2.0)
+      np.testing.assert_allclose(I_p_value_new, original_I_p_value * 2.0)
       np.testing.assert_allclose(T_e_value_new, original_T_e_value * 3.0)
       np.testing.assert_allclose(qei_value_new, original_qei_value * 4.0)
 
     with self.subTest('jit_updates_value_without_recompile'):
-      np.testing.assert_allclose(ip_value_2, original_ip_value * 4.0)
+      np.testing.assert_allclose(I_p_value_2, original_I_p_value * 4.0)
       np.testing.assert_allclose(T_e_value_2, original_T_e_value * 3.0)
       np.testing.assert_allclose(qei_value_2, original_qei_value * 4.0)
       # Check that the cache is reused.
@@ -393,7 +393,7 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
   @parameterized.parameters(
       (
-          lambda x: (x.profile_conditions.Ip,),
+          lambda x: (x.profile_conditions.I_p,),
           (1.0,),
           'To replace a `TimeVaryingScalar` use a `TimeVaryingScalarReplace`',
       ),
@@ -432,30 +432,30 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
   def test_update_runtime_params_provider_result_can_be_updated_again(self):
     params_provider = self._params_provider
-    ip_value = params_provider.profile_conditions.Ip.value
-    ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 2.0,  # pyrefly: ignore[bad-argument-type]
+    I_p_value = params_provider.profile_conditions.I_p.value
+    I_p_update = interpolated_param_1d.TimeVaryingScalarUpdate(
+        value=I_p_value * 2.0,  # pyrefly: ignore[bad-argument-type]
     )
-    ip_second_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 4.0,  # pyrefly: ignore[bad-argument-type]
+    I_p_second_update = interpolated_param_1d.TimeVaryingScalarUpdate(
+        value=I_p_value * 4.0,  # pyrefly: ignore[bad-argument-type]
     )
     updated_provider = params_provider.update_provider(
-        lambda x: (x.profile_conditions.Ip,),
-        (ip_update,),
+        lambda x: (x.profile_conditions.I_p,),
+        (I_p_update,),
     )
     re_updated_provider = updated_provider.update_provider(
-        lambda x: (x.profile_conditions.Ip,),
-        (ip_second_update,),
+        lambda x: (x.profile_conditions.I_p,),
+        (I_p_second_update,),
     )
-    final_ip = re_updated_provider.profile_conditions.Ip.get_value(0.0)
-    original_ip = params_provider.profile_conditions.Ip.get_value(0.0)
-    np.testing.assert_allclose(final_ip, original_ip * 4.0)
+    final_I_p = re_updated_provider.profile_conditions.I_p.get_value(0.0)
+    original_I_p = params_provider.profile_conditions.I_p.get_value(0.0)
+    np.testing.assert_allclose(final_I_p, original_I_p * 4.0)
 
   def test_update_runtime_params_provider_mapping(self):
     params_provider = self._params_provider
-    ip_value = params_provider.profile_conditions.Ip.value
-    ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 2.0,  # pyrefly: ignore[bad-argument-type]
+    I_p_value = params_provider.profile_conditions.I_p.value
+    I_p_update = interpolated_param_1d.TimeVaryingScalarUpdate(
+        value=I_p_value * 2.0,  # pyrefly: ignore[bad-argument-type]
     )
     T_e_value = (
         params_provider.profile_conditions.T_e.get_cached_interpolated_param_cell.ys
@@ -470,11 +470,11 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
 
     # when
     @jax.jit
-    def f(ip_update, T_e_update, Qei_multiplier_update):
+    def f(I_p_update, T_e_update, Qei_multiplier_update):
       # update the provider
       provider_new = self._params_provider.update_provider_from_mapping(
           {
-              'profile_conditions.Ip': ip_update,
+              'profile_conditions.I_p': I_p_update,
               'profile_conditions.T_e': T_e_update,
               'sources.ei_exchange.Qei_multiplier': Qei_multiplier_update,
           },
@@ -482,21 +482,21 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
       # this provider can then be used as overrides for the step function.
       t = jnp.array(0.0)
       return (
-          provider_new.profile_conditions.Ip.get_value(t),
+          provider_new.profile_conditions.I_p.get_value(t),
           provider_new.profile_conditions.T_e.get_value(t),
           provider_new.sources.ei_exchange.Qei_multiplier,
       )
 
-    ip_value_new, T_e_value_new, Qei_multiplier_new = f(
-        ip_update, T_e_update, Qei_multiplier_update
+    I_p_value_new, T_e_value_new, Qei_multiplier_new = f(
+        I_p_update, T_e_update, Qei_multiplier_update
     )
 
     # then
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
-    original_ip_value = self._params_provider.profile_conditions.Ip.get_value(
+    original_I_p_value = self._params_provider.profile_conditions.I_p.get_value(
         0.0
     )
-    np.testing.assert_allclose(ip_value_new, original_ip_value * 2.0)
+    np.testing.assert_allclose(I_p_value_new, original_I_p_value * 2.0)
     original_T_e_value = self._params_provider.profile_conditions.T_e.get_value(
         0.0
     )
@@ -508,13 +508,13 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
         Qei_multiplier_new, original_Qei_multiplier * 4.0
     )
 
-    ip_update_new = interpolated_param_1d.TimeVaryingScalarUpdate(
-        value=ip_value * 4.0,  # pyrefly: ignore[bad-argument-type]
+    I_p_update_new = interpolated_param_1d.TimeVaryingScalarUpdate(
+        value=I_p_value * 4.0,  # pyrefly: ignore[bad-argument-type]
     )
-    ip_value_new, T_e_value_new, Qei_multiplier_new = f(
-        ip_update_new, T_e_update, Qei_multiplier_update
+    I_p_value_new, T_e_value_new, Qei_multiplier_new = f(
+        I_p_update_new, T_e_update, Qei_multiplier_update
     )
-    np.testing.assert_allclose(ip_value_new, original_ip_value * 4.0)
+    np.testing.assert_allclose(I_p_value_new, original_I_p_value * 4.0)
     np.testing.assert_allclose(T_e_value_new, original_T_e_value * 3.0)
     np.testing.assert_allclose(
         Qei_multiplier_new, original_Qei_multiplier * 4.0
@@ -522,22 +522,22 @@ class RuntimeParamsProviderUpdateTest(parameterized.TestCase):
     self.assertEqual(jax_utils.get_number_of_compiles(f), 1)
 
   def test_update_runtime_params_provider_mapping_raises_for_invalid_key(self):
-    value = self._params_provider.profile_conditions.Ip.value
-    ip_update = interpolated_param_1d.TimeVaryingScalarUpdate(
+    value = self._params_provider.profile_conditions.I_p.value
+    I_p_update = interpolated_param_1d.TimeVaryingScalarUpdate(
         value=value * 2.0,  # pyrefly: ignore[bad-argument-type]
     )
 
     @jax.jit
-    def f(ip_update):
+    def f(I_p_update):
       # update the provider
       provider_new = self._params_provider.update_provider_from_mapping(
-          # incorrectly spelt key for Ip.
-          {'profile_conditions.IP': ip_update},
+          # incorrectly spelt key for I_p.
+          {'profile_conditions.I_P': I_p_update},
       )
       return provider_new
 
-    with self.assertRaises(ValueError, msg='Attribute IP not found.'):
-      f(ip_update)
+    with self.assertRaises(ValueError, msg='Attribute I_P not found.'):
+      f(I_p_update)
 
   def test_ne_bc_density_fraction_from_runtime_params(self):
     """Tests density_fraction mode with core_profiles=None (init fallback)."""

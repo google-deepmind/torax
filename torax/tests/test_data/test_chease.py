@@ -14,7 +14,7 @@
 
 """Tests implementation of CHEASE geometry.
 
-Ip from parameters. implicit, T_i+T_e, no Pei, no pedestal, constant chi.
+I_p from parameters. implicit, T_i+T_e, no Pei, no pedestal, constant chi.
 """
 
 
@@ -22,7 +22,7 @@ CONFIG = {
     'profile_conditions': {
         'initial_psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
-        'Ip': 15e6,
+        'I_p': 15e6,
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,
         'nbar': 0.85,
@@ -33,7 +33,7 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
     },
     'sources': {
         # Current sources (for psi equation)

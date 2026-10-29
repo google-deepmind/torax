@@ -57,9 +57,9 @@ def profile_conditions_from_IMAS(
   # profile_conditions
   psi = (time_array, rhon_array, [profile.grid.psi for profile in profiles_1d])
   # TODO(b/335204606): Clean this up once we finalize our COCOS convention.
-  # Ip sign is switched due to the difference between input COCOS conventions
+  # I_p sign is switched due to the difference between input COCOS conventions
   # and TORAX ones
-  Ip = (
+  I_p = (
       time_array,
       -1 * ids.global_quantities.ip,
   )
@@ -107,7 +107,7 @@ def profile_conditions_from_IMAS(
     v_loop_lcfs = 0.0
 
   return {
-      "Ip": Ip,
+      "I_p": I_p,
       "initial_psi_source": "profile_conditions",
       "psi": psi,
       "T_i": T_i,

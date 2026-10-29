@@ -14,7 +14,7 @@
 
 """Tests qlknn particle transport with D_e from chi_e. CHEASE geometry.
 
-Ip from parameters. current, heat, and particle transport. qlknn transport
+I_p from parameters. current, heat, and particle transport. qlknn transport
 model. Pedestal. Particle sources. PC method for density. D_e
 scaled from chi_e
 """
@@ -41,7 +41,7 @@ CONFIG = {
     'geometry': {
         'geometry_type': 'chease',
         'geometry_file': 'iterhybrid.mat2cols',
-        'Ip_from_parameters': True,
+        'I_p_from_parameters': True,
     },
     'sources': {
         'generic_heat': {

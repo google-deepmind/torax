@@ -199,7 +199,7 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
       ), 'Expected either n_e_edge or n_e_edge_multiplier to be set.'
       if params.n_e_is_fGW:
         nGW = (
-            runtime_params.profile_conditions.Ip
+            runtime_params.profile_conditions.I_p
             / 1e6
             / (jnp.pi * geo.a_minor**2)
             * 1e20
