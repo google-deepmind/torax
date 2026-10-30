@@ -335,8 +335,15 @@ are inherited automatically.
           calculated_source_profiles: sources.SourceProfiles | None,
           conductivity,
           source_state: sources.SourceState,
+          psidot: jnp.ndarray | None = None,
       ) -> tuple[sources.SourceOutput, sources.SourceState]:
-        # Return a SourceOutput with one profile per affected core profile.
+        """Calculates model value for this custom source.
+
+        Args:
+          psidot: Loop voltage profile (unused by this source).
+        """
+        # Return a SourceOutput with one profile per affected core profile,
+        # plus the updated source_state.
         # For a source affecting TEMP_ION and TEMP_EL, provide two profiles.
         ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
         el_heat = jnp.ones_like(geo.rho_norm) * 0.5e6

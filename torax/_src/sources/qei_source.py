@@ -78,6 +78,7 @@ class QeiSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     raise NotImplementedError('Call get_qei() instead.')
 
@@ -89,6 +90,7 @@ class QeiSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     raise NotImplementedError('Call get_qei() instead.')
 

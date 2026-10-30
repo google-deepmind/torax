@@ -50,6 +50,7 @@ class GenericParticleSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates external source term for n from SBI.
 
@@ -63,12 +64,13 @@ class GenericParticleSource(source.Source):
       conductivity: Conductivity model output.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
+      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_density_profile,)),
       source_state).
     """
-    del core_profiles, calculated_source_profiles, conductivity
+    del core_profiles, calculated_source_profiles, conductivity, psidot
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
     profile = formulas.gaussian_profile(

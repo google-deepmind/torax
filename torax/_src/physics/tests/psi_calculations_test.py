@@ -456,6 +456,84 @@ class PsiCalculationsTest(parameterized.TestCase):
         v_loop_lcfs_t_plus_dt, v_loop_lcfs_t_plus_dt_expected
     )
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='evolved_current_without_v_loop_lcfs',
+          evolve_current=True,
+          use_prescribed_psidot=False,
+          v_loop_lcfs=None,
+      ),
+      dict(
+          testcase_name='evolved_current_ignores_prescribed_psidot',
+          evolve_current=True,
+          use_prescribed_psidot=True,
+          v_loop_lcfs=0.75,
+      ),
+      dict(
+          testcase_name='prescribed_psidot_without_v_loop_lcfs',
+          evolve_current=False,
+          use_prescribed_psidot=True,
+          v_loop_lcfs=None,
+      ),
+      dict(
+          testcase_name='prescribed_psidot_with_v_loop_lcfs',
+          evolve_current=False,
+          use_prescribed_psidot=True,
+          v_loop_lcfs=-1.25,
+      ),
+      dict(
+          testcase_name='non_evolved_current_falls_back_when_no_prescribed',
+          evolve_current=False,
+          use_prescribed_psidot=False,
+          v_loop_lcfs=0.5,
+      ),
+  )
+  def test_calculate_psidot(
+      self,
+      evolve_current: bool,
+      use_prescribed_psidot: bool,
+      v_loop_lcfs: float | None,
+  ):
+    geo = circular_geometry.CircularConfig(n_rho=8).build_geometry()
+    psi = initialization.update_psi_from_j(
+        1e6, geo, jnp.ones_like(geo.rho_hires_norm) * 1e5
+    )
+    sigma = jnp.full_like(geo.rho_norm, 1e6)
+    psi_sources = jnp.zeros_like(geo.rho_norm)
+    prescribed_psidot = (
+        jnp.linspace(-2.0, -0.5, geo.rho_norm.shape[0])
+        if use_prescribed_psidot
+        else None
+    )
+    v_loop_arg = jnp.asarray(v_loop_lcfs) if v_loop_lcfs is not None else None
+
+    psidot = psi_calculations.calculate_psidot(
+        psi=psi,
+        sigma=sigma,
+        psi_sources=psi_sources,
+        geo=geo,
+        evolve_current=evolve_current,
+        prescribed_psidot=prescribed_psidot,
+        v_loop_lcfs=v_loop_arg,
+    )
+
+    if not evolve_current and prescribed_psidot is not None:
+      expected_value = prescribed_psidot
+    else:
+      expected_value = psi_calculations.calculate_psidot_from_psi_sources(
+          psi_sources=psi_sources,
+          sigma=sigma,
+          psi=psi,
+          geo=geo,
+      )
+    expected_right_bc = (
+        v_loop_lcfs if v_loop_lcfs is not None else expected_value[-1]
+    )
+
+    np.testing.assert_allclose(psidot.value, expected_value)
+    np.testing.assert_allclose(psidot.face_value()[-1], expected_right_bc)
+    self.assertIsNone(psidot.right_face_grad_constraint)
+
 
 if __name__ == '__main__':
   absltest.main()

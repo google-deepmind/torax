@@ -26,6 +26,7 @@ Functions:
     - calc_q95: Calculates the q-profile at 95% of the normalized poloidal flux.
     - calculate_psi_grad_constraint_from_I_p: Calculates the gradient
       constraint on the poloidal flux (psi) from I_p.
+    - calculate_psidot: Calculates the loop voltage (psidot) CellVariable.
     - calc_bpol_squared: Calculates square of poloidal field (Bp).
     - j_toroidal_to_j_parallel: Calculates <j.B>/B0 from j_toroidal = dI/dS.
     - j_parallel_to_j_toroidal: Calculates j_toroidal = dI/dS from <j.B>/B0.
@@ -454,6 +455,60 @@ def calculate_psidot_from_psi_sources(
   c = diffusion_vec + conv_vec + psi_sources
 
   return (c_mat.matvec(psi.value) + c) / toc_psi  # pyrefly: ignore[bad-return]
+
+
+def calculate_psidot(
+    *,
+    psi: cell_variable.CellVariable,
+    sigma: array_typing.FloatVectorCell,
+    psi_sources: array_typing.FloatVectorCell,
+    geo: geometry.Geometry,
+    evolve_current: bool,
+    prescribed_psidot: array_typing.FloatVectorCell | None = None,
+    v_loop_lcfs: array_typing.FloatScalar | None = None,
+) -> cell_variable.CellVariable:
+  """Calculates the loop voltage (psidot) CellVariable.
+
+  When `evolve_current` is False and `prescribed_psidot` is provided, uses the
+  prescribed profile; otherwise computes `psidot` on the cell grid from spatial
+  Ohm's law via `calculate_psidot_from_psi_sources`. Sets the right face
+  constraint to `v_loop_lcfs` when provided, or falls back to the outermost cell
+  value `psidot_value[-1]` when `v_loop_lcfs` is None (such as at initialization
+  or during intra-step solver evaluations under I_p boundary conditions).
+
+  Args:
+    psi: Poloidal flux CellVariable.
+    sigma: Neoclassical parallel conductivity on the cell grid.
+    psi_sources: Sum of non-inductive parallel current sources (<j_ni.B>/B_0) on
+      the cell grid.
+    geo: Tokamak geometry.
+    evolve_current: Whether the poloidal flux equation is being evolved.
+    prescribed_psidot: Optional prescribed psidot profile on the cell grid, used
+      only when `evolve_current` is False.
+    v_loop_lcfs: Optional loop voltage at the LCFS used as the right face
+      Dirichlet constraint. If None, `psidot_value[-1]` is used.
+
+  Returns:
+    A `CellVariable` representing `psidot` on `geo.rho_face_norm`.
+  """
+  if not evolve_current and prescribed_psidot is not None:
+    psidot_value = prescribed_psidot
+  else:
+    psidot_value = calculate_psidot_from_psi_sources(
+        psi_sources=psi_sources,
+        sigma=sigma,
+        psi=psi,
+        geo=geo,
+    )
+  right_face_constraint = (
+      v_loop_lcfs if v_loop_lcfs is not None else psidot_value[-1]
+  )
+  return cell_variable.CellVariable(
+      value=psidot_value,
+      face_centers=geo.rho_face_norm,
+      right_face_constraint=right_face_constraint,
+      right_face_grad_constraint=None,
+  )
 
 
 def j_toroidal_to_j_parallel(

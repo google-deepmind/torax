@@ -17,11 +17,13 @@
 from collections.abc import Mapping
 import jax
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
 from torax._src.neoclassical.conductivity import base as conductivity_base
+from torax._src.physics import psi_calculations
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
@@ -145,7 +147,11 @@ def build_standard_source_profiles(
   """Updates calculated_source_profiles and returns updated source states."""
   updated_source_states = dict(source_states)
 
-  def calculate_source(source_name: str, source: source_lib.Source):
+  def calculate_source(
+      source_name: str,
+      source: source_lib.Source,
+      psidot: array_typing.FloatVectorCell | None = None,
+  ):
     source_params = runtime_params.sources[source_name]
     if (explicit == source_params.is_explicit) | calculate_anyway:
       curr_state = source_states[source_name]
@@ -156,6 +162,7 @@ def build_standard_source_profiles(
           calculated_source_profiles,
           conductivity,
           curr_state,
+          psidot=psidot,
       )
       updated_source_states[source_name] = new_state
       _update_standard_source_profiles(
@@ -166,8 +173,8 @@ def build_standard_source_profiles(
       )
 
   # Calculate PSI sources first
-  # These are used in the calculation of the ohmic_heat_source so we need to
-  # calculate them first.
+  # These are used in the calculation of psidot (needed by ohmic_heat_source)
+  # so we need to calculate them first.
   for source_name, source in source_models.psi_sources.items():
     calculate_source(source_name, source)
   # The psi sources are used in the initialization of the core profiles
@@ -175,6 +182,17 @@ def build_standard_source_profiles(
   # only calculate the psi sources to avoid extra work.
   if psi_only:
     return updated_source_states
+
+  psidot = None
+  if conductivity is not None:
+    psidot = psi_calculations.calculate_psidot(
+        psi=core_profiles.psi,
+        sigma=conductivity.sigma,
+        psi_sources=calculated_source_profiles.total_psi_sources(geo),
+        geo=geo,
+        evolve_current=runtime_params.numerics.evolve_current,
+        prescribed_psidot=runtime_params.profile_conditions.psidot,
+    ).value
 
   to_calculate = {}
   # Calculate the standard sources
@@ -189,9 +207,9 @@ def build_standard_source_profiles(
       to_calculate[source_name] = source
       continue
     if source_name not in source_models.psi_sources:
-      calculate_source(source_name, source)
+      calculate_source(source_name, source, psidot=psidot)
   for source_name, source in to_calculate.items():
-    calculate_source(source_name, source)
+    calculate_source(source_name, source, psidot=psidot)
 
   return updated_source_states
 

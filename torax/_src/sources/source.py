@@ -26,6 +26,7 @@ import enum
 from typing import ClassVar
 
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
@@ -98,6 +99,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the model-based value and updated state for this source.
 
@@ -108,6 +110,9 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       calculated_source_profiles: Already-calculated source profiles.
       conductivity: Conductivity profile if it exists.
       source_state: Source state carried over from the previous timestep.
+      psidot: Loop voltage profile on the cell grid if provided. Transitional
+        argument for implicit non-psi sources (OhmicHeatSource) prior to the
+        downstream source hierarchy split.
 
     Returns:
       A tuple of (SourceOutput, source_state).
@@ -121,6 +126,7 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the cell grid profile and updated state for this source.
 
@@ -145,6 +151,9 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       conductivity: Conductivity profile if it exists. It is only provided for
         implicit sources.
       source_state: Source state carried over from the previous timestep.
+      psidot: Loop voltage profile on the cell grid if provided. Transitional
+        argument for implicit non-psi sources (OhmicHeatSource) prior to the
+        downstream source hierarchy split.
 
     Returns:
       A tuple of (SourceOutput, updated_source_state).
@@ -160,7 +169,8 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
             core_profiles,
             calculated_source_profiles,
             conductivity,
-            source_state,
+            source_state=source_state,
+            psidot=psidot,
         )
       case sources_runtime_params_lib.Mode.PRESCRIBED:
         if len(source_params.prescribed_values) != len(

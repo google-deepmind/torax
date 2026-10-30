@@ -16,6 +16,7 @@
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src import constants
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -49,6 +50,7 @@ class FusionHeatSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates DT fusion heating power with Bosch-Hale (NF 1992).
 
@@ -62,12 +64,13 @@ class FusionHeatSource(source.Source):
       conductivity: Conductivity model output.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
+      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(ion_heat_profile,
       electron_heat_profile)), source_state).
     """
-    del geo, calculated_source_profiles, conductivity
+    del geo, calculated_source_profiles, conductivity, psidot
     # If both D and T not present in the main ion mixture, return zero fusion.
     # Otherwise, calculate the fusion power.
     main_ion_names = runtime_params.plasma_composition.main_ion_names

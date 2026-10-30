@@ -17,11 +17,11 @@
 import dataclasses
 from typing import Annotated, ClassVar, Literal
 import jax.numpy as jnp
+from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.neoclassical.conductivity import base as conductivity_base
-from torax._src.physics import psi_calculations
 from torax._src.sources import base
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
@@ -54,52 +54,39 @@ class OhmicHeatSource(source_lib.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the Ohmic source for electron heat equation.
 
     Does not modify source_state; returns it unchanged.
 
     Args:
-      runtime_params: Runtime parameters.
+      runtime_params: Runtime parameters (unused).
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far.
+      calculated_source_profiles: Source profiles calculated so far (unused).
       conductivity: Conductivity model output.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
+      psidot: Precomputed loop voltage (dpsi/dt at fixed rho_norm) on the cell
+        grid.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
       source_state).
     """
-    if calculated_source_profiles is None:
-      raise ValueError(
-          'calculated_source_profiles is a required argument for'
-          ' OhmicHeatSource._get_model_value. This can occur if this source'
-          ' is used in an explicit source.'
-      )
-
+    del runtime_params, calculated_source_profiles
     if conductivity is None:
       raise ValueError(
           'conductivity is a required argument for'
           ' OhmicHeatSource._get_model_value. This can occur if this source'
           ' is used in an explicit source.'
       )
-
-    if (
-        not runtime_params.numerics.evolve_current
-        and runtime_params.profile_conditions.psidot is not None
-    ):
-      # If psidot is prescribed and current does not evolve, use
-      # prescribed value
-      psidot = runtime_params.profile_conditions.psidot
-    else:
-      psi_sources = calculated_source_profiles.total_psi_sources(geo)
-      psidot = psi_calculations.calculate_psidot_from_psi_sources(
-          psi_sources=psi_sources,
-          sigma=conductivity.sigma,
-          psi=core_profiles.psi,
-          geo=geo,
+    if psidot is None:
+      raise ValueError(
+          'psidot is a required argument for'
+          ' OhmicHeatSource._get_model_value. This can occur if this source'
+          ' is used in an explicit source.'
       )
 
     # Joule dissipation of the Ohmic current, P_ohm = sigma <E.B>^2 / <B^2>,

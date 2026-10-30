@@ -442,36 +442,19 @@ def _calculate_all_psi_dependent_profiles(
   # psidot calculated here with phibdot=0 in geo, since this is initial
   # conditions and we don't yet have information on geo_t_plus_dt for the
   # phibdot calculation.
-
-  if (
-      not runtime_params.numerics.evolve_current
-      and runtime_params.profile_conditions.psidot is not None
-  ):
-    # If psidot is prescribed and psi does not evolve, use prescribed value
-    psidot_value = runtime_params.profile_conditions.psidot
-  else:
-    # Otherwise, calculate psidot from psi sources.
-    psi_sources = source_profiles.total_psi_sources(geo)
-    psidot_value = psi_calculations.calculate_psidot_from_psi_sources(
-        psi_sources=psi_sources,
-        sigma=neoclassical_outputs.conductivity.sigma,
-        psi=psi,
-        geo=geo,
-    )
-
-  # psidot boundary condition. If v_loop_lcfs is not prescribed then we set it
-  # to the last calculated psidot for the initialisation since we have no
-  # other information.
   v_loop_lcfs = (
       runtime_params.profile_conditions.v_loop_lcfs
       if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
-      else psidot_value[-1]
+      else None
   )
-  psidot = dataclasses.replace(
-      core_profiles.psidot,
-      value=psidot_value,
-      right_face_constraint=v_loop_lcfs,
-      right_face_grad_constraint=None,
+  psidot = psi_calculations.calculate_psidot(
+      psi=psi,
+      sigma=neoclassical_outputs.conductivity.sigma,
+      psi_sources=source_profiles.total_psi_sources(geo),
+      geo=geo,
+      evolve_current=runtime_params.numerics.evolve_current,
+      prescribed_psidot=runtime_params.profile_conditions.psidot,
+      v_loop_lcfs=v_loop_lcfs,
   )
   core_profiles = dataclasses.replace(
       core_profiles,

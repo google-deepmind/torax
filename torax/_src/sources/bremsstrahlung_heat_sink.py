@@ -21,6 +21,7 @@ import chex
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
+from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -126,6 +127,7 @@ class BremsstrahlungHeatSink(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates bremsstrahlung radiation heat sink profile.
 
@@ -139,12 +141,13 @@ class BremsstrahlungHeatSink(source.Source):
       conductivity: Conductivity model output.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
+      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
       source_state).
     """
-    del calculated_source_profiles, conductivity  # Unused.
+    del calculated_source_profiles, conductivity, psidot  # Unused.
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
     _, P_brem_profile = calc_bremsstrahlung(

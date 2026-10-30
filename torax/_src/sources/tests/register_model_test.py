@@ -54,6 +54,7 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[
       source_profiles.SourceOutput,
       source_state_lib.SourceState,
@@ -65,6 +66,7 @@ class DoubleGasPuffSource(gas_puff_source_lib.GasPuffSource):
         calculated_source_profiles=calculated_source_profiles,
         conductivity=conductivity,
         source_state=source_state,
+        psidot=psidot,
     )
     return (
         source_profiles.SourceOutput(

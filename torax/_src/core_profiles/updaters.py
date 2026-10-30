@@ -259,26 +259,14 @@ def update_core_and_source_profiles_after_step(
       fast_ions=fast_ions,
   )
 
-  if (
-      not runtime_params_t_plus_dt.numerics.evolve_current
-      and runtime_params_t_plus_dt.profile_conditions.psidot is not None
-  ):
-    # If psidot is prescribed and current does not evolve, use prescribed value
-    psidot_value = runtime_params_t_plus_dt.profile_conditions.psidot
-  else:
-    # Otherwise, calculate psidot from psi sources.
-    psi_sources = total_source_profiles.total_psi_sources(geo)
-    psidot_value = psi_calculations.calculate_psidot_from_psi_sources(
-        psi_sources=psi_sources,
-        sigma=intermediate_core_profiles.sigma,
-        psi=intermediate_core_profiles.psi,
-        geo=geo,
-    )
-  psidot = dataclasses.replace(
-      core_profiles_t_plus_dt.psidot,
-      value=psidot_value,
-      right_face_constraint=v_loop_lcfs,
-      right_face_grad_constraint=None,
+  psidot = psi_calculations.calculate_psidot(
+      psi=intermediate_core_profiles.psi,
+      sigma=intermediate_core_profiles.sigma,
+      psi_sources=total_source_profiles.total_psi_sources(geo),
+      geo=geo,
+      evolve_current=runtime_params_t_plus_dt.numerics.evolve_current,
+      prescribed_psidot=runtime_params_t_plus_dt.profile_conditions.psidot,
+      v_loop_lcfs=v_loop_lcfs,
   )
 
   core_profiles_t_plus_dt = dataclasses.replace(

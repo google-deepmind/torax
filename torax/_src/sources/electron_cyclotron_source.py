@@ -67,6 +67,7 @@ class ElectronCyclotronSource(source.Source):
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates external electron heat source and current drive from EC.
 
@@ -82,12 +83,13 @@ class ElectronCyclotronSource(source.Source):
       conductivity: Unused.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and passed through unchanged.
+      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile, psi_profile)),
       source_state).
     """
-    del calculated_source_profiles, conductivity
+    del calculated_source_profiles, conductivity, psidot
     source_params = runtime_params.sources[self.SOURCE_ID]
     # Helps linter understand the type of source_params.
     assert isinstance(source_params, RuntimeParams)

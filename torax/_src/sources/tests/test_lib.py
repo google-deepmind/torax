@@ -126,9 +126,11 @@ class SingleProfileSourceTestCase(SourceTestCase):
       conductivity = neoclassical_model(
           runtime_params, geo, core_profiles
       ).conductivity
+      psidot = core_profiles.psidot.value
     else:
       calculated_source_profiles = None
       conductivity = None
+      psidot = None
     source = source_models.standard_sources[self._source_name]
     output, _ = source.get_value(
         runtime_params=runtime_params,
@@ -137,6 +139,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         calculated_source_profiles=calculated_source_profiles,
         conductivity=conductivity,
         source_state=source.initial_state(runtime_params),
+        psidot=psidot,
     )
     value = output.profiles[0]
     chex.assert_rank(value, 1)

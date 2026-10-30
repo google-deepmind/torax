@@ -80,6 +80,7 @@ class MavrinImpurityRadiationHeatSink(
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
+      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates Mavrin fit impurity radiation heat sink profile.
 
@@ -93,12 +94,13 @@ class MavrinImpurityRadiationHeatSink(
       conductivity: Conductivity model output.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
+      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
       source_state).
     """
-    del geo, calculated_source_profiles, conductivity
+    del geo, calculated_source_profiles, conductivity, psidot
     # Reconstruct array from mapping for DynamicIonMixture and effective LZ
     # calculations.
     ion_symbols = runtime_params.plasma_composition.impurity_names

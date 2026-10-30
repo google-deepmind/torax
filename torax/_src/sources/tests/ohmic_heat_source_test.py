@@ -35,7 +35,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   source_name = ohmic_heat_source.OhmicHeatSource.SOURCE_ID
   needs_source_models = True
 
-  def test_raises_error_if_calculated_source_profiles_is_none(self):
+  def test_raises_error_if_psidot_is_none(self):
     source = ohmic_heat_source.OhmicHeatSource()
     source_config = self._source_config_class.from_dict({})
     face_centers = interpolated_param_2d.get_face_centers(4)
@@ -50,7 +50,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     )
     with self.assertRaisesRegex(
         ValueError,
-        'calculated_source_profiles is a required argument for'
+        'psidot is a required argument for'
         ' OhmicHeatSource._get_model_value. This can occur if this source'
         ' is used in an explicit source.',
     ):
@@ -58,9 +58,10 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
           runtime_params,
           mock.ANY,
           mock.ANY,
-          calculated_source_profiles=None,
+          calculated_source_profiles=mock.ANY,
           conductivity=mock.ANY,
           source_state=source_state_lib.SourceState(),
+          psidot=None,
       )
 
   def test_raises_error_if_conductivity_is_none(self):
@@ -89,21 +90,13 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
           calculated_source_profiles=mock.ANY,
           conductivity=None,
           source_state=source_state_lib.SourceState(),
+          psidot=mock.ANY,
       )
 
   @parameterized.parameters(-2.0, 2.0)
-  @mock.patch.object(
-      ohmic_heat_source.psi_calculations, 'calculate_psidot_from_psi_sources'
-  )
-  def test_ohmic_power_with_prescribed_psidot(
-      self, psidot_val, mock_calculate_psidot
-  ):
+  def test_ohmic_power_with_psidot(self, psidot_val):
     n_rho = 10
-    prescribed_psidot = jnp.full((n_rho,), psidot_val)
-
-    runtime_params = mock.Mock()
-    runtime_params.numerics.evolve_current = False
-    runtime_params.profile_conditions.psidot = prescribed_psidot
+    psidot = jnp.full((n_rho,), psidot_val)
 
     geo = mock.Mock()
     geo.rho_norm = jnp.linspace(0.05, 0.95, n_rho)
@@ -115,43 +108,32 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
     core_profiles = mock.Mock()
     core_profiles.psi.grad.return_value = jnp.ones(n_rho)
-    calculated_source_profiles = mock.Mock()
     conductivity = mock.Mock()
     conductivity.sigma = jnp.full((n_rho,), 1e6)
 
     output, _ = ohmic_heat_source.OhmicHeatSource()._get_model_value(
-        runtime_params=runtime_params,
+        runtime_params=mock.ANY,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=calculated_source_profiles,
+        calculated_source_profiles=None,
         conductivity=conductivity,
         source_state=source_state_lib.SourceState(),
+        psidot=psidot,
     )
     (pohm,) = output.profiles
 
-    mock_calculate_psidot.assert_not_called()
-    expected_e_dot_b = geo.F * geo.g3 / (2.0 * jnp.pi) * prescribed_psidot
+    expected_e_dot_b = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot
     expected_pohm = conductivity.sigma * expected_e_dot_b**2 / geo.gm5
     np.testing.assert_allclose(np.asarray(pohm), expected_pohm)
 
-  @mock.patch.object(
-      ohmic_heat_source.psi_calculations, 'calculate_psidot_from_psi_sources'
-  )
-  def test_ohmic_power_subtracts_phi_b_dot_grid_motion(
-      self, mock_calculate_psidot
-  ):
+  def test_ohmic_power_subtracts_phi_b_dot_grid_motion(self):
     n_rho = 4
     rho_norm = jnp.linspace(0.1, 0.9, n_rho)
     phi_b = jnp.asarray(5.0)
     phi_b_dot = jnp.asarray(2.0)
     psi_grad = jnp.full((n_rho,), 3.0)
     # Set psidot equal to the pure grid-motion term so (dpsi/dt)|_Phi == 0.
-    mock_calculate_psidot.return_value = (
-        rho_norm * phi_b_dot / (2.0 * phi_b) * psi_grad
-    )
-
-    runtime_params = mock.Mock()
-    runtime_params.numerics.evolve_current = True
+    psidot = rho_norm * phi_b_dot / (2.0 * phi_b) * psi_grad
 
     geo = mock.Mock()
     geo.rho_norm = rho_norm
@@ -163,18 +145,17 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
     core_profiles = mock.Mock()
     core_profiles.psi.grad.return_value = psi_grad
-    calculated_source_profiles = mock.Mock()
-    calculated_source_profiles.total_psi_sources.return_value = jnp.zeros(n_rho)
     conductivity = mock.Mock()
     conductivity.sigma = jnp.full((n_rho,), 1e6)
 
     output, _ = ohmic_heat_source.OhmicHeatSource()._get_model_value(
-        runtime_params=runtime_params,
+        runtime_params=mock.ANY,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=calculated_source_profiles,
+        calculated_source_profiles=None,
         conductivity=conductivity,
         source_state=source_state_lib.SourceState(),
+        psidot=psidot,
     )
     (pohm,) = output.profiles
 
@@ -208,33 +189,31 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
     sigma = jnp.full_like(geo.rho_norm, 1e6)
     zero_psi_sources = jnp.zeros_like(geo.rho_norm)
-    runtime_params = mock.Mock()
-    runtime_params.numerics.evolve_current = True
+    psidot = psi_calculations.calculate_psidot(
+        psi=psi,
+        sigma=sigma,
+        psi_sources=zero_psi_sources,
+        geo=geo,
+        evolve_current=True,
+    )
 
     core_profiles = mock.Mock()
     core_profiles.psi = psi
-    calculated_source_profiles = mock.Mock()
-    calculated_source_profiles.total_psi_sources.return_value = zero_psi_sources
     conductivity = mock.Mock()
     conductivity.sigma = sigma
 
     output, _ = ohmic_heat_source.OhmicHeatSource()._get_model_value(
-        runtime_params=runtime_params,
+        runtime_params=mock.ANY,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=calculated_source_profiles,
+        calculated_source_profiles=None,
         conductivity=conductivity,
         source_state=source_state_lib.SourceState(),
+        psidot=psidot.value,
     )
     (pohm,) = output.profiles
-    psidot = psi_calculations.calculate_psidot_from_psi_sources(
-        psi_sources=zero_psi_sources,
-        sigma=sigma,
-        psi=psi,
-        geo=geo,
-    )
     large_aspect_ratio_pohm = (
-        j_toroidal_total * psidot / (2.0 * jnp.pi * geo.R_major_profile)
+        j_toroidal_total * psidot.value / (2.0 * jnp.pi * geo.R_major_profile)
     )
     np.testing.assert_allclose(
         np.asarray(pohm), large_aspect_ratio_pohm, rtol=3e-4
