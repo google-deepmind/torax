@@ -20,17 +20,18 @@ CHEASE, MEQ, etc.
 
 import dataclasses
 import functools
+from typing import Literal, TypeAlias, cast
 
 from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
-import scipy
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import interpolated_param
 from torax._src import jax_utils
+from torax._src import math_utils
 from torax._src.geometry import geometry
 from torax._src.geometry import geometry_provider
 from torax._src.output_tools import output_grid_context
@@ -54,6 +55,30 @@ _ZERO_ON_AXIS = frozenset({
     'vpr',
     'trapped_fraction',
 })
+
+_RADIAL_PROFILES = (
+    'psi',
+    'I_p_profile',
+    'Phi',
+    'R_in',
+    'R_out',
+    'F',
+    'int_dl_over_Bp',
+    'flux_surf_avg_1_over_R',
+    'flux_surf_avg_1_over_R2',
+    'flux_surf_avg_grad_psi',
+    'flux_surf_avg_grad_psi2',
+    'flux_surf_avg_grad_psi2_over_R2',
+    'flux_surf_avg_B2',
+    'flux_surf_avg_1_over_B2',
+    'delta_upper_face',
+    'delta_lower_face',
+    'elongation',
+    'vpr',
+    'trapped_fraction',
+)
+
+_SplineBcType: TypeAlias = Literal['natural', 'not-a-knot']
 
 
 @jax.tree_util.register_dataclass
@@ -107,7 +132,7 @@ class StandardGeometry(geometry.Geometry):
   psi: array_typing.FloatVectorCell
   psi_from_I_p: array_typing.FloatVectorCell
   psi_from_I_p_face: array_typing.FloatVectorFace
-  j_toroidal_total: array_typing.Array
+  j_toroidal_total: array_typing.FloatVectorCell
   j_toroidal_total_face: array_typing.FloatVectorFace
   delta_upper_face: array_typing.FloatVectorFace
   delta_lower_face: array_typing.FloatVectorFace
@@ -205,7 +230,7 @@ class StandardGeometryIntermediates:
   All inputs are 1D profiles vs normalized rho toroidal (rhon).
 
   Attributes:
-    geometry_type:  The type of geometry being represented (e.g., CHEASE, MEQ,
+    geometry_type: The type of geometry being represented (e.g., CHEASE, MEQ,
       EQDSK).
     R_major: Major radius defined as midplane average of the LCFS radius,
       :math:`R_\mathrm{major} = (R_\mathrm{max} + R_\mathrm{min}) / 2`
@@ -248,7 +273,7 @@ class StandardGeometryIntermediates:
       docstring for definition.
     elongation: Plasma elongation profile [dimensionless]. See `Geometry`
       docstring for definition.
-    vpr:  Profile of dVolume/d(rho_norm), where rho_norm is the normalized
+    vpr: Profile of dVolume/d(rho_norm), where rho_norm is the normalized
       toroidal flux coordinate [:math:`\mathrm{m^3}`].
     face_centers: Array of face center coordinates in normalized rho (0 to 1).
       For a grid with N cells, there are N+1 faces.
@@ -294,7 +319,7 @@ class StandardGeometryIntermediates:
   hires_factor: int
   z_magnetic_axis: array_typing.FloatScalar | None
   # Optional parameters not present in all geometry sources.
-  diverted: bool | None
+  diverted: array_typing.BoolScalar | None
   connection_length_target: array_typing.FloatScalar | None
   connection_length_divertor: array_typing.FloatScalar | None
   angle_of_incidence_target: array_typing.FloatScalar | None
@@ -304,366 +329,328 @@ class StandardGeometryIntermediates:
   trapped_fraction: array_typing.Array
 
   def __post_init__(self):
-    """Enforces sign conventions, extrapolates edge, and smooths near-axis.
+    """Enforces sign conventions, extrapolates edge, and smooths near-axis."""
+    # Prepending the magnetic axis changes the array length from N to N + 1
+    # conditionally on the runtime value `Phi[0] > 0.0`, which is not supported
+    # under `@jax.jit` (where output shapes must be static).
+    # TODO(b/398191165): Move magnetic-axis prepending to equilibrium file or
+    # config loading so this host-only non-JAX check can be removed.
+    if not isinstance(self.Phi, jax.core.Tracer):
+      if abs(float(np.asarray(self.Phi)[0])) > 0.0:
+        self._prepend_magnetic_axis()
 
-    Sign conventions - TODO(b/335204606): Replace with proper COCOS handling:
-    - psi must grow with radius, i.e. psi(axis) < psi(separatrix).
-    - Total I_p must be positive.
-    - Positive-definite quantities are enforced via abs(): Phi, F,
-      int_dl_over_Bp, vpr, flux_surf_avg_grad_psi, flux_surf_avg_grad_psi2,
-      flux_surf_avg_grad_psi2_over_R2.
-    Then:
-    - If the grid does not start on the magnetic axis, the axis is prepended.
-    - Edge extrapolation for a subset of attributes based on a Cubic spline fit.
-    - Near-axis smoothing for a subset of attributes based on an asymptotic
-      polynomial fit in rho_norm anchored at the smoothing boundary.
-    """
-
-    if self.psi[-1] < self.psi[0]:
-      object.__setattr__(self, 'psi', -self.psi)
-
-    if self.I_p_profile[-1] < 0:
-      object.__setattr__(self, 'I_p_profile', -self.I_p_profile)
-
-    object.__setattr__(self, 'Phi', np.abs(self.Phi))
-    object.__setattr__(self, 'F', np.abs(self.F))
-    object.__setattr__(self, 'int_dl_over_Bp', np.abs(self.int_dl_over_Bp))
-    object.__setattr__(self, 'vpr', np.abs(self.vpr))
-    object.__setattr__(
-        self, 'flux_surf_avg_grad_psi', np.abs(self.flux_surf_avg_grad_psi)
-    )
-    object.__setattr__(
-        self, 'flux_surf_avg_grad_psi2', np.abs(self.flux_surf_avg_grad_psi2)
-    )
     object.__setattr__(
         self,
-        'flux_surf_avg_grad_psi2_over_R2',
-        np.abs(self.flux_surf_avg_grad_psi2_over_R2),
+        'face_centers',
+        np.asarray(self.face_centers, dtype=jax_utils.get_np_dtype()),
     )
 
-    # The geometry is built assuming that the first grid point is the magnetic
-    # axis, but some equilibria do not start exactly at the magnetic axis. For
-    # these cases, prepend rho_norm=0 to the relevant profiles.
-    if self.Phi[0] > 0.0:
-      self._prepend_magnetic_axis()
-
-    rhon = np.sqrt(self.Phi / self.Phi[-1])
-
-    # Check if last flux surface is diverted and correct via spline fit if so
-    if self.diverted or self.flux_surf_avg_grad_psi2_over_R2[-1] < 1e-10:
-      # Create a lambda function for the Cubic spline fit.
-      spline = lambda rho, data, x, bc_type: scipy.interpolate.CubicSpline(
-          rho[:-1],
-          data[:-1],
-          bc_type=bc_type,
-      )(x)
-
-      # Decide on the bc_type based on demanding monotonic behaviour of g2.
-      # Natural bc_type means no second derivative at the spline edge, and will
-      # maintain monotonicity on extrapolation, but not recommended as default.
-      flux_surf_avg_grad_psi2_over_R2_edge = spline(
-          rhon,
-          self.flux_surf_avg_grad_psi2_over_R2,
-          1.0,
-          bc_type='not-a-knot',
-      )
-      int_dl_over_Bp_edge = spline(
-          rhon,
-          self.int_dl_over_Bp,
-          1.0,
-          bc_type='not-a-knot',
-      )
-      g2_edge_ratio = (
-          flux_surf_avg_grad_psi2_over_R2_edge * int_dl_over_Bp_edge**2
-      ) / (
-          self.flux_surf_avg_grad_psi2_over_R2[-2]
-          * self.int_dl_over_Bp[-2] ** 2
-      )
-      if g2_edge_ratio > 1.0:
-        bc_type = 'not-a-knot'
-      else:
-        bc_type = 'natural'
-      set_edge = lambda array: spline(rhon, array, 1.0, bc_type)
-      self.int_dl_over_Bp[-1] = set_edge(self.int_dl_over_Bp)
-      self.flux_surf_avg_grad_psi2_over_R2[-1] = set_edge(
-          self.flux_surf_avg_grad_psi2_over_R2
-      )
-      self.flux_surf_avg_1_over_R2[-1] = set_edge(self.flux_surf_avg_1_over_R2)
-      self.flux_surf_avg_grad_psi[-1] = set_edge(self.flux_surf_avg_grad_psi)
-      self.flux_surf_avg_grad_psi2[-1] = set_edge(self.flux_surf_avg_grad_psi2)
-      self.vpr[-1] = set_edge(self.vpr)
-
-    # Near-axis smoothing of quantities with known near-axis trends with rho.
-    idx_limit = int(np.argmin(np.abs(rhon - _RHO_SMOOTHING_LIMIT)))
-
-    # |grad(psi)| = R * Bp scales like rho_norm near the axis, so |grad(psi)|^2
-    # terms scale as rho_norm^2 + O(rho_norm^4) and |grad(psi)| scales as
-    # rho_norm + O(rho_norm^3).
-    self.flux_surf_avg_grad_psi2_over_R2[:] = _smooth_near_axis(
-        self.flux_surf_avg_grad_psi2_over_R2, rhon, idx_limit, order=2
+    dtype = jax_utils.get_dtype()
+    profiles = {
+        k: jnp.asarray(getattr(self, k), dtype=dtype) for k in _RADIAL_PROFILES
+    }
+    diverted_override = jnp.asarray(
+        False if self.diverted is None else self.diverted, dtype=bool
     )
-    self.flux_surf_avg_grad_psi2[:] = _smooth_near_axis(
-        self.flux_surf_avg_grad_psi2, rhon, idx_limit, order=2
+    rhon, processed = _preprocess_intermediate_profiles(
+        profiles, diverted_override
     )
-    self.flux_surf_avg_grad_psi[:] = _smooth_near_axis(
-        self.flux_surf_avg_grad_psi, rhon, idx_limit, order=1
-    )
-    # Warn if the input grid is too coarse, which can cause artifacts in
-    # derived quantities such as j_toroidal_total.
-    drho_norm = np.diff(rhon)
-    max_spacing = np.max(drho_norm)
-    if max_spacing > _COARSE_GRID_THRESHOLD:
-      logging.log_every_n_seconds(
-          logging.WARNING,
-          'The input equilibrium grid is coarse (max rho_norm spacing ='
-          ' %.4f > %.4f). This can create numerical artifacts in derived'
-          ' quantities such as j_toroidal_total. Consider using a'
-          ' higher-resolution equilibrium file.',
-          _COARSE_GRID_WARNING_INTERVAL_SEC,  # log every interval
-          max_spacing,
-          _COARSE_GRID_THRESHOLD,
-      )
+    for k, v in processed.items():
+      object.__setattr__(self, k, v)
+    _warn_if_coarse_grid(rhon)
 
   def _prepend_magnetic_axis(self) -> None:
-    """Prepends the magnetic axis (rho_norm=0) to the radial profiles.
-
-    Profiles that physically vanish on axis are set to zero there, and R_in and
-    R_out are both set to the midplane center of the first flux surface. All
-    other profiles are finite on axis and held at their value on the first flux
-    surface.
-    """
+    """Prepends the magnetic axis (rho_norm=0) to the radial profiles."""
     R_axis = 0.5 * (np.asarray(self.R_in)[0] + np.asarray(self.R_out)[0])
     axis_values = dict.fromkeys(_ZERO_ON_AXIS, 0.0)
     axis_values['R_in'] = R_axis
     axis_values['R_out'] = R_axis
-    for name, f in dataclasses.asdict(self).items():
-      # Skip scalar attributes (ndim != 1) and `face_centers` (which is the
-      # target TORAX mesh, not a profile from the input equilibrium).
+    for name, f in vars(self).items():
       if name == 'face_centers' or np.ndim(f) != 1:
         continue
-      f = np.asarray(f)
-      object.__setattr__(
-          self, name, np.insert(f, 0, axis_values.get(name, f[0]))
+      axis_value = axis_values.get(name, np.asarray(f)[0])
+      object.__setattr__(self, name, np.insert(f, 0, axis_value))
+
+
+@jax.jit
+def _preprocess_intermediate_profiles(
+    profiles: dict[str, jax.Array],
+    diverted_override: jax.Array,
+) -> tuple[jax.Array, dict[str, jax.Array]]:
+  """Preprocesses equilibrium profiles: signs, edge extrapolation, smoothing."""
+  p = dict(profiles)
+  # Sign conventions - TODO(b/335204606): Replace with proper COCOS handling:
+  # - psi must grow with radius, i.e. psi(axis) < psi(separatrix).
+  # - Total I_p must be positive.
+  # - Positive-definite quantities are enforced via abs().
+  p['psi'] = jnp.where(p['psi'][-1] < p['psi'][0], -p['psi'], p['psi'])
+  p['I_p_profile'] = jnp.where(
+      p['I_p_profile'][-1] < 0, -p['I_p_profile'], p['I_p_profile']
+  )
+  for k in (
+      'Phi',
+      'F',
+      'int_dl_over_Bp',
+      'vpr',
+      'flux_surf_avg_grad_psi',
+      'flux_surf_avg_grad_psi2',
+      'flux_surf_avg_grad_psi2_over_R2',
+  ):
+    p[k] = jnp.abs(p[k])
+
+  rhon = math_utils.sqrt_with_zero_gradient_at_zero(p['Phi'] / p['Phi'][-1])
+
+  # Diverted edge extrapolation:
+  # Quantities diverging at an X-point have singular values at the plasma
+  # boundary. If diverted, extrapolate edge values with cubic splines.
+  is_diverted = (
+      p['flux_surf_avg_grad_psi2_over_R2'][-1] < 1e-10
+  ) | diverted_override
+
+  def _extrapolate_when_diverted() -> dict[str, jax.Array]:
+    edge_grad_psi2 = _cubic_spline_extrapolate_edge(
+        rhon, p['flux_surf_avg_grad_psi2_over_R2'], 1.0, 'not-a-knot'
+    )
+    edge_int_dl = _cubic_spline_extrapolate_edge(
+        rhon, p['int_dl_over_Bp'], 1.0, 'not-a-knot'
+    )
+    g2_edge_ratio = (edge_grad_psi2 * edge_int_dl**2) / (
+        p['flux_surf_avg_grad_psi2_over_R2'][-2] * p['int_dl_over_Bp'][-2] ** 2
+    )
+    bc_type_is_not_a_knot = g2_edge_ratio > 1.0
+
+    def _extrapolate_with_bc(
+        bc_type: _SplineBcType, e_grad2: jax.Array, e_dl: jax.Array
+    ) -> dict[str, jax.Array]:
+      res = dict(p)
+      res['flux_surf_avg_grad_psi2_over_R2'] = _with_replaced_edge(
+          res['flux_surf_avg_grad_psi2_over_R2'], e_grad2
       )
+      res['int_dl_over_Bp'] = _with_replaced_edge(res['int_dl_over_Bp'], e_dl)
+      for name in (
+          'flux_surf_avg_1_over_R2',
+          'flux_surf_avg_grad_psi',
+          'flux_surf_avg_grad_psi2',
+          'vpr',
+      ):
+        e_val = _cubic_spline_extrapolate_edge(rhon, res[name], 1.0, bc_type)
+        res[name] = _with_replaced_edge(res[name], e_val)
+      return res
+
+    return jax.lax.cond(
+        bc_type_is_not_a_knot,
+        lambda: _extrapolate_with_bc(
+            'not-a-knot', edge_grad_psi2, edge_int_dl
+        ),
+        lambda: _extrapolate_with_bc(
+            'natural',
+            _cubic_spline_extrapolate_edge(
+                rhon, p['flux_surf_avg_grad_psi2_over_R2'], 1.0, 'natural'
+            ),
+            _cubic_spline_extrapolate_edge(
+                rhon, p['int_dl_over_Bp'], 1.0, 'natural'
+            ),
+        ),
+    )
+
+  extrapolated = jax.lax.cond(
+      is_diverted,
+      _extrapolate_when_diverted,
+      lambda: p,
+  )
+
+  # Near-axis smoothing:
+  # Equilibrium solvers approximate profiles near the magnetic axis with
+  # finite-resolution polynomials that can suffer from non-physical radial slope
+  # artifacts. Enforce correct asymptotic scaling near axis.
+  idx_limit = jnp.argmin(jnp.abs(rhon - _RHO_SMOOTHING_LIMIT))
+  smoothed = dict(extrapolated)
+  smoothed['flux_surf_avg_grad_psi2_over_R2'] = _smooth_near_axis(
+      smoothed['flux_surf_avg_grad_psi2_over_R2'], rhon, idx_limit, order=2
+  )
+  smoothed['flux_surf_avg_grad_psi2'] = _smooth_near_axis(
+      smoothed['flux_surf_avg_grad_psi2'], rhon, idx_limit, order=2
+  )
+  smoothed['flux_surf_avg_grad_psi'] = _smooth_near_axis(
+      smoothed['flux_surf_avg_grad_psi'], rhon, idx_limit, order=1
+  )
+
+  return rhon, smoothed
 
 
-def build_standard_geometry(
-    intermediates: StandardGeometryIntermediates,
+@functools.partial(jax.jit, static_argnames=('hires_factor',))
+def _build_standard_geometry_jitted(
+    profiles: dict[str, jax.Array],
+    mesh: torax_pydantic.Grid1D,
+    hires_factor: int,
 ) -> StandardGeometry:
-  """Build geometry object based on set of profiles from an EQ solution.
+  """Jitted constructor for standard geometry."""
+  dtype = jax_utils.get_dtype()
+  Phi = profiles['Phi']
+  B_0 = profiles['B_0']
+  R_major = profiles['R_major']
+  a_minor = profiles['a_minor']
 
-  Args:
-    intermediates: A StandardGeometryIntermediates object that holds the
-      intermediate values used to build a StandardGeometry for this timeslice.
-      These can either be direct or interpolated values.
-
-  Returns:
-    A StandardGeometry object.
-  """
-
-  # Toroidal flux coordinates
-  rho_intermediate = np.sqrt(intermediates.Phi / (np.pi * intermediates.B_0))
-  rho_norm_intermediate = rho_intermediate / rho_intermediate[-1]
-
-  # derived geometric quantities
-  dV_dpsi = intermediates.int_dl_over_Bp
-  idx_limit = int(
-      np.argmin(np.abs(rho_norm_intermediate - _RHO_SMOOTHING_LIMIT))
+  # Define toroidal flux coordinate (rho) at boundary (LCFS)
+  # rho = sqrt(Phi / (pi * B_0))
+  # derived from Phi = pi * r^2 * B_0
+  rho_intermediate = math_utils.sqrt_with_zero_gradient_at_zero(
+      Phi / (jnp.pi * B_0)
   )
-  # dV/dpsi and 1/R^2 are finite on axis while |grad(psi)| scales like rho_norm,
-  # so g0 (= <|grad(V)|>) scales as rho_norm (order=1), and g1 (= <|grad(V)|^2>)
-  # and g2 (= <|grad(V)|^2 / R^2>) scale as rho_norm^2 (order=2).
-  g0 = _smooth_near_axis(
-      intermediates.flux_surf_avg_grad_psi * dV_dpsi,
-      rho_norm_intermediate,
-      idx_limit,
-      order=1,
-  )  # <\nabla V>
-  g1 = _smooth_near_axis(
-      intermediates.flux_surf_avg_grad_psi2 * dV_dpsi**2,
-      rho_norm_intermediate,
-      idx_limit,
-      order=2,
-  )  # <(\nabla V)^2>
-  g2 = _smooth_near_axis(
-      intermediates.flux_surf_avg_grad_psi2_over_R2 * dV_dpsi**2,
-      rho_norm_intermediate,
-      idx_limit,
-      order=2,
-  )  # <(\nabla V)^2 / R^2>
-  g3 = intermediates.flux_surf_avg_1_over_R2  # <1/R**2>
-  g2g3_over_rhon = g2[1:] * g3[1:] / rho_norm_intermediate[1:]
-  g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
+  rho_b = rho_intermediate[-1]
+  rho_norm_intermediate = rho_intermediate / rho_b
 
-  # dV/drhon, dS/drhon
-  vpr = intermediates.vpr
-  spr = vpr * intermediates.flux_surf_avg_1_over_R / (2 * np.pi)
-
-  # Volume and area
-  volume_intermediate = scipy.integrate.cumulative_trapezoid(
-      y=vpr, x=rho_norm_intermediate, initial=0.0
-  )
-  area_intermediate = scipy.integrate.cumulative_trapezoid(
-      y=spr, x=rho_norm_intermediate, initial=0.0
-  )
-
-  # plasma current density
-  dI_tot_drhon = np.gradient(intermediates.I_p_profile, rho_norm_intermediate)
-
-  j_toroidal_total_face_bulk = dI_tot_drhon[1:] / spr[1:]
-
-  # For now set on-axis to the same as the second grid point, due to 0/0
-  # division.
-  j_toroidal_total_face_axis = j_toroidal_total_face_bulk[0]
-
-  j_toroidal_total = np.concatenate(
-      [np.array([j_toroidal_total_face_axis]), j_toroidal_total_face_bulk]
-  )
-
-  # fill geometry structure
-  # normalized grid
-  mesh = torax_pydantic.Grid1D(face_centers=intermediates.face_centers)
-  rho_b = rho_intermediate[-1]  # radius denormalization constant
-  # helper variables for mesh cells and faces
+  # Interpolate the profiles from the intermediate grid to the face and cell
+  # grids of the simulation.
   rho_face_norm = mesh.face_centers
   rho_norm = mesh.cell_centers
 
-  # High resolution versions for j (plasma current) and psi (poloidal flux)
-  # manipulations. Needed if psi is initialized from plasma current.
-  rho_hires_norm = geometry.increase_grid_resolution(
-      rho_face_norm, intermediates.hires_factor
+  # Function to interpolate profiles to the cell and face grids.
+  interp = lambda x, y: jnp.interp(x, rho_norm_intermediate, y)
+
+  # Define the grid profiles.
+  Phi_interp = interp(rho_norm, Phi)
+  Phi_face = interp(rho_face_norm, Phi)
+  R_in = interp(rho_norm, profiles['R_in'])
+  R_in_face = interp(rho_face_norm, profiles['R_in'])
+  R_out = interp(rho_norm, profiles['R_out'])
+  R_out_face = interp(rho_face_norm, profiles['R_out'])
+  F = interp(rho_norm, profiles['F'])
+  F_face = interp(rho_face_norm, profiles['F'])
+
+  # dV/dpsi = int_dl_over_Bp
+  dV_dpsi = profiles['int_dl_over_Bp']
+  idx_limit = jnp.argmin(jnp.abs(rho_norm_intermediate - _RHO_SMOOTHING_LIMIT))
+  g0_intermediate = _smooth_near_axis(
+      profiles['flux_surf_avg_grad_psi'] * dV_dpsi,
+      rho_norm_intermediate,
+      idx_limit,
+      order=1,
   )
-  rho_hires = rho_hires_norm * rho_b
-
-  rhon_interpolation_func = lambda x, y: np.interp(x, rho_norm_intermediate, y)
-  # V' for volume integrations on face grid
-  vpr_face = rhon_interpolation_func(rho_face_norm, vpr)
-  # V' for volume integrations on cell grid
-  vpr = rhon_interpolation_func(rho_norm, vpr)
-
-  # S' for area integrals on face grid
-  spr_face = rhon_interpolation_func(rho_face_norm, spr)
-  # S' for area integrals on cell grid
-  spr_cell = rhon_interpolation_func(rho_norm, spr)
-  spr_hires = rhon_interpolation_func(rho_hires_norm, spr)
-
-  # triangularity on cell grid
-  delta_upper_face = rhon_interpolation_func(
-      rho_face_norm, intermediates.delta_upper_face
+  g1_intermediate = _smooth_near_axis(
+      profiles['flux_surf_avg_grad_psi2'] * dV_dpsi**2,
+      rho_norm_intermediate,
+      idx_limit,
+      order=2,
   )
-  delta_lower_face = rhon_interpolation_func(
-      rho_face_norm, intermediates.delta_lower_face
+  g2_intermediate = _smooth_near_axis(
+      profiles['flux_surf_avg_grad_psi2_over_R2'] * dV_dpsi**2,
+      rho_norm_intermediate,
+      idx_limit,
+      order=2,
+  )
+  g3_intermediate = profiles['flux_surf_avg_1_over_R2']
+  g2g3_over_rhon_intermediate = jnp.concatenate([
+      jnp.zeros(1),
+      g2_intermediate[1:] * g3_intermediate[1:] / rho_norm_intermediate[1:],
+  ])
+
+  # Intermediate profiles for volume and area are defined by numerically
+  # integrating vpr and spr on the intermediate grid.
+  vpr_intermediate = profiles['vpr']
+  spr_intermediate = (
+      vpr_intermediate * profiles['flux_surf_avg_1_over_R'] / (2 * jnp.pi)
+  )
+  volume_intermediate = math_utils.cumulative_trapezoid(
+      y=vpr_intermediate, x=rho_norm_intermediate, initial=0.0
+  )
+  area_intermediate = math_utils.cumulative_trapezoid(
+      y=spr_intermediate, x=rho_norm_intermediate, initial=0.0
   )
 
-  # average triangularity
+  vpr = interp(rho_norm, vpr_intermediate)
+  vpr_face = interp(rho_face_norm, vpr_intermediate)
+  spr = interp(rho_norm, spr_intermediate)
+  spr_face = interp(rho_face_norm, spr_intermediate)
+  volume = interp(rho_norm, volume_intermediate)
+  volume_face = interp(rho_face_norm, volume_intermediate)
+  area = interp(rho_norm, area_intermediate)
+  area_face = interp(rho_face_norm, area_intermediate)
+
+  # delta_face is the average of delta_upper_face and delta_lower_face.
+  delta_upper_face = interp(rho_face_norm, profiles['delta_upper_face'])
+  delta_lower_face = interp(rho_face_norm, profiles['delta_lower_face'])
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
+  elongation = interp(rho_norm, profiles['elongation'])
+  elongation_face = interp(rho_face_norm, profiles['elongation'])
+  trapped_fraction_face = interp(rho_face_norm, profiles['trapped_fraction'])
 
-  # elongation
-  elongation = rhon_interpolation_func(rho_norm, intermediates.elongation)
-  elongation_face = rhon_interpolation_func(
-      rho_face_norm, intermediates.elongation
-  )
+  g0 = interp(rho_norm, g0_intermediate)
+  g0_face = interp(rho_face_norm, g0_intermediate)
 
-  Phi_face = rhon_interpolation_func(rho_face_norm, intermediates.Phi)
-  Phi = rhon_interpolation_func(rho_norm, intermediates.Phi)
-
-  F_face = rhon_interpolation_func(rho_face_norm, intermediates.F)
-  F = rhon_interpolation_func(rho_norm, intermediates.F)
-  F_hires = rhon_interpolation_func(rho_hires_norm, intermediates.F)
-
-  psi = rhon_interpolation_func(rho_norm, intermediates.psi)
-
-  j_toroidal_total_face = rhon_interpolation_func(
-      rho_face_norm, j_toroidal_total
-  )
-  j_toroidal_total = rhon_interpolation_func(rho_norm, j_toroidal_total)
-
-  I_p_profile_face = rhon_interpolation_func(
-      rho_face_norm, intermediates.I_p_profile
-  )
-
-  Rin_face = rhon_interpolation_func(rho_face_norm, intermediates.R_in)
-  Rin = rhon_interpolation_func(rho_norm, intermediates.R_in)
-
-  Rout_face = rhon_interpolation_func(rho_face_norm, intermediates.R_out)
-  Rout = rhon_interpolation_func(rho_norm, intermediates.R_out)
-
-  trapped_fraction_face = rhon_interpolation_func(
-      rho_face_norm, intermediates.trapped_fraction
-  )
-
-  g0_face = rhon_interpolation_func(rho_face_norm, g0)
-  g0 = rhon_interpolation_func(rho_norm, g0)
-
-  # g1 and g2 scale like rho_norm^2 near the axis, while vpr scales like
-  # rho_norm: flux surfaces near the axis are nested ellipses of minor radius r,
-  # so both the volume and the toroidal flux scale like r^2, i.e. V ~ rho_norm^2
-  # and vpr = dV/drho_norm ~ rho_norm, while |grad rho_norm| tends to a
-  # constant. Linear interpolation within the first equilibrium interval would
-  # make g1/vpr^2 and g2/vpr^2 diverge like 1/rho_norm there, so keep these
-  # ratios constant in that interval instead.
+  # Near axis g1 and g2 are set to be proportional to rho_norm^2 to avoid
+  # numerical noise in the input profiles.
   interp_near_axis = functools.partial(
       _interpolate_rho_norm_squared_near_axis,
       rho_norm_intermediate=rho_norm_intermediate,
-      vpr_intermediate=intermediates.vpr,
+      vpr_intermediate=vpr_intermediate,
   )
-  g1_face = interp_near_axis(rho_face_norm, g1, vpr_face)
-  g1 = interp_near_axis(rho_norm, g1, vpr)
+  g1 = interp_near_axis(rho_norm, g1_intermediate, vpr)
+  g1_face = interp_near_axis(rho_face_norm, g1_intermediate, vpr_face)
+  g2 = interp_near_axis(rho_norm, g2_intermediate, vpr)
+  g2_face = interp_near_axis(rho_face_norm, g2_intermediate, vpr_face)
+  g3 = interp(rho_norm, g3_intermediate)
+  g3_face = interp(rho_face_norm, g3_intermediate)
+  g2g3_over_rhon = interp(rho_norm, g2g3_over_rhon_intermediate)
+  g2g3_over_rhon_face = interp(rho_face_norm, g2g3_over_rhon_intermediate)
 
-  g2_face = interp_near_axis(rho_face_norm, g2, vpr_face)
-  g2 = interp_near_axis(rho_norm, g2, vpr)
+  gm4 = interp(rho_norm, profiles['flux_surf_avg_1_over_B2'])
+  gm4_face = interp(rho_face_norm, profiles['flux_surf_avg_1_over_B2'])
+  gm5 = interp(rho_norm, profiles['flux_surf_avg_B2'])
+  gm5_face = interp(rho_face_norm, profiles['flux_surf_avg_B2'])
 
-  g3_face = rhon_interpolation_func(rho_face_norm, g3)
-  g3 = rhon_interpolation_func(rho_norm, g3)
+  # Total toroidal current density
+  dI_tot_drhon = cast(
+      jax.Array, jnp.gradient(profiles['I_p_profile'], rho_norm_intermediate)
+  )
+  j_toroidal_total_face_bulk = dI_tot_drhon[1:] / spr_intermediate[1:]
+  j_toroidal_total_intermediate = jnp.concatenate(
+      [j_toroidal_total_face_bulk[:1], j_toroidal_total_face_bulk]
+  )
+  j_toroidal_total = interp(rho_norm, j_toroidal_total_intermediate)
+  j_toroidal_total_face = interp(rho_face_norm, j_toroidal_total_intermediate)
+  I_p_profile_face = interp(rho_face_norm, profiles['I_p_profile'])
 
-  g2g3_over_rhon_face = rhon_interpolation_func(rho_face_norm, g2g3_over_rhon)
-  g2g3_over_rhon_hires = rhon_interpolation_func(rho_hires_norm, g2g3_over_rhon)
-  g2g3_over_rhon = rhon_interpolation_func(rho_norm, g2g3_over_rhon)
-
-  # Alternative initial psi, consistent with the equilibrium I_p profile.
+  psi = interp(rho_norm, profiles['psi'])
   psi_from_I_p, psi_from_I_p_face = _calculate_psi_from_I_p(
       rho_norm_intermediate=rho_norm_intermediate,
-      I_p_profile=intermediates.I_p_profile,
-      psi_axis=intermediates.psi[0],
-      Phi_b=intermediates.Phi[-1],
+      I_p_profile=profiles['I_p_profile'],
+      psi_axis=profiles['psi'][0],
+      Phi_b=Phi[-1],
       rho_norm=rho_norm,
       rho_face_norm=rho_face_norm,
       g2g3_over_rhon_face=g2g3_over_rhon_face,
       F_face=F_face,
   )
 
-  gm4 = rhon_interpolation_func(rho_norm, intermediates.flux_surf_avg_1_over_B2)
-  gm4_face = rhon_interpolation_func(
-      rho_face_norm, intermediates.flux_surf_avg_1_over_B2
+  # High-resolution grid profiles
+  rho_hires_norm = geometry.increase_grid_resolution(
+      rho_face_norm, hires_factor
   )
-  gm5 = rhon_interpolation_func(rho_norm, intermediates.flux_surf_avg_B2)
-  gm5_face = rhon_interpolation_func(
-      rho_face_norm, intermediates.flux_surf_avg_B2
-  )
-
-  volume_face = rhon_interpolation_func(rho_face_norm, volume_intermediate)
-  volume = rhon_interpolation_func(rho_norm, volume_intermediate)
-
-  area_face = rhon_interpolation_func(rho_face_norm, area_intermediate)
-  area = rhon_interpolation_func(rho_norm, area_intermediate)
+  rho_hires = rho_hires_norm * rho_b
+  g2g3_over_rhon_hires = interp(rho_hires_norm, g2g3_over_rhon_intermediate)
+  F_hires = interp(rho_hires_norm, profiles['F'])
+  spr_hires = interp(rho_hires_norm, spr_intermediate)
 
   return StandardGeometry(
-      geometry_type=intermediates.geometry_type,
+      geometry_type=geometry.GeometryType.CHEASE,
       torax_mesh=mesh,
-      Phi=Phi,
+      Phi=Phi_interp,
       Phi_face=Phi_face,
-      R_major=intermediates.R_major,
-      a_minor=intermediates.a_minor,
-      B_0=intermediates.B_0,
+      R_major=R_major,
+      a_minor=a_minor,
+      B_0=B_0,
       volume=volume,
       volume_face=volume_face,
       area=area,
       area_face=area_face,
       vpr=vpr,
       vpr_face=vpr_face,
-      spr=spr_cell,
+      spr=spr,
       spr_face=spr_face,
       delta_face=delta_face,
+      delta_upper_face=delta_upper_face,
+      delta_lower_face=delta_lower_face,
       trapped_fraction_face=trapped_fraction_face,
       g0=g0,
       g0_face=g0_face,
@@ -673,37 +660,69 @@ def build_standard_geometry(
       g2_face=g2_face,
       g3=g3,
       g3_face=g3_face,
-      g2g3_over_rhon=g2g3_over_rhon,
-      g2g3_over_rhon_face=g2g3_over_rhon_face,
-      g2g3_over_rhon_hires=g2g3_over_rhon_hires,
       gm4=gm4,
       gm4_face=gm4_face,
       gm5=gm5,
       gm5_face=gm5_face,
+      g2g3_over_rhon=g2g3_over_rhon,
+      g2g3_over_rhon_face=g2g3_over_rhon_face,
+      g2g3_over_rhon_hires=g2g3_over_rhon_hires,
       F=F,
       F_face=F_face,
       F_hires=F_hires,
-      R_in=Rin,
-      R_in_face=Rin_face,
-      R_out=Rout,
-      R_out_face=Rout_face,
+      R_in=R_in,
+      R_in_face=R_in_face,
+      R_out=R_out,
+      R_out_face=R_out_face,
+      elongation=elongation,
+      elongation_face=elongation_face,
+      spr_hires=spr_hires,
+      rho_hires_norm=rho_hires_norm,
+      rho_hires=rho_hires,
+      Phi_b_dot=jnp.zeros((), dtype=dtype),
+      _z_magnetic_axis=jnp.asarray(0.0, dtype=dtype),
       I_p_profile_face=I_p_profile_face,
       psi=psi,
       psi_from_I_p=psi_from_I_p,
       psi_from_I_p_face=psi_from_I_p_face,
       j_toroidal_total=j_toroidal_total,
       j_toroidal_total_face=j_toroidal_total_face,
-      delta_upper_face=delta_upper_face,
-      delta_lower_face=delta_lower_face,
-      elongation=elongation,
-      elongation_face=elongation_face,
-      spr_hires=spr_hires,
-      rho_hires_norm=rho_hires_norm,
-      rho_hires=rho_hires,
-      # always initialize Phibdot as zero. It will be replaced once both geo_t
-      # and geo_t_plus_dt are provided, and set to be the same for geo_t and
-      # geo_t_plus_dt for each given time interval.
-      Phi_b_dot=np.zeros((), dtype=jax_utils.get_int_dtype()),
+      connection_length_target=None,
+      connection_length_divertor=None,
+      angle_of_incidence_target=None,
+      R_OMP=None,
+      R_target=None,
+      B_pol_OMP=None,
+      diverted=None,
+  )
+
+
+@array_typing.jaxtyped
+def build_standard_geometry(
+    intermediates: StandardGeometryIntermediates,
+) -> StandardGeometry:
+  """Build geometry object based on set of profiles from an EQ solution."""
+  mesh = torax_pydantic.Grid1D(
+      face_centers=np.asarray(intermediates.face_centers)
+  )
+  dtype = jax_utils.get_dtype()
+  profiles = {
+      k: jnp.asarray(getattr(intermediates, k), dtype=dtype)
+      for k in _RADIAL_PROFILES
+  }
+  profiles['R_major'] = jnp.asarray(intermediates.R_major, dtype=dtype)
+  profiles['a_minor'] = jnp.asarray(intermediates.a_minor, dtype=dtype)
+  profiles['B_0'] = jnp.asarray(intermediates.B_0, dtype=dtype)
+
+  geo = _build_standard_geometry_jitted(
+      profiles=profiles,
+      mesh=mesh,
+      hires_factor=intermediates.hires_factor,
+  )
+  return dataclasses.replace(
+      geo,
+      geometry_type=intermediates.geometry_type,
+      torax_mesh=mesh,
       _z_magnetic_axis=intermediates.z_magnetic_axis,
       diverted=intermediates.diverted,
       connection_length_target=intermediates.connection_length_target,
@@ -715,32 +734,113 @@ def build_standard_geometry(
   )
 
 
+def _solve_cubic_spline_moments(
+    x: jax.Array,
+    h: jax.Array,
+    delta: jax.Array,
+    bc_type: _SplineBcType,
+) -> jax.Array:
+  """Solves for cubic spline derivatives at the knots."""
+  dl_int = h[1:]
+  d_int = 2.0 * (h[:-1] + h[1:])
+  du_int = h[:-1]
+  rhs_int = 3.0 * (h[1:] * delta[:-1] + h[:-1] * delta[1:])
+  if bc_type == 'natural':
+    d0 = jnp.array(2.0, dtype=x.dtype)
+    du0 = jnp.array(1.0, dtype=x.dtype)
+    r0 = 3.0 * delta[0]
+    dln = jnp.array(1.0, dtype=x.dtype)
+    dn = jnp.array(2.0, dtype=x.dtype)
+    rn = 3.0 * delta[-1]
+  elif bc_type == 'not-a-knot':
+    d_left = x[2] - x[0]
+    d0 = h[1]
+    du0 = d_left
+    r0 = (
+        (h[0] + 2.0 * d_left) * h[1] * delta[0] + h[0] ** 2 * delta[1]
+    ) / d_left
+    d_right = x[-1] - x[-3]
+    dln = d_right
+    dn = h[-2]
+    rn = (
+        h[-1] ** 2 * delta[-2] + (2.0 * d_right + h[-1]) * h[-2] * delta[-1]
+    ) / d_right
+  else:
+    raise ValueError(f'Unsupported bc_type: {bc_type}')
+  dl = jnp.concatenate([jnp.zeros(1, dtype=x.dtype), dl_int, dln[None]])
+  d = jnp.concatenate([d0[None], d_int, dn[None]])
+  du = jnp.concatenate([du0[None], du_int, jnp.zeros(1, dtype=x.dtype)])
+  rhs = jnp.concatenate([r0[None], rhs_int, rn[None]])[:, None]
+  return jax.lax.linalg.tridiagonal_solve(dl, d, du, rhs)[:, 0]
+
+
+def _cubic_spline_eval(
+    x: array_typing.Array,
+    y: array_typing.Array,
+    x_eval: array_typing.Array | float,
+    bc_type: _SplineBcType,
+) -> jax.Array:
+  """Evaluates a 1D cubic spline at x_eval using pure JAX."""
+  x_arr = jnp.asarray(x)
+  y_arr = jnp.asarray(y, dtype=jnp.result_type(x_arr, y))
+  xq = jnp.asarray(x_eval, dtype=x_arr.dtype)
+  h = jnp.diff(x_arr)
+  delta = jnp.diff(y_arr) / h
+  s = _solve_cubic_spline_moments(x_arr, h, delta, bc_type)
+  idx = jnp.clip(
+      jnp.searchsorted(x_arr, xq, side='right') - 1, 0, x_arr.shape[0] - 2
+  )
+  dx = xq - x_arr[idx]
+  h_i = h[idx]
+  delta_i = delta[idx]
+  s_i = s[idx]
+  s_ip1 = s[idx + 1]
+  c2 = (3.0 * delta_i - 2.0 * s_i - s_ip1) / h_i
+  c3 = (s_i + s_ip1 - 2.0 * delta_i) / (h_i**2)
+  return y_arr[idx] + dx * (s_i + dx * (c2 + dx * c3))
+
+
+def _cubic_spline_extrapolate_edge(
+    rho: array_typing.Array,
+    data: array_typing.Array,
+    x: float | jax.Array,
+    bc_type: _SplineBcType,
+) -> jax.Array:
+  """Extrapolates edge using 1D cubic spline evaluated at x."""
+  return _cubic_spline_eval(rho[:-1], data[:-1], x, bc_type)
+
+
+def _with_replaced_edge(
+    array: array_typing.Array,
+    edge_value: chex.Numeric,
+) -> jax.Array:
+  """Returns a new array with the last element replaced by edge_value."""
+  array = jnp.asarray(array)
+  edge_array = jnp.reshape(
+      jnp.asarray(edge_value, dtype=array.dtype),
+      (1,),
+  )
+  return jnp.concatenate([array[:-1], edge_array])
+
+
 def _interpolate_rho_norm_squared_near_axis(
     rho_norm: array_typing.Array,
     y_intermediate: array_typing.Array,
     vpr: array_typing.Array,
     rho_norm_intermediate: array_typing.Array,
     vpr_intermediate: array_typing.Array,
-) -> np.ndarray:
-  """Linearly interpolates a quantity that scales like rho_norm^2 on axis.
-
-  Within the first equilibrium interval, y / vpr^2 is held at its value at the
-  first off-axis equilibrium point, since vpr scales like rho_norm there.
-
-  Args:
-    rho_norm: rho_norm values to interpolate to.
-    y_intermediate: Quantity on the equilibrium grid.
-    vpr: vpr at rho_norm.
-    rho_norm_intermediate: rho_norm of the equilibrium grid.
-    vpr_intermediate: vpr on the equilibrium grid.
-
-  Returns:
-    The quantity at rho_norm.
-  """
-  y = np.interp(rho_norm, rho_norm_intermediate, y_intermediate)
+) -> jax.Array:
+  """Linearly interpolates a quantity that scales like rho_norm^2 on axis."""
+  rho_norm = jnp.asarray(rho_norm)
+  rho_norm_intermediate = jnp.asarray(rho_norm_intermediate)
+  y_intermediate = jnp.asarray(y_intermediate)
+  vpr = jnp.asarray(vpr)
+  vpr_intermediate = jnp.asarray(vpr_intermediate)
+  y = jnp.interp(rho_norm, rho_norm_intermediate, y_intermediate)
   first_interval = rho_norm < rho_norm_intermediate[1]
-  y_over_vpr2 = y_intermediate[1] / vpr_intermediate[1] ** 2
-  return np.where(first_interval, y_over_vpr2 * vpr**2, y)
+  safe_vpr1 = jnp.where(vpr_intermediate[1] != 0.0, vpr_intermediate[1], 1.0)
+  y_over_vpr2 = y_intermediate[1] / safe_vpr1**2
+  return jnp.where(first_interval, y_over_vpr2 * vpr**2, y)
 
 
 def _calculate_psi_from_I_p(
@@ -750,105 +850,84 @@ def _calculate_psi_from_I_p(
     Phi_b: array_typing.FloatScalar,
     rho_norm: array_typing.Array,
     rho_face_norm: array_typing.Array,
-    g2g3_over_rhon_face: array_typing.Array,
-    F_face: array_typing.Array,
-) -> tuple[np.ndarray, np.ndarray]:
-  """Returns psi on the cell and face grids, consistent with I_p_profile.
-
-  I_p_profile is cubic-spline interpolated onto the transport faces, and the
-  face psi gradients are obtained by inverting the finite-volume I_p relation
-  used in `psi_calculations.calc_j_toroidal_total`. psi is then the cumulative
-  sum of these gradients from the axis.
-
-  Args:
-    rho_norm_intermediate: Normalized toroidal flux coordinate of the
-      equilibrium grid.
-    I_p_profile: Enclosed plasma current on the equilibrium grid [A].
-    psi_axis: Poloidal flux on the magnetic axis [Wb].
-    Phi_b: Toroidal flux at the LCFS [Wb].
-    rho_norm: Cell centers of the transport mesh.
-    rho_face_norm: Face centers of the transport mesh.
-    g2g3_over_rhon_face: g2g3_over_rhon on the transport faces.
-    F_face: F on the transport faces.
-
-  Returns:
-    psi_from_I_p on the cell and face grids [Wb].
-  """
-  I_p_face = scipy.interpolate.CubicSpline(rho_norm_intermediate, I_p_profile)(
-      rho_face_norm
+    g2g3_over_rhon_face: jax.Array,
+    F_face: jax.Array,
+) -> tuple[jax.Array, jax.Array]:
+  """Returns psi on the cell and face grids, consistent with I_p_profile."""
+  I_p_face = _cubic_spline_eval(
+      rho_norm_intermediate, I_p_profile, rho_face_norm, bc_type='not-a-knot'
   )
-  dpsi_drhon_face = np.zeros_like(rho_face_norm)
-  dpsi_drhon_face[1:] = (
+  dpsi_drhon_face = jnp.concatenate([
+      jnp.zeros(1, dtype=I_p_face.dtype),
       I_p_face[1:]
-      * (16 * constants.CONSTANTS.mu_0 * np.pi**3 * Phi_b)
-      / (g2g3_over_rhon_face[1:] * F_face[1:])
-  )
-  # dpsi/drho_norm is linear in rho_norm near the axis.
+      * (16 * constants.CONSTANTS.mu_0 * jnp.pi**3 * Phi_b)
+      / (g2g3_over_rhon_face[1:] * F_face[1:]),
+  ])
   psi_first_cell = (
       psi_axis + 0.5 * dpsi_drhon_face[1] * rho_norm[0] ** 2 / rho_face_norm[1]
   )
-  psi = psi_first_cell + np.concatenate(
-      [np.zeros(1), np.cumsum(dpsi_drhon_face[1:-1] * np.diff(rho_norm))]
+  psi = psi_first_cell + jnp.concatenate(
+      [jnp.zeros(1), jnp.cumsum(dpsi_drhon_face[1:-1] * jnp.diff(rho_norm))]
   )
-  psi_face = np.interp(rho_face_norm, rho_norm, psi)
-  psi_face[0] = psi_axis
-  psi_face[-1] = psi[-1] + dpsi_drhon_face[-1] * (
+  psi_face_interp = jnp.interp(rho_face_norm, rho_norm, psi)
+  edge_psi_face = psi[-1] + dpsi_drhon_face[-1] * (
       rho_face_norm[-1] - rho_norm[-1]
   )
-  return psi, psi_face
+  psi_face = jnp.concatenate([
+      jnp.asarray([psi_axis]),
+      psi_face_interp[1:-1],
+      jnp.asarray([edge_psi_face]),
+  ])
+  return cast(jax.Array, psi), psi_face
 
 
 def _smooth_near_axis(
     data: array_typing.Array,
     rhon: array_typing.Array,
-    idx_limit: int,
+    idx_limit: array_typing.IntScalar,
     order: int,
-) -> np.ndarray:
-  """Smooths near-axis data by fitting its asymptotic functional form in rhon.
-
-  For a quantity y(rhon) with leading near-axis scaling rhon^p, dividing out
-  rhon^p gives the asymptotic ratio y(rhon) / rhon^p, which is a smooth
-  flux-surface profile (symmetric across the magnetic axis) with zero radial
-  slope at rhon = 0. Its expansion around the axis therefore contains only even
-  powers of rhon:
-
-    y(rhon) = rhon^p * (c_1 + c_2 * rhon^2 + O(rhon^4))
-
-  Enforcing C^0 continuity y(r_limit) = y_limit at
-  (r_limit, y_limit) = (rhon[idx_limit], data[idx_limit]) eliminates
-  c_1 = y_limit / r_limit^p - c_2 * r_limit^2, leaving a single free parameter
-  c_2:
-
-    y(r) = y_limit * (r / r_limit)^p + c_2 * r^p * (r^2 - r_limit^2)
-
-  which is fit by unweighted least squares on the interior points
-  0 <= k < idx_limit.
-
-  Args:
-    data: 1D array of data on the equilibrium grid (with rhon[0] == 0).
-    rhon: 1D array of normalized toroidal flux coordinates.
-    idx_limit: Index up to which the near-axis fit is applied.
-    order: Leading power p of rhon on axis (1 or 2).
-
-  Returns:
-    Array with indices :idx_limit replaced by the anchored asymptotic fit.
-    No-op if idx_limit <= 1.
-  """
-  smoothed = np.array(data, copy=True)
-  if idx_limit <= 1:
-    return smoothed
-  r_limit = rhon[idx_limit]
-  y_limit = smoothed[idx_limit]
-  r_interior = np.asarray(rhon[:idx_limit])
-  y_interior = smoothed[:idx_limit]
-  leading_term = y_limit * (r_interior / r_limit) ** order
-  if idx_limit <= 2:
-    smoothed[:idx_limit] = leading_term
-    return smoothed
-  next_order_basis = (r_interior**order) * (r_interior**2 - r_limit**2)
-  # Closed form for least-squares solution for c2.
-  c2 = np.dot(next_order_basis, y_interior - leading_term) / np.dot(
-      next_order_basis, next_order_basis
+) -> jax.Array:
+  """Smooths near-axis data by fitting its asymptotic functional form in rhon."""
+  data_arr = jnp.asarray(data)
+  rhon_arr = jnp.asarray(rhon)
+  interior_mask = jnp.arange(data_arr.shape[0]) < idx_limit
+  r_limit = rhon_arr[idx_limit]
+  y_limit = data_arr[idx_limit]
+  safe_r_limit = jnp.where(r_limit > 0.0, r_limit, 1.0)
+  leading_term = jnp.where(
+      r_limit > 0.0, y_limit * (rhon_arr / safe_r_limit) ** order, data_arr
   )
-  smoothed[:idx_limit] = leading_term + c2 * next_order_basis
-  return smoothed
+  next_order_basis = jnp.where(
+      interior_mask,
+      (rhon_arr**order) * (rhon_arr**2 - r_limit**2),
+      0.0,
+  )
+  residual = jnp.where(interior_mask, data_arr - leading_term, 0.0)
+  denom = jnp.dot(next_order_basis, next_order_basis)
+  safe_denom = jnp.where(denom > 0.0, denom, 1.0)
+  c2 = jnp.where(
+      (idx_limit > 2) & (denom > 0.0),
+      jnp.dot(next_order_basis, residual) / safe_denom,
+      0.0,
+  )
+  fitted = leading_term + c2 * next_order_basis
+  return jnp.where((idx_limit > 1) & interior_mask, fitted, data_arr)
+
+
+def _warn_if_coarse_grid(rhon: jax.Array | np.ndarray) -> None:
+  """Warns if the equilibrium grid is too coarse, risking artifacts in j_toroidal_total."""
+  if isinstance(rhon, jax.core.Tracer):
+    return
+  drho_norm = np.diff(np.asarray(rhon))
+  max_spacing = np.max(drho_norm)
+  if max_spacing > _COARSE_GRID_THRESHOLD:
+    logging.log_every_n_seconds(
+        logging.WARNING,
+        'The input equilibrium grid is coarse (max rho_norm spacing ='
+        ' %.4f > %.4f). This can create numerical artifacts in derived'
+        ' quantities such as j_toroidal_total. Consider using a'
+        ' higher-resolution equilibrium file.',
+        _COARSE_GRID_WARNING_INTERVAL_SEC,
+        max_spacing,
+        _COARSE_GRID_THRESHOLD,
+    )

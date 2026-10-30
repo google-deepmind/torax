@@ -16,6 +16,7 @@
 
 import enum
 import os
+import pathlib
 from typing import IO
 
 import eqdsk
@@ -23,6 +24,8 @@ import numpy as np
 import scipy
 
 from torax._src import path_utils
+
+type PathLike = str | os.PathLike[str]
 
 
 @enum.unique
@@ -35,11 +38,11 @@ class GeometrySource(enum.Enum):
 
 
 def _load_CHEASE_file(  # pylint: disable=invalid-name
-    file_path: str,
+    file_path: PathLike,
 ) -> dict[str, np.ndarray]:
   """Loads the data from a CHEASE file into a dictionary."""
 
-  with open(file_path, 'r') as file:
+  with open(os.fspath(file_path), 'r') as file:
     chease_data = {}
     var_labels = file.readline().strip().split()[1:]  # ignore % comment column
 
@@ -58,10 +61,17 @@ def _load_CHEASE_file(  # pylint: disable=invalid-name
   }
 
 
-def _load_meq_file(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
+def _load_meq_file(
+    file_path: PathLike | IO[bytes],
+) -> dict[str, np.ndarray]:
   """Loads data into a dictionary from an MEQ LY or L file or file path."""
 
-  meq_data = scipy.io.loadmat(file_path)
+  fspath = (
+      os.fspath(file_path)
+      if isinstance(file_path, (str, os.PathLike))
+      else file_path
+  )
+  meq_data = scipy.io.loadmat(fspath)
 
   # Check for nested structured arrays common in MEQ outputs from MEQ meqlpack.
   # The actual data is often wrapped in a top-level "LY" or "L" key.
@@ -84,17 +94,16 @@ def _load_meq_file(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
   return meq_data
 
 
-def get_geometry_dir(geometry_dir: str | None = None) -> str:
+def get_geometry_dir(geometry_dir: PathLike | None = None) -> pathlib.Path:
   """Gets the default geometry directory if no geometry_dir is provided."""
   if geometry_dir is None:
-    relative_dir = "data/third_party/geo"
-    geometry_dir = os.path.join(path_utils.torax_path(), relative_dir)
-  return geometry_dir
+    geometry_dir = path_utils.torax_path() / "data/third_party/geo"
+  return pathlib.Path(geometry_dir).expanduser()
 
 
 def _load_eqdsk_file(
     cocos: int,
-    file_path: str,
+    file_path: PathLike,
 ) -> dict[str, np.ndarray]:
   """Loads data into a dictionary from an EQDSK file.
 
@@ -106,14 +115,14 @@ def _load_eqdsk_file(
     A dictionary containing the EQDSK data in COCOS 11.
   """
   eqdsk_object = eqdsk.EQDSKInterface.from_file(
-      file_path, from_cocos=cocos, to_cocos=11
+      os.fspath(file_path), from_cocos=cocos, to_cocos=11
   )
   return eqdsk_object.__dict__
 
 
 def load_geo_data(
-    geometry_dir: str | None,
-    geometry_file: str,
+    geometry_dir: PathLike | None,
+    geometry_file: PathLike,
     geometry_source: GeometrySource,
     cocos: int | None = None,
 ) -> dict[str, np.ndarray]:
@@ -133,8 +142,8 @@ def load_geo_data(
   Raises:
     ValueError: If geometry_source is not a valid GeometrySource.
   """
-  geometry_dir = get_geometry_dir(geometry_dir)
-  filepath = os.path.join(geometry_dir, geometry_file)
+  geometry_dir_path = get_geometry_dir(geometry_dir)
+  filepath = geometry_dir_path / geometry_file
 
   # initialize geometry from file
   match geometry_source:
