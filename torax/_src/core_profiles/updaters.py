@@ -38,6 +38,7 @@ from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import getters
 from torax._src.core_profiles import profile_conditions
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
@@ -180,7 +181,8 @@ def update_core_and_source_profiles_after_step(
   )
   v_loop_lcfs = (
       runtime_params_t_plus_dt.profile_conditions.v_loop_lcfs  # pylint: disable=g-long-ternary
-      if runtime_params_t_plus_dt.profile_conditions.use_v_loop_lcfs_boundary_condition
+      if runtime_params_t_plus_dt.profile_conditions.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
       else psi_calculations.calculate_v_loop_lcfs_from_psi(
           core_profiles_t.psi,
           updated_core_profiles_t_plus_dt.psi,

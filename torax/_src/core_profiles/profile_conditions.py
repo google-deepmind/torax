@@ -77,20 +77,20 @@ class ProfileConditions(torax_pydantic.ConfigBase):
 
   Attributes:
     I_p: Total plasma current in A. Required when `I_p_source` is
-      `PROFILE_CONDITIONS`; ignored otherwise. If
-      `use_v_loop_lcfs_boundary_condition` is True, only used as an initial
-      condition.
+      `PROFILE_CONDITIONS`; ignored otherwise. If `psi_bc_source` is `'v_loop'`,
+      only used as an initial condition.
     I_p_source: Source of the total plasma current `I_p`. Defaults to
       `PROFILE_CONDITIONS`. If `PROFILE_CONDITIONS` is used, then `I_p` is taken
       from the `I_p` attribute (which must be provided). If `GEOMETRY` is used,
       then `I_p` is taken from the numerical geometry (not supported for
       `CircularGeometry`).
-    use_v_loop_lcfs_boundary_condition: Boundary condition at LCFS for Vloop ( =
-      dspsi_lcfs/dt ). If use_v_loop_lcfs_boundary_condition is True, then the
-      specified Vloop at the LCFS is used as the boundary condition for the psi
-      equation; otherwise, I_p is used as the boundary condition. Can only be
-      True when `numerics.evolve_current` is True.
-    v_loop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ).
+    psi_bc_source: Source for the `psi` boundary condition at the LCFS (`'I_p'`
+      or `'v_loop'`). When `'I_p'`, `dpsi/drho_norm` at the LCFS is set from
+      `I_p`. When `'v_loop'`, `psi` at the LCFS is evolved from `v_loop_lcfs`
+      (and `I_p` is only used to set the initial condition). Can only be
+      `'v_loop'` when `numerics.evolve_current` is True.
+    v_loop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ) [V].
+      Required when `psi_bc_source` is `'v_loop'`.
     T_i_right_bc: Temperature boundary conditions at r=a_minor. If this is
       `None` the boundary condition will instead be taken from `T_i` and `T_e`
       at rhon=1.
@@ -151,12 +151,10 @@ class ProfileConditions(torax_pydantic.ConfigBase):
   I_p_source: Annotated[
       runtime_params_lib.IpSource, torax_pydantic.JAX_STATIC
   ] = runtime_params_lib.IpSource.PROFILE_CONDITIONS
-  use_v_loop_lcfs_boundary_condition: Annotated[
-      bool, torax_pydantic.JAX_STATIC
-  ] = False
-  v_loop_lcfs: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
+  psi_bc_source: Annotated[
+      runtime_params_lib.PsiBoundaryConditionSource, torax_pydantic.JAX_STATIC
+  ] = runtime_params_lib.PsiBoundaryConditionSource.I_P
+  v_loop_lcfs: torax_pydantic.TimeVaryingScalar | None = None
   T_i_right_bc: torax_pydantic.PositiveTimeVaryingScalar | None = None
   T_e_right_bc: torax_pydantic.PositiveTimeVaryingScalar | None = None
   T_i: torax_pydantic.PositiveTimeVaryingArray = (
@@ -276,6 +274,24 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       error_messages.append(
           "I_p must be provided when I_p_source is 'profile_conditions'."
       )
+
+    # Validate psi_bc_source attributes.
+    if (
+        self.psi_bc_source
+        == runtime_params_lib.PsiBoundaryConditionSource.V_LOOP
+    ):
+      if self.v_loop_lcfs is None:
+        error_messages.append(
+            'v_loop_lcfs must be set when psi_bc_source is "v_loop".'
+        )
+    elif (
+        self.psi_bc_source == runtime_params_lib.PsiBoundaryConditionSource.I_P
+    ):
+      if self.v_loop_lcfs is not None:
+        logging.warning(
+            'v_loop_lcfs is set but will be ignored because psi_bc_source is'
+            ' "I_p".'
+        )
 
     # Validate plasma current input order of magnitude.
     if self.I_p is not None and np.any(self.I_p.value < _MIN_I_P_AMPS):
@@ -470,6 +486,9 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       # I_p value is populated from geometry later in make_I_p_consistent.
       # Set a placeholder here so RuntimeParams.I_p is always a FloatScalar.
       runtime_params['I_p'] = 0.0
+
+    if self.v_loop_lcfs is None:
+      runtime_params['v_loop_lcfs'] = 0.0
 
     if self.T_e_right_bc is None:
       runtime_params['T_e_right_bc'] = self.T_e.get_value(

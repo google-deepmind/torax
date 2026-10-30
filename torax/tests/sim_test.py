@@ -517,9 +517,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Run the second sim
     config_dict_v_loop_bc = copy.deepcopy(config_dict_ip_bc)
-    config_dict_v_loop_bc['profile_conditions'][
-        'use_v_loop_lcfs_boundary_condition'
-    ] = True
+    config_dict_v_loop_bc['profile_conditions']['psi_bc_source'] = 'v_loop'
     config_dict_v_loop_bc['profile_conditions']['v_loop_lcfs'] = (
         times,
         sim_outputs_ip_bc._core_profiles.v_loop_lcfs,

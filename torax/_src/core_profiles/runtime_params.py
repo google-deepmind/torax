@@ -65,6 +65,13 @@ class IpSource(enum.StrEnum):
   GEOMETRY = 'geometry'
 
 
+class PsiBoundaryConditionSource(enum.StrEnum):
+  """Source for the poloidal flux (psi) boundary condition at the LCFS."""
+
+  I_P = 'I_p'
+  V_LOOP = 'v_loop'
+
+
 class NeBoundaryConditionMode(enum.StrEnum):
   """Mode for the electron density right boundary condition.
 
@@ -113,7 +120,7 @@ class RuntimeParams:
   current_profile_nu: float
   initial_j_is_total_current: bool = jax.tree.static()
   normalize_n_e_to_nbar: bool = jax.tree.static()
-  use_v_loop_lcfs_boundary_condition: bool = jax.tree.static()
+  psi_bc_source: PsiBoundaryConditionSource = jax.tree.static()
   n_e_right_bc_is_absolute: bool = jax.tree.static()
   initial_psi_source: InitialPsiSource = jax.tree.static()
   prescribed_fast_ions: tuple[PrescribedFastIonData, ...] = ()

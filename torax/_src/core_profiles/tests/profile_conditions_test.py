@@ -1059,6 +1059,38 @@ class ProfileConditionsTest(parameterized.TestCase):
         np.array([1.0, 0.0, 0.0, 2.0]),
     )
 
+  def test_psi_bc_source_validation_and_warnings(self):
+    with self.assertRaisesRegex(
+        pydantic.ValidationError, 'v_loop_lcfs must be set'
+    ):
+      profile_conditions.ProfileConditions(
+          I_p=15e6,
+          initial_psi_source='j',
+          psi_bc_source='v_loop',
+      )
+
+    pc_vloop = profile_conditions.ProfileConditions(
+        I_p=15e6,
+        initial_psi_source='j',
+        psi_bc_source='v_loop',
+        v_loop_lcfs=0.5,
+    )
+    self.assertEqual(
+        pc_vloop.psi_bc_source,
+        profile_conditions.runtime_params_lib.PsiBoundaryConditionSource.V_LOOP,
+    )
+
+    with self.assertLogs(level='WARNING') as cm:
+      profile_conditions.ProfileConditions(
+          I_p=15e6,
+          initial_psi_source='j',
+          psi_bc_source='I_p',
+          v_loop_lcfs=0.5,
+      )
+    self.assertIn(
+        'v_loop_lcfs is set but will be ignored', '\n'.join(cm.output)
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

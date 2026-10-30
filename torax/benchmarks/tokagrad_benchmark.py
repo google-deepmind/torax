@@ -172,7 +172,7 @@ CONFIG = {
     },
     "profile_conditions": {
         "I_p": 15000000,
-        "use_v_loop_lcfs_boundary_condition": False,
+        "psi_bc_source": "I_p",
         "T_e": (_RHO, _TE_INIT_KEV),
         "T_i": (_RHO, _TI_INIT_KEV),
         "T_e_right_bc": 0.25,

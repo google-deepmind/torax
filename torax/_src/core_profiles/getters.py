@@ -222,12 +222,16 @@ def get_updated_psi(
   else:
     value = profile_conditions_params.psi
 
+  use_v_loop = (
+      profile_conditions_params.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+  )
   right_face_grad_constraint = (
       psi_calculations.calculate_psi_grad_constraint_from_I_p(  # pylint: disable=g-long-ternary
           I_p=profile_conditions_params.I_p,
           geo=geo,
       )
-      if not profile_conditions_params.use_v_loop_lcfs_boundary_condition
+      if not use_v_loop
       else None
   )
   right_face_constraint = (
@@ -241,7 +245,7 @@ def get_updated_psi(
               current_diffusion_time_reduction_factor
           ),
       )
-      if profile_conditions_params.use_v_loop_lcfs_boundary_condition
+      if use_v_loop
       else None
   )
   return cell_variable.CellVariable(
