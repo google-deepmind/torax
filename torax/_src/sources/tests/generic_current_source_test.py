@@ -21,6 +21,11 @@ class GenericCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
 
   source_config_class = generic_current_source.GenericCurrentSourceConfig
   source_name = generic_current_source.GenericCurrentSource.SOURCE_ID
+  extra_source_config_kwargs = {
+      'fraction_of_total_current': 0.2,
+      'gaussian_width': 0.05,
+      'gaussian_location': 0.4,
+  }
 
 
 if __name__ == '__main__':

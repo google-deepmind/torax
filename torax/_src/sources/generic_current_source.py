@@ -15,11 +15,13 @@
 """External current source profile."""
 
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+import logging
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
 from jax import numpy as jnp
+import pydantic
 from torax._src import array_typing
 from torax._src import math_utils
 from torax._src import state
@@ -114,11 +116,14 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
-    I_generic: total "external" current in A. Used if use_absolute_current=True.
-    fraction_of_total_current: total "external" current fraction. Used if
-      use_absolute_current=False.
-    gaussian_width: width of "external" Gaussian current profile
-    gaussian_location: normalized radius of "external" Gaussian current profile
+    I_generic: total "external" current in A. Required when mode is
+      'model_based' and use_absolute_current=True.
+    fraction_of_total_current: total "external" current fraction. Required when
+      mode is 'model_based' and use_absolute_current=False.
+    gaussian_width: width of "external" Gaussian current profile. Required when
+      mode is 'model_based'.
+    gaussian_location: normalized radius of "external" Gaussian current profile.
+      Required when mode is 'model_based'.
     use_absolute_current: Toggles if external current is provided absolutely or
       as a fraction of I_p.
   """
@@ -126,19 +131,48 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  I_generic: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      3.0e6
-  )
-  fraction_of_total_current: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.2)
-  )
-  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.05)
-  )
-  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.4)
-  )
+  I_generic: torax_pydantic.TimeVaryingScalar | None = None
+  fraction_of_total_current: (
+      torax_pydantic.UnitIntervalTimeVaryingScalar | None
+  ) = None
+  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar | None = None
   use_absolute_current: bool = False
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.use_absolute_current:
+        if self.I_generic is None:
+          raise ValueError(
+              "I_generic must be provided when mode is 'model_based' and"
+              ' use_absolute_current is True.'
+          )
+        if self.fraction_of_total_current is not None:
+          logging.warning(
+              'fraction_of_total_current is set but will be ignored because'
+              ' use_absolute_current is True.'
+          )
+      else:
+        if self.fraction_of_total_current is None:
+          raise ValueError(
+              'fraction_of_total_current must be provided when mode is'
+              " 'model_based' and use_absolute_current is False."
+          )
+        if self.I_generic is not None:
+          logging.warning(
+              'I_generic is set but will be ignored because'
+              ' use_absolute_current is False.'
+          )
+      if self.gaussian_width is None:
+        raise ValueError(
+            "gaussian_width must be provided when mode is 'model_based'."
+        )
+      if self.gaussian_location is None:
+        raise ValueError(
+            "gaussian_location must be provided when mode is 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -147,10 +181,24 @@ class GenericCurrentSourceConfig(source_base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        I_generic=self.I_generic.get_value(t),
-        fraction_of_total_current=self.fraction_of_total_current.get_value(t),
-        gaussian_width=self.gaussian_width.get_value(t),
-        gaussian_location=self.gaussian_location.get_value(t),
+        I_generic=0.0
+        if self.I_generic is None
+        else self.I_generic.get_value(t),
+        fraction_of_total_current=(
+            0.0
+            if self.fraction_of_total_current is None
+            else self.fraction_of_total_current.get_value(t)
+        ),
+        gaussian_width=(
+            1.0
+            if self.gaussian_width is None
+            else self.gaussian_width.get_value(t)
+        ),
+        gaussian_location=(
+            0.0
+            if self.gaussian_location is None
+            else self.gaussian_location.get_value(t)
+        ),
         use_absolute_current=self.use_absolute_current,
     )
 

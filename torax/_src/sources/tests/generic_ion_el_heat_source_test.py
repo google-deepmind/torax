@@ -23,6 +23,11 @@ class GenericIonElectronHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   source_name = (
       generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_ID
   )
+  extra_source_config_kwargs = {
+      'P_total': 120e6,
+      'gaussian_width': 0.25,
+      'gaussian_location': 0.0,
+  }
 
 
 if __name__ == '__main__':
