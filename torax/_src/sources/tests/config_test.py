@@ -66,7 +66,10 @@ class SourcesConfigTest(parameterized.TestCase):
       ),
       dict(
           config_dict={
-              'impurity_radiation': {'model_name': 'P_in_scaled_flat_profile'},
+              'impurity_radiation': {
+                  'model_name': 'P_in_scaled_flat_profile',
+                  'fraction_P_heating': 0.1,
+              },
           },
           expected_sources_model=impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
       ),
@@ -92,6 +95,7 @@ class SourcesConfigTest(parameterized.TestCase):
     sources = sources_config.SourcesConfig.from_dict({
         'gas_puff': {
             'puff_decay_length': 1.23,
+            'S_total': 1e22,
         },
         'ohmic': {
             'is_explicit': True,
@@ -109,6 +113,7 @@ class SourcesConfigTest(parameterized.TestCase):
     # With the overriding params.
     gas_puff_config = sources.gas_puff
     self.assertIsNotNone(gas_puff_config)
+    self.assertIsNotNone(gas_puff_config.puff_decay_length)
     self.assertEqual(
         gas_puff_config.puff_decay_length.get_value(0.0),
         1.23,
@@ -256,6 +261,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='P_total',
           initial_value=0.0,
           updated_value=1e6,
+          extra_fields={'gaussian_width': 0.1, 'gaussian_location': 0.0},
       ),
       dict(
           testcase_name='ei_exchange',
@@ -272,6 +278,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='S_total',
           initial_value=1e22,
           updated_value=2e22,
+          extra_fields={'puff_decay_length': 0.05},
       ),
       dict(
           testcase_name='generic_current',
@@ -280,6 +287,12 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='use_absolute_current',
           initial_value=False,
           updated_value=True,
+          extra_fields={
+              'fraction_of_total_current': 0.2,
+              'I_generic': 3.0e6,
+              'gaussian_width': 0.05,
+              'gaussian_location': 0.4,
+          },
       ),
       dict(
           testcase_name='generic_heat',
@@ -288,6 +301,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='P_total',
           initial_value=120e6,
           updated_value=130e6,
+          extra_fields={'gaussian_width': 0.25, 'gaussian_location': 0.0},
       ),
       dict(
           testcase_name='generic_particle',
@@ -296,6 +310,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='S_total',
           initial_value=1e22,
           updated_value=2e22,
+          extra_fields={'particle_width': 0.25, 'deposition_location': 0.0},
       ),
       dict(
           testcase_name='icrh_scaled_profile',
@@ -304,7 +319,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='reference_B0',
           initial_value=12.2,
           updated_value=8.71,
-          extra_fields={'minority_species': 'He3'},
+          extra_fields={'minority_species': 'He3', 'P_total': 10e6},
       ),
       dict(
           testcase_name='impurity_radiation_mavrin_fit',
@@ -329,6 +344,10 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='S_total',
           initial_value=2e22,
           updated_value=3e22,
+          extra_fields={
+              'pellet_width': 0.1,
+              'pellet_deposition_location': 0.85,
+          },
       ),
   )
   def test_sources_under_jit(
