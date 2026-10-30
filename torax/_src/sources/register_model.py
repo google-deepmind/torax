@@ -15,6 +15,7 @@
 
 from torax._src.sources import base
 from torax._src.sources import config as sources_config
+from torax._src.sources import runtime_params
 from torax._src.torax_pydantic import config
 
 
@@ -33,7 +34,7 @@ def register_source_config(
       subclass of SourceConfigBase that implements the interface and has a
       unique `model_name`.
   """
-  source = source_config_class().build_source()
+  source = source_config_class(mode=runtime_params.Mode.ZERO).build_source()
   source_id = source.SOURCE_ID
   if source_id == 'ei_exchange':
     raise ValueError(

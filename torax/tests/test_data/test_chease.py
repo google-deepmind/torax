@@ -46,6 +46,7 @@ CONFIG = {
         'gas_puff': {
             # total pellet particles/s
             'S_total': 0.0,
+            'puff_decay_length': 0.05,
         },
         'pellet': {
             # total pellet particles/s (continuous pellet model)
