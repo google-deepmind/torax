@@ -529,11 +529,11 @@ class TransportModelValidationTest(parameterized.TestCase):
 
     def loss(ti_grad):
       core_profiles = mock.MagicMock()
-      core_profiles.q_face = 1.5 * ones
-      core_profiles.s_face = ones
-      core_profiles.T_e.face_value.return_value = ones
-      core_profiles.T_i.face_value.return_value = ones
-      core_profiles.T_i.face_grad.return_value = ti_grad
+      core_profiles.flux.q_face = 1.5 * ones
+      core_profiles.flux.s_face = ones
+      core_profiles.kinetic.T_e.face_value.return_value = ones
+      core_profiles.kinetic.T_i.face_value.return_value = ones
+      core_profiles.kinetic.T_i.face_grad.return_value = ti_grad
       coeffs, _ = model.call_implementation(
           transport_runtime_params=t_params,
           runtime_params=runtime_params,

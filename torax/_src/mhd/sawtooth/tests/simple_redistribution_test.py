@@ -80,7 +80,7 @@ class SimpleRedistributionTest(parameterized.TestCase):
     )
 
     # Find the q=1 surface radius to pass to the model
-    q_face_before = core_profiles_t.q_face
+    q_face_before = core_profiles_t.flux.q_face
     self.assertLess(
         q_face_before[0],
         1.0,
@@ -103,7 +103,7 @@ class SimpleRedistributionTest(parameterized.TestCase):
     # Main check: Ensure no errors were raised.
     # Also, perform a basic check to ensure redistribution occurred.
     q_face_after = psi_calculations.calc_q_face(
-        geo_t, redistributed_core_profiles.psi
+        geo_t, redistributed_core_profiles.flux.psi
     )
     self.assertGreater(
         q_face_after[0],
@@ -155,7 +155,7 @@ class MixingRadiusClampingTest(parameterized.TestCase):
     )
     rho_norm_q1 = np.interp(
         1.0,
-        core_profiles_t.q_face,
+        core_profiles_t.flux.q_face,
         geo_t.rho_face_norm,
     )
     redistributed = redistribution_model(
@@ -182,11 +182,11 @@ class MixingRadiusClampingTest(parameterized.TestCase):
     redistributed, geo_t = self._build_and_run_redistribution(
         mixing_radius_multiplier=multiplier, n_rho=n_rho
     )
-    self.assertTrue(jnp.all(jnp.isfinite(redistributed.psi.value)))
-    self.assertTrue(jnp.all(jnp.isfinite(redistributed.T_i.value)))
-    self.assertTrue(jnp.all(jnp.isfinite(redistributed.T_e.value)))
-    self.assertTrue(jnp.all(jnp.isfinite(redistributed.n_e.value)))
-    q_face_after = psi_calculations.calc_q_face(geo_t, redistributed.psi)
+    self.assertTrue(jnp.all(jnp.isfinite(redistributed.flux.psi.value)))
+    self.assertTrue(jnp.all(jnp.isfinite(redistributed.kinetic.T_i.value)))
+    self.assertTrue(jnp.all(jnp.isfinite(redistributed.kinetic.T_e.value)))
+    self.assertTrue(jnp.all(jnp.isfinite(redistributed.kinetic.n_e.value)))
+    q_face_after = psi_calculations.calc_q_face(geo_t, redistributed.flux.psi)
     self.assertGreaterEqual(q_face_after[0], 1.0)
 
 

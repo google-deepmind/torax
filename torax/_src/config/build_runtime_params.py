@@ -318,7 +318,7 @@ def _update_ne_density_fraction_boundary_condition(
   multiplier = runtime_params.profile_conditions.n_e_right_bc_multiplier
 
   if core_profiles is not None:
-    n_e_face_values = core_profiles.n_e.face_value()
+    n_e_face_values = core_profiles.kinetic.n_e.face_value()
   else:  # Fall back to prescribed n_e profile (e.g. at initialization).
     n_e = getters_lib.get_updated_electron_density(
         runtime_params.profile_conditions, geo

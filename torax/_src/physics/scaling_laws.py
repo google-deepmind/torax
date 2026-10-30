@@ -26,7 +26,7 @@ import enum
 import jax
 from jax import numpy as jnp
 from torax._src import math_utils
-from torax._src import state
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -80,7 +80,7 @@ class PLHAuxiliaryData:
 
 def _calculate_P_LH_high_density(
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     line_average_n_e: jax.Array,
     scaling_law: PLHScalingLaw,
     divertor_factor: float = 1.0,
@@ -107,7 +107,7 @@ def _calculate_P_LH_high_density(
   line_avg_n_e_20 = line_average_n_e / 1e20  # [10^20 m^-3]
   Bt = geo.B_0  # [T]
   S = geo.g0_face[-1]  # Surface (not cross-section) area of LCFS [m^2]
-  Meff = core_profiles.A_i  # Effective main ion atomic mass [amu]
+  Meff = core_profiles.ions.A_i  # Effective main ion atomic mass [amu]
 
   P_LH_MW = (
       custom_prefactor  # Prefactor from the user
@@ -124,10 +124,10 @@ def _calculate_P_LH_high_density(
 
 def _calculate_line_average_n_e_at_P_LH_min(
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
 ) -> jax.Array:
   """Calculates the density at P_LH_min from equation 3 in Ryter 2014."""
-  I_p_total = core_profiles.I_p_profile_face[..., -1]
+  I_p_total = core_profiles.flux.I_p_profile_face[..., -1]
   return (
       0.7  # pyrefly: ignore[bad-return]
       * (I_p_total / 1e6) ** 0.34
@@ -140,7 +140,7 @@ def _calculate_line_average_n_e_at_P_LH_min(
 
 def calculate_P_LH(
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     scaling_law: PLHScalingLaw,
     divertor_configuration: DivertorConfiguration = (
         DivertorConfiguration.HORIZONTAL_TARGET
@@ -172,7 +172,9 @@ def calculate_P_LH(
   else:
     divertor_factor = 1.0
 
-  line_average_n_e = math_utils.line_average(core_profiles.n_e.value, geo)
+  line_average_n_e = math_utils.line_average(
+      core_profiles.kinetic.n_e.value, geo
+  )
   line_average_n_e_at_P_LH_min = _calculate_line_average_n_e_at_P_LH_min(
       geo, core_profiles
   )
@@ -217,7 +219,7 @@ def calculate_P_LH(
 
 def calculate_scaling_law_confinement_time(
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: solver_profiles.SolverProfiles,
     P_loss: jax.Array,
     scaling_law: str,
 ) -> jax.Array:
@@ -304,11 +306,11 @@ def calculate_scaling_law_confinement_time(
   # need to avoid NaNs.
   P_loss = jnp.maximum(P_loss, 1.0)
 
-  scaled_I_p = core_profiles.I_p_profile_face[-1] / 1e6  # convert to MA
+  scaled_I_p = core_profiles.flux.I_p_profile_face[-1] / 1e6  # convert to MA
   scaled_Ploss = P_loss / 1e6  # convert to MW
   B = geo.B_0
   line_avg_n_e = (  # convert to 10^19 m^-3
-      math_utils.line_average(core_profiles.n_e.value, geo) / 1e19
+      math_utils.line_average(core_profiles.kinetic.n_e.value, geo) / 1e19
   )
   R = geo.R_major
   inverse_aspect_ratio = geo.a_minor / geo.R_major
@@ -317,7 +319,7 @@ def calculate_scaling_law_confinement_time(
   # the standard definition used in geo.elongation.
   elongation = geo.area_face[-1] / (jnp.pi * geo.a_minor**2)
   # TODO(b/317360834): extend when multiple ions are supported.
-  effective_mass = core_profiles.A_i
+  effective_mass = core_profiles.ions.A_i
   triangularity = geo.delta_face[-1]
 
   tau_scaling = (
