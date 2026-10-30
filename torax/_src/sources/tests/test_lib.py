@@ -100,14 +100,10 @@ class SingleProfileSourceTestCase(SourceTestCase):
   def test_source_value_on_the_cell_grid(self):
     """Tests that the source can provide a value by default on the cell grid."""
     config_dict = default_configs.get_default_config_dict()
+    source_config_dict = dict(self.extra_source_config_kwargs)
     if self._model_name is not None:
-      config_dict['sources'] = {
-          self._source_name: {
-              'model_name': self._model_name,
-          }
-      }
-    else:
-      config_dict['sources'] = {self._source_name: {}}
+      source_config_dict['model_name'] = self._model_name
+    config_dict['sources'] = {self._source_name: source_config_dict}
     torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     neoclassical_model = torax_config.neoclassical.build_model()
@@ -149,14 +145,10 @@ class MultipleProfileSourceTestCase(SourceTestCase):
   def test_source_values_on_the_cell_grid(self):
     """Tests that the source can provide values on the cell grid."""
     config_dict = default_configs.get_default_config_dict()
+    source_config_dict = dict(self.extra_source_config_kwargs)
     if self._model_name is not None:
-      config_dict['sources'] = {
-          self._source_name: {
-              'model_name': self._model_name,
-          }
-      }
-    else:
-      config_dict['sources'] = {self._source_name: {}}
+      source_config_dict['model_name'] = self._model_name
+    config_dict['sources'] = {self._source_name: source_config_dict}
     torax_config = config.ToraxConfig.from_dict(config_dict)
     source_models = torax_config.sources.build_models()
     source = source_models.standard_sources[self._source_name]
