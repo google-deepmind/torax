@@ -416,18 +416,18 @@ class SimTest(sim_test_case.SimTestCase):
 
     history = run_simulation.run_simulation(torax_config, progress_bar=False)
 
-    history_length = history._stacked_core_profiles.T_i.value.shape[0]
+    history_length = history._core_profiles.T_i.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
     self.assertGreater(
         history.times[-1], torax_config.time_step_calculator.t_final
     )
     profiles_to_check = (
-        (output_keys.T_I, history._stacked_core_profiles.T_i),
-        (output_keys.T_E, history._stacked_core_profiles.T_e),
-        (output_keys.N_E, history._stacked_core_profiles.n_e),
-        (output_keys.PSI, history._stacked_core_profiles.psi),
-        (output_keys.Q, history._stacked_core_profiles.q_face),
-        (output_keys.MAGNETIC_SHEAR, history._stacked_core_profiles.s_face),
+        (output_keys.T_I, history._core_profiles.T_i),
+        (output_keys.T_E, history._core_profiles.T_e),
+        (output_keys.N_E, history._core_profiles.n_e),
+        (output_keys.PSI, history._core_profiles.psi),
+        (output_keys.Q, history._core_profiles.q_face),
+        (output_keys.MAGNETIC_SHEAR, history._core_profiles.s_face),
     )
 
     for profile_name, profile_history in profiles_to_check:
@@ -522,7 +522,7 @@ class SimTest(sim_test_case.SimTestCase):
     ] = True
     config_dict_v_loop_bc['profile_conditions']['v_loop_lcfs'] = (
         times,
-        sim_outputs_ip_bc._stacked_core_profiles.v_loop_lcfs,
+        sim_outputs_ip_bc._core_profiles.v_loop_lcfs,
     )
     torax_config = config.ToraxConfig.from_dict(config_dict_v_loop_bc)
     sim_outputs_v_loop_bc = run_simulation.run_simulation(
@@ -530,10 +530,10 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     profiles_to_check = (
-        sim_outputs_v_loop_bc._stacked_core_profiles.T_i,
-        sim_outputs_v_loop_bc._stacked_core_profiles.T_e,
-        sim_outputs_v_loop_bc._stacked_core_profiles.psi,
-        sim_outputs_v_loop_bc._stacked_core_profiles.n_e,
+        sim_outputs_v_loop_bc._core_profiles.T_i,
+        sim_outputs_v_loop_bc._core_profiles.T_e,
+        sim_outputs_v_loop_bc._core_profiles.psi,
+        sim_outputs_v_loop_bc._core_profiles.n_e,
     )
 
     for profile in profiles_to_check:

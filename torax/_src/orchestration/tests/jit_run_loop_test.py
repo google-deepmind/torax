@@ -125,15 +125,75 @@ class JitRunLoopTest(parameterized.TestCase):
     torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
 
-    states_default, _, sim_error_default = jit_run_loop.run_loop(step_fn)
+    states_default, outputs_default, sim_error_default = jit_run_loop.run_loop(
+        step_fn
+    )
     self.assertEqual(sim_error_default, torax.SimError.NO_ERROR)
-    self.assertLen(states_default, 3)
+    self.assertLen(states_default.t, 3)
+    for leaf in jax.tree.leaves((states_default, outputs_default)):
+      self.assertIsInstance(leaf, jax.Array)
+      self.assertEqual(leaf.shape[0], 3)
 
-    states_explicit, _, sim_error_explicit = jit_run_loop.run_loop(
-        step_fn, max_steps=5
+    states_explicit, outputs_explicit, sim_error_explicit = (
+        jit_run_loop.run_loop(step_fn, max_steps=5)
     )
     self.assertEqual(sim_error_explicit, torax.SimError.NO_ERROR)
-    self.assertLen(states_explicit, 3)
+    self.assertLen(states_explicit.t, 3)
+    for leaf in jax.tree.leaves((states_explicit, outputs_explicit)):
+      self.assertIsInstance(leaf, jax.Array)
+      self.assertEqual(leaf.shape[0], 3)
+      if jnp.issubdtype(leaf.dtype, jnp.floating):
+        self.assertFalse(bool(jnp.any(jnp.isnan(leaf))))
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='after_valid_step',
+          T_e={
+              0.0: {0.0: 2.0, 1.0: 2.0},
+              0.1: {0.0: 2.0, 1.0: 2.0},
+              0.2: {0.0: 0.1, 1.0: 0.1},
+          },
+          expected_times=[0.0, 0.1],
+      ),
+      dict(
+          testcase_name='at_t_initial',
+          T_e={0.0: {0.0: 0.1, 1.0: 0.1}},
+          expected_times=[0.0],
+      ),
+  )
+  def test_run_loop_early_stop_preserves_sim_error_and_drops_invalid_step(
+      self,
+      T_e,
+      expected_times,
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['numerics'] = {
+        'evolve_ion_heat': False,
+        'evolve_electron_heat': False,
+        'T_min_eV': 500.0,
+    }
+    config_dict['profile_conditions']['T_e'] = T_e
+    config_dict['profile_conditions']['T_i'] = {0.0: {0.0: 2.0, 1.0: 2.0}}
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        't_initial': 0.0,
+        't_final': 0.5,
+        'dt': 0.1,
+        'allow_backtracking': False,
+    }
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
+    step_fn = torax_experimental.make_step_fn(torax_config)
+
+    states, outputs, sim_error = jit_run_loop.run_loop(step_fn, max_steps=5)
+
+    self.assertEqual(sim_error, torax.SimError.LOW_TEMPERATURE_COLLAPSE)
+    chex.assert_trees_all_close(states.t, jnp.asarray(expected_times))
+    expected_num_states = len(expected_times)
+    for leaf in jax.tree.leaves((states, outputs)):
+      self.assertIsInstance(leaf, jax.Array)
+      self.assertEqual(leaf.shape[0], expected_num_states)
+      if jnp.issubdtype(leaf.dtype, jnp.floating):
+        self.assertFalse(bool(jnp.any(jnp.isnan(leaf))))
 
   def test_gradient(self):
 
@@ -287,9 +347,9 @@ class JitRunLoopTest(parameterized.TestCase):
       results = [f.result() for f in futures]
 
     self.assertLen(results, num_threads)
-    for unstacked_states, unstacked_outputs, _ in results:
-      self.assertNotEmpty(unstacked_states)
-      self.assertNotEmpty(unstacked_outputs)
+    for stacked_states, stacked_outputs, _ in results:
+      self.assertNotEmpty(stacked_states.t)
+      self.assertNotEmpty(stacked_outputs.Q_fusion)
 
     # Each run must have updated its own progress bar to the same progress.
     self.assertLen(pbars, num_threads)

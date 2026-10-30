@@ -133,8 +133,8 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
             post_processing.PostProcessedOutputs | None
         ) = None,
     ) -> tuple[
-        list[sim_state.SimState],
-        tuple[post_processing.PostProcessedOutputs, ...],
+        sim_state.SimState,
+        post_processing.PostProcessedOutputs,
         state.SimError,
     ]:
       del (  # pyrefly: ignore[unsupported-delete]
@@ -169,7 +169,11 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
           output_state,
           post_processed_outputs,
       )
-      return [output_state], (post_processed_outputs,), sim_error
+      stacked_state, stacked_outputs = jax.tree.map(
+          lambda x: jnp.expand_dims(x, axis=0),
+          (output_state, post_processed_outputs),
+      )
+      return stacked_state, stacked_outputs, sim_error
 
     with mock.patch.object(
         jit_run_loop, 'run_loop', wraps=_fake_run_loop

@@ -16,12 +16,15 @@
 
 from collections.abc import Sequence
 import dataclasses
+import functools
+from typing import Any
 
 import os
 
 from absl import logging
 import chex
 import jax
+import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import state
@@ -37,6 +40,19 @@ from torax._src.torax_pydantic import file_restart as file_restart_config
 import xarray as xr
 
 # Internal import.
+
+
+def _unstack_pytree(tree: Any) -> tuple[Any, ...]:
+  """Unstacks a PyTree with stacked array leaves along the leading axis."""
+  leaves, treedef = jax.tree.flatten(tree)
+  if not leaves:
+    return ()
+  num_steps = leaves[0].shape[0]
+  unstacked_leaves = [jnp.unstack(x) for x in leaves]
+  return tuple(
+      jax.tree.unflatten(treedef, [leaf[i] for leaf in unstacked_leaves])
+      for i in range(num_steps)
+  )
 
 
 def load_state_file(filepath: str) -> xr.DataTree:
@@ -120,67 +136,59 @@ class StateHistory:
 
   def __init__(
       self,
-      state_history: list[sim_state.SimState],
-      post_processed_outputs_history: tuple[
-          post_processing.PostProcessedOutputs, ...
-      ],
+      state_history: sim_state.SimState,
+      post_processed_outputs_history: post_processing.PostProcessedOutputs,
       sim_error: state.SimError,
       torax_config: config.ToraxConfig,
   ):
     self._sim_error = sim_error
     self._torax_config = torax_config
-    self._post_processed_outputs = post_processed_outputs_history
-    self._solver_numeric_outputs = [
-        state.solver_numeric_outputs for state in state_history
-    ]
-    self._core_profiles = [state.core_profiles for state in state_history]
+    self._times = jnp.asarray(state_history.t)
+    chex.assert_rank(self.times, 1)
+    core_profiles = state_history.core_profiles
     if (
         not torax_config.restart
         and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
-        and len(state_history) >= 2
+        and len(self._times) >= 2
     ):
       # For the I_p BC case, set v_loop_lcfs[0] to the same value as
       # v_loop_lcfs[1] due the v_loop_lcfs timeseries being
       # underconstrained.
-      self._core_profiles[0] = dataclasses.replace(
-          self._core_profiles[0],
-          v_loop_lcfs=self._core_profiles[1].v_loop_lcfs,
+      v_loop_lcfs = jnp.asarray(core_profiles.v_loop_lcfs)
+      core_profiles = dataclasses.replace(
+          core_profiles,
+          v_loop_lcfs=v_loop_lcfs.at[0].set(v_loop_lcfs[1]),
       )
-    self._core_sources = [state.core_sources for state in state_history]
-    self._edge_outputs = [state.edge_outputs for state in state_history]
-    self._transport = [state.core_transport for state in state_history]
-    self._geometries = [state.geometry for state in state_history]
-    self._stacked_geometry = geometry_lib.stack_geometries(self.geometries)
-    stack = lambda *ys: np.stack(ys)
-    self._stacked_core_profiles: state.CoreProfiles = jax.tree.map(
-        stack, *self._core_profiles
+    self._core_profiles: state.CoreProfiles = core_profiles
+    self._core_sources: source_profiles_lib.SourceProfiles = (
+        state_history.core_sources
     )
-    self._stacked_core_sources: source_profiles_lib.SourceProfiles = (
-        jax.tree.map(stack, *self._core_sources)
-    )
-    self._stacked_core_transport: state.CoreTransport = jax.tree.map(
-        stack, *self._transport
+    self._stacked_core_transport: state.CoreTransport = (
+        state_history.core_transport
     )
     self._stacked_post_processed_outputs: (
         post_processing.PostProcessedOutputs
-    ) = jax.tree.map(stack, *post_processed_outputs_history)
+    ) = post_processed_outputs_history
     self._stacked_solver_numeric_outputs: state.SolverNumericOutputs = (
-        jax.tree.map(stack, *self._solver_numeric_outputs)
+        state_history.solver_numeric_outputs
     )
-    # If self._edge_outputs is a list of Nones, stacked_edge_outputs will just
-    # be None, since jax.tree.map treats None as a node with no leaves.
-    self._stacked_edge_outputs: edge_base.EdgeModelOutputs = jax.tree.map(
-        stack, *self._edge_outputs
+    self._stacked_edge_outputs: edge_base.EdgeModelOutputs | None = (
+        state_history.edge_outputs
     )
+    self._geometry: geometry_lib.Geometry = state_history.geometry
 
-    self._times = np.array([state.t for state in state_history])
-    chex.assert_rank(self.times, 1)
     # The rho grid does not change in time so we can just take the first one.
-    self._rho_cell_norm = state_history[0].geometry.rho_norm
-    self._rho_face_norm = state_history[0].geometry.rho_face_norm
-    self._rho_norm = np.concatenate([[0.0], self.rho_cell_norm, [1.0]])
+    self._rho_cell_norm = state_history.geometry.rho_norm[0]
+    self._rho_face_norm = state_history.geometry.rho_face_norm[0]
+    self._rho_norm = jnp.concatenate([
+        jnp.zeros(1, dtype=self.rho_cell_norm.dtype),
+        self.rho_cell_norm,
+        jnp.ones(1, dtype=self.rho_cell_norm.dtype),
+    ])
 
-    self._output_grid_context = output_grid_context.OutputGridContext(
+  @property
+  def _output_grid_context(self) -> output_grid_context.OutputGridContext:
+    return output_grid_context.OutputGridContext(
         times=self.times,
         rho_face_norm=self.rho_face_norm,
         rho_cell_norm=self.rho_cell_norm,
@@ -217,60 +225,67 @@ class StateHistory:
     """Returns the rho on the cell grid with the left and right face boundaries."""
     return self._rho_norm
 
-  @property
+  @functools.cached_property
   def geometries(self) -> Sequence[geometry_lib.Geometry]:
     """Returns the geometries of the simulation."""
-    return self._geometries
+    return _unstack_pytree(self._geometry)
 
-  @property
+  @functools.cached_property
   def core_profiles(self) -> Sequence[state.CoreProfiles]:
     """Returns the core profiles."""
-    return self._core_profiles
+    return _unstack_pytree(self._core_profiles)
 
-  @property
+  @functools.cached_property
   def source_profiles(self) -> Sequence[source_profiles_lib.SourceProfiles]:
     """Returns the source profiles for the simulation."""
-    return self._core_sources
+    return _unstack_pytree(self._core_sources)
 
-  @property
+  @functools.cached_property
   def core_transport(self) -> Sequence[state.CoreTransport]:
     """Returns the core transport for the simulation."""
-    return self._transport
+    return _unstack_pytree(self._stacked_core_transport)
 
-  @property
+  @functools.cached_property
   def solver_numeric_outputs(self) -> Sequence[state.SolverNumericOutputs]:
     """Returns the solver numeric outputs."""
-    return self._solver_numeric_outputs
+    return _unstack_pytree(self._stacked_solver_numeric_outputs)
 
-  @property
+  @functools.cached_property
   def post_processed_outputs(
       self,
   ) -> Sequence[post_processing.PostProcessedOutputs]:
     """Returns the post processed outputs for the simulation."""
-    return self._post_processed_outputs
+    return _unstack_pytree(self._stacked_post_processed_outputs)
+
+  @functools.cached_property
+  def _edge_outputs(self) -> Sequence[edge_base.EdgeModelOutputs | None]:
+    """Returns the edge outputs for the simulation."""
+    if self._stacked_edge_outputs is None:
+      return (None,) * len(self.times)
+    return _unstack_pytree(self._stacked_edge_outputs)
 
   def _build_top_level_dataset(self) -> xr.Dataset:
     """Builds the top-level xr.Dataset with coordinates and config metadata."""
     time = xr.DataArray(
-        self.times,
+        np.asarray(self.times),
         dims=[output_keys.TIME],
         name=output_keys.TIME,
         attrs=output_keys.get_units(output_keys.TIME),
     )
     rho_face_norm = xr.DataArray(
-        self.rho_face_norm,
+        np.asarray(self.rho_face_norm),
         dims=[output_keys.RHO_FACE_NORM],
         name=output_keys.RHO_FACE_NORM,
         attrs=output_keys.get_units(output_keys.RHO_FACE_NORM),
     )
     rho_cell_norm = xr.DataArray(
-        self.rho_cell_norm,
+        np.asarray(self.rho_cell_norm),
         dims=[output_keys.RHO_CELL_NORM],
         name=output_keys.RHO_CELL_NORM,
         attrs=output_keys.get_units(output_keys.RHO_CELL_NORM),
     )
     rho_norm = xr.DataArray(
-        self.rho_norm,
+        np.asarray(self.rho_norm),
         dims=[output_keys.RHO_NORM],
         name=output_keys.RHO_NORM,
         attrs=output_keys.get_units(output_keys.RHO_NORM),
@@ -294,11 +309,11 @@ class StateHistory:
     """Builds the profiles and scalars xr.Datasets from stacked state dicts."""
     grid = self._output_grid_context
     output_dicts = [
-        self._stacked_core_profiles.to_output_dict(grid),
+        self._core_profiles.to_output_dict(grid),
         self._stacked_core_transport.to_output_dict(grid),
-        self._stacked_core_sources.to_output_dict(grid),
+        self._core_sources.to_output_dict(grid),
         self._stacked_post_processed_outputs.to_output_dict(grid),
-        self._stacked_geometry.to_output_dict(grid),
+        self._geometry.to_output_dict(grid),
     ]
     all_vars: dict[str, output_grid_context.OutputVar] = {}
     for d in output_dicts:
@@ -372,6 +387,9 @@ class StateHistory:
 
   def simulation_output_to_xr(self) -> xr.DataTree:
     """Build an xr.DataTree of the simulation output.
+
+    This method converts JAX arrays to NumPy arrays and cannot be called under
+    `jax.jit`.
 
     Returns:
       A xr.DataTree containing a single top level xr.Dataset and four child

@@ -15,10 +15,12 @@
 import dataclasses
 import json
 import os
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+import jax
 from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
@@ -51,6 +53,10 @@ import xarray as xr
 SequenceKey = tree_util.SequenceKey
 GetAttrKey = tree_util.GetAttrKey
 DictKey = tree_util.DictKey
+
+
+def _stack_pytrees(*trees):
+  return jax.tree.map(lambda *xs: jnp.stack(xs), *trees)
 
 
 class StateHistoryTest(parameterized.TestCase):
@@ -179,8 +185,8 @@ class StateHistoryTest(parameterized.TestCase):
 
     self.history = output.StateHistory(
         sim_error=sim_error,
-        state_history=[self.sim_state],
-        post_processed_outputs_history=(self._output_state,),
+        state_history=_stack_pytrees(self.sim_state),
+        post_processed_outputs_history=_stack_pytrees(self._output_state),
         torax_config=self.torax_config,
     )
 
@@ -224,8 +230,8 @@ class StateHistoryTest(parameterized.TestCase):
     )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=[self.sim_state, self.sim_state_t2],
-        post_processed_outputs_history=(
+        state_history=_stack_pytrees(self.sim_state, self.sim_state_t2),
+        post_processed_outputs_history=_stack_pytrees(
             self._output_state,
             self._output_state,
         ),
@@ -417,8 +423,8 @@ class StateHistoryTest(parameterized.TestCase):
     )
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=[torax_state, torax_state],
-        post_processed_outputs_history=(
+        state_history=_stack_pytrees(torax_state, torax_state),
+        post_processed_outputs_history=_stack_pytrees(
             post_processed_outputs,
             post_processed_outputs,
         ),
@@ -601,8 +607,8 @@ class StateHistoryTest(parameterized.TestCase):
     )
     history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=[sim_state_with_edge],
-        post_processed_outputs_history=(self._output_state,),
+        state_history=_stack_pytrees(sim_state_with_edge),
+        post_processed_outputs_history=_stack_pytrees(self._output_state),
         torax_config=self.torax_config,
     )
     output_xr = history.simulation_output_to_xr()
@@ -662,8 +668,8 @@ class StateHistoryTest(parameterized.TestCase):
     """Test that status attribute is set to 'error' when sim has errors."""
     # Create a history with an error state
     history_with_error = output.StateHistory(
-        state_history=[self.sim_state],
-        post_processed_outputs_history=(self._output_state,),
+        state_history=_stack_pytrees(self.sim_state),
+        post_processed_outputs_history=_stack_pytrees(self._output_state),
         sim_error=state.SimError.NAN_DETECTED,
         torax_config=self.torax_config,
     )
@@ -819,8 +825,10 @@ class StateHistoryTest(parameterized.TestCase):
 
     history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
-        state_history=[sim_state_t0, sim_state_t1],
-        post_processed_outputs_history=(self._output_state, self._output_state),
+        state_history=_stack_pytrees(sim_state_t0, sim_state_t1),
+        post_processed_outputs_history=_stack_pytrees(
+            self._output_state, self._output_state
+        ),
         torax_config=torax_config,
     )
 
@@ -981,6 +989,66 @@ class StateHistoryTest(parameterized.TestCase):
     # units kwarg is required (keyword-only).
     with self.assertRaises(TypeError):
       output_keys.OutputKey('test_no_units')  # type: ignore[call-arg]
+
+  def test_lazy_unstacking_and_jax_arrays(self):
+    """Tests that StateHistory keeps stacked JAX arrays and unstacks lazily."""
+    sim_state_t1 = dataclasses.replace(
+        self.sim_state,
+        t=jnp.array(0.1),
+        core_profiles=dataclasses.replace(
+            self.sim_state.core_profiles,
+            v_loop_lcfs=jnp.array(5.0),
+        ),
+    )
+    history = output.StateHistory(
+        sim_error=state.SimError.NO_ERROR,
+        state_history=_stack_pytrees(self.sim_state, sim_state_t1),
+        post_processed_outputs_history=_stack_pytrees(
+            self._output_state, self._output_state
+        ),
+        torax_config=self.torax_config,
+    )
+
+    # In __init__, stacked JAX arrays are kept as-is and unstacked properties
+    # are not yet evaluated.
+    self.assertIsInstance(history.times, jax.Array)
+    self.assertIsInstance(history._core_profiles.T_i.value, jax.Array)
+    for prop in (
+        'geometries',
+        'core_profiles',
+        'source_profiles',
+        'core_transport',
+        'solver_numeric_outputs',
+        'post_processed_outputs',
+    ):
+      self.assertNotIn(prop, history.__dict__)
+
+    # Building xarray converts stacked arrays to NumPy without unstacking.
+    output_xr = history.simulation_output_to_xr()
+    self.assertIsInstance(output_xr.dataset[output_keys.TIME].data, np.ndarray)
+    for prop in (
+        'geometries',
+        'core_profiles',
+        'source_profiles',
+        'core_transport',
+        'solver_numeric_outputs',
+        'post_processed_outputs',
+    ):
+      self.assertNotIn(prop, history.__dict__)
+
+    # Accessing sequence properties lazily unstacks into per-step JAX PyTrees
+    # and caches the result on subsequent accesses.
+    with mock.patch.object(
+        output, '_unstack_pytree', wraps=output._unstack_pytree
+    ) as mock_unstack:
+      core_profiles = history.core_profiles
+      self.assertIs(history.core_profiles, core_profiles)
+      mock_unstack.assert_called_once()
+    self.assertLen(core_profiles, 2)
+    self.assertIn('core_profiles', history.__dict__)
+    self.assertIsInstance(core_profiles[0].T_i.value, jax.Array)
+    np.testing.assert_allclose(core_profiles[0].v_loop_lcfs, 5.0)
+    np.testing.assert_allclose(core_profiles[1].v_loop_lcfs, 5.0)
 
 
 if __name__ == '__main__':
