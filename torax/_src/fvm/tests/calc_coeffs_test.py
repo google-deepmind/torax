@@ -14,9 +14,11 @@
 
 import copy
 import dataclasses
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import constants
@@ -27,6 +29,7 @@ from torax._src.fvm import discrete_system
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
+from torax._src.test_utils import default_configs
 from torax._src.test_utils import default_sources
 from torax._src.torax_pydantic import config
 
@@ -553,6 +556,104 @@ class CalcCoeffsTest(parameterized.TestCase):
               np.asarray(coeffs_zero.v_face[0]),
           )
       )
+
+  def test_calc_coeffs_updates_fast_ions_before_neoclassical(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['geometry'] = {'geometry_type': 'circular', 'n_rho': 4}
+    config_dict['numerics'] = {
+        'evolve_current': True,
+        'enable_fast_ions': True,
+    }
+    config_dict['plasma_composition'] = {
+        'main_ion': {'D': 0.5, 'T': 0.5},
+        'impurity': {
+            'impurity_mode': 'n_e_ratios',
+            'species': {'He3': 0.03},
+        },
+    }
+    config_dict['sources'] = {
+        'icrh': {
+            'model_name': 'scaled_profile',
+            'minority_species': 'He3',
+            'is_explicit': False,
+        },
+    }
+    config_dict['profile_conditions']['fast_ions'] = [
+        {
+            'source': 'icrh',
+            'species': 'He3',
+            'n': {0.0: {0.0: 1e19, 1.0: 1e19}},
+            'T': {0.0: {0.0: 100.0, 1.0: 100.0}},
+            'n_right_bc': 0.0,
+            'T_right_bc': 0.0,
+        }
+    ]
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    models = torax_config.build_models()
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    # Stale core_profiles with empty fast ions.
+    stale_core_profiles = dataclasses.replace(core_profiles, fast_ions=())
+    source_states = models.source_models.initial_state(runtime_params)
+    evolving_names = ('psi',)
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
+        source_models=models.source_models,
+        source_states=source_states,
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        explicit=True,
+    )
+    _, pedestal_state = models.pedestal_model.initialize(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_profiles=source_profile_builders.build_all_zero_profiles(geo),
+    )
+    model_state = model_state_lib.ModelState(
+        pedestal=pedestal_state,
+        transport=models.transport_model.initial_state(runtime_params),
+        sources=source_states,
+    )
+    explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
+        sources=explicit_source_profiles,
+        pedestal=None,
+    )
+
+    observed_core_profiles = []
+    original_calc = (
+        models.neoclassical_model.calculate_conductivity_current_and_rotation
+    )
+
+    def spy_calc(runtime_params, geo, core_profiles, **kwargs):
+      observed_core_profiles.append(core_profiles)
+      return original_calc(runtime_params, geo, core_profiles, **kwargs)
+
+    with jax.disable_jit():
+      with mock.patch.object(
+          type(models.neoclassical_model),
+          'calculate_conductivity_current_and_rotation',
+          side_effect=spy_calc,
+      ):
+        calc_coeffs.calc_coeffs(
+            runtime_params=runtime_params,
+            geo=geo,
+            core_profiles=stale_core_profiles,
+            explicit_model_outputs=explicit_model_outputs,
+            models=models,
+            evolving_names=evolving_names,
+            model_state=model_state,
+        )
+
+    self.assertLen(observed_core_profiles, 1)
+    passed_core_profiles = observed_core_profiles[0]
+    self.assertNotEmpty(passed_core_profiles.fast_ions)
+    passed_he3 = [
+        fi for fi in passed_core_profiles.fast_ions if fi.species == 'He3'
+    ]
+    self.assertLen(passed_he3, 1)
+    np.testing.assert_allclose(passed_he3[0].n.value, 1e19)
 
 
 if __name__ == '__main__':

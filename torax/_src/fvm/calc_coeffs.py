@@ -23,6 +23,7 @@ from torax._src import models as models_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import profile_conditions
 from torax._src.core_profiles import updaters
 from torax._src.fvm import block_1d_coeffs
 from torax._src.fvm import cell_variable
@@ -211,17 +212,10 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
-  (
-      conductivity,
-      bootstrap_current,
-      poloidal_velocity,
-      neoclassical_intermediates,
-  ) = models.neoclassical_model.calculate_conductivity_current_and_rotation(
-      runtime_params, geo, core_profiles
-  )
-  # Evaluate basic sources (fast ions and non-inductive psi sources) needed
-  # to compute psidot from spatial Ohm's law. Fast ions are not yet applied
-  # to core_profiles here.
+  # Evaluate basic sources (fast ions and non-inductive psi sources). Fast
+  # ions are applied to core_profiles before neoclassical calculations so that
+  # bootstrap current and downstream models observe the updated fast ion
+  # population.
   partial_source_profiles, updated_source_states = (
       source_profile_builders.build_basic_sources(
           runtime_params=runtime_params,
@@ -232,6 +226,23 @@ def _calc_coeffs_full(
           explicit=False,
           explicit_source_profiles=explicit_source_profiles,
       )
+  )
+  if runtime_params.numerics.enable_fast_ions:
+    fast_ions = profile_conditions.apply_prescribed_fast_ions(
+        sum(partial_source_profiles.fast_ions.values(), ()),
+        runtime_params.profile_conditions.prescribed_fast_ions,
+        geo.rho_face_norm,
+    )
+  else:
+    fast_ions = ()
+  core_profiles = dataclasses.replace(core_profiles, fast_ions=fast_ions)
+  (
+      conductivity,
+      bootstrap_current,
+      poloidal_velocity,
+      neoclassical_intermediates,
+  ) = models.neoclassical_model.calculate_conductivity_current_and_rotation(
+      runtime_params, geo, core_profiles
   )
   v_loop_lcfs = (
       runtime_params.profile_conditions.v_loop_lcfs

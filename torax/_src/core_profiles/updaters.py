@@ -238,41 +238,20 @@ def update_core_and_source_profiles_after_step(
       charge_state_info_face=ions.charge_state_info_face,
       fast_ions=core_profiles_t_plus_dt.fast_ions,
   )
-  (
-      conductivity,
-      bootstrap_current,
-      poloidal_velocity,
-      neoclassical_intermediates,
-  ) = neoclassical_model.calculate_conductivity_current_and_rotation(
-      runtime_params_t_plus_dt, geo, intermediate_core_profiles
-  )
-
-  intermediate_core_profiles = dataclasses.replace(
-      intermediate_core_profiles,
-      sigma=conductivity.sigma,
-      sigma_face=conductivity.sigma_face,
-      poloidal_velocity=poloidal_velocity.v_pol,
-  )
-
-  # build_source_profiles calculates the union with explicit + implicit
-  total_source_profiles, next_source_states = (
-      source_profile_builders.build_source_profiles(
+  partial_source_profiles, updated_source_states = (
+      source_profile_builders.build_basic_sources(
           runtime_params=runtime_params_t_plus_dt,
           geo=geo,
+          core_profiles=intermediate_core_profiles,
           source_models=source_models,
           source_states=source_states,
-          core_profiles=intermediate_core_profiles,
           explicit=False,
           explicit_source_profiles=explicit_source_profiles,
-          conductivity=conductivity,
-          bootstrap_current=bootstrap_current,
       )
   )
-
   if runtime_params_t_plus_dt.numerics.enable_fast_ions:
-    # Flatten the tuple of tuples, then apply prescribed overrides.
     fast_ions = profile_conditions.apply_prescribed_fast_ions(
-        sum(total_source_profiles.fast_ions.values(), ()),
+        sum(partial_source_profiles.fast_ions.values(), ()),
         runtime_params_t_plus_dt.profile_conditions.prescribed_fast_ions,
         geo.rho_face_norm,
     )
@@ -282,20 +261,45 @@ def update_core_and_source_profiles_after_step(
       intermediate_core_profiles,
       fast_ions=fast_ions,
   )
-
+  (
+      conductivity,
+      bootstrap_current,
+      poloidal_velocity,
+      neoclassical_intermediates,
+  ) = neoclassical_model.calculate_conductivity_current_and_rotation(
+      runtime_params_t_plus_dt, geo, intermediate_core_profiles
+  )
   psidot = psi_calculations.calculate_psidot(
       psi=intermediate_core_profiles.psi,
-      sigma=intermediate_core_profiles.sigma,
-      psi_sources=total_source_profiles.total_psi_sources(geo),
+      sigma=conductivity.sigma,
+      psi_sources=dataclasses.replace(
+          partial_source_profiles, bootstrap_current=bootstrap_current
+      ).total_psi_sources(geo),
       geo=geo,
       evolve_current=runtime_params_t_plus_dt.numerics.evolve_current,
       prescribed_psidot=runtime_params_t_plus_dt.profile_conditions.psidot,
       v_loop_lcfs=v_loop_lcfs,
   )
-
   core_profiles_t_plus_dt = dataclasses.replace(
       intermediate_core_profiles,
+      sigma=conductivity.sigma,
+      sigma_face=conductivity.sigma_face,
+      poloidal_velocity=poloidal_velocity.v_pol,
       psidot=psidot,
+  )
+
+  total_source_profiles, next_source_states = (
+      source_profile_builders.build_remaining_sources(
+          runtime_params=runtime_params_t_plus_dt,
+          geo=geo,
+          core_profiles=core_profiles_t_plus_dt,
+          source_models=source_models,
+          source_states=updated_source_states,
+          partial_source_profiles=partial_source_profiles,
+          explicit=False,
+          conductivity=conductivity,
+          bootstrap_current=bootstrap_current,
+      )
   )
   return (
       core_profiles_t_plus_dt,
