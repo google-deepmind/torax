@@ -28,8 +28,8 @@ from torax._src.core_profiles import profile_conditions as profile_conditions_li
 from torax._src.geometry import circular_geometry
 from torax._src.orchestration import run_simulation
 from torax._src.pedestal_model import config as pedestal_config
-from torax._src.pedestal_model import set_tped_nped
 from torax._src.pedestal_model.formation import prescribed_formation_model
+from torax._src.pedestal_model.structure import set_tped_nped
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import interpolated_param_1d

@@ -19,7 +19,7 @@ import numpy as np
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import config
+from torax._src.torax_pydantic import config as torax_pydantic_config
 
 # pylint: disable=invalid-name
 
@@ -50,8 +50,8 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         n_e_ped = {key: value / 1e20 for key, value in n_e_ped.items()}
       else:
         n_e_ped /= 1e20
-    config_dict = default_configs.get_default_config_dict()
-    config_dict['pedestal'] = {
+    config = default_configs.get_default_config_dict()
+    config['pedestal'] = {
         'structure_model': {
             'model_name': 'set_T_ped_n_ped',
             'T_i_ped': T_i_ped,
@@ -61,7 +61,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
             'n_e_ped_is_fGW': n_e_ped_is_fGW,
         }
     }
-    torax_config = config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_pydantic_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 

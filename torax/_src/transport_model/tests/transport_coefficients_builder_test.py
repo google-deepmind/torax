@@ -26,6 +26,7 @@ from torax._src.pedestal_model import (
 from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.transport_model import pereverzev as pereverzev_lib
 from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
@@ -80,7 +81,7 @@ class TransportCoefficientsBuilderTest(absltest.TestCase):
     self.runtime_params.pedestal.mode = None
 
     # Pedestal structure and outputs.
-    self.pedestal_structure = pedestal_model_output_lib.PedestalStructure(
+    self.pedestal_structure = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=jnp.asarray(0.7),
         T_i_ped=jnp.asarray(4.0),
         T_e_ped=jnp.asarray(4.0),

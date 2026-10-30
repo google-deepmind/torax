@@ -21,15 +21,16 @@ from typing import Annotated, Any, Literal, Self, TypeAlias
 import chex
 import pydantic
 from torax._src import array_typing
-from torax._src.pedestal_model import no_pedestal
 from torax._src.pedestal_model import pedestal_model
 from torax._src.pedestal_model import runtime_params
-from torax._src.pedestal_model import set_pped_tpedratio_nped
-from torax._src.pedestal_model import set_tped_nped
 from torax._src.pedestal_model.formation import base as formation_base
 from torax._src.pedestal_model.formation import power_scaling_formation_model
 from torax._src.pedestal_model.formation import prescribed_formation_model
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
+from torax._src.pedestal_model.structure import base as structure_base
+from torax._src.pedestal_model.structure import no_pedestal
+from torax._src.pedestal_model.structure import set_pped_tpedratio_nped
+from torax._src.pedestal_model.structure import set_tped_nped
 from torax._src.physics import scaling_laws
 from torax._src.torax_pydantic import torax_pydantic
 
@@ -304,7 +305,7 @@ class StructureConfigBase(torax_pydantic.ConfigBase):
   ] = runtime_params.PedestalProfileForm.SET_AT_PED_TOP
 
   @abc.abstractmethod
-  def build_structure_model(self) -> pedestal_model.PedestalStructureModel:
+  def build_structure_model(self) -> structure_base.PedestalStructureModel:
     """Builds the pedestal structure model."""
 
   def build_runtime_params(

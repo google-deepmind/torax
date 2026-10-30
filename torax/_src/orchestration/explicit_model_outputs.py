@@ -15,7 +15,7 @@
 
 import dataclasses
 import jax
-from torax._src.pedestal_model import pedestal_model_output
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.sources import source_profiles
 
 
@@ -34,4 +34,4 @@ class ExplicitModelOutputs:
   """
 
   sources: source_profiles.SourceProfiles
-  pedestal: pedestal_model_output.PedestalStructure | None
+  pedestal: pedestal_structure.PedestalStructure | None

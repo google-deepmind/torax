@@ -16,17 +16,17 @@ from jax import numpy as jnp
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
-from torax._src.torax_pydantic import config
+from torax._src.torax_pydantic import config as torax_pydantic_config
 
 
 class NoPedestalTest(absltest.TestCase):
 
   def test_build_and_call_model(self):
-    config_dict = default_configs.get_default_config_dict()
-    config_dict['pedestal'] = {
+    config = default_configs.get_default_config_dict()
+    config['pedestal'] = {
         'structure_model': {'model_name': 'no_pedestal'},
     }
-    torax_config = config.ToraxConfig.from_dict(config_dict)
+    torax_config = torax_pydantic_config.ToraxConfig.from_dict(config)
     source_models = torax_config.sources.build_models()
     pedestal_model = torax_config.pedestal.build_pedestal_model()
 

@@ -28,6 +28,7 @@ from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
 from torax._src.pedestal_model.formation import power_scaling_formation_model
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.physics import scaling_laws
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
@@ -50,7 +51,7 @@ def _make_previous_ibc_output(
     n_e_ped: float = 0.62e20,
 ) -> pedestal_model_output.IBCPedestalModelOutput:
   return pedestal_model_output.IBCPedestalModelOutput(
-      structure=pedestal_model_output.PedestalStructure(
+      structure=pedestal_structure.PedestalStructure(
           rho_norm_ped_top=jnp.array(rho_norm_ped_top),
           T_i_ped=jnp.array(T_i_ped),
           T_e_ped=jnp.array(T_e_ped),
@@ -152,7 +153,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
       explicit_pedestal: bool = False,
   ) -> tuple[
       pedestal_state_lib.IBCPedestalState,
-      pedestal_model_output.PedestalStructure | None,
+      pedestal_structure.PedestalStructure | None,
   ]:
     pedestal_params = dataclasses.replace(
         self.runtime_params.pedestal,
@@ -195,7 +196,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         '__call__',
         autospec=True,
         return_value=(
-            pedestal_model_output.PedestalStructure(
+            pedestal_structure.PedestalStructure(
                 rho_norm_ped_top=rho_norm_ped_top,
                 T_i_ped=6.0,
                 T_e_ped=6.0,
@@ -638,14 +639,14 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     )
     self.assertIsNotNone(explicit)
     self.assertIsInstance(
-        explicit, pedestal_model_output.PedestalStructure
+        explicit, pedestal_structure.PedestalStructure
     )
     np.testing.assert_allclose(explicit.T_i_ped, 4.5)
     self.assertEqual(new_state.structure, state.structure)
 
   def test_call_skips_structure_model_when_explicit_provided(self):
     state = self._make_ibc_state(ConfinementMode.H_MODE)
-    explicit_struct = pedestal_model_output.PedestalStructure(
+    explicit_struct = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=jnp.array(0.88),
         T_i_ped=jnp.array(5.5),
         T_e_ped=jnp.array(5.5),
@@ -907,13 +908,13 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
     )
     self.assertIsNotNone(explicit)
     self.assertIsInstance(
-        explicit, pedestal_model_output.PedestalStructure
+        explicit, pedestal_structure.PedestalStructure
     )
     self.assertEqual(new_state.structure, state.structure)
 
   def test_call_with_explicit_pedestal(self):
     state = self._make_adaptive_state(ConfinementMode.H_MODE)
-    explicit_struct = pedestal_model_output.PedestalStructure(
+    explicit_struct = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=jnp.array(0.9),
         T_i_ped=jnp.array(5.0),
         T_e_ped=jnp.array(5.0),

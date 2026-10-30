@@ -14,8 +14,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model.saturation import profile_value_saturation_model
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
@@ -59,7 +59,7 @@ class FromPedestalModelSaturationModelTest(parameterized.TestCase):
 
     # Construct a pedestal output that is asking for a pedestal with
     # target temperature.
-    pedestal_output = pedestal_model_output.PedestalStructure(
+    pedestal_output = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=self.geo.rho_face[ped_top_idx],
         T_i_ped=1.0,
         T_e_ped=current_T_e_ped * T_target_over_T_current,

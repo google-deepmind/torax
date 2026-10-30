@@ -32,6 +32,7 @@ from torax._src.pedestal_model import (
 from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
@@ -111,7 +112,7 @@ def _make_pedestal_output(
     ),
     adaptive_transport: bool = False,
 ) -> pedestal_model_output_lib.PedestalModelOutput:
-  structure = pedestal_model_output_lib.PedestalStructure(
+  structure = pedestal_structure.PedestalStructure(
       rho_norm_ped_top=jnp.asarray(rho_norm_ped_top),
       T_i_ped=jnp.asarray(4.0),
       T_e_ped=jnp.asarray(4.0),

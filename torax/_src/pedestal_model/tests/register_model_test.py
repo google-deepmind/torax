@@ -24,12 +24,10 @@ from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import config as pedestal_config
-from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
-from torax._src.pedestal_model import (
-    pedestal_model_output as pedestal_model_output_lib,
-)
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import register_model
+from torax._src.pedestal_model.structure import base as structure_base
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 from torax._src.torax_pydantic import torax_pydantic
@@ -66,7 +64,7 @@ class RegisterPedestalModelTest(absltest.TestCase):
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class FixedPedestalModel(pedestal_model_lib.PedestalStructureModel):
+class FixedPedestalModel(structure_base.PedestalStructureModel):
   """Fixed PedestalStructureModel for testing purposes."""
 
   def __call__(
@@ -76,12 +74,12 @@ class FixedPedestalModel(pedestal_model_lib.PedestalStructureModel):
       core_profiles: state.CoreProfiles,
       structure_state: pedestal_state_lib.StructureState,
   ) -> tuple[
-      pedestal_model_output_lib.PedestalStructure,
+      pedestal_structure.PedestalStructure,
       pedestal_state_lib.StructureState,
   ]:
     del runtime_params, geo, core_profiles
     return (
-        pedestal_model_output_lib.PedestalStructure(
+        pedestal_structure.PedestalStructure(
             rho_norm_ped_top=jnp.array(0.9),
             T_i_ped=jnp.array(5.0),
             T_e_ped=jnp.array(5.0),

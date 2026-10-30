@@ -32,6 +32,7 @@ from torax._src.internal_boundary_conditions import (
 from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 from typing_extensions import override
 
@@ -74,42 +75,8 @@ def _pedestal_cell_mask(
   return pedestal_face_mask(rho_face_norm, rho_norm_ped_top)[1:]
 
 
-@jax.tree_util.register_dataclass
-@dataclasses.dataclass(frozen=True)
-class PedestalStructure:
-  """Output of a PedestalStructureModel.
-
-  Attributes:
-    rho_norm_ped_top: The requested location of the pedestal top in rho_norm,
-      not quantized to either the cell or face grid.
-    T_i_ped: The ion temperature at the pedestal top in keV.
-    T_e_ped: The electron temperature at the pedestal top in keV.
-    n_e_ped: The electron density at the pedestal top in m^-3.
-  """
-
-  rho_norm_ped_top: array_typing.FloatScalar
-  T_i_ped: array_typing.FloatScalar
-  T_e_ped: array_typing.FloatScalar
-  n_e_ped: array_typing.FloatScalar
-
-  @classmethod
-  def no_pedestal(cls) -> Self:
-    """Returns a PedestalStructure representing an inactive or absent pedestal.
-
-    Uses `rho_norm_ped_top=jnp.inf` and `0.0` pedestal values so that radial
-    masks are False while maintaining a concrete PyTree structure compatible
-    with `jax.lax.cond`.
-    """
-    return cls(
-        rho_norm_ped_top=jnp.array(jnp.inf, dtype=jax_utils.get_dtype()),
-        T_i_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        T_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        n_e_ped=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-    )
-
-
 def _tanh_internal_boundary_conditions(
-    structure: PedestalStructure,
+    structure: pedestal_structure.PedestalStructure,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> internal_boundary_conditions_lib.InternalBoundaryConditions:
@@ -190,7 +157,7 @@ class PedestalModelOutput(abc.ABC):
     confinement_mode: Confinement mode (L_MODE, H_MODE, or transitioning).
   """
 
-  structure: PedestalStructure
+  structure: pedestal_structure.PedestalStructure
   # Cast to a JAX array so pytree leaves have weak_type=False and avoid
   # step-1 JIT recompilation of step_fn.
   confinement_mode: (
@@ -255,7 +222,7 @@ class IBCPedestalModelOutput(PedestalModelOutput):
       A default IBCPedestalModelOutput instance representing no pedestal.
     """
     return cls(
-        structure=PedestalStructure.no_pedestal(),
+        structure=pedestal_structure.PedestalStructure.no_pedestal(),
         confinement_mode=jnp.asarray(
             confinement_mode, dtype=jax_utils.get_int_dtype()
         ),
@@ -343,7 +310,7 @@ class AdaptiveTransportPedestalModelOutput(PedestalModelOutput):
       A default AdaptiveTransportPedestalModelOutput representing no pedestal.
     """
     return cls(
-        structure=PedestalStructure.no_pedestal(),
+        structure=pedestal_structure.PedestalStructure.no_pedestal(),
         confinement_mode=jnp.asarray(
             confinement_mode, dtype=jax_utils.get_int_dtype()
         ),

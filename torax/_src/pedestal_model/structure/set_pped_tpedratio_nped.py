@@ -23,10 +23,12 @@ from torax._src import constants
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model
-from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.pedestal_model import (
+    runtime_params as pedestal_runtime_params_lib,
+)
+from torax._src.pedestal_model.structure import base as structure_base
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.physics import formulas
 
 
@@ -34,7 +36,7 @@ from torax._src.physics import formulas
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class RuntimeParams(pedestal_runtime_params_lib.StructureRuntimeParams):
-  """Runtime params for the SetPressureTemperatureRatioAndDensityPedestalModel."""
+  """Runtime params for SetPressureTemperatureRatioAndDensityPedestalModel."""
 
   P_ped: array_typing.FloatScalar
   n_e_ped: array_typing.FloatScalar
@@ -46,7 +48,7 @@ class RuntimeParams(pedestal_runtime_params_lib.StructureRuntimeParams):
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class SetPressureTemperatureRatioAndDensityPedestalModel(
-    pedestal_model.PedestalStructureModel
+    structure_base.PedestalStructureModel
 ):
   """Pedestal structure model specifying pressure, temp ratio, and density."""
 
@@ -58,7 +60,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
       core_profiles: state.CoreProfiles,
       structure_state: pedestal_state_lib.StructureState,
   ) -> tuple[
-      pedestal_model_output.PedestalStructure,
+      pedestal_structure.PedestalStructure,
       pedestal_state_lib.StructureState,
   ]:
     structure_params = runtime_params.pedestal.structure
@@ -128,7 +130,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     T_i_ped = temperature_ratio * T_e_ped
 
     return (
-        pedestal_model_output.PedestalStructure(
+        pedestal_structure.PedestalStructure(
             n_e_ped=n_e_ped,
             T_i_ped=T_i_ped,
             T_e_ped=T_e_ped,

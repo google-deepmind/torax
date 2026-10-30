@@ -34,6 +34,8 @@ from torax._src.pedestal_model import (
 )
 from torax._src.pedestal_model.formation import base as formation_base
 from torax._src.pedestal_model.saturation import base as saturation_base
+from torax._src.pedestal_model.structure import base as structure_base
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.sources import source_profiles as source_profiles_lib
 
 # pylint: disable=invalid-name
@@ -41,38 +43,10 @@ from torax._src.sources import source_profiles as source_profiles_lib
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class PedestalStructureModel(static_dataclass.StaticDataclass, abc.ABC):
-  """Calculates temperature, density, and location of the pedestal."""
-
-  def initial_state(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> pedestal_state_lib.StructureState:
-    """Returns the initial StructureState for this model."""
-    del runtime_params, geo, core_profiles
-    return pedestal_state_lib.StructureState()
-
-  @abc.abstractmethod
-  def __call__(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      structure_state: pedestal_state_lib.StructureState,
-  ) -> tuple[
-      pedestal_model_output.PedestalStructure,
-      pedestal_state_lib.StructureState,
-  ]:
-    """Calculates the pedestal structure properties and updated state."""
-
-
-@dataclasses.dataclass(frozen=True, eq=False)
 class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
   """Calculates pedestal structure and transport multipliers."""
 
-  structure_model: PedestalStructureModel
+  structure_model: structure_base.PedestalStructureModel
   formation_model: formation_base.FormationModel
 
   @abc.abstractmethod
@@ -99,7 +73,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       previous_pedestal_output: pedestal_model_output.PedestalModelOutput,
   ) -> tuple[
       pedestal_state_lib.PedestalState,
-      pedestal_model_output.PedestalStructure | None,
+      pedestal_structure.PedestalStructure | None,
   ]:
     """Evaluates transition conditions and updates pedestal state."""
 
@@ -112,7 +86,7 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
       explicit_pedestal_structure: (
-          pedestal_model_output.PedestalStructure | None
+          pedestal_structure.PedestalStructure | None
       ) = None,
   ) -> tuple[
       pedestal_model_output.PedestalModelOutput,
@@ -218,7 +192,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       previous_pedestal_output: pedestal_model_output.PedestalModelOutput,
   ) -> tuple[
       pedestal_state_lib.IBCPedestalState,
-      pedestal_model_output.PedestalStructure | None,
+      pedestal_structure.PedestalStructure | None,
   ]:
     """Updates IBC transition state and evaluates explicit structure.
 
@@ -275,7 +249,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
       explicit_pedestal_structure: (
-          pedestal_model_output.PedestalStructure | None
+          pedestal_structure.PedestalStructure | None
       ) = None,
   ) -> tuple[
       pedestal_model_output.IBCPedestalModelOutput,
@@ -400,7 +374,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       previous_pedestal_output: pedestal_model_output.PedestalModelOutput,
   ) -> tuple[
       pedestal_state_lib.AdaptiveTransportPedestalState,
-      pedestal_model_output.PedestalStructure | None,
+      pedestal_structure.PedestalStructure | None,
   ]:
     """Evaluates transition conditions and updates confinement mode.
 
@@ -464,7 +438,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       confinement_mode: (
           pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
       ),
-      structure: pedestal_model_output.PedestalStructure,
+      structure: pedestal_structure.PedestalStructure,
       formation_state: pedestal_state_lib.FormationState,
   ) -> pedestal_model_output.TransportMultipliers:
     """Computes transport multipliers from formation and saturation models."""
@@ -498,7 +472,7 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
       explicit_pedestal_structure: (
-          pedestal_model_output.PedestalStructure | None
+          pedestal_structure.PedestalStructure | None
       ) = None,
   ) -> tuple[
       pedestal_model_output.AdaptiveTransportPedestalModelOutput,

@@ -20,9 +20,9 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src import jax_utils
-from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state
 from torax._src.pedestal_model import runtime_params as runtime_params_lib
+from torax._src.pedestal_model.structure import pedestal_structure
 
 # pylint: disable=invalid-name
 ConfinementMode = runtime_params_lib.ConfinementMode
@@ -97,7 +97,7 @@ class IBCPedestalStateTest(parameterized.TestCase):
         T_e_ped_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
     )
-    structure = pedestal_model_output.PedestalStructure(
+    structure = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=0.9,
         T_i_ped=5.0,
         T_e_ped=6.0,
@@ -123,7 +123,7 @@ class IBCPedestalStateTest(parameterized.TestCase):
         T_e_ped_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
     )
-    structure = pedestal_model_output.PedestalStructure(
+    structure = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=0.9,
         T_i_ped=5.0,
         T_e_ped=6.0,
@@ -150,7 +150,7 @@ class IBCPedestalStateTest(parameterized.TestCase):
         T_e_ped_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
     )
-    structure = pedestal_model_output.PedestalStructure(
+    structure = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=0.85,
         T_i_ped=5.0,
         T_e_ped=6.0,
@@ -179,7 +179,7 @@ class IBCPedestalStateTest(parameterized.TestCase):
         T_e_ped_L_mode=jnp.asarray(2.0, dtype=jax_utils.get_dtype()),
         n_e_ped_L_mode=jnp.asarray(3.0, dtype=jax_utils.get_dtype()),
     )
-    structure = pedestal_model_output.PedestalStructure(
+    structure = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=0.85,
         T_i_ped=5.0,
         T_e_ped=6.0,

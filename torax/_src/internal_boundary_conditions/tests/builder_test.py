@@ -32,6 +32,7 @@ from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.torax_pydantic import config
@@ -96,7 +97,7 @@ class BuilderTest(absltest.TestCase):
       confinement_mode: pedestal_runtime_params_lib.ConfinementMode,
       T_e_ped: float = 2.0,
   ) -> pedestal_model_output.IBCPedestalModelOutput:
-    output = pedestal_model_output.PedestalStructure(
+    output = pedestal_structure.PedestalStructure(
         T_i_ped=2.0,
         T_e_ped=T_e_ped,
         n_e_ped=1e19,
@@ -152,7 +153,7 @@ class BuilderTest(absltest.TestCase):
     runtime_params = self._make_runtime_params(
         profile_conditions_ibc=self.profile_conditions_ibc
     )
-    structure = pedestal_model_output.PedestalStructure(
+    structure = pedestal_structure.PedestalStructure(
         T_i_ped=2.0,
         T_e_ped=2.0,
         n_e_ped=1e19,

@@ -19,10 +19,8 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src.pedestal_model import (
-    pedestal_model_output as pedestal_model_output_lib,
-)
 from torax._src.pedestal_model import runtime_params as runtime_params_lib
+from torax._src.pedestal_model.structure import pedestal_structure
 
 # pylint: disable=invalid-name
 
@@ -133,10 +131,10 @@ class IBCPedestalState(PedestalState):
 
   def scale_structure(
       self,
-      structure: pedestal_model_output_lib.PedestalStructure,
+      structure: pedestal_structure.PedestalStructure,
       t: array_typing.FloatScalar,
       transition_time_width: array_typing.FloatScalar,
-  ) -> pedestal_model_output_lib.PedestalStructure:
+  ) -> pedestal_structure.PedestalStructure:
     """Applies ramp scaling to pedestal structure during transitions.
 
     During an L-H transition, linearly ramps from L-mode baseline values to the

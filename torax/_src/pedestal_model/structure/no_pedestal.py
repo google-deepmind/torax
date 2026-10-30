@@ -17,13 +17,13 @@ import dataclasses
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model
-from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
+from torax._src.pedestal_model.structure import base as structure_base
+from torax._src.pedestal_model.structure import pedestal_structure
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
-class NoPedestal(pedestal_model.PedestalStructureModel):
+class NoPedestal(structure_base.PedestalStructureModel):
   """A pedestal structure model for when there is no pedestal.
 
   This is a placeholder pedestal structure model that is used when there is no
@@ -38,11 +38,11 @@ class NoPedestal(pedestal_model.PedestalStructureModel):
       core_profiles: state.CoreProfiles,
       structure_state: pedestal_state_lib.StructureState,
   ) -> tuple[
-      pedestal_model_output.PedestalStructure,
+      pedestal_structure.PedestalStructure,
       pedestal_state_lib.StructureState,
   ]:
     del runtime_params, geo, core_profiles
     return (
-        pedestal_model_output.PedestalStructure.no_pedestal(),
+        pedestal_structure.PedestalStructure.no_pedestal(),
         structure_state,
     )

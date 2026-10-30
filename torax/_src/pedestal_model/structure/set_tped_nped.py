@@ -22,10 +22,12 @@ from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_model
-from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.pedestal_model import (
+    runtime_params as pedestal_runtime_params_lib,
+)
+from torax._src.pedestal_model.structure import base as structure_base
+from torax._src.pedestal_model.structure import pedestal_structure
 
 
 # pylint: disable=invalid-name
@@ -43,7 +45,7 @@ class RuntimeParams(pedestal_runtime_params_lib.StructureRuntimeParams):
 
 @dataclasses.dataclass(frozen=True, eq=False)
 class SetTemperatureDensityPedestalModel(
-    pedestal_model.PedestalStructureModel
+    structure_base.PedestalStructureModel
 ):
   """Pedestal structure model using direct temperature and density targets."""
 
@@ -55,7 +57,7 @@ class SetTemperatureDensityPedestalModel(
       core_profiles: state.CoreProfiles,
       structure_state: pedestal_state_lib.StructureState,
   ) -> tuple[
-      pedestal_model_output.PedestalStructure,
+      pedestal_structure.PedestalStructure,
       pedestal_state_lib.StructureState,
   ]:
     del core_profiles
@@ -76,7 +78,7 @@ class SetTemperatureDensityPedestalModel(
     )
 
     return (
-        pedestal_model_output.PedestalStructure(
+        pedestal_structure.PedestalStructure(
             n_e_ped=n_e_ped,
             T_i_ped=structure_params.T_i_ped,
             T_e_ped=structure_params.T_e_ped,

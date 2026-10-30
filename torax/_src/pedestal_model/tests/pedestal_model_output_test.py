@@ -27,6 +27,7 @@ from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import (
     runtime_params as pedestal_runtime_params_lib,
 )
+from torax._src.pedestal_model.structure import pedestal_structure
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 # pylint: disable=invalid-name
@@ -41,7 +42,7 @@ class PedestalStructureTest(parameterized.TestCase):
     self.geo.rho_face_norm = jnp.linspace(0, 1, 10)
     self.geo.rho = jnp.linspace(0, 1, 9)
     self.geo.rho_norm = jnp.linspace(0, 1, 9)
-    self.pedestal_model_output = pedestal_model_output.PedestalStructure(
+    self.pedestal_model_output = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=0.99,
         T_i_ped=1.0,
         T_e_ped=1.1,
@@ -345,7 +346,7 @@ class PedestalStructureTest(parameterized.TestCase):
 
   def test_modify_core_transport_smooths_across_core_and_pedestal(self):
     n_face = self.geo.rho_face_norm.shape[0]
-    structure = pedestal_model_output.PedestalStructure(
+    structure = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=0.7,
         T_i_ped=1.0,
         T_e_ped=1.1,
@@ -535,7 +536,7 @@ class PedestalStructureTest(parameterized.TestCase):
     geo = circular_geometry.CircularConfig(n_rho=25).build_geometry()
     rho_ped_top = float(geo.rho_norm[22])
     core_profiles = _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
-    structure = pedestal_model_output.PedestalStructure(
+    structure = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=rho_ped_top,
         T_i_ped=5.0,
         T_e_ped=4.0,
@@ -695,7 +696,7 @@ def _mtanh_ibc(
 ):
   """Returns the MTANH internal boundary conditions for T_i_ped = 4."""
   output = pedestal_model_output.IBCPedestalModelOutput(
-      structure=pedestal_model_output.PedestalStructure(
+      structure=pedestal_structure.PedestalStructure(
           rho_norm_ped_top=rho_norm_ped_top,
           T_i_ped=4.0,
           T_e_ped=4.0,
@@ -723,7 +724,7 @@ class PedestalModelOutputTest(parameterized.TestCase):
     self.geo.rho = jnp.linspace(0, 1, 9)
     self.geo.rho_norm = jnp.linspace(0, 1, 9)
     self.geo.torax_mesh = mock.MagicMock(nx=9)
-    self.structure = pedestal_model_output.PedestalStructure(
+    self.structure = pedestal_structure.PedestalStructure(
         rho_norm_ped_top=0.99,
         T_i_ped=1.0,
         T_e_ped=1.1,
@@ -773,7 +774,7 @@ class PedestalModelOutputTest(parameterized.TestCase):
     rho_ped_top = float(geo.rho_norm[22])
     core_profiles = _mtanh_core_profiles(geo, geo.rho_norm, 1.0)
     output_mtanh = pedestal_model_output.IBCPedestalModelOutput(
-        structure=pedestal_model_output.PedestalStructure(
+        structure=pedestal_structure.PedestalStructure(
             rho_norm_ped_top=rho_ped_top,
             T_i_ped=5.0,
             T_e_ped=4.0,
