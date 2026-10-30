@@ -67,6 +67,62 @@ class SourceModelsTest(parameterized.TestCase):
         hash(self.default_source_model), hash(test_source_model)
     )
 
+  def test_basic_sources(self):
+    sources_dict = default_sources.get_default_source_config()
+    sources_dict['ecrh'] = {}
+    sources_dict['icrh'] = {
+        'model_name': 'scaled_profile',
+        'minority_species': 'He3',
+    }
+    sources_dict['pellet'] = {}
+    sources_dict['impurity_radiation'] = {
+        'model_name': 'P_in_scaled_flat_profile',
+    }
+    configured_models = sources_config.SourcesConfig.from_dict(
+        sources_dict
+    ).build_models()
+
+    basic = configured_models.basic_sources
+    self.assertIn('generic_current', basic)
+    self.assertIn('ecrh', basic)
+    self.assertIn('icrh', basic)
+    self.assertIn('fusion', basic)
+    self.assertIn('pellet', basic)
+    self.assertIn('gas_puff', basic)
+    self.assertIn('bremsstrahlung', basic)
+
+    # Core profiles and final sources should not be in basic_sources
+    self.assertNotIn('ohmic', basic)
+    self.assertNotIn('impurity_radiation', basic)
+
+  def test_remaining_and_final_sources(self):
+    sources_dict = default_sources.get_default_source_config()
+    sources_dict['ecrh'] = {}
+    sources_dict['icrh'] = {
+        'model_name': 'scaled_profile',
+        'minority_species': 'He3',
+    }
+    sources_dict['pellet'] = {}
+    sources_dict['impurity_radiation'] = {
+        'model_name': 'P_in_scaled_flat_profile',
+    }
+    configured_models = sources_config.SourcesConfig.from_dict(
+        sources_dict
+    ).build_models()
+
+    basic = configured_models.basic_sources
+    remaining_and_final = configured_models.remaining_and_final_sources
+
+    self.assertTrue(
+        set(basic.keys()).isdisjoint(remaining_and_final.keys())
+    )
+    self.assertEqual(
+        set(basic.keys()) | set(remaining_and_final.keys()),
+        set(configured_models.standard_sources.keys()),
+    )
+    self.assertIn('ohmic', remaining_and_final)
+    self.assertEqual(list(remaining_and_final.keys())[-1], 'impurity_radiation')
+
 
 if __name__ == '__main__':
   absltest.main()

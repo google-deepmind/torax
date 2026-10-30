@@ -15,30 +15,246 @@
 """Functions for building source profiles in TORAX."""
 
 from collections.abc import Mapping
+import dataclasses
 import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import (
+    base as bootstrap_current_base,
+)
 from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import psi_calculations
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_models as source_models_lib
 from torax._src.sources import source_profiles
 from torax._src.sources import source_state as source_state_lib
-from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
-
-# Sources that depend on the output of other sources (e.g.
-# ConstantFractionImpurityRadiationHeatSink, which scales with total input
-# heating power) and therefore must be calculated last in
-# build_standard_source_profiles after all other heat sources are computed.
-_FINAL_SOURCES = frozenset(
-    [impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_ID]
-)
 
 
+def _evaluate_sources(
+    sources_to_evaluate: Mapping[str, source_lib.Source],
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    calculated_source_profiles: source_profiles.SourceProfiles,
+    source_states: Mapping[str, source_state_lib.SourceState],
+    updated_source_states: dict[str, source_state_lib.SourceState],
+    explicit: bool,
+    conductivity: conductivity_base.Conductivity | None = None,
+    psidot: array_typing.FloatVectorCell | None = None,
+    calculate_anyway: bool = False,
+) -> None:
+  """Evaluates specified sources and updates profiles and source states."""
+  for source_name, source in sources_to_evaluate.items():
+    source_params = runtime_params.sources[source_name]
+    if (explicit == source_params.is_explicit) | calculate_anyway:
+      curr_state = source_states[source_name]
+      value, new_state = source.get_value(
+          runtime_params,
+          geo,
+          core_profiles,
+          calculated_source_profiles,
+          conductivity,
+          curr_state,
+          psidot=psidot,
+      )
+      updated_source_states[source_name] = new_state
+      _update_standard_source_profiles(
+          calculated_source_profiles,
+          source_name,
+          source.AFFECTED_CORE_PROFILES,
+          value,
+      )
+
+
+def _copy_source_profiles(
+    template: source_profiles.SourceProfiles,
+    *,
+    bootstrap_current: bootstrap_current_base.BootstrapCurrent,
+    qei: source_profiles.QeiInfo,
+) -> source_profiles.SourceProfiles:
+  """Constructs a SourceProfiles shallow-copying channel dicts from template."""
+  return source_profiles.SourceProfiles(
+      bootstrap_current=bootstrap_current,
+      qei=qei,
+      T_e=dict(template.T_e),
+      T_i=dict(template.T_i),
+      n_e=dict(template.n_e),
+      psi=dict(template.psi),
+      fast_ions=dict(template.fast_ions),
+  )
+
+
+def build_all_zero_profiles(
+    geo: geometry.Geometry,
+) -> source_profiles.SourceProfiles:
+  """Returns a SourceProfiles object with all zero profiles."""
+  return source_profiles.SourceProfiles(
+      bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
+      qei=source_profiles.QeiInfo.zeros(geo),
+  )
+
+
+def build_basic_sources(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    source_models: source_models_lib.SourceModels,
+    source_states: Mapping[str, source_state_lib.SourceState],
+    explicit: bool,
+    explicit_source_profiles: source_profiles.SourceProfiles | None = None,
+    calculate_anyway: bool = False,
+) -> tuple[
+    source_profiles.SourceProfiles,
+    dict[str, source_state_lib.SourceState],
+]:
+  """Evaluates basic standard sources.
+
+  Basic sources depend only on base profiles and do not require psidot,
+  conductivity, or outputs of other sources. This function is used to evaluate
+  sources before neoclassical bootstrap current and psidot.
+
+  Args:
+    runtime_params: Runtime parameters for the time step.
+    geo: Magnetic geometry.
+    core_profiles: Core plasma profiles.
+    source_models: Source models container for TORAX sources.
+    source_states: Cross-timestep source states mapping.
+    explicit: Whether to evaluate explicit sources (True) or implicit sources
+      (False).
+    explicit_source_profiles: Explicit source profiles from the explicit pass,
+      required when explicit is False.
+    calculate_anyway: If True, evaluates sources regardless of the explicit
+      matching condition.
+
+  Returns:
+    A tuple of (partial_source_profiles, updated_source_states).
+
+  Raises:
+    ValueError: If explicit is False and explicit_source_profiles is None.
+  """
+  if explicit:
+    profiles = build_all_zero_profiles(geo)
+  else:
+    if explicit_source_profiles is None:
+      raise ValueError(
+          '`explicit_source_profiles` must be provided if explicit is False.'
+      )
+    profiles = _copy_source_profiles(
+        explicit_source_profiles,
+        bootstrap_current=explicit_source_profiles.bootstrap_current,
+        qei=explicit_source_profiles.qei,
+    )
+  updated_source_states = dict(source_states)
+  _evaluate_sources(
+      sources_to_evaluate=source_models.basic_sources,
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      calculated_source_profiles=profiles,
+      source_states=source_states,
+      updated_source_states=updated_source_states,
+      explicit=explicit,
+      conductivity=None,
+      psidot=None,
+      calculate_anyway=calculate_anyway,
+  )
+  return profiles, updated_source_states
+
+
+def build_remaining_sources(
+    runtime_params: runtime_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    source_models: source_models_lib.SourceModels,
+    source_states: Mapping[str, source_state_lib.SourceState],
+    partial_source_profiles: source_profiles.SourceProfiles,
+    explicit: bool,
+    conductivity: conductivity_base.Conductivity | None = None,
+    bootstrap_current: bootstrap_current_base.BootstrapCurrent | None = None,
+    calculate_anyway: bool = False,
+) -> tuple[
+    source_profiles.SourceProfiles,
+    dict[str, source_state_lib.SourceState],
+]:
+  """Evaluates remaining standard sources, qei, and final heating sinks.
+
+  Evaluates qei, sources requiring conductivity and psidot (such as
+  OhmicHeatSource), and final sources that aggregate total input heating
+  power (such as ImpurityRadiationHeatSink).
+
+  When conductivity is provided, core_profiles.psidot must already be
+  populated for the current state. build_remaining_sources is called downstream
+  by fvm, core_profiles, and orchestration after psidot is computed.
+
+  Args:
+    runtime_params: Runtime parameters for the time step.
+    geo: Magnetic geometry.
+    core_profiles: Core plasma profiles.
+    source_models: Source models container for TORAX sources.
+    source_states: Cross-timestep source states mapping.
+    partial_source_profiles: Source profiles containing evaluations from
+      build_basic_sources.
+    explicit: Whether to evaluate explicit sources (True) or implicit sources
+      (False).
+    conductivity: Neoclassical conductivity profile, required for implicit
+      sources that compute psidot or ohmic heating.
+    bootstrap_current: Bootstrap current calculated for this time step,
+      required when explicit is False.
+    calculate_anyway: If True, evaluates sources regardless of the explicit
+      matching condition.
+
+  Returns:
+    A tuple of (profiles, updated_source_states) containing all evaluated
+    source profiles and their updated states.
+
+  Raises:
+    ValueError: If explicit is False and bootstrap_current is None.
+  """
+  if explicit:
+    qei = source_profiles.QeiInfo.zeros(geo)
+    bootstrap_current = bootstrap_current_base.BootstrapCurrent.zeros(geo)
+  else:
+    if bootstrap_current is None:
+      raise ValueError(
+          '`bootstrap_current` must be provided if explicit is False.'
+      )
+    qei = source_models.qei_source.get_qei(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+    )
+  profiles = _copy_source_profiles(
+      template=partial_source_profiles,
+      bootstrap_current=bootstrap_current,
+      qei=qei,
+  )
+  psidot = (
+      core_profiles.psidot.value
+      if conductivity is not None
+      else None
+  )
+
+  updated_source_states = dict(source_states)
+  _evaluate_sources(
+      sources_to_evaluate=source_models.remaining_and_final_sources,
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      calculated_source_profiles=profiles,
+      source_states=source_states,
+      updated_source_states=updated_source_states,
+      explicit=explicit,
+      conductivity=conductivity,
+      psidot=psidot,
+      calculate_anyway=calculate_anyway,
+  )
+  return profiles, updated_source_states
+
+
+# TODO(b/572586768): Remove once callers migrate to staged source builders.
 @jax.jit(
     static_argnames=[
         'source_models',
@@ -93,44 +309,49 @@ def build_source_profiles(
     the implicit profiles computed here will be returned, and
     updated_source_states will have the implicit source states updated.
   """
-  if explicit:
-    qei = source_profiles.QeiInfo.zeros(geo)
-    bootstrap_current = bootstrap_current_base.BootstrapCurrent.zeros(geo)
-  else:
-    if explicit_source_profiles is None or bootstrap_current is None:
-      raise ValueError(
-          '`explicit_source_profiles` and `bootstrap_current` must be provided'
-          ' if explicit is False.'
-      )
-    qei = source_models.qei_source.get_qei(
-        runtime_params=runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
+  if not explicit and (
+      explicit_source_profiles is None or bootstrap_current is None
+  ):
+    raise ValueError(
+        '`explicit_source_profiles` and `bootstrap_current` must be provided'
+        ' if explicit is False.'
     )
-  profiles = source_profiles.SourceProfiles(
-      bootstrap_current=bootstrap_current,
-      qei=qei,
-      T_e=explicit_source_profiles.T_e if explicit_source_profiles else {},
-      T_i=explicit_source_profiles.T_i if explicit_source_profiles else {},
-      n_e=explicit_source_profiles.n_e if explicit_source_profiles else {},
-      psi=explicit_source_profiles.psi if explicit_source_profiles else {},
-      fast_ions=explicit_source_profiles.fast_ions
-      if explicit_source_profiles
-      else {},
-  )
-  updated_source_states = build_standard_source_profiles(
-      calculated_source_profiles=profiles,
+  partial_profiles, updated_source_states = build_basic_sources(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
       source_states=source_states,
       explicit=explicit,
-      conductivity=conductivity,
+      explicit_source_profiles=explicit_source_profiles,
   )
-  return profiles, updated_source_states
+  if not explicit and conductivity is not None:
+    assert bootstrap_current is not None
+    psidot = psi_calculations.calculate_psidot(
+        psi=core_profiles.psi,
+        sigma=conductivity.sigma,
+        psi_sources=dataclasses.replace(
+            partial_profiles, bootstrap_current=bootstrap_current
+        ).total_psi_sources(geo),
+        geo=geo,
+        evolve_current=runtime_params.numerics.evolve_current,
+        prescribed_psidot=runtime_params.profile_conditions.psidot,
+    )
+    core_profiles = dataclasses.replace(core_profiles, psidot=psidot)
+  return build_remaining_sources(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_models=source_models,
+      source_states=updated_source_states,
+      partial_source_profiles=partial_profiles,
+      explicit=explicit,
+      conductivity=conductivity,
+      bootstrap_current=bootstrap_current,
+  )
 
 
+# TODO(b/572586768): Remove once callers migrate to staged source builders.
 def build_standard_source_profiles(
     *,
     calculated_source_profiles: source_profiles.SourceProfiles,
@@ -147,39 +368,18 @@ def build_standard_source_profiles(
   """Updates calculated_source_profiles and returns updated source states."""
   updated_source_states = dict(source_states)
 
-  def calculate_source(
-      source_name: str,
-      source: source_lib.Source,
-      psidot: array_typing.FloatVectorCell | None = None,
-  ):
-    source_params = runtime_params.sources[source_name]
-    if (explicit == source_params.is_explicit) | calculate_anyway:
-      curr_state = source_states[source_name]
-      value, new_state = source.get_value(
-          runtime_params,
-          geo,
-          core_profiles,
-          calculated_source_profiles,
-          conductivity,
-          curr_state,
-          psidot=psidot,
-      )
-      updated_source_states[source_name] = new_state
-      _update_standard_source_profiles(
-          calculated_source_profiles,
-          source_name,
-          source.AFFECTED_CORE_PROFILES,
-          value,
-      )
-
-  # Calculate PSI sources first
-  # These are used in the calculation of psidot (needed by ohmic_heat_source)
-  # so we need to calculate them first.
-  for source_name, source in source_models.psi_sources.items():
-    calculate_source(source_name, source)
-  # The psi sources are used in the initialization of the core profiles
-  # (specifically, the psidot, psi and currents), so we provide an option to
-  # only calculate the psi sources to avoid extra work.
+  _evaluate_sources(
+      sources_to_evaluate=source_models.psi_sources,
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      calculated_source_profiles=calculated_source_profiles,
+      source_states=source_states,
+      updated_source_states=updated_source_states,
+      explicit=explicit,
+      conductivity=conductivity,
+      calculate_anyway=calculate_anyway,
+  )
   if psi_only:
     return updated_source_states
 
@@ -194,23 +394,44 @@ def build_standard_source_profiles(
         prescribed_psidot=runtime_params.profile_conditions.psidot,
     ).value
 
-  to_calculate = {}
-  # Calculate the standard sources
-  # This calculates all the remaining sources that have not been calculated
-  # yet and are not final sources.
-  # Final sources are sources that depend on the output of other sources, so
-  # they are calculated after all other sources have been calculated.
-  # The impurity_radiation_heat_sink is one such final source and needs to be
-  # calculated after all the heat sources have been calculated.
-  for source_name, source in source_models.standard_sources.items():
-    if source_name in _FINAL_SOURCES:
-      to_calculate[source_name] = source
-      continue
-    if source_name not in source_models.psi_sources:
-      calculate_source(source_name, source, psidot=psidot)
-  for source_name, source in to_calculate.items():
-    calculate_source(source_name, source, psidot=psidot)
-
+  # pylint: disable-next=protected-access
+  final_sources_set = source_models_lib._FINAL_SOURCES
+  remaining_sources = {
+      name: source
+      for name, source in source_models.standard_sources.items()
+      if name not in final_sources_set and name not in source_models.psi_sources
+  }
+  _evaluate_sources(
+      sources_to_evaluate=remaining_sources,
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      calculated_source_profiles=calculated_source_profiles,
+      source_states=source_states,
+      updated_source_states=updated_source_states,
+      explicit=explicit,
+      conductivity=conductivity,
+      psidot=psidot,
+      calculate_anyway=calculate_anyway,
+  )
+  final_sources = {
+      name: source
+      for name, source in source_models.standard_sources.items()
+      if name in final_sources_set
+  }
+  _evaluate_sources(
+      sources_to_evaluate=final_sources,
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      calculated_source_profiles=calculated_source_profiles,
+      source_states=source_states,
+      updated_source_states=updated_source_states,
+      explicit=explicit,
+      conductivity=conductivity,
+      psidot=psidot,
+      calculate_anyway=calculate_anyway,
+  )
   return updated_source_states
 
 
@@ -238,16 +459,7 @@ def _update_standard_source_profiles(
     calculated_source_profiles.fast_ions[source_name] = output.fast_ions
 
 
-def build_all_zero_profiles(
-    geo: geometry.Geometry,
-) -> source_profiles.SourceProfiles:
-  """Returns a SourceProfiles object with all zero profiles."""
-  return source_profiles.SourceProfiles(
-      bootstrap_current=bootstrap_current_base.BootstrapCurrent.zeros(geo),
-      qei=source_profiles.QeiInfo.zeros(geo),
-  )
-
-
+# TODO(b/572586768): Remove once callers migrate to staged source builders.
 def get_all_source_profiles(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
