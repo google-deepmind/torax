@@ -14,6 +14,7 @@
 
 """Fast ion physics classes."""
 
+from collections.abc import Mapping
 import dataclasses
 from typing import Self
 
@@ -94,3 +95,44 @@ class FastIon:
             ),
         ),
     )
+
+
+def calculate_n_impurity_thermal(
+    n_impurity: cell_variable.CellVariable,
+    impurity_fractions: Mapping[str, array_typing.FloatVectorCell],
+    fast_ions: tuple[FastIon, ...],
+) -> cell_variable.CellVariable:
+  """True thermal impurity density without fast ions [m^-3].
+
+  TODO(b/868852029): This assumes fast ions subtracted from thermal impurities
+  are originally from thermal species. This needs to be updated when we
+  introduce other sources of fast ions that do not deplete thermal species
+  (e.g. fusion).
+
+  Args:
+    n_impurity: Impurity density CellVariable.
+    impurity_fractions: Fractional abundances of individual impurity species.
+    fast_ions: Tuple of fast ion populations.
+
+  Returns:
+    Thermal impurity density CellVariable.
+  """
+  n_impurity_thermal_value = n_impurity.value
+  n_impurity_thermal_right = n_impurity.right_face_constraint
+  for fast_ion in fast_ions:
+    if fast_ion.species in impurity_fractions:
+      n_impurity_thermal_value = n_impurity_thermal_value - fast_ion.n.value
+      if (
+          n_impurity_thermal_right is not None
+          and fast_ion.n.right_face_constraint is not None
+      ):
+        n_impurity_thermal_right = (
+            n_impurity_thermal_right - fast_ion.n.right_face_constraint
+        )
+  return cell_variable.CellVariable(
+      value=n_impurity_thermal_value,
+      face_centers=n_impurity.face_centers,
+      right_face_constraint=n_impurity_thermal_right,
+      right_face_grad_constraint=None,
+  )
+

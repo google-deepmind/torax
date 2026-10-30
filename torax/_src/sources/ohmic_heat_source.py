@@ -15,13 +15,12 @@
 # pylint: disable=invalid-name
 
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 import jax.numpy as jnp
-from torax._src import array_typing
+import pydantic
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
 from torax._src.sources import source as source_lib
 from torax._src.sources import source_profiles
@@ -30,7 +29,7 @@ from torax._src.torax_pydantic import torax_pydantic
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
-class OhmicHeatSource(source_lib.Source):
+class OhmicHeatSource(source_lib.SourceUsingCoreProfiles):
   """Ohmic heat source for electron heat equation.
 
   P_ohm = sigma * <E . B>^2 / <B^2>, the flux-surface-averaged collisional
@@ -51,10 +50,7 @@ class OhmicHeatSource(source_lib.Source):
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Returns the Ohmic source for electron heat equation.
 
@@ -64,43 +60,26 @@ class OhmicHeatSource(source_lib.Source):
       runtime_params: Runtime parameters (unused).
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
-      calculated_source_profiles: Source profiles calculated so far (unused).
-      conductivity: Conductivity model output.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and returned unchanged.
-      psidot: Precomputed loop voltage (dpsi/dt at fixed rho_norm) on the cell
-        grid.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
       source_state).
     """
-    del runtime_params, calculated_source_profiles
-    if conductivity is None:
-      raise ValueError(
-          'conductivity is a required argument for'
-          ' OhmicHeatSource._get_model_value. This can occur if this source'
-          ' is used in an explicit source.'
-      )
-    if psidot is None:
-      raise ValueError(
-          'psidot is a required argument for'
-          ' OhmicHeatSource._get_model_value. This can occur if this source'
-          ' is used in an explicit source.'
-      )
-
+    del runtime_params
     # Joule dissipation of the Ohmic current, P_ohm = sigma <E.B>^2 / <B^2>,
     # with <E.B> from dpsi/dt at fixed toroidal flux (psidot is at fixed
     # rho_norm). See the "Ohmic power" section of docs/physics_models.rst.
     psidot_fixed_phi = (
-        psidot
+        core_profiles.psidot.value
         - geo.rho_norm
         * geo.Phi_b_dot
         / (2.0 * geo.Phi_b)
-        * core_profiles.psi.grad()
+        * core_profiles.flux.psi.grad()
     )
     E_dot_B = geo.F * geo.g3 / (2.0 * jnp.pi) * psidot_fixed_phi
-    P_ohm = conductivity.sigma * E_dot_B**2 / geo.gm5
+    P_ohm = core_profiles.conductivity.sigma * E_dot_B**2 / geo.gm5
     return source_profiles.SourceOutput(profiles=(P_ohm,)), source_state
 
 
@@ -110,6 +89,14 @@ class OhmicHeatSourceConfig(base.SourceConfigBase):
   model_name: Annotated[Literal['standard'], torax_pydantic.JAX_STATIC] = (
       'standard'
   )
+
+  @pydantic.model_validator(mode='after')
+  def _validate_not_explicit(self) -> Self:
+    if self.is_explicit:
+      raise ValueError(
+          f'{type(self).__name__} cannot be configured with is_explicit=True.'
+      )
+    return self
 
   def build_source(self) -> OhmicHeatSource:
     return OhmicHeatSource()

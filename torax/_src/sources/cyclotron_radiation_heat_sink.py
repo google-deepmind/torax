@@ -29,7 +29,6 @@ from torax._src import math_utils
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.sources import base
 from torax._src.sources import runtime_params as sources_runtime_params_lib
 from torax._src.sources import source
@@ -248,11 +247,8 @@ class CyclotronRadiationHeatSink(source.Source):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      core_profiles: state.BaseCoreProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates cyclotron radiation heat sink for electron heat equation.
 
@@ -278,26 +274,22 @@ class CyclotronRadiationHeatSink(source.Source):
       runtime_params: A slice of runtime parameters.
       geo: The geometry object.
       core_profiles: The core profiles object.
-      calculated_source_profiles: Unused.
-      conductivity: Unused.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and passed through unchanged.
-      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile,)),
       source_state).
     """
-    del calculated_source_profiles, conductivity, psidot
     source_params = runtime_params.sources[self.SOURCE_ID]
     assert isinstance(source_params, RuntimeParams)
 
     # Notation conventions based on the Albajar and Artaud papers
     # pylint: disable=invalid-name
 
-    n_e20_face = jnp.asarray(core_profiles.n_e.face_value() / 1e20)
-    n_e20_cell = core_profiles.n_e.value / 1e20
-    te_face = jnp.asarray(core_profiles.T_e.face_value())
+    n_e20_face = jnp.asarray(core_profiles.kinetic.n_e.face_value() / 1e20)
+    n_e20_cell = core_profiles.kinetic.n_e.value / 1e20
+    te_face = jnp.asarray(core_profiles.kinetic.T_e.face_value())
 
     # Dimensionless optical thickness parameter, on-axis:
     # Simplified form of omega_pe**2 / (c * omega_ce) where omega_pe is the
@@ -356,7 +348,7 @@ class CyclotronRadiationHeatSink(source.Source):
         * geo.elongation**0.79
         * (geo.F / geo.R_major_profile) ** 2.62
         * n_e20_cell**0.38
-        * core_profiles.T_e.value**3.61
+        * core_profiles.kinetic.T_e.value**3.61
     )
 
     # Scale the profile shape to match the total integrated power loss

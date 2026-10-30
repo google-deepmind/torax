@@ -31,7 +31,6 @@ from torax._src.fvm import residual_and_loss
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
-from torax._src.sources import source_profile_builders
 from torax._src.torax_pydantic import config
 
 
@@ -239,17 +238,16 @@ class FVMTest(parameterized.TestCase):
         step_fn=step_fn,
     )
     evolving_names = ('T_i',)
-    explicit_source_profiles = source_profile_builders.build_all_zero_profiles(
-        geo
-    )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
-        sources=explicit_source_profiles,
+        sources={},
         pedestal=sim_state.pedestal_output.structure,
     )
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,
         geo=sim_state.geometry,
-        core_profiles=sim_state.core_profiles,
+        solver_state=state.SolverState.from_core_profiles(
+            sim_state.core_profiles
+        ),
         models=step_fn.solver.models,
         explicit_model_outputs=explicit_model_outputs,
         evolving_names=evolving_names,
@@ -286,7 +284,7 @@ class FVMTest(parameterized.TestCase):
     # dt well under the explicit stability limit for dx=1 and chi=1
     dt = jnp.array(0.2)
     # initialize x_new for timestepping
-    x_new = (sim_state.core_profiles.T_i,)
+    x_new = (sim_state.core_profiles.kinetic.T_i,)
     for _ in range(time_steps):
       x_old = copy.deepcopy(x_new)
       x_new = implicit_solve_block.implicit_solve_block(

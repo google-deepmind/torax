@@ -724,36 +724,36 @@ class StateHistoryTest(parameterized.TestCase):
 
     # Verify the fractions in core_profiles match the config at t=0
     np.testing.assert_allclose(
-        core_profiles_t0.main_ion_fractions['D'],
+        core_profiles_t0.ions.main_ion_fractions['D'],
         0.5,
         err_msg='D fraction at t=0 should be 0.5',
     )
     np.testing.assert_allclose(
-        core_profiles_t0.main_ion_fractions['T'],
+        core_profiles_t0.ions.main_ion_fractions['T'],
         0.5,
         err_msg='T fraction at t=0 should be 0.5',
     )
 
     # Verify the fractions in core_profiles match the config at t=1
     np.testing.assert_allclose(
-        core_profiles_t1.main_ion_fractions['D'],
+        core_profiles_t1.ions.main_ion_fractions['D'],
         0.3,
         err_msg='D fraction at t=1 should be 0.3',
     )
     np.testing.assert_allclose(
-        core_profiles_t1.main_ion_fractions['T'],
+        core_profiles_t1.ions.main_ion_fractions['T'],
         0.7,
         err_msg='T fraction at t=1 should be 0.7',
     )
 
     # Verify fractions sum to 1 at both times
     sum_t0 = (
-        core_profiles_t0.main_ion_fractions['D']
-        + core_profiles_t0.main_ion_fractions['T']
+        core_profiles_t0.ions.main_ion_fractions['D']
+        + core_profiles_t0.ions.main_ion_fractions['T']
     )
     sum_t1 = (
-        core_profiles_t1.main_ion_fractions['D']
-        + core_profiles_t1.main_ion_fractions['T']
+        core_profiles_t1.ions.main_ion_fractions['D']
+        + core_profiles_t1.ions.main_ion_fractions['T']
     )
     np.testing.assert_allclose(
         sum_t0, 1.0, err_msg='Fractions at t=0 should sum to 1'
@@ -763,10 +763,10 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
     # Verify that both D and T species are present in the dict
-    self.assertIn('D', core_profiles_t0.main_ion_fractions)
-    self.assertIn('T', core_profiles_t0.main_ion_fractions)
-    self.assertIn('D', core_profiles_t1.main_ion_fractions)
-    self.assertIn('T', core_profiles_t1.main_ion_fractions)
+    self.assertIn('D', core_profiles_t0.ions.main_ion_fractions)
+    self.assertIn('T', core_profiles_t0.ions.main_ion_fractions)
+    self.assertIn('D', core_profiles_t1.ions.main_ion_fractions)
+    self.assertIn('T', core_profiles_t1.ions.main_ion_fractions)
 
   def test_main_ion_fractions_xr_output_matches_config(self):
     """Tests that main_ion_fractions in core_profiles matches config expectations.
@@ -1015,7 +1015,7 @@ class StateHistoryTest(parameterized.TestCase):
     # In __init__, stacked JAX arrays are kept as-is and unstacked properties
     # are not yet evaluated.
     self.assertIsInstance(history.times, jax.Array)
-    self.assertIsInstance(history._core_profiles.T_i.value, jax.Array)
+    self.assertIsInstance(history._core_profiles.kinetic.T_i.value, jax.Array)
     for prop in (
         'geometries',
         'core_profiles',
@@ -1049,9 +1049,9 @@ class StateHistoryTest(parameterized.TestCase):
       mock_unstack.assert_called_once()
     self.assertLen(core_profiles, 2)
     self.assertIn('core_profiles', history.__dict__)
-    self.assertIsInstance(core_profiles[0].T_i.value, jax.Array)
-    np.testing.assert_allclose(core_profiles[0].v_loop_lcfs, 5.0)
-    np.testing.assert_allclose(core_profiles[1].v_loop_lcfs, 5.0)
+    self.assertIsInstance(core_profiles[0].kinetic.T_i.value, jax.Array)
+    np.testing.assert_allclose(core_profiles[0].flux.v_loop_lcfs, 5.0)
+    np.testing.assert_allclose(core_profiles[1].flux.v_loop_lcfs, 5.0)
 
 
 if __name__ == '__main__':
