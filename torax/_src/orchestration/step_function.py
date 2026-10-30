@@ -118,9 +118,15 @@ class SimulationStepFn:
   def runtime_params_provider(
       self,
   ) -> build_runtime_params.RuntimeParamsProvider:
+    """Returns the `RuntimeParamsProvider` used by the step function."""
     return self._runtime_params_provider
 
   def tree_flatten(self):
+    """Flattens the SimulationStepFn into JAX children and auxiliary data.
+
+    Returns:
+      A tuple `(children, aux_data)` for JAX PyTree registration.
+    """
     children = (
         self._runtime_params_provider,
         self._geometry_provider,
@@ -133,6 +139,16 @@ class SimulationStepFn:
 
   @classmethod
   def tree_unflatten(cls, aux_data, children):
+    """Reconstructs a SimulationStepFn from JAX auxiliary data and children.
+
+    Args:
+      aux_data: Static auxiliary data `(solver, time_step_calculator)`.
+      children: Dynamic PyTree children `(runtime_params_provider,
+        geometry_provider)`.
+
+    Returns:
+      Reconstructed `SimulationStepFn` instance.
+    """
     return cls(
         solver=aux_data[0],
         time_step_calculator=aux_data[1],
@@ -142,17 +158,28 @@ class SimulationStepFn:
 
   @property
   def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
+    """Returns the `GeometryProvider` used by the step function."""
     return self._geometry_provider
 
   @property
   def solver(self) -> solver_lib.Solver:
+    """Returns the `Solver` used by the step function."""
     return self._solver
 
   @property
   def time_step_calculator(self) -> ts.TimeStepCalculator:
+    """Returns the `TimeStepCalculator` used by the step function."""
     return self._time_step_calculator
 
   def is_done(self, t: jax.Array) -> bool | jax.Array:
+    """Returns whether the simulation has reached `t_final`.
+
+    Args:
+      t: Current simulation time.
+
+    Returns:
+      Boolean or boolean JAX scalar indicating whether the simulation is done.
+    """
     return self._time_step_calculator.is_done(
         t=t,
         t_final=self._runtime_params_provider.time_step_calculator.t_final,
@@ -164,7 +191,16 @@ class SimulationStepFn:
       output_state: sim_state.SimState,
       post_processed_outputs: post_processing.PostProcessedOutputs,
   ) -> state.SimError:
-    """Checks for errors in the simulation state."""
+    """Checks for errors in the simulation state and post-processed outputs.
+
+    Args:
+      output_state: Simulation state to check.
+      post_processed_outputs: Post-processed outputs to check.
+
+    Returns:
+      A `SimError` enum value indicating any detected error, or
+      `SimError.NO_ERROR` if none.
+    """
     if not bool(
         has_any_step_error(
             output_state,
@@ -336,7 +372,20 @@ class SimulationStepFn:
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
-    """Runs the simulation until it has advanced by dt."""
+    """Runs the simulation until it has advanced by dt.
+
+    Args:
+      dt: Total time duration to advance the simulation by.
+      input_state: State at the start of the time step.
+      previous_post_processed_outputs: Post-processed outputs from the previous
+        time step.
+      runtime_params_overrides: Optional runtime parameters provider override.
+      geometry_overrides: Optional geometry provider override.
+
+    Returns:
+      Tuple of (`SimState`, `PostProcessedOutputs`) after advancing by `dt`
+      (or less if the simulation exits early due to an error).
+    """
     remaining_dt = dt
 
     def cond(args):
@@ -398,7 +447,20 @@ class SimulationStepFn:
       sim_state.SimState,
       post_processing.PostProcessedOutputs,
   ]:
-    """Runs the simulation until it has advanced by dt."""
+    """Runs the simulation until it has advanced by dt (JIT-compiled).
+
+    Args:
+      dt: Total time duration to advance the simulation by.
+      input_state: State at the start of the time step.
+      previous_post_processed_outputs: Post-processed outputs from the previous
+        time step.
+      runtime_params_overrides: Optional runtime parameters provider override.
+      geometry_overrides: Optional geometry provider override.
+
+    Returns:
+      Tuple of (`SimState`, `PostProcessedOutputs`) after advancing by `dt`
+      (or less if the simulation exits early due to an error).
+    """
     return self.fixed_time_step(
         dt,
         input_state,

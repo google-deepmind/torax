@@ -37,7 +37,14 @@ from torax._src.torax_pydantic import config
 def make_step_fn(
     torax_config: config.ToraxConfig,
 ) -> step_function.SimulationStepFn:
-  """Prepare a TORAX step function from a torax_config."""
+  """Prepare a TORAX step function from a torax_config.
+
+  Args:
+    torax_config: The TORAX configuration to use for building the step function.
+
+  Returns:
+    A `SimulationStepFn` callable that advances the simulation by one time step.
+  """
   geometry_provider = torax_config.geometry.build_provider
   models = torax_config.build_models()
 

@@ -45,7 +45,14 @@ class BootstrapCurrent:
 
   @classmethod
   def zeros(cls, geometry: geometry_lib.Geometry) -> 'BootstrapCurrent':
-    """Returns a BootstrapCurrent with all values set to zero."""
+    """Returns a BootstrapCurrent with all values set to zero.
+
+    Args:
+      geometry: Torus geometry.
+
+    Returns:
+      A BootstrapCurrent instance initialized with zeros.
+    """
     return cls(
         j_parallel_bootstrap=jnp.zeros_like(geometry.rho_norm),
         j_parallel_bootstrap_face=jnp.zeros_like(geometry.rho_face_norm),
@@ -55,7 +62,14 @@ class BootstrapCurrent:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts bootstrap current profiles into an OutputVar mapping."""
+    """Converts bootstrap current profiles into an OutputVar mapping.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     j_parallel_bootstrap = output_grid_context.extend_cell_grid_to_boundaries(
         self.j_parallel_bootstrap,
         self.j_parallel_bootstrap_face,

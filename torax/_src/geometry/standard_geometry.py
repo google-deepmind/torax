@@ -123,7 +123,14 @@ class StandardGeometry(geometry.Geometry):
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Serializes stacked StandardGeometry into a flat dictionary of OutputVar tuples."""
+    """Serializes stacked StandardGeometry into a dict of OutputVar tuples.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     output_dict = super().to_output_dict(context)
     vars_to_pack: dict[output_keys.OutputKey, chex.Numeric] = {
         output_keys.I_P_PROFILE_FROM_GEO: self.I_p_profile_face,
@@ -183,7 +190,14 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   diverted: interpolated_param.InterpolatedVarSingleAxis | None
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
-    """Returns a Geometry instance at the given time."""
+    """Returns a Geometry instance at the given time.
+
+    Args:
+      t: The time at which the geometry is being requested.
+
+    Returns:
+      Interpolated `StandardGeometry` instance at time `t`.
+    """
     chex.assert_type(t, jnp.floating)
     return self._get_geometry_base(t, StandardGeometry)
 

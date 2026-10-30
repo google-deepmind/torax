@@ -99,7 +99,14 @@ class RuntimeParamsProvider:
       cls,
       torax_config: config.ToraxConfig,
   ) -> Self:
-    """Constructs a RuntimeParamsProvider from a ToraxConfig."""
+    """Constructs a RuntimeParamsProvider from a ToraxConfig.
+
+    Args:
+      torax_config: The `ToraxConfig` from which to extract sub-configs.
+
+    Returns:
+      A `RuntimeParamsProvider` instance.
+    """
     return cls(
         sources=torax_config.sources,
         numerics=torax_config.numerics,
@@ -119,7 +126,14 @@ class RuntimeParamsProvider:
       self,
       t: chex.Numeric,
   ) -> runtime_params_lib.RuntimeParams:
-    """Returns a runtime_params.RuntimeParams to use during time t."""
+    """Returns a runtime_params.RuntimeParams to use during time t.
+
+    Args:
+      t: Simulation time at which to evaluate time-varying parameters.
+
+    Returns:
+      A `RuntimeParams` instance evaluated at time `t`.
+    """
     return runtime_params_lib.RuntimeParams(
         t=jnp.asarray(t, dtype=jax_utils.get_dtype()),
         transport=self.transport_model.build_runtime_params(t),
@@ -192,6 +206,12 @@ class RuntimeParamsProvider:
 
     Args:
       path: A dot-separated sequence of attributes or dictionary keys.
+
+    Returns:
+      The attribute or dictionary value located at `path`.
+
+    Raises:
+      ValueError: If any segment of `path` is not found.
     """
 
     x = self

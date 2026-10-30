@@ -319,7 +319,11 @@ class CoreProfiles:
 
   @jax.jit
   def quasineutrality_satisfied(self) -> jax.Array:
-    """Checks if quasineutrality is satisfied."""
+    """Checks if quasineutrality is satisfied.
+
+    Returns:
+      Boolean JAX scalar indicating whether quasineutrality is satisfied.
+    """
     return jnp.allclose(
         self.n_i.value * self.Z_i + self.n_impurity.value * self.Z_impurity,
         self.n_e.value,
@@ -327,7 +331,12 @@ class CoreProfiles:
 
   @jax.jit
   def negative_temperature_or_density(self) -> jax.Array:
-    """Checks if any temperature or density is negative."""
+    """Checks if any temperature or density is negative.
+
+    Returns:
+      Boolean JAX scalar indicating whether any temperature or density is
+      negative.
+    """
     profiles_to_check = (
         self.T_i,
         self.T_e,
@@ -347,7 +356,14 @@ class CoreProfiles:
 
   @jax.jit
   def below_minimum_temperature(self, T_min_eV: float) -> jax.Array:
-    """Return True if T_e or T_i is below the minimum temperature threshold."""
+    """Return True if T_e or T_i is below the minimum temperature threshold.
+
+    Args:
+      T_min_eV: Minimum temperature threshold [eV].
+
+    Returns:
+      Boolean JAX scalar indicating whether T_e or T_i is below T_min_eV.
+    """
     # Convert eV -> keV since internal storage is keV
     T_min_keV = T_min_eV / 1000.0
 
@@ -360,7 +376,14 @@ class CoreProfiles:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts core profiles into an OutputVar mapping."""
+    """Converts core profiles into an OutputVar mapping.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     out_dict = {}
 
     cell_vars = {
@@ -495,7 +518,14 @@ class CoreTransport:
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a CoreTransport with all zeros. Useful for initializing."""
+    """Returns a CoreTransport with all zeros. Useful for initializing.
+
+    Args:
+      geo: Geometry of the torus.
+
+    Returns:
+      A CoreTransport instance with all zero coefficients.
+    """
     return cls(
         total=transport_coeffs_lib.TransportCoeffs.zeros(geo),
         turbulent=transport_coeffs_lib.TurbulentTransport.zeros(geo),
@@ -507,7 +537,14 @@ class CoreTransport:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts CoreTransport into an OutputVar mapping for the profiles node."""
+    """Converts CoreTransport into an OutputVar mapping for the profiles node.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     return {
         **self.turbulent.to_output_dict(context),
         **self.neoclassical.to_output_dict(context),
@@ -540,7 +577,14 @@ class SolverNumericOutputs:
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Serializes stacked SolverNumericOutputs into a dictionary of OutputVar tuples."""
+    """Serializes stacked SolverNumericOutputs into a dict of OutputVar tuples.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     return {
         output_keys.OUTER_SOLVER_ITERATIONS: context.pack(
             output_keys.OUTER_SOLVER_ITERATIONS, self.outer_solver_iterations
@@ -571,6 +615,7 @@ class SimError(enum.Enum):
   DID_NOT_REACH_T_FINAL = 6
 
   def log_error(self):
+    """Logs an error message corresponding to the simulation error state."""
     match self:
       case SimError.NEGATIVE_CORE_PROFILES:
         logging.error("""

@@ -34,7 +34,16 @@ class PedestalStructureModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> pedestal_state_lib.StructureState:
-    """Returns the initial StructureState for this model."""
+    """Returns the initial StructureState for this model.
+
+    Args:
+      runtime_params: Runtime parameters for the simulation.
+      geo: Torus geometry.
+      core_profiles: Initial core plasma profiles.
+
+    Returns:
+      Initial `StructureState` for the pedestal structure model.
+    """
     del runtime_params, geo, core_profiles
     return pedestal_state_lib.StructureState()
 
@@ -49,4 +58,14 @@ class PedestalStructureModel(static_dataclass.StaticDataclass, abc.ABC):
       pedestal_structure.PedestalStructure,
       pedestal_state_lib.StructureState,
   ]:
-    """Calculates the pedestal structure properties and updated state."""
+    """Calculates the pedestal structure properties and updated state.
+
+    Args:
+      runtime_params: Runtime parameters for the simulation.
+      geo: Torus geometry.
+      core_profiles: Core plasma profiles.
+      structure_state: Current state of the pedestal structure model.
+
+    Returns:
+      Tuple of (`PedestalStructure`, updated `StructureState`).
+    """

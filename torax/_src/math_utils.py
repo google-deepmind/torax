@@ -228,7 +228,15 @@ def area_integration(
     value: array_typing.FloatVector,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
-  """Calculates integral of value using an area metric."""
+  """Calculates integral of value using an area metric.
+
+  Args:
+    value: Cell-grid profile to integrate.
+    geo: Torus geometry.
+
+  Returns:
+    Surface-area-integrated scalar value.
+  """
   return cell_integration(value * geo.spr, geo)
 
 
@@ -237,7 +245,15 @@ def volume_integration(
     value: array_typing.FloatVector,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
-  """Calculates integral of value using a volume metric."""
+  """Calculates integral of value using a volume metric.
+
+  Args:
+    value: Cell-grid profile to integrate.
+    geo: Torus geometry.
+
+  Returns:
+    Volume-integrated scalar value.
+  """
   return cell_integration(value * geo.vpr, geo)
 
 
@@ -246,7 +262,15 @@ def line_average(
     value: array_typing.FloatVector,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
-  """Calculates line-averaged value from input profile."""
+  """Calculates line-averaged value from input profile.
+
+  Args:
+    value: Cell-grid profile to average.
+    geo: Torus geometry.
+
+  Returns:
+    Line-averaged scalar value over `rho_norm`.
+  """
   return cell_integration(value, geo)
 
 
@@ -255,7 +279,15 @@ def volume_average(
     value: array_typing.FloatVector,
     geo: geometry.Geometry,
 ) -> array_typing.FloatScalar:
-  """Calculates volume-averaged value from input profile."""
+  """Calculates volume-averaged value from input profile.
+
+  Args:
+    value: Cell-grid profile to average.
+    geo: Torus geometry.
+
+  Returns:
+    Volume-averaged scalar value.
+  """
   return cell_integration(value * geo.vpr, geo) / geo.volume_face[-1]
 
 
@@ -288,7 +320,15 @@ def cumulative_area_integration(
     value: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
 ) -> array_typing.FloatVectorCell:
-  """Calculates cumulative integral of value using an area metric."""
+  """Calculates cumulative integral of value using an area metric.
+
+  Args:
+    value: Cell-grid profile to integrate cumulatively.
+    geo: Torus geometry.
+
+  Returns:
+    Cumulative area-integrated profile on the cell grid.
+  """
   return cumulative_cell_integration(value * geo.spr, geo)
 
 
@@ -297,7 +337,15 @@ def cumulative_volume_integration(
     value: array_typing.FloatVectorCell,
     geo: geometry.Geometry,
 ) -> array_typing.FloatVectorCell:
-  """Calculates cumulative integral of value using a volume metric."""
+  """Calculates cumulative integral of value using a volume metric.
+
+  Args:
+    value: Cell-grid profile to integrate cumulatively.
+    geo: Torus geometry.
+
+  Returns:
+    Cumulative volume-integrated profile on the cell grid.
+  """
   return cumulative_cell_integration(value * geo.vpr, geo)
 
 
@@ -322,7 +370,14 @@ def safe_divide(
 
 @jax.jit
 def inverse_softplus(x: jax.Array) -> jax.Array:
-  """Inverse of softplus function."""
+  """Inverse of softplus function.
+
+  Args:
+    x: Input array with positive values.
+
+  Returns:
+    Array `y` such that `softplus(y) = log(1 + exp(y)) = x`.
+  """
   # Enforce minimum value to avoid log(0) or log(negative).
   # We want a function that maps x back to y such that softplus(y) = x.
   # y = log(exp(x) - 1).
@@ -336,7 +391,14 @@ def inverse_softplus(x: jax.Array) -> jax.Array:
 
 @jax.jit
 def sqrt_with_zero_gradient_at_zero(x: jax.Array) -> jax.Array:
-  """Computes sqrt(x) with safe 1st, 2nd, and N-th order gradients at x=0."""
+  """Computes sqrt(x) with safe 1st, 2nd, and N-th order gradients at x=0.
+
+  Args:
+    x: Non-negative input array.
+
+  Returns:
+    Elementwise square root of `x`, with all derivatives defined as 0 at `x=0`.
+  """
   # Swap zeros for ones BEFORE the sqrt.
   # If x=0, safe_x becomes 1.0.
   safe_x = jnp.where(x == 0.0, jnp.ones_like(x), x)

@@ -87,6 +87,7 @@ class GeometryConfig(torax_pydantic.ConfigBase):
 
   @functools.cached_property
   def build_provider(self) -> geometry_provider.GeometryProvider:
+    """Builds and caches a `GeometryProvider` from the configuration."""
     # Time-varying geometries from MEQ and IMAS can be loaded directly and we
     # special-case both paths here.
     # TODO(b/398191165): Remove these branches once the Geometry configuration
@@ -123,7 +124,11 @@ class GeometryConfig(torax_pydantic.ConfigBase):
       return provider(geometries)
 
   def get_face_centers(self) -> np.ndarray:
-    """Returns the face centers of the geometry."""
+    """Returns the face centers of the geometry.
+
+    Returns:
+      1D NumPy array of normalized radial face center coordinates.
+    """
     if isinstance(self.geometry_configs, dict):
       # We check that the grid is the same for all geometries so can return the
       # face centers from any of them here.
