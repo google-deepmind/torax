@@ -130,18 +130,18 @@ def get_updated_electron_density(
 
   # Calculate n_e_right_bc.
   n_e_right_bc = jnp.where(
-      profile_conditions_params.n_e_right_bc_is_fGW,
+      profile_conditions_params.n_e_right_bc_is_f_gw,
       profile_conditions_params.n_e_right_bc * nGW,
       profile_conditions_params.n_e_right_bc,
   )
 
   n_e_value = jnp.where(
-      profile_conditions_params.n_e_nbar_is_fGW,
+      profile_conditions_params.n_e_bar_is_f_gw,
       profile_conditions_params.n_e * nGW,
       profile_conditions_params.n_e,
   )
 
-  if profile_conditions_params.normalize_n_e_to_nbar:
+  if profile_conditions_params.normalize_n_e:
     face_left = n_e_value[0]  # Zero gradient boundary condition at left face.
     face_right = n_e_right_bc
     face_inner = math_utils.inner_face_values_from_cell_values(
@@ -153,7 +153,7 @@ def get_updated_electron_density(
         [face_left[None], face_inner, face_right[None]],
     )
     # Find normalization factor such that desired line-averaged n_e is set.
-    # Line-averaged electron density (nbar) is poorly defined. In general, the
+    # Line-averaged electron density (n_e_bar) is poorly defined. In general, the
     # definition is machine-dependent and even shot-dependent since it depends
     # on the usage of a specific interferometry chord. Furthermore, even if we
     # knew the specific chord used, its calculation would depend on magnetic
@@ -161,27 +161,28 @@ def get_updated_electron_density(
     # In lieu of a better solution, we use line-averaged electron density
     # defined on the outer midplane.
     a_minor_out = geo.R_out_face[-1] - geo.R_out_face[0]
-    # find target nbar in absolute units
-    target_nbar = jnp.where(
-        profile_conditions_params.n_e_nbar_is_fGW,
-        profile_conditions_params.nbar * nGW,
-        profile_conditions_params.nbar,
+    # find target n_e_bar in absolute units
+    target_n_e_bar = jnp.where(
+        profile_conditions_params.n_e_bar_is_f_gw,
+        profile_conditions_params.n_e_bar * nGW,
+        profile_conditions_params.n_e_bar,
     )
     if not profile_conditions_params.n_e_right_bc_is_absolute:
       # In this case, n_e_right_bc is taken from n_e and we also normalize it.
-      C = target_nbar / (_trapz(n_e_face, geo.R_out_face) / a_minor_out)
+      C = target_n_e_bar / (_trapz(n_e_face, geo.R_out_face) / a_minor_out)
       n_e_right_bc = C * n_e_right_bc
     else:
       # If n_e_right_bc is absolute, subtract off contribution from outer
       # face to get C we need to multiply the inner values with.
-      nbar_from_n_e_face_inner = (
+      n_e_bar_from_n_e_face_inner = (
           _trapz(n_e_face[:-1], geo.R_out_face[:-1]) / a_minor_out
       )
 
       dr_edge = geo.R_out_face[-1] - geo.R_out_face[-2]
 
-      C = (target_nbar - 0.5 * n_e_face[-1] * dr_edge / a_minor_out) / (
-          nbar_from_n_e_face_inner + 0.5 * n_e_face[-2] * dr_edge / a_minor_out
+      C = (target_n_e_bar - 0.5 * n_e_face[-1] * dr_edge / a_minor_out) / (
+          n_e_bar_from_n_e_face_inner
+          + 0.5 * n_e_face[-2] * dr_edge / a_minor_out
       )
   else:
     C = 1

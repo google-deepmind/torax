@@ -39,9 +39,9 @@ CONFIG['profile_conditions']['n_e'] = {
     0.0: {0.0: 0.5e20, 1.0: 0.15e20},
 }
 CONFIG['profile_conditions']['n_e_right_bc'] = 0.15e20
-CONFIG['profile_conditions']['n_e_right_bc_is_fGW'] = False
-CONFIG['profile_conditions']['n_e_nbar_is_fGW'] = False
-CONFIG['profile_conditions']['normalize_n_e_to_nbar'] = False
+CONFIG['profile_conditions']['n_e_right_bc_is_f_gw'] = False
+CONFIG['profile_conditions']['n_e_bar_is_f_gw'] = False
+CONFIG['profile_conditions']['normalize_n_e'] = False
 
 # Ramp heat up and down to trigger LH and HL transitions
 CONFIG['sources']['generic_heat']['P_total'] = {

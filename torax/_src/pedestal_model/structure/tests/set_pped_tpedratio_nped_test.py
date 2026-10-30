@@ -33,7 +33,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
   @parameterized.product(
       n_e_ped=[0.7e20, {0.0: 0.7e20, 1.0: 0.9e20}],
       rho_norm_ped_top=[{0.0: 0.5, 1.0: 0.7}],
-      n_e_ped_is_fGW=[False, True],
+      n_e_ped_is_f_gw=[False, True],
       time=[0.0, 1.0],
       T_i_T_e_ratio=[1.0, {0.0: 1.0, 1.0: 1.5}],
   )
@@ -41,11 +41,11 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
       self,
       n_e_ped,
       rho_norm_ped_top,
-      n_e_ped_is_fGW,
+      n_e_ped_is_f_gw,
       time,
       T_i_T_e_ratio,
   ):
-    if n_e_ped_is_fGW:
+    if n_e_ped_is_f_gw:
       if isinstance(n_e_ped, dict):
         n_e_ped = {key: value / 1e20 for key, value in n_e_ped.items()}
       else:
@@ -55,7 +55,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         'structure_model': {
             'model_name': 'set_P_ped_n_ped',
             'n_e_ped': n_e_ped,
-            'n_e_ped_is_fGW': n_e_ped_is_fGW,
+            'n_e_ped_is_f_gw': n_e_ped_is_f_gw,
             'rho_norm_ped_top': rho_norm_ped_top,
             'T_i_T_e_ratio': T_i_T_e_ratio,
         }
@@ -102,7 +102,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
       expected_n_e_ped = n_e_ped
     else:
       expected_n_e_ped = n_e_ped[time]
-    if n_e_ped_is_fGW:
+    if n_e_ped_is_f_gw:
       nGW = (
           runtime_params.profile_conditions.I_p
           / 1e6  # Convert to MA.
@@ -134,7 +134,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         'structure_model': {
             'model_name': 'set_P_ped_n_ped',
             'n_e_ped': 0.7e20,
-            'n_e_ped_is_fGW': False,
+            'n_e_ped_is_f_gw': False,
             'rho_norm_ped_top': 0.91,
             'T_i_T_e_ratio': 1.0,
             'P_ped': 1e5,

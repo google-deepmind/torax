@@ -138,9 +138,9 @@ class PostProcessedOutputs:
     n_i_volume_avg: Volume average main ion density [m^-3]
     n_e_line_avg: Line averaged electron density [m^-3]
     n_i_line_avg: Line averaged main ion density [m^-3]
-    fgw_n_e_volume_avg: Greenwald fraction from volume-averaged electron density
-      [dimensionless]
-    fgw_n_e_line_avg: Greenwald fraction from line-averaged electron density
+    f_gw_n_e_volume_avg: Greenwald fraction from volume-averaged electron
+      density [dimensionless]
+    f_gw_n_e_line_avg: Greenwald fraction from line-averaged electron density
       [dimensionless]
     q95: q at 95% of the normalized poloidal flux
     W_pol: Total magnetic energy [J]
@@ -209,13 +209,12 @@ class PostProcessedOutputs:
       poloidal flux on the face grid: -d(beta_pol_local) / d(psi_norm)
       [dimensionless]
     alpha_mhd: s-alpha (shifted-circle) MHD ballooning parameter on the face
-      grid (Connor, Hastie & Taylor, Phys. Rev. Lett. 40, 396, 1978):
-      -(2 * mu_0 * R_major * q^2 / B_0^2) * d(p_total) / d(r_mid)
-      [dimensionless]
+      grid (Connor, Hastie & Taylor, Phys. Rev. Lett. 40, 396, 1978): -(2 * mu_0
+        * R_major * q^2 / B_0^2) * d(p_total) / d(r_mid) [dimensionless]
     alpha_mhd_miller: General-geometry (Miller) MHD ballooning parameter on the
-      face grid (Miller et al., Phys. Plasmas 5, 973, 1998):
-      -(2 * dV/dpsi_rad) / (2 * pi)^2 * sqrt(V / (2 * pi^2 * R_0)) *
-      mu_0 * dp_total/dpsi_rad [dimensionless]
+      face grid (Miller et al., Phys. Plasmas 5, 973, 1998): -(2 * dV/dpsi_rad)
+      / (2 * pi)^2 * sqrt(V / (2 * pi^2 * R_0)) * mu_0 * dp_total/dpsi_rad
+      [dimensionless]
     impurity_species: Dictionary of outputs for each impurity species.
     poloidal_velocity: Poloidal velocity [m/s]
     radial_electric_field: Radial electric field [V/m]
@@ -287,8 +286,8 @@ class PostProcessedOutputs:
   n_i_volume_avg: array_typing.FloatScalar
   n_e_line_avg: array_typing.FloatScalar
   n_i_line_avg: array_typing.FloatScalar
-  fgw_n_e_volume_avg: array_typing.FloatScalar
-  fgw_n_e_line_avg: array_typing.FloatScalar
+  f_gw_n_e_volume_avg: array_typing.FloatScalar
+  f_gw_n_e_line_avg: array_typing.FloatScalar
   q95: array_typing.FloatScalar
   W_pol: array_typing.FloatScalar
   li3: array_typing.FloatScalar
@@ -406,8 +405,8 @@ class PostProcessedOutputs:
         n_i_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_e_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         n_i_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        fgw_n_e_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        fgw_n_e_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        f_gw_n_e_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        f_gw_n_e_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         q95=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         W_pol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         li3=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -590,8 +589,8 @@ class PostProcessedOutputs:
         output_keys.N_I_VOLUME_AVG: self.n_i_volume_avg,
         output_keys.N_E_LINE_AVG: self.n_e_line_avg,
         output_keys.N_I_LINE_AVG: self.n_i_line_avg,
-        output_keys.FGW_N_E_VOLUME_AVG: self.fgw_n_e_volume_avg,
-        output_keys.FGW_N_E_LINE_AVG: self.fgw_n_e_line_avg,
+        output_keys.F_GW_N_E_VOLUME_AVG: self.f_gw_n_e_volume_avg,
+        output_keys.F_GW_N_E_LINE_AVG: self.f_gw_n_e_line_avg,
         # q-profile derived scalars
         output_keys.Q_FUSION: self.Q_fusion,
         output_keys.Q95: self.q95,
@@ -1087,10 +1086,10 @@ def make_post_processed_outputs(
   n_i_line_avg = math_utils.line_average(
       sim_state.core_profiles.n_i.value, sim_state.geometry
   )
-  fgw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
+  f_gw_n_e_volume_avg = formulas.calculate_greenwald_fraction(
       n_e_volume_avg, sim_state.core_profiles, sim_state.geometry
   )
-  fgw_n_e_line_avg = formulas.calculate_greenwald_fraction(
+  f_gw_n_e_line_avg = formulas.calculate_greenwald_fraction(
       n_e_line_avg, sim_state.core_profiles, sim_state.geometry
   )
   W_pol = psi_calculations.calc_Wpol(
@@ -1241,8 +1240,8 @@ def make_post_processed_outputs(
       n_i_volume_avg=n_i_volume_avg,
       n_e_line_avg=n_e_line_avg,
       n_i_line_avg=n_i_line_avg,
-      fgw_n_e_volume_avg=fgw_n_e_volume_avg,
-      fgw_n_e_line_avg=fgw_n_e_line_avg,
+      f_gw_n_e_volume_avg=f_gw_n_e_volume_avg,
+      f_gw_n_e_line_avg=f_gw_n_e_line_avg,
       q95=q95,
       W_pol=W_pol,
       li3=li3,

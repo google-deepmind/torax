@@ -24,9 +24,9 @@ CONFIG = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'geometry',
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.85,  # initial density (Greenwald fraction units)
+        'n_e_bar_is_f_gw': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.85,  # initial density (Greenwald fraction units)
         'n_e_right_bc': 0.2e20,
         # set flat Ohmic current to provide larger range of current
         # evolution for test

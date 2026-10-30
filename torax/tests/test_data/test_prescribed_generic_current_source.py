@@ -37,9 +37,9 @@ CONFIG = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
-        'nbar': 0.85,
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
+        'n_e_bar': 0.85,
+        'n_e_bar_is_f_gw': True,
+        'normalize_n_e': True,
         # set flat Ohmic current to provide larger range of current
         # evolution for test
         # 'current_profile_nu': 0,

@@ -115,11 +115,11 @@ def profile_conditions_from_IMAS(
       "T_i_right_bc": None,
       "T_e": T_e,
       "T_e_right_bc": None,
-      "n_e_right_bc_is_fGW": False,
+      "n_e_right_bc_is_f_gw": False,
       "n_e_right_bc": None,
-      "n_e_nbar_is_fGW": False,
+      "n_e_bar_is_f_gw": False,
       "n_e": n_e,
-      "normalize_n_e_to_nbar": False,
+      "normalize_n_e": False,
       "v_loop_lcfs": v_loop_lcfs,
   }
 

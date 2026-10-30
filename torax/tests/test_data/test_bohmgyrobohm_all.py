@@ -34,11 +34,11 @@ CONFIG = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
-        'nbar': 0.8,
+        'n_e_bar': 0.8,
         'n_e_right_bc': 0.5,
-        'n_e_right_bc_is_fGW': True,
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
+        'n_e_right_bc_is_f_gw': True,
+        'n_e_bar_is_f_gw': True,
+        'normalize_n_e': True,
     },
     'numerics': {
         'evolve_ion_heat': True,
@@ -69,7 +69,7 @@ CONFIG = {
         'structure_model': {
             'model_name': 'set_T_ped_n_ped',
             'n_e_ped': 0.8,
-            'n_e_ped_is_fGW': True,
+            'n_e_ped_is_f_gw': True,
         },
     },
     'transport': {

@@ -327,9 +327,9 @@ class SetPpedTpedRatioNpedConfig(StructureConfigBase):
     P_ped: The plasma pressure at the pedestal [Pa].
     P_ped_multiplier: Multiplier for the pedestal pressure (mostly used for
       sensitivity analysis) [dimensionless].
-    n_e_ped: The electron density at the pedestal [m^-3] or fGW.
-    n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
-      fGW.
+    n_e_ped: The electron density at the pedestal [m^-3] or f_gw.
+    n_e_ped_is_f_gw: Whether the electron density at the pedestal is in units of
+      f_gw.
     T_i_T_e_ratio: Ratio of the ion and electron temperature at the pedestal
       [dimensionless].
     rho_norm_ped_top: The location of the pedestal top.
@@ -347,7 +347,7 @@ class SetPpedTpedRatioNpedConfig(StructureConfigBase):
   n_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.7e20)
   )
-  n_e_ped_is_fGW: bool = False
+  n_e_ped_is_f_gw: bool = False
   T_i_T_e_ratio: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
@@ -372,7 +372,7 @@ class SetPpedTpedRatioNpedConfig(StructureConfigBase):
         P_ped=self.P_ped.get_value(t),
         P_ped_multiplier=self.P_ped_multiplier.get_value(t),
         n_e_ped=self.n_e_ped.get_value(t),
-        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
+        n_e_ped_is_f_gw=self.n_e_ped_is_f_gw,
         T_i_T_e_ratio=self.T_i_T_e_ratio.get_value(t),
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
     )
@@ -382,9 +382,9 @@ class SetTpedNpedConfig(StructureConfigBase):
   """A basic version of the pedestal structure model using direct specification.
 
   Attributes:
-    n_e_ped: The electron density at the pedestal [m^-3] or fGW.
-    n_e_ped_is_fGW: Whether the electron density at the pedestal is in units of
-      fGW.
+    n_e_ped: The electron density at the pedestal [m^-3] or f_gw.
+    n_e_ped_is_f_gw: Whether the electron density at the pedestal is in units of
+      f_gw.
     T_i_ped: Ion temperature at the pedestal [keV].
     T_e_ped: Electron temperature at the pedestal [keV].
     rho_norm_ped_top: The location of the pedestal top.
@@ -396,7 +396,7 @@ class SetTpedNpedConfig(StructureConfigBase):
   n_e_ped: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.7e20)
   )
-  n_e_ped_is_fGW: bool = False
+  n_e_ped_is_f_gw: bool = False
   # TODO(b/434175938): Consider extending to TimeVaryingArray
   T_i_ped: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(5.0)
@@ -419,7 +419,7 @@ class SetTpedNpedConfig(StructureConfigBase):
     return set_tped_nped.RuntimeParams(
         **vars(super().build_runtime_params(t)),
         n_e_ped=self.n_e_ped.get_value(t),
-        n_e_ped_is_fGW=self.n_e_ped_is_fGW,
+        n_e_ped_is_f_gw=self.n_e_ped_is_f_gw,
         T_i_ped=self.T_i_ped.get_value(t),
         T_e_ped=self.T_e_ped.get_value(t),
         rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),

@@ -64,12 +64,12 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
       P_SOL.
     Ti_Te_ratio: Ratio of ion to electron temperature (T_i / T_e) in the edge.
     n_e_edge: Target electron density at rho_norm_edge. In units of m^-3 if
-      n_e_is_fGW is False, or in Greenwald fraction if n_e_is_fGW is True.
+      n_e_is_f_gw is False, or in Greenwald fraction if n_e_is_f_gw is True.
       Mutually exclusive with n_e_edge_multiplier.
     n_e_edge_multiplier: Multiplier applied to the right boundary condition
       density (n_e_right_bc) to set the target electron density at
       rho_norm_edge. Mutually exclusive with n_e_edge.
-    n_e_is_fGW: Whether n_e_edge is provided in units of Greenwald fraction.
+    n_e_is_f_gw: Whether n_e_edge is provided in units of Greenwald fraction.
     mode: Mode for determining the effective beta_poloidal_prime.
     beta_poloidal_prime_min: Minimum poloidal beta gradient at P_SOL <= 0 when
       mode is POWER_DEPENDENT. The default of 0.2 reflects typical low-power
@@ -86,7 +86,7 @@ class RuntimeParams(ibc_runtime_params.RuntimeParams):
   Ti_Te_ratio: array_typing.FloatScalar
   n_e_edge: array_typing.FloatScalar | None = None
   n_e_edge_multiplier: array_typing.FloatScalar | None = None
-  n_e_is_fGW: bool = jax.tree.static(default=False)
+  n_e_is_f_gw: bool = jax.tree.static(default=False)
   mode: Mode = jax.tree.static(default=Mode.CONSTANT)
   beta_poloidal_prime_min: array_typing.FloatScalar = 0.2
   P_SOL_scaling: array_typing.FloatScalar | None = None
@@ -197,7 +197,7 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
       assert (
           params.n_e_edge is not None
       ), 'Expected either n_e_edge or n_e_edge_multiplier to be set.'
-      if params.n_e_is_fGW:
+      if params.n_e_is_f_gw:
         nGW = (
             runtime_params.profile_conditions.I_p
             / 1e6

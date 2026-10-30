@@ -82,26 +82,26 @@ time-dependence of temperature, density, and current.
   prescribed electron density for all times is taken from here. In units of
   :math:`m^{-3}`.
 
-``normalize_n_e_to_nbar`` (bool = False)
+``normalize_n_e`` (bool = False)
   Whether to renormalize the density profile to have the desired line averaged
-  density ``nbar``.
+  density ``n_e_bar``.
 
-``nbar`` (**time-varying-scalar** [default = 0.85e20])
+``n_e_bar`` (**time-varying-scalar** [default = 0.85e20])
   Line averaged density. In units of :math:`m^{-3}` if
-  ``n_e_nbar_is_fGW = False``. In Greenwald fraction if
-  ``n_e_nbar_is_fGW = True``. :math:`n_{GW} = I_p/(\pi a^2)` with a in m,
+  ``n_e_bar_is_f_gw = False``. In Greenwald fraction if
+  ``n_e_bar_is_f_gw = True``. :math:`n_{GW} = I_p/(\pi a^2)` with a in m,
   :math:`n_{GW}` in :math:`10^{20} m^{-3}`, I_p in MA.
 
-``n_e_nbar_is_fGW`` (bool = False)
-  Toggle units of ``nbar``.
+``n_e_bar_is_f_gw`` (bool = False)
+  Toggle units of ``n_e_bar``.
 
 ``n_e_right_bc`` (**time-varying-scalar** | None [default = None])
   Density boundary condition for r=a_minor. In units of m^-3 if
-  ``n_e_right_bc_is_fGW = False``. In Greenwald fraction if
-  ``n_e_right_bc_is_fGW = True``. If ``n_e_right_bc`` is ``None`` then the
+  ``n_e_right_bc_is_f_gw = False``. In Greenwald fraction if
+  ``n_e_right_bc_is_f_gw = True``. If ``n_e_right_bc`` is ``None`` then the
   boundary condition will instead be taken from ``n_e`` at :math:`\hat{\rho}=1`.
 
-``n_e_right_bc_is_fGW`` (bool [default = False])
+``n_e_right_bc_is_f_gw`` (bool [default = False])
   Toggle units of ``n_e_right_bc``.
 
 ``n_e_right_bc_mode`` (str [default = "prescribed"])
@@ -117,7 +117,7 @@ time-dependence of temperature, density, and current.
     :math:`\hat{\rho}_{\text{ref}}` is set by ``n_e_right_bc_reference_rho`` and
     the multiplier by ``n_e_right_bc_multiplier``. At initialization (before any
     evolved profile exists), the prescribed ``n_e`` profile is used as a
-    fallback. When using this mode, ``n_e_right_bc`` and ``n_e_right_bc_is_fGW``
+    fallback. When using this mode, ``n_e_right_bc`` and ``n_e_right_bc_is_f_gw``
     are ignored.
 
 ``n_e_right_bc_reference_rho`` (float | None [default = None])
@@ -241,7 +241,7 @@ time-dependence of temperature, density, and current.
      - ``n_e_edge`` (**time-varying-scalar** | None [default = None]):
        Prescribed electron density at the edge boundary
        :math:`\hat{\rho}_{\text{edge}}` [:math:`\text{m}^{-3}` if
-       ``n_e_is_fGW = False``, Greenwald fraction if ``n_e_is_fGW = True``].
+       ``n_e_is_f_gw = False``, Greenwald fraction if ``n_e_is_f_gw = True``].
        Mutually exclusive with ``n_e_edge_multiplier`` (exactly one must be
        provided).
      - ``n_e_edge_multiplier`` (**time-varying-scalar** | None [default =
@@ -249,7 +249,7 @@ time-dependence of temperature, density, and current.
        (``n_e_right_bc``) to set the electron density at
        :math:`\hat{\rho}_{\text{edge}}` [dimensionless]. Mutually exclusive
        with ``n_e_edge`` (exactly one must be provided).
-     - ``n_e_is_fGW`` (bool [default = False]): If True, ``n_e_edge`` is
+     - ``n_e_is_f_gw`` (bool [default = False]): If True, ``n_e_edge`` is
        interpreted as a Greenwald fraction (dimensionless) instead of absolute
        density (:math:`\text{m}^{-3}`).
      - ``beta_poloidal_prime`` (**time-varying-scalar**): Prescribed normalized

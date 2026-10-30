@@ -40,7 +40,7 @@ class BetaPoloidalPrimeIBCConfig(torax_pydantic.ConfigBase):
   Ti_Te_ratio: torax_pydantic.PositiveTimeVaryingScalar
   n_e_edge: torax_pydantic.PositiveTimeVaryingScalar | None = None
   n_e_edge_multiplier: torax_pydantic.PositiveTimeVaryingScalar | None = None
-  n_e_is_fGW: Annotated[bool, torax_pydantic.JAX_STATIC] = False
+  n_e_is_f_gw: Annotated[bool, torax_pydantic.JAX_STATIC] = False
   mode: Annotated[
       beta_poloidal_prime_lib.Mode, torax_pydantic.JAX_STATIC
   ] = beta_poloidal_prime_lib.Mode.CONSTANT
@@ -85,7 +85,7 @@ class BetaPoloidalPrimeIBCConfig(torax_pydantic.ConfigBase):
             if self.n_e_edge_multiplier is not None
             else None
         ),
-        n_e_is_fGW=self.n_e_is_fGW,
+        n_e_is_f_gw=self.n_e_is_f_gw,
         mode=self.mode,
         beta_poloidal_prime_min=self.beta_poloidal_prime_min.get_value(t),
         P_SOL_scaling=(

@@ -26,11 +26,11 @@ CONFIG = {
         'I_p': 15e6,
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'j',
-        'nbar': 0.85,  # initial density (Greenwald fraction units)
+        'n_e_bar': 0.85,  # initial density (Greenwald fraction units)
         'n_e_right_bc': 0.2e20,
         'current_profile_nu': 0,
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
+        'n_e_bar_is_f_gw': True,
+        'normalize_n_e': True,
     },
     'numerics': {
         'evolve_ion_heat': True,

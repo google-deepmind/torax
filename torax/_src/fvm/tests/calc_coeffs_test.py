@@ -321,7 +321,7 @@ class CalcCoeffsTest(parameterized.TestCase):
                 T_i={0.0: {0.0: 5.0, 1.0: 5.0}},
                 T_e={0.0: {0.0: 5.0, 1.0: 5.0}},
                 n_e={0.0: {0.0: 1.0e20, 1.0: 1.0e20}},
-                normalize_n_e_to_nbar=False,
+                normalize_n_e=False,
             ),
             geometry=dict(geometry_type='circular', elongation_LCFS=1.0),
             pedestal=dict(),

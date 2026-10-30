@@ -29,9 +29,9 @@ CONFIG = {
         # Physical loop voltage; psi BC is accelerated by
         # current_diffusion_time_reduction_factor.
         'v_loop_lcfs': 0.075,
-        'n_e_nbar_is_fGW': True,
-        'normalize_n_e_to_nbar': True,
-        'nbar': 0.85,
+        'n_e_bar_is_f_gw': True,
+        'normalize_n_e': True,
+        'n_e_bar': 0.85,
         'n_e': {0: {0.0: 1.5, 1.0: 1.0}},
     },
     'numerics': {

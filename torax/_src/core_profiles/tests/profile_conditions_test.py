@@ -176,14 +176,14 @@ class ProfileConditionsTest(parameterized.TestCase):
     dcs = dcs_provider(t=0.0).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_initial_value)
     if n_e_right_bc is None:
-      self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
+      self.assertEqual(dcs.n_e_right_bc_is_f_gw, dcs.n_e_bar_is_f_gw)
       self.assertFalse(dcs.n_e_right_bc_is_absolute)
     else:
       self.assertTrue(dcs.n_e_right_bc_is_absolute)
     dcs = dcs_provider(t=1.5).profile_conditions
     self.assertEqual(dcs.n_e_right_bc, expected_second_value)
     if n_e_right_bc is None:
-      self.assertEqual(dcs.n_e_right_bc_is_fGW, dcs.n_e_nbar_is_fGW)
+      self.assertEqual(dcs.n_e_right_bc_is_f_gw, dcs.n_e_bar_is_f_gw)
       self.assertFalse(dcs.n_e_right_bc_is_absolute)
     else:
       self.assertTrue(dcs.n_e_right_bc_is_absolute)
@@ -363,67 +363,67 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          testcase_name='valid_nbar_m3',
+          testcase_name='valid_n_e_bar_m3',
           config_overrides={
-              'nbar': 1e20,
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': False,
+              'n_e_bar': 1e20,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_gw': False,
           },
       ),
       dict(
-          testcase_name='invalid_nbar_m3_too_low',
+          testcase_name='invalid_n_e_bar_m3_too_low',
           config_overrides={
-              'nbar': 1e9,
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': False,
+              'n_e_bar': 1e9,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_gw': False,
           },
           expected_error_msg='below the minimum threshold',
       ),
       dict(
-          testcase_name='nbar_m3_not_normalized_no_error',
+          testcase_name='n_e_bar_m3_not_normalized_no_error',
           config_overrides={
-              'nbar': 1e9,
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': False,
+              'n_e_bar': 1e9,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_gw': False,
           },
       ),
       dict(
-          testcase_name='valid_nbar_fGW',
+          testcase_name='valid_n_e_bar_f_gw',
           config_overrides={
-              'nbar': 0.5,
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': True,
+              'n_e_bar': 0.5,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_gw': True,
           },
       ),
       dict(
-          testcase_name='invalid_nbar_fGW_too_high',
+          testcase_name='invalid_n_e_bar_f_gw_too_high',
           config_overrides={
-              'nbar': 1.1e2,
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': True,
+              'n_e_bar': 1.1e2,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_gw': True,
           },
           expected_error_msg='above the maximum threshold',
       ),
       dict(
-          testcase_name='nbar_fGW_too_low_but_not_used_so_no_error',
+          testcase_name='n_e_bar_f_gw_too_low_but_not_used_so_no_error',
           config_overrides={
-              'nbar': 1.1e2,
+              'n_e_bar': 1.1e2,
               'n_e': {0: {0: 0.85, 1: 0.85}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': True,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_gw': True,
           },
       ),
       dict(
-          testcase_name='invalid_nbar_m3_time_varying_too_low',
+          testcase_name='invalid_n_e_bar_m3_time_varying_too_low',
           config_overrides={
-              'nbar': {0: 1e20, 1: 1e9},
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': False,
+              'n_e_bar': {0: 1e20, 1: 1e9},
+              'normalize_n_e': True,
+              'n_e_bar_is_f_gw': False,
           },
           expected_error_msg='below the minimum threshold',
       ),
   )
-  def test_nbar_order_of_magnitude_validation(
+  def test_n_e_bar_order_of_magnitude_validation(
       self, config_overrides, expected_error_msg=None
   ):
     config_overrides = {
@@ -443,41 +443,41 @@ class ProfileConditionsTest(parameterized.TestCase):
           testcase_name='valid_ne_m3',
           config_overrides={
               'n_e': {0: {0: 1e20, 1: 1e20}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': False,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_gw': False,
           },
       ),
       dict(
           testcase_name='invalid_ne_m3_too_low',
           config_overrides={
               'n_e': {0: {0: 1e11, 0.5: 1e9, 1: 1e11}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': False,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_gw': False,
           },
           expected_error_msg='below the minimum threshold',
       ),
       dict(
-          testcase_name='valid_ne_m3_normalized_to_nbar',
+          testcase_name='valid_ne_m3_normalized_to_n_e_bar',
           config_overrides={
               'n_e': {0: {0: 1e9, 1: 1e9}},
-              'normalize_n_e_to_nbar': True,
-              'n_e_nbar_is_fGW': False,
+              'normalize_n_e': True,
+              'n_e_bar_is_f_gw': False,
           },
       ),
       dict(
-          testcase_name='valid_ne_fGW',
+          testcase_name='valid_ne_f_gw',
           config_overrides={
               'n_e': {0: {0: 0.5, 1: 0.5}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': True,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_gw': True,
           },
       ),
       dict(
-          testcase_name='invalid_ne_fGW_too_high',
+          testcase_name='invalid_ne_f_gw_too_high',
           config_overrides={
               'n_e': {0: {0: 0.5, 0.5: 1.1e2, 1: 0.5}},
-              'normalize_n_e_to_nbar': False,
-              'n_e_nbar_is_fGW': True,
+              'normalize_n_e': False,
+              'n_e_bar_is_f_gw': True,
           },
           expected_error_msg='above the maximum threshold',
       ),
@@ -500,20 +500,26 @@ class ProfileConditionsTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='valid_ne_right_bc_m3',
-          config_overrides={'n_e_right_bc': 1e20, 'n_e_right_bc_is_fGW': False},
+          config_overrides={
+              'n_e_right_bc': 1e20,
+              'n_e_right_bc_is_f_gw': False,
+          },
       ),
       dict(
           testcase_name='invalid_ne_right_bc_m3_too_low',
-          config_overrides={'n_e_right_bc': 1e9, 'n_e_right_bc_is_fGW': False},
+          config_overrides={'n_e_right_bc': 1e9, 'n_e_right_bc_is_f_gw': False},
           expected_error_msg='below the minimum threshold',
       ),
       dict(
-          testcase_name='valid_ne_right_bc_fGW',
-          config_overrides={'n_e_right_bc': 0.5, 'n_e_right_bc_is_fGW': True},
+          testcase_name='valid_ne_right_bc_f_gw',
+          config_overrides={'n_e_right_bc': 0.5, 'n_e_right_bc_is_f_gw': True},
       ),
       dict(
-          testcase_name='invalid_ne_right_bc_fGW_too_high',
-          config_overrides={'n_e_right_bc': 1.1e2, 'n_e_right_bc_is_fGW': True},
+          testcase_name='invalid_ne_right_bc_f_gw_too_high',
+          config_overrides={
+              'n_e_right_bc': 1.1e2,
+              'n_e_right_bc_is_f_gw': True,
+          },
           expected_error_msg='above the maximum threshold',
       ),
   )
@@ -1015,9 +1021,9 @@ class ProfileConditionsTest(parameterized.TestCase):
           geo.rho_face_norm,
       )
 
-  def test_ne_bc_density_fraction_rejects_is_fgw(self):
+  def test_ne_bc_density_fraction_rejects_is_f_gw(self):
     with self.assertRaisesRegex(
-        ValueError, 'n_e_right_bc_is_fGW must be False'
+        ValueError, 'n_e_right_bc_is_f_gw must be False'
     ):
       profile_conditions.ProfileConditions(
           I_p=15e6,
@@ -1026,7 +1032,7 @@ class ProfileConditionsTest(parameterized.TestCase):
           n_e_right_bc_mode='density_fraction',
           n_e_right_bc_reference_rho=0.85,
           n_e_right_bc_multiplier=1.2,
-          n_e_right_bc_is_fGW=True,
+          n_e_right_bc_is_f_gw=True,
       )
 
   def test_internal_boundary_conditions_set_correctly(self):

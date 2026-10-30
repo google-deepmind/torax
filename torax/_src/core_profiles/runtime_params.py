@@ -100,10 +100,10 @@ class RuntimeParams:
   toroidal_angular_velocity_right_bc: array_typing.FloatScalar | None
   # Electron density profile on the cell grid.
   n_e: array_typing.FloatVector
-  nbar: array_typing.FloatScalar
-  n_e_nbar_is_fGW: bool
+  n_e_bar: array_typing.FloatScalar
+  n_e_bar_is_f_gw: bool
   n_e_right_bc: array_typing.FloatScalar
-  n_e_right_bc_is_fGW: bool
+  n_e_right_bc_is_f_gw: bool
   n_e_right_bc_mode: NeBoundaryConditionMode = jax.tree.static()
   n_e_right_bc_reference_rho: array_typing.FloatScalar | None
   n_e_right_bc_multiplier: array_typing.FloatScalar | None
@@ -112,7 +112,7 @@ class RuntimeParams:
   )
   current_profile_nu: float
   initial_j_is_total_current: bool = jax.tree.static()
-  normalize_n_e_to_nbar: bool = jax.tree.static()
+  normalize_n_e: bool = jax.tree.static()
   use_v_loop_lcfs_boundary_condition: bool = jax.tree.static()
   n_e_right_bc_is_absolute: bool = jax.tree.static()
   initial_psi_source: InitialPsiSource = jax.tree.static()

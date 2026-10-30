@@ -406,7 +406,7 @@ class SimTest(sim_test_case.SimTestCase):
             'initial_psi_source': 'geometry',
             'n_e': 1.0e20,
             'n_e_right_bc': 1.0e20,
-            'n_e_nbar_is_fGW': False,
+            'n_e_bar_is_f_gw': False,
             'T_i': 6.0,
             'T_e': 6.0,
             'T_i_right_bc': 0.1,

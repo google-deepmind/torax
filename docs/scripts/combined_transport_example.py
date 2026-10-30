@@ -43,7 +43,7 @@ def main(argv: Sequence[str]) -> None:
               'model_name': 'set_T_ped_n_ped',
               'rho_norm_ped_top': 0.9,
               'n_e_ped': 0.8,
-              'n_e_ped_is_fGW': True,
+              'n_e_ped_is_f_gw': True,
           },
       },
       'neoclassical': {},

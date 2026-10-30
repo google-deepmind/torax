@@ -30,7 +30,7 @@ CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
 
 # Increase density over the course of the simulation
-CONFIG['profile_conditions']['nbar'] = {0: 0.8, 5.0: 1.2}
+CONFIG['profile_conditions']['n_e_bar'] = {0: 0.8, 5.0: 1.2}
 
 # Increase W concentration
 W_frac = 0.01

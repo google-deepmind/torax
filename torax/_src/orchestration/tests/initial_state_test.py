@@ -130,11 +130,11 @@ class InitialStateTest(sim_test_case.SimTestCase):
         core_profile_runtime_params.InitialPsiSource.PROFILE_CONDITIONS
     )
     # When loading from file we want ne not to have transformations.
-    # Both ne and the boundary condition are given in absolute values (not fGW).
-    # Additionally we want to avoid normalizing to nbar.
-    runtime_params.profile_conditions.n_e_right_bc_is_fGW = False
-    runtime_params.profile_conditions.n_e_nbar_is_fGW = False
-    runtime_params.profile_conditions.normalize_n_e_to_nbar = False
+    # Both ne and the boundary condition are given in absolute values (not f_gw).
+    # Additionally we want to avoid normalizing to n_e_bar.
+    runtime_params.profile_conditions.n_e_right_bc_is_f_gw = False
+    runtime_params.profile_conditions.n_e_bar_is_f_gw = False
+    runtime_params.profile_conditions.normalize_n_e = False
     runtime_params.profile_conditions.n_e_right_bc_is_absolute = True
 
     result = initial_state._get_initial_state(runtime_params, geo, step_fn)
