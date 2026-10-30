@@ -69,7 +69,22 @@ class FastIon:
       n_right_face_constraint: array_typing.FloatScalar | None = None,
       T_right_face_constraint: array_typing.FloatScalar | None = None,
   ) -> Self:
-    """Constructs a FastIon object from density and temperature arrays."""
+    """Constructs a FastIon object from density and temperature arrays.
+
+    Args:
+      species: Ion species symbol (e.g. 'D', 'T', 'He3', 'He4').
+      source_name: Name of the source producing the fast ion species.
+      geo: Torus geometry.
+      n: Fast ion density profile on the cell grid [m^-3].
+      T: Fast ion temperature profile on the cell grid [keV].
+      n_right_face_constraint: Optional right boundary condition for density
+        [m^-3]. Defaults to 0.0.
+      T_right_face_constraint: Optional right boundary condition for temperature
+        [keV]. Defaults to 0.0.
+
+    Returns:
+      A `FastIon` instance with `CellVariable` profiles for `n` and `T`.
+    """
     return cls(
         species=species,
         source=source_name,

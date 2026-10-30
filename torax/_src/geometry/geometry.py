@@ -394,7 +394,14 @@ class Geometry:
     return (self.R_in_face + self.R_out_face) / 2  # pyrefly: ignore[bad-return]
 
   def z_magnetic_axis(self) -> chex.Numeric:
-    """z position of magnetic axis [m]."""
+    """Returns the z position of the magnetic axis [m].
+
+    Returns:
+      z position of the magnetic axis [m].
+
+    Raises:
+      ValueError: If the geometry does not have a z magnetic axis.
+    """
     z_magnetic_axis = self._z_magnetic_axis
     if z_magnetic_axis is not None:
       return z_magnetic_axis
@@ -404,7 +411,14 @@ class Geometry:
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Serializes stacked Geometry into a dictionary of OutputVar tuples."""
+    """Serializes stacked Geometry into a dictionary of OutputVar tuples.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     extend = output_grid_context.extend_cell_grid_to_boundaries
     extended_vars = (
         (output_keys.PHI, self.Phi, self.Phi_face),

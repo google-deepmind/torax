@@ -173,7 +173,14 @@ class SourceProfiles:
     )
 
   def total_psi_sources(self, geo: geometry.Geometry) -> array_typing.Array:
-    """Returns the total psi sources."""
+    """Returns the total psi sources.
+
+    Args:
+      geo: Torus geometry.
+
+    Returns:
+      Array of total poloidal flux source terms on the cell grid.
+    """
     # All psi sources are assumed to be parallel to the magnetic field, ie
     # self.psi.values() is <j.B> / B0
     total_j_dot_B_over_B0 = self.bootstrap_current.j_parallel_bootstrap + sum(
@@ -195,6 +202,15 @@ class SourceProfiles:
       source_type: Literal['n_e', 'T_i', 'T_e'],
       geo: geometry.Geometry,
   ) -> array_typing.Array:
+    """Returns the total volume-weighted sources for a given profile channel.
+
+    Args:
+      source_type: The core profile channel ('n_e', 'T_i', or 'T_e').
+      geo: Torus geometry.
+
+    Returns:
+      Array of total source terms weighted by `geo.vpr` on the cell grid.
+    """
     source: dict[str, jax.Array] = getattr(self, source_type)
     if not source:
       return jnp.zeros_like(geo.vpr)
@@ -259,7 +275,14 @@ class SourceProfiles:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts source profiles into an OutputVar mapping."""
+    """Converts source profiles into an OutputVar mapping.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     out_dict = self.bootstrap_current.to_output_dict(context)
     out_dict.update(self.qei.to_output_dict(context))
     for key, data in self._iterate_channels_for_output(

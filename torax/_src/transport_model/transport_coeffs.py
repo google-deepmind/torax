@@ -46,7 +46,14 @@ class TransportCoeffs:
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a TransportCoeffs with all zeros."""
+    """Returns a TransportCoeffs with all zeros.
+
+    Args:
+      geo: Geometry of the torus.
+
+    Returns:
+      A `TransportCoeffs` instance initialized with zeros.
+    """
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(
         chi_face_ion=zeros,
@@ -82,7 +89,14 @@ class TransportCoeffs:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts the 4 standard channels to an OutputVar mapping."""
+    """Converts the 4 standard channels to an OutputVar mapping.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     return {
         output_keys.CHI_TURB_I: context.pack(
             output_keys.CHI_TURB_I, self.chi_face_ion
@@ -149,6 +163,14 @@ class TurbulentTransport:
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
+    """Returns a TurbulentTransport with all zero transport coefficients.
+
+    Args:
+      geo: Geometry of the torus.
+
+    Returns:
+      A `TurbulentTransport` instance initialized with zeros.
+    """
     return cls(
         core=TransportCoeffs.zeros(geo),
         pedestal=TransportCoeffs.zeros(geo),
@@ -160,14 +182,28 @@ class TurbulentTransport:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts turbulent transport outputs to an OutputVar mapping."""
+    """Converts turbulent transport outputs to an OutputVar mapping.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     return self.total.to_output_dict(context)
 
   def to_xr_datatree(
       self,
       context: output_grid_context.OutputGridContext,
   ) -> xr.DataTree:
-    """Builds an xr.DataTree of the per-model turbulent transport outputs."""
+    """Builds an xr.DataTree of the per-model turbulent transport outputs.
+
+    Args:
+      context: OutputGridContext used for building the datasets.
+
+    Returns:
+      An `xr.DataTree` containing per-model turbulent transport outputs.
+    """
     children = {}
     if self.core_components:
       core_children = {
@@ -206,7 +242,14 @@ class NeoclassicalTransport(TransportCoeffs):
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a NeoclassicalTransport with zero transport coefficients."""
+    """Returns a NeoclassicalTransport with zero transport coefficients.
+
+    Args:
+      geo: Geometry of the torus.
+
+    Returns:
+      A `NeoclassicalTransport` instance initialized with zeros.
+    """
     zeros = jnp.zeros_like(geo.rho_face_norm)
     return cls(
         chi_face_ion=zeros,
@@ -220,7 +263,14 @@ class NeoclassicalTransport(TransportCoeffs):
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts neoclassical transport outputs to an OutputVar mapping."""
+    """Converts neoclassical transport outputs to an OutputVar mapping.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     return {
         output_keys.CHI_NEO_I: context.pack(
             output_keys.CHI_NEO_I, self.chi_face_ion

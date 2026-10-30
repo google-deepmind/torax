@@ -102,7 +102,12 @@ class SimState:
   model_state: model_state_lib.ModelState
 
   def check_for_errors(self) -> state.SimError:
-    """Checks for errors in the simulation state."""
+    """Checks for errors in the simulation state.
+
+    Returns:
+      A `SimError` enum value indicating any error detected in the state, or
+      `SimError.NO_ERROR` if none.
+    """
     if self.core_profiles.negative_temperature_or_density():
       logging.info("Unphysical negative values detected in core profiles:\n")
       _log_negative_profile_names(self.core_profiles)
@@ -118,7 +123,11 @@ class SimState:
 
   @jax.jit
   def has_nan(self) -> jax.Array:
-    """Returns a boolean JAX scalar indicating whether any checked leaf has NaNs."""
+    """Checks whether any checked leaf in SimState contains NaNs.
+
+    Returns:
+      Boolean JAX scalar indicating whether any checked leaf has NaNs.
+    """
     # Exclude edge outputs from NaN checks. This is acceptable as the edge model
     # can be run in a decoupled mode for diagnostic purposes, in which case NaNs
     # are not propagated to the TORAX core profiles and can be ignored. If NaNs

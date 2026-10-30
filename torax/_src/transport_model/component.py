@@ -44,7 +44,14 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
   ) -> transport_state_lib.ComponentTransportState:
-    """Returns the initial state for this component transport model."""
+    """Returns the initial state for this component transport model.
+
+    Args:
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Initial `ComponentTransportState` for this transport model.
+    """
     del runtime_params
     return transport_state_lib.ComponentTransportState()
 
@@ -105,6 +112,21 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       transport_coeffs.TransportCoeffs,
       transport_state_lib.ComponentTransportState,
   ]:
+    """Calculates raw transport coefficients for this component model.
+
+    Args:
+      transport_runtime_params: Runtime parameters for the transport model.
+      runtime_params: Runtime parameters for the simulation.
+      geo: Geometry of the torus.
+      core_profiles: Core plasma profiles.
+      two_point_mask: Boolean mask on the face grid indicating where to use
+        2-point central differencing instead of 3-point polynomial interpolation
+        for gradients.
+      component_state: ComponentTransportState for this model.
+
+    Returns:
+      Tuple of (`TransportCoeffs`, updated `ComponentTransportState`).
+    """
     pass
 
   def zero_out_disabled_channels(
@@ -114,7 +136,15 @@ class ComponentTransportModel(static_dataclass.StaticDataclass, abc.ABC):
       ),
       coeffs: transport_coeffs.TransportCoeffs,
   ) -> transport_coeffs.TransportCoeffs:
-    """Sets coefficients to zero for channels that are disabled."""
+    """Sets coefficients to zero for channels that are disabled.
+
+    Args:
+      transport_runtime_params: Runtime parameters for the transport model.
+      coeffs: Raw transport coefficients.
+
+    Returns:
+      `TransportCoeffs` with disabled channels zeroed out.
+    """
     return dataclasses.replace(
         coeffs,
         chi_face_ion=jnp.where(

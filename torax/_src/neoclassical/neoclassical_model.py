@@ -61,7 +61,16 @@ class NeoclassicalModel(static_dataclass.StaticDataclass, abc.ABC):
       geo: geometry_lib.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> NeoclassicalOutputs:
-    """Evaluates the neoclassical model at the given state."""
+    """Evaluates the neoclassical model at the given state.
+
+    Args:
+      runtime_params: Runtime parameters for the simulation.
+      geo: Torus geometry.
+      core_profiles: Core plasma profiles.
+
+    Returns:
+      Computed `NeoclassicalOutputs` for the current state.
+    """
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
