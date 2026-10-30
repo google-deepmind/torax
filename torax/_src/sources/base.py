@@ -61,12 +61,23 @@ class SourceConfigBase(torax_pydantic.ConfigBase):
 
   @abc.abstractmethod
   def build_source(self) -> source_lib.Source:
-    """Builds a source object from the model config."""
+    """Builds a source object from the model config.
+
+    Returns:
+      A `Source` instance constructed from this configuration.
+    """
 
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.RuntimeParams:
-    """Builds runtime parameters for the source."""
+    """Builds runtime parameters for the source.
+
+    Args:
+      t: Simulation time at which to evaluate time-varying parameters.
+
+    Returns:
+      Runtime parameters for the source at time `t`.
+    """
     return runtime_params.RuntimeParams(
         prescribed_values=tuple(v.get_value(t) for v in self.prescribed_values),
         mode=self.mode,
