@@ -661,19 +661,21 @@ def _mtanh_core_profiles(
 ) -> state.CoreProfiles:
   """Returns core profiles with the given psi and flat T_i, T_e, n_e."""
   core_profiles = mock.MagicMock(spec=state.CoreProfiles)
-  core_profiles.psi = cell_variable.CellVariable(
+  core_profiles.flux = mock.MagicMock()
+  core_profiles.flux.psi = cell_variable.CellVariable(
       value=psi,
       face_centers=geo.rho_face_norm,
       right_face_constraint=None,
       right_face_grad_constraint=jnp.array(psi_right_grad),
   )
+  core_profiles.kinetic = mock.MagicMock()
   for name, top_v, sep_v in (
       ('T_i', 4.0, 0.1),
       ('T_e', 4.0, 0.08),
       ('n_e', 1e20, 1e19),
   ):
     setattr(
-        core_profiles,
+        core_profiles.kinetic,
         name,
         cell_variable.CellVariable(
             value=jnp.full_like(geo.rho_norm, top_v),
@@ -682,8 +684,6 @@ def _mtanh_core_profiles(
             right_face_grad_constraint=None,
         ),
     )
-  core_profiles.flux = mock.MagicMock()
-  core_profiles.flux.psi = core_profiles.psi
   core_profiles.psi_norm = state.CoreProfiles.psi_norm.func(core_profiles)
   core_profiles.psi_norm_face = state.CoreProfiles.psi_norm_face.func(
       core_profiles
