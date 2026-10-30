@@ -260,38 +260,20 @@ The following models are available:
 Ion Cyclotron Resonance Heating
 ===============================
 
-TORAX supports ICRH through two models, selectable via the ``model_name``
-discriminator in the ``icrh`` source configuration.
+TORAX supports ICRH models selectable via the ``model_name`` discriminator in
+the ``icrh`` source configuration. Custom models can also be registered via
+``torax.sources.register_source_config`` (see :ref:`model-integration`).
 
 **Common parameters** shared by all ICRH models are the total injected power
 :math:`P_\mathrm{total}` and the absorption fraction :math:`\alpha`. The
 absorbed power is :math:`P_\mathrm{abs} = P_\mathrm{total} \times \alpha`.
 
-ToricNN Surrogate (``toric_nn``)
---------------------------------
-
-This is the default ICRH model, currently specific to the SPARC tokamak.
-
-A core Ion Cyclotron Range of Frequencies (ICRF) heating surrogate model trained
-on TORIC ICRH spectrum solver simulations is used to provide power profiles for
-Helium-3, Tritium (via its second harmonic) and electrons |wallace2024|.
-
-A "Stix distribution" [Stix, Nuc. Fus. 1975] is used to model the non-thermal
-Helium-3 distribution based on an analytic solution to the Fokker-Planck
-equation to estimate the birth energy of Helium-3.
-
-TORAX partitions the Helium-3 power between ions and electrons using the
-parameterized model of Mikkelsen, as for Fusion Power.
-
-It is assumed that all tritium heating goes to ions and all electron heating
-goes to electrons.
-
 Scaled Profile (``scaled_profile``)
 -----------------------------------
 
-A lightweight model that takes user-prescribed reference heating profiles
-and adapts them to different magnetic field operating points using a
-physically-motivated radial shift.
+This is the default ICRH model. It is a lightweight model that takes
+user-prescribed reference heating profiles and adapts them to different magnetic
+field operating points using a physically-motivated radial shift.
 
 The model performs two operations:
 

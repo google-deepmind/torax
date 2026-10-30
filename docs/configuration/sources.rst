@@ -322,8 +322,9 @@ implemented in TORAX.
 
 icrh
 ====
-Ion cyclotron resonance heating (ICRH) source. Two model implementations are
-available, selected via the ``model_name`` discriminator.
+Ion cyclotron resonance heating (ICRH) source. Custom ICRH models can also be
+registered via ``torax.sources.register_source_config`` (see
+:ref:`model-integration`).
 
 ``mode`` (str [default = 'model'])
 
@@ -333,40 +334,14 @@ available, selected via the ``model_name`` discriminator.
 ``absorption_fraction`` (**time-varying-scalar** [default = 1.0])
   Fraction of ``P_total`` absorbed by the plasma.
 
-``minority_species`` (str)
+``minority_species`` (str [default = 'He3'])
   Symbol of the minority species (e.g. 'He3'). The minority concentration is
   automatically extracted from the plasma composition.
 
-``model_name`` (str)
+``model_name`` (str [default = 'scaled_profile'])
   Selects the ICRH model. Available options:
 
-* ``'toric_nn'`` (default)
-    Surrogate model of the TORIC ICRH spectrum solver simulation
-    https://meetings.aps.org/Meeting/DPP24/Session/NP12.106.
-    This source is currently SPARC specific, and presently only ``'He3'`` is
-    supported as ``minority_species``.
-
-    Weights and configuration for the surrogate model are needed to use this
-    source. By default these are expected to be found under
-    ``'~/toric_surrogate/TORIC_MLP_v1/toricnn.json'``. To use a different file
-    path an alternative path can be provided using the ``TORIC_NN_MODEL_PATH``
-    environment variable which should point to a compatible JSON file.
-
-    ``model_path`` (str | None [default = None])
-      Path to the JSON file containing the weights and configuration for the
-      surrogate model. If None, the default path
-      ``'~/toric_surrogate/TORIC_MLP_v1/toricnn.json'`` is used.
-
-    ``wall_inner`` (float [default = 1.24])
-      Inner radial location of first wall at plasma midplane level [m].
-
-    ``wall_outer`` (float [default = 2.43])
-      Outer radial location of first wall at plasma midplane level [m].
-
-    ``frequency`` (**time-varying-scalar** [default = 120e6])
-      ICRF wave frequency in Hz.
-
-* ``'scaled_profile'``
+* ``'scaled_profile'`` (default)
     Prescribed-profile model with magnetic-field-dependent resonance shifting.
     Adapts reference heating profiles to different magnetic field operating points
     and normalises them to the target power. See :ref:`physics_models` for

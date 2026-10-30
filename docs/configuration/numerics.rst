@@ -22,8 +22,8 @@ numerical variables.
 ``enable_fast_ions`` (bool [default = False])
   Enables the tracking and computation of fast ion density and temperature
   profiles. Required to be True to use ``profile_conditions.fast_ions``,
-  ``transport.fast_ion_stabilization``, and to allow sources like ``toric-nn``
-  to provide fast ion profiles to the simulation.
+  ``transport.fast_ion_stabilization``, and to allow sources to provide fast ion
+  profiles to the simulation.
 
 ``current_diffusion_time_reduction_factor`` (**positive-time-varying-scalar** [default = 1.0])
   Factor dividing the transient term in the poloidal flux (:math:`\psi`) PDE

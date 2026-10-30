@@ -755,26 +755,13 @@ class ConfigTest(parameterized.TestCase):
     ):
       config.ToraxConfig.from_dict(config_dict)
 
-  @parameterized.named_parameters(
-      (
-          "toric_nn",
-          {"model_name": "toric_nn", "model_path": "/tmp/dummy_path.json"},
-          "He3",
-      ),
-      (
-          "scaled_profile",
-          {"model_name": "scaled_profile"},
-          "Li",
-      ),
-  )
-  def test_validate_icrh_requires_minority_species_in_composition(
-      self, icrh_kwargs, minority_species
-  ):
+  def test_validate_icrh_requires_minority_species_in_composition(self):
     """Tests that ICRH models require minority_species in plasma composition."""
+    minority_species = "Li"
     config_dict = default_configs.get_default_config_dict()
     config_dict["sources"] = {
         "icrh": {
-            **icrh_kwargs,
+            "model_name": "scaled_profile",
             "minority_species": minority_species,
         }
     }

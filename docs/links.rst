@@ -5,7 +5,6 @@
 .. _citrin2010_link: https://doi.org/10.1088/0029-5515/50/11/115007
 .. _pint_link: https://gitlab.com/qualikiz-group/pyntegrated_model
 .. _raptor_link: https://iopscience.iop.org/article/10.1088/0741-3335/54/2/025002
-.. _toricnn_link: https://meetings.aps.org/Meeting/DPP24/Session/NP12.106
 .. _pereverzev-corrigan_link: https://doi.org/10.1016/j.cpc.2008.05.006
 .. _chease_link: https://doi.org/10.1016/0010-4655(96)00046-X
 .. _fbt_link: https://www.sciencedirect.com/science/article/pii/0010465588900410
@@ -23,7 +22,6 @@
 .. _lin-liu-miller1995_link: https://doi.org/10.1063/1.871315
 .. _albajar2001_link: https://doi.org/10.1088/0029-5515/41/6/301
 .. _artaud2018_link: https://doi.org/10.1088/1741-4326/aad5b1
-.. _wallace2024_link: https://meetings.aps.org/Meeting/DPP24/Session/NP12.106
 .. _body2025_link: https://doi.org/10.1088/1741-4326/ade4d9
 .. _kallenbach2024_link: https://doi.org/10.1088/1741-4326/ad3139
 .. _mavrin2017_link: https://doi.org/10.1007/s10894-017-0136-z
@@ -46,7 +44,6 @@
 .. |citrin2010| replace:: `[Citrin et al, Nucl. Fusion 2010] <citrin2010_link_>`__
 .. |pint| replace:: `PINT <pint_link_>`__
 .. |raptor| replace:: `[Felici et al, Plasma Phys. Control. Fusion 2012] <raptor_link_>`__
-.. |toricnn| replace:: `[Wallace et al, APS 2024] <toricnn_link_>`__
 .. |pereverzev-corrigan-method| replace:: `Pereverzev-Corrigan method <pereverzev-corrigan_link_>`__
 .. |chease| replace:: `CHEASE <chease_link_>`__
 .. |fbt| replace:: `FBT <fbt_link_>`__
@@ -64,7 +61,6 @@
 .. |lin-liu-miller1995| replace:: `[Lin-Liu & Miller, Phys. Plasmas 1995] <lin-liu-miller1995_link_>`__
 .. |albajar2001| replace:: `Albajar NF 2001 <albajar2001_link_>`__
 .. |artaud2018| replace:: `Artaud NF 2018 <artaud2018_link_>`__
-.. |wallace2024| replace:: `[Wallace et al, APS 2024] <wallace2024_link_>`__
 .. |body2025| replace:: `[Body et al, NF 2025] <body2025_link_>`__
 .. |kallenbach2024| replace:: `[Kallenbach et al, NF 2024] <kallenbach2024_link_>`__
 .. |mavrin2017| replace:: `[Mavrin, J Fusion Energ 2017] <mavrin2017_link_>`__

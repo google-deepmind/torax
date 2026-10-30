@@ -40,8 +40,7 @@ TORAX has the following physics and numerics feature set:
       voltage at the last-closed-flux-surface.
 
 * Ohmic power, ion-electron heat exchange, fusion power, Bremsstrahlung,
-  impurity line radiation, an ICRH ML-surrogate |toricnn| (as-yet covering
-  limited regimes).
+  impurity line radiation, and ICRH heating.
 * Neoclassical physics including bootstrap current and parallel conductivity
   (analytical Sauter |sauter99| and Redl |redl2021| models), neoclassical
   heat and particle transport (Angioni-Sauter |angioni2000| with optional

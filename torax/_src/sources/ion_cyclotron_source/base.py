@@ -74,7 +74,7 @@ class IonCyclotronSourceConfig(source_base.SourceConfigBase):
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
-  minority_species: Annotated[str, torax_pydantic.JAX_STATIC]
+  minority_species: Annotated[str, torax_pydantic.JAX_STATIC] = 'He3'
 
   def build_runtime_params(
       self,

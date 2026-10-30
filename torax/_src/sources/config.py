@@ -36,7 +36,6 @@ from torax._src.sources import source_models
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax._src.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax._src.sources.ion_cyclotron_source import scaled_profile
-from torax._src.sources.ion_cyclotron_source import toric_nn
 from torax._src.torax_pydantic import torax_pydantic
 
 
@@ -112,12 +111,10 @@ class SourcesConfig(torax_pydantic.ConfigBase):
   ) = _source_field(
       default_config_if_enabled=generic_particle_source_lib.GenericParticleSourceConfig
   )
-  icrh: (
-      toric_nn.ToricNNIonCyclotronSourceConfig
-      | scaled_profile.ScaledProfileIonCyclotronSourceConfig
-      | None
-  ) = _source_field(
-      default_config_if_enabled=toric_nn.ToricNNIonCyclotronSourceConfig
+  icrh: scaled_profile.ScaledProfileIonCyclotronSourceConfig | None = (
+      _source_field(
+          default_config_if_enabled=scaled_profile.ScaledProfileIonCyclotronSourceConfig
+      )
   )
   impurity_radiation: (
       impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
