@@ -202,6 +202,27 @@ class CellVariable:
           raise TypeError(
               f'Expected dtype {jax_dtype}, got {value.dtype} for `{name}`'
           )
+    # Pytree unflattening reconstructs `CellVariable` with non-array sentinel
+    # leaves (e.g. `ArgInfo`, `str`) during JAX tracing and transforms.
+    if isinstance(self.value, array_typing.Array) and isinstance(
+        self.face_centers, array_typing.Array
+    ):
+      if self.value.ndim < 1 or self.face_centers.ndim < 1:
+        raise ValueError(
+            'value and face_centers must be at least 1D arrays, got shapes '
+            f'value={self.value.shape} and '
+            f'face_centers={self.face_centers.shape}.'
+        )
+      if self.value.shape[-1] + 1 != self.face_centers.shape[-1] or (
+          self.face_centers.ndim > 1
+          and self.value.shape[:-1] != self.face_centers.shape[:-1]
+      ):
+        raise ValueError(
+            'Shape of value must be consistent with face_centers '
+            '(expected (..., N) and (..., N + 1) or (N + 1,)), got '
+            f'value.shape={self.value.shape} and '
+            f'face_centers.shape={self.face_centers.shape}.'
+        )
     left_constraints = (
         self.left_face_constraint,
         self.left_face_grad_constraint,

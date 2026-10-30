@@ -19,8 +19,8 @@ Functions:
       coefficient (equipartion).
     - calc_nu_star: Calculates the nu_star parameter: the electron-ion collision
       frequency normalized by bounce frequency.
-    - fast_ion_fractional_heating_formula: Returns the fraction of heating that
-      goes to the ions according to Stix 1975 analytical formulas.
+    - mikkelsen_fast_ion_heating_fraction: Returns the fraction of heating that
+      goes to the ions according to Mikkelsen 1983 analytical formulas.
     - calculate_log_lambda_ee: Calculates the Coulomb logarithm for
       electron-electron collisions.
     - calculate_log_lambda_ei: Calculates the Coulomb logarithm for
@@ -145,7 +145,7 @@ def calc_nu_star(
   return nustar
 
 
-def fast_ion_fractional_heating_formula(
+def mikkelsen_fast_ion_heating_fraction(
     birth_energy: float | array_typing.FloatVector,
     T_e: array_typing.FloatVector,
     fast_ion_mass: float,

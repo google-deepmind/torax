@@ -471,7 +471,7 @@ class ToricNNIonCyclotronSource(base.IonCyclotronSource):
     )
     fast_ions = (he3_fast_ion,)
 
-    frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
+    frac_ion_heating = collisions.mikkelsen_fast_ion_heating_fraction(
         T_tail,
         core_profiles.T_e.value,
         he3_atomic_mass,

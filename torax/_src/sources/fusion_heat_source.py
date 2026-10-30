@@ -138,7 +138,7 @@ class FusionHeatSource(source.Source):
     # Fractional fusion power ions/electrons.
     birth_energy = 3520  # Birth energy of alpha particles is 3.52MeV.
     alpha_mass = 4.002602
-    frac_i = collisions.fast_ion_fractional_heating_formula(
+    frac_i = collisions.mikkelsen_fast_ion_heating_fraction(
         birth_energy,
         core_profiles.T_e.value,
         alpha_mass,

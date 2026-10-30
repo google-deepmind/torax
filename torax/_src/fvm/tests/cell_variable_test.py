@@ -26,6 +26,47 @@ def _make_face_centers(dr: float, num_cells: int) -> np.ndarray:
 
 class CellVariableTest(parameterized.TestCase):
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='face_sized_value',
+          value_fn=lambda: jnp.ones(5),
+          face_centers_fn=lambda: _make_face_centers(0.1, 4),
+      ),
+      dict(
+          testcase_name='too_short_value',
+          value_fn=lambda: jnp.ones(3),
+          face_centers_fn=lambda: _make_face_centers(0.1, 4),
+      ),
+      dict(
+          testcase_name='numpy_value_mismatch',
+          value_fn=lambda: np.ones(5),
+          face_centers_fn=lambda: _make_face_centers(0.1, 4),
+      ),
+      dict(
+          testcase_name='scalar_value',
+          value_fn=lambda: jnp.array(1.0),
+          face_centers_fn=lambda: _make_face_centers(0.1, 4),
+      ),
+      dict(
+          testcase_name='scalar_face_centers',
+          value_fn=lambda: jnp.ones(4),
+          face_centers_fn=lambda: np.array(1.0),
+      ),
+      dict(
+          testcase_name='mismatched_batch_dims',
+          value_fn=lambda: jnp.ones((2, 4)),
+          face_centers_fn=lambda: np.ones((3, 5)),
+      ),
+  )
+  def test_inconsistent_value_and_face_centers_shape_raises(
+      self, value_fn, face_centers_fn
+  ):
+    with self.assertRaises(ValueError):
+      cell_variable.CellVariable(
+          value=value_fn(),
+          face_centers=face_centers_fn(),
+      )
+
   def test_unconstrained_left_raises_an_error(self):
     with self.assertRaisesRegex(ValueError, 'left_face_constraint'):
       cell_variable.CellVariable(

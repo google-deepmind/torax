@@ -85,7 +85,7 @@ class InitialStatesTest(parameterized.TestCase):
           core_profiles,
           T_i=dataclasses.replace(
               core_profiles.T_i,
-              value=jnp.array(-1.0),
+              value=jnp.full_like(core_profiles.T_i.value, -1.0),
           ),
       )
       self.assertTrue(new_core_profiles.negative_temperature_or_density())
@@ -94,7 +94,7 @@ class InitialStatesTest(parameterized.TestCase):
           core_profiles,
           psi=dataclasses.replace(
               core_profiles.psi,
-              value=jnp.array(-1.0),
+              value=jnp.full_like(core_profiles.psi.value, -1.0),
           ),
       )
       self.assertFalse(new_core_profiles.negative_temperature_or_density())

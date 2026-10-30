@@ -15,9 +15,13 @@
 """Fast ion physics classes."""
 
 import dataclasses
+from typing import Self
 
 import jax
+from jax import numpy as jnp
+from torax._src import array_typing
 from torax._src.fvm import cell_variable
+from torax._src.geometry import geometry
 
 
 # All fast ion species that can be modeled/prescribed in TORAX.
@@ -53,3 +57,40 @@ class FastIon:
 
   def __post_init__(self):
     validate_fast_ion_species(self.species, self.source)
+
+  @classmethod
+  def from_arrays(
+      cls,
+      species: str,
+      source_name: str,
+      geo: geometry.Geometry,
+      n: array_typing.FloatVectorCell,
+      T: array_typing.FloatVectorCell,
+      n_right_face_constraint: array_typing.FloatScalar | None = None,
+      T_right_face_constraint: array_typing.FloatScalar | None = None,
+  ) -> Self:
+    """Constructs a FastIon object from density and temperature arrays."""
+    return cls(
+        species=species,
+        source=source_name,
+        n=cell_variable.CellVariable(
+            value=n,
+            face_centers=geo.rho_face_norm,
+            right_face_grad_constraint=None,
+            right_face_constraint=(
+                n_right_face_constraint
+                if n_right_face_constraint is not None
+                else jnp.zeros(())
+            ),
+        ),
+        T=cell_variable.CellVariable(
+            value=T,
+            face_centers=geo.rho_face_norm,
+            right_face_grad_constraint=None,
+            right_face_constraint=(
+                T_right_face_constraint
+                if T_right_face_constraint is not None
+                else jnp.zeros(())
+            ),
+        ),
+    )

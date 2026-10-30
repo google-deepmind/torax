@@ -82,6 +82,47 @@ class FastIonUtilsTest(parameterized.TestCase):
           T=cv,
       )
 
+  def test_fast_ion_from_arrays(self):
+    n = jnp.ones_like(self.geo.rho_norm) * 2.0
+    T = jnp.ones_like(self.geo.rho_norm) * 5.0
+    fi = fast_ion_lib.FastIon.from_arrays(
+        species='He3',
+        source_name='icrh',
+        geo=self.geo,
+        n=n,
+        T=T,
+        n_right_face_constraint=jnp.asarray(0.5),
+        T_right_face_constraint=jnp.asarray(1.5),
+    )
+    self.assertEqual(fi.species, 'He3')
+    self.assertEqual(fi.source, 'icrh')
+    np.testing.assert_allclose(fi.n.value, n)
+    np.testing.assert_allclose(fi.T.value, T)
+    self.assertIsNotNone(fi.n.right_face_constraint)
+    self.assertIsNotNone(fi.T.right_face_constraint)
+    np.testing.assert_allclose(fi.n.right_face_constraint, 0.5)
+    np.testing.assert_allclose(fi.T.right_face_constraint, 1.5)
+
+  def test_fast_ion_from_arrays_mismatched_shape_raises(self):
+    face_sized = jnp.ones_like(self.geo.rho_face_norm)
+    cell_sized = jnp.ones_like(self.geo.rho_norm)
+    with self.assertRaisesRegex(ValueError, 'consistent with face_centers'):
+      fast_ion_lib.FastIon.from_arrays(
+          species='He3',
+          source_name='icrh',
+          geo=self.geo,
+          n=face_sized,
+          T=cell_sized,
+      )
+    with self.assertRaisesRegex(ValueError, 'consistent with face_centers'):
+      fast_ion_lib.FastIon.from_arrays(
+          species='He3',
+          source_name='icrh',
+          geo=self.geo,
+          n=cell_sized,
+          T=face_sized,
+      )
+
   def _call_bimaxwellian_split(self, **kwargs):
     defaults = dict(
         power_deposition=jnp.ones(len(self.geo.rho)),

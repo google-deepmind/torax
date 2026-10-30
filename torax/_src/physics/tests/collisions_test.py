@@ -26,22 +26,22 @@ from torax._src.physics import collisions
 # pylint: disable=invalid-name
 class CollisionsTest(parameterized.TestCase):
 
-  def test_fast_ion_fractional_heating_formula_ion_heating_limit(self):
+  def test_mikkelsen_fast_ion_heating_fraction_ion_heating_limit(self):
     # Inertial energy small compared to critical energy.
     birth_energy = 1e-3
     T_e = jnp.array(0.1, dtype=jnp.float32)
     fast_ion_mass = 1
-    frac_i = collisions.fast_ion_fractional_heating_formula(
+    frac_i = collisions.mikkelsen_fast_ion_heating_fraction(
         birth_energy, T_e, fast_ion_mass
     )
     np.testing.assert_allclose(frac_i, 1.0, atol=1e-3)
 
-  def test_fast_ion_fractional_heating_formula_electron_heating_limit(self):
+  def test_mikkelsen_fast_ion_heating_fraction_electron_heating_limit(self):
     # Inertial energy large compared to critical energy.
     birth_energy = 1e10
     T_e = jnp.array(0.1, dtype=jnp.float32)
     fast_ion_mass = 1
-    frac_i = collisions.fast_ion_fractional_heating_formula(
+    frac_i = collisions.mikkelsen_fast_ion_heating_fraction(
         birth_energy, T_e, fast_ion_mass
     )
     np.testing.assert_allclose(frac_i, 0.0, atol=1e-9)
