@@ -24,7 +24,6 @@ from torax._src.pedestal_model.pedestal_state import StructureState
 from torax._src.pedestal_model.register_model import (
     register_pedestal_structure_model,
 )
-from torax._src.pedestal_model.runtime_params import RuntimeParams
 from torax._src.pedestal_model.runtime_params import StructureRuntimeParams
 from torax._src.pedestal_model.structure.base import PedestalStructureModel
 from torax._src.pedestal_model.structure.pedestal_structure import (
@@ -34,7 +33,6 @@ from torax._src.pedestal_model.structure.pedestal_structure import (
 __all__ = [
     'PedestalStructure',
     'PedestalStructureModel',
-    'RuntimeParams',
     'StructureConfigBase',
     'StructureRuntimeParams',
     'StructureState',
