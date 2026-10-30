@@ -73,6 +73,7 @@ CONFIG = {
         },
         'gas_puff': {
             'S_total': 0.0,
+            'puff_decay_length': 0.05,
         },
         'pellet': {
             'S_total': 0.0,

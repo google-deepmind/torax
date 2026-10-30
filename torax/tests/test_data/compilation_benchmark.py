@@ -56,6 +56,7 @@ CONFIG = {
         },
         'gas_puff': {
             'S_total': 0.5e22,
+            'puff_decay_length': 0.05,
         },
         'generic_particle': {
             'S_total': 0.3e22,

@@ -59,7 +59,7 @@ CONFIG = {
         'generic_current': {},
         # Electron density sources/sink (for the n_e equation).
         'generic_particle': {},
-        'gas_puff': {},
+        'gas_puff': {'S_total': 1e22, 'puff_decay_length': 0.05},
         'pellet': {},
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
         'generic_heat': {},
