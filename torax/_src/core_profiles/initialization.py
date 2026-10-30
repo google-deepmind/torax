@@ -82,7 +82,10 @@ def initial_core_profiles(
   # values across the time interval. Since there is is one more time value than
   # time intervals, the v_loop_lcfs time-series is underconstrained. Therefore,
   # we set v_loop_lcfs[0] to v_loop_lcfs[1] when creating the outputs.
-  if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition:
+  if (
+      runtime_params.profile_conditions.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+  ):
     v_loop_lcfs = jnp.asarray(
         runtime_params.profile_conditions.v_loop_lcfs,
         dtype=jax_utils.get_dtype(),
@@ -278,7 +281,10 @@ def _init_psi_and_psi_derived(
       )
 
       # Set the BCs to ensure the correct I_p
-      if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition:
+      if (
+          runtime_params.profile_conditions.psi_bc_source
+          == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+      ):
         # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
         # to achieve the desired I_p
         right_face_grad_constraint = None
@@ -314,6 +320,10 @@ def _init_psi_and_psi_derived(
               geo,
           )
       )
+      use_v_loop = (
+          runtime_params.profile_conditions.psi_bc_source
+          == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+      )
       # Use the psi from the equilibrium as the right face constraint
       # This has already been made consistent with the desired I_p
       # by make_I_p_consistent
@@ -321,10 +331,10 @@ def _init_psi_and_psi_derived(
           value=geo.psi_from_I_p,  # Use psi from equilibrium
           face_centers=geo.rho_face_norm,
           right_face_grad_constraint=None
-          if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
+          if use_v_loop
           else dpsi_drhonorm_edge,
           right_face_constraint=geo.psi_from_I_p_face[-1]
-          if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
+          if use_v_loop
           else None,
       )
 
@@ -340,7 +350,10 @@ def _init_psi_and_psi_derived(
           runtime_params.profile_conditions.I_p,
           geo,
           j_toroidal_total_hires,
-          use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
+          use_v_loop_lcfs_boundary_condition=(
+              runtime_params.profile_conditions.psi_bc_source
+              == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+          ),
       )
       if not (runtime_params.profile_conditions.initial_j_is_total_current):
         # In this branch we require non-inductive currents to determine
@@ -449,11 +462,13 @@ def _calculate_all_psi_dependent_profiles(
   # psidot calculated here with phibdot=0 in geo, since this is initial
   # conditions and we don't yet have information on geo_t_plus_dt for the
   # phibdot calculation.
-  v_loop_lcfs = (
-      runtime_params.profile_conditions.v_loop_lcfs
-      if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
-      else None
-  )
+  if (
+      runtime_params.profile_conditions.psi_bc_source
+      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+  ):
+    v_loop_lcfs = runtime_params.profile_conditions.v_loop_lcfs
+  else:
+    v_loop_lcfs = None
   psidot = psi_calculations.calculate_psidot(
       psi=psi,
       sigma=conductivity.sigma,
@@ -519,7 +534,10 @@ def _iterate_psi_and_sources(
         runtime_params.profile_conditions.I_p,
         geo,
         j_toroidal_total_hires,
-        use_v_loop_lcfs_boundary_condition=runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition,
+        use_v_loop_lcfs_boundary_condition=(
+            runtime_params.profile_conditions.psi_bc_source
+            == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
+        ),
     )
     core_profiles = dataclasses.replace(
         core_profiles,

@@ -90,7 +90,7 @@ CONFIG = {
         profile_conditions_from_ids
         | {
             "I_p_source": "profile_conditions",
-            "use_v_loop_lcfs_boundary_condition": True,
+            "psi_bc_source": "v_loop",
             "v_loop_lcfs": 0.0,
         }
     ),

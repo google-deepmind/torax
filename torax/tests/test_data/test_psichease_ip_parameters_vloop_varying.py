@@ -36,7 +36,7 @@ CONFIG = {
         'I_p_source': 'profile_conditions',
         'initial_psi_source': 'geometry',
         'n_e_right_bc': 0.5e20,
-        'use_v_loop_lcfs_boundary_condition': True,
+        'psi_bc_source': 'v_loop',
         'v_loop_lcfs': (times, v_loop),
         'n_e_nbar_is_fGW': True,
         'normalize_n_e_to_nbar': True,

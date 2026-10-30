@@ -28,6 +28,7 @@ import jax.numpy as jnp
 import numpy as np
 from torax._src import array_typing
 from torax._src import state
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.orchestration import sim_state
@@ -148,7 +149,8 @@ class StateHistory:
     core_profiles = state_history.core_profiles
     if (
         not torax_config.restart
-        and not torax_config.profile_conditions.use_v_loop_lcfs_boundary_condition
+        and torax_config.profile_conditions.psi_bc_source
+        != core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
         and len(self._times) >= 2
     ):
       # For the I_p BC case, set v_loop_lcfs[0] to the same value as

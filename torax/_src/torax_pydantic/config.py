@@ -209,12 +209,13 @@ class ToraxConfig(torax_pydantic.ConfigBase):
   @pydantic.model_validator(mode='after')
   def _validate_v_loop_bc_and_evolve_current(self) -> Self:
     if (
-        self.profile_conditions.use_v_loop_lcfs_boundary_condition
+        self.profile_conditions.psi_bc_source
+        == core_profile_runtime_params_lib.PsiBoundaryConditionSource.V_LOOP
         and not self.numerics.evolve_current
     ):
       raise ValueError(
-          'profile_conditions.use_v_loop_lcfs_boundary_condition cannot be'
-          ' True when numerics.evolve_current is False.'
+          'profile_conditions.psi_bc_source cannot be "v_loop" when'
+          ' numerics.evolve_current is False.'
       )
     return self
 

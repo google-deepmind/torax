@@ -12,9 +12,8 @@ time-dependence of temperature, density, and current.
   Total plasma current in A. Required when ``I_p_source = 'profile_conditions'``;
   ignored otherwise. If ``I_p_source = 'geometry'``, then the total plasma
   current is read from the geometry data instead. Boundary condition for the
-  :math:`\psi` equation if ``use_v_loop_lcfs_boundary_condition`` is False. If
-  ``use_v_loop_lcfs_boundary_condition`` is True, only used as an initial
-  condition.
+  :math:`\psi` equation if ``psi_bc_source = 'I_p'``. If
+  ``psi_bc_source = 'v_loop'``, only used as an initial condition.
 
 ``I_p_source`` (str [default = ``'profile_conditions'``])
   Source for the total plasma current :math:`I_p`.
@@ -22,17 +21,16 @@ time-dependence of temperature, density, and current.
   ``'geometry'`` (reads :math:`I_p` from numerical geometry; not supported
   for ``'circular'`` geometry).
 
-``use_v_loop_lcfs_boundary_condition`` (bool = False)
-  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). If
-  ``use_v_loop_lcfs_boundary_condition`` is True, then the specified Vloop at
-  the LCFS is used to construct the boundary condition for the psi equation;
-  otherwise, I_p is used to construct the boundary condition. Can only be True
-  when ``numerics.evolve_current`` is True.
+``psi_bc_source`` (str [default = ``'I_p'``])
+  Source for the :math:`\psi` boundary condition at the LCFS.
+  Options are ``'I_p'`` (uses :math:`I_p` to construct the boundary condition)
+  or ``'v_loop'`` (uses ``v_loop_lcfs`` to construct the boundary condition).
+  Can only be ``'v_loop'`` when ``numerics.evolve_current`` is True.
 
-``v_loop_lcfs`` (**time-varying-scalar** [default = 0.0])
-  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). This sets the psi at
-  the next timestep. This is ignored if ``use_v_loop_lcfs_boundary_condition``
-  is False.
+``v_loop_lcfs`` (**time-varying-scalar** [default = None])
+  Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ) [V]. Required when
+  ``psi_bc_source = 'v_loop'``. This sets the psi at the next timestep. This is
+  ignored if ``psi_bc_source = 'I_p'``.
 
 ``T_i_right_bc`` (**time-varying-scalar** [default = None])
   Temperature boundary condition at r=a_minor. If this is ``None`` the boundary

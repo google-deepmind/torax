@@ -104,7 +104,7 @@ def profile_conditions_from_IMAS(
   if ids.global_quantities.v_loop:
     v_loop_lcfs = (time_array, ids.global_quantities.v_loop)
   else:
-    v_loop_lcfs = 0.0
+    v_loop_lcfs = None
 
   return {
       "I_p": I_p,
