@@ -188,48 +188,48 @@ class Geometry:
 
   geometry_type: GeometryType
   torax_mesh: torax_pydantic.Grid1D
-  Phi: array_typing.Array
-  Phi_face: array_typing.Array
+  Phi: array_typing.FloatVectorCell
+  Phi_face: array_typing.FloatVectorFace
   R_major: array_typing.FloatScalar
   a_minor: array_typing.FloatScalar
   B_0: array_typing.FloatScalar
-  volume: array_typing.Array
-  volume_face: array_typing.Array
-  area: array_typing.Array
-  area_face: array_typing.Array
-  vpr: array_typing.Array
-  vpr_face: array_typing.Array
-  spr: array_typing.Array
-  spr_face: array_typing.Array
-  delta_face: array_typing.Array
-  trapped_fraction_face: array_typing.Array
-  elongation: array_typing.Array
-  elongation_face: array_typing.Array
-  g0: array_typing.Array
-  g0_face: array_typing.Array
-  g1: array_typing.Array
-  g1_face: array_typing.Array
-  g2: array_typing.Array
-  g2_face: array_typing.Array
-  g3: array_typing.Array
-  g3_face: array_typing.Array
-  gm4: array_typing.Array
-  gm4_face: array_typing.Array
-  gm5: array_typing.Array
-  gm5_face: array_typing.Array
-  g2g3_over_rhon: array_typing.Array
-  g2g3_over_rhon_face: array_typing.Array
-  g2g3_over_rhon_hires: array_typing.Array
-  F: array_typing.Array
-  F_face: array_typing.Array
-  F_hires: array_typing.Array
-  R_in: array_typing.Array
-  R_in_face: array_typing.Array
-  R_out: array_typing.Array
-  R_out_face: array_typing.Array
-  spr_hires: array_typing.Array
-  rho_hires_norm: array_typing.Array
-  rho_hires: array_typing.Array
+  volume: array_typing.FloatVectorCell
+  volume_face: array_typing.FloatVectorFace
+  area: array_typing.FloatVectorCell
+  area_face: array_typing.FloatVectorFace
+  vpr: array_typing.FloatVectorCell
+  vpr_face: array_typing.FloatVectorFace
+  spr: array_typing.FloatVectorCell
+  spr_face: array_typing.FloatVectorFace
+  delta_face: array_typing.FloatVectorFace
+  trapped_fraction_face: array_typing.FloatVectorFace
+  elongation: array_typing.FloatVectorCell
+  elongation_face: array_typing.FloatVectorFace
+  g0: array_typing.FloatVectorCell
+  g0_face: array_typing.FloatVectorFace
+  g1: array_typing.FloatVectorCell
+  g1_face: array_typing.FloatVectorFace
+  g2: array_typing.FloatVectorCell
+  g2_face: array_typing.FloatVectorFace
+  g3: array_typing.FloatVectorCell
+  g3_face: array_typing.FloatVectorFace
+  gm4: array_typing.FloatVectorCell
+  gm4_face: array_typing.FloatVectorFace
+  gm5: array_typing.FloatVectorCell
+  gm5_face: array_typing.FloatVectorFace
+  g2g3_over_rhon: array_typing.FloatVectorCell
+  g2g3_over_rhon_face: array_typing.FloatVectorFace
+  g2g3_over_rhon_hires: array_typing.FloatVector
+  F: array_typing.FloatVectorCell
+  F_face: array_typing.FloatVectorFace
+  F_hires: array_typing.FloatVector
+  R_in: array_typing.FloatVectorCell
+  R_in_face: array_typing.FloatVectorFace
+  R_out: array_typing.FloatVectorCell
+  R_out_face: array_typing.FloatVectorFace
+  spr_hires: array_typing.FloatVector
+  rho_hires_norm: array_typing.FloatVector
+  rho_hires: array_typing.FloatVector
   Phi_b_dot: array_typing.FloatScalar
   _z_magnetic_axis: array_typing.FloatScalar | None
 
@@ -313,7 +313,7 @@ class Geometry:
   @property
   def rho_b(self) -> array_typing.FloatScalar:
     """Toroidal flux coordinate [m] at boundary (LCFS)."""
-    return jnp.sqrt(self.Phi_b / np.pi / self.B_0)
+    return jnp.sqrt(self.Phi_b / jnp.pi / self.B_0)
 
   @property
   def Phi_b(self) -> array_typing.FloatScalar:
@@ -481,25 +481,18 @@ def stack_geometries[GeometryT: Geometry](
   first_geo = geometries[0]
   torax_mesh = first_geo.torax_mesh
   geometry_type = first_geo.geometry_type
-  for geometry in geometries[1:]:
-    if geometry.torax_mesh != torax_mesh:
+  for geo in geometries[1:]:
+    if geo.torax_mesh != torax_mesh:
       raise ValueError('All geometries must have the same mesh.')
-    if geometry.geometry_type != geometry_type:
+    if geo.geometry_type != geometry_type:
       raise ValueError('All geometries must have the same geometry type.')
 
-  stacked_data = {}
-  for field in dataclasses.fields(first_geo):
-    field_name = field.name
-    field_value = getattr(first_geo, field_name)
-    # Stack stackable fields. Save first geo's value for non-stackable fields.
-    if isinstance(field_value, (array_typing.Array, array_typing.FloatScalar)):  # pyrefly: ignore[invalid-argument]
-      field_values = [getattr(geo, field_name) for geo in geometries]
-      stacked_data[field_name] = np.stack(field_values)
-    else:
-      stacked_data[field_name] = field_value
-  # Create a new object with the stacked data with the same class (i.e.
-  # could be child classes of Geometry)
-  return first_geo.__class__(**stacked_data)
+  stacked = jax.tree.map(lambda *xs: np.stack(xs), *geometries)
+  return dataclasses.replace(
+      stacked,
+      geometry_type=first_geo.geometry_type,
+      torax_mesh=first_geo.torax_mesh,
+  )
 
 
 def update_geometries_with_Phibdot(
@@ -534,13 +527,13 @@ def update_geometries_with_Phibdot(
 
 def increase_grid_resolution(
     faces: array_typing.Array, factor: int
-) -> array_typing.Array:
+) -> jax.Array:
   """Increase the grid resolution by a factor."""
   if factor <= 1:
     raise ValueError('factor must be >= 1.')
   num_faces = len(faces)
   num_cells = num_faces - 1
-  grid_indices = np.arange(len(faces))
+  grid_indices = jnp.arange(num_faces)
   new_num_faces = num_cells * factor + 1
-  new_indices = np.linspace(0, num_cells, new_num_faces)
-  return np.interp(new_indices, grid_indices, faces)
+  new_indices = jnp.linspace(0, num_cells, new_num_faces)
+  return jnp.interp(new_indices, grid_indices, faces)
