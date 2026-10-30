@@ -385,6 +385,18 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> extended_lengyel_model.RuntimeParams:
+    """Builds the runtime parameters for the Extended Lengyel model at time t.
+
+    Args:
+      t: Simulation time at which to evaluate time-varying parameters.
+
+    Returns:
+      Runtime parameters for the Extended Lengyel edge model at time `t`.
+
+    Raises:
+      ValueError: If `use_enrichment_model` is False and `enrichment_factor` is
+        None.
+    """
     def _get_optional_value(
         param: torax_pydantic.TimeVaryingScalar | None,
         t: chex.Numeric,
@@ -473,6 +485,11 @@ class ExtendedLengyelConfig(base.EdgeModelConfig):
     )
 
   def build_edge_model(self) -> extended_lengyel_model.ExtendedLengyelModel:
+    """Builds an ExtendedLengyelModel from the config.
+
+    Returns:
+      An `ExtendedLengyelModel` instance.
+    """
     return extended_lengyel_model.ExtendedLengyelModel()
 
 
