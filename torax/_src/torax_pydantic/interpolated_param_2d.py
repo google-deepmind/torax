@@ -164,6 +164,11 @@ class TimeVaryingArray(config_base.ConfigBase):
   grid: Grid1D | None = None
 
   def tree_flatten(self):
+    """Flattens the TimeVaryingArray into JAX children and auxiliary data.
+
+    Returns:
+      A tuple `(children, aux_data)` for JAX PyTree registration.
+    """
     children = (
         self.value,
         # Save out the cached interpolated params.
@@ -180,6 +185,17 @@ class TimeVaryingArray(config_base.ConfigBase):
 
   @classmethod
   def tree_unflatten(cls, aux_data, children):
+    """Reconstructs a TimeVaryingArray from JAX auxiliary data and children.
+
+    Args:
+      aux_data: Static auxiliary data `(rho_interpolation_mode,
+        time_interpolation_mode, grid)`.
+      children: Dynamic PyTree children containing `value` and cached
+        interpolated parameters.
+
+    Returns:
+      Reconstructed `TimeVaryingArray` instance.
+    """
     # Avoid calling model_validate as validation should be done already.
     obj = cls.model_construct(
         value=children[0],
@@ -360,7 +376,15 @@ class TimeVaryingArray(config_base.ConfigBase):
   def update(
       self, replace_value: TimeVaryingArrayUpdate
   ) -> Self:
-    """This method can be used under `jax.jit`."""
+    """Updates the TimeVaryingArray under `jax.jit`.
+
+    Args:
+      replace_value: A `TimeVaryingArrayUpdate` specifying replacement `time`,
+        `rho_norm`, and/or `value` arrays.
+
+    Returns:
+      A new `TimeVaryingArray` with updated cached interpolation parameters.
+    """
     assert self.grid is not None, 'grid must be set to update.'
 
     time = (
@@ -530,6 +554,7 @@ class TimeVaryingArray(config_base.ConfigBase):
   def get_cached_interpolated_param_cell(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
+    """Interpolated parameter cached on the cell grid."""
     if self.grid is None:
       raise RuntimeError('grid must be set.')
 
@@ -544,6 +569,7 @@ class TimeVaryingArray(config_base.ConfigBase):
   def get_cached_interpolated_param_face(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
+    """Interpolated parameter cached on the face grid."""
     if self.grid is None:
       raise RuntimeError('grid must be set.')
 
@@ -558,6 +584,7 @@ class TimeVaryingArray(config_base.ConfigBase):
   def get_cached_interpolated_param_face_right(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
+    """Interpolated parameter cached on the rightmost face grid point."""
     if self.grid is None:
       raise RuntimeError('grid must be set.')
 
@@ -743,7 +770,22 @@ def array_bounds_validator(
     lt: float | None = None,
     le: float | None = None,
 ) -> pydantic.AfterValidator:
-  """Returns an AfterValidator that validates array bounds."""
+  """Returns an AfterValidator that validates array bounds.
+
+  Args:
+    gt: Exclusive lower bound (`value > gt`), if specified.
+    ge: Inclusive lower bound (`value >= ge`), if specified.
+    lt: Exclusive upper bound (`value < lt`), if specified.
+    le: Inclusive upper bound (`value <= le`), if specified.
+
+  Returns:
+    A `pydantic.AfterValidator` that checks the specified bounds on a
+    `TimeVaryingArray`.
+
+  Raises:
+    ValueError: If both `gt` and `ge` are provided, or if both `lt` and `le` are
+      provided.
+  """
   if gt is not None and ge is not None:
     raise ValueError('At most one of `gt` and `ge` can be provided.')
   if lt is not None and le is not None:
