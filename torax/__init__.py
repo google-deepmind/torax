@@ -25,6 +25,7 @@ from torax import experimental
 from torax import math_utils
 from torax import neoclassical
 from torax import pedestal
+from torax import sources
 from torax import torax_pydantic
 from torax import transport
 from torax._src import version
@@ -37,7 +38,6 @@ from torax._src.output_tools.output import StateHistory
 from torax._src.output_tools.post_processing import PostProcessedOutputs
 from torax._src.plotting.plotruns_lib import plot_run
 from torax._src.plotting.plotruns_lib import plot_run_from_data_tree
-from torax._src.sources.source_profiles import SourceProfiles
 from torax._src.state import CoreProfiles
 from torax._src.state import CoreTransport
 from torax._src.state import SimError
@@ -61,6 +61,7 @@ __all__ = [
     'math_utils',
     'neoclassical',
     'pedestal',
+    'sources',
     'torax_pydantic',
     'transport',
     'build_torax_config_from_file',
@@ -75,7 +76,6 @@ __all__ = [
     'RuntimeParams',
     'SimError',
     'SolverNumericOutputs',
-    'SourceProfiles',
     'StateHistory',
     'ToraxConfig',
 ]

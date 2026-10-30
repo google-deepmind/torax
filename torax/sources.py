@@ -25,6 +25,7 @@ from torax._src.sources.source import AffectedCoreProfile
 from torax._src.sources.source import Source
 from torax._src.sources.source_profiles import SourceOutput
 from torax._src.sources.source_profiles import SourceProfiles
+from torax._src.sources.source_state import SourceState
 
 __all__ = [
     'AffectedCoreProfile',
@@ -34,5 +35,6 @@ __all__ = [
     'SourceConfigBase',
     'SourceOutput',
     'SourceProfiles',
+    'SourceState',
     'register_source_config',
 ]

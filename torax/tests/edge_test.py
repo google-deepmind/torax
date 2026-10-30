@@ -24,6 +24,7 @@ import jax.numpy as jnp
 import numpy as np
 import torax
 from torax import edge
+from torax import sources
 from torax import torax_pydantic
 from torax._src.config import build_runtime_params
 from torax._src.edge import base as edge_base
@@ -68,7 +69,7 @@ class _CustomEdgeModel(edge.EdgeModel):
       runtime_params: torax.RuntimeParams,
       geo: torax.Geometry,
       core_profiles: torax.CoreProfiles,
-      core_sources: torax.SourceProfiles,
+      core_sources: sources.SourceProfiles,
       previous_edge_outputs: edge.EdgeModelOutputs | None = None,
   ) -> edge.EdgeModelOutputs:
     del runtime_params, geo, core_profiles, core_sources, previous_edge_outputs
@@ -171,7 +172,7 @@ def _evaluate_combined_edge(
       runtime_params,
       mock.create_autospec(torax.Geometry, instance=True),
       mock.create_autospec(torax.CoreProfiles, instance=True),
-      mock.create_autospec(torax.SourceProfiles, instance=True),
+      mock.create_autospec(sources.SourceProfiles, instance=True),
   )
   assert isinstance(outputs, edge_base.CombinedEdgeOutputs)
   return outputs

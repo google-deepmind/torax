@@ -314,7 +314,6 @@ are inherited automatically.
     import jax.numpy as jnp
     import torax
     from torax import sources
-    from torax._src.sources import source_state as source_state_lib
 
     @dataclasses.dataclass(kw_only=True, frozen=True, eq=False)
     class MyHeatSource(sources.Source):
@@ -335,8 +334,8 @@ are inherited automatically.
           core_profiles: torax.CoreProfiles,
           calculated_source_profiles: sources.SourceProfiles | None,
           conductivity,
-          source_state: source_state_lib.SourceState,
-      ) -> tuple[sources.SourceOutput, source_state_lib.SourceState]:
+          source_state: sources.SourceState,
+      ) -> tuple[sources.SourceOutput, sources.SourceState]:
         # Return a SourceOutput with one profile per affected core profile.
         # For a source affecting TEMP_ION and TEMP_EL, provide two profiles.
         ion_heat = jnp.ones_like(geo.rho_norm) * 1e6
@@ -473,6 +472,7 @@ as ``None``):
     import jax.numpy as jnp
     import torax
     from torax import edge
+    from torax import sources
 
     @dataclasses.dataclass(frozen=True, eq=False)
     class MyEdgeModel(edge.EdgeModel):
@@ -484,7 +484,7 @@ as ``None``):
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-          core_sources: torax.SourceProfiles,
+          core_sources: sources.SourceProfiles,
           previous_edge_outputs: edge.EdgeModelOutputs | None = None,
       ) -> edge.EdgeModelOutputs:
         del edge_runtime_params, runtime_params, geo, core_profiles, core_sources
