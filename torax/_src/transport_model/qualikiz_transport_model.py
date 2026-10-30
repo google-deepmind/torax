@@ -33,8 +33,8 @@ import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.torax_pydantic import torax_pydantic
 from torax._src.transport_model import qualikiz_based_transport_model
@@ -89,7 +89,7 @@ class QualikizTransportModel(
       ),
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
       component_state: transport_state_lib.ComponentTransportState,
   ) -> tuple[
@@ -247,7 +247,7 @@ class QualikizTransportModel(
       qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
       transport: RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       two_point_mask: array_typing.BoolVectorFace,
   ) -> transport_coeffs.TransportCoeffs:
     """Extracts QuaLiKiz run data from runpath."""
@@ -282,7 +282,7 @@ def _extract_qualikiz_plan(
     qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
     transport: RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: profiles.CoreProfiles,
 ) -> qualikiz_inputtools.QuaLiKizPlan:
   """Converts TORAX parameters to QuaLiKiz input JSON.
 
@@ -377,11 +377,14 @@ def _extract_qualikiz_plan(
       danisdr=0,
   )
 
-  Zi0 = core_profiles.Z_i_face
-  Zi1 = core_profiles.Z_impurity_face
+  Zi0 = core_profiles.ions.Z_i_face
+  Zi1 = core_profiles.ions.Z_impurity_face
 
   # Calculate main ion dilution
-  ni0 = core_profiles.n_i.face_value() / core_profiles.n_e.face_value()
+  ni0 = (
+      core_profiles.kinetic.n_i.face_value()
+      / core_profiles.kinetic.n_e.face_value()
+  )
 
   ion0 = qualikiz_inputtools.Ion(
       T=8,  # will be scan variable
@@ -391,7 +394,7 @@ def _extract_qualikiz_plan(
       type=1,
       anis=1,
       danisdr=0,
-      A=np.array(core_profiles.A_i),
+      A=np.array(core_profiles.ions.A_i),
       Z=1,  # will be a scan variable
   )
 
@@ -427,21 +430,21 @@ def _extract_qualikiz_plan(
       'q': np.array(qualikiz_inputs.q),
       'smag': np.array(qualikiz_inputs.smag),
       'alpha': np.array(qualikiz_inputs.alpha),
-      'Te': np.array(core_profiles.T_e.face_value()),
-      'ne': np.array(core_profiles.n_e.face_value()) / 1e19,
+      'Te': np.array(core_profiles.kinetic.T_e.face_value()),
+      'ne': np.array(core_profiles.kinetic.n_e.face_value()) / 1e19,
       'Ate': np.array(qualikiz_inputs.Ate),
       'Ane': np.array(qualikiz_inputs.Ane),
-      'Ti0': np.array(core_profiles.T_i.face_value()),
+      'Ti0': np.array(core_profiles.kinetic.T_i.face_value()),
       'ni0': np.array(ni0),
       'Ati0': np.array(qualikiz_inputs.Ati),
       'Ani0': np.array(qualikiz_inputs.Ani0),
       'Zi0': np.array(Zi0),
-      'Ti1': np.array(core_profiles.T_i.face_value()),
+      'Ti1': np.array(core_profiles.kinetic.T_i.face_value()),
       'ni1': np.array(ni1),
       'Ati1': np.array(qualikiz_inputs.Ati),
       'Ani1': np.array(qualikiz_inputs.Ani1),
       'Zi1': np.array(Zi1),
-      'Ai1': np.array(core_profiles.A_impurity_face),
+      'Ai1': np.array(core_profiles.ions.A_impurity_face),
   }
   if transport.rotation_mode != qualikiz_based_transport_model.RotationMode.OFF:
     scan_dict['gammaE'] = qualikiz_inputs.gamma_E_QLK

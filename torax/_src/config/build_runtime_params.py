@@ -30,11 +30,11 @@ import jax
 from jax import numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src import state as state_lib
 from torax._src.config import numerics as numerics_lib
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import getters as getters_lib
 from torax._src.core_profiles import profile_conditions as profile_conditions_lib
+from torax._src.core_profiles import profiles
 from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles.plasma_composition import plasma_composition as plasma_composition_lib
 from torax._src.edge import base as edge_base
@@ -305,7 +305,7 @@ def _get_provider_value_from_replace_value(
 def _update_ne_density_fraction_boundary_condition(
     runtime_params: runtime_params_lib.RuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state_lib.CoreProfiles | None = None,
+    core_profiles: profiles.CoreProfiles | None = None,
 ) -> runtime_params_lib.RuntimeParams:
   """Updates n_e boundary condition for ``density_fraction`` mode."""
   if (
@@ -318,7 +318,7 @@ def _update_ne_density_fraction_boundary_condition(
   multiplier = runtime_params.profile_conditions.n_e_right_bc_multiplier
 
   if core_profiles is not None:
-    n_e_face_values = core_profiles.n_e.face_value()
+    n_e_face_values = core_profiles.kinetic.n_e.face_value()
   else:  # Fall back to prescribed n_e profile (e.g. at initialization).
     n_e = getters_lib.get_updated_electron_density(
         runtime_params.profile_conditions, geo
@@ -343,7 +343,7 @@ def get_consistent_runtime_params_and_geometry(
     runtime_params_provider: RuntimeParamsProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     edge_outputs: edge_base.EdgeModelOutputs | None = None,
-    core_profiles: state_lib.CoreProfiles | None = None,
+    core_profiles: profiles.CoreProfiles | None = None,
     is_initialization: bool = False,
 ) -> tuple[runtime_params_lib.RuntimeParams, geometry.Geometry]:
   """Returns the runtime params and geometry for a given time.

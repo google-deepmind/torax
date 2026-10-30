@@ -15,7 +15,7 @@
 
 from typing import Annotated, Literal, override
 
-from torax._src import state
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.transport import base
@@ -32,7 +32,7 @@ class ZerosModel(base.NeoclassicalTransportModel):
       self,
       runtime_params: transport_runtime_params.RuntimeParams,
       geometry: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       neoclassical_intermediates: formulas.AnalyticalNeoclassicalIntermediates,
   ) -> transport_coeffs.NeoclassicalTransport:
     """Calculates neoclassical transport."""

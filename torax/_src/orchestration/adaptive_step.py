@@ -24,6 +24,7 @@ from torax._src import state
 from torax._src.config import build_runtime_params
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.core_profiles import updaters
 from torax._src.edge import base as edge_base
 from torax._src.fvm import cell_variable
@@ -43,7 +44,7 @@ class AdaptiveStepState:
   solver_numeric_outputs: state.SolverNumericOutputs
   runtime_params: runtime_params_lib.RuntimeParams
   geo: geometry.Geometry
-  solver_state: state.SolverState
+  solver_state: solver_state_lib.SolverState
 
 
 def create_initial_state(
@@ -54,7 +55,7 @@ def create_initial_state(
     geo_t: geometry.Geometry,
 ) -> AdaptiveStepState:
   """Creates the initial state for the adaptive step."""
-  solver_state_t = state.SolverState.from_core_profiles(
+  solver_state_t = solver_state_lib.SolverState.from_core_profiles(
       input_state.core_profiles
   )
   initial_x_new = convertors.solver_state_to_solver_x_tuple(

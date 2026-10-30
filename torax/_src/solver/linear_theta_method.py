@@ -21,6 +21,8 @@ from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import convertors
+from torax._src.core_profiles import profiles
+from torax._src.core_profiles import solver_state as solver_state_lib
 from torax._src.fvm import calc_coeffs
 from torax._src.fvm import cell_variable
 from torax._src.geometry import geometry
@@ -45,8 +47,8 @@ class LinearThetaMethod(solver_lib.Solver):
       runtime_params_t_plus_dt: runtime_params_lib.RuntimeParams,
       geo_t: geometry.Geometry,
       geo_t_plus_dt: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      solver_state_t_plus_dt: state.SolverState,
+      core_profiles_t: profiles.CoreProfiles,
+      solver_state_t_plus_dt: solver_state_lib.SolverState,
       explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
       evolving_names: tuple[str, ...],
       model_state: model_state_lib.ModelState,
@@ -56,7 +58,7 @@ class LinearThetaMethod(solver_lib.Solver):
   ]:
     """See Solver._x_new docstring."""
 
-    solver_state_t = state.SolverState.from_core_profiles(
+    solver_state_t = solver_state_lib.SolverState.from_core_profiles(
         core_profiles_t
     )
     x_old = convertors.solver_state_to_solver_x_tuple(
