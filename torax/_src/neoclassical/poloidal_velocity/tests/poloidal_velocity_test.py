@@ -80,9 +80,9 @@ class PoloidalVelocityTest(absltest.TestCase):
 
   def test_calculate_poloidal_velocity_values_are_correct(self):
     poloidal_velocity = kim._calculate_poloidal_velocity(
-        T_i=self.core_profiles.T_i,
+        T_i=self.core_profiles.kinetic.T_i,
         k_neo=self.neoclassical_intermediates.k_neo,
-        Z_i=self.core_profiles.Z_i_face,
+        Z_i=self.core_profiles.ions.Z_i_face,
         B_tor=np.ones_like(self.geo.rho_face_norm),
         B_total_squared=np.ones_like(self.geo.rho_face_norm),
         geo=self.geo,
@@ -102,11 +102,14 @@ class PoloidalVelocityTest(absltest.TestCase):
         self.core_profiles,
         self.neoclassical_intermediates,
     )
-    self.assertEqual(output.v_pol.value.shape, self.geo.rho_norm.shape)
     self.assertEqual(
-        output.v_pol.face_value().shape, self.geo.rho_face_norm.shape
+        output.poloidal_velocity.value.shape, self.geo.rho_norm.shape
     )
-    self.assertTrue(np.any(np.abs(output.v_pol.face_value()) > 0.0))
+    self.assertEqual(
+        output.poloidal_velocity.face_value().shape,
+        self.geo.rho_face_norm.shape,
+    )
+    self.assertTrue(np.any(np.abs(output.poloidal_velocity.face_value()) > 0.0))
 
   def test_zeros_model_returns_zero_poloidal_velocity(self):
     model = zeros.ZerosModel()
@@ -117,10 +120,11 @@ class PoloidalVelocityTest(absltest.TestCase):
         self.neoclassical_intermediates,
     )
     np.testing.assert_allclose(
-        output.v_pol.value, np.zeros_like(self.geo.rho_norm)
+        output.poloidal_velocity.value, np.zeros_like(self.geo.rho_norm)
     )
     np.testing.assert_allclose(
-        output.v_pol.face_value(), np.zeros_like(self.geo.rho_face_norm)
+        output.poloidal_velocity.face_value(),
+        np.zeros_like(self.geo.rho_face_norm),
     )
 
 

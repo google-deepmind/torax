@@ -93,23 +93,23 @@ class CriticalGradientTransportModel(component.ComponentTransportModel):
     # Required for pytype
     assert isinstance(transport_runtime_params, RuntimeParams)
 
-    s = core_profiles.s_face
-    q = core_profiles.q_face
+    s = core_profiles.flux.s_face
+    q = core_profiles.flux.q_face
 
     # very basic sawtooth model
     s = jnp.where(q < 1, 0, s)
     q = jnp.where(q < 1, 1, q)
 
-    T_i_face = core_profiles.T_i.face_value()
+    T_i_face = core_profiles.kinetic.T_i.face_value()
     # define radial coordinate as midplane average r
     # (typical assumption for transport models developed in circular geo)
-    T_i_face_grad = core_profiles.T_i.face_grad(
+    T_i_face_grad = core_profiles.kinetic.T_i.face_grad(
         x=geo.r_mid,
         x_left=geo.r_mid_face[0],
         x_right=geo.r_mid_face[-1],
         two_point_mask=two_point_mask,
     )
-    T_e_face = core_profiles.T_e.face_value()
+    T_e_face = core_profiles.kinetic.T_e.face_value()
 
     # set critical gradient
     rlti_crit = (

@@ -176,15 +176,15 @@ class ExtendedLengyelModel(base.EdgeModel):
     triangularity_psi95 = jnp.interp(0.95, psi_norm_face, geo.delta_face)
 
     # Extract plasma state parameters from CoreProfiles at the LCFS
-    separatrix_electron_density = jnp.asarray(core_profiles.n_e.face_value())[
-        -1
-    ]
+    separatrix_electron_density = jnp.asarray(
+        core_profiles.kinetic.n_e.face_value()
+    )[-1]
 
     # Calculate ion properties
-    n_i_sep = jnp.asarray(core_profiles.n_i.face_value())[-1]
-    n_imp_sep = jnp.asarray(core_profiles.n_impurity.face_value())[-1]
-    A_i_sep = core_profiles.A_i
-    A_imp_sep = core_profiles.A_impurity_face[-1]
+    n_i_sep = jnp.asarray(core_profiles.kinetic.n_i.face_value())[-1]
+    n_imp_sep = jnp.asarray(core_profiles.kinetic.n_impurity.face_value())[-1]
+    A_i_sep = core_profiles.ions.A_i
+    A_imp_sep = core_profiles.ions.A_impurity_face[-1]
     mean_ion_charge_state = separatrix_electron_density / (n_i_sep + n_imp_sep)
     average_ion_mass = (
         A_i_sep * n_i_sep + A_imp_sep * n_imp_sep
@@ -265,10 +265,10 @@ class ExtendedLengyelModel(base.EdgeModel):
         # Dynamic state from TORAX
         power_crossing_separatrix=power_crossing_separatrix,
         separatrix_electron_density=separatrix_electron_density,
-        main_ion_charge=core_profiles.Z_i_face[-1],
+        main_ion_charge=core_profiles.ions.Z_i_face[-1],
         mean_ion_charge_state=mean_ion_charge_state,
         magnetic_field_on_axis=geo.B_0,
-        plasma_current=core_profiles.I_p_profile_face[-1],
+        plasma_current=core_profiles.flux.I_p_profile_face[-1],
         major_radius=geo.R_major,
         minor_radius=geo.a_minor,
         elongation_psi95=elongation_psi95,
@@ -331,7 +331,7 @@ def _resolve_geometric_parameters(
     geo_flux_exp = None
   if geo.B_pol_OMP is not None:
     bpol_avg_lcfs = jnp.sqrt(
-        psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+        psi_calculations.calc_bpol_squared(geo, core_profiles.flux.psi)
     )[-1]
     geo_ratio_bpol = jnp.abs(geo.B_pol_OMP) / bpol_avg_lcfs
   else:
