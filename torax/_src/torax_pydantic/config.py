@@ -195,18 +195,27 @@ class ToraxConfig(torax_pydantic.ConfigBase):
     return self
 
   @pydantic.model_validator(mode='after')
-  def _check_psidot_and_evolve_current(self) -> Self:
-    """Warns if psidot is provided but evolve_current is True."""
+  def _validate_psidot_and_evolve_current(self) -> Self:
     if (
         self.profile_conditions.psidot is not None
         and self.numerics.evolve_current
     ):
-      logging.warning("""
-          profile_conditions.psidot input is ignored as numerics.evolve_current
-          is True.
+      raise ValueError(
+          'profile_conditions.psidot cannot be provided when'
+          ' numerics.evolve_current is True.'
+      )
+    return self
 
-          Prescribed psidot is only applied when current diffusion is off.
-          """)
+  @pydantic.model_validator(mode='after')
+  def _validate_v_loop_bc_and_evolve_current(self) -> Self:
+    if (
+        self.profile_conditions.use_v_loop_lcfs_boundary_condition
+        and not self.numerics.evolve_current
+    ):
+      raise ValueError(
+          'profile_conditions.use_v_loop_lcfs_boundary_condition cannot be'
+          ' True when numerics.evolve_current is False.'
+      )
     return self
 
   @pydantic.model_validator(mode='after')

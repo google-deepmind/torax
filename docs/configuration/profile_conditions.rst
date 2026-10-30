@@ -26,7 +26,8 @@ time-dependence of temperature, density, and current.
   Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). If
   ``use_v_loop_lcfs_boundary_condition`` is True, then the specified Vloop at
   the LCFS is used to construct the boundary condition for the psi equation;
-  otherwise, I_p is used to construct the boundary condition.
+  otherwise, I_p is used to construct the boundary condition. Can only be True
+  when ``numerics.evolve_current`` is True.
 
 ``v_loop_lcfs`` (**time-varying-scalar** [default = 0.0])
   Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ). This sets the psi at
@@ -72,7 +73,8 @@ time-dependence of temperature, density, and current.
   leads to unphysical transient ``psidot`` and thus transiently unphysical
   (e.g. too high) ohmic power. For such cases, it is useful to override a static
   non-physical ``psidot`` with a more physical value, e.g., one obtained from
-  another similar simulation with current evolution enabled.
+  another similar simulation with current evolution enabled. Must not be
+  provided when ``numerics.evolve_current`` is True.
 
 ``n_e`` (**time-varying-array** [default = {0: {0: 1.2e20, 1: 0.8e20}}])
   If ``numerics.evolve_density`` is True, then the initial value of electron

@@ -88,7 +88,8 @@ class ProfileConditions(torax_pydantic.ConfigBase):
     use_v_loop_lcfs_boundary_condition: Boundary condition at LCFS for Vloop ( =
       dspsi_lcfs/dt ). If use_v_loop_lcfs_boundary_condition is True, then the
       specified Vloop at the LCFS is used as the boundary condition for the psi
-      equation; otherwise, I_p is used as the boundary condition.
+      equation; otherwise, I_p is used as the boundary condition. Can only be
+      True when `numerics.evolve_current` is True.
     v_loop_lcfs: Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt ).
     T_i_right_bc: Temperature boundary conditions at r=a_minor. If this is
       `None` the boundary condition will instead be taken from `T_i` and `T_e`
@@ -106,7 +107,8 @@ class ProfileConditions(torax_pydantic.ConfigBase):
       voltage). If provided, and if `evolve_current` is False, this prescribed
       `psidot` will be used instead of the internally calculated one. This is
       useful for cases where an unphysical transient `psidot` from the initial
-      `psi` condition needs to be overridden.
+      `psi` condition needs to be overridden. Must not be provided when
+      `numerics.evolve_current` is True.
     toroidal_angular_velocity: Prescribed or evolving values for toroidal
       angular velocity. If None, toroidal_angular_velocity will be initialized
       to zero.

@@ -247,30 +247,75 @@ class ConfigTest(parameterized.TestCase):
           testcase_name="psidot_none_evolve_current_true",
           psidot=None,
           evolve_current=True,
-          expect_warning=False,
+          expect_error=False,
       ),
       dict(
           testcase_name="psidot_set_evolve_current_false",
           psidot={0: {0: 0.1, 1: 0.2}},
           evolve_current=False,
-          expect_warning=False,
+          expect_error=False,
       ),
       dict(
           testcase_name="psidot_set_evolve_current_true",
           psidot={0: {0: 0.1, 1: 0.2}},
           evolve_current=True,
-          expect_warning=True,
+          expect_error=True,
       ),
   )
-  def test_psidot_evolve_current_warning(
-      self, psidot, evolve_current, expect_warning
+  def test_psidot_with_evolve_current_true_raises_error(
+      self, psidot, evolve_current, expect_error
   ):
     config_dict = default_configs.get_default_config_dict()
     config_dict["profile_conditions"]["psidot"] = psidot
     config_dict["numerics"]["evolve_current"] = evolve_current
 
-    warning_snippet = "profile_conditions.psidot input is ignored"
-    self._assert_warning_logged(warning_snippet, expect_warning, config_dict)
+    if expect_error:
+      with self.assertRaisesRegex(
+          ValueError,
+          "profile_conditions.psidot cannot be provided when"
+          " numerics.evolve_current is True.",
+      ):
+        config.ToraxConfig.from_dict(config_dict)
+    else:
+      config.ToraxConfig.from_dict(config_dict)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="vloop_true_evolve_false_raises",
+          use_v_loop_bc=True,
+          evolve_current=False,
+          expect_error=True,
+      ),
+      dict(
+          testcase_name="vloop_true_evolve_true_passes",
+          use_v_loop_bc=True,
+          evolve_current=True,
+          expect_error=False,
+      ),
+      dict(
+          testcase_name="vloop_false_evolve_false_passes",
+          use_v_loop_bc=False,
+          evolve_current=False,
+          expect_error=False,
+      ),
+  )
+  def test_v_loop_bc_with_evolve_current_false_raises_error(
+      self, use_v_loop_bc, evolve_current, expect_error
+  ):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict["profile_conditions"]["use_v_loop_lcfs_boundary_condition"] = (
+        use_v_loop_bc
+    )
+    config_dict["numerics"]["evolve_current"] = evolve_current
+    if expect_error:
+      with self.assertRaisesRegex(
+          ValueError,
+          "profile_conditions.use_v_loop_lcfs_boundary_condition cannot be"
+          " True when numerics.evolve_current is False.",
+      ):
+        config.ToraxConfig.from_dict(config_dict)
+    else:
+      config.ToraxConfig.from_dict(config_dict)
 
   def test_missing_initial_psi_source_raises_error(self):
     config_dict = default_configs.get_default_config_dict()
