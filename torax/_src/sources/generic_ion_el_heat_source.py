@@ -14,10 +14,11 @@
 
 """Generic heat source for both ion and electron heat."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -101,31 +102,41 @@ class GenericIonElHeatSourceConfig(base.SourceConfigBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
-    gaussian_width: Gaussian width in normalized radial coordinate
-    gaussian_location: Source Gaussian central location (in normalized r)
-    P_total: Total heating: high default based on total ITER power including
-      alphas
+    gaussian_width: Gaussian width in normalized radial coordinate. Required
+      when mode is 'model_based'.
+    gaussian_location: Source Gaussian central location (in normalized r).
+      Required when mode is 'model_based'.
+    P_total: Total heating power [W]. Required when mode is 'model_based'.
     electron_heat_fraction: Electron heating fraction
   """
 
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.25)
-  )
-  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      120e6
-  )
+  gaussian_width: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  gaussian_location: torax_pydantic.UnitIntervalTimeVaryingScalar | None = None
+  P_total: torax_pydantic.TimeVaryingScalar | None = None
   electron_heat_fraction: torax_pydantic.UnitIntervalTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.66666)
   )
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.P_total is None:
+        raise ValueError("P_total must be provided when mode is 'model_based'.")
+      if self.gaussian_width is None:
+        raise ValueError(
+            "gaussian_width must be provided when mode is 'model_based'."
+        )
+      if self.gaussian_location is None:
+        raise ValueError(
+            "gaussian_location must be provided when mode is 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -134,9 +145,17 @@ class GenericIonElHeatSourceConfig(base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        gaussian_width=self.gaussian_width.get_value(t),
-        gaussian_location=self.gaussian_location.get_value(t),
-        P_total=self.P_total.get_value(t),
+        gaussian_width=(
+            1.0
+            if self.gaussian_width is None
+            else self.gaussian_width.get_value(t)
+        ),
+        gaussian_location=(
+            0.0
+            if self.gaussian_location is None
+            else self.gaussian_location.get_value(t)
+        ),
+        P_total=0.0 if self.P_total is None else self.P_total.get_value(t),
         electron_heat_fraction=self.electron_heat_fraction.get_value(t),
         absorption_fraction=self.absorption_fraction.get_value(t),
     )

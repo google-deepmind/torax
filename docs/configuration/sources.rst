@@ -150,23 +150,26 @@ corresponding EC-driven current density profile. The user has three options:
    ``gaussian_location``, and ``P_total``).
 3. Any combination of the above.
 
-By default, both the manual and Gaussian profiles are zero. The manual and
-Gaussian profiles are summed together to produce the final EC deposition
-profile.
+At least one of ``P_total`` or ``extra_prescribed_power_density`` must be
+provided when ``mode`` is ``'model_based'``. Any omitted component defaults to
+zero, and the manual and Gaussian profiles are summed together to produce the
+final EC deposition profile.
 
     ``mode`` (str [default = 'model'])
 
-    ``extra_prescribed_power_density`` (**time-varying-array** [default = {0: {0: 0, 1: 0}}])
+    ``extra_prescribed_power_density`` (**time-varying-array** [default = None])
         EC power density deposition profile, in units of :math:`W/m^3`.
 
-    ``gaussian_width`` (**time-varying-scalar** [default = 0.1])
-        Width of Gaussian EC power density deposition profile.
+    ``gaussian_width`` (**time-varying-scalar** [default = None])
+        Width of Gaussian EC power density deposition profile. Required when
+        ``mode == 'model_based'`` and ``P_total`` is provided.
 
-    ``gaussian_location`` (**time-varying-scalar** [default = 0.0])
+    ``gaussian_location`` (**time-varying-scalar** [default = None])
         Location of Gaussian EC power density deposition profile on the
-        normalized rho grid.
+        normalized rho grid. Required when ``mode == 'model_based'`` and
+        ``P_total`` is provided.
 
-    ``P_total`` (**time-varying-scalar** [default = 0.0])
+    ``P_total`` (**time-varying-scalar** [default = None])
         Integral of the Gaussian EC power density profile, setting the total
         power.
 
@@ -218,13 +221,15 @@ its configuration class in Python:
 
 ``mode`` (str [default = 'model'])
 
-``puff_decay_length`` (**time-varying-scalar** [default = 0.05])
-  Gas puff decay length from edge in units of :math:`\hat{\rho}`.
+``puff_decay_length`` (**time-varying-scalar** [default = None])
+  Gas puff decay length from edge in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
 **Parameters for** ``model_name = 'exponential'`` **:**
 
-``S_total`` (**time-varying-scalar** [default = 1e22])
-  Total number of particle source in units of particles/s.
+``S_total`` (**time-varying-scalar** [default = None])
+  Total number of particle source in units of particles/s. Required when
+  ``mode == 'model_based'``.
 
 **Parameters for** ``model_name = 'feedback'`` **:**
 
@@ -263,18 +268,22 @@ Generic external current profile, parameterized as a Gaussian.
 
 ``mode`` (str [default = 'model'])
 
-``gaussian_location`` (**time-varying-scalar** [default = 0.4])
-  Gaussian center of current profile in units of :math:`\hat{\rho}`.
+``gaussian_location`` (**time-varying-scalar** [default = None])
+  Gaussian center of current profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``gaussian_width`` (**time-varying-scalar** [default = 0.05])
-  Gaussian width of current profile in units of :math:`\hat{\rho}`.
+``gaussian_width`` (**time-varying-scalar** [default = None])
+  Gaussian width of current profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``I_generic`` (**time-varying-scalar** [default = 3.0e6])
-  Total current in A. Only used if ``use_absolute_current==True``.
+``I_generic`` (**time-varying-scalar** [default = None])
+  Total current in A. Required when ``mode == 'model_based'`` and
+  ``use_absolute_current == True``; ignored otherwise.
 
-``fraction_of_total_current`` (**time-varying-scalar** [default = 0.2])
+``fraction_of_total_current`` (**time-varying-scalar** [default = None])
   Sets total ``generic_current`` to be a fraction ``fraction_of_total_current``
-  of the total plasma current. Only used if ``use_absolute_current==False``.
+  of the total plasma current. Required when ``mode == 'model_based'`` and
+  ``use_absolute_current == False``; ignored otherwise.
 
 ``use_absolute_current`` (bool [default = False])
   Toggles relative vs absolute external current setting.
@@ -287,15 +296,16 @@ electron heat source.
 
 ``mode`` (str [default = 'model'])
 
-``gaussian_location`` (**time-varying-scalar** [default = 0.0])
-  Gaussian center of source profile in units of :math:`\hat{\rho}`.
+``gaussian_location`` (**time-varying-scalar** [default = None])
+  Gaussian center of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``gaussian_width`` (**time-varying-scalar** [default = 0.25])
-  Gaussian width of source profile in units of :math:`\hat{\rho}`.
+``gaussian_width`` (**time-varying-scalar** [default = None])
+  Gaussian width of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``P_total`` (**time-varying-scalar** [default = 120e6])
-  Total source power in W. High default based on total ITER power including
-  alphas.
+``P_total`` (**time-varying-scalar** [default = None])
+  Total source power in W. Required when ``mode == 'model_based'``.
 
 ``electron_heat_fraction`` (**time-varying-scalar** [default = 0.66666])
   Electron heating fraction.
@@ -311,14 +321,17 @@ implemented in TORAX.
 
 ``mode`` (str [default = 'model'])
 
-``deposition_location`` (**time-varying-scalar** [default = 0.0])
-  Gaussian center of source profile in units of :math:`\hat{\rho}`.
+``deposition_location`` (**time-varying-scalar** [default = None])
+  Gaussian center of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``particle_width`` (**time-varying-scalar** [default = 0.25])
-  Gaussian width of source profile in units of :math:`\hat{\rho}`.
+``particle_width`` (**time-varying-scalar** [default = None])
+  Gaussian width of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``S_total`` (**time-varying-scalar** [default = 1e22])
-  Total particle source in units of particles/s.
+``S_total`` (**time-varying-scalar** [default = None])
+  Total particle source in units of particles/s. Required when
+  ``mode == 'model_based'``.
 
 icrh
 ====
@@ -328,8 +341,8 @@ registered via ``torax.sources.register_source_config`` (see
 
 ``mode`` (str [default = 'model'])
 
-``P_total`` (**time-varying-scalar** [default = 10e6])
-  Total injected source power in W.
+``P_total`` (**time-varying-scalar** [default = None])
+  Total injected source power in W. Required when ``mode == 'model_based'``.
 
 ``absorption_fraction`` (**time-varying-scalar** [default = 1.0])
   Fraction of ``P_total`` absorbed by the plasma.
@@ -401,8 +414,9 @@ The following models are available:
     Sets impurity radiation to be a constant fraction of the total external
     input power.
 
-    ``fraction_P_heating`` (float [default = 1.0]). Fraction of total external
-    input heating power to use for impurity radiation.
+    ``fraction_P_heating`` (**time-varying-scalar** [default = None]). Fraction
+    of total external input heating power to use for impurity radiation.
+    Required when ``mode == 'model_based'``.
 
 ohmic
 =====
@@ -419,11 +433,14 @@ implemented in TORAX.
 
 ``mode`` (str [default = 'model'])
 
-``pellet_deposition_location`` (**time-varying-scalar** [default = 0.85])
-  Gaussian center of source profile in units of :math:`\hat{\rho}`.
+``pellet_deposition_location`` (**time-varying-scalar** [default = None])
+  Gaussian center of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``pellet_width`` (**time-varying-scalar** [default = 0.1])
-  Gaussian width of source profile in units of :math:`\hat{\rho}`.
+``pellet_width`` (**time-varying-scalar** [default = None])
+  Gaussian width of source profile in units of :math:`\hat{\rho}`. Required
+  when ``mode == 'model_based'``.
 
-``S_total`` (**time-varying-scalar** [default = 2e22])
-  Total particle source in units of particles/s
+``S_total`` (**time-varying-scalar** [default = None])
+  Total particle source in units of particles/s. Required when
+  ``mode == 'model_based'``.

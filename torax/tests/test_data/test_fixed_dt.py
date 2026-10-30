@@ -29,13 +29,29 @@ CONFIG = {
     },
     'sources': {
         # Current sources (for psi equation)
-        'generic_current': {},
+        'generic_current': {
+            'fraction_of_total_current': 0.2,
+            'gaussian_width': 0.05,
+            'gaussian_location': 0.4,
+        },
         # Electron density sources/sink (for the n_e equation).
-        'generic_particle': {},
-        'gas_puff': {},
-        'pellet': {},
+        'generic_particle': {
+            'S_total': 1e22,
+            'particle_width': 0.25,
+            'deposition_location': 0.0,
+        },
+        'gas_puff': {'S_total': 1e22, 'puff_decay_length': 0.05},
+        'pellet': {
+            'S_total': 2e22,
+            'pellet_width': 0.1,
+            'pellet_deposition_location': 0.85,
+        },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-        'generic_heat': {},
+        'generic_heat': {
+            'P_total': 120e6,
+            'gaussian_width': 0.25,
+            'gaussian_location': 0.0,
+        },
         'ei_exchange': {},
     },
     'pedestal': {
