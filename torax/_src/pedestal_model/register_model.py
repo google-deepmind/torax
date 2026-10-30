@@ -21,7 +21,12 @@ from torax._src.torax_pydantic import config
 def register_pedestal_structure_model(
     pydantic_model_class: type[pedestal_config.StructureConfigBase],
 ):
-  """Registers a pedestal structure model with TORAX."""
+  """Registers a pedestal structure model with TORAX.
+
+  Args:
+    pydantic_model_class: The Pydantic config class for the pedestal structure
+      model, subclassing `StructureConfigBase`.
+  """
   inner_union, discriminator = get_args(pedestal_config.StructureConfig)
   new_union = inner_union | pydantic_model_class
   setattr(

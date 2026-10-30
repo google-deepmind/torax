@@ -85,7 +85,14 @@ class Source(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
   ) -> source_state_lib.SourceState:
-    """Returns the initial state for this source."""
+    """Returns the initial state for this source.
+
+    Args:
+      runtime_params: Runtime parameters for the simulation.
+
+    Returns:
+      Initial `SourceState` for this source model.
+    """
     del runtime_params
     return source_state_lib.SourceState()
 
