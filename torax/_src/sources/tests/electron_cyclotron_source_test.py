@@ -29,6 +29,7 @@ def _build_torax_config(
   config_dict["sources"] = {
       electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID: {
           "P_total": power,
+          "gaussian_width": 0.1,
           "gaussian_location": 0.3,
           "current_drive_efficiency": {
               0.0: {
@@ -73,6 +74,11 @@ class ElectronCyclotronSourceTest(test_lib.MultipleProfileSourceTestCase):
 
   source_config_class = electron_cyclotron_source.ElectronCyclotronSourceConfig
   source_name = electron_cyclotron_source.ElectronCyclotronSource.SOURCE_ID
+  extra_source_config_kwargs = {
+      "P_total": 0.0,
+      "gaussian_width": 0.1,
+      "gaussian_location": 0.0,
+  }
 
   def test_negative_current_drive_efficiency_reverses_current(self):
     positive_config = _build_torax_config(
