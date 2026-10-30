@@ -204,8 +204,8 @@ class PlotDataTest(absltest.TestCase):
     # Create scalar variables
     self.scalars_ds = xr.Dataset({
         'P_bremsstrahlung_e': ('time', [-10.0, -10.0]),
-        'P_radiation_e': ('time', [-5.0, -5.0]),
-        'P_cyclotron_e': ('time', [-2.0, -2.0]),
+        'P_impurity_radiation_e': ('time', [-5.0, -5.0]),
+        'P_cyclotron_radiation_e': ('time', [-2.0, -2.0]),
         'I_p': ('time', [15.0, 15.0]),
     })
 

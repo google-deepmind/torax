@@ -76,10 +76,19 @@ class QeiInfo:
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
     """Converts QeiInfo into an OutputVar mapping."""
+    p_ei_i_key = output_keys.OutputKey(
+        output_keys.p_source_i_key('ei_exchange'),
+        units=output_keys.Units.WATT_PER_CUBIC_METER,
+        grid_type=output_keys.GridType.CELL,
+    )
+    p_ei_e_key = output_keys.OutputKey(
+        output_keys.p_source_e_key('ei_exchange'),
+        units=output_keys.Units.WATT_PER_CUBIC_METER,
+        grid_type=output_keys.GridType.CELL,
+    )
     return {
-        output_keys.EI_EXCHANGE: context.pack(
-            output_keys.EI_EXCHANGE, self.p_ei
-        )
+        p_ei_i_key: context.pack(p_ei_i_key, self.p_ei),
+        p_ei_e_key: context.pack(p_ei_e_key, -self.p_ei),
     }
 
 

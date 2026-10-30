@@ -95,9 +95,9 @@ class PostProcessingTest(parameterized.TestCase):
     expected_keys = {
         'P_ei_exchange_i',
         'P_ei_exchange_e',
-        'P_aux_generic_i',
-        'P_aux_generic_e',
-        'P_aux_generic_total',
+        'P_generic_heat_i',
+        'P_generic_heat_e',
+        'P_generic_heat_total',
         'P_alpha_i',
         'P_alpha_e',
         'P_alpha_total',
@@ -109,8 +109,8 @@ class PostProcessingTest(parameterized.TestCase):
         'P_icrh_i',
         'P_icrh_e',
         'P_icrh_total',
-        'P_radiation_e',
-        'P_cyclotron_e',
+        'P_impurity_radiation_e',
+        'P_cyclotron_radiation_e',
         'P_heat_i',
         'P_heat_e',
         'P_heat_total',
@@ -119,7 +119,7 @@ class PostProcessingTest(parameterized.TestCase):
         'P_aux_total',
         'P_external_injected',
         'I_ecrh',
-        'I_aux_generic',
+        'I_generic_current',
         'S_gas_puff',
         'S_pellet',
         'S_generic_particle',
@@ -133,7 +133,7 @@ class PostProcessingTest(parameterized.TestCase):
 
     # Check sums of electron and ion heating.
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_i']
+        integrated_sources['P_generic_heat_i']
         + integrated_sources['P_icrh_i']
         + integrated_sources['P_alpha_i']
         + integrated_sources['P_ei_exchange_i'],
@@ -141,11 +141,11 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_e']
+        integrated_sources['P_generic_heat_e']
         + integrated_sources['P_ohmic_e']
         + integrated_sources['P_bremsstrahlung_e']
-        + integrated_sources['P_cyclotron_e']
-        + integrated_sources['P_radiation_e']
+        + integrated_sources['P_cyclotron_radiation_e']
+        + integrated_sources['P_impurity_radiation_e']
         + integrated_sources['P_ecrh_e']
         + integrated_sources['P_icrh_e']
         + integrated_sources['P_alpha_e']
@@ -166,8 +166,8 @@ class PostProcessingTest(parameterized.TestCase):
     np.testing.assert_allclose(
         integrated_sources['P_aux_total']
         + integrated_sources['P_bremsstrahlung_e']
-        + integrated_sources['P_cyclotron_e']
-        + integrated_sources['P_radiation_e']
+        + integrated_sources['P_cyclotron_radiation_e']
+        + integrated_sources['P_impurity_radiation_e']
         + integrated_sources['P_ohmic_e']
         + integrated_sources['P_alpha_total'],
         integrated_sources['P_heat_total'],
@@ -175,13 +175,13 @@ class PostProcessingTest(parameterized.TestCase):
 
     # Check expected values.
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_i'], 2 * volume
+        integrated_sources['P_generic_heat_i'], 2 * volume
     )
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_e'], 3 * volume
+        integrated_sources['P_generic_heat_e'], 3 * volume
     )
     np.testing.assert_allclose(
-        integrated_sources['P_aux_generic_total'], 5 * volume
+        integrated_sources['P_generic_heat_total'], 5 * volume
     )
     np.testing.assert_allclose(
         integrated_sources['P_alpha_i'],
