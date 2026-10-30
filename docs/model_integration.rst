@@ -146,8 +146,11 @@ Step 1: Implement the pedestal structure model
 
 Create a frozen dataclass that inherits from
 ``torax.pedestal.PedestalStructureModel`` and implements the ``__call__``
-method. This method must return a ``torax.pedestal.PedestalStructure`` with the
-H-mode target pedestal-top properties.
+method. This method accepts ``structure_state: pedestal.StructureState`` and
+must return a tuple of
+``(torax.pedestal.PedestalStructure, pedestal.StructureState)`` with the H-mode
+target pedestal-top properties. Stateful structure models can also optionally
+override ``initial_state(self) -> pedestal.StructureState``.
 
 .. code-block:: python
 
@@ -165,14 +168,17 @@ H-mode target pedestal-top properties.
           runtime_params: torax.RuntimeParams,
           geo: torax.Geometry,
           core_profiles: torax.CoreProfiles,
-          pedestal_transition_state: pedestal.PedestalTransitionState,
-      ) -> pedestal.PedestalStructure:
+          structure_state: pedestal.StructureState,
+      ) -> tuple[pedestal.PedestalStructure, pedestal.StructureState]:
         # Implement your pedestal structure model here.
-        return pedestal.PedestalStructure(
-            rho_norm_ped_top=jnp.array(0.9),
-            T_i_ped=jnp.array(5.0),
-            T_e_ped=jnp.array(5.0),
-            n_e_ped=jnp.array(0.7e20),
+        return (
+            pedestal.PedestalStructure(
+                rho_norm_ped_top=jnp.array(0.9),
+                T_i_ped=jnp.array(5.0),
+                T_e_ped=jnp.array(5.0),
+                n_e_ped=jnp.array(0.7e20),
+            ),
+            structure_state,
         )
 
 
