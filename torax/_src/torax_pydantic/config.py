@@ -88,7 +88,12 @@ class ToraxConfig(torax_pydantic.ConfigBase):
       default=None
   )
 
-  def build_models(self):
+  def build_models(self) -> models.Models:
+    """Builds and returns the physics models from the configuration.
+
+    Returns:
+      A `Models` container with instantiated physics models.
+    """
     edge_model = self.edge.build_edge_model() if self.edge else None
     return models.Models(
         pedestal_model=self.pedestal.build_pedestal_model(),
