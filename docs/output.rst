@@ -218,10 +218,6 @@ toroidal (``j_toroidal_*``) current densities:
 ``delta_upper`` (time, rho_face_norm)
   Upper triangularity of each flux surface [dimensionless].
 
-``ei_exchange`` (time, rho_cell_norm)
-  Ion-electron heat exchange power density profile [:math:`W/m^3`]. Positive
-  values mean heat source for ions, and heat sink for electrons.
-
 ``elongation`` (time, rho_norm)
   Elongation of each flux surface [dimensionless].
 
@@ -369,6 +365,13 @@ toroidal (``j_toroidal_*``) current densities:
 ``p_ecrh_e`` (time, rho_cell_norm)
   Electron cyclotron heating power density (only relevant for electrons)
   [:math:`W/m^3`]. Only output if ``ecrh`` source is active.
+
+``p_ei_exchange_e`` (time, rho_cell_norm)
+  Ion-electron heat exchange power density profile to electrons
+  [:math:`W/m^3`]. Equal to ``-p_ei_exchange_i``.
+
+``p_ei_exchange_i`` (time, rho_cell_norm)
+  Ion-electron heat exchange power density profile to ions [:math:`W/m^3`].
 
 ``p_generic_heat_e`` (time, rho_cell_norm)
   Generic external heat source power density to electrons [:math:`W/m^3`]. Only
@@ -646,20 +649,20 @@ properties and characteristics, as well as scalar edge geometry quantities.
   H-mode confinement quality factor with respect to the ITER98y2 scaling law
   [dimensionless].
 
-``I_aux_generic`` (time)
-  Total generic auxiliary current [:math:`A`].
-
 ``I_bootstrap`` (time)
   Total bootstrap current [:math:`A`].
+
+``I_ecrh`` (time)
+  Total electron cyclotron source current [:math:`A`].
 
 ``I_external`` (time)
   Total external current [:math:`A`].
 
+``I_generic_current`` (time)
+  Total generic current source current [:math:`A`].
+
 ``I_non_inductive`` (time)
   Total non-inductive current (including bootstrap and external) [:math:`A`].
-
-``I_ecrh`` (time)
-  Total electron cyclotron source current [:math:`A`].
 
 ``I_p`` (time)
   Plasma current [:math:`A`].
@@ -695,15 +698,6 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_aux_e`` (time)
   Total auxiliary electron heating power [:math:`W`].
 
-``P_aux_generic_e`` (time)
-  Total generic auxiliary heating power to electrons [:math:`W`].
-
-``P_aux_generic_i`` (time)
-  Total generic auxiliary heating power to ions [:math:`W`].
-
-``P_aux_generic_total`` (time)
-  Total generic auxiliary heating power [:math:`W`].
-
 ``P_aux_i`` (time)
   Total auxiliary ion heating power [:math:`W`].
 
@@ -714,7 +708,7 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_bremsstrahlung_e`` (time)
   Total Bremsstrahlung electron heat sink power [:math:`W`].
 
-``P_cyclotron_e`` (time)
+``P_cyclotron_radiation_e`` (time)
   Total cyclotron radiation heat sink power (only relevant for electrons)
   [:math:`W`].
 
@@ -739,6 +733,15 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_fusion`` (time)
   Total fusion power including neutrons (5*P_alpha_total) [:math:`W`].
 
+``P_generic_heat_e`` (time)
+  Total generic heat source power to electrons [:math:`W`].
+
+``P_generic_heat_i`` (time)
+  Total generic heat source power to ions [:math:`W`].
+
+``P_generic_heat_total`` (time)
+  Total generic heat source power [:math:`W`].
+
 ``P_heat_e`` (time)
   Total electron heating power: all sources - sinks. i.e. auxiliary heating +
   electron-ion heat exchange + Ohmic + fusion + (negative) radiation sinks
@@ -761,6 +764,10 @@ properties and characteristics, as well as scalar edge geometry quantities.
 ``P_icrh_total`` (time)
   Total ion cyclotron resonance heating power [:math:`W`].
 
+``P_impurity_radiation_e`` (time)
+  Total impurity radiation heat sink power (only relevant for electrons)
+  [:math:`W`].
+
 ``P_LH_martin`` (time)
   Calculated H-mode transition power, taken as the maximum of
   ``P_LH_martin_min`` and ``P_LH_martin_high_density``. This does not include an
@@ -780,10 +787,6 @@ properties and characteristics, as well as scalar edge geometry quantities.
 
 ``P_ohmic_e`` (time)
   Total Ohmic heating power (only relevant for electrons) [:math:`W`].
-
-``P_radiation_e`` (time)
-  Total radiative heat sink power (including Bremsstrahlung, Cyclotron, and
-  other radiation). Only relevant for electrons [:math:`W`].
 
 ``P_SOL_e`` (time)
   Total electron heating power exiting the plasma across the LCFS [:math:`W`].

@@ -14,8 +14,9 @@
 
 """Functions for adding post-processed outputs to the simulation state."""
 
+from collections.abc import Sequence
 import dataclasses
-from typing import Callable, Self
+from typing import Callable, Final, Self
 
 from absl import logging
 import jax
@@ -87,20 +88,20 @@ class PostProcessedOutputs:
       P_external_injected + P_ohmic_e) [W]
     P_ei_exchange_i: Electron-ion heat exchange power to ions [W]
     P_ei_exchange_e: Electron-ion heat exchange power to electrons [W]
-    P_aux_generic_i: Total generic_ion_el_heat_source power to ions [W]
-    P_aux_generic_e: Total generic_ion_el_heat_source power to electrons [W]
-    P_aux_generic_total: Total generic_ion_el_heat power [W]
-    P_alpha_i: Total fusion power to ions [W]
-    P_alpha_e: Total fusion power to electrons [W]
-    P_alpha_total: Total fusion power to plasma [W]
+    P_generic_heat_i: Total generic_heat source power to ions [W]
+    P_generic_heat_e: Total generic_heat source power to electrons [W]
+    P_generic_heat_total: Total generic_heat source power [W]
+    P_alpha_i: Total fusion alpha heating power to ions [W]
+    P_alpha_e: Total fusion alpha heating power to electrons [W]
+    P_alpha_total: Total fusion alpha heating power to plasma [W]
     P_ohmic_e: Ohmic heating power to electrons [W]
     P_bremsstrahlung_e: Bremsstrahlung electron heat sink [W]
-    P_cyclotron_e: Cyclotron radiation electron heat sink [W]
+    P_cyclotron_radiation_e: Cyclotron radiation electron heat sink [W]
     P_ecrh_e: Total electron cyclotron source power [W]
-    P_radiation_e: Impurity radiation heat sink [W]
+    P_impurity_radiation_e: Impurity radiation electron heat sink [W]
     P_fusion: Generated fusion power (5*P_alpha_total) [W]
     I_ecrh: Total electron cyclotron source current [A]
-    I_aux_generic: Total generic source current [A]
+    I_generic_current: Total generic_current source current [A]
     Q_fusion: Fusion power gain (P_fusion / P_external_total) [dimensionless]
     P_icrh_e: Ion cyclotron resonance heating to electrons [W]
     P_icrh_i: Ion cyclotron resonance heating to ions [W]
@@ -249,19 +250,19 @@ class PostProcessedOutputs:
   P_heat_total: array_typing.FloatScalar
   P_ei_exchange_i: array_typing.FloatScalar
   P_ei_exchange_e: array_typing.FloatScalar
-  P_aux_generic_i: array_typing.FloatScalar
-  P_aux_generic_e: array_typing.FloatScalar
-  P_aux_generic_total: array_typing.FloatScalar
+  P_generic_heat_i: array_typing.FloatScalar
+  P_generic_heat_e: array_typing.FloatScalar
+  P_generic_heat_total: array_typing.FloatScalar
   P_alpha_i: array_typing.FloatScalar
   P_alpha_e: array_typing.FloatScalar
   P_alpha_total: array_typing.FloatScalar
   P_ohmic_e: array_typing.FloatScalar
   P_bremsstrahlung_e: array_typing.FloatScalar
-  P_cyclotron_e: array_typing.FloatScalar
+  P_cyclotron_radiation_e: array_typing.FloatScalar
   P_ecrh_e: array_typing.FloatScalar
-  P_radiation_e: array_typing.FloatScalar
+  P_impurity_radiation_e: array_typing.FloatScalar
   I_ecrh: array_typing.FloatScalar
-  I_aux_generic: array_typing.FloatScalar
+  I_generic_current: array_typing.FloatScalar
   P_fusion: array_typing.FloatScalar
   Q_fusion: array_typing.FloatScalar
   P_icrh_e: array_typing.FloatScalar
@@ -368,19 +369,19 @@ class PostProcessedOutputs:
         P_heat_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ei_exchange_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_aux_generic_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_aux_generic_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_aux_generic_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_heat_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_heat_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_heat_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_alpha_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_alpha_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_alpha_total=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ohmic_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_bremsstrahlung_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_cyclotron_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_cyclotron_radiation_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_ecrh_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_radiation_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_impurity_radiation_e=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         I_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        I_aux_generic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_generic_current=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         Q_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         P_icrh_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -552,17 +553,17 @@ class PostProcessedOutputs:
         output_keys.P_HEAT_TOTAL: self.P_heat_total,
         output_keys.P_EI_EXCHANGE_I: self.P_ei_exchange_i,
         output_keys.P_EI_EXCHANGE_E: self.P_ei_exchange_e,
-        output_keys.P_AUX_GENERIC_I: self.P_aux_generic_i,
-        output_keys.P_AUX_GENERIC_E: self.P_aux_generic_e,
-        output_keys.P_AUX_GENERIC_TOTAL: self.P_aux_generic_total,
+        output_keys.P_GENERIC_HEAT_I: self.P_generic_heat_i,
+        output_keys.P_GENERIC_HEAT_E: self.P_generic_heat_e,
+        output_keys.P_GENERIC_HEAT_TOTAL: self.P_generic_heat_total,
         output_keys.P_ALPHA_I: self.P_alpha_i,
         output_keys.P_ALPHA_E: self.P_alpha_e,
         output_keys.P_ALPHA_TOTAL: self.P_alpha_total,
         output_keys.P_OHMIC_E: self.P_ohmic_e,
         output_keys.P_BREMSSTRAHLUNG_E: self.P_bremsstrahlung_e,
-        output_keys.P_CYCLOTRON_E: self.P_cyclotron_e,
+        output_keys.P_CYCLOTRON_RADIATION_E: self.P_cyclotron_radiation_e,
         output_keys.P_ECRH_E: self.P_ecrh_e,
-        output_keys.P_RADIATION_E: self.P_radiation_e,
+        output_keys.P_IMPURITY_RADIATION_E: self.P_impurity_radiation_e,
         output_keys.P_FUSION: self.P_fusion,
         output_keys.P_ICRH_E: self.P_icrh_e,
         output_keys.P_ICRH_I: self.P_icrh_i,
@@ -607,7 +608,7 @@ class PostProcessedOutputs:
         output_keys.I_BOOTSTRAP: self.I_bootstrap,
         output_keys.I_EXTERNAL: self.I_external,
         output_keys.I_ECRH: self.I_ecrh,
-        output_keys.I_AUX_GENERIC: self.I_aux_generic,
+        output_keys.I_GENERIC_CURRENT: self.I_generic_current,
         output_keys.I_NON_INDUCTIVE: self.I_non_inductive,
         output_keys.F_NON_INDUCTIVE: self.f_non_inductive,
         output_keys.F_BOOTSTRAP: self.f_bootstrap,
@@ -662,33 +663,37 @@ class PostProcessedOutputs:
     return out_dict
 
 
-# TODO(b/376010694): use the various SOURCE_NAMES for the keys.
-ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
-    'generic_heat': 'P_aux_generic',
-    'fusion': 'P_alpha',
-    'icrh': 'P_icrh',
-}
-EL_HEAT_SOURCE_TRANSFORMATIONS = {
-    'ohmic': 'P_ohmic_e',
-    'bremsstrahlung': 'P_bremsstrahlung_e',
-    'cyclotron_radiation': 'P_cyclotron_e',
-    'ecrh': 'P_ecrh_e',
-    'impurity_radiation': 'P_radiation_e',
-}
-EXTERNAL_HEATING_SOURCES = [
+# Integrated source scalar names follow the source's config / SOURCE_ID name
+# directly via output_keys.SOURCE_NAME_RENAMES. The sole exception is 'fusion',
+# whose thermal plasma heating is carried by alpha particles ('alpha'; total D-T
+# fusion power P_fusion is 5 * P_alpha_total, so naming ion/electron thermal
+# heating P_fusion_i / P_fusion_e would be misleading).
+ION_EL_HEAT_SOURCES: Final[Sequence[str]] = (
+    'generic_heat',
+    'fusion',
+    'icrh',
+)
+EL_HEAT_SOURCES: Final[Sequence[str]] = (
+    'ohmic',
+    'bremsstrahlung',
+    'cyclotron_radiation',
+    'ecrh',
+    'impurity_radiation',
+)
+EXTERNAL_HEATING_SOURCES: Final[Sequence[str]] = (
     'generic_heat',
     'ecrh',
     'icrh',
-]
-CURRENT_SOURCE_TRANSFORMATIONS = {
-    'generic_current': 'I_aux_generic',
-    'ecrh': 'I_ecrh',
-}
-PARTICLE_SOURCE_TRANSFORMATIONS = {
-    'gas_puff': 'S_gas_puff',
-    'pellet': 'S_pellet',
-    'generic_particle': 'S_generic_particle',
-}
+)
+CURRENT_SOURCES: Final[Sequence[str]] = (
+    'generic_current',
+    'ecrh',
+)
+PARTICLE_SOURCES: Final[Sequence[str]] = (
+    'gas_puff',
+    'pellet',
+    'generic_particle',
+)
 
 
 def _get_integrated_source_value(
@@ -747,9 +752,8 @@ def _calculate_integrated_sources(
       0.0, dtype=jax_utils.get_dtype()
   )
 
-  # Calculate integrated sources with convenient names, transformed from
-  # TORAX internal names.
-  for key, value in ION_EL_HEAT_SOURCE_TRANSFORMATIONS.items():
+  # Calculate integrated sources using unified output key names.
+  for key in ION_EL_HEAT_SOURCES:
     is_in_T_i = key in core_sources.T_i
     is_in_T_e = key in core_sources.T_e
     if is_in_T_i != is_in_T_e:
@@ -758,19 +762,20 @@ def _calculate_integrated_sources(
           ' channels (in core_sources.T_i and core_sources.T_e respectively).'
           f' Found in T_i: {is_in_T_i}, Found in T_e: {is_in_T_e}.'
       )
-    integrated[f'{value}_i'] = _get_integrated_source_value(
+    output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
+    integrated[f'P_{output_name}_i'] = _get_integrated_source_value(
         core_sources.T_i, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
     )
-    integrated[f'{value}_e'] = _get_integrated_source_value(
+    integrated[f'P_{output_name}_e'] = _get_integrated_source_value(
         core_sources.T_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
     )
-    integrated[f'{value}_total'] = (
-        integrated[f'{value}_i'] + integrated[f'{value}_e']
+    integrated[f'P_{output_name}_total'] = (
+        integrated[f'P_{output_name}_i'] + integrated[f'P_{output_name}_e']
     )
 
     if key in EXTERNAL_HEATING_SOURCES:
-      integrated['P_aux_i'] += integrated[f'{value}_i']
-      integrated['P_aux_e'] += integrated[f'{value}_e']
+      integrated['P_aux_i'] += integrated[f'P_{output_name}_i']
+      integrated['P_aux_e'] += integrated[f'P_{output_name}_e']
 
       # Track injected power for heating sources that have absorption_fraction
       # These are only for sources like ICRH or NBI that are
@@ -779,28 +784,33 @@ def _calculate_integrated_sources(
       if source_params is not None and hasattr(
           source_params, 'absorption_fraction'
       ):
-        total_absorbed = integrated[f'{value}_total']
+        total_absorbed = integrated[f'P_{output_name}_total']
         injected_power = total_absorbed / source_params.absorption_fraction
         integrated['P_external_injected'] += injected_power
       else:
-        integrated['P_external_injected'] += integrated[f'{value}_total']
+        integrated['P_external_injected'] += integrated[
+            f'P_{output_name}_total'
+        ]
 
-  for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
+  for key in EL_HEAT_SOURCES:
     if key in core_sources.T_e and key in core_sources.T_i:
       raise ValueError(
           f"Source '{key}' was expected to only be an electron heat source (in"
           ' core_sources.T_e), but it was also found in ion heat sources'
           ' (core_sources.T_i).'
       )
-    integrated[f'{value}'] = _get_integrated_source_value(
+    output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
+    scalar_key = f'P_{output_name}_e'
+    integrated[scalar_key] = _get_integrated_source_value(
         core_sources.T_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
     )
     if key in EXTERNAL_HEATING_SOURCES:
-      integrated['P_aux_e'] += integrated[f'{value}']
-      integrated['P_external_injected'] += integrated[f'{value}']
+      integrated['P_aux_e'] += integrated[scalar_key]
+      integrated['P_external_injected'] += integrated[scalar_key]
 
-  for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
-    integrated[value] = _get_integrated_source_value(
+  for key in CURRENT_SOURCES:
+    output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
+    integrated[f'I_{output_name}'] = _get_integrated_source_value(
         core_sources.psi,  # pyrefly: ignore[bad-argument-type]
         key,
         geo,
@@ -813,11 +823,13 @@ def _calculate_integrated_sources(
         ),
     )
 
-  for key, value in PARTICLE_SOURCE_TRANSFORMATIONS.items():
-    integrated[f'{value}'] = _get_integrated_source_value(
+  for key in PARTICLE_SOURCES:
+    output_name = output_keys.SOURCE_NAME_RENAMES.get(key, key)
+    scalar_key = f'S_{output_name}'
+    integrated[scalar_key] = _get_integrated_source_value(
         core_sources.n_e, key, geo, math_utils.volume_integration  # pyrefly: ignore[bad-argument-type]
     )
-    integrated['S_total'] += integrated[f'{value}']
+    integrated['S_total'] += integrated[scalar_key]
 
   integrated['P_aux_total'] = integrated['P_aux_i'] + integrated['P_aux_e']
   integrated['P_fusion'] = 5 * integrated['P_alpha_total']
@@ -829,9 +841,9 @@ def _calculate_integrated_sources(
       + integrated['P_alpha_e']
       + integrated['P_ohmic_e']
       + integrated['P_ei_exchange_e']
-      + integrated['P_cyclotron_e']
+      + integrated['P_cyclotron_radiation_e']
       + integrated['P_bremsstrahlung_e']
-      + integrated['P_radiation_e']
+      + integrated['P_impurity_radiation_e']
   )
 
   integrated['P_heat_i'] = (

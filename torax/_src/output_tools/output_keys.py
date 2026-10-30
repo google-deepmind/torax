@@ -302,11 +302,6 @@ PRESSURE_TOTAL: Final[OutputKey] = OutputKey(
     units=Units.PASCAL,
     grid_type=GridType.CELL_PLUS_BOUNDARIES,
 )
-EI_EXCHANGE: Final[OutputKey] = OutputKey(
-    "ei_exchange",
-    units=Units.WATT_PER_CUBIC_METER,
-    grid_type=GridType.CELL,
-)
 PSI_FROM_I_P: Final[OutputKey] = OutputKey(
     "psi_from_I_p", units=Units.WEBER, grid_type=GridType.CELL_PLUS_BOUNDARIES
 )
@@ -362,7 +357,11 @@ I_BOOTSTRAP: Final[OutputKey] = OutputKey(
 # Source profile key builders for dynamically generated keys.
 # e.g. "p_ecrh_i", "p_alpha_e", "j_parallel_ecrh", "s_pellet".
 # Maps internal source names to output key names where they differ.
-SOURCE_NAME_RENAMES = {"fusion": "alpha"}
+# All sources use their config / SOURCE_ID name directly in profile and scalar
+# outputs except 'fusion', whose thermal plasma heating is carried by alpha
+# particles ('alpha'; total D-T P_fusion is 5 * P_alpha_total, so calling
+# thermal plasma heating P_fusion_i / P_fusion_e would be misleading).
+SOURCE_NAME_RENAMES: Final[dict[str, str]] = {"fusion": "alpha"}
 
 
 def p_source_i_key(source: str) -> str:
@@ -603,14 +602,14 @@ P_EI_EXCHANGE_I: Final[OutputKey] = OutputKey(
 P_EI_EXCHANGE_E: Final[OutputKey] = OutputKey(
     "P_ei_exchange_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_AUX_GENERIC_I: Final[OutputKey] = OutputKey(
-    "P_aux_generic_i", units=Units.WATT, grid_type=GridType.SCALAR
+P_GENERIC_HEAT_I: Final[OutputKey] = OutputKey(
+    "P_generic_heat_i", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_AUX_GENERIC_E: Final[OutputKey] = OutputKey(
-    "P_aux_generic_e", units=Units.WATT, grid_type=GridType.SCALAR
+P_GENERIC_HEAT_E: Final[OutputKey] = OutputKey(
+    "P_generic_heat_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_AUX_GENERIC_TOTAL: Final[OutputKey] = OutputKey(
-    "P_aux_generic_total", units=Units.WATT, grid_type=GridType.SCALAR
+P_GENERIC_HEAT_TOTAL: Final[OutputKey] = OutputKey(
+    "P_generic_heat_total", units=Units.WATT, grid_type=GridType.SCALAR
 )
 P_ALPHA_I: Final[OutputKey] = OutputKey(
     "P_alpha_i", units=Units.WATT, grid_type=GridType.SCALAR
@@ -627,14 +626,14 @@ P_OHMIC_E: Final[OutputKey] = OutputKey(
 P_BREMSSTRAHLUNG_E: Final[OutputKey] = OutputKey(
     "P_bremsstrahlung_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_CYCLOTRON_E: Final[OutputKey] = OutputKey(
-    "P_cyclotron_e", units=Units.WATT, grid_type=GridType.SCALAR
+P_CYCLOTRON_RADIATION_E: Final[OutputKey] = OutputKey(
+    "P_cyclotron_radiation_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
 P_ECRH_E: Final[OutputKey] = OutputKey(
     "P_ecrh_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
-P_RADIATION_E: Final[OutputKey] = OutputKey(
-    "P_radiation_e", units=Units.WATT, grid_type=GridType.SCALAR
+P_IMPURITY_RADIATION_E: Final[OutputKey] = OutputKey(
+    "P_impurity_radiation_e", units=Units.WATT, grid_type=GridType.SCALAR
 )
 P_FUSION: Final[OutputKey] = OutputKey(
     "P_fusion", units=Units.WATT, grid_type=GridType.SCALAR
@@ -830,8 +829,8 @@ I_EXTERNAL: Final[OutputKey] = OutputKey(
 I_ECRH: Final[OutputKey] = OutputKey(
     "I_ecrh", units=Units.AMPERE, grid_type=GridType.SCALAR
 )
-I_AUX_GENERIC: Final[OutputKey] = OutputKey(
-    "I_aux_generic", units=Units.AMPERE, grid_type=GridType.SCALAR
+I_GENERIC_CURRENT: Final[OutputKey] = OutputKey(
+    "I_generic_current", units=Units.AMPERE, grid_type=GridType.SCALAR
 )
 I_NON_INDUCTIVE: Final[OutputKey] = OutputKey(
     "I_non_inductive", units=Units.AMPERE, grid_type=GridType.SCALAR

@@ -192,13 +192,16 @@ class SourceProfilesTest(parameterized.TestCase):
         p_ei=p_ei,
     )
     out_dict = qei.to_output_dict(context)
-    self.assertIn(str(output_keys.EI_EXCHANGE), out_dict)
-    dims, data, attrs = out_dict[str(output_keys.EI_EXCHANGE)]
-    self.assertEqual(dims, (output_keys.TIME, output_keys.RHO_CELL_NORM))
-    np.testing.assert_allclose(data, p_ei)
-    self.assertEqual(
-        attrs, {'units': output_keys.Units.WATT_PER_CUBIC_METER}
-    )
+    self.assertIn('p_ei_exchange_i', out_dict)
+    self.assertIn('p_ei_exchange_e', out_dict)
+    dims_i, data_i, attrs_i = out_dict['p_ei_exchange_i']
+    self.assertEqual(dims_i, (output_keys.TIME, output_keys.RHO_CELL_NORM))
+    np.testing.assert_allclose(data_i, p_ei)
+    self.assertEqual(attrs_i, {'units': output_keys.Units.WATT_PER_CUBIC_METER})
+    dims_e, data_e, attrs_e = out_dict['p_ei_exchange_e']
+    self.assertEqual(dims_e, (output_keys.TIME, output_keys.RHO_CELL_NORM))
+    np.testing.assert_allclose(data_e, -p_ei)
+    self.assertEqual(attrs_e, {'units': output_keys.Units.WATT_PER_CUBIC_METER})
 
   def test_bootstrap_current_to_output_dict(self):
     geo = circular_geometry.CircularConfig().build_geometry()
@@ -258,7 +261,8 @@ class SourceProfilesTest(parameterized.TestCase):
 
     out_dict = profiles.to_output_dict(context)
     self.assertIn(str(output_keys.J_PARALLEL_BOOTSTRAP), out_dict)
-    self.assertIn(str(output_keys.EI_EXCHANGE), out_dict)
+    self.assertIn('p_ei_exchange_i', out_dict)
+    self.assertIn('p_ei_exchange_e', out_dict)
     self.assertIn('p_alpha_i', out_dict)
     self.assertIn('p_ecrh_e', out_dict)
     self.assertIn('j_parallel_eccd', out_dict)
@@ -305,7 +309,11 @@ class SourceProfilesTest(parameterized.TestCase):
     out_dict = profiles.to_output_dict(context)
     self.assertCountEqual(
         out_dict.keys(),
-        [output_keys.J_PARALLEL_BOOTSTRAP, output_keys.EI_EXCHANGE],
+        [
+            output_keys.J_PARALLEL_BOOTSTRAP,
+            'p_ei_exchange_i',
+            'p_ei_exchange_e',
+        ],
     )
 
   def test_iterate_channels_for_output_renaming(self):
