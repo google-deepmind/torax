@@ -344,8 +344,8 @@ class PostProcessingTest(parameterized.TestCase):
 
     # Check fraction
     # f_non_inductive = I_non_inductive / I_p
-    # I_p comes from core_profiles.I_p_profile_face[-1]
-    I_p = self.core_profiles.I_p_profile_face[-1]
+    # I_p comes from core_profiles.flux.I_p_profile_face[-1]
+    I_p = self.core_profiles.flux.I_p_profile_face[-1]
     # Code uses eps=1e-7 for division guard
     np.testing.assert_allclose(
         outputs.f_non_inductive,

@@ -20,6 +20,7 @@ import dataclasses
 from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.neoclassical import runtime_params as neoclassical_runtime_params
@@ -28,6 +29,7 @@ from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.neoclassical.formulas import formulas
 from torax._src.neoclassical.poloidal_velocity import base as poloidal_velocity_base
 from torax._src.neoclassical.transport import base as transport_base
+from torax._src.physics import fast_ion as fast_ion_lib
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
 
 
@@ -49,7 +51,8 @@ class NeoclassicalModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> tuple[
       state.Conductivity,
       bootstrap_current_base.BootstrapCurrent,
@@ -87,7 +90,8 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry_lib.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: solver_profiles.SolverProfiles,
+      fast_ions: tuple[fast_ion_lib.FastIon, ...],
   ) -> tuple[
       state.Conductivity,
       bootstrap_current_base.BootstrapCurrent,
@@ -101,7 +105,7 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
     )
     analytical_params = runtime_params.neoclassical
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
-        geo, core_profiles
+        geo, core_profiles, fast_ions=fast_ions
     )
     conductivity = self.conductivity.calculate_conductivity(
         analytical_params.conductivity,
@@ -114,6 +118,7 @@ class AnalyticalNeoclassicalModel(NeoclassicalModel):
         geo,
         core_profiles,
         neoclassical_intermediates=neoclassical_intermediates,
+        fast_ions=fast_ions,
     )
     poloidal_velocity = self.poloidal_velocity.calculate_poloidal_velocity(
         analytical_params.poloidal_velocity,
