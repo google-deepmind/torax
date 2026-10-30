@@ -50,6 +50,9 @@ class PedestalStructure:
     Uses `rho_norm_ped_top=jnp.inf` and `0.0` pedestal values so that radial
     masks are False while maintaining a concrete PyTree structure compatible
     with `jax.lax.cond`.
+
+    Returns:
+      A `PedestalStructure` instance representing an inactive pedestal.
     """
     return cls(
         rho_norm_ped_top=jnp.array(jnp.inf, dtype=jax_utils.get_dtype()),
