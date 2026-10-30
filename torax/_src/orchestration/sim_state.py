@@ -41,6 +41,7 @@ _GEOMETRY_EXCLUDE_FROM_NAN_CHECK = (
     "B_pol_OMP",
     "diverted",
     "_z_magnetic_axis",
+    "r0_vacuum",
 )
 
 

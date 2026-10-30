@@ -101,6 +101,10 @@ class StandardGeometry(geometry.Geometry):
     diverted: Optional input. Boolean flag indicating whether the geometry is
       diverted. If not available, then diverted/limited will be determined by
       flux_surf_avg_Bp2[-1] in StandardGeometryIntermediates.
+    r0_vacuum: Optional input. Reference major radius at which the input
+      vacuum toroidal field was given [m], e.g. IMAS
+      ``vacuum_toroidal_field.r0``. Used to write the vacuum field back at the
+      same reference radius. If not provided, ``R_major`` is used.
   """
 
   I_p_profile_face: array_typing.FloatVectorFace
@@ -119,6 +123,7 @@ class StandardGeometry(geometry.Geometry):
   R_target: array_typing.FloatScalar | None
   B_pol_OMP: array_typing.FloatScalar | None
   diverted: array_typing.BoolScalar | None
+  r0_vacuum: array_typing.FloatScalar | None = None
 
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
@@ -181,6 +186,7 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   R_target: interpolated_param.InterpolatedVarSingleAxis | None
   B_pol_OMP: interpolated_param.InterpolatedVarSingleAxis | None
   diverted: interpolated_param.InterpolatedVarSingleAxis | None
+  r0_vacuum: interpolated_param.InterpolatedVarSingleAxis | None
 
   def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     """Returns a Geometry instance at the given time."""
@@ -266,6 +272,7 @@ class StandardGeometryIntermediates:
     R_OMP: Major radius of the outboard midplane [m].
     R_target: Major radius of the divertor target strike point [m].
     B_pol_OMP: Poloidal magnetic field at the outboard midplane [T].
+    r0_vacuum: Reference major radius of the input vacuum toroidal field [m].
   """
 
   geometry_type: geometry.GeometryType
@@ -302,6 +309,7 @@ class StandardGeometryIntermediates:
   R_target: array_typing.FloatScalar | None
   B_pol_OMP: array_typing.FloatScalar | None
   trapped_fraction: array_typing.Array
+  r0_vacuum: array_typing.FloatScalar | None = None
 
   def __post_init__(self):
     """Enforces sign conventions, extrapolates edge, and smooths near-axis.
@@ -712,6 +720,7 @@ def build_standard_geometry(
       R_OMP=intermediates.R_OMP,
       R_target=intermediates.R_target,
       B_pol_OMP=intermediates.B_pol_OMP,
+      r0_vacuum=intermediates.r0_vacuum,
   )
 
 

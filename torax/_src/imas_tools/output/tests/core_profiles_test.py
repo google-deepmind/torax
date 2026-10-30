@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from typing import Final, Sequence
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -72,6 +73,32 @@ class CoreProfilesTest(sim_test_case.SimTestCase):
         ids_out,
     )
     filled_ids.validate()
+
+  def test_vacuum_toroidal_field_single_r0(self):
+    """Tests that b0 of all slices is given at the single output r0."""
+    config_dict = self._get_config_dict("test_iterhybrid_rampup_short.py")
+    torax_config = config.ToraxConfig.from_dict(config_dict)
+    sim_state, post_processed_outputs, _ = run_simulation.prepare_simulation(
+        torax_config
+    )
+    geo = sim_state.geometry
+    # Second slice with a shifted R_major but the same vacuum R * B.
+    R_shifted = geo.R_major + 0.2
+    geo_shifted = dataclasses.replace(
+        geo, R_major=R_shifted, B_0=geo.B_0 * geo.R_major / R_shifted
+    )
+    filled_ids = output_core_profiles.core_profiles_to_IMAS(
+        torax_config,
+        [post_processed_outputs] * 2,
+        [sim_state.core_profiles] * 2,
+        [sim_state.core_sources] * 2,
+        [geo, geo_shifted],
+        [sim_state.t, sim_state.t + 1.0],
+    )
+    np.testing.assert_allclose(filled_ids.vacuum_toroidal_field.r0, geo.R_major)
+    np.testing.assert_allclose(
+        filled_ids.vacuum_toroidal_field.b0, [geo.B_0, geo.B_0], rtol=1e-6
+    )
 
   def test_round_trip_with_IMAS_profiles(
       self,
