@@ -328,8 +328,8 @@ registered via ``torax.sources.register_source_config`` (see
 
 ``mode`` (str [default = 'model'])
 
-``P_total`` (**time-varying-scalar** [default = 10e6])
-  Total injected source power in W.
+``P_total`` (**time-varying-scalar** [default = None])
+  Total injected source power in W. Required when ``mode == 'model_based'``.
 
 ``absorption_fraction`` (**time-varying-scalar** [default = 1.0])
   Fraction of ``P_total`` absorbed by the plasma.
@@ -401,8 +401,9 @@ The following models are available:
     Sets impurity radiation to be a constant fraction of the total external
     input power.
 
-    ``fraction_P_heating`` (float [default = 1.0]). Fraction of total external
-    input heating power to use for impurity radiation.
+    ``fraction_P_heating`` (**time-varying-scalar** [default = None]). Fraction
+    of total external input heating power to use for impurity radiation.
+    Required when ``mode == 'model_based'``.
 
 ohmic
 =====
