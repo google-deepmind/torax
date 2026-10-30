@@ -404,6 +404,156 @@ class CalcCoeffsTest(parameterized.TestCase):
             rtol=1e-10,
         )
 
+  def test_ware_pinch_responds_to_current_iterate_psidot(self):
+    sources_config = default_sources.get_default_source_config()
+    sources_config['ei_exchange']['Qei_multiplier'] = 0.0
+    torax_config = config.ToraxConfig.from_dict(
+        dict(
+            numerics=dict(evolve_current=True),
+            plasma_composition=dict(),
+            profile_conditions=dict(I_p=15e6, initial_psi_source='j'),
+            geometry=dict(geometry_type='circular'),
+            pedestal=dict(),
+            neoclassical=dict(
+                model_name='analytical',
+                transport=dict(model_name='angioni_sauter'),
+            ),
+            sources=sources_config,
+            solver=dict(),
+            transport=dict(
+                core_transport_models=dict(
+                    prescribed=dict(
+                        model_name='prescribed',
+                        chi_i=1.0,
+                        chi_e=1.0,
+                        D_e=1.0,
+                        V_e=0.0,
+                    )
+                ),
+            ),
+            time_step_calculator=dict(),
+        )
+    )
+    models = torax_config.build_models()
+    core_profiles, runtime_params, geo = (
+        core_profile_helpers.make_initial_inputs(torax_config)
+    )
+    source_states = models.source_models.initial_state(runtime_params)
+    explicit_source_profiles, _ = source_profile_builders.build_source_profiles(
+        source_models=models.source_models,
+        source_states=source_states,
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        explicit=True,
+    )
+    _, pedestal_state = models.pedestal_model.initialize(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_profiles=source_profile_builders.build_all_zero_profiles(geo),
+    )
+    model_state = model_state_lib.ModelState(
+        pedestal=pedestal_state,
+        transport=models.transport_model.initial_state(runtime_params),
+        sources=source_states,
+    )
+    explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
+        sources=explicit_source_profiles,
+        pedestal=None,
+    )
+
+    core_profiles_zero_psidot = dataclasses.replace(
+        core_profiles,
+        psidot=dataclasses.replace(
+            core_profiles.psidot,
+            value=jnp.zeros_like(core_profiles.psidot.value),
+            right_face_constraint=jnp.array(0.0),
+            right_face_grad_constraint=None,
+        ),
+    )
+    core_profiles_dummy_psidot = dataclasses.replace(
+        core_profiles,
+        psidot=dataclasses.replace(
+            core_profiles.psidot,
+            value=jnp.ones_like(core_profiles.psidot.value) * 100.0,
+            right_face_constraint=jnp.array(100.0),
+            right_face_grad_constraint=None,
+        ),
+    )
+    coeffs_zero = calc_coeffs.calc_coeffs(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles_zero_psidot,
+        models=models,
+        explicit_model_outputs=explicit_model_outputs,
+        evolving_names=('n_e',),
+        use_pereverzev=False,
+        model_state=model_state,
+    )
+    coeffs_dummy = calc_coeffs.calc_coeffs(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles_dummy_psidot,
+        models=models,
+        explicit_model_outputs=explicit_model_outputs,
+        evolving_names=('n_e',),
+        use_pereverzev=False,
+        model_state=model_state,
+    )
+
+    with self.subTest('independent_of_incoming_psidot'):
+      assert coeffs_zero.v_face is not None
+      assert coeffs_dummy.v_face is not None
+      # calc_coeffs recalculates psidot for the current iterate, so the
+      # resulting particle convection does not depend on incoming
+      # core_profiles.psidot.
+      np.testing.assert_allclose(
+          np.asarray(coeffs_zero.v_face[0]),
+          np.asarray(coeffs_dummy.v_face[0]),
+          rtol=1e-12,
+      )
+
+    # When psi is scaled, current-iterate psidot changes and particle convection
+    # (Ware pinch) responds accordingly, even when incoming psidot was zero.
+    right_face_constraint = (
+        core_profiles.psi.right_face_constraint * 2.0
+        if core_profiles.psi.right_face_constraint is not None
+        else None
+    )
+    right_face_grad_constraint = (
+        core_profiles.psi.right_face_grad_constraint * 2.0
+        if core_profiles.psi.right_face_grad_constraint is not None
+        else None
+    )
+    core_profiles_scaled_psi = dataclasses.replace(
+        core_profiles_zero_psidot,
+        psi=dataclasses.replace(
+            core_profiles.psi,
+            value=core_profiles.psi.value * 2.0,
+            right_face_constraint=right_face_constraint,
+            right_face_grad_constraint=right_face_grad_constraint,
+        ),
+    )
+    coeffs_scaled = calc_coeffs.calc_coeffs(
+        runtime_params=runtime_params,
+        geo=geo,
+        core_profiles=core_profiles_scaled_psi,
+        models=models,
+        explicit_model_outputs=explicit_model_outputs,
+        evolving_names=('n_e',),
+        use_pereverzev=False,
+        model_state=model_state,
+    )
+    with self.subTest('responds_to_scaled_psi'):
+      assert coeffs_scaled.v_face is not None
+      self.assertFalse(
+          np.allclose(
+              np.asarray(coeffs_scaled.v_face[0]),
+              np.asarray(coeffs_zero.v_face[0]),
+          )
+      )
+
 
 if __name__ == '__main__':
   absltest.main()

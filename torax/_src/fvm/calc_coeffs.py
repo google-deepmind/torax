@@ -31,6 +31,7 @@ from torax._src.internal_boundary_conditions import builder as ibc_builder
 from torax._src.orchestration import (
     explicit_model_outputs as explicit_model_outputs_lib,
 )
+from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
@@ -90,8 +91,8 @@ class CoeffsCallback:
       explicit_model_outputs: Explicit model outputs evaluated at time t.
       model_state: State of models across timesteps.
       allow_pereverzev: If True, then the coeffs are being called within a
-        linear solver. Thus could be either the use_fixed_point solver
-        or as part of calculating the initial guess for the nonlinear solver. In
+        linear solver. Thus could be either the use_fixed_point solver or as
+        part of calculating the initial guess for the nonlinear solver. In
         either case, we allow the inclusion of Pereverzev-Corrigan terms which
         aim to stabilize the linear solver when being used with highly nonlinear
         (stiff) transport coefficients. The nonlinear solver solves the system
@@ -218,30 +219,61 @@ def _calc_coeffs_full(
   ) = models.neoclassical_model.calculate_conductivity_current_and_rotation(
       runtime_params, geo, core_profiles
   )
-  # Update sigma, sigma_face, and poloidal_velocity on core_profiles for the
-  # current solver iterate; used by turbulent transport models (for ExB shear)
-  # in calculate_all_transport_coeffs below.
+  # Evaluate basic sources (fast ions and non-inductive psi sources) needed
+  # to compute psidot from spatial Ohm's law. Fast ions are not yet applied
+  # to core_profiles here.
+  partial_source_profiles, updated_source_states = (
+      source_profile_builders.build_basic_sources(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=core_profiles,
+          source_models=models.source_models,
+          source_states=model_state.sources,
+          explicit=False,
+          explicit_source_profiles=explicit_source_profiles,
+      )
+  )
+  v_loop_lcfs = (
+      runtime_params.profile_conditions.v_loop_lcfs
+      if runtime_params.profile_conditions.use_v_loop_lcfs_boundary_condition
+      else None
+  )
+  psidot = psi_calculations.calculate_psidot(
+      psi=core_profiles.psi,
+      sigma=conductivity.sigma,
+      psi_sources=dataclasses.replace(
+          partial_source_profiles, bootstrap_current=bootstrap_current
+      ).total_psi_sources(geo),
+      geo=geo,
+      evolve_current=runtime_params.numerics.evolve_current,
+      prescribed_psidot=runtime_params.profile_conditions.psidot,
+      v_loop_lcfs=v_loop_lcfs,
+  )
+  # Update sigma, sigma_face, poloidal_velocity, and psidot on core_profiles
+  # for the current solver iterate. Used by neoclassical transport (Ware pinch
+  # and Onsager heat fluxes) and turbulent transport (ExB shear).
   core_profiles = dataclasses.replace(
       core_profiles,
       sigma=conductivity.sigma,
       sigma_face=conductivity.sigma_face,
       poloidal_velocity=poloidal_velocity.v_pol,
+      psidot=psidot,
   )
   neoclassical_transport = models.neoclassical_model.calculate_transport(
       runtime_params, geo, core_profiles, neoclassical_intermediates
   )
 
-  # Calculate the implicit source profiles and combine them with the explicit
-  # source profiles. These are needed for the pedestal model, so are computed
-  # here rather than in the source terms section.
-  merged_source_profiles, _ = source_profile_builders.build_source_profiles(
-      source_models=models.source_models,
-      source_states=model_state.sources,
+  # Calculate the remaining implicit source profiles and combine them with the
+  # explicit source profiles. These are needed for the pedestal model, so are
+  # computed here rather than in the source terms section.
+  merged_source_profiles, _ = source_profile_builders.build_remaining_sources(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=core_profiles,
+      source_models=models.source_models,
+      source_states=updated_source_states,
+      partial_source_profiles=partial_source_profiles,
       explicit=False,
-      explicit_source_profiles=explicit_source_profiles,
       conductivity=conductivity,
       bootstrap_current=bootstrap_current,
   )
@@ -278,17 +310,15 @@ def _calc_coeffs_full(
       pedestal_state=model_state.pedestal,
       explicit_pedestal_structure=explicit_model_outputs.pedestal,
   )
-  internal_boundary_conditions = (
-      ibc_builder.build_internal_boundary_conditions(
-          runtime_params=runtime_params,
-          geo=geo,
-          core_profiles=core_profiles,
-          pedestal_model_output=pedestal_output,
-          internal_boundary_condition_model=(
-              models.internal_boundary_condition_model
-          ),
-          source_profiles=merged_source_profiles,
-      )
+  internal_boundary_conditions = ibc_builder.build_internal_boundary_conditions(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      pedestal_model_output=pedestal_output,
+      internal_boundary_condition_model=(
+          models.internal_boundary_condition_model
+      ),
+      source_profiles=merged_source_profiles,
   )
 
   # Compute transport coefficients. We purposefully do not update
@@ -499,26 +529,26 @@ def _calc_coeffs_full(
   # d maps (row var, col var) to the coefficient for that block of the matrix
   # (Can't use a descriptive name or the nested comprehension to build the
   # matrix gets too long)
-  d = {
-      ('T_i', 'T_i'): source_mat_ii,
-      ('T_i', 'T_e'): source_mat_ie,
-      ('T_e', 'T_i'): source_mat_ei,
-      ('T_e', 'T_e'): source_mat_ee,
-      ('n_e', 'n_e'): source_mat_nn,
-      ('psi', 'psi'): source_mat_psi,
+  d: dict[tuple[str, str], jax.Array] = {
+      ('T_i', 'T_i'): jnp.asarray(source_mat_ii),
+      ('T_i', 'T_e'): jnp.asarray(source_mat_ie),
+      ('T_e', 'T_i'): jnp.asarray(source_mat_ei),
+      ('T_e', 'T_e'): jnp.asarray(source_mat_ee),
+      ('n_e', 'n_e'): jnp.asarray(source_mat_nn),
+      ('psi', 'psi'): jnp.asarray(source_mat_psi),
   }
-  source_mat_cell = tuple([
-      tuple([d.get((row_block, col_block)) for col_block in evolving_names])
+  source_mat_cell = tuple(
+      tuple(d.get((row_block, col_block)) for col_block in evolving_names)
       for row_block in evolving_names
-  ])
+  )
 
   # var_to_source ends up as a vector in the constructed PDE. Therefore any
   # scalings from CoreProfiles state variables to x must be applied here too.
-  var_to_source = {
-      'T_i': source_i / convertors.STATE_SCALING_FACTORS['T_i'],
-      'T_e': source_e / convertors.STATE_SCALING_FACTORS['T_e'],
-      'psi': source_psi / convertors.STATE_SCALING_FACTORS['psi'],
-      'n_e': source_n_e / convertors.STATE_SCALING_FACTORS['n_e'],
+  var_to_source: dict[str, jax.Array] = {
+      'T_i': jnp.asarray(source_i / convertors.STATE_SCALING_FACTORS['T_i']),
+      'T_e': jnp.asarray(source_e / convertors.STATE_SCALING_FACTORS['T_e']),
+      'psi': jnp.asarray(source_psi / convertors.STATE_SCALING_FACTORS['psi']),
+      'n_e': jnp.asarray(source_n_e / convertors.STATE_SCALING_FACTORS['n_e']),
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
