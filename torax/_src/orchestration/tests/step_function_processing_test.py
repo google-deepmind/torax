@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
-
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax.numpy as jnp
-import numpy as np
 from torax._src.orchestration import initial_state
 from torax._src.orchestration import run_simulation
-from torax._src.orchestration import step_function_processing
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params_lib
+from torax._src.pedestal_model import (
+    runtime_params as pedestal_runtime_params_lib,
+)
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
 
@@ -72,7 +69,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
         initial_state.get_initial_state_and_post_processed_outputs(step_fn)
     )
     self.assertEqual(
-        sim_state.pedestal_transition_state.confinement_mode,
+        sim_state.pedestal_output.confinement_mode,
         ConfinementMode.L_MODE,
     )
 
@@ -80,7 +77,7 @@ class StepFunctionProcessingTest(parameterized.TestCase):
     # (where pedestal_active is False), so the step remains in L_MODE.
     sim_state_1, post_processed_1 = step_fn(sim_state, post_processed)
     self.assertEqual(
-        sim_state_1.pedestal_transition_state.confinement_mode,
+        sim_state_1.pedestal_output.confinement_mode,
         ConfinementMode.L_MODE,
     )
 
@@ -88,74 +85,9 @@ class StepFunctionProcessingTest(parameterized.TestCase):
     # (where pedestal_active is True), transitioning to H_MODE.
     sim_state_2, _ = step_fn(sim_state_1, post_processed_1)
     self.assertEqual(
-        sim_state_2.pedestal_transition_state.confinement_mode,
+        sim_state_2.pedestal_output.confinement_mode,
         ConfinementMode.H_MODE,
     )
-
-  def test_prescribed_formation_adaptive_transport_L_to_H_and_H_to_L(self):
-    config_dict = default_configs.get_default_config_dict()
-    config_dict['pedestal'] = {
-        'structure_model': {'model_name': 'set_T_ped_n_ped'},
-        'mode': 'adaptive_transport',
-        'formation_model': {
-            'model_name': 'prescribed',
-            'pedestal_active': {0.0: False, 1.0: True, 2.0: False},
-            'base_multiplier': 1e-5,
-        },
-    }
-    torax_config = config.ToraxConfig.from_dict(config_dict)
-    step_fn = run_simulation.make_step_fn(torax_config)
-    sim_state, _ = initial_state.get_initial_state_and_post_processed_outputs(
-        step_fn
-    )
-
-    with self.subTest('initial_L_mode'):
-      init_ts = sim_state.pedestal_transition_state
-      self.assertEqual(init_ts.confinement_mode, ConfinementMode.L_MODE)
-      np.testing.assert_allclose(
-          init_ts.pedestal_model_output.transport_multipliers.chi_i_multiplier,
-          1.0,
-      )
-
-    with self.subTest('L_to_H_transition'):
-      _, _, explicit_outputs_h, _, _ = step_function_processing.pre_step(
-          input_state=dataclasses.replace(sim_state, t=jnp.array(1.5)),
-          runtime_params_provider=step_fn.runtime_params_provider,
-          geometry_provider=step_fn.geometry_provider,
-          models=step_fn._solver.models,
-      )
-      pedestal_transition_state_h = explicit_outputs_h.pedestal
-      self.assertEqual(
-          pedestal_transition_state_h.confinement_mode,
-          ConfinementMode.H_MODE,
-      )
-      ped_output_h = pedestal_transition_state_h.pedestal_model_output
-      np.testing.assert_allclose(
-          ped_output_h.transport_multipliers.chi_i_multiplier,
-          1e-5,
-      )
-
-    with self.subTest('H_to_L_transition'):
-      _, _, explicit_outputs_l, _, _ = step_function_processing.pre_step(
-          input_state=dataclasses.replace(
-              sim_state,
-              t=jnp.array(2.5),
-              pedestal_transition_state=pedestal_transition_state_h,
-          ),
-          runtime_params_provider=step_fn.runtime_params_provider,
-          geometry_provider=step_fn.geometry_provider,
-          models=step_fn._solver.models,
-      )
-      pedestal_transition_state_l = explicit_outputs_l.pedestal
-      self.assertEqual(
-          pedestal_transition_state_l.confinement_mode,
-          ConfinementMode.L_MODE,
-      )
-      ped_output_l = pedestal_transition_state_l.pedestal_model_output
-      np.testing.assert_allclose(
-          ped_output_l.transport_multipliers.chi_i_multiplier,
-          1.0,
-      )
 
 
 if __name__ == '__main__':

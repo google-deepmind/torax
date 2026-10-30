@@ -243,7 +243,7 @@ class FVMTest(parameterized.TestCase):
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
         sources=explicit_source_profiles,
-        pedestal=sim_state.pedestal_transition_state,
+        pedestal=sim_state.pedestal_output.structure,
     )
     coeffs = calc_coeffs.calc_coeffs(
         runtime_params=runtime_params,

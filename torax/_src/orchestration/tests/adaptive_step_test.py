@@ -21,7 +21,6 @@ from torax._src import jax_utils
 from torax._src.orchestration import adaptive_step
 from torax._src.orchestration import explicit_model_outputs as explicit_model_outputs_lib
 from torax._src.orchestration import run_simulation
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import default_configs
 from torax._src.torax_pydantic import config
@@ -88,7 +87,7 @@ class AdaptiveStepTest(parameterized.TestCase):
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
         sources=explicit_source_profiles,
-        pedestal=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal=None,
     )
     adaptive_step_state, _ = adaptive_step.compute_state(
         i=0,

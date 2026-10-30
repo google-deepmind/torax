@@ -27,7 +27,6 @@ from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state as sim_state_lib
 from torax._src.orchestration import step_function
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.test_utils import default_configs
 from torax._src.test_utils import paths
 from torax._src.torax_pydantic import config
@@ -194,7 +193,7 @@ class StepFunctionTest(parameterized.TestCase):
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
         sources=sim_state.core_sources,
-        pedestal=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal=None,
     )
     output_state, _ = step_fn._fixed_step(
         max_dt=jnp.array(passed_max_dt),
@@ -234,7 +233,7 @@ class StepFunctionTest(parameterized.TestCase):
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
         sources=sim_state.core_sources,
-        pedestal=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal=None,
     )
     output_state, _ = step_fn._fixed_step(
         max_dt=jnp.array(passed_max_dt),
@@ -273,7 +272,7 @@ class StepFunctionTest(parameterized.TestCase):
     )
     explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
         sources=sim_state.core_sources,
-        pedestal=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal=None,
     )
     output_state, _ = step_fn._adaptive_step(
         max_dt=jnp.array(passed_max_dt),

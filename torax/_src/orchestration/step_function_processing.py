@@ -106,35 +106,17 @@ def pre_step(
   else:
     edge_outputs = None
 
-  # Update the discrete pedestal transition state (confinement mode, transition
-  # start time, and L-mode baselines) once per step at time t.
-  pedestal_transition_state, updated_pedestal_state = (
-      models.pedestal_model.update_transition_state(
+  # Update the discrete pedestal state and compute explicit structure if needed.
+  updated_pedestal_state, explicit_pedestal_structure = (
+      models.pedestal_model.pre_step(
           runtime_params=runtime_params_t,
           geo=geo_t,
           core_profiles=input_state.core_profiles,
           source_profiles=merged_sources,
-          pedestal_transition_state=input_state.pedestal_transition_state,
           pedestal_state=input_state.model_state.pedestal,
+          previous_pedestal_output=input_state.pedestal_output,
       )
   )
-
-  # When explicit_pedestal is True, evaluate the pedestal model once here
-  # and freeze its output for the solver loop. calc_coeffs will skip
-  # re-evaluation and use this stored output.
-  if runtime_params_t.pedestal.explicit_pedestal:
-    pedestal_model_output, _ = models.pedestal_model(
-        runtime_params_t,
-        geo_t,
-        input_state.core_profiles,
-        merged_sources,
-        pedestal_transition_state,
-        updated_pedestal_state,
-    )
-    pedestal_transition_state = dataclasses.replace(
-        pedestal_transition_state,
-        pedestal_model_output=pedestal_model_output,
-    )
 
   model_state_t = dataclasses.replace(
       input_state.model_state,
@@ -143,7 +125,7 @@ def pre_step(
   )
   explicit_model_outputs = explicit_model_outputs_lib.ExplicitModelOutputs(
       sources=explicit_source_profiles,
-      pedestal=pedestal_transition_state,
+      pedestal=explicit_pedestal_structure,
   )
   return (
       runtime_params_t,
@@ -180,7 +162,6 @@ def finalize_outputs(
 ) -> tuple[sim_state.SimState, post_processing.PostProcessedOutputs]:
   """Returns the final state and post-processed outputs."""
   explicit_source_profiles = explicit_model_outputs.sources
-  pedestal_transition_state = explicit_model_outputs.pedestal
   (
       final_core_profiles,
       final_source_profiles,
@@ -198,25 +179,16 @@ def finalize_outputs(
       evolving_names=evolving_names,
       source_states=model_state_t.sources,
   )
-  # Compute pedestal model output and store on transition state.
-  final_pedestal_model_output, final_pedestal_state = models.pedestal_model(
-      runtime_params_t_plus_dt,
-      geometry_t_plus_dt,
-      final_core_profiles,
-      final_source_profiles,
-      pedestal_transition_state,
-      model_state_t.pedestal,
-  )
-  final_transition_state = dataclasses.replace(
-      pedestal_transition_state,
-      pedestal_model_output=final_pedestal_model_output,
+  final_pedestal_output, final_pedestal_state = models.pedestal_model(
+      runtime_params=runtime_params_t_plus_dt,
+      geo=geometry_t_plus_dt,
+      core_profiles=final_core_profiles,
+      source_profiles=final_source_profiles,
+      pedestal_state=model_state_t.pedestal,
+      explicit_pedestal_structure=explicit_model_outputs.pedestal,
   )
   final_neoclassical_outputs = models.neoclassical_model(
       runtime_params_t_plus_dt, geometry_t_plus_dt, final_core_profiles
-  )
-  final_pedestal_output = final_transition_state.to_pedestal_model_output(
-      t=runtime_params_t_plus_dt.t,
-      pedestal_runtime_params=runtime_params_t_plus_dt.pedestal,
   )
   internal_boundary_conditions = (
       ibc_builder.build_internal_boundary_conditions(
@@ -258,7 +230,7 @@ def finalize_outputs(
       geometry=geometry_t_plus_dt,
       solver_numeric_outputs=solver_numeric_outputs,
       edge_outputs=edge_outputs,
-      pedestal_transition_state=final_transition_state,
+      pedestal_output=final_pedestal_output,
       model_state=final_model_state,
       time_step_calculator_state=time_step_calculator_state_t,
   )

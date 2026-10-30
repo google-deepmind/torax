@@ -25,7 +25,9 @@ from torax._src import model_state as model_state_lib
 from torax._src import state
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import (
+    pedestal_model_output as pedestal_model_output_lib,
+)
 from torax._src.sources import source_profiles
 from torax._src.time_step_calculator import time_step_calculator_state
 
@@ -79,8 +81,8 @@ class SimState:
     edge_outputs: Outputs from the edge model, if one is active.
     geometry: Geometry at this time step used for the simulation.
     solver_numeric_outputs: Numerical quantities related to the solver.
-    pedestal_transition_state: State for tracking pedestal L-H and H-L
-      transitions.
+    pedestal_output: Pedestal model output (structure, confinement mode, and
+      optional transport multipliers).
     model_state: State of models across timesteps.
     time_step_calculator_state: State for the time step calculator.
   """
@@ -96,9 +98,7 @@ class SimState:
   # TODO(b/434175938): Separate states required for models from states of the
   # PDE system.
   time_step_calculator_state: time_step_calculator_state.TimeStepCalculatorState
-  pedestal_transition_state: (
-      pedestal_transition_state_lib.PedestalTransitionState
-  )
+  pedestal_output: pedestal_model_output_lib.PedestalModelOutput
   model_state: model_state_lib.ModelState
 
   def check_for_errors(self) -> state.SimError:

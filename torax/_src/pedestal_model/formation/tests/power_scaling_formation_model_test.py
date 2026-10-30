@@ -280,13 +280,9 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     )
 
     # Create a state in H-mode
-    initial_transition_state = dataclasses.replace(
-        self.initial_state.pedestal_transition_state,
+    initial_pedestal_state = dataclasses.replace(
+        self.initial_state.model_state.pedestal,
         confinement_mode=pedestal_runtime_params_lib.ConfinementMode.H_MODE,
-        transition_start_time=jnp.array(0.0),
-        T_i_ped_L_mode=jnp.array(0.5),
-        T_e_ped_L_mode=jnp.array(0.5),
-        n_e_ped_L_mode=jnp.array(0.5e19),
     )
 
     target_P_SOL = P_LH * p_sol_factor
@@ -297,18 +293,18 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
     ) as mock_calc:
       mock_calc.return_value = target_P_SOL
 
-      new_state, _ = (
-          self.step_fn._solver.models.pedestal_model.update_transition_state(
+      updated_state, _ = (
+          self.step_fn._solver.models.pedestal_model.pre_step(
               runtime_params=runtime_params,
               geo=self.initial_state.geometry,
               core_profiles=self.initial_state.core_profiles,
               source_profiles=self.initial_state.core_sources,
-              pedestal_transition_state=initial_transition_state,
-              pedestal_state=self.initial_state.model_state.pedestal,
+              pedestal_state=initial_pedestal_state,
+              previous_pedestal_output=self.initial_state.pedestal_output,
           )
       )
 
-      self.assertEqual(new_state.confinement_mode, expected_mode)
+      self.assertEqual(updated_state.confinement_mode, expected_mode)
 
   def test_formation_model_uses_hysteresis_threshold_in_h_mode(self):
     """Verifies that in H-mode the sigmoid center uses P_LH * hysteresis."""

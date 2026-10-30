@@ -18,9 +18,6 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax._src.config import build_runtime_params
-from torax._src.pedestal_model import (
-    pedestal_transition_state as pedestal_transition_state_lib,
-)
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
@@ -80,19 +77,17 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         source_states=source_states,
         explicit=True,
     )
-    pedestal_state = pedestal_model.initial_state(
+    _, pedestal_state = pedestal_model.initialize(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_profiles=source_profiles,
     )
     pedestal_model_output, _ = jitted_pedestal_model(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=(
-            pedestal_transition_state_lib.PedestalTransitionState.empty()
-        ),
         pedestal_state=pedestal_state,
     )
 
@@ -116,16 +111,20 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
       )
       expected_n_e_ped *= nGW
 
-    np.testing.assert_allclose(pedestal_model_output.n_e_ped, expected_n_e_ped)
+    np.testing.assert_allclose(
+        pedestal_model_output.structure.n_e_ped, expected_n_e_ped
+    )
 
     if isinstance(T_i_T_e_ratio, (float, int)):
       np.testing.assert_allclose(
-          pedestal_model_output.T_i_ped / pedestal_model_output.T_e_ped,
+          pedestal_model_output.structure.T_i_ped
+          / pedestal_model_output.structure.T_e_ped,
           T_i_T_e_ratio,
       )
     else:
       np.testing.assert_allclose(
-          pedestal_model_output.T_i_ped / pedestal_model_output.T_e_ped,
+          pedestal_model_output.structure.T_i_ped
+          / pedestal_model_output.structure.T_e_ped,
           T_i_T_e_ratio[time],
       )
 
@@ -158,19 +157,17 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         source_states=source_states,
         explicit=True,
     )
-    pedestal_state = pedestal_model.initial_state(
+    _, pedestal_state = pedestal_model.initialize(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_profiles=source_profiles,
     )
     output_1, _ = pedestal_model(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=(
-            pedestal_transition_state_lib.PedestalTransitionState.empty()
-        ),
         pedestal_state=pedestal_state,
     )
 
@@ -181,25 +178,29 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         torax_config_2
     )
     runtime_params_2 = provider_2(t=0.0)
-    pedestal_state_2 = pedestal_model.initial_state(
+    _, pedestal_state_2 = pedestal_model.initialize(
         runtime_params=runtime_params_2,
         geo=geo,
         core_profiles=core_profiles,
+        source_profiles=source_profiles,
     )
     output_2, _ = pedestal_model(
         runtime_params=runtime_params_2,
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=(
-            pedestal_transition_state_lib.PedestalTransitionState.empty()
-        ),
         pedestal_state=pedestal_state_2,
     )
 
-    np.testing.assert_allclose(output_2.T_e_ped, output_1.T_e_ped * 1.5)
-    np.testing.assert_allclose(output_2.T_i_ped, output_1.T_i_ped * 1.5)
-    np.testing.assert_allclose(output_2.n_e_ped, output_1.n_e_ped)
+    np.testing.assert_allclose(
+        output_2.structure.T_e_ped, output_1.structure.T_e_ped * 1.5
+    )
+    np.testing.assert_allclose(
+        output_2.structure.T_i_ped, output_1.structure.T_i_ped * 1.5
+    )
+    np.testing.assert_allclose(
+        output_2.structure.n_e_ped, output_1.structure.n_e_ped
+    )
 
 
 if __name__ == '__main__':

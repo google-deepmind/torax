@@ -574,12 +574,21 @@ class PedestalConfig(torax_pydantic.ConfigBase):
     return self
 
   def build_pedestal_model(self) -> pedestal_model.PedestalModel:
-    """Builds the pedestal model."""
-    return pedestal_model.PedestalModel(
-        structure_model=self.structure_model.build_structure_model(),
-        formation_model=self.formation_model.build_formation_model(),
-        saturation_model=self.saturation_model.build_saturation_model(),
-    )
+    """Builds the mode-specific pedestal model."""
+    match self.mode:
+      case runtime_params.Mode.INTERNAL_BOUNDARY_CONDITION:
+        return pedestal_model.InternalBoundaryConditionPedestalModel(
+            structure_model=self.structure_model.build_structure_model(),
+            formation_model=self.formation_model.build_formation_model(),
+        )
+      case runtime_params.Mode.ADAPTIVE_TRANSPORT:
+        return pedestal_model.AdaptiveTransportPedestalModel(
+            structure_model=self.structure_model.build_structure_model(),
+            formation_model=self.formation_model.build_formation_model(),
+            saturation_model=self.saturation_model.build_saturation_model(),
+        )
+      case _:
+        raise ValueError(f"Unknown pedestal mode: {self.mode}")
 
   def build_runtime_params(
       self, t: chex.Numeric

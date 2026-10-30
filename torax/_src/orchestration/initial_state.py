@@ -166,31 +166,21 @@ def _get_initial_state(
   else:
     edge_outputs = None
 
-  initial_pedestal_state = models.pedestal_model.initial_state(
-      runtime_params=runtime_params,
-      geo=geo,
-      core_profiles=initial_core_profiles,
-  )
-  pedestal_transition_state, initial_pedestal_state = (
-      models.pedestal_model.initialize_transition_state(
-          runtime_params,
-          geo,
-          initial_core_profiles,
-          initial_core_sources,
-          initial_pedestal_state,
+  initial_pedestal_output, initial_pedestal_state = (
+      models.pedestal_model.initialize(
+          runtime_params=runtime_params,
+          geo=geo,
+          core_profiles=initial_core_profiles,
+          source_profiles=initial_core_sources,
       )
   )
 
-  pedestal_output = pedestal_transition_state.to_pedestal_model_output(
-      t=runtime_params.t,
-      pedestal_runtime_params=runtime_params.pedestal,
-  )
   internal_boundary_conditions = (
       internal_boundary_conditions_builder.build_internal_boundary_conditions(
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=initial_core_profiles,
-          pedestal_model_output=pedestal_output,
+          pedestal_model_output=initial_pedestal_output,
           internal_boundary_condition_model=(
               models.internal_boundary_condition_model
           ),
@@ -203,7 +193,7 @@ def _get_initial_state(
           runtime_params=runtime_params,
           geo=geo,
           core_profiles=initial_core_profiles,
-          pedestal_model_output=pedestal_output,
+          pedestal_model_output=initial_pedestal_output,
           transport_state=models.transport_model.initial_state(runtime_params),
           neoclassical_transport=neoclassical_outputs.transport,
           two_point_mask=internal_boundary_conditions.get_two_point_face_mask(
@@ -235,7 +225,7 @@ def _get_initial_state(
       ),
       geometry=geo,
       edge_outputs=edge_outputs,
-      pedestal_transition_state=pedestal_transition_state,
+      pedestal_output=initial_pedestal_output,
       model_state=initial_model_state,
       time_step_calculator_state=step_fn.time_step_calculator.initial_state(
           runtime_params

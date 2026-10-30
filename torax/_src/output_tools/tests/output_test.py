@@ -29,14 +29,15 @@ from torax._src.config import config_loader
 from torax._src.edge import base as edge_base
 from torax._src.edge.extended_lengyel import extended_lengyel_standalone
 from torax._src.fvm import cell_variable
-from torax._src.neoclassical.bootstrap_current import base as bootstrap_current_base
+from torax._src.neoclassical.bootstrap_current import (
+    base as bootstrap_current_base,
+)
 from torax._src.orchestration import run_simulation
 from torax._src.orchestration import sim_state
 from torax._src.output_tools import impurity_radiation
 from torax._src.output_tools import output
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_sources
@@ -135,6 +136,12 @@ class StateHistoryTest(parameterized.TestCase):
         pereverzev=transport_coeffs_lib.PereverzevTransport.zeros(self.geo),
     )
     self.source_models = models.source_models
+    pedestal_output, pedestal_state = models.pedestal_model.initialize(
+        runtime_params=runtime_params,
+        geo=self.geo,
+        core_profiles=self.core_profiles,
+        source_profiles=self.source_profiles,
+    )
     # Setup a state history object.
     t = jnp.array(0.0)
     dt = jnp.array(0.1)
@@ -155,13 +162,9 @@ class StateHistoryTest(parameterized.TestCase):
         time_step_calculator_state=(
             models.time_step_calculator.initial_state(runtime_params)
         ),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_output=pedestal_output,
         model_state=model_state_lib.ModelState(
-            pedestal=models.pedestal_model.initial_state(
-                runtime_params,
-                self.geo,
-                self.core_profiles,
-            ),
+            pedestal=pedestal_state,
             transport=models.transport_model.initial_state(runtime_params),
             sources=source_states,
         ),

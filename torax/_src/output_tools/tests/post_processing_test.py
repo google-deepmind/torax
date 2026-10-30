@@ -29,7 +29,9 @@ from torax._src.orchestration import sim_state
 from torax._src.output_tools import output_grid_context
 from torax._src.output_tools import output_keys
 from torax._src.output_tools import post_processing
-from torax._src.pedestal_model import pedestal_transition_state as pedestal_transition_state_lib
+from torax._src.pedestal_model import (
+    pedestal_model_output as pedestal_model_output_lib,
+)
 from torax._src.sources import source_profiles as source_profiles_lib
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
@@ -205,6 +207,12 @@ class PostProcessingTest(parameterized.TestCase):
         ),
         qei=source_profiles_lib.QeiInfo.zeros(self.geo),
     )
+    _, pedestal_state = self.models.pedestal_model.initialize(
+        self.runtime_params,
+        self.geo,
+        self.core_profiles,
+        source_profiles,
+    )
     input_state = sim_state.SimState(
         t=jnp.array(0.0),
         dt=jnp.array(1e-3),
@@ -222,13 +230,11 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_output=(
+            pedestal_model_output_lib.IBCPedestalModelOutput.empty()
+        ),
         model_state=model_state_lib.ModelState(
-            pedestal=self.models.pedestal_model.initial_state(
-                self.runtime_params,
-                self.geo,
-                self.core_profiles,
-            ),
+            pedestal=pedestal_state,
             transport=self.models.transport_model.initial_state(
                 self.runtime_params
             ),
@@ -266,6 +272,12 @@ class PostProcessingTest(parameterized.TestCase):
     # Mock j_toroidal_total.
     # We leave core_profiles as is (from setUp), but update source_profiles.
 
+    _, pedestal_state = self.models.pedestal_model.initialize(
+        self.runtime_params,
+        self.geo,
+        self.core_profiles,
+        source_profiles,
+    )
     input_state = sim_state.SimState(
         t=jnp.array(0.0),
         dt=jnp.array(1e-3),
@@ -283,13 +295,11 @@ class PostProcessingTest(parameterized.TestCase):
         time_step_calculator_state=(
             self.models.time_step_calculator.initial_state(self.runtime_params)
         ),
-        pedestal_transition_state=pedestal_transition_state_lib.PedestalTransitionState.empty(),
+        pedestal_output=(
+            pedestal_model_output_lib.IBCPedestalModelOutput.empty()
+        ),
         model_state=model_state_lib.ModelState(
-            pedestal=self.models.pedestal_model.initial_state(
-                self.runtime_params,
-                self.geo,
-                self.core_profiles,
-            ),
+            pedestal=pedestal_state,
             transport=self.models.transport_model.initial_state(
                 self.runtime_params
             ),

@@ -15,7 +15,7 @@
 
 import dataclasses
 import jax
-from torax._src.pedestal_model import pedestal_transition_state
+from torax._src.pedestal_model import pedestal_model_output
 from torax._src.sources import source_profiles
 
 
@@ -29,10 +29,9 @@ class ExplicitModelOutputs:
 
   Attributes:
     sources: Source profiles from sources configured in EXPLICIT mode.
-    pedestal: Pedestal transition state updated at time `t` (including the
-      explicitly evaluated pedestal model output when `explicit_pedestal` is
-      True).
+    pedestal: Pedestal structure evaluated explicitly at time `t` when
+      `explicit_pedestal` is True, or None when evaluated implicitly.
   """
 
   sources: source_profiles.SourceProfiles
-  pedestal: pedestal_transition_state.PedestalTransitionState
+  pedestal: pedestal_model_output.PedestalStructure | None

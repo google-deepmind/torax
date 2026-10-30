@@ -13,9 +13,6 @@
 # limitations under the License.
 from absl.testing import absltest
 from jax import numpy as jnp
-from torax._src.pedestal_model import (
-    pedestal_transition_state as pedestal_transition_state_lib,
-)
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
@@ -45,20 +42,20 @@ class NoPedestalTest(absltest.TestCase):
         source_states=source_states,
         explicit=True,
     )
-    pedestal_state = pedestal_model.initial_state(
-        runtime_params=runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-    )
-    pedestal_model_output, updated_pedestal_state = pedestal_model(
+    _, pedestal_state = pedestal_model.initialize(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=(
-            pedestal_transition_state_lib.PedestalTransitionState.empty()
-        ),
-        pedestal_state=pedestal_state,
+    )
+    pedestal_model_output, updated_pedestal_state = (
+        pedestal_model(
+            runtime_params=runtime_params,
+            geo=geo,
+            core_profiles=core_profiles,
+            source_profiles=source_profiles,
+            pedestal_state=pedestal_state,
+        )
     )
     self.assertEqual(pedestal_model_output.rho_norm_ped_top, jnp.inf)
     self.assertEqual(updated_pedestal_state, pedestal_state)

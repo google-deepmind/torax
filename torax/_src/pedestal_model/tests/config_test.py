@@ -19,6 +19,7 @@ import jax
 import pydantic
 from torax._src import jax_utils
 from torax._src.pedestal_model import config
+from torax._src.pedestal_model import pedestal_model as pedestal_model_lib
 from torax._src.pedestal_model import pedestal_state
 from torax._src.pedestal_model import runtime_params
 from torax._src.pedestal_model.formation import power_scaling_formation_model
@@ -336,6 +337,26 @@ class PedestalConfigTest(parameterized.TestCase):
           "structure_model": {"model_name": "set_T_ped_n_ped"},
           "initial_L_mode_bc_multiplier": 0.0,
       })
+
+  def test_build_pedestal_model_returns_correct_subclass(self):
+    ped_ibc = config.PedestalConfig.from_dict({
+        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "mode": "internal_boundary_condition",
+    })
+    self.assertIsInstance(
+        ped_ibc.build_pedestal_model(),
+        pedestal_model_lib.InternalBoundaryConditionPedestalModel,
+    )
+
+    ped_adaptive = config.PedestalConfig.from_dict({
+        "structure_model": {"model_name": "set_T_ped_n_ped"},
+        "mode": "adaptive_transport",
+        "formation_model": {"model_name": "martin_scaling"},
+    })
+    self.assertIsInstance(
+        ped_adaptive.build_pedestal_model(),
+        pedestal_model_lib.AdaptiveTransportPedestalModel,
+    )
 
 
 if __name__ == "__main__":

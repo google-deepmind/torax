@@ -31,7 +31,6 @@ from torax._src.internal_boundary_conditions import builder as ibc_builder
 from torax._src.orchestration import (
     explicit_model_outputs as explicit_model_outputs_lib,
 )
-from torax._src.pedestal_model import runtime_params as pedestal_runtime_params
 from torax._src.sources import source_profile_builders
 from torax._src.transport_model import transport_coefficients_builder
 from torax._src.transport_model import transport_coeffs as transport_coeffs_lib
@@ -208,7 +207,6 @@ def _calc_coeffs_full(
 ) -> block_1d_coeffs.Block1DCoeffs:
   """See `calc_coeffs` for details."""
   explicit_source_profiles = explicit_model_outputs.sources
-  explicit_pedestal_transition_state = explicit_model_outputs.pedestal
 
   consts = constants.CONSTANTS
 
@@ -260,76 +258,15 @@ def _calc_coeffs_full(
   tic_dens_el = geo.vpr
 
   # --- Diffusion and convection term coefficients --- #
-  # Compute pedestal model output and store on transition state.
-  # When explicit_pedestal is False, fully re-evaluate the pedestal model every
-  # Newton iteration. When True, the output from pre_step is frozen. However,
-  # for ADAPTIVE_TRANSPORT mode, transport multipliers must still be
-  # re-evaluated implicitly with current profiles (the saturation model's
-  # feedback loop requires it). We call formation + saturation directly to
-  # avoid re-running the structure model (the expensive pedestal physics).
-  # TODO(b/434175938): V2: Consider having pedestal_model return an updated
-  # PedestalTransitionState directly, avoiding the fragile manual
-  # dataclasses.replace at every call site.
-  if not runtime_params.pedestal.explicit_pedestal:
-    # We purposefully do not update pedestal_state here, as cross-step model
-    # state should only be updated at the end of the timestep in
-    # finalize_outputs.
-    pedestal_model_output, _ = models.pedestal_model(
-        runtime_params,
-        geo,
-        core_profiles,
-        merged_source_profiles,
-        explicit_pedestal_transition_state,
-        model_state.pedestal,
-    )
-    pedestal_transition_state = dataclasses.replace(
-        explicit_pedestal_transition_state,
-        pedestal_model_output=pedestal_model_output,
-    )
-  elif (
-      runtime_params.pedestal.mode
-      == pedestal_runtime_params.Mode.ADAPTIVE_TRANSPORT
-  ):
-    # Explicit mode with ADAPTIVE_TRANSPORT: pedestal output (T_ped, n_ped,
-    # rho_ped_top) stays frozen from pre_step, but transport multipliers are
-    # re-evaluated with current profiles. We purposefully do not update
-    # formation_state here, as cross-step model state is only updated in
-    # finalize_outputs.
-    frozen_pedestal_output = (
-        explicit_pedestal_transition_state.pedestal_model_output
-    )
-    candidate_formation_state = (
-        models.pedestal_model.formation_model.update_state(
-            runtime_params,
-            geo,
-            core_profiles,
-            model_state.pedestal.formation,
-        )
-    )
-    transport_multipliers = (
-        models.pedestal_model.compute_transport_multipliers(
-            runtime_params,
-            geo,
-            core_profiles,
-            merged_source_profiles,
-            explicit_pedestal_transition_state.confinement_mode,
-            frozen_pedestal_output,
-            candidate_formation_state,
-        )
-    )
-    pedestal_transition_state = dataclasses.replace(
-        explicit_pedestal_transition_state,
-        pedestal_model_output=dataclasses.replace(
-            frozen_pedestal_output,
-            transport_multipliers=transport_multipliers,
-        ),
-    )
-  else:
-    pedestal_transition_state = explicit_pedestal_transition_state
-
-  pedestal_output = pedestal_transition_state.to_pedestal_model_output(
-      t=runtime_params.t,
-      pedestal_runtime_params=runtime_params.pedestal,
+  # Cross-step pedestal state is updated at the end of the timestep in
+  # finalize_outputs.
+  pedestal_output, _ = models.pedestal_model(
+      runtime_params=runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_profiles=merged_source_profiles,
+      pedestal_state=model_state.pedestal,
+      explicit_pedestal_structure=explicit_model_outputs.pedestal,
   )
   internal_boundary_conditions = (
       ibc_builder.build_internal_boundary_conditions(

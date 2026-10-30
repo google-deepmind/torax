@@ -16,9 +16,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src.pedestal_model import (
-    pedestal_transition_state as pedestal_transition_state_lib,
-)
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import core_profile_helpers
 from torax._src.test_utils import default_configs
@@ -80,30 +77,28 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         source_states=source_states,
         explicit=True,
     )
-    pedestal_state = pedestal_model.initial_state(
+    _, pedestal_state = pedestal_model.initialize(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
+        source_profiles=source_profiles,
     )
     pedestal_model_output, _ = pedestal_model(
         runtime_params=runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         source_profiles=source_profiles,
-        pedestal_transition_state=(
-            pedestal_transition_state_lib.PedestalTransitionState.empty()
-        ),
         pedestal_state=pedestal_state,
     )
 
     if isinstance(T_i_ped, (float, int)):
-      self.assertEqual(pedestal_model_output.T_i_ped, T_i_ped)
+      self.assertEqual(pedestal_model_output.structure.T_i_ped, T_i_ped)
     else:
-      self.assertEqual(pedestal_model_output.T_i_ped, T_i_ped[time])
+      self.assertEqual(pedestal_model_output.structure.T_i_ped, T_i_ped[time])
     if isinstance(T_e_ped, (float, int)):
-      self.assertEqual(pedestal_model_output.T_e_ped, T_e_ped)
+      self.assertEqual(pedestal_model_output.structure.T_e_ped, T_e_ped)
     else:
-      self.assertEqual(pedestal_model_output.T_e_ped, T_e_ped[time])
+      self.assertEqual(pedestal_model_output.structure.T_e_ped, T_e_ped[time])
     if isinstance(rho_norm_ped_top, (float, int)):
       self.assertEqual(pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top)
     else:
@@ -125,7 +120,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       expected_n_e_ped *= nGW
 
     np.testing.assert_allclose(
-        pedestal_model_output.n_e_ped, expected_n_e_ped, rtol=_RTOL
+        pedestal_model_output.structure.n_e_ped, expected_n_e_ped, rtol=_RTOL
     )
 
 
