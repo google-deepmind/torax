@@ -14,10 +14,11 @@
 """Base infrastructure for ion-cyclotron resonance heating (ICRH) sources."""
 
 import dataclasses
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Self
 
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src.sources import base as source_base
 from torax._src.sources import runtime_params as source_runtime_params_lib
@@ -58,23 +59,29 @@ class IonCyclotronSourceConfig(source_base.SourceConfigBase):
   Attributes:
     model_name: Discriminator field for Pydantic. Subclasses must override with
       a `Literal` value.
-    P_total: Total heating power [W].
+    P_total: Total heating power [W]. Required when mode is 'model_based'.
     absorption_fraction: Fraction of absorbed power.
-    minority_species: Symbol of the minority species (e.g., 'He3'). The
-      minority concentration is extracted from plasma_composition. The species
-      can be either a main ion or an impurity.
+    minority_species: Symbol of the minority species (e.g., 'He3'). The minority
+      concentration is extracted from plasma_composition. The species can be
+      either a main ion or an impurity.
     mode: Defines how the source values are computed.
   """
 
   model_name: Annotated[str, torax_pydantic.JAX_STATIC] = ''
-  # TODO(b/434175938): Remove default source amplitudes in V2.
-  P_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      10e6
-  )
+  P_total: torax_pydantic.TimeVaryingScalar | None = None
   absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
   minority_species: Annotated[str, torax_pydantic.JAX_STATIC] = 'He3'
+
+  @pydantic.model_validator(mode='after')
+  def _check_base_fields(self) -> Self:
+    if (
+        self.mode == source_runtime_params_lib.Mode.MODEL_BASED
+        and self.P_total is None
+    ):
+      raise ValueError("P_total must be provided when mode is 'model_based'.")
+    return self
 
   def build_runtime_params(
       self,
@@ -83,7 +90,7 @@ class IonCyclotronSourceConfig(source_base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        P_total=self.P_total.get_value(t),
+        P_total=0.0 if self.P_total is None else self.P_total.get_value(t),
         absorption_fraction=self.absorption_fraction.get_value(t),
         minority_species=self.minority_species,
     )
