@@ -114,7 +114,6 @@ def pre_step(
           core_profiles=input_state.core_profiles,
           source_profiles=merged_sources,
           pedestal_state=input_state.model_state.pedestal,
-          previous_pedestal_output=input_state.pedestal_output,
       )
   )
 

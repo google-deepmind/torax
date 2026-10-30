@@ -86,6 +86,8 @@ class IBCPedestalState(PedestalState):
       L-mode ramp interpolation [keV].
     n_e_ped_L_mode: Electron density at the pedestal top captured for L-mode
       ramp interpolation [m^-3].
+    rho_norm_ped_top: Normalized toroidal flux coordinate of the pedestal top
+      from the previous step.
   """
 
   transition_start_time: array_typing.FloatScalar = dataclasses.field(
@@ -99,6 +101,9 @@ class IBCPedestalState(PedestalState):
   )
   n_e_ped_L_mode: array_typing.FloatScalar = dataclasses.field(
       default_factory=lambda: jnp.array(0.0, dtype=jax_utils.get_dtype())
+  )
+  rho_norm_ped_top: array_typing.FloatScalar = dataclasses.field(
+      default_factory=lambda: jnp.array(jnp.inf, dtype=jax_utils.get_dtype())
   )
 
   def compute_ramp_fraction(

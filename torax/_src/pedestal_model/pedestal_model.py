@@ -70,7 +70,6 @@ class PedestalModel(static_dataclass.StaticDataclass, abc.ABC):
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
-      previous_pedestal_output: pedestal_model_output.PedestalModelOutput,
   ) -> tuple[
       pedestal_state_lib.PedestalState,
       pedestal_structure.PedestalStructure | None,
@@ -165,6 +164,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
         T_i_ped_L_mode=T_i_ped_L_mode,
         T_e_ped_L_mode=T_e_ped_L_mode,
         n_e_ped_L_mode=n_e_ped_L_mode,
+        rho_norm_ped_top=structure.rho_norm_ped_top,
     )
     # No transition ramp occurs at initialization (confinement_mode is L_MODE
     # or H_MODE and transition_start_time is -inf); this only selects the
@@ -189,7 +189,6 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
-      previous_pedestal_output: pedestal_model_output.PedestalModelOutput,
   ) -> tuple[
       pedestal_state_lib.IBCPedestalState,
       pedestal_structure.PedestalStructure | None,
@@ -202,7 +201,6 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
       core_profiles: Core plasma profiles at time t.
       source_profiles: Source profiles at time t.
       pedestal_state: Cross-step pedestal state from previous step.
-      previous_pedestal_output: Pedestal model output from previous step.
 
     Returns:
       Tuple of (updated_pedestal_state, explicit_structure or None).
@@ -224,7 +222,6 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
         core_profiles=core_profiles,
         trigger_l_to_h=trigger_l_to_h,
         trigger_h_to_l=trigger_h_to_l,
-        previous_pedestal_output=previous_pedestal_output,
     )
     if runtime_params.pedestal.explicit_pedestal:
       explicit_structure, structure_state = self.structure_model(
@@ -284,6 +281,7 @@ class InternalBoundaryConditionPedestalModel(PedestalModel):
         pedestal_state,
         structure=structure_state,
         formation=formation_state,
+        rho_norm_ped_top=structure.rho_norm_ped_top,
     )
     scaled_structure = updated_state.scale_structure(
         structure,
@@ -371,7 +369,6 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       core_profiles: state.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       pedestal_state: pedestal_state_lib.PedestalState,
-      previous_pedestal_output: pedestal_model_output.PedestalModelOutput,
   ) -> tuple[
       pedestal_state_lib.AdaptiveTransportPedestalState,
       pedestal_structure.PedestalStructure | None,
@@ -384,12 +381,10 @@ class AdaptiveTransportPedestalModel(PedestalModel):
       core_profiles: Core plasma profiles at time t.
       source_profiles: Source profiles at time t.
       pedestal_state: Cross-step pedestal state from previous step.
-      previous_pedestal_output: Pedestal model output from previous step.
 
     Returns:
       Tuple of (updated_state, explicit_structure or None).
     """
-    del previous_pedestal_output
     assert isinstance(
         pedestal_state, pedestal_state_lib.AdaptiveTransportPedestalState
     )
@@ -534,7 +529,6 @@ def _update_ibc_pedestal_state(
     core_profiles: state.CoreProfiles,
     trigger_l_to_h: array_typing.BoolScalar,
     trigger_h_to_l: array_typing.BoolScalar,
-    previous_pedestal_output: pedestal_model_output.PedestalModelOutput,
 ) -> pedestal_state_lib.IBCPedestalState:
   """Updates IBC pedestal state machine, timers, and L-mode baselines.
 
@@ -545,7 +539,6 @@ def _update_ibc_pedestal_state(
     core_profiles: Core plasma profiles.
     trigger_l_to_h: Boolean condition to trigger L->H transition.
     trigger_h_to_l: Boolean condition to trigger H->L back-transition.
-    previous_pedestal_output: Pedestal model output from previous step.
 
   Returns:
     Updated IBCPedestalState.
@@ -645,10 +638,7 @@ def _update_ibc_pedestal_state(
       | (new_confinement_mode == ConfinementMode.H_MODE)
   )
   ped_top_idx = jnp.argmin(
-      jnp.abs(
-          geo.rho_norm
-          - previous_pedestal_output.rho_norm_ped_top
-      )
+      jnp.abs(geo.rho_norm - pedestal_state.rho_norm_ped_top)
   )
   new_T_i_ped_L_mode = jnp.where(
       update_L_mode_values,

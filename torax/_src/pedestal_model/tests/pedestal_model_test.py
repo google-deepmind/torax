@@ -43,24 +43,6 @@ _HYSTERESIS = 0.8
 _TRANSITION_WIDTH = 2.0
 
 
-def _make_previous_ibc_output(
-    confinement_mode: ConfinementMode = ConfinementMode.L_MODE,
-    rho_norm_ped_top: float = 0.9,
-    T_i_ped: float = 4.5,
-    T_e_ped: float = 4.5,
-    n_e_ped: float = 0.62e20,
-) -> pedestal_model_output.IBCPedestalModelOutput:
-  return pedestal_model_output.IBCPedestalModelOutput(
-      structure=pedestal_structure.PedestalStructure(
-          rho_norm_ped_top=jnp.array(rho_norm_ped_top),
-          T_i_ped=jnp.array(T_i_ped),
-          T_e_ped=jnp.array(T_e_ped),
-          n_e_ped=jnp.array(n_e_ped),
-      ),
-      confinement_mode=jnp.array(confinement_mode),
-  )
-
-
 class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
   """Unit tests for InternalBoundaryConditionPedestalModel."""
 
@@ -133,6 +115,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
       T_i_ped_L_mode: float = 0.5,
       T_e_ped_L_mode: float = 0.4,
       n_e_ped_L_mode: float = 0.5e19,
+      rho_norm_ped_top: float = 0.9,
   ) -> pedestal_state_lib.IBCPedestalState:
     return pedestal_state_lib.IBCPedestalState(
         structure=self.structure_state,
@@ -142,12 +125,12 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         T_i_ped_L_mode=jnp.array(T_i_ped_L_mode),
         T_e_ped_L_mode=jnp.array(T_e_ped_L_mode),
         n_e_ped_L_mode=jnp.array(n_e_ped_L_mode),
+        rho_norm_ped_top=jnp.array(rho_norm_ped_top),
     )
 
   def _call_pre_step(
       self,
       pedestal_state: pedestal_state_lib.IBCPedestalState,
-      previous_pedestal_output: pedestal_model_output.PedestalModelOutput,
       P_SOL: float,
       t: float = 5.0,
       explicit_pedestal: bool = False,
@@ -177,7 +160,6 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
           core_profiles=self.core_profiles,
           source_profiles=self.source_profiles,
           pedestal_state=pedestal_state,
-          previous_pedestal_output=previous_pedestal_output,
       )
 
   def test_initialize_structure_state_threading(self):
@@ -220,6 +202,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
     )
     self.assertIs(init_state.structure, updated_struct_state)
     np.testing.assert_allclose(init_output.rho_norm_ped_top, rho_norm_ped_top)
+    np.testing.assert_allclose(init_state.rho_norm_ped_top, rho_norm_ped_top)
     np.testing.assert_allclose(
         init_output.structure.T_i_ped,
         self.core_profiles.T_i.value[ped_top_idx],
@@ -361,9 +344,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
           self.source_profiles,
       )
     self.assertEqual(init_output.confinement_mode, expected_init_mode)
-    updated_state, _ = self._call_pre_step(
-        init_state, init_output, P_SOL=P_SOL
-    )
+    updated_state, _ = self._call_pre_step(init_state, P_SOL=P_SOL)
     self.assertEqual(updated_state.confinement_mode, expected_update_mode)
 
   @parameterized.named_parameters(
@@ -480,10 +461,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         init_mode,
         transition_start_time=start_time,
     )
-    prev_output = _make_previous_ibc_output(init_mode)
-    new_state, explicit = self._call_pre_step(
-        state, prev_output, P_SOL=P_SOL, t=t
-    )
+    new_state, explicit = self._call_pre_step(state, P_SOL=P_SOL, t=t)
     self.assertEqual(new_state.confinement_mode, expected_mode)
     self.assertIsNone(explicit)
     np.testing.assert_allclose(
@@ -498,13 +476,9 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         T_i_ped_L_mode=0.0,
         T_e_ped_L_mode=0.0,
         n_e_ped_L_mode=0.0,
+        rho_norm_ped_top=rho_norm_ped_top,
     )
-    prev_output = _make_previous_ibc_output(
-        ConfinementMode.L_MODE, rho_norm_ped_top=rho_norm_ped_top
-    )
-    new_state, _ = self._call_pre_step(
-        state, prev_output, P_SOL=_P_LH * 1.5
-    )
+    new_state, _ = self._call_pre_step(state, P_SOL=_P_LH * 1.5)
     np.testing.assert_allclose(
         new_state.T_i_ped_L_mode,
         self.core_profiles.T_i.value[ped_top_idx],
@@ -529,9 +503,8 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         T_e_ped_L_mode=original_T_e,
         n_e_ped_L_mode=original_n_e,
     )
-    prev_output = _make_previous_ibc_output(ConfinementMode.H_MODE)
     new_state, _ = self._call_pre_step(
-        state, prev_output, P_SOL=_P_LH * _HYSTERESIS * 0.5
+        state, P_SOL=_P_LH * _HYSTERESIS * 0.5
     )
     np.testing.assert_allclose(new_state.T_i_ped_L_mode, original_T_i)
     np.testing.assert_allclose(new_state.T_e_ped_L_mode, original_T_e)
@@ -551,9 +524,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         T_i_ped_L_mode=0.0,
         T_e_ped_L_mode=0.0,
         n_e_ped_L_mode=0.0,
-    )
-    prev_output = _make_previous_ibc_output(
-        ConfinementMode.L_MODE, rho_norm_ped_top=rho_norm_ped_top
+        rho_norm_ped_top=rho_norm_ped_top,
     )
     with mock.patch.object(
         power_scaling_formation_model,
@@ -570,7 +541,6 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
           core_profiles=self.core_profiles,
           source_profiles=self.source_profiles,
           pedestal_state=state,
-          previous_pedestal_output=prev_output,
       )
     self.assertEqual(h_state.confinement_mode, ConfinementMode.H_MODE)
     np.testing.assert_allclose(
@@ -613,10 +583,8 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
   ):
     t = 5.0 + _TRANSITION_WIDTH + overshoot
     state = self._make_ibc_state(init_mode, transition_start_time=5.0)
-    prev_output = _make_previous_ibc_output(init_mode)
     new_state, _ = self._call_pre_step(
         state,
-        prev_output,
         P_SOL=P_SOL,
         t=t,
     )
@@ -625,17 +593,15 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
 
   def test_pre_step_implicit_pedestal_returns_none(self):
     state = self._make_ibc_state(ConfinementMode.L_MODE)
-    prev_output = _make_previous_ibc_output(ConfinementMode.L_MODE)
     _, explicit = self._call_pre_step(
-        state, prev_output, P_SOL=_P_LH * 0.5, explicit_pedestal=False
+        state, P_SOL=_P_LH * 0.5, explicit_pedestal=False
     )
     self.assertIsNone(explicit)
 
   def test_pre_step_explicit_pedestal_evaluates_structure(self):
     state = self._make_ibc_state(ConfinementMode.L_MODE)
-    prev_output = _make_previous_ibc_output(ConfinementMode.L_MODE)
     new_state, explicit = self._call_pre_step(
-        state, prev_output, P_SOL=_P_LH * 0.5, explicit_pedestal=True
+        state, P_SOL=_P_LH * 0.5, explicit_pedestal=True
     )
     self.assertIsNotNone(explicit)
     self.assertIsInstance(
@@ -667,6 +633,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
       self.assertEqual(mock_struct_call.call_count, 0)
     np.testing.assert_allclose(out.structure.T_i_ped, 5.5)
     self.assertEqual(updated_state.structure, state.structure)
+    np.testing.assert_allclose(updated_state.rho_norm_ped_top, 0.88)
 
   def test_call_without_explicit_pedestal(self):
     state = self._make_ibc_state(
@@ -708,6 +675,7 @@ class InternalBoundaryConditionPedestalModelTest(parameterized.TestCase):
         out.confinement_mode, ConfinementMode.TRANSITIONING_TO_H_MODE
     )
     np.testing.assert_allclose(out.rho_norm_ped_top, 0.9)
+    np.testing.assert_allclose(updated_state.rho_norm_ped_top, 0.9)
     np.testing.assert_allclose(out.structure.T_i_ped, 0.5 + 0.5 * (4.5 - 0.5))
     np.testing.assert_allclose(out.structure.T_e_ped, 0.4 + 0.5 * (4.5 - 0.4))
     np.testing.assert_allclose(
@@ -866,7 +834,6 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
           self.core_profiles,
           self.source_profiles,
           state,
-          mock.ANY,
       )
     self.assertEqual(new_state.confinement_mode, expected_mode)
 
@@ -885,7 +852,6 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
         self.core_profiles,
         self.source_profiles,
         state,
-        mock.ANY,
     )
     self.assertIsNone(explicit)
 
@@ -904,7 +870,6 @@ class AdaptiveTransportPedestalModelTest(parameterized.TestCase):
         self.core_profiles,
         self.source_profiles,
         state,
-        mock.ANY,
     )
     self.assertIsNotNone(explicit)
     self.assertIsInstance(

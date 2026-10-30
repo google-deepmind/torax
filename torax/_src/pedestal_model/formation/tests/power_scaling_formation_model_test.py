@@ -300,7 +300,6 @@ class PowerScalingFormationModelTest(parameterized.TestCase):
               core_profiles=self.initial_state.core_profiles,
               source_profiles=self.initial_state.core_sources,
               pedestal_state=initial_pedestal_state,
-              previous_pedestal_output=self.initial_state.pedestal_output,
           )
       )
 
