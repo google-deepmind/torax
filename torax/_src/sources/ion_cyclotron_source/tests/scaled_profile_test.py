@@ -31,7 +31,7 @@ class ScaledProfileIonCyclotronSourceTest(test_lib.SourceTestCase):
 
   source_name = icrh_base.IonCyclotronSource.SOURCE_ID
   source_config_class = scaled_profile.ScaledProfileIonCyclotronSourceConfig
-  extra_source_config_kwargs = {'minority_species': 'He3'}
+  extra_source_config_kwargs = {'minority_species': 'He3', 'P_total': 10e6}
 
   def _build_and_run(self, icrh_config_dict, n_rho=None):
     """Helper to build a ToraxConfig and run the ICRH source."""

@@ -51,12 +51,17 @@ CONFIG = {
         'ei_exchange': {},
         'generic_particle': {
             'S_total': 0.3e22,
+            'particle_width': 0.25,
+            'deposition_location': 0.0,
         },
         'gas_puff': {
             'S_total': 0.5e22,
+            'puff_decay_length': 0.05,
         },
         'pellet': {
             'S_total': 1.0e22,
+            'pellet_width': 0.1,
+            'pellet_deposition_location': 0.85,
         },
         'generic_current': {},
     },

@@ -13,10 +13,11 @@
 # limitations under the License.
 """Generic particle source for the n_e equation."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -92,10 +93,12 @@ class GenericParticleSourceConfig(base.SourceConfigBase):
   """Generic particle source for the n_e equation.
 
   Attributes:
-    particle_width: particle source Gaussian width in normalized radial coord
+    particle_width: particle source Gaussian width in normalized radial coord.
+      Required when mode is 'model_based'.
     deposition_location: particle source Gaussian center in normalized radial
-      coord
-    S_total: total particle source particles/s
+      coord. Required when mode is 'model_based'.
+    S_total: total particle source particles/s. Required when mode is
+      'model_based'.
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
@@ -103,15 +106,26 @@ class GenericParticleSourceConfig(base.SourceConfigBase):
   model_name: Annotated[Literal['gaussian'], torax_pydantic.JAX_STATIC] = (
       'gaussian'
   )
-  particle_width: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.25)
+  particle_width: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  deposition_location: torax_pydantic.UnitIntervalTimeVaryingScalar | None = (
+      None
   )
-  deposition_location: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      1e22
-  )
+  S_total: torax_pydantic.TimeVaryingScalar | None = None
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.S_total is None:
+        raise ValueError("S_total must be provided when mode is 'model_based'.")
+      if self.particle_width is None:
+        raise ValueError(
+            "particle_width must be provided when mode is 'model_based'."
+        )
+      if self.deposition_location is None:
+        raise ValueError(
+            "deposition_location must be provided when mode is 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -120,9 +134,17 @@ class GenericParticleSourceConfig(base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        particle_width=self.particle_width.get_value(t),
-        deposition_location=self.deposition_location.get_value(t),
-        S_total=self.S_total.get_value(t),
+        particle_width=(
+            1.0
+            if self.particle_width is None
+            else self.particle_width.get_value(t)
+        ),
+        deposition_location=(
+            0.0
+            if self.deposition_location is None
+            else self.deposition_location.get_value(t)
+        ),
+        S_total=0.0 if self.S_total is None else self.S_total.get_value(t),
     )
 
   def build_source(self) -> GenericParticleSource:

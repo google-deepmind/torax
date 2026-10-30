@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Any
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -256,6 +255,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='P_total',
           initial_value=0.0,
           updated_value=1e6,
+          extra_fields={'gaussian_width': 0.1, 'gaussian_location': 0.0},
       ),
       dict(
           testcase_name='ei_exchange',
@@ -272,6 +272,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='S_total',
           initial_value=1e22,
           updated_value=2e22,
+          extra_fields={'puff_decay_length': 0.05},
       ),
       dict(
           testcase_name='generic_current',
@@ -296,6 +297,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='S_total',
           initial_value=1e22,
           updated_value=2e22,
+          extra_fields={'particle_width': 0.25, 'deposition_location': 0.0},
       ),
       dict(
           testcase_name='icrh_scaled_profile',
@@ -304,7 +306,7 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='reference_B0',
           initial_value=12.2,
           updated_value=8.71,
-          extra_fields={'minority_species': 'He3'},
+          extra_fields={'minority_species': 'He3', 'P_total': 10e6},
       ),
       dict(
           testcase_name='impurity_radiation_mavrin_fit',
@@ -329,6 +331,10 @@ class SourcesConfigTest(parameterized.TestCase):
           field_to_update='S_total',
           initial_value=2e22,
           updated_value=3e22,
+          extra_fields={
+              'pellet_width': 0.1,
+              'pellet_deposition_location': 0.85,
+          },
       ),
   )
   def test_sources_under_jit(
