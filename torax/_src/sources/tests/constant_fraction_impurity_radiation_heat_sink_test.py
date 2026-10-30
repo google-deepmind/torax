@@ -14,6 +14,7 @@
 from unittest import mock
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 from torax._src import math_utils
@@ -40,6 +41,39 @@ class ImpurityRadiationConstantFractionTest(
   )
   model_name = 'P_in_scaled_flat_profile'
   needs_source_models = True
+  can_be_explicit = False
+
+  @parameterized.parameters(
+      sources_runtime_params_lib.Mode.ZERO,
+      sources_runtime_params_lib.Mode.MODEL_BASED,
+      sources_runtime_params_lib.Mode.PRESCRIBED,
+  )
+  def test_get_value_rejects_explicit(self, mode):
+    source = (
+        impurity_radiation_constant_fraction.ConstantFractionImpurityRadiationHeatSink()
+    )
+    runtime_params = mock.create_autospec(
+        runtime_params_lib.RuntimeParams,
+        instance=True,
+        sources={
+            self.source_name: sources_runtime_params_lib.RuntimeParams(
+                prescribed_values=(jnp.zeros(4),),
+                mode=mode,
+                is_explicit=True,
+            )
+        },
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        'cannot be configured with is_explicit=True',
+    ):
+      source.get_value(
+          runtime_params=runtime_params,
+          geo=mock.ANY,
+          core_profiles=mock.ANY,
+          calculated_source_profiles=mock.ANY,
+          source_state=source_state_lib.SourceState(),
+      )
 
   def test_source_value(self):
     heat_name = (
@@ -84,8 +118,6 @@ class ImpurityRadiationConstantFractionTest(
         runtime_params,
         geo,
         mock.ANY,
-        None,
-        None,
         source_state=source_state_lib.SourceState(),
     )
     el, ion = heat_source_output.profiles
@@ -108,7 +140,6 @@ class ImpurityRadiationConstantFractionTest(
             },
             T_i={'foo_source': jnp.asarray(ion)},
         ),
-        conductivity=None,
         source_state=source_state_lib.SourceState(),
     )
 
