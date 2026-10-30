@@ -308,12 +308,23 @@ class StructureConfigBase(torax_pydantic.ConfigBase):
 
   @abc.abstractmethod
   def build_structure_model(self) -> structure_base.PedestalStructureModel:
-    """Builds the pedestal structure model."""
+    """Builds the pedestal structure model.
+
+    Returns:
+      A `PedestalStructureModel` instance constructed from this configuration.
+    """
 
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> runtime_params.StructureRuntimeParams:
-    """Builds the runtime params."""
+    """Builds the runtime params.
+
+    Args:
+      t: Simulation time at which to evaluate time-varying parameters.
+
+    Returns:
+      Runtime parameters for the pedestal structure model at time `t`.
+    """
     del t
     return runtime_params.StructureRuntimeParams(
         pedestal_profile_form=self.pedestal_profile_form,
