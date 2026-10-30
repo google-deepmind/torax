@@ -218,7 +218,10 @@ class SimTestCase(parameterized.TestCase):
         max_steps is None
         and torax_config.time_step_calculator.max_steps is None
     ):
-      max_steps = len(ref_time) * 2
+      try:
+        max_steps = torax_config.time_step_calculator.default_max_steps
+      except NotImplementedError:
+        max_steps = len(ref_time) * 2
 
     state_history = run_simulation.run_simulation(
         torax_config,

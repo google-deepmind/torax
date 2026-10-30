@@ -34,19 +34,21 @@ jax.config.update('jax_enable_x64', True)
 class JitRunLoopTest(parameterized.TestCase):
 
   @parameterized.parameters('chi', 'from_previous_dt')
-  def test_get_max_steps_non_fixed_raises_value_error(self, calculator_type):
+  def test_get_max_steps_non_fixed_raises_not_implemented_error(
+      self, calculator_type
+  ):
     config_dict = default_configs.get_default_config_dict()
     config_dict['time_step_calculator'] = {'calculator_type': calculator_type}
     torax_config = torax.ToraxConfig.from_dict(config_dict)
     step_fn = torax_experimental.make_step_fn(torax_config)
 
     with self.assertRaisesRegex(
-        ValueError, 'max_steps must be specified when using'
+        NotImplementedError, 'max_steps must be specified when using'
     ):
       jit_run_loop._get_max_steps(step_fn)
 
     with self.assertRaisesRegex(
-        ValueError, 'max_steps must be specified when using'
+        NotImplementedError, 'max_steps must be specified when using'
     ):
       jit_run_loop.run_loop(step_fn)
 
@@ -194,6 +196,30 @@ class JitRunLoopTest(parameterized.TestCase):
       self.assertEqual(leaf.shape[0], expected_num_states)
       if jnp.issubdtype(leaf.dtype, jnp.floating):
         self.assertFalse(bool(jnp.any(jnp.isnan(leaf))))
+
+  def test_max_steps_precedence(self):
+    config_dict = default_configs.get_default_config_dict()
+    config_dict['time_step_calculator'] = {
+        'calculator_type': 'fixed',
+        't_initial': 0.0,
+        't_final': 1.0,
+        'dt': 0.1,
+        'allow_backtracking': False,
+        'max_steps': 5,
+    }
+    torax_config = torax.ToraxConfig.from_dict(config_dict)
+    step_fn = torax_experimental.make_step_fn(torax_config)
+
+    # Config attribute (5) takes precedence over default_max_steps (10).
+    self.assertEqual(jit_run_loop._get_max_steps(step_fn), 5)
+    states_cfg, _, sim_error_cfg = jit_run_loop.run_loop(step_fn)
+    self.assertEqual(sim_error_cfg, torax.SimError.DID_NOT_REACH_T_FINAL)
+    self.assertLen(states_cfg.t, 6)
+
+    # Explicit run_loop argument (2) takes precedence over config attribute (5).
+    states_arg, _, sim_error_arg = jit_run_loop.run_loop(step_fn, max_steps=2)
+    self.assertEqual(sim_error_arg, torax.SimError.DID_NOT_REACH_T_FINAL)
+    self.assertLen(states_arg.t, 3)
 
   def test_gradient(self):
 

@@ -172,6 +172,8 @@ class ConfigTest(parameterized.TestCase):
     config['time_step_calculator'] = {'calculator_type': calculator_type}
     torax_config = torax_config_lib.ToraxConfig.from_dict(config)
     self.assertIsNone(torax_config.time_step_calculator.max_steps)
+    with self.assertRaises(NotImplementedError):
+      _ = torax_config.time_step_calculator.default_max_steps
 
   @parameterized.named_parameters(
       dict(
@@ -195,25 +197,11 @@ class ConfigTest(parameterized.TestCase):
         'allow_backtracking': allow_backtracking,
     }
     torax_config = torax_config_lib.ToraxConfig.from_dict(config)
+    self.assertIsNone(torax_config.time_step_calculator.max_steps)
     self.assertEqual(
-        torax_config.time_step_calculator.max_steps, expected_max_steps
+        torax_config.time_step_calculator.default_max_steps,
+        expected_max_steps,
     )
-
-  def test_max_steps_is_abstract(self):
-    self.assertIn(
-        'max_steps',
-        time_step_config.TimeStepCalculatorConfigBase.__abstractmethods__,
-    )
-
-    class IncompleteTimeStepCalculatorConfig(
-        time_step_config.TimeStepCalculatorConfigBase
-    ):
-
-      def build_time_step_calculator(self):
-        return fixed_time_step_calculator.FixedTimeStepCalculator()
-
-    with self.assertRaises(TypeError):
-      IncompleteTimeStepCalculatorConfig()  # pyrefly: ignore[bad-instantiation]
 
 
 if __name__ == '__main__':

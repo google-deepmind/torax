@@ -295,7 +295,7 @@ class JitSimTest(sim_test_case.SimTestCase):
     )
 
     with self.assertRaisesRegex(
-        ValueError, 'max_steps must be specified when using'
+        NotImplementedError, 'max_steps must be specified when using'
     ):
       run_simulation.run_simulation(torax_config, progress_bar=False)
 

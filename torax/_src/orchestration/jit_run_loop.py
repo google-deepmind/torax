@@ -252,30 +252,33 @@ def run_loop_jit(
 
 def _get_max_steps(
     step_fn: step_function.SimulationStepFn,
+    runtime_params_overrides: (
+        build_runtime_params.RuntimeParamsProvider | None
+    ) = None,
 ) -> int:
-  """Calculates a heuristic for the maximum number of simulation steps.
+  """Returns the maximum number of simulation steps from config or default.
 
   Args:
     step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
       after one timestep.
+    runtime_params_overrides: Optional runtime params overrides.
 
   Returns:
     The maximum number of steps to pre-allocate for the JITted run loop.
 
   Raises:
-    ValueError: If `chi_time_step_calculator` or
-      `from_previous_time_step_calculator` (or any non-fixed time step
-      calculator) is used, as a default `max_steps` cannot be determined
-      statically.
+    NotImplementedError: If `max_steps` is not set in the config and the time
+      step calculator does not support `default_max_steps`.
   """
-  max_steps = step_fn.runtime_params_provider.time_step_calculator.max_steps
-  if max_steps is None:
-    raise ValueError(
-        'max_steps must be specified when using '
-        f'{type(step_fn.time_step_calculator).__name__}. Please provide an '
-        'explicit max_steps argument.'
-    )
-  return max_steps
+  runtime_params_provider = (
+      runtime_params_overrides
+      if runtime_params_overrides is not None
+      else step_fn.runtime_params_provider
+  )
+  tsc_config = runtime_params_provider.time_step_calculator
+  if tsc_config.max_steps is not None:
+    return tsc_config.max_steps
+  return tsc_config.default_max_steps
 
 
 def run_loop(
@@ -310,15 +313,9 @@ def run_loop(
       every step.
     progress_bar: If True, displays a progress bar.
     log_n_steps: Frequency in steps for logging and progress bar updates.
-    max_steps: Optional maximum number of steps to take. When using
-      `chi_time_step_calculator` or `from_previous_time_step_calculator`,
-      `max_steps` must be explicitly specified or a `ValueError` is raised. When
-      using `fixed_time_step_calculator`, if not provided, `max_steps` is
-      deterministically set to `ceil((t_final - t_initial) / min(dt))`
-      when `allow_backtracking=False`, or 10x that value when
-      `allow_backtracking=True`. Users
-      can explicitly override `max_steps` (e.g. to reduce pre-allocated buffer
-      memory when `allow_backtracking=True`).
+    max_steps: Optional maximum number of steps to take. If None, uses
+      `time_step_calculator.max_steps` from the config if set, or falls back to
+      `time_step_calculator.default_max_steps`.
     initial_state: Optional initial state for the simulation (e.g. from file
       restart). If None, computed from `step_fn`.
     initial_post_processed_outputs: Optional initial post-processed outputs for
@@ -340,8 +337,11 @@ def run_loop(
         is returned up until the last valid timestep.
       - The sim error state.
   """
+  # TODO(b/579944647): Consider applying all the overrides at once, rather than
+  # passing them in at every call.
+
   if max_steps is None:
-    max_steps = _get_max_steps(step_fn)
+    max_steps = _get_max_steps(step_fn, runtime_params_overrides)
 
   # Use a nullcontext when `progress_bar` is False to manage the progress bar
   # lifecycle with a single `with` block.

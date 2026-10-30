@@ -48,6 +48,8 @@ class TimeStepCalculatorConfigBase(torax_pydantic.ConfigBase, abc.ABC):
     allow_backtracking: Iterative reduction of dt if solver fails to converge.
       If a time step does not converge, then the step is redone
       iteratively at successively lower dt until convergence is reached.
+    max_steps: Optional maximum number of simulation steps. If None, falls back
+      to `default_max_steps` if supported by the time step calculator.
   """
 
   t_initial: torax_pydantic.Second = 0.0
@@ -57,6 +59,9 @@ class TimeStepCalculatorConfigBase(torax_pydantic.ConfigBase, abc.ABC):
   min_dt: torax_pydantic.Second = 1e-8
   dt_backtracking_factor: pydantic.PositiveFloat = 3.0
   allow_backtracking: Annotated[bool, torax_pydantic.JAX_STATIC] = True
+  max_steps: Annotated[
+      pydantic.PositiveInt | None, torax_pydantic.JAX_STATIC
+  ] = None
 
   @pydantic.model_validator(mode='after')
   def _validate_base(self) -> Self:
@@ -82,9 +87,18 @@ class TimeStepCalculatorConfigBase(torax_pydantic.ConfigBase, abc.ABC):
     )
 
   @property
-  @abc.abstractmethod
-  def max_steps(self) -> int | None:
-    """Heuristic maximum number of simulation steps, or None if unknown."""
+  def default_max_steps(self) -> int:
+    """Returns the default maximum number of simulation steps.
+
+    Raises:
+      NotImplementedError: If a default `max_steps` cannot be determined for
+        this time step calculator.
+    """
+    # TODO(b/564475000): Support max_steps heuristics for other time step
+    # calculators.
+    raise NotImplementedError(
+        f'max_steps must be specified when using {type(self).__name__}.'
+    )
 
   @abc.abstractmethod
   def build_time_step_calculator(
@@ -130,13 +144,6 @@ class ChiTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
           f'max_dt: {self.max_dt}, min_dt: {self.min_dt}'
       )
     return self
-
-  @property
-  def max_steps(self) -> None:
-    """Heuristic maximum number of simulation steps (unknown for chi)."""
-    # TODO(b/564475000): Support max_steps heuristics for other time step
-    # calculators.
-    return None
 
   def build_runtime_params(
       self, t: chex.Numeric
@@ -184,8 +191,8 @@ class FixedTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
   )
 
   @property
-  def max_steps(self) -> int:
-    """Heuristic maximum number of simulation steps."""
+  def default_max_steps(self) -> int:
+    """Returns the default maximum number of simulation steps."""
     min_dt_val = float(np.min(self.dt.value))
     max_steps = math.ceil((self.t_final - self.t_initial) / min_dt_val)
     if self.allow_backtracking:
@@ -255,13 +262,6 @@ class FromPreviousTimeStepCalculatorConfig(TimeStepCalculatorConfigBase):
           f'max_dt: {self.max_dt}, initial_dt: {self.initial_dt}'
       )
     return self
-
-  @property
-  def max_steps(self) -> None:
-    """Heuristic maximum number of simulation steps (unknown for from_previous)."""
-    # TODO(b/564475000): Support max_steps heuristics for other time step
-    # calculators.
-    return None
 
   def build_runtime_params(
       self, t: chex.Numeric

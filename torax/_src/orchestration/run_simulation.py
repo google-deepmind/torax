@@ -113,14 +113,9 @@ def run_simulation(
     progress_bar: Whether to show a progress bar.
     log_n_steps: The number of steps between logging events. This affects both
       the `log_timestep_info` and `progress_bar` arguments.
-    max_steps: The maximum number of steps to take. When `max_steps` is not
-      provided, `max_steps` is determined automatically for
-      `fixed_time_step_calculator` (exact step count when
-      `allow_backtracking=False`, or 10x that value when
-      `allow_backtracking=True`; can be overridden to reduce memory usage),
-      while `chi_time_step_calculator` and
-      `from_previous_time_step_calculator` require `max_steps` to be explicitly
-      specified (otherwise a `ValueError` is raised).
+    max_steps: The maximum number of steps to take. If None, uses
+      `time_step_calculator.max_steps` from the config if set, or falls back to
+      `time_step_calculator.default_max_steps`.
 
   Returns:
     The state history which contains the `CoreProfiles`, `CoreTransport`,
