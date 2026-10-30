@@ -21,8 +21,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import pydantic
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.edge import base
 from torax._src.edge import register_model
 from torax._src.edge import runtime_params as edge_runtime_params_lib
@@ -243,7 +243,7 @@ class DummyEdgeModel(base.EdgeModel):
       edge_runtime_params: edge_runtime_params_lib.RuntimeParams,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       core_sources: source_profiles_lib.SourceProfiles,
       previous_edge_outputs: base.EdgeModelOutputs | None = None,
   ) -> base.EdgeModelOutputs:

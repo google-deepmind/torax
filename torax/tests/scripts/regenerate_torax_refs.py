@@ -46,12 +46,17 @@ from typing import Any
 from absl import app
 from absl import flags
 import jax
+import jax.numpy as jnp
 import numpy as np
 from torax._src import constants
 from torax._src import path_utils
 from torax._src.core_profiles import initialization
 from torax._src.fvm import cell_variable
 from torax._src.geometry import standard_geometry
+from torax._src.neoclassical.bootstrap_current import (
+    base as bootstrap_current_base,
+)
+from torax._src.orchestration import physics_pipeline
 from torax._src.physics import psi_calculations
 from torax._src.sources import source_profile_builders
 from torax._src.test_utils import torax_refs
@@ -118,39 +123,47 @@ def _calculate_new_references(
   """Calculates a fresh set of reference values using TORAX's core logic."""
   reference = config_generator_func()
   torax_config = reference.torax_config
-  source_models = torax_config.sources.build_models()
-  neoclassical_model = torax_config.neoclassical.build_model()
+  models = torax_config.build_models()
+  source_models = models.source_models
+  neoclassical_model = models.neoclassical_model
   runtime_params, geo = reference.get_runtime_params_and_geo()
   source_states = source_models.initial_state(runtime_params)
-  initial_core_profiles = initialization.initial_core_profiles(
-      runtime_params,
-      geo,
+  solver_state = initialization.initial_solver_state(
+      runtime_params=runtime_params,
+      geo=geo,
       source_models=source_models,
       neoclassical_model=neoclassical_model,
       source_states=source_states,
   )
-  source_profiles = source_profile_builders.build_all_zero_profiles(geo)
-  source_profile_builders.build_standard_source_profiles(
+  physics_outputs, _ = physics_pipeline.evaluate_initial_physics(
+      runtime_params=runtime_params,
+      geo=geo,
+      solver_state=solver_state,
+      models=models,
+  )
+  initial_core_profiles = physics_outputs.core_profiles
+  psi_sources, _ = source_profile_builders.build_psi_sources(
       runtime_params=runtime_params,
       geo=geo,
       core_profiles=initial_core_profiles,
       source_models=source_models,
       source_states=source_states,
-      psi_only=True,
       calculate_anyway=True,
-      calculated_source_profiles=source_profiles,
   )
+  external_current = sum(psi_sources.values(), start=jnp.zeros_like(geo.rho))
   if not isinstance(geo, standard_geometry.StandardGeometry):
-    external_current = sum(source_profiles.psi.values())
-    j_toroidal_total_hires = initialization.get_j_toroidal_total_hires_with_external_sources(
-        runtime_params=runtime_params,
-        geo=geo,
-        bootstrap_current=source_profiles.bootstrap_current,
-        j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(  # pyrefly: ignore[bad-argument-type]
-            sum(source_profiles.psi.values()),  # pyrefly: ignore[bad-argument-type]
-            geo,
-            runtime_params.numerics.min_rho_norm,
-        ),
+    dummy_bootstrap = bootstrap_current_base.BootstrapCurrent.zeros(geo)
+    j_toroidal_total_hires = (
+        initialization.get_j_toroidal_total_hires_with_external_sources(
+            runtime_params=runtime_params,
+            geo=geo,
+            bootstrap_current=dummy_bootstrap,
+            j_toroidal_external=psi_calculations.j_parallel_to_j_toroidal(
+                external_current,
+                geo,
+                runtime_params.numerics.min_rho_norm,
+            ),
+        )
     )
     psi = initialization.update_psi_from_j(
         runtime_params.profile_conditions.I_p,
@@ -158,7 +171,6 @@ def _calculate_new_references(
         j_toroidal_total_hires,
     )
   elif isinstance(geo, standard_geometry.StandardGeometry):
-    external_current = sum(source_profiles.psi.values())
     psi_value = geo.psi_from_I_p
     psi_constraint = (
         runtime_params.profile_conditions.I_p
@@ -188,10 +200,11 @@ def _calculate_new_references(
           runtime_params,
           geo,
           initial_core_profiles,
+          fast_ions=initial_core_profiles.fast_ions,
       )
   )
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
-      psi_sources=external_current,  # pyrefly: ignore[bad-argument-type]
+      psi_sources=external_current,
       sigma=conductivity.sigma,
       psi=psi,
       geo=geo,

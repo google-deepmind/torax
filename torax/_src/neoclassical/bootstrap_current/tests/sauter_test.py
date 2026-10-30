@@ -11,16 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from unittest import mock
+
+import dataclasses
 
 from absl.testing import absltest
 import numpy as np
-from torax._src import state
 from torax._src.fvm import cell_variable
 from torax._src.geometry import circular_geometry
 from torax._src.neoclassical.bootstrap_current import runtime_params as bootstrap_current_runtime_params
 from torax._src.neoclassical.bootstrap_current import sauter
 from torax._src.neoclassical.formulas import formulas
+from torax._src.test_utils import core_profile_helpers
 
 
 class SauterTest(absltest.TestCase):
@@ -31,41 +32,67 @@ class SauterTest(absltest.TestCase):
     bootstrap_params = bootstrap_current_runtime_params.RuntimeParams(
         bootstrap_multiplier=1.0
     )
-    core_profiles = mock.create_autospec(
-        state.CoreProfiles,
-        T_i=cell_variable.CellVariable(
-            value=np.linspace(400, 700, n_rho), face_centers=geo.rho_face_norm
+    base = core_profile_helpers.make_zero_core_profiles(geo)
+    core_profiles = dataclasses.replace(
+        base,
+        kinetic=dataclasses.replace(
+            base.kinetic,
+            T_i=cell_variable.CellVariable(
+                value=np.linspace(400, 700, n_rho),
+                face_centers=geo.rho_face_norm,
+                right_face_constraint=700.0,
+                right_face_grad_constraint=None,
+            ),
+            T_e=cell_variable.CellVariable(
+                value=np.linspace(4000, 7000, n_rho),
+                face_centers=geo.rho_face_norm,
+                right_face_constraint=7000.0,
+                right_face_grad_constraint=None,
+            ),
+            n_e=cell_variable.CellVariable(
+                value=np.linspace(100, 200, n_rho),
+                face_centers=geo.rho_face_norm,
+                right_face_constraint=200.0,
+                right_face_grad_constraint=None,
+            ),
+            n_i=cell_variable.CellVariable(
+                value=np.linspace(100, 200, n_rho),
+                face_centers=geo.rho_face_norm,
+                right_face_constraint=200.0,
+                right_face_grad_constraint=None,
+            ),
+            n_impurity=cell_variable.CellVariable(
+                value=np.linspace(10, 20, n_rho),
+                face_centers=geo.rho_face_norm,
+                right_face_constraint=20.0,
+                right_face_grad_constraint=None,
+            ),
         ),
-        T_e=cell_variable.CellVariable(
-            value=np.linspace(4000, 7000, n_rho), face_centers=geo.rho_face_norm
+        ions=dataclasses.replace(
+            base.ions,
+            Z_i_face=np.linspace(1000, 2000, n_rho + 1),
+            Z_eff_face=np.linspace(1.0, 1.0, n_rho + 1),
         ),
-        psi=cell_variable.CellVariable(
-            value=np.linspace(9000, 4000, n_rho), face_centers=geo.rho_face_norm
-        ),
-        n_e=cell_variable.CellVariable(
-            value=np.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
-        ),
-        n_i=cell_variable.CellVariable(
-            value=np.linspace(100, 200, n_rho), face_centers=geo.rho_face_norm
-        ),
-        n_i_total_thermal_face=np.linspace(110, 230, n_rho + 1),
-        Z_i_face=np.linspace(1000, 2000, n_rho + 1),
-        Z_eff_face=np.linspace(1.0, 1.0, n_rho + 1),
-        q_face=np.linspace(1, 5, n_rho + 1),
-        pressure_thermal_e=cell_variable.CellVariable(
-            value=np.linspace(1000, 2000, n_rho), face_centers=geo.rho_face_norm
-        ),
-        pressure_thermal_i=cell_variable.CellVariable(
-            value=np.linspace(1000, 2000, n_rho), face_centers=geo.rho_face_norm
+        flux=dataclasses.replace(
+            base.flux,
+            psi=cell_variable.CellVariable(
+                value=np.linspace(9000, 4000, n_rho),
+                face_centers=geo.rho_face_norm,
+            ),
+            q_face=np.linspace(1, 5, n_rho + 1),
         ),
     )
     neoclassical_intermediates = formulas.compute_neoclassical_intermediates(
-        geo, core_profiles
+        geo, core_profiles, fast_ions=()
     )
 
     model = sauter.SauterModel()
     result = model.calculate_bootstrap_current(
-        bootstrap_params, geo, core_profiles, neoclassical_intermediates
+        bootstrap_params,
+        geo,
+        core_profiles,
+        neoclassical_intermediates,
+        fast_ions=(),
     )
     self.assertEqual(result.j_parallel_bootstrap.shape, (n_rho,))
     self.assertEqual(result.j_parallel_bootstrap_face.shape, (n_rho + 1,))

@@ -19,9 +19,9 @@ import dataclasses
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import jax_utils
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_model_output
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
@@ -37,7 +37,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
   ) -> pedestal_state_lib.FormationState:
     """Returns the initial FormationState for this model."""
     del runtime_params, geo, core_profiles
@@ -47,7 +47,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       formation_state: pedestal_state_lib.FormationState,
   ) -> pedestal_state_lib.FormationState:
     """Returns the updated FormationState at the end of a timestep.
@@ -70,7 +70,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       confinement_mode: (
           pedestal_runtime_params_lib.ConfinementMode | array_typing.IntScalar
@@ -97,7 +97,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       formation_state: pedestal_state_lib.FormationState,
   ) -> tuple[array_typing.BoolScalar, array_typing.BoolScalar]:
@@ -123,7 +123,7 @@ class FormationModel(static_dataclass.StaticDataclass, abc.ABC):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
       formation_state: pedestal_state_lib.FormationState,
   ) -> array_typing.IntScalar:

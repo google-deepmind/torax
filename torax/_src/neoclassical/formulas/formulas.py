@@ -18,10 +18,13 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import state
+from torax._src.core_profiles import (
+    solver_profiles as solver_profiles_lib,
+)
 from torax._src.geometry import geometry as geometry_lib
 from torax._src.neoclassical import neoclassical_intermediates as neoclassical_intermediates_lib
 from torax._src.physics import collisions
+from torax._src.physics import fast_ion as fast_ion_lib
 
 # pylint: disable=invalid-name
 
@@ -62,42 +65,57 @@ class AnalyticalNeoclassicalIntermediates(
 
 def compute_neoclassical_intermediates(
     geo: geometry_lib.Geometry,
-    core_profiles: state.CoreProfiles,
+    core_profiles: solver_profiles_lib.SolverProfiles,
+    fast_ions: tuple[fast_ion_lib.FastIon, ...],
 ) -> AnalyticalNeoclassicalIntermediates:
-  """Computes shared quantities for analytical neoclassical models."""
+  """Computes shared quantities for analytical neoclassical models.
+
+  Args:
+    geo: Magnetic geometry.
+    core_profiles: Base core plasma profiles.
+    fast_ions: Tuple of fast ion populations.
+
+  Returns:
+    AnalyticalNeoclassicalIntermediates container with trapped fraction and
+    collisionalities.
+  """
   f_trap = geo.trapped_fraction_face
   log_lambda_ei = collisions.calculate_log_lambda_ei(
-      core_profiles.T_e.face_value(), core_profiles.n_e.face_value()
+      core_profiles.kinetic.T_e.face_value(),
+      core_profiles.kinetic.n_e.face_value(),
   )
   log_lambda_ii = collisions.calculate_log_lambda_ii(
-      core_profiles.T_i.face_value(),
-      core_profiles.n_i.face_value(),
-      core_profiles.Z_i_face,
+      core_profiles.kinetic.T_i.face_value(),
+      core_profiles.kinetic.n_i.face_value(),
+      core_profiles.ions.Z_i_face,
   )
   nu_e_star = _calculate_nu_e_star(
-      q=core_profiles.q_face,
+      q=core_profiles.flux.q_face,
       geo=geo,
-      n_e=core_profiles.n_e.face_value(),
-      T_e=core_profiles.T_e.face_value(),
-      Z_eff=core_profiles.Z_eff_face,
+      n_e=core_profiles.kinetic.n_e.face_value(),
+      T_e=core_profiles.kinetic.T_e.face_value(),
+      Z_eff=core_profiles.ions.Z_eff_face,
       log_lambda_ei=log_lambda_ei,
+  )
+  n_i_total_thermal_face = solver_profiles_lib.calculate_n_i_total_thermal_face(
+      core_profiles, fast_ions
   )
   # Total thermal ion collisionality (main ions + impurities)
   nu_i_star = calculate_nu_i_star(
-      q=core_profiles.q_face,
+      q=core_profiles.flux.q_face,
       geo=geo,
-      n_i=core_profiles.n_i_total_thermal_face,
-      T_i=core_profiles.T_i.face_value(),
-      Z_i=core_profiles.Z_i_face,
+      n_i=n_i_total_thermal_face,
+      T_i=core_profiles.kinetic.T_i.face_value(),
+      Z_i=core_profiles.ions.Z_i_face,
       log_lambda_ii=log_lambda_ii,
   )
   # Main-ion-only collisionality
   nu_i_star_main_ion = calculate_nu_i_star(
-      q=core_profiles.q_face,
+      q=core_profiles.flux.q_face,
       geo=geo,
-      n_i=core_profiles.n_i.face_value(),
-      T_i=core_profiles.T_i.face_value(),
-      Z_i=core_profiles.Z_i_face,
+      n_i=core_profiles.kinetic.n_i.face_value(),
+      T_i=core_profiles.kinetic.T_i.face_value(),
+      Z_i=core_profiles.ions.Z_i_face,
       log_lambda_ii=log_lambda_ii,
   )
   k_neo = _calculate_neoclassical_k_neo(nu_i_star_main_ion, geo.epsilon_face)
@@ -170,9 +188,10 @@ def calculate_nu_i_star(
     q: Safety factor.
     geo: The geometry of the torus.
     n_i: Ion density in Sauter Eq. (18c) [m^-3]. Total thermal ion particle
-      density (``CoreProfiles.n_i_total_thermal_face``) for Sauter/Redl
-      bootstrap; main-ion density for single-fluid uses (poloidal velocity) and
-      Angioni-Sauter transport (where impurity collisions enter via alpha_I).
+      density (``solver_profiles.calculate_n_i_total_thermal_face``) for
+      Sauter/Redl bootstrap; main-ion density for single-fluid uses (poloidal
+      velocity) and Angioni-Sauter transport (where impurity collisions enter
+      via alpha_I).
     T_i: Ion temperature [keV].
     Z_i: Main ion charge.
     log_lambda_ii: Ion-ion Coulomb logarithm (Sauter Eq. 18e, also uses Z_i).

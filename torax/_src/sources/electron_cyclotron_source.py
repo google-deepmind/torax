@@ -22,10 +22,9 @@ import jax
 import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import solver_profiles
 from torax._src.geometry import geometry
-from torax._src.neoclassical.conductivity import base as conductivity_base
 from torax._src.physics import collisions
 from torax._src.sources import base
 from torax._src.sources import formulas
@@ -63,11 +62,8 @@ class ElectronCyclotronSource(source.Source):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      calculated_source_profiles: source_profiles.SourceProfiles | None,
-      conductivity: conductivity_base.Conductivity | None,
+      core_profiles: solver_profiles.SolverProfiles,
       source_state: source_state_lib.SourceState,
-      psidot: array_typing.FloatVectorCell | None = None,
   ) -> tuple[source_profiles.SourceOutput, source_state_lib.SourceState]:
     """Calculates external electron heat source and current drive from EC.
 
@@ -79,17 +75,13 @@ class ElectronCyclotronSource(source.Source):
       runtime_params: Global runtime parameters.
       geo: Magnetic geometry.
       core_profiles: CoreProfiles component of the state.
-      calculated_source_profiles: Unused.
-      conductivity: Unused.
       source_state: Source state carried over from the previous timestep. Unused
         by this model and passed through unchanged.
-      psidot: Unused.
 
     Returns:
       A tuple of (SourceOutput(profiles=(electron_heat_profile, psi_profile)),
       source_state).
     """
-    del calculated_source_profiles, conductivity, psidot
     source_params = runtime_params.sources[self.SOURCE_ID]
     # Helps linter understand the type of source_params.
     assert isinstance(source_params, RuntimeParams)
@@ -110,15 +102,16 @@ class ElectronCyclotronSource(source.Source):
             jnp.log(16.0)
             + jnp.log(jnp.pi)
             + 2 * jnp.log(constants.CONSTANTS.epsilon_0)
-            + jnp.log(core_profiles.T_e.value * 1e3)
+            + jnp.log(core_profiles.kinetic.T_e.value * 1e3)
             - (
                 2 * jnp.log(constants.CONSTANTS.q_e)
                 + jnp.log(
                     collisions.calculate_log_lambda_ee(
-                        core_profiles.T_e.value, core_profiles.n_e.value
+                        core_profiles.kinetic.T_e.value,
+                        core_profiles.kinetic.n_e.value,
                     )
                 )
-                + jnp.log(core_profiles.n_e.value)
+                + jnp.log(core_profiles.kinetic.n_e.value)
             )
         )
         * source_params.current_drive_efficiency
@@ -126,7 +119,7 @@ class ElectronCyclotronSource(source.Source):
     )
 
     # < j.B >
-    q_cell = geometry.face_to_cell(core_profiles.q_face)
+    q_cell = geometry.face_to_cell(core_profiles.flux.q_face)
     fsa_j_dot_B = (
         geo.F
         * geo.gm9

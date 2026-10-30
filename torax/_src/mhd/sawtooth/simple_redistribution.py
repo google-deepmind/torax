@@ -21,10 +21,11 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src import static_dataclass
 from torax._src.config import runtime_params as runtime_params_lib
-from torax._src.core_profiles import getters
+from torax._src.core_profiles import ion_composition as ion_composition_lib
+from torax._src.core_profiles import kinetic_profiles
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.mhd.sawtooth import flatten_profile
 from torax._src.mhd.sawtooth import redistribution_base
@@ -45,8 +46,8 @@ class SimpleRedistribution(
       rho_norm_q1: array_typing.FloatScalar,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-  ) -> state.CoreProfiles:
+      core_profiles_t: profiles.CoreProfiles,
+  ) -> profiles.CoreProfiles:
     """Applies redistribution of profiles with a user-predefined mixing radius.
 
     Redistributes the profiles to a radius of
@@ -105,24 +106,24 @@ class SimpleRedistribution(
           mixing_radius,
           redistribution_mask,
           redistribution_params.flattening_factor,
-          core_profiles_t.n_e,
+          core_profiles_t.kinetic.n_e,
           geo,
       )
     else:
-      n_e_redistributed = core_profiles_t.n_e
+      n_e_redistributed = core_profiles_t.kinetic.n_e
     if runtime_params.numerics.evolve_electron_heat:
       te_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,
           redistribution_mask,
           redistribution_params.flattening_factor,
-          core_profiles_t.T_e,
-          core_profiles_t.n_e,
+          core_profiles_t.kinetic.T_e,
+          core_profiles_t.kinetic.n_e,
           n_e_redistributed,
           geo,
       )
     else:
-      te_redistributed = core_profiles_t.T_e
+      te_redistributed = core_profiles_t.kinetic.T_e
     if (
         runtime_params.numerics.evolve_density
         or runtime_params.numerics.evolve_electron_heat
@@ -131,41 +132,41 @@ class SimpleRedistribution(
           ions_redistributed,
           n_i_redistributed,
           n_impurity_redistributed,
-      ) = getters.get_updated_ions(
-          runtime_params,
+      ) = ion_composition_lib.IonComposition.from_profiles(
+          runtime_params.plasma_composition,
           geo,
           n_e_redistributed,
           te_redistributed,
       )
     else:
       ions_redistributed = core_profiles_t.ions
-      n_i_redistributed = core_profiles_t.n_i
-      n_impurity_redistributed = core_profiles_t.n_impurity
+      n_i_redistributed = core_profiles_t.kinetic.n_i
+      n_impurity_redistributed = core_profiles_t.kinetic.n_impurity
     if runtime_params.numerics.evolve_ion_heat:
       ti_redistributed = flatten_profile.flatten_temperature_profile(
           rho_norm_q1,
           mixing_radius,
           redistribution_mask,
           redistribution_params.flattening_factor,
-          core_profiles_t.T_i,
-          core_profiles_t.n_i,
+          core_profiles_t.kinetic.T_i,
+          core_profiles_t.kinetic.n_i,
           n_i_redistributed,
           geo,
       )
     else:
-      ti_redistributed = core_profiles_t.T_i
+      ti_redistributed = core_profiles_t.kinetic.T_i
     psi_redistributed = flatten_profile.flatten_current_profile(
         rho_norm_q1,
         mixing_radius,
         redistribution_mask,
         redistribution_params.flattening_factor,
-        core_profiles_t.psi,
-        core_profiles_t.j_toroidal_total,
-        core_profiles_t.I_p_profile_face[-1],
+        core_profiles_t.flux.psi,
+        core_profiles_t.flux.j_toroidal_total,
+        core_profiles_t.flux.I_p_profile_face[-1],
         geo,
     )
 
-    kinetic = state.KineticProfiles(
+    kinetic = kinetic_profiles.KineticProfiles(
         T_i=ti_redistributed,
         T_e=te_redistributed,
         n_e=n_e_redistributed,

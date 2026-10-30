@@ -18,8 +18,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import circular_geometry
 from torax._src.mhd import runtime_params as mhd_runtime_params
 from torax._src.mhd.sawtooth import runtime_params as sawtooth_runtime_params
@@ -37,13 +37,14 @@ class SimpleTriggerTest(parameterized.TestCase):
 
   def _get_mock_core_profiles(
       self, q_face: np.ndarray, s_face: np.ndarray
-  ) -> state.CoreProfiles:
-    return mock.create_autospec(
-        state.CoreProfiles,
+  ) -> profiles.CoreProfiles:
+    core_profiles = mock.create_autospec(
+        profiles.CoreProfiles,
         instance=True,
-        q_face=jnp.asarray(q_face),
-        s_face=jnp.asarray(s_face),
     )
+    core_profiles.flux.q_face = jnp.asarray(q_face)
+    core_profiles.flux.s_face = jnp.asarray(s_face)
+    return core_profiles
 
   @parameterized.named_parameters(
       dict(

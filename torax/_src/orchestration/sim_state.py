@@ -23,6 +23,7 @@ import numpy as np
 from torax._src import array_typing
 from torax._src import model_state as model_state_lib
 from torax._src import state
+from torax._src.core_profiles import profiles
 from torax._src.edge import base as edge_base
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import (
@@ -89,7 +90,7 @@ class SimState:
 
   t: array_typing.FloatScalar
   dt: array_typing.FloatScalar
-  core_profiles: state.CoreProfiles
+  core_profiles: profiles.CoreProfiles
   core_transport: state.CoreTransport
   core_sources: source_profiles.SourceProfiles
   edge_outputs: edge_base.EdgeModelOutputs | None
@@ -152,7 +153,7 @@ def _log_nans(
         last valid step.""")
 
 
-def _log_negative_profile_names(inputs: state.CoreProfiles) -> None:
+def _log_negative_profile_names(inputs: profiles.CoreProfiles) -> None:
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   for path, value in path_vals:
     if np.any(np.less(value, 0.0)):

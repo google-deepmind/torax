@@ -19,8 +19,8 @@ from typing import override
 import jax
 from jax import numpy as jnp
 from torax._src import array_typing
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.pedestal_model import pedestal_state as pedestal_state_lib
 from torax._src.pedestal_model import (
@@ -54,7 +54,7 @@ class SetTemperatureDensityPedestalModel(
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       structure_state: pedestal_state_lib.StructureState,
   ) -> tuple[
       pedestal_structure.PedestalStructure,

@@ -22,8 +22,8 @@ import jax.numpy as jnp
 from torax._src import array_typing
 from torax._src import constants
 from torax._src import math_utils
-from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
+from torax._src.core_profiles import profiles
 from torax._src.geometry import geometry
 from torax._src.internal_boundary_conditions import base_model
 from torax._src.internal_boundary_conditions import internal_boundary_conditions
@@ -160,7 +160,7 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
       self,
       runtime_params: runtime_params_lib.RuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
+      core_profiles: profiles.CoreProfiles,
       source_profiles: source_profiles_lib.SourceProfiles,
   ) -> internal_boundary_conditions.InternalBoundaryConditions:
     """Evaluates edge kinetic profiles (T_e, T_i, n_e) from beta_poloidal_prime.
@@ -192,7 +192,10 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
     edge_mask = geo.rho_norm >= params.rho_norm_edge
 
     if params.n_e_edge_multiplier is not None:
-      n_e_edge = params.n_e_edge_multiplier * core_profiles.n_e.right_face_value
+      n_e_edge = (
+          params.n_e_edge_multiplier
+          * core_profiles.kinetic.n_e.right_face_value
+      )
     else:
       assert (
           params.n_e_edge is not None
@@ -218,11 +221,12 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
     )
     n_e_edge_profile = (
         n_e_edge
-        + (core_profiles.n_e.right_face_value - n_e_edge) * edge_flux_frac
+        + (core_profiles.kinetic.n_e.right_face_value - n_e_edge)
+        * edge_flux_frac
     )
     n_e_target = jnp.where(edge_mask, n_e_edge_profile, 0.0)
 
-    bpol2_face = psi_calculations.calc_bpol_squared(geo, core_profiles.psi)
+    bpol2_face = psi_calculations.calc_bpol_squared(geo, core_profiles.flux.psi)
     bpol2_cell = geometry.face_to_cell(bpol2_face)
     bpol2_sep = bpol2_face[-1]
     p_total_sep = core_profiles.pressure_total.right_face_value
@@ -259,8 +263,8 @@ class BetaPoloidalPrimeIBCModel(base_model.InternalBoundaryConditionModel):
     # Assuming T_i = T_imp,
     # p_thermal = n_e * T_e * (1 + (T_i / T_e) * (n_i + n_imp) / n_e).
     n_i_n_e_ratio = (
-        core_profiles.n_i.value + core_profiles.n_impurity_thermal.value
-    ) / (core_profiles.n_e.value + constants.CONSTANTS.eps)
+        core_profiles.kinetic.n_i.value + core_profiles.n_impurity_thermal.value
+    ) / (core_profiles.kinetic.n_e.value + constants.CONSTANTS.eps)
 
     T_e_edge_profile = p_thermal_cell / (
         constants.CONSTANTS.keV_to_J
