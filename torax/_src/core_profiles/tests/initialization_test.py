@@ -714,7 +714,7 @@ class InitializationTest(parameterized.TestCase):
         geo=geo,
         evolve_current=runtime_params.numerics.evolve_current,
         prescribed_psidot=runtime_params.profile_conditions.psidot,
-        v_loop_lcfs=None,
+        right_face_constraint=None,
     )
     np.testing.assert_allclose(result.psidot.value, expected_psidot.value)
 

@@ -209,7 +209,6 @@ def _calc_coeffs_full(
       models=models,
       explicit_model_outputs=explicit_model_outputs,
       model_state=model_state,
-      v_loop_lcfs=None,
       use_pereverzev=use_pereverzev,
   )
   core_profiles = evaluated_state.core_profiles

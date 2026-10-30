@@ -24,7 +24,6 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
-from torax._src import array_typing
 from torax._src import jax_utils
 from torax._src import model_state as model_state_lib
 from torax._src import models as models_lib
@@ -98,7 +97,6 @@ def evaluate_state(
     explicit_model_outputs: explicit_model_outputs_lib.ExplicitModelOutputs,
     model_state: model_state_lib.ModelState,
     *,
-    v_loop_lcfs: array_typing.FloatScalar | None = None,
     use_pereverzev: bool = False,
 ) -> tuple[EvaluatedState, model_state_lib.ModelState]:
   """Evaluates derived state variables and updated model state from SolverState.
@@ -110,7 +108,6 @@ def evaluate_state(
     models: Physical models configured for the simulation.
     explicit_model_outputs: Pre-evaluated explicit outputs from time t.
     model_state: Model state carried across time steps.
-    v_loop_lcfs: Optional loop voltage at the LCFS [V].
     use_pereverzev: Whether to calculate Pereverzev-Corrigan stabilization
       transport terms.
 
@@ -135,7 +132,6 @@ def evaluate_state(
       explicit=False,
       explicit_source_outputs=explicit_model_outputs.sources,
       calculate_anyway=False,
-      v_loop_lcfs=v_loop_lcfs,
   )
 
   # Remaining implicit source profiles.
@@ -205,7 +201,6 @@ def _build_core_profiles(
         Mapping[str, source_profiles_lib.SourceOutput] | None
     ) = None,
     calculate_anyway: bool = False,
-    v_loop_lcfs: array_typing.FloatScalar | None = None,
 ) -> tuple[
     core_profiles_lib.CoreProfiles,
     dict[str, source_profiles_lib.SourceOutput],
@@ -225,7 +220,6 @@ def _build_core_profiles(
     explicit: Whether to evaluate explicit sources.
     explicit_source_outputs: Pre-evaluated explicit source outputs, if any.
     calculate_anyway: Whether to calculate sources even if inactive.
-    v_loop_lcfs: Optional loop voltage at the LCFS [V].
 
   Returns:
     A tuple containing:
@@ -235,22 +229,11 @@ def _build_core_profiles(
       - bootstrap_current: Bootstrap current output.
       - neoclassical_intermediates: Neoclassical intermediates for transport.
   """
-  if (
-      v_loop_lcfs is None
-      and runtime_params.profile_conditions.psi_bc_source
-      == core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP
-  ):
-    v_loop_lcfs = jnp.asarray(
-        runtime_params.profile_conditions.v_loop_lcfs,
-        dtype=jax_utils.get_dtype(),
-    )
-
   # Construct profiles that depend only on the solver variables.
   solver_profiles = solver_profiles_lib.SolverProfiles.from_solver_state(
       runtime_params=runtime_params,
       geo=geo,
       solver_state=solver_state,
-      v_loop_lcfs=v_loop_lcfs,
   )
 
   # Evaluate sources that only depend on the solver profiles. These sources
@@ -297,6 +280,23 @@ def _build_core_profiles(
       bootstrap_current=bootstrap_current,
       geo=geo,
   )
+  match runtime_params.profile_conditions.psi_bc_source:
+    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
+      right_face_constraint = None
+      right_face_grad_constraint = (
+          solver_state.psidot_right_face_grad_constraint
+      )
+    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
+      right_face_constraint = jnp.asarray(
+          runtime_params.profile_conditions.v_loop_lcfs,
+          dtype=jax_utils.get_dtype(),
+      )
+      right_face_grad_constraint = None
+    case _:
+      raise ValueError(
+          'Unknown psi_bc_source:'
+          f' {runtime_params.profile_conditions.psi_bc_source}'
+      )
   # Combine psi sources with core profiles to compute psidot.
   psidot = psi_calculations.calculate_psidot(
       psi=solver_profiles.poloidal_flux.psi,
@@ -305,7 +305,8 @@ def _build_core_profiles(
       geo=geo,
       evolve_current=runtime_params.numerics.evolve_current,
       prescribed_psidot=runtime_params.profile_conditions.psidot,
-      v_loop_lcfs=v_loop_lcfs,
+      right_face_constraint=right_face_constraint,
+      right_face_grad_constraint=right_face_grad_constraint,
   )
   core_profiles = core_profiles_lib.CoreProfiles(
       kinetic=solver_profiles.kinetic,

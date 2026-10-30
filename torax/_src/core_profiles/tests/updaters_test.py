@@ -203,7 +203,9 @@ class UpdatersTest(parameterized.TestCase):
         'evolve_ion_heat': True,
         'evolve_electron_heat': True,
         'evolve_density': True,
+        'current_diffusion_time_reduction_factor': 0.5,
     }
+    config_dict['profile_conditions']['I_p'] = {0.0: 10e6, 1.0: 15e6}
     config_dict['profile_conditions']['T_i_right_bc'] = {0.0: 1.0, 1.0: 2.5}
     config_dict['profile_conditions']['T_e_right_bc'] = {0.0: 1.0, 1.0: 3.5}
     config_dict['profile_conditions']['n_e_right_bc'] = {
@@ -254,6 +256,20 @@ class UpdatersTest(parameterized.TestCase):
       assert result.n_e.right_face_constraint is not None
       np.testing.assert_allclose(result.n_e.right_face_constraint, 5.5e19)
       self.assertIsNotNone(result.toroidal_angular_velocity)
+
+      assert result.psidot_right_face_grad_constraint is not None
+      assert result.psi.right_face_grad_constraint is not None
+      assert (
+          core_profiles_t0.poloidal_flux.psi.right_face_grad_constraint
+          is not None
+      )
+      expected_psidot_grad = (
+          result.psi.right_face_grad_constraint
+          - core_profiles_t0.poloidal_flux.psi.right_face_grad_constraint
+      ) / 0.5
+      np.testing.assert_allclose(
+          result.psidot_right_face_grad_constraint, expected_psidot_grad
+      )
 
 
 if __name__ == '__main__':

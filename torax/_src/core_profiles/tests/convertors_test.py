@@ -17,6 +17,7 @@ from absl.testing import parameterized
 import chex
 from jax import numpy as jnp
 import numpy as np
+from torax._src import jax_utils
 from torax._src.core_profiles import convertors
 from torax._src.core_profiles import solver_state
 from torax._src.fvm import cell_variable
@@ -67,6 +68,9 @@ class ConvertersTest(parameterized.TestCase):
         psi=psi,
         n_e=n_e,
         toroidal_angular_velocity=toroidal_angular_velocity,
+        psidot_right_face_grad_constraint=jnp.asarray(
+            1.1, dtype=jax_utils.get_dtype()
+        ),
     )
 
   def test_solver_state_to_x_round_trip(self):
@@ -110,6 +114,10 @@ class ConvertersTest(parameterized.TestCase):
           getattr(result, name),
           getattr(self.base_solver_state, name),
       )
+    chex.assert_trees_all_close(
+        result.psidot_right_face_grad_constraint,
+        self.base_solver_state.psidot_right_face_grad_constraint,
+    )
 
   @parameterized.parameters(
       (('T_e',),),
@@ -146,6 +154,10 @@ class ConvertersTest(parameterized.TestCase):
         np.testing.assert_allclose(updated_cv.value, base_cv.value * 2.5)
       else:
         chex.assert_trees_all_close(updated_cv, base_cv)
+    chex.assert_trees_all_close(
+        result.psidot_right_face_grad_constraint,
+        self.base_solver_state.psidot_right_face_grad_constraint,
+    )
 
   @parameterized.parameters('T_i', 'T_e', 'n_e', 'psi')
   def test_compute_channel_residual_scale(self, channel: str):

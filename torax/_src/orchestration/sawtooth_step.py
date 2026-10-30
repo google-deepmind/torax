@@ -155,7 +155,6 @@ def sawtooth_step(
         solver_numeric_outputs=solver_numeric_outputs,
         runtime_params_t_plus_dt=runtime_params_t_plus_crash_dt,
         geometry_t_plus_dt=geo_t_plus_crash_dt,
-        core_profiles_t=input_state.core_profiles,
         solver_state_t_plus_dt=solver_state_t_plus_crash_dt,
         explicit_model_outputs=explicit_model_outputs,
         edge_outputs=edge_outputs,

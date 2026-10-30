@@ -21,6 +21,7 @@ from torax._src import array_typing
 from torax._src.config import runtime_params as runtime_params_lib
 from torax._src.core_profiles import core_profiles as core_profiles_lib
 from torax._src.core_profiles import getters
+from torax._src.core_profiles import runtime_params as core_profile_runtime_params
 from torax._src.core_profiles import solver_state
 from torax._src.geometry import geometry
 
@@ -84,6 +85,23 @@ def provide_solver_state_t_plus_dt(
   toroidal_angular_velocity = getters.get_updated_toroidal_angular_velocity(
       profile_conditions_t_plus_dt, geo_t_plus_dt
   )
+  match profile_conditions_t_plus_dt.psi_bc_source:
+    case core_profile_runtime_params.PsiBoundaryConditionSource.I_P:
+      psi_t_right_grad = (
+          core_profiles_t.poloidal_flux.psi.right_face_grad_constraint
+      )
+      assert psi.right_face_grad_constraint is not None
+      assert psi_t_right_grad is not None
+      psidot_right_face_grad_constraint = (
+          psi.right_face_grad_constraint - psi_t_right_grad
+      ) / (dt * time_reduction_factor)
+    case core_profile_runtime_params.PsiBoundaryConditionSource.V_LOOP:
+      psidot_right_face_grad_constraint = None
+    case _:
+      raise ValueError(
+          'Unknown psi_bc_source:'
+          f' {profile_conditions_t_plus_dt.psi_bc_source}'
+      )
 
   return solver_state.SolverState(
       T_i=T_i,
@@ -91,6 +109,7 @@ def provide_solver_state_t_plus_dt(
       psi=psi,
       n_e=n_e,
       toroidal_angular_velocity=toroidal_angular_velocity,
+      psidot_right_face_grad_constraint=psidot_right_face_grad_constraint,
   )
 
 

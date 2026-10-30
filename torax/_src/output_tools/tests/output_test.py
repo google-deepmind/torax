@@ -984,13 +984,6 @@ class StateHistoryTest(parameterized.TestCase):
     sim_state_t1 = dataclasses.replace(
         self.sim_state,
         t=jnp.array(0.1),
-        core_profiles=dataclasses.replace(
-            self.sim_state.core_profiles,
-            poloidal_flux=dataclasses.replace(
-                self.sim_state.core_profiles.poloidal_flux,
-                v_loop_lcfs=jnp.array(5.0),
-            ),
-        ),
     )
     history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
@@ -1039,8 +1032,6 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertLen(core_profiles, 2)
     self.assertIn('core_profiles', history.__dict__)
     self.assertIsInstance(core_profiles[0].kinetic.T_i.value, jax.Array)
-    np.testing.assert_allclose(core_profiles[0].poloidal_flux.v_loop_lcfs, 5.0)
-    np.testing.assert_allclose(core_profiles[1].poloidal_flux.v_loop_lcfs, 5.0)
 
 
 if __name__ == '__main__':

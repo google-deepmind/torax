@@ -144,7 +144,6 @@ def make_zero_core_profiles(
       j_toroidal_total=jnp.zeros_like(geo.rho),
       j_toroidal_total_face=jnp.zeros_like(geo.rho_face),
       I_p_profile_face=jnp.zeros_like(geo.rho_face),
-      v_loop_lcfs=jnp.array(0.0),
   )
   conductivity = core_profiles_lib.Conductivity(
       sigma=jnp.zeros_like(geo.rho),
