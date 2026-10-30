@@ -14,10 +14,11 @@
 
 """Gas puff source for the n_e equation."""
 import dataclasses
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 import chex
 import jax
+import pydantic
 from torax._src import array_typing
 from torax._src import state
 from torax._src.config import runtime_params as runtime_params_lib
@@ -93,19 +94,26 @@ class GasPuffSourceConfig(base.SourceConfigBase):
 
   Attributes:
     puff_decay_length: exponential decay length of gas puff ionization
-      [normalized radial coord]
-    S_total: total gas puff particles/s
+      [normalized radial coord]. Required when mode is 'model_based'.
+    S_total: total gas puff particles/s. Required when mode is 'model_based'.
   """
 
   model_name: Annotated[Literal['exponential'], torax_pydantic.JAX_STATIC] = (
       'exponential'
   )
-  puff_decay_length: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.05)
-  )
-  S_total: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      1e22
-  )
+  puff_decay_length: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  S_total: torax_pydantic.TimeVaryingScalar | None = None
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> Self:
+    if self.mode == sources_runtime_params_lib.Mode.MODEL_BASED:
+      if self.S_total is None:
+        raise ValueError("S_total must be provided when mode is 'model_based'.")
+      if self.puff_decay_length is None:
+        raise ValueError(
+            "puff_decay_length must be provided when mode is 'model_based'."
+        )
+    return self
 
   def build_runtime_params(
       self,
@@ -114,8 +122,12 @@ class GasPuffSourceConfig(base.SourceConfigBase):
     base_params = super().build_runtime_params(t)
     return RuntimeParams(
         **vars(base_params),
-        puff_decay_length=self.puff_decay_length.get_value(t),
-        S_total=self.S_total.get_value(t),
+        puff_decay_length=(
+            1.0
+            if self.puff_decay_length is None
+            else self.puff_decay_length.get_value(t)
+        ),
+        S_total=0.0 if self.S_total is None else self.S_total.get_value(t),
     )
 
   def build_source(self) -> GasPuffSource:

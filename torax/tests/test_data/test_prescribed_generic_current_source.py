@@ -73,9 +73,12 @@ CONFIG = {
         },
         'gas_puff': {
             'S_total': 0.0,
+            'puff_decay_length': 0.05,
         },
         'pellet': {
             'S_total': 0.0,
+            'pellet_width': 0.1,
+            'pellet_deposition_location': 0.85,
         },
         # Use default heat sources
         'generic_heat': {},

@@ -21,6 +21,7 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
 
   source_config_class = gas_puff_source.GasPuffSourceConfig
   source_name = gas_puff_source.GasPuffSource.SOURCE_ID
+  extra_source_config_kwargs = {'S_total': 1e22, 'puff_decay_length': 0.05}
 
 
 if __name__ == '__main__':

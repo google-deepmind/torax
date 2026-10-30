@@ -46,10 +46,13 @@ CONFIG = {
         'gas_puff': {
             # total pellet particles/s
             'S_total': 0.0,
+            'puff_decay_length': 0.05,
         },
         'pellet': {
             # total pellet particles/s (continuous pellet model)
             'S_total': 0.0,
+            'pellet_width': 0.1,
+            'pellet_deposition_location': 0.85,
         },
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
         'generic_heat': {

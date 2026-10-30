@@ -21,6 +21,11 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
 
   source_config_class = pellet_source.PelletSourceConfig
   source_name = pellet_source.PelletSource.SOURCE_ID
+  extra_source_config_kwargs = {
+      'S_total': 2e22,
+      'pellet_width': 0.1,
+      'pellet_deposition_location': 0.85,
+  }
 
 
 if __name__ == '__main__':

@@ -40,6 +40,7 @@ class ImpurityRadiationConstantFractionTest(
   )
   model_name = 'P_in_scaled_flat_profile'
   needs_source_models = True
+  extra_source_config_kwargs = {'fraction_P_heating': 0.1}
 
   def test_source_value(self):
     heat_name = (

@@ -37,19 +37,25 @@ def get_default_source_config() -> dict[str, Any]:
         sources_dict
     )
   """
-  names = [
+  return {
       # Current sources (for psi equation)
-      'generic_current',
+      'generic_current': {},
       # Electron density sources/sink (for the n_e equation).
-      'generic_particle',
-      'gas_puff',
-      'pellet',
+      'generic_particle': {},
+      'gas_puff': {
+          'S_total': 1e22,
+          'puff_decay_length': 0.05,
+      },
+      'pellet': {
+          'S_total': 2e22,
+          'pellet_width': 0.1,
+          'pellet_deposition_location': 0.85,
+      },
       # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-      'generic_heat',
-      'fusion',
-      'ei_exchange',
+      'generic_heat': {},
+      'fusion': {},
+      'ei_exchange': {},
       # Ohmic heat source
-      'ohmic',
-      'bremsstrahlung',
-  ]
-  return {name: {} for name in names}
+      'ohmic': {},
+      'bremsstrahlung': {},
+  }
