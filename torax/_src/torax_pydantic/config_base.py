@@ -126,14 +126,31 @@ class ConfigBase(pydantic.BaseModel):
 
   @classmethod
   def from_dict(cls: type[Self], config_dict: Mapping[str, Any]) -> Self:
+    """Constructs a model instance from a dictionary of configuration values.
+
+    Args:
+      config_dict: Mapping of configuration field names to values.
+
+    Returns:
+      A validated instance of the configuration model.
+    """
     return cls.model_validate(config_dict)
 
   def to_dict(self) -> dict[str, Any]:
+    """Serializes the configuration model to a dictionary.
+
+    Returns:
+      Dictionary representation of the configuration model.
+    """
     return self.model_dump()
 
   @classmethod
   def time_invariant_fields(cls) -> tuple[str, ...]:
-    """Returns the names of the time invariant fields in the model."""
+    """Returns the names of the time invariant fields in the model.
+
+    Returns:
+      Tuple of field names annotated with `TIME_INVARIANT`.
+    """
     return tuple(
         k for k, v in cls.model_fields.items() if TIME_INVARIANT in v.metadata
     )
@@ -183,7 +200,15 @@ class ConfigBase(pydantic.BaseModel):
     return len(submodels) == len(unique_ids)
 
   def tree_build(self) -> treelib.Tree:
-    """Returns a treelib.Tree representation of a nested Pydantic model."""
+    """Returns a treelib.Tree representation of a nested Pydantic model.
+
+    Returns:
+      A `treelib.Tree` representing the hierarchy of nested `ConfigBase`
+      submodels.
+
+    Raises:
+      ValueError: If the model has non-unique (shared) submodel instances.
+    """
 
     # The tree nodes are object IDs, which also allows easy node lookup. This
     # causes problems when the user creates a Pydantic model with shared objects

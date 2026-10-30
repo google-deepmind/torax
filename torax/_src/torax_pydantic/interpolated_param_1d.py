@@ -34,6 +34,8 @@ from torax._src.torax_pydantic import pydantic_types
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass(frozen=True)
 class TimeVaryingScalarUpdate:
+  """Replacements for updating a TimeVaryingScalar under `jax.jit`."""
+
   value: jt.Float[jax.Array, 't'] | None = None
   time: jt.Float[jax.Array, 't'] | None = None
 
@@ -77,7 +79,11 @@ class TimeVaryingScalar(config_base.ConfigBase):
     return self._get_cached_interpolated_param.get_value(t)
 
   def to_time_varying_array(self) -> interpolated_param_2d.TimeVaryingArray:
-    """Creates a TimeVaryingArray with radially-constant profiles."""
+    """Creates a TimeVaryingArray with radially-constant profiles.
+
+    Returns:
+      A `TimeVaryingArray` with radially-constant values matching this scalar.
+    """
     time_varying_array_values = {}
     for time, value in zip(self.time, self.value, strict=True):
       time_varying_array_values[float(time)] = (
@@ -95,7 +101,19 @@ class TimeVaryingScalar(config_base.ConfigBase):
   def update(
       self, replacements: TimeVaryingScalarUpdate
   ) -> Self:
-    """This method can be used under `jax.jit`."""
+    """Updates the TimeVaryingScalar with new values or times under `jax.jit`.
+
+    Args:
+      replacements: A `TimeVaryingScalarUpdate` specifying replacement `value`
+        and/or `time` arrays.
+
+    Returns:
+      A new `TimeVaryingScalar` with the updated arrays.
+
+    Raises:
+      ValueError: If the replacement `value` and `time` arrays do not have the
+        same shape.
+    """
     value = replacements.value if replacements.value is not None else self.value
     time = replacements.time if replacements.time is not None else self.time
     if time.shape != value.shape:
@@ -120,6 +138,9 @@ class TimeVaryingScalar(config_base.ConfigBase):
     Constant extrapolation is applied outside the defined time range: if the
     first value is True, the interval extends back to ``-np.inf``; if the
     last value is True, the interval extends to ``+np.inf``.
+
+    Returns:
+      A list of `(start, end)` time intervals where the parameter is True.
 
     Raises:
       ValueError: If ``is_bool_param`` is False or the interpolation mode is
@@ -263,7 +284,22 @@ def scalar_bounds_validator(
     lt: float | None = None,
     le: float | None = None,
 ) -> pydantic.AfterValidator:
-  """Returns an AfterValidator that validates scalar bounds."""
+  """Returns an AfterValidator that validates scalar bounds.
+
+  Args:
+    gt: Exclusive lower bound (`value > gt`), if specified.
+    ge: Inclusive lower bound (`value >= ge`), if specified.
+    lt: Exclusive upper bound (`value < lt`), if specified.
+    le: Inclusive upper bound (`value <= le`), if specified.
+
+  Returns:
+    A `pydantic.AfterValidator` that checks the specified bounds on a
+    `TimeVaryingScalar`.
+
+  Raises:
+    ValueError: If both `gt` and `ge` are provided, or if both `lt` and `le` are
+      provided.
+  """
   if gt is not None and ge is not None:
     raise ValueError('At most one of `gt` and `ge` can be provided.')
   if lt is not None and le is not None:

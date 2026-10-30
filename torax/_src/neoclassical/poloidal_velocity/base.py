@@ -38,7 +38,14 @@ class PoloidalVelocity:
 
   @classmethod
   def zeros(cls, geometry: geometry_lib.Geometry) -> 'PoloidalVelocity':
-    """Returns a PoloidalVelocity with all values set to zero."""
+    """Returns a PoloidalVelocity with all values set to zero.
+
+    Args:
+      geometry: Torus geometry.
+
+    Returns:
+      A PoloidalVelocity instance initialized with zeros.
+    """
     v_pol = cell_variable.CellVariable(
         value=jnp.zeros_like(geometry.rho_norm),
         face_centers=geometry.rho_face_norm,
