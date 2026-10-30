@@ -342,7 +342,14 @@ class PostProcessedOutputs:
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> Self:
-    """Returns a PostProcessedOutputs with all zeros, used for initializing."""
+    """Returns a PostProcessedOutputs with all zeros, used for initializing.
+
+    Args:
+      geo: Geometry of the torus.
+
+    Returns:
+      A PostProcessedOutputs instance initialized with zeros.
+    """
     return cls(
         pprime=jnp.zeros(geo.rho_face.shape),
         W_thermal_i=jnp.array(0.0, dtype=jax_utils.get_dtype()),
@@ -458,12 +465,22 @@ class PostProcessedOutputs:
 
   @jax.jit
   def has_nan(self) -> jax.Array:
-    """Returns a boolean JAX scalar indicating whether any leaf has NaNs."""
+    """Checks if any leaf in PostProcessedOutputs contains NaNs.
+
+    Returns:
+      Boolean JAX scalar indicating whether any leaf has NaNs.
+    """
     return jnp.any(
         jnp.stack([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(self)])
     )
 
-  def check_for_errors(self):
+  def check_for_errors(self) -> state.SimError:
+    """Checks for NaNs in the post-processed outputs.
+
+    Returns:
+      SimError.NAN_DETECTED if any NaNs are present, otherwise
+      SimError.NO_ERROR.
+    """
     if self.has_nan():
       path_vals, _ = jax.tree.flatten_with_path(self)
       for path, value in path_vals:
@@ -480,7 +497,14 @@ class PostProcessedOutputs:
       self,
       context: output_grid_context.OutputGridContext,
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Converts post-processed outputs into an OutputVar mapping."""
+    """Converts post-processed outputs into an OutputVar mapping.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     out_dict: dict[str, output_grid_context.OutputVar] = {}
 
     # 1. Profiles on the face grid (FACE)
