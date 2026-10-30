@@ -108,7 +108,14 @@ class EdgeModelOutputs:
   def to_output_dict(
       self, context: output_grid_context.OutputGridContext
   ) -> dict[str, output_grid_context.OutputVar]:
-    """Returns a dictionary of standard edge output variable tuples."""
+    """Returns a dictionary of standard edge output variable tuples.
+
+    Args:
+      context: OutputGridContext used for packing output variables.
+
+    Returns:
+      Dictionary mapping output keys to OutputVar tuples.
+    """
     out_dict: dict[str, output_grid_context.OutputVar] = {}
     if self.T_e_right_bc is not None:
       out_dict[output_keys.T_E_RIGHT_BC] = context.pack(
@@ -135,7 +142,14 @@ class EdgeModelOutputs:
   def to_xr_datatree(
       self, context: output_grid_context.OutputGridContext
   ) -> xr.DataTree:
-    """Builds an xr.DataTree of the edge model outputs."""
+    """Builds an xr.DataTree of the edge model outputs.
+
+    Args:
+      context: OutputGridContext used for building the dataset.
+
+    Returns:
+      An `xr.DataTree` containing the edge model outputs.
+    """
     return xr.DataTree(
         dataset=context.build_dataset(self.to_output_dict(context))
     )
@@ -183,7 +197,20 @@ class EdgeModel(static_dataclass.StaticDataclass, abc.ABC):
       core_sources: source_profiles_lib.SourceProfiles,
       previous_edge_outputs: EdgeModelOutputs | None = None,
   ) -> EdgeModelOutputs:
-    """Evaluates the edge model at the given time."""
+    """Evaluates the edge model at the given time.
+
+    Args:
+      edge_runtime_params: Runtime parameters for the edge model.
+      runtime_params: Runtime parameters for the simulation.
+      geo: Torus geometry.
+      core_profiles: Core plasma profiles.
+      core_sources: Core plasma sources.
+      previous_edge_outputs: Outputs from the edge model at the previous time
+        step, if available.
+
+    Returns:
+      Computed `EdgeModelOutputs` for the current state.
+    """
 
 
 @dataclasses.dataclass(frozen=True, eq=False)
@@ -326,7 +353,14 @@ class EdgeModelConfig(torax_pydantic.ConfigBase):
   def build_runtime_params(
       self, t: chex.Numeric
   ) -> edge_runtime_params_lib.RuntimeParams:
-    """Builds the runtime parameters for the edge model at time t."""
+    """Builds the runtime parameters for the edge model at time t.
+
+    Args:
+      t: Simulation time at which to evaluate time-varying parameters.
+
+    Returns:
+      Runtime parameters for the edge model at time `t`.
+    """
     return edge_runtime_params_lib.RuntimeParams(
         update_T_e=self.update_T_e.get_value(t),
         update_T_i=self.update_T_i.get_value(t),
@@ -336,4 +370,8 @@ class EdgeModelConfig(torax_pydantic.ConfigBase):
 
   @abc.abstractmethod
   def build_edge_model(self) -> EdgeModel:
-    """Builds an edge model from the config."""
+    """Builds an edge model from the config.
+
+    Returns:
+      An `EdgeModel` instance constructed from this configuration.
+    """

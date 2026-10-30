@@ -82,6 +82,11 @@ __all__ = [
 
 
 def set_jax_precision():
+  """Sets the JAX precision based on the JAX_PRECISION environment variable.
+
+  Raises:
+    ValueError: If JAX_PRECISION is not 'f64' or 'f32'.
+  """
   # Default TORAX JAX precision is f64
   precision = os.getenv('JAX_PRECISION', 'f64')
   if precision not in ('f64', 'f32'):
@@ -93,6 +98,7 @@ def set_jax_precision():
 
 
 def log_jax_backend():
+  """Logs the default JAX backend being used."""
   logging.info('JAX running on a default %s backend', jax.default_backend())
 
 

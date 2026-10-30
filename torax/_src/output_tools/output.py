@@ -127,6 +127,15 @@ class StateHistory:
       sim_error: state.SimError,
       torax_config: config.ToraxConfig,
   ):
+    """Initializes StateHistory from simulation state and output histories.
+
+    Args:
+      state_history: List of simulation states across all time steps.
+      post_processed_outputs_history: Tuple of post-processed outputs across all
+        time steps.
+      sim_error: Final simulation error status.
+      torax_config: ToraxConfig used to run the simulation.
+    """
     self._sim_error = sim_error
     self._torax_config = torax_config
     self._post_processed_outputs = post_processed_outputs_history
